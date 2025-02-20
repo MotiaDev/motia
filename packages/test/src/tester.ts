@@ -1,25 +1,9 @@
-import request, { Response } from 'supertest'
-import { createServer, createStateAdapter, createStepHandlers, Event } from '@motiadev/core'
+import request from 'supertest'
+import { createServer, createStateAdapter, createStepHandlers, Event, Logger } from '@motiadev/core'
 import { generateLockedData } from 'motia/src/generate-locked-data'
 import { createEventManager } from './event-manager'
-import { CapturedEvent, RequestOptions } from './types'
+import { CapturedEvent, MotiaTester } from './types'
 import path from 'path'
-
-type Watcher<TData = unknown> = {
-  getCapturedEvents(): CapturedEvent<TData>[]
-  getLastCapturedEvent(): CapturedEvent<TData> | undefined
-  getCapturedEvent(index: number): CapturedEvent<TData> | undefined
-}
-
-interface MotiaTester {
-  post(path: string, options: RequestOptions): Promise<Response>
-  get(path: string, options: RequestOptions): Promise<Response>
-  emit(event: Event): Promise<void>
-  watch<TData>(event: string): Promise<Watcher<TData>>
-  sleep(ms: number): Promise<void>
-  close(): Promise<void>
-  waitEvents(): Promise<void>
-}
 
 export const createMotiaTester = (): MotiaTester => {
   const eventManager = createEventManager()
@@ -35,7 +19,10 @@ export const createMotiaTester = (): MotiaTester => {
     return { server, socketServer, eventManager, state, close }
   })()
 
+  const logger: Logger = new Logger('', [], '', true)
+
   return {
+    logger,
     waitEvents: async () => {
       const { eventManager } = await promise
       await eventManager.waitEvents()
