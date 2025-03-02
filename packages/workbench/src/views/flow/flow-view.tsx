@@ -64,7 +64,12 @@ export const FlowView: React.FC<Props> = ({ flow, flowConfig }) => {
   }))
 
   const saveFlowConfig = useCallback(() => {
-    return saveConfig({ steps: getNodes(), edges: getEdges() })
+    const steps = getNodes().map((node) => ({
+      name: node.data.name,
+      position: node.position,
+      type: node.data.type,
+    }))
+    return saveConfig({ steps })
   }, [saveConfig, getNodes, getEdges])
 
   const debouncedSaveConfig = useDebounced(saveFlowConfig)
