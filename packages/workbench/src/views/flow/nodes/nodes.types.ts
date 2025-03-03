@@ -44,12 +44,7 @@ export type CronNodeData = {
 }
 export type NodeData = (EventNodeData | ApiNodeData | NoopNodeData | CronNodeData) & {
   position?: { x: number; y: number }
-}
-
-export type FlowNodeData = {
-  measured?: Record<string, number>
-  position?: { x: number; y: number }
-  data: NodeData
+  filePath?: string
 }
 
 // ducplicate of packages/core/src/flows-endpoint.ts

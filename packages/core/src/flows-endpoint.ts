@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { Express } from 'express'
 import fs from 'fs'
+import path from 'path'
 import { Emit, Step } from './types'
 import { isApiStep, isEventStep, isNoopStep, isCronStep } from './guards'
 import { getStepLanguage } from './get-step-language'
@@ -36,6 +37,7 @@ type FlowStepResponse = {
   bodySchema?: unknown
   language?: string
   nodeComponentPath?: string
+  filePath?: string
   cronExpression?: string
 }
 
@@ -72,6 +74,11 @@ const getNodeComponentPath = (filePath: string): string | undefined => {
   const filePathWithoutExtension = filePath.replace(/\.[^/.]+$/, '')
   const tsxPath = filePathWithoutExtension + '.tsx'
   return fs.existsSync(tsxPath) ? tsxPath : undefined
+}
+
+const getRelativePath = (filePath: string): string => {
+  const baseDir = process.cwd()
+  return path.relative(baseDir, filePath)
 }
 
 const createEdge = (
@@ -127,11 +134,12 @@ const createEdgesForEmits = (
 const createBaseStepResponse = (
   step: Step,
   id: string,
-): Pick<FlowStepResponse, 'name' | 'description' | 'nodeComponentPath' | 'language' | 'id'> => ({
+): Pick<FlowStepResponse, 'name' | 'description' | 'nodeComponentPath' | 'language' | 'id' | 'filePath'> => ({
   id,
   name: step.config.name,
   description: step.config.description,
   nodeComponentPath: getNodeComponentPath(step.filePath),
+  filePath: getRelativePath(step.filePath),
   language: getStepLanguage(step.filePath),
 })
 

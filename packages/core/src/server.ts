@@ -13,6 +13,7 @@ import { LockedData } from './locked-data'
 import { callStepFile } from './call-step-file'
 import { LoggerFactory } from './LoggerFactory'
 import { generateTraceId } from './generate-trace-id'
+import { flowsConfigEndpoint } from './flows-config-endpoint'
 
 export type MotiaServer = {
   app: Express
@@ -137,6 +138,7 @@ export const createServer = async (
   app.use(router)
 
   flowsEndpoint(lockedData, app)
+  flowsConfigEndpoint(app, process.cwd())
 
   server.on('error', (error) => {
     console.error('Server error:', error)

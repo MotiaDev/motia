@@ -1,6 +1,6 @@
 import { Edge, Node, useEdgesState, useNodesState } from '@xyflow/react'
 import React, { useEffect, useState } from 'react'
-import type { EdgeData, FlowNodeData, NodeData } from '../nodes/nodes.types'
+import type { EdgeData, NodeData } from '../nodes/nodes.types'
 import { ApiFlowNode } from '../nodes/api-flow-node'
 import { NoopFlowNode } from '../nodes/noop-flow-node'
 import { EventFlowNode } from '../nodes/event-flow-node'
@@ -20,6 +20,7 @@ type FlowStep = {
   webhookUrl?: string
   language?: string
   nodeComponentPath?: string
+  filePath?: string
 }
 
 export type FlowResponse = {
@@ -30,8 +31,7 @@ export type FlowResponse = {
 }
 
 export type FlowConfigResponse = {
-  steps: FlowNodeData[]
-  edges: FlowEdge[]
+  [key: string]: Position
 }
 
 type FlowEdge = {
@@ -47,8 +47,8 @@ type Position = {
 }
 
 const getNodePosition = (flowConfig: FlowConfigResponse, stepName: string): Position => {
-  const configStep = flowConfig?.steps?.find((step) => step.data?.name === stepName)
-  return configStep?.position || { x: 0, y: 0 }
+  const position = flowConfig[stepName]
+  return position || { x: 0, y: 0 }
 }
 
 type FlowState = {
@@ -79,7 +79,8 @@ async function importFlow(flow: FlowResponse, flowConfig: FlowConfigResponse): P
   const nodes: Node<NodeData>[] = flow.steps.map((step) => ({
     id: step.id,
     type: step.nodeComponentPath ? step.nodeComponentPath : step.type,
-    position: getNodePosition(flowConfig, step.name),
+    filePath: step.filePath,
+    position: step.filePath ? getNodePosition(flowConfig, step.filePath) : { x: 0, y: 0 },
     data: step,
     language: step.language,
   }))

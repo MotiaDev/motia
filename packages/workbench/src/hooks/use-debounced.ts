@@ -7,9 +7,7 @@ export const useDebounced = (fn: () => void, delay = 500) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    saveTimeoutRef.current = setTimeout(() => {
-      fn();
-    }, delay);
+    saveTimeoutRef.current = setTimeout(fn, delay);
   }, [fn, delay]);
 
   useEffect(() => {
