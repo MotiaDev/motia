@@ -1,50 +1,105 @@
-# React + TypeScript + Vite
+# @motiadev/workbench
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web-based interface for building, visualizing, and managing Motia workflows.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+`@motiadev/workbench` provides a powerful visual interface for Motia workflows, offering:
 
-## Expanding the ESLint configuration
+- Flow visualization with interactive diagrams
+- Real-time log monitoring
+- State inspection and management
+- API testing capabilities
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## Installation
 
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+npm install @motiadev/workbench
+# or
+yarn add @motiadev/workbench
+# or
+pnpm add @motiadev/workbench
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+## Usage
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+The Workbench is automatically integrated when you run a Motia project in development mode:
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+```bash
+npx motia dev
 ```
+
+This starts the development server and makes the Workbench available at `http://localhost:3000` by default.
+
+## Features
+
+### Flow Visualization
+
+Visualize your workflows as interactive diagrams, showing the connections between steps and the flow of events through your application.
+
+### Log Monitoring
+
+Monitor logs in real-time with filtering capabilities, log level indicators, and detailed log inspection.
+
+### State Management
+
+Inspect and manage application state, with support for viewing complex nested objects and state changes over time.
+
+### API Testing
+
+Test API endpoints directly from the Workbench interface, with support for different HTTP methods and request bodies.
+
+## Components
+
+The package exports several components that can be used to customize the visualization of your workflows:
+
+```typescript
+import { 
+  EventNode, 
+  ApiNode, 
+  NoopNode, 
+  BaseNode, 
+  BaseHandle 
+} from '@motiadev/workbench'
+```
+
+### Node Components
+
+- `EventNode`: Visualizes event-based steps
+- `ApiNode`: Visualizes API endpoint steps
+- `NoopNode`: A placeholder node with no specific functionality
+- `BaseNode`: Base component for creating custom node types
+- `BaseHandle`: Connection point component for nodes
+
+## Customization
+
+You can customize the appearance and behavior of the Workbench by creating custom node components:
+
+```typescript
+import { BaseNode, Position } from '@motiadev/workbench'
+
+export const CustomNode = ({ data, ...props }) => {
+  return (
+    <BaseNode 
+      {...props} 
+      title="Custom Node" 
+      color="#8B5CF6"
+    >
+      <div className="p-4">
+        {data.customContent}
+      </div>
+    </BaseNode>
+  )
+}
+```
+
+## Technical Details
+
+- Built with React and TypeScript
+- Uses [XY Flow](https://xyflow.com/) for flow visualization
+- Styled with Tailwind CSS and shadcn/ui components
+- Supports real-time updates via WebSockets
+
+## License
+
+This package is part of the Motia framework and is licensed under the same terms.

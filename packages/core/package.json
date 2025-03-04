@@ -1,5 +1,6 @@
 {
   "name": "@motiadev/core",
+  "description": "Core functionality for the Motia framework, providing the foundation for building event-driven workflows.",
   "main": "dist/index.js",
   "version": "0.1.0-alpha.5",
   "scripts": {
