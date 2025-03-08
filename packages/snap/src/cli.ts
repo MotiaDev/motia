@@ -12,6 +12,19 @@ require('ts-node').register({
   compilerOptions: { module: 'commonjs' },
 })
 
+const packageJsonPath = path.resolve(__dirname, '..', '..', 'package.json')
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+
+program
+  .version(packageJson.version, '-v, --version', 'Output the current version')
+
+program
+  .command('version')
+  .description('Display detailed version information')
+  .action(() => {
+    console.log(`Motia CLI v${packageJson.version}`)
+  })
+
 program
   .command('create')
   .description('Create a new motia project')
@@ -59,6 +72,22 @@ program
   .action(async () => {
     const { build } = require('./builder/build')
     await build()
+  })
+
+program
+  .command('deploy')
+  .description('Deploy the project to the Motia deployment service')
+  .requiredOption('-k, --api-key <key>', 'The API key for authentication')
+  .option('-e, --env <environment>', 'The environment to deploy to', 'dev')
+  .option('-v, --version <version>', 'The version to deploy', 'latest')
+  .action(async (arg) => {
+    try {
+      const { deploy } = require('./deploy/deploy')
+      await deploy(arg.apiKey, process.cwd(), arg.env, arg.version)
+    } catch (error) {
+      console.error('❌ Deployment failed:', error)
+      process.exit(1)
+    }
   })
 
 program

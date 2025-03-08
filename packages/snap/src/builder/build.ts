@@ -16,6 +16,7 @@ class Builder {
   public readonly printer: BuildPrinter
   public readonly distDir: string
   public readonly stepsConfig: Record<string, { type: StepType; entrypointPath: string; config: StepConfig }>
+  public modulegraphInstalled: boolean = false
 
   constructor(public readonly projectDir: string) {
     this.distDir = path.join(projectDir, 'dist')
@@ -30,6 +31,24 @@ class Builder {
       config: args.step.config,
     }
   }
+}
+
+const installModulegraph = async (builder: Builder): Promise<void> => {
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn('python', ['-m', 'pip', 'install', 'modulegraph'], {
+      cwd: builder.projectDir,
+      stdio: 'pipe',
+    })
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error('Failed to install modulegraph'))
+      } else {
+        builder.modulegraphInstalled = true
+        resolve()
+      }
+    })
+  })
 }
 
 const buildPython = async (step: Step, builder: Builder) => {
@@ -60,10 +79,16 @@ const buildPython = async (step: Step, builder: Builder) => {
         })
       })
 
+      let errorOutput = ''
+      child.stderr?.on('data', (data) => {
+        errorOutput += data.toString()
+      })
+
       child.on('close', (code) => {
         if (code !== 0) {
-          builder.printer.printStepFailed(step, new Error('Python builder failed'))
-          return reject(new Error('Python builder failed'))
+          const errorMessage = `Python builder failed with exit code ${code}. Error output: ${errorOutput}`
+          builder.printer.printStepFailed(step, new Error(errorMessage))
+          return reject(new Error(errorMessage))
         }
 
         builder.printer.printStepBuilt(step)
@@ -140,7 +165,11 @@ export const build = async (): Promise<void> => {
     } else if (step.filePath.endsWith('.ts') || step.filePath.endsWith('.js')) {
       return promises.push(buildNode(step, builder))
     } else if (step.filePath.endsWith('.py')) {
-      return promises.push(buildPython(step, builder))
+      const setupPromise = !builder.modulegraphInstalled 
+        ? installModulegraph(builder)
+        : Promise.resolve()
+        
+      setupPromise.then(() => promises.push(buildPython(step, builder)))
     } else {
       return builder.printer.printStepSkipped(step, 'File not supported')
     }
