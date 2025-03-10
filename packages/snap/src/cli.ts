@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/no-require-imports */
-import { program } from 'commander'
+import { program, Option } from 'commander'
 import path from 'path'
 import fs from 'fs'
 
@@ -78,7 +78,11 @@ program
   .command('deploy')
   .description('Deploy the project to the Motia deployment service')
   .requiredOption('-k, --api-key <key>', 'The API key for authentication')
-  .option('-e, --env <environment>', 'The environment to deploy to', 'dev')
+  .addOption(
+    new Option('-e, --env <environment>', 'The environment to deploy to')
+      .default('dev')
+      .choices(['dev', 'staging', 'production']),
+  )
   .option('-v, --version <version>', 'The version to deploy', 'latest')
   .action(async (arg) => {
     try {
