@@ -33,6 +33,45 @@ Print the list of available project templates.
 npx motia templates
 ```
 
+### `build`
+
+Build your project, generating zip files for each step and creating a configuration file.
+
+```bash
+npx motia build
+```
+
+This command:
+1. Compiles all your steps (both Node.js and Python)
+2. Bundles each step into a zip file
+3. Generates a `motia.steps.json` configuration file in the `dist` directory
+4. Organizes the output in the `dist` directory
+
+### `deploy`
+
+Deploy your built steps to the Motia deployment service.
+
+```bash
+npx motia deploy [options]
+```
+
+Options:
+- `-k, --api-key <key>` (required): Your API key for authentication
+- `-e, --env <environment>`: The environment to deploy to (default: `dev`)
+- `-v, --version <version>`: The version to deploy (default: `latest`)
+
+Example:
+```bash
+npx motia deploy --api-key your-api-key-here --env production --version 1.0.0
+```
+
+The deployment process:
+1. Uploads each zip file individually with its path information
+2. Uploads the steps configuration from `motia.steps.json`
+3. Starts the deployment process on the server
+4. Generates deployment results in `dist/motia.deployments.json`
+5. Creates a human-readable summary in `dist/motia.deployments.summary.json`
+
 ### `dev`
 
 Start the development server.
@@ -96,7 +135,6 @@ List the current file state.
 ```bash
 npx motia state list
 ```
-
 ## Debugging
 
 You can enable debug logging by passing the `-d` or `--debug` flag to the `dev` command:
