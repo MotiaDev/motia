@@ -6,6 +6,7 @@
     "logging-and-debugging",
     "state-management",
     "cli",
+    "deployment",
     "testing"
   ]
 }

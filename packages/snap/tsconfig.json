@@ -12,7 +12,10 @@
     "outDir": "dist/cjs",
     "rootDir": "src",
     "baseUrl": ".",
-    "declaration": true
+    "declaration": true,
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "jsx": "react-jsx",
