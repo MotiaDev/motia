@@ -7,23 +7,7 @@ import { logger } from './logger'
 import { errorHandler, FailedUpload } from './error-handler'
 
 export class DeploymentManager {
-  static loadDeploymentConfig(
-    apiKey: string,
-    environment: string = 'dev', 
-    version: string = 'latest'
-  ): DeploymentConfig {
-    if (!apiKey) {
-      throw new Error('API key is required for deployment. Please provide an API key.')
-    }
-    
-    return {
-      apiKey,
-      environment,
-      version
-    }
-  }
-
-  static async deploy(
+  async deploy(
     apiKey: string,
     projectDir: string = process.cwd(),
     environment: string = 'dev',
@@ -51,7 +35,12 @@ export class DeploymentManager {
     logger.foundZipFiles(zipFiles.length)
     
     try {
-      const deploymentConfig = this.loadDeploymentConfig(apiKey, environment, version)
+      const deploymentConfig: DeploymentConfig = {
+        apiKey,
+        environment,
+        version
+      }
+      
       logger.deployingToEnvironment(environment, version)
       
       const flowGroups = FileService.groupStepsByFlow(zipFiles)
@@ -142,8 +131,8 @@ export class DeploymentManager {
         stepName: result.stepName,
         stepPath: stepsConfig[result.bundlePath]?.entrypointPath,
         flowName: stepsConfig[result.bundlePath]?.config?.flows?.[0] || 'unknown',
-        environment: deploymentConfig.environment,
-        version: deploymentConfig.version,
+        environment: environment,
+        version: version,
         error: result.error,
         success: result.success
       }))
@@ -153,8 +142,8 @@ export class DeploymentManager {
         deploymentResults,
         zipFiles,
         flowGroups,
-        deploymentConfig.environment,
-        deploymentConfig.version
+        environment,
+        version
       )
       
       logger.deploymentCompleted()
@@ -165,7 +154,3 @@ export class DeploymentManager {
     }
   }
 }
-
-// Export functions for backward compatibility
-export const loadDeploymentConfig = DeploymentManager.loadDeploymentConfig
-export const deploy = DeploymentManager.deploy

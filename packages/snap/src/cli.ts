@@ -86,8 +86,12 @@ program
   .option('-v, --version <version>', 'The version to deploy', 'latest')
   .action(async (arg) => {
     try {
-      const { deploy } = require('./deploy/deploy')
-      await deploy(arg.apiKey, process.cwd(), arg.env, arg.version)
+      const { build } = require('./builder/build')
+      await build()
+
+      const { DeploymentManager } = require('./deploy/deploy')
+      const deploymentManager = new DeploymentManager()
+      await deploymentManager.deploy(arg.apiKey, process.cwd(), arg.env, arg.version)
     } catch (error) {
       console.error('❌ Deployment failed:', error)
       process.exit(1)
