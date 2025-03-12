@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/no-require-imports */
-import { program } from 'commander'
+import { program, Option } from 'commander'
 import path from 'path'
 import fs from 'fs'
 
@@ -11,6 +11,19 @@ require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
 })
+
+const packageJsonPath = path.resolve(__dirname, '..', '..', 'package.json')
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+
+program
+  .version(packageJson.version, '-v, --version', 'Output the current version')
+
+program
+  .command('version')
+  .description('Display detailed version information')
+  .action(() => {
+    console.log(`Motia CLI v${packageJson.version}`)
+  })
 
 program
   .command('create')
@@ -59,6 +72,30 @@ program
   .action(async () => {
     const { build } = require('./builder/build')
     await build()
+  })
+
+program
+  .command('deploy')
+  .description('Deploy the project to the Motia deployment service')
+  .requiredOption('-k, --api-key <key>', 'The API key for authentication')
+  .addOption(
+    new Option('-e, --env <environment>', 'The environment to deploy to')
+      .default('dev')
+      .choices(['dev', 'staging', 'production']),
+  )
+  .option('-v, --version <version>', 'The version to deploy', 'latest')
+  .action(async (arg) => {
+    try {
+      const { build } = require('./builder/build')
+      await build()
+
+      const { DeploymentManager } = require('./deploy/deploy')
+      const deploymentManager = new DeploymentManager()
+      await deploymentManager.deploy(arg.apiKey, process.cwd(), arg.env, arg.version)
+    } catch (error) {
+      console.error('❌ Deployment failed:', error)
+      process.exit(1)
+    }
   })
 
 program

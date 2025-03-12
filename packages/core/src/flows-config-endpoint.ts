@@ -45,6 +45,9 @@ export const flowsConfigEndpoint = (app: Express, baseDir: string) => {
     const { id } = req.params
 
     try {
+      if (!fs.existsSync(configPath)) {
+        fs.writeFileSync(configPath, JSON.stringify({}, null, 2))
+      }
       const file = fs.readFileSync(configPath, 'utf8')
       const allFlowsConfig = JSON.parse(file)
       const flowConfig = allFlowsConfig[id] || {}
