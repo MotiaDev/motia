@@ -1,19 +1,20 @@
 import { CronManager, setupCronHandlers } from './cron-handler'
 import bodyParser from 'body-parser'
-import express, { Express, Request, Response } from 'express'
+import express, { Express, Request, Response, RequestHandler } from 'express'
 import http from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 import { flowsEndpoint } from './flows-endpoint'
 import { isApiStep } from './guards'
-import { globalLogger } from './logger'
+import { globalLogger, Logger } from './logger'
 import { StateAdapter } from './state/state-adapter'
-import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EventManager, Step } from './types'
+import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, EventManager, Step } from './types'
 import { systemSteps } from './steps'
 import { LockedData } from './locked-data'
 import { callStepFile } from './call-step-file'
 import { LoggerFactory } from './LoggerFactory'
 import { generateTraceId } from './generate-trace-id'
 import { flowsConfigEndpoint } from './flows-config-endpoint'
+import composeMiddleware from './middleware-composer'
 
 export type MotiaServer = {
   app: Express
@@ -44,11 +45,11 @@ export const createServer = async (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const cronManager = setupCronHandlers(lockedData, eventManager, state, loggerFactory)
 
-  const asyncHandler = (step: Step<ApiRouteConfig>) => {
+  const asyncHandler = (step: Step<ApiRouteConfig>): RequestHandler => {
     return async (req: Request, res: Response) => {
       const traceId = generateTraceId()
       const { name: stepName, flows } = step.config
-      const logger = loggerFactory.create({ traceId, flows, stepName })
+      const logger = loggerFactory.create({ traceId, flows, stepName }) as Logger
 
       logger.debug('[API] Received request, processing step', { path: req.path })
 
@@ -59,23 +60,49 @@ export const createServer = async (
         queryParams: req.query as Record<string, string | string[]>,
       }
 
-      try {
-        const data = request
-        const result = await callStepFile<ApiResponse>({
-          contextInFirstArg: false,
-          data,
-          step,
-          printer,
-          logger,
-          eventManager,
-          state,
-          traceId,
-        })
+      const ctx = {
+        emit: async (event: EmitData) => {
+          await eventManager.emit({
+            topic: event.topic,
+            data: event.data,
+            traceId,
+            logger,
+          })
+        },
+        traceId,
+        state,
+        logger,
+      }
 
-        if (!result) {
-          res.status(500).json({ error: 'Internal server error' })
-          return
+      const finalHandler = async (): Promise<ApiResponse> => {
+        try {
+          const result = await callStepFile<ApiResponse>({
+            contextInFirstArg: false,
+            data: request,
+            step,
+            printer,
+            logger,
+            eventManager,
+            state,
+            traceId,
+          })
+
+          if (!result) {
+            return { status: 500, body: { error: 'Internal server error' } }
+          }
+
+          return result
+        } catch (error) {
+          logger.error('[API] Internal server error', { error })
+          console.log(error)
+          return { status: 500, body: { error: 'Internal server error' } }
         }
+      }
+
+      try {
+        const middleware = step.config.middleware || []
+
+        const result = await composeMiddleware(...middleware)(request, ctx, finalHandler)
 
         if (result.headers) {
           Object.entries(result.headers).forEach(([key, value]) => res.setHeader(key, value))
@@ -84,8 +111,7 @@ export const createServer = async (
         res.status(result.status)
         res.json(result.body)
       } catch (error) {
-        logger.error('[API] Internal server error', { error })
-        console.log(error)
+        logger.error('[API] Error in middleware chain', { error })
         res.status(500).json({ error: 'Internal server error' })
       }
     }
@@ -100,15 +126,16 @@ export const createServer = async (
     const { method, path } = step.config
     globalLogger.debug('[API] Registering route', step.config)
 
-    const handler = asyncHandler(step)
+    const expressHandler = asyncHandler(step)
+
     const methods: Record<ApiRouteMethod, () => void> = {
-      GET: () => router.get(path, handler),
-      POST: () => router.post(path, handler),
-      PUT: () => router.put(path, handler),
-      DELETE: () => router.delete(path, handler),
-      PATCH: () => router.patch(path, handler),
-      OPTIONS: () => router.options(path, handler),
-      HEAD: () => router.head(path, handler),
+      GET: () => router.get(path, expressHandler),
+      POST: () => router.post(path, expressHandler),
+      PUT: () => router.put(path, expressHandler),
+      DELETE: () => router.delete(path, expressHandler),
+      PATCH: () => router.patch(path, expressHandler),
+      OPTIONS: () => router.options(path, expressHandler),
+      HEAD: () => router.head(path, expressHandler),
     }
 
     const methodHandler = methods[method]

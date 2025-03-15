@@ -23,10 +23,180 @@ The following properties are specific to the API Step, in addition to the [commo
         'In TS/JS we use zod to validate the request body, in Python/Ruby we use json schema to validate the request body.',
       type: 'JSON Schema',
     },
+    middleware: {
+      description:
+        'An array of middleware functions to be applied to the request before it reaches the handler. Middleware functions can perform tasks like authentication, logging, rate limiting, etc.',
+      type: 'ApiMiddleware[]',
+    },
   }}
 />
 
 The following examples showcase how to configure an **API Step**
+
+## Using Middleware
+
+API Steps support middleware functions that can be applied to requests before they reach your handler. Middleware functions are completely framework-agnostic and can perform tasks such as:
+
+- Authentication and authorization
+- Request logging
+- Rate limiting
+- CORS handling
+- Request validation
+- Response transformation
+
+### Middleware Function Signature
+
+```typescript
+type ApiMiddleware = (
+  req: ApiRequest, 
+  ctx: FlowContext, 
+  next: () => Promise<ApiResponse>
+) => Promise<ApiResponse>
+```
+
+Middleware functions receive:
+
+- `req`: The API request object with body, headers, pathParams, and queryParams
+- `ctx`: The flow context with logger, state, emit, and traceId
+- `next`: A function to call the next middleware or handler in the chain
+  - Call `next()` to continue to the next middleware or handler
+  - The return value of `next()` is the response from the next middleware or handler
+  - You can modify this response before returning it
+
+### Example Middleware Usage
+
+```typescript
+import { ApiMiddleware } from 'motia'
+
+// Logging middleware
+const loggingMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  ctx.logger.info('Request received', { path: req.pathParams })
+  const start = Date.now()
+  
+  // Call the next middleware and get its response
+  const response = await next()
+  
+  const duration = Date.now() - start
+  ctx.logger.info('Request completed', { duration, status: response.status })
+  
+  return response
+}
+
+// Authentication middleware
+const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  const authHeader = req.headers.authorization
+  
+  if (!authHeader) {
+    // Return early without calling next()
+    return {
+      status: 401,
+      body: { error: 'Unauthorized' }
+    }
+  }
+  
+  // Continue to the next middleware
+  return next()
+}
+
+export const config = {
+  type: 'api',
+  name: 'protected-endpoint',
+  path: '/api/protected',
+  method: 'POST',
+  emits: ['USER_ACTION'],
+  middleware: [
+    loggingMiddleware,
+    authMiddleware
+  ]
+}
+
+export const handler = async (req, ctx) => {
+  // This handler will only be called if all middleware pass
+  return {
+    status: 200,
+    body: { message: 'Protected data accessed successfully' }
+  }
+}
+```
+
+### Creating Custom Middleware
+
+You can create your own middleware functions:
+
+```typescript
+import { ApiMiddleware } from 'motia'
+
+// Request modification middleware
+const requestModifierMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  // Modify the request before passing it to the next middleware
+  req.headers['x-modified-by'] = 'middleware'
+  req.body.timestamp = Date.now()
+  
+  // Call the next middleware in the chain
+  return next()
+}
+
+// Response modification middleware
+const responseModifierMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  // Call the next middleware in the chain
+  const response = await next()
+  
+  // Modify the response before returning it
+  response.headers = {
+    ...response.headers,
+    'x-powered-by': 'Motia',
+  }
+  
+  return response
+}
+
+// Error handling middleware
+const errorHandlingMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  try {
+    // Call the next middleware in the chain
+    return await next()
+  } catch (error) {
+    ctx.logger.error('Error in handler', { error })
+    return {
+      status: 500,
+      body: { error: 'Internal server error' }
+    }
+  }
+}
+
+// Rate limiter middleware with state
+const rateLimiterMiddleware: ApiMiddleware = (() => {
+  // Closure to maintain state between requests
+  const requests: Record<string, number[]> = {}
+  const limit = 100
+  const windowMs = 60000 // 1 minute
+  
+  return async (req, ctx, next) => {
+    const ip = req.headers['x-forwarded-for'] || 'unknown-ip'
+    const ipStr = Array.isArray(ip) ? ip[0] : ip
+    
+    const now = Date.now()
+    if (!requests[ipStr]) {
+      requests[ipStr] = []
+    }
+    
+    // Remove old requests outside the time window
+    requests[ipStr] = requests[ipStr].filter(time => now - time < windowMs)
+    
+    if (requests[ipStr].length >= limit) {
+      return {
+        status: 429,
+        body: { error: 'Too many requests, please try again later' }
+      }
+    }
+    
+    // Add current request
+    requests[ipStr].push(now)
+    
+    return next()
+  }
+})()
+```
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python', 'Ruby']}>
   <Tab value="TypeScript">
