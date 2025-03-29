@@ -53,6 +53,7 @@ program
   .option('-p, --port <port>', 'The port to run the server on', `${defaultPort}`)
   .option('-v, --verbose', 'Enable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
+  .option('-m, --mermaid', 'Enable mermaid diagram generation')
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')
@@ -61,7 +62,7 @@ program
 
     const port = arg.port ? parseInt(arg.port) : defaultPort
     const { dev } = require('./dev')
-    await dev(port, arg.verbose)
+    await dev(port, arg.verbose, arg.mermaid)
   })
 
 program

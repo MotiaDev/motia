@@ -19,7 +19,7 @@ require('ts-node').register({
   compilerOptions: { module: 'commonjs' },
 })
 
-export const dev = async (port: number, isVerbose: boolean): Promise<void> => {
+export const dev = async (port: number, isVerbose: boolean, enableMermaid: boolean): Promise<void> => {
   const baseDir = process.cwd()
   const lockedData = await generateLockedData(baseDir)
   const eventManager = createEventManager()
@@ -35,8 +35,10 @@ export const dev = async (port: number, isVerbose: boolean): Promise<void> => {
   const watcher = createDevWatchers(lockedData, motiaServer, motiaEventManager, motiaServer.cronManager)
 
   // Initialize mermaid generator
-  const mermaidGenerator = createMermaidGenerator(baseDir)
-  mermaidGenerator.initialize(lockedData)
+  if (enableMermaid) {
+    const mermaidGenerator = createMermaidGenerator(baseDir)
+    mermaidGenerator.initialize(lockedData)
+  }
 
   watcher.init()
 
