@@ -1,20 +1,24 @@
-import './global.css'
-import './fonts.css'
-import { RootProvider } from 'fumadocs-ui/provider'
-import { Inter, DM_Mono, DM_Sans } from 'next/font/google'
-import Script from 'next/script'
-import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
-import { Analytics } from '@vercel/analytics/react'
-import { RouteTracker } from './utils/RouteTracker'
-import { GoogleTagManager } from '@next/third-parties/google'
+import { DM_Mono, Geist } from 'next/font/google'
+import localFont from 'next/font/local'
+import './globals.css'
+import { RootProvider } from 'fumadocs-ui/provider'
 import type { WithContext, Organization } from 'schema-dts'
+import { DOMAIN_URL } from '@/utils/constants'
 
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID ?? 'GTM-P6672CSW'
+const tasaExplorer = localFont({
+  src: [
+    {
+      path: '../public/fonts/TASA/TASAExplorer.woff2',
+    },
+  ],
+  variable: '--font-tasa',
+  display: 'swap',
+})
 
-const inter = Inter({
+const geistSans = Geist({
+  variable: '--font-geist-sans',
   subsets: ['latin'],
-  variable: '--font-inter',
 })
 
 const dmMono = DM_Mono({
@@ -23,42 +27,47 @@ const dmMono = DM_Mono({
   variable: '--font-dm-mono',
 })
 
-const dmSans = DM_Sans({
-  weight: ['400', '500'],
-  subsets: ['latin'],
-  variable: '--font-dm-sans',
-})
-
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID ?? 'GTM-P6672CSW'
 const SLACK_APP_ID = process.env.NEXT_PUBLIC_SLACK_APP_ID ?? 'YOUR_SLACK_APP_ID'
 const YANDEX_VERIFICATION = process.env.NEXT_PUBLIC_YANDEX_VERIFICATION ?? 'YOUR_YANDEX_VERIFICATION'
 const BING_VERIFICATION = process.env.NEXT_PUBLIC_BING_VERIFICATION ?? 'YOUR_BING_VERIFICATION'
 const GOOGLE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION ?? 'YOUR_GOOGLE_VERIFICATION'
 
+const metaTitle = 'Motia - AI Agent Framework for Software Engineering Teams'
+const metaDescription =
+  'Multi-language cloud functions runtime for API endpoints, background jobs, and agentic workflows using Motia Steps. Preview them in the Workbench, ship to zero-config infrastructure, and monitor in the Cloud.'
+const ogImagePath = '/public/og-image.webp'
+const hostedImagePath = DOMAIN_URL + ogImagePath
 export const metadata: Metadata = {
   title: {
     template: '%s | motia',
-    default: 'Motia - AI Agent Framework for Software Engineering Teams',
+    default: metaTitle,
   },
-  description:
-    'Write in any language. Automate anything. From AI agents to backend automation, motia runs event-driven workflows with zero overhead.',
-  keywords: ['AI', 'automation', 'event-driven workflows', 'software engineering', 'backend automation', 'developer tools'],
+  description: metaDescription,
+  keywords: [
+    'AI',
+    'automation',
+    'event-driven workflows',
+    'software engineering',
+    'backend automation',
+    'developer tools',
+  ],
   metadataBase: new URL('https://motia.dev'),
 
   // Standard OpenGraph
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://motia.dev',
+    url: DOMAIN_URL,
     siteName: 'motia',
-    title: 'Motia - AI Agent Framework for Software Engineering Teams',
-    description:
-      'Write in any language. Automate anything. From AI agents to backend automation, motia runs event-driven workflows with zero overhead.',
+    title: metaTitle,
+    description: metaDescription,
     images: [
       {
-        url: '/og-image.png',
+        url: ogImagePath,
         width: 1200,
         height: 630,
-        alt: 'Motia - AI Agent Framework for Software Engineering Teams',
+        alt: metaTitle,
       },
     ],
   },
@@ -68,15 +77,14 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     site: '@motiadev',
     creator: '@motiadev',
-    title: 'Motia - AI Agent Framework for Software Engineering Teams',
-    description:
-      'Write in any language. Automate anything. From AI agents to backend automation, motia runs event-driven workflows with zero overhead.',
-    images: ['/og-image.png'],
+    title: metaTitle,
+    description: metaDescription,
+    images: [ogImagePath],
   },
 
   // Icons and PWA
   icons: {
-    icon: [{ url: '/favicon.ico' }, { url: '/icon.png', type: 'image/png' }],
+    icon: [{ url: '/app/favicon.ico' }, { url: '/icon.png', type: 'image/png' }],
     apple: [{ url: '/apple-icon.png', type: 'image/png' }],
     other: [
       {
@@ -90,27 +98,24 @@ export const metadata: Metadata = {
   // Additional metadata
   other: {
     // Twitter alt text
-    'twitter:image:alt': 'Motia - AI Agent Framework for Software Engineering Teams',
+    'twitter:image:alt': metaTitle,
 
     // Instagram
     'instagram:card': 'summary_large_image',
-    'instagram:title': 'Motia - AI Agent Framework for Software Engineering Teams',
-    'instagram:description':
-      'Write in any language. Automate anything. From AI agents to backend automation, motia runs event-driven workflows with zero overhead.',
+    'instagram:title': metaTitle,
+    'instagram:description': metaDescription,
     'instagram:image': 'https://motia.dev/og-image.png',
 
     // Reddit
-    'reddit:title': 'Motia - AI Agent Framework for Software Engineering Teams',
-    'reddit:description':
-      'Write in any language. Automate anything. From AI agents to backend automation, motia runs event-driven workflows with zero overhead.',
-    'reddit:image': 'https://motia.dev/og-image.png',
+    'reddit:title': metaTitle,
+    'reddit:description': metaDescription,
+    'reddit:image': hostedImagePath,
 
     // LinkedIn
     'linkedin:card': 'summary_large_image',
-    'linkedin:title': 'Motia - AI Agent Framework for Software Engineering Teams',
-    'linkedin:description':
-      'Write in any language. Automate anything. From AI agents to backend automation, motia runs event-driven workflows with zero overhead.',
-    'linkedin:image': 'https://motia.dev/og-image.png',
+    'linkedin:title': metaTitle,
+    'linkedin:description': metaDescription,
+    'linkedin:image': hostedImagePath,
 
     // Slack
     'slack-app-id': SLACK_APP_ID,
@@ -132,7 +137,7 @@ export const metadata: Metadata = {
     'bing-verification': BING_VERIFICATION,
 
     // Canonical URL (important for SEO)
-    canonical: 'https://motia.dev',
+    canonical: DOMAIN_URL,
   },
 
   // Robots
@@ -159,47 +164,22 @@ const structuredData: WithContext<Organization> = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Motia',
-  url: 'https://motia.dev',
+  url: DOMAIN_URL,
   logo: 'https://motia.dev/logos/logo-black.svg',
-  sameAs: [
-    'https://twitter.com/motiadev',
-    'https://github.com/MotiaDev/motia',
-    'https://discord.gg/nJFfsH5d6v',
-  ],
+  sameAs: ['https://twitter.com/motiadev', 'https://github.com/MotiaDev/motia', 'https://discord.gg/nJFfsH5d6v'],
 }
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmMono.variable} ${dmSans.variable}`} suppressHydrationWarning>
-      <head>
-        <GoogleTagManager gtmId={GTM_ID} />
-        <Script src="https://buttons.github.io/buttons.js" strategy="afterInteractive" async defer />
-        <Script src="/twitter-pixel.js" id="twitter-pixel" strategy="lazyOnload" />
-        <Script
-          id="structured-data"
-          type="application/ld+json"
-          strategy="lazyOnload"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
-      </head>
+    <html lang="en" suppressHydrationWarning>
       <body
-        className="flex flex-col h-full min-h-dvh w-dvw landscape:min-h-screen landscape:h-full landscape:w-full p-0 m-0 gap-0"
-        suppressHydrationWarning
+        className={`${geistSans.variable} ${dmMono.variable} ${tasaExplorer.variable} w-screen overflow-x-hidden antialiased`}
       >
-        <noscript>
-          <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-P6672CSW"
-            height="0"
-            width="0"
-            style={{ display: 'none', visibility: 'hidden' }}
-          ></iframe>
-        </noscript>
-
-        <RootProvider>
-          {children}
-          <Analytics />
-          <RouteTracker />
-        </RootProvider>
+        <RootProvider>{children}</RootProvider>
       </body>
     </html>
   )

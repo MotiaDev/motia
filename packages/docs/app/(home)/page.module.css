@@ -1,9 +1,0 @@
-.container {
-    background: linear-gradient(180deg, #0E002D 0%, #2F0093 27.82%);
-}
-
-.firstSection {
-    @media (min-width: 768px) {
-        min-height: 40rem;
-    }
-}

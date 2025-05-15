@@ -1,19 +1,19 @@
-'use client';
+'use client'
 
-import type { ReactNode } from 'react';
+import type { ReactNode } from 'react'
 
 interface ObjectType {
   /**
    * Additional description of the field
    */
-  description?: ReactNode;
-  type: string;
+  description?: ReactNode
+  type: string
 }
 
 export function DescriptionTable({ type }: { type: Record<string, ObjectType> }) {
   return (
-    <div className="prose my-6 overflow-hidden prose-no-margin">
-      <table className="whitespace-nowrap text-sm text-fd-muted-foreground table-fixed">
+    <div className="prose prose-no-margin my-6 overflow-hidden">
+      <table className="text-fd-muted-foreground table-fixed text-sm whitespace-nowrap">
         <thead>
           <tr>
             <th className="w-[20%]">Prop</th>
@@ -25,22 +25,24 @@ export function DescriptionTable({ type }: { type: Record<string, ObjectType> })
           {Object.entries(type).map(([key, value]) => (
             <tr key={key}>
               <td>
-                <div className="'inline-flex flex-row items-center gap-1'">
-                  <label className="p-1 text-fd-primary font-bold">{key}</label>
+                <div className="'inline-flex gap-1' flex-row items-center">
+                  <label className="text-fd-primary p-1 font-bold">{key}</label>
                 </div>
               </td>
               <td>
-                <div className="'inline-flex flex-row items-center gap-1'">
-                  <code className="rounded-md bg-fd-secondary p-1 text-fd-secondary-foreground">{value.type}</code>
+                <div className="'inline-flex gap-1' flex-row items-center">
+                  <code className="bg-fd-secondary text-fd-secondary-foreground rounded-md p-1">{value.type}</code>
                 </div>
               </td>
               <td>
-                <div className="p-1 m-0 text-fd-secondary-foreground break-words whitespace-break-spaces">{value.description ?? ''}</div>
+                <div className="text-fd-secondary-foreground m-0 p-1 break-words whitespace-break-spaces">
+                  {value.description ?? ''}
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  );
+  )
 }

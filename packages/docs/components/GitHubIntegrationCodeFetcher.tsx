@@ -1,6 +1,6 @@
 'use client'
 
-import { useGitHubCode } from '../hooks/useGitHubCode'
+import { useGitHubCode } from '@/hooks/useGitHubCode'
 import { CodeDisplay, LoadingSkeleton, ErrorDisplay } from './ui/CodeDisplay'
 import { Tab } from 'fumadocs-ui/components/tabs'
 
@@ -18,11 +18,11 @@ export const GitHubWorkflowTab = ({ value, tab, folder }: GitHubWorkflowTabProps
   const folderPath = folder ? `${folder}/` : ''
   const fileName = `${value}.step.ts`
   const filePath = `${BASE_PATH}/${folderPath}${fileName}`
-  
+
   const { code, loading, error } = useGitHubCode({
     repo: REPO,
     path: filePath,
-    branch: BRANCH
+    branch: BRANCH,
   })
 
   if (loading) {
@@ -39,23 +39,20 @@ export const GitHubWorkflowTab = ({ value, tab, folder }: GitHubWorkflowTabProps
 
   return (
     <Tab value={tab} className="p-0">
-      <CodeDisplay 
-        code={code} 
-        language="typescript"
-      />
+      <CodeDisplay code={code} language="typescript" />
     </Tab>
   )
 }
 
-export const GitHubWorkflowCodeContent = ({ value, folder }: { value: string, folder?: string }) => {
+export const GitHubWorkflowCodeContent = ({ value, folder }: { value: string; folder?: string }) => {
   const folderPath = folder ? `${folder}/` : ''
   const fileName = `${value}.step.ts`
   const filePath = `${BASE_PATH}/${folderPath}${fileName}`
-  
+
   const { code, loading, error } = useGitHubCode({
     repo: REPO,
     path: filePath,
-    branch: BRANCH
+    branch: BRANCH,
   })
 
   if (loading) {
@@ -66,10 +63,5 @@ export const GitHubWorkflowCodeContent = ({ value, folder }: { value: string, fo
     return <ErrorDisplay message={error} />
   }
 
-  return (
-    <CodeDisplay 
-      code={code} 
-      language="typescript"
-    />
-  )
-} 
+  return <CodeDisplay code={code} language="typescript" />
+}

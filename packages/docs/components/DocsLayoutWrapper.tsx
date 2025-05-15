@@ -1,17 +1,17 @@
-'use client';
+'use client'
 
-import { DocsLayout } from 'fumadocs-ui/layouts/docs';
-import type { ReactNode } from 'react';
-import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
-import CopyDocsButton from './CopyDocsButton';
+import { DocsLayout } from 'fumadocs-ui/layouts/docs'
+import type { ReactNode } from 'react'
+import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared'
+import CopyDocsButton from './CopyDocsButton'
 
 // Using the same props type that DocsLayout accepts
-type DocsLayoutProps = Parameters<typeof DocsLayout>[0];
+type DocsLayoutProps = Parameters<typeof DocsLayout>[0]
 
 interface DocsLayoutWrapperProps {
-  children: ReactNode;
-  tree: DocsLayoutProps['tree'];
-  baseOptions: BaseLayoutProps;
+  children: ReactNode
+  tree: DocsLayoutProps['tree']
+  baseOptions: BaseLayoutProps
 }
 
 export default function DocsLayoutWrapper({ children, tree, baseOptions }: DocsLayoutWrapperProps) {
@@ -20,5 +20,5 @@ export default function DocsLayoutWrapper({ children, tree, baseOptions }: DocsL
       {children}
       <CopyDocsButton />
     </DocsLayout>
-  );
+  )
 }

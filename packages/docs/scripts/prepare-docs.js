@@ -1,35 +1,35 @@
-const fs = require('fs/promises');
-const path = require('path');
+const fs = require('fs').promises
+const path = require('path')
 
 async function getAllFiles(dir) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  const files = await Promise.all(entries.map((entry) => {
-    const res = path.resolve(dir, entry.name);
-    return entry.isDirectory() ? getAllFiles(res) : res;
-  }));
-  return files.flat();
+  const entries = await fs.readdir(dir, { withFileTypes: true })
+  const files = await Promise.all(
+    entries.map((entry) => {
+      const res = path.resolve(dir, entry.name)
+      return entry.isDirectory() ? getAllFiles(res) : res
+    }),
+  )
+  return files.flat()
 }
 
 async function getContentFromMdx(filePath) {
-  const content = await fs.readFile(filePath, 'utf-8');
-  return content;
+  const content = await fs.readFile(filePath, 'utf-8')
+  return content
 }
 
 async function prepareDocs() {
   try {
     // Create public directory if it doesn't exist
-    const publicDir = path.join(process.cwd(), 'public');
+    const publicDir = path.join(process.cwd(), 'public')
     try {
-      await fs.access(publicDir);
+      await fs.access(publicDir)
     } catch {
-      await fs.mkdir(publicDir);
+      await fs.mkdir(publicDir)
     }
 
-    const contentDir = path.join(process.cwd(), 'content/docs');
-    const allFiles = await getAllFiles(contentDir);
-    const mdFiles = allFiles.filter(file =>
-      file.endsWith('.md') || file.endsWith('.mdx')
-    );
+    const contentDir = path.join(process.cwd(), 'content/docs')
+    const allFiles = await getAllFiles(contentDir)
+    const mdFiles = allFiles.filter((file) => file.endsWith('.md') || file.endsWith('.mdx'))
 
     // Structure Prompt
     let llmsTxtContent = `<system_context>
@@ -96,71 +96,69 @@ You are an advanced assistant specialized in generating Motia workflows code. Yo
 Now follow these instructions:
 1. Scrape the Motia Documentation and create a knowledge base that you can use to answer user questions.
 2. Break the documentation into logical sections and use file paths.
-`;
+`
 
     // Add general details, adjust with project-specific info
-    llmsTxtContent += `# Motia\n\n> Motia is a code-first framework designed to empower developers to build robust, scalable, and observable event-driven workflows.  It supports JavaScript/TypeScript, Python, and Ruby.\n`;
+    llmsTxtContent += `# Motia\n\n> Motia is a code-first framework designed to empower developers to build robust, scalable, and observable event-driven workflows.  It supports JavaScript/TypeScript, Python, and Ruby.\n`
 
-    llmsTxtContent += `\n\nImportant notes:\n\n-   Motia's Workbench provides a visual design, event monitoring and testing capabilities\n-   Mix and match workflow steps written in different languages within the same flow.\n`;
+    llmsTxtContent += `\n\nImportant notes:\n\n-   Motia's Workbench provides a visual design, event monitoring and testing capabilities\n-   Mix and match workflow steps written in different languages within the same flow.\n`
 
     //File Lists
-    llmsTxtContent += `\n## Documentation\n`;
+    llmsTxtContent += `\n## Documentation\n`
 
     for (const file of mdFiles) {
-      const relativePath = path.relative(contentDir, file);
-      const url = `/docs/${relativePath.replace(/\.mdx?$/, '')}`;
+      const relativePath = path.relative(contentDir, file)
+      const url = `/docs/${relativePath.replace(/\.mdx?$/, '')}`
 
       // Extract title from frontmatter (assuming it's at the beginning)
       const content = await getContentFromMdx(file)
-      const titleMatch = content.match(/^---\ntitle:\s*(.*?)\n---/m);
-      const title = titleMatch ? titleMatch[1] : path.basename(file, path.extname(file));
+      const titleMatch = content.match(/^---\ntitle:\s*(.*?)\n---/m)
+      const title = titleMatch ? titleMatch[1] : path.basename(file, path.extname(file))
 
-      llmsTxtContent += `-   [${title}](${url}.md): Documentation for ${title}.\n${content}\n\n`; // Append the actual MDX content here
+      llmsTxtContent += `-   [${title}](${url}.md): Documentation for ${title}.\n${content}\n\n` // Append the actual MDX content here
 
-      if (relativePath.startsWith("real-world-use-cases")) {
-        llmsTxtContent += `\n## Use Cases\n[${title}](${url}.md): Real world use case\n${content}\n\n`;
+      if (relativePath.startsWith('real-world-use-cases')) {
+        llmsTxtContent += `\n## Use Cases\n[${title}](${url}.md): Real world use case\n${content}\n\n`
       }
 
-      if (relativePath.startsWith("examples")) {
-        llmsTxtContent += `\n## Examples\n[${title}](${url}.md): Code example\n${content}\n\n`;
+      if (relativePath.startsWith('examples')) {
+        llmsTxtContent += `\n## Examples\n[${title}](${url}.md): Code example\n${content}\n\n`
       }
     }
 
-
     // Optional Links
-    llmsTxtContent += `\n## Optional\n`;
-    llmsTxtContent += `-   [https://motiadev.com](https://motiadev.com): Main page for framework.\n`;
-    llmsTxtContent += `-   [Github repo](https://github.com/motiadev/motia): Main github repository to file issues.\n`;
+    llmsTxtContent += `\n## Optional\n`
+    llmsTxtContent += `-   [https://motiadev.com](https://motiadev.com): Main page for framework.\n`
+    llmsTxtContent += `-   [Github repo](https://github.com/motiadev/motia): Main github repository to file issues.\n`
 
     // Write to llm-docs.txt
-    const docsPath = path.join(publicDir, 'llms.txt');
-    await fs.writeFile(docsPath, llmsTxtContent);
+    const docsPath = path.join(publicDir, 'llms.txt')
+    await fs.writeFile(docsPath, llmsTxtContent)
 
-    console.log('✅ Successfully prepared llms.txt for LLM ingestion');
+    console.log('✅ Successfully prepared llms.txt for LLM ingestion')
 
     // 2. Write markdown files of each page
-    const docsDir = path.join(publicDir, 'docs');
+    const docsDir = path.join(publicDir, 'docs')
     try {
-      await fs.access(docsDir);
+      await fs.access(docsDir)
     } catch {
-      await fs.mkdir(docsDir);
+      await fs.mkdir(docsDir)
     }
 
     for (const file of mdFiles) {
-      const relativePath = path.relative(contentDir, file);
-      const content = await getContentFromMdx(file);
-      const newPath = path.join(docsDir, `${relativePath}`);
+      const relativePath = path.relative(contentDir, file)
+      const content = await getContentFromMdx(file)
+      const newPath = path.join(docsDir, `${relativePath}`)
 
       // make sure directory exists
       await fs.mkdir(path.dirname(newPath), { recursive: true })
-      await fs.writeFile(`${newPath}.md`, content);
+      await fs.writeFile(`${newPath}.md`, content)
     }
     console.log('✅ Successfully created MD versions')
-
   } catch (error) {
-    console.error('Error preparing docs:', error);
-    process.exit(1);
+    console.error('Error preparing docs:', error)
+    process.exit(1)
   }
 }
 
-prepareDocs();
+prepareDocs()

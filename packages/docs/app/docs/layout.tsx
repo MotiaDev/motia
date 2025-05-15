@@ -1,15 +1,14 @@
-import type { ReactNode } from 'react';
-import { baseOptions } from '@/app/layout.config';
-import { source } from '@/lib/source';
-import DocsLayoutWrapper from '../../components/DocsLayoutWrapper';
+import { DocsLayout } from 'fumadocs-ui/layouts/docs'
+import type { ReactNode } from 'react'
+import { baseOptions } from '@/app/layout.config'
+import { source } from '@/lib/source'
+import CopyDocsButton from '@/components/CopyDocsButton'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <DocsLayoutWrapper
-      tree={source.pageTree}
-      baseOptions={baseOptions}
-    >
+    <DocsLayout tree={source.pageTree} {...baseOptions}>
       {children}
-    </DocsLayoutWrapper>
-  );
+      <CopyDocsButton />
+    </DocsLayout>
+  )
 }

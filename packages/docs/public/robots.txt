@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://motia-dev-website.vercel.app
+
+# Sitemaps
+Sitemap: https://motia-dev-website.vercel.app/sitemap.xml

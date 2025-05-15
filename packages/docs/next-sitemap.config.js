@@ -1,5 +1,5 @@
 module.exports = {
-    siteUrl: 'https://motia.dev',
-    generateRobotsTxt: true,
-    generateIndexSitemap: false,
-};
+  siteUrl: 'https://motia-dev-website.vercel.app',
+  generateRobotsTxt: true,
+  generateIndexSitemap: false,
+}
