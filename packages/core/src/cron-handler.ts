@@ -47,6 +47,7 @@ export const setupCronHandlers = (
       try {
         await callStepFile({
           contextInFirstArg: true,
+          streamsConfig: lockedData.getStreams(),
           step,
           eventManager,
           printer,

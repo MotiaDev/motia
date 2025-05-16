@@ -15,9 +15,13 @@ export const generateTypesString = (handlers: HandlersMap): string => {
  * 
  * Consider adding this file to .prettierignore and eslint ignore.
  */
-import { EventHandler, ApiRouteHandler, ApiResponse } from 'motia'
+import { EventHandler, ApiRouteHandler, ApiResponse, IStateStream } from 'motia'
 
 declare module 'motia' {
+  interface FlowContextStateStreams {
+    openai: IStateStream<{ id: string; message: string }>
+  }
+
   type Handlers = {
     ${Object.entries(handlers)
       .map(([key, { type, generics }]) => `'${key}': ${type}<${generics.join(', ')}>`)

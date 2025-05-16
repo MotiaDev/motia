@@ -43,6 +43,7 @@ export const createStepHandlers = (
 
           try {
             await callStepFile({
+              streamsConfig: lockedData.getStreams(),
               contextInFirstArg: false,
               step,
               printer,

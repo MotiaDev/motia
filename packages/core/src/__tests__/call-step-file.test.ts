@@ -24,6 +24,7 @@ describe('callStepFile', () => {
     jest.spyOn(eventManager, 'emit').mockImplementation(() => Promise.resolve())
 
     await callStepFile({
+      streamsConfig: {},
       step,
       eventManager,
       printer,

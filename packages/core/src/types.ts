@@ -4,7 +4,7 @@ import { BaseLogger, Logger } from './logger'
 
 export type InternalStateManager = {
   get<T>(traceId: string, key: string): Promise<T | null>
-  set<T>(traceId: string, key: string, value: T): Promise<void>
+  set<T>(traceId: string, key: string, value: T): Promise<T>
   delete(traceId: string, key: string): Promise<void>
   clear(traceId: string): Promise<void>
 }
@@ -12,11 +12,31 @@ export type InternalStateManager = {
 export type EmitData = { topic: ''; data: unknown }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
+export interface FlowContextStateStreams {}
+
+export interface StateStreamConfig {
+  name: string
+  schema: ZodObject<any>
+}
+
+export type BaseStateStreamData = { id: string }
+
+export interface IStateStream<TData extends BaseStateStreamData> {
+  get(id: string): Promise<TData | null>
+  update(id: string, data: Omit<TData, 'id'>): Promise<TData>
+  delete(id: string): Promise<void>
+  create(id: string, data: Omit<TData, 'id'>): Promise<TData>
+
+  getGroupId(data: TData): string | null
+  getList(groupId: string): Promise<TData[]>
+}
+
 export interface FlowContext<TEmitData = never> {
   emit: Emitter<TEmitData>
   traceId: string
   state: InternalStateManager
   logger: Logger
+  streams: FlowContextStateStreams
 }
 
 export type EventHandler<TInput, TEmitData> = (input: TInput, ctx: FlowContext<TEmitData>) => Promise<void>

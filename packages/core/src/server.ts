@@ -9,7 +9,16 @@ import { flowsEndpoint } from './flows-endpoint'
 import { isApiStep } from './guards'
 import { globalLogger } from './logger'
 import { StateAdapter } from './state/state-adapter'
-import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EventManager, Step } from './types'
+import {
+  ApiRequest,
+  ApiResponse,
+  ApiRouteConfig,
+  ApiRouteMethod,
+  EventManager,
+  InternalStateManager,
+  IStateStream,
+  Step,
+} from './types'
 import { systemSteps } from './steps'
 import { LockedData } from './locked-data'
 import { callStepFile } from './call-step-file'
@@ -48,6 +57,61 @@ export const createServer = async (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const cronManager = setupCronHandlers(lockedData, eventManager, state, loggerFactory)
 
+  const streams = (lockedData as any).streams
+
+  Object.keys(streams).forEach((streamName) => {
+    const stream = streams[streamName]
+
+    streams[streamName] = (state: InternalStateManager): IStateStream<any> => {
+      const originalStream = stream(state)
+      const wrapObject = (id: string, object: any) => ({
+        ...object,
+        __motia: { type: 'state-stream', streamName, id },
+      })
+      const updateState = (id: string, data: any) => {
+        const result = wrapObject(id, data)
+        io.to(`${streamName}-${id}`).emit(`${streamName}-${id}`, { type: 'update', data: result })
+        return result
+      }
+
+      const deleteState = (id: string) => {
+        io.to(`${streamName}-${id}`).emit(`${streamName}-${id}`, { type: 'delete', id })
+        return originalStream.delete(id)
+      }
+
+      return {
+        get: (id: string) => originalStream.get(id).then((object: any) => wrapObject(id, object)),
+        update: (id: string, data: any) =>
+          originalStream.update(id, data).then((object: any) => updateState(id, object)),
+        delete: (id: string) => deleteState(id),
+        create: (id: string, data: any) =>
+          originalStream.create(id, data).then((object: any) => updateState(id, object)),
+        getGroupId: () => originalStream.getGroupId(),
+        getList: () => {
+          const list = originalStream.getList()
+          return list.map((id: string) => originalStream.get(id).then((object: any) => wrapObject(id, object)))
+        },
+      }
+    }
+  })
+
+  io.on('connection', (socket) => {
+    socket.on('join', async ({ id, streamName }: { streamName: string; id: string }) => {
+      socket.join(`${streamName}-${id}`)
+
+      const item = streams[streamName]
+
+      if (item) {
+        const object = await item(state).get(id)
+        socket.emit('update', object)
+      }
+    })
+
+    socket.on('leave', ({ id, streamName }: { streamName: string; id: string }) => {
+      socket.leave(`${streamName}-${id}`)
+    })
+  })
+
   const asyncHandler = (step: Step<ApiRouteConfig>) => {
     return async (req: Request, res: Response) => {
       const traceId = generateTraceId()
@@ -56,8 +120,7 @@ export const createServer = async (
 
       logger.debug('[API] Received request, processing step', { path: req.path })
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const request: ApiRequest<any> = {
+      const request: ApiRequest = {
         body: req.body,
         headers: req.headers as Record<string, string | string[]>,
         pathParams: req.params,
@@ -68,6 +131,7 @@ export const createServer = async (
       try {
         const data = request
         const result = await callStepFile<ApiResponse>({
+          streamsConfig: lockedData.getStreams(),
           contextInFirstArg: false,
           data,
           step,

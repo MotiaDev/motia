@@ -17,6 +17,8 @@ export class MemoryStateAdapter implements StateAdapter {
     const fullKey = this._makeKey(traceId, key)
 
     this.state[fullKey] = value
+
+    return value
   }
 
   async delete(traceId: string, key: string) {

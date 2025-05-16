@@ -7,6 +7,7 @@ import { EndpointBadge } from './endpoint-badge'
 import { ApiEndpoint } from './hooks/use-get-endpoints'
 import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json'
 import { usePathParams } from './hooks/use-path-params'
+import { useStateStream } from './hooks/use-state-stream'
 
 type Props = { endpoint: ApiEndpoint; onClose: () => void }
 
@@ -24,6 +25,7 @@ export const EndpointCall: React.FC<Props> = ({ endpoint, onClose }) => {
   const [queryParamsValues, setQueryParamsValues] = useState<Record<string, string>>(
     endpoint.queryParams?.reduce((acc, param) => ({ ...acc, [param.name]: '' }), {} as Record<string, string>) ?? {},
   )
+  const { data: responseBodyData } = useStateStream(responseBody)
 
   const isPlayEnabled = useMemo(() => {
     if (!pathParams) return true
@@ -140,7 +142,7 @@ export const EndpointCall: React.FC<Props> = ({ endpoint, onClose }) => {
             time: <span className="text-muted-foreground">{executionTime}ms</span>
           </span>
           <span className="text-xs font-mono font-bold bg-black/50 p-2 rounded-lg whitespace-pre-wrap">
-            {JSON.stringify(responseBody, null, 2)}
+            {JSON.stringify(responseBodyData, null, 2)}
           </span>
         </div>
       )}

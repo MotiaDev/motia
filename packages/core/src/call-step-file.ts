@@ -1,15 +1,19 @@
-import { RpcProcessor } from './step-handler-rpc-processor'
-import { Event, EventManager, InternalStateManager, Step } from './types'
 import { spawn } from 'child_process'
 import path from 'path'
-import { isAllowedToEmit } from './utils'
-import { BaseLogger } from './logger'
+import { BaseLogger, Logger } from './logger'
 import { Printer } from './printer'
+import { RpcProcessor } from './step-handler-rpc-processor'
+import { StateStreamFactory } from './state-stream'
+import { EmitData, EventManager, InternalStateManager, Step } from './types'
+import { isAllowedToEmit } from './utils'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }
 type StateDeleteInput = { traceId: string; key: string }
 type StateClearInput = { traceId: string }
+
+type StateStreamGetInput = { id: string }
+type StateStreamMutateInput = { id: string; data: unknown }
 
 const getLanguageBasedRunner = (
   stepFilePath = '',
@@ -47,18 +51,20 @@ type CallStepFileOptions = {
   eventManager: EventManager
   state: InternalStateManager
   traceId: string
+  streamsConfig: Record<string, StateStreamFactory<any>>
   printer: Printer
   data?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   contextInFirstArg: boolean // if true, the step file will only receive the context object
 }
 
 export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData | undefined> => {
-  const { step, printer, eventManager, state, traceId, data, contextInFirstArg } = options
-  const logger = options.logger.child({ step: step.config.name })
+  const { step, printer, eventManager, state, traceId, data, contextInFirstArg, streamsConfig } = options
+  const logger = options.logger.child({ step: step.config.name }) as Logger
   const flows = step.config.flows
 
   return new Promise((resolve, reject) => {
-    const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg })
+    const streams = Object.keys(streamsConfig).map((name) => ({ name }))
+    const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
     const { runner, command, args } = getLanguageBasedRunner(step.filePath)
     let result: TData | undefined
 
@@ -66,7 +72,27 @@ export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData
       stdio: [undefined, undefined, undefined, 'ipc'],
     })
 
+    const emit = async (input: EmitData) => {
+      if (!isAllowedToEmit(step, input.topic)) {
+        return printer.printInvalidEmit(step, input.topic)
+      }
+
+      return eventManager.emit({ ...input, traceId, flows: step.config.flows, logger }, step.filePath)
+    }
+
     const rpcProcessor = new RpcProcessor(child)
+
+    Object.entries(streamsConfig).forEach(([name, streamFactory]) => {
+      const stateStream = streamFactory(state)
+      rpcProcessor.handler<StateStreamGetInput>(`streams.${name}.get`, (input) => stateStream.get(input.id))
+      rpcProcessor.handler<StateStreamMutateInput>(`streams.${name}.update`, (input) =>
+        stateStream.update(input.id, input.data),
+      )
+      rpcProcessor.handler<StateStreamGetInput>(`streams.${name}.delete`, (input) => stateStream.delete(input.id))
+      rpcProcessor.handler<StateStreamMutateInput>(`streams.${name}.create`, (input) =>
+        stateStream.create(input.id, input.data),
+      )
+    })
 
     rpcProcessor.handler<StateGetInput>('close', async () => child.kill())
     rpcProcessor.handler<StateGetInput>('log', async (input: unknown) => logger.log(input))
@@ -77,13 +103,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData
     rpcProcessor.handler<TData>('result', async (input) => {
       result = input
     })
-    rpcProcessor.handler<Event>('emit', async (input) => {
-      if (!isAllowedToEmit(step, input.topic)) {
-        return printer.printInvalidEmit(step, input.topic)
-      }
-
-      return eventManager.emit({ ...input, traceId, flows: step.config.flows, logger }, step.filePath)
-    })
+    rpcProcessor.handler<EmitData>('emit', emit)
 
     rpcProcessor.init()
 

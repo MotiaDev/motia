@@ -3,6 +3,7 @@ import fs from 'fs'
 import * as path from 'path'
 
 export type FileAdapterConfig = {
+  adapter: 'default'
   filePath: string
 }
 
@@ -42,6 +43,8 @@ export class FileStateAdapter implements StateAdapter {
     data[fullKey] = JSON.stringify(value)
 
     this._writeFile(data)
+
+    return value
   }
 
   async delete(traceId: string, key: string) {
