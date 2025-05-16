@@ -4,7 +4,7 @@
  * 
  * Consider adding this file to .prettierignore and eslint ignore.
  */
-import { EventHandler, ApiRouteHandler, IStateStream } from 'motia'
+import { EventHandler, ApiRouteHandler, ApiResponse, IStateStream } from 'motia'
 
 declare module 'motia' {
   interface FlowContextStateStreams {
@@ -14,8 +14,6 @@ declare module 'motia' {
   type Handlers = {
     'Test State With Python': EventHandler<unknown, { topic: 'check-state-change'; data: { key: string; expected?: unknown } }>
     'TestStateApiTrigger': ApiRouteHandler<{}, unknown, { topic: 'test-state'; data: unknown }>
-    'Test State With Python': EventHandler<never, { topic: 'check-state-change'; data: { key: string; expected?: unknown } }>
-    'Test state api trigger': ApiRouteHandler<{}, unknown, never>
     'Test State With Ruby': EventHandler<never, never>
     'CheckStateChange': EventHandler<{ key: string; expected?: unknown }, never>
     'Tested Event': EventHandler<never, never>
@@ -27,9 +25,8 @@ declare module 'motia' {
     'Parallel Merge': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'pms.start'; data: {} }>
     'join-step': EventHandler<{ msg: string; timestamp: number }, { topic: 'pms.join.complete'; data: { stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string } }>
     'JoinComplete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
-    'Join Complete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
     'CallOpenAi': EventHandler<{ message: string }, never>
-    'OpenAiApi': ApiRouteHandler<{ message: string }, { message: string }, { topic: 'openai-prompt'; data: { message: string } }>
+    'OpenAiApi': ApiRouteHandler<{ message: string }, ApiResponse<200, { message: string }>, { topic: 'openai-prompt'; data: { message: string } }>
     'HandlePeriodicJob': EventHandler<never, never>
   }
 }

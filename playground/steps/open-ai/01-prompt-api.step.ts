@@ -17,7 +17,7 @@ export const config: ApiRouteConfig = {
     { name: 'temperature', description: 'The temperature to use' },
   ],
   bodySchema: inputSchema,
-  responseBody: responseSchema,
+  responseSchema: { 200: responseSchema },
 }
 
 export const handler: Handlers['OpenAiApi'] = async (req, { traceId, logger, emit, streams }) => {

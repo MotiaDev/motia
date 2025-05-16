@@ -52,5 +52,35 @@
       "x": 0,
       "y": 0
     }
+  },
+  "parallel-merge": {
+    "steps/parallelMergeState/stepC.step.rb": {
+      "x": 0,
+      "y": 470
+    },
+    "steps/parallelMergeState/stepB.step.py": {
+      "x": 210,
+      "y": 446
+    },
+    "steps/parallelMergeState/stepA.step.ts": {
+      "x": 510,
+      "y": 470
+    },
+    "steps/parallelMergeState/startParallelMerge.step.ts": {
+      "x": 155,
+      "y": 188
+    },
+    "steps/parallelMergeState/noopStartButton.step.ts": {
+      "x": 262.5,
+      "y": 0
+    },
+    "steps/parallelMergeState/joinStep.step.ts": {
+      "x": 198.5,
+      "y": 704
+    },
+    "steps/parallelMergeState/joinComplete.step.ts": {
+      "x": 244.5,
+      "y": 914
+    }
   }
 }

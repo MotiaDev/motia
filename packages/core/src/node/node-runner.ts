@@ -40,7 +40,7 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
 
     const emit = async (data: unknown) => sender.send('emit', data)
     const streamsConfig = event.streams as StateStreamConfig[]
-    const objects = (streamsConfig ?? []).reduce(
+    const streams = (streamsConfig ?? []).reduce(
       (acc, streams) => {
         acc[streams.name] = {
           get: (id: string) => sender.send(`streams.${streams.name}.get`, { id }),
@@ -53,7 +53,7 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
       {} as Record<string, any>,
     )
 
-    const context = { traceId, flows, logger, state, emit, objects }
+    const context = { traceId, flows, logger, state, emit, streams }
 
     sender.init()
 
