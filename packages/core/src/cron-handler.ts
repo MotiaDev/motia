@@ -6,6 +6,7 @@ import { StateAdapter } from './state/state-adapter'
 import { CronConfig, EventManager, Step } from './types'
 import { LoggerFactory } from './LoggerFactory'
 import { generateTraceId } from './generate-trace-id'
+import { MotiaError, createErrorContext, ErrorCategory } from './errors'
 
 export type CronManager = {
   createCronJob: (step: Step<CronConfig>) => void
@@ -54,13 +55,28 @@ export const setupCronHandlers = (
           traceId,
           logger,
         })
+      } catch (error: unknown) {
+        const errorContext = createErrorContext(step, traceId, undefined, error as Error)
+        const motiaError = new MotiaError(
+          error instanceof Error ? error.message : String(error),
+          errorContext.category,
+          errorContext,
+        )
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
         logger.error('[cron handler] error executing cron job', {
-          error: error.message,
+          error: motiaError.message,
+          category: motiaError.category,
+          context: errorContext,
           step: step.config.name,
         })
+
+        // For network errors, we could implement retry logic here
+        if (errorContext.category === ErrorCategory.NETWORK) {
+          logger.info('[cron handler] network error detected, consider implementing retry logic', {
+            step: step.config.name,
+            traceId,
+          })
+        }
       }
     })
 

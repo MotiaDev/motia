@@ -130,3 +130,53 @@ Here're examples of how to define a handler in the Motia supported languages:
 <Callout>
 Follow the **[quick start](/docs/getting-started/quick-start)** guide if you haven't set up Motia yet.
 </Callout>
+
+## Error Categorization (Pluggable)
+
+Motia allows you to categorize errors in your workflows using a pluggable error categorization system. This gives you full flexibility to define what error categories mean for your organization or project.
+
+### How It Works
+
+- By default, all errors are categorized as `UNKNOWN`.
+- You can provide your own categorization logic by setting a resolver function using `setErrorCategoryResolver`.
+- The framework will use your resolver to determine the error category for each error.
+
+### Setting a Custom Error Category Resolver
+
+```typescript
+import { setErrorCategoryResolver, ErrorCategory } from '@motiadev/core'
+
+// Example: categorize all errors with 'timeout' as NETWORK
+setErrorCategoryResolver((error) => {
+  if (!error) return ErrorCategory.UNKNOWN
+  if (error.message.toLowerCase().includes('timeout')) {
+    return ErrorCategory.NETWORK
+  }
+  return ErrorCategory.UNKNOWN
+})
+```
+
+### Reference Implementation
+
+Motia provides a reference implementation based on common error message patterns. You can use it as-is or as a starting point for your own logic:
+
+```typescript
+import { setErrorCategoryResolver } from '@motiadev/core'
+import { referenceErrorCategoryResolver } from '@motiadev/core/error-category-reference'
+
+setErrorCategoryResolver(referenceErrorCategoryResolver)
+```
+
+The reference resolver uses heuristics to categorize errors as `VALIDATION`, `NETWORK`, `BUSINESS_LOGIC`, `SYSTEM`, or `UNKNOWN` based on keywords in the error message.
+
+### Why Pluggable?
+
+- Every team or project may have different error handling needs.
+- You can adapt error categorization to your domain, stack, or business rules.
+- The framework stays unopinionated, but provides helpful patterns.
+
+### Best Practices
+
+- Start with the reference resolver and adapt as needed.
+- For critical systems, consider using custom error classes and categorizing by error type.
+- Document your error categories and handling strategies for your team.

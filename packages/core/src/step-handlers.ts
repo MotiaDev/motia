@@ -3,6 +3,7 @@ import { globalLogger } from './logger'
 import { callStepFile } from './call-step-file'
 import { LockedData } from './locked-data'
 import { StateAdapter } from './state/state-adapter'
+import { MotiaError, createErrorContext, ErrorCategory } from './errors'
 
 export type MotiaEventManager = {
   createHandler: (step: Step<EventConfig>) => void
@@ -52,11 +53,28 @@ export const createStepHandlers = (
               traceId,
               logger,
             })
+          } catch (error: unknown) {
+            const errorContext = createErrorContext(step, traceId, data, error as Error)
+            const motiaError = new MotiaError(
+              error instanceof Error ? error.message : String(error),
+              errorContext.category,
+              errorContext,
+            )
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } catch (error: any) {
-            const message = typeof error === 'string' ? error : error.message
-            logger.error(message)
+            logger.error('[step handler] error executing step', {
+              error: motiaError.message,
+              category: motiaError.category,
+              context: errorContext,
+              step: name,
+            })
+
+            // For network errors, we could implement retry logic here
+            if (errorContext.category === ErrorCategory.NETWORK) {
+              logger.info('[step handler] network error detected, consider implementing retry logic', {
+                step: name,
+                traceId,
+              })
+            }
           }
         },
       })
