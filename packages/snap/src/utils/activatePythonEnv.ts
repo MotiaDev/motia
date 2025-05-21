@@ -1,5 +1,6 @@
 import path from 'path'
 import fs from 'fs'
+import { findPythonSitePackagesDir } from './pythonVersionUtils'
 
 interface VenvConfig {
   baseDir: string
@@ -11,7 +12,11 @@ export const activatePythonVenv = ({ baseDir, isVerbose = false, pythonVersion =
   // Set the virtual environment path
   const venvPath = path.join(baseDir, 'python_modules')
   const venvBinPath = path.join(venvPath, process.platform === 'win32' ? 'Scripts' : 'bin')
-  const sitePackagesPath = path.join(venvPath, 'lib', `python${pythonVersion}`, 'site-packages')
+  const libPath = path.join(venvPath, 'lib')
+  
+  // Find the Python version directory using the utility function
+  const actualPythonVersionPath = findPythonSitePackagesDir(libPath, pythonVersion, isVerbose)
+  const sitePackagesPath = path.join(venvPath, 'lib', actualPythonVersionPath, 'site-packages')
 
   // Verify that the virtual environment exists
   if (fs.existsSync(venvPath)) {

@@ -7,7 +7,7 @@ import {
   createStepHandlers,
   globalLogger,
 } from '@motiadev/core'
-import { generateLockedData } from './generate-locked-data'
+import { generateLockedData, getStepFiles } from './generate-locked-data'
 import path from 'path'
 import { FileStateAdapter } from '@motiadev/core/dist/src/state/adapters/default-state-adapter'
 import { createDevWatchers } from './dev-watchers'
@@ -22,11 +22,14 @@ require('ts-node').register({
 
 export const dev = async (port: number, isVerbose: boolean, enableMermaid: boolean): Promise<void> => {
   const baseDir = process.cwd()
-  const lockedData = await generateLockedData(baseDir)
 
-  if (lockedData.pythonSteps().length) {
+  const stepFiles = getStepFiles(baseDir)
+  if (stepFiles.some((file) => file.endsWith('.py'))) {
+    console.log('⚙️ Activating Python environment...')
     activatePythonVenv({ baseDir, isVerbose })
   }
+
+  const lockedData = await generateLockedData(baseDir)
 
   const eventManager = createEventManager()
   const state = createStateAdapter({

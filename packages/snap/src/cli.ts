@@ -22,6 +22,7 @@ program
   .description('Display detailed version information')
   .action(() => {
     console.log(`Motia CLI v${version}`)
+    process.exit(0)
   })
 
 program
