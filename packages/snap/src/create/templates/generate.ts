@@ -7,7 +7,7 @@ export type Generator = (flowDir: string) => Promise<void>
 export const generateTemplateSteps = (templateDir: string): Generator => {
   return async (flowDir: string): Promise<void> => {
     const stepsDir = path.join(__dirname, templateDir, 'steps')
-    const files = globSync(path.join(stepsDir, '*.txt'))
+    const files = globSync('*.txt', { absolute: true, cwd: stepsDir })
 
     try {
       for (const fileName of files) {

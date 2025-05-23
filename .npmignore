@@ -3,4 +3,5 @@ src/
 dist/**/__tests__/
 dist/test/
 tsconfig.json
-jest.config.js 
+jest.config.js
+python_modules

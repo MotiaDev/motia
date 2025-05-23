@@ -2,16 +2,12 @@ require 'securerandom'
 require 'json'
 require 'thread'
 
-# Get the file descriptor from ENV
-NODE_CHANNEL_FD = ENV['NODE_CHANNEL_FD'].to_i
-
 class RpcSender
   def initialize
     @closed = false
-    @writer = IO.new(NODE_CHANNEL_FD, 'w')
-    @reader = IO.new(NODE_CHANNEL_FD, 'r')
     @pending_requests = {}
     @mutex = Mutex.new
+    @background_thread = nil
   end
 
   def send(method, args)
@@ -25,46 +21,58 @@ class RpcSender
     end
 
     data = { type: 'rpc_request', id: id, method: method, args: args }
-    message = (JSON.dump(data) + "\n").encode('utf-8')
+    message = JSON.dump(data)
 
-    @writer.write(message)
-    @writer.flush
+    puts message
+    STDOUT.flush
 
     result = promise.pop
     raise result if result.is_a?(StandardError)
     result
+  rescue IOError, Errno::EPIPE
+    # Handle broken pipe errors gracefully
+    @closed = true
+    raise StandardError.new("RPC connection lost")
   end
 
   def send_no_wait(method, args)
     return if @closed
 
     data = { type: 'rpc_request', method: method, args: args }
-    message = (JSON.dump(data) + "\n").encode('utf-8')
+    message = JSON.dump(data)
 
-    @writer.write(message)
-    @writer.flush
-  rescue IOError, Errno::EBADF
-    # Ignore errors during shutdown
+    puts message
+    STDOUT.flush
+  rescue IOError, Errno::EPIPE
+    # Ignore errors during shutdown or if connection is lost
+    @closed = true
   end
 
   def init
     @background_thread = Thread.new do
       until @closed
         begin
-          line = @reader.gets
-          if line
-            msg = JSON.parse(line)
+          line = STDIN.gets
+          if line && !line.strip.empty?
+            msg = JSON.parse(line.strip)
             handle_response(msg) if msg['type'] == 'rpc_response'
+          elsif line.nil?
+            # EOF received, connection closed
+            break
           end
+        rescue JSON::ParserError => e
+          # Log JSON parsing errors but continue
+          STDERR.puts "Warning: Failed to parse JSON: #{e.message}"
+          STDERR.puts "Raw line: #{line}"
         rescue IOError, Errno::EBADF
           break if @closed
         rescue => e
-          puts "Error in RPC thread: #{e.message}"
+          STDERR.puts "Error in RPC thread: #{e.message}"
         end
       end
     end
     
-    @background_thread.abort_on_exception = true
+    @background_thread.abort_on_exception = false
   end
 
   def handle_response(msg)
@@ -102,22 +110,9 @@ class RpcSender
     # Check for pending requests
     @mutex.synchronize do
       if @pending_requests.any?
-        puts 'Process ended while there are some promises outstanding'
+        STDERR.puts 'Process ended while there are some promises outstanding'
         exit(1)
       end
-    end
-
-    # Close file descriptors
-    begin
-      @writer.close unless @writer.closed?
-    rescue
-      # Ignore errors during shutdown
-    end
-
-    begin
-      @reader.close unless @reader.closed?
-    rescue
-      # Ignore errors during shutdown
     end
   end
 end

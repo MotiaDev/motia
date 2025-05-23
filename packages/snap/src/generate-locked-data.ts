@@ -5,9 +5,14 @@ import path from 'path'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
+export const getStepFiles = (projectDir: string): string[] => {
+  const stepsDir = path.join(projectDir, 'steps')
+  return globSync('**/*.step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir })
+}
+
 // Helper function to recursively collect flow data
 export const collectFlows = async (projectDir: string, lockedData: LockedData): Promise<void> => {
-  const stepFiles = globSync(path.join(projectDir, 'steps/**/*.step.{ts,js,py,rb}'))
+  const stepFiles = getStepFiles(projectDir)
   const streamFiles = globSync(path.join(projectDir, '{steps,streams}/**/*.stream.{ts,js}'))
 
   for (const filePath of stepFiles) {

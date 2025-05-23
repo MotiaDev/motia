@@ -1,12 +1,11 @@
-import { spawn } from 'child_process'
+import { Event, EventManager, InternalStateManager, Step } from './types'
 import path from 'path'
 import { LockedData } from './locked-data'
 import { BaseLogger, Logger } from './logger'
 import { Printer } from './printer'
-import { RpcProcessor } from './step-handler-rpc-processor'
-import { EmitData, EventManager, InternalStateManager, Step } from './types'
 import { isAllowedToEmit } from './utils'
 import { BaseStreamItem } from './types-stream'
+import { ProcessManager } from './process-communication/process-manager'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }
@@ -54,8 +53,8 @@ type CallStepFileOptions = {
   traceId: string
   lockedData: LockedData
   printer: Printer
-  data?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  contextInFirstArg: boolean // if true, the step file will only receive the context object
+  data?: any
+  contextInFirstArg: boolean
 }
 
 export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData | undefined> => {
@@ -70,71 +69,81 @@ export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData
     const { runner, command, args } = getLanguageBasedRunner(step.filePath)
     let result: TData | undefined
 
-    const child = spawn(command, [...args, runner, step.filePath, jsonData], {
-      stdio: [undefined, undefined, undefined, 'ipc'],
+    // Create process manager with unified communication handling
+    const processManager = new ProcessManager({
+      command,
+      args: [...args, runner, step.filePath, jsonData],
+      logger,
+      context: 'StepExecution'
     })
 
-    const emit = async (input: EmitData) => {
-      if (!isAllowedToEmit(step, input.topic)) {
-        return printer.printInvalidEmit(step, input.topic)
-      }
+    processManager.spawn().then(() => {
+      // Register all step handlers
+      processManager.handler<StateGetInput>('close', async () => processManager.kill())
+      processManager.handler<unknown>('log', async (input: unknown) => logger.log(input))
+      processManager.handler<StateGetInput, unknown>('state.get', (input) => state.get(input.traceId, input.key))
+      processManager.handler<StateSetInput, void>('state.set', (input) => state.set(input.traceId, input.key, input.value))
+      processManager.handler<StateDeleteInput, void>('state.delete', (input) => state.delete(input.traceId, input.key))
+      processManager.handler<StateClearInput, void>('state.clear', (input) => state.clear(input.traceId))
+      processManager.handler<TData, void>('result', async (input) => {
+        result = input
+      })
+      processManager.handler<Event, unknown>('emit', async (input) => {
+        if (!isAllowedToEmit(step, input.topic)) {
+          return printer.printInvalidEmit(step, input.topic)
+        }
 
-      return eventManager.emit({ ...input, traceId, flows: step.config.flows, logger }, step.filePath)
-    }
+        return eventManager.emit({ ...input, traceId, flows: step.config.flows, logger }, step.filePath)
+      })
 
-    const rpcProcessor = new RpcProcessor(child)
+      Object.entries(streamConfig).forEach(([name, streamFactory]) => {
+        const stateStream = streamFactory()
 
-    Object.entries(streamConfig).forEach(([name, streamFactory]) => {
-      const stateStream = streamFactory()
+        processManager.handler<StateStreamGetInput>(`streams.${name}.get`, (input) => stateStream.get(input.id))
+        processManager.handler<StateStreamMutateInput>(`streams.${name}.update`, (input) =>
+          stateStream.update(input.id, input.data),
+        )
+        processManager.handler<StateStreamGetInput>(`streams.${name}.delete`, (input) => stateStream.delete(input.id))
+        processManager.handler<StateStreamMutateInput>(`streams.${name}.create`, (input) =>
+          stateStream.create(input.id, input.data),
+        )
+      })
 
-      rpcProcessor.handler<StateStreamGetInput>(`streams.${name}.get`, (input) => stateStream.get(input.id))
-      rpcProcessor.handler<StateStreamMutateInput>(`streams.${name}.update`, (input) =>
-        stateStream.update(input.id, input.data),
-      )
-      rpcProcessor.handler<StateStreamGetInput>(`streams.${name}.delete`, (input) => stateStream.delete(input.id))
-      rpcProcessor.handler<StateStreamMutateInput>(`streams.${name}.create`, (input) =>
-        stateStream.create(input.id, input.data),
-      )
-    })
+      // Handle stdout for non-RPC mode (logging)
+      processManager.onStdout((data) => {
+        try {
+          const message = JSON.parse(data.toString())
+          logger.log(message)
+        } catch {
+          logger.info(Buffer.from(data).toString())
+        }
+      })
 
-    rpcProcessor.handler<StateGetInput>('close', async () => child.kill())
-    rpcProcessor.handler<StateGetInput>('log', async (input: unknown) => logger.log(input))
-    rpcProcessor.handler<StateGetInput>('state.get', (input) => state.get(input.traceId, input.key))
-    rpcProcessor.handler<StateSetInput>('state.set', (input) => state.set(input.traceId, input.key, input.value))
-    rpcProcessor.handler<StateDeleteInput>('state.delete', (input) => state.delete(input.traceId, input.key))
-    rpcProcessor.handler<StateClearInput>('state.clear', (input) => state.clear(input.traceId))
-    rpcProcessor.handler<TData>('result', async (input) => {
-      result = input
-    })
-    rpcProcessor.handler<EmitData>('emit', emit)
+      // Handle stderr
+      processManager.onStderr((data) => logger.error(Buffer.from(data).toString()))
 
-    rpcProcessor.init()
+      // Handle process close
+      processManager.onProcessClose((code) => {
+        processManager.close()
+        if (code !== 0 && code !== null) {
+          reject(`Process exited with code ${code}`)
+        } else {
+          resolve(result)
+        }
+      })
 
-    child.stdout?.on('data', (data) => {
-      try {
-        const message = JSON.parse(data.toString())
-        logger.log(message)
-      } catch {
-        logger.info(Buffer.from(data).toString())
-      }
-    })
+      // Handle process errors
+      processManager.onProcessError((error) => {
+        processManager.close()
+        if (error.code === 'ENOENT') {
+          reject(`Executable ${command} not found`)
+        } else {
+          reject(error)
+        }
+      })
 
-    child.stderr?.on('data', (data) => logger.error(Buffer.from(data).toString()))
-
-    child.on('close', (code) => {
-      if (code !== 0 && code !== null) {
-        reject(`Process exited with code ${code}`)
-      } else {
-        resolve(result)
-      }
-    })
-
-    child.on('error', (error: { code?: string }) => {
-      if (error.code === 'ENOENT') {
-        reject(`Executable ${command} not found`)
-      } else {
-        reject(error)
-      }
+    }).catch((error) => {
+      reject(`Failed to spawn process: ${error}`)
     })
   })
 }
