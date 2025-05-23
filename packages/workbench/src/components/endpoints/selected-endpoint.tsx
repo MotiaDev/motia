@@ -27,7 +27,9 @@ export const SelectedEndpoint: React.FC<Props> = ({ endpoint }) => {
       {requestBody && (
         <div className="flex flex-col gap-2">
           <span className="text-xs font-bold">Request Body</span>
-          <span className="text-xs font-mono bg-black/50 p-2 rounded-lg whitespace-pre-wrap">{requestBody}</span>
+          <span className="text-xs font-mono dark:bg-black/50 bg-white/50 p-2 rounded-lg whitespace-pre-wrap">
+            {requestBody}
+          </span>
         </div>
       )}
       {endpoint.responseSchema && (

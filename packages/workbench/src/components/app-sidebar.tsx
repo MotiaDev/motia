@@ -3,13 +3,22 @@ import { File, Link2, Logs, Workflow } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { Sidebar, SidebarButton, SidebarGroup } from './ui/sidebar'
 import { Badge } from './ui/badge'
-import { useLogs } from '../stores/use-logs'
+import { useLogs } from '@/stores/use-logs'
+
+const BadgeCount = () => {
+  const unreadLogsCount = useLogs((state) => state.unreadLogsCount)
+
+  if (!unreadLogsCount) {
+    return null
+  }
+
+  return <Badge variant="red-rounded">{unreadLogsCount}</Badge>
+}
 
 export const AppSidebar = () => {
   const { flows } = useListFlows()
   const { pathname } = useLocation()
   const isActive = (flowId: string) => pathname.includes(`/flow/${flowId}`)
-  const unreadLogsCount = useLogs((state) => state.unreadLogsCount)
 
   return (
     <Sidebar>
@@ -17,7 +26,7 @@ export const AppSidebar = () => {
         <Link to="/logs">
           <SidebarButton isActive={pathname === '/logs'} icon={<Logs className="w-4 h-4" />}>
             Logs
-            {pathname !== '/logs' && unreadLogsCount > 0 && <Badge variant="red-rounded">{unreadLogsCount}</Badge>}
+            {pathname !== '/logs' && <BadgeCount />}
           </SidebarButton>
         </Link>
         <Link to="/states">

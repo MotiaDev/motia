@@ -10,7 +10,9 @@ export const ResponseBody: React.FC<Props> = ({ status, body }) => {
   return (
     <div className="flex flex-col gap-2">
       <span className="text-xs font-bold">{status}</span>
-      <span className="text-xs font-mono bg-black/50 p-2 rounded-lg whitespace-pre-wrap">{responseBody}</span>
+      <span className="text-xs font-mono dark:bg-black/50 bg-white/50 p-2 rounded-lg whitespace-pre-wrap">
+        {responseBody}
+      </span>
     </div>
   )
 }

@@ -32,7 +32,7 @@ export const Logs = () => {
                 <LogLevelDot level={log.level} />
                 {timestamp(log.time)}
               </TableCell>
-              <TableCell className="whitespace-nowrap text-md font-mono cursor-pointer hover:text-primary text-muted-foreground text-xs font-mono">
+              <TableCell className="whitespace-nowrap text-md cursor-pointer hover:text-primary text-muted-foreground text-xs font-mono">
                 {log.traceId}
               </TableCell>
               <TableCell className="whitespace-nowrap text-md font-mono">{log.step}</TableCell>

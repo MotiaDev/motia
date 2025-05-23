@@ -24,7 +24,7 @@ export const DetailItem: React.FC<PropsWithChildren<{ label: string }>> = (props
 
   return (
     <div className="flex flex-col gap-2">
-      <Label className="text-white">{label}</Label>
+      <Label className="text-foreground">{label}</Label>
       {children}
     </div>
   )
@@ -36,7 +36,7 @@ export const NodeDetails: React.FC<Props> = (props) => {
     <Dialog>
       <DialogTrigger asChild>
         <div className="flex justify-end gap-2">
-          <div className="border border-solid border-white/10 p-1 rounded-md cursor-pointer">
+          <div className="border border-solid border-border/50 p-1 rounded-md cursor-pointer">
             <ChevronRight className="w-4 h-4" />
           </div>
         </div>
@@ -51,7 +51,7 @@ export const NodeDetails: React.FC<Props> = (props) => {
           <div className="flex flex-col gap-6">
             {description && (
               <DetailItem label="Description">
-                <span className="text-sm text-white/60">{description}</span>
+                <span className="text-sm text-muted-foreground">{description}</span>
               </DetailItem>
             )}
             <DetailItem label="Language">

@@ -23,7 +23,7 @@ export const Flow = () => {
   if (!flow) return null
 
   return (
-    <div className="w-full h-screen">
+    <div className="w-full h-screen bg-background">
       <FlowView flow={flow} flowConfig={flowConfig!} />
     </div>
   )

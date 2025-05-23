@@ -10,7 +10,7 @@ type Props = {
 const Value: React.FC<{ value: unknown }> = ({ value }) => {
   const displayValue = typeof value === 'string' ? value : JSON.stringify(value)
 
-  return <div className="text-gray-400 text-md">{displayValue}</div>
+  return <div className="dark:text-gray-400 text-md">{displayValue}</div>
 }
 
 const LogValue: React.FC<{ value: unknown }> = ({ value }) => {
@@ -44,7 +44,7 @@ const LogValue: React.FC<{ value: unknown }> = ({ value }) => {
 
 export const LogField = ({ label, value, className }: Props) => {
   return (
-    <div className={cn('flex row text-white p-2', className)}>
+    <div className={cn('flex row text-foreground p-2', className)}>
       <div className="flex flex-col gap-2">
         <span className="text-md font-semibold">{label}</span>
         <span className="">{value ? <LogValue value={value} /> : <Value value={value} />}</span>

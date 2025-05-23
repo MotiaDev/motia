@@ -14,7 +14,7 @@ export const NoopNode = ({ data, children }: Props) => {
       disableSourceHandle={!data.virtualEmits.length}
       disableTargetHandle={!data.subscribes?.length}
     >
-      {data.description && <div className="text-sm max-w-[300px] text-white/60">{data.description}</div>}
+      {data.description && <div className="text-sm max-w-[300px] text-muted-foreground">{data.description}</div>}
       {children}
     </BaseNode>
   )

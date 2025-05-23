@@ -9,11 +9,25 @@ import { Logs } from './logs'
 const MIN_HEIGHT = 100
 const DEFAULT_HEIGHT = 200
 
+const ClearLogsButton = () => {
+  const hasLog = useLogs((state) => state.logs.length > 0)
+  const resetLogs = useLogs((state) => state.resetLogs)
+
+  if (!hasLog) {
+    return null
+  }
+
+  return (
+    <Button variant="outline" onClick={resetLogs}>
+      <Trash2 className="w-4 h-4" />
+      Clear logs
+    </Button>
+  )
+}
+
 export const LogConsole = () => {
   const [isExpanded, setIsExpanded] = useState(false)
   const [height, setHeight] = useState(DEFAULT_HEIGHT)
-  const logs = useLogs((state) => state.logs)
-  const resetLogs = useLogs((state) => state.resetLogs)
   const dragRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -60,14 +74,9 @@ export const LogConsole = () => {
           isDragging && 'bg-background/40',
         )}
       />
-      <div className="text-white/50 flex justify-between w-full items-center p-4 gap-2">
+      <div className="text-muted-foreground flex justify-between w-full items-center p-4 gap-2">
         <label className="w-full text-left justify-start h-full text-md uppercase">Logs</label>
-        {logs.length > 0 && (
-          <Button variant="outline" onClick={resetLogs}>
-            <Trash2 className="w-4 h-4" />
-            Clear logs
-          </Button>
-        )}
+        <ClearLogsButton />
         <Button variant="outline" onClick={toggleExpand}>
           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
         </Button>

@@ -40,7 +40,7 @@ const HeaderBar = ({
   variant: VariantProps<typeof baseDot>['variant']
   children?: React.ReactNode
 }) => (
-  <div className="text-sm text-white flex justify-between items-center gap-4">
+  <div className="text-sm text-foreground flex justify-between items-center gap-4">
     <div className="flex items-center gap-2">
       <Dot variant={variant} />
       <span>{text}</span>

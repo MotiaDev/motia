@@ -3,13 +3,13 @@ import { SquareMinus, SquarePlus } from 'lucide-react'
 import React, { ReactNode, useState } from 'react'
 import { cn } from '../../lib/utils'
 
-const valueVariants = cva('text-white/60 text-sm py-2', {
+const valueVariants = cva('text-muted-foreground text-sm py-2', {
   variants: {
     variant: {
       boolean: 'text-sky-400',
       number: 'text-teal-400',
-      undefined: 'text-white/60',
-      string: 'text-white/60',
+      undefined: 'text-muted-foreground',
+      string: 'text-muted-foreground',
       object: 'text-gray-800',
     },
   },
@@ -77,13 +77,13 @@ export const StateValue: React.FC<Props> = ({ value, label, isRoot = false }) =>
             onClick={toggle}
           >
             {isOpen ? (
-              <SquareMinus className="w-4 h-4 text-white/60" />
+              <SquareMinus className="w-4 h-4 text-muted-foreground" />
             ) : (
-              <SquarePlus className="w-4 h-4 text-white/60" />
+              <SquarePlus className="w-4 h-4 text-muted-foreground" />
             )}
             {label}{' '}
             {!isRoot && (
-              <span className="text-white/60 text-sm">
+              <span className="text-muted-foreground text-sm">
                 {openBracket}
                 {!isOpen && ` ... ${closeBracket}`}
               </span>
@@ -99,7 +99,7 @@ export const StateValue: React.FC<Props> = ({ value, label, isRoot = false }) =>
               </span>
             </div>
           ))}
-        {!isRoot && isOpen && <span className="text-white/60 text-sm">{closeBracket}</span>}
+        {!isRoot && isOpen && <span className="text-muted-foreground text-sm">{closeBracket}</span>}
       </div>
     )
   }

@@ -7,10 +7,10 @@ export const Subscribe: React.FC<{ subscribes: string[] }> = ({ subscribes }) =>
       {subscribes.map((subscribe) => (
         <div
           key={subscribe}
-          className="flex gap-2 items-center text-xs text-white/60"
+          className="flex gap-2 items-center text-xs text-muted-foreground"
           data-testid={`subscribes__${subscribe}`}
         >
-          <Eye className="w-4 h-4 text-white/40" />
+          <Eye className="w-4 h-4 text-muted-foreground/60" />
           <div className="font-mono tracking-wider">{subscribe}</div>
         </div>
       ))}

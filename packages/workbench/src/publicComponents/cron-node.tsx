@@ -13,15 +13,15 @@ export const CronNode = ({ data }: CronNodeProps) => {
       disableTargetHandle={!data.virtualSubscribes?.length}
       disableSourceHandle={!data.virtualEmits?.length && !data.emits?.length}
     >
-      <div className="text-sm text-white/70">{data.description}</div>
-      <div className="text-xs text-white/50 flex items-center gap-2">
+      <div className="text-sm text-muted-foreground">{data.description}</div>
+      <div className="text-xs text-muted-foreground flex items-center gap-2">
         <Clock className="w-3 h-3" /> {data.cronExpression}
       </div>
 
       <NodeDetails type="cron" name={data.name} description={data.description} language={data.language}>
         <DetailItem label="Cron Expression">
-          <div className="flex gap-1 items-center text-xs text-white/60">
-            <div className="text-xs text-white/50 flex items-center gap-2">
+          <div className="flex gap-1 items-center text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground flex items-center gap-2">
               <Clock className="w-3 h-3" /> {data.cronExpression}
             </div>
           </div>

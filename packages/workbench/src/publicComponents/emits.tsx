@@ -11,10 +11,10 @@ export const Emits: React.FC<{ emits: EventNodeData['emits'] }> = ({ emits }) =>
       {emits.map((emit) => (
         <div
           key={toTopic(emit)}
-          className="flex gap-2 items-center text-xs text-white/60"
+          className="flex gap-2 items-center text-xs text-muted-foreground"
           data-testid={`emits__${toTopic(emit)}`}
         >
-          <Send className="w-4 h-4 text-white/40" />
+          <Send className="w-4 h-4 text-muted-foreground/60" />
           <div className="font-mono tracking-wider">{toTopic(emit)}</div>
         </div>
       ))}
