@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+import { useSyncExternalStore, useCallback } from 'react'
 
 export type Log = {
   level: string
@@ -6,7 +6,6 @@ export type Log = {
   msg: string
   traceId: string
   flows: string[]
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any
 }
 
@@ -18,11 +17,64 @@ export type LogsState = {
   setUnreadLogsCount: (count: number) => void
 }
 
-export const useLogs = create<LogsState>()((set) => ({
-  logs: [],
-  addLog: (log) =>
-    set((state) => ({ ...state, logs: [log, ...state.logs], unreadLogsCount: state.unreadLogsCount + 1 })),
-  resetLogs: () => set({ logs: [], unreadLogsCount: 0 }),
-  unreadLogsCount: 0,
-  setUnreadLogsCount: (count) => set({ unreadLogsCount: count }),
-}))
+const listeners = new Set<() => void>()
+
+let currentLogs: Log[] = []
+let currentUnreadLogsCount = 0
+let memoizedSnapshot: LogsState
+
+const updateMemoizedSnapshot = () => {
+  memoizedSnapshot = {
+    logs: currentLogs,
+    unreadLogsCount: currentUnreadLogsCount,
+    addLog: storeActions.addLog,
+    resetLogs: storeActions.resetLogs,
+    setUnreadLogsCount: storeActions.setUnreadLogsCount,
+  }
+}
+
+const notify = () => {
+  listeners.forEach((listener) => listener())
+}
+
+const storeActions = {
+  addLog: (log: Log) => {
+    currentLogs = [log, ...currentLogs]
+    currentUnreadLogsCount += 1
+    updateMemoizedSnapshot()
+    notify()
+  },
+  resetLogs: () => {
+    if (currentLogs.length === 0 && currentUnreadLogsCount === 0) {
+      return
+    }
+    currentLogs = []
+    currentUnreadLogsCount = 0
+    updateMemoizedSnapshot()
+    notify()
+  },
+  setUnreadLogsCount: (count: number) => {
+    if (currentUnreadLogsCount === count) {
+      return
+    }
+    currentUnreadLogsCount = count
+    updateMemoizedSnapshot()
+    notify()
+  },
+}
+
+updateMemoizedSnapshot()
+
+// Stable subscribe function so React doesn't unnecessarily tear down the subscription
+const subscribe = (onStoreChange: () => void) => {
+  listeners.add(onStoreChange)
+  return () => listeners.delete(onStoreChange)
+}
+
+export function useLogs<SelectorOutput = LogsState>(
+  selector: (state: LogsState) => SelectorOutput = (state) => state as unknown as SelectorOutput,
+): SelectorOutput {
+  const getSnapshot = useCallback(() => selector(memoizedSnapshot), [selector])
+
+  return useSyncExternalStore(subscribe, getSnapshot)
+}

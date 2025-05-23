@@ -10,6 +10,7 @@
     "build": "rm -rf dist && tsc --build && sh post-build.sh"
   },
   "dependencies": {
+    "@motiadev/stream-client-react": "workspace:*",
     "@radix-ui/react-collapsible": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.13",
     "@radix-ui/react-label": "^2.1.6",
@@ -38,9 +39,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.32.1",
     "vite": "^6.3.5",
-    "zod": "^3.24.4",
-    "zustand": "^5.0.4",
-    "@motiadev/stream-client-react": "workspace:*"
+    "zod": "^3.24.4"
   },
   "devDependencies": {
     "@types/dagre": "^0.7.52",

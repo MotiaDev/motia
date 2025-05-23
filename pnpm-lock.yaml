@@ -473,9 +473,6 @@ importers:
       zod:
         specifier: ^3.24.4
         version: 3.24.4
-      zustand:
-        specifier: ^5.0.4
-        version: 5.0.4(@types/react@19.1.4)(react@19.1.0)(use-sync-external-store@1.5.0(react@19.1.0))
     devDependencies:
       '@types/dagre':
         specifier: ^0.7.52
@@ -6387,24 +6384,6 @@ packages:
       immer:
         optional: true
       react:
-        optional: true
-
-  zustand@5.0.4:
-    resolution: {integrity: sha512-39VFTN5InDtMd28ZhjLyuTnlytDr9HfwO512Ai4I8ZABCoyAj4F1+sr7sD1jP/+p7k77Iko0Pb5NhgBFDCX0kQ==}
-    engines: {node: '>=12.20.0'}
-    peerDependencies:
-      '@types/react': ^19.1.4
-      immer: '>=9.0.6'
-      react: ^19.1.0
-      use-sync-external-store: '>=1.2.0'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      immer:
-        optional: true
-      react:
-        optional: true
-      use-sync-external-store:
         optional: true
 
   zwitch@2.0.4:
@@ -13228,11 +13207,5 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.1.4
       react: 19.1.0
-
-  zustand@5.0.4(@types/react@19.1.4)(react@19.1.0)(use-sync-external-store@1.5.0(react@19.1.0)):
-    optionalDependencies:
-      '@types/react': 19.1.4
-      react: 19.1.0
-      use-sync-external-store: 1.5.0(react@19.1.0)
 
   zwitch@2.0.4: {}
