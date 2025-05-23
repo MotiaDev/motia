@@ -31,9 +31,10 @@ export const handler: Handlers['CallOpenAi'] = async (input, context) => {
   for await (const chunk of result) {
     messages.push(chunk.choices[0].delta.content ?? '')
 
-    await context.streams.openai.update(traceId, {
-      message: messages.join(''),
-    })
+    /**
+     * Now we're populating a previously created message with the streamed data from OpenAI
+     */
+    await context.streams.openai.update(traceId, { message: messages.join('') })
   }
 
   logger.info('[Call OpenAI] OpenAI response', result)

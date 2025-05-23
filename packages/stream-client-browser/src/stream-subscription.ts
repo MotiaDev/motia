@@ -15,11 +15,17 @@ export abstract class StreamSubscription {
     }
   }
 
+  /**
+   * Add a custom event listener. This listener will be called whenever the custom event is received.
+   */
   onEvent(type: string, listener: CustomEventListener) {
     const listeners = this.customEventListeners.get(type) || []
     this.customEventListeners.set(type, [...listeners, listener])
   }
 
+  /**
+   * Remove a custom event listener.
+   */
   offEvent(type: string, listener: CustomEventListener) {
     const listeners = this.customEventListeners.get(type) || []
     this.customEventListeners.set(

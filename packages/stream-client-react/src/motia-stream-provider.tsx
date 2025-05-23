@@ -3,6 +3,15 @@ import React, { useEffect, useState } from 'react'
 import { MotiaStreamContext } from './motia-stream-context'
 
 type Props = React.PropsWithChildren<{
+  /**
+   * The address of the stream server.
+   *
+   * @example
+   * ```tsx
+   * <MotiaStreamProvider address="ws://localhost:3000">
+   *   <App />
+   * </MotiaStreamProvider>
+   */
   address: string
 }>
 

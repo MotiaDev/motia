@@ -7,6 +7,18 @@ type Args = {
   id: string
 }
 
+/**
+ * A hook to get a single item from a stream.
+ *
+ * @example
+ * ```tsx
+ * const { data } = useStreamItem<{ id:string; name: string }>({ streamName: 'my-stream', id: '123' })
+ *
+ * return (
+ *   <div>{data?.name}</div>
+ * )
+ * ```
+ */
 export const useStreamItem = <TData>(args?: Args) => {
   const { stream } = useMotiaStream()
   const [data, setData] = useState<TData | null>(null)

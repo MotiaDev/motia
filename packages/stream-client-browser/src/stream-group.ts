@@ -48,20 +48,32 @@ export class StreamGroupSubscription<TData extends { id: string }> extends Strea
     ws.send(JSON.stringify(message))
   }
 
+  /**
+   * Close the subscription.
+   */
   close() {
     const message: Message = { type: 'leave', data: this.sub }
     this.ws.send(JSON.stringify(message))
     this.listeners.forEach((listener) => this.ws.removeEventListener('message', listener))
   }
 
+  /**
+   * Add a change listener. This listener will be called whenever the state of the group changes.
+   */
   addChangeListener(listener: Listener<TData[]>) {
     this.onChangeListeners.add(listener)
   }
 
+  /**
+   * Remove a change listener.
+   */
   removeChangeListener(listener: Listener<TData[]>) {
     this.onChangeListeners.delete(listener)
   }
 
+  /**
+   * Get the current state of the group.
+   */
   getState(): TData[] {
     return this.state
   }

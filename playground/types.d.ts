@@ -26,7 +26,7 @@ declare module 'motia' {
     'join-step': EventHandler<{ msg: string; timestamp: number }, { topic: 'pms.join.complete'; data: { stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string } }>
     'JoinComplete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
     'CallOpenAi': EventHandler<{ message: string }, never>
-    'OpenAiApi': ApiRouteHandler<{ id: string; message: string }, ApiResponse<200, { message: string }>, { topic: 'openai-prompt'; data: { message: string } }>
+    'OpenAiApi': ApiRouteHandler<{ message: string }, ApiResponse<200, { message: string }>, { topic: 'openai-prompt'; data: { message: string } }>
     'HandlePeriodicJob': EventHandler<never, never>
   }
 }

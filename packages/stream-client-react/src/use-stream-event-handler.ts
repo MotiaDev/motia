@@ -8,6 +8,21 @@ type UseStreamEventHandler = {
   listener: (event: any) => void
 }
 
+/**
+ * A hook to handle custom stream events.
+ *
+ * @example
+ * ```tsx
+ * const { event } = useStreamItem({ streamName: 'my-stream', id: '123' })
+ *
+ * const onEventHandled = (event: any) => {
+ *   // this is going to be called whenever 'on-custom-event' is sent from the server
+ *   console.log(event)
+ * }
+ *
+ * useStreamEventHandler({ event, type: 'on-custom-event', listener: onEventHandled }, [])
+ * ```
+ */
 export const useStreamEventHandler = (
   { event, type, listener }: UseStreamEventHandler,
   dependencies: DependencyList,

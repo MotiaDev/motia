@@ -7,6 +7,22 @@ type Args = {
   groupId: string
 }
 
+/**
+ * A hook to get a group of items from a stream.
+ *
+ * @example
+ * ```tsx
+ * const { data } = useStreamGroup<{ id:string; name: string }>({ streamName: 'my-stream', groupId: '123' })
+ *
+ * return (
+ *   <div>
+ *     {data.map((item) => (
+ *       <div key={item.id}>{item.name}</div>
+ *     ))}
+ *   </div>
+ * )
+ * ```
+ */
 export const useStreamGroup = <TData>(args: Args) => {
   const { stream } = useMotiaStream()
   const [data, setData] = useState<TData[]>([])

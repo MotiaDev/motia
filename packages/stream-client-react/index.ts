@@ -1,7 +1,6 @@
 export { Stream } from '@motiadev/stream-client-browser'
 export { StreamItemSubscription } from '@motiadev/stream-client-browser'
 export { StreamGroupSubscription } from '@motiadev/stream-client-browser'
-export { MotiaStreamContext } from './src/motia-stream-context'
 export { MotiaStreamProvider } from './src/motia-stream-provider'
 export { useMotiaStream } from './src/use-motia-stream'
 export { useStreamItem } from './src/use-stream-item'
