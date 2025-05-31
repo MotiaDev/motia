@@ -11,6 +11,7 @@ export const build = async (context: CliContext): Promise<Builder> => {
   const projectDir = process.cwd()
   const builder = new Builder(projectDir)
   const stepsConfigPath = path.join(projectDir, 'dist', 'motia.steps.json')
+  const streamsConfigPath = path.join(projectDir, 'dist', 'motia.streams.json')
 
   // Register language-specific builders
   builder.registerBuilder('node', new NodeBuilder(builder))
@@ -36,7 +37,20 @@ export const build = async (context: CliContext): Promise<Builder> => {
 
   await Promise.all(lockedData.activeSteps.map((step) => builder.buildStep(step)))
 
+  const streams = lockedData.listStreams()
+
+  for (const stream of streams) {
+    if (stream.config.baseConfig.storageType === 'state') {
+      builder.registerStateStream(stream)
+    } else {
+      context.log(stream.filePath, (message) =>
+        message.tag('warning').append('Custom streams are not supported yet in the cloud'),
+      )
+    }
+  }
+
   fs.writeFileSync(stepsConfigPath, JSON.stringify(builder.stepsConfig, null, 2))
+  fs.writeFileSync(streamsConfigPath, JSON.stringify(builder.streamsConfig, null, 2))
 
   return builder
 }

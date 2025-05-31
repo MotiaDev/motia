@@ -14,12 +14,14 @@ import {
   VersionPromotionError,
 } from '../models/errors/version-errors'
 import { VersionStartResponse } from '../models/responses/version-responses'
+import { BuildStreamsConfig, BuildStepsConfig } from '../../build/builder'
 
 export class VersionsClient extends AxiosClient {
   async uploadStepsConfig(
-    stepsConfig: Record<string, unknown>,
-    environmentId = 'dev',
-    version = 'latest',
+    environmentId: string,
+    version: string,
+    stepsConfig: BuildStepsConfig,
+    streamsConfig: BuildStreamsConfig,
   ): Promise<string> {
     if (!stepsConfig || Object.keys(stepsConfig).length === 0) {
       throw new InvalidConfigError()
@@ -29,7 +31,7 @@ export class VersionsClient extends AxiosClient {
       const response = await this.makeRequest<{ versionId: string }>(
         `${ENDPOINTS.ENVIRONMENTS}/${environmentId}/versions`,
         'POST',
-        { config: stepsConfig, version },
+        { config: stepsConfig, version, streamsConfig },
       )
       return response.versionId
     } catch (error) {

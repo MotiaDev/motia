@@ -123,7 +123,7 @@ export class Watcher {
       return
     }
 
-    this.streamCreateHandler?.({ filePath: path, config })
+    this.streamCreateHandler?.({ filePath: path, config, factory: null as never })
   }
 
   private async onStreamFileChange(path: string): Promise<void> {
@@ -131,9 +131,9 @@ export class Watcher {
     const config = await getStreamConfig(path).catch((err) => console.error(err))
 
     if (!stream && config) {
-      this.streamCreateHandler?.({ filePath: path, config })
+      this.streamCreateHandler?.({ filePath: path, config, factory: null as never })
     } else if (stream && config) {
-      this.streamChangeHandler?.(stream, { filePath: path, config })
+      this.streamChangeHandler?.(stream, { filePath: path, config, factory: null as never })
     } else if (stream && !config) {
       this.streamDeleteHandler?.(stream)
     }

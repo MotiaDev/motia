@@ -1,4 +1,5 @@
 import { ZodObject } from 'zod'
+import { StateStreamFactory } from './state-stream'
 
 export interface StateStreamConfig {
   name: string
@@ -18,6 +19,7 @@ export type Stream<TConfig extends StateStreamConfig = StateStreamConfig> = {
   filePath: string
   config: TConfig
   hidden?: boolean
+  factory: StateStreamFactory<unknown>
 }
 
 export interface IStateStream<TData> {

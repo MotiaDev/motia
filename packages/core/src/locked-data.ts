@@ -112,15 +112,14 @@ export class LockedData {
     const streams: Record<string, StateStreamFactory<any>> = {}
 
     for (const [key, value] of Object.entries(this.streams)) {
-      const baseConfig = value.config.baseConfig
-      const streamFactory = baseConfig.storageType === 'custom' ? baseConfig.factory : null
-
-      if (streamFactory) {
-        streams[key] = streamFactory
-      }
+      streams[key] = value.factory
     }
 
     return streams
+  }
+
+  listStreams(): Stream[] {
+    return Object.values(this.streams)
   }
 
   findStream(path: string): Stream | undefined {
@@ -256,19 +255,20 @@ export class LockedData {
     }
   }
 
-  createStream<TData>(stream: Stream, options: { disableTypeCreation?: boolean } = {}): StateStreamFactory<TData> {
+  createStream<TData>(
+    baseStream: Omit<Stream, 'factory'>,
+    options: { disableTypeCreation?: boolean } = {},
+  ): StateStreamFactory<TData> {
+    const stream = baseStream as Stream
+
     this.streams[stream.config.name] = stream
     this.streamHandlers['stream-created'].forEach((handler) => handler(stream))
 
-    let factory: StateStreamFactory<TData>
-
     if (stream.config.baseConfig.storageType === 'state') {
-      factory = this.createFactoryWrapper(stream, () => new InternalStateStream<TData>(this.state!))
+      stream.factory = this.createFactoryWrapper(stream, () => new InternalStateStream<TData>(this.state!))
     } else {
-      factory = this.createFactoryWrapper(stream, stream.config.baseConfig.factory)
+      stream.factory = this.createFactoryWrapper(stream, stream.config.baseConfig.factory)
     }
-
-    stream.config.baseConfig = { storageType: 'custom', factory }
 
     if (!stream.hidden) {
       this.printer.printStreamCreated(stream)
@@ -278,7 +278,7 @@ export class LockedData {
       }
     }
 
-    return factory
+    return stream.factory as StateStreamFactory<TData>
   }
 
   deleteStream(stream: Stream, options: { disableTypeCreation?: boolean } = {}): void {
@@ -304,16 +304,11 @@ export class LockedData {
       delete this.streams[oldStream.config.name]
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let factory: StateStreamFactory<any>
-
     if (stream.config.baseConfig.storageType === 'state') {
-      factory = this.createFactoryWrapper(stream, () => new InternalStateStream(this.state!))
+      stream.factory = this.createFactoryWrapper(stream, () => new InternalStateStream(this.state!))
     } else {
-      factory = this.createFactoryWrapper(stream, stream.config.baseConfig.factory)
+      stream.factory = this.createFactoryWrapper(stream, stream.config.baseConfig.factory)
     }
-
-    stream.config.baseConfig = { storageType: 'custom', factory }
 
     this.streams[stream.config.name] = stream
     this.streamHandlers['stream-updated'].forEach((handler) => handler(stream))

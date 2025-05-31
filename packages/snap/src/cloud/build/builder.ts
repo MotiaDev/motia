@@ -1,6 +1,7 @@
 import path from 'path'
 import { Step, StepConfig } from '@motiadev/core'
 import { BuildPrinter } from './printer'
+import { Stream } from '@motiadev/core/dist/src/types-stream'
 
 export type StepType = 'node' | 'python' | 'noop' | 'unknown'
 
@@ -11,7 +12,13 @@ export type BuildStepConfig = {
   filePath: string
 }
 
+export type BuildStreamConfig = {
+  name: string
+  storageType: 'state' | 'custom'
+}
+
 export type BuildStepsConfig = Record<string, BuildStepConfig>
+export type BuildStreamsConfig = Record<string, BuildStreamConfig>
 
 export interface StepBuilder {
   build(step: Step): Promise<void>
@@ -21,17 +28,28 @@ export class Builder {
   public readonly printer: BuildPrinter
   public readonly distDir: string
   public readonly stepsConfig: BuildStepsConfig
+  public readonly streamsConfig: BuildStreamsConfig
   public modulegraphInstalled: boolean = false
   private readonly builders: Map<string, StepBuilder> = new Map()
 
   constructor(public readonly projectDir: string) {
     this.distDir = path.join(projectDir, 'dist')
     this.stepsConfig = {}
+    this.streamsConfig = {}
     this.printer = new BuildPrinter()
   }
 
   registerBuilder(type: string, builder: StepBuilder) {
     this.builders.set(type, builder)
+  }
+
+  registerStateStream(stream: Stream) {
+    this.printer.printStreamCreated(stream)
+
+    this.streamsConfig[stream.config.name] = {
+      name: stream.config.name,
+      storageType: stream.config.baseConfig.storageType,
+    }
   }
 
   registerStep(args: { entrypointPath: string; bundlePath: string; step: Step; type: StepType }) {

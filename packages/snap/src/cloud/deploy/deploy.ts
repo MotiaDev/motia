@@ -3,6 +3,7 @@ import path from 'path'
 import { CliContext } from '../config-utils'
 import { VersionResult } from './types'
 import { parseEnvFile } from './utils/env-parser'
+import { BuildStepsConfig, BuildStreamsConfig } from '../build/builder'
 
 export class VersionManager {
   async deploy(
@@ -25,6 +26,7 @@ export class VersionManager {
 
     const distDir = path.join(projectDir, 'dist')
     const stepsConfigPath = path.join(distDir, 'motia.steps.json')
+    const streamsConfigPath = path.join(distDir, 'motia.streams.json')
     const environmentsClient = context.apiFactory.getEnvironmentsClient()
     const environment = await environmentsClient
       .getEnvironment(projectId, environmentId)
@@ -40,7 +42,8 @@ export class VersionManager {
       context.exit(1)
     }
 
-    const stepsConfig = JSON.parse(fs.readFileSync(stepsConfigPath, 'utf-8'))
+    const stepsConfig: BuildStepsConfig = JSON.parse(fs.readFileSync(stepsConfigPath, 'utf-8'))
+    const streamsConfig: BuildStreamsConfig = JSON.parse(fs.readFileSync(streamsConfigPath, 'utf-8'))
 
     context.log('deploy', (message) =>
       message
@@ -51,7 +54,12 @@ export class VersionManager {
         .append(versionName, 'dark'),
     )
 
-    const versionId = await context.versionService.uploadConfiguration(stepsConfig, environment.id, versionName)
+    const versionId = await context.versionService.uploadConfiguration(
+      environment.id,
+      versionName,
+      stepsConfig,
+      streamsConfig,
+    )
     const uploadResult = await context.versionService.uploadZipFile(versionId, distDir)
 
     if (!uploadResult.success) {

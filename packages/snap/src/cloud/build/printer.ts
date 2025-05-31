@@ -1,5 +1,6 @@
 import { Step } from '@motiadev/core'
 import { Printer } from '@motiadev/core/dist/src/printer'
+import { Stream } from '@motiadev/core/dist/src/types-stream'
 import { CLIOutputManager } from '../cli-output-manager'
 import colors from 'colors'
 import { prettyBytes } from './pretty-bytes'
@@ -8,6 +9,8 @@ const building = colors.yellow('➜ [BUILDING]')
 const built = colors.green('✓ [BUILT]')
 const failed = colors.red('✘ [FAILED]')
 const skipped = colors.gray('- [SKIPPED]')
+
+const streamTag = colors.blue('Stream')
 
 export class BuildPrinter {
   private readonly printer = new Printer(process.cwd())
@@ -73,5 +76,16 @@ export class BuildPrinter {
     this.output.log(step.filePath, (message) =>
       message.append(`${skipped} ${stepLanguage} ${stepTag} ${stepType} ${stepPath}`).append(reason, 'yellow'),
     )
+  }
+
+  printStreamCreated(stream: Stream) {
+    const streamPath = this.getStreamPath(stream)
+    const streamName = colors.gray(`[${stream.config.name}]`)
+
+    this.output.log(stream.filePath, (message) => message.append(`${built} ${streamTag} ${streamName} ${streamPath}`))
+  }
+
+  getStreamPath(stream: Stream) {
+    return colors.bold(colors.cyan(this.printer.getRelativePath(stream.filePath)))
   }
 }
