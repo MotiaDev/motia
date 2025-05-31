@@ -27,30 +27,31 @@ Welcome to the source code of [the official Motia docs](http://motia.dev/docs/).
 Motia documentation has been created with [Create Fumadocs](https://github.com/fuma-nama/fumadocs). Join [the Motia community](https://discord.gg/m3XN23Kp) and follow along to see how you can contribute.
 
 1. Join [the Motia community](https://discord.gg/m3XN23Kp) to ask questions, interact with the core Motia team and your fellow community members! ❤️
+
 2. Fork the Motia repository and clone your fork to your local machine. 🖥️
 3. Install all the packages in the root directory:
 
-   ```bash
-     pnpm i
-   ```
+    ``` bash
+      pnpm i
+    ```
 
 4. Navigate to the docs directory using this command:
 
-   ```bash
-     cd packages/docs
-   ```
+    ``` bash
+      cd packages/docs 
+    ```
 
 5. Run the local development server:
 
-   ```bash
-   npm run dev
-   # or
-   pnpm dev
-   # or
-   yarn dev
-   ```
+    ```bash
+    npm run dev
+    # or
+    pnpm dev
+    # or
+    yarn dev
+    ```
 
-6. Open http://localhost:3000 with your browser to see the result.
+6. Open <http://localhost:3000> with your browser to see the result.
 
 ## Guidelines
 

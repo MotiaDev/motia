@@ -1,169 +1,190 @@
-# Motia
+<a name="readme-top"></a>
 
-<p align="center">
-  <img src="https://motia.dev/icon.png" alt="Motia Logo" width="200" />
-</p>
+<div align="center">
+  <img src="assets/PNGs/icon.png" alt="Logo" width="180">
+  <h1 align="center"> Unified Backend for APIs, Events, and Agents </h1>
+</div>
 
-<p align="center">
-  <strong>A modern, declarative workflow framework for multiple programming languages</strong>
-</p>
+<div align="center">
+  <a href="https://motia.dev"><img src="https://img.shields.io/badge/PROJECT-PAGE-FFE165?style=for-the-badge&labelColor=555555" alt="Project Page"></a>
+  <a href="https://discord.gg/nJFfsH5d6v"><img src="https://img.shields.io/badge/DISCORD-JOIN%20US-9146FF?style=for-the-badge&labelColor=555555" alt="Discord"></a>
+  <a href="https://motia.dev/docs"><img src="https://img.shields.io/badge/DOCS-READ%20NOW-000000?style=for-the-badge&labelColor=555555" alt="Documentation"></a>
+  <a href="https://www.npmjs.com/package/motia"><img src="https://img.shields.io/npm/v/motia?style=for-the-badge&label=NPM&labelColor=555555&color=CB3837" alt="NPM Version"></a>
+  <a href="https://www.npmjs.com/package/motia"><img src="https://img.shields.io/npm/dt/motia?style=for-the-badge&label=DOWNLOADS&labelColor=555555&color=CB3837" alt="NPM Downloads"></a>
+  <a href="#"><img src="https://img.shields.io/badge/STATUS-BETA-FFE165?style=for-the-badge&labelColor=555555" alt="Status Beta"></a>
+  <hr>
+</div>
 
-<p align="center">
-  <a href="https://www.npmjs.com/package/motia"><img src="https://img.shields.io/npm/v/motia.svg" alt="npm version"></a>
-  <a href="https://github.com/MotiaDev/motia/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license"></a>
-</p>
+---
 
-## What is Motia?
+Motia is a modern backend framework that combines APIs, background jobs, event systems, and AI agents into one unified, observable runtime. Stop context-switching between multiple runtimes—build your entire backend with event-driven steps, mixing JavaScript, TypeScript, and Python freely, while keeping shared state, tracing, and deployment simplicity.
 
-Motia is a lightweight, flexible framework for building complex workflows and business processes across multiple programming languages. It allows you to define, visualize, and execute workflows with a clean, declarative API in JavaScript, TypeScript, Ruby, Python, and more languages coming soon.
+---
 
-Key features:
-- 🔄 **Declarative Workflows**: Define complex processes with a simple, readable syntax
-- 🛠️ **Type-Safe**: Built with strong typing support for all supported languages
-- 🔍 **Visualizable**: Inspect and debug your workflows with Motia Workbench
-- 🧩 **Composable**: Build complex workflows from reusable components
-- 🚀 **Multi-Language Support**: Works with JavaScript, TypeScript, Ruby, Python, with more languages coming soon
-- 🌐 **Framework Agnostic**: Integrates with any framework in your language of choice
+## 🚧 The Problem: Fragmented Runtimes
 
-## Installation
+Backend engineering teams often juggle multiple fragmented runtimes:
 
-### JavaScript/TypeScript
-```sh
-npm install motia
-# or
-yarn add motia
-# or
-pnpm add motia
+| Runtime Layer           | Common Tools                                                        |
+| ----------------------- | ------------------------------------------------------------------- |
+| 🖥️ **API Servers**       | Express, FastAPI, Rails, Django, Laravel, Spring, .NET, Flask, Nest |
+| 📬 **Job Queues/Events** | Sidekiq, Temporal, BullMQ, Kafka, RabbitMQ, AWS SQS, Redis Streams  |
+| 🤖 **AI & Agents**       | LangGraph, CrewAI, Mastra, LangChain, AutoGPT, Agnu, AgentGPT       |
+
+**Common issues caused by fragmentation:**
+
+- **Deployment Complexity:** Multiple scaling models and deployment targets
+- **Debugging Difficulty:** Fragmented observability, incomplete traces
+- **Developer Constraints:** Language lock-in, limited flexibility
+- **Cognitive Overhead:** Context-switching across frameworks
+- **Redundant Boilerplate:** Duplicated logic and complex code-sharing
+
+---
+
+## ✅ Motia’s Unified Solution
+
+Motia solves this fragmentation by unifying your backend into a single runtime:
+
+| Runtime Layer           | Motia's Approach                                               |
+| ----------------------- | -------------------------------------------------------------- |
+| 🖥️ **API Servers**       | ✅ Expose workflow steps instantly as APIs/webhooks             |
+| 📬 **Job Queues/Events** | ✅ Unified runtime with built-in queuing, retries, and state    |
+| 🤖 **AI & Agents**       | ✅ Seamlessly combine deterministic logic & AI-driven workflows |
+
+**Benefits of Unifying with Motia:**
+
+- 🎯 **Unified Deployment:** Single consistent scaling model
+- 🔍 **Enhanced Observability:** Simplified end-to-end tracing
+- ⚙️ **Full Language Flexibility:** JavaScript, TypeScript, Python
+- 🧠 **Lower Cognitive Load:** Single intuitive backend model
+- ♻️ **Simplified Error Handling:** Automatic retries & error management
+- 🛡️ **Resilient Architecture:** Fault-tolerant event-based system
+
+---
+
+## 🎯 Key Motia Features
+
+Motia is engineered to scale seamlessly from early prototypes into robust, maintainable systems, providing a structured foundation for building reliable, production-ready applications.
+
+| Features                            | Description                                                                                                                                                                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 📦 **Full PyPi & NPM Support**       | Seamlessly integrate and leverage packages from the vast ecosystems of PyPi and NPM in your workflows.                                                                                                                                            |
+| 🚏 **Built-in Routing**              | Motia provides out-of-the-box routing capabilities, allowing instant setup of APIs and webhooks with no additional configuration required.                                                                                                        |
+| 🧪 **Fully Testable**                | Integrates effortlessly with your existing test suite, enabling comprehensive testing of workflows and steps using your preferred testing tools.                                                                                                  |
+| 👤 **Human-in-the-Loop**             | Built-in mechanisms for human intervention, making it easy to integrate review or approval steps directly into automated workflows.                                                                                                               |
+| 📜 **Minimal DSL**                   | Motia uses a minimal and intuitive domain-specific language (DSL), reducing learning curves and enabling quicker adoption.                                                                                                                        |
+| 🚀 **API Steps (APIs/Webhooks)**     | Quickly expose workflow steps as APIs or webhooks without additional server setup, ideal for integrating into existing web infrastructure.                                                                                                        |
+| 🖥️ **Motia Workbench**               | Provides a visual interface for workflow management, debugging, and monitoring, allowing easy visualization and manipulation of workflow execution.                                                                                               |
+| 🔎 **Trace IDs & Logging**           | Integrated trace IDs and structured logging enable end-to-end observability, simplifying debugging and improving reliability.                                                                                                                     |
+| 🔄 **Middleware & CLI**              | Easily extend workflow capabilities with middleware, and rapidly create, manage, and deploy projects through a powerful CLI tool.                                                                                                                 |
+| ⚡ **Hot-Reloading**                 | Real-time development experience allowing you to instantly see changes without restarting your workflows, significantly speeding up the development cycle.                                                                                        |
+| 📊 **Mermaid Diagrams**              | Automatic generation of Mermaid diagrams for each workflow, offering clear visualization of flow logic and dependencies.                                                                                                                          |
+| 🌐 **Motia Cursor & IDE Extensions** | Enhance productivity with Motia-specific rules in Cursor and VS-Code extensions, integrating workflow management directly into your preferred IDE environment.                                                                                    |
+| ☁️ **Motia Cloud**                   | One-command deployments, integrated observability tools, centralized logging, secret management, and environment-specific configurations including canary and rollback deployments, enabling robust and reliable workflow hosting and management. |
+
+## 🗂 Examples
+
+| [Finance Agent](https://github.com/MotiaDev/motia-examples/tree/main/examples/finance-agent) | [GitHub Agent](https://github.com/MotiaDev/motia-examples/tree/main/examples/github-integration-workflow) | [Gmail Manager](https://github.com/MotiaDev/motia-examples/tree/main/examples/gmail-workflow) |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| ![Finance](assets/examples/finance-agent.png)<br>Financial insights                          | ![GitHub](assets/examples/github-pr-management.png)<br>PR automation                                      | ![Gmail](assets/examples/gmail-flow.png)<br>Email automation                                  |
+
+| [Trello Automation](https://github.com/MotiaDev/motia-examples/tree/main/examples/trello-flow) | [RAG Agent](https://github.com/MotiaDev/motia-examples/tree/main/examples/rag_example) | [AI Image Gen](https://github.com/MotiaDev/motia-examples/tree/main/examples/vision-example) |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| ![Trello](assets/examples/trello-manager.png)<br>Task automation                               | ![RAG](assets/examples/parse-embed-rag.png)<br>Knowledge retrieval                     | ![AI Image](assets/examples/generate-image.png)<br>Generate images                           |
+
+---
+
+## 🚀 Quick Start
+
+Get your first Motia workflow running in minutes:
+
+**1. Create a Project**
+
+Create a new project with the Motia CLI:
+
+```bash
+npx motia create -n my-first-agent
 ```
 
-## Quick Start
+_This sets up a starter project in the `my-first-agent` folder._
 
-Ready to get started in minutes? Follow these simple steps using **pnpm** and the automated project creation:
+**2. Launch the Dev Server**
 
-1.  **Create a new project using the Motia CLI:**
+Navigate into your project and start the server:
 
-    ```bash
-    npx motia create --name my-motia-project --cursor
-    ```
-    *(Replace `my-motia-project` with your desired project name)*
-
-    This command will:
-    * Create a new folder `my-motia-project`
-    * Set up a basic Motia project with example steps
-    * Install dependencies using pnpm
-    * Include the `.cursor` folder for enhanced development experience (with `-c` flag)
-
-2.  **Navigate into your new project directory:**
-
-    ```bash
-    cd my-motia-project
-    ```
-
-3.  **Start the Motia development server:**
-
-    ```bash
-    pnpm run dev
-    ```
-
-    This will launch the Motia server and the Workbench UI (typically at `http://localhost:3000`).
-
-4.  **Open the Motia Workbench in your browser (usually `http://localhost:3000`)**. You should see a pre-built flow named "default" with example steps visualized.
-
-5.  **Test an example API Step:** In your terminal, use `curl` to trigger the example API endpoint (often `/default` in the default template):
-
-    ```bash
-    curl -X POST http://localhost:3000/default \
-    -H "Content-Type: application/json" \
-    -d '{}'
-    ```
-
-    Alternatively, use the Motia CLI to emit an event (for event-based steps in the template):
-
-    ```bash
-    npx motia emit --topic test-state --message '{}'
-    ```
-
-    Check the Workbench logs – you should see logs indicating the step execution and event flow!
-
-**Congratulations! You've just created and run your first Motia workflow using the automated project setup.**
-## CLI Commands
-
-Motia comes with a powerful CLI to help you manage your projects:
-
-### `motia init`
-
-Initializes a new Motia project in the current directory.
-
-```sh
-motia init
+```bash
+cd my-first-agent
+pnpm run dev
 ```
 
-### `motia install`
+**3. Open the Workbench**
 
-Sets up your project's dependencies and environment. For Python projects, this will create and configure a virtual environment.
+Open [http://localhost:3000](http://localhost:3000) to see your workflow visualized in the Motia Workbench.
 
-```sh
-motia install
+**4. Trigger Your Workflow**
+
+Trigger your API Step:
+
+```bash
+curl -X POST http://localhost:3000/default -H "Content-Type: application/json" -d '{}'
 ```
 
-### `motia build`
+Trigger your Event Step (directly):
 
-Builds a lock file based on your current project setup which is then used by the Motia ecosystem.
-
-```sh
-motia build
+```bash
+npx motia emit --topic test-state --message '{}'
 ```
 
-### `motia dev`
+🎉 **That's it!** You're ready to build with Motia.
 
-Initiates a dev environment for your project allowing you to use Motia Workbench (visualization tool for your flows). For Python projects, this will automatically use the configured virtual environment.
+## Start building your APIs, agents and automations with simple steps
 
-```sh
-motia dev [options]
+- Configure a simple step to emit/subscribe, assign to a flow and include runtime validation
+- Define a function to handle when the step is triggered
+- Import any package
 
-Options:
-  -p, --port <port>     The port to run the server on (default: 3000)
-  -v, --verbose         Enable verbose logging
-  -d, --debug          Enable debug logging
-  -m, --mermaid        Enable mermaid diagram generation
+```TypeScript
+import { OpenAI } from 'openai';
+import { z } from 'zod';
+import type { EventConfig, Handlers } from 'motia';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'Auto-Reply',
+  subscribes: ['email.received'],
+  emits: ['email.send'],
+  flows: ['email-support'],
+  input: z.object({ subject: z.string(), body: z.string(), from: z.string() }),
+};
+
+export const handler: Handlers['Auto-Reply'] = async (inputData, context) => {
+  const { subject, body, from } = inputData;
+  const { emit, logger } = context;
+
+  const sentimentResponse = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: `Analyze the sentiment of the following text: ${body}` }],
+  });
+
+  const sentiment = sentimentResponse.choices[0].message.content;
+
+  logger.info('[EmailAutoReply] Sentiment analysis', { sentiment });
+
+  emit({
+    type: 'email.send',
+    data: { from, subject, body, sentiment },
+  });
+};
 ```
 
-## Visualizing Workflows
+## Next Steps
 
-Motia Workbench provides a visual interface to inspect and debug your workflows:
+- **Dive into the Documentation:** Explore the [full Motia documentation](https://motia.dev/docs) to understand core concepts, step types, state management, and more.
+- **Explore Examples:** Check out practical [examples](https://motia.dev/docs/real-world-use-cases) to see Motia in action and get inspiration for your own workflows and agents.
+- **Join the Community:** Connect with other Motia users and the development team on our [Discord server](https://discord.gg/nJFfsH5d6v) and contribute to the project on [GitHub](https://github.com/MotiaDev/motia).
 
-```sh
-motia dev
-```
-
-Then open your browser at `http://localhost:3000` to see your workflows in action.
-
-## Language Support
-
-Motia currently supports:
-- JavaScript
-- TypeScript
-- Ruby
-- Python
-
-With more languages coming soon!
-
-## Help
-
-For more information on a specific command, you can use the `--help` flag:
-
-```sh
-motia <command> --help
-```
-
-## Documentation
-
-For full documentation, visit [https://motia.dev/docs](https://motia.dev/docs)
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](https://github.com/MotiaDev/motia/blob/main/CONTRIBUTING.md) for details.
-
-## License
-
-This project is licensed under the MIT License.
+**License:** [MIT](LICENSE)

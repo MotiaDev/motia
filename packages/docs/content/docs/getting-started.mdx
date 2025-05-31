@@ -1,0 +1,256 @@
+---
+title: "Quick Start"
+---
+
+This guide will walk you through everything you need to define a minimal **step**, set up your Motia project, and run the **Motia** dev server – all in one go, using **pnpm** for package management.
+
+<Steps>
+  <Step>
+  ### Setup your project: Create a New Project Folder
+
+Let's create a new Motia project in a dedicated folder. This is the recommended approach for keeping your projects organized.
+
+  <Tabs items={['Automated', 'Manual']}>
+<Tab value="Automated">
+  <Tabs items={['npx', 'motia Global CLI']}>
+    <Tab value="npx">
+      Use `npx` to run the project creation command directly:
+
+      <Tabs items={['npx']}>
+        <Tab value="npx">
+          ```bash
+          npx motia@latest create -n <your-project-name>
+          ```
+        </Tab>
+      </Tabs>
+    </Tab>
+
+    <Tab value="motia Global CLI">
+      **First, install the Motia CLI globally:**
+
+      <Tabs items={['pnpm (Global)', 'npm (Global)', 'yarn (Global)', 'bun (Global)']}>
+        <Tab value="pnpm (Global)">
+          ```bash
+          npm install -g motia
+          ```
+        </Tab>
+        <Tab value="npm (Global)">
+          ```bash
+          npm install -g motia
+          ```
+        </Tab>
+        <Tab value="yarn (Global)">
+          ```bash
+          yarn global add motia
+          ```
+        </Tab>
+        <Tab value="bun (Global)">
+          ```bash
+          bun add -g motia
+          ```
+        </Tab>
+      </Tabs>
+
+      **Then, create your project using the globally installed `motia` command:**
+
+      ```bash
+      motia create -n <your-project-name>
+      ```
+    </Tab>
+
+  </Tabs>
+
+    *   **This will**:
+        *   Download and run the Motia CLI project creation tool
+        *   Create a new project directory named `<your-project-name>`.
+        *   Set up a basic Motia project structure inside the new folder.
+        *   Install necessary dependencies using pnpm within the project folder.
+        *   Add a `dev` script to your `package.json`.
+        *   Include example steps to get you started.
+
+  <Callout type="info">
+    **Choosing a Project Name:** Replace `<your-project-name>` with your desired project folder name.
+
+    **Alternative Templates:** To see other templates, run: `npx motia templates` (or `motia templates` if you installed globally).
+
+  </Callout>
+
+You should see a new folder created with the following files inside:
+
+  <Files>
+    <Folder name="steps" defaultOpen>
+      <File name="00-noop.step.ts" />
+      <File name="00-noop.step.tsx" />
+      <File name="01-api.step.ts" />
+      <File name="02-test-state.step.ts" />
+      <File name="03-check-state-change.step.ts" />
+    </Folder>
+    <File name="package.json" />
+    <File name="tsconfig.json" />
+    <File name="types.d.ts" />
+  </Files>
+</Tab>
+    <Tab value="Manual">
+      <Callout>For these instructions we recommend using `pnpm`. For detailed installation instructions and package manager options, please refer to the [Installation Guide](/docs/getting-started/installation) (Note: In this Quick Start, automated project creation is highly recommended).</Callout>
+
+      **Quick Setup Summary (Manual - Advanced Users):**
+
+      1.  **Create a project directory:**
+          ```bash
+          mkdir <your-project-name> && cd <your-project-name>
+          ```
+
+      2.  **Initialize `package.json`:**
+          ```bash
+          npm init -y
+          ```
+
+      3.  **Install Core Packages:**
+          ```bash
+            motia zod
+          ```
+
+      4.  **Add `dev` Script to `package.json`:**
+          ```json
+          {
+            "scripts": {
+              "dev": "motia dev"
+            }
+          }
+          ```
+
+      5.  **Optional TypeScript Setup:**
+          ```bash
+          ts-node typescript -D
+          ```
+
+      6.  **Create `steps` Folder:**
+          ```bash
+          mkdir steps
+          ```
+    </Tab>
+
+  </Tabs>
+
+  </Step>
+  <Step>
+  ### Minimal Step Example
+
+**The initial project comes with sample steps, but in this step we're going to walk you through on creating a new one**
+
+1.  **Create a new file** named `hello-world.step.js` (or `hello-world.step.ts` for TypeScript) inside the `steps` folder.
+
+    <Files>
+      <Folder name="steps" defaultOpen>
+        <File name="hello-world.step.js" />
+      </Folder>
+    </Files>
+
+2.  **Paste the following code** into your `hello-world.step.js` file:
+
+        ```javascript
+        exports.config = {
+          type: 'api', // "event", "api", or "cron"
+          path: '/hello-world',
+          method: 'GET',
+          name: 'HelloWorld',
+          emits: [],
+          flows: ['HelloWorld'],
+        }
+
+        exports.handler = async () => {
+          return {
+            status: 200,
+            body: { message: 'Hello World' },
+          }
+        }
+        ```
+        This minimal API step creates a **GET** endpoint on `/hello-world` that returns a JSON
+
+        ```json
+        { "message": "Hello World" }
+        ```
+
+  </Step>
+
+   <Step>
+
+### Start Motia Development Server & Workbench
+
+Now, let's start Motia and see your workflow in action!
+
+1.  **Open your terminal** in your Motia project's root directory (where your `package.json` file is located).
+
+2.  **Run the development server command:** Use the `dev` script that was set up in your `package.json`:
+
+    <Tabs items={['npm', 'yarn', 'pnpm', 'bun']}>
+      <Tab value="yarn">```yarn run dev ```</Tab>
+      <Tab value="npm">```npm run dev ```</Tab>
+      <Tab value="pnpm">```pnpm run dev ```</Tab>
+      <Tab value="bun">```bun run dev ```</Tab>
+    </Tabs>
+
+    Motia will:
+
+    - **Scan** your `steps` folder for step definition files (`.step.ts`, `.step.js`, `.step.py`, `.step.rb`).
+    - **Register** your Steps with the Motia runtime.
+    - **Launch** a development server and the Motia Workbench UI (typically at [`http://localhost:3000`](http://localhost:3000)).
+
+    <Callout type="info">
+      **Changing the Port:** To run the Workbench on a different port, use the `--port` option: `pnpm run dev --port
+      3001`
+    </Callout>
+
+  </Step>
+  <Step>
+    ### View your Flow in the Workbench
+
+    1.  **Open your browser** and navigate to the Motia Workbench.  By default, it's running at:  [`http://localhost:3000`](http://localhost:3000) or [`http://127.0.0.1:3000`](http://127.0.0.1:3000).
+
+    2.  **Locate your Flow in the Sidebar:** On the left sidebar of the Workbench UI, you should see a list of Flows.
+
+        *   **For the default template:**  You'll find a flow named "**default**".
+        *   **For the `hello-world.step.js` example:** You'll find a flow named "**HelloWorld**".
+
+    3.  **Select your Flow:** Click on the flow name in the sidebar.
+
+    4.  **Observe the Visual Flow:** You should now see a visual representation of your flow in the main panel. This is the Motia Workbench visualizing the steps and event flow within your application!
+
+(image missing)
+        <Callout type="info">
+            You can click and drag the nodes in the visual editor to rearrange them for better clarity. Explore the UI to familiarize yourself with the Workbench!
+        </Callout>
+
+    </Step>
+    <Step>
+    ### Test your step
+
+    Now you created the step `hello-world.js`, which creates a **GET** `/hello-world` endpoint, you can test by either opening http://localhost:3000/hello-world or
+
+    ```bash
+    curl http://localhost:3000/hello-world
+    ```
+
+    This is a really simple example where you can have your first step running.
+
+    </Step>
+
+    <Step>
+    ### Understanding a flow with events
+
+    Now you already created an API Steps, let's check the flow that's already in the project, click on `default` flow on Workbench sidebar on the left. (Or navigate to http://localhost:3000/flow/default)
+
+    You should see the page below
+
+(image missing)
+    This flow is a little bit more advanced, it has Noop steps (which we are going to talk about later), API steps, and Event steps.
+
+    Event steps are code that can take some time to finish and can have errors (like LLM calls which are non-deterministic), in case they fail, they can rerun later.
+
+    In the flow represented by the image above you should see a node with a button to start it, go ahead an click it and check the logs that are generated.
+
+    Now let's dive deep on the flow you already executed. Let's jump in to [Core concepts](/docs/getting-started/core-concepts)
+
+    </Step>
+
+</Steps>
