@@ -28,6 +28,16 @@ import { Log, LogsStream } from './streams/logs-stream'
 import { BaseStreamItem, IStateStream, StateStreamEventChannel, StateStreamEvent } from './types-stream'
 import { analyticsEndpoint } from './analytics-endpoint'
 import { trackEvent } from './analytics/utils'
+import { 
+  getTraces, 
+  getTrace, 
+  getTraceWithDetails,
+  getTraceGroups, 
+  getTraceGroup, 
+  getObservabilityStats, 
+  correlateTraces, 
+  continueCorrelation 
+} from './observability-endpoint'
 
 export type MotiaServer = {
   app: Express
@@ -251,6 +261,15 @@ export const createServer = async (
   flowsEndpoint(lockedData, app)
   flowsConfigEndpoint(app, process.cwd())
   analyticsEndpoint(app, process.cwd())
+
+  app.get('/motia/traces', getTraces)
+  app.get('/motia/traces/:traceId', getTrace)
+  app.get('/motia/traces/details/:traceId', getTraceWithDetails)
+  app.get('/motia/trace-groups', getTraceGroups)
+  app.get('/motia/trace-groups/:correlationId', getTraceGroup)
+  app.get('/motia/observability/stats', getObservabilityStats)
+  app.post('/motia/traces/correlate', correlateTraces)
+  app.post('/motia/traces/continue-correlation', continueCorrelation)
 
   server.on('error', (error) => {
     console.error('Server error:', error)
