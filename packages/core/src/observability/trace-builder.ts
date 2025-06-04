@@ -92,9 +92,11 @@ export class TraceBuilder {
     step.status = event.metadata?.success ? 'completed' : 'failed'
     step.duration = event.duration
     
-    if (!event.metadata?.success && event.metadata?.error) {
-      step.error = event.metadata.error
+    if (!event.metadata?.success) {
       trace.metadata.errorCount++
+      if (event.metadata?.error) {
+        step.error = event.metadata.error
+      }
     }
 
     if (step.status === 'completed') {

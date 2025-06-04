@@ -61,9 +61,7 @@ type CallStepFileOptions = {
 
 export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData | undefined> => {
   const { step, printer, eventManager, state, traceId, data, contextInFirstArg, lockedData } = options
-  
-  observabilityService.initialize()
-  
+
   const logger = observabilityService.createObservabilityLogger(
     traceId,
     step.config.flows,

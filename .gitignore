@@ -92,3 +92,5 @@ agents/**/components/
 .mermaid/
 
 playground/motia-workbench.json
+
+mcp.json

@@ -7,34 +7,12 @@ import { StateStream } from '../state-stream'
 export class ObservabilityService {
   private traceBuilder: TraceBuilder
   private observabilityStream: ObservabilityStream
-  private isInitialized = false
 
   constructor(maxTraces: number = 50) {
     this.traceBuilder = new TraceBuilder(maxTraces)
     this.observabilityStream = new ObservabilityStream()
-  }
-
-  initialize(): void {
-    if (this.isInitialized) return
-    this.isInitialized = true
-  }
-
-  createObservabilityLogger(
-    traceId: string,
-    flows: string[] | undefined,
-    step: string,
-    isVerbose: boolean,
-    logStream?: StateStream<any>
-  ): ObservabilityLogger {
-    const logger = new ObservabilityLogger(
-      traceId,
-      flows,
-      step,
-      isVerbose,
-      logStream,
-      this.observabilityStream
-    )
-
+    
+    // Ensure all events are processed by the trace builder
     const originalSet = this.observabilityStream.set.bind(this.observabilityStream)
     this.observabilityStream.set = async (groupId: string, id: string, data: any) => {
       const result = await originalSet(groupId, id, data)
@@ -53,8 +31,23 @@ export class ObservabilityService {
       }
       return result
     }
+  }
 
-    return logger
+  createObservabilityLogger(
+    traceId: string,
+    flows: string[] | undefined,
+    step: string,
+    isVerbose: boolean,
+    logStream?: StateStream<any>
+  ): ObservabilityLogger {
+    return new ObservabilityLogger(
+      traceId,
+      flows,
+      step,
+      isVerbose,
+      logStream,
+      this.observabilityStream
+    )
   }
 
   getTrace(traceId: string): Trace | undefined {

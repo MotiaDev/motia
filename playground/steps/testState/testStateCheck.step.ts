@@ -6,7 +6,7 @@ export const config: EventConfig = {
   type: 'event',
   name: 'TestStateCheck',
   description: 'check state change',
-  subscribes: ['test-state-check'],
+  subscribes: ['check-state-change'],
   emits: [],
   input: z.object({
     key: z.string(),

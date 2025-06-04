@@ -10,14 +10,12 @@ interface TraceSearchProps {
 }
 
 export const TraceSearch = ({ onSearch }: TraceSearchProps) => {
-  const [flowName, setFlowName] = useState('')
   const [status, setStatus] = useState<string>('')
   const [stepName, setStepName] = useState('')
   const [correlationId, setCorrelationId] = useState('')
 
   const handleSearch = () => {
     const filter: TraceFilter = {
-      ...(flowName && { flowName }),
       ...(status && status !== 'all' && { status: status as any }),
       ...(stepName && { stepName }),
       ...(correlationId && { correlationId }),
@@ -27,28 +25,17 @@ export const TraceSearch = ({ onSearch }: TraceSearchProps) => {
   }
 
   const handleClear = () => {
-    setFlowName('')
     setStatus('')
     setStepName('')
     setCorrelationId('')
     onSearch({})
   }
 
-  const hasFilters = flowName || (status && status !== 'all') || stepName || correlationId
+  const hasFilters = (status && status !== 'all') || stepName || correlationId
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <label className="text-sm font-medium mb-1 block">Flow Name</label>
-          <Input
-            placeholder="Filter by flow name..."
-            value={flowName}
-            onChange={(e) => setFlowName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          />
-        </div>
-
         <div>
           <label className="text-sm font-medium mb-1 block">Status</label>
           <Select value={status} onValueChange={setStatus}>
