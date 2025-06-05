@@ -1,13 +1,4 @@
 {
-  "defaultOpen": true,
-  "pages": [
-    "steps",
-    "streams",
-    "flows-and-visualization",
-    "logging-and-debugging",
-    "state-management",
-    "cli",
-    "deployment",
-    "testing"
-  ]
+  "title": "Concepts",
+  "pages": ["overview", "flows", "steps", "step-types", "toolkit", "workbench"]
 }

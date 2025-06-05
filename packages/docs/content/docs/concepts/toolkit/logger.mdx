@@ -1,0 +1,214 @@
+---
+title: "Logger in Motia"
+description: "Learn how to use Motia's built-in logger for debugging and tracking flow execution"
+---
+
+## What is Logger?
+Motia provides a built-in utility that enables logging across API routes, background jobs, and agent flows. This makes it easy to debug issues, track state changes, and monitor execution through Workbench. Here's why you should use `logger` over something like a `console.log()`:
+
+- Integrated with Motia Workbench
+- Provides real-time log streaming in both terminal and Motia Workbench
+- Outputs structured logs with context
+- Helps debug failures and monitor executions
+- Improves traceability of flows and API calls
+
+
+## Usage
+To user Logger, simply import it from Motia and use it in any event handler or in a workflow directly:
+### Example Usage
+
+<Tabs items={['TS', 'JS', 'Python']}>
+  <Tab value='TS'>
+    ```typescript
+    export const handler: Handlers['StepName'] = async (input, { logger }) => {
+      // Basic logging
+      logger.info('Starting process')
+
+      // Logging with context
+      logger.info('Operation completed', {
+        operationId: input.id,
+        duration: 1500
+      })
+
+      // Error handling
+      try {
+        await riskyOperation()
+      } catch (error) {
+        logger.error('Operation failed', {
+          error: error.message,
+          stack: error.stack
+        })
+      }
+
+      // Debug logging
+      logger.debug('Operation details', {
+        rawInput: input,
+        timestamp: Date.now()
+      })
+
+      // Warning logging
+      if (input.amount > 1000) {
+        logger.warn('Large operation detected', {
+          amount: input.amount,
+          threshold: 1000
+        })
+      }
+    }
+    ```
+
+  </Tab>
+  <Tab value='JS'>
+    ```javascript
+    export const handler = async (input, { logger }) => {
+      // Basic logging
+      logger.info('Starting process')
+
+      // Logging with context
+      logger.info('Operation completed', {
+        operationId: input.id,
+        duration: 1500
+      })
+
+      // Error handling
+      try {
+        await riskyOperation()
+      } catch (error) {
+        logger.error('Operation failed', {
+          error: error.message,
+          stack: error.stack
+        })
+      }
+
+      // Debug logging
+      logger.debug('Operation details', {
+        rawInput: input,
+        timestamp: Date.now()
+      })
+
+      // Warning logging
+      if (input.amount > 1000) {
+        logger.warn('Large operation detected', {
+          amount: input.amount,
+          threshold: 1000
+        })
+      }
+    }
+    ```
+
+  </Tab>
+  <Tab value='Python'>
+    ```python
+    async def handler(input, ctx):
+        # Basic logging
+        ctx.logger.info('Starting process')
+
+        # Logging with context
+        ctx.logger.info('Operation completed', {
+            'operation_id': input.get("id"),
+            'duration': 1500
+        })
+
+        # Error handling
+        try:
+            await risky_operation()
+        except Exception as error:
+            ctx.logger.error('Operation failed', {
+                'error': str(error),
+                'stack': traceback.format_exc()
+            })
+
+        # Debug logging
+        ctx.logger.debug('Operation details', {
+            'raw_input': input.__dict__,
+            'timestamp': time.time()
+        })
+
+        # Warning logging
+        if input.amount > 1000:
+            ctx.logger.warn('Large operation detected', {
+                'amount': input.get("amount"),
+                'threshold': 1000
+            })
+    ```
+  </Tab>
+</Tabs>
+
+## Logger methods
+Logger supports a bunch of methods to deal with common use-cases encountered when building Motia apps:
+
+
+| Method             | Description                                 |
+|--------------------|---------------------------------------------|
+| 💬 `logger.info()`    | for general information about step execution, flow progress, and successful operations         |
+| 🚧 `logger.debug()`   | for detailed debugging information and diagnostic data for troubleshooting                 |
+| ⚠️ `logger.warn()`    | for warnings, edge cases etc       |
+| 🔴 `logger.error()`   | for critical issues, exceptions, failed operations, and system errors       |
+
+## Best Practices for Logging
+
+1. **Log flow boundaries**: Always log at the **start** and **end** of a flow, API route, or job.
+2. **Use the right method**: Don't use `logger.success()` — to issue warnings, use `logger.warn()` instead. Find all the logger methods listed [here](/docs/concepts/toolkit/logger#logger-methods)
+3. **Provide context**: Include metadata to make the logs contextual and informative. Here's an example:
+```jsx
+logger.error('Operation failed', {
+  error: error.message,
+  code: error.code,
+  input: JSON.stringify(input),
+  stack: error.stack,
+})
+```
+4. Pass additional context to make logs easier to search, filter and analyze:
+```jsx
+// Good - Structured and searchable
+logger.info('Payment processed', {
+  paymentId: '123',
+  amount: 100,
+  status: 'success',
+})
+ 
+// Avoid - Harder to parse and search
+logger.info(`Payment ${paymentId} processed: amount=${amount}`)
+```
+5. You can also use Logger to track execution time and resource usage:
+```jsx
+export const handler: Handlers['StepName'] = async (input, { logger }) => {
+  const startTime = performance.now()
+ 
+  // Process operation
+  const result = await processOperation(input)
+ 
+  logger.info('Operation completed', {
+    duration: performance.now() - startTime,
+    memoryUsage: process.memoryUsage().heapUsed,
+  })
+}
+
+// `performance.now()` captures timestamps to measure how long the operation took.
+// `process.memoryUsage().heapUsed` reports heap memory used, giving insight into runtime efficiency.
+
+```
+6. Use `logger.debug()` for detailed troubleshooting:
+  ```jsx
+  logger.debug('Operation details', {
+    rawInput: input,
+    timestamp: Date.now(),
+    state: currentState,
+  })
+  
+
+// `rawInput`: the full input object (may contain extra/unfiltered data)
+// `timestamp`: the exact time the operation ran
+// `state`: current internal state of the system or agent
+```
+7. Use pre-included rich metadata: Every log generated in Motia automatically includes rich metadata to help you:
+
+| Field       | Description                                       |
+|-------------|---------------------------------------------------|
+| `timestamp` | When the log was generated                        |
+| `traceId`   | Unique identifier for the flow execution          |
+| `flows`     | Array of flow names this step belongs to          |
+| `file`      | Source file generating the log                    |
+| `level`     | Log level (e.g., `info`, `error`, `debug`)        |
+| `msg`       | Log message                                       |
+
+With structured logging, built-in metadata, Motia’s logger makes it easy to understand, debug, and optimize your backend.
