@@ -30,7 +30,7 @@ export const useStreamItem = <TData>(args?: StreamItemArgs) => {
   const [event, setEvent] = useState<StreamSubscription | null>(null)
 
   useEffect(() => {
-    if (!args?.streamName || !args?.groupId || !args?.id) return
+    if (!args?.streamName || !args?.groupId || !args?.id || !stream) return
 
     const subscription = stream.subscribeItem(args.streamName, args.groupId, args.id)
 

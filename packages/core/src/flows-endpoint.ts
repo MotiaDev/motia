@@ -55,7 +55,7 @@ export const flowsEndpoint = (lockedData: LockedData, app: Express) => {
       hidden: true,
       config: {
         name: '__motia.flows',
-        schema: z.object({ id: z.string(), name: z.string() }),
+        schema: z.object({ id: z.string(), name: z.string(), data: z.custom<FlowResponse>() }),
         baseConfig: { storageType: 'custom', factory: () => new FlowsStream(lockedData) },
       },
     },
@@ -63,7 +63,18 @@ export const flowsEndpoint = (lockedData: LockedData, app: Express) => {
   )()
 
   lockedData.on('flow-created', (flow) => flowsStream.set('default', flow, { id: flow, name: flow }))
-  lockedData.on('flow-updated', (flow) => flowsStream.set('default', flow, { id: flow, name: flow }))
+
+  lockedData.on('flow-updated', (flowId) => {
+    const flow = lockedData.flows[flowId]
+    let data
+
+    if (flow.steps) {
+      data = generateFlow(flowId, flow.steps)
+    }
+
+    flowsStream.set('default', flowId, { id: flowId, name: flowId, data })
+  })
+
   lockedData.on('flow-removed', (flow) => flowsStream.delete('default', flow))
 
   app.get('/flows/:id', async (req, res) => {

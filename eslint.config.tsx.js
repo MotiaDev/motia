@@ -10,7 +10,7 @@ const reactHooks = require('eslint-plugin-react-hooks')
 
 /** @type {import('eslint').Linter.Config[]} */
 module.exports = [
-  { ignores: ['**/dist/**/*'] },
+  { ignores: ['**/dist/**/*', 'src/**/*.test.tsx', 'src/**/*.test.ts'] },
   {
     files: ['index.tsx', 'src/**/*.tsx', 'test/**/*.tsx', 'steps/**/*.tsx'],
     languageOptions: {

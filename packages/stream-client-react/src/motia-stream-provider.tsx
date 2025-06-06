@@ -25,7 +25,5 @@ export const MotiaStreamProvider: React.FC<Props> = ({ children, address }) => {
     return () => stream.close()
   }, [address])
 
-  if (!stream) return null
-
   return <MotiaStreamContext.Provider value={{ stream }}>{children}</MotiaStreamContext.Provider>
 }
