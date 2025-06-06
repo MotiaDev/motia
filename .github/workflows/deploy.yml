@@ -9,6 +9,9 @@ on:
   push:
     tags:
       - 'v*'
+    paths-ignore:
+      - 'docs/**'
+      - 'packages/docs/**'
 
 jobs:
   pre-release:
