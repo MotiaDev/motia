@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     title: 'Manifesto',
     description:
       'Motia is the missing framework for AI-native software engineering. Discover why the Step is our core primitive.',
-    url: 'https://yourdomain.com/manifesto',
+    url: 'https://www.motia.dev/manifesto',
     siteName: 'Motia',
     type: 'article',
   },
