@@ -115,6 +115,13 @@ export default function Navbar() {
                   Docs
                 </Link>
                 {/**
+                 * Manifesto Link
+                 *
+                 **/}
+                <Link href="/manifesto" className="text-[16px] text-white">
+                  Manifesto
+                </Link>
+                {/**
                  * Motia Cloud Sign up
                  *
                  **/}
@@ -181,6 +188,13 @@ export default function Navbar() {
              **/}
             <Link href="/docs" className="text-[16px] text-white/60 transition-colors ease-in-out hover:text-white">
               Docs
+            </Link>
+            {/**
+             * Manifesto Link
+             *
+             **/}
+            <Link href="/manifesto" className="text-[16px] text-white/60 transition-colors ease-in-out hover:text-white">
+              Manifesto
             </Link>
             {/**
              * Motia Cloud Sign up
