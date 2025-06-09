@@ -51,39 +51,33 @@ export default function ManifestoPage() {
 
           <section className={normalText}>
             <p>
-              We're standing at the edge of a new chapter in software engineering. One that's driven by AI and LLMs. These technologies are automating workflows
-              previously handled by humans, enabling a transformational transfer of responsibilities from individuals to backend automation systems. While the vast majority
-              <span className={`${gradientText} !bg-linear-to-r`}> (80% to 90%) of steps </span>
-              in an organization,
-              <span className={`${gradientText} !bg-linear-to-r`}> are still handled by humans,</span> AI's
-              reasoning and data manipulation capabilities are changing this. This is creating a{' '}
-              <span className={`${gradientText} !bg-linear-to-r from-[#5AC5FF] !to-20%`}>
-                {' '}
-                massive influx of complexity{' '}
-              </span>
-              into existing software systems.
+              Modern software engineering is splintered. APIs live in one framework, background jobs in another, queues
+              have their own tooling, and AI agents are springing up in yet more isolated runtimes. <span
+                className={gradientText}>Motia</span> exists to <span className={gradientText}>unify</span>{' '}
+              all of these concerns <span className={gradientText}>API endpoints, automations & workflows, background
+              tasks, queues, and AI agents into a single, coherent system with shared observability and developer
+              experience.</span>
             </p>
           </section>
 
           <section className={normalText}>
             <p>
-              If history has taught us one thing, it is that
-              <span className={gradientText}> complexity is followed by abstraction. </span> We saw it with the
-              transition from PHP spaghetti code era to structured MVC frameworks, and again with the rise of front-end
-              frameworks like React, which were purpose-built to handle increasing complexity of user interfaces.
+              We are standing at the edge of a new chapter in software engineering driven by AI and large language
+              models. These technologies are automating workflows previously handled by humans and shifting the
+              bulk of work to backend automation systems. This shift is introducing a <span className={gradientText}>massive
+              influx of complexity</span> into existing architectures, similar to the transition from PHP spaghetti code era
+              to structured MVC frameworks and the later rise of React for UI complexity.
             </p>
           </section>
 
           <section className={normalText}>
             <p>
-              Currently, we are at the cusp of another, perhaps larger than ever before, paradigm shift. Large Language Models/LLMs
-              and AI tools are becoming more and more capable of performing workflows previously handled by humans, like reasoning about data, transforming it, and moving it through complex workflows.{' '}
-              <span className={gradientText}>
-                {' '}
-                This means a significant shift is occurring, where workflow steps will move from human operators to backend systems.{' '}
-              </span>
+              History shows that <span className={gradientText}>complexity is always followed by abstraction</span>. The
+              next abstraction must accommodate AI-driven workflows while eliminating the fragmentation between the
+              systems that power them.
             </p>
           </section>
+
           <section className={normalText}>
             <p>
               Just as past complexity demanded new frameworks, this AI-driven influx requires a new solution. We've seen
