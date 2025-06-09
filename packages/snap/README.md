@@ -13,17 +13,32 @@
   <a href="https://github.com/MotiaDev/motia/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license"></a>
 </p>
 
-## What is Motia?
+**Build modern, AI-native backends — one Step at a time.**
 
-Motia is a lightweight, flexible framework for building complex workflows and business processes across multiple programming languages. It allows you to define, visualize, and execute workflows with a clean, declarative API in JavaScript, TypeScript, Ruby, Python, and more languages coming soon.
+Motia is a tool for building **unified, event-driven, AI-native backends** using a new primitive: the **Step**. Think of Steps like React Components — but for backend logic.
 
-Key features:
+- 🧱 Each Step performs one task.  
+- 🔀 Steps connect via Workflows.  
+- 🤖 Steps can trigger APIs, background jobs, or even LLMs.  
+- 🧰 Everything is observable via the built-in Workbench.
+
+---
+
+## ✨ Why Motia?
+
+Modern backend systems are **complex**. You're juggling APIs, queues, cron jobs, AI tools, and business logic — all scattered across different layers.
+
+Motia solves this by letting you build your backend as a **graph of Steps**. Steps are:
+
+- 🧠 **Composable**: Chain Steps like functions
 - 🔄 **Declarative Workflows**: Define complex processes with a simple, readable syntax
 - 🛠️ **Type-Safe**: Built with strong typing support for all supported languages
+- 🚀 **Event-driven**: Steps react to events and emit new ones
+- 🌐 **Language/runtime agnostic**: Write in JS, TS, Python (with support for more languages coming out soon)
 - 🔍 **Visualizable**: Inspect and debug your workflows with Motia Workbench
-- 🧩 **Composable**: Build complex workflows from reusable components
-- 🚀 **Multi-Language Support**: Works with JavaScript, TypeScript, Ruby, Python, with more languages coming soon
-- 🌐 **Framework Agnostic**: Integrates with any framework in your language of choice
+- 👀 **Debuggable**: Visualize everything in the built-in Workbench
+
+---
 
 ## Installation
 
@@ -35,57 +50,96 @@ yarn add motia
 # or
 pnpm add motia
 ```
+---
 
-## Quick Start
+## 🔧 Supported Step Types
 
-Ready to get started in minutes? Follow these simple steps using **pnpm** and the automated project creation:
+| Type    | Trigger               | Use Case                              |
+| ------- | --------------------- | ------------------------------------- |
+| `api`   | HTTP Request          | Expose REST endpoints                 |
+| `event` | Emitted Topics        | React to internal or external events  |
+| `cron`  | Scheduled Time (cron) | Automate recurring jobs               |
+| `noop`  | None                  | Placeholder for manual/external tasks |
 
-1.  **Create a new project using the Motia CLI:**
+---
 
-    ```bash
-    npx motia create --name my-motia-project --cursor
-    ```
-    *(Replace `my-motia-project` with your desired project name)*
+## 🚀 Quickstart
 
-    This command will:
-    * Create a new folder `my-motia-project`
-    * Set up a basic Motia project with example steps
-    * Install dependencies using pnpm
-    * Include the `.cursor` folder for enhanced development experience (with `-c` flag)
+1. **Create a project**, and `cd` into its directory:
 
-2.  **Navigate into your new project directory:**
+```bash
+npx motia@latest create -n my-motia-app
+cd my-motia-app
+```
+2. **Write your first step**
 
-    ```bash
-    cd my-motia-project
-    ```
+open up your favourite code editor there, and let's write our first step. Open up the `01-api.step.ts` file and paste the following into it:
 
-3.  **Start the Motia development server:**
+```bash
+  exports.config = {
+  type: 'api', // "event", "api", "noop" or "cron"
+  path: '/hello-world',
+  method: 'GET',
+  name: 'HelloWorld',
+  emits: ['test-state'],
+  flows: ['default'],
+}
+ 
+exports.handler = async () => {
+  return {
+    status: 200,
+    body: { message: 'Hello World' },
+  }
+}
+```
 
-    ```bash
-    pnpm run dev
-    ```
+Here are the details about this step:
 
-    This will launch the Motia server and the Workbench UI (typically at `http://localhost:3000`).
+- `type`: `api` - This is an API step that we can trigger this via HTTP request. Steps can be of four types - API, Event, NOOP, and Cron.
+- `path`: `/hello-world` - The URL path to access this step. This is the API Endpoint.
+- `method`: `GET` - HTTP request method.
+- `name`: `HelloWorld` - Name for this step
+- `emits`: `[]` - Add follow-up event(s).
+- `flows`: `['default']` - Flow to which this step belongs. By default, all steps belong to the default flow.
 
-4.  **Open the Motia Workbench in your browser (usually `http://localhost:3000`)**. You should see a pre-built flow named "default" with example steps visualized.
+3. **Start the Motia Workbench**
+Now, fire up the Motia workbench to visualize the data flow, test API endpoints and debug locally. To start it, simply run `pnpm run dev` and it will launch at `http://localhost:3000`.
 
-5.  **Test an example API Step:** In your terminal, use `curl` to trigger the example API endpoint (often `/default` in the default template):
+From the Workbench, you can navigate to:
 
-    ```bash
-    curl -X POST http://localhost:3000/default \
-    -H "Content-Type: application/json" \
-    -d '{}'
-    ```
+- Logs: To get structured logs for each step execution, including inputs, outputs, and errors.
+- States: To view the internal state and data passed between steps using traceID and field.
+- Endpoints: To see and test all your API endpoints from within the Workbench, by simply hitting the `Play` button.
+- Flows: To visually inspect how your steps are connected and triggered, what each step does, which language it was written in, what events does it subscribe/emit to and more.
 
-    Alternatively, use the Motia CLI to emit an event (for event-based steps in the template):
+---
 
-    ```bash
-    npx motia emit --topic test-state --message '{}'
-    ```
+- Optionally, you can also use `curl` to test your APIs:
 
-    Check the Workbench logs – you should see logs indicating the step execution and event flow!
+```bash
+curl -X POST http://localhost:3000/default \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
 
-**Congratulations! You've just created and run your first Motia workflow using the automated project setup.**
+- Alternatively, use the Motia CLI to emit an event (for event-based steps in the template):
+
+```bash
+npx motia emit --topic test-state --message '{}'
+```
+
+Check the Workbench logs – you should see logs indicating the step execution and event flow!
+
+That's it! This is how simple it is to have a fully functional Motia app - with an API step, automatic routing, a visual debugger, and zero setup hassle.
+
+From here, you can:
+
+- 🔧 Add new steps (.step.ts) to handle events, schedule jobs, or trigger AI agents
+- 📡 Wire up complex workflows using just event emissions
+- 🔭 Debug and iterate in real-time with the Workbench
+- 🤖 Add AI agentic logic to one/many step(s), and
+- 🏗️ Build out full-blown backend systems with modular logic
+
 ## CLI Commands
 
 Motia comes with a powerful CLI to help you manage your projects:
@@ -127,16 +181,6 @@ Options:
   -d, --debug          Enable debug logging
   -m, --mermaid        Enable mermaid diagram generation
 ```
-
-## Visualizing Workflows
-
-Motia Workbench provides a visual interface to inspect and debug your workflows:
-
-```sh
-motia dev
-```
-
-Then open your browser at `http://localhost:3000` to see your workflows in action.
 
 ## Language Support
 
