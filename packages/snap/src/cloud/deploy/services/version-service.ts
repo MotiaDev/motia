@@ -66,8 +66,8 @@ export class VersionService {
     return await this.versionClient.getVersionStatus(versionId)
   }
 
-  async promoteVersion(args: { environmentId: string; version: string; projectId: string }): Promise<void> {
-    const { environmentId, version, projectId } = args
+  async promoteVersion(args: { environmentId: string; versionName: string; projectId: string }): Promise<void> {
+    const { environmentId, versionName, projectId } = args
     const environmentsClient = this.context.apiFactory.getEnvironmentsClient()
     const environment = await environmentsClient.getEnvironment(projectId, environmentId)
 
@@ -75,17 +75,17 @@ export class VersionService {
       message
         .tag('progress')
         .append('Promoting version')
-        .append(version, 'dark')
+        .append(versionName, 'dark')
         .append('to')
         .append(environment.name, 'dark'),
     )
-    await this.versionClient.promoteVersion(environmentId, version)
+    await this.versionClient.promoteVersion(environmentId, versionName)
 
     this.context.log('promote-version', (message) =>
       message
         .tag('success')
         .append('Version')
-        .append(version, 'dark')
+        .append(versionName, 'dark')
         .append('promoted successfully to')
         .append(environment.name, 'dark'),
     )

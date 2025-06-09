@@ -51,7 +51,7 @@ cloudCli
 
       console.log(colors.green('✓ [SUCCESS]'), 'Build completed')
 
-      await versionManager.deploy(context, process.cwd(), arg.version, {
+      await versionManager.deploy(context, process.cwd(), arg.versionName, {
         projectId: arg.projectId,
         environmentId: arg.environmentId,
         envFile: arg.envFile,

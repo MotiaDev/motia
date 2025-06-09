@@ -219,6 +219,6 @@ export const updateEnvironment: CliHandler = async (arg, context) => {
   await context.versionService.promoteVersion({
     projectId: context.config.id,
     environmentId: context.config.selectedEnvironment,
-    version: arg.version,
+    versionName: arg.versionName,
   })
 }
