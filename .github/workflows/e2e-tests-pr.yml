@@ -6,10 +6,8 @@ on:
     paths:
       - 'packages/**'
       - 'playground/**'
+      - '!packages/docs/**'
       - '.github/workflows/e2e-tests-pr.yml'
-    paths-ignore:
-      - 'docs/**'
-      - 'packages/docs/**'
   workflow_dispatch:
     inputs:
       branch:
