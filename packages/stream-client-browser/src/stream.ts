@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { StreamGroupSubscription } from './stream-group'
 import { StreamItemSubscription } from './stream-item'
 import { StreamSubscription } from './stream-subscription'
-import { BaseMessage } from './stream.types'
+import { BaseMessage, ItemEventMessage } from './stream.types'
 
 export class Stream {
   private ws: WebSocket
@@ -82,12 +82,13 @@ export class Stream {
   }
 
   messageListener(event: MessageEvent<string>): void {
-    const message: BaseMessage = JSON.parse(event.data)
+    const message: ItemEventMessage<never> = JSON.parse(event.data)
     const room = this.roomName(message)
 
     this.listeners[room]?.forEach((listener) => listener.listener(message))
 
-    if (message.id) {
+    // we need to discard sync to group subs when it's an item event
+    if (message.id && message.event.type !== 'sync') {
       const groupRoom = this.roomName({
         streamName: message.streamName,
         groupId: message.groupId,
