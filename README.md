@@ -17,16 +17,16 @@
 
 ---
 
-Motia is a modern backend framework that combines APIs, background jobs, event systems, and AI agents into one unified, observable runtime. Stop context-switching between multiple runtimes—build your entire backend with event-driven steps, mixing JavaScript, TypeScript, and Python freely, while keeping shared state, tracing, and deployment simplicity.
+Motia is a modern backend framework that unifies APIs, background jobs, event systems, and AI agents into one event-driven system that works the way developers think. Stop context-switching between multiple runtimes, build your entire backend with event-driven steps, mixing JavaScript, TypeScript, and Python freely, while keeping shared state, tracing, state of the art observability and deployment simplicity.
 
 ---
 
-## 🚧 The Problem: Fragmented Runtimes
+## 🚧 Why Motia
 
 Backend engineering teams often juggle multiple fragmented runtimes:
 
-| Runtime Layer            | Common Tools                                                        |
-| ------------------------ | ------------------------------------------------------------------- |
+| Runtime Layer           | Common Tools                                                        |
+| ----------------------- | ------------------------------------------------------------------- |
 | 🖥️ **API Servers**       | Express, FastAPI, Rails, Django, Laravel, Spring, .NET, Flask, Nest |
 | 📬 **Job Queues/Events** | Sidekiq, Temporal, BullMQ, Kafka, RabbitMQ, AWS SQS, Redis Streams  |
 | 🤖 **AI & Agents**       | LangGraph, CrewAI, Mastra, LangChain, AutoGPT, Agno, AgentGPT       |
@@ -41,12 +41,14 @@ Backend engineering teams often juggle multiple fragmented runtimes:
 
 ---
 
-## ✅ Motia’s Unified Solution
+## ✅ The Unified Runtime: One System for All Backend Concerns
 
-Motia solves this fragmentation by unifying your backend into a single runtime:
+Motia solves this fragmentation by unifying your backend into a single system. It brings everything—APIs, background jobs, queues, and AI agents into a single coherent model with shared state, logging, observability, and deployment.
 
-| Runtime Layer            | Motia's Approach                                                |
-| ------------------------ | --------------------------------------------------------------- |
+Motia is not another queue or AI wrapper. It's a unified backend system where APIs, background jobs, scheduled tasks, and AI agents all live together as Steps in a single runtime:
+
+| Runtime Layer           | Motia's Approach                                               |
+| ----------------------- | -------------------------------------------------------------- |
 | 🖥️ **API Servers**       | ✅ Expose workflow steps instantly as APIs/webhooks             |
 | 📬 **Job Queues/Events** | ✅ Unified runtime with built-in queuing, retries, and state    |
 | 🤖 **AI & Agents**       | ✅ Seamlessly combine deterministic logic & AI-driven workflows |
@@ -66,14 +68,14 @@ Motia solves this fragmentation by unifying your backend into a single runtime:
 
 Motia is engineered to scale seamlessly from early prototypes into robust, maintainable systems, providing a structured foundation for building reliable, production-ready applications.
 
-| Features                             | Description                                                                                                                                                                                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Features                            | Description                                                                                                                                                                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 📦 **Full PyPi & NPM Support**       | Seamlessly integrate and leverage packages from the vast ecosystems of PyPi and NPM in your workflows.                                                                                                                                            |
 | 🚏 **Built-in Routing**              | Motia provides out-of-the-box routing capabilities, allowing instant setup of APIs and webhooks with no additional configuration required.                                                                                                        |
 | 🧪 **Fully Testable**                | Integrates effortlessly with your existing test suite, enabling comprehensive testing of workflows and steps using your preferred testing tools.                                                                                                  |
 | 👤 **Human-in-the-Loop**             | Built-in mechanisms for human intervention, making it easy to integrate review or approval steps directly into automated workflows.                                                                                                               |
 | 📜 **Minimal DSL**                   | Motia uses a minimal and intuitive domain-specific language (DSL), reducing learning curves and enabling quicker adoption.                                                                                                                        |
-| 🚀 **API Steps (APIs/Webhooks)**     | Quickly expose workflow steps as APIs or webhooks without additional server setup, ideal for integrating into existing web infrastructure.                                                                                                        |
+| 🚀 **Steps**                         | Steps are the core building block of Motia. Use them to define APIs, background jobs, cron tasks, or AI agents, all from one system.                                                                                                              |
 | 🖥️ **Motia Workbench**               | Provides a visual interface for workflow management, debugging, and monitoring, allowing easy visualization and manipulation of workflow execution.                                                                                               |
 | 🔎 **Trace IDs & Logging**           | Integrated trace IDs and structured logging enable end-to-end observability, simplifying debugging and improving reliability.                                                                                                                     |
 | 🔄 **Middleware & CLI**              | Easily extend workflow capabilities with middleware, and rapidly create, manage, and deploy projects through a powerful CLI tool.                                                                                                                 |
@@ -186,5 +188,7 @@ export const handler: Handlers['Auto-Reply'] = async (inputData, context) => {
 - **Dive into the Documentation:** Explore the [full Motia documentation](https://motia.dev/docs) to understand core concepts, step types, state management, and more.
 - **Explore Examples:** Check out practical [examples](https://motia.dev/docs/real-world-use-cases) to see Motia in action and get inspiration for your own workflows and agents.
 - **Join the Community:** Connect with other Motia users and the development team on our [Discord server](https://discord.gg/nJFfsH5d6v) and contribute to the project on [GitHub](https://github.com/MotiaDev/motia).
+
+_Motia isn’t just a tool—it’s a new foundation for the AI-first backend._
 
 **License:** [MIT](LICENSE)

@@ -11,45 +11,51 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/motia"><img src="https://img.shields.io/npm/v/motia.svg" alt="npm version"></a>
   <a href="https://github.com/MotiaDev/motia/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license"></a>
+  <a href="https://twitter.com/motiadev" target="_blank"><img src="https://img.shields.io/twitter/follow/motiadev.svg?style=social&label=Follow"></a>
+  <a href="https://discord.gg/7rXsekMK" target="_blank"><img src="https://img.shields.io/discord/1322278831184281721"></a>
 </p>
 
-**Build modern, AI-native backends — one Step at a time.**
+**Unify APIs and agents with built-in observability and one-click deployment**
 
-Motia is a tool for building **unified, event-driven, AI-native backends** using a new primitive: the **Step**. Think of Steps like React Components — but for backend logic.
+Motia is a modern backend framework that unifies APIs, background jobs, events, and AI agents. Eliminate runtime complexity and build unified backends where JavaScript, TypeScript, and Python work together in event-driven workflows, with built-in state management, observability, and one-click deployments.
+
+Motia brings cohesion to the fragmented backend world with our primitive: the **Step**. Think of Steps like React Components, but for backends.
 
 - 🧱 Each Step performs one task.  
+- 📚 Each Step can be in a different language, while being part of the same flow.
 - 🔀 Steps connect via Workflows.  
 - 🤖 Steps can trigger APIs, background jobs, or even LLMs.  
 - 🧰 Everything is observable via the built-in Workbench.
 
 ---
 
-## ✨ Why Motia?
 
-Modern backend systems are **complex**. You're juggling APIs, queues, cron jobs, AI tools, and business logic — all scattered across different layers.
 
-Motia solves this by letting you build your backend as a **graph of Steps**. Steps are:
+## 🚧 The Problem
 
-- 🧠 **Composable**: Chain Steps like functions
-- 🔄 **Declarative Workflows**: Define complex processes with a simple, readable syntax
-- 🛠️ **Type-Safe**: Built with strong typing support for all supported languages
-- 🚀 **Event-driven**: Steps react to events and emit new ones
-- 🌐 **Language/runtime agnostic**: Write in JS, TS, Python (with support for more languages coming out soon)
-- 🔍 **Visualizable**: Inspect and debug your workflows with Motia Workbench
-- 👀 **Debuggable**: Visualize everything in the built-in Workbench
+Backend teams juggle fragmented runtimes across APIs, background queues, and AI agents. This creates deployment complexity, debugging gaps, and cognitive overhead from context-switching between frameworks.
+
+*This fragmentation demands a unified system.*
 
 ---
 
-## Installation
+## ✅ The Unified System
 
-### JavaScript/TypeScript
-```sh
-npm install motia
-# or
-yarn add motia
-# or
-pnpm add motia
-```
+Motia unifies your entire backend into a unified state. APIs, background jobs, and AI agents become interconnected Steps with shared state and integrated observability.
+
+
+| **Before**                  | **After (Motia)**                   |
+| --------------------------- | ----------------------------------- |
+| Multiple deployment targets | Single unified deployment           |
+| Fragmented observability    | End-to-end tracing                  |
+| Language lock-in            | JavaScript, TypeScript, Python      |
+| Context-switching overhead  | Single intuitive model              |
+| Complex error handling      | Automatic retries & fault tolerance |
+
+
+![Motia combines APIs, background queues, and AI agents into one system](../../assets/2.gif)
+
+
 ---
 
 ## 🔧 Supported Step Types
@@ -142,44 +148,44 @@ From here, you can:
 
 ## CLI Commands
 
-Motia comes with a powerful CLI to help you manage your projects:
+Motia comes with a range of [powerful CLI commands](https://www.motia.dev/docs/concepts/cli) to help you manage your projects, in addition to the ones listed below:
 
-### `motia init`
-
-Initializes a new Motia project in the current directory.
-
+### `npx motia create [options]`
+Create a new Motia project in a fresh directory or the current one.
 ```sh
-motia init
+npx motia create [options]
+
+# options
+  # -n, --name <project name>: Project name; use . or ./ to use current directory
+  # -t, --template <template name>: Template to use; run npx motia templates to view available ones
+  # -c, --cursor: Adds .cursor config for Cursor IDE
 ```
 
-### `motia install`
-
-Sets up your project's dependencies and environment. For Python projects, this will create and configure a virtual environment.
-
-```sh
-motia install
-```
-
-### `motia build`
-
-Builds a lock file based on your current project setup which is then used by the Motia ecosystem.
-
-```sh
-motia build
-```
-
-### `motia dev`
+### `npx motia dev`
 
 Initiates a dev environment for your project allowing you to use Motia Workbench (visualization tool for your flows). For Python projects, this will automatically use the configured virtual environment.
 
 ```sh
-motia dev [options]
+npm run dev [options]
+# or
+yarn dev [options]
+# or
+pnpm dev [options]
+# or
+bun run dev  [options]
 
-Options:
-  -p, --port <port>     The port to run the server on (default: 3000)
-  -v, --verbose         Enable verbose logging
-  -d, --debug          Enable debug logging
-  -m, --mermaid        Enable mermaid diagram generation
+# options:
+  # -p, --port <port>     The port to run the server on (default: 3000)
+  # -v, --verbose         Enable verbose logging
+  # -d, --debug          Enable debug logging
+  # -m, --mermaid        Enable mermaid diagram generation
+```
+
+### `npx motia build`
+Compiles all your steps (Node.js, Python and more) and builds a lock file based on your current project setup which is then used by the Motia ecosystem.
+
+``` bash
+motia build
 ```
 
 ## Language Support
@@ -199,10 +205,14 @@ For more information on a specific command, you can use the `--help` flag:
 ```sh
 motia <command> --help
 ```
+![alt text](../../assets/1.png)
 
 ## Documentation
 
-For full documentation, visit [https://motia.dev/docs](https://motia.dev/docs)
+For full documentation, visit [our docs.](https://motia.dev/docs)
+
+## Help
+For questions and support please use the [official Discord channel](https://discord.gg/7rXsekMK). The issue list of our Github repo is exclusively for bug reports and feature requests.
 
 ## Contributing
 
