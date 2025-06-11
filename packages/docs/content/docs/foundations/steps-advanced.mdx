@@ -1,0 +1,953 @@
+---
+title: "Powering Up Your Steps"
+description: "Explore advanced capabilities of Steps: Using middlewares, custom visuals, no-operation (NOOP) and more."
+---
+
+## Basics to brilliance
+Once you've a good grasp of <a href="/docs/foundations/steps"> what steps are</a>, and the different <a href="/docs/foundations/types-of-step">types of steps</a>, it is time to level up!  
+
+There are some additional functionalities Motia offers that allow you to extend, organize, and customize your Steps. They will enhance your developer experience, help you add more functionality and let you exercise more control over your workflows. 
+
+Whether it’s adding middlewares, visual enhancements, or using NOOP steps to represent external actions, these capabilities help you craft cleaner, more scalable workflows.
+
+Let's look at how to use middlewares first, followed by customising step appearance and then by NOOP steps:
+<Steps>
+<Step>
+## 1. Using middlewares in API steps
+Middlewares let you intercept and process incoming requests before handing them off to the associated Step Handlers. 
+
+They're useful for abstracting common tasks away from API steps, keeping them clean and focused on their core purpose.
+
+ Use them to handle cross-cutting concerns such as:
+- Authentication and authorization
+- Input validation and sanitization
+- Logging and analytics
+- Rate limiting or IP blocking
+
+<Callout title="Steps" type="warn">
+ Middlewares are only supported by API steps.
+</Callout>
+
+
+### Middleware Function Signature
+
+```typescript
+type ApiMiddleware = (req: ApiRequest, ctx: FlowContext, next: () => Promise<ApiResponse>) => Promise<ApiResponse>
+```
+
+Middleware functions receive:
+
+- `req`: The API request object with body, headers, pathParams, and queryParams
+- `ctx`: The flow context with logger, state, emit, and traceId
+- `next`: A function to call the next middleware or handler in the chain
+  - Call `next()` to continue to the next middleware or handler
+  - The return value of `next()` is the response from the next middleware or handler
+  - You can modify this response before returning it
+
+### Example Middleware Usage
+
+```typescript
+import { ApiMiddleware } from 'motia'
+
+// Logging middleware
+const loggingMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  ctx.logger.info('Request received', { path: req.pathParams })
+  const start = Date.now()
+
+  // Call the next middleware and get its response
+  const response = await next()
+
+  const duration = Date.now() - start
+  ctx.logger.info('Request completed', { duration, status: response.status })
+
+  return response
+}
+
+// Authentication middleware
+const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  const authHeader = req.headers.authorization
+
+  if (!authHeader) {
+    // Return early without calling next()
+    return {
+      status: 401,
+      body: { error: 'Unauthorized' },
+    }
+  }
+
+  // Continue to the next middleware
+  return next()
+}
+
+export const config = {
+  type: 'api',
+  name: 'protected-endpoint',
+  path: '/api/protected',
+  method: 'POST',
+  emits: ['USER_ACTION'],
+  middleware: [loggingMiddleware, authMiddleware],
+}
+
+export const handler = async (req, ctx) => {
+  // This handler will only be called if all middleware pass
+  return {
+    status: 200,
+    body: { message: 'Protected data accessed successfully' },
+  }
+}
+```
+
+### Creating Custom Middleware
+
+You can create your own middleware functions:
+
+```typescript
+import { ApiMiddleware } from 'motia'
+
+// Request modification middleware
+const requestModifierMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  // Modify the request before passing it to the next middleware
+  req.headers['x-modified-by'] = 'middleware'
+  req.body.timestamp = Date.now()
+
+  // Call the next middleware in the chain
+  return next()
+}
+
+// Response modification middleware
+const responseModifierMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  // Call the next middleware in the chain
+  const response = await next()
+
+  // Modify the response before returning it
+  response.headers = {
+    ...response.headers,
+    'x-powered-by': 'Motia',
+  }
+
+  return response
+}
+
+// Error handling middleware
+const errorHandlingMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  try {
+    // Call the next middleware in the chain
+    return await next()
+  } catch (error) {
+    ctx.logger.error('Error in handler', { error })
+    return {
+      status: 500,
+      body: { error: 'Internal server error' },
+    }
+  }
+}
+
+// Rate limiter middleware with state
+const rateLimiterMiddleware: ApiMiddleware = (() => {
+  // Closure to maintain state between requests
+  const requests: Record<string, number[]> = {}
+  const limit = 100
+  const windowMs = 60000 // 1 minute
+
+  return async (req, ctx, next) => {
+    const ip = req.headers['x-forwarded-for'] || 'unknown-ip'
+    const ipStr = Array.isArray(ip) ? ip[0] : ip
+
+    const now = Date.now()
+    if (!requests[ipStr]) {
+      requests[ipStr] = []
+    }
+
+    // Remove old requests outside the time window
+    requests[ipStr] = requests[ipStr].filter((time) => now - time < windowMs)
+
+    if (requests[ipStr].length >= limit) {
+      return {
+        status: 429,
+        body: { error: 'Too many requests, please try again later' },
+      }
+    }
+
+    // Add current request
+    requests[ipStr].push(now)
+
+    return next()
+  }
+})()
+```
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    ```typescript
+      import { ApiRouteConfig, Handlers } from 'motia'
+      import { z } from 'zod'
+
+      export const config: ApiRouteConfig = {
+        type: 'api',
+        name: 'TestStateApiTrigger',
+        description: 'test state',
+        path: '/test-state',
+        method: 'POST',
+        emits: ['test-state'],
+        bodySchema: z.object({}),
+        flows: ['test-state'],
+      }
+
+      export const handler: Handlers['TestStateApiTrigger'] = async (req, { logger, emit }) => {
+        logger.info('[Test State] Received request', req)
+
+        await emit({
+          topic: 'test-state',
+          data: req.body
+        })
+
+        return {
+          status: 200,
+          body: { message: 'Success' },
+        }
+      }
+    ```
+
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const { z } = require('zod')
+
+    exports.config = {
+      type: 'api',
+      name: 'Test state api trigger',
+      description: 'test state',
+      path: '/test-state',
+      method: 'POST',
+      emits: ['test-state'],
+      bodySchema: z.object({}),
+      flows: ['test-state'],
+    }
+
+    exports.handler = async (req, { logger, emit }) => {
+      logger.info('[Test State] Received request', req)
+
+      await emit({
+        topic: 'test-state',
+        data: req.body
+      })
+
+      return {
+        status: 200,
+        body: { message: 'Success' },
+      }
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="Python">
+    ```python
+    from typing import Any, Dict, Callable
+    from motia import ApiMiddleware
+    from datetime import datetime
+    import time
+
+    from pydantic import BaseModel
+
+    # Define a Pydantic model for request body validation
+    class RequestBody(BaseModel):
+        message: str
+
+    # Request modification middleware
+    async def request_modifier_middleware(data: Dict[str, Any], ctx: Any, next_fn: Callable):
+        # Modify the request before passing it to the next middleware
+        data['headers']['x-modified-by'] = 'middleware'
+        data['body']['timestamp'] = int(time.time() * 1000)
+
+        # Call the next middleware in the chain
+        return await next_fn()
+
+    # Response modification middleware
+    async def response_modifier_middleware(data: Dict[str, Any], ctx: Any, next_fn: Callable):
+        # Call the next middleware in the chain
+        response = await next_fn()
+
+        # Modify the response before returning it
+        response['headers'] = {
+            **response.get('headers', {}),
+            'x-powered-by': 'Motia'
+        }
+
+        return response
+
+    # Error handling middleware
+    async def error_handling_middleware(data: Dict[str, Any], ctx: Any, next_fn: Callable):
+        try:
+            # Call the next middleware in the chain
+            return await next_fn()
+        except Exception as error:
+            ctx.logger.error('Error in handler', {'error': str(error)})
+            return {
+                'status': 500,
+                'body': {'error': 'Internal server error'}
+            }
+
+    # Rate limiter middleware with state using a closure
+    def create_rate_limiter_middleware():
+        # Closure to maintain state between requests
+        requests: Dict[str, list] = {}
+        limit = 100
+        window_ms = 60000  # 1 minute
+
+        async def rate_limiter_middleware(data: Dict[str, Any], ctx: Any, next_fn: Callable):
+            ip = data['headers'].get('x-forwarded-for', ['unknown-ip'])
+            ip_str = ip[0] if isinstance(ip, list) else ip
+
+            now = int(time.time() * 1000)
+            if ip_str not in requests:
+                requests[ip_str] = []
+
+            # Remove old requests outside the time window
+            requests[ip_str] = [t for t in requests[ip_str] if now - t < window_ms]
+
+            if len(requests[ip_str]) >= limit:
+                return {
+                    'status': 429,
+                    'body': {'error': 'Too many requests, please try again later'}
+                }
+
+            # Add current request
+            requests[ip_str].append(now)
+
+            return await next_fn()
+
+        return rate_limiter_middleware
+
+    config = {
+        'type': 'api',
+        'name': 'Test state api trigger',
+        'description': 'test state',
+        'path': '/test-state',
+        'method': 'POST',
+        'emits': ['test-state'],
+        'flows': ['test-state'],
+        'bodySchema': RequestBody.model_json_schema(), # We use jsonschema to validate
+        'middleware': [
+            request_modifier_middleware,
+            response_modifier_middleware,
+            error_handling_middleware,
+            create_rate_limiter_middleware()
+        ]
+    }
+
+    async def handler(req, context):
+        context.logger.info('[Test State] Received request', {'body': req.get("body")})
+
+        await context.emit({
+            'topic': 'test-state',
+            'data': req.body
+        })
+
+        return {
+            'status': 200,
+            'body': {'message': 'Success'}
+        }
+    ```
+
+  </Tab>
+</Tabs>
+</Step>
+<Step>
+## 2. Customising step appearance (UI Steps)
+You can customise how your workflow steps appear in the workbench. UI steps are a powerful way to do this and to make your workflows more intuitive, expressive, and visually informative. 
+
+They help you and your team understand what's happening at a glance.
+
+By designing custom visual components, you can add context, highlight meaning, and bring clarity to complex workflows.
+
+To create a custom UI for a step, create a `.tsx` or `.jsx` file next to your step file with the same base name:
+
+<Tabs items={['tsx', 'jsx']}>
+  <Tab value="tsx">
+    ``` 
+    steps/ 
+    └── myStep/ 
+      ├── myStep.step.ts      # Step definition
+      └── myStep.step.tsx     # Visual override
+    ```
+  </Tab>
+  <Tab value="jsx">
+    ```
+    steps/
+    └── myStep/ 
+      ├── myStep.step.ts      # Step definition
+      └── myStep.step.tsx     # Visual override
+    ```
+  </Tab>
+</Tabs>
+
+### Basic Usage
+
+Let's override an EventNode but keeping the same look. Like the image below.
+We're going to add an image on the side and show the description.
+
+![Custom Event Node](./../img/custom-event-node.png)
+
+<Tabs items={['TypeScript', 'JavaScript']}>
+  <Tab>
+    ```tsx
+    // myStep.step.tsx
+
+    import { EventNode, EventNodeProps } from 'motia/workbench'
+    import React from 'react'
+
+    export const Node: React.FC<EventNodeProps> = (props) => {
+      return (
+        <EventNode {...props}>
+          <div className="flex flex-row items-start gap-2">
+            <div className="text-sm text-gray-400 font-mono">{props.data.description}</div>
+            <img
+              style={{ width: '64px', height: '64px' }}
+              src="https://www.motia.dev/icon.png"
+            />
+          </div>
+        </EventNode>
+      )
+    }
+    ```
+
+  </Tab>
+  <Tab>
+    ```jsx
+    // myStep.step.jsx
+
+    import { EventNode } from 'motia/workbench'
+    import React from 'react'
+
+    export const Node = (props) => {
+      return (
+        <EventNode {...props}>
+          <div className="flex flex-row items-start gap-2">
+            <div className="text-sm text-gray-400 font-mono">{props.data.description}</div>
+            <img
+              style={{ width: '64px', height: '64px' }}
+              src="https://www.motia.dev/icon.png"
+            />
+          </div>
+        </EventNode>
+      )
+    }
+    ```
+
+    
+
+  </Tab>
+</Tabs>
+
+### Components
+
+Motia Workbench provides out of the box components that you can use to create custom UI steps, which apply to different types of steps.
+
+
+| Component   | Props Type     | Description                                                                    |
+| ----------- | -------------- | ------------------------------------------------------------------------------ |
+| EventNode   | EventNodeProps | Base component for Event Steps, with built-in styling and connection points    |
+| ApiNode     | ApiNodeProps   | Component for API Steps, includes request/response visualization capabilities  |
+| CronNode    | CronNodeProps  | Base component for Cron Steps, displays timing information                     |
+| NoopNode    | NoopNodeProps  | Base component for NoopNodes with a different color to comply workbench legend |
+
+### Customizing completely
+
+You can also fully customize your node making it look completely different from the result.
+Let's draw the following node.
+
+![Custom Ideator Agent Node](./../img/custom-ideator-agent-node.png)
+
+```tsx
+import { BaseHandle, EventNodeProps, Position } from 'motia/workbench'
+import React from 'react'
+
+export const Node: React.FC<EventNodeProps> = (props) => {
+  return (
+    <div className="w-80 bg-black text-white rounded-xl p-4">
+      <div className="group relative">
+        <BaseHandle type="target" position={Position.Top} variant="event" />
+
+        <div className="flex items-center space-x-3">
+          <img className="w-8 h-8" src="https://cdn-icons-png.flaticon.com/512/12222/12222588.png" />
+          <div className="text-lg font-semibold">{props.data.name}</div>
+        </div>
+
+        <div className="mt-2 text-sm font-medium text-gray-300">{props.data.description}</div>
+
+        <div className="mt-3 flex flex-col gap-2 border border-gray-800 border-solid p-2 rounded-md w-full">
+          <div className="flex items-center text-xs text-gray-400 space-x-2">Input</div>
+          <div className="flex flex-col gap-2 whitespace-pre-wrap font-mono">
+            <div className="flex items-center gap-2">
+              <div className="">contentIdea:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">contentType:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-2 border border-gray-800 border-solid p-2 rounded-md w-full">
+          <div className="flex items-center text-xs text-gray-400 space-x-2">Output</div>
+          <div className="flex flex-col gap-2 whitespace-pre-wrap font-mono">
+            <div className="flex items-center gap-2">
+              <div className="">topic:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">subtopics:</div>
+              <div className="text-orange-500">string[]</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">keywords:</div>
+              <div className="text-orange-500">string[]</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">tone:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">audience:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+          </div>
+        </div>
+
+        <BaseHandle type="source" position={Position.Bottom} variant="event" />
+      </div>
+    </div>
+  )
+}
+```
+
+#### Important Notes
+
+- You will need to add `<BaseHandle>` to your node, otherwize it won't show the connectors.
+- If your node has padding, make sure to add a group inside your node with class `group relative` so the handles can be correctly positioned.
+- Don't forget to checkout <a href="/docs/api-ref#styling-guidelines-ui-steps">our styling guidelines</a> and <a href="/docs/foundations/happy-practices#best-practices-ui-steps">the best practices</a> for UI steps.
+
+<Callout type="info">You can create your own custom components and reuse across multiple notes.</Callout>
+</Step>
+<Step>
+## 3. NOOP (No operation)
+Sometimes, it is essential for a part of your workflow to run outside of Motia. Whether it’s a manual approval, a third-party webhook, or just a placeholder for something external, NOOP steps let you model these parts of your flow without writing any logic.
+
+Think of them as _visual placeholders_ in your workflow. NOOP steps are like sticky notes on a whiteboard that remind you “something important happens here,” even if Motia isn’t the one doing it.
+
+They’re especially useful for:
+- Mapping human-in-the-loop decisions
+- Representing integrations or external services
+- Creating custom visuals in the Workbench
+- Testing and stubbing flows during development
+
+### File Structure
+
+NOOP steps require two files with the same base name:
+- `stepName.step.ts` - Contains the step configuration
+- `stepName.step.tsx` - Contains the UI component (optional)
+
+### Step Configuration File (.ts)
+
+<Tabs items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    // myStep.step.ts
+    import { NoopConfig } from 'motia'
+
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'My NOOP Step',
+      description: 'Description of what this step simulates',
+      virtualEmits: ['event.one', 'event.two'],
+      virtualSubscribes: [], // Required even if empty
+      flows: ['my-flow'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    // myStep.step.js
+    const config = {
+      type: 'noop',
+      name: 'My NOOP Step',
+      description: 'Description of what this step simulates',
+      virtualEmits: ['event.one', 'event.two'],
+      virtualSubscribes: [], // Required even if empty
+      flows: ['my-flow'],
+    }
+
+    module.exports = { config }
+    ```
+  </Tab>
+</Tabs>
+
+### UI Component File (.tsx)
+
+<Tabs items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    // myStep.step.tsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function MyStep() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium">My Step UI</div>
+          {/* Your custom UI elements */}
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    // myStep.step.jsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function MyStep() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium">My Step UI</div>
+          {/* Your custom UI elements */}
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Example: Webhook Testing
+
+Here's a complete example of a NOOP step that simulates webhook events:
+
+<Tabs items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    // test-webhook.step.ts
+    import { NoopConfig } from 'motia'
+
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Webhook Simulator',
+      description: 'Simulates incoming webhook events',
+      virtualEmits: ['webhook.received'],
+      virtualSubscribes: [],
+      flows: ['webhook-flow'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    // test-webhook.step.js
+    const config = {
+      type: 'noop',
+      name: 'Webhook Simulator',
+      description: 'Simulates incoming webhook events',
+      virtualEmits: ['webhook.received'],
+      virtualSubscribes: [],
+      flows: ['webhook-flow'],
+    }
+
+    module.exports = { config }
+    ```
+  </Tab>
+</Tabs>
+
+<Tabs items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    // test-webhook.step.tsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function WebhookSimulator() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium mb-2">Webhook Simulator</div>
+          <button 
+            onClick={() => {
+              fetch('/api/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'test' }),
+              })
+            }}
+            className="px-3 py-1 bg-blue-600 rounded text-sm"
+          >
+            Trigger Webhook
+          </button>
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    // test-webhook.step.jsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function WebhookSimulator() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium mb-2">Webhook Simulator</div>
+          <button 
+            onClick={() => {
+              fetch('/api/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'test' }),
+              })
+            }}
+            className="px-3 py-1 bg-blue-600 rounded text-sm"
+          >
+            Trigger Webhook
+          </button>
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Representing External Processes
+
+NOOP steps represent parts of your workflow that happen outside your system. Common examples include:
+<Steps>
+<Step>
+#### 1. Webhook Callbacks
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Wait for Stripe Webhook',
+      description: 'Waits for payment confirmation',
+      virtualSubscribes: ['payment.initiated'],
+      virtualEmits: ['/api/stripe/webhook'],
+      flows: ['payment'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'Wait for Stripe Webhook',
+      description: 'Waits for payment confirmation',
+      virtualSubscribes: ['payment.initiated'],
+      virtualEmits: ['/api/stripe/webhook'],
+      flows: ['payment'],
+    }
+    ```
+  </Tab>
+</Tabs>
+</Step>
+<Step>
+#### 2. Human Approvals
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Manager Review',
+      description: 'Manager reviews request',
+      virtualSubscribes: ['approval.requested'],
+      virtualEmits: ['/api/approvals/submit'],
+      flows: ['approval'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'Manager Review',
+      description: 'Manager reviews request',
+      virtualSubscribes: ['approval.requested'],
+      virtualEmits: ['/api/approvals/submit'],
+      flows: ['approval'],
+    }
+    ```
+  </Tab>
+</Tabs>
+</Step>
+<Step>
+#### 3. External System Integration
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+      export const config: NoopConfig = {
+        type: 'noop',
+        name: 'GitHub Webhook',
+        description: 'Waiting for repository events',
+        virtualSubscribes: ['repository.watched'],
+        virtualEmits: ['/api/github/webhook'],
+        flows: ['repo-automation'],
+      }
+      ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'GitHub Webhook',
+      description: 'Waiting for repository events',
+      virtualSubscribes: ['repository.watched'],
+      virtualEmits: ['/api/github/webhook'],
+      flows: ['repo-automation'],
+    }
+    ```
+  </Tab>
+</Tabs>
+</Step>
+<Step>
+#### 4. Physical Processes
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Order Fulfillment',
+      description: 'Warehouse processes order',
+      virtualSubscribes: ['order.placed'],
+      virtualEmits: ['/api/warehouse/status'],
+      flows: ['fulfillment'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'Order Fulfillment',
+      description: 'Warehouse processes order',
+      virtualSubscribes: ['order.placed'],
+      virtualEmits: ['/api/warehouse/status'],
+      flows: ['fulfillment'],
+    }
+    ```
+  </Tab>
+</Tabs>
+</Step>
+</Steps>
+### Visualization in Workbench
+
+NOOP steps are visually represented in the Motia Workbench with the following characteristics:
+
+- Distinct node representation with clear input/output handles
+- Visual indicators for virtual event connections
+- Status indicators for waiting states
+- Clear visualization of external system dependencies
+
+### Custom UI
+
+You can enhance your NOOP steps with custom React components for better visualization:
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```tsx
+    // customNode.step.tsx
+    import React from 'react'
+    import { BaseHandle, EventNodeProps, Position } from 'motia/workbench'
+
+    export default (_: EventNodeProps) => {
+      return (
+        <div className="p-3 px-6 flex flex-col max-w-[300px] bg-blue-500 border-white rounded-full text-white border border-solid text-center text-sm">
+          <div>Custom Processing</div>
+          <BaseHandle type="target" position={Position.Top} />
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+
+    // customNode.step.ts
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Custom Process',
+      virtualEmits: ['/api/process/complete'],
+      virtualSubscribes: ['process.start'],
+      flows: ['custom-flow']
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```jsx
+    // customNode.step.jsx
+    import React from 'react'
+    import { BaseHandle, EventNodeProps, Position } from 'motia/workbench'
+
+    export default (_: EventNodeProps) => {
+      return (
+        <div className="p-3 px-6 flex flex-col max-w-[300px] bg-blue-500 border-white rounded-full text-white border border-solid text-center text-sm">
+          <div>Custom Processing</div>
+          <BaseHandle type="target" position={Position.Top} />
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+
+    // customNode.step.js
+    const config = {
+      type: 'noop',
+      name: 'Custom Process',
+      virtualEmits: ['/api/process/complete'],
+      virtualSubscribes: ['process.start'],
+      flows: ['custom-flow']
+    }
+
+    module.exports = {config};
+    ```
+  </Tab>
+</Tabs>
+<Callout title="Steps" type="info">
+Don't forget to checkout the <a href="/docs/foundations/happy-practices#best-practices">best practices for Noop steps,</a> and the <a href="/docs/api-ref#component-reference-noop-steps">component reference as well.</a> 
+</Callout>
+</Step>
+</Steps>
+
+## Next Steps
+Motia Steps are powerful on their own, but their real potential shines when combined with other features in the system.  
+
+Now that you’ve learned about middlewares, UI customizations, and NOOP steps, here are some great next areas to explore.
+
+<Cards>
+  <Card
+    title="Flows and Workbench"
+    description="Visualize and orchestrate your workflows in the Workbench using connected Steps and Events."
+    href="/docs/foundations/flows-and-workbench"
+    icon="🧩"
+  />
+  <Card
+    title="Motia CLI"
+    description="Use the Motia CLI to scaffold, run, and manage your workflows and steps locally."
+    href="/docs/foundations/cli"
+    icon="💻"
+  />
+  <Card
+    title="Happy practices in Motia"
+    description="Adopt a modern, AI-native mental model for building clean, scalable backend systems."
+    href="/docs/foundations/happy-practices"
+    icon="😊"
+  />
+  <Card
+    title="API Reference"
+    description="Explore config options, handler types, and UI component guidelines in one place."
+    href="/docs/api-ref"
+    icon="📚"
+  />
+</Cards>
+---

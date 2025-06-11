@@ -1,0 +1,477 @@
+---
+title: "Types of Steps"
+description: "There are four different types of steps in Motia. Let's have a look at them"
+---
+In Motia, a Step is the smallest unit of backend logic. Every Step must belong to one of three types: `api`, `event`, or `cron`. Each type defines how and when a Step is triggered and how it fits into your overall flow.
+
+> Steps are language and runtime agnostic. Meaning, you can have one steps written in Python, another written in TypeScript or some other language and they could all be part of the same workflow.
+
+Let’s break down what each type does, when to use it, and what makes it powerful.
+## Types of Steps
+Every step follows the <a href="/docs/foundation/steps#common-step-configuration">common step configuration,</a> but can have some properties of their own. Let's take a look at the different types of steps and their configuration:
+### 1. Event Step
+Event Steps, as the name suggests, are designed to respond when something happens. They let you define, “When this _event_ occurs, do that.” Think of them as the building blocks that power reactive, event-driven behavior in your workflows. 
+
+When an event occurs, you want to either execute some logic and/or trigger another step, and you can do it all with event steps.
+
+By using the subscription <a href="/docs/foundations/steps#the-two-behaviours-of-a-step">behavior</a> of event steps, you define which event shall it listen to. And by using the emission <a href="/docs/foundations/steps#the-two-behaviours-of-a-step">behavior</a>, you define which events does it then trigger. Using these two behaviors, you can build powerful chains of logic through event routing.
+
+You can handle the execution of logic using the handler associated with each step, including the event step.
+
+You can use Event Steps to:
+- React to system-generated events or outputs from other steps
+- Decouple your logic into clean, isolated reactions
+- Kick off workflows based on internal or external signals
+
+In addition to the <a href="/docs/foundation/steps#common-step-configuration">common step configuration</a>, event steps have one more property - `input`, making the configuration for Event steps as follows:
+
+<DescriptionTable
+  type={{
+    type: {
+      description: 'The step type: event, api, or cron',
+      type: 'string',
+    },
+    name: {
+      description: 'A unique identifier for the step, used in Motia Workbench visualization tool',
+      type: 'string',
+    },
+    subscribes: {
+      description: 'A list of topics this step listens to',
+      type: 'string[]',
+      default: []
+    },
+    emits: {
+      description: 'A list of topics this step can emit',
+      type: 'string[]',
+    },
+    flows: {
+      description: 'A list of flow identifiers that this step belongs to',
+      type: 'string[]',
+    },
+    description: {
+      description: 'Optional description for documentation and visualization',
+      type: 'string',
+    },
+    input: {
+      description: 'This is used for input validation. For TypeScript/JavaScript steps, it uses zod schemas. For Python steps, it uses Pydantic models.',
+      type: 'string[]',
+    }
+  }}
+/>
+
+And here's how you define a step:
+<Tabs  items={['TS', 'JS', 'Python']}>
+  <Tab value="TS">
+    ```typescript
+    import { EventConfig, Handlers } from 'motia'
+    import { z } from 'zod'
+
+    export const config: EventConfig = {
+      type: 'event',
+      name: 'stepA',
+      description: 'Hello from Step A',
+      subscribes: ['pms.start'],
+      emits: ['pms.stepA.done'],
+      input: z.object({ message: z.string() }),
+      flows: ['parallel-merge'],
+    }
+
+    export const handler: Handlers['stepA'] = async (input, { emit, logger }) => {
+      logger.info('Processing message:', input.message)
+
+      await emit({
+        topic: 'pms.stepA.done',
+        data: {
+          result: `Processed: ${input.message}`
+        }
+      })
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const z = require('zod');
+
+    const config = {
+      type: 'event',
+      name: 'stepA',
+      description: 'Hello from Step A',
+      subscribes: ['pms.start'],
+      emits: ['pms.stepA.done'],
+      input: z.object({ message: z.string() });,
+      flows: ['parallel-merge'],
+    };
+
+    const handler = async (input, { emit, logger }) => {
+      logger.info('Processing message:', input.message)
+
+      await emit({
+        topic: 'pms.stepA.done',
+        data: {
+          result: `Processed: ${input.message}`
+        }
+      })
+    };
+
+    module.exports = { config, handler };
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    config = {
+      "type": "event",
+      "name": "Call OpenAI",
+      "subscribes": ["call-openai"], 
+      "emits": ["openai-response"],
+      "input": {
+        "type": "object",
+        "properties": { "type": "string" },
+      },
+      "flows": ["openai"]
+    }
+
+    async def handler(input, context):
+      context.logger.info("Processing input:", { "input": input })
+
+      await context.emit({
+        "topic": "openai-response",
+        "data": {
+          "result": f"Processed: {input.get("message", "")}"
+        }
+      })
+    ```
+  </Tab>
+</Tabs>
+### 2. API Step
+API steps are the default entry point into your chain of steps in a workflow. They are triggered when an external client makes an HTTP request to a defined endpoint. You can use API steps to expose functionality to the outside world or to kick off automated workflows from a frontend or third-party systems.
+
+API steps use the default <a href="/docs/foundations/steps#the-two-behaviours-of-a-step">behavior</a> of any Motia step: _Subscription_ and _Emission,_ to chain together a series of backend actions. 
+
+This allows you to expose an HTTP endpoint, process the incoming request, and seamlessly trigger follow-up steps in your workflow.
+
+They're ideal for:
+- Creating REST endpoints
+- Triggering workflows from frontend apps
+- Accepting webhooks from third-party services
+
+API steps follow the <a href="/docs/foundation/steps#common-step-configuration">common step configuration</a> of a step in Motia and have a few additional properties of their own, thereby making their configuration as follows:
+
+<DescriptionTable
+  type={{
+    type: {
+      description: 'The step type: event, api, or cron',
+      type: 'string',
+    },
+    name: {
+      description: 'A unique identifier for the step, used in Motia Workbench visualization tool',
+      type: 'string',
+    },
+    subscribes: {
+      description: 'A list of topics this step listens to',
+      type: 'string[]',
+      default: []
+    },
+    emits: {
+      description: 'A list of topics this step can emit',
+      type: 'string[]',
+    },
+    flows: {
+      description: 'A list of flow identifiers that this step belongs to',
+      type: 'string[]',
+    },
+    description: {
+      description: 'Optional description for documentation and visualization',
+      type: 'string',
+    },
+    path: {
+      description: 'The HTTP path for the API endpoint',
+      type: 'string',
+    },
+    method: {
+      description: 'The HTTP method for the API endpoint (GET, POST, PUT, DELETE, etc.)',
+      type: 'string',
+    },
+    bodySchema: {
+      description:
+        'Schema for validating the request body. For TypeScript/JavaScript steps, it uses zod schemas. For Python steps, it uses Pydantic models.',
+      type: 'object',
+    },
+    responseSchema: {
+      description:
+        'Mostly used for documentation, the expected output of an API endpoint. For TypeScript/JavaScript steps, it uses zod schemas. For Python steps, it uses Pydantic models or Dict Json Schema.',
+      type: 'object',
+    },
+    queryParams: {
+      description: 'Mostly for documentation, the expected query params',
+      type: 'array',
+    },
+    middleware: {
+      description: 'Optional middleware functions to run before the handler',
+      type: 'array',
+    }
+  }}
+/>
+
+And here's how you define an API step:
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    ```typescript
+    import { ApiRouteConfig, Handlers } from 'motia'
+    import { z } from 'zod'
+
+    export const config: ApiRouteConfig = {
+      type: 'api',
+      name: 'GetMessage',
+      description: 'Retrieves a generated message from OpenAI based on the Trace ID returned by the POST /openai endpoint',
+      path: '/openai/:traceId',
+      method: 'GET',
+      emits: ['call-openai'],
+      flows: ['openai'],
+      responseSchema: {
+        // When response code is 200
+        200: z.object({ message: z.string({ description: 'The message from OpenAI' }) }),
+        // When response code is 400
+        400: z.object({ message: z.string({ description: 'The error message' }) })
+      },
+      queryParams: [
+        {
+          name: 'includeProps',
+          description: 'Whether to include the properties of the message',
+        },
+      ],
+    }
+
+    export const handler: Handlers['GetMessage'] = async (req, { logger }) => {
+      logger.info('[Call OpenAI] Received callOpenAi event', req)
+
+      return {
+        status: 200,
+        body: { message: 'OpenAI response sent' },
+      }
+    }
+    ```
+
+  </Tab>
+  <Tab value="JavaScript">
+    ```typescript
+    const { z } = require('zod')
+
+    export const config = {
+      type: 'api',
+      name: 'Get Message by Trace ID',
+      description: 'Retrieves a generated message from OpenAI based on the Trace ID returned by the POST /openai endpoint',
+      path: '/openai/:traceId',
+      method: 'GET',
+      emits: ['call-openai'],
+      flows: ['openai'],
+      responseSchema: {
+        // When response code is 200
+        200: z.object({ message: z.string({ description: 'The message from OpenAI' }) }),
+        // When response code is 400
+        400: z.object({ message: z.string({ description: 'The error message' }) })
+      },
+      queryParams: [
+        {
+          name: 'includeProps',
+          description: 'Whether to include the properties of the message',
+        },
+      ],
+    }
+
+    export const handler = async (req, { logger }) => {
+      logger.info('[Call OpenAI] Received callOpenAi event', req)
+
+      return {
+        status: 200,
+        body: { message: 'OpenAI response sent' },
+      }
+    }
+    ```
+
+  </Tab>
+  <Tab value="Python">
+    ```python
+    from pydantic import BaseModel
+    
+    # Define a Pydantic model for request body validation
+    class RequestBody(BaseModel):
+        message: str
+
+    config = {
+      "type": "api",
+      "name": "Get Message by Trace ID",
+      "description": "Retrieves a generated message from OpenAI based on the Trace ID returned by the POST /openai endpoint",
+      "path": "/openai/:traceId",
+      "method": "GET",
+      "emits": ["call-openai"],
+      "flows": ["openai"],
+      "responseSchema": {
+        "200": RequestBody.model_json_schema()
+      },
+      "queryParams": [
+        {
+          "name": "includeProps",
+          "description": "Whether to include the properties of the message",
+        },
+      ],
+    }
+
+    async def handler(req, context):
+      context.logger.info("[Call OpenAI] Received callOpenAi event", {"body": req.get("body")})
+
+      return {
+        "status": 200,
+        "body": { "message": "OpenAI response sent" },
+      }
+    ```
+
+  </Tab>
+</Tabs>
+<Callout title="Steps" type="info">
+Note that API steps can use middlewares to intercept and process incoming requests before handing them off to their respective handlers. Checkout these advanced capabilities in _Powering up your steps_ to <a href="/docs/foundations/steps-advanced#using-middlewares-in-api-steps">use middlewares in API steps.</a> 
+</Callout>
+
+### 3. Cron Steps: 
+Cron steps run on a schedule using cron expressions like `0 13 * * *` to run a step _every day at 1 PM._ They are perfect for automating daily reports, cleanup tasks, or scheduled jobs that need to run without manual input. Cron Steps are perfect for:
+- Daily reports
+- Scheduled cleanups
+- Periodic reminders
+
+In addition to the <a href="/docs/foundation/steps#common-step-configuration">common step configuration</a>, cron steps have one more property of their own - `cron`, making the configuration for Cron steps as follows:
+<DescriptionTable
+  type={{
+    type: {
+      description: 'The step type: event, api, or cron',
+      type: 'string',
+    },
+    name: {
+      description: 'A unique identifier for the step, used in Motia Workbench visualization tool',
+      type: 'string',
+    },
+    subscribes: {
+      description: 'A list of topics this step listens to',
+      type: 'string[]',
+      default: []
+    },
+    emits: {
+      description: 'A list of topics this step can emit',
+      type: 'string[]',
+    },
+    flows: {
+      description: 'A list of flow identifiers that this step belongs to',
+      type: 'string[]',
+    },
+    description: {
+      description: 'Optional description for documentation and visualization',
+      type: 'string',
+    },
+    cron: {
+      description: 'The cron schedule expression for your step',
+      type: 'string',
+    }
+  }}
+/>
+And here's how you define a cron step:
+
+<Tabs  items={['TS', 'JS', 'Python']}>
+  <Tab value="TS">
+    ```typescript
+    import { CronConfig, Handlers } from 'motia'
+
+    export const config: CronConfig = {
+      type: 'cron' as const,
+      name: 'PeriodicJob',
+      description: 'Runs every minute and emits a timestamp',
+      cron: '0 * * * *', // run every hour at minute 0
+      emits: ['cron-ticked'],
+      flows: ['cron-example'],
+    }
+
+    export const handler: Handlers['PeriodicJob'] = async ({ emit }) => {
+      await emit({
+        topic: 'cron-ticked',
+        data: { message: 'Cron job executed' },
+      })
+    }
+    ```
+
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'cron',
+      name: 'PeriodicJob',
+      description: 'Runs every minute and emits a timestamp',
+      cron: '0 * * * *', // run every hour at minute 0
+      emits: ['cron-ticked'],
+      flows: ['cron-example'],
+    };
+
+    const handler = async ({ emit }) => {
+      await emit({
+        topic: 'cron-ticked',
+        data: { message: 'Cron job executed' },
+      })
+    }
+
+    ```
+
+  </Tab>
+  <Tab value="Python">
+    ```python
+    config = {
+        "type": "cron",
+        "name": "PeriodicJob",
+        "description": "Runs every minute and emits a timestamp",
+        "cron": "0 * * * *",
+        "emits": ["cron-ticked"],
+        "flows": ["cron-example"]
+    }
+  
+    async def handler(context):
+        await context.emit({
+            "topic": "cron-ticked",
+            "data": { "message": "Cron job executed" },
+        })
+
+    ```
+  </Tab>
+</Tabs>    
+
+## Summary
+Each type of Step serves a distinct purpose, but together, they offer a powerful and unified model for orchestrating all kinds of backend logic. Here's a summary of the three types of Steps supported by Motia:
+| Step Type | Trigger                  | Ideal Use Case                              |
+|-----------|--------------------------|----------------------------------------------|
+| API       | HTTP Request             | Frontend or external system triggers         |
+| Event     | Emitted Topic            | Reactive flows based on internal events      |
+| Cron      | Time-based (Cron Schedule) | Recurring tasks and automation             |
+
+
+![old way is to juggle a bunch of different things together while the new way is simply using steps](../img/tis-steps-types.png)
+
+Instead of juggling multiple tools, patterns, and services, Motia gives you one abstraction _Steps_, that scales from API calls to background jobs to AI agents.
+
+<Callout title="Steps" type="info">
+  Note that in addition to the standard types of Steps, Motia also lets you power up the capabilities of your steps by customising steps, using middlewares and more. Don't forget to checkout the <a href="/docs/foundations/steps-advanced">Powering up your steps</a> page in our docs for the same!
+</Callout>
+
+## Next steps
+Steps are how you write Motia apps. And with Event, API, and Cron steps, you now have the tools to build anything you want. The most amount of time you’ll spend will be crafting and connecting these Steps. But there's even more you can do.
+
+From using middlewares to customizing how a step looks, Motia gives you powerful ways to supercharge your workflow. Here's where to go next:
+<Cards>
+  <Card
+  href="/docs/foundations/steps-advanced"
+  title="Powering Up Your Steps"
+  icon="🛠️"
+>
+Explore the advanced capabilities of Motia steps!
+</Card>
+  <Card
+  href="/docs/foundations/cli"
+  title="CLI"
+  icon="🧑‍💻"
+>
+Adopt a new mental model for AI-native, modern backends - one Step at a time.
+</Card>
+</Cards>

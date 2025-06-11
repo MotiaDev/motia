@@ -1,0 +1,15 @@
+{
+  "title": "Foundations",
+  "pages": [
+    "steps",
+    "types-of-step",
+    "steps-advanced",
+    "flows-and-workbench",
+    "state-mgt",
+    "streams",
+    "deployment",
+    "observability-and-logging",
+    "cli",
+    "happy-practices"
+  ]
+}

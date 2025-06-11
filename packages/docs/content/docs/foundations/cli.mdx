@@ -1,0 +1,168 @@
+---
+title: "Motia CLI"
+description: "Manage your projects, workflows, and deployments using the Motia CLI"
+---
+
+
+The `motia` package ships with the Motia CLI out of the box. 
+
+Motia CLI helps you scaffold, manage, and deploy your projects efficiently—from local development to production.
+
+## CLI Command Reference Table
+
+| Command | Description | Options |
+|--------|-------------|---------|
+| [`npx motia create [options]`](#npx-motia-create)  | Create a new Motia project in a fresh directory or the current one. | `-n, --name <project name>`: Project name; use `.` or `./` to use current directory<br/>`-t, --template <template name>`: Template to use; run `npx motia templates` to view available ones<br/>`-c, --cursor`: Adds `.cursor` config for Cursor IDE |
+| [`npx motia templates`](#npx-motia-templates) | List available project templates. | _None_ |
+| [`npx motia build`](#npx-motia-build) | Compile all steps and generate deployment-ready output. | _None_<br/><br/>**Performs the following:**<br/>• Compiles Node.js and Python steps<br/>• Bundles each step into a `.zip` file<br/>• Generates `motia.steps.json` in `dist/`<br/>• Organizes build output in `dist/` |
+| [`npx motia deploy [options]`](#npx-motia-deploy) | Deploy the built project to Motia’s deployment service. | `-k, --api-key <key>` (required): API key for authentication<br/>`-e, --env <env>`: Deployment environment (default: `dev`)<br/>`-v, --version <version>`: Version label (default: `latest`)<br/><br/>**Example:**<br/>`npx motia deploy --api-key your-api-key --env production --version 1.0.0`<br/><br/>**This command:**<br/>• Uploads zipped steps with path info<br/>• Uploads `motia.steps.json`<br/>• Starts server-side deployment<br/>• Writes logs to `dist/motia.deployments.json`<br/>• Summarizes results in `dist/motia.deployments.summary.json` |
+| [`npx motia dev [options]`](#npx-motia-dev) | Start a development server with live preview and logs. | `-p, --port <port>`: Port to run on (default: 3000)<br/>`-v, --verbose`: Enable verbose logs<br/>`-d, --debug`: Enable debug logs (sets `LOG_LEVEL=debug`) |
+| [`npx motia get-config [options]`](#npx-motia-get-config) | Generate and optionally write the project config. | `-o, --output <path>`: Path to save the generated config file |
+| [`npx motia emit [options]`](#npx-motia-emit) | Emit an event to Motia during dev. | `--topic <topic>` (required): Event topic<br/>`--message <message>` (required): JSON string payload<br/>`-p, --port <number>`: Port to connect to (default: 3000) |
+| [`npx motia generate step [options]`](#npx-motia-generate-step) | Generate a new step using prompts. | `-d, --dir <path>`: Path under `steps/` to create the new step |
+| [`npx motia state list`](#npx-motia-state-list) | List the current local application state. | _None_ |
+
+## npx motia create
+
+Create a new Motia project.
+
+```bash
+npx motia create [options]
+```
+
+**Options**:
+- `-n, --name <project name>`: The name for your project, used to create a directory. Use `.` or `./` to create it in the current directory.
+- `-t, --template <template name>`: The Motia template to use for your project. Run `npx motia templates` to see available templates.
+- `-c, --cursor`: Enable Cursor IDE integration by adding `.cursor` configuration folder.
+
+## npx motia templates
+
+Print the list of available project templates.
+
+```bash
+npx motia templates
+```
+
+## npx motia build
+
+Build your project, generating zip files for each step and creating a configuration file.
+
+```bash
+npx motia build
+```
+
+**This command**:
+- Compiles all your steps (both Node.js and Python)
+- Bundles each step into a zip file
+- Generates a `motia.steps.json` configuration file in the `dist/` directory
+- Organizes the output in the `dist/` directory
+
+## npx motia deploy
+
+Deploy your built steps to the Motia deployment service.
+
+```bash
+npx motia deploy [options]
+```
+
+**Options**:
+- `-k, --api-key <key>` (required): Your API key for authentication
+- `-e, --env <environment>`: The environment to deploy to (default: `dev`)
+- `-v, --version <version>`: The version to deploy (default: `latest`)
+
+**Example**:
+```bash
+npx motia deploy --api-key your-api-key-here --env production --version 1.0.0
+```
+
+**The deployment process**:
+- Uploads each zip file individually with its path information
+- Uploads the steps configuration from `motia.steps.json`
+- Starts the deployment process on the server
+- Generates deployment results in `dist/motia.deployments.json`
+- Creates a human-readable summary in `dist/motia.deployments.summary.json`
+
+## npx motia dev
+
+Start the development server.
+
+```bash
+npx motia dev [options]
+```
+
+**Options**:
+- `-p, --port <port>`: The port to run the server on (default: `3000`)
+- `-v, --verbose`: Enable verbose logging
+- `-d, --debug`: Enable debug logging
+
+## npx motia get-config
+
+Get the generated config for your project.
+
+```bash
+npx motia get-config [options]
+```
+
+**Options**:
+- `-o, --output <path>`: Path to write the generated config file
+
+## npx motia emit
+
+Emit an event to the Motia server.
+
+```bash
+npx motia emit [options]
+```
+
+**Options**:
+- `--topic <topic>` (required): Event topic/type to emit
+- `--message <message>` (required): Event payload as a JSON string
+- `-p, --port <number>`: Port number (default: `3000`)
+
+## npx motia generate step
+
+Create a new step with interactive prompts.
+
+```bash
+npx motia generate step [options]
+```
+
+**Options**:
+- `-d, --dir <step file path>`: The path relative to the steps directory to create the step file
+
+## npx motia state list
+
+List the current file state.
+
+```bash
+npx motia state list
+```
+
+## Debugging
+
+You can enable debug logging by passing the `-d` or `--dbashebug` flag to the dev command:
+
+```bash
+npx motia dev --debug
+```
+
+This will set the `LOG_LEVEL` environment variable to `'debug'`, providing more detailed logging output.
+
+## What’s Next?
+
+The Motia CLI is your command center for managing flows, steps, deployments, and debugging, all from your terminal. Whether you’re scaffolding a new project, pushing updates to production, or testing locally with live logs, the CLI is designed to keep you fast and focused.
+
+Ready to go further?
+
+<Cards>
+  <Card
+    title="🧪 Try Your First Flow"
+    description="See how to get strted with Motia in less than 60 seconds"
+    href="/docs/getting-started"
+  />
+  <Card
+    title="📦 Learn About Steps"
+    description="Understand steps, what they do, their configuration and more."
+    href="/docs/foundations/steps"
+  />
+</Cards>
