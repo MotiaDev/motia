@@ -1,6 +1,6 @@
 {
   "name": "motia",
-  "description": "Code-first framework for intelligent workflows",
+  "description": "A Modern Unified Backend Framework for APIs, Events and Agents",
   "version": "0.2.1-beta.75",
   "license": "MIT",
   "repository": {
