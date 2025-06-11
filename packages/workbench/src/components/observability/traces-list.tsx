@@ -19,7 +19,7 @@ export const TracesList = ({
   selectedTrace,
   selectedGroup,
   onTraceSelect,
-  onGroupSelect
+  onGroupSelect,
 }: TracesListProps) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -63,9 +63,7 @@ export const TracesList = ({
     <div className="h-full overflow-auto p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Traces & Groups</h2>
-        <Badge variant="outline">
-          {traces.length + groups.length} total
-        </Badge>
+        <Badge variant="outline">{traces.length + groups.length} total</Badge>
       </div>
 
       {groups.length > 0 && (
@@ -85,11 +83,9 @@ export const TracesList = ({
                     {getStatusIcon(group.status)}
                     <span className="font-medium text-sm">{group.name}</span>
                   </div>
-                  <Badge className={getStatusColor(group.status)}>
-                    {group.status}
-                  </Badge>
+                  <Badge className={getStatusColor(group.status)}>{group.status}</Badge>
                 </div>
-                
+
                 <div className="text-xs text-muted-foreground space-y-1">
                   <div className="flex justify-between">
                     <span>{group.metadata.totalTraces} traces</span>
@@ -100,9 +96,7 @@ export const TracesList = ({
                     <span>{formatDistanceToNow(group.startTime)} ago</span>
                   </div>
                   {group.metadata.activeTraces > 0 && (
-                    <div className="text-blue-600">
-                      {group.metadata.activeTraces} active
-                    </div>
+                    <div className="text-blue-600">{group.metadata.activeTraces} active</div>
                   )}
                 </div>
               </CardContent>
@@ -133,14 +127,14 @@ export const TracesList = ({
                       </Badge>
                     )}
                   </div>
-                  <Badge className={getStatusColor(trace.status)}>
-                    {trace.status}
-                  </Badge>
+                  <Badge className={getStatusColor(trace.status)}>{trace.status}</Badge>
                 </div>
-                
+
                 <div className="text-xs text-muted-foreground space-y-1">
                   <div className="flex justify-between">
-                    <span>{trace.metadata?.completedSteps || 0}/{trace.metadata?.totalSteps || 0} steps</span>
+                    <span>
+                      {trace.metadata?.completedSteps || 0}/{trace.metadata?.totalSteps || 0} steps
+                    </span>
                     <span>{trace.entryPoint.type}</span>
                   </div>
                   <div className="flex justify-between">
@@ -148,9 +142,7 @@ export const TracesList = ({
                     <span>{formatDistanceToNow(trace.startTime)} ago</span>
                   </div>
                   {trace.metadata?.errorCount > 0 && (
-                    <div className="text-red-600">
-                      {trace.metadata.errorCount} errors
-                    </div>
+                    <div className="text-red-600">{trace.metadata.errorCount} errors</div>
                   )}
                 </div>
               </CardContent>
@@ -160,10 +152,8 @@ export const TracesList = ({
       )}
 
       {traces.length === 0 && groups.length === 0 && (
-        <div className="text-center text-muted-foreground py-8">
-          No traces found
-        </div>
+        <div className="text-center text-muted-foreground py-8">No traces found</div>
       )}
     </div>
   )
-} 
+}

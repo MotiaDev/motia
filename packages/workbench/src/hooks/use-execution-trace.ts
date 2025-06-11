@@ -9,7 +9,7 @@ export interface ExecutionTrace {
   duration?: number
   totalSteps: number
   errorCount: number
-  
+
   entryPoint: {
     type: 'api' | 'cron' | 'event'
     stepName: string
@@ -17,13 +17,13 @@ export interface ExecutionTrace {
     cronExpression?: string
     eventTopic?: string
   }
-  
+
   steps: StepExecution[]
   stateOperations: StateOperation[]
   emitOperations: EmitOperation[]
   streamOperations: StreamOperation[]
   stepInteractions: StepInteraction[]
-  
+
   metrics: ExecutionMetrics
   logs: Log[]
   lastUpdated: number
@@ -37,16 +37,16 @@ export interface StepExecution {
   startTime: number
   endTime?: number
   duration?: number
-  
+
   input?: any
   output?: any
-  
+
   error?: {
     message: string
     stack?: string
     code?: string | number
   }
-  
+
   metrics: {
     memoryUsage?: number
     cpuTime?: number
@@ -55,14 +55,14 @@ export interface StepExecution {
     emitOperationsCount: number
     streamOperationsCount: number
   }
-  
+
   language: 'typescript' | 'javascript' | 'python' | 'ruby'
   processInfo?: {
     pid: number
     startTime: number
     endTime?: number
   }
-  
+
   stateOperations: string[]
   emitOperations: string[]
   streamOperations: string[]
@@ -93,7 +93,7 @@ export interface EmitOperation {
   startTime: number
   success: boolean
   error?: string
-  
+
   triggerChain: {
     triggeredSteps: string[]
     propagationTime: number
@@ -136,7 +136,7 @@ export interface ExecutionMetrics {
   averageStepDuration: number
   slowestStep: string
   errorRate: number
-  
+
   stateOperationsCount: number
   emitOperationsCount: number
   streamOperationsCount: number
@@ -162,7 +162,7 @@ export interface TraceFilters {
   status?: 'running' | 'completed' | 'failed' | 'partial'
   timeRange?: string
   limit?: number
-  
+
   stateKey?: string
   eventTopic?: string
   streamName?: string
@@ -226,7 +226,7 @@ export const useExecutionTraces = (filters: TraceFilters = {}) => {
 
     try {
       const queryParams = new URLSearchParams()
-      
+
       Object.entries(currentFilters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           queryParams.append(key, String(value))
@@ -272,43 +272,43 @@ export const useRealtimeTrace = (traceId: string | null) => {
     ws.onmessage = (event) => {
       try {
         const update = JSON.parse(event.data)
-        
+
         if (update.type === 'trace-update') {
           setTrace(update.trace)
         } else if (update.type === 'step-update') {
-          setTrace(prevTrace => {
+          setTrace((prevTrace) => {
             if (!prevTrace) return null
-            
-            const updatedSteps = prevTrace.steps.map(step => 
-              step.stepName === update.step.stepName ? { ...step, ...update.step } : step
+
+            const updatedSteps = prevTrace.steps.map((step) =>
+              step.stepName === update.step.stepName ? { ...step, ...update.step } : step,
             )
-            
+
             return { ...prevTrace, steps: updatedSteps, lastUpdated: Date.now() }
           })
         } else if (update.type === 'operation-update') {
-          setTrace(prevTrace => {
+          setTrace((prevTrace) => {
             if (!prevTrace) return null
-            
+
             const { operationType, operation } = update
-            
+
             switch (operationType) {
               case 'state':
                 return {
                   ...prevTrace,
                   stateOperations: [...prevTrace.stateOperations, operation],
-                  lastUpdated: Date.now()
+                  lastUpdated: Date.now(),
                 }
               case 'emit':
                 return {
                   ...prevTrace,
                   emitOperations: [...prevTrace.emitOperations, operation],
-                  lastUpdated: Date.now()
+                  lastUpdated: Date.now(),
                 }
               case 'stream':
                 return {
                   ...prevTrace,
                   streamOperations: [...prevTrace.streamOperations, operation],
-                  lastUpdated: Date.now()
+                  lastUpdated: Date.now(),
                 }
               default:
                 return prevTrace
@@ -434,4 +434,4 @@ export const useExecutionAnalytics = () => {
   }, [])
 
   return { analytics, loading, error, fetchAnalytics }
-} 
+}

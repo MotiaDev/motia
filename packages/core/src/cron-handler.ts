@@ -1,11 +1,9 @@
 import * as cron from 'node-cron'
-import { LoggerFactory } from './logger-factory'
 import { callStepFile } from './call-step-file'
 import { generateTraceId } from './generate-trace-id'
-import { LockedData } from './locked-data'
 import { globalLogger } from './logger'
-import { CronConfig, EventManager, InternalStateManager, Step } from './types'
-import { StreamAdapter } from './streams/adapters/stream-adapter'
+import { Motia } from './motia'
+import { CronConfig, Step } from './types'
 
 export type CronManager = {
   createCronJob: (step: Step<CronConfig>) => void
@@ -13,15 +11,8 @@ export type CronManager = {
   close: () => void
 }
 
-export const setupCronHandlers = (
-  lockedData: LockedData,
-  eventManager: EventManager,
-  state: InternalStateManager,
-  loggerFactory: LoggerFactory,
-  observabilityStream: StreamAdapter<any>,
-) => {
+export const setupCronHandlers = (motia: Motia) => {
   const cronJobs = new Map<string, cron.ScheduledTask>()
-  const printer = lockedData.printer
 
   const createCronJob = (step: Step<CronConfig>) => {
     const { config, filePath } = step
@@ -43,20 +34,11 @@ export const setupCronHandlers = (
 
     const task = cron.schedule(cronExpression, async () => {
       const traceId = generateTraceId()
-      const logger = loggerFactory.create({ traceId, flows, stepName })
+      const tracer = motia.tracerFactory.createTracer(traceId, step)
+      const logger = motia.loggerFactory.create({ traceId, flows, stepName })
 
       try {
-        await callStepFile({
-          contextInFirstArg: true,
-          lockedData,
-          step,
-          eventManager,
-          printer,
-          state,
-          traceId,
-          logger,
-          observabilityStream,
-        })
+        await callStepFile({ contextInFirstArg: true, step, traceId, tracer, logger }, motia)
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
@@ -84,7 +66,7 @@ export const setupCronHandlers = (
     cronJobs.clear()
   }
 
-  lockedData.cronSteps().forEach(createCronJob)
+  motia.lockedData.cronSteps().forEach(createCronJob)
 
   return { createCronJob, removeCronJob, close }
 }

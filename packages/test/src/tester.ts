@@ -1,27 +1,39 @@
-import request from 'supertest'
 import { createServer, createStateAdapter, createStepHandlers, Event, Logger } from '@motiadev/core'
+import { LoggerFactory } from '@motiadev/core/dist/src/logger-factory'
+import { Motia } from '@motiadev/core/dist/src/motia'
+import { NoTracer } from '@motiadev/core/src/observability/tracer'
+import { NoPrinter } from '@motiadev/core/src/printer'
 import { generateLockedData } from 'motia'
+import path from 'path'
+import request from 'supertest'
 import { createEventManager } from './event-manager'
 import { CapturedEvent, MotiaTester } from './types'
-import path from 'path'
-import { MockObservabilityStream } from './mock-observability-stream'
 
 export const createMotiaTester = (): MotiaTester => {
   const eventManager = createEventManager()
-  const observabilityStream = new MockObservabilityStream()
   const promise = (async () => {
     const lockedData = await generateLockedData(path.join(process.cwd()), 'memory')
     const state = createStateAdapter({ adapter: 'memory' })
     const { server, socketServer, close } = await createServer(lockedData, eventManager, state, {
       isVerbose: true,
     })
+    const motia: Motia = {
+      eventManager,
+      lockedData,
+      loggerFactory: null as never as LoggerFactory,
+      state,
+      printer: new NoPrinter('') as never,
+      tracerFactory: {
+        createTracer: () => new NoTracer(),
+      },
+    }
 
-    createStepHandlers(lockedData, eventManager, state, observabilityStream)
+    createStepHandlers(motia)
 
     return { server, socketServer, eventManager, state, close }
   })()
 
-  const logger: Logger = new Logger('', [], '', true)
+  const logger = new Logger()
 
   return {
     logger,

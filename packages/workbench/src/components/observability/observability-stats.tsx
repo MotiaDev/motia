@@ -4,15 +4,16 @@ import { Badge } from '@/components/ui/badge'
 import { Activity, Clock, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
 
 const calculateStats = (traces: Trace[], groups: TraceGroup[]): StatsType => {
-  const runningTraces = traces.filter(t => t.status === 'running').length
-  const completedTraces = traces.filter(t => t.status === 'completed').length
-  const failedTraces = traces.filter(t => t.status === 'failed').length
-  
+  const runningTraces = traces.filter((t) => t.status === 'running').length
+  const completedTraces = traces.filter((t) => t.status === 'completed').length
+  const failedTraces = traces.filter((t) => t.status === 'failed').length
+
   // Calculate average duration for completed traces only
-  const completedTracesWithDuration = traces.filter(t => t.status === 'completed' && t.duration)
-  const averageDuration = completedTracesWithDuration.length > 0
-    ? completedTracesWithDuration.reduce((sum, t) => sum + t.duration!, 0) / completedTracesWithDuration.length
-    : 0
+  const completedTracesWithDuration = traces.filter((t) => t.status === 'completed' && t.duration)
+  const averageDuration =
+    completedTracesWithDuration.length > 0
+      ? completedTracesWithDuration.reduce((sum, t) => sum + t.duration!, 0) / completedTracesWithDuration.length
+      : 0
 
   return {
     totalTraces: traces.length,
@@ -20,12 +21,11 @@ const calculateStats = (traces: Trace[], groups: TraceGroup[]): StatsType => {
     runningTraces,
     completedTraces,
     failedTraces,
-    averageDuration
+    averageDuration,
   }
 }
 
-export const ObservabilityStats = ({ traces, groups }: { traces: Trace[], groups: TraceGroup[] }) => {
-
+export const ObservabilityStats = ({ traces, groups }: { traces: Trace[]; groups: TraceGroup[] }) => {
   const stats = calculateStats(traces, groups)
 
   const formatDuration = (duration: number) => {
@@ -92,4 +92,4 @@ export const ObservabilityStats = ({ traces, groups }: { traces: Trace[], groups
       )}
     </div>
   )
-} 
+}

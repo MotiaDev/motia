@@ -37,7 +37,7 @@ export const TracesPage = () => {
         </div>
         <TraceSearch onSearch={handleSearch} />
       </div>
-      
+
       <div className="flex flex-1 overflow-hidden">
         <div className="w-1/3 border-r border-border">
           <TracesList
@@ -49,14 +49,10 @@ export const TracesPage = () => {
             onGroupSelect={handleGroupSelect}
           />
         </div>
-        
+
         <div className="flex-1">
-          {selectedTrace && (
-            <TraceTimeline trace={selectedTrace} />
-          )}
-          {selectedGroup && (
-            <TraceTimeline group={selectedGroup} />
-          )}
+          {selectedTrace && <TraceTimeline trace={selectedTrace} />}
+          {selectedGroup && <TraceTimeline group={selectedGroup} />}
           {!selectedTrace && !selectedGroup && (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               Select a trace or trace group to view the timeline
@@ -66,4 +62,4 @@ export const TracesPage = () => {
       </div>
     </div>
   )
-} 
+}

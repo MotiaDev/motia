@@ -1,5 +1,6 @@
 import { z, ZodObject } from 'zod'
-import { BaseLogger, Logger } from './logger'
+import { Logger } from './logger'
+import { Tracer } from './observability/tracer'
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
@@ -138,7 +139,8 @@ export type Event<TData = unknown> = {
   data: TData
   traceId: string
   flows?: string[]
-  logger: BaseLogger
+  logger: Logger
+  tracer: Tracer
 }
 
 export type Handler<TData = unknown> = (event: Event<TData>) => Promise<void>

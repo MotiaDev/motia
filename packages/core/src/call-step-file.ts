@@ -1,16 +1,12 @@
-import { Event, EventManager, InternalStateManager, Step } from './types'
 import path from 'path'
-import { LockedData } from './locked-data'
-import { BaseLogger, Logger } from './logger'
-import { Printer } from './printer'
-import { isAllowedToEmit } from './utils'
-import { BaseStreamItem } from './types-stream'
-import { ProcessManager } from './process-communication/process-manager'
 import { trackEvent } from './analytics/utils'
-import { StreamAdapter } from './streams/adapters/stream-adapter'
-import { Trace } from './observability/types'
-import { ObservabilityLogger } from './observability/observability-logger'
-import { ObservabilityStream } from './observability/observability-stream'
+import { Motia } from './motia'
+import { ProcessManager } from './process-communication/process-manager'
+import { Event, Step } from './types'
+import { BaseStreamItem } from './types-stream'
+import { isAllowedToEmit } from './utils'
+import { Logger } from './logger'
+import { Tracer } from './observability/tracer'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }
@@ -52,35 +48,25 @@ const getLanguageBasedRunner = (
 
 type CallStepFileOptions = {
   step: Step
-  logger: BaseLogger
-  eventManager: EventManager
-  state: InternalStateManager
   traceId: string
-  lockedData: LockedData
-  printer: Printer
-  data?: any
-  contextInFirstArg: boolean
-  observabilityStream: StreamAdapter<Trace>
+  data?: unknown
+  contextInFirstArg?: boolean
+  logger: Logger
+  tracer: Tracer
 }
 
-export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData | undefined> => {
-  const { step, printer, eventManager, state, traceId, data, contextInFirstArg, lockedData } = options
+export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia): Promise<TData | undefined> => {
+  const { step, traceId, data, tracer, contextInFirstArg = false } = options
 
-  const logger = options.logger.child({ step: step.config.name }) as Logger
-
-  const observabilityLogger = new ObservabilityLogger(traceId, step.config.name, options.observabilityStream as ObservabilityStream)
-
+  const logger = options.logger.child({ step: step.config.name })
   const flows = step.config.flows
 
   return new Promise((resolve, reject) => {
-    const streamConfig = lockedData.getStreams()
+    const streamConfig = motia.lockedData.getStreams()
     const streams = Object.keys(streamConfig).map((name) => ({ name }))
     const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
     const { runner, command, args } = getLanguageBasedRunner(step.filePath)
     let result: TData | undefined
-    const stepStartTime = Date.now()
-
-    observabilityLogger.logStepStart(step.config.name)
 
     const processManager = new ProcessManager({
       command,
@@ -98,60 +84,66 @@ export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData
         processManager.handler<unknown>('log', async (input: unknown) => logger.log(input))
 
         processManager.handler<StateGetInput, unknown>('state.get', async (input) => {
-          observabilityLogger.logStateOperation(step.config.name, 'get', input.key)
-          return state.get(input.traceId, input.key)
+          tracer.stateOperation('get', input)
+          return motia.state.get(input.traceId, input.key)
         })
 
         processManager.handler<StateSetInput, unknown>('state.set', async (input) => {
-          observabilityLogger.logStateOperation(step.config.name, 'set', input.key)
-          return state.set(input.traceId, input.key, input.value)
+          tracer.stateOperation('set', input)
+          return motia.state.set(input.traceId, input.key, input.value)
         })
 
         processManager.handler<StateDeleteInput, unknown>('state.delete', async (input) => {
-          observabilityLogger.logStateOperation(step.config.name, 'delete', input.key)
-          return state.delete(input.traceId, input.key)
+          tracer.stateOperation('delete', input)
+          return motia.state.delete(input.traceId, input.key)
         })
 
         processManager.handler<StateClearInput, void>('state.clear', async (input) => {
-          observabilityLogger.logStateOperation(step.config.name, 'clear')
-          return state.clear(input.traceId)
+          tracer.stateOperation('clear', input)
+          return motia.state.clear(input.traceId)
         })
 
-        processManager.handler<StateStreamGetInput>(`state.getGroup`, (input) => state.getGroup(input.groupId))
+        processManager.handler<StateStreamGetInput>(`state.getGroup`, (input) => {
+          tracer.stateOperation('getGroup', input)
+          return motia.state.getGroup(input.groupId)
+        })
+
         processManager.handler<TData, void>('result', async (input) => {
           result = input
         })
 
         processManager.handler<Event, unknown>('emit', async (input) => {
+          const flows = step.config.flows
+
           if (!isAllowedToEmit(step, input.topic)) {
-            observabilityLogger.logEmitOperation(step.config.name, input.topic, false)
-            return printer.printInvalidEmit(step, input.topic)
+            tracer.emitOperation(input.topic, input.data, false)
+            return motia.printer.printInvalidEmit(step, input.topic)
           }
 
-          observabilityLogger.logEmitOperation(step.config.name, input.topic, true)
-          return eventManager.emit({ ...input, traceId, flows: step.config.flows, logger }, step.filePath)
+          tracer.emitOperation(input.topic, input.data, true)
+          return motia.eventManager.emit({ ...input, traceId, flows, logger, tracer }, step.filePath)
         })
 
         Object.entries(streamConfig).forEach(([name, streamFactory]) => {
           const stateStream = streamFactory()
 
           processManager.handler<StateStreamGetInput>(`streams.${name}.get`, async (input) => {
-            observabilityLogger.logStreamOperation(step.config.name, name, 'get')
+            tracer.streamOperation(name, 'get', input)
             return stateStream.get(input.groupId, input.id)
           })
 
           processManager.handler<StateStreamMutateInput>(`streams.${name}.set`, async (input) => {
-            observabilityLogger.logStreamOperation(step.config.name, name, 'set')
+            tracer.streamOperation(name, 'set', input)
             return stateStream.set(input.groupId, input.id, input.data)
           })
 
           processManager.handler<StateStreamGetInput>(`streams.${name}.delete`, async (input) => {
-            observabilityLogger.logStreamOperation(step.config.name, name, 'delete')
+            tracer.streamOperation(name, 'delete', input)
             return stateStream.delete(input.groupId, input.id)
           })
 
           processManager.handler<StateStreamGetInput>(`streams.${name}.getGroup`, async (input) => {
-            observabilityLogger.logStreamOperation(step.config.name, name, 'get')
+            tracer.streamOperation(name, 'getGroup', input)
             return stateStream.getGroup(input.groupId)
           })
         })
@@ -169,25 +161,21 @@ export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData
 
         processManager.onProcessClose((code) => {
           processManager.close()
-          const duration = Date.now() - stepStartTime
 
           if (code !== 0 && code !== null) {
             const error = { message: `Process exited with code ${code}`, code }
-            observabilityLogger.logStepEnd(step.config.name, duration, false, error)
+            tracer.end(error)
             trackEvent('step_execution_error', { stepName: step.config.name, traceId, code })
             reject(`Process exited with code ${code}`)
           } else {
-            observabilityLogger.logStepEnd(step.config.name, duration, true)
+            tracer.end()
             resolve(result)
           }
         })
 
         processManager.onProcessError((error) => {
           processManager.close()
-          const duration = Date.now() - stepStartTime
-          const errorObj = { message: error.message, code: error.code }
-
-          observabilityLogger.logStepEnd(step.config.name, duration, false, errorObj)
+          tracer.end(error)
 
           if (error.code === 'ENOENT') {
             trackEvent('step_execution_error', {
@@ -203,10 +191,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions): Promise<TData
         })
       })
       .catch((error) => {
-        const duration = Date.now() - stepStartTime
-        const errorObj = { message: error.message, code: error.code }
-
-        observabilityLogger.logStepEnd(step.config.name, duration, false, errorObj)
+        tracer.end(error)
 
         trackEvent('step_execution_error', {
           stepName: step.config.name,

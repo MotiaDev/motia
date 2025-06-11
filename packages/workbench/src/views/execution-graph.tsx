@@ -1,14 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend, 
-  ResponsiveContainer
-} from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -94,16 +85,18 @@ interface ExecutionMetrics {
 
 // Main execution graph component
 export const ExecutionGraph: React.FC<{ traceId: string }> = ({ traceId }) => {
-  const [selectedView, setSelectedView] = useState<'timeline' | 'interactions' | 'operations' | 'performance'>('timeline')
+  const [selectedView, setSelectedView] = useState<'timeline' | 'interactions' | 'operations' | 'performance'>(
+    'timeline',
+  )
   const [selectedStep, setSelectedStep] = useState<string | null>(null)
-  
+
   // Mock data - in real implementation, this would come from the trace API
   const trace = useMemo(() => getMockTrace(traceId), [traceId])
-  
+
   return (
     <div className="w-full h-full flex flex-col">
       <ExecutionHeader trace={trace} />
-      
+
       <Tabs value={selectedView} onValueChange={setSelectedView as any} className="flex-1">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="timeline">Timeline View</TabsTrigger>
@@ -111,23 +104,19 @@ export const ExecutionGraph: React.FC<{ traceId: string }> = ({ traceId }) => {
           <TabsTrigger value="operations">Operations Detail</TabsTrigger>
           <TabsTrigger value="performance">Performance Metrics</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="timeline" className="flex-1">
-          <TimelineView 
-            trace={trace} 
-            selectedStep={selectedStep}
-            onStepSelect={setSelectedStep}
-          />
+          <TimelineView trace={trace} selectedStep={selectedStep} onStepSelect={setSelectedStep} />
         </TabsContent>
-        
+
         <TabsContent value="interactions" className="flex-1">
           <InteractionsView trace={trace} />
         </TabsContent>
-        
+
         <TabsContent value="operations" className="flex-1">
           <OperationsView trace={trace} />
         </TabsContent>
-        
+
         <TabsContent value="performance" className="flex-1">
           <PerformanceView trace={trace} />
         </TabsContent>
@@ -140,22 +129,24 @@ export const ExecutionGraph: React.FC<{ traceId: string }> = ({ traceId }) => {
 const ExecutionHeader: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-500'
-      case 'failed': return 'bg-red-500'
-      case 'running': return 'bg-blue-500'
-      default: return 'bg-yellow-500'
+      case 'completed':
+        return 'bg-green-500'
+      case 'failed':
+        return 'bg-red-500'
+      case 'running':
+        return 'bg-blue-500'
+      default:
+        return 'bg-yellow-500'
     }
   }
-  
+
   return (
     <Card className="mb-4">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             Execution Trace: {trace.id}
-            <Badge className={getStatusColor(trace.status)}>
-              {trace.status}
-            </Badge>
+            <Badge className={getStatusColor(trace.status)}>{trace.status}</Badge>
           </CardTitle>
           <div className="flex gap-4 text-sm text-muted-foreground">
             <span>Duration: {trace.duration || 'N/A'}ms</span>
@@ -195,11 +186,11 @@ const TimelineView: React.FC<{
   onStepSelect: (step: string | null) => void
 }> = ({ trace, selectedStep, onStepSelect }) => {
   const timelineData = useMemo(() => {
-    const minTime = Math.min(trace.startTime, ...trace.steps.map(s => s.startTime))
-    
-    return trace.steps.map(step => {
+    const minTime = Math.min(trace.startTime, ...trace.steps.map((s) => s.startTime))
+
+    return trace.steps.map((step) => {
       const relativeStart = step.startTime - minTime
-      
+
       return {
         stepName: step.stepName,
         start: relativeStart,
@@ -207,11 +198,11 @@ const TimelineView: React.FC<{
         status: step.status,
         stateOps: step.stateOperations.length,
         emitOps: step.emitOperations.length,
-        streamOps: step.streamOperations.length
+        streamOps: step.streamOperations.length,
       }
     })
   }, [trace])
-  
+
   return (
     <div className="space-y-4">
       <Card>
@@ -223,15 +214,15 @@ const TimelineView: React.FC<{
             <BarChart data={timelineData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="stepName" />
-              <YAxis 
+              <YAxis
                 label={{ value: 'Duration (ms)', angle: -90, position: 'insideLeft' }}
                 tickFormatter={(value: number) => `${value}ms`}
               />
               <Tooltip content={<TimelineTooltip />} />
               <Legend />
-              <Bar 
-                dataKey="duration" 
-                fill="#8884d8" 
+              <Bar
+                dataKey="duration"
+                fill="#8884d8"
                 name="Duration (ms)"
                 onClick={(data: any) => onStepSelect(data.stepName)}
               />
@@ -239,10 +230,8 @@ const TimelineView: React.FC<{
           </ResponsiveContainer>
         </CardContent>
       </Card>
-      
-      {selectedStep && (
-        <StepDetailView step={trace.steps.find(s => s.stepName === selectedStep)} />
-      )}
+
+      {selectedStep && <StepDetailView step={trace.steps.find((s) => s.stepName === selectedStep)} />}
     </div>
   )
 }
@@ -270,25 +259,31 @@ const TimelineTooltip: React.FC<any> = ({ active, payload }) => {
 // Step detail component
 const StepDetailView: React.FC<{ step: any }> = ({ step }) => {
   if (!step) return null
-  
+
   return (
     <div className="space-y-4">
       <div>
         <h3 className="font-semibold">{step.stepName}</h3>
-        <Badge className={`mt-1 ${
-          step.status === 'completed' ? 'bg-green-500' :
-          step.status === 'failed' ? 'bg-red-500' :
-          step.status === 'running' ? 'bg-blue-500' : 'bg-yellow-500'
-        }`}>
+        <Badge
+          className={`mt-1 ${
+            step.status === 'completed'
+              ? 'bg-green-500'
+              : step.status === 'failed'
+                ? 'bg-red-500'
+                : step.status === 'running'
+                  ? 'bg-blue-500'
+                  : 'bg-yellow-500'
+          }`}
+        >
           {step.status}
         </Badge>
       </div>
-      
+
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div>Type: {step.stepType}</div>
         <div>Duration: {step.duration}ms</div>
       </div>
-      
+
       <div>
         <h4 className="font-medium mb-2">Operations</h4>
         <div className="space-y-2">
@@ -314,22 +309,20 @@ const OperationBadge: React.FC<{ operation: any }> = ({ operation }) => {
     if (op.streamName) return '🌊' // Stream operation
     return '⚙️'
   }
-  
+
   const getOperationText = (op: any) => {
     if (op.operation) return `${op.operation} ${op.key || 'state'}`
     if (op.eventTopic) return `emit ${op.eventTopic}`
     if (op.streamName) return `${op.operation} ${op.streamName}`
     return 'operation'
   }
-  
+
   return (
     <div className="flex items-center justify-between text-xs p-2 bg-gray-50 rounded">
       <span>
         {getOperationIcon(operation)} {getOperationText(operation)}
       </span>
-      <span className={operation.success ? 'text-green-600' : 'text-red-600'}>
-        {operation.duration || 0}ms
-      </span>
+      <span className={operation.success ? 'text-green-600' : 'text-red-600'}>{operation.duration || 0}ms</span>
     </div>
   )
 }
@@ -352,8 +345,8 @@ const InteractionsView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
                     <span className="mx-2">→</span>
                     <span className="font-medium">{interaction.targetStep}</span>
                   </div>
-                  <Badge variant={interaction.success ? "default" : "destructive"}>
-                    {interaction.success ? "Success" : "Failed"}
+                  <Badge variant={interaction.success ? 'default' : 'destructive'}>
+                    {interaction.success ? 'Success' : 'Failed'}
                   </Badge>
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
@@ -372,9 +365,9 @@ const InteractionsView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
 // Operations detail view
 const OperationsView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
   const allOperations = [
-    ...trace.stateOperations.map(op => ({ ...op, type: 'state' })),
-    ...trace.emitOperations.map(op => ({ ...op, type: 'emit' })),
-    ...trace.streamOperations.map(op => ({ ...op, type: 'stream' }))
+    ...trace.stateOperations.map((op) => ({ ...op, type: 'state' })),
+    ...trace.emitOperations.map((op) => ({ ...op, type: 'emit' })),
+    ...trace.streamOperations.map((op) => ({ ...op, type: 'stream' })),
   ].sort((a, b) => a.startTime - b.startTime)
 
   return (
@@ -395,11 +388,7 @@ const OperationsView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
                   </span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {'duration' in operation ? (
-                    <span>{operation.duration || 0}ms</span>
-                  ) : (
-                    <span>Event</span>
-                  )}
+                  {'duration' in operation ? <span>{operation.duration || 0}ms</span> : <span>Event</span>}
                 </div>
               </div>
             ))}
@@ -413,16 +402,16 @@ const OperationsView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
 // Performance metrics view
 const PerformanceView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
   const performanceData = useMemo(() => {
-    return trace.steps.map(step => ({
+    return trace.steps.map((step) => ({
       stepName: step.stepName,
       duration: step.duration || 0,
       stateOps: step.stateOperations.length,
       emitOps: step.emitOperations.length,
       streamOps: step.streamOperations.length,
-      totalOps: step.stateOperations.length + step.emitOperations.length + step.streamOperations.length
+      totalOps: step.stateOperations.length + step.emitOperations.length + step.streamOperations.length,
     }))
   }, [trace])
-  
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Performance Chart */}
@@ -447,7 +436,7 @@ const PerformanceView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
           </div>
         </CardContent>
       </Card>
-      
+
       {/* Metrics Summary */}
       <Card>
         <CardHeader>
@@ -459,29 +448,35 @@ const PerformanceView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
               <h4 className="font-medium mb-2">Top State Keys</h4>
               <div className="space-y-1">
                 {trace.metrics.mostAccessedStateKeys.slice(0, 5).map((key, index) => (
-                  <Badge key={index} variant="secondary">{key}</Badge>
+                  <Badge key={index} variant="secondary">
+                    {key}
+                  </Badge>
                 ))}
               </div>
             </div>
-            
+
             <div>
               <h4 className="font-medium mb-2">Top Event Topics</h4>
               <div className="space-y-1">
                 {trace.metrics.mostUsedEventTopics.slice(0, 5).map((topic, index) => (
-                  <Badge key={index} variant="secondary">{topic}</Badge>
+                  <Badge key={index} variant="secondary">
+                    {topic}
+                  </Badge>
                 ))}
               </div>
             </div>
-            
+
             <div>
               <h4 className="font-medium mb-2">Active Streams</h4>
               <div className="space-y-1">
                 {trace.metrics.mostActiveStreams.slice(0, 5).map((stream, index) => (
-                  <Badge key={index} variant="secondary">{stream}</Badge>
+                  <Badge key={index} variant="secondary">
+                    {stream}
+                  </Badge>
                 ))}
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div className="text-center">
                 <div className="text-lg font-bold">{trace.metrics.averageStateOperationTime.toFixed(1)}ms</div>
@@ -502,7 +497,7 @@ const PerformanceView: React.FC<{ trace: ExecutionTrace }> = ({ trace }) => {
 // Mock data generator
 function getMockTrace(traceId: string): ExecutionTrace {
   const startTime = Date.now() - 5000
-  
+
   return {
     id: traceId,
     flowNames: ['user-registration'],
@@ -520,7 +515,7 @@ function getMockTrace(traceId: string): ExecutionTrace {
         status: 'completed',
         stateOperations: ['state-1', 'state-2'],
         emitOperations: ['emit-1'],
-        streamOperations: []
+        streamOperations: [],
       },
       {
         stepName: 'save-user',
@@ -531,7 +526,7 @@ function getMockTrace(traceId: string): ExecutionTrace {
         status: 'completed',
         stateOperations: ['state-3', 'state-4'],
         emitOperations: ['emit-2'],
-        streamOperations: ['stream-1']
+        streamOperations: ['stream-1'],
       },
       {
         stepName: 'send-welcome-email',
@@ -542,28 +537,122 @@ function getMockTrace(traceId: string): ExecutionTrace {
         status: 'completed',
         stateOperations: ['state-5'],
         emitOperations: [],
-        streamOperations: ['stream-2', 'stream-3']
-      }
+        streamOperations: ['stream-2', 'stream-3'],
+      },
     ],
     stateOperations: [
-      { id: 'state-1', stepName: 'validate-user', operation: 'get', key: 'user.email', startTime: startTime + 10, duration: 25, success: true },
-      { id: 'state-2', stepName: 'validate-user', operation: 'set', key: 'validation.result', startTime: startTime + 120, duration: 15, success: true },
-      { id: 'state-3', stepName: 'save-user', operation: 'get', key: 'validation.result', startTime: startTime + 220, duration: 20, success: true },
-      { id: 'state-4', stepName: 'save-user', operation: 'set', key: 'user.id', startTime: startTime + 750, duration: 30, success: true },
-      { id: 'state-5', stepName: 'send-welcome-email', operation: 'get', key: 'user.id', startTime: startTime + 870, duration: 18, success: true }
+      {
+        id: 'state-1',
+        stepName: 'validate-user',
+        operation: 'get',
+        key: 'user.email',
+        startTime: startTime + 10,
+        duration: 25,
+        success: true,
+      },
+      {
+        id: 'state-2',
+        stepName: 'validate-user',
+        operation: 'set',
+        key: 'validation.result',
+        startTime: startTime + 120,
+        duration: 15,
+        success: true,
+      },
+      {
+        id: 'state-3',
+        stepName: 'save-user',
+        operation: 'get',
+        key: 'validation.result',
+        startTime: startTime + 220,
+        duration: 20,
+        success: true,
+      },
+      {
+        id: 'state-4',
+        stepName: 'save-user',
+        operation: 'set',
+        key: 'user.id',
+        startTime: startTime + 750,
+        duration: 30,
+        success: true,
+      },
+      {
+        id: 'state-5',
+        stepName: 'send-welcome-email',
+        operation: 'get',
+        key: 'user.id',
+        startTime: startTime + 870,
+        duration: 18,
+        success: true,
+      },
     ],
     emitOperations: [
-      { id: 'emit-1', stepName: 'validate-user', eventTopic: 'user.validated', targetSteps: ['save-user'], startTime: startTime + 140, success: true },
-      { id: 'emit-2', stepName: 'save-user', eventTopic: 'user.saved', targetSteps: ['send-welcome-email'], startTime: startTime + 790, success: true }
+      {
+        id: 'emit-1',
+        stepName: 'validate-user',
+        eventTopic: 'user.validated',
+        targetSteps: ['save-user'],
+        startTime: startTime + 140,
+        success: true,
+      },
+      {
+        id: 'emit-2',
+        stepName: 'save-user',
+        eventTopic: 'user.saved',
+        targetSteps: ['send-welcome-email'],
+        startTime: startTime + 790,
+        success: true,
+      },
     ],
     streamOperations: [
-      { id: 'stream-1', stepName: 'save-user', streamName: 'users', operation: 'set', startTime: startTime + 500, duration: 200, success: true },
-      { id: 'stream-2', stepName: 'send-welcome-email', streamName: 'emails', operation: 'set', startTime: startTime + 1200, duration: 800, success: true },
-      { id: 'stream-3', stepName: 'send-welcome-email', streamName: 'notifications', operation: 'set', startTime: startTime + 2100, duration: 100, success: true }
+      {
+        id: 'stream-1',
+        stepName: 'save-user',
+        streamName: 'users',
+        operation: 'set',
+        startTime: startTime + 500,
+        duration: 200,
+        success: true,
+      },
+      {
+        id: 'stream-2',
+        stepName: 'send-welcome-email',
+        streamName: 'emails',
+        operation: 'set',
+        startTime: startTime + 1200,
+        duration: 800,
+        success: true,
+      },
+      {
+        id: 'stream-3',
+        stepName: 'send-welcome-email',
+        streamName: 'notifications',
+        operation: 'set',
+        startTime: startTime + 2100,
+        duration: 100,
+        success: true,
+      },
     ],
     stepInteractions: [
-      { id: 'int-1', sourceStep: 'validate-user', targetStep: 'save-user', eventTopic: 'user.validated', emitTime: startTime + 140, propagationDelay: 60, success: true },
-      { id: 'int-2', sourceStep: 'save-user', targetStep: 'send-welcome-email', eventTopic: 'user.saved', emitTime: startTime + 790, propagationDelay: 60, success: true }
+      {
+        id: 'int-1',
+        sourceStep: 'validate-user',
+        targetStep: 'save-user',
+        eventTopic: 'user.validated',
+        emitTime: startTime + 140,
+        propagationDelay: 60,
+        success: true,
+      },
+      {
+        id: 'int-2',
+        sourceStep: 'save-user',
+        targetStep: 'send-welcome-email',
+        eventTopic: 'user.saved',
+        emitTime: startTime + 790,
+        propagationDelay: 60,
+        success: true,
+      },
     ],
     metrics: {
       stateOperationsCount: 5,
@@ -573,7 +662,7 @@ function getMockTrace(traceId: string): ExecutionTrace {
       averageStreamOperationTime: 366.7,
       mostAccessedStateKeys: ['user.email', 'user.id', 'validation.result'],
       mostUsedEventTopics: ['user.validated', 'user.saved'],
-      mostActiveStreams: ['users', 'emails', 'notifications']
-    }
+      mostActiveStreams: ['users', 'emails', 'notifications'],
+    },
   }
-} 
+}

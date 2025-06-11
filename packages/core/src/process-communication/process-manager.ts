@@ -3,12 +3,12 @@ import { createCommunicationConfig, CommunicationType } from './communication-co
 import { RpcProcessor } from '../step-handler-rpc-processor'
 import { RpcStdinProcessor } from '../step-handler-rpc-stdin-processor'
 import { RpcProcessorInterface, RpcHandler, MessageCallback } from './rpc-processor-interface'
-import { BaseLogger } from '../logger'
+import { Logger } from '../logger'
 
 export interface ProcessManagerOptions {
   command: string
   args: string[]
-  logger: BaseLogger
+  logger: Logger
   context?: string
 }
 

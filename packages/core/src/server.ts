@@ -3,10 +3,23 @@ import cors from 'cors'
 import express, { Express, Request, Response } from 'express'
 import http from 'http'
 import { Server as WsServer } from 'ws'
+import { analyticsEndpoint } from './analytics-endpoint'
+import { trackEvent } from './analytics/utils'
+import { callStepFile } from './call-step-file'
 import { CronManager, setupCronHandlers } from './cron-handler'
+import { flowsConfigEndpoint } from './flows-config-endpoint'
 import { flowsEndpoint } from './flows-endpoint'
+import { generateTraceId } from './generate-trace-id'
 import { isApiStep } from './guards'
-import { globalLogger } from './logger'
+import { LockedData } from './locked-data'
+import { LoggerFactory } from './logger-factory'
+import { Motia } from './motia'
+import { createTracerFactory } from './observability/tracer'
+import { createSocketServer } from './socket-server'
+import { createStepHandlers, MotiaEventManager } from './step-handlers'
+import { systemSteps } from './steps'
+import { apiEndpoints } from './streams/api-endpoints'
+import { Log, LogsStream } from './streams/logs-stream'
 import {
   ApiRequest,
   ApiResponse,
@@ -16,21 +29,8 @@ import {
   InternalStateManager,
   Step,
 } from './types'
-import { systemSteps } from './steps'
-import { LockedData } from './locked-data'
-import { callStepFile } from './call-step-file'
-import { LoggerFactory } from './logger-factory'
-import { generateTraceId } from './generate-trace-id'
-import { flowsConfigEndpoint } from './flows-config-endpoint'
-import { apiEndpoints } from './streams/api-endpoints'
-import { createSocketServer } from './socket-server'
-import { Log, LogsStream } from './streams/logs-stream'
 import { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
-import { analyticsEndpoint } from './analytics-endpoint'
-import { trackEvent } from './analytics/utils'
-import { ObservabilityStream } from './observability/observability-stream'
-import { Trace } from './observability/types'
-import { createStepHandlers, MotiaEventManager } from './step-handlers'
+import { globalLogger } from './logger'
 
 export type MotiaServer = {
   app: Express
@@ -153,31 +153,24 @@ export const createServer = async (
     },
   })()
 
-  const observabilityStream = lockedData.createStream<Trace>({
-    filePath: '__motia.observability',
-    hidden: true,
-    config: {
-      name: '__motia.observability',
-      baseConfig: { storageType: 'custom', factory: () => new ObservabilityStream() },
-      schema: null as never,
-    },
-  })()
-
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new LoggerFactory(config.isVerbose, logStream)
+  const tracerFactory = createTracerFactory(lockedData)
+  const motia: Motia = { loggerFactory, eventManager, state, lockedData, printer, tracerFactory }
 
-  const cronManager = setupCronHandlers(lockedData, eventManager, state, loggerFactory, observabilityStream)
-  const motiaEventManager = createStepHandlers(lockedData, eventManager, state, observabilityStream)
+  const cronManager = setupCronHandlers(motia)
+  const motiaEventManager = createStepHandlers(motia)
 
   const asyncHandler = (step: Step<ApiRouteConfig>) => {
     return async (req: Request, res: Response) => {
       const traceId = generateTraceId()
       const { name: stepName, flows } = step.config
       const logger = loggerFactory.create({ traceId, flows, stepName })
+      const tracer = motia.tracerFactory.createTracer(traceId, step)
 
       logger.debug('[API] Received request, processing step', { path: req.path })
 
-      const request: ApiRequest = {
+      const data: ApiRequest = {
         body: req.body,
         headers: req.headers as Record<string, string | string[]>,
         pathParams: req.params,
@@ -185,19 +178,7 @@ export const createServer = async (
       }
 
       try {
-        const data = request
-        const result = await callStepFile<ApiResponse>({
-          contextInFirstArg: false,
-          lockedData,
-          data,
-          step,
-          printer,
-          logger,
-          eventManager,
-          state,
-          traceId,
-          observabilityStream,
-        })
+        const result = await callStepFile<ApiResponse>({ data, step, logger, tracer, traceId }, motia)
 
         if (!result) {
           console.log('no result')

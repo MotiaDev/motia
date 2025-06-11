@@ -94,7 +94,7 @@ type Event<TData = unknown> = {
     data: TData;
     traceId: string;
     flows?: string[];
-    logger: BaseLogger;
+    logger: Logger;
 };
 type Handler<TData = unknown> = (event: Event<TData>) => Promise<void>;
 type SubscribeConfig<TData> = {

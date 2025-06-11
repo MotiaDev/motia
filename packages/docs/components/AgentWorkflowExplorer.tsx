@@ -10,7 +10,6 @@ import { AgentData } from '@/lib/fetchAgents'
 import bgWorkflowExplorer from '@/public/images/landing/bgWorkflowExplorer.avif'
 import Image from 'next/image'
 import CollapsibleFolder from './CollapsibleFolder'
-import { StaticImport } from 'next/dist/shared/lib/get-img-props'
 import logoFull from '@/public/images/logoFull.png'
 import { openInNewWindowIcon } from './Icons'
 import Link from 'next/link'
@@ -50,7 +49,7 @@ export const AgentWorkflowExplorer: React.FC<AgentWorkflowExplorer> = ({ agent, 
 
   useEffect(() => {
     setSelectedFile(stepsFileNames[0])
-  }, [agent])
+  }, [agent, stepsFileNames])
 
   useEffect(() => {
     //Find the code of the currently selected file
@@ -64,7 +63,7 @@ export const AgentWorkflowExplorer: React.FC<AgentWorkflowExplorer> = ({ agent, 
     const currentFolder = services[agent]?.findIndex((file) => file.name === selectedFile) > -1 ? 'services' : 'steps'
     setCode(code)
     setSelectedFolder(currentFolder)
-  }, [selectedFile])
+  }, [selectedFile, services, steps, agent])
 
   const MotiaNav = () => {
     const href = `${GITHUB_REPO_BASE}/${folderMap[agent]}/${selectedFolder}/${selectedFile}`

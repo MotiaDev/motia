@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { TraceFilter } from '@/types/observability'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { TraceFilter } from '@/types/observability'
 import { Search, X } from 'lucide-react'
+import { useState } from 'react'
 
 interface TraceSearchProps {
   onSearch: (filter: TraceFilter) => void
@@ -16,10 +16,10 @@ export const TraceSearch = ({ onSearch }: TraceSearchProps) => {
 
   const handleSearch = () => {
     const filter: TraceFilter = {
-      ...(status && status !== 'all' && { status: status as any }),
+      ...(status && status !== 'all' && { status: status as never }),
       ...(stepName && { stepName }),
       ...(correlationId && { correlationId }),
-      limit: 50
+      limit: 50,
     }
     onSearch(filter)
   }
@@ -77,7 +77,7 @@ export const TraceSearch = ({ onSearch }: TraceSearchProps) => {
           <Search className="w-4 h-4 mr-2" />
           Search
         </Button>
-        
+
         {hasFilters && (
           <Button onClick={handleClear} variant="outline" size="sm">
             <X className="w-4 h-4 mr-2" />
@@ -87,4 +87,4 @@ export const TraceSearch = ({ onSearch }: TraceSearchProps) => {
       </div>
     </div>
   )
-} 
+}

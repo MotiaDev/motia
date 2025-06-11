@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { Logger } from './logger'
 import { StreamAdapter } from './streams/adapters/stream-adapter'
 import { Log } from './streams/logs-stream'
@@ -15,6 +16,23 @@ export class LoggerFactory {
   ) {}
 
   create({ stepName, traceId, flows }: CreateLogger): Logger {
-    return new Logger(traceId, flows, stepName, this.isVerbose, this.logStream)
+    const logger = new Logger(this.isVerbose, { traceId, flows, step: stepName })
+
+    logger.addListener((level, msg, args) => {
+      const id = randomUUID()
+
+      this.logStream.set('default', id, {
+        id,
+        step: stepName,
+        ...(args ?? {}),
+        level,
+        time: Date.now(),
+        msg,
+        traceId,
+        flows: flows ?? [],
+      })
+    })
+
+    return logger
   }
 }
