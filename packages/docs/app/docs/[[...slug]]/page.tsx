@@ -33,7 +33,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
         <MDXContent
           components={getMDXComponents({
             // this allows you to link to other pages with relative file paths
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+             
             pre: ({ ref: _ref, ...props }) => (
               <CodeBlock {...props}>
                 <Pre>{props.children}</Pre>

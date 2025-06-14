@@ -1,7 +1,7 @@
 import { useLogs } from '@/stores/use-logs'
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import { Button } from '../ui/button'
+import { Button } from '@motiadev/ui'
 import { cn } from '@/lib/utils'
 import { Logs } from './logs'
 
