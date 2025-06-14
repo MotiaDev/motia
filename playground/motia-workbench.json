@@ -1,156 +1,99 @@
-{
-  "simple-python": {
-    "steps/simplePython/apiEndpoint.step.py": {
-      "x": -430.5,
-      "y": 6.5
-    },
-    "steps/simplePython/testEvent.step.py": {
-      "x": -104.43491309621044,
-      "y": 77.79009690214755
-    },
-    "steps/simplePython/testedEvent.step.py": {
-      "x": 140.70066518847005,
-      "y": 60.06430155210646
+[
+  {
+    "id": "default",
+    "config": {
+      "steps/default-node/03-check-state-change.step.ts": {
+        "x": 19.5,
+        "y": 636
+      },
+      "steps/default-node/02-test-state.step.ts": {
+        "x": -210.88552507095554,
+        "y": 392.6641438032167
+      },
+      "steps/default-node/01-api.step.ts": {
+        "x": 122.08041627246925,
+        "y": 179.30368968779567
+      },
+      "steps/default-node/00-noop.step.ts": {
+        "x": 55.5,
+        "y": 0
+      }
     }
   },
-  "openai": {
-    "steps/openAi/callOpenAi.step.ts": {
-      "x": 0,
-      "y": 238
-    },
-    "steps/openAi/callOpenAiApi.step.py": {
-      "x": 65.74166666666667,
-      "y": -27.516666666666666
-    },
-    "steps/openAi/callOpenAiApi.step.rb": {
-      "x": 311.86249999999995,
-      "y": -42.803703703703704
-    },
-    "steps/openAi/callOpenAiApi.step.ts": {
-      "x": 568.2069444444444,
-      "y": -27.516666666666673
-    },
-    "steps/openAi/call_ai.step.py": {
-      "x": 339.75,
-      "y": 238
-    },
-    "steps/openAi/call_ai_ruby.step.rb": {
-      "x": 679.5,
-      "y": 238
-    },
-    "steps/openAi/openAiResponse.step.ts": {
-      "x": 310.42824074074076,
-      "y": 396.9939814814815
+  {
+    "id": "test-state",
+    "config": {
+      "steps/testState/test_state.step.py": {
+        "x": 234,
+        "y": 238
+      },
+      "steps/testState/testStateCheck.step.ts": {
+        "x": 0,
+        "y": 14
+      },
+      "steps/testState/testState.api.step.ts": {
+        "x": 244,
+        "y": 0
+      }
     }
   },
-  "cron-example": {
-    "steps/cronExample/handlePeriodicJob.step.ts": {
-      "x": 36,
-      "y": 238
-    },
-    "steps/cronExample/periodicJob.step.ts": {
-      "x": 0,
-      "y": 0
+  {
+    "id": "parallel-merge",
+    "config": {
+      "steps/parallelMergeState/stepC.step.py": {
+        "x": 0,
+        "y": 470
+      },
+      "steps/parallelMergeState/stepB.step.py": {
+        "x": 210,
+        "y": 446
+      },
+      "steps/parallelMergeState/stepA.step.ts": {
+        "x": 510,
+        "y": 470
+      },
+      "steps/parallelMergeState/startParallelMerge.step.ts": {
+        "x": 155,
+        "y": 188
+      },
+      "steps/parallelMergeState/noopStartButton.step.ts": {
+        "x": 262.5,
+        "y": 0
+      },
+      "steps/parallelMergeState/joinStep.step.ts": {
+        "x": 198.5,
+        "y": 704
+      },
+      "steps/parallelMergeState/joinComplete.step.ts": {
+        "x": 244.5,
+        "y": 914
+      }
     }
   },
-  "test-state": {
-    "steps/testState/test_state.step.py": {
-      "x": 118.73341292203025,
-      "y": 28.82059391373022
-    },
-    "steps/testState/testState.api.step.ts": {
-      "x": 129.46609766882642,
-      "y": -195.66109545788373
-    },
-    "steps/testState/check_state_change.step.rb": {
-      "x": -123.55746572353567,
-      "y": 271.5416016691874
-    },
-    "steps/testState/checkStateChange.step.ts": {
-      "x": 375.43736757000926,
-      "y": 267.2702357645942
-    },
-    "steps/simplePython/testedEvent.step.py": {
-      "x": 15.5,
-      "y": 428
-    },
-    "steps/simplePython/testEvent.step.py": {
-      "x": 23.5,
-      "y": 252
-    },
-    "steps/simplePython/apiEndpoint.step.py": {
-      "x": -80,
-      "y": 7
+  {
+    "id": "cron-example",
+    "config": {
+      "steps/cronExample/handlePeriodicJob.step.ts": {
+        "x": 0,
+        "y": 0
+      }
     }
   },
-  "parallel-merge": {
-    "steps/parallelMergeState/stepC.step.rb": {
-      "x": -177.90134529147983,
-      "y": 476.5542600896862
-    },
-    "steps/parallelMergeState/stepB.step.py": {
-      "x": 218.55588908209018,
-      "y": 426.6955065434245
-    },
-    "steps/parallelMergeState/stepA.step.ts": {
-      "x": 541.2043927885055,
-      "y": 440.266971721424
-    },
-    "steps/parallelMergeState/startParallelMerge.step.ts": {
-      "x": 162.45714285714286,
-      "y": 186.934693877551
-    },
-    "steps/parallelMergeState/noopStartButton.step.ts": {
-      "x": 269.95714285714286,
-      "y": 25.567346938775508
-    },
-    "steps/parallelMergeState/joinStep.step.ts": {
-      "x": 207.02244897959184,
-      "y": 674.1714285714286
-    },
-    "steps/parallelMergeState/joinComplete.step.ts": {
-      "x": 254.0877551020409,
-      "y": 841.5591836734693
-    },
-    "steps/parallelMergeState/stepC.step.py": {
-      "x": -1.0653061224489875,
-      "y": 439.1061224489796
-    }
-  },
-  "open-ai": {
-    "steps/open-ai/02-prompt.step.ts": {
-      "x": -185.5,
-      "y": 201.5
-    },
-    "steps/open-ai/01-prompt-api.step.ts": {
-      "x": -184,
-      "y": -8.5
-    },
-    "steps/open-ai-python/02-prompt.step.py": {
-      "x": -6.5,
-      "y": 199.5
-    },
-    "steps/open-ai-python/01-prompt-api.step.py": {
-      "x": -7.5,
-      "y": -8.5
-    }
-  },
-  "default": {
-    "steps/default-node/03-check-state-change.step.ts": {
-      "x": 19.5,
-      "y": 636
-    },
-    "steps/default-node/02-test-state.step.ts": {
-      "x": 0,
-      "y": 426
-    },
-    "steps/default-node/01-api.step.ts": {
-      "x": 17,
-      "y": 188
-    },
-    "steps/default-node/00-noop.step.ts": {
-      "x": 55.5,
-      "y": 0
+  {
+    "id": "simple-python",
+    "config": {
+      "steps/simplePython/testedEvent.step.py": {
+        "x": 15.5,
+        "y": 444
+      },
+      "steps/simplePython/testEvent.step.py": {
+        "x": 116.7942289498581,
+        "y": 253.47587511825924
+      },
+      "steps/simplePython/apiEndpoint.step.py": {
+        "x": 69.70860927152316,
+        "y": 0
+      }
     }
   }
-}
+]

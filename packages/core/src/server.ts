@@ -61,7 +61,7 @@ export const createServer = async (
 
       if (stream) {
         const result = await stream().get(groupId, id)
-        delete result.__motia // deleting because we don't need it in the socket
+        delete result?.__motia // deleting because we don't need it in the socket
         return result
       }
     },
@@ -256,8 +256,8 @@ export const createServer = async (
   app.use(router)
 
   apiEndpoints(lockedData)
-  flowsEndpoint(lockedData, app)
-  flowsConfigEndpoint(app, process.cwd())
+  flowsEndpoint(lockedData)
+  flowsConfigEndpoint(app, process.cwd(), lockedData)
   analyticsEndpoint(app, process.cwd())
 
   server.on('error', (error) => {

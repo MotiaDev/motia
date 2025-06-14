@@ -1,9 +1,9 @@
 import { createApiStep, createEventStep } from './fixtures/step-fixtures'
-import { generateFlow } from '../flows-endpoint'
 import { LockedData } from '../locked-data'
 import { z } from 'zod'
 import { Step } from '../types'
 import zodToJsonSchema from 'zod-to-json-schema'
+import { generateFlow } from '../helper/flows-helper'
 
 const mockFlowSteps: Step[] = [
   createApiStep({

@@ -7,10 +7,11 @@ import { FlowLoader } from './flow-loader'
 import { EdgeData, NodeData } from './nodes/nodes.types'
 import { FlowConfigResponse, FlowResponse, useGetFlowState } from './hooks/use-get-flow-state'
 import { Legend } from './legend'
-import { useSaveWorkflowConfig, NodePosition } from './hooks/use-save-workflow-config'
+import { useSaveWorkflowConfig } from './hooks/use-save-workflow-config'
 import { NodeOrganizer } from './node-organizer'
 import { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react'
 import { useDebounced } from '@/hooks/use-debounced'
+import isEqual from 'fast-deep-equal/es6'
 
 import '@xyflow/react/dist/style.css'
 
@@ -30,7 +31,7 @@ export const FlowView: React.FC<Props> = ({ flow, flowConfig }) => {
   const { nodes, edges, onNodesChange, onEdgesChange, nodeTypes } = useGetFlowState(flow, flowConfig)
   const [initialized, setInitialized] = useState(false)
   const { getNodes } = useReactFlow<FlowNode, FlowEdge>()
-  const { saveConfig } = useSaveWorkflowConfig(flow.id)
+  const { saveConfig } = useSaveWorkflowConfig()
   const [hoveredType, setHoveredType] = useState<string | null>(null)
 
   useEffect(() => setInitialized(false), [flow])
@@ -73,14 +74,20 @@ export const FlowView: React.FC<Props> = ({ flow, flowConfig }) => {
   )
 
   const saveFlowConfig = useCallback(() => {
-    const steps = getNodes().reduce((acc, node) => {
-      if (node.data.filePath) {
-        acc[node.data.filePath] = node.position
-      }
-      return acc
-    }, {} as NodePosition)
-    return saveConfig(steps)
-  }, [saveConfig, getNodes])
+    const steps = getNodes().reduce(
+      (acc, node) => {
+        if (node.data.filePath) {
+          acc[node.data.filePath] = node.position
+        }
+        return acc
+      },
+      {} as FlowConfigResponse['config'],
+    )
+    const newConfig = { id: flow.id, config: steps }
+    if (!isEqual(newConfig, flowConfig)) {
+      return saveConfig(newConfig)
+    }
+  }, [saveConfig, getNodes, flowConfig, flow.id])
 
   const debouncedSaveConfig = useDebounced(saveFlowConfig)
 

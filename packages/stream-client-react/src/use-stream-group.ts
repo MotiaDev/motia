@@ -33,7 +33,7 @@ export const useStreamGroup = <TData extends { id: string }>(args?: StreamGroupA
   const [event, setEvent] = useState<StreamSubscription | null>(null)
 
   useEffect(() => {
-    if (!args?.streamName || !args?.groupId) return
+    if (!args?.streamName || !args?.groupId || !stream) return
 
     const subscription = stream.subscribeGroup(args.streamName, args.groupId, args.sortKey)
 

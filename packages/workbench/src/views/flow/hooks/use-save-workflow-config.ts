@@ -1,30 +1,27 @@
-import { useCallback } from 'react';
+import { useCallback } from 'react'
+import { FlowConfigResponse } from '@/views/flow/hooks/use-get-flow-state'
 
-export type NodePosition = {
-  [key: string]: { x: number; y: number };
-};
-
-export const useSaveWorkflowConfig = (flowId: string) => {
-  const saveConfig = useCallback(async (body: NodePosition) => {
+export const useSaveWorkflowConfig = () => {
+  const saveConfig = useCallback(async (body: FlowConfigResponse) => {
     try {
-      const response = await fetch(`/flows/${flowId}/config`, {
+      const response = await fetch(`/flows/${body.id}/config`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({[flowId]: body}),
-      });
+        body: JSON.stringify(body),
+      })
 
       if (!response.ok) {
-        throw new Error(`Failed to save config: ${response.statusText}`);
+        throw new Error(`Failed to save config: ${response.statusText}`)
       }
 
-      return await response.json();
+      return await response.json()
     } catch (error) {
-      console.error('Error saving workflow config:', error);
-      throw error;
+      console.error('Error saving workflow config:', error)
+      throw error
     }
-  }, [flowId]);
+  }, [])
 
-  return { saveConfig };
-};
+  return { saveConfig }
+}

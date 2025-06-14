@@ -32,7 +32,10 @@ export type FlowResponse = {
 }
 
 export type FlowConfigResponse = {
-  [key: string]: Position
+  id: string
+  config: {
+    [stepName: string]: Position
+  }
 }
 
 type FlowEdge = {
@@ -48,7 +51,7 @@ type Position = {
 }
 
 const getNodePosition = (flowConfig: FlowConfigResponse, stepName: string): Position => {
-  const position = flowConfig[stepName]
+  const position = flowConfig?.config[stepName]
   return position || { x: 0, y: 0 }
 }
 

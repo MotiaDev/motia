@@ -1,63 +1,39 @@
-import fs from 'fs'
 import path from 'path'
 import { Express, Request, Response } from 'express'
-
-interface FlowConfig {
-  [flowName: string]: {
-    [filePath: string]: string
-  }
-}
+import { z } from 'zod'
+import { LockedData } from './locked-data'
+import { FlowsConfigStream } from './streams/flows-config-stream'
+import { FlowConfig } from './types/flows-config-types'
 
 interface ParamId {
   id: string
 }
 
-export const flowsConfigEndpoint = (app: Express, baseDir: string) => {
+export const flowsConfigEndpoint = (app: Express, baseDir: string, lockedData: LockedData) => {
   const configPath = path.join(baseDir, 'motia-workbench.json')
+  const stream = new FlowsConfigStream(configPath)
 
-  const getConfig = (): FlowConfig => {
-    if (fs.existsSync(configPath)) {
-      return JSON.parse(fs.readFileSync(configPath, 'utf8'))
-    }
-    return {}
-  }
+  lockedData.createStream(
+    {
+      filePath: '__motia.flowsConfig',
+      hidden: true,
+      config: {
+        name: '__motia.flowsConfig',
+        schema: z.object({ name: z.string(), steps: z.any(), edges: z.any() }),
+        baseConfig: { storageType: 'custom', factory: () => stream },
+      },
+    },
+    { disableTypeCreation: true },
+  )()
 
-  app.post('/flows/:id/config', (req: Request<ParamId>, res: Response) => {
+  app.post('/flows/:id/config', async (req: Request<ParamId>, res: Response) => {
     const newFlowConfig: FlowConfig = req.body
-
     try {
-      const existingConfig = getConfig()
-
-      const updatedConfig: FlowConfig = {
-        ...existingConfig,
-      }
-
-      Object.entries(newFlowConfig).forEach(([flowName, filePathPositions]) => {
-        updatedConfig[flowName] = {
-          ...(updatedConfig[flowName] || {}),
-          ...filePathPositions,
-        }
-      })
-
-      fs.writeFileSync(configPath, JSON.stringify(updatedConfig, null, 2))
+      await stream.set('default', newFlowConfig.id, newFlowConfig)
       res.status(200).send({ message: 'Flow config saved successfully' })
     } catch (error) {
       console.error('Error saving flow config:', (error as Error).message)
       res.status(500).json({ error: 'Failed to save flow config' })
-    }
-  })
-
-  app.get('/flows/:id/config', (req: Request<ParamId>, res: Response) => {
-    const { id } = req.params
-
-    try {
-      const allFlowsConfig = getConfig()
-      const flowConfig = allFlowsConfig[id] || {}
-
-      res.status(200).send(flowConfig)
-    } catch (error) {
-      console.error('Error reading flow config:', (error as Error).message)
-      res.status(400).send({ error: 'Failed to read flow config' })
     }
   })
 }
