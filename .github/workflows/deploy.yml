@@ -11,6 +11,7 @@ on:
       - 'v*'
     paths-ignore:
       - 'docs/**'
+      - 'rfc/**'
       - 'packages/docs/**'
 
 jobs:
@@ -59,4 +60,4 @@ jobs:
           pnpm publish -r --filter @motiadev/stream-client-browser --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/stream-client-react --no-git-checks --tag pre-release
           pnpm publish -r --filter motia --no-git-checks --tag pre-release
-          pnpm publish -r --filter @motiadev/test --no-git-checks --tag pre-release 
+          pnpm publish -r --filter @motiadev/test --no-git-checks --tag pre-release
