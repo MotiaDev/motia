@@ -12,6 +12,7 @@ export class FileStateAdapter implements StateAdapter {
 
   constructor(config: FileAdapterConfig) {
     this.filePath = path.join(config.filePath, 'motia.state.json')
+    this.init()
   }
 
   init() {

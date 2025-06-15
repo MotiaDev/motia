@@ -3,7 +3,7 @@ import { StateAdapter } from '../state-adapter'
 export class MemoryStateAdapter implements StateAdapter {
   private state: Record<string, unknown> = {}
 
-  async init() {
+  constructor() {
     this.state = {}
   }
 

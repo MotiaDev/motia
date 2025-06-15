@@ -32,7 +32,7 @@ Create and manage an HTTP server for handling API requests:
 ```typescript
 import { createServer } from '@motiadev/core'
 
-const server = await createServer(lockedData, eventManager, stateAdapter, config)
+const server = createServer(lockedData, eventManager, stateAdapter, config)
 ```
 
 ### Event Management

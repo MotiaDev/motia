@@ -4,7 +4,7 @@ export const Index = () => {
   return (
     <div className="flex flex-col items-center justify-center w-full h-full gap-10 bg-gradient-to-r from-background via-background to-muted">
       <h1 className="text-5xl font-extrabold max-w-[600px] text-center text-foreground">
-          Unified Backend Framework for APIs, Events and AI Agents
+        Unified Backend Framework for APIs, Events and AI Agents
       </h1>
 
       <div className="max-w-[600px] text-center text-xl font-medium text-muted-foreground">

@@ -17,7 +17,7 @@ jest.mock('../call-step-file', () => ({
 }))
 
 describe('Middleware Management', () => {
-  let server: ReturnType<typeof createServer> extends Promise<infer T> ? T : never
+  let server: ReturnType<typeof createServer>
 
   const testMiddleware: ApiMiddleware<{ middlewareApplied: boolean }, unknown, unknown> = async (req, _, next) => {
     req.body.middlewareApplied = true
@@ -51,7 +51,7 @@ describe('Middleware Management', () => {
     const eventManager = createEventManager()
     const state = new MemoryStateAdapter()
 
-    server = await createServer(lockedData, eventManager, state, { isVerbose: false })
+    server = createServer(lockedData, eventManager, state, { isVerbose: false })
   })
 
   afterEach(async () => {

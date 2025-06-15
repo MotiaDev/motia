@@ -1,25 +1,37 @@
-import request from 'supertest'
 import { createServer, createStateAdapter, createStepHandlers, Event, Logger } from '@motiadev/core'
+import { Motia } from '@motiadev/core/dist/src/motia'
+import { NoTracer } from '@motiadev/core/src/observability/tracer'
+import { NoPrinter } from '@motiadev/core/src/printer'
 import { generateLockedData } from 'motia'
+import path from 'path'
+import request from 'supertest'
 import { createEventManager } from './event-manager'
 import { CapturedEvent, MotiaTester } from './types'
-import path from 'path'
 
 export const createMotiaTester = (): MotiaTester => {
   const eventManager = createEventManager()
+  const logger = new Logger()
+
   const promise = (async () => {
     const lockedData = await generateLockedData(path.join(process.cwd()), 'memory')
     const state = createStateAdapter({ adapter: 'memory' })
     const { server, socketServer, close } = await createServer(lockedData, eventManager, state, {
       isVerbose: true,
     })
+    const tracer = new NoTracer()
+    const motia: Motia = {
+      eventManager,
+      lockedData,
+      state,
+      printer: new NoPrinter('') as never,
+      loggerFactory: { create: () => logger },
+      tracerFactory: { createTracer: () => tracer },
+    }
 
-    createStepHandlers(lockedData, eventManager, state)
+    createStepHandlers(motia)
 
     return { server, socketServer, eventManager, state, close }
   })()
-
-  const logger: Logger = new Logger('', [], '', true)
 
   return {
     logger,

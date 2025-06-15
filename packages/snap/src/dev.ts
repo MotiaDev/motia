@@ -4,13 +4,11 @@ import {
   createMermaidGenerator,
   createServer,
   createStateAdapter,
-  createStepHandlers,
   getProjectIdentifier,
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
-import { FileStateAdapter } from '@motiadev/core/dist/src/state/adapters/default-state-adapter'
 import { createDevWatchers } from './dev-watchers'
 import { stateEndpoints } from './dev/state-endpoints'
 import { activatePythonVenv } from './utils/activate-python-env'
@@ -53,12 +51,10 @@ export const dev = async (port: number, isVerbose: boolean, enableMermaid: boole
     adapter: 'default',
     filePath: path.join(baseDir, '.motia'),
   })
-  await (state as FileStateAdapter).init()
 
   const config = { isVerbose }
-  const motiaServer = await createServer(lockedData, eventManager, state, config)
-  const motiaEventManager = createStepHandlers(lockedData, eventManager, state)
-  const watcher = createDevWatchers(lockedData, motiaServer, motiaEventManager, motiaServer.cronManager)
+  const motiaServer = createServer(lockedData, eventManager, state, config)
+  const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
 
   // Initialize mermaid generator
   if (enableMermaid) {

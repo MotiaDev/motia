@@ -1,7 +1,5 @@
-import { randomUUID } from 'crypto'
 import { prettyPrint } from './pretty-print'
-import { Log } from './streams/logs-stream'
-import { StreamAdapter } from './streams/adapters/stream-adapter'
+import { Step } from './types'
 
 const logLevel = process.env.LOG_LEVEL ?? 'info'
 
@@ -9,20 +7,36 @@ const isDebugEnabled = logLevel === 'debug'
 const isInfoEnabled = ['info', 'debug'].includes(logLevel)
 const isWarnEnabled = ['warn', 'info', 'debug', 'trace'].includes(logLevel)
 
-export class BaseLogger {
+export type LogListener = (level: string, msg: string, args?: unknown) => void
+
+export class Logger {
+  /**
+   * Why do we need two level of listeners?
+   *
+   * Core listeners pass along to children loggers.
+   *
+   * However, base listeners do not pass along to children loggers.
+   * Those are specific to each logger in the hierarchy.
+   */
+  private readonly listeners: LogListener[] = []
+
   constructor(
     readonly isVerbose: boolean = false,
     private readonly meta: Record<string, unknown> = {},
+    private readonly coreListeners: LogListener[] = [],
   ) {}
 
-  child(meta: Record<string, unknown> = {}): this {
-    return new BaseLogger(this.isVerbose, { ...this.meta, ...meta }) as this
+  child(step: Step): Logger {
+    return new Logger(this.isVerbose, { ...this.meta, step: step.config.name }, this.coreListeners)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _log(level: string, msg: string, args?: any) {
     const time = Date.now()
-    prettyPrint({ level, time, msg, ...this.meta, ...(args ?? {}) }, !this.isVerbose)
+    const meta = { ...this.meta, ...(args ?? {}) }
+    prettyPrint({ level, time, msg, ...meta }, !this.isVerbose)
+    this.coreListeners.forEach((listener) => listener(level, msg, meta))
+    this.listeners.forEach((listener) => listener(level, msg, meta))
   }
 
   info(message: string, args?: unknown) {
@@ -51,66 +65,10 @@ export class BaseLogger {
   log(args: any) {
     this._log('info', args.msg, args)
   }
-}
 
-export class Logger extends BaseLogger {
-  private emitLog: (level: string, msg: string, args?: unknown) => void
-
-  constructor(
-    private readonly traceId: string,
-    private readonly flows: string[] | undefined,
-    private readonly step: string,
-    isVerbose: boolean,
-    private readonly logStream?: StreamAdapter<Log>,
-  ) {
-    super(isVerbose, { traceId, flows, step })
-
-    this.emitLog = (level: string, msg: string, args?: unknown) => {
-      const id = randomUUID()
-      this.logStream?.set('default', id, {
-        id,
-        step: this.step,
-        ...(args ?? {}),
-        level,
-        time: Date.now(),
-        msg,
-        traceId: this.traceId,
-        flows: this.flows ?? [],
-      })
-    }
-  }
-
-  child(meta: Record<string, unknown> = {}): this {
-    return new Logger(this.traceId, this.flows, meta.step as string, this.isVerbose, this.logStream) as this
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  log(message: any) {
-    super.log(message)
-    this.emitLog(message.level, message.msg, message)
-  }
-
-  info = (message: string, args?: unknown) => {
-    super.info(message, args)
-    this.emitLog('info', message, args)
-  }
-
-  error = (message: string, args?: unknown) => {
-    super.error(message, args)
-    this.emitLog('error', message, args)
-  }
-
-  debug = (message: string, args?: unknown) => {
-    if (isDebugEnabled) {
-      super.debug(message, args)
-      this.emitLog('debug', message, args)
-    }
-  }
-
-  warn = (message: string, args?: unknown) => {
-    super.warn(message, args)
-    this.emitLog('warn', message, args)
+  addListener(listener: LogListener) {
+    this.listeners.push(listener)
   }
 }
 
-export const globalLogger = new BaseLogger()
+export const globalLogger = new Logger()
