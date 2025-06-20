@@ -1,0 +1,224 @@
+---
+title: "Beyond Hello World"
+description: "A guided overview of Motia’s core features after your first successful run."
+---
+
+You’ve built your first Motia step and seen it in action. What next? 
+
+This page gives you a bird’s-eye view of what’s possible with Motia, and where to go for more.
+
+Motia is more than just steps. It's a way to write unified backends, for orchestrating APIs, automations, and AI logic, built for how modern software is written today.
+
+Following is an architectural overview of how Motia apps work:
+
+## Steps: The Building Blocks
+
+Everything in Motia is a **Step**. Steps are isolated units of logic that receive input, do work, and emit output.
+
+_Everything in a Motia app is a Step._
+
+Steps make your backend modular, testable, and easy to visualize and reason about.
+
+<Cards>
+  <Card
+    title="What are Steps"
+    description="Understand the core building block of Motia. How Steps receive input, perform logic, and emit events."
+    href="/docs/foundations/steps"
+    icon="🧱"
+  />
+  <Card
+    title="Types of Steps"
+    description="Learn the 3 kinds of Steps: API, Event, and Cron, and when to use which type of Step"
+    href="/docs/foundations/types-of-step"
+    icon="📦"
+  />
+  <Card
+    title="Thinking in Steps"
+    description="Adopt a powerful new mental model for building modular, event-driven backends one Step at a time."
+    href="/docs/what-are-steps"
+    icon="🧠"
+  />
+  <Card
+    title="Powering up your Steps"
+    description="Explore advanced step features like middlewares, NOOP steps & customizing the appearance of steps."
+    href="/docs/foundations/steps-advanced"
+    icon="⚡"
+  />
+</Cards>
+
+
+
+## State: Share and Persist Data
+
+Steps can store and share data across a flow using Motia’s built-in **state manager**.
+
+Whether you're passing data between steps or persisting temporary results, the built-in state manager helps you do it cleanly and effectively.
+
+Think of it as a persistent memory that follows your workflow execution from start to finish.
+
+States enable you to cleanly decouple logic. One step writes something, another reads it.  
+_No messy globals._
+
+<Cards>
+  <Card
+    title="Using State in Steps"
+    description="Learn how to store, retrieve, and share data between steps using the built-in state manager."
+    href="/docs/foundations/state-mgt#using-state-in-steps"
+    icon="💾"
+  />
+  <Card
+    title="State Methods"
+    description="Explore the API of Motia's state manager and the associated best practices."
+    href="/docs/foundations/state-mgt#state-methods"
+    icon="🛠️"
+  />
+</Cards>
+
+
+## Streams: Real-time Data Flow, without Polling
+
+Steps can stream updates in real time from your backend to your frontend (or other consumers).
+
+With streams, users can see progress as it happens, without needing to refresh or the app constantly checking for changes, or making users wait for the entire response.
+
+<Cards>
+  <Card
+    title="Anatomy of a Stream"
+    description="Understand the core building blocks of a Stream: records, payloads, and progressive updates."
+    href="/docs/foundations/streams#anatomy-of-a-stream"
+    icon="🧬"
+  />
+  <Card
+    title="Writing Streams"
+    description="Learn how to emit progressive updates from your step handlers using Motia’s streaming API."
+    href="/docs/foundations/streams#writing-streams"
+    icon="✍️"
+  />
+  <Card
+    title="Testing Streams"
+    description="See how to simulate and debug live stream output locally in the Workbench."
+    href="/docs/foundations/streams#testing-streams"
+    icon="🧪"
+  />
+  <Card
+    title="Consuming Streams"
+    description="Discover how to connect your frontend or client to stream endpoints and render real-time updates."
+    href="/docs/foundations/streams#consuming-streams"
+    icon="📡"
+  />
+</Cards>
+
+---
+
+## Workbench: Motia's visual utility
+Motia Workbench is your all-in-one development utility. Think of it as the mission control for your workflows.
+
+From here, you can:
+
+- Test API endpoints
+- Visualize flows and step connections
+- Inspect inputs, outputs, logs, state, and streams
+
+
+
+<Cards>
+  <Card
+    title="Getting Started with Motia Workbench"
+    description="Spin up the local visual interface to test steps, inspect flows, and debug with ease."
+    href="/docs/foundations/flows-and-workbench#getting-started-with-motia-workbench"
+    icon="🧰"
+  />
+  <Card
+    title="Real-time Testing"
+    description="Run your steps live, inspect their behavior, and test different inputs without leaving the browser."
+    href="/docs/foundations/flows-and-workbench#real-time-testing"
+    icon="⚡"
+  />
+  <Card
+    title="Live Logs"
+    description="View step-by-step logs including input, output, emitted events, and runtime errors, all in real-time."
+    href="/docs/foundations/flows-and-workbench#live-logs"
+    icon="📜"
+  />
+  <Card
+    title="But What Are Workflows?"
+    description="Learn how steps connect into flows: Motia’s way of expressing dynamic, modular backend logic."
+    href="/docs/foundations/flows-and-workbench#but-what-are-workflows"
+    icon="🧩"
+  />
+</Cards>
+
+## Motia CLI
+
+The `motia` package ships with the Motia CLI out of the box.
+
+Motia CLI allows you to:
+
+- Scaffold new steps
+- Preview flows and endpoints
+- Deploy and manage environments
+
+With Motia CLI, you get to focus on logic. _Motia takes care of the plumbing._
+
+<Cards>
+  <Card
+    title="CLI Command Reference"
+    description="Explore all available CLI commands for scaffolding, testing, deploying, and more, all in one place."
+    href="/docs/foundations/cli#cli-command-reference-table"
+    icon="📟"
+  />
+  <Card
+    title="Debugging from CLI"
+    description="Use `debug` flag to the dev command to debug errors directly from your terminal."
+    href="/docs/foundations/cli#debugging"
+    icon="🔍"
+  />
+</Cards>
+
+## Deploying Motia Apps: Local to Production
+
+Motia makes it simple to go from local development to production (or any other environment).
+
+Once your logic is ready and tested, you can:
+
+- Use Motia CLI to deploy to any environment you choose on the Motia Cloud, and
+- Monitor real-time logs and step results in production
+
+_Motia Cloud designed for predictable deployments and easy maintenance._
+
+<Cards>
+  <Card
+    title="Deployment Architecture"
+    description="Understand how a Motia app is deployed to Motia Cloud"
+    href="/docs/foundations/deployment#deployment-architecture"
+    icon="🏗️"
+  />
+  <Card
+    title="How to Deploy"
+    description="Learn how to deploy your Motia flows reliably across different environments."
+    href="/docs/foundations/deployment#how-to-deploy"
+    icon="🚀"
+  />
+  <Card
+    title="Testing and Debugging"
+    description="Best practices to test your steps and troubleshoot errors for your workflows."
+    href="/docs/foundations/testing-and-debugging"
+    icon="🧪"
+  />
+  <Card
+    title="Happy Practices"
+    description="Explore tips, gotchas, and patterns for building maintainable, production-ready Motia apps."
+    href="/docs/foundations/happy-practices"
+    icon="💡"
+  />
+</Cards>
+
+You’ve seen the whole system. Now you can go hands-on with any feature, or start writing full apps.
+
+From writing steps to deploying full-blown systems, you’re ready to go hands-on with any feature or start building powerful apps.
+
+- If you need any support or just want to interact with your fellow community members, [our community](https://discord.gg/EnfDRFYW) is always there for you.
+- If you love Motia and want to contribute to it, [here's how](/docs/community/how-to-contribute) you can.
+> We can't wait to see all the amazing things you build with Motia.
+
+_Let’s build the future, one step at a time! 🚀_

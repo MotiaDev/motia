@@ -1,0 +1,12 @@
+{
+  "title": "Guides",
+  "pages": [
+    "how-to-automate-gmail",
+    "how-to-automate-trello",
+    "how-to-automate-github",
+    "finance-agent",
+    "ai-deep-research-assistant",
+    "rag-pdf",
+    "dynamic-routing-sentiment-analysis"
+  ]
+}

@@ -1,0 +1,384 @@
+---
+title: "Happy Practices"
+description: "Best practices to keep your Motia project clean, scalable, and easy to work with."
+---
+
+Want to avoid chaos? 
+
+Follow these happy practices to keep your Motia project maintainable and scalable, and yourself happy!
+
+
+## Recommended Project Structure
+
+Organize your codebase to reflect your flows and teams clearly:
+
+```bash
+motia/
+├── steps/
+│   ├── flow-1/
+│   │   ├── api-hello/
+│   │   │   └── index.ts
+│   │   └── processor/
+│   │       └── index.ts
+│   ├── flow-2/
+│   │   └── step-name/
+│   │       └── index.ts
+├── motia.steps.json
+├── package.json
+└── tsconfig.json
+
+```
+## Best Practices of using State Manager
+
+### Namespacing
+
+Use dot notation to organize related state data hierarchically:
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab label="TypeScript">
+    ```typescript
+    // Good - Organized hierarchically (using traceId scope)
+    await state.set(traceId, 'booking.customer', customerData)
+    await state.set(traceId, 'booking.venue', venueData)
+    await state.set(traceId, 'payment.status', 'pending')
+
+    // Avoid - Flat structure (using traceId scope)
+    await state.set(traceId, 'customer', customerData)
+    await state.set(traceId, 'venue', venueData)
+    await state.set(traceId, 'paymentStatus', 'pending')
+    ```
+
+  </Tab>
+
+  <Tab label="JavaScript">
+    ```javascript
+    // Good - Organized hierarchically (using traceId scope)
+    await state.set(traceId, 'booking.customer', customerData)
+    await state.set(traceId, 'booking.venue', venueData)
+    await state.set(traceId, 'payment.status', 'pending')
+
+    // Avoid - Flat structure (using traceId scope)
+    await state.set(traceId, 'customer', customerData)
+    await state.set(traceId, 'venue', venueData)
+    await state.set(traceId, 'paymentStatus', 'pending')
+    ```
+
+  </Tab>
+
+  <Tab label="Python">
+    ```python
+    # Good - Organized hierarchically (using traceId scope)
+    await ctx.state.set(trace_id, 'booking.customer', customer_data)
+    await ctx.state.set(trace_id, 'booking.venue', venue_data)
+    await ctx.state.set(trace_id, 'payment.status', 'pending')
+
+    // Avoid - Flat structure (using traceId scope)
+    await ctx.state.set(trace_id, 'customer', customer_data)
+    await ctx.state.set(trace_id, 'venue', venue_data)
+    await ctx.state.set(trace_id, 'payment_status', 'pending')
+    ```
+
+  </Tab>
+</Tabs>
+
+### Type Safety
+
+Define types for your state data to ensure consistency:
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab label="TypeScript">
+    ```typescript
+    interface CustomerData {
+      name: string;
+      email: string;
+    }
+
+    interface VenueData {
+      id: string;
+      capacity: number;
+    }
+
+    type BookingState = {
+      customer: CustomerData;
+      venue: VenueData;
+      status: 'pending' | 'confirmed';
+    }
+
+    const booking = await state.get<BookingState>(traceId, 'booking')
+    ```
+
+  </Tab>
+
+{' '}
+<Tab label="JavaScript">
+  ```javascript // Define types or interfaces as needed for documentation clarity (optional in JS) const booking = await
+  state.get(traceId, 'booking') // No type casting in JS example ```
+</Tab>
+
+  <Tab label="Python">
+    ```python
+    from dataclasses import dataclass
+    from typing import Literal
+
+    @dataclass
+    class CustomerData:
+        name: str
+        email: str
+
+    @dataclass
+    class VenueData:
+        id: str
+        capacity: int
+
+    @dataclass
+    class BookingState:
+        customer: CustomerData
+        venue: VenueData
+        status: Literal['pending', 'confirmed']
+
+    booking = await state.get(traceId, 'booking')
+    ```
+
+  </Tab>
+</Tabs>
+
+### Cleanup
+
+Always clean up state when you're done with it:
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+    <Tab label="TypeScript">
+      ```typescript
+      export const handler: Handlers['StepName'] = async (input, { state, traceId }) => {
+        try {
+          await processBooking(input)
+          // Clean up specific keys
+          await state.delete(traceId, 'booking.customer')
+          // Or clean everything
+          await state.clear(traceId)
+        } catch (error) {
+          // Handle errors
+        }
+      }
+      ```
+    </Tab>
+
+    <Tab label="JavaScript">
+      ```javascript
+      export const handler = async (input, { state, traceId }) => {
+        try {
+          await processBooking(input)
+          // Clean up specific keys
+          await state.delete(traceId, 'booking.customer')
+          // Or clean everything
+          await state.clear(traceId)
+        } catch (error) {
+          // Handle errors
+        }
+      }
+      ```
+    </Tab>
+
+    <Tab label="Python">
+      ```python
+      async def handler(input, ctx):
+          trace_id = ctx.trace_id
+          try:
+              await process_booking(input)
+              # Clean up specific keys
+              await ctx.state.delete(trace_id, 'booking.customer')
+              # Or clean everything
+              await ctx.state.clear(trace_id)
+          except Exception as error:
+              # Handle errors
+              pass
+      ```
+    </Tab>
+</Tabs>
+
+### Performance Considerations
+
+| Consideration    | Description                                                          |
+| ---------------- | -------------------------------------------------------------------- |
+| Batch Operations | Group related state updates and use atomic operations when possible  |
+| State Size       | Keep state data minimal and consider access patterns                 |
+| TTL Management   | Set appropriate TTLs based on flow duration and error recovery needs |
+
+## Logging Best Practices 
+
+### Structured Logging
+
+Use structured logging for better searchability and analysis:
+
+<Tabs items={['Good', 'Avoid']}>
+<Tab value="Good">
+```typescript
+// ✅ Structured and searchable
+logger.info('Payment processed', {
+  paymentId: payment.id,
+  amount: payment.amount,
+  currency: payment.currency,
+  processingTime: endTime - startTime,
+  provider: payment.provider,
+  status: 'success'
+})
+```
+</Tab>
+
+<Tab value="Avoid">
+```typescript
+// ❌ Harder to parse and search
+logger.info(`Payment ${payment.id} processed: ${payment.amount} ${payment.currency} in ${endTime - startTime}ms via ${payment.provider}`)
+```
+</Tab>
+</Tabs>
+
+### Performance Monitoring
+
+Track performance metrics in your logs:
+
+```typescript
+export const handler: Handlers['ProcessData'] = async (input, { logger }) => {
+  const startTime = performance.now()
+  const initialMemory = process.memoryUsage().heapUsed
+
+  try {
+    const result = await processLargeDataset(input)
+    
+    logger.info('Data processing completed', {
+      recordsProcessed: result.count,
+      duration: performance.now() - startTime,
+      memoryDelta: process.memoryUsage().heapUsed - initialMemory,
+      throughput: result.count / ((performance.now() - startTime) / 1000)
+    })
+    
+    return result
+  } catch (error) {
+    logger.error('Data processing failed', {
+      duration: performance.now() - startTime,
+      memoryUsage: process.memoryUsage().heapUsed,
+      inputSize: JSON.stringify(input).length,
+      error: error.message
+    })
+    throw error
+  }
+}
+```
+
+### Comprehensive Testing
+
+Write tests that cover different scenarios:
+
+```typescript
+describe('OrderValidation', () => {
+  // Happy path
+  it('should validate correct orders', async () => {
+    // Test implementation
+  })
+
+  // Edge cases
+  it('should handle empty orders', async () => {
+    // Test implementation
+  })
+
+  it('should validate order limits', async () => {
+    // Test implementation
+  })
+
+  // Error scenarios
+  it('should reject invalid payment methods', async () => {
+    // Test implementation
+  })
+
+  it('should handle network timeouts', async () => {
+    // Test implementation
+  })
+})
+```
+
+### Error Context
+
+Provide rich context in error logs:
+
+```typescript
+try {
+  await externalApiCall(data)
+} catch (error) {
+  logger.error('External API call failed', {
+    // Error details
+    error: error.message,
+    statusCode: error.response?.status,
+    errorCode: error.code,
+    
+    // Request context
+    endpoint: error.config?.url,
+    method: error.config?.method,
+    requestId: error.response?.headers?.['x-request-id'],
+    
+    // Application context
+    userId: data.userId,
+    operation: 'user-verification',
+    retryAttempt: attempt,
+    
+    // System context
+    timestamp: new Date().toISOString(),
+    memoryUsage: process.memoryUsage().heapUsed,
+    nodeVersion: process.version
+  })
+}
+```
+
+## Best practices of deploying a Motia app
+
+### Version Management
+- Use semantic versioning for production deployments (`1.2.3`)
+- Include build metadata for development versions (`1.2.3-dev.20240115`)
+- Tag releases in your version control system to match deployment versions
+
+### Environment Strategy
+- Always test in development before staging deployments
+- Use staging environments that mirror production configuration
+- Implement automated testing in your deployment pipeline
+
+### Security
+- Store API keys securely using environment variables or secret management
+- Rotate API keys regularly according to your security policy
+- Use different API keys for different environments when possible
+
+### Monitoring
+- Set up alerts based on deployment success/failure rates
+- Monitor deployment reports for performance trends
+- Track deployment frequency and lead times for process improvement
+
+
+
+## Styling guidelines for UI steps
+| Guideline                        | Description                                                   |
+|----------------------------------|---------------------------------------------------------------|
+| Use Tailwind’s utility classes only | Stick to Tailwind CSS utilities for consistent styling         |
+| Avoid arbitrary values           | Use predefined scales from the design system                 |
+| Keep components responsive       | Ensure UI elements adapt well to different screen sizes      |
+| Follow Motia’s design system     | Maintain consistency with Motia’s established design patterns |
+
+## Best Practices for UI steps
+
+| Practice            | Description                                           |
+|---------------------|-------------------------------------------------------|
+| Use base components | Use `EventNode` and `ApiNode` when possible           |
+| Keep it simple      | Maintain simple and clear visualizations              |
+| Optimize performance| Minimize state and computations                       |
+| Documentation       | Document custom components and patterns               |
+| Style sharing       | Share common styles through utility classes           |
+
+## Best practices for NOOP steps
+
+| Category | Guidelines |
+|----------|------------|
+| **File Organization** | Keep configuration and UI code in separate files. Use .step.ts for configuration. Use .step.tsx for UI components |
+| **UI Components** | Use functional React components. Include proper TypeScript types. Follow Tailwind's utility classes. Keep components minimal and focused. Design clear visual connection points. Always include BaseHandle components for flow connections |
+| **Configuration** | Always include virtualSubscribes (even if empty). Use descriptive names for virtual events. Include clear descriptions. Use descriptive, action-oriented names |
+| **External Process Modeling** | Document expected timeframes and SLAs. Define all possible outcomes and edge cases. Use exact API route matching |
+| **Testing** | Create isolated test flows. Use realistic test data. Handle errors gracefully. Implement clear status indicators. Label test steps explicitly. Provide visual feedback for actions |
+| **Core Imports** | **BaseHandle**: React component for connection points on nodes. **EventNodeProps**: Interface for node component properties (TypeScript). **Position**: Enum for handle positions (Top, Right, Bottom, Left) |
+| **Handle Placement** | **Input Handles**: Position.Top. **Output Handles**: Position.Bottom. **Flow Direction**: Top to bottom |
+| **Colors & Styling** | Use semantic colors to indicate state (success, error, pending). Implement clear visual indicators for active/inactive states. Use subtle animations for state transitions. Follow project design tokens. Maintain consistent spacing and padding. Use standard border radiuses. Ensure high contrast for readability. Use consistent font sizes (14px-16px) |
