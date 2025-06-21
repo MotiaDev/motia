@@ -2,7 +2,7 @@
 
 ## Status
 - **RFC Date**: 2025-06-02
-- **Status**: Draft
+- **Status**: Implemented
 - **Authors**: Ytallo Layon
 - **Reviewers**: Motia Team
 
