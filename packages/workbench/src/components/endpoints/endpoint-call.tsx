@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState, ChangeEvent } from 'react'
 import { Loader2, Play, X } from 'lucide-react'
-import { Button } from '@motiadev/ui'
+import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { EndpointBadge } from './endpoint-badge'
@@ -160,7 +160,7 @@ export const EndpointCall: React.FC<Props> = ({ endpoint, onClose }) => {
         data-testid="endpoint-play-button"
         disabled={isRequestLoading || !isPlayEnabled}
       >
-        {isRequestLoading ? <Loader2 className="animate-spin w-4 h-4" /> : <Play className="w-4 h-4" />} Play
+        {isRequestLoading ? <Loader2 className="animate-spin" /> : <Play />} Play
       </Button>
 
       {responseCode !== undefined && (

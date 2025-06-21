@@ -13,4 +13,4 @@ export type {
   EventNodeProps,
   NoopNodeProps,
 } from './src/publicComponents/node-props'
-export { Button } from '@motiadev/ui'
+export { Button } from './src/components/ui/button'

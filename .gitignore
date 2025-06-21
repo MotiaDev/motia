@@ -21,6 +21,8 @@ bs.sh
 .env.*
 !.env.example
 
+**/storybook-static/
+
 # Builds and outputs
 **/dist
 dist/

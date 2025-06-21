@@ -15,97 +15,356 @@
   width: 100%;
   font-optical-sizing: auto;
 
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(0.98 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --header: oklch(0.985 0 0);
-  --header-foreground: oklch(0.145 0 0);
-  --header-primary: oklch(0.205 0 0);
-  --header-primary-foreground: oklch(0.985 0 0);
-  --header-accent: oklch(0.97 0 0);
-  --header-accent-foreground: oklch(0.205 0 0);
-  --header-border: oklch(0.922 0 0);
-  --header-ring: oklch(0.708 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Font Weight */
+  --font-weight-500: 500;
+  --font-weight-600: 600;
+  --font-weight-700: 700;
+  
+  /* Figma Design System - Accent Colors */
+  --accent-1000: #2862fe;
+  --accent-970: #2862fef7;
+  --accent-950: #2862fef2;
+  --accent-900: #2862fee5;
+  --accent-800: #2862fecc;
+  --accent-700: #2862feb2;
+  --accent-600: #2862fe99;
+  --accent-500: #2862fe80;
+  --accent-400: #2862fe66;
+  --accent-300: #2862fe4d;
+  --accent-200: #2862fe33;
+  --accent-100: #2862fe1a;
+  --accent-50: #2862fe0d;
+  --accent-30: #2862fe08;
+  
+  /* Figma Design System - Dark Colors */
+  --dark-1000: #0a0a0a;
+  --dark-970: #0a0a0af7;
+  --dark-950: #0a0a0af2;
+  --dark-900: #0a0a0ae5;
+  --dark-800: #0a0a0acc;
+  --dark-700: #0a0a0ab2;
+  --dark-600: #0a0a0a99;
+  --dark-500: #0a0a0a80;
+  --dark-400: #0a0a0a66;
+  --dark-300: #0a0a0a4d;
+  --dark-200: #0a0a0a33;
+  --dark-100: #0a0a0a1a;
+  --dark-50: #0a0a0a0d;
+  --dark-30: #0a0a0a08;
+  
+  /* Figma Design System - Light Colors */
+  --light-1000: #ffffff;
+  --light-970: #fffffff7;
+  --light-950: #fffffff2;
+  --light-900: #ffffffe5;
+  --light-800: #ffffffcc;
+  --light-700: #ffffffb2;
+  --light-600: #ffffff99;
+  --light-500: #ffffff80;
+  --light-400: #ffffff66;
+  --light-300: #ffffff4d;
+  --light-200: #ffffff33;
+  --light-100: #ffffff1a;
+  --light-50: #ffffff0d;
+  --light-30: #ffffff08;
+  --error: #d61355;
+  
+  /* Figma Semantic Tokens - Light Theme (Inverted from dark theme values) */
+  --bg-default: var(--light-1000); /* BG/Default */
+  --bg-content: var(--dark-30); /* BG/Content inverted */
+  --bg-component: var(--dark-50); /* BG/Component inverted */
+  --bg-light100: var(--dark-100); /* BG/Light100 inverted */
+  --bg-light200: var(--dark-200); /* BG/Light200 inverted */
+  --bg-shade100: var(--dark-100); /* BG/Shade100 inverted */
+  --bg-shade200: var(--dark-200); /* BG/Shade200 inverted */
+  
+  --br-outline: var(--dark-100); /* BR/Outline inverted */
+  --br-light: var(--dark-1000); /* BR/Light inverted */
+  --br-accent: var(--accent-1000); /* BR/Accent */
+  
+  --states-fill-hover: var(--dark-30); /* States/Fill/Hover inverted */
+  --states-fill-selected: var(--dark-100); /* States/Fill/Selected inverted */
+  --states-fill-active: var(--accent-1000); /* States/Fill/Active */
+  
+  --fill-default-1000: var(--dark-1000); /* Fill/Default-1000 inverted */
+  --fill-default-600: var(--dark-600); /* Fill/Default-600 inverted */
+  --fill-default-200: var(--dark-200); /* Fill/Default-200 inverted */
+  --fill-inverse-1000: var(--light-1000); /* Fill/Inverse-1000 */
+  --fill-inverse-600: var(--light-600); /* Fill/Inverse-600 */
+  --fill-inverse-200: var(--light-200); /* Fill/Inverse-200 */
+  --fill-accent-1000: var(--accent-1000); /* Fill/Accent-1000 */
+  --fill-error: var(--error); /* Fill/Error */
+  
+  --text-header: var(--dark-1000); /* Text/Header inverted */
+  --text-body: var(--dark-600); /* Text/Body inverted */
+  --text-placeholder: var(--dark-400); /* Text/Placeholder inverted */
+  --text-accent: var(--accent-1000); /* Text/Accent */
+  --text-error: var(--error); /* Text/Error */
+  
+  --icon-active: var(--dark-1000); /* Icon/Active inverted */
+  --icon-light: var(--dark-600); /* Icon/Light inverted */
+  --icon-component: var(--dark-400); /* Icon/Component inverted */
+  --icon-accent: var(--accent-1000); /* Icon/Accent */
+  
+  /* Surface Colors from Figma Design System - Light Theme */
+  --surface-default: var(--bg-default);
+  --surface-content: var(--bg-content);
+  --surface-component: var(--bg-component);
+  --surface-light-100: var(--bg-light100);
+  --surface-light-200: var(--bg-light200);
+  --surface-shade-100: var(--bg-shade100);
+  --surface-shade-200: var(--bg-shade200);
+  
+  /* Primary Accent Colors */
+  --primary: var(--accent-1000);
+  --primary-foreground: var(--light-1000);
+  
+  /* Light Theme Colors (Using Figma tokens) */
+  --background: var(--bg-default);
+  --foreground: var(--fill-default-1000);
+  --card: var(--bg-content);
+  --card-foreground: var(--fill-default-1000);
+  --popover: var(--bg-content);
+  --popover-foreground: var(--fill-default-1000);
+  --secondary: var(--bg-component);
+  --secondary-foreground: var(--fill-default-600);
+  --muted: var(--bg-light100);
+  --muted-foreground: var(--fill-default-600);
+  --accent: var(--fill-accent-1000);
+  --accent-foreground: var(--light-1000);
+  --destructive: var(--error);
+  --destructive-foreground: var(--light-1000);
+  --border: var(--br-outline);
+  --input: var(--states-fill-hover);
+  --ring: var(--br-accent);
+  
+  /* Chart colors using accent variations */
+  --chart-1: var(--accent-1000);
+  --chart-2: var(--accent-800);
+  --chart-3: var(--accent-600);
+  --chart-4: var(--accent-400);
+  --chart-5: var(--accent-200);
+  
+  /* Header colors */
+  --header: var(--bg-default);
+  --header-foreground: var(--text-header);
+  --header-primary: var(--fill-accent-1000);
+  --header-primary-foreground: var(--light-1000);
+  --header-accent: var(--bg-component);
+  --header-accent-foreground: var(--fill-default-600);
+  --header-border: var(--br-outline);
+  --header-ring: var(--br-accent);
+  
+  /* Sidebar colors */
+  --sidebar: var(--bg-default);
+  --sidebar-foreground: var(--text-header);
+  --sidebar-primary: var(--fill-accent-1000);
+  --sidebar-primary-foreground: var(--light-1000);
+  --sidebar-accent: var(--bg-component);
+  --sidebar-accent-foreground: var(--fill-default-600);
+  --sidebar-border: var(--br-outline);
+  --sidebar-ring: var(--br-accent);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --header: oklch(0.205 0 0);
-  --header-foreground: oklch(0.985 0 0);
-  --header-primary: oklch(0.488 0.243 264.376);
-  --header-primary-foreground: oklch(0.985 0 0);
-  --header-accent: oklch(0.269 0 0);
-  --header-accent-foreground: oklch(0.985 0 0);
-  --header-border: oklch(1 0 0 / 10%);
-  --header-ring: oklch(0.556 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Figma Semantic Tokens - Dark Theme (Direct from Figma) */
+  --bg-default: var(--dark-1000); /* BG/Default */
+  --bg-content: var(--light-30); /* BG/Content */
+  --bg-component: var(--light-50); /* BG/Component */
+  --bg-light100: var(--light-100); /* BG/Light100 */
+  --bg-light200: var(--light-200); /* BG/Light200 */
+  --bg-shade100: var(--dark-100); /* BG/Shade100 */
+  --bg-shade200: var(--dark-200); /* BG/Shade200 */
+  --bg-dark100: var(--dark-100); /* BG/Dark100 */
+  --bg-dark200: var(--dark-200); /* BG/Dark200 */
+  
+  --br-outline: var(--light-100); /* BR/Outline */
+  --br-light: var(--light-1000); /* BR/Light */
+  --br-accent: var(--accent-1000); /* BR/Accent */
+  
+  --states-fill-hover: var(--light-30); /* States/Fill/Hover */
+  --states-fill-selected: var(--light-100); /* States/Fill/Selected */
+  --states-fill-active: var(--accent-1000); /* States/Fill/Active */
+  
+  --fill-default-1000: var(--light-1000); /* Fill/Default-1000 */
+  --fill-default-600: var(--light-600); /* Fill/Default-600 */
+  --fill-default-200: var(--light-200); /* Fill/Default-200 */
+  --fill-inverse-1000: var(--dark-1000); /* Fill/Inverse-1000 */
+  --fill-inverse-600: var(--dark-600); /* Fill/Inverse-600 */
+  --fill-inverse-200: var(--dark-200); /* Fill/Inverse-200 */
+  --fill-accent-1000: var(--accent-1000); /* Fill/Accent-1000 */
+  --fill-error: var(--error); /* Fill/Error */
+  
+  --text-header: var(--light-1000); /* Text/Header */
+  --text-body: var(--light-600); /* Text/Body */
+  --text-placeholder: var(--light-400); /* Text/Placeholder */
+  --text-accent: var(--accent-1000); /* Text/Accent */
+  --text-error: var(--error); /* Text/Error */
+  
+  --icon-active: var(--light-1000); /* Icon/Active */
+  --icon-light: var(--light-600); /* Icon/Light */
+  --icon-component: var(--light-400); /* Icon/Component */
+  --icon-accent: var(--accent-1000); /* Icon/Accent */
+  
+  /* Surface Colors from Figma Design System - Dark Theme */
+  --surface-default: var(--bg-default);
+  --surface-content: var(--bg-content);
+  --surface-component: var(--bg-component);
+  --surface-light-100: var(--bg-light100);
+  --surface-light-200: var(--bg-light200);
+  --surface-shade-100: var(--bg-shade100);
+  --surface-shade-200: var(--bg-shade200);
+  
+  /* Dark Theme Colors (From Figma design system) */
+  --background: var(--bg-default);
+  --foreground: var(--fill-default-1000);
+  --card: var(--bg-content);
+  --card-foreground: var(--fill-default-1000);
+  --popover: var(--bg-content);
+  --popover-foreground: var(--fill-default-1000);
+  --primary: var(--fill-accent-1000);
+  --primary-foreground: var(--light-1000);
+  --secondary: var(--bg-component);
+  --secondary-foreground: var(--fill-default-600);
+  --muted: var(--bg-light100);
+  --muted-foreground: var(--text-body);
+  --accent: var(--fill-accent-1000);
+  --accent-foreground: var(--light-1000);
+  --destructive: var(--error);
+  --destructive-foreground: var(--light-1000);
+  --border: var(--br-outline);
+  --input: var(--states-fill-hover);
+  --ring: var(--br-accent);
+  
+  /* Chart colors using Light variations from Figma */
+  --chart-1: var(--accent-1000);
+  --chart-2: var(--light-600);
+  --chart-3: var(--light-400);
+  --chart-4: var(--light-200);
+  --chart-5: var(--light-100);
+  
+  /* Header colors */
+  --header: var(--bg-default);
+  --header-foreground: var(--text-header);
+  --header-primary: var(--fill-accent-1000);
+  --header-primary-foreground: var(--light-1000);
+  --header-accent: var(--bg-component);
+  --header-accent-foreground: var(--text-body);
+  --header-border: var(--br-outline);
+  --header-ring: var(--br-accent);
+  
+  /* Sidebar colors */
+  --sidebar: var(--bg-default);
+  --sidebar-foreground: var(--text-header);
+  --sidebar-primary: var(--fill-accent-1000);
+  --sidebar-primary-foreground: var(--light-1000);
+  --sidebar-accent: var(--bg-component);
+  --sidebar-accent-foreground: var(--text-body);
+  --sidebar-border: var(--br-outline);
+  --sidebar-ring: var(--br-accent);
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Tailwind Size Variables - Based on Figma Design System */
+  
+  --font-weight-500: var(--font-weight-500);
+  --font-weight-600: var(--font-weight-600);
+  --font-weight-700: var(--font-weight-700);
+  
+  /* Figma Design System Colors - Direct Access */
+  --color-accent-1000: var(--accent-1000);
+  --color-accent-970: var(--accent-970);
+  --color-accent-950: var(--accent-950);
+  --color-accent-900: var(--accent-900);
+  --color-accent-800: var(--accent-800);
+  --color-accent-700: var(--accent-700);
+  --color-accent-600: var(--accent-600);
+  --color-accent-500: var(--accent-500);
+  --color-accent-400: var(--accent-400);
+  --color-accent-300: var(--accent-300);
+  --color-accent-200: var(--accent-200);
+  --color-accent-100: var(--accent-100);
+  --color-accent-50: var(--accent-50);
+  --color-accent-30: var(--accent-30);
+  
+  --color-dark-1000: var(--dark-1000);
+  --color-dark-970: var(--dark-970);
+  --color-dark-950: var(--dark-950);
+  --color-dark-900: var(--dark-900);
+  --color-dark-800: var(--dark-800);
+  --color-dark-700: var(--dark-700);
+  --color-dark-600: var(--dark-600);
+  --color-dark-500: var(--dark-500);
+  --color-dark-400: var(--dark-400);
+  --color-dark-300: var(--dark-300);
+  --color-dark-200: var(--dark-200);
+  --color-dark-100: var(--dark-100);
+  --color-dark-50: var(--dark-50);
+  --color-dark-30: var(--dark-30);
+  
+  --color-light-1000: var(--light-1000);
+  --color-light-970: var(--light-970);
+  --color-light-950: var(--light-950);
+  --color-light-900: var(--light-900);
+  --color-light-800: var(--light-800);
+  --color-light-700: var(--light-700);
+  --color-light-600: var(--light-600);
+  --color-light-500: var(--light-500);
+  --color-light-400: var(--light-400);
+  --color-light-300: var(--light-300);
+  --color-light-200: var(--light-200);
+  --color-light-100: var(--light-100);
+  --color-light-50: var(--light-50);
+  --color-light-30: var(--light-30);
+  
+  /* Figma Semantic Tokens - Direct Access */
+  --color-default: var(--bg-default);
+  --color-content: var(--bg-content);
+  --color-component: var(--bg-component);
+  --color-light100: var(--bg-light100);
+  --color-light200: var(--bg-light200);
+  --color-shade100: var(--bg-shade100);
+  --color-shade200: var(--bg-shade200);
+  --color-dark100: var(--bg-dark100);
+  
+  --color-br-outline: var(--br-outline);
+  --color-br-light: var(--br-light);
+  --color-br-accent: var(--br-accent);
+  
+  --color-states-fill-hover: var(--states-fill-hover);
+  --color-states-fill-selected: var(--states-fill-selected);
+  --color-states-fill-active: var(--states-fill-active);
+  
+  --color-fill-default-1000: var(--fill-default-1000);
+  --color-fill-default-600: var(--fill-default-600);
+  --color-fill-default-200: var(--fill-default-200);
+  --color-fill-inverse-1000: var(--fill-inverse-1000);
+  --color-fill-inverse-600: var(--fill-inverse-600);
+  --color-fill-inverse-200: var(--fill-inverse-200);
+  --color-fill-accent-1000: var(--fill-accent-1000);
+  --color-fill-error: var(--error);
+  
+  --color-text-header: var(--text-header);
+  --color-text-body: var(--text-body);
+  --color-text-placeholder: var(--text-placeholder);
+  --color-text-accent: var(--text-accent);
+  --color-text-error: var(--text-error);
+  
+  --color-icon-active: var(--icon-active);
+  --color-icon-light: var(--icon-light);
+  --color-icon-component: var(--icon-component);
+  --color-icon-accent: var(--icon-accent);
+  
+  /* Surface Colors */
+  --color-surface-default: var(--surface-default);
+  --color-surface-content: var(--surface-content);
+  --color-surface-component: var(--surface-component);
+  --color-surface-light-100: var(--surface-light-100);
+  --color-surface-light-200: var(--surface-light-200);
+  --color-surface-shade-100: var(--surface-shade-100);
+  --color-surface-shade-200: var(--surface-shade-200);
+  
+  /* Existing Colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { Button } from '@motiadev/ui'
+import { Button } from './button'
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed'
 

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { Button } from './button'
-import { Play } from 'lucide-react'
+import { Play, X, Settings, Plus } from 'lucide-react'
 
 const meta = {
   title: 'UI/Button',
@@ -13,11 +13,11 @@ const meta = {
   argTypes: {
     variant: {
       control: { type: 'select' },
-      options: ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link', 'none'],
+      options: ['default', 'accent', 'light', 'secondary', 'destructive', 'outline', 'ghost', 'link'],
     },
     size: {
       control: { type: 'select' },
-      options: ['default', 'sm', 'lg', 'icon'],
+      options: ['sm', 'default', 'md', 'lg', 'icon'],
     },
     asChild: {
       control: { type: 'boolean' },
@@ -33,8 +33,22 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   args: {
-    children: 'Button',
+    children: 'Default',
     asChild: false,
+  },
+}
+
+export const Accent: Story = {
+  args: {
+    variant: 'accent',
+    children: 'Accent',
+  },
+}
+
+export const Light: Story = {
+  args: {
+    variant: 'light',
+    children: 'Light',
   },
 }
 
@@ -73,17 +87,17 @@ export const Link: Story = {
   },
 }
 
-export const None: Story = {
-  args: {
-    variant: 'none',
-    children: 'None',
-  },
-}
-
 export const Small: Story = {
   args: {
     size: 'sm',
     children: 'Small',
+  },
+}
+
+export const Medium: Story = {
+  args: {
+    size: 'md',
+    children: 'Medium',
   },
 }
 
@@ -98,6 +112,18 @@ export const Icon: Story = {
   args: {
     size: 'icon',
     children: <Play className="w-4 h-4" />,
+    'aria-label': 'Play',
+  },
+}
+
+export const WithIcon: Story = {
+  args: {
+    children: (
+      <>
+        <Settings className="w-4 h-4" />
+        Settings
+      </>
+    ),
   },
 }
 
@@ -106,4 +132,164 @@ export const Disabled: Story = {
     disabled: true,
     children: 'Disabled',
   },
+}
+
+// Showcase all variants with different sizes
+export const AllVariants: Story = {
+  render: () => (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Default</h3>
+        <div className="flex gap-2 items-center">
+          <Button variant="default" size="lg">Large</Button>
+          <Button variant="default" size="md">Medium</Button>
+          <Button variant="default" size="sm">Small</Button>
+          <Button variant="default" size="icon" aria-label="Default icon">
+            <Play />
+          </Button>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Accent</h3>
+        <div className="flex gap-2 items-center">
+          <Button variant="accent" size="lg">Large</Button>
+          <Button variant="accent" size="md">Medium</Button>
+          <Button variant="accent" size="sm">Small</Button>
+          <Button variant="accent" size="icon" aria-label="Accent icon">
+            <Plus />
+          </Button>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Light</h3>
+        <div className="flex gap-2 items-center">
+          <Button variant="light" size="lg">Large</Button>
+          <Button variant="light" size="md">Medium</Button>
+          <Button variant="light" size="sm">Small</Button>
+          <Button variant="light" size="icon" aria-label="Light icon">
+            <Settings />
+          </Button>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Secondary</h3>
+        <div className="flex gap-2 items-center">
+          <Button variant="secondary" size="lg">Large</Button>
+          <Button variant="secondary" size="md">Medium</Button>
+          <Button variant="secondary" size="sm">Small</Button>
+          <Button variant="secondary" size="icon" aria-label="Secondary icon">
+            <Settings />
+          </Button>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Destructive</h3>
+        <div className="flex gap-2 items-center">
+          <Button variant="destructive" size="lg">Large</Button>
+          <Button variant="destructive" size="md">Medium</Button>
+          <Button variant="destructive" size="sm">Small</Button>
+          <Button variant="destructive" size="icon" aria-label="Delete">
+            <X />
+          </Button>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Outline</h3>
+        <div className="flex gap-2 items-center">
+          <Button variant="outline" size="lg">Large</Button>
+          <Button variant="outline" size="md">Medium</Button>
+          <Button variant="outline" size="sm">Small</Button>
+          <Button variant="outline" size="icon" aria-label="Outline icon">
+            <Plus />
+          </Button>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Ghost</h3>
+        <div className="flex gap-2 items-center">
+          <Button variant="ghost" size="lg">Large</Button>
+          <Button variant="ghost" size="md">Medium</Button>
+          <Button variant="ghost" size="sm">Small</Button>
+          <Button variant="ghost" size="icon" aria-label="Ghost icon">
+            <Settings />
+          </Button>
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Link</h3>
+        <div className="flex gap-2 items-center">
+          <Button variant="link" size="lg">Large Link</Button>
+          <Button variant="link" size="md">Medium Link</Button>
+          <Button variant="link" size="sm">Small Link</Button>
+        </div>
+      </div>
+    </div>
+  ),
+}
+
+// Theme showcase
+export const LightAndDark: Story = {
+  render: () => (
+    <div className="flex gap-8">
+      <div className="flex flex-col gap-4 p-6 bg-white rounded-lg">
+        <h3 className="text-lg font-semibold text-gray-900">Light Theme</h3>
+        <div className="flex gap-2">
+          <Button variant="default">Default</Button>
+          <Button variant="accent">Accent</Button>
+          <Button variant="light">Light</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="outline">Outline</Button>
+        </div>
+      </div>
+      
+      <div className="flex flex-col gap-4 p-6 bg-gray-900 rounded-lg dark">
+        <h3 className="text-lg font-semibold text-white">Dark Theme</h3>
+        <div className="flex gap-2">
+          <Button variant="default">Default</Button>
+          <Button variant="accent">Accent</Button>
+          <Button variant="light">Light</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="outline">Outline</Button>
+        </div>
+      </div>
+    </div>
+  ),
+}
+
+// States showcase
+export const States: Story = {
+  render: () => (
+    <div className="flex flex-col gap-4">
+      <h3 className="text-sm font-semibold mb-3">Default Variant States</h3>
+      <div className="flex gap-2 items-center">
+        <Button variant="default">Normal</Button>
+        <Button variant="default" className="hover">Hover</Button>
+        <Button variant="default" className="active">Active</Button>
+        <Button variant="default" disabled>Disabled</Button>
+      </div>
+      
+      <h3 className="text-sm font-semibold mb-3">Accent Variant States</h3>
+      <div className="flex gap-2 items-center">
+        <Button variant="accent">Normal</Button>
+        <Button variant="accent" className="hover">Hover</Button>
+        <Button variant="accent" className="active">Active</Button>
+        <Button variant="accent" disabled>Disabled</Button>
+      </div>
+      
+      <h3 className="text-sm font-semibold mb-3">Light Variant States</h3>
+      <div className="flex gap-2 items-center">
+        <Button variant="light">Normal</Button>
+        <Button variant="light" className="hover">Hover</Button>
+        <Button variant="light" className="active">Active</Button>
+        <Button variant="light" disabled>Disabled</Button>
+      </div>
+    </div>
+  ),
 }

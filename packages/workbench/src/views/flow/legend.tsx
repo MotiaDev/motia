@@ -1,4 +1,4 @@
-import { Button } from '@motiadev/ui'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { LayoutList, X } from 'lucide-react'
 import { FC, useState } from 'react'
