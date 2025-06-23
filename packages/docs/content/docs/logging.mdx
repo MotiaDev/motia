@@ -1,0 +1,464 @@
+---
+title: "Logging & Debugging"
+description: "Master Motia's logging system for debugging workflows and monitoring production applications."
+---
+
+Motia provides a comprehensive logging system designed for both development debugging and production monitoring. With real-time log streaming, structured data support, and multiple output targets, you can effectively troubleshoot issues and monitor workflow performance.
+
+The Motia logging system offers:
+
+- **Real-time streaming**: View logs instantly in terminal and Motia Workbench
+- **Structured logging**: JSON-formatted logs with rich contextual data
+- **Multiple log levels**: Fine-grained control over log verbosity
+- **Automatic context**: Every log includes trace ID, timestamp, and source information
+- **Cross-environment support**: Consistent logging across development, production or any other environment you have created
+
+
+## Log Levels
+Motia supports four standard log levels, each serving specific debugging and monitoring needs. The handler of every step you write automatically comes with the `logger` object. 
+
+You can use the `logger` object available inside the step handler context to log messages accordingly.
+
+Motia supports four standard log levels:
+
+| Level | Purpose | When to Use | Production Impact |
+|-------|---------|-------------|-------------------|
+| `info` | General information | Flow progress, successful operations, business events | Low overhead, always visible |
+| `error` | Critical issues | Exceptions, failed operations, system errors | Always logged, triggers alerts |
+| `debug` | Detailed diagnostics | Variable states, execution paths, troubleshooting | High verbosity, typically filtered in production |
+| `warn` | Potential issues | Edge cases, performance concerns, deprecated usage | Medium priority, review required |
+
+## Writing logs using the `logger` object
+
+1. **Simple Logging**: For basic logs, you can simply use any of the four methods to log data.
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+<Tab value="TypeScript">
+```typescript
+export const handler: Handlers['ProcessOrder'] = async (input, { logger }) => {
+  // Basic information logging
+  logger.info('Order processing started')
+  
+  // Success logging
+  logger.info('Order validated successfully')
+  
+  // Warning for edge cases
+  logger.warn('Order amount exceeds normal threshold')
+  
+  // Error logging
+  logger.error('Payment processing failed')
+  
+  // Debug information
+  logger.debug('Order processing completed')
+}
+```
+</Tab>
+
+<Tab value="JavaScript">
+```javascript
+export const handler = async (input, { logger }) => {
+  // Basic information logging
+  logger.info('Order processing started')
+  
+  // Success logging
+  logger.info('Order validated successfully')
+  
+  // Warning for edge cases
+  logger.warn('Order amount exceeds normal threshold')
+  
+  // Error logging
+  logger.error('Payment processing failed')
+  
+  // Debug information
+  logger.debug('Order processing completed')
+}
+```
+</Tab>
+
+<Tab value="Python">
+```python
+async def handler(input, ctx):
+    # Basic information logging
+    ctx.logger.info('Order processing started')
+    
+    # Success logging
+    ctx.logger.info('Order validated successfully')
+    
+    # Warning for edge cases
+    ctx.logger.warn('Order amount exceeds normal threshold')
+    
+    # Error logging
+    ctx.logger.error('Payment processing failed')
+    
+    # Debug information
+    ctx.logger.debug('Order processing completed')
+```
+</Tab>
+</Tabs>
+
+2. **Structured Logging**:
+
+The real power of Motia's logging system comes when you use structured data that makes logs searchable:
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+<Tab value="TypeScript">
+```typescript
+export const handler: Handlers['ProcessPayment'] = async (input, { logger }) => {
+  // Structured information logging
+  logger.info('Payment processing initiated', {
+    paymentId: input.paymentId,
+    customerId: input.customerId,
+    amount: input.amount,
+    currency: input.currency,
+    method: input.paymentMethod
+  })
+
+  try {
+    const result = await processPayment(input)
+    
+    logger.info('Payment processed successfully', {
+      paymentId: input.paymentId,
+      transactionId: result.transactionId,
+      amount: input.amount,
+      processingTime: result.processingTime,
+      provider: result.provider,
+      status: 'completed'
+    })
+    
+  } catch (error) {
+    logger.error('Payment processing failed', {
+      paymentId: input.paymentId,
+      customerId: input.customerId,
+      amount: input.amount,
+      error: error.message,
+      errorCode: error.code,
+      provider: input.provider,
+      stack: error.stack
+    })
+    throw error
+  }
+}
+```
+</Tab>
+
+<Tab value="JavaScript">
+```javascript
+export const handler = async (input, { logger }) => {
+  // Structured information logging
+  logger.info('Payment processing initiated', {
+    paymentId: input.paymentId,
+    customerId: input.customerId,
+    amount: input.amount,
+    currency: input.currency,
+    method: input.paymentMethod
+  })
+
+  try {
+    const result = await processPayment(input)
+    
+    logger.info('Payment processed successfully', {
+      paymentId: input.paymentId,
+      transactionId: result.transactionId,
+      amount: input.amount,
+      processingTime: result.processingTime,
+      provider: result.provider,
+      status: 'completed'
+    })
+    
+  } catch (error) {
+    logger.error('Payment processing failed', {
+      paymentId: input.paymentId,
+      customerId: input.customerId,
+      amount: input.amount,
+      error: error.message,
+      errorCode: error.code,
+      provider: input.provider,
+      stack: error.stack
+    })
+    throw error
+  }
+}
+```
+</Tab>
+
+<Tab value="Python">
+```python
+import traceback
+
+async def handler(input, ctx):
+    # Structured information logging
+    ctx.logger.info('Payment processing initiated', {
+        'payment_id': input.get('payment_id'),
+        'customer_id': input.get('customer_id'),
+        'amount': input.get('amount'),
+        'currency': input.get('currency'),
+        'method': input.get('payment_method')
+    })
+
+    try:
+        result = await process_payment(input)
+        
+        ctx.logger.info('Payment processed successfully', {
+            'payment_id': input.get('payment_id'),
+            'transaction_id': result.get('transaction_id'),
+            'amount': input.get('amount'),
+            'processing_time': result.get('processing_time'),
+            'provider': result.get('provider'),
+            'status': 'completed'
+        })
+        
+    except Exception as error:
+        ctx.logger.error('Payment processing failed', {
+            'payment_id': input.get('payment_id'),
+            'customer_id': input.get('customer_id'),
+            'amount': input.get('amount'),
+            'error': str(error),
+            'provider': input.get('provider'),
+            'stack': traceback.format_exc()
+        })
+        raise error
+```
+</Tab>
+</Tabs>
+
+3. **Consistent Patterns**: When writing logs, follow consistent patterns for log messages:
+
+<Tabs items={['Good Practices', 'Anti-Patterns']}>
+<Tab value="Good Practices">
+```typescript
+// ✅ Use clear, searchable message formats
+logger.info('payment.processing.completed', {
+  paymentId: 'pay_123',
+  amount: 100.00,
+  currency: 'USD',
+  duration: 1500
+})
+
+// ✅ Include relevant business context
+logger.error('order.validation.failed', {
+  orderId: 'order_456',
+  validationErrors: ['invalid_email', 'missing_address'],
+  customerType: 'premium',
+  retryable: false
+})
+
+// ✅ Use structured data for complex information
+logger.info('inventory.update.completed', {
+  operation: 'stock_adjustment',
+  itemsUpdated: 15,
+  warehouse: 'west_coast',
+  adjustments: [
+    { sku: 'ABC123', from: 100, to: 95, reason: 'sale' },
+    { sku: 'DEF456', from: 50, to: 75, reason: 'restock' }
+  ]
+})
+
+// ✅ Use debug logs for detailed troubleshooting
+logger.debug('Operation details', {
+  rawInput: input,
+  timestamp: Date.now(),
+  state: currentState,
+})
+```
+</Tab>
+
+<Tab value="Anti-Patterns">
+```typescript
+// ❌ Avoid string interpolation in messages: Harder to parse and search
+logger.info(`Payment ${paymentId} processed for ${amount}`)
+
+// ❌ Don't mix logging levels incorrectly
+logger.error('Payment completed successfully') // Should be info
+
+// ❌ Avoid logging sensitive information
+logger.info('User login', {
+  username: 'john@example.com',
+  password: 'secret123', // Never log passwords!
+  creditCard: '4111-1111-1111-1111' // Never log full card numbers!
+})
+
+// ❌ Don't use unclear or vague messages
+logger.info('Something happened', { data: result })
+```
+</Tab>
+</Tabs>
+
+## Log Monitoring & Workflow Debugging
+
+<Steps>
+<Step>
+Start the Development Server - You can `cd` into your Motia project directory and start the development server:
+
+<Tabs items={['npm', 'yarn', 'pnpm', 'bun']}>
+<Tab value="npm">
+```bash
+npm run dev
+```
+</Tab>
+<Tab value="yarn">
+```bash
+yarn run dev
+```
+</Tab>
+<Tab value="pnpm">
+```bash
+pnpm run dev
+```
+</Tab>
+<Tab value="bun">
+```bash
+bun run dev
+```
+</Tab>
+</Tabs>
+<Callout type="info" title="Additonal flags">
+The `dev` command comes with some [additional flags](/docs/flows-and-workbench#getting-started-with-motia-workbench) enabling you to use a different port to run the server on, among other things.
+</Callout>
+</Step>
+
+<Step>
+Choose Your Monitoring Method - You can monitor logs through two interfaces:
+
+1. **Motia Workbench** (Recommended for development):
+    - Open [http://localhost:3000](http://localhost:3000)
+    - Select your flow from the dashboard
+    - Expand the logs container to view real-time output
+    - Filter by log level and search through log content
+    <Callout type="info" title="Logs link in the left sidebar">
+      You can click on the 'Logs' link in the left sidebar to view all the logs in one place.
+    </Callout>
+
+2. **Terminal Output**:
+    - View logs directly in the terminal where you started the dev server
+    - Logs appear in real-time with color coding by level
+    - Use `Ctrl+C` or `Cmd+C` to stop the server
+</Step>
+<Step>
+Trigger Workflows for Testing - You can test your logging by triggering workflows:
+
+<Tabs items={['CLI Trigger', 'API Trigger']}>
+<Tab value="CLI Trigger">
+```bash
+npx motia emit --topic order.created --message '{
+  "orderId": "order_123",
+  "customerId": "cust_456",
+  "amount": 99.99
+}'
+```
+</Tab>
+<Tab value="API Trigger">
+```bash
+curl -X POST http://localhost:3000/api/<api-step-path> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "order_123",
+    "customerId": "cust_456",
+    "amount": 99.99
+  }'
+```
+</Tab>
+</Tabs>
+</Step>
+<Step>
+Analyze Log Output
+
+Each log entry automatically includes contextual metadata. Each log entry automatically includes:
+
+    - `timestamp`: When the log was generated
+    - `traceId`: Unique identifier for the flow execution
+    - `flows`: Array of flow names this step belongs to
+    - `file`: Source file generating the log
+    - `level`: Log level
+    - `msg`: Log message
+
+```json
+// example log
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "msg": "Payment processed successfully",
+  "traceId": "trace_abc123",
+  "flows": ["order-processing", "payment-flow"],
+  "file": "process-payment.step.ts",
+  "data": {
+    "paymentId": "pay_123",
+    "amount": 99.99,
+    "status": "completed"
+  }
+}
+```
+</Step>
+<Step>
+Use `Ctrl+C` or `Cmd+C` to stop the server.
+</Step>
+</Steps>
+
+## Monitor performance using logs
+One really neat way to use logs is to monitor performance in real time. 
+
+By capturing timestamps and memory usage at runtime, you can log how long an operation took and how much memory it used, right inside your step logic. 
+
+This is especially useful for identifying slow or memory-intensive steps and optimizing them before they become production bottlenecks:
+```ts
+export const handler: Handlers['StepName'] = async (input, { logger }) => {
+  const startTime = performance.now()
+ 
+  // Process operation
+  const result = await processOperation(input)
+ 
+  logger.info('Operation completed', {
+    duration: performance.now() - startTime,
+    memoryUsage: process.memoryUsage().heapUsed,
+  })
+}
+```
+
+## Common Issues
+
+<Callout type="error" title="Logs Not Appearing">
+**Problem**: Logs not showing in development or production
+
+**Solutions**:
+- Verify the development server is running (`npm run dev`)
+- Check that you're importing the logger from the context parameter
+- Ensure log level filters aren't hiding your messages
+- Confirm the step handler is actually being executed
+</Callout>
+
+<Callout type="info" title="Log Search Issues">
+**Problem**: Difficulty finding specific logs
+
+**Solutions**:
+- Use consistent, searchable message formats
+- Include relevant IDs in all log entries (traceId, orderId, userId)
+- Structure data properly for filtering
+- Use descriptive operation names as message prefixes
+</Callout>
+
+## Next Steps
+Motia's logging system gives you visibility into your application's flow, making issues easier to track and resolve.
+
+When issues arise in production _(and we all know they will)_, well-structured logs become your primary tool to diagnose and resolve them faster.
+
+Invest time in thoughtful logging patterns now, and you'll save countless hours of debugging later. 
+
+Your future self, and your team will thank you when complex issues resolve quickly because the right information was captured at the right time!
+
+Here's where to go next:
+<Cards>
+  <Card
+    href="/docs/testing-and-debugging"
+    title="Testing & Debugging"
+    icon="🧪"
+  >
+    Debug your flows effectively with real-time logs, trace IDs, and testing strategies.
+  </Card>
+
+  <Card
+    href="/docs/deployment"
+    title="Deploying Your Flows"
+    icon="🚀"
+  >
+    Follow best practices to reliably ship your Motia flows across different environments.
+  </Card>
+</Cards>

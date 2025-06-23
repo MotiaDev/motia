@@ -1,0 +1,172 @@
+---
+title: "Tests for your workflows"
+description: "Learn how to write tests and debug your Motia workflows."
+---
+
+Motia provides built-in testing capabilities using Jest to ensure your workflows are reliable and maintainable. We've made it really easy to write tests for your steps and flows. 
+
+Whether you’re testing a single step, an entire flow, or state-dependent behavior, the built-in testing utilities let you simulate real executions and ensure your logic works as expected.
+
+Motia uses `Jest` as its testing framework, so you can write tests for Motia apps using Jest's syntax.
+
+### Step Testing
+
+Step testing allows you to test your step handlers to ensure they behave correctly for different inputs. 
+
+You test just one step at a time, by directly calling the handler function and passing a mock context with things like `emit`, `logger`, `state`, etc.
+
+To test a step, create a test file with the same name as the step file, but with a `.test.ts` or `.test.js` extension. For example, if your step file is named `my-step.step.ts`, create a test file named `my-step.step.test.ts`.
+
+Here's an example:
+
+
+```typescript
+// my-step.step.test.ts
+
+// Import test utilities from Motia
+import { createTestContext } from '@motiadev/testing'
+import { handler } from './my-step.step'
+
+// Describe the step you’re testing
+describe('MyStep', () => {
+  it('should emit an event with the correct data', async () => {
+
+    // Create a mock context with emit and done functions
+    const { emit, done } = createTestContext()
+
+    // Call the handler with test input and the mock context
+    await handler({ name: 'John' }, { emit })
+
+    // Assert that the step emitted the correct event with expected data
+    expect(emit).toHaveBeenCalledWith({
+      type: 'my-event',
+      data: { greeting: 'Hello, John!' },
+    })
+
+    // Mark the test as done
+    done()
+  })
+})
+```
+
+### Flow Testing
+
+You simulate an entire flow end-to-end using `createTestFlow()`, chaining together multiple steps. Flow testing allows you to test complete workflows to ensure steps work together correctly.
+
+Just like with Step testing, to test a flow, create a test file with the flow name and a `.test.ts` or `.test.js` extension. For example, if your flow is named `my-flow`, create a test file named `my-flow.test.ts`.
+
+```typescript
+// my-flow.test.ts
+
+// Import test utilities and step handlers
+import { createTestFlow } from '@motiadev/testing'
+import { handler as stepAHandler } from './step-a.step'
+import { handler as stepBHandler } from './step-b.step'
+
+describe('MyFlow', () => {
+  it('should execute steps in the correct order', async () => {
+
+    // Create a test flow and register step handlers in sequence
+    const flow = createTestFlow('my-flow')
+      .step('step-a', stepAHandler)
+      .step('step-b', stepBHandler)
+
+    // Execute the flow with sample input
+    const result = await flow.execute({ name: 'Alice' })
+
+    // Assert that the final result from the flow matches expectations
+    expect(result).toEqual({
+      greeting: 'Hello, Alice!',
+      message: 'Welcome to Motia!',
+    })
+  })
+})
+```
+
+### Running Tests
+
+Run your test locally with these commands:
+
+<Tabs items={['All Tests', 'Watch Mode']}>
+<Tab value="All Tests">
+```bash
+pnpm test
+```
+
+Runs all test files in your project and displays results.
+</Tab>
+
+<Tab value="Watch Mode">
+```bash
+pnpm test --watch
+```
+
+Automatically re-runs tests when you make changes to your code.
+</Tab>
+</Tabs>
+
+### Test Organization
+
+A well-structured test layout mirrors your project structure. This keeps your codebase easy to navigate and makes it obvious where each test lives. 
+
+We recommend colocating tests alongside the corresponding steps and flows, so they stay close to the logic they verify.
+
+```
+my-motia-project/
+├── steps/
+│   ├── process-order.step.ts
+│   ├── process-order.step.test.ts
+│   ├── validate-payment.step.ts
+│   └── validate-payment.step.test.ts
+├── flows/
+│   ├── order-processing.flow.ts
+│   └── order-processing.flow.test.ts
+└── package.json
+```
+
+<Callout type="info">
+**Pro Tip**: Use structured logging consistently across your application to enable powerful log analysis and monitoring in production environments. Make sure you've read how to [use logging](/docs/logging) in Motia apps.
+</Callout>
+
+### Best Practices for Testing
+
+When testing your Motia steps and workflows, following a few key principles can go a long way in ensuring reliability and maintainability:
+
+- **Test Every Step and Flow**  
+  Make sure every individual step and full workflow has dedicated test coverage. This helps catch bugs early and keeps your system robust as it scales.
+
+- **Write Descriptive Test Cases**  
+  Use clear, meaningful names for your test cases so it's easy to understand their purpose—both for your teammates and your future self.
+
+- **Cover Edge Cases and Failures**  
+  Don't just focus on the happy path. Simulate invalid inputs, timeouts, and errors to ensure your logic holds up under pressure.
+
+- **Keep Tests Focused and Independent**  
+  Each test should verify one specific behavior. Avoid test interdependence or shared state, which can lead to flaky results and hard-to-debug failures.
+
+- **Mock External Dependencies**  
+  Use mocks or stubs for external APIs, databases, or third-party services. This keeps your tests fast, reliable, and deterministic.
+
+## Next Steps
+Writing tests is more than just checking if code works. It's about building confidence in your workflows. 
+
+This section outlines practical testing habits that help you catch edge cases early, isolate failures, and maintain reliability as your Motia project grows.
+
+Once you've mastered testing, here's where to go next:
+<Cards>
+  <Card
+    href="/docs/cli"
+    title="Motia CLI"
+    icon="⚙️"
+  >
+    Explore all the commands available in the Motia CLI to run flows, inspect steps, emit events, and more.
+  </Card>
+
+  <Card
+    href="/docs/happy-practices"
+    title="Happy Practices"
+    icon="🎯"
+  >
+    Discover best practices for logging, state manager, testing and debugging your Motia apps.
+  </Card>
+</Cards>

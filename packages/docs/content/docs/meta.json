@@ -1,13 +1,20 @@
 {
   "title": "Motia",
   "pages": [
-    "welcome",
-    "tldr-motia-in-3-minutes",
+    "index",
     "getting-started",
-    "concepts",
-    "workbench",
-    "real-world-use-cases",
-    "examples",
-    "contribution"
+    "steps",
+    "types-of-step",
+    "flows-and-workbench",
+    "logging",
+    "state-mgt",
+    "streams",
+    "deployment",
+    "testing-and-debugging",
+    "cli",
+    "happy-practices",
+    "api-ref",
+    "customising-steps",
+    "community"
   ]
 }

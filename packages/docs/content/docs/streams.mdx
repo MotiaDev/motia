@@ -1,0 +1,342 @@
+---
+title: "Streams"
+description: "Motia Streams are a way to quickly push updates from your asynchronous workflows to the client without any polling."
+---
+
+Imagine you have a long-running process (like calling some LLM service) that takes time to complete.
+
+You want to show real-time, as things happen, without the user needing to refresh or the app constantly checking for changes, or making them wait for the entire response.
+
+That’s what Motia Streams enable: real-time updates from backend to frontend.
+
+Streams let you push live updates from your backend workflows directly to frontend clients, so users can see progress as it happens.
+
+## Basic Flow
+	1.	Define a Stream:
+  
+        You start by creating a Stream. Think of this as opening a named channel through which you’ll send real-time updates. You also define what kind of data will flow through this channel using a schema (e.g. a string message).
+
+	2.	Call an API Step (initialize the stream):
+  
+        A user triggers an API step. For example, by clicking “Ask AI” in your app.
+        
+        This step creates a blank record or a placeholder entry in the stream  `{ message: "" }` and returns its `ID` to the frontend. 
+        
+        This entry is what will get updated in real-time.
+
+	3.	Emit an Event (start async processing):
+  
+        This API step then emits an event, which kicks off a background process, like calling an LLM service with the user’s question.
+	
+  4.	Update the Stream as You Go:
+
+        As the event step receives a streamed response (in chunks from the LLM service), it continuously updates the stream with the latest message. For example:
+          - First: "The"
+          - Then: "The quick"
+          - Then: "The quick brown fox" …and so on.
+
+	5.	Frontend auto-updates with each change:
+
+        On the frontend, you use Motia’s `useStreamItem` hook. It listens to that `stream ID` and automatically updates the UI every time the message changes.
+        
+        _No polling, no hacks, no extra setup._
+
+| Feature                  | Why It Matters                                                                 |
+|--------------------------|---------------------------------------------------------------------------------|
+| 🔄 No Polling Needed     | Streams push updates automatically, no need for manual refreshes or polling.     |
+| 🧰 Built-In Tooling      | Fully integrated with Workbench and [React](/docs/streams#consuming-streams) and browser SDKs. No extra setup needed.           |
+| 🔒 Type-Safe Updates     | Schema-defined streams ensure type safety and structured data across the stack. |
+| 👀 Live Monitoring       | See real-time data flow directly in the dev environment with Workbench.         |
+
+## Anatomy of a Stream
+Streams, simply contain a Stream Config (`StreamConfig`). This is where you define the Stream and it:
+      - declares a named stream channel (e.g. `openai` which becomes available inside the `FlowContext` as `context.streams.openai`), 
+      - defines the shape of data that will be stored and transmitted in the stream using a Zod schema, and 
+      - tells Motia where and how to store that data (default storage or custom).
+
+
+To define a stream, create a new file under the `steps/` directory. For example, `open-ai.stream.ts`. 
+
+```ts
+// Define the stream configuration
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+// This config defines a stream named "openai" with a schema for message updates
+export const config: StreamConfig = {
+  /**
+   * This becomes available inside FlowContext as: context.streams.openai
+   */
+  name: 'openai',
+
+  /**
+   * This schema defines the shape of data stored and streamed in this channel
+   * Clients consuming the stream (e.g. via useStreamItem) will receive this shape
+   */
+  schema: z.object({ message: z.string() }),
+
+  /**
+   * Configuration for how the stream stores its data
+   */
+  baseConfig: {
+    /**
+     * Use default storage provided by Motia.
+     * To customize behavior, you can switch to `custom` and define your own storage adapter.
+     */
+    storageType: 'default',
+  },
+}
+```
+This file describes the stream’s name, schema (the shape of data it carries), and its storage configuration. 
+
+Once defined, the stream becomes accessible in the flow context, via `context.streams.openai` inside your step handlers.
+
+Then you can simply create records using the streams API in your step, which will then get populated subsequently.
+
+<Callout type="info" title="Why Streams Are Declarative">
+Motia Streams are **declarative:** you define the contract, and Motia handles everything else.
+
+What you define:
+- `name`: The stream's unique identifier
+- `schema`: What kind of data the stream holds
+- `storage`: Where the data is stored
+
+What Motia gives you:
+- ✅ **Data validation** out of the box
+- 🗃️ **Storage management** with your preferred backend
+- 📡 **Real-time broadcasting** to subscribed clients
+- 🧾 **Type safety** across your entire app
+</Callout>
+
+## Writing Streams
+Let's take a look at an example to see streams in action!
+
+In this example, we'll define an API endpoint (`/open-ai`) that:
+	1.	Accepts a `POST` request with a message
+	2.	Initializes a new record in the openai stream with an empty message
+	3.	Emits an event (`openai-prompt`) to trigger a follow-up step
+	4.	Returns the newly created stream record to the caller (frontend/Workbench)
+  5.  Listens to the openai-prompt event, 
+  6.  Sends the prompt to OpenAI’s streaming API, and 
+  7.  Progressively updates the stream data with each chunk received, thereby allowing real-time UI updates on the frontend via `useStreamItem`.
+
+We'll break it down into two steps: One step will receive the request and create an empty stream record, and the other will call OpenAI and update the stream in real time
+<Steps>
+<Step>
+The first step of our app will receive a user prompt, initialize a stream, emit an event:
+```ts
+// Import types from Motia and Zod for schema validation
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+// Configuration for the API Step
+export const config: ApiRouteConfig = {
+  type: 'api',                    // This is an API endpoint
+  name: 'OpenAiApi',              // Name for the step
+  description: 'Call OpenAI',     
+
+  path: '/open-ai',               // The HTTP endpoint to expose
+  method: 'POST',                 // Request method to accept
+
+  emits: ['openai-prompt'],      // This step will emit an event called "openai-prompt"
+  flows: ['open-ai'],            // Belongs to the 'open-ai' flow (used in trace tracking)
+
+  // Validate the incoming request body
+  bodySchema: z.object({
+    message: z.string({ description: 'The message to send to OpenAI' }),
+  }),
+
+  // Define what a successful response looks like
+  responseSchema: {
+    200: z.object({
+      message: z.string({ description: 'The message from OpenAI' }),
+    })
+  }
+}
+ 
+export const handler: Handlers['OpenAiApi'] = async (req, { traceId, logger, emit, streams }) => {
+  // Log that we've received a message from the client
+  logger.info('[Call OpenAI] Received callOpenAi event', {
+    message: req.body.message
+  })
+
+  // Step 1: Initialize an empty stream record under this traceId
+  // Think of this as creating a placeholder that will be updated later
+  const result = await streams.openai.set(traceId, 'message', {
+    message: '' // Initial blank value
+  })
+
+  // Step 2: Emit an event to trigger the async OpenAI call in another step
+  await emit({
+    topic: 'openai-prompt',
+    data: {
+      message: req.body.message
+    }
+  })
+
+  // Step 3: Return the stream record so frontend can start subscribing to it
+  return {
+    status: 200,
+    body: result
+  }
+}
+```
+</Step>
+<Step>
+The second step will listen to event, call OpenAI, stream back chunks. 
+
+So far, we've initiated a placeholder (or a record) that will get populated by the response from Open AI via OpenAI SDK stream. In the next step, it'll get populated:
+```ts
+// Import required types from Motia and OpenAI SDK
+import { EventConfig, Handlers } from 'motia'
+import { OpenAI } from 'openai'
+import { z } from 'zod'
+
+// Define the event-based step config
+export const config: EventConfig = {
+  type: 'event',                       // This is an event-triggered step
+  name: 'CallOpenAi',                  // Name for this step
+  description: 'Call OpenAI',          
+
+  subscribes: ['openai-prompt'],       // This step listens to the topic, which was emitted by the previous step
+  emits: [],                           // It does not emit any new events
+
+  // Define expected input shape
+  input: z.object({
+    message: z.string({
+      description: 'The message to send to OpenAI'
+    }),
+  }),
+
+  flows: ['open-ai'],                  // Part of the same 'open-ai' flow
+}
+
+export const handler: Handlers['CallOpenAi'] = async (input, context) => {
+  const { logger, traceId } = context
+
+  // Initialize OpenAI client with your API key
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+  // Log the incoming event for traceability
+  logger.info('[Call OpenAI] Received callOpenAi event', input)
+
+  // Send the message to OpenAI's chat completion endpoint
+  const result = await openai.chat.completions.create({
+    messages: [{ role: 'system', content: input.message }],
+    model: 'gpt-4o-mini',   // Model being used
+    stream: true,           // Enable streaming responses
+  })
+
+  const messages: string[] = [] // Accumulator for streamed chunks
+
+  // For each chunk of the streamed OpenAI response...
+  for await (const chunk of result) {
+    // Append new content to the message array
+    messages.push(chunk.choices[0].delta.content ?? '')
+
+    // Update the existing stream record in real-time
+    await context.streams.openai.set(traceId, 'message', {
+      message: messages.join('') // Aggregate and update stream
+    })
+  }
+
+  // Log the full final OpenAI response (optional)
+  logger.info('[Call OpenAI] OpenAI response', result)
+}
+```
+</Step>
+</Steps>
+
+## Testing streams
+As a backend developer, testing real-time features (like streams) is usually annoying:
+	- You emit events.
+	- They do work asynchronously.
+	- You have no easy way to see what’s happening unless you build a frontend too.
+
+Motia solves this by giving real-time results in the [Workbench](/docs/flows-and-workbench#motia-workbench) where you can test streams end-to-end.
+
+All you need to do is return the placeholder you created when defining streams, in the API response:
+```tsx
+export const handler: Handlers['OpenAiApi'] = async (req, { traceId, logger, emit, streams }) => {
+  logger.info('[Call OpenAI] Received callOpenAi event', { message: req.body.message })
+ 
+  /**
+   * This creates a record with empty message string to be populated in the next step
+   */
+  const result = await streams.openai.set(traceId, 'message', { message: '' })
+ 
+  await emit({
+    topic: 'openai-prompt',
+    data: { message: req.body.message },
+  })
+ 
+  /**
+   * Return the entire object received from the create method
+   */
+  return { status: 200, body: result }
+}
+```
+
+Now, simply [open the Workbench](/docs/flows-and-workbench#getting-started-with-motia-workbench), and navigate to http://localhost:3000/endpoints and you'll see your API endpoint. Open the endpoint and click on the `Test` button and you'll see the results automatically getting streamed from the server, in _real-time!_
+
+![old way is to juggle a bunch of different things together while the new way is simply using steps](./img/streams-test-workbench.gif)
+
+## Consuming Streams
+To consume streams on the frontend, Motia provides a simple React client. You can use this package to consume real-time stream updates from your backend with zero polling and full type safety.
+
+<Steps>
+<Step>
+ Install the Stream Client:
+
+    Start by installing the official React client package:
+    ```bash
+      npm install @motiadev/stream-client-react
+    ```
+</Step>
+<Step>
+ Add the provider to the root of your project:
+
+    Wrap your app (or a specific component tree) with `MotiaStreamProvider` to enable WebSocket-based communication with the Motia backend:
+    ```tsx
+      import { MotiaStreamProvider } from '@motiadev/stream-client-react'
+
+      <MotiaStreamProvider address="ws://localhost:3000">
+        <YourApp />
+      </MotiaStreamProvider>
+    ```
+</Step>
+<Step>
+ Use the Hook to Subscribe:
+    Anywhere inside the provider, you can use the `useStreamItem` hook to listen to updates:
+    ```tsx
+      import { useStreamItem } from '@motiadev/stream-client-react'
+
+      const { data } = useStreamItem({
+        streamName: 'openai',     // Name of the stream you defined
+        groupId: messageId,       // Unique traceId from the stream response
+        id: 'message',            
+      })
+    ```
+</Step>
+This hook will automatically update whenever the stream record changes on the backend, like when OpenAI sends a new chunk of the message.
+</Steps>
+
+## Next steps
+You’ve now seen how Motia Streams enable real-time updates from long-running backend processes. _No polling, no hacks._ 
+
+It is now time to deploy apps to Motia cloud or test your workflows. Here's where to go for the same:
+
+<Cards>
+  <Card
+    title="Testing your workflows"
+    icon="✅"
+    description="Learn how to write and run tests for your Motia steps, events, and stream-based logic."
+    href="/docs/testing-and-debugging"
+  />
+  <Card
+    title="Deploying your flows"
+    icon="🚀"
+    description="Understand how to deploy Motia flows across environments using the CLI, and ensure streams keep working in production."
+    href="/docs/deployment"
+  />
+</Cards>

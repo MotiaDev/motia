@@ -1,0 +1,115 @@
+---
+title: "Thinking in Steps"
+description: "Adopt a new mental model for AI-native, modern backends - one Step at a time."
+---
+Motia is built around a single powerful primitive: the **Step**
+
+Steps are the language-agnostic, building blocks of a Motia app. 
+
+In a Motia app, everything is a Step. Read our [introductory blog](https://dev.to/motiadev/introducing-motia-3oja-temp-slug-3967652?preview=c67eba085f74a7cf7b2c509a1548676bce436734e51ef49f52b1927b110de0fa2e214aa713e90c7a3301332e5d0eb658a6d1bdacb9a4777d93f37b52) to know more about this primitive.
+
+Conceptually, Steps are modular and reusable bits of logic, each of whom perform a specific task. They are stitched together to compose a workflow.
+
+## Steps are basically Lego blocks
+You can think of steps like lego blocks. 
+Each Step performs one job, and then optionally passes the baton. Put enough Steps together, and you’ve built an entire backend system: _from an API to AI._ 
+
+  ![Steps are basically lego blocks](./img/blocks.png)
+
+Once you start building apps with Motia, it becomes clear how powerful and flexible this Step abstraction really is. Whether you're:
+
+- exposing an API,
+
+- processing a queue event,
+
+- calling an LLM,
+
+- or even triggering a background job
+
+Whatever you're doing, _you’re always writing a Step!_
+
+> Each Step handles a single task, then optionally hands off control to the next. Chain them together, and you’ve got a full backend system - from API to AI.
+
+## Why a new mental model?
+
+Modern backends are no longer just about REST APIs and databases. They now include:
+- Integrating AI and LLM-powered functionality
+- Responding to events from dozens of sources
+- Orchestrating workflows across queues, agents, and services
+- Dealing with retry logic, observability, and failure recovery
+
+Trying to manage all this with traditional patterns leads to fragmented systems. Motia offers a unified mental model: build your backend as a graph of Steps.
+
+## What is a Step?
+A Step is a language-agnostic, modular and reusable unit of logic that listens to a trigger (an API call, a queue event, a cron job etc) and processes an input using your logic. Optionally, Steps can emit follow up events or pass on data or processed result to continue the workflow.
+
+Steps are:
+- **Isolated**: each step can run independently
+- **Composable**: steps can be connected into flows
+- **Multilingual**: write steps in TypeScript, Python, or more
+- **Reusable**: just like components, you can use the same step in multiple workflows
+
+Two key behaviours of a Step are - Subscription and Emission. Each step can subscribe to one/many event(s) and emit one/many event(s).
+
+Using these behaviours of a Step, you can chain different steps together by having them subscribe to the events emitted by one (or many) of the previous steps, enabling a natural event-driven flow where each Step reacts to meaningful triggers.
+
+This lets you compose powerful, modular workflows like: listening for a user.registered event to trigger a send-welcome-email step, which in turn emits a log-onboarding-started event for analytics, all without tightly coupling your logic.
+
+> Just like we learnt to build frontend as a bunch of Components stitched together. Motia teaches you to model backend systems as a Step.
+
+## Ready to 'step-up' your AI-native backends?
+Steps are an intuitive, composable, and powerful way to build with Motia. They let you:
+
+- Scale complexity without losing clarity
+
+- Connect APIs, background jobs, and AI logic in one unified system
+
+- Reuse business logic like Lego blocks across multiple workflows
+
+- Gain observability and traceability through structured execution flows
+
+You no longer need to juggle disconnected tools for APIs, queues, and AI agents. With Motia, everything is a Step—and that changes how we build backends for good.
+  ![old way is to juggle a bunch of different things together while the new way is simply using steps](./img/tis-oldvsnew.png)
+
+
+## Next Steps?
+As you write apps in Motia, thinking in steps will become second nature, and you'll start realizing how intuitive, composable and powerful it really is!
+
+With Steps, you don't need to juggle disconnected tools for APIs, queues, and AI agents. 
+
+The _'everything is a Step'_ thinking empowers you to build AI-native backends that are truly modern, and that changes how we build backends for good.
+
+Ready to dive deeper? 
+
+Here's what to explore next
+<Cards>
+  <Card
+    href="/docs/beyond-hello-world"
+    title="Beyond hello world"
+    icon="🔀"
+  >
+  Extend the _Hello World_ app from our quickest start and get hands-on with more Motia features.
+  </Card>
+  <Card
+  href="/docs/foundation/steps"
+  title="What are Steps?"
+  icon="🧱"
+>
+  Get to know the core building block of Motia - how Steps receive, process, and emit data.
+</Card>  
+    <Card
+    href="/docs/beyond-hello-world"
+    title="Automate real-world tasks"
+    icon="✏️"
+  >
+  Follow guides to automate tasks with AI and APIs - like sending emails with GPT.
+  </Card>
+  <Card
+    href="/docs/concepts/happy-practices"
+    title="Happy practices in Motia"
+    icon="😊"
+  >
+  Adopt a new mental model for AI-native, modern backends - one Step at a time.
+  </Card>
+</Cards>
+---

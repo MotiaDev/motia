@@ -1,0 +1,412 @@
+---
+title: "NOOP (No-Operation) Steps"
+description: "Learn how to use NOOP steps to model out-of-Motia logic."
+---
+
+NOOP steps are one of Motia's most powerful features for modeling complete, real-world workflows. They represent parts of your system that exist outside of Motia's direct control, whether that's human decisions, third-party services, or physical processes.
+
+While API, Event, and CRON steps handle computation within your Motia application, NOOP steps acknowledge that modern systems are hybrid by nature.  
+
+They bridge the gap between your automated workflows and the external world, creating a complete picture of how your business logic actually flows.
+
+Think of them as _visual placeholders_ in your workflow. NOOP steps are like sticky notes on a whiteboard that remind you “something important happens here,” even if Motia isn’t the one doing it.
+
+They’re especially useful for:
+- Mapping human-in-the-loop decisions
+- Representing integrations or external services
+- Creating custom visuals in the Workbench
+- Testing and stubbing flows during development
+
+## Why NOOP Steps Matter
+
+In traditional backend development, you often end up with "invisible" parts of your workflow: processes that happen outside your codebase but are critical to understanding the complete system. NOOP steps make these invisible processes visible, giving you:
+
+- **Complete workflow visibility**: See your entire business process, not just the automated parts
+- **Better planning and debugging**: Understand dependencies and bottlenecks across your entire system
+- **Team alignment**: Developers, product managers, and stakeholders can see the same complete picture
+- **Future automation targets**: Easily identify which manual processes could be automated next
+
+## File Structure
+
+NOOP steps require two files with the same base name:
+- `stepName.step.ts` - Contains the step configuration
+- `stepName.step.tsx` - Contains the UI component (optional)
+
+### Step Configuration File (.ts)
+
+<Tabs items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    // myStep.step.ts
+    import { NoopConfig } from 'motia'
+
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'My NOOP Step',
+      description: 'Description of what this step simulates',
+      virtualEmits: ['event.one', 'event.two'],
+      virtualSubscribes: [], // Required even if empty
+      flows: ['my-flow'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    // myStep.step.js
+    const config = {
+      type: 'noop',
+      name: 'My NOOP Step',
+      description: 'Description of what this step simulates',
+      virtualEmits: ['event.one', 'event.two'],
+      virtualSubscribes: [], // Required even if empty
+      flows: ['my-flow'],
+    }
+
+    module.exports = { config }
+    ```
+  </Tab>
+</Tabs>
+<Callout title="Alway include virtualSubscribes:[]" type="warn">
+The `virtualSubscribes:[]` property should alway be present in the configuration, even if it is empty.
+</Callout>
+<Callout title="Flags" type="info">
+Take a look at our [best practices](/docs/foundations/happy-practices#best-practices-noop-steps) for writing NOOP steps.
+</Callout>
+### UI Component File (.tsx)
+
+<Tabs items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    // myStep.step.tsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function MyStep() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium">My Step UI</div>
+          {/* Your custom UI elements */}
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    // myStep.step.jsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function MyStep() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium">My Step UI</div>
+          {/* Your custom UI elements */}
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Example: Webhook Testing
+
+Here's a complete example of a NOOP step that simulates webhook events:
+
+<Tabs items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    // test-webhook.step.ts
+    import { NoopConfig } from 'motia'
+
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Webhook Simulator',
+      description: 'Simulates incoming webhook events',
+      virtualEmits: ['webhook.received'],
+      virtualSubscribes: [],
+      flows: ['webhook-flow'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    // test-webhook.step.js
+    const config = {
+      type: 'noop',
+      name: 'Webhook Simulator',
+      description: 'Simulates incoming webhook events',
+      virtualEmits: ['webhook.received'],
+      virtualSubscribes: [],
+      flows: ['webhook-flow'],
+    }
+
+    module.exports = { config }
+    ```
+  </Tab>
+</Tabs>
+
+<Tabs items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    // test-webhook.step.tsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function WebhookSimulator() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium mb-2">Webhook Simulator</div>
+          <button 
+            onClick={() => {
+              fetch('/api/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'test' }),
+              })
+            }}
+            className="px-3 py-1 bg-blue-600 rounded text-sm"
+          >
+            Trigger Webhook
+          </button>
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    // test-webhook.step.jsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function WebhookSimulator() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium mb-2">Webhook Simulator</div>
+          <button 
+            onClick={() => {
+              fetch('/api/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'test' }),
+              })
+            }}
+            className="px-3 py-1 bg-blue-600 rounded text-sm"
+          >
+            Trigger Webhook
+          </button>
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Representing External Processes
+
+NOOP steps represent parts of your workflow that happen outside your system. Common examples include:
+<Steps>
+<Step>
+#### 1. Webhook Callbacks
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Wait for Stripe Webhook',
+      description: 'Waits for payment confirmation',
+      virtualSubscribes: ['payment.initiated'],
+      virtualEmits: ['/api/stripe/webhook'],
+      flows: ['payment'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'Wait for Stripe Webhook',
+      description: 'Waits for payment confirmation',
+      virtualSubscribes: ['payment.initiated'],
+      virtualEmits: ['/api/stripe/webhook'],
+      flows: ['payment'],
+    }
+    ```
+  </Tab>
+</Tabs>
+</Step>
+<Step>
+#### 2. Human Approvals
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Manager Review',
+      description: 'Manager reviews request',
+      virtualSubscribes: ['approval.requested'],
+      virtualEmits: ['/api/approvals/submit'],
+      flows: ['approval'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'Manager Review',
+      description: 'Manager reviews request',
+      virtualSubscribes: ['approval.requested'],
+      virtualEmits: ['/api/approvals/submit'],
+      flows: ['approval'],
+    }
+    ```
+  </Tab>
+</Tabs>
+</Step>
+<Step>
+#### 3. External System Integration
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+      export const config: NoopConfig = {
+        type: 'noop',
+        name: 'GitHub Webhook',
+        description: 'Waiting for repository events',
+        virtualSubscribes: ['repository.watched'],
+        virtualEmits: ['/api/github/webhook'],
+        flows: ['repo-automation'],
+      }
+      ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'GitHub Webhook',
+      description: 'Waiting for repository events',
+      virtualSubscribes: ['repository.watched'],
+      virtualEmits: ['/api/github/webhook'],
+      flows: ['repo-automation'],
+    }
+    ```
+  </Tab>
+</Tabs>
+</Step>
+<Step>
+#### 4. Physical Processes
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Order Fulfillment',
+      description: 'Warehouse processes order',
+      virtualSubscribes: ['order.placed'],
+      virtualEmits: ['/api/warehouse/status'],
+      flows: ['fulfillment'],
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'Order Fulfillment',
+      description: 'Warehouse processes order',
+      virtualSubscribes: ['order.placed'],
+      virtualEmits: ['/api/warehouse/status'],
+      flows: ['fulfillment'],
+    }
+    ```
+  </Tab>
+</Tabs>
+</Step>
+</Steps>
+## Visualization in Workbench
+
+NOOP steps are visually represented in the Motia Workbench with the following characteristics:
+
+- Distinct node representation with clear input/output handles
+- Visual indicators for virtual event connections
+- Status indicators for waiting states
+- Clear visualization of external system dependencies
+
+### Custom UI
+
+You can enhance your NOOP steps with custom React components for better visualization:
+
+<Tabs  items={['TS', 'JS']}>
+  <Tab value="TS">
+    ```tsx
+    // customNode.step.tsx
+    import React from 'react'
+    import { BaseHandle, EventNodeProps, Position } from 'motia/workbench'
+
+    export default (_: EventNodeProps) => {
+      return (
+        <div className="p-3 px-6 flex flex-col max-w-[300px] bg-blue-500 border-white rounded-full text-white border border-solid text-center text-sm">
+          <div>Custom Processing</div>
+          <BaseHandle type="target" position={Position.Top} />
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+
+    // customNode.step.ts
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Custom Process',
+      virtualEmits: ['/api/process/complete'],
+      virtualSubscribes: ['process.start'],
+      flows: ['custom-flow']
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```jsx
+    // customNode.step.jsx
+    import React from 'react'
+    import { BaseHandle, EventNodeProps, Position } from 'motia/workbench'
+
+    export default (_: EventNodeProps) => {
+      return (
+        <div className="p-3 px-6 flex flex-col max-w-[300px] bg-blue-500 border-white rounded-full text-white border border-solid text-center text-sm">
+          <div>Custom Processing</div>
+          <BaseHandle type="target" position={Position.Top} />
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+
+    // customNode.step.js
+    const config = {
+      type: 'noop',
+      name: 'Custom Process',
+      virtualEmits: ['/api/process/complete'],
+      virtualSubscribes: ['process.start'],
+      flows: ['custom-flow']
+    }
+
+    module.exports = {config};
+    ```
+  </Tab>
+</Tabs>
+<Callout title="Steps" type="info">
+Don't forget to checkout the <a href="/docs/foundations/happy-practices#best-practices-for-noop-steps">best practices for Noop steps.</a> 
+</Callout>
+
+## The Power of Complete Workflows
+
+NOOP steps transform Motia from just another backend framework into a complete system modeling tool. By representing external processes alongside your automated logic, you create backends that actually reflects reality, not just the parts you control.
+
+Whether you're onboarding new team members, debugging complex workflows, or planning system improvements, NOOP steps ensure that nothing falls through the cracks. They're the bridge between your code and the real world, making Motia truly comprehensive for modern backends.

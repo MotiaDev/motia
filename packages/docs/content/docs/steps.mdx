@@ -1,0 +1,244 @@
+---
+title: "What are Steps"
+description: "Steps are the core units of logic in Motia, each handling a specific part of your flow"
+---
+
+A Step is a language and runtime agnostic, modular, self-contained unit of backend logic. It’s the core abstraction in Motia, similar to what Components are in React. Just as Components manage UI, Steps manage backend logic and workflows.
+
+> In a Motia app, everything is a Step.
+
+## Why Steps?
+
+Modern backends are becoming increasingly fragmented. Developers juggle between:
+
+- Background jobs
+- Queues and schedulers
+- AI agents
+- APIs
+
+This leads to brittle systems stitched together with manual glue code.
+
+![old way is to juggle a bunch of different things together while the new way is simply using steps](./img/backend-is-a-network-of-steps.png)
+
+Motia introduces Steps as a unifying concept: every backend action, whether it's calling an API, reacting to an event, or invoking an AI (or LLM service), becomes a Step.
+
+## Anatomy of a Step
+Everything in a Motia app is a Step and each Step has two parts:
+
+1. Configuration: Describes how the step behaves
+2. Handler: Contains the logic that gets executed
+
+> Steps can be written in multiple languages (JS, TS, Python and more), even within the same workflow!
+
+<Tabs items={['TS', 'JS', 'Python']}>
+
+<Tab value="TS">
+
+```ts
+import { EventConfig, Handlers } from 'motia'
+
+export const config: EventConfig = {
+  type: 'event',              // This step is triggered by an event
+  name: 'MinimalStep',        // Unique name of the step
+  subscribes: ['start'],      // List of event topics this step listens to
+  emits: ['done'],            // List of event topics this step emits
+}
+
+export const handler: Handlers['MinimalStep'] = async (input, { emit, traceId, state, streams, logger }) => {
+  // input: the data from the triggering event (e.g., { userId: '123' })
+  // emit: allows you to trigger new events
+  // traceId: unique ID for this workflow execution (used for state isolation)
+  // state: allows sharing data across steps in the same workflow
+  // streams: real-time updates to send or updates to frontend
+  // logger: use for structured logging
+
+  await emit({ topic: 'done', data: {} })
+}
+```
+</Tab>
+<Tab value="JS">
+```js
+// Step config for an Event-based step
+exports.config = {
+  type: 'event',              // This step is triggered by an event
+  name: 'MinimalStep',        // Name of the step
+  subscribes: ['start'],      // This step subscribes to the 'start' event
+  emits: ['done'],            // It emits a 'done' event after execution
+}
+
+// Step handler logic
+exports.handler = async (input, { emit, traceId, state, streams, logger }) => {
+  // input: the data from the triggering event (e.g., { userId: '123' })
+  // emit: allows you to trigger new events
+  // traceId: unique ID for this workflow execution
+  // state: allows sharing data across steps in the same workflow
+  // streams: real-time updates to frontend
+  // logger: for structured logs
+
+  await emit({ topic: 'done', data: {} })
+}
+```
+</Tab>
+<Tab value="Python">
+```python
+# Minimal event-based step in Python
+
+config = {
+    "type": "event",
+    "name": "MinimalStep",
+    "subscribes": ["start"],
+    "emits": ["done"],
+}
+
+async def handler(input, ctx):
+    # input: the data from the triggering event (e.g., { "userId": "123" })
+    # ctx.emit: function to trigger events
+    # ctx.trace_id: unique ID for workflow run
+    # ctx.state: state manager for this trace
+    # ctx.streams: real-time stream output
+    # ctx.logger: structured logging
+
+await ctx.emit({ "topic": "done", "data": {} })
+```
+</Tab>
+</Tabs>
+
+### Step Configuration
+The `config` object is a blueprint of a step. It declares the step’s type (API, Event, or Cron), its name, and how it connects with other steps (Subscribes/Emits). 
+
+This includes what events it listens to (subscribes) and what events it triggers (emits). You export this configuration as `exports.config`, and Motia uses it to wire up your workflows correctly. 
+
+It’s language-agnostic and declarative, making it easy to reason about the structure of your system before diving into logic.
+
+### Step Handler
+The handler is where your step’s logic lives. Step handler is  an async function that runs every time the step is triggered, whether by an API call, an incoming event, or a scheduled task. The handler receives two arguments: 
+- the input data, and 
+- a context object (containing utilities like `emit`, `traceId`, `state`, `streams`, `logger`). 
+
+While the configuration defines and wires steps into a workflow, the handler is where you implement your actual business logic.
+
+When an event occurs that matches the step's [subscribed topics](#the-two-behaviours-of-a-step), the handler automatically runs with two key pieces of information:
+1. The input data from the triggering event
+2. A context object that provides powerful tools for workflow orchestration
+
+The `input` contains the data from the triggering event, while the context object provides essential workflow tools.
+
+#### Input data
+The input data is the first parameter passed to every handler, containing the payload from the triggering event or API request. How you extract input data depends on the [type of the step](/docs/types-of-step) you're using:
+| Step Type       | Input Source Description                                                  |
+|------------------|---------------------------------------------------------------------------|
+| **API Steps**     | Uses data from: <br/>– `body`: JSON from POST/PUT requests, or <br/>– `query`: URL query parameters, or <br/>– `URL params`: Dynamic URL segments (e.g. `id` from the URL`/user/:id`), or <br/>– `headers`: HTTP request headers |
+| **Event Steps**   | Input comes from the `data` field of the emitted event                  |
+| **Scheduled Steps** | Input is defined statically or dynamically by the schedule configuration |
+
+#### Context Object
+The context object is the second parameter containing all the utilities needed for workflow execution. It's your interface to Motia's runtime environment and has the following core properties:
+- `emit`: The event engine of Motia lets steps communicate with each other using [`emit` and `subscribe`](#the-two-behaviours-of-a-step). Use it to send processed data to other steps via topics or simply handoff processing to some other step. Events can be emitted to single or multiple subscriber steps.
+- `traceId`: A unique identifier (UUID) for the current workflow execution. Essential for data isolation, debugging, and tracking operations across multiple steps. Each workflow run gets its own `traceID` that remains constant throughout the entire execution.
+- `state`: The persistence layer for sharing data between steps. [State manager](/docs/state-mgt) provides scoped storage with get, set, delete, and clear operations. Supports different storage backends including memory, file, and Redis adapters.
+- `logger`: Motia provides a built-in [structured logging system with multiple log levels](/docs/logging#writing-logs-using-the-logger-object) (info, error, debug, warn). It automatically includes contextual metadata like timestamps, trace IDs, and source file information.
+- `streams`: [Streams provides real-time data streaming system](/docs/streams) for pushing live updates to frontend applications. It enables progressive UI updates for long-running operations like file uploads, AI communication, or data processing.
+
+Here's an example of how to define a handler in a few languages:
+
+<Tabs items={['TS', 'JS', 'Python']}>
+  <Tab value="TS">
+    ```typescript
+    import { EventConfig, Handlers } from 'motia'
+
+    export const config: EventConfig = {
+      type: 'event',
+      name: 'MinimalStep',
+      subscribes: ['start'],
+      emits: ['done'],
+    }
+
+    export const handler: Handlers['MinimalStep'] = async (input, { emit, traceId, state, streams, logger }) => {
+      await emit({ topic: 'done', data: {} })
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    exports.config = {
+      type: 'event',
+      name: 'Minimal Step',
+      subscribes: ['start'],
+      emits: ['done'],
+    }
+
+    exports.handler = async (input, { emit, traceId, state, logger }) => {
+      await emit({ topic: 'done', data: {} })
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    config = {
+        'type': 'event',
+        'name': 'Minimal Step',
+        'subscribes': ['start'],
+        'emits': ['done'],
+    }
+
+    async def handler(args, ctx):
+      await ctx.emit({'topic': 'done', 'data': {}})
+    ```
+  </Tab>
+</Tabs>
+
+## Common step configuration
+
+A step's configuration is defined through a `config` object that must be exported. This object contains essential properties that tell Motia how to interact with the step. Here's the common configuration of steps:
+
+<DescriptionTable
+  type={{
+    type: {
+      description: 'The step type: event, api, or cron',
+      type: 'string',
+    },
+    name: {
+      description: 'A unique identifier for the step, used in Motia Workbench visualization tool',
+      type: 'string',
+    },
+    subscribes: {
+      description: 'A list of topics this step listens to',
+      type: 'string[]',
+      default: []
+    },
+    emits: {
+      description: 'A list of topics this step can emit',
+      type: 'string[]',
+    },
+    flows: {
+      description: 'A list of flow identifiers that this step belongs to',
+      type: 'string[]',
+    },
+    description: {
+      description: 'Optional description for documentation and visualization',
+      type: 'string',
+    }
+  }}
+/>
+<Callout title="Steps" type="warning">
+  Note that in addition to common configuration, some steps have additional properties. Take a look at the respective <a href="/docs/types-of-step">type of step</a> to know the exact configuration of that step type.
+</Callout>
+
+## The two behaviours of a Step
+Each step has two behaviors: Subscription, and Emission:
+1. Subscribe: This behavior dictates the events to which a step listens to.  
+Example: `subscribes: ['user.registered', 'payment.success']`
+2. Emit: This behavior dictates to which step is the current one passing the baton to. A step can emit to zero/one/many step(s).  
+Example: `emits: ['send-welcome-email', 'trigger-invoice']`
+
+You can see the subscription and emission of each step from the Workbench as well.
+![You can see the subscription and emission of each step from the Workbench.](./img/steps-wb.png)
+> The Workbench also shows you which language the step was written in. Each step can be written a different language, even within the same workflow.
+
+![Chain steps together using the Emit/Subscribe pattern](./img/emit-subscribe.png)
+
+The beauty of this subscription/emission pattern is that it creates self-documenting workflows.  
+
+You can see exactly how data flows through your system just by looking at what each step subscribes to and emits. The Workbench visualizes these relationships in real-time, showing you the complete event flow and making it easy to understand how your steps interconnect.
+
+This approach transforms complex backend orchestration into simple, declarative relationships, where each step knows only what it needs to know, yet the entire system works together harmoniously.

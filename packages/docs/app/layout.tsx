@@ -31,7 +31,9 @@ const dmMono = DM_Mono({
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID ?? 'GTM-P6672CSW'
 
-const metaTitle = 'Motia - Unified Backend Framework for APIs, Events and AI Agents'
+
+const metaTitle = 'Motia: Unified Backend Framework for APIs, Events and AI Agents'
+
 const metaDescription =
   'Multi-language cloud functions runtime for API endpoints, background jobs, and agentic workflows using Motia Steps. Preview them in the Workbench, ship to zero-config infrastructure, and monitor in the Cloud.'
 

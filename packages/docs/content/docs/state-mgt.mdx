@@ -1,0 +1,160 @@
+---
+title: "State Management"
+description: "Learn how to manage state within your workflows for persistent data and cross-step communication."
+---
+
+Motia gives you a simple but powerful system for handling state across your flows. Whether you're passing data between steps or persisting temporary results, the built-in state manager helps you do it cleanly and effectively.
+
+State management enables you to store and share data across steps in your Motia workflows. 
+
+Think of it as a persistent memory that follows your workflow execution from start to finish.
+
+
+## States in your workflows
+Each workflow execution gets a unique `traceId` (UUID) that serves as its state namespace. This means:
+
+- Multiple workflows can run simultaneously without interfering with each other
+- Each workflow's state is completely isolated
+- State cleanup is simple and predictable
+
+```typescript
+// Workflow A (traceId: "abc-123")
+await state.set("abc-123", 'user', { name: 'Alice' });
+
+// Workflow B (traceId: "def-456") 
+await state.set("def-456", 'user', { name: 'Bob' });
+
+// These don't interfere with each other
+```
+
+## Using State in Steps
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab label="TypeScript">
+    ```typescript
+    import { Handlers } from 'motia'
+
+    interface BookingData {
+      customer: { name: string; email: string };
+      venue: { id: string; name: string };
+    }
+
+    export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
+      // Store state (using traceId as scope)
+      await state.set<BookingData>(traceId, 'booking', {
+        customer: input.customer,
+        venue: input.venue,
+      });
+
+      // Retrieve state (using traceId as scope)
+      const booking = await state.get<BookingData>(traceId, 'booking');
+
+      // Delete specific state (using traceId as scope)
+      await state.delete(traceId, 'booking');
+
+      // Clear all state for this flow (using traceId as scope)
+      await state.clear(traceId);
+    }
+    ```
+
+  </Tab>
+
+  <Tab label="JavaScript">
+    ```javascript
+    import { Handlers } from 'motia'
+
+    export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
+      // Store state (using traceId as scope)
+      await state.set(traceId, 'booking', {
+        customer: input.customer,
+        venue: input.venue,
+      });
+
+      // Retrieve state (using traceId as scope)
+      const booking = await state.get(traceId, 'booking');
+
+      // Delete specific state (using traceId as scope)
+      await state.delete(traceId, 'booking');
+
+      // Clear all state for this flow (using traceId as scope)
+      await state.clear(traceId);
+    }
+    ```
+
+  </Tab>
+
+  <Tab label="Python">
+    ```python
+    async def handler(input, ctx): # ctx is the context object
+        trace_id = ctx.trace_id # Access traceId from context
+
+        # Store state (using traceId as scope)
+        await ctx.state.set(trace_id, 'booking', {
+            'customer': input.get("customer"),
+            'venue': input.get("venue")
+        })
+
+        # Retrieve state (using traceId as scope)
+        booking = await ctx.state.get(trace_id, 'booking')
+
+        # Delete specific state (using traceId as scope)
+        await ctx.state.delete(trace_id, 'booking')
+
+        # Clear all state (using traceId as scope)
+        await ctx.state.clear(trace_id)
+    ```
+  </Tab>
+</Tabs>
+
+<Callout type="info" title="Scope parameter in state manager">
+You can access the state manager within any step through the `ctx` (context) argument, which is automatically injected into your step handler. 
+
+While `traceId` from `ctx.traceId` is the recommended scope for flow isolation, remember that you can use any string as the scope parameter in state methods for more advanced state management scenarios.
+</Callout>
+
+## State Methods
+
+| Method    | Parameters                             | Return Type          | Description                                                                                                                                                                                   |
+| --------- | -------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get`     | `scope: string, key: string`           | `Promise<T \| null>` | Retrieves a value associated with the given `key` and `scope` from the state store. Returns `null` if the key is not found. The type `T` is inferred based on how you use the returned value. |
+| `set`     | `scope: string, key: string, value: T` | `Promise<void>`      | Stores a `value` associated with the given `key` and `scope` in the state store. The type `T` can be any serializable JavaScript/JSON value.                                                  |
+| `delete`  | `scope: string, key: string`           | `Promise<void>`      | Removes the key-value pair associated with the given `key` and `scope` from the state store.                                                                                                  |
+| `clear`   | `scope: string`                        | `Promise<void>`      | Removes **all** state data associated with the provided `scope`. This is useful for cleaning up state for a specific scope.                                                                   |
+| `cleanup` | _(None)_                               | `Promise<void>`      | Performs periodic maintenance tasks, such as removing expired state data (TTL cleanup).  |
+
+
+<Callout title="State Scope Required" type="info">
+  State manager methods (`get`, `set`, `delete`, `clear`) require a **scope string** as the first parameter.  
+
+  In most cases, you'll use the `traceId`, automatically available as `ctx.traceId`, to ensure **flow-level isolation**.  
+  However, you can technically use **any string value** as the scope to group and manage state data across flows or contexts.  
+
+  **Tip:** Using `traceId` is the recommended and most common practice for isolating state per flow execution.
+
+  Each flow execution in Motia.dev is assigned a unique `traceId` (a UUID). Using this `traceId` as the scope for state management provides automatic isolation
+</Callout>
+
+
+
+    > State is only available during runtime in the Node.js process memory. You cannot inspect memory state directly outside of a running step execution. Use logging within your steps to output state values for debugging purposes.
+  
+<Callout type="warn" title="State Manager best practices">
+Don't forget to checkout the [best practices](/docs/happy-practices#best-practices-of-using-state-manager) of using State Manger when writing Motia apps.
+</Callout>
+
+## Next Steps
+Now that we’ve seen how to use the state manager to store and retrieve data across steps, it’s time to take our workflows further.
+
+Whether you’re preparing your flows for production or just want to improve how you test and debug your stateful logic, these resources will help:
+<Cards>
+  <Card
+    title="🚀 Deployments"
+    description="Learn how to deploy your Motia flows reliably across environments using the CLI."
+    href="/docs/deployment"
+  />
+  <Card
+    title="✅ State Best Practices"
+    description="Discover best practices to get the most out of the state manager in Motia."
+    href="/docs/happy-practices#best-practices-of-using-state-manager"
+  />
+</Cards>
