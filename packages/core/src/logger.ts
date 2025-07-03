@@ -26,8 +26,8 @@ export class Logger {
     private readonly coreListeners: LogListener[] = [],
   ) {}
 
-  child(step: Step): Logger {
-    return new Logger(this.isVerbose, { ...this.meta, step: step.config.name }, this.coreListeners)
+  child(meta: Record<string, unknown>): Logger {
+    return new Logger(this.isVerbose, { ...this.meta, ...meta }, this.coreListeners)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

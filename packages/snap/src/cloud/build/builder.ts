@@ -1,5 +1,5 @@
 import path from 'path'
-import { Step, StepConfig } from '@motiadev/core'
+import { ApiRouteConfig, ApiRouteHandler, Step, StepConfig } from '@motiadev/core'
 import { BuildPrinter } from './printer'
 import { Stream } from '@motiadev/core/dist/src/types-stream'
 
@@ -23,6 +23,7 @@ export type StepsConfigFile = { steps: BuildStepsConfig; streams: BuildStreamsCo
 
 export interface StepBuilder {
   build(step: Step): Promise<void>
+  buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<number>
 }
 
 export class Builder {
@@ -76,6 +77,24 @@ export class Builder {
     } catch (err) {
       this.printer.printStepFailed(step, err as Error)
       throw err
+    }
+  }
+
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<void> {
+    const nodeSteps = steps.filter((step) => this.determineStepType(step) === 'node')
+    const pythonSteps = steps.filter((step) => this.determineStepType(step) === 'python')
+    const nodeBuilder = this.builders.get('node')
+    const pythonBuilder = this.builders.get('python')
+
+    if (nodeSteps.length > 0 && nodeBuilder) {
+      this.printer.printApiRouterBuilding('node')
+      const size = await nodeBuilder.buildApiSteps(nodeSteps)
+      this.printer.printApiRouterBuilt('node', size)
+    }
+    if (pythonSteps.length > 0 && pythonBuilder) {
+      this.printer.printApiRouterBuilding('python')
+      const size = await pythonBuilder.buildApiSteps(pythonSteps)
+      this.printer.printApiRouterBuilt('python', size)
     }
   }
 

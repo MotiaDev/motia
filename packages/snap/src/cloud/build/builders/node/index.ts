@@ -3,7 +3,7 @@ import path from 'path'
 import * as esbuild from 'esbuild'
 import archiver from 'archiver'
 import colors from 'colors'
-import { Step } from '@motiadev/core'
+import { ApiRouteConfig, Step } from '@motiadev/core'
 import { Builder, StepBuilder } from '../../builder'
 import { includeStaticFiles } from './include-static-files'
 
@@ -26,6 +26,62 @@ export class NodeBuilder implements StepBuilder {
     }
 
     return null
+  }
+
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<number> {
+    const relativePath = path.relative(this.builder.distDir, this.builder.projectDir)
+    const getStepPath = (step: Step<ApiRouteConfig>) => {
+      return step.filePath.replace(this.builder.projectDir, relativePath).replace(/(.*)\.(ts|js)$/, '$1.js')
+    }
+
+    const file = fs
+      .readFileSync(path.join(__dirname, 'router.ts'), 'utf-8')
+      .replace(
+        '// {{imports}}',
+        steps.map((step, index) => `import * as route${index} from '${getStepPath(step)}'`).join('\n'),
+      )
+      .replace(
+        '// {{routes}}',
+        steps
+          .map((step, index) => {
+            const method = step.config.method.toLowerCase()
+            return `app.${method}('${step.config.path}', router(route${index}.handler, createContext(context, '${step.config.name}')))`
+          })
+          .join('\n  '),
+      )
+
+    const tsRouter = path.join(this.builder.distDir, 'router.ts')
+    fs.writeFileSync(tsRouter, file)
+
+    const userConfig = await this.loadEsbuildConfig()
+    const defaultConfig: esbuild.BuildOptions = {
+      entryPoints: [tsRouter],
+      bundle: true,
+      sourcemap: true,
+      outfile: path.join(this.builder.distDir, 'router.js'),
+      platform: 'node',
+    }
+
+    await esbuild.build(userConfig ? { ...defaultConfig, ...userConfig } : defaultConfig)
+
+    const size = await new Promise<number>((resolve, reject) => {
+      const archive = archiver('zip', { zlib: { level: 0 } })
+      const writeStream = fs.createWriteStream(path.join(this.builder.distDir, 'router-node.zip'))
+
+      const routerJs = path.join(this.builder.distDir, 'router.js')
+      const routerMap = path.join(this.builder.distDir, 'router.js.map')
+
+      archive.pipe(writeStream)
+      archive.append(fs.createReadStream(routerJs), { name: 'router.js' })
+      archive.append(fs.createReadStream(routerMap), { name: 'router.js.map' })
+      includeStaticFiles(steps, this.builder, archive)
+      archive.finalize()
+
+      writeStream.on('close', () => resolve(archive.pointer()))
+      archive.on('error', (err) => reject(err))
+    })
+
+    return size
   }
 
   async build(step: Step): Promise<void> {
@@ -58,7 +114,7 @@ export class NodeBuilder implements StepBuilder {
         archive.pipe(writeStream)
         archive.append(fs.createReadStream(outputJsFile), { name: entrypointPath })
         archive.append(fs.createReadStream(outputMapFile), { name: entrypointMapPath })
-        includeStaticFiles(step, this.builder, archive)
+        includeStaticFiles([step], this.builder, archive)
         archive.finalize()
 
         writeStream.on('close', () => {
