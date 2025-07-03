@@ -63,78 +63,81 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab label="TypeScript">
-    ```typescript
-    import { Handlers } from 'motia'
+    
+  ```typescript
+  import { Handlers } from 'motia'
 
-    interface BookingData {
-      customer: { name: string; email: string };
-      venue: { id: string; name: string };
-    }
+  interface BookingData {
+    customer: { name: string; email: string };
+    venue: { id: string; name: string };
+  }
 
-    export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
-      // Store state (using traceId as scope)
-      await state.set<BookingData>(traceId, 'booking', {
-        customer: input.customer,
-        venue: input.venue,
-      });
+  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
+    // Store state (using traceId as scope)
+    await state.set<BookingData>(traceId, 'booking', {
+      customer: input.customer,
+      venue: input.venue,
+    });
 
-      // Retrieve state (using traceId as scope)
-      const booking = await state.get<BookingData>(traceId, 'booking');
+    // Retrieve state (using traceId as scope)
+    const booking = await state.get<BookingData>(traceId, 'booking');
 
-      // Delete specific state (using traceId as scope)
-      await state.delete(traceId, 'booking');
+    // Delete specific state (using traceId as scope)
+    await state.delete(traceId, 'booking');
 
-      // Clear all state for this flow (using traceId as scope)
-      await state.clear(traceId);
-    }
-    ```
+    // Clear all state for this flow (using traceId as scope)
+    await state.clear(traceId);
+  }
+  ```
 
   </Tab>
 
   <Tab label="JavaScript">
-    ```javascript
-    import { Handlers } from 'motia'
+    
+  ```javascript
+  import { Handlers } from 'motia'
 
-    export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
-      // Store state (using traceId as scope)
-      await state.set(traceId, 'booking', {
-        customer: input.customer,
-        venue: input.venue,
-      });
+  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
+    // Store state (using traceId as scope)
+    await state.set(traceId, 'booking', {
+      customer: input.customer,
+      venue: input.venue,
+    });
 
-      // Retrieve state (using traceId as scope)
-      const booking = await state.get(traceId, 'booking');
+    // Retrieve state (using traceId as scope)
+    const booking = await state.get(traceId, 'booking');
 
-      // Delete specific state (using traceId as scope)
-      await state.delete(traceId, 'booking');
+    // Delete specific state (using traceId as scope)
+    await state.delete(traceId, 'booking');
 
-      // Clear all state for this flow (using traceId as scope)
-      await state.clear(traceId);
-    }
-    ```
+    // Clear all state for this flow (using traceId as scope)
+    await state.clear(traceId);
+  }
+  ```
 
   </Tab>
 
   <Tab label="Python">
-    ```python
-    async def handler(input, ctx): # ctx is the context object
-        trace_id = ctx.trace_id # Access traceId from context
+  
+  ```python
+  async def handler(input, ctx): # ctx is the context object
+      trace_id = ctx.trace_id # Access traceId from context
 
-        # Store state (using traceId as scope)
-        await ctx.state.set(trace_id, 'booking', {
-            'customer': input.get("customer"),
-            'venue': input.get("venue")
-        })
+      # Store state (using traceId as scope)
+      await ctx.state.set(trace_id, 'booking', {
+          'customer': input.get("customer"),
+          'venue': input.get("venue")
+      })
 
-        # Retrieve state (using traceId as scope)
-        booking = await ctx.state.get(trace_id, 'booking')
+      # Retrieve state (using traceId as scope)
+      booking = await ctx.state.get(trace_id, 'booking')
 
-        # Delete specific state (using traceId as scope)
-        await ctx.state.delete(trace_id, 'booking')
+      # Delete specific state (using traceId as scope)
+      await ctx.state.delete(trace_id, 'booking')
 
-        # Clear all state (using traceId as scope)
-        await ctx.state.clear(trace_id)
-    ```
+      # Clear all state (using traceId as scope)
+      await ctx.state.clear(trace_id)
+  ```
   </Tab>
 </Tabs>
 
@@ -144,30 +147,32 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
 
 <Tabs items={['Memory', 'File', 'Redis']}>
   <Tab label="Memory">
-    > State is only available during runtime in the Node.js process memory. You cannot inspect memory state directly outside of a running step execution. Use logging within your steps to output state values for debugging purposes.
+  > State is only available during runtime in the Node.js process memory. You cannot inspect memory state directly outside of a running step execution. Use logging within your steps to output state values for debugging purposes.
   </Tab>
   <Tab label="File">
-    To inspect state stored in the **File Adapter**, you can directly view the contents of the state file using the Motia CLI:
+  
+  To inspect state stored in the **File Adapter**, you can directly view the contents of the state file using the Motia CLI:
 
-    ```bash
-    # View state file contents
-    motia state list
-    ```
+  ```bash
+  # View state file contents
+  motia state list
+  ```
 
-    This command will output the entire state file (motia.state.json) content in JSON format to your console, allowing you to examine the stored state data.
+  This command will output the entire state file (motia.state.json) content in JSON format to your console, allowing you to examine the stored state data.
 
   </Tab>
   <Tab label="Redis">
-    To inspect state stored in **Redis Adapter**, you can use the `redis-cli` command-line tool to interact with your Redis server:
+  
+  To inspect state stored in **Redis Adapter**, you can use the `redis-cli` command-line tool to interact with your Redis server:
 
-    ```bash
-    # List all state keys (under the motia:state prefix)
-    redis-cli KEYS "motia:state:*"
+  ```bash
+  # List all state keys (under the motia:state prefix)
+  redis-cli KEYS "motia:state:*"
 
-    # Get specific state for a given traceId and key
-    redis-cli GET "motia:state:{traceId}:booking"
-    ```
-    **Note:** Replace `{traceId}` in the `redis-cli GET` command with the actual `traceId` of the flow execution you are debugging. Replace `booking` with the specific `key` you want to inspect.
+  # Get specific state for a given traceId and key
+  redis-cli GET "motia:state:{traceId}:booking"
+  ```
+  **Note:** Replace `{traceId}` in the `redis-cli GET` command with the actual `traceId` of the flow execution you are debugging. Replace `booking` with the specific `key` you want to inspect.
 
   </Tab>
 </Tabs>
@@ -180,47 +185,50 @@ Use dot notation to organize related state data hierarchically:
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab label="TypeScript">
-    ```typescript
-    // Good - Organized hierarchically (using traceId scope)
-    await state.set(traceId, 'booking.customer', customerData)
-    await state.set(traceId, 'booking.venue', venueData)
-    await state.set(traceId, 'payment.status', 'pending')
+    
+  ```typescript
+  // Good - Organized hierarchically (using traceId scope)
+  await state.set(traceId, 'booking.customer', customerData)
+  await state.set(traceId, 'booking.venue', venueData)
+  await state.set(traceId, 'payment.status', 'pending')
 
-    // Avoid - Flat structure (using traceId scope)
-    await state.set(traceId, 'customer', customerData)
-    await state.set(traceId, 'venue', venueData)
-    await state.set(traceId, 'paymentStatus', 'pending')
-    ```
+  // Avoid - Flat structure (using traceId scope)
+  await state.set(traceId, 'customer', customerData)
+  await state.set(traceId, 'venue', venueData)
+  await state.set(traceId, 'paymentStatus', 'pending')
+  ```
 
   </Tab>
 
   <Tab label="JavaScript">
-    ```javascript
-    // Good - Organized hierarchically (using traceId scope)
-    await state.set(traceId, 'booking.customer', customerData)
-    await state.set(traceId, 'booking.venue', venueData)
-    await state.set(traceId, 'payment.status', 'pending')
+    
+  ```javascript
+  // Good - Organized hierarchically (using traceId scope)
+  await state.set(traceId, 'booking.customer', customerData)
+  await state.set(traceId, 'booking.venue', venueData)
+  await state.set(traceId, 'payment.status', 'pending')
 
-    // Avoid - Flat structure (using traceId scope)
-    await state.set(traceId, 'customer', customerData)
-    await state.set(traceId, 'venue', venueData)
-    await state.set(traceId, 'paymentStatus', 'pending')
-    ```
+  // Avoid - Flat structure (using traceId scope)
+  await state.set(traceId, 'customer', customerData)
+  await state.set(traceId, 'venue', venueData)
+  await state.set(traceId, 'paymentStatus', 'pending')
+  ```
 
   </Tab>
 
   <Tab label="Python">
-    ```python
-    # Good - Organized hierarchically (using traceId scope)
-    await ctx.state.set(trace_id, 'booking.customer', customer_data)
-    await ctx.state.set(trace_id, 'booking.venue', venue_data)
-    await ctx.state.set(trace_id, 'payment.status', 'pending')
+    
+  ```python
+  # Good - Organized hierarchically (using traceId scope)
+  await ctx.state.set(trace_id, 'booking.customer', customer_data)
+  await ctx.state.set(trace_id, 'booking.venue', venue_data)
+  await ctx.state.set(trace_id, 'payment.status', 'pending')
 
-    // Avoid - Flat structure (using traceId scope)
-    await ctx.state.set(trace_id, 'customer', customer_data)
-    await ctx.state.set(trace_id, 'venue', venue_data)
-    await ctx.state.set(trace_id, 'payment_status', 'pending')
-    ```
+  // Avoid - Flat structure (using traceId scope)
+  await ctx.state.set(trace_id, 'customer', customer_data)
+  await ctx.state.set(trace_id, 'venue', venue_data)
+  await ctx.state.set(trace_id, 'payment_status', 'pending')
+  ```
 
   </Tab>
 </Tabs>
@@ -231,57 +239,62 @@ Define types for your state data to ensure consistency:
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab label="TypeScript">
-    ```typescript
-    interface CustomerData {
-      name: string;
-      email: string;
-    }
+    
+  ```typescript
+  interface CustomerData {
+    name: string;
+    email: string;
+  }
 
-    interface VenueData {
-      id: string;
-      capacity: number;
-    }
+  interface VenueData {
+    id: string;
+    capacity: number;
+  }
 
-    type BookingState = {
-      customer: CustomerData;
-      venue: VenueData;
-      status: 'pending' | 'confirmed';
-    }
+  type BookingState = {
+    customer: CustomerData;
+    venue: VenueData;
+    status: 'pending' | 'confirmed';
+  }
 
-    const booking = await state.get<BookingState>(traceId, 'booking')
-    ```
+  const booking = await state.get<BookingState>(traceId, 'booking')
+  ```
 
   </Tab>
 
 {' '}
-<Tab label="JavaScript">
-  ```javascript // Define types or interfaces as needed for documentation clarity (optional in JS) const booking = await
-  state.get(traceId, 'booking') // No type casting in JS example ```
-</Tab>
+  <Tab label="JavaScript">
+  
+  ```javascript 
+  // Define types or interfaces as needed for documentation clarity (optional in JS) const booking = await
+  state.get(traceId, 'booking') // No type casting in JS example 
+  ```
+  </Tab>
 
   <Tab label="Python">
-    ```python
-    from dataclasses import dataclass
-    from typing import Literal
+    
+  ```python
+  from dataclasses import dataclass
+  from typing import Literal
 
-    @dataclass
-    class CustomerData:
-        name: str
-        email: str
+  @dataclass
+  class CustomerData:
+      name: str
+      email: str
 
-    @dataclass
-    class VenueData:
-        id: str
-        capacity: int
+  @dataclass
+  class VenueData:
+      id: str
+      capacity: int
 
-    @dataclass
-    class BookingState:
-        customer: CustomerData
-        venue: VenueData
-        status: Literal['pending', 'confirmed']
+  @dataclass
+  class BookingState:
+      customer: CustomerData
+      venue: VenueData
+      status: Literal['pending', 'confirmed']
 
-    booking = await state.get(traceId, 'booking')
-    ```
+  booking = await state.get(traceId, 'booking')
+  ```
 
   </Tab>
 </Tabs>
@@ -291,53 +304,56 @@ Define types for your state data to ensure consistency:
 Always clean up state when you're done with it:
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
-    <Tab label="TypeScript">
-      ```typescript
-      export const handler: Handlers['StepName'] = async (input, { state, traceId }) => {
-        try {
-          await processBooking(input)
-          // Clean up specific keys
-          await state.delete(traceId, 'booking.customer')
-          // Or clean everything
-          await state.clear(traceId)
-        } catch (error) {
-          // Handle errors
-        }
-      }
-      ```
-    </Tab>
+  <Tab label="TypeScript">
+      
+  ```typescript
+  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => {
+    try {
+      await processBooking(input)
+      // Clean up specific keys
+      await state.delete(traceId, 'booking.customer')
+      // Or clean everything
+      await state.clear(traceId)
+    } catch (error) {
+      // Handle errors
+    }
+  }
+  ```
+  </Tab>
 
-    <Tab label="JavaScript">
-      ```javascript
-      export const handler = async (input, { state, traceId }) => {
-        try {
-          await processBooking(input)
-          // Clean up specific keys
-          await state.delete(traceId, 'booking.customer')
-          // Or clean everything
-          await state.clear(traceId)
-        } catch (error) {
-          // Handle errors
-        }
-      }
-      ```
-    </Tab>
+  <Tab label="JavaScript">
+    
+  ```javascript
+  export const handler = async (input, { state, traceId }) => {
+    try {
+      await processBooking(input)
+      // Clean up specific keys
+      await state.delete(traceId, 'booking.customer')
+      // Or clean everything
+      await state.clear(traceId)
+    } catch (error) {
+      // Handle errors
+    }
+  }
+  ```
+  </Tab>
 
-    <Tab label="Python">
-      ```python
-      async def handler(input, ctx):
-          trace_id = ctx.trace_id
-          try:
-              await process_booking(input)
-              # Clean up specific keys
-              await ctx.state.delete(trace_id, 'booking.customer')
-              # Or clean everything
-              await ctx.state.clear(trace_id)
-          except Exception as error:
-              # Handle errors
-              pass
-      ```
-    </Tab>
+  <Tab label="Python">
+    
+  ```python
+  async def handler(input, ctx):
+      trace_id = ctx.trace_id
+      try:
+          await process_booking(input)
+          # Clean up specific keys
+          await ctx.state.delete(trace_id, 'booking.customer')
+          # Or clean everything
+          await ctx.state.clear(trace_id)
+      except Exception as error:
+          # Handle errors
+          pass
+  ```
+  </Tab>
 </Tabs>
 
 ### Performance Considerations
