@@ -11,6 +11,7 @@ on:
       - 'v*'
     paths-ignore:
       - 'docs/**'
+      - 'rfc/**'
       - 'packages/docs/**'
 
 jobs:
