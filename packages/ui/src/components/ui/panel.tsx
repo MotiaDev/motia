@@ -21,9 +21,10 @@ export interface PanelProps {
   actions?: PanelAction[]
   className?: string
   children?: ReactNode
+  size?: 'sm' | 'md'
 }
 
-export const Panel: FC<PanelProps> = ({ title, subtitle, details, actions, className, children }) => {
+export const Panel: FC<PanelProps> = ({ title, subtitle, details, actions, className, children, size }) => {
   return (
     <div
       className={cn(
@@ -36,9 +37,14 @@ export const Panel: FC<PanelProps> = ({ title, subtitle, details, actions, class
     >
       <div className="flex flex-col size-full">
         <div className="relative shrink-0 w-full border-b border-border bg-card">
-          <div className="flex flex-col gap-1 px-5 py-4">
+          <div className={cn('flex flex-col gap-1', size === 'sm' ? 'px-4 py-3' : 'px-5 py-4')}>
             <div className="flex items-center w-full">
-              <div className="text-base font-semibold text-foreground tracking-[-0.25px] leading-tight flex-1">
+              <div
+                className={cn(
+                  'font-semibold text-foreground tracking-[-0.25px] leading-tight flex-1',
+                  size === 'sm' ? 'text-xs' : 'text-base',
+                )}
+              >
                 {title}
               </div>
               {actions && actions.length > 0 && (

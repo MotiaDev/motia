@@ -1,23 +1,8 @@
-import { cva } from 'class-variance-authority'
+import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import { EndpointBadge } from './endpoint-badge'
 import { EndpointCall } from './endpoint-call'
 import { ApiEndpoint, useGetEndpoints } from './hooks/use-get-endpoints'
-
-const endpointVariants = cva('flex flex-col gap-2 font-mono p-2 rounded-lg cursor-pointer', {
-  variants: {
-    method: {
-      GET: 'bg-lime-500/20',
-      POST: 'bg-blue-500/20',
-      PUT: 'bg-yellow-500/20',
-      DELETE: 'bg-red-500/20',
-      PATCH: 'bg-yellow-500/20',
-      HEAD: 'bg-blue-500/20',
-      OPTIONS: 'bg-purple-500/20',
-    },
-  },
-  defaultVariants: { method: 'GET' },
-})
 
 export const Endpoints = () => {
   const endpoints = useGetEndpoints()
@@ -37,24 +22,19 @@ export const Endpoints = () => {
 
   return (
     <div className="flex flex-row w-full h-full">
-      <div className="flex flex-col gap-2 flex-1 m-4 mr-2 overflow-y-auto">
-        <header>
-          <h1 className="text-2xl font-bold">API Endpoints</h1>
-          <span className="text-sm text-zinc-400">Check all API endpoints</span>
-        </header>
+      <div className="flex flex-col flex-1 overflow-y-auto">
         {endpoints.map((endpoint) => (
           <div
             data-testid={`endpoint-${endpoint.method}-${endpoint.path}`}
             key={`${endpoint.method} ${endpoint.path}`}
-            className={endpointVariants({ method: endpoint.method })}
+            className={cn(selectedEndpoint === endpoint && 'bg-muted-foreground/10')}
             onClick={() => setSelectedEndpoint(endpoint)}
           >
-            <div className="flex flex-row gap-2 items-center">
+            <div className="flex flex-row gap-2 items-center hover:bg-muted-foreground/10 p-2">
               <EndpointBadge variant={endpoint.method as never}>{endpoint.method.toUpperCase()}</EndpointBadge>
-              <span className="text-md font-bold">{endpoint.path}</span>
-              {!selectedEndpoint && <span className="text-xs text-muted-foreground">{endpoint.description}</span>}
+              <span className="text-md font-mono font-bold">{endpoint.path}</span>
+              <span className="text-md text-muted-foreground">{endpoint.description}</span>
             </div>
-            {selectedEndpoint && <span className="text-xs text-muted-foreground">{endpoint.description}</span>}
           </div>
         ))}
       </div>

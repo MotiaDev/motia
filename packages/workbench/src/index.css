@@ -21,8 +21,6 @@
 .font-mono {
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 14px;
-  line-height: 1.5;
-  font-weight: 500;
 }
 
 .edge-animated {

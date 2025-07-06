@@ -49,7 +49,7 @@ export const EndpointResponse: FC<EndpointResponseProps> = ({
       title={
         <div className="flex flex-row justify-between items-center flex-1">
           <div className="flex items-center gap-2">
-            {isError && <XCircle className="text-red-500" />}
+            {isError && <XCircle className="text-red-500 w-4 h-4" />}
             <span className="font-bold text-xs">
               {responseCode} - {statusMessage}
             </span>

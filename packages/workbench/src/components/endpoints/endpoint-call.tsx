@@ -1,7 +1,6 @@
 import { FC, useEffect, useMemo, useState } from 'react'
 import { Loader2, Play, X } from 'lucide-react'
 import { Button } from '../ui/button'
-import { Input } from '../ui/input'
 import { EndpointBadge } from './endpoint-badge'
 import { ApiEndpoint } from './hooks/use-get-endpoints'
 import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json'
@@ -11,6 +10,7 @@ import { Sidebar } from '@/components/sidebar/sidebar'
 import { JsonEditor } from './json-editor'
 import { EndpointResponse } from './endpoint-response'
 import { EndpointResponseSchema } from './endpoint-response-schema'
+import { Input, Panel } from '@motiadev/ui'
 
 type Props = { endpoint: ApiEndpoint; onClose: () => void }
 
@@ -93,7 +93,6 @@ export const EndpointCall: FC<Props> = ({ endpoint, onClose }) => {
           <span className="text-md font-bold">{endpoint.path}</span>
         </div>
       }
-      subtitle={<span className="text-xs text-muted-foreground">{endpoint.description}</span>}
       onClose={onClose}
       actions={[
         {
@@ -102,42 +101,48 @@ export const EndpointCall: FC<Props> = ({ endpoint, onClose }) => {
         },
       ]}
     >
+      <div className="rounded-lg border p-4 text-muted-foreground">{endpoint.description}</div>
       {!!pathParams.length && (
-        <div className="flex flex-col gap-2 p-4 rounded-lg bg-card">
-          <span className="text-xs font-bold">Path Params</span>
-          <div className="flex flex-col gap-4">
+        <Panel title="Path params" size="sm">
+          <table>
             {pathParams.map((param) => (
-              <div className="text-xs" key={param}>
-                <div className="font-bold mb-2">{param}</div>
-                <Input
-                  className="w-full"
-                  value={pathParamsValues[param]}
-                  onChange={(e) => onPathParamChange(param, e.target.value)}
-                />
-              </div>
+              <tr key={param}>
+                <td className="flex flex-col font-bold leading-[36px]">{param}</td>
+                <td className="w-2/3 pl-4">
+                  <Input
+                    className="w-full"
+                    value={pathParamsValues[param]}
+                    onChange={(e) => onPathParamChange(param, e.target.value)}
+                  />
+                </td>
+              </tr>
             ))}
-          </div>
-        </div>
+          </table>
+        </Panel>
       )}
       {!!endpoint.queryParams?.length && (
-        <div className="flex flex-col gap-2 p-4 rounded-lg bg-card">
-          <span className="text-xs font-bold">Query Params</span>
-          <div className="flex flex-col gap-4">
+        <Panel title="Query params" size="sm">
+          <table>
             {endpoint.queryParams.map((param) => (
-              <div className="text-xs" key={param.name}>
-                <div className="font-bold mb-2">{param.name}</div>
-                <Input
-                  className="w-full"
-                  value={queryParamsValues[param.name]}
-                  onChange={(e) => onQueryParamChange(param.name, e.target.value)}
-                />
-              </div>
+              <tr key={param.name}>
+                <td className="flex flex-col">
+                  <span className="font-bold">{param.name}</span>
+                  <span className="text-md text-muted-foreground">{param.description}</span>
+                </td>
+                <td className="w-2/3 pl-4">
+                  <Input
+                    className="w-full"
+                    value={queryParamsValues[param.name]}
+                    onChange={(e) => onQueryParamChange(param.name, e.target.value)}
+                  />
+                </td>
+              </tr>
             ))}
-          </div>
-        </div>
+          </table>
+        </Panel>
       )}
       {shouldHaveBody && (
-        <div className="flex flex-col rounded-lg mt-6 border">
+        <div className="flex flex-col rounded-lg border">
           <div className="grid grid-cols-2 items-center px-4 py-2 border-b gap-y-2 bg-card min-h-[40px]">
             <span className="text-xs font-bold">Body</span>
           </div>
