@@ -3,7 +3,7 @@ import { cn } from '@motiadev/ui'
 import { useMemo } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { StateItem, useGetStateItems } from './hooks/states-hooks'
-import { StateDetail } from './state-detail'
+import { StateSidebar } from './state-sidebar'
 
 export const StatesPage = () => {
   const selectedStateId = useGlobalStore((state) => state.selectedStateId)
@@ -19,7 +19,7 @@ export const StatesPage = () => {
 
   return (
     <div className="flex flex-row gap-4 h-full">
-      {selectedItem && <StateDetail state={selectedItem} onClose={onClose} />}
+      {selectedItem && <StateSidebar state={selectedItem} onClose={onClose} />}
 
       <Table>
         <TableHeader className="sticky top-0 bg-background">

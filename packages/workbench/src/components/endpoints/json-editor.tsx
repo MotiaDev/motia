@@ -4,7 +4,7 @@ import { useThemeStore } from '@/stores/use-theme-store'
 
 type JsonEditorProps = {
   value: string
-  schema: Record<string, unknown> | undefined
+  schema?: Record<string, unknown>
   onChange: (value: string) => void
   onValidate?: (isValid: boolean) => void
 }
@@ -15,17 +15,19 @@ export const JsonEditor: FC<JsonEditorProps> = ({ value, schema, onChange, onVal
   const editorTheme = useMemo(() => (theme === 'dark' ? 'vs-dark' : 'light'), [theme])
 
   useEffect(() => {
-    if (!monaco || !schema) return
+    if (!monaco) return
 
     monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
       validate: true,
-      schemas: [
-        {
-          uri: window.location.href,
-          fileMatch: ['*'],
-          schema,
-        },
-      ],
+      schemas: schema
+        ? [
+            {
+              uri: window.location.href,
+              fileMatch: ['*'],
+              schema,
+            },
+          ]
+        : [],
     })
   }, [monaco, schema])
 

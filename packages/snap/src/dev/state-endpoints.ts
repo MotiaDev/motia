@@ -15,4 +15,15 @@ export const stateEndpoints = (server: MotiaServer, stateAdapter: StateAdapter) 
       res.status(500).json({ error: error.message })
     }
   })
+
+  app.post('/motia/state', async (req, res) => {
+    try {
+      const { key, groupId, value } = req.body
+      await stateAdapter.set(groupId, key, value)
+      res.json({ key, groupId, value })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  })
 }
