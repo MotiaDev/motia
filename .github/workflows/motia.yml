@@ -9,6 +9,7 @@ on:
       - main
     paths-ignore:
       - 'docs/**'
+      - 'contributors/**'
       - 'packages/docs/**'
   push:
     branches:
