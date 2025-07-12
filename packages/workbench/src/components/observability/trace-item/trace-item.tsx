@@ -12,7 +12,7 @@ type Props = {
 export const TraceItem: React.FC<Props> = ({ trace, group, groupEndTime, onExpand }) => {
   return (
     <div className="flex hover:bg-muted-foreground/10 relative cursor-pointer" onClick={() => onExpand(trace.id)}>
-      <div className="flex items-center min-w-[200px] max-w-[200px] h-[32px] max-h-[32px] py-4 px-2 text-sm font-semibold text-foreground truncate sticky left-0 dark:bg-[#121212] bg-[#f1f1f1] z-9">
+      <div className="flex items-center min-w-[200px] max-w-[200px] h-[32px] max-h-[32px] py-4 px-2 text-sm font-semibold text-foreground truncate sticky left-0 bg-card z-9">
         {trace.name}
       </div>
       <div className="flex w-full flex-row items-center hover:bg-muted/50 rounded-md">
