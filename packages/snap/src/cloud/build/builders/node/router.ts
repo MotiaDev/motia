@@ -17,7 +17,7 @@ const createApiStepHandler = (handler: ApiRouteHandler, config: ApiRouteConfig) 
   }
 }
 
-export const router = (handler: ApiRouteHandler, config: ApiRouteConfig, context: FlowContext) => {
+const router = (handler: ApiRouteHandler, config: ApiRouteConfig, context: FlowContext) => {
   return async (req: Request, res: Response) => {
     const data: ApiRequest = {
       body: req.body,

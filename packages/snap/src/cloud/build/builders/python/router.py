@@ -1,41 +1,34 @@
-from typing import Any, Dict, List, Union
 from fastapi import FastAPI, Request, Response
 # {{imports}}
-
-class ApiRequest:
-    body: Dict[str, Any]
-    headers: Dict[str, Union[str, List[str]]]
-    path_params: Dict[str, str]
-    query_params: Dict[str, Union[str, List[str]]]
 
 def create_api_step_handler(handler, config):
     async def middleware_handler(req, ctx):
         if not config.get('middleware'):
             return await handler(req, ctx)
         
-        # Compose middleware in reverse order
-        composed_handler = handler
+        # # Compose middleware in reverse order
+        composed_handler = lambda: handler(req, ctx)
         for middleware in reversed(config.get('middleware', [])):
             current_handler = composed_handler
-            composed_handler = lambda req, ctx: middleware(req, ctx, current_handler)
+            composed_handler = lambda: middleware(req, ctx, current_handler)
         
-        return await composed_handler(req, ctx)
+        return await composed_handler()
     
-    return middleware_handler 
+    return middleware_handler
 
-def create_context(context: Any, step_name: str):
+def create_context(context, step_name):
     context.logger = context.logger.child({ 'step': step_name })
 
     return context
 
 async def router(handler, config, context):
     async def route(request: Request, response: Response):
-        data = ApiRequest(
-            body = await request.json() if await request.body() else None,
-            headers = dict(request.headers),
-            path_params = request.path_params,
-            query_params = dict(request.query_params)
-        )
+        data = {
+            "body": await request.json() if await request.body() else {},
+            "headers": dict(request.headers),
+            "path_params": request.path_params,
+            "query_params": dict(request.query_params)
+        }
 
         try:
             middleware_handler = create_api_step_handler(handler, config)
@@ -53,7 +46,7 @@ async def router(handler, config, context):
                 return {}
 
         except Exception as error:
-            context.logger.error('Internal server error', error)
+            context.logger.error('Internal server error', {'error': str(error)})
             response.status_code = 500
             return {'error': 'Internal server error'}
 

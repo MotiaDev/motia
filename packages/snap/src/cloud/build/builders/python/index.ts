@@ -1,13 +1,12 @@
 import fs from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
-import archiver, { Archiver } from 'archiver'
 import { ApiRouteConfig, Step } from '@motiadev/core'
-
 import { Builder, StepBuilder } from '../../builder'
 import { addPackageToArchive } from './add-package-to-archive'
 import { activatePythonVenv } from '../../../../utils/activate-python-env'
-import { includeStaticFiles } from '../node/include-static-files'
+import { Archiver } from '../archiver'
+import { includeStaticFiles } from '../include-static-files'
 
 export class PythonBuilder implements StepBuilder {
   constructor(private readonly builder: Builder) {
@@ -27,9 +26,7 @@ export class PythonBuilder implements StepBuilder {
       throw new Error(`Source file not found: ${step.filePath}`)
     }
 
-    archive.append(fs.createReadStream(step.filePath), {
-      name: path.relative(this.builder.projectDir, normalizedEntrypointPath),
-    })
+    archive.append(fs.createReadStream(step.filePath), path.relative(this.builder.projectDir, normalizedEntrypointPath))
 
     await Promise.all(packages.map(async (packageName) => addPackageToArchive(archive, sitePackagesDir, packageName)))
 
@@ -39,6 +36,7 @@ export class PythonBuilder implements StepBuilder {
   async build(step: Step): Promise<void> {
     const entrypointPath = step.filePath.replace(this.builder.projectDir, '')
     const bundlePath = path.join('python', entrypointPath.replace(/(.*)\.py$/, '$1.zip'))
+    const normalizedEntrypointPath = entrypointPath.replace(/[.]step.py$/, '_step.py')
     const outfile = path.join(this.builder.distDir, bundlePath)
 
     try {
@@ -46,22 +44,34 @@ export class PythonBuilder implements StepBuilder {
       fs.mkdirSync(path.dirname(outfile), { recursive: true })
       this.builder.printer.printStepBuilding(step)
 
-      // Set up archive
-      const archive = archiver('zip', {
-        zlib: { level: 9 }, // Sets the compression level
-      })
-      const outputStream = fs.createWriteStream(outfile)
-      archive.pipe(outputStream)
+      // Get Python builder response
+      const { packages } = await this.getPythonBuilderData(step)
+      const stepArchiver = new Archiver(outfile)
+      const stepPath = await this.buildStep(step, stepArchiver)
 
-      const stepPath = await this.buildStep(step, archive)
+      // Add main file to archive
+      if (!fs.existsSync(step.filePath)) {
+        throw new Error(`Source file not found: ${step.filePath}`)
+      }
+
+      stepArchiver.append(
+        fs.createReadStream(step.filePath),
+        path.relative(this.builder.projectDir, normalizedEntrypointPath),
+      )
+
+      // Add all imported files to archive
+      this.builder.printer.printStepBuilding(step, 'Adding imported files to archive...')
+      const sitePackagesDir = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
+
+      if (packages.length > 0) {
+        await Promise.all(
+          packages.map(async (packageName) => addPackageToArchive(stepArchiver, sitePackagesDir, packageName)),
+        )
+        this.builder.printer.printStepBuilding(step, `Added ${packages.length} packages to archive`)
+      }
 
       // Finalize the archive and wait for completion
-      const size = await new Promise<number>((resolve, reject) => {
-        outputStream.on('close', () => resolve(archive.pointer()))
-        outputStream.on('error', reject)
-        includeStaticFiles(step, this.builder, archive)
-        archive.finalize()
-      })
+      const size = await stepArchiver.finalize()
 
       this.builder.registerStep({ entrypointPath: stepPath, bundlePath, step, type: 'python' })
       this.builder.printer.printStepBuilt(step, size)
@@ -84,15 +94,11 @@ export class PythonBuilder implements StepBuilder {
       return path.replace(/:(\w+)/g, '{${1}}')
     }
 
-    const archive = archiver('zip', { zlib: { level: 0 } })
-    const outputStream = fs.createWriteStream(path.join(this.builder.distDir, 'router-python.zip'))
-    archive.pipe(outputStream)
-
-    const dependencies = ['fastapi', 'uvicorn', 'pydantic', 'uvloop']
+    const archive = new Archiver(path.join(this.builder.distDir, 'router-python.zip'))
+    const dependencies = ['fastapi', 'uvicorn', 'pydantic', 'pydantic_core', 'uvloop', 'starlette', 'typing_inspection']
+    const lambdaSitePackages = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
     await Promise.all(
-      dependencies.map(async (packageName) =>
-        addPackageToArchive(archive, process.env.PYTHON_SITE_PACKAGES!, packageName),
-      ),
+      dependencies.map(async (packageName) => addPackageToArchive(archive, lambdaSitePackages, packageName)),
     )
 
     for (const step of steps) {
@@ -125,14 +131,12 @@ export class PythonBuilder implements StepBuilder {
           .join('\n\n    '),
       )
 
-    archive.append(file, { name: 'router.py' })
+    archive.append(file, 'router.py')
+
+    includeStaticFiles(steps, this.builder, archive)
 
     // Finalize the archive and wait for completion
-    return new Promise<number>((resolve, reject) => {
-      outputStream.on('close', () => resolve(archive.pointer()))
-      outputStream.on('error', reject)
-      archive.finalize()
-    })
+    return archive.finalize()
   }
 
   private async getPythonBuilderData(step: Step): Promise<{ file: string; files: string[]; packages: string[] }> {
