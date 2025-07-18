@@ -31,6 +31,9 @@ export const identifyUser = () => {
     identifyObj.postInsert('project_id', getProjectName(process.cwd()))
     identifyObj.postInsert('motia_version', version || 'unknown')
     identifyObj.postInsert('project_version', process.env.npm_package_version || 'unknown')
+    if (process.env.MOTIA_DOCKER) {
+      identifyObj.postInsert('docker', true)
+    }
     identify(identifyObj, {
       user_id: getUserIdentifier(),
     })

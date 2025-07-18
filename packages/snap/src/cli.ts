@@ -96,6 +96,23 @@ program
   })
 
 program
+  .command('start')
+  .description('Start a server to run your Motia project')
+  .option('-p, --port <port>', 'The port to run the server on', `${defaultPort}`)
+  .option('-v, --disable-verbose', 'Disable verbose logging')
+  .option('-d, --debug', 'Enable debug logging')
+  .action(async (arg) => {
+    if (arg.debug) {
+      console.log('🔍 Debug logging enabled')
+      process.env.LOG_LEVEL = 'debug'
+    }
+
+    const port = arg.port ? parseInt(arg.port) : defaultPort
+    const { start } = require('./start')
+    await start(port, arg.disableVerbose)
+  })
+
+program
   .command('emit')
   .description('Emit an event to the Motia server')
   .requiredOption('--topic <topic>', 'Event topic/type to emit')
