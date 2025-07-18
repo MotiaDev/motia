@@ -1,5 +1,4 @@
 import { prettyPrint } from './pretty-print'
-import { Step } from './types'
 
 const logLevel = process.env.LOG_LEVEL ?? 'info'
 
