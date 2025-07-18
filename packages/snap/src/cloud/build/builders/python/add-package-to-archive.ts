@@ -1,14 +1,14 @@
-import archiver from 'archiver'
 import fs from 'fs'
 import path from 'path'
 import colors from 'colors'
+import { Archiver } from '../archiver'
 
 const shouldIgnore = (filePath: string): boolean => {
   const ignorePatterns = [/\.pyc$/, /\.egg$/, /__pycache__/, /\.dist-info$/]
   return ignorePatterns.some((pattern) => pattern.test(filePath))
 }
 
-const addDirectoryToArchive = async (archive: archiver.Archiver, baseDir: string, dirPath: string): Promise<void> => {
+const addDirectoryToArchive = async (archive: Archiver, baseDir: string, dirPath: string): Promise<void> => {
   const files = fs.readdirSync(dirPath)
 
   await Promise.all(
@@ -26,7 +26,7 @@ const addDirectoryToArchive = async (archive: archiver.Archiver, baseDir: string
         if (stat.isDirectory()) {
           await addDirectoryToArchive(archive, baseDir, fullPath)
         } else {
-          archive.append(fs.createReadStream(fullPath), { name: relativePath })
+          archive.append(fs.createReadStream(fullPath), relativePath)
         }
       })
       .filter(Boolean),
@@ -34,7 +34,7 @@ const addDirectoryToArchive = async (archive: archiver.Archiver, baseDir: string
 }
 
 export const addPackageToArchive = async (
-  archive: archiver.Archiver,
+  archive: Archiver,
   sitePackagesDir: string,
   packageName: string,
 ): Promise<void> => {
@@ -59,6 +59,6 @@ export const addPackageToArchive = async (
     await addDirectoryToArchive(archive, sitePackagesDir, fullPath)
   } else {
     const relativePath = path.relative(sitePackagesDir, fullPath)
-    archive.append(fs.createReadStream(fullPath), { name: relativePath })
+    archive.append(fs.createReadStream(fullPath), relativePath)
   }
 }

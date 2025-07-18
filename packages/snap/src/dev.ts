@@ -16,6 +16,8 @@ import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
 
+process.env.VITE_CJS_IGNORE_WARNING = 'true'
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
   transpileOnly: true,

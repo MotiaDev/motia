@@ -8,14 +8,20 @@ const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
 export const getStepFiles = (projectDir: string): string[] => {
   const stepsDir = path.join(projectDir, 'steps')
-  return globSync('**/*.step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir })
+  return [
+    ...globSync('**/*.step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
+    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
+  ]
 }
 
 // Helper function to recursively collect flow data
 export const collectFlows = async (projectDir: string, lockedData: LockedData): Promise<Step[]> => {
   const invalidSteps: Step[] = []
   const stepFiles = getStepFiles(projectDir)
-  const streamFiles = globSync(path.join(projectDir, '{steps,streams}/**/*.stream.{ts,js,py}'))
+  const streamFiles = [
+    ...globSync(path.join(projectDir, '{steps,streams}/**/*.stream.{ts,js,py}')),
+    ...globSync(path.join(projectDir, '{steps,streams}/**/*_stream.{ts,js,py}')),
+  ]
 
   for (const filePath of stepFiles) {
     const config = await getStepConfig(filePath)

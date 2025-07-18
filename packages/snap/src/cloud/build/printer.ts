@@ -10,32 +10,46 @@ const built = colors.green('✓ [BUILT]')
 const failed = colors.red('✘ [FAILED]')
 const skipped = colors.gray('- [SKIPPED]')
 
-const streamTag = colors.blue('Stream')
+const baseTag = (tag: string) => colors.bold(colors.magenta(tag))
+const streamTag = baseTag('Stream')
+const stepTag = baseTag('Step')
+const routerTag = baseTag('Router')
 
 export class BuildPrinter {
   private readonly printer = new Printer(process.cwd())
   private readonly output = new CLIOutputManager()
 
-  getStepLanguage(step: Step) {
-    if (step.filePath.endsWith('.py')) {
+  getLanguage(language: string) {
+    if (language === 'python') {
       return colors.bold(colors.blue('Python'))
-    } else if (step.filePath.endsWith('.js') || step.filePath.endsWith('.ts')) {
+    } else if (language === 'node') {
       return colors.bold(colors.green('Node'))
-    } else if (step.filePath.endsWith('.rb')) {
+    } else if (language === 'ruby') {
       return colors.bold(colors.red('Ruby'))
     }
 
     return colors.bold(colors.gray('Unknown'))
   }
 
+  getStepLanguage(step: Step) {
+    if (step.filePath.endsWith('.py')) {
+      return this.getLanguage('python')
+    } else if (step.filePath.endsWith('.js') || step.filePath.endsWith('.ts')) {
+      return this.getLanguage('node')
+    } else if (step.filePath.endsWith('.rb')) {
+      return this.getLanguage('ruby')
+    }
+
+    return this.getLanguage('unknown')
+  }
+
   printStepBuilding(step: Step, progressMessage?: string) {
     const stepLanguage = this.getStepLanguage(step)
     const stepType = this.printer.getStepType(step)
     const stepPath = this.printer.getStepPath(step)
-    const stepTag = this.printer.stepTag
 
     this.output.log(step.filePath, (message) => {
-      message.append(`${building} ${stepLanguage} ${stepTag} ${stepType} ${stepPath}`)
+      message.append(`${building} ${stepTag} ${stepLanguage} ${stepType} ${stepPath}`)
 
       if (progressMessage) {
         message.append(colors.yellow(progressMessage))
@@ -47,12 +61,38 @@ export class BuildPrinter {
     const stepLanguage = this.getStepLanguage(step)
     const stepType = this.printer.getStepType(step)
     const stepPath = this.printer.getStepPath(step)
-    const stepTag = this.printer.stepTag
 
     this.output.log(step.filePath, (message) =>
       message
-        .append(`${built} ${stepLanguage} ${stepTag} ${stepType} ${stepPath}`)
+        .append(`${built} ${stepTag} ${stepLanguage} ${stepType} ${stepPath}`)
         .append(`${prettyBytes(size)}`, 'gray'),
+    )
+  }
+
+  printApiRouterBuilding(language: string) {
+    const fileName = `router-${language}.zip`
+    const coloredFileName = colors.bold(colors.cyan(fileName))
+
+    this.output.log(fileName, (message) =>
+      message //
+        .append(routerTag)
+        .append(building)
+        .append(this.getLanguage(language))
+        .append(coloredFileName),
+    )
+  }
+
+  printApiRouterBuilt(language: string, size: number) {
+    const fileName = `router-${language}.zip`
+    const coloredFileName = colors.bold(colors.cyan(fileName))
+
+    this.output.log(fileName, (message) =>
+      message
+        .append(built)
+        .append(routerTag)
+        .append(this.getLanguage(language))
+        .append(coloredFileName)
+        .append(prettyBytes(size), 'gray'),
     )
   }
 
@@ -60,10 +100,9 @@ export class BuildPrinter {
     const stepLanguage = this.getStepLanguage(step)
     const stepType = this.printer.getStepType(step)
     const stepPath = this.printer.getStepPath(step)
-    const stepTag = this.printer.stepTag
 
     this.output.log(step.filePath, (message) =>
-      message.append(`${failed} ${stepLanguage} ${stepTag} ${stepType} ${stepPath}`).append(error.message, 'red'),
+      message.append(`${failed} ${stepTag} ${stepLanguage} ${stepType} ${stepPath}`).append(error.message, 'red'),
     )
   }
 
@@ -71,10 +110,9 @@ export class BuildPrinter {
     const stepLanguage = this.getStepLanguage(step)
     const stepType = this.printer.getStepType(step)
     const stepPath = this.printer.getStepPath(step)
-    const stepTag = this.printer.stepTag
 
     this.output.log(step.filePath, (message) =>
-      message.append(`${skipped} ${stepLanguage} ${stepTag} ${stepType} ${stepPath}`).append(reason, 'yellow'),
+      message.append(`${skipped} ${stepTag} ${stepLanguage} ${stepType} ${stepPath}`).append(reason, 'yellow'),
     )
   }
 

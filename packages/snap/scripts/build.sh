@@ -14,8 +14,8 @@ npx tsc --emitDeclarationOnly --declaration --outDir dist/types
 echo "Copying templates..."
 sh scripts/move-templates.sh
 
-echo "Copying Python files..."
-sh scripts/move-python.sh
+echo "Copying builders..."
+sh scripts/move-builders.sh
 
 echo "Copying dot files..."
 sh scripts/move-dot-files.sh
