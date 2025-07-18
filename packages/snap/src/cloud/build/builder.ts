@@ -1,5 +1,5 @@
 import path from 'path'
-import { ApiRouteConfig, ApiRouteHandler, Step, StepConfig } from '@motiadev/core'
+import { ApiRouteConfig, Step, StepConfig } from '@motiadev/core'
 import { BuildPrinter } from './printer'
 import { Stream } from '@motiadev/core/dist/src/types-stream'
 

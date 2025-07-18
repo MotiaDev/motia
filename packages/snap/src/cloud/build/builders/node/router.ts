@@ -9,6 +9,7 @@ const createApiStepHandler = (handler: ApiRouteHandler, config: ApiRouteConfig) 
     }
 
     const composedHandler = config.middleware.reduceRight(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (nextHandler: () => Promise<any>, middleware) => () => middleware(req, ctx, nextHandler),
       () => handler(req, ctx),
     )
@@ -17,6 +18,7 @@ const createApiStepHandler = (handler: ApiRouteHandler, config: ApiRouteConfig) 
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const router = (handler: ApiRouteHandler, config: ApiRouteConfig, context: FlowContext) => {
   return async (req: Request, res: Response) => {
     const data: ApiRequest = {
