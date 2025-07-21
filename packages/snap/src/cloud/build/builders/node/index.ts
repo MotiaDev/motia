@@ -1,11 +1,11 @@
+import { ApiRouteConfig, Step } from '@motiadev/core'
+import colors from 'colors'
+import * as esbuild from 'esbuild'
 import fs from 'fs'
 import path from 'path'
-import * as esbuild from 'esbuild'
-import colors from 'colors'
-import { ApiRouteConfig, Step } from '@motiadev/core'
-import { Builder, StepBuilder } from '../../builder'
-import { includeStaticFiles } from '../include-static-files'
+import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
+import { includeStaticFiles } from '../include-static-files'
 
 export class NodeBuilder implements StepBuilder {
   constructor(private readonly builder: Builder) {}
@@ -28,14 +28,14 @@ export class NodeBuilder implements StepBuilder {
     return null
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<number> {
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
     const relativePath = path.relative(this.builder.distDir, this.builder.projectDir)
     const getStepPath = (step: Step<ApiRouteConfig>) => {
       return step.filePath.replace(this.builder.projectDir, relativePath).replace(/(.*)\.(ts|js)$/, '$1.js')
     }
 
     const file = fs
-      .readFileSync(path.join(__dirname, 'router.ts'), 'utf-8')
+      .readFileSync(path.join(__dirname, 'router-template.ts'), 'utf-8')
       .replace(
         '// {{imports}}',
         steps.map((step, index) => `import * as route${index} from '${getStepPath(step)}'`).join('\n'),
@@ -64,7 +64,8 @@ export class NodeBuilder implements StepBuilder {
 
     await esbuild.build(userConfig ? { ...defaultConfig, ...userConfig } : defaultConfig)
 
-    const archiver = new Archiver(path.join(this.builder.distDir, 'router-node.zip'))
+    const zipName = 'router-node.zip'
+    const archiver = new Archiver(path.join(this.builder.distDir, zipName))
     const routerJs = path.join(this.builder.distDir, 'router.js')
     const routerMap = path.join(this.builder.distDir, 'router.js.map')
 
@@ -78,7 +79,7 @@ export class NodeBuilder implements StepBuilder {
     fs.unlinkSync(routerJs)
     fs.unlinkSync(routerMap)
 
-    return size
+    return { size, path: zipName }
   }
 
   async build(step: Step): Promise<void> {

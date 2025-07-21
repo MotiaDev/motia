@@ -1,10 +1,10 @@
 import path from 'path'
 import { VersionsClient } from '../../api'
 import { VersionStartResponse } from '../../api/models/responses/version-responses'
+import { StepsConfigFile } from '../../build/builder'
 import { CliContext } from '../../config-utils'
-import { UploadResult } from '../types'
-import { BuildStepsConfig, BuildStreamsConfig } from '../../build/builder'
 import { DeployPrinter } from '../printer'
+import { UploadResult } from '../types'
 
 export class VersionService {
   private readonly versionClient: VersionsClient
@@ -18,26 +18,19 @@ export class VersionService {
     environmentId: string,
     motiaVersion: string,
     version: string,
-    stepsConfig: BuildStepsConfig,
-    streamsConfig: BuildStreamsConfig,
+    config: StepsConfigFile,
   ): Promise<string> {
     this.printer.printConfigurationUploading()
-    const versionId = await this.versionClient.uploadStepsConfig(
-      environmentId,
-      motiaVersion,
-      version,
-      stepsConfig,
-      streamsConfig,
-    )
+    const versionId = await this.versionClient.uploadStepsConfig(environmentId, motiaVersion, version, config)
     this.printer.printConfigurationUploaded()
     this.context.log('deploy', (message) => message.tag('success').append(`Version started with ID: ${versionId}`))
 
     return versionId
   }
 
-  async uploadProject(versionId: string, distDir: string, steps: BuildStepsConfig): Promise<UploadResult> {
+  async uploadProject(versionId: string, distDir: string, config: StepsConfigFile): Promise<UploadResult> {
     try {
-      const stepEntries = Object.entries(steps)
+      const stepEntries = Object.entries(config.steps)
 
       await Promise.all(
         stepEntries.map(async ([stepPath, stepConfig]) => {
@@ -45,6 +38,17 @@ export class VersionService {
           const stepZipPath = path.join(distDir, stepPath)
           await this.versionClient.uploadZipFile(stepZipPath, versionId, stepPath)
           this.printer.printStepUploaded(stepConfig)
+        }),
+      )
+
+      const routerEntries = Object.entries(config.routers)
+
+      await Promise.all(
+        routerEntries.map(async ([language, routerPath]) => {
+          this.printer.printRouterUploading(language, routerPath)
+          const routerZipPath = path.join(distDir, routerPath)
+          await this.versionClient.uploadZipFile(routerZipPath, versionId, routerPath)
+          this.printer.printRouterUploaded(language, routerPath)
         }),
       )
 

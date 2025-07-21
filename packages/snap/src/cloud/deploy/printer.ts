@@ -10,15 +10,26 @@ export class DeployPrinter {
   private readonly printer = new Printer(process.cwd())
   private readonly output = new CLIOutputManager()
 
-  getStepLanguage(stepConfig: BuildStepConfig): string {
-    if (stepConfig.filePath.endsWith('.py')) {
-      return colors.bold(colors.blue('Python'))
-    } else if (stepConfig.filePath.endsWith('.js') || stepConfig.filePath.endsWith('.ts')) {
+  getLanguage(language: string): string {
+    if (language === 'node') {
       return colors.bold(colors.green('Node'))
-    } else if (stepConfig.filePath.endsWith('.rb')) {
+    } else if (language === 'python') {
+      return colors.bold(colors.blue('Python'))
+    } else if (language === 'ruby') {
       return colors.bold(colors.red('Ruby'))
     }
     return colors.bold(colors.gray('Unknown'))
+  }
+
+  getStepLanguage(stepConfig: BuildStepConfig): string {
+    if (stepConfig.filePath.endsWith('.py')) {
+      return this.getLanguage('python')
+    } else if (stepConfig.filePath.endsWith('.js') || stepConfig.filePath.endsWith('.ts')) {
+      return this.getLanguage('node')
+    } else if (stepConfig.filePath.endsWith('.rb')) {
+      return this.getLanguage('ruby')
+    }
+    return this.getLanguage('unknown')
   }
 
   getStepType(stepConfig: BuildStepConfig): string {
@@ -34,8 +45,12 @@ export class DeployPrinter {
     return colors.gray('(Unknown)')
   }
 
+  getRelativePath(path: string): string {
+    return colors.bold(colors.cyan(this.printer.getRelativePath(path)))
+  }
+
   getStepPath(stepConfig: BuildStepConfig): string {
-    return colors.bold(colors.cyan(this.printer.getRelativePath(stepConfig.filePath)))
+    return this.getRelativePath(stepConfig.filePath)
   }
 
   printStepUploading(stepConfig: BuildStepConfig): void {
@@ -58,6 +73,20 @@ export class DeployPrinter {
     this.output.log(stepConfig.filePath, (message) => {
       message.append(`${uploaded} ${stepLanguage} ${stepTag} ${stepType} ${stepPath}`)
     })
+  }
+
+  printRouterUploading(language: string, routerPath: string): void {
+    const stepLanguage = this.getLanguage(language)
+    const stepPath = this.getRelativePath(routerPath)
+
+    this.output.log(routerPath, (message) => message.append(`${uploading} ${stepLanguage} ${stepPath}`))
+  }
+
+  printRouterUploaded(language: string, routerPath: string): void {
+    const stepLanguage = this.getLanguage(language)
+    const stepPath = this.getRelativePath(routerPath)
+
+    this.output.log(routerPath, (message) => message.append(`${uploaded} ${stepLanguage} ${stepPath}`))
   }
 
   printConfigurationUploading(): void {

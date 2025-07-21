@@ -51,10 +51,13 @@ export const build = async (context: CliContext): Promise<Builder> => {
     }
   }
 
-  const stepsFile: StepsConfigFile = { steps: builder.stepsConfig, streams: builder.streamsConfig }
+  const routersConfig = await builder.buildApiSteps(lockedData.activeSteps.filter(isApiStep))
+  const stepsFile: StepsConfigFile = {
+    steps: builder.stepsConfig,
+    streams: builder.streamsConfig,
+    routers: routersConfig,
+  }
   fs.writeFileSync(stepsConfigPath, JSON.stringify(stepsFile, null, 2))
-
-  await builder.buildApiSteps(lockedData.activeSteps.filter(isApiStep))
 
   return builder
 }

@@ -1,30 +1,29 @@
+import axios from 'axios'
 import fs from 'fs'
 import path from 'path'
-import axios from 'axios'
-import { AxiosClient } from '../core/axios-client'
-import { ENDPOINTS, MAX_UPLOAD_SIZE } from '../core/api-constants'
-import { Version } from '../models/entities/version'
+import { StepsConfigFile } from '../../build/builder'
 import { ApiError } from '../core/api-base'
+import { ENDPOINTS, MAX_UPLOAD_SIZE } from '../core/api-constants'
+import { AxiosClient } from '../core/axios-client'
+import { Version } from '../models/entities/version'
 import {
-  VersionError,
-  VersionNotFoundError,
-  VersionStartError,
   FileUploadError,
   InvalidConfigError,
+  VersionError,
+  VersionNotFoundError,
   VersionPromotionError,
+  VersionStartError,
 } from '../models/errors/version-errors'
 import { VersionStartResponse } from '../models/responses/version-responses'
-import { BuildStreamsConfig, BuildStepsConfig } from '../../build/builder'
 
 export class VersionsClient extends AxiosClient {
   async uploadStepsConfig(
     environmentId: string,
     motiaVersion: string,
     version: string,
-    stepsConfig: BuildStepsConfig,
-    streamsConfig: BuildStreamsConfig,
+    config: StepsConfigFile,
   ): Promise<string> {
-    if (!stepsConfig || Object.keys(stepsConfig).length === 0) {
+    if (!config || Object.keys(config).length === 0) {
       throw new InvalidConfigError()
     }
 
@@ -32,7 +31,13 @@ export class VersionsClient extends AxiosClient {
       const response = await this.makeRequest<{ versionId: string }>(
         `${ENDPOINTS.ENVIRONMENTS}/${environmentId}/versions`,
         'POST',
-        { config: stepsConfig, version, streamsConfig, motiaVersion },
+        {
+          config: config.steps,
+          version,
+          streamsConfig: config.streams,
+          routersConfig: config.routers,
+          motiaVersion,
+        },
       )
       return response.versionId
     } catch (error) {

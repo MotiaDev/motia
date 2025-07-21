@@ -1,12 +1,12 @@
+import { ApiRouteConfig, Step } from '@motiadev/core'
+import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { spawn } from 'child_process'
-import { ApiRouteConfig, Step } from '@motiadev/core'
-import { Builder, StepBuilder } from '../../builder'
-import { addPackageToArchive } from './add-package-to-archive'
 import { activatePythonVenv } from '../../../../utils/activate-python-env'
+import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
+import { addPackageToArchive } from './add-package-to-archive'
 
 export class PythonBuilder implements StepBuilder {
   constructor(private readonly builder: Builder) {
@@ -81,7 +81,7 @@ export class PythonBuilder implements StepBuilder {
     }
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<number> {
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
     const getStepPath = (step: Step<ApiRouteConfig>) => {
       const normalizedEntrypointPath = step.filePath.replace(/[.]step.py$/, '_step.py')
       return normalizedEntrypointPath
@@ -94,7 +94,8 @@ export class PythonBuilder implements StepBuilder {
       return path.replace(/:(\w+)/g, '{${1}}')
     }
 
-    const archive = new Archiver(path.join(this.builder.distDir, 'router-python.zip'))
+    const zipName = 'router-python.zip'
+    const archive = new Archiver(path.join(this.builder.distDir, zipName))
     const dependencies = ['fastapi', 'uvicorn', 'pydantic', 'pydantic_core', 'uvloop', 'starlette', 'typing_inspection']
     const lambdaSitePackages = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
     await Promise.all(
@@ -106,7 +107,7 @@ export class PythonBuilder implements StepBuilder {
     }
 
     const file = fs
-      .readFileSync(path.join(__dirname, 'router.py'), 'utf-8')
+      .readFileSync(path.join(__dirname, 'router_template.py'), 'utf-8')
       .replace(
         '# {{imports}}',
         steps
@@ -136,7 +137,9 @@ export class PythonBuilder implements StepBuilder {
     includeStaticFiles(steps, this.builder, archive)
 
     // Finalize the archive and wait for completion
-    return archive.finalize()
+    const size = await archive.finalize()
+
+    return { size, path: zipName }
   }
 
   private async getPythonBuilderData(step: Step): Promise<{ file: string; files: string[]; packages: string[] }> {
