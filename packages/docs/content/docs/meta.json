@@ -1,8 +1,7 @@
 {
   "title": "Motia",
   "pages": [
-    "index",
-    "tldr-motia-in-3-minutes",
+    "welcome",
     "getting-started",
     "concepts",
     "workbench",

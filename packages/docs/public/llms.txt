@@ -3309,7 +3309,7 @@ description: A powerful research assistant that leverages the Motia Framework to
 
 import { CodeFetcher } from '../../../components/CodeFetcher'
 
-## Let's build a finance agent that:
+## Let's build a AI Deep Research Agent that:
 
 - **Deep Web Research**: Automatically searches the web, extracts content, and synthesizes findings
 - **Iterative Research Process**: Supports multiple layers of research depth for comprehensive exploration
@@ -3520,7 +3520,7 @@ description: A powerful research assistant that leverages the Motia Framework to
 
 import { CodeFetcher } from '../../../components/CodeFetcher'
 
-## Let's build a finance agent that:
+## Let's build a AI Deep Research Agent that:
 
 - **Deep Web Research**: Automatically searches the web, extracts content, and synthesizes findings
 - **Iterative Research Process**: Supports multiple layers of research depth for comprehensive exploration
@@ -5701,7 +5701,7 @@ pnpm dev
 </Callout>{' '}
 
 
--   [tldr-motia-in-3-minutes](/llm-docs/tldr-motia-in-3-minutes.md): Documentation for tldr-motia-in-3-minutes.
+-   [build-your-first-app](/llm-docs/getting-started/build-your-first-app.mdx.md): Documentation for build-your-first-app.
 ---
 title: TLDR - Motia in 3 Minutes
 description: A 3-minute overview of Motia’s core concepts with a business-ready GenAI use case
