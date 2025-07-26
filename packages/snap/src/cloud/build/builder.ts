@@ -1,5 +1,5 @@
 import path from 'path'
-import { Step, StepConfig } from '@motiadev/core'
+import { ApiRouteConfig, Step, StepConfig } from '@motiadev/core'
 import { BuildPrinter } from './printer'
 import { Stream } from '@motiadev/core/dist/src/types-stream'
 
@@ -19,10 +19,21 @@ export type BuildStreamConfig = {
 
 export type BuildStepsConfig = Record<string, BuildStepConfig>
 export type BuildStreamsConfig = Record<string, BuildStreamConfig>
-export type StepsConfigFile = { steps: BuildStepsConfig; streams: BuildStreamsConfig }
+export type BuildRoutersConfig = Partial<Record<StepType, string>>
+export type StepsConfigFile = {
+  steps: BuildStepsConfig
+  streams: BuildStreamsConfig
+  routers: BuildRoutersConfig
+}
+
+export interface RouterBuildResult {
+  size: number
+  path: string
+}
 
 export interface StepBuilder {
   build(step: Step): Promise<void>
+  buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult>
 }
 
 export class Builder {
@@ -77,6 +88,29 @@ export class Builder {
       this.printer.printStepFailed(step, err as Error)
       throw err
     }
+  }
+
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<BuildRoutersConfig> {
+    const nodeSteps = steps.filter((step) => this.determineStepType(step) === 'node')
+    const pythonSteps = steps.filter((step) => this.determineStepType(step) === 'python')
+    const nodeBuilder = this.builders.get('node')
+    const pythonBuilder = this.builders.get('python')
+    const routers: BuildRoutersConfig = {}
+
+    if (nodeSteps.length > 0 && nodeBuilder) {
+      this.printer.printApiRouterBuilding('node')
+      const { size, path } = await nodeBuilder.buildApiSteps(nodeSteps)
+      this.printer.printApiRouterBuilt('node', size)
+      routers.node = path
+    }
+    if (pythonSteps.length > 0 && pythonBuilder) {
+      this.printer.printApiRouterBuilding('python')
+      const { size, path } = await pythonBuilder.buildApiSteps(pythonSteps)
+      this.printer.printApiRouterBuilt('python', size)
+      routers.python = path
+    }
+
+    return routers
   }
 
   private determineStepType(step: Step): string {

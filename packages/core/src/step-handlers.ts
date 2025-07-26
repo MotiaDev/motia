@@ -32,7 +32,7 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
         handlerName: step.config.name,
         handler: async (event) => {
           const { data, traceId } = event
-          const logger = event.logger.child(step)
+          const logger = event.logger.child({ step: step.config.name })
           const tracer = event.tracer.child(step, logger)
 
           globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })

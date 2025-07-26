@@ -1,11 +1,11 @@
+import { ApiRouteConfig, Step } from '@motiadev/core'
+import colors from 'colors'
+import * as esbuild from 'esbuild'
 import fs from 'fs'
 import path from 'path'
-import * as esbuild from 'esbuild'
-import archiver from 'archiver'
-import colors from 'colors'
-import { Step } from '@motiadev/core'
-import { Builder, StepBuilder } from '../../builder'
-import { includeStaticFiles } from './include-static-files'
+import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
+import { Archiver } from '../archiver'
+import { includeStaticFiles } from '../include-static-files'
 
 export class NodeBuilder implements StepBuilder {
   constructor(private readonly builder: Builder) {}
@@ -26,6 +26,60 @@ export class NodeBuilder implements StepBuilder {
     }
 
     return null
+  }
+
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
+    const relativePath = path.relative(this.builder.distDir, this.builder.projectDir)
+    const getStepPath = (step: Step<ApiRouteConfig>) => {
+      return step.filePath.replace(this.builder.projectDir, relativePath).replace(/(.*)\.(ts|js)$/, '$1.js')
+    }
+
+    const file = fs
+      .readFileSync(path.join(__dirname, 'router-template.ts'), 'utf-8')
+      .replace(
+        '// {{imports}}',
+        steps.map((step, index) => `import * as route${index} from '${getStepPath(step)}'`).join('\n'),
+      )
+      .replace(
+        '// {{routes}}',
+        steps
+          .map((step, index) => {
+            const method = step.config.method.toLowerCase()
+            return `app.${method}('${step.config.path}', router(route${index}.handler, route${index}.config, createContext(context, '${step.config.name}')))`
+          })
+          .join('\n  '),
+      )
+
+    const tsRouter = path.join(this.builder.distDir, 'router.ts')
+    fs.writeFileSync(tsRouter, file)
+
+    const userConfig = await this.loadEsbuildConfig()
+    const defaultConfig: esbuild.BuildOptions = {
+      entryPoints: [tsRouter],
+      bundle: true,
+      sourcemap: true,
+      outfile: path.join(this.builder.distDir, 'router.js'),
+      platform: 'node',
+    }
+
+    await esbuild.build(userConfig ? { ...defaultConfig, ...userConfig } : defaultConfig)
+
+    const zipName = 'router-node.zip'
+    const archiver = new Archiver(path.join(this.builder.distDir, zipName))
+    const routerJs = path.join(this.builder.distDir, 'router.js')
+    const routerMap = path.join(this.builder.distDir, 'router.js.map')
+
+    archiver.append(fs.createReadStream(routerJs), 'router.js')
+    archiver.append(fs.createReadStream(routerMap), 'router.js.map')
+    includeStaticFiles(steps, this.builder, archiver)
+
+    const size = await archiver.finalize()
+
+    fs.unlinkSync(tsRouter)
+    fs.unlinkSync(routerJs)
+    fs.unlinkSync(routerMap)
+
+    return { size, path: zipName }
   }
 
   async build(step: Step): Promise<void> {
@@ -51,23 +105,16 @@ export class NodeBuilder implements StepBuilder {
 
       await esbuild.build(userConfig ? { ...defaultConfig, ...userConfig } : defaultConfig)
 
-      const size = await new Promise<number>((resolve, reject) => {
-        const archive = archiver('zip', { zlib: { level: 0 } })
-        const writeStream = fs.createWriteStream(path.join(this.builder.distDir, bundlePath))
+      const archiver = new Archiver(path.join(this.builder.distDir, bundlePath))
 
-        archive.pipe(writeStream)
-        archive.append(fs.createReadStream(outputJsFile), { name: entrypointPath })
-        archive.append(fs.createReadStream(outputMapFile), { name: entrypointMapPath })
-        includeStaticFiles(step, this.builder, archive)
-        archive.finalize()
+      archiver.append(fs.createReadStream(outputJsFile), entrypointPath)
+      archiver.append(fs.createReadStream(outputMapFile), entrypointMapPath)
+      includeStaticFiles([step], this.builder, archiver)
 
-        writeStream.on('close', () => {
-          fs.unlinkSync(outputJsFile)
-          fs.unlinkSync(outputMapFile)
-          resolve(archive.pointer())
-        })
-        archive.on('error', (err) => reject(err))
-      })
+      const size = await archiver.finalize()
+
+      fs.unlinkSync(outputJsFile)
+      fs.unlinkSync(outputMapFile)
 
       this.builder.printer.printStepBuilt(step, size)
     } catch (err) {

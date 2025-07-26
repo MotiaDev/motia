@@ -21,6 +21,12 @@ export const pythonInstall = async ({
   const venvPath = path.join(baseDir, 'python_modules')
   console.log('📦 Installing Python dependencies...', venvPath)
 
+  const coreRequirementsPath = path.join(baseDir, 'node_modules', 'motia', 'dist', 'requirements-core.txt')
+  const snapRequirementsPath = path.join(baseDir, 'node_modules', 'motia', 'dist', 'requirements-snap.txt')
+  const localRequirements = path.join(baseDir, 'requirements.txt')
+
+  const requirementsList = [coreRequirementsPath, snapRequirementsPath, localRequirements]
+
   try {
     // Get the appropriate Python command
     const pythonCmd = await getPythonCommand(pythonVersion, baseDir)
@@ -35,40 +41,20 @@ export const pythonInstall = async ({
     }
 
     activatePythonVenv({ baseDir, isVerbose, pythonVersion })
-    installLambdaPythonPackages({ baseDir, isVerbose })
+    installLambdaPythonPackages({ isVerbose, requirementsList })
 
     // Install requirements
     console.log('📥 Installing Python dependencies...')
 
     // Core requirements
-    const coreRequirementsPath = path.join(baseDir, 'node_modules', 'motia', 'dist', 'requirements-core.txt')
-    if (fs.existsSync(coreRequirementsPath)) {
-      if (isVerbose) {
-        console.log('📄 Using core requirements from:', coreRequirementsPath)
-      }
-      await executeCommand(`pip install -r "${coreRequirementsPath}" --only-binary=:all:`, baseDir)
-    } else {
-      console.warn(`⚠️ Core requirements not found at: ${coreRequirementsPath}`)
-    }
 
-    // Snap requirements
-    const snapRequirementsPath = path.join(baseDir, 'node_modules', 'motia', 'dist', 'requirements-snap.txt')
-    if (fs.existsSync(snapRequirementsPath)) {
-      if (isVerbose) {
-        console.log('📄 Using snap requirements from:', snapRequirementsPath)
+    for (const requirement of requirementsList) {
+      if (fs.existsSync(requirement)) {
+        if (isVerbose) {
+          console.log('📄 Using requirements from:', requirement)
+        }
+        await executeCommand(`pip install -r "${requirement}" --only-binary=:all:`, baseDir)
       }
-      await executeCommand(`pip install -r "${snapRequirementsPath}" --only-binary=:all:`, baseDir)
-    } else {
-      console.warn(`⚠️ Snap requirements not found at: ${snapRequirementsPath}`)
-    }
-
-    // Project-specific requirements
-    const localRequirements = path.join(baseDir, 'requirements.txt')
-    if (fs.existsSync(localRequirements)) {
-      if (isVerbose) {
-        console.log('📄 Using project requirements from:', localRequirements)
-      }
-      await executeCommand(`pip install -r "${localRequirements}" --only-binary=:all:`, baseDir)
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)

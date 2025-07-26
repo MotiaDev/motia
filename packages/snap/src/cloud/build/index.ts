@@ -1,4 +1,4 @@
-import { LockedData } from '@motiadev/core'
+import { isApiStep, LockedData } from '@motiadev/core'
 import fs from 'fs'
 import path from 'path'
 import { collectFlows, getStepFiles } from '../../generate-locked-data'
@@ -51,7 +51,12 @@ export const build = async (context: CliContext): Promise<Builder> => {
     }
   }
 
-  const stepsFile: StepsConfigFile = { steps: builder.stepsConfig, streams: builder.streamsConfig }
+  const routersConfig = await builder.buildApiSteps(lockedData.activeSteps.filter(isApiStep))
+  const stepsFile: StepsConfigFile = {
+    steps: builder.stepsConfig,
+    streams: builder.streamsConfig,
+    routers: routersConfig,
+  }
   fs.writeFileSync(stepsConfigPath, JSON.stringify(stepsFile, null, 2))
 
   return builder
