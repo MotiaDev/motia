@@ -2,6 +2,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as readline from 'readline'
 import { printMotiaDockerIntro } from './utils/print-intro'
+import { identifyUser } from '@/utils/analytics'
+import { getProjectIdentifier, trackEvent } from '@motiadev/core'
 
 const updatePackageJson = (): void => {
   const packageJsonPath = path.join(process.cwd(), 'package.json')
@@ -55,6 +57,12 @@ const createDockerfile = async () => {
 }
 
 const createDockerignore = async () => {
+  identifyUser()
+
+  trackEvent('docker_setup_command', {
+    project_name: getProjectIdentifier(process.cwd()),
+  })
+
   const dockerignoreContent = fs.readFileSync(
     path.join(__dirname, '../../../../docker', 'templates', '.dockerignore.sample'),
     'utf-8',

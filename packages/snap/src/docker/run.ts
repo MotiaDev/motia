@@ -3,17 +3,27 @@ import * as path from 'path'
 import { printMotiaDockerIntro } from './utils/print-intro'
 import { promiseExec } from './utils/promised-exec'
 import { buildDockerImage } from './utils/build-docker-image'
+import { identifyUser } from '@/utils/analytics'
+import { getProjectIdentifier, trackEvent } from '@motiadev/core'
 
 export const run = async (hostPort = 3000, projectName?: string, skipBuild?: boolean): Promise<void> => {
   printMotiaDockerIntro()
 
+  identifyUser()
+
+  let nextProjectName = projectName
   if (!projectName) {
     const packageJsonPath = path.join(process.cwd(), 'package.json')
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
-    projectName = packageJson.name
+    nextProjectName = packageJson.name
   }
 
-  console.log(`Preparing your docker container for project: ${projectName}`)
+  trackEvent('docker_run_command', {
+    dockerImageName: nextProjectName,
+    project_name: getProjectIdentifier(process.cwd()),
+  })
+
+  console.log(`Preparing your docker container for project: ${nextProjectName}`)
 
   const dockerfileContent = fs.readFileSync(path.join(process.cwd(), 'Dockerfile'), 'utf-8')
   const dockerPort = dockerfileContent.match(/EXPOSE\s+(\d+)/)?.[1] || '3000'
@@ -23,11 +33,11 @@ export const run = async (hostPort = 3000, projectName?: string, skipBuild?: boo
     process.exit(1)
   }
 
-  let dockerImageName = projectName
+  let dockerImageName = nextProjectName
   const dockerRunCommand = `docker run -it --rm -p ${hostPort}:${dockerPort} ${dockerImageName}`
 
   if (!skipBuild) {
-    dockerImageName = await buildDockerImage(projectName)
+    dockerImageName = await buildDockerImage(dockerImageName)
   } else {
     // check if the image exists
     try {
