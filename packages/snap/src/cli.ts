@@ -4,6 +4,7 @@ import { program } from 'commander'
 import './cloud'
 import { version } from './version'
 import { handler } from './cloud/config-utils'
+import inquirer from 'inquirer'
 
 const defaultPort = 3000
 const defaultHost = '0.0.0.0'
@@ -37,11 +38,20 @@ program
     handler(async (arg, context) => {
       if (arg.name || arg.template || arg.cursor) {
         const { create } = require('./create')
+
+        const disableTutorial = await inquirer.prompt({
+          type: 'confirm',
+          name: 'disableTutorial',
+          message: 'Do you wish to disable the motia tutorial?',
+          default: false,
+        })
+
         await create({
           projectName: arg.name ?? '.',
           template: arg.template ?? 'default',
           cursorEnabled: arg.cursor,
           context,
+          skipTutorialTemplates: disableTutorial.disableTutorial,
         })
       } else {
         const skipConfirmation = arg.skipConfirmation ?? false

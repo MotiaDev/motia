@@ -130,5 +130,30 @@
         "sourceHandlePosition": "right"
       }
     }
+  },
+  {
+    "id": "basic-tutorial",
+    "config": {
+      "steps/basic-tutorial/02-process-food-order.step.ts": {
+        "x": -289,
+        "y": 486
+      },
+      "steps/basic-tutorial/01-api.step.ts": {
+        "x": -863,
+        "y": 358
+      },
+      "steps/basic-tutorial/00-noop.step.ts": {
+        "x": -857,
+        "y": 109
+      },
+      "steps/basic-tutorial/04_new_order_notifications.step.py": {
+        "x": 348,
+        "y": 513
+      },
+      "steps/basic-tutorial/03-state-audit-cron.step.ts": {
+        "x": 30,
+        "y": 154
+      }
+    }
   }
 ]

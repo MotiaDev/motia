@@ -59,7 +59,12 @@ export const BaseNode: React.FC<Props> = ({
           {/* Main node content */}
           <NodeHeader text={title} variant={variant} className="border-b-2 border-muted-foreground/10">
             <div className="flex justify-end">
-              <Button variant="ghost" className="h-5 p-0.5" onClick={() => setIsOpen(true)}>
+              <Button
+                data-testid={`open-code-preview-button-${title?.toLowerCase()}`}
+                variant="ghost"
+                className="h-5 p-0.5"
+                onClick={() => setIsOpen(true)}
+              >
                 <ScanSearch className="w-4 h-4" />
               </Button>
             </div>

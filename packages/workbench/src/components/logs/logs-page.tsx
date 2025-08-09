@@ -30,9 +30,9 @@ export const LogsPage = () => {
   }, [logs, search])
 
   return (
-    <div className="h-full flex flex-row">
+    <div className="h-full flex flex-row" data-testid="logs-container">
       <div className="flex-1 overflow-y-auto overflow-x-auto">
-        <div className="flex p-2 border-b gap-4">
+        <div className="flex p-2 border-b gap-4" data-testid="logs-search-container">
           <div className="flex-1 relative">
             <Input
               variant="shade"

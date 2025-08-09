@@ -1,0 +1,27 @@
+[
+  {
+    "id": "basic-tutorial",
+    "config": {
+      "steps/basic-tutorial/04_new_order_notifications.step.py": {
+        "x": 524,
+        "y": 532
+      },
+      "steps/basic-tutorial/03-state-audit-cron.step.ts": {
+        "x": -834,
+        "y": 195
+      },
+      "steps/basic-tutorial/02-process-food-order.step.ts": {
+        "x": 69,
+        "y": 512
+      },
+      "steps/basic-tutorial/01-api.step.ts": {
+        "x": -375,
+        "y": 452
+      },
+      "steps/basic-tutorial/00-noop.step.ts": {
+        "x": -833,
+        "y": 492
+      }
+    }
+  }
+]

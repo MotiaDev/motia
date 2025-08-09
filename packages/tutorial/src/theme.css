@@ -1,0 +1,100 @@
+@import '@motiadev/ui/styles.css';
+@import '@motiadev/ui/globals.css';
+@import 'tw-animate-css';
+
+:root {
+  --tutorial-text-color: var(--dark-800);
+}
+
+.dark {
+  --tutorial-text-color: var(--light-800);
+}
+
+.driver-popover {
+  background-color: var(--background);
+  padding: 16px;
+  --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, #0000001a), 0 4px 6px -4px var(--tw-shadow-color, #0000001a);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
+    var(--tw-shadow);
+  display: flex !important;
+  flex-flow: column;
+}
+
+.driver-popover-intro-step {
+  max-width: 400px !important;
+}
+
+.popover-title {
+  font-size: 18px;
+  font-weight: var(--font-weight-600);
+  line-height: 1.2;
+  color: var(--text-header);
+}
+
+.driver-popover-description {
+  :not(b) {
+    font-size: 14px;
+    font-weight: normal;
+    color: var(--tutorial-text-color);
+  }
+
+  b {
+    font-size: 14px;
+    color: var(--tutorial-text-color);
+  }
+
+  ul {
+    list-style-type: disc;
+    margin-left: calc(var(--spacing) * 2);
+  }
+}
+
+.driver-popover-close-btn,
+.driver-popover-close-btn:hover,
+.driver-popover-close-btn:focus {
+  color: var(--text-header);
+}
+
+.driver-popover-progress-text {
+  color: var(--text-placeholder);
+}
+
+.tutorial-opt-out-container {
+  margin-top: calc(var(--spacing) * 3);
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding: calc(var(--spacing) * 2);
+}
+
+.tutorial-opt-out-button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-body) !important;
+  text-shadow: none !important;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.driver-popover-prev-btn,
+.driver-popover-next-btn,
+.driver-popover-footer button:not(.tutorial-opt-out-button) {
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding-inline: calc(var(--spacing) * 4);
+  font-size: var(--text-sm);
+  line-height: var(--tw-leading, var(--text-sm--line-height));
+  border-radius: var(--radius-md);
+  text-shadow: none;
+}
+
+.driver-popover-prev-btn:hover,
+.driver-popover-next-btn:hover,
+.driver-popover-footer button:hover {
+  background: var(--states-hover);
+  color: var(--text-header);
+}

@@ -4,7 +4,7 @@
  * 
  * Consider adding this file to .prettierignore and eslint ignore.
  */
-import { EventHandler, ApiRouteHandler, ApiResponse, CronHandler, MotiaStream } from 'motia'
+import { EventHandler, ApiRouteHandler, ApiResponse, MotiaStream, CronHandler } from 'motia'
 
 declare module 'motia' {
   interface FlowContextStateStreams {
@@ -26,9 +26,12 @@ declare module 'motia' {
     'OpenAiApi': ApiRouteHandler<{ message: string }, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
     'CheckStateChange': EventHandler<{ key: string; expected: string }, never>
     'SetStateChange': EventHandler<{ message: string }, { topic: 'check-state-change'; data: { key: string; expected: string } }>
-    'ApiTrigger': ApiRouteHandler<{ message: string }, ApiResponse<200, { message: string; traceId: string }>, { topic: 'test-state'; data: { message: string } }>
+    'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }, ApiResponse<200, { message: string; traceId: string }>, { topic: 'process-food-order'; data: { id: string; quantity: number; petId: number } }>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
+    'NewOrderNotifications': EventHandler<never, never>
+    'StateAuditJob': CronHandler<never>
+    'ProcessFoodOrder': EventHandler<{ id: string; quantity: number; petId: number }, { topic: 'new-order-notification'; data: never }>
     'Tested Event': EventHandler<never, never>
     'Test Event': EventHandler<never, { topic: 'tested'; data: never }>
     'Test API Endpoint': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'test'; data: never }>
