@@ -1,7 +1,6 @@
-import path from 'path'
 import { ApiRouteConfig, Step, StepConfig } from '@motiadev/core'
-import { BuildPrinter } from './printer'
 import { Stream } from '@motiadev/core/dist/src/types-stream'
+import { BuildListener } from '../new-deployment/listeners/listener.types'
 
 export type StepType = 'node' | 'python' | 'noop' | 'unknown'
 
@@ -37,18 +36,19 @@ export interface StepBuilder {
 }
 
 export class Builder {
-  public readonly printer: BuildPrinter
-  public readonly distDir: string
   public readonly stepsConfig: BuildStepsConfig
   public readonly streamsConfig: BuildStreamsConfig
+  public routersConfig: BuildRoutersConfig
   public modulegraphInstalled: boolean = false
   private readonly builders: Map<string, StepBuilder> = new Map()
 
-  constructor(public readonly projectDir: string) {
-    this.distDir = path.join(projectDir, 'dist')
+  constructor(
+    public readonly projectDir: string,
+    private readonly listener: BuildListener,
+  ) {
     this.stepsConfig = {}
     this.streamsConfig = {}
-    this.printer = new BuildPrinter()
+    this.routersConfig = {}
   }
 
   registerBuilder(type: string, builder: StepBuilder) {
@@ -56,7 +56,7 @@ export class Builder {
   }
 
   registerStateStream(stream: Stream) {
-    this.printer.printStreamCreated(stream)
+    this.listener.onStreamCreated(stream)
 
     this.streamsConfig[stream.config.name] = {
       name: stream.config.name,
@@ -78,39 +78,38 @@ export class Builder {
     const builder = this.builders.get(type)
 
     if (!builder) {
-      this.printer.printStepSkipped(step, `No builder found for type: ${type}`)
+      this.listener.onBuildSkip(step, `No builder found for type: ${type}`)
       return
     }
 
     try {
       await builder.build(step)
     } catch (err) {
-      this.printer.printStepFailed(step, err as Error)
+      this.listener.onBuildError(step, err as Error)
       throw err
     }
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<BuildRoutersConfig> {
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<void> {
     const nodeSteps = steps.filter((step) => this.determineStepType(step) === 'node')
     const pythonSteps = steps.filter((step) => this.determineStepType(step) === 'python')
     const nodeBuilder = this.builders.get('node')
     const pythonBuilder = this.builders.get('python')
-    const routers: BuildRoutersConfig = {}
+
+    this.routersConfig = {}
 
     if (nodeSteps.length > 0 && nodeBuilder) {
-      this.printer.printApiRouterBuilding('node')
+      this.listener.onApiRouterBuilding('node')
       const { size, path } = await nodeBuilder.buildApiSteps(nodeSteps)
-      this.printer.printApiRouterBuilt('node', size)
-      routers.node = path
+      this.listener.onApiRouterBuilt('node', size)
+      this.routersConfig.node = path
     }
     if (pythonSteps.length > 0 && pythonBuilder) {
-      this.printer.printApiRouterBuilding('python')
+      this.listener.onApiRouterBuilding('python')
       const { size, path } = await pythonBuilder.buildApiSteps(pythonSteps)
-      this.printer.printApiRouterBuilt('python', size)
-      routers.python = path
+      this.listener.onApiRouterBuilt('python', size)
+      this.routersConfig.python = path
     }
-
-    return routers
   }
 
   private determineStepType(step: Step): string {

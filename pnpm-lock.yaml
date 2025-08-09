@@ -284,6 +284,9 @@ importers:
       '@motiadev/core':
         specifier: workspace:*
         version: link:../core
+      '@motiadev/stream-client-node':
+        specifier: workspace:*
+        version: link:../stream-client-node
       '@motiadev/workbench':
         specifier: workspace:*
         version: link:../workbench

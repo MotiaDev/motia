@@ -7,9 +7,14 @@ import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
 import { addPackageToArchive } from './add-package-to-archive'
+import { BuildListener } from '../../../new-deployment/listeners/listener.types'
+import { distDir } from '../../../new-deployment/constants'
 
 export class PythonBuilder implements StepBuilder {
-  constructor(private readonly builder: Builder) {
+  constructor(
+    private readonly builder: Builder,
+    private readonly listener: BuildListener,
+  ) {
     activatePythonVenv({ baseDir: this.builder.projectDir })
   }
 
@@ -37,12 +42,12 @@ export class PythonBuilder implements StepBuilder {
     const entrypointPath = step.filePath.replace(this.builder.projectDir, '')
     const bundlePath = path.join('python', entrypointPath.replace(/(.*)\.py$/, '$1.zip'))
     const normalizedEntrypointPath = entrypointPath.replace(/[.]step.py$/, '_step.py')
-    const outfile = path.join(this.builder.distDir, bundlePath)
+    const outfile = path.join(distDir, bundlePath)
 
     try {
       // Create output directory
       fs.mkdirSync(path.dirname(outfile), { recursive: true })
-      this.builder.printer.printStepBuilding(step)
+      this.listener.onBuildStart(step)
 
       // Get Python builder response
       const { packages } = await this.getPythonBuilderData(step)
@@ -60,7 +65,7 @@ export class PythonBuilder implements StepBuilder {
       )
 
       // Add all imported files to archive
-      this.builder.printer.printStepBuilding(step, 'Adding imported files to archive...')
+      this.listener.onBuildProgress(step, 'Adding imported files to archive...')
       const sitePackagesDir = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
 
       includeStaticFiles([step], this.builder, stepArchiver)
@@ -69,16 +74,16 @@ export class PythonBuilder implements StepBuilder {
         await Promise.all(
           packages.map(async (packageName) => addPackageToArchive(stepArchiver, sitePackagesDir, packageName)),
         )
-        this.builder.printer.printStepBuilding(step, `Added ${packages.length} packages to archive`)
+        this.listener.onBuildProgress(step, `Added ${packages.length} packages to archive`)
       }
 
       // Finalize the archive and wait for completion
       const size = await stepArchiver.finalize()
 
       this.builder.registerStep({ entrypointPath: stepPath, bundlePath, step, type: 'python' })
-      this.builder.printer.printStepBuilt(step, size)
+      this.listener.onBuildEnd(step, size)
     } catch (err) {
-      this.builder.printer.printStepFailed(step, err as Error)
+      this.listener.onBuildError(step, err as Error)
       throw err
     }
   }
@@ -97,7 +102,7 @@ export class PythonBuilder implements StepBuilder {
     }
 
     const zipName = 'router-python.zip'
-    const archive = new Archiver(path.join(this.builder.distDir, zipName))
+    const archive = new Archiver(path.join(distDir, zipName))
     const dependencies = ['fastapi', 'uvicorn', 'pydantic', 'pydantic_core', 'uvloop', 'starlette', 'typing_inspection']
     const lambdaSitePackages = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
     await Promise.all(

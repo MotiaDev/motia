@@ -1,5 +1,2 @@
-import './cli/projects'
-import './cli/environment'
 import './cli/build'
 import './cli/deploy'
-import './cli/init'

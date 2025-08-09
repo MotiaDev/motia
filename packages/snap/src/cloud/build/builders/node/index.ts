@@ -6,9 +6,14 @@ import path from 'path'
 import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
+import { distDir } from '../../../new-deployment/constants'
+import { BuildListener } from '../../../new-deployment/listeners/listener.types'
 
 export class NodeBuilder implements StepBuilder {
-  constructor(private readonly builder: Builder) {}
+  constructor(
+    private readonly builder: Builder,
+    private readonly listener: BuildListener,
+  ) {}
 
   private async loadEsbuildConfig(): Promise<esbuild.BuildOptions | null> {
     const configFiles = ['esbuild.config.json', '.esbuildrc.json']
@@ -29,7 +34,7 @@ export class NodeBuilder implements StepBuilder {
   }
 
   async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
-    const relativePath = path.relative(this.builder.distDir, this.builder.projectDir)
+    const relativePath = path.relative(distDir, this.builder.projectDir)
     const getStepPath = (step: Step<ApiRouteConfig>) => {
       return step.filePath.replace(this.builder.projectDir, relativePath).replace(/(.*)\.(ts|js)$/, '$1.js')
     }
@@ -50,7 +55,7 @@ export class NodeBuilder implements StepBuilder {
           .join('\n  '),
       )
 
-    const tsRouter = path.join(this.builder.distDir, 'router.ts')
+    const tsRouter = path.join(distDir, 'router.ts')
     fs.writeFileSync(tsRouter, file)
 
     const userConfig = await this.loadEsbuildConfig()
@@ -58,16 +63,16 @@ export class NodeBuilder implements StepBuilder {
       entryPoints: [tsRouter],
       bundle: true,
       sourcemap: true,
-      outfile: path.join(this.builder.distDir, 'router.js'),
+      outfile: path.join(distDir, 'router.js'),
       platform: 'node',
     }
 
     await esbuild.build(userConfig ? { ...defaultConfig, ...userConfig } : defaultConfig)
 
     const zipName = 'router-node.zip'
-    const archiver = new Archiver(path.join(this.builder.distDir, zipName))
-    const routerJs = path.join(this.builder.distDir, 'router.js')
-    const routerMap = path.join(this.builder.distDir, 'router.js.map')
+    const archiver = new Archiver(path.join(distDir, zipName))
+    const routerJs = path.join(distDir, 'router.js')
+    const routerMap = path.join(distDir, 'router.js.map')
 
     archiver.append(fs.createReadStream(routerJs), 'router.js')
     archiver.append(fs.createReadStream(routerMap), 'router.js.map')
@@ -87,11 +92,11 @@ export class NodeBuilder implements StepBuilder {
     const entrypointPath = relativeFilePath.replace(/(.*)\.(ts|js)$/, '$1.js')
     const entrypointMapPath = entrypointPath.replace(/(.*)\.js$/, '$1.js.map')
     const bundlePath = path.join('node', entrypointPath.replace(/(.*)\.js$/, '$1.zip'))
-    const outputJsFile = path.join(this.builder.distDir, 'node', entrypointPath)
-    const outputMapFile = path.join(this.builder.distDir, 'node', entrypointMapPath)
+    const outputJsFile = path.join(distDir, 'node', entrypointPath)
+    const outputMapFile = path.join(distDir, 'node', entrypointMapPath)
 
     this.builder.registerStep({ entrypointPath, bundlePath, step, type: 'node' })
-    this.builder.printer.printStepBuilding(step)
+    this.listener.onBuildStart(step)
 
     try {
       const userConfig = await this.loadEsbuildConfig()
@@ -105,7 +110,7 @@ export class NodeBuilder implements StepBuilder {
 
       await esbuild.build(userConfig ? { ...defaultConfig, ...userConfig } : defaultConfig)
 
-      const archiver = new Archiver(path.join(this.builder.distDir, bundlePath))
+      const archiver = new Archiver(path.join(distDir, bundlePath))
 
       archiver.append(fs.createReadStream(outputJsFile), entrypointPath)
       archiver.append(fs.createReadStream(outputMapFile), entrypointMapPath)
@@ -116,9 +121,9 @@ export class NodeBuilder implements StepBuilder {
       fs.unlinkSync(outputJsFile)
       fs.unlinkSync(outputMapFile)
 
-      this.builder.printer.printStepBuilt(step, size)
+      this.listener.onBuildEnd(step, size)
     } catch (err) {
-      this.builder.printer.printStepFailed(step, err as Error)
+      this.listener.onBuildError(step, err as Error)
       throw err
     }
   }
