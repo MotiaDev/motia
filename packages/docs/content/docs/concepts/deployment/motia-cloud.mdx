@@ -26,29 +26,52 @@ This approach provides several benefits:
 The simplest way to deploy your Motia workflows is using the CLI command:
 
 ```bash
-motia deploy --api-key <api-key> --environment <environment> --version <version>
+motia cloud deploy --api-key <api-key> --version-name <version> [options]
 ```
 
 ### Command Options
 
-| Option          | Alias | Description                           | Default           |
-| --------------- | ----- | ------------------------------------- | ----------------- |
-| `--environment` | `-e`  | Target environment for deployment     | `development`     |
-| `--version`     | `-v`  | Version tag for the deployment        | Current timestamp |
-| `--api-key`     | `-k`  | API key for authentication (required) | None              |
+#### Required Options
+
+| Option          | Alias | Description                    | Environment Variable |
+| --------------- | ----- | ------------------------------ | -------------------- |
+| `--api-key`     | `-k`  | API key for authentication     | `MOTIA_API_KEY`      |
+| `--version-name`| `-v`  | Version tag for the deployment | None                 |
+
+#### Optional Options
+
+| Option             | Alias | Description                            | Environment Variable     |
+| ------------------ | ----- | -------------------------------------- | ------------------------ |
+| `--project-id`     | `-p`  | Project ID                             | `MOTIA_PROJECT_ID`       |
+| `--environment-id` | `-s`  | Environment ID                         | `MOTIA_ENVIRONMENT_ID`   |
+| `--env-file`       | `-e`  | Path to environment file               | None                     |
+| `--project-name`   | `-n`  | Project name                           | `MOTIA_PROJECT_NAME`     |
+
+> **Note:** Command-line options take precedence over environment variables. If both are provided, the command-line value will be used.
 
 ### Examples
 
-Deploy to the development environment with an auto-generated version:
+Deploy with a specific version:
 
 ```bash
-motia deploy --api-key your-api-key-here
+motia cloud deploy --api-key your-api-key-here --version-name 1.2.3
 ```
 
-Deploy to production with a specific version:
+Deploy to a specific environment with environment variables:
 
 ```bash
-motia deploy --environment production --version 1.2.3 --api-key your-api-key-here
+motia cloud deploy --api-key your-api-key-here --version-name 1.2.3 --env-file .env.production --environment-id env-uuid
+```
+
+Deploy using environment variables:
+
+```bash
+export MOTIA_API_KEY=your-api-key-here
+export MOTIA_PROJECT_ID=my-project-id
+export MOTIA_ENVIRONMENT_ID=production
+export MOTIA_PROJECT_NAME="My Production Project"
+
+motia cloud deploy --version-name 1.2.3 --env-file .env.production
 ```
 
 ## Deployment Results
@@ -84,7 +107,7 @@ A more human-readable summary organized by flows:
 
 ## Deployment Process
 
-When you run `motia deploy`, the CLI performs the following actions:
+When you run `motia cloud deploy`, the CLI performs the following actions:
 
 1. **Preparation**: Validates your project structure and configuration
 2. **File Collection**: Gathers all workflow step zip files from your project
