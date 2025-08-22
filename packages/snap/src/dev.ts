@@ -12,6 +12,7 @@ import { flush } from '@amplitude/analytics-node'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { createDevWatchers } from './dev-watchers'
 import { stateEndpoints } from './dev/state-endpoints'
+import { deployEndpoints } from './cloud/endpoints'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
@@ -74,6 +75,8 @@ export const dev = async (
   watcher.init()
 
   stateEndpoints(motiaServer, state)
+
+  deployEndpoints(motiaServer, lockedData)
 
   motiaServer.server.listen(port, hostname)
   console.log('🚀 Server ready and listening on port', port)
