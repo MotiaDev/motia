@@ -28,8 +28,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         template: [nodejs, python]
-        shard: [1, 2]
-        total-shards: [2]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -102,7 +100,7 @@ jobs:
           shell: bash
           command: |
             cd packages/e2e
-            echo "🧪 Starting PR E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}, Shard: ${{ matrix.shard }}/${{ matrix.total-shards }}"
+            echo "🧪 Starting PR E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}"
             
             # Export the built CLI path for tests to use
             export MOTIA_CLI_PATH="$GITHUB_WORKSPACE/packages/snap/dist/cjs/cli.js"
@@ -110,11 +108,11 @@ jobs:
             export MOTIA_API_URL=http://localhost:3000
             export TEST_TEMPLATE=${{ matrix.template }}
             
-            # Run tests based on template
+            # Run tests based on template (no sharding)
             if [ "${{ matrix.template }}" == "python" ]; then
-              pnpm test:pr:python --reporter=line,html,github --shard=${{ matrix.shard }}/${{ matrix.total-shards }}
+              pnpm test:pr:python --reporter=line,html,github
             else
-              pnpm test:pr --reporter=line,html,github --shard=${{ matrix.shard }}/${{ matrix.total-shards }}
+              pnpm test:pr --reporter=line,html,github
             fi
 
       - name: Record test metrics
@@ -122,10 +120,10 @@ jobs:
         run: |
           TEST_DURATION=$(($(date +%s) - $START_TIME))
           echo "TEST_DURATION=$TEST_DURATION" >> $GITHUB_ENV
-          echo "::notice title=Test Duration::${{ matrix.template }} on ${{ matrix.os }} (shard ${{ matrix.shard }}) completed in $TEST_DURATION seconds"
+          echo "::notice title=Test Duration::${{ matrix.template }} on ${{ matrix.os }} completed in $TEST_DURATION seconds"
           
           # Output performance metrics
-          echo "### Performance Metrics - ${{ matrix.os }} - ${{ matrix.template }} - Shard ${{ matrix.shard }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Performance Metrics - ${{ matrix.os }} - ${{ matrix.template }}" >> $GITHUB_STEP_SUMMARY
           echo "- Duration: ${TEST_DURATION}s" >> $GITHUB_STEP_SUMMARY
           echo "- Status: ${{ steps.run_tests.outcome }}" >> $GITHUB_STEP_SUMMARY
 
@@ -136,7 +134,6 @@ jobs:
           echo "📊 Test Results Summary:"
           echo "- Template: ${{ matrix.template }}"
           echo "- OS: ${{ matrix.os }}"
-          echo "- Shard: ${{ matrix.shard }}/${{ matrix.total-shards }}"
           echo "- Test outcome: ${{ steps.run_tests.outcome }}"
           echo "- Duration: ${{ env.TEST_DURATION }} seconds"
           
@@ -145,7 +142,7 @@ jobs:
             echo "✅ PR E2E tests passed for ${{ matrix.template }} on ${{ matrix.os }}"
           else
             echo "result=failure" >> $GITHUB_OUTPUT
-            echo "::error title=Test Failed::E2E tests failed for ${{ matrix.template }} on ${{ matrix.os }} (shard ${{ matrix.shard }})"
+            echo "::error title=Test Failed::E2E tests failed for ${{ matrix.template }} on ${{ matrix.os }}"
           
             # Extract and display error summary if available
             if [ -f "packages/e2e/test-results/results.json" ]; then
@@ -159,7 +156,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-pr-test-results-${{ github.event.number }}-${{ matrix.os }}-${{ matrix.template }}-shard${{ matrix.shard }}
+          name: e2e-pr-test-results-${{ github.event.number }}-${{ matrix.os }}-${{ matrix.template }}
           path: |
             packages/e2e/playwright-report/
             packages/e2e/test-results/
@@ -170,7 +167,7 @@ jobs:
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: PR E2E Tests - ${{ matrix.os }} - ${{ matrix.template }} - Shard ${{ matrix.shard }}
+          name: PR E2E Tests - ${{ matrix.os }} - ${{ matrix.template }}
           path: 'packages/e2e/test-results/*.xml'
           reporter: jest-junit
           fail-on-error: false
@@ -194,25 +191,25 @@ jobs:
           
           echo "✅ Cleanup complete"
 
-  # Aggregate results from all shards
+  # Aggregate results from all matrix jobs
   check-results:
     needs: e2e-pr-tests
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Check all shard results
+      - name: Check all test results
         run: |
-          echo "📊 Checking results from all shards..."
+          echo "📊 Checking results from all test jobs..."
           
           # Get the results from the matrix jobs
           RESULTS='${{ toJSON(needs.e2e-pr-tests.result) }}'
           echo "Matrix job result: $RESULTS"
           
           if [ "$RESULTS" == '"success"' ]; then
-            echo "✅ All PR E2E test shards passed successfully"
+            echo "✅ All PR E2E tests passed successfully"
             echo "### PR E2E Tests: PASSED ✅" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ One or more PR E2E test shards failed"
+            echo "❌ One or more PR E2E tests failed"
             echo "### PR E2E Tests: FAILED ❌" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
@@ -228,7 +225,9 @@ jobs:
             
             const comment = `### E2E Test Results ${emoji}
             
-            All shards have completed. Tests ${status}.
+            All tests have completed. Tests ${status}.
+            
+            Matrix: 2 OS (Ubuntu, macOS) × 2 Templates (Node.js, Python) = 4 jobs
             
             [View detailed test results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
             
