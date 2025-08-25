@@ -6,13 +6,18 @@ export const config: PlaywrightTestConfig = {
   expect: {
     timeout: 10000,
   },
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 4,
+  retries: 0, // Retries are now handled by GitHub Actions
+  workers: process.env.CI ? 2 : 4, // Allow parallel execution within shards
   reporter: process.env.CI
     ? [['html'], ['list'], ['github'], ['junit', { outputFile: 'test-results/junit.xml' }]]
     : [['html'], ['list'], ['dot']],
+  // Support sharding from CLI
+  shard: process.env.CI && process.env.SHARD ? {
+    current: parseInt(process.env.SHARD.split('/')[0]),
+    total: parseInt(process.env.SHARD.split('/')[1])
+  } : undefined,
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
