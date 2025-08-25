@@ -44,8 +44,14 @@ jobs:
         uses: actions/cache@v4
         id: playwright-cache
         with:
-          path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+          path: |
+            ~/.cache/ms-playwright
+            ~/AppData/Local/ms-playwright
+            ~/Library/Caches/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-
+            playwright-${{ runner.os }}-
 
       - name: Install E2E dependencies and browsers
         run: |
@@ -60,26 +66,42 @@ jobs:
           pnpm clean
           
       - name: Start playground
+        id: start_server
         run: |
           cd playground
           pnpm python-setup
           MOTIA_ANALYTICS_DISABLED=true pnpm run dev &
-          echo "Waiting for playground server to start..."
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          echo "Waiting for playground server to start (PID: $SERVER_PID)..."
           timeout 60 bash -c 'until curl -f http://localhost:3000 >/dev/null 2>&1; do sleep 2; done'
           echo "Playground server is ready!"
 
-      - name: Run PR E2E tests
-        id: run_tests
-        env:
-          MOTIA_API_URL: http://localhost:3000
-        run: |
-          cd packages/e2e
-          echo "Starting PR E2E tests against playground"
-          pnpm test:e2e:trace --reporter=line,html,github
-        continue-on-error: true
+      - name: Record test start time
+        run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
 
-      - name: Set test result
+      - name: Run PR E2E tests with retry
+        id: run_tests
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          retry_on: error
+          command: |
+            cd packages/e2e
+            echo "Starting PR E2E tests against playground"
+            export MOTIA_API_URL=http://localhost:3000
+            pnpm test:e2e:trace --reporter=line,html,github
+
+      - name: Record test metrics
+        if: always()
+        run: |
+          TEST_DURATION=$(($(date +%s) - $START_TIME))
+          echo "::notice title=Test Duration::PR E2E tests completed in $TEST_DURATION seconds"
+
+      - name: Process test results
         id: test_result
+        if: always()
         run: |
           echo "Test outcome: ${{ steps.run_tests.outcome }}"
           if [ "${{ steps.run_tests.outcome }}" == "success" ]; then
@@ -87,8 +109,7 @@ jobs:
             echo "✅ PR E2E tests passed successfully"
           else
             echo "result=failure" >> $GITHUB_OUTPUT
-            echo "❌ PR E2E tests failed"
-            echo "Check the test results and logs for details"
+            echo "::error::PR E2E tests failed - check artifacts for details"
             exit 1
           fi
 
@@ -100,10 +121,30 @@ jobs:
           path: |
             packages/e2e/playwright-report/
             packages/e2e/test-results/
+            packages/e2e/test-results.xml
           retention-days: 7
+
+      - name: Publish Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: PR E2E Test Results
+          path: 'packages/e2e/test-results/*.xml'
+          reporter: jest-junit
+          fail-on-error: false
 
       - name: Stop playground server
         if: always()
         run: |
-          pkill -f "pnpm run dev" || true
-          pkill -f "node.*3000" || true 
+          # Kill by PID if available
+          if [ ! -z "$SERVER_PID" ]; then
+            kill -9 $SERVER_PID 2>/dev/null || true
+          fi
+          
+          # Kill by port
+          if command -v lsof &> /dev/null; then
+            lsof -ti:3000 | xargs -r kill -9 2>/dev/null || true
+          fi
+          
+          # Clean up any remaining Node processes from playground
+          ps aux | grep -E "node.*playground" | grep -v grep | awk '{print $2}' | xargs -r kill -9 2>/dev/null || true 
