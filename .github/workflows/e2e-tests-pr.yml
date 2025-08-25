@@ -1,4 +1,4 @@
-name: E2E Tests (PR)
+name: E2E Tests (PR) - Optimized
 
 on:
   pull_request:
@@ -18,11 +18,18 @@ on:
 
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   e2e-pr-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+        total-shards: [3]
     env:
       CI: true
       NODE_ENV: test
@@ -38,7 +45,8 @@ jobs:
         id: playwright-version
         run: |
           cd packages/e2e
-          echo "version=$(node -p "require('./package.json').dependencies['@playwright/test'] || require('./package.json').devDependencies['@playwright/test']")" >> $GITHUB_OUTPUT
+          PLAYWRIGHT_VERSION=$(node -p "require('./package.json').dependencies['@playwright/test'] || require('./package.json').devDependencies['@playwright/test']")
+          echo "version=$PLAYWRIGHT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -48,7 +56,7 @@ jobs:
             ~/.cache/ms-playwright
             ~/AppData/Local/ms-playwright
             ~/Library/Caches/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-${{ hashFiles('**/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-
             playwright-${{ runner.os }}-
@@ -56,60 +64,98 @@ jobs:
       - name: Install E2E dependencies and browsers
         run: |
           cd packages/e2e
-          pnpm exec playwright install chromium
-          pnpm exec playwright install-deps
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
+            pnpm exec playwright install chromium
+            pnpm exec playwright install-deps
+          fi
           npx motia install
 
       - name: Clean previous test artifacts
         run: |
           cd packages/e2e
           pnpm clean
-          
-      - name: Start playground
+
+      - name: Start playground server
         id: start_server
         run: |
           cd playground
           pnpm python-setup
-          MOTIA_ANALYTICS_DISABLED=true pnpm run dev &
+          
+          # Start server and capture PID
+          MOTIA_ANALYTICS_DISABLED=true pnpm run dev > server.log 2>&1 &
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          
+          # Wait for server with exponential backoff
           echo "Waiting for playground server to start (PID: $SERVER_PID)..."
-          timeout 60 bash -c 'until curl -f http://localhost:3000 >/dev/null 2>&1; do sleep 2; done'
-          echo "Playground server is ready!"
+          RETRY_COUNT=0
+          MAX_RETRIES=30
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if curl -f http://localhost:3000 >/dev/null 2>&1; then
+              echo "✅ Playground server is ready!"
+              break
+            fi
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            SLEEP_TIME=$((RETRY_COUNT < 10 ? 2 : 5))
+            echo "  Attempt $RETRY_COUNT/$MAX_RETRIES - waiting ${SLEEP_TIME}s..."
+            sleep $SLEEP_TIME
+          done
+          
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "❌ Server failed to start after $MAX_RETRIES attempts"
+            cat server.log
+            exit 1
+          fi
 
       - name: Record test start time
         run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
 
-      - name: Run PR E2E tests with retry
+      - name: Run PR E2E tests (Shard ${{ matrix.shard }}/${{ matrix.total-shards }})
         id: run_tests
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 10
           max_attempts: 2
           retry_on: error
+          shell: bash
           command: |
             cd packages/e2e
-            echo "Starting PR E2E tests against playground"
+            echo "🧪 Starting PR E2E tests - Shard ${{ matrix.shard }}/${{ matrix.total-shards }}"
             export MOTIA_API_URL=http://localhost:3000
-            pnpm test:e2e:trace --reporter=line,html,github
+            pnpm test:e2e:trace --shard=${{ matrix.shard }}/${{ matrix.total-shards }} --reporter=line,html,github
 
       - name: Record test metrics
         if: always()
         run: |
           TEST_DURATION=$(($(date +%s) - $START_TIME))
-          echo "::notice title=Test Duration::PR E2E tests completed in $TEST_DURATION seconds"
+          echo "TEST_DURATION=$TEST_DURATION" >> $GITHUB_ENV
+          echo "::notice title=Test Duration::Shard ${{ matrix.shard }} completed in $TEST_DURATION seconds"
+          
+          # Output performance metrics
+          echo "### Performance Metrics - Shard ${{ matrix.shard }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Duration: ${TEST_DURATION}s" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ steps.run_tests.outcome }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Process test results
         id: test_result
         if: always()
         run: |
-          echo "Test outcome: ${{ steps.run_tests.outcome }}"
+          echo "📊 Test Results Summary - Shard ${{ matrix.shard }}:"
+          echo "- Test outcome: ${{ steps.run_tests.outcome }}"
+          echo "- Duration: ${{ env.TEST_DURATION }} seconds"
+          
           if [ "${{ steps.run_tests.outcome }}" == "success" ]; then
             echo "result=success" >> $GITHUB_OUTPUT
-            echo "✅ PR E2E tests passed successfully"
+            echo "✅ PR E2E tests passed (Shard ${{ matrix.shard }})"
           else
             echo "result=failure" >> $GITHUB_OUTPUT
-            echo "::error::PR E2E tests failed - check artifacts for details"
+            echo "::error title=Test Failed::E2E tests failed on Shard ${{ matrix.shard }}"
+          
+            # Extract and display error summary if available
+            if [ -f "packages/e2e/test-results/results.json" ]; then
+              echo "### Failed Tests Summary" >> $GITHUB_STEP_SUMMARY
+              jq -r '.failures[]' packages/e2e/test-results/results.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+            fi
             exit 1
           fi
 
@@ -117,34 +163,113 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-pr-test-results-${{ github.event.number }}
+          name: e2e-pr-test-results-${{ github.event.number }}-shard${{ matrix.shard }}
           path: |
             packages/e2e/playwright-report/
             packages/e2e/test-results/
             packages/e2e/test-results.xml
+            playground/server.log
           retention-days: 7
 
       - name: Publish Test Report
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: PR E2E Test Results
+          name: PR E2E Tests - Shard ${{ matrix.shard }}
           path: 'packages/e2e/test-results/*.xml'
           reporter: jest-junit
           fail-on-error: false
+          only-summary: false
 
       - name: Stop playground server
         if: always()
         run: |
+          echo "🛑 Stopping playground server..."
+          
           # Kill by PID if available
           if [ ! -z "$SERVER_PID" ]; then
-            kill -9 $SERVER_PID 2>/dev/null || true
+            if kill -0 $SERVER_PID 2>/dev/null; then
+              kill -TERM $SERVER_PID 2>/dev/null || true
+              sleep 2
+              kill -9 $SERVER_PID 2>/dev/null || true
+            fi
           fi
           
-          # Kill by port
+          # Kill by port (fallback)
           if command -v lsof &> /dev/null; then
-            lsof -ti:3000 | xargs -r kill -9 2>/dev/null || true
+            PORT_PIDS=$(lsof -ti:3000 2>/dev/null || true)
+            if [ ! -z "$PORT_PIDS" ]; then
+              echo "$PORT_PIDS" | xargs -r kill -9 2>/dev/null || true
+            fi
           fi
           
           # Clean up any remaining Node processes from playground
-          ps aux | grep -E "node.*playground" | grep -v grep | awk '{print $2}' | xargs -r kill -9 2>/dev/null || true 
+          ps aux | grep -E "node.*playground" | grep -v grep | awk '{print $2}' | xargs -r kill -9 2>/dev/null || true
+          
+          echo "✅ Server cleanup complete"
+
+  # Aggregate results from all shards
+  check-results:
+    needs: e2e-pr-tests
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all shard results
+        run: |
+          echo "📊 Checking results from all shards..."
+          
+          # Get the results from the matrix jobs
+          RESULTS='${{ toJSON(needs.e2e-pr-tests.result) }}'
+          echo "Matrix job result: $RESULTS"
+          
+          if [ "$RESULTS" == '"success"' ]; then
+            echo "✅ All PR E2E test shards passed successfully"
+            echo "### PR E2E Tests: PASSED ✅" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ One or more PR E2E test shards failed"
+            echo "### PR E2E Tests: FAILED ❌" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Comment PR status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = '${{ needs.e2e-pr-tests.result }}' === 'success';
+            const emoji = result ? '✅' : '❌';
+            const status = result ? 'passed' : 'failed';
+            
+            const comment = `### E2E Test Results ${emoji}
+            
+            All shards have completed. Tests ${status}.
+            
+            [View detailed test results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+            
+            // Find and update or create comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('E2E Test Results')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment,
+              });
+            }
