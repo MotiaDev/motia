@@ -73,14 +73,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-2025, macos-latest]
         template: [nodejs, python]
-        shard: [1, 2]
-        total-shards: [2]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 25
     env:
       CI: true
       NODE_ENV: test
     steps:
+      - name: Record workflow start time
+        run: echo "WORKFLOW_START_TIME=$(date +%s)" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -171,15 +172,15 @@ jobs:
           retry_on: error
           command: |
             cd packages/e2e
-            echo "Starting Release E2E tests - Template: ${{ matrix.template }}, Shard: ${{ matrix.shard }}/${{ matrix.total-shards }}"
+            echo "Starting Release E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}"
             export MOTIA_ANALYTICS_DISABLED=true
             export MOTIA_VERSION=${{ needs.prepare.outputs.version }}
             export MOTIA_API_URL=http://localhost:3000
             export TEST_TEMPLATE=${{ matrix.template }}
             if [ "${{ matrix.template }}" == "python" ]; then
-              pnpm test:release:python --reporter=line,html,github --shard=${{ matrix.shard }}/${{ matrix.total-shards }}
+              pnpm test:release:python --reporter=line,html,github
             else
-              pnpm test:release --reporter=line,html,github --shard=${{ matrix.shard }}/${{ matrix.total-shards }}
+              pnpm test:release --reporter=line,html,github
             fi
 
       - name: Record test metrics
@@ -188,7 +189,7 @@ jobs:
         run: |
           TEST_DURATION=$(($(date +%s) - $START_TIME))
           echo "TEST_DURATION=$TEST_DURATION" >> $GITHUB_ENV
-          echo "::notice title=Test Duration::Tests for ${{ matrix.template }} on ${{ matrix.os }} (shard ${{ matrix.shard }}) completed in $TEST_DURATION seconds"
+          echo "::notice title=Test Duration::Tests for ${{ matrix.template }} on ${{ matrix.os }} completed in $TEST_DURATION seconds"
 
       - name: Process test results
         id: test_result
@@ -198,7 +199,6 @@ jobs:
           echo "📊 Test Results Summary:"
           echo "- Template: ${{ matrix.template }}"
           echo "- OS: ${{ matrix.os }}"
-          echo "- Shard: ${{ matrix.shard }}/${{ matrix.total-shards }}"
           echo "- Test outcome: ${{ steps.run_tests.outcome }}"
           echo "- Duration: ${{ env.TEST_DURATION }} seconds"
           
@@ -207,7 +207,7 @@ jobs:
             echo "✅ E2E tests passed successfully"
           else
             echo "result=failure" >> $GITHUB_OUTPUT
-            echo "::error title=Test Failed::E2E tests failed for ${{ matrix.template }} on ${{ matrix.os }} (shard ${{ matrix.shard }})"
+            echo "::error title=Test Failed::E2E tests failed for ${{ matrix.template }} on ${{ matrix.os }}"
             exit 1
           fi
 
@@ -215,7 +215,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-test-results-${{ needs.prepare.outputs.version }}-${{ matrix.os }}-${{ matrix.template }}-shard${{ matrix.shard }}
+          name: e2e-test-results-${{ needs.prepare.outputs.version }}-${{ matrix.os }}-${{ matrix.template }}
           path: |
             packages/e2e/playwright-report/
             packages/e2e/test-results/
@@ -226,10 +226,20 @@ jobs:
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: E2E Test Results - ${{ matrix.os }} - ${{ matrix.template }} - Shard ${{ matrix.shard }}
+          name: E2E Test Results - ${{ matrix.os }} - ${{ matrix.template }}
           path: 'packages/e2e/test-results/*.xml'
           reporter: jest-junit
           fail-on-error: false
+
+      - name: Report test metrics
+        if: always()
+        run: |
+          echo "### 📊 E2E Test Metrics - ${{ matrix.os }} - ${{ matrix.template }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration**: ${{ env.TEST_DURATION }}s" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.run_tests.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **OS**: ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Template**: ${{ matrix.template }}" >> $GITHUB_STEP_SUMMARY
 
   check-results:
     needs: e2e-tests
