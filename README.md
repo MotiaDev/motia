@@ -189,3 +189,9 @@ We welcome contributions! Check our **[Contributing Guide](https://github.com/Mo
 <sub>⭐ **Star us if you find Motia useful!**</sub>
 
 </div>
+### ⚡ Prerequisites
+
+- Node.js **>=20.11.1**  
+  (Motia specifies this in `package.json` via Volta. We recommend using [Volta](https://volta.sh) or [nvm](https://github.com/nvm-sh/nvm) to manage Node versions.)
+- [pnpm](https://pnpm.io) (Motia uses pnpm for package management)
+
