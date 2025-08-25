@@ -611,7 +611,7 @@ export const steps: TutorialStep[] = [
         <br />
         <br />
         We recommend you give our{' '}
-        <a href="https://www.motia.dev/docs/getting-started/core-concepts" target="_blank">
+        <a href="https://www.motia.dev/docs/concepts" target="_blank">
           core concepts
         </a>{' '}
         a read if you wish to learn further about Motia's fundamentals.

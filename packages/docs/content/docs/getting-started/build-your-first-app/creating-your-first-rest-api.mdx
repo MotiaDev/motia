@@ -1,5 +1,5 @@
 ---
-title: Creating Your First REST API in Motia
+title: API Endpoints
 description: Learn how to build a complete REST API with CRUD operations using Motia. This guide covers HTTP endpoints, request validation, and response handling.
 ---
 If you haven't already, follow the [Quick Start Guide](/docs/getting-started/quick-start) to create a Motia project. This tutorial assumes you have a working project with the development server running.
@@ -191,7 +191,7 @@ path: '/pets',
 ```
 This configuration tells Motia to create a POST endpoint at /pets. When your development server is running, users can send requests to http://localhost:3000/pets to create new pets. The POST method is the standard HTTP method for creating new resources in REST APIs.
 
-![Pet Creation](./../img/pet-creation.png)
+![Pet Creation](./../../img/pet-creation.png)
 
 ##  Adding More CRUD Operations
 
@@ -321,7 +321,7 @@ Create a new file to list all pets in the store:
   </Tab>
 </Tabs>
 
-![Get All Pets](./../img/get-all-pets.png)
+![Get All Pets](./../../img/get-all-pets.png)
 
 ### Get Pet by ID - `GET /pets/:id`
 
@@ -481,7 +481,7 @@ Create a new file to retrieve a specific pet:
     ```
   </Tab>
 </Tabs>
-![Get One Pet](./../img/get-one-pet.png)
+![Get One Pet](./../../img/get-one-pet.png)
 
 ### Update Pet - `PUT /pets/:id`
 
@@ -825,7 +825,7 @@ Create a new file to remove pets from the store:
   </Tab>
 </Tabs>
 
-![Delete One Pet](./../img/delete-pet.png)
+![Delete One Pet](./../../img/delete-pet.png)
 
 ## Testing the Complete REST API
 You now have a full CRUD REST API. Here are all the endpoints you can test:

@@ -60,7 +60,8 @@ The starter project comes with a pre-built `default` flow. Let's run it.
 
 Congratulations! You've successfully created, run, and observed your first Motia workflow.
 
-- To build a multi-language application from scratch, follow our **[Build Your First App](/docs/getting-started/build-your-first-app)** guide.
+- To build a multi-language application from scratch, follow our **[Multi-Language Data Processing](/docs/examples/multi-language-data-processing)** guide.
+- To learn how to build REST APIs with Motia, check out our **[Creating Your First REST API](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)** guide.
 - To learn about Motia, dive into our **[Welcome to Motia](/docs)**.
 
 </Step>

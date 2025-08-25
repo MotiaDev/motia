@@ -333,4 +333,4 @@ motia cloud deploy --api-key <api-key> --version-name <version> [options]
 
 ---
 
-**Ready to see this in action?** Check out [Build Your First App](/docs/getting-started/build-your-first-app) to create a multi-language workflow in minutes.
+**Ready to see this in action?** Check out [API Endpoints](/docs/getting-started/build-your-first-app/creating-your-first-rest-api) to build a complete REST API in minutes.

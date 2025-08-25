@@ -6,6 +6,11 @@ We have curated a few examples to help you get started with Motia.
 
 <Cards>
   <Card
+    title="Multi-Language Data Processing"
+    href="/docs/examples/multi-language-data-processing"
+    description="A real-world example of a multi-language data processing flow"
+  />
+  <Card
     title="Sentiment Analysis"
     href="/docs/examples/sentiment-analysis"
     description="Sometimes you don't just want a simple “prompt => response.” Instead, you want the LLM to decide how to proceed A real-world example of a sentiment analysis flow"
@@ -15,7 +20,13 @@ We have curated a few examples to help you get started with Motia.
     href="/docs/examples/rag-docling-weaviate"
     description="A real-world example of a RAG flow using Docling and Weaviate"
   />
+  <Card
+    title="Uptime Monitor"
+    href="/docs/examples/uptime-discord-monitor"
+    description="A real-world example of a uptime monitor flow"
+  />
 </Cards>
+
 
 <br/>
 

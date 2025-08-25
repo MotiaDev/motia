@@ -30,16 +30,16 @@ Here's what a typical Motia project looks like:
 
 | File | Purpose | Type | Auto-Generated |
 |------|---------|------|----------------|
-| `01-api-gateway.step.ts` | TypeScript API endpoint | User Code | ❌ |
-| `02-data-processor.step.py` | Python data processing | User Code | ❌ |
-| `03-send-notification.step.js` | JavaScript automation | User Code | ❌ |
-| `custom-ui.step.tsx` | Optional UI component | User Code | ❌ |
-| `package.json` | Node.js dependencies (if using JS/TS) | Config | ❌ |
-| `requirements.txt` | Python dependencies (if using Python) | Config | ❌ |
-| `tsconfig.json` | TypeScript config (if using TypeScript) | Config | ❌ |
+| `01-api-gateway.step.ts` | TypeScript API endpoint | User Code | - |
+| `02-data-processor.step.py` | Python data processing | User Code | - |
+| `03-send-notification.step.js` | JavaScript automation | User Code | - |
+| `custom-ui.step.tsx` | Optional UI component | User Code | - |
+| `package.json` | Node.js dependencies (if using JS/TS) | Config | - |
+| `requirements.txt` | Python dependencies (if using Python) | Config | - |
+| `tsconfig.json` | TypeScript config (if using TypeScript) | Config | - |
 | `types.d.ts` | **Type definitions for your project** | **Generated** | **✅ By TypeScript** |
 | `motia-workbench.json` | **🤖 Visual workflow positioning** | **Generated** | **✅ By Motia** |
-| `config.yml` | Optional Motia configuration | Config | ❌ |
+| `config.yml` | Optional Motia configuration | Config | - |
 
 <Callout type="info">
 The `steps/` directory is the heart of your Motia application - this is where all your workflow logic lives. Motia automatically discovers and registers any file following the naming pattern.
@@ -57,7 +57,7 @@ Motia will automatically discover and register **any file** that follows the `.s
 
 Motia scans your `steps/` directory and automatically registers files as steps based on these rules:
 
-1. **File must contain `.step.` in the filename** (e.g., `my-task.step.ts`)
+1. **File must contain `.step.` or `_step.` in the filename** (e.g., `my-task.step.ts`, `my_task_step.py`)
 2. **File must export a `config` object** defining the step configuration
 3. **File must export a `handler` function** containing the step logic
 4. **File extension determines the runtime** (`.ts` = TypeScript, `.py` = Python, `.js` = JavaScript)
@@ -93,10 +93,10 @@ The `.step.` part in the filename is **required** - this is how Motia identifies
 
 | Step Type | TypeScript | Python | JavaScript |
 |-----------|------------|---------|-----------|
-| **API Endpoint** | `01-auth-api.step.ts` | `01-auth-api.step.py` | `01-auth-api.step.js` |
-| **Event Handler** | `process-order.step.ts` | `process-order.step.py` | `process-order.step.js` |
-| **Cron Job** | `daily-report.step.ts` | `daily-report.step.py` | `daily-report.step.js` |
-| **Data Processing** | `transform-data.step.ts` | `ml-analysis.step.py` | `data-cleanup.step.js` |
+| **API Endpoint** | `01-auth-api.step.ts` | `01-auth-api.step.py` or `auth_api_step.py` | `01-auth-api.step.js` |
+| **Event Handler** | `process-order.step.ts` | `process-order.step.py` or `process_order_step.py` | `process-order.step.js` |
+| **Cron Job** | `daily-report.step.ts` | `daily-report.step.py` or `daily_report_step.py` | `daily-report.step.js` |
+| **Data Processing** | `transform-data.step.ts` | `ml-analysis.step.py` or `ml_analysis_step.py` | `data-cleanup.step.js` |
 
 ## Step Organization Patterns
 
@@ -514,7 +514,7 @@ motia dev
 
 Now that you understand how Motia discovers and organizes steps:
 
-- Learn about [Core Concepts](/docs/getting-started/core-concepts) to understand how steps work together
+- Learn about [Core Concepts](/docs/concepts) to understand how steps work together
 - Explore [Defining Steps](/docs/concepts/steps/defining-steps) for detailed step creation
 - Check out [API Steps](/docs/concepts/steps/api) for creating HTTP endpoints
 - Dive into [Event Steps](/docs/concepts/steps/event) for workflow orchestration

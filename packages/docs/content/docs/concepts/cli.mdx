@@ -199,6 +199,6 @@ Options:
 
 ## Next Steps
 
-- Explore the [Core Concepts](/docs/getting-started/core-concepts) to learn more about Steps, Flows, Events, and Topics.
+- Explore the [Core Concepts](/docs/concepts) to learn more about Steps, Flows, Events, and Topics.
 - Check out the [Examples](/docs/examples) for common patterns and use cases.
 - Join our [Community](/community) for help and discussions.
