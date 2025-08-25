@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { MotiaApplicationPage } from './MotiaApplicationPage'
+import { ApiHelpers } from './ApiHelpers'
 
 export class WorkbenchPage extends MotiaApplicationPage {
   readonly sidebarContainer: Locator
@@ -93,6 +94,25 @@ export class WorkbenchPage extends MotiaApplicationPage {
   async executeFlowAndNavigateToLogs(flowName: string = 'default') {
     await this.navigateToFlow(flowName)
     await this.startFlow()
+    await this.navigateToLogs()
+  }
+
+  async executeTutorialFlow(api: ApiHelpers) {
+    return api.post('/basic-tutorial', {
+      pet: {
+        name: 'string',
+        photoUrl: 'string',
+      },
+      foodOrder: {
+        id: 'string',
+        quantity: 0,
+      },
+    })
+  }
+
+  async executeTutorialFlowAndNavigateToLogs(api: ApiHelpers) {
+    await this.navigateToFlow('basic-tutorial')
+    await this.executeTutorialFlow(api)
     await this.navigateToLogs()
   }
 

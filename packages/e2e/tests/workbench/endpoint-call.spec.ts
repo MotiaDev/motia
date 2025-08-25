@@ -1,6 +1,16 @@
 import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('Workbench - Endpoint Call JSON Validation', () => {
+  const validJson = `{
+        "pet": {
+          "name": "string",
+          "photoUrl": "string"
+        },
+        "foodOrder": {
+          "id": "string",
+          "quantity": 0
+        }
+      }`
   test.beforeEach(async ({ helpers, workbench, endpoint }) => {
     await helpers.skipTutorial()
     await workbench.open()
@@ -20,7 +30,7 @@ test.describe('Workbench - Endpoint Call JSON Validation', () => {
     })
 
     await test.step('Enter valid JSON after invalid', async () => {
-      await endpoint.setValueInBodyEditor('{"message": "test"}')
+      await endpoint.setValueInBodyEditor(validJson)
       await expect(endpoint.playButton).toBeEnabled()
     })
 
@@ -30,7 +40,7 @@ test.describe('Workbench - Endpoint Call JSON Validation', () => {
     })
 
     await test.step('Clear input with valid JSON', async () => {
-      await endpoint.setValueInBodyEditor('{"message": "test"}')
+      await endpoint.setValueInBodyEditor(validJson)
       await expect(endpoint.playButton).toBeEnabled()
     })
 
@@ -45,12 +55,12 @@ test.describe('Workbench - Endpoint Call JSON Validation', () => {
     })
 
     await test.step('Play button should be enabled when valid JSON is present', async () => {
-      await endpoint.setValueInBodyEditor('{"message": "test"}')
+      await endpoint.setValueInBodyEditor(validJson)
       await expect(endpoint.playButton).toBeEnabled()
     })
 
     await test.step('Play button should play the request', async () => {
-      await endpoint.setValueInBodyEditor('{"message": "test"}')
+      await endpoint.setValueInBodyEditor(validJson)
       await expect(endpoint.playButton).toBeEnabled()
       await endpoint.playButton.click()
       await expect(endpoint.responseContainer).toBeVisible()

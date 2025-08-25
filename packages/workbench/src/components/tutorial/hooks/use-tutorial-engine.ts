@@ -49,6 +49,7 @@ export const useTutorialEngine = () => {
       // Run any before actions
       if (step.before) {
         for (const action of step.before) {
+          const monaco = (window as any).monaco;
           if (action.type === 'click') {
             const element = await waitForElementByXPath(action.selector, action.optional)
 
@@ -155,11 +156,16 @@ export const useTutorialEngine = () => {
   }
 
   useEffect(() => {
-    importFile('tutorial.tsx').then((module) => {
-      if (Array.isArray(module.steps) && module.steps.length > 0) {
-        MotiaTutorial.register(module.steps)
-      }
-    })
+    importFile('tutorial.tsx')
+      .then((module) => {
+        if (Array.isArray(module.steps) && module.steps.length > 0) {
+          MotiaTutorial.register(module.steps)
+        }
+      })
+      .catch((error) => {
+        // Tutorial file is optional, so we don't need to throw an error
+        console.log('Tutorial file not found or could not be loaded:', error.message)
+      })
   }, [])
 
   useEffect(() => {

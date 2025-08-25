@@ -49,4 +49,4 @@ async def handler(req, context):
             },
         })
 
-    return {"status": 200, "body": new_pet_record}
+    return {"status": 200, "body": {**new_pet_record, "traceId": context.trace_id}}

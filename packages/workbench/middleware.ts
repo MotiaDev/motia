@@ -8,7 +8,8 @@ const processCwdPlugin = () => {
   return {
     name: 'html-transform',
     transformIndexHtml: (html: string) => {
-      const cwd = process.cwd()
+      // Normalize path for cross-platform compatibility
+      const cwd = process.cwd().replace(/\\/g, '/')
       return html.replace('</head>', `<script>const processCwd = "${cwd}";</script></head>`)
     },
   }

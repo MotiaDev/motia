@@ -3,30 +3,6 @@ import { expect, test } from '@/src/motia-fixtures'
 test.describe('Flow Execution Tests', () => {
   test.beforeEach(({ helpers }) => helpers.skipTutorial())
 
-  test('should execute a complete flow end-to-end', async ({ workbench, logsPage }) => {
-    await test.step('Navigate to workbench', async () => {
-      await workbench.open()
-      await workbench.verifyWorkbenchInterface()
-    })
-
-    await test.step('Execute default flow', async () => {
-      await workbench.navigateToFlow('default')
-      await workbench.startFlow()
-    })
-
-    await test.step('Verify flow execution in logs', async () => {
-      await workbench.navigateToLogs()
-
-      const expectedSteps = ['ApiTrigger', 'SetStateChange', 'CheckStateChange']
-
-      await logsPage.verifyStepsExecuted(expectedSteps)
-    })
-
-    await test.step('Verify flow completion', async () => {
-      await logsPage.waitForFlowCompletion('default')
-    })
-  })
-
   test('should handle flow execution with API trigger', async ({ workbench, logsPage, api, page }) => {
     await test.step('Navigate to workbench', async () => {
       await workbench.open()
@@ -34,9 +10,7 @@ test.describe('Flow Execution Tests', () => {
     })
 
     await test.step('Trigger flow via API', async () => {
-      const response = await api.post('/default', {
-        message: 'Test API trigger',
-      })
+      const response = await workbench.executeTutorialFlow(api)
 
       await api.verifyResponseStatus(response, 200)
     })
@@ -46,43 +20,6 @@ test.describe('Flow Execution Tests', () => {
 
       await logsPage.clickLogFromStep('ApiTrigger')
       await page.getByLabel('Test API trigger')
-    })
-  })
-
-  test('should execute multiple flows sequentially', async ({ workbench, logsPage }) => {
-    const flows = ['default']
-
-    for (const flowName of flows) {
-      await test.step(`Execute ${flowName} flow`, async () => {
-        await workbench.open()
-        await workbench.navigateToFlow(flowName)
-        await workbench.executeFlowAndNavigateToLogs(flowName)
-        await logsPage.waitForFlowCompletion(flowName, 30000)
-      })
-    }
-  })
-
-  test('should verify flow state management', async ({ workbench, logsPage }) => {
-    await test.step('Execute flow with state operations', async () => {
-      await workbench.open()
-      await workbench.executeFlowAndNavigateToLogs('default')
-    })
-
-    await test.step('Verify state changes in logs', async () => {
-      const stateMessages = ['SetStateChange', 'CheckStateChange']
-
-      await logsPage.verifyStepsExecuted(stateMessages)
-      await logsPage.verifyLogContainingText('The provided value matches the state value 🏁')
-    })
-
-    await test.step('Verify state persistence', async () => {
-      await workbench.navigateToStates()
-
-      // Verify state values are displayed (implementation depends on UI)
-      const stateContainer = workbench.page.getByTestId('states-container')
-      if (await stateContainer.isVisible({ timeout: 3000 })) {
-        await expect(stateContainer).toBeVisible()
-      }
     })
   })
 

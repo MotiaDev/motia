@@ -21,7 +21,7 @@ test.describe('CLI Generated Project - Workbench Navigation', () => {
   test('should show created steps in the workbench', async ({ workbench }) => {
     await workbench.open()
 
-    const expectedSteps = ['api-trigger', 'process-data', 'send-notification', 'basic-tutorial']
+    const expectedSteps = ['basic-tutorial']
     await workbench.verifyStepsInWorkbench(expectedSteps)
   })
 
@@ -82,26 +82,20 @@ test.describe('CLI Generated Project - Workbench Navigation', () => {
     expect(hasHealthInfo || hasStepsInfo).toBeTruthy()
   })
 
-  test('should execute default flow and verify logs', async ({ workbench, logsPage }) => {
+  test('should execute basic tutorial flow and verify logs', async ({ workbench, logsPage, api }) => {
     await workbench.open()
 
-    await test.step('Execute default flow', async () => {
-      await workbench.executeFlowAndNavigateToLogs('default')
+    await test.step('Execute basic tutorial flow', async () => {
+      await workbench.executeTutorialFlowAndNavigateToLogs(api)
     })
 
-    const stepsExecuted = ['ApiTrigger', 'SetStateChange', 'CheckStateChange']
+    const stepsExecuted = ['ApiTrigger']
 
     await test.step('Verify all expected logs are present', async () => {
       await logsPage.verifyStepsExecuted(stepsExecuted)
       console.log('✓ Found all expected logs')
     })
 
-    await test.step('Verify state validation message is present', async () => {
-      const stateValidationMessage = 'The provided value matches the state value 🏁'
-      await logsPage.verifyLogContainingText(stateValidationMessage)
-      console.log(`✓ Found state validation message: ${stateValidationMessage}`)
-    })
-
-    console.log('✅ Successfully executed default flow and verified all expected logs')
+    console.log('✅ Successfully executed basic tutorial flow and verified all expected logs')
   })
 })

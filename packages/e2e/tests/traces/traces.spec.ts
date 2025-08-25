@@ -13,8 +13,8 @@ test.describe('Traces tests', () => {
       await expect(tracesPage.traceDetailsContainer).toHaveText('Select a trace or trace group to view the timeline')
     })
 
-    await test.step('Execute default flow', async () => {
-      const response = await api.post('/default', {})
+    await test.step('Execute basic tutorial flow', async () => {
+      const response = await workbench.executeTutorialFlow(api)
       const body = (await response.json()) as Record<string, string>
       traceId = body.traceId
     })
@@ -31,8 +31,6 @@ test.describe('Traces tests', () => {
       )
 
       await expect(tracesPage.traceDetailsContainer).toContainText('ApiTrigger')
-      await expect(tracesPage.traceDetailsContainer).toContainText('SetStateChange')
-      await expect(tracesPage.traceDetailsContainer).toContainText('CheckStateChange')
     })
   })
 })

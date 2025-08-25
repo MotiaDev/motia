@@ -45,7 +45,33 @@
 
     <script>
       const importFile = async (path) => {
-        return await import(/* @vite-ignore */ `/@fs/${processCwd}/${path}`)
+        // Normalize the path for cross-platform compatibility
+        const normalizedPath = path.replace(/\\/g, '/')
+        const fullPath = `${processCwd}/${normalizedPath}`.replace(/\\/g, '/')
+        
+        // Handle Windows drive letters properly
+        let importPath = fullPath
+        if (navigator.platform.includes('Win')) {
+          // On Windows, ensure proper drive letter handling
+          if (fullPath.match(/^[A-Za-z]:/)) {
+            importPath = `/@fs/${fullPath}`
+          } else {
+            importPath = `/@fs/${fullPath}`
+          }
+        } else {
+          importPath = `/@fs/${fullPath}`
+        }
+        
+        try {
+          return await import(/* @vite-ignore */ importPath)
+        } catch (error) {
+          console.error(`Failed to import ${path}:`, error)
+          // Return empty module if tutorial.tsx doesn't exist
+          if (path === 'tutorial.tsx') {
+            return { steps: [] }
+          }
+          throw error
+        }
       }
     </script>
 
