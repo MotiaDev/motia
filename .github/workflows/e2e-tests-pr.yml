@@ -1,4 +1,4 @@
-name: E2E Tests (PR) - Optimized
+name: E2E Tests (PR)
 
 on:
   pull_request:
@@ -23,13 +23,15 @@ permissions:
 
 jobs:
   e2e-pr-tests:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
-        total-shards: [3]
+        os: [ubuntu-latest, macos-latest]
+        template: [nodejs, python]
+        shard: [1, 2]
+        total-shards: [2]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     env:
       CI: true
       NODE_ENV: test
@@ -64,53 +66,33 @@ jobs:
       - name: Install E2E dependencies and browsers
         run: |
           cd packages/e2e
-          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
-            pnpm exec playwright install chromium
-            pnpm exec playwright install-deps
-          fi
-          npx motia install
+          pnpm install
+          pnpm exec playwright install
+          pnpm exec playwright install-deps
 
       - name: Clean previous test artifacts
         run: |
           cd packages/e2e
           pnpm clean
 
-      - name: Start playground server
-        id: start_server
+      - name: Verify built CLI
         run: |
-          cd playground
-          pnpm python-setup
-          
-          # Start server and capture PID
-          MOTIA_ANALYTICS_DISABLED=true pnpm run dev > server.log 2>&1 &
-          SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-          
-          # Wait for server with exponential backoff
-          echo "Waiting for playground server to start (PID: $SERVER_PID)..."
-          RETRY_COUNT=0
-          MAX_RETRIES=30
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if curl -f http://localhost:3000 >/dev/null 2>&1; then
-              echo "✅ Playground server is ready!"
-              break
-            fi
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-            SLEEP_TIME=$((RETRY_COUNT < 10 ? 2 : 5))
-            echo "  Attempt $RETRY_COUNT/$MAX_RETRIES - waiting ${SLEEP_TIME}s..."
-            sleep $SLEEP_TIME
-          done
-          
-          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-            echo "❌ Server failed to start after $MAX_RETRIES attempts"
-            cat server.log
+          # Verify the built CLI exists
+          if [ ! -f "packages/snap/dist/cjs/cli.js" ]; then
+            echo "❌ Built CLI not found at packages/snap/dist/cjs/cli.js"
+            echo "Available files in dist:"
+            ls -la packages/snap/dist/ || echo "dist directory not found"
             exit 1
           fi
+          
+          # Make CLI executable through node
+          echo "✅ Built CLI found at packages/snap/dist/cjs/cli.js"
+          node packages/snap/dist/cjs/cli.js --version || echo "CLI version check failed"
 
       - name: Record test start time
         run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
 
-      - name: Run PR E2E tests (Shard ${{ matrix.shard }}/${{ matrix.total-shards }})
+      - name: Run PR E2E tests with built CLI
         id: run_tests
         uses: nick-fields/retry@v3
         with:
@@ -120,19 +102,30 @@ jobs:
           shell: bash
           command: |
             cd packages/e2e
-            echo "🧪 Starting PR E2E tests - Shard ${{ matrix.shard }}/${{ matrix.total-shards }}"
+            echo "🧪 Starting PR E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}, Shard: ${{ matrix.shard }}/${{ matrix.total-shards }}"
+            
+            # Export the built CLI path for tests to use
+            export MOTIA_CLI_PATH="$GITHUB_WORKSPACE/packages/snap/dist/cjs/cli.js"
+            export MOTIA_ANALYTICS_DISABLED=true
             export MOTIA_API_URL=http://localhost:3000
-            pnpm test:e2e:trace --shard=${{ matrix.shard }}/${{ matrix.total-shards }} --reporter=line,html,github
+            export TEST_TEMPLATE=${{ matrix.template }}
+            
+            # Run tests based on template
+            if [ "${{ matrix.template }}" == "python" ]; then
+              pnpm test:pr:python --reporter=line,html,github --shard=${{ matrix.shard }}/${{ matrix.total-shards }}
+            else
+              pnpm test:pr --reporter=line,html,github --shard=${{ matrix.shard }}/${{ matrix.total-shards }}
+            fi
 
       - name: Record test metrics
         if: always()
         run: |
           TEST_DURATION=$(($(date +%s) - $START_TIME))
           echo "TEST_DURATION=$TEST_DURATION" >> $GITHUB_ENV
-          echo "::notice title=Test Duration::Shard ${{ matrix.shard }} completed in $TEST_DURATION seconds"
+          echo "::notice title=Test Duration::${{ matrix.template }} on ${{ matrix.os }} (shard ${{ matrix.shard }}) completed in $TEST_DURATION seconds"
           
           # Output performance metrics
-          echo "### Performance Metrics - Shard ${{ matrix.shard }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Performance Metrics - ${{ matrix.os }} - ${{ matrix.template }} - Shard ${{ matrix.shard }}" >> $GITHUB_STEP_SUMMARY
           echo "- Duration: ${TEST_DURATION}s" >> $GITHUB_STEP_SUMMARY
           echo "- Status: ${{ steps.run_tests.outcome }}" >> $GITHUB_STEP_SUMMARY
 
@@ -140,16 +133,19 @@ jobs:
         id: test_result
         if: always()
         run: |
-          echo "📊 Test Results Summary - Shard ${{ matrix.shard }}:"
+          echo "📊 Test Results Summary:"
+          echo "- Template: ${{ matrix.template }}"
+          echo "- OS: ${{ matrix.os }}"
+          echo "- Shard: ${{ matrix.shard }}/${{ matrix.total-shards }}"
           echo "- Test outcome: ${{ steps.run_tests.outcome }}"
           echo "- Duration: ${{ env.TEST_DURATION }} seconds"
           
           if [ "${{ steps.run_tests.outcome }}" == "success" ]; then
             echo "result=success" >> $GITHUB_OUTPUT
-            echo "✅ PR E2E tests passed (Shard ${{ matrix.shard }})"
+            echo "✅ PR E2E tests passed for ${{ matrix.template }} on ${{ matrix.os }}"
           else
             echo "result=failure" >> $GITHUB_OUTPUT
-            echo "::error title=Test Failed::E2E tests failed on Shard ${{ matrix.shard }}"
+            echo "::error title=Test Failed::E2E tests failed for ${{ matrix.template }} on ${{ matrix.os }} (shard ${{ matrix.shard }})"
           
             # Extract and display error summary if available
             if [ -f "packages/e2e/test-results/results.json" ]; then
@@ -163,39 +159,29 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-pr-test-results-${{ github.event.number }}-shard${{ matrix.shard }}
+          name: e2e-pr-test-results-${{ github.event.number }}-${{ matrix.os }}-${{ matrix.template }}-shard${{ matrix.shard }}
           path: |
             packages/e2e/playwright-report/
             packages/e2e/test-results/
             packages/e2e/test-results.xml
-            playground/server.log
           retention-days: 7
 
       - name: Publish Test Report
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: PR E2E Tests - Shard ${{ matrix.shard }}
+          name: PR E2E Tests - ${{ matrix.os }} - ${{ matrix.template }} - Shard ${{ matrix.shard }}
           path: 'packages/e2e/test-results/*.xml'
           reporter: jest-junit
           fail-on-error: false
           only-summary: false
 
-      - name: Stop playground server
+      - name: Clean up test artifacts
         if: always()
         run: |
-          echo "🛑 Stopping playground server..."
+          echo "🧹 Cleaning up test artifacts..."
           
-          # Kill by PID if available
-          if [ ! -z "$SERVER_PID" ]; then
-            if kill -0 $SERVER_PID 2>/dev/null; then
-              kill -TERM $SERVER_PID 2>/dev/null || true
-              sleep 2
-              kill -9 $SERVER_PID 2>/dev/null || true
-            fi
-          fi
-          
-          # Kill by port (fallback)
+          # Kill any processes on port 3000
           if command -v lsof &> /dev/null; then
             PORT_PIDS=$(lsof -ti:3000 2>/dev/null || true)
             if [ ! -z "$PORT_PIDS" ]; then
@@ -203,10 +189,10 @@ jobs:
             fi
           fi
           
-          # Clean up any remaining Node processes from playground
-          ps aux | grep -E "node.*playground" | grep -v grep | awk '{print $2}' | xargs -r kill -9 2>/dev/null || true
+          # Clean up any test project directories created during tests
+          rm -rf packages/e2e/motia-e2e-test-project* 2>/dev/null || true
           
-          echo "✅ Server cleanup complete"
+          echo "✅ Cleanup complete"
 
   # Aggregate results from all shards
   check-results:
