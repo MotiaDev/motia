@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import colors from 'colors'
 import { Archiver } from '../archiver'
 
 const shouldIgnore = (filePath: string): boolean => {
@@ -38,27 +37,26 @@ export const addPackageToArchive = async (
   sitePackagesDir: string,
   packageName: string,
 ): Promise<void> => {
-  // First try the package name as is
-  let fullPath = path.join(sitePackagesDir, packageName)
+  const packageNameVariations = [packageName, `${packageName}.py`]
 
-  // If not found, try with .py extension
-  if (!fs.existsSync(fullPath)) {
-    const pyPath = path.join(sitePackagesDir, `${packageName}.py`)
-    if (fs.existsSync(pyPath)) {
-      fullPath = pyPath
+  // Iterate over all possible package name variations
+  for (const pkg of packageNameVariations) {
+    let fullPath = path.join(sitePackagesDir, pkg)
+
+    if (!fs.existsSync(fullPath)) {
+      // If not found, try next package name variation
+      continue
     }
-  }
 
-  if (!fs.existsSync(fullPath)) {
-    console.log(colors.yellow(`Warning: Package not found in site-packages: ${packageName}`))
+    const stat = fs.statSync(fullPath)
+    if (stat.isDirectory()) {
+      await addDirectoryToArchive(archive, sitePackagesDir, fullPath)
+    } else {
+      const relativePath = path.relative(sitePackagesDir, fullPath)
+      archive.append(fs.createReadStream(fullPath), relativePath)
+    }
+
+    // package added successfully
     return
-  }
-
-  const stat = fs.statSync(fullPath)
-  if (stat.isDirectory()) {
-    await addDirectoryToArchive(archive, sitePackagesDir, fullPath)
-  } else {
-    const relativePath = path.relative(sitePackagesDir, fullPath)
-    archive.append(fs.createReadStream(fullPath), relativePath)
   }
 }

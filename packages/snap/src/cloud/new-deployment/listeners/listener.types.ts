@@ -6,7 +6,7 @@ import { ValidationError } from '../utils/validation'
 export type BuildListener = {
   onBuildStart: (step: Step) => void
   onBuildProgress: (step: Step, message: string) => void
-  onBuildEnd: (step: Step, size: number) => void
+  onBuildEnd: (step: Step, size?: number) => void
   onBuildError: (step: Step, error: Error) => void
   onBuildSkip: (step: Step, reason: string) => void
 

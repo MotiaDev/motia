@@ -9,7 +9,7 @@ describe('Get Config', () => {
 
   it('should get the config from a node file', async () => {
     const baseDir = __dirname
-    const mockApiStep = await getStepConfig(path.join(baseDir, 'steps', 'api-step.ts'))
+    const mockApiStep = await getStepConfig(baseDir, path.join(baseDir, 'steps', 'api-step.ts'))
 
     expect(mockApiStep).toBeDefined()
     expect(mockApiStep?.type).toEqual('api')
@@ -22,7 +22,7 @@ describe('Get Config', () => {
 
   it('should get the config from a python file', async () => {
     const baseDir = __dirname
-    const mockApiStep = await getStepConfig(path.join(baseDir, 'steps', 'api-step.py'))
+    const mockApiStep = await getStepConfig(baseDir, path.join(baseDir, 'steps', 'api-step.py'))
 
     expect(mockApiStep).toBeDefined()
     expect(mockApiStep?.type).toEqual('api')
@@ -35,7 +35,7 @@ describe('Get Config', () => {
 
   it('should get the config from a ruby file', async () => {
     const baseDir = __dirname
-    const mockApiStep = await getStepConfig(path.join(baseDir, 'steps', 'api-step.rb'))
+    const mockApiStep = await getStepConfig(baseDir, path.join(baseDir, 'steps', 'api-step.rb'))
 
     expect(mockApiStep).toBeDefined()
     expect(mockApiStep?.type).toEqual('api')

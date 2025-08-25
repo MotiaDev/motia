@@ -24,7 +24,7 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   ]
 
   for (const filePath of stepFiles) {
-    const config = await getStepConfig(filePath)
+    const config = await getStepConfig(projectDir, filePath)
 
     if (!config) {
       console.warn(`No config found in step ${filePath}, step skipped`)
@@ -39,7 +39,7 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   }
 
   for (const filePath of streamFiles) {
-    const config = await getStreamConfig(filePath)
+    const config = await getStreamConfig(projectDir, filePath)
 
     if (!config) {
       console.warn(`No config found in stream ${filePath}, stream skipped`)

@@ -10,6 +10,11 @@ import { addPackageToArchive } from './add-package-to-archive'
 import { BuildListener } from '../../../new-deployment/listeners/listener.types'
 import { distDir } from '../../../new-deployment/constants'
 
+interface PythonBuilderData {
+  packages: Array<{ name: string; version: string; is_direct_import: boolean }>
+  files: string[]
+}
+
 export class PythonBuilder implements StepBuilder {
   constructor(
     private readonly builder: Builder,
@@ -24,7 +29,7 @@ export class PythonBuilder implements StepBuilder {
     const sitePackagesDir = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
 
     // Get Python builder response
-    const { packages } = await this.getPythonBuilderData(step)
+    const { packages, files } = await this.getPythonBuilderData(step)
 
     // Add main file to archive
     if (!fs.existsSync(step.filePath)) {
@@ -32,8 +37,12 @@ export class PythonBuilder implements StepBuilder {
     }
 
     archive.append(fs.createReadStream(step.filePath), path.relative(this.builder.projectDir, normalizedEntrypointPath))
+    files.forEach((file) => archive.append(fs.createReadStream(file), path.relative(this.builder.projectDir, file)))
 
-    await Promise.all(packages.map(async (packageName) => addPackageToArchive(archive, sitePackagesDir, packageName)))
+    if (packages.length > 0) {
+      await Promise.all(packages.map((pkg) => addPackageToArchive(archive, sitePackagesDir, pkg.name)))
+      this.listener.onBuildProgress(step, `Added ${packages.length} packages to archive`)
+    }
 
     return normalizedEntrypointPath
   }
@@ -41,7 +50,6 @@ export class PythonBuilder implements StepBuilder {
   async build(step: Step): Promise<void> {
     const entrypointPath = step.filePath.replace(this.builder.projectDir, '')
     const bundlePath = path.join('python', entrypointPath.replace(/(.*)\.py$/, '$1.zip'))
-    const normalizedEntrypointPath = entrypointPath.replace(/[.]step.py$/, '_step.py')
     const outfile = path.join(distDir, bundlePath)
 
     try {
@@ -49,33 +57,14 @@ export class PythonBuilder implements StepBuilder {
       fs.mkdirSync(path.dirname(outfile), { recursive: true })
       this.listener.onBuildStart(step)
 
-      // Get Python builder response
-      const { packages } = await this.getPythonBuilderData(step)
+      // Create the step zip archive
       const stepArchiver = new Archiver(outfile)
+
+      // Build the step
       const stepPath = await this.buildStep(step, stepArchiver)
 
-      // Add main file to archive
-      if (!fs.existsSync(step.filePath)) {
-        throw new Error(`Source file not found: ${step.filePath}`)
-      }
-
-      stepArchiver.append(
-        fs.createReadStream(step.filePath),
-        path.relative(this.builder.projectDir, normalizedEntrypointPath),
-      )
-
-      // Add all imported files to archive
-      this.listener.onBuildProgress(step, 'Adding imported files to archive...')
-      const sitePackagesDir = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
-
+      // Add static files to the archive
       includeStaticFiles([step], this.builder, stepArchiver)
-
-      if (packages.length > 0) {
-        await Promise.all(
-          packages.map(async (packageName) => addPackageToArchive(stepArchiver, sitePackagesDir, packageName)),
-        )
-        this.listener.onBuildProgress(step, `Added ${packages.length} packages to archive`)
-      }
 
       // Finalize the archive and wait for completion
       const size = await stepArchiver.finalize()
@@ -105,9 +94,15 @@ export class PythonBuilder implements StepBuilder {
       dependencies.map(async (packageName) => addPackageToArchive(archive, lambdaSitePackages, packageName)),
     )
 
-    for (const step of steps) {
-      await this.buildStep(step, archive)
-    }
+    await Promise.all(
+      steps.map(async (step) => {
+        this.listener.onBuildStart(step)
+        await this.buildStep(step, archive)
+        this.listener.onBuildEnd(step) // TODO: add size?
+      }),
+    )
+
+    this.listener.onApiRouterBuilding('python')
 
     const file = fs
       .readFileSync(path.join(__dirname, 'router_template.py'), 'utf-8')
@@ -137,15 +132,21 @@ export class PythonBuilder implements StepBuilder {
     // Finalize the archive and wait for completion
     const size = await archive.finalize()
 
+    this.listener.onApiRouterBuilt('python', size)
+
     return { size, path: zipName }
   }
 
-  private async getPythonBuilderData(step: Step): Promise<{ file: string; files: string[]; packages: string[] }> {
+  private async getPythonBuilderData(step: Step): Promise<PythonBuilderData> {
     return new Promise((resolve, reject) => {
-      const child = spawn('python', [path.join(__dirname, 'python-builder.py'), step.filePath], {
-        cwd: this.builder.projectDir,
-        stdio: [undefined, undefined, 'pipe', 'ipc'],
-      })
+      const child = spawn(
+        'python',
+        [path.join(__dirname, 'python-builder.py'), this.builder.projectDir, step.filePath],
+        {
+          cwd: this.builder.projectDir,
+          stdio: [undefined, undefined, 'pipe', 'ipc'],
+        },
+      )
       const err: string[] = []
 
       child.on('stderr', (data) => err.push(data.toString()))

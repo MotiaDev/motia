@@ -23,7 +23,7 @@ export class CliListener implements DeploymentListener {
   onBuildProgress(step: Step, message: string) {
     this.printer.printStepBuilding(step, message)
   }
-  onBuildEnd(step: Step, size: number) {
+  onBuildEnd(step: Step, size?: number) {
     this.printer.printStepBuilt(step, size)
   }
   onBuildError(step: Step, error: Error) {

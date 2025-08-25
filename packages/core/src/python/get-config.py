@@ -19,13 +19,13 @@ def sendMessage(text):
         NODEIPCFD = int(os.environ["NODE_CHANNEL_FD"])
         os.write(NODEIPCFD, bytesMessage)
 
-async def run_python_module(file_path: str) -> None:
+async def run_python_module(project_path: str, file_path: str) -> None:
     try:
-        module_dir = os.path.dirname(os.path.abspath(file_path))
+        module_dir = os.path.dirname(file_path)
         
-        if module_dir not in sys.path:
-            sys.path.insert(0, module_dir)
-            
+        if project_path not in sys.path:
+            sys.path.insert(0, project_path)
+
         flows_dir = os.path.dirname(module_dir)
         if flows_dir not in sys.path:
             sys.path.insert(0, flows_dir)
@@ -51,10 +51,11 @@ async def run_python_module(file_path: str) -> None:
         sys.exit(1)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         sys.exit(1)
 
-    file_path = sys.argv[1]
+    project_path = sys.argv[1]
+    file_path = sys.argv[2]
 
     import asyncio
-    asyncio.run(run_python_module(file_path))
+    asyncio.run(run_python_module(project_path, file_path))

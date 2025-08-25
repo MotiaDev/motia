@@ -34,8 +34,9 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
     throw new Error('Project contains invalid steps, please fix them before building')
   }
 
-  await Promise.all(lockedData.activeSteps.map((step) => builder.buildStep(step)))
-  await builder.buildApiSteps(lockedData.activeSteps.filter(isApiStep))
+  const stepPromises = lockedData.activeSteps.filter((step) => !isApiStep(step)).map((step) => builder.buildStep(step))
+  const apiStepPromise = builder.buildApiSteps(lockedData.activeSteps.filter(isApiStep))
+  await Promise.all([...stepPromises, apiStepPromise])
 
   const streams = lockedData.listStreams()
 

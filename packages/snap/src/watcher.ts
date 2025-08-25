@@ -21,6 +21,7 @@ export class Watcher {
   private streamDeleteHandler?: StreamDeleteHandler
 
   constructor(
+    private readonly baseDir: string,
     private readonly dir: string,
     private lockedData: LockedData,
   ) {}
@@ -62,7 +63,7 @@ export class Watcher {
       return
     }
 
-    const config = await getStepConfig(path).catch((err) => console.error(err))
+    const config = await getStepConfig(this.baseDir, path).catch((err) => console.error(err))
 
     if (!config) {
       return
@@ -75,7 +76,7 @@ export class Watcher {
   }
 
   private async onStepFileChange(path: string): Promise<void> {
-    const config = await getStepConfig(path).catch((err) => {
+    const config = await getStepConfig(this.baseDir, path).catch((err) => {
       console.error(err)
     })
 
@@ -117,7 +118,7 @@ export class Watcher {
   }
 
   private async onStreamFileAdd(path: string): Promise<void> {
-    const config = await getStreamConfig(path).catch((err) => console.error(err))
+    const config = await getStreamConfig(this.baseDir, path).catch((err) => console.error(err))
 
     if (!config) {
       return
@@ -128,7 +129,7 @@ export class Watcher {
 
   private async onStreamFileChange(path: string): Promise<void> {
     const stream = this.lockedData.findStream(path)
-    const config = await getStreamConfig(path).catch((err) => console.error(err))
+    const config = await getStreamConfig(this.baseDir, path).catch((err) => console.error(err))
 
     if (!stream && config) {
       this.streamCreateHandler?.({ filePath: path, config, factory: null as never })

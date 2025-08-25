@@ -15,7 +15,7 @@ export const installLambdaPythonPackages = ({ isVerbose = false, requirementsLis
       if (isVerbose) {
         internalLogger.warn(`requirements.txt not found at ${requirement}`)
       }
-      return
+      continue
     }
 
     try {

@@ -57,7 +57,7 @@ export class BuildPrinter {
     })
   }
 
-  printStepBuilt(step: Step, size: number) {
+  printStepBuilt(step: Step, size?: number) {
     const stepLanguage = this.getStepLanguage(step)
     const stepType = this.printer.getStepType(step)
     const stepPath = this.printer.getStepPath(step)
@@ -65,7 +65,7 @@ export class BuildPrinter {
     this.output.log(step.filePath, (message) =>
       message
         .append(`${built} ${stepTag} ${stepLanguage} ${stepType} ${stepPath}`)
-        .append(`${prettyBytes(size)}`, 'gray'),
+        .append(`${size ? prettyBytes(size) : ''}`, 'gray'),
     )
   }
 
