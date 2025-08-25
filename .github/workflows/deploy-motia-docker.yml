@@ -50,7 +50,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         env:
-          GITHUB_SHA: ${{ github.event.inputs.environment|| steps.short-sha.outputs.sha }}
+          GITHUB_SHA: ${{ github.event.inputs.environment || steps.short-sha.outputs.sha }}
         with:
           push: true
           platforms: linux/amd64,linux/arm64
