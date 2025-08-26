@@ -36,25 +36,13 @@ export class StreamingDeploymentListener implements DeploymentListener {
     if (!current) {
       return
     }
-    // Merge logs instead of replacing them
     const mergedUpdate: Partial<DeploymentData> = {
       ...update,
-    }
-
-    if (update.buildLogs) {
-      mergedUpdate.buildLogs = [...current.buildLogs, ...update.buildLogs]
-    }
-    if (update.uploadLogs) {
-      mergedUpdate.uploadLogs = [...current.uploadLogs, ...update.uploadLogs]
-    }
-    if (update.deployLogs) {
-      mergedUpdate.deployLogs = [...current.deployLogs, ...update.deployLogs]
     }
 
     await this.streamManager.updateDeployment(this.deploymentId, mergedUpdate)
   }
 
-  // DeploymentListener interface implementation
   getErrors(): ValidationError[] {
     return this.errors
   }
@@ -69,21 +57,19 @@ export class StreamingDeploymentListener implements DeploymentListener {
       type: this.getStepType(step),
     }
 
-    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
     this.updateStream({
       phase: 'build',
       status: 'building',
       message,
-      buildLogs: [message],
       progress: 0,
     })
+    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
   }
 
   onBuildProgress(step: Step, message: string) {
     const logMessage = `${step.config.name}: ${message}`
     this.updateStream({
       message: logMessage,
-      buildLogs: [logMessage],
       progress: 25,
     })
   }
@@ -98,12 +84,11 @@ export class StreamingDeploymentListener implements DeploymentListener {
       size,
     }
 
-    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
     this.updateStream({
       message,
-      buildLogs: [message],
       progress: 50,
     })
+    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
   }
 
   onBuildError(step: Step, error: Error) {
@@ -116,20 +101,18 @@ export class StreamingDeploymentListener implements DeploymentListener {
       errorMessage: error.message,
     }
 
-    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
     this.updateStream({
       status: 'failed',
       message,
-      buildLogs: [message],
       error: error.message,
     })
-  }
+    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
+    }
 
   onBuildSkip(step: Step, reason: string) {
     const message = `Skipped ${step.config.name}: ${reason}`
     this.updateStream({
       message,
-      buildLogs: [message],
       progress: 10,
     })
   }
@@ -138,7 +121,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
     const message = `Created stream: ${stream.config.name}`
     this.updateStream({
       message,
-      buildLogs: [message],
       progress: 20,
     })
   }
@@ -147,7 +129,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
     const message = `Building API router for ${language}`
     this.updateStream({
       message,
-      buildLogs: [message],
       progress: 60,
     })
   }
@@ -156,7 +137,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
     const message = `Built API router for ${language} (${size} bytes)`
     this.updateStream({
       message,
-      buildLogs: [message],
       progress: 80,
     })
   }
@@ -169,7 +149,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
     })
     this.updateStream({
       message: `Warning: ${warning}`,
-      buildLogs: [`Warning: ${warning}`],
       progress: 10,
     })
   }
@@ -178,7 +157,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
     this.warnings.push(warning)
     await this.updateStream({
       message: `Build warning: ${warning.message}`,
-      buildLogs: [`Build warning: ${warning.message}`],
       progress: 10,
     })
   }
@@ -189,7 +167,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
     await this.updateStream({
       status: 'failed',
       message: errorMessage,
-      buildLogs: [errorMessage],
       error: errorMessage,
     })
   }
@@ -205,13 +182,12 @@ export class StreamingDeploymentListener implements DeploymentListener {
       progress: 0,
     }
 
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
     this.updateStream({
       phase: 'upload',
       status: 'uploading',
       message,
-      uploadLogs: [message],
     })
+    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   stepUploadProgress(stepPath: string, step: BuildStepConfig, progress: number) {
@@ -224,12 +200,11 @@ export class StreamingDeploymentListener implements DeploymentListener {
       progress,
     }
 
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
     this.updateStream({
       message,
-      uploadLogs: [message],
       progress,
     })
+    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   stepUploadEnd(stepPath: string, step: BuildStepConfig) {
@@ -242,12 +217,11 @@ export class StreamingDeploymentListener implements DeploymentListener {
       progress: 100,
     }
 
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
     this.updateStream({
       message,
-      uploadLogs: [message],
       progress: 100,
     })
+    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   stepUploadError(stepPath: string, step: BuildStepConfig) {
@@ -260,13 +234,12 @@ export class StreamingDeploymentListener implements DeploymentListener {
       errorMessage: message,
     }
 
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
     this.updateStream({
       status: 'failed',
       message,
-      uploadLogs: [message],
       error: message,
     })
+    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   routeUploadStart(path: string, language: string) {
@@ -279,12 +252,11 @@ export class StreamingDeploymentListener implements DeploymentListener {
       progress: 0,
     }
 
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
     this.updateStream({
       message,
-      uploadLogs: [message],
       progress: 50,
     })
+    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   routeUploadProgress(path: string, language: string, progress: number) {
@@ -297,12 +269,11 @@ export class StreamingDeploymentListener implements DeploymentListener {
       progress,
     }
 
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
     this.updateStream({
       message,
-      uploadLogs: [message],
       progress,
     })
+    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   routeUploadEnd(path: string, language: string) {
@@ -315,12 +286,11 @@ export class StreamingDeploymentListener implements DeploymentListener {
       progress: 100,
     }
 
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
     this.updateStream({
       message,
-      uploadLogs: [message],
       progress: 100,
     })
+    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   routeUploadError(path: string, language: string) {
@@ -333,13 +303,12 @@ export class StreamingDeploymentListener implements DeploymentListener {
       errorMessage: message,
     }
 
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
     this.updateStream({
       status: 'failed',
       message,
-      uploadLogs: [message],
       error: message,
     })
+    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   // Deploy phase events
@@ -349,7 +318,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
       phase: 'deploy',
       status: 'deploying',
       message,
-      deployLogs: [message],
     })
   }
 
@@ -357,7 +325,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
     const message = `Deployment status: ${data.status}`
     this.updateStream({
       message,
-      deployLogs: [message],
       progress: 50,
     })
   }
@@ -376,14 +343,12 @@ export class StreamingDeploymentListener implements DeploymentListener {
       phase: 'build',
       status: 'building',
       message: 'Build phase started',
-      buildLogs: ['Build phase started'],
     })
   }
 
   async completeBuildPhase() {
     await this.updateStream({
       message: 'Build phase completed',
-      buildLogs: ['Build phase completed'],
       progress: 100,
     })
   }
@@ -393,7 +358,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
       phase: 'upload',
       status: 'uploading',
       message: 'Upload phase started',
-      uploadLogs: ['Upload phase started'],
       progress: 0,
     })
   }
@@ -401,7 +365,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
   async completeUploadPhase() {
     await this.updateStream({
       message: 'Upload phase completed',
-      uploadLogs: ['Upload phase completed'],
       progress: 100,
     })
   }
@@ -411,7 +374,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
       phase: 'deploy',
       status: 'deploying',
       message: 'Deploy phase started',
-      deployLogs: ['Deploy phase started'],
       progress: 0,
     })
   }

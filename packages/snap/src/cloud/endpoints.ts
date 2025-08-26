@@ -5,9 +5,8 @@ import { buildValidation } from './build/build-validation'
 import { StreamingDeploymentListener } from './new-deployment/listeners/streaming-deployment-listener'
 import { build } from './new-deployment/build'
 import { uploadArtifacts } from './new-deployment/upload-artifacts'
-import { deploy } from './new-deployment/deploy'
-import { CliContext } from './config-utils'
 import { DeploymentData, DeploymentStreamManager } from './new-deployment/streams/deployment-stream'
+import { cloudApi } from './new-deployment/cloud-api'
 
 export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => {
   const { app } = server
@@ -38,8 +37,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
 
       const sessionId = deploymentId || randomUUID()
 
-      const context = new CliContext()
-
       await deploymentManager.startDeployment(sessionId)
 
       const listener = new StreamingDeploymentListener(sessionId, deploymentStream)
@@ -58,10 +55,11 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
           await listener.startBuildPhase()
 
           const builder = await build(listener)
+
           const isValid = buildValidation(builder, listener)
 
           if (!isValid) {
-            listener.onBuildErrors(listener.getErrors())
+            await listener.onBuildErrors(listener.getErrors())
             return
           }
 
@@ -75,14 +73,14 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
 
           await listener.startDeployPhase()
 
-          await deploy({
+          await cloudApi.startDeployment({
+            deploymentToken,
             envVars: envs,
-            deploymentId: sessionId,
-            deploymentToken: deploymentToken,
-            builder,
-            listener,
-            context,
+            steps: builder.stepsConfig,
+            streams: builder.streamsConfig,
+            routers: builder.routersConfig,
           })
+
         } catch (error: any) {
           console.error('Deployment failed:', error)
 

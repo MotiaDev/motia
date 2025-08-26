@@ -27,16 +27,13 @@ export interface DeploymentData {
   message: string
   build: BuildOutput[]
   upload: UploadOutput[]
-  buildLogs: string[]
-  uploadLogs: string[]
-  deployLogs: string[]
   error?: string
   startedAt?: number
   completedAt?: number
   metadata?: {
     totalSteps: number
-    completedSteps: number
-    environment?: string
+    uploadedSteps?: number
+    buildedSteps?: number
   }
 }
 
@@ -48,12 +45,8 @@ export const createDefaultDeploymentData = (deploymentId: string): DeploymentDat
   message: 'No deployment in progress',
   build: [],
   upload: [],
-  buildLogs: [],
-  uploadLogs: [],
-  deployLogs: [],
   metadata: {
     totalSteps: 0,
-    completedSteps: 0,
   },
 })
 
@@ -84,8 +77,9 @@ export class DeploymentStreamManager {
   }
 
   async startDeployment(deploymentId: string): Promise<void> {
+    const defaultData = createDefaultDeploymentData(deploymentId)
     await this.stream.set(deploymentId, 'data', {
-      ...createDefaultDeploymentData(deploymentId),
+      ...defaultData,
       status: 'building',
       phase: 'build',
       startedAt: Date.now(),
@@ -122,7 +116,15 @@ export class DeploymentStreamManager {
       updatedBuild.push(buildOutput)
     }
 
-    await this.updateDeployment(deploymentId, { build: updatedBuild })
+    // Update buildedSteps count
+    const buildedSteps = updatedBuild.filter(b => b.status === 'built').length
+    const metadata = {
+      ...current.metadata,
+      buildedSteps,
+      totalSteps: current.metadata?.totalSteps || updatedBuild.length,
+    }
+
+    await this.updateDeployment(deploymentId, { build: updatedBuild, metadata })
   }
 
   async updateUploadOutput(deploymentId: string, uploadOutput: UploadOutput): Promise<void> {
@@ -138,6 +140,14 @@ export class DeploymentStreamManager {
       updatedUpload.push(uploadOutput)
     }
 
-    await this.updateDeployment(deploymentId, { upload: updatedUpload })
+    // Update uploadedSteps count
+    const uploadedSteps = updatedUpload.filter(u => u.status === 'uploaded').length
+    const metadata = {
+      ...current.metadata,
+      uploadedSteps,
+      totalSteps: current.metadata?.totalSteps || updatedUpload.length,
+    }
+
+    await this.updateDeployment(deploymentId, { upload: updatedUpload, metadata })
   }
 }
