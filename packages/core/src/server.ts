@@ -6,6 +6,7 @@ import { Server as WsServer } from 'ws'
 import { analyticsEndpoint } from './analytics-endpoint'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
+import coreConfig from '../core.config'
 import { CronManager, setupCronHandlers } from './cron-handler'
 import { flowsConfigEndpoint } from './flows-config-endpoint'
 import { flowsEndpoint } from './flows-endpoint'
@@ -210,8 +211,9 @@ export const createServer = (
     }
   }
 
-  app.use(bodyParser.json())
-  app.use(bodyParser.urlencoded({ extended: true }))
+  const bodyParserOptions = coreConfig.server.bodyParser;
+  app.use(bodyParser.json(bodyParserOptions.json))
+  app.use(bodyParser.urlencoded(bodyParserOptions.urlencoded))
 
   const router = express.Router()
 
