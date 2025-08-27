@@ -38,6 +38,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.event_name == 'pull_request' && github.head_ref || github.ref }}
 
+      - uses: pnpm/action-setup@v4
       - name: Setup
         uses: ./.github/actions/setup
 

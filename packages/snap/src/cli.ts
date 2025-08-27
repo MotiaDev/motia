@@ -40,23 +40,22 @@ program
       if (arg.name || arg.template || arg.cursor) {
         const { create } = require('./create')
 
-        // Handle skip-tutorial option: 'true', 'false', or 'prompt' (default)
-        let skipTutorialValue = false
-        
-        if (arg.skipTutorial === 'true' || arg.skipTutorial === true) {
-          skipTutorialValue = true
-        } else if (arg.skipTutorial === 'false' || arg.skipTutorial === false) {
-          skipTutorialValue = false
-        } else {
-          // Default 'prompt' behavior - ask the user
-          const disableTutorial = await inquirer.prompt({
+        // Handle skip-tutorial option: 'true', 'false', or prompt user
+        const skipTutorialValue = await (async () => {
+          const skipValue = String(arg.skipTutorial).toLowerCase()
+          
+          if (skipValue === 'true') return true
+          if (skipValue === 'false') return false
+          
+          // Prompt user when not explicitly set
+          const { disableTutorial } = await inquirer.prompt({
             type: 'confirm',
             name: 'disableTutorial',
             message: 'Do you wish to disable the motia tutorial?',
             default: false,
           })
-          skipTutorialValue = disableTutorial.disableTutorial
-        }
+          return disableTutorial
+        })()
 
         await create({
           projectName: arg.name ?? '.',
