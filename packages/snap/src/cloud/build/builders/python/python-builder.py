@@ -19,8 +19,8 @@ def main() -> None:
 
     try:
         # Find project dependencies
-        packages = trace_packages(project_dir, entry_file)
         files = trace_project_files(project_dir, entry_file)
+        packages = trace_packages(project_dir, [entry_file] + files)
         
         # Prepare output
         output = {

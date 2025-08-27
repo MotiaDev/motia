@@ -199,25 +199,31 @@ def get_package_dependencies(package_name: str, processed: Set[str] = None) -> S
     
     return all_dependencies
 
-def trace_packages(project_dir: str, entry_file: str) -> List[str]:
+def trace_packages(project_dir: str, entry_files: List[str]) -> List[str]:
     """Find all imported Python packages and files starting from an entry file."""
-    
-    # Get direct imports from the entry file
-    direct_imports = get_direct_imports(project_dir, entry_file)
     
     # Initialize lists to track packages
     all_packages = []
     processed_packages = set()
+
+    for entry_file in entry_files:
+        # Get direct imports from the entry file
+        direct_imports = get_direct_imports(project_dir, entry_file)
     
-    # Process each direct import and its dependencies
-    for package_name in direct_imports:
-        version = get_package_version(package_name)
-        all_packages.append({ 'name': package_name, 'version': version, 'is_direct_import': True })
-        # Get all dependencies including sub-dependencies
-        dependencies = get_package_dependencies(package_name, processed_packages)
-        for dep in dependencies:
-            dep_version = get_package_version(dep)
-            all_packages.append({ 'name': dep, 'version': dep_version, 'is_direct_import': False })        
+        # Process each direct import and its dependencies
+        for package_name in direct_imports:
+            if package_name in processed_packages:
+                continue
+            
+            version = get_package_version(package_name)
+            all_packages.append({ 'name': package_name, 'version': version, 'is_direct_import': True })
+            # Get all dependencies including sub-dependencies
+            dependencies = get_package_dependencies(package_name, processed_packages)
+            for dep in dependencies:
+                dep_version = get_package_version(dep)
+                all_packages.append({ 'name': dep, 'version': dep_version, 'is_direct_import': False })        
+
+            processed_packages.add(package_name)
     
     # Filter out built-in packages
     return all_packages
