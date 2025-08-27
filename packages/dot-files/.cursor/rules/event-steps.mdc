@@ -19,77 +19,89 @@ import { z } from 'zod';
 
 // Define the Zod schema for the expected input data of the event.
 // This ensures that the data received by the handler matches the expected structure and types.
-const UserCreatedInputSchema = z.object({
-  name: z.string().min(1, "Name is required"), // User's name, must be a non-empty string.
-  email: z.string().email("Invalid email format"), // User's email, must be a valid email string.
-  id: z.string().uuid("ID must be a UUID") // User's unique ID, expected to be a UUID.
+const ResourceCreatedInputSchema = z.object({
+  title: z.string().min(1, "Title is required"), // Resource title, must be a non-empty string.
+  category: z.string().min(1, "Category is required"), // Resource category, must be specified.
+  id: z.string().uuid("ID must be a UUID"), // Resource's unique ID, expected to be a UUID.
+  metadata: z.record(z.any()).optional() // Optional metadata object
 });
 
 // Define the configuration for the Event Step.
-export const config: EventConfig<typeof UserCreatedInputSchema> = {
+export const config: EventConfig<typeof ResourceCreatedInputSchema> = {
   // 'type' specifies that this is an 'event' step.
   type: 'event',
   // 'name' is a unique identifier for this step.
-  name: 'process-user-registration',
+  name: 'ProcessResourceCreation',
   // 'description' provides a human-readable explanation of what the step does.
-  description: 'Processes new user registration events, activates the user, and stores details.',
+  description: 'Processes new resource creation events, validates the resource, and updates its status.',
   // 'subscribes' is an array of topic names this step listens to.
-  // This step will be triggered when an event is published to 'user.created'.
-  subscribes: ['user.created'],
+  // This step will be triggered when an event is published to 'resource.created'.
+  subscribes: ['resource.created'],
   // 'emits' is an array of topic names this step can publish events to after processing.
-  emits: ['user.processed', 'user.activation.failed'], // Can emit success or failure events
+  emits: ['resource.processed', 'resource.processing.failed'], // Can emit success or failure events
   // 'input' links to the Zod schema for validating the incoming event data.
   // Motia will automatically validate the event data against this schema before calling the handler.
-  input: UserCreatedInputSchema,
+  input: ResourceCreatedInputSchema,
   // 'flows' is an array of flow names this step is part of, helping to organize workflows.
-  flows: ['user-management-flow']
+  flows: ['resource-management-flow']
 };
 
 // Define the handler function that contains the business logic for this step.
-// Handlers['process-user-registration'] links this handler to the configuration by its name.
-// 'input' is the validated event data (typed according to UserCreatedInputSchema).
+// Handlers['ProcessResourceCreation'] links this handler to the configuration by its name.
+// 'input' is the validated event data (typed according to ResourceCreatedInputSchema).
 // 'context' provides access to Motia functionalities like 'emit', 'logger', and 'state'.
-export const handler: Handlers['process-user-registration'] = async (input, { emit, logger, state, traceId }: FlowContext) => {
+export const handler: Handlers['ProcessResourceCreation'] = async (input, { emit, logger, state, traceId }: FlowContext) => {
   // Destructure the validated input data for easier access.
-  const { name, email, id } = input;
+  const { title, category, id, metadata } = input;
   
   // Use the logger for structured logging of step execution and important data.
-  logger.info('Processing new user registration', { traceId, userId: id, userName: name, userEmail: email });
+  logger.info('Processing new resource creation', { traceId, resourceId: id, title, category });
   
   try {
     // --- Your business logic begins here ---
-    // Example: Activate user, prepare additional user data, interact with external services.
-    const processedUser = {
-      ...input, // Includes original id, name, email
-      status: 'active', // Set user status to active
+    // Example: Validate resource, enrich data, interact with external services.
+    const processedResource = {
+      ...input, // Includes original id, title, category, metadata
+      status: 'active', // Set resource status to active
       processedAt: new Date().toISOString(), // Timestamp of processing
-      welcomeEmailSent: false // Initial state for a follow-up action
+      indexed: false, // Initial state for a follow-up indexing action
+      validationScore: calculateValidationScore(input) // Custom validation scoring
     };
     // --- Your business logic ends here ---
     
-    // Store the processed user data in the flow's state if it needs to be accessed by subsequent steps
+    // Store the processed resource data in the flow's state if it needs to be accessed by subsequent steps
     // or for auditing/debugging purposes within this flow instance.
-    await state.set(traceId, `user_details_${id}`, processedUser);
-    logger.info('User details stored in state', { traceId, userId: id });
+    await state.set(traceId, `resource_details_${id}`, processedResource);
+    logger.info('Resource details stored in state', { traceId, resourceId: id });
     
     // Emit an event to indicate successful processing, triggering the next step(s) in the workflow.
     await emit({
-      topic: 'user.processed',
-      data: processedUser // Pass the processed user data to the next step.
+      topic: 'resource.processed',
+      data: processedResource // Pass the processed resource data to the next step.
     });
-    logger.info('User processed event emitted', { traceId, userId: id });
+    logger.info('Resource processed event emitted', { traceId, resourceId: id });
 
   } catch (error) {
     // Handle any errors that occur during processing.
-    logger.error('Error processing user registration', { traceId, userId: id, error: error.message, stack: error.stack });
+    logger.error('Error processing resource creation', { traceId, resourceId: id, error: error.message, stack: error.stack });
     
     // Emit a different event to indicate failure, allowing for error handling workflows.
     await emit({
-      topic: 'user.activation.failed',
-      data: { userId: id, name, email, error: error.message }
+      topic: 'resource.processing.failed',
+      data: { resourceId: id, title, category, error: error.message }
     });
   }
 };
+
+// Helper function for business logic
+function calculateValidationScore(resource: any): number {
+  let score = 0;
+  if (resource.title && resource.title.length > 0) score += 25;
+  if (resource.category && resource.category.length > 0) score += 25;
+  if (resource.metadata && Object.keys(resource.metadata).length > 0) score += 25;
+  if (resource.id) score += 25;
+  return score;
+}
 ```
 
 **Python Example:**
@@ -100,54 +112,72 @@ export const handler: Handlers['process-user-registration'] = async (input, { em
 # Configuration for the Event Step as a Python dictionary.
 config = {
     "type": "event",  # Specifies the step type.
-    "name": "process_user_registration_py",  # Unique name for the step.
-    "description": "Processes new user registration events in Python.",
-    "subscribes": ["user.created.py"],  # Topic this step listens to.
-    "emits": ["user.processed.py", "user.activation.failed.py"],  # Topics this step can publish to.
+    "name": "ProcessResourceCreationPy",  # Unique name for the step.
+    "description": "Processes new resource creation events in Python.",
+    "subscribes": ["resource.created.py"],  # Topic this step listens to.
+    "emits": ["resource.processed.py", "resource.processing.failed.py"],  # Topics this step can publish to.
     # Input validation in Python might be handled by a library like Pydantic,
     # or Motia may provide its own schema validation mechanism.
     # For this example, we assume input is a dictionary and accessed directly.
     # "input_schema": { ... Pydantic or other schema definition ... }
-    "flows": ["user-management-flow-py"]
+    "flows": ["resource-management-flow-py"]
 }
 
 # The handler function in Python.
 # 'input_data' is the incoming event payload.
 # 'ctx' (context) provides access to Motia functionalities like emit, logger, state.
 async def handler(input_data, ctx):
-    user_id = input_data.get("id")
-    user_name = input_data.get("name")
-    user_email = input_data.get("email")
+    resource_id = input_data.get("id")
+    resource_title = input_data.get("title")
+    resource_category = input_data.get("category")
+    resource_metadata = input_data.get("metadata", {})
 
-    ctx.logger.info(f"Processing new user registration (Python) for user ID: {user_id}", 
-                    details={"trace_id": ctx.trace_id, "name": user_name, "email": user_email})
+    ctx.logger.info(f"Processing resource creation (Python) for resource ID: {resource_id}", 
+                    details={"trace_id": ctx.trace_id, "title": resource_title, "category": resource_category})
 
     try:
         # --- Your business logic in Python here ---
-        processed_user = {
+        processed_resource = {
             **input_data,
             "status": "active_py",
             "processed_at": ctx.utils.dates.now().isoformat(), # Assuming a date utility
-            "welcome_email_sent": False
+            "indexed": False,
+            "processing_stats": {
+                "validation_score": calculate_validation_score_py(input_data),
+                "metadata_count": len(resource_metadata)
+            }
         }
         # --- End of business logic ---
 
-        await ctx.state.set(ctx.trace_id, f"user_details_{user_id}", processed_user)
-        ctx.logger.info(f"User details stored in state (Python) for user ID: {user_id}", trace_id=ctx.trace_id)
+        await ctx.state.set(ctx.trace_id, f"resource_details_{resource_id}", processed_resource)
+        ctx.logger.info(f"Resource details stored in state (Python) for resource ID: {resource_id}", trace_id=ctx.trace_id)
 
         await ctx.emit({
-            "topic": "user.processed.py",
-            "data": processed_user
+            "topic": "resource.processed.py",
+            "data": processed_resource
         })
-        ctx.logger.info(f"User processed event emitted (Python) for user ID: {user_id}", trace_id=ctx.trace_id)
+        ctx.logger.info(f"Resource processed event emitted (Python) for resource ID: {resource_id}", trace_id=ctx.trace_id)
 
     except Exception as e:
-        ctx.logger.error(f"Error processing user registration (Python) for user ID: {user_id}", 
+        ctx.logger.error(f"Error processing resource creation (Python) for resource ID: {resource_id}", 
                          error_message=str(e), trace_id=ctx.trace_id)
         await ctx.emit({
-            "topic": "user.activation.failed.py",
-            "data": {"user_id": user_id, "name": user_name, "email": user_email, "error": str(e)}
+            "topic": "resource.processing.failed.py",
+            "data": {"resource_id": resource_id, "title": resource_title, "category": resource_category, "error": str(e)}
         })
+
+def calculate_validation_score_py(resource_data):
+    """Calculate validation score for resource in Python"""
+    score = 0
+    if resource_data.get("title"):
+        score += 25
+    if resource_data.get("category"):
+        score += 25
+    if resource_data.get("metadata") and len(resource_data["metadata"]) > 0:
+        score += 25
+    if resource_data.get("id"):
+        score += 25
+    return score
 ```
 
 **Ruby Example:**
@@ -158,13 +188,13 @@ async def handler(input_data, ctx):
 def config
   {
     type: 'event', # Specifies the step type.
-    name: 'process_user_registration_rb', # Unique name for the step.
-    description: 'Processes new user registration events in Ruby.',
-    subscribes: ['user.created.rb'], # Topic this step listens to.
-    emits: ['user.processed.rb', 'user.activation.failed.rb'], # Topics this step can publish to.
+    name: 'ProcessResourceCreationRb', # Unique name for the step.
+    description: 'Processes new resource creation events in Ruby.',
+    subscribes: ['resource.created.rb'], # Topic this step listens to.
+    emits: ['resource.processed.rb', 'resource.processing.failed.rb'], # Topics this step can publish to.
     # Input validation in Ruby could use a gem like dry-validation or similar.
     # "input_schema": { ... schema definition ... }
-    flows: ['user-management-flow-rb']
+    flows: ['resource-management-flow-rb']
   }
 end
 
@@ -172,39 +202,55 @@ end
 # 'input_data' is the incoming event payload (likely a Hash).
 # 'context' provides access to Motia functionalities.
 def handler(input_data, context)
-  user_id = input_data[:id]
-  user_name = input_data[:name]
-  user_email = input_data[:email]
+  resource_id = input_data[:id]
+  resource_title = input_data[:title]
+  resource_category = input_data[:category]
+  resource_metadata = input_data[:metadata] || {}
 
-  context.logger.info("Processing new user registration (Ruby) for user ID: #{user_id}", 
-                      details: { trace_id: context.trace_id, name: user_name, email: user_email })
+  context.logger.info("Processing resource creation (Ruby) for resource ID: #{resource_id}", 
+                      details: { trace_id: context.trace_id, title: resource_title, category: resource_category })
 
   begin
     # --- Your business logic in Ruby here ---
-    processed_user = input_data.merge(
+    processed_resource = input_data.merge(
       status: 'active_rb',
       processed_at: Time.now.utc.iso8601, # Standard ISO 8601 timestamp
-      welcome_email_sent: false
+      indexed: false,
+      processing_stats: {
+        validation_score: calculate_validation_score_rb(input_data),
+        metadata_count: resource_metadata.keys.length,
+        processed_by: 'ruby_handler'
+      }
     )
     # --- End of business logic ---
 
-    context.state.set(context.trace_id, "user_details_#{user_id}", processed_user)
-    context.logger.info("User details stored in state (Ruby) for user ID: #{user_id}", trace_id: context.trace_id)
+    context.state.set(context.trace_id, "resource_details_#{resource_id}", processed_resource)
+    context.logger.info("Resource details stored in state (Ruby) for resource ID: #{resource_id}", trace_id: context.trace_id)
 
     context.emit(
-      topic: 'user.processed.rb',
-      data: processed_user
+      topic: 'resource.processed.rb',
+      data: processed_resource
     )
-    context.logger.info("User processed event emitted (Ruby) for user ID: #{user_id}", trace_id: context.trace_id)
+    context.logger.info("Resource processed event emitted (Ruby) for resource ID: #{resource_id}", trace_id: context.trace_id)
 
   rescue => e
-    context.logger.error("Error processing user registration (Ruby) for user ID: #{user_id}", 
+    context.logger.error("Error processing resource creation (Ruby) for resource ID: #{resource_id}", 
                          error_message: e.message, trace_id: context.trace_id, backtrace: e.backtrace)
     context.emit(
-      topic: 'user.activation.failed.rb',
-      data: { user_id: user_id, name: user_name, email: user_email, error: e.message }
+      topic: 'resource.processing.failed.rb',
+      data: { resource_id: resource_id, title: resource_title, category: resource_category, error: e.message }
     )
   end
+end
+
+# Helper method for validation scoring in Ruby
+def calculate_validation_score_rb(resource_data)
+  score = 0
+  score += 25 if resource_data[:title] && !resource_data[:title].empty?
+  score += 25 if resource_data[:category] && !resource_data[:category].empty?
+  score += 25 if resource_data[:metadata] && resource_data[:metadata].keys.any?
+  score += 25 if resource_data[:id]
+  score
 end
 ```
 
@@ -217,55 +263,85 @@ These patterns illustrate common ways Event Steps are used in workflows. The exa
 Steps can be chained together by having one step emit an event that another step subscribes to. This creates a sequence of operations.
 
 ```typescript
-// Define the Zod schema for the input specifically for sending a welcome email.
-const WelcomeEmailInputSchema = z.object({
-  name: z.string(),
-  email: z.string().email(),
-  // Include any other data specifically needed for the email from the 'user.processed' event.
-  userId: z.string() 
+// Define the Zod schema for the input specifically for indexing a processed resource.
+const IndexResourceInputSchema = z.object({
+  title: z.string(),
+  category: z.string(),
+  status: z.string(),
+  // Include any other data specifically needed for indexing from the 'resource.processed' event.
+  resourceId: z.string() 
 });
 
-// Configuration for a step that sends a welcome email after a user is processed.
-export const configSendWelcomeEmail: EventConfig<typeof WelcomeEmailInputSchema> = {
+// Configuration for a step that indexes a resource after it's been processed.
+export const configIndexResource: EventConfig<typeof IndexResourceInputSchema> = {
   type: 'event',
-  name: 'send-welcome-email',
-  description: 'Sends a welcome email to a newly processed user.',
-  // This step subscribes to the 'user.processed' event emitted by the previous step.
-  subscribes: ['user.processed'], 
-  // After sending the email, it emits an 'email.sent' event.
-  emits: ['email.sent', 'email.failed'],
-  input: WelcomeEmailInputSchema, // Validates the data received from 'user.processed'.
-  flows: ['user-management-flow']
+  name: 'IndexResource',
+  description: 'Indexes a newly processed resource for searchability.',
+  // This step subscribes to the 'resource.processed' event emitted by the previous step.
+  subscribes: ['resource.processed'], 
+  // After indexing, it emits indexing result events.
+  emits: ['resource.indexed', 'indexing.failed'],
+  input: IndexResourceInputSchema, // Validates the data received from 'resource.processed'.
+  flows: ['resource-management-flow']
 };
 
-// Handler for sending the welcome email.
-export const handlerSendWelcomeEmail: Handlers['send-welcome-email'] = async (input, { emit, logger, traceId }: FlowContext) => {
-  const { name, email, userId } = input;
+// Handler for indexing the resource.
+export const handlerIndexResource: Handlers['IndexResource'] = async (input, { emit, logger, traceId }: FlowContext) => {
+  const { title, category, status, resourceId } = input;
   
-  logger.info('Attempting to send welcome email', { traceId, userEmail: email, userId });
+  logger.info('Attempting to index resource', { traceId, resourceId, title, category });
   
   try {
-    // --- Email sending logic here --- 
-    // This would typically involve an email service client (e.g., SendGrid, AWS SES).
-    // For example: await emailService.sendWelcomeEmail(email, name);
-    console.log(`Simulating sending welcome email to ${name} at ${email}.`);
-    // --- End of email sending logic ---
+    // --- Resource indexing logic here --- 
+    // This would typically involve a search engine client (e.g., Elasticsearch, Algolia).
+    // For example: await searchClient.indexResource(resourceId, { title, category, status });
+    const indexResult = {
+      resourceId,
+      indexed: true,
+      indexedAt: new Date().toISOString(),
+      searchTerms: generateSearchTerms(title, category),
+      boost: calculateSearchBoost(category, status)
+    };
+    console.log(`Simulating indexing resource ${title} in category ${category}.`);
+    // --- End of indexing logic ---
     
-    // Emit an event indicating the email was sent successfully.
+    // Emit an event indicating the resource was indexed successfully.
     await emit({
-      topic: 'email.sent',
-      data: { email, userId, type: 'welcome', sentAt: new Date().toISOString() }
+      topic: 'resource.indexed',
+      data: { 
+        resourceId, 
+        title, 
+        category, 
+        indexResult,
+        indexedAt: new Date().toISOString() 
+      }
     });
-    logger.info('Welcome email sent successfully', { traceId, userEmail: email });
+    logger.info('Resource indexed successfully', { traceId, resourceId, title });
 
   } catch (error) {
-    logger.error('Failed to send welcome email', { traceId, userEmail: email, error: error.message });
+    logger.error('Failed to index resource', { traceId, resourceId, title, error: error.message });
     await emit({
-      topic: 'email.failed',
-      data: { email, userId, type: 'welcome', error: error.message }
+      topic: 'indexing.failed',
+      data: { resourceId, title, category, error: error.message }
     });
   }
 };
+
+// Helper functions for indexing
+function generateSearchTerms(title: string, category: string): string[] {
+  return [
+    ...title.toLowerCase().split(' '),
+    category.toLowerCase(),
+    `${category.toLowerCase()}-${title.toLowerCase().replace(/\s+/g, '-')}`
+  ];
+}
+
+function calculateSearchBoost(category: string, status: string): number {
+  let boost = 1.0;
+  if (status === 'featured') boost *= 1.5;
+  if (category === 'priority') boost *= 1.2;
+  return boost;
+}
 ```
 
 ### Data Transformation
@@ -274,43 +350,105 @@ Event steps are often used to transform data from one format or structure to ano
 
 ```typescript
 // Define input and output schemas for clarity if transformations are complex.
-const RawOrderDataSchema = z.object({ /* ... complex raw order fields ... */ orderId: z.string(), items: z.array(z.any()) });
-const TransformedOrderDataSchema = z.object({ /* ... simplified/processed order fields ... */ cleanOrderId: z.string(), summary: z.string() });
+const RawDataSchema = z.object({ 
+  dataId: z.string(), 
+  format: z.string(),
+  content: z.record(z.any()), 
+  metadata: z.record(z.any()).optional() 
+});
 
 // Configuration for a data transformation step.
-export const configTransformData: EventConfig<typeof RawOrderDataSchema> = {
+export const configTransformData: EventConfig<typeof RawDataSchema> = {
   type: 'event',
-  name: 'transform-order-data',
-  description: 'Transforms raw order data into a processed format.',
-  subscribes: ['raw.order.received'],
-  emits: ['order.data.transformed'],
-  input: RawOrderDataSchema,
-  flows: ['order-processing-flow']
+  name: 'TransformRawData',
+  description: 'Transforms raw data into a standardized format.',
+  subscribes: ['data.raw.received'],
+  emits: ['data.transformed'],
+  input: RawDataSchema,
+  flows: ['data-processing-flow']
 };
 
 // Handler for transforming data.
-export const handlerTransformData: Handlers['transform-order-data'] = async (input, { emit, logger, traceId }: FlowContext) => {
-  logger.info('Starting data transformation', { traceId, orderId: input.orderId });
+export const handlerTransformData: Handlers['TransformRawData'] = async (input, { emit, logger, traceId }: FlowContext) => {
+  logger.info('Starting data transformation', { traceId, dataId: input.dataId, format: input.format });
 
-  // --- Transformation logic here ---
-  // Example: Clean up fields, calculate summaries, change structure.
-  const transformedOrder = {
-    originalInput: input, // Keep original for reference if needed
-    cleanOrderId: `ORD-${input.orderId.replace(/[^a-zA-Z0-9]/g, "")}`,
-    itemCount: input.items.length,
-    summary: `Order ${input.orderId} with ${input.items.length} items.`,
-    processedAt: new Date().toISOString(),
-    status: 'transformed_for_fulfillment'
-  };
-  // --- End of transformation logic ---
-  
-  // Emit the transformed data.
-  await emit({
-    topic: 'order.data.transformed',
-    data: transformedOrder // Ensure this matches a defined schema if subsequent steps expect it.
-  });
-  logger.info('Data transformation complete', { traceId, cleanOrderId: transformedOrder.cleanOrderId });
+  try {
+    // --- Transformation logic here ---
+    // Example: Clean up fields, standardize format, calculate summaries, enrich data.
+    const transformedData = {
+      id: input.dataId,
+      originalFormat: input.format,
+      standardizedContent: standardizeContent(input.content, input.format),
+      enrichedMetadata: {
+        ...input.metadata,
+        transformedAt: new Date().toISOString(),
+        transformation: 'standardized',
+        version: '1.0',
+        contentSummary: generateContentSummary(input.content)
+      },
+      quality: {
+        score: calculateDataQuality(input.content),
+        issues: validateDataIntegrity(input.content)
+      },
+      status: 'ready_for_processing'
+    };
+    // --- End of transformation logic ---
+    
+    // Emit the transformed data.
+    await emit({
+      topic: 'data.transformed',
+      data: transformedData
+    });
+    logger.info('Data transformation complete', { 
+      traceId, 
+      dataId: input.dataId,
+      qualityScore: transformedData.quality.score,
+      issues: transformedData.quality.issues.length 
+    });
+  } catch (error) {
+    logger.error('Data transformation failed', { traceId, dataId: input.dataId, error: error.message });
+    await emit({
+      topic: 'data.transformation.failed',
+      data: { dataId: input.dataId, format: input.format, error: error.message }
+    });
+  }
 };
+
+// Helper functions for data transformation
+function standardizeContent(content: any, format: string): any {
+  // Implementation depends on format and requirements
+  if (format === 'json') {
+    return normalizeJsonStructure(content);
+  } else if (format === 'csv') {
+    return convertCsvToStandardFormat(content);
+  } else if (format === 'xml') {
+    return convertXmlToStandardFormat(content);
+  }
+  return content;
+}
+
+function generateContentSummary(content: any): string {
+  const keys = Object.keys(content).length;
+  const hasArrays = Object.values(content).some(Array.isArray);
+  const hasNestedObjects = Object.values(content).some(val => typeof val === 'object' && !Array.isArray(val));
+  
+  return `Content with ${keys} fields${hasArrays ? ', contains arrays' : ''}${hasNestedObjects ? ', contains nested objects' : ''}`;
+}
+
+function calculateDataQuality(content: any): number {
+  let score = 100;
+  if (!content || Object.keys(content).length === 0) score -= 50;
+  // Add more quality checks as needed
+  return Math.max(0, score);
+}
+
+function validateDataIntegrity(content: any): string[] {
+  const issues: string[] = [];
+  if (!content) issues.push('Content is null or undefined');
+  if (typeof content === 'object' && Object.keys(content).length === 0) issues.push('Content is empty');
+  // Add more validation checks as needed
+  return issues;
+}
 ```
 
 ### Error Handling

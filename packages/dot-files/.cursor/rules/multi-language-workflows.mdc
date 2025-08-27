@@ -1,0 +1,1059 @@
+---
+description: Multi-language workflow patterns combining JavaScript, TypeScript, Python, and Ruby in Motia
+globs: 
+alwaysApply: false
+---
+# Multi-language Workflows
+
+Build ANY type of application by combining the strengths of different languages in unified Motia workflows. Whether you're building e-commerce, social platforms, fintech, IoT systems, or any other domain - leverage each language's strengths.
+
+## Language Selection Guidelines
+
+### JavaScript - Best for:
+- Rapid prototyping and development
+- Simple API endpoints and HTTP handling
+- Frontend integration and server-side rendering
+- Real-time features and WebSockets
+- Event-driven architectures
+- Quick scripting and automation
+
+### TypeScript - Best for:
+- Large-scale applications requiring type safety
+- Complex business logic and data transformation
+- Enterprise-grade API development
+- Authentication and middleware
+- State management coordination
+- Long-term maintainable codebases
+
+### Python - Best for:
+- Machine learning and AI processing
+- Data science and analytics
+- Scientific computing
+- External API integrations
+- Image/video processing
+- Complex algorithms and mathematical operations
+
+### Ruby - Best for:
+- Background job processing
+- Data manipulation and scripting
+- Legacy system integrations
+- Rapid prototyping
+- Text processing and parsing
+
+## Cross-language Data Flow Patterns
+
+### JavaScript → Python → TypeScript Pattern
+
+Perfect for rapid prototyping that grows into enterprise solutions.
+
+```javascript
+// steps/api/submit-request.step.js - JavaScript for rapid API development
+const config = {
+  type: 'api',
+  name: 'SubmitProcessingRequest',
+  description: 'API endpoint to receive and queue processing requests',
+  method: 'POST',
+  path: '/process/submit',
+  bodySchema: {
+    type: 'object',
+    properties: {
+      requestType: { type: 'string' },
+      data: { type: 'object' },
+      priority: { type: 'string', enum: ['low', 'medium', 'high'] },
+      options: { type: 'object' }
+    },
+    required: ['requestType', 'data']
+  },
+  emits: ['request.submitted'],
+  flows: ['data-processing']
+}
+
+const handler = async (req, { emit, logger, state }) => {
+  const { requestType, data, priority = 'medium', options = {} } = req.body
+  
+  try {
+    const requestId = generateId()
+    
+    // JavaScript handles quick validation and request setup
+    const processedRequest = {
+      id: requestId,
+      type: requestType,
+      data: sanitizeData(data),
+      priority,
+      options,
+      status: 'queued',
+      submittedAt: new Date().toISOString()
+    }
+    
+    // Store in state
+    await state.set('processing-requests', requestId, processedRequest)
+    
+    // Emit for Python processing
+    await emit({
+      topic: 'request.submitted',
+      data: processedRequest
+    })
+    
+    logger.info('Processing request submitted', { requestId, requestType })
+    
+    return {
+      status: 202,
+      body: {
+        requestId,
+        status: 'queued',
+        message: 'Request submitted successfully'
+      }
+    }
+  } catch (error) {
+    logger.error('Failed to submit request', { error: error.message })
+    return {
+      status: 500,
+      body: { error: 'Request submission failed' }
+    }
+  }
+}
+
+function generateId() {
+  return 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+}
+
+function sanitizeData(data) {
+  // JavaScript handles quick data sanitization
+  return JSON.parse(JSON.stringify(data)) // Simple deep clone and sanitization
+}
+
+module.exports = { config, handler }
+```
+
+```python
+# steps/processing/compute_processor_step.py - Python for complex computations
+import json
+import time
+from datetime import datetime, timezone
+
+config = {
+    "type": "event",
+    "name": "ComputeProcessor",
+    "description": "Handle computationally intensive tasks using Python",
+    "subscribes": ["request.submitted"],
+    "emits": ["processing.completed", "processing.failed"],
+    "input": {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "type": {"type": "string"},
+            "data": {"type": "object"},
+            "priority": {"type": "string"},
+            "options": {"type": "object"}
+        },
+        "required": ["id", "type", "data"]
+    },
+    "flows": ["data-processing"]
+}
+
+async def handler(input_data, ctx):
+    """Python excels at complex computations and data processing"""
+    request_id = input_data.get("id")
+    request_type = input_data.get("type")
+    data = input_data.get("data")
+    options = input_data.get("options", {})
+    
+    try:
+        ctx.logger.info(f"Starting processing for {request_id} of type {request_type}")
+        
+        # Update status to processing
+        await ctx.state.set("processing-requests", request_id, {
+            "status": "processing",
+            "startedAt": datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Route to appropriate processor based on type
+        start_time = time.time()
+        
+        if request_type == "compute":
+            result = await compute_intensive_task(data, options, ctx)
+        elif request_type == "transform":
+            result = await data_transformation_task(data, options, ctx)
+        elif request_type == "analyze":
+            result = await statistical_analysis_task(data, options, ctx)
+        elif request_type == "batch":
+            result = await batch_processing_task(data, options, ctx)
+        else:
+            result = await generic_processing_task(data, options, ctx)
+        
+        processing_time = time.time() - start_time
+        
+        # Package results
+        processing_result = {
+            "requestId": request_id,
+            "type": request_type,
+            "results": result,
+            "status": "completed",
+            "completedAt": datetime.now(timezone.utc).isoformat(),
+            "processingTime": processing_time,
+            "metrics": {
+                "recordsProcessed": result.get("recordCount", 0),
+                "operationsPerformed": result.get("operationCount", 0)
+            }
+        }
+        
+        await ctx.state.set("processing-results", request_id, processing_result)
+        
+        # Emit completion event to TypeScript handler
+        await ctx.emit({
+            "topic": "processing.completed",
+            "data": processing_result
+        })
+        
+        ctx.logger.info(f"Processing completed for {request_id}")
+        
+    except Exception as e:
+        ctx.logger.error(f"Processing failed for {request_id}: {str(e)}")
+        
+        await ctx.state.set("processing-requests", request_id, {
+            "status": "failed",
+            "error": str(e),
+            "failedAt": datetime.now(timezone.utc).isoformat()
+        })
+        
+        await ctx.emit({
+            "topic": "processing.failed",
+            "data": {
+                "requestId": request_id,
+                "type": request_type,
+                "error": str(e)
+            }
+        })
+
+async def compute_intensive_task(data, options, ctx):
+    """Handle CPU-intensive computations"""
+    # Example: Complex calculations, simulations, algorithms
+    iterations = options.get("iterations", 1000)
+    complexity = options.get("complexity", 1)
+    
+    results = []
+    for i in range(iterations):
+        # Simulate complex computation
+        computed_value = perform_complex_calculation(data.get("input", 0) + i, complexity)
+        results.append(computed_value)
+    
+    return {
+        "computedValues": results,
+        "recordCount": len(results),
+        "operationCount": iterations,
+        "summary": {
+            "min": min(results) if results else 0,
+            "max": max(results) if results else 0,
+            "average": sum(results) / len(results) if results else 0
+        }
+    }
+
+async def data_transformation_task(data, options, ctx):
+    """Handle data transformations and manipulations"""
+    transform_type = options.get("transformType", "normalize")
+    input_data = data.get("records", [])
+    
+    transformed_data = []
+    operation_count = 0
+    
+    for record in input_data:
+        if transform_type == "normalize":
+            transformed_record = normalize_record(record)
+        elif transform_type == "aggregate":
+            transformed_record = aggregate_record(record, options.get("aggregateBy", []))
+        elif transform_type == "filter":
+            if filter_record(record, options.get("criteria", {})):
+                transformed_record = record
+            else:
+                continue
+        else:
+            transformed_record = generic_transform(record, transform_type)
+        
+        transformed_data.append(transformed_record)
+        operation_count += 1
+    
+    return {
+        "transformedData": transformed_data,
+        "recordCount": len(transformed_data),
+        "operationCount": operation_count,
+        "transformationType": transform_type
+    }
+
+async def statistical_analysis_task(data, options, ctx):
+    """Perform statistical analysis"""
+    dataset = data.get("values", [])
+    analysis_type = options.get("analysisType", "descriptive")
+    
+    if not dataset:
+        return {"error": "No data provided for analysis"}
+    
+    # Basic statistics
+    n = len(dataset)
+    mean_val = sum(dataset) / n if n > 0 else 0
+    variance = sum((x - mean_val) ** 2 for x in dataset) / n if n > 0 else 0
+    std_dev = variance ** 0.5
+    
+    sorted_data = sorted(dataset)
+    median_val = sorted_data[n // 2] if n % 2 == 1 else (sorted_data[n // 2 - 1] + sorted_data[n // 2]) / 2
+    
+    return {
+        "statistics": {
+            "count": n,
+            "mean": mean_val,
+            "median": median_val,
+            "standardDeviation": std_dev,
+            "variance": variance,
+            "min": min(dataset),
+            "max": max(dataset)
+        },
+        "analysisType": analysis_type,
+        "recordCount": n,
+        "operationCount": n * 3  # Approximate operations performed
+    }
+
+async def batch_processing_task(data, options, ctx):
+    """Handle batch processing operations"""
+    batch_data = data.get("batches", [])
+    batch_size = options.get("batchSize", 100)
+    operation = options.get("operation", "process")
+    
+    processed_batches = []
+    total_operations = 0
+    
+    for i, batch in enumerate(batch_data):
+        batch_result = {
+            "batchId": i,
+            "status": "completed",
+            "processedAt": datetime.now(timezone.utc).isoformat()
+        }
+        
+        if operation == "validate":
+            batch_result["validRecords"] = validate_batch(batch)
+            total_operations += len(batch)
+        elif operation == "summarize":
+            batch_result["summary"] = summarize_batch(batch)
+            total_operations += 1
+        else:
+            batch_result["processed"] = len(batch)
+            total_operations += len(batch)
+        
+        processed_batches.append(batch_result)
+    
+    return {
+        "processedBatches": processed_batches,
+        "recordCount": sum(len(batch) for batch in batch_data),
+        "operationCount": total_operations,
+        "batchCount": len(batch_data)
+    }
+
+async def generic_processing_task(data, options, ctx):
+    """Generic processing for custom use cases"""
+    return {
+        "message": "Generic processing completed",
+        "inputData": data,
+        "options": options,
+        "processedAt": datetime.now(timezone.utc).isoformat(),
+        "recordCount": 1,
+        "operationCount": 1
+    }
+
+# Utility functions
+def perform_complex_calculation(value, complexity):
+    """Simulate complex mathematical operations"""
+    result = value
+    for _ in range(complexity):
+        result = (result ** 2 + value) % 1000000
+    return result
+
+def normalize_record(record):
+    """Normalize a data record"""
+    return {key: str(value).strip().lower() if isinstance(value, str) else value 
+            for key, value in record.items()}
+
+def aggregate_record(record, group_by_fields):
+    """Aggregate record based on specified fields"""
+    return {field: record.get(field) for field in group_by_fields if field in record}
+
+def filter_record(record, criteria):
+    """Filter record based on criteria"""
+    for key, value in criteria.items():
+        if key not in record or record[key] != value:
+            return False
+    return True
+
+def generic_transform(record, transform_type):
+    """Generic transformation based on type"""
+    return {"transformed": record, "transformType": transform_type}
+
+def validate_batch(batch):
+    """Validate records in a batch"""
+    return [record for record in batch if record and len(record) > 0]
+
+def summarize_batch(batch):
+    """Summarize a batch of data"""
+    return {
+        "recordCount": len(batch),
+        "fields": list(set().union(*(record.keys() for record in batch if record))),
+        "sampleRecord": batch[0] if batch else None
+    }
+```
+
+```typescript
+// steps/results/results_formatter.step.ts - TypeScript for enterprise-grade result handling
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'ResultsFormatter',
+  description: 'Format processing results and manage notifications',
+  subscribes: ['processing.completed', 'processing.failed'],
+  emits: ['notification.send', 'results.formatted', 'dashboard.update'],
+  input: z.union([
+    z.object({
+      requestId: z.string(),
+      type: z.string(),
+      results: z.record(z.any()),
+      status: z.literal('completed'),
+      processingTime: z.number()
+    }),
+    z.object({
+      requestId: z.string(),
+      type: z.string(),
+      error: z.string()
+    })
+  ]),
+  flows: ['data-processing']
+}
+
+export const handler: Handlers['ResultsFormatter'] = async (input, { emit, logger, state, streams }) => {
+  if ('results' in input) {
+    // Success case - TypeScript handles enterprise-grade result formatting
+    const { requestId, type, results, processingTime } = input
+    
+    try {
+      // Format results for different consumer types (API, dashboard, reports)
+      const formattedResults = await formatProcessingResults(results, type)
+      
+      // Update request status with formatted results
+      await state.set('processing-requests', requestId, {
+        status: 'completed',
+        results: formattedResults,
+        completedAt: new Date().toISOString(),
+        processingTime
+      })
+      
+      // Generate different notification types based on processing type
+      const notificationConfig = generateNotificationConfig(type, requestId, processingTime)
+      
+      await emit({
+        topic: 'notification.send',
+        data: notificationConfig
+      })
+      
+      // Emit formatted results for downstream consumers
+      await emit({
+        topic: 'results.formatted',
+        data: { 
+          requestId, 
+          type, 
+          results: formattedResults,
+          metadata: {
+            processedAt: new Date().toISOString(),
+            processingTime,
+            formatVersion: '1.0'
+          }
+        }
+      })
+      
+      // Update real-time dashboard
+      await emit({
+        topic: 'dashboard.update',
+        data: {
+          requestId,
+          type,
+          status: 'completed',
+          metrics: extractMetrics(results),
+          timestamp: new Date().toISOString()
+        }
+      })
+      
+      logger.info('Processing results formatted and distributed', { 
+        requestId, 
+        type, 
+        processingTime,
+        resultSize: JSON.stringify(formattedResults).length 
+      })
+      
+    } catch (error) {
+      logger.error('Failed to format processing results', { 
+        error: error.message, 
+        requestId, 
+        type 
+      })
+    }
+  } else {
+    // Error case - Handle processing failures
+    const { requestId, type, error } = input
+    
+    await emit({
+      topic: 'notification.send',
+      data: {
+        type: 'error',
+        title: 'Processing Failed',
+        message: `Your ${type} request encountered an error: ${error}`,
+        metadata: { requestId, processingType: type }
+      }
+    })
+    
+    await emit({
+      topic: 'dashboard.update',
+      data: {
+        requestId,
+        type,
+        status: 'failed',
+        error,
+        timestamp: new Date().toISOString()
+      }
+    })
+    
+    logger.error('Processing failed', { requestId, type, error })
+  }
+}
+
+async function formatProcessingResults(results: any, type: string) {
+  // TypeScript handles complex result formatting with type safety
+  const baseFormatting = {
+    ...results,
+    formattedAt: new Date().toISOString(),
+    version: '1.0',
+    type
+  }
+  
+  // Apply type-specific formatting
+  switch (type) {
+    case 'compute':
+      return formatComputeResults(baseFormatting)
+    case 'transform':
+      return formatTransformResults(baseFormatting)
+    case 'analyze':
+      return formatAnalysisResults(baseFormatting)
+    case 'batch':
+      return formatBatchResults(baseFormatting)
+    default:
+      return formatGenericResults(baseFormatting)
+  }
+}
+
+function generateNotificationConfig(type: string, requestId: string, processingTime: number) {
+  const typeMessages = {
+    compute: 'computation has completed',
+    transform: 'data transformation has finished',
+    analyze: 'analysis results are ready',
+    batch: 'batch processing has completed'
+  }
+  
+  return {
+    type: 'success',
+    title: 'Processing Complete',
+    message: `Your ${typeMessages[type] || 'request'} successfully (${processingTime.toFixed(2)}s).`,
+    metadata: { 
+      requestId, 
+      processingType: type,
+      processingTime 
+    }
+  }
+}
+
+function extractMetrics(results: any) {
+  return {
+    recordsProcessed: results.recordCount || 0,
+    operationsPerformed: results.operationCount || 0,
+    errorCount: results.errors?.length || 0,
+    successRate: calculateSuccessRate(results),
+    performanceScore: calculatePerformanceScore(results)
+  }
+}
+
+function formatComputeResults(results: any) {
+  return {
+    ...results,
+    charts: generateComputeCharts(results),
+    summary: generateComputeSummary(results),
+    downloadUrl: generateDownloadUrl(results, 'compute')
+  }
+}
+
+function formatTransformResults(results: any) {
+  return {
+    ...results,
+    transformationSummary: generateTransformSummary(results),
+    sampleResults: results.transformedData?.slice(0, 10) || [],
+    downloadUrl: generateDownloadUrl(results, 'transform')
+  }
+}
+
+function formatAnalysisResults(results: any) {
+  return {
+    ...results,
+    visualizations: generateAnalysisCharts(results),
+    insights: generateInsights(results),
+    downloadUrl: generateDownloadUrl(results, 'analysis')
+  }
+}
+
+function formatBatchResults(results: any) {
+  return {
+    ...results,
+    batchSummary: generateBatchSummary(results),
+    failedBatches: results.processedBatches?.filter(b => b.status !== 'completed') || [],
+    downloadUrl: generateDownloadUrl(results, 'batch')
+  }
+}
+
+function formatGenericResults(results: any) {
+  return {
+    ...results,
+    summary: 'Processing completed successfully',
+    downloadUrl: generateDownloadUrl(results, 'generic')
+  }
+}
+
+// Utility functions for formatting
+function calculateSuccessRate(results: any): number {
+  // Implementation depends on result structure
+  return 100 // Placeholder
+}
+
+function calculatePerformanceScore(results: any): number {
+  // Implementation depends on result structure and performance metrics
+  return 85 // Placeholder
+}
+
+function generateComputeCharts(results: any): any[] {
+  // Generate chart configurations for compute results
+  return []
+}
+
+function generateComputeSummary(results: any): string {
+  return `Computed ${results.recordCount} values with ${results.operationCount} operations`
+}
+
+function generateDownloadUrl(results: any, type: string): string {
+  // Generate secure download URL for results
+  return `/api/downloads/${type}/${results.requestId || 'result'}`
+}
+```
+
+## Ruby Integration for Background Tasks
+
+```ruby
+# steps/background/task_runner.step.rb - Ruby for flexible background processing
+require 'json'
+require 'fileutils'
+require 'net/http'
+require 'csv'
+
+def config
+  {
+    type: 'event',
+    name: 'TaskRunner',
+    description: 'Handle various background tasks with Ruby flexibility',
+    subscribes: ['results.formatted'],
+    emits: ['task.completed', 'task.failed', 'file.generated'],
+    input: {
+      type: 'object',
+      properties: {
+        requestId: { type: 'string' },
+        type: { type: 'string' },
+        results: { type: 'object' },
+        metadata: { type: 'object' }
+      },
+      required: ['requestId', 'type', 'results']
+    },
+    flows: ['data-processing']
+  }
+end
+
+def handler(input, context)
+  request_id = input[:requestId]
+  task_type = input[:type]
+  results = input[:results]
+  metadata = input[:metadata] || {}
+  
+  begin
+    context.logger.info("Starting background task for #{request_id} of type #{task_type}")
+    
+    # Ruby excels at flexible task processing and file operations
+    task_result = case task_type
+                  when 'compute'
+                    handle_compute_task(results, request_id, context)
+                  when 'transform'
+                    handle_transform_task(results, request_id, context)
+                  when 'analyze'
+                    handle_analysis_task(results, request_id, context)
+                  when 'batch'
+                    handle_batch_task(results, request_id, context)
+                  else
+                    handle_generic_task(results, request_id, context)
+                  end
+    
+    # Store task completion
+    final_result = {
+      requestId: request_id,
+      taskType: task_type,
+      status: 'completed',
+      result: task_result,
+      completedAt: Time.now.utc.iso8601,
+      metadata: metadata.merge(task_result[:metadata] || {})
+    }
+    
+    context.state.set('background-tasks', request_id, final_result)
+    
+    context.emit(
+      topic: 'task.completed',
+      data: final_result
+    )
+    
+    # If files were generated, emit file generation event
+    if task_result[:files]&.any?
+      context.emit(
+        topic: 'file.generated',
+        data: {
+          requestId: request_id,
+          files: task_result[:files],
+          type: task_type
+        }
+      )
+    end
+    
+    context.logger.info("Background task completed for #{request_id}")
+    
+  rescue => e
+    context.logger.error("Background task failed for #{request_id}: #{e.message}")
+    
+    context.emit(
+      topic: 'task.failed',
+      data: {
+        requestId: request_id,
+        taskType: task_type,
+        error: e.message,
+        failedAt: Time.now.utc.iso8601
+      }
+    )
+  end
+end
+
+def handle_compute_task(results, request_id, context)
+  # Ruby handles post-processing of compute results
+  computed_values = results[:computedValues] || []
+  
+  # Generate summary report
+  report = generate_compute_report(computed_values, results)
+  report_file = save_report_to_file(report, request_id, 'compute')
+  
+  # Create archive if needed
+  archive_file = nil
+  if computed_values.length > 1000
+    archive_file = create_data_archive(computed_values, request_id)
+  end
+  
+  files = [report_file, archive_file].compact
+  
+  {
+    summary: "Processed #{computed_values.length} computed values",
+    files: files,
+    reportGenerated: true,
+    metadata: {
+      valuesProcessed: computed_values.length,
+      reportSize: File.size(report_file),
+      archiveCreated: !archive_file.nil?
+    }
+  }
+end
+
+def handle_transform_task(results, request_id, context)
+  # Ruby excels at data transformation and file generation
+  transformed_data = results[:transformedData] || []
+  
+  # Generate different output formats
+  files = []
+  
+  # CSV export
+  csv_file = generate_csv_export(transformed_data, request_id)
+  files << csv_file if csv_file
+  
+  # JSON export  
+  json_file = generate_json_export(transformed_data, request_id)
+  files << json_file if json_file
+  
+  # Summary report
+  summary_report = generate_transform_summary(results)
+  report_file = save_report_to_file(summary_report, request_id, 'transform')
+  files << report_file
+  
+  {
+    summary: "Generated #{files.length} output files for transformed data",
+    files: files,
+    exportFormats: ['csv', 'json', 'report'],
+    metadata: {
+      recordsTransformed: transformed_data.length,
+      filesGenerated: files.length,
+      totalFileSize: files.sum { |f| File.size(f) }
+    }
+  }
+end
+
+def handle_analysis_task(results, request_id, context)
+  # Ruby handles analysis result processing and reporting
+  statistics = results[:statistics] || {}
+  
+  # Generate detailed analysis report
+  report = generate_analysis_report(statistics, results)
+  report_file = save_report_to_file(report, request_id, 'analysis')
+  
+  # Create visualization data files
+  viz_files = generate_visualization_data(results, request_id)
+  
+  all_files = [report_file] + viz_files
+  
+  {
+    summary: "Generated comprehensive analysis report with #{viz_files.length} visualizations",
+    files: all_files,
+    visualizations: viz_files.length,
+    metadata: {
+      statisticsComputed: statistics.keys.length,
+      reportPages: estimate_report_pages(report),
+      visualizationsGenerated: viz_files.length
+    }
+  }
+end
+
+def handle_batch_task(results, request_id, context)
+  # Ruby handles batch result aggregation and reporting
+  processed_batches = results[:processedBatches] || []
+  
+  # Generate batch processing summary
+  summary = generate_batch_summary(processed_batches)
+  summary_file = save_report_to_file(summary, request_id, 'batch')
+  
+  # Generate individual batch reports if needed
+  batch_files = []
+  if processed_batches.length > 10
+    batch_files = generate_individual_batch_reports(processed_batches, request_id)
+  end
+  
+  all_files = [summary_file] + batch_files
+  
+  {
+    summary: "Processed #{processed_batches.length} batches with detailed reporting",
+    files: all_files,
+    batchesProcessed: processed_batches.length,
+    metadata: {
+      totalBatches: processed_batches.length,
+      individualReports: batch_files.length,
+      summaryGenerated: true
+    }
+  }
+end
+
+def handle_generic_task(results, request_id, context)
+  # Generic Ruby task handler for any processing type
+  summary = "Generic task processing completed"
+  
+  # Generate basic report
+  report = {
+    requestId: request_id,
+    processedAt: Time.now.utc.iso8601,
+    results: results,
+    summary: summary
+  }
+  
+  report_file = save_json_to_file(report, request_id, 'generic')
+  
+  {
+    summary: summary,
+    files: [report_file],
+    metadata: {
+      genericProcessing: true,
+      reportGenerated: true
+    }
+  }
+end
+
+# Utility functions for file operations
+def save_report_to_file(content, request_id, type)
+  filename = "#{type}_report_#{request_id}_#{Time.now.to_i}.txt"
+  filepath = "/tmp/#{filename}"
+  
+  File.write(filepath, content)
+  filepath
+end
+
+def save_json_to_file(data, request_id, type)
+  filename = "#{type}_data_#{request_id}_#{Time.now.to_i}.json"
+  filepath = "/tmp/#{filename}"
+  
+  File.write(filepath, JSON.pretty_generate(data))
+  filepath
+end
+
+def generate_csv_export(data, request_id)
+  return nil if data.empty?
+  
+  filename = "export_#{request_id}_#{Time.now.to_i}.csv"
+  filepath = "/tmp/#{filename}"
+  
+  CSV.open(filepath, 'w') do |csv|
+    # Add headers from first record
+    if data.first.is_a?(Hash)
+      csv << data.first.keys
+      data.each { |record| csv << record.values }
+    else
+      # Handle array data
+      data.each { |item| csv << [item] }
+    end
+  end
+  
+  filepath
+end
+
+def generate_json_export(data, request_id)
+  filename = "export_#{request_id}_#{Time.now.to_i}.json"
+  filepath = "/tmp/#{filename}"
+  
+  File.write(filepath, JSON.pretty_generate(data))
+  filepath
+end
+
+def generate_compute_report(values, results)
+  summary = results[:summary] || {}
+  
+  <<~REPORT
+    Computation Results Report
+    =========================
+    
+    Generated: #{Time.now.utc.iso8601}
+    Total Values: #{values.length}
+    
+    Summary Statistics:
+    - Minimum: #{summary[:min]}
+    - Maximum: #{summary[:max]}
+    - Average: #{summary[:average]&.round(4)}
+    
+    Processing completed successfully.
+  REPORT
+end
+
+def generate_transform_summary(results)
+  <<~REPORT
+    Data Transformation Summary
+    ==========================
+    
+    Generated: #{Time.now.utc.iso8601}
+    Records Transformed: #{results[:recordCount]}
+    Operations Performed: #{results[:operationCount]}
+    Transformation Type: #{results[:transformationType]}
+    
+    Transformation completed successfully.
+  REPORT
+end
+
+def generate_analysis_report(statistics, results)
+  <<~REPORT
+    Statistical Analysis Report
+    ===========================
+    
+    Generated: #{Time.now.utc.iso8601}
+    Analysis Type: #{results[:analysisType]}
+    
+    Statistics:
+    - Count: #{statistics[:count]}
+    - Mean: #{statistics[:mean]&.round(4)}
+    - Median: #{statistics[:median]&.round(4)}
+    - Standard Deviation: #{statistics[:standardDeviation]&.round(4)}
+    - Variance: #{statistics[:variance]&.round(4)}
+    - Range: #{statistics[:min]} to #{statistics[:max]}
+    
+    Analysis completed successfully.
+  REPORT
+end
+
+def generate_batch_summary(batches)
+  successful = batches.count { |b| b[:status] == 'completed' }
+  
+  <<~REPORT
+    Batch Processing Summary
+    =======================
+    
+    Generated: #{Time.now.utc.iso8601}
+    Total Batches: #{batches.length}
+    Successful: #{successful}
+    Failed: #{batches.length - successful}
+    Success Rate: #{((successful.to_f / batches.length) * 100).round(2)}%
+    
+    Batch processing completed.
+  REPORT
+end
+```
+
+## Best Practices for Multi-language Workflows
+
+### 1. Data Serialization
+Always use JSON for data exchange between languages. Ensure proper type conversion and handle edge cases like dates, null values, and large numbers consistently across all languages.
+
+### 2. Error Handling
+Implement consistent error handling patterns across all languages:
+- Use similar error message formats
+- Include request/trace IDs in all error logs
+- Emit appropriate error events for downstream handling
+- Implement graceful degradation where possible
+
+### 3. Logging
+Use structured logging with consistent field names across languages:
+- `requestId`, `traceId`, `userId` for correlation
+- `timestamp` in ISO 8601 format
+- `level`, `message`, `metadata` structure
+- Include performance metrics where relevant
+
+### 4. State Management
+Use language-appropriate data structures but maintain consistent state keys:
+- Use consistent naming conventions (camelCase, snake_case, etc.)
+- Maintain hierarchical state keys for organization
+- Implement proper cleanup strategies
+- Consider state size and TTL for performance
+
+### 5. Performance Considerations
+Choose languages based on task requirements:
+- **JavaScript**: Quick prototyping, simple APIs, real-time features
+- **TypeScript**: Type-safe APIs, complex business logic, large applications  
+- **Python**: CPU-intensive computations, data processing, AI/ML tasks
+- **Ruby**: File operations, text processing, background jobs, scripting
+
+### 6. Dependencies Management
+Maintain separate dependency files for each language:
+- `package.json` for JavaScript/TypeScript
+- `requirements.txt` or `pyproject.toml` for Python
+- `Gemfile` for Ruby
+- Keep versions pinned and regularly updated
+- Document any shared or conflicting dependencies
+
+### 7. Testing Strategy
+- Test each language's components independently
+- Test cross-language data flow and integration points
+- Mock external dependencies consistently
+- Include performance tests for heavy computations
+
+### 8. Development Environment
+- Use containerization for consistent environments
+- Implement hot-reload for all languages in development
+- Maintain separate build processes per language
+- Use consistent code formatting and linting across languages
+
+### 9. Monitoring and Observability
+- Track performance metrics for each language component
+- Monitor memory usage, especially for Python processes
+- Set up alerts for cross-language communication failures
+- Use distributed tracing for request correlation
+
+This flexible multi-language approach enables building applications of ANY type - from simple APIs to complex distributed systems - by leveraging each language's unique strengths while maintaining system cohesion.
