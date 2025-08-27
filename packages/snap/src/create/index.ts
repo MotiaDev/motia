@@ -130,7 +130,6 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
       scripts: {
         postinstall: 'motia install',
         dev: 'motia dev',
-        'dev:debug': 'motia dev --verbose',
         'generate-types': 'motia generate-types',
         build: 'motia build',
         clean: 'rm -rf dist node_modules python_modules .motia .mermaid',
