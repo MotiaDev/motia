@@ -44,7 +44,7 @@ test.describe('Motia Basic Tutorial - Workbench', () => {
     await expect(workbench.tutorialPopover).toBeVisible()
   })
 
-  test('tutorial navigation keys should navigate forward', async () => {
+  test('tutorial navigation keys should navigate forward', async ({ page }) => {
     await workbench.open()
 
     await expect(workbench.tutorialPopover).toBeVisible()
@@ -52,6 +52,7 @@ test.describe('Motia Basic Tutorial - Workbench', () => {
     const initialTitle = await workbench.tutorialPopoverTitle.innerText()
 
     await workbench.tutorialNextButton.click()
+    await page.waitForTimeout(500)
 
     const finalTitle = await workbench.tutorialPopoverTitle.innerText()
     await expect(finalTitle).not.toEqual(initialTitle)
