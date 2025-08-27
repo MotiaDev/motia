@@ -114,6 +114,14 @@ def is_local_import(package_name: str, project_dir: str) -> bool:
         # If we can't import it, it means it's a local import
         return True
 
+def get_package_version(package_name: str) -> str:
+    """Get the version of a package."""
+    try:
+        return importlib.metadata.version(package_name)
+    except importlib.metadata.PackageNotFoundError:
+        print(f"Warning: Package {package_name} not found")
+        return None
+
 def get_direct_imports(project_dir: str, file_path: str) -> Set[str]:
     """Extract direct imports from a Python file using AST parsing."""
     direct_imports = set()
@@ -203,10 +211,13 @@ def trace_packages(project_dir: str, entry_file: str) -> List[str]:
     
     # Process each direct import and its dependencies
     for package_name in direct_imports:
-        all_packages.append({ 'name': package_name, 'is_direct_import': True })
+        version = get_package_version(package_name)
+        all_packages.append({ 'name': package_name, 'version': version, 'is_direct_import': True })
         # Get all dependencies including sub-dependencies
         dependencies = get_package_dependencies(package_name, processed_packages)
-        all_packages.extend([{ 'name': dep, 'is_direct_import': False } for dep in dependencies])        
+        for dep in dependencies:
+            dep_version = get_package_version(dep)
+            all_packages.append({ 'name': dep, 'version': dep_version, 'is_direct_import': False })        
     
     # Filter out built-in packages
     return all_packages

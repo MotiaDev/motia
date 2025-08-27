@@ -41,6 +41,16 @@ export class PythonBuilder implements StepBuilder {
     if (packages.length > 0) {
       await Promise.all(packages.map((pkg) => addPackageToArchive(archive, sitePackagesDir, pkg.name)))
       this.listener.onBuildProgress(step, `Added ${packages.length} packages to archive`)
+
+      const directPackages = packages.filter((pkg) => pkg.is_direct_import)
+      
+      // Create requirements.txt with only direct packages
+      const requirementsContent = directPackages
+        .map((pkg) => pkg.version ? `${pkg.name}==${pkg.version}` : pkg.name)
+        .join('\n')
+      
+      archive.append(requirementsContent, 'requirements.txt')
+      this.listener.onBuildProgress(step, `Added requirements.txt with ${directPackages.length} direct packages`)
     }
 
     return normalizedEntrypointPath
