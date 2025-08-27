@@ -80,18 +80,23 @@ export class PythonBuilder implements StepBuilder {
     let normalizedStepPath = step.filePath
       .replace(/[.]step.py$/, '_step.py') // Replace .step.py with _step.py
       .replace(`${this.builder.projectDir}/`, '') // Remove the project directory from the path
-      
+
     if (normalizePythonModulePath) {
       normalizedStepPath = normalizedStepPath.replace(/(.*)\.py$/, '$1') // Remove .py extension
     }
-    
-    const pathParts = normalizedStepPath.split(path.sep).map(part => 
+
+    const pathParts = normalizedStepPath.split(path.sep).map((part) =>
       part
         .replace(/^[0-9]+/g, '') // Remove numeric prefixes
         .replace(/[^a-zA-Z0-9._]/g, '_') // Replace any non-alphanumeric characters (except dots) with underscores
-        .replace(/^_/, '')) // Remove leading underscore
+        .replace(/^_/, ''),
+    ) // Remove leading underscore
 
-    return pathParts.join(normalizePythonModulePath ? '.' : path.sep) // Convert path delimiter to dot (python module separator)
+    normalizedStepPath = normalizePythonModulePath
+      ? pathParts.join('.') // Convert path delimiter to dot (python module separator)
+      : '/' + pathParts.join(path.sep)
+
+    return normalizedStepPath
   }
 
   async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
