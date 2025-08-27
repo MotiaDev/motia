@@ -208,5 +208,48 @@ docker
     process.exit(0)
   })
 
+const rules = program.command('rules').description('Manage Motia AI development guides (AGENTS.md, CLAUDE.md) and IDE-specific rules')
+
+rules
+  .command('pull')
+  .description('Install essential AI development guides (AGENTS.md, CLAUDE.md) and optional Cursor IDE rules')
+  .option('-f, --force', 'Overwrite existing files')
+  .action(async (options) => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ force: options.force })
+  })
+
+rules
+  .command('list')
+  .description('List available AI development guides and IDE rules')
+  .action(async () => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ list: true })
+  })
+
+rules
+  .command('show <rule-name>')
+  .description('Show content of a specific AI guide or IDE rule')
+  .action(async (ruleName) => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ show: ruleName })
+  })
+
+rules
+  .command('remove')
+  .description('Remove AI development guides and IDE rules from your project')
+  .action(async () => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ remove: true })
+  })
+
+rules
+  .command('version')
+  .description('Show AI development guides version')
+  .action(async () => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ version: true })
+  })
+
 program.version(version, '-V, --version', 'Output the current version')
 program.parse(process.argv)
