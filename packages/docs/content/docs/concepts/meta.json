@@ -2,7 +2,6 @@
   "title": "Core Concepts",
   "defaultOpen": true,
   "pages": [
-    "index",
     "steps",
     "flows-and-visualization",
     "state-management", 
