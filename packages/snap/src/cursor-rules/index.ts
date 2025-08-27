@@ -64,10 +64,10 @@ async function pullAIGuides(force: boolean): Promise<void> {
 
     // First, copy the essential AI development guides
     console.log(colors.blue('🤖 Installing AI Development Guides...'))
-    
+
     let claudePath = path.join(__dirname, '../../dot-files/CLAUDE.md')
     let agentsPath = path.join(__dirname, '../../dot-files/AGENTS.md')
-    
+
     // Try node_modules paths if local paths don't exist
     if (!fs.existsSync(claudePath)) {
       claudePath = path.join('node_modules', '@motiadev/snap', 'dist', 'dot-files', 'CLAUDE.md')
@@ -75,16 +75,16 @@ async function pullAIGuides(force: boolean): Promise<void> {
     if (!fs.existsSync(agentsPath)) {
       agentsPath = path.join('node_modules', '@motiadev/snap', 'dist', 'dot-files', 'AGENTS.md')
     }
-    
+
     if (fs.existsSync(agentsPath)) {
       fs.copyFileSync(agentsPath, 'AGENTS.md') // Copy to project root
       console.log(colors.green('✅ AGENTS.md - Universal AI development guide for ALL AI tools & IDEs (project root)'))
     } else {
       console.log(colors.red('❌ AGENTS.md not found - this is a critical file!'))
     }
-    
+
     if (fs.existsSync(claudePath)) {
-      fs.copyFileSync(claudePath, 'CLAUDE.md') // Copy to project root  
+      fs.copyFileSync(claudePath, 'CLAUDE.md') // Copy to project root
       console.log(colors.green('✅ CLAUDE.md - Comprehensive guide for Claude AI assistant (project root)'))
     } else {
       console.log(colors.red('❌ CLAUDE.md not found - this is a critical file!'))
@@ -93,7 +93,7 @@ async function pullAIGuides(force: boolean): Promise<void> {
     // Then copy cursor-specific rules
     console.log('')
     console.log(colors.blue('📋 Installing Cursor-Specific Rules...'))
-    
+
     // Check if source exists in node_modules
     let sourcePath = CURSOR_RULES_SOURCE
     if (!fs.existsSync(sourcePath)) {
@@ -129,7 +129,6 @@ async function pullAIGuides(force: boolean): Promise<void> {
     console.log('')
     console.log(colors.blue('📚 Documentation:'))
     console.log(colors.gray('   https://docs.motia.dev/ai-guides'))
-
   } catch (error) {
     console.error(colors.red('❌ Failed to install cursor rules:'), error)
     process.exit(1)
@@ -139,7 +138,7 @@ async function pullAIGuides(force: boolean): Promise<void> {
 async function listAIGuides(): Promise<void> {
   console.log(colors.blue('🤖 Available AI Development Guides & Cursor Rules:'))
   console.log('')
-  
+
   console.log(colors.blue('📋 Essential AI Development Guides:'))
   console.log(colors.green('  ✓ AGENTS.md'))
   console.log(colors.gray('    Universal guide for ALL AI tools & IDEs (Cursor, VS Code, etc.)'))
@@ -147,7 +146,7 @@ async function listAIGuides(): Promise<void> {
   console.log(colors.green('  ✓ CLAUDE.md'))
   console.log(colors.gray('    Comprehensive guide specifically for Claude AI assistant'))
   console.log('')
-  
+
   console.log(colors.blue('📋 Cursor-Specific Rules:'))
   const rules = [
     { name: 'complete-application-patterns', description: 'End-to-end patterns for complete applications' },
@@ -163,10 +162,10 @@ async function listAIGuides(): Promise<void> {
     { name: 'production-deployment', description: 'DevOps and deployment patterns' },
     { name: 'api-design-patterns', description: 'REST API design best practices' },
     { name: 'state-management', description: 'Data persistence and state patterns' },
-    { name: 'steps', description: 'Basic step creation patterns' }
+    { name: 'steps', description: 'Basic step creation patterns' },
   ]
 
-  rules.forEach(rule => {
+  rules.forEach((rule) => {
     console.log(colors.green(`  ✓ ${rule.name}`))
     console.log(colors.gray(`    ${rule.description}`))
     console.log('')
@@ -193,7 +192,7 @@ async function showAIGuide(ruleName: string): Promise<void> {
       return
     }
   }
-  
+
   if (ruleName === 'claude' || ruleName === 'CLAUDE') {
     if (fs.existsSync('CLAUDE.md')) {
       const content = fs.readFileSync('CLAUDE.md', 'utf-8')
@@ -206,10 +205,10 @@ async function showAIGuide(ruleName: string): Promise<void> {
       return
     }
   }
-  
+
   // Check cursor rules
   const ruleFile = path.join(TARGET_DIR, `${ruleName}.mdc`)
-  
+
   if (!fs.existsSync(ruleFile)) {
     console.error(colors.red(`❌ Guide/Rule '${ruleName}' not found.`))
     console.log(colors.gray('   Available guides and rules: motia rules list'))
@@ -224,20 +223,20 @@ async function showAIGuide(ruleName: string): Promise<void> {
 
 async function removeAIGuides(): Promise<void> {
   let removed = false
-  
+
   // Remove AI development guides from project root
   if (fs.existsSync('AGENTS.md')) {
     fs.unlinkSync('AGENTS.md')
     console.log(colors.yellow('🗑️  Removed AGENTS.md'))
     removed = true
   }
-  
+
   if (fs.existsSync('CLAUDE.md')) {
     fs.unlinkSync('CLAUDE.md')
     console.log(colors.yellow('🗑️  Removed CLAUDE.md'))
     removed = true
   }
-  
+
   // Remove cursor rules directory
   if (fs.existsSync(TARGET_DIR)) {
     console.log(colors.yellow('🗑️  Removing cursor rules...'))
@@ -245,7 +244,7 @@ async function removeAIGuides(): Promise<void> {
     console.log(colors.yellow('🗑️  Removed .cursor/rules/'))
     removed = true
   }
-  
+
   if (removed) {
     console.log(colors.green('✅ AI development guides and cursor rules removed successfully!'))
   } else {

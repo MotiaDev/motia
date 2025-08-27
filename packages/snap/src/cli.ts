@@ -208,7 +208,9 @@ docker
     process.exit(0)
   })
 
-const rules = program.command('rules').description('Manage Motia AI development guides (AGENTS.md, CLAUDE.md) and IDE-specific rules')
+const rules = program
+  .command('rules')
+  .description('Manage Motia AI development guides (AGENTS.md, CLAUDE.md) and IDE-specific rules')
 
 rules
   .command('pull')
