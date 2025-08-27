@@ -1,0 +1,620 @@
+---
+description: Production-ready authentication patterns for Motia applications
+globs: 
+alwaysApply: false
+---
+# Authentication Patterns
+
+Implement secure, production-ready authentication systems following proven patterns.
+
+## JWT-Based Authentication
+
+### Token Management
+
+```typescript
+// utils/auth.ts
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
+
+export interface JWTPayload {
+  userId: string
+  email: string
+  role?: string
+  iat: number
+  exp: number
+}
+
+export function generateToken(userId: string, email: string, expiresIn: string = '15m'): string {
+  return jwt.sign(
+    { userId, email },
+    process.env.JWT_SECRET!,
+    { expiresIn }
+  )
+}
+
+export function verifyToken(token: string): JWTPayload | null {
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload
+  } catch {
+    return null
+  }
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12)
+}
+
+export async function comparePassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash)
+}
+```
+
+### Authentication Middleware
+
+```typescript
+// steps/auth/middleware.ts
+import { ApiMiddleware } from 'motia'
+import { verifyToken } from '../utils/auth'
+
+export const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  const authHeader = req.headers.authorization
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return {
+      status: 401,
+      body: { error: 'Authorization token required' }
+    }
+  }
+  
+  const token = authHeader.substring(7)
+  const payload = verifyToken(token)
+  
+  if (!payload) {
+    return {
+      status: 401,
+      body: { error: 'Invalid or expired token' }
+    }
+  }
+  
+  // Add user info to request context
+  req.user = payload
+  
+  return next()
+}
+
+export const optionalAuthMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  const authHeader = req.headers.authorization
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7)
+    const payload = verifyToken(token)
+    
+    if (payload) {
+      req.user = payload
+    }
+  }
+  
+  return next()
+}
+```
+
+### User Registration
+
+```typescript
+// steps/auth/register.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { hashPassword, generateToken } from '../utils/auth'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'UserRegister',
+  description: 'User registration with email verification',
+  method: 'POST',
+  path: '/auth/register',
+  bodySchema: z.object({
+    email: z.string().email().toLowerCase().trim(),
+    password: z.string().min(8).max(128),
+    username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
+    firstName: z.string().min(1).max(50).optional(),
+    lastName: z.string().min(1).max(50).optional()
+  }),
+  responseSchema: {
+    201: z.object({
+      message: z.string(),
+      user: z.object({
+        id: z.string(),
+        email: z.string(),
+        username: z.string(),
+        verified: z.boolean()
+      })
+    }),
+    400: z.object({ error: z.string(), details: z.array(z.string()).optional() }),
+    409: z.object({ error: z.string() })
+  },
+  emits: ['user.registered', 'email.verification.send'],
+  flows: ['user-auth']
+}
+
+export const handler: Handlers['UserRegister'] = async (req, { emit, logger, state }) => {
+  const { email, password, username, firstName, lastName } = req.body
+  
+  try {
+    // Check if user exists
+    const existingUser = await state.get('users', `email:${email}`)
+    if (existingUser) {
+      return {
+        status: 409,
+        body: { error: 'User with this email already exists' }
+      }
+    }
+    
+    // Check username availability
+    const existingUsername = await state.get('users', `username:${username}`)
+    if (existingUsername) {
+      return {
+        status: 409,
+        body: { error: 'Username already taken' }
+      }
+    }
+    
+    // Create user
+    const userId = crypto.randomUUID()
+    const hashedPassword = await hashPassword(password)
+    const verificationToken = crypto.randomUUID()
+    
+    const user = {
+      id: userId,
+      email,
+      username,
+      firstName,
+      lastName,
+      password: hashedPassword,
+      verified: false,
+      verificationToken,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      role: 'user'
+    }
+    
+    // Store user data
+    await state.set('users', `email:${email}`, user)
+    await state.set('users', `username:${username}`, { userId, email })
+    await state.set('users', `id:${userId}`, user)
+    
+    // Store verification token
+    await state.set('verification-tokens', verificationToken, {
+      userId,
+      email,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+    })
+    
+    // Emit events
+    await emit({
+      topic: 'user.registered',
+      data: { userId, email, username, firstName, lastName }
+    })
+    
+    await emit({
+      topic: 'email.verification.send',
+      data: { email, username: firstName || username, verificationToken }
+    })
+    
+    logger.info('User registered successfully', { userId, email, username })
+    
+    return {
+      status: 201,
+      body: {
+        message: 'Registration successful. Please check your email to verify your account.',
+        user: {
+          id: userId,
+          email,
+          username,
+          verified: false
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('Registration failed', { error: error.message, email })
+    return {
+      status: 500,
+      body: { error: 'Registration failed. Please try again.' }
+    }
+  }
+}
+```
+
+### User Login
+
+```typescript
+// steps/auth/login.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { comparePassword, generateToken } from '../utils/auth'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'UserLogin',
+  description: 'User authentication and token generation',
+  method: 'POST', 
+  path: '/auth/login',
+  bodySchema: z.object({
+    email: z.string().email().toLowerCase().trim(),
+    password: z.string().min(1),
+    rememberMe: z.boolean().default(false)
+  }),
+  responseSchema: {
+    200: z.object({
+      user: z.object({
+        id: z.string(),
+        email: z.string(),
+        username: z.string(),
+        verified: z.boolean(),
+        role: z.string()
+      }),
+      tokens: z.object({
+        accessToken: z.string(),
+        refreshToken: z.string(),
+        expiresIn: z.number()
+      })
+    }),
+    400: z.object({ error: z.string() }),
+    401: z.object({ error: z.string() }),
+    403: z.object({ error: z.string() })
+  },
+  emits: ['user.login.success', 'user.login.failed'],
+  flows: ['user-auth']
+}
+
+export const handler: Handlers['UserLogin'] = async (req, { emit, logger, state }) => {
+  const { email, password, rememberMe } = req.body
+  const clientIP = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown'
+  
+  try {
+    // Get user
+    const user = await state.get('users', `email:${email}`)
+    if (!user) {
+      await emit({
+        topic: 'user.login.failed',
+        data: { email, reason: 'user_not_found', clientIP }
+      })
+      
+      return {
+        status: 401,
+        body: { error: 'Invalid email or password' }
+      }
+    }
+    
+    // Check password
+    const isValidPassword = await comparePassword(password, user.password)
+    if (!isValidPassword) {
+      await emit({
+        topic: 'user.login.failed', 
+        data: { email, userId: user.id, reason: 'invalid_password', clientIP }
+      })
+      
+      return {
+        status: 401,
+        body: { error: 'Invalid email or password' }
+      }
+    }
+    
+    // Check if account is verified
+    if (!user.verified) {
+      return {
+        status: 403,
+        body: { error: 'Please verify your email address before logging in' }
+      }
+    }
+    
+    // Generate tokens
+    const accessTokenExpiry = rememberMe ? '7d' : '15m'
+    const refreshTokenExpiry = rememberMe ? '90d' : '30d'
+    
+    const accessToken = generateToken(user.id, user.email, accessTokenExpiry)
+    const refreshToken = crypto.randomUUID()
+    
+    // Store refresh token
+    await state.set('refresh-tokens', refreshToken, {
+      userId: user.id,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + (rememberMe ? 90 : 30) * 24 * 60 * 60 * 1000).toISOString(),
+      clientIP
+    })
+    
+    // Update last login
+    await state.set('users', `id:${user.id}`, {
+      ...user,
+      lastLoginAt: new Date().toISOString(),
+      lastLoginIP: clientIP
+    })
+    
+    await emit({
+      topic: 'user.login.success',
+      data: { userId: user.id, email, clientIP }
+    })
+    
+    logger.info('User login successful', { userId: user.id, email })
+    
+    return {
+      status: 200,
+      body: {
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          verified: user.verified,
+          role: user.role
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+          expiresIn: rememberMe ? 7 * 24 * 60 * 60 : 15 * 60
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('Login failed', { error: error.message, email })
+    return {
+      status: 500,
+      body: { error: 'Login failed. Please try again.' }
+    }
+  }
+}
+```
+
+### Email Verification
+
+```typescript
+// steps/auth/verify-email.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'VerifyEmail',
+  description: 'Email address verification',
+  method: 'POST',
+  path: '/auth/verify-email',
+  bodySchema: z.object({
+    token: z.string().uuid()
+  }),
+  responseSchema: {
+    200: z.object({ message: z.string() }),
+    400: z.object({ error: z.string() }),
+    404: z.object({ error: z.string() })
+  },
+  emits: ['user.email.verified'],
+  flows: ['user-auth']
+}
+
+export const handler: Handlers['VerifyEmail'] = async (req, { emit, logger, state }) => {
+  const { token } = req.body
+  
+  try {
+    // Get verification token
+    const tokenData = await state.get('verification-tokens', token)
+    if (!tokenData) {
+      return {
+        status: 404,
+        body: { error: 'Invalid or expired verification token' }
+      }
+    }
+    
+    // Check expiry
+    if (new Date() > new Date(tokenData.expiresAt)) {
+      await state.delete('verification-tokens', token)
+      return {
+        status: 400,
+        body: { error: 'Verification token has expired. Please request a new one.' }
+      }
+    }
+    
+    // Update user
+    const user = await state.get('users', `id:${tokenData.userId}`)
+    if (!user) {
+      return {
+        status: 404,
+        body: { error: 'User not found' }
+      }
+    }
+    
+    const updatedUser = {
+      ...user,
+      verified: true,
+      verificationToken: null,
+      verifiedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    
+    // Update user in all locations
+    await state.set('users', `id:${tokenData.userId}`, updatedUser)
+    await state.set('users', `email:${tokenData.email}`, updatedUser)
+    
+    // Clean up verification token
+    await state.delete('verification-tokens', token)
+    
+    await emit({
+      topic: 'user.email.verified',
+      data: { userId: tokenData.userId, email: tokenData.email }
+    })
+    
+    logger.info('Email verified successfully', { userId: tokenData.userId, email: tokenData.email })
+    
+    return {
+      status: 200,
+      body: { message: 'Email verified successfully. You can now log in.' }
+    }
+  } catch (error) {
+    logger.error('Email verification failed', { error: error.message, token })
+    return {
+      status: 500,
+      body: { error: 'Email verification failed. Please try again.' }
+    }
+  }
+}
+```
+
+### Token Refresh
+
+```typescript
+// steps/auth/refresh-token.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { generateToken } from '../utils/auth'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'RefreshToken',
+  description: 'Refresh access token using refresh token',
+  method: 'POST',
+  path: '/auth/refresh',
+  bodySchema: z.object({
+    refreshToken: z.string().uuid()
+  }),
+  responseSchema: {
+    200: z.object({
+      accessToken: z.string(),
+      expiresIn: z.number()
+    }),
+    401: z.object({ error: z.string() })
+  },
+  emits: ['token.refreshed'],
+  flows: ['user-auth']
+}
+
+export const handler: Handlers['RefreshToken'] = async (req, { emit, logger, state }) => {
+  const { refreshToken } = req.body
+  
+  try {
+    // Get refresh token data
+    const tokenData = await state.get('refresh-tokens', refreshToken)
+    if (!tokenData) {
+      return {
+        status: 401,
+        body: { error: 'Invalid refresh token' }
+      }
+    }
+    
+    // Check expiry
+    if (new Date() > new Date(tokenData.expiresAt)) {
+      await state.delete('refresh-tokens', refreshToken)
+      return {
+        status: 401,
+        body: { error: 'Refresh token expired' }
+      }
+    }
+    
+    // Get user
+    const user = await state.get('users', `id:${tokenData.userId}`)
+    if (!user || !user.verified) {
+      return {
+        status: 401,
+        body: { error: 'User not found or not verified' }
+      }
+    }
+    
+    // Generate new access token
+    const newAccessToken = generateToken(user.id, user.email, '15m')
+    
+    await emit({
+      topic: 'token.refreshed',
+      data: { userId: user.id, email: user.email }
+    })
+    
+    logger.info('Token refreshed successfully', { userId: user.id })
+    
+    return {
+      status: 200,
+      body: {
+        accessToken: newAccessToken,
+        expiresIn: 15 * 60 // 15 minutes
+      }
+    }
+  } catch (error) {
+    logger.error('Token refresh failed', { error: error.message })
+    return {
+      status: 500,
+      body: { error: 'Token refresh failed' }
+    }
+  }
+}
+```
+
+### Protected Route Example
+
+```typescript
+// steps/users/profile.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { authMiddleware } from '../auth/middleware'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'GetUserProfile',
+  description: 'Get authenticated user profile',
+  method: 'GET',
+  path: '/users/me',
+  middleware: [authMiddleware], // Require authentication
+  responseSchema: {
+    200: z.object({
+      user: z.object({
+        id: z.string(),
+        email: z.string(),
+        username: z.string(),
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        verified: z.boolean(),
+        role: z.string(),
+        createdAt: z.string(),
+        lastLoginAt: z.string().optional()
+      })
+    }),
+    404: z.object({ error: z.string() })
+  },
+  emits: ['user.profile.accessed'],
+  flows: ['user-management']
+}
+
+export const handler: Handlers['GetUserProfile'] = async (req, { emit, logger, state }) => {
+  const { userId } = req.user! // Available from authMiddleware
+  
+  try {
+    const user = await state.get('users', `id:${userId}`)
+    if (!user) {
+      return {
+        status: 404,
+        body: { error: 'User not found' }
+      }
+    }
+    
+    await emit({
+      topic: 'user.profile.accessed',
+      data: { userId, email: user.email }
+    })
+    
+    // Remove sensitive data
+    const { password, verificationToken, ...safeUser } = user
+    
+    return {
+      status: 200,
+      body: { user: safeUser }
+    }
+  } catch (error) {
+    logger.error('Failed to get user profile', { error: error.message, userId })
+    return {
+      status: 500,
+      body: { error: 'Failed to get profile' }
+    }
+  }
+}
+```
+
+This authentication system provides:
+- Secure password hashing
+- JWT token management
+- Email verification
+- Token refresh mechanism
+- Proper error handling and logging
+- Protection against common attacks
+- Clean separation of concerns

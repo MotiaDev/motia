@@ -23,6 +23,59 @@ Regardless of the specific type (API, Event, Cron), every functional Motia step 
 1.  **Configuration (`config`)**: An exported object that defines the step's properties, such as its type, name, what topics it subscribes to (if any), what topics it emits to, input data schemas (for validation), and which flows it belongs to.
 2.  **Handler Function (`handler`)**: An exported asynchronous function that contains the actual business logic for the step. It receives input data (if applicable) and a context object providing access to Motia functionalities (like emitting events, logging, and state management).
 
+**JavaScript Example (Illustrative Event Step):**
+```javascript
+// 1. Configuration: Defines the step's metadata and behavior.
+const config = {
+  // 'type': Specifies the kind of step (e.g., 'event', 'api', 'cron').
+  type: 'event', // Example: This is an Event Step.
+  // 'name': A unique identifier for this step. Used for linking handlers and for display.
+  name: 'GenericProcessingStep',
+  // 'description': (Optional) Human-readable explanation of the step's purpose.
+  description: 'A generic step that processes an input event and emits an output event.',
+  // 'subscribes': (For Event Steps) An array of topic names this step listens to.
+  subscribes: ['data.received'],
+  // 'emits': An array of topic names this step can publish events to after processing.
+  emits: ['data.processed'],
+  // 'input': (For Event/API steps) Schema to validate incoming data.
+  input: {
+    type: 'object',
+    properties: {
+      message: { type: 'string' },
+      priority: { type: 'string', enum: ['low', 'medium', 'high'] }
+    },
+    required: ['message']
+  },
+  // 'flows': An array of flow names this step is part of.
+  flows: ['main-workflow']
+};
+
+// 2. Handler: Contains the business logic executed when the step is triggered.
+const handler = async (input, context) => {
+  // Your business logic here...
+  context.logger.info('Processing input data...', { inputData: input, traceId: context.traceId });
+  
+  const result = { 
+    ...input, 
+    processed: true, 
+    timestamp: new Date().toISOString(),
+    processedBy: 'javascript-handler'
+  };
+
+  // Emit an event to the output topic with the processed data.
+  await context.emit({
+    topic: 'data.processed', // Must be one of the topics listed in config.emits.
+    data: result // The payload for the new event.
+  });
+  
+  context.logger.info('Output event emitted.', { outputData: result, traceId: context.traceId });
+  // API steps would return an HTTP response object here.
+  // Cron steps might not return anything or just complete.
+};
+
+module.exports = { config, handler };
+```
+
 **TypeScript Example (Illustrative Event Step):**
 ```typescript
 // Import necessary types from Motia. Actual imports might vary based on step type.
@@ -137,9 +190,9 @@ end
 
 Consistent naming helps in organizing and understanding your project:
 
--   **Descriptive Step Names**: Choose names that clearly indicate the step's function (e.g., `process-payment`, `send-user-notification`, `generate-daily-report`).
+-   **Descriptive Step Names**: Choose names that clearly indicate the step's function (e.g., `process-request`, `send-notification`, `generate-report`).
 -   **File Naming**: Use kebab-case for step filenames (e.g., `my-cool-step.step.ts`).
--   **Extension**: Include `.step` before the language extension in the filename (e.g., `process-user.step.ts`, `data-validator.step.py`, `report-generator.step.rb`). This helps Motia identify step files.
+-   **Extension**: Include `.step` before the language extension in the filename (e.g., `process-request.step.ts`, `data_validator_step.py`, `report-generator.step.rb`). This helps Motia identify step files.
 
 ## Context Object
 
@@ -151,19 +204,22 @@ Every step handler function receives a `context` object (often named `ctx` in Py
 ```
 
 -   **`emit`**: A function used to publish new events to one or more topics. This is how steps trigger subsequent actions in the workflow.
+    -   _JavaScript_: `await emit({ topic: 'next-step-topic', data: { some: 'payload' } })`
     -   _TypeScript_: `await emit({ topic: 'next-step-topic', data: { some: 'payload' } })`
     -   _Python_: `await ctx.emit({ "topic": "next_step_topic_py", "data": { "some": "payload" } })`
     -   _Ruby_: `context.emit(topic: 'next_step_topic_rb', data: { some: 'payload' })`
 
 -   **`logger`**: A structured logger instance (e.g., Pino compatible) for recording information, warnings, and errors during step execution. It typically includes the `traceId` automatically in logs.
-    -   _TypeScript_: `logger.info('Processing started', { userId, orderId }); logger.error('Payment failed', { errorMsg });`
-    -   _Python_: `ctx.logger.info(f"Processing user: {user_id}"); ctx.logger.error("DB connection failed", exc_info=True)`
-    -   _Ruby_: `context.logger.info("Processing order #{order_id}"); context.logger.error("API call failed: #{error.message}")`
+    -   _JavaScript_: `logger.info('Processing started', { requestId, resourceId }); logger.error('Operation failed', { errorMsg });`
+    -   _TypeScript_: `logger.info('Processing started', { requestId, resourceId }); logger.error('Operation failed', { errorMsg });`
+    -   _Python_: `ctx.logger.info(f"Processing request: {request_id}"); ctx.logger.error("DB connection failed", exc_info=True)`
+    -   _Ruby_: `context.logger.info("Processing resource #{resource_id}"); context.logger.error("API call failed: #{error.message}")`
 
 -   **`state`**: An object providing methods (`get`, `set`, `delete`, `clear`) to interact with Motia's state management system. State is scoped by `traceId`, meaning data stored by one flow instance is isolated from others.
-    -   _TypeScript_: `await state.set(traceId, 'userPreferences', prefs); const userPrefs = await state.get(traceId, 'userPreferences');`
-    -   _Python_: `await ctx.state.set(ctx.trace_id, "user_prefs", prefs); user_prefs = await ctx.state.get(ctx.trace_id, "user_prefs")`
-    -   _Ruby_: `context.state.set(context.trace_id, :user_prefs, prefs); user_prefs = context.state.get(context.trace_id, :user_prefs)`
+    -   _JavaScript_: `await state.set(traceId, 'resourceConfig', config); const resourceConfig = await state.get(traceId, 'resourceConfig');`
+    -   _TypeScript_: `await state.set(traceId, 'resourceConfig', config); const resourceConfig = await state.get(traceId, 'resourceConfig');`
+    -   _Python_: `await ctx.state.set(ctx.trace_id, "processing_config", config); processing_config = await ctx.state.get(ctx.trace_id, "processing_config")`
+    -   _Ruby_: `context.state.set(context.trace_id, :task_config, config); task_config = context.state.get(context.trace_id, :task_config)`
 
 -   **`traceId`**: A unique string identifier for the current execution flow instance. It's crucial for correlating logs, isolating state, and tracking a single piece of work as it moves through various steps.
     -   This is automatically available and should be included in logs for better traceability.
@@ -254,8 +310,8 @@ export const handler: Handlers['my-new-processing-step'] = async (input, { emit,
 config_my_new_step_py = {
     "type": "event",
     "name": "my_new_step_py",
-    "subscribes": ["trigger.my.new.step.py"],
-    "emits": ["result.my.new.step.py", "error.my.new.step.py"],
+    "subscribes": ["trigger.my.new.step"],
+    "emits": ["result.my.new.step", "error.my.new.step"],
     # "input_schema": define with Pydantic or similar
     "flows": ["my_python_flow"]
 }
@@ -268,14 +324,14 @@ async def handler_my_new_step_py(input_data, ctx):
         message = input_data.get("message")
         result = f"Processed by Python: {message}"
         await ctx.emit({
-            "topic": "result.my.new.step.py",
+            "topic": "result.my.new.step",
             "data": { "output": result }
         })
         ctx.logger.info(f"Python step {config_my_new_step_py['name']} finished.", result=result, trace_id=ctx.trace_id)
     except Exception as e:
         ctx.logger.error(f"Error in Python step {config_my_new_step_py['name']}", error=str(e), trace_id=ctx.trace_id)
         await ctx.emit({
-            "topic": "error.my.new.step.py",
+            "topic": "error.my.new.step",
             "data": { "error_message": str(e), "original_input": input_data }
         })
 ```
