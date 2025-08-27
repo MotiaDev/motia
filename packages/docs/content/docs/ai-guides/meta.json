@@ -1,0 +1,8 @@
+{
+  "title": "AI Development Guides",
+  "defaultOpen": false,
+  "pages": [
+    "overview",
+    "setup-guide"
+  ]
+}
