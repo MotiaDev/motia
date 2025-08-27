@@ -99,11 +99,15 @@ export class Builder {
     this.routersConfig = {}
 
     if (nodeSteps.length > 0 && nodeBuilder) {
-      const { path } = await nodeBuilder.buildApiSteps(nodeSteps)
+      this.listener.onApiRouterBuilding('node')
+      const { size, path } = await nodeBuilder.buildApiSteps(nodeSteps)
+      this.listener.onApiRouterBuilt('node', size)
       this.routersConfig.node = path
     }
     if (pythonSteps.length > 0 && pythonBuilder) {
-      const { path } = await pythonBuilder.buildApiSteps(pythonSteps)
+      this.listener.onApiRouterBuilding('python')
+      const { size, path } = await pythonBuilder.buildApiSteps(pythonSteps)
+      this.listener.onApiRouterBuilt('python', size)
       this.routersConfig.python = path
     }
   }

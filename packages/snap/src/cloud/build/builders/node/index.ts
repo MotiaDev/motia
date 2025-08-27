@@ -48,16 +48,12 @@ export class NodeBuilder implements StepBuilder {
       .replace(
         '// {{router paths}}',
         steps
-          .map((step, index) => {
-            this.listener.onBuildStart(step)
-            const route = `'${step.config.method} ${step.config.path}': { stepName: '${step.config.name}', handler: route${index}.handler, config: route${index}.config }`
-            this.listener.onBuildEnd(step)
-            return route
-          })
+          .map(
+            (step, index) =>
+              `'${step.config.method} ${step.config.path}': { stepName: '${step.config.name}', handler: route${index}.handler, config: route${index}.config }`,
+          )
           .join(',\n'),
       )
-
-    this.listener.onApiRouterBuilding('node')
 
     const tsRouter = path.join(distDir, 'router.ts')
     fs.writeFileSync(tsRouter, file)
@@ -87,8 +83,6 @@ export class NodeBuilder implements StepBuilder {
     fs.unlinkSync(tsRouter)
     fs.unlinkSync(routerJs)
     fs.unlinkSync(routerMap)
-
-    this.listener.onApiRouterBuilt('node', size)
 
     return { size, path: zipName }
   }
