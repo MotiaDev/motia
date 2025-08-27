@@ -106,7 +106,7 @@ jobs:
             export MOTIA_CLI_PATH="$GITHUB_WORKSPACE/packages/snap/dist/cjs/cli.js"
             export MOTIA_ANALYTICS_DISABLED=true
             export MOTIA_API_URL=http://localhost:3000
-            export TEST_TEMPLATE=${{ matrix.template }}
+            export MOTIA_TEST_TEMPLATE=${{ matrix.template }}
             
             # Run tests based on template (no sharding)
             if [ "${{ matrix.template }}" == "python" ]; then

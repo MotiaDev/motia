@@ -30,30 +30,40 @@ program
     '-n, --name <project name>',
     'The name for your project, used to create a directory, use ./ or . to create it under the existing directory',
   )
-  .option('-t, --template <template name>', 'The motia template name to use for your project')
+  .option('-t, --template <template name>', 'The motia template name to use for your project', 'typescript')
   .option('-c, --cursor', 'Copy .cursor folder from template')
   .option('-i, --interactive', 'Use interactive prompts to create project')
   .option('-y, --skip-confirmation', 'Skip confirmation prompt')
-  .option('-d, --skip-tutorial', 'Skip the motia tutorial', false)
+  .option('-d, --skip-tutorial [value]', 'Skip the motia tutorial (true/false)')
   .action(
     handler(async (arg, context) => {
       if (arg.name || arg.template || arg.cursor) {
         const { create } = require('./create')
 
-        const disableTutorial = await inquirer.prompt({
-          type: 'confirm',
-          name: 'disableTutorial',
-          message: 'Do you wish to disable the motia tutorial?',
-          default: arg.skipTutorial,
-          when: () => arg.skipTutorial === false,
-        })
+        // Handle skip-tutorial option: 'true', 'false', or 'prompt' (default)
+        let skipTutorialValue = false
+        
+        if (arg.skipTutorial === 'true' || arg.skipTutorial === true) {
+          skipTutorialValue = true
+        } else if (arg.skipTutorial === 'false' || arg.skipTutorial === false) {
+          skipTutorialValue = false
+        } else {
+          // Default 'prompt' behavior - ask the user
+          const disableTutorial = await inquirer.prompt({
+            type: 'confirm',
+            name: 'disableTutorial',
+            message: 'Do you wish to disable the motia tutorial?',
+            default: false,
+          })
+          skipTutorialValue = disableTutorial.disableTutorial
+        }
 
         await create({
           projectName: arg.name ?? '.',
-          template: arg.template ?? 'default',
+          template: arg.template,
           cursorEnabled: arg.cursor,
           context,
-          skipTutorialTemplates: disableTutorial.disableTutorial,
+          skipTutorialTemplates: skipTutorialValue,
         })
       } else {
         const skipConfirmation = arg.skipConfirmation ?? false

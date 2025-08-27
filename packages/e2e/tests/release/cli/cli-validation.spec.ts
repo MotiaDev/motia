@@ -5,7 +5,7 @@ import path from 'path'
 
 test.describe('CLI Validation', () => {
   const testProjectPath = process.env.TEST_PROJECT_PATH || ''
-  const testTemplate = process.env.TEST_TEMPLATE || 'nodejs'
+  const testTemplate = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
 
   test.beforeEach(({ helpers }) => helpers.skipTutorial())
 

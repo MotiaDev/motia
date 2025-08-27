@@ -176,7 +176,7 @@ jobs:
             export MOTIA_ANALYTICS_DISABLED=true
             export MOTIA_VERSION=${{ needs.prepare.outputs.version }}
             export MOTIA_API_URL=http://localhost:3000
-            export TEST_TEMPLATE=${{ matrix.template }}
+            export MOTIA_TEST_TEMPLATE=${{ matrix.template }}
             if [ "${{ matrix.template }}" == "python" ]; then
               pnpm test:release:python --reporter=line,html,github
             else

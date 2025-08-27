@@ -1,9 +1,11 @@
 import { execSync, exec } from 'child_process'
-import { existsSync, rmSync } from 'fs'
+import { existsSync, rmSync, readFileSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
-const TEST_PROJECT_PATH = path.join(process.cwd(), TEST_PROJECT_NAME)
+// Create test project in packages directory (already covered by workspace)
+const ROOT_PATH = path.join(process.cwd(), '../..')
+const TEST_PROJECT_PATH = path.join(ROOT_PATH, 'packages', TEST_PROJECT_NAME)
 
 async function globalSetup() {
   console.log('🚀 Setting up PR E2E test environment...')
@@ -14,8 +16,8 @@ async function globalSetup() {
       rmSync(TEST_PROJECT_PATH, { recursive: true, force: true })
     }
 
-    const template = process.env.TEST_TEMPLATE || 'nodejs'
-    const cliPath = process.env.MOTIA_CLI_PATH || path.join(process.cwd(), '../../packages/snap/dist/cjs/cli.js')
+    const template = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
+    const cliPath = process.env.MOTIA_CLI_PATH || path.join(ROOT_PATH, 'packages/snap/dist/cjs/cli.js')
     
     // Verify CLI exists
     if (!existsSync(cliPath)) {
@@ -23,53 +25,37 @@ async function globalSetup() {
     }
 
     console.log(`📦 Creating test project with built CLI and template ${template}...`)
-    let createCommand = `node ${cliPath} create -n ${TEST_PROJECT_NAME} -d`
+    let createCommand = `node ${cliPath} create -n ${TEST_PROJECT_NAME} -d false`
     if (template === 'python') {
       createCommand += ' -t python'
     }
     
     execSync(createCommand, {
       stdio: 'pipe',
-      cwd: process.cwd()
+      cwd: path.join(ROOT_PATH, 'packages')
     })
 
-    // Link local packages instead of installing from npm
-    console.log('🔗 Linking local packages...')
-    const packagesToCopy = [
-      '@motiadev/core',
-      '@motiadev/workbench',
-      '@motiadev/stream-client',
-      '@motiadev/stream-client-browser',
-      '@motiadev/stream-client-node',
-      '@motiadev/stream-client-react',
-      '@motiadev/test',
-      '@motiadev/ui'
-    ]
-
-    // Update package.json to use local packages
+    // Update package.json to use workspace references
+    console.log('🔗 Updating package.json to use workspace references...')
     const packageJsonPath = path.join(TEST_PROJECT_PATH, 'package.json')
-    const packageJson = JSON.parse(execSync(`cat ${packageJsonPath}`, { encoding: 'utf8' }))
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
     
-    // Update dependencies to use local file paths
-    for (const pkg of packagesToCopy) {
-      if (packageJson.dependencies && packageJson.dependencies[pkg]) {
-        const localPath = path.join(process.cwd(), '../../packages', pkg.replace('@motiadev/', ''))
-        packageJson.dependencies[pkg] = `file:${localPath}`
-      }
+    // Update dependencies to use workspace references
+    if (packageJson.dependencies && packageJson.dependencies['motia']) {
+      packageJson.dependencies['motia'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/workbench'] = 'workspace:*'
     }
     
-    // Add local motia package
-    const snapPath = path.join(process.cwd(), '../../packages/snap')
-    packageJson.dependencies['motia'] = `file:${snapPath}`
-    
     // Write updated package.json
-    execSync(`echo '${JSON.stringify(packageJson, null, 2)}' > ${packageJsonPath}`)
+    writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
     
-    // Install dependencies with local packages
-    execSync('npm install', { cwd: TEST_PROJECT_PATH })
+    // Install dependencies using pnpm
+    console.log('📦 Installing dependencies with pnpm...')
+    // execSync('pnpm build', { cwd: ROOT_PATH, stdio: 'pipe' })
+    execSync('pnpm install', { cwd: ROOT_PATH, stdio: 'pipe' })
 
     console.log('🌟 Starting test project server...')
-    const serverProcess = exec('npm run dev', { 
+    const serverProcess = exec('pnpm run dev', { 
       cwd: TEST_PROJECT_PATH, 
       env: {
         MOTIA_ANALYTICS_DISABLED: 'true',
@@ -85,7 +71,7 @@ async function globalSetup() {
 
     process.env.TEST_PROJECT_PATH = TEST_PROJECT_PATH
     process.env.TEST_PROJECT_NAME = TEST_PROJECT_NAME
-    process.env.TEST_TEMPLATE = template
+    process.env.MOTIA_TEST_TEMPLATE = template
     process.env.MOTIA_TEST_PID = serverProcess.pid?.toString() || ''
 
   } catch (error) {
