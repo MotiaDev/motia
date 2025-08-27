@@ -24,8 +24,7 @@ export class PythonBuilder implements StepBuilder {
   }
 
   private async buildStep(step: Step, archive: Archiver): Promise<string> {
-    const entrypointPath = step.filePath.replace(this.builder.projectDir, '')
-    const normalizedEntrypointPath = entrypointPath.replace(/[.]step.py$/, '_step.py')
+    const normalizedEntrypointPath = this.getStepPath(step)
     const sitePackagesDir = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
 
     // Get Python builder response
@@ -77,15 +76,25 @@ export class PythonBuilder implements StepBuilder {
     }
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
-    const getStepPath = (step: Step<ApiRouteConfig>) => {
-      const normalizedEntrypointPath = step.filePath.replace(/[.]step.py$/, '_step.py')
-      return normalizedEntrypointPath
-        .replace(`${this.builder.projectDir}/`, '')
-        .replace(/(.*)\.py$/, '$1')
-        .replace(/\//g, '.')
+  private getStepPath(step: Step, normalizePythonModulePath: boolean = false) {
+    let normalizedStepPath = step.filePath
+      .replace(/[.]step.py$/, '_step.py') // Replace .step.py with _step.py
+      .replace(`${this.builder.projectDir}/`, '') // Remove the project directory from the path
+      
+    if (normalizePythonModulePath) {
+      normalizedStepPath = normalizedStepPath.replace(/(.*)\.py$/, '$1') // Remove .py extension
     }
+    
+    const pathParts = normalizedStepPath.split(path.sep).map(part => 
+      part
+        .replace(/^[0-9]+/g, '') // Remove numeric prefixes
+        .replace(/[^a-zA-Z0-9._]/g, '_') // Replace any non-alphanumeric characters (except dots) with underscores
+        .replace(/^_/, '')) // Remove leading underscore
 
+    return pathParts.join(normalizePythonModulePath ? '.' : path.sep) // Convert path delimiter to dot (python module separator)
+  }
+
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
     const zipName = 'router-python.zip'
     const archive = new Archiver(path.join(distDir, zipName))
     const dependencies = ['uvicorn', 'pydantic', 'pydantic_core', 'uvloop', 'starlette', 'typing_inspection']
@@ -107,7 +116,7 @@ export class PythonBuilder implements StepBuilder {
         steps
           .map(
             (step, index) =>
-              `from ${getStepPath(step)} import handler as route${index}_handler, config as route${index}_config`,
+              `from ${this.getStepPath(step, true)} import handler as route${index}_handler, config as route${index}_config`,
           )
           .join('\n'),
       )
