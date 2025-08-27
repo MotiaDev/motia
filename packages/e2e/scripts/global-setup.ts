@@ -18,7 +18,7 @@ async function globalSetup() {
     const template = process.env.TEST_TEMPLATE || 'nodejs'
 
     console.log(`📦 Creating test project with Motia CLI ${motiaVersion} and template ${template}...`)
-    let createCommand = `npx motia@${motiaVersion} create -n ${TEST_PROJECT_NAME} -d`
+    let createCommand = `npx motia@${motiaVersion} create -n ${TEST_PROJECT_NAME} -d false`
     if (template === 'python') {
       createCommand += ' -t python'
     }

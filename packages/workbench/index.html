@@ -10,6 +10,10 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
       rel="stylesheet"
     />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz"></script>
     <script>
       window.amplitude.init('ab2408031a38aa5cb85587a27ecfc69c', {
@@ -25,9 +29,51 @@
 
     <!-- Start of Reo Javascript -->
     <script type="text/javascript">
-      !function(){var e,t,n;e="d8f0ce9cae8ae64",t=function(){Reo.init({clientID:"d8f0ce9cae8ae64"})},(n=document.createElement("script")).src="https://static.reo.dev/"+e+"/reo.js",n.defer=!0,n.onload=t,document.head.appendChild(n)}();
+      !(function () {
+        var e, t, n
+        ;(e = 'd8f0ce9cae8ae64'),
+          (t = function () {
+            Reo.init({ clientID: 'd8f0ce9cae8ae64' })
+          }),
+          ((n = document.createElement('script')).src = 'https://static.reo.dev/' + e + '/reo.js'),
+          (n.defer = !0),
+          (n.onload = t),
+          document.head.appendChild(n)
+      })()
     </script>
     <!-- End of Reo Javascript -->
+
+    <script>
+      const importFile = async (path) => {
+        // Normalize the path for cross-platform compatibility
+        const normalizedPath = path.replace(/\\/g, '/')
+        const fullPath = `${processCwd}/${normalizedPath}`.replace(/\\/g, '/')
+        
+        // Handle Windows drive letters properly
+        let importPath = fullPath
+        if (navigator.platform.includes('Win')) {
+          // On Windows, ensure proper drive letter handling
+          if (fullPath.match(/^[A-Za-z]:/)) {
+            importPath = `/@fs/${fullPath}`
+          } else {
+            importPath = `/@fs/${fullPath}`
+          }
+        } else {
+          importPath = `/@fs/${fullPath}`
+        }
+        
+        try {
+          return await import(/* @vite-ignore */ importPath)
+        } catch (error) {
+          console.error(`Failed to import ${path}:`, error)
+          // Return empty module if tutorial.tsx doesn't exist
+          if (path === 'tutorial.tsx') {
+            return { steps: [] }
+          }
+          throw error
+        }
+      }
+    </script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Motia Workbench</title>

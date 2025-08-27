@@ -13,25 +13,25 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
     try {
       for (const fileName of files) {
         const filePath = path.join(templatePath, fileName)
+        const targetFilePath = path.join(rootDir, fileName)
+        const targetDir = path.dirname(targetFilePath)
 
-        if (statSync(filePath).isDirectory() && !filePath.match(/services|utils|lib/)) {
-          // ignore folders
-          continue
+        try {
+          // Check if it's a directory in the template
+          statSync(targetDir)
+        } catch {
+          mkdirSync(targetDir, { recursive: true })
         }
 
         if (statSync(filePath).isDirectory()) {
           const folderPath = path.basename(filePath)
-          mkdirSync(path.join(rootDir, templateFolder, folderPath))
+          mkdirSync(path.join(rootDir, folderPath), { recursive: true })
           continue
         }
 
-        const sanitizedFileName = fileName.replace('.txt', '')
+        const sanitizedFileName = fileName === 'requirements.txt' ? fileName : fileName.replace('.txt', '')
         const isWorkbenchConfig = fileName.match('motia-workbench.json')
-        const generateFilePath = path.join(
-          ...(isWorkbenchConfig
-            ? [rootDir.match(/steps/) ? path.join(rootDir, '..') : rootDir, sanitizedFileName]
-            : [rootDir, templateFolder, sanitizedFileName]),
-        )
+        const generateFilePath = path.join(rootDir, sanitizedFileName)
         let content = await fs.readFile(filePath, 'utf8')
 
         // Make sure statSync doesn't break the execution if the file doesn't exist

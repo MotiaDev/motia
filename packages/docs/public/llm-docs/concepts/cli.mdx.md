@@ -92,7 +92,6 @@ Options:
 
 - `-p, --port <port>`: The port to run the server on (default: 3000).
 - `-H, --host [host]`: The host address for the server (default: localhost).
-- `-v, --verbose`: Enable verbose logging.
 - `-d, --debug`: Enable debug logging.
 
 ### `get-config`
@@ -199,6 +198,6 @@ Options:
 
 ## Next Steps
 
-- Explore the [Core Concepts](/docs/getting-started/core-concepts) to learn more about Steps, Flows, Events, and Topics.
+- Explore the [Core Concepts](/docs/concepts) to learn more about Steps, Flows, Events, and Topics.
 - Check out the [Examples](/docs/examples) for common patterns and use cases.
 - Join our [Community](/community) for help and discussions.

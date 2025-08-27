@@ -1,28 +1,26 @@
 [
   {
-    "id": "default",
+    "id": "basic-tutorial",
     "config": {
-      "steps/00_noop_step.py": {
-        "x": -507,
-        "y": 111,
+      "steps/state_audit_cron_step.py": {
+        "x": -38,
+        "y": 683,
         "sourceHandlePosition": "right"
       },
-      "steps/01_api_step.py": {
-        "x": -281,
-        "y": 94,
-        "sourceHandlePosition": "right",
+      "steps/process_food_order_step.py": {
+        "x": 384,
+        "y": 476,
         "targetHandlePosition": "left"
       },
-      "steps/02_test_state_step.py": {
-        "x": 60,
-        "y": 36,
-        "sourceHandlePosition": "bottom",
+      "steps/notification_step.py": {
+        "x": 601,
+        "y": 724,
         "targetHandlePosition": "left"
       },
-      "steps/03_check_state_change_step.py": {
-        "x": 78,
-        "y": 199,
-        "targetHandlePosition": "top"
+      "steps/api_step.py": {
+        "x": 15,
+        "y": 461,
+        "sourceHandlePosition": "right"
       }
     }
   }

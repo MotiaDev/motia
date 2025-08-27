@@ -19,6 +19,20 @@ class RpcStateManager:
                 return {'data': result}
         
         return result
+    
+    async def get_group(self, group_id: str) -> asyncio.Future[Any]:
+        result = await self.rpc.send('state.getGroup', {'groupId': group_id})
+        
+        if result is None:
+            return {'data': None}
+        elif isinstance(result, dict):
+            if 'data' not in result:
+                return {'data': result}
+        
+        return result
+    
+    async def getGroup(self, trace_id: str, key: str) -> asyncio.Future[Any]:
+        return await self.get_group(trace_id, key)
 
     async def set(self, trace_id: str, key: str, value: Any) -> asyncio.Future[None]:
         future = await self.rpc.send('state.set', {'traceId': trace_id, 'key': key, 'value': value})

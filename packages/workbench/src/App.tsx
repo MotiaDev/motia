@@ -1,6 +1,6 @@
 import { CollapsiblePanel, CollapsiblePanelGroup, Panel, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import { ReactFlowProvider } from '@xyflow/react'
 import { analytics } from '@/lib/analytics'
+import { ReactFlowProvider } from '@xyflow/react'
 import { File, GanttChart, Link2, LogsIcon } from 'lucide-react'
 import { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { EndpointsPage } from './components/endpoints/endpoints-page'
@@ -11,6 +11,7 @@ import { LogsPage } from './components/logs/logs-page'
 import { TracesPage } from './components/observability/traces-page'
 import { APP_SIDEBAR_CONTAINER_ID } from './components/sidebar/sidebar'
 import { StatesPage } from './components/states/states-page'
+import { Tutorial } from './components/tutorial/tutorial'
 import { useTabsStore } from './stores/use-tabs-store'
 
 enum TabLocation {
@@ -154,6 +155,7 @@ export const App: FC = () => {
         </CollapsiblePanelGroup>
       </main>
       <div id={APP_SIDEBAR_CONTAINER_ID} />
+      <Tutorial />
     </div>
   )
 }

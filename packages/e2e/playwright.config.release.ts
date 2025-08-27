@@ -5,4 +5,10 @@ export default defineConfig({
   ...config,
   globalSetup: './scripts/global-setup.ts',
   globalTeardown: './scripts/global-teardown.ts',
+  // Override settings for release tests
+  fullyParallel: true,
+  workers: 2, // Allow parallel execution within shards
+  retries: 0, // Retries handled by GitHub Actions
+  // Support sharding from CLI arguments
+  shard: process.env.CI && process.argv.includes('--shard') ? undefined : config.shard,
 }) 

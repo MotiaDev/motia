@@ -10,7 +10,7 @@ interface InteractiveAnswers {
 }
 
 const choices: Record<string, string> = {
-  default: 'Base (TypeScript)',
+  typescript: 'Base (TypeScript)',
   python: 'Base (Python)',
 }
 

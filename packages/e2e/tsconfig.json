@@ -11,10 +11,15 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["node", "@playwright/test"]
+    "types": ["node", "@playwright/test"],
+    "paths": {
+      "@/src/*": ["./src/*"],
+      "@/fixtures/*": ["./src/fixtures/*"]
+    },
   },
   "include": [
     "tests/**/*",
+    "src/**/*",
     "playwright.config.ts"
   ],
   "exclude": [

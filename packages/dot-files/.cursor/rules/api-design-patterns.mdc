@@ -1,0 +1,740 @@
+---
+description: Comprehensive API design patterns for building robust REST APIs with Motia
+globs: 
+alwaysApply: false
+---
+# API Design Patterns
+
+Build robust, scalable REST APIs following industry best practices and proven patterns.
+
+## RESTful API Patterns
+
+### CRUD Operations Pattern
+
+```typescript
+// steps/api/users/create-user.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { authMiddleware, validateMiddleware } from '../middleware'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'CreateUser',
+  description: 'Create a new user account',
+  method: 'POST',
+  path: '/users',
+  middleware: [validateMiddleware],
+  bodySchema: z.object({
+    email: z.string().email(),
+    username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
+    password: z.string().min(8),
+    firstName: z.string().min(1).max(50),
+    lastName: z.string().min(1).max(50),
+    metadata: z.record(z.any()).optional()
+  }),
+  responseSchema: {
+    201: z.object({
+      user: z.object({
+        id: z.string(),
+        email: z.string(),
+        username: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        createdAt: z.string(),
+        status: z.string()
+      }),
+      links: z.object({
+        self: z.string(),
+        profile: z.string()
+      })
+    }),
+    400: z.object({ 
+      error: z.string(), 
+      details: z.array(z.string()).optional() 
+    }),
+    409: z.object({ 
+      error: z.string(),
+      field: z.string()
+    })
+  },
+  emits: ['user.created', 'notification.welcome'],
+  flows: ['user-management']
+}
+
+export const handler: Handlers['CreateUser'] = async (req, { emit, logger, state }) => {
+  const { email, username, password, firstName, lastName, metadata } = req.body
+  
+  try {
+    // Check for existing user
+    const existingUser = await checkUserExists(email, username, state)
+    if (existingUser) {
+      return {
+        status: 409,
+        body: { 
+          error: 'User already exists',
+          field: existingUser.field
+        }
+      }
+    }
+    
+    // Create user
+    const userId = crypto.randomUUID()
+    const hashedPassword = await hashPassword(password)
+    
+    const newUser = {
+      id: userId,
+      email,
+      username,
+      firstName,
+      lastName,
+      password: hashedPassword,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      metadata: metadata || {}
+    }
+    
+    // Store user
+    await state.set('users', `id:${userId}`, newUser)
+    await state.set('users', `email:${email}`, { id: userId })
+    await state.set('users', `username:${username}`, { id: userId })
+    
+    // Emit events
+    await emit({
+      topic: 'user.created',
+      data: { 
+        userId, 
+        email, 
+        username, 
+        profile: { firstName, lastName },
+        metadata 
+      }
+    })
+    
+    // Remove password from response
+    const { password: _, ...safeUser } = newUser
+    
+    logger.info('User created successfully', { userId, email })
+    
+    return {
+      status: 201,
+      headers: {
+        'Location': `/users/${userId}`
+      },
+      body: {
+        user: safeUser,
+        links: {
+          self: `/users/${userId}`,
+          profile: `/users/${userId}/profile`
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('User creation failed', { error: error.message, email })
+    return {
+      status: 500,
+      body: { error: 'Internal server error' }
+    }
+  }
+}
+
+async function checkUserExists(email: string, username: string, state: any) {
+  const emailExists = await state.get('users', `email:${email}`)
+  if (emailExists) return { field: 'email' }
+  
+  const usernameExists = await state.get('users', `username:${username}`)
+  if (usernameExists) return { field: 'username' }
+  
+  return null
+}
+```
+
+### Resource Retrieval with Filtering
+
+```typescript
+// steps/api/users/list-users.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { authMiddleware, paginationMiddleware } from '../middleware'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'ListUsers',
+  description: 'Retrieve users with filtering, sorting, and pagination',
+  method: 'GET',
+  path: '/users',
+  middleware: [authMiddleware, paginationMiddleware],
+  responseSchema: {
+    200: z.object({
+      users: z.array(z.object({
+        id: z.string(),
+        email: z.string(),
+        username: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        status: z.string(),
+        createdAt: z.string()
+      })),
+      pagination: z.object({
+        page: z.number(),
+        limit: z.number(),
+        total: z.number(),
+        pages: z.number()
+      }),
+      filters: z.object({
+        status: z.string().optional(),
+        search: z.string().optional(),
+        dateRange: z.object({
+          from: z.string(),
+          to: z.string()
+        }).optional()
+      })
+    })
+  },
+  emits: ['users.listed'],
+  flows: ['user-management']
+}
+
+export const handler: Handlers['ListUsers'] = async (req, { emit, logger, state }) => {
+  try {
+    const queryParams = req.queryParams
+    
+    // Parse pagination
+    const page = parseInt(queryParams.page as string) || 1
+    const limit = Math.min(parseInt(queryParams.limit as string) || 10, 100)
+    const offset = (page - 1) * limit
+    
+    // Parse filters
+    const filters = {
+      status: queryParams.status as string,
+      search: queryParams.search as string,
+      dateRange: queryParams.from && queryParams.to ? {
+        from: queryParams.from as string,
+        to: queryParams.to as string
+      } : undefined
+    }
+    
+    // Parse sorting
+    const sortBy = queryParams.sortBy as string || 'createdAt'
+    const sortOrder = queryParams.sortOrder as string || 'desc'
+    
+    // Apply filters and get users
+    const { users, total } = await getUsersWithFilters(filters, { offset, limit, sortBy, sortOrder }, state)
+    
+    // Calculate pagination
+    const pages = Math.ceil(total / limit)
+    
+    // Remove sensitive data
+    const safeUsers = users.map(user => {
+      const { password, ...safeUser } = user
+      return safeUser
+    })
+    
+    const response = {
+      users: safeUsers,
+      pagination: { page, limit, total, pages },
+      filters: Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== undefined)
+      )
+    }
+    
+    // Emit event for analytics
+    await emit({
+      topic: 'users.listed',
+      data: { 
+        count: users.length, 
+        filters, 
+        requestedBy: req.headers.userId || 'anonymous' 
+      }
+    })
+    
+    logger.info('Users retrieved', { count: users.length, filters })
+    
+    return {
+      status: 200,
+      body: response
+    }
+  } catch (error) {
+    logger.error('Failed to retrieve users', { error: error.message })
+    return {
+      status: 500,
+      body: { error: 'Failed to retrieve users' }
+    }
+  }
+}
+
+async function getUsersWithFilters(filters: any, pagination: any, state: any) {
+  // Implementation would typically use a database with proper indexing
+  // This is a simplified example
+  const allUsers = await state.getGroup('users') || []
+  
+  let filteredUsers = allUsers.filter(user => {
+    if (filters.status && user.status !== filters.status) return false
+    
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase()
+      const searchableFields = [user.email, user.username, user.firstName, user.lastName]
+      if (!searchableFields.some(field => field?.toLowerCase().includes(searchTerm))) {
+        return false
+      }
+    }
+    
+    if (filters.dateRange) {
+      const userDate = new Date(user.createdAt)
+      const fromDate = new Date(filters.dateRange.from)
+      const toDate = new Date(filters.dateRange.to)
+      if (userDate < fromDate || userDate > toDate) return false
+    }
+    
+    return true
+  })
+  
+  // Apply sorting
+  filteredUsers.sort((a, b) => {
+    const aVal = a[pagination.sortBy]
+    const bVal = b[pagination.sortBy]
+    const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+    return pagination.sortOrder === 'desc' ? -comparison : comparison
+  })
+  
+  const total = filteredUsers.length
+  const users = filteredUsers.slice(pagination.offset, pagination.offset + pagination.limit)
+  
+  return { users, total }
+}
+```
+
+## Advanced API Patterns
+
+### Batch Operations
+
+```typescript
+// steps/api/batch/batch-operations.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+const BatchOperationSchema = z.object({
+  operations: z.array(z.object({
+    id: z.string(), // Client-provided ID for tracking
+    method: z.enum(['POST', 'PUT', 'PATCH', 'DELETE']),
+    resource: z.string(), // e.g., 'users', 'posts'
+    resourceId: z.string().optional(), // For updates/deletes
+    data: z.record(z.any()).optional() // For creates/updates
+  })).max(100) // Limit batch size
+})
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'BatchOperations',
+  description: 'Execute multiple operations in a single request',
+  method: 'POST',
+  path: '/batch',
+  middleware: [authMiddleware],
+  bodySchema: BatchOperationSchema,
+  responseSchema: {
+    200: z.object({
+      results: z.array(z.object({
+        id: z.string(),
+        status: z.number(),
+        data: z.record(z.any()).optional(),
+        error: z.string().optional()
+      }))
+    })
+  },
+  emits: ['batch.executed'],
+  flows: ['batch-operations']
+}
+
+export const handler: Handlers['BatchOperations'] = async (req, { emit, logger, state }) => {
+  const { operations } = req.body
+  const results = []
+  
+  try {
+    // Process operations in parallel with concurrency control
+    const batchResults = await Promise.allSettled(
+      operations.map(async (operation) => {
+        try {
+          const result = await executeOperation(operation, state)
+          return {
+            id: operation.id,
+            status: 200,
+            data: result
+          }
+        } catch (error) {
+          return {
+            id: operation.id,
+            status: error.status || 500,
+            error: error.message
+          }
+        }
+      })
+    )
+    
+    // Collect results
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        results.push(result.value)
+      } else {
+        results.push({
+          id: 'unknown',
+          status: 500,
+          error: result.reason?.message || 'Operation failed'
+        })
+      }
+    }
+    
+    // Emit batch completion event
+    await emit({
+      topic: 'batch.executed',
+      data: {
+        operationCount: operations.length,
+        successCount: results.filter(r => r.status < 400).length,
+        errorCount: results.filter(r => r.status >= 400).length
+      }
+    })
+    
+    logger.info('Batch operations completed', { 
+      total: operations.length,
+      successful: results.filter(r => r.status < 400).length 
+    })
+    
+    return {
+      status: 200,
+      body: { results }
+    }
+  } catch (error) {
+    logger.error('Batch operations failed', { error: error.message })
+    return {
+      status: 500,
+      body: { error: 'Batch operations failed' }
+    }
+  }
+}
+
+async function executeOperation(operation: any, state: any) {
+  switch (operation.method) {
+    case 'POST':
+      return await createResource(operation.resource, operation.data, state)
+    case 'PUT':
+      return await updateResource(operation.resource, operation.resourceId, operation.data, state)
+    case 'DELETE':
+      return await deleteResource(operation.resource, operation.resourceId, state)
+    default:
+      throw new Error(`Unsupported operation method: ${operation.method}`)
+  }
+}
+```
+
+### API Versioning
+
+```typescript
+// steps/api/v1/users/get-user.step.ts - Version 1
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'GetUserV1',
+  description: 'Get user details - API Version 1',
+  method: 'GET',
+  path: '/v1/users/:userId',
+  middleware: [authMiddleware],
+  responseSchema: {
+    200: z.object({
+      id: z.string(),
+      email: z.string(),
+      name: z.string(), // Combined first + last name in v1
+      createdAt: z.string()
+    }),
+    404: z.object({ error: z.string() })
+  },
+  emits: ['user.retrieved'],
+  flows: ['user-management']
+}
+
+export const handler: Handlers['GetUserV1'] = async (req, { emit, logger, state }) => {
+  const { userId } = req.pathParams
+  
+  try {
+    const user = await state.get('users', `id:${userId}`)
+    
+    if (!user) {
+      return {
+        status: 404,
+        body: { error: 'User not found' }
+      }
+    }
+    
+    // Transform to v1 format
+    const response = {
+      id: user.id,
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`, // Combined in v1
+      createdAt: user.createdAt
+    }
+    
+    await emit({
+      topic: 'user.retrieved',
+      data: { userId, version: 'v1' }
+    })
+    
+    return {
+      status: 200,
+      body: response
+    }
+  } catch (error) {
+    logger.error('Failed to retrieve user', { error: error.message, userId })
+    return {
+      status: 500,
+      body: { error: 'Internal server error' }
+    }
+  }
+}
+```
+
+```typescript
+// steps/api/v2/users/get-user.step.ts - Version 2
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'GetUserV2',
+  description: 'Get user details - API Version 2',
+  method: 'GET',
+  path: '/v2/users/:userId',
+  middleware: [authMiddleware],
+  responseSchema: {
+    200: z.object({
+      id: z.string(),
+      email: z.string(),
+      firstName: z.string(), // Separate fields in v2
+      lastName: z.string(),
+      profile: z.object({
+        avatar: z.string().optional(),
+        bio: z.string().optional(),
+        preferences: z.record(z.any())
+      }),
+      createdAt: z.string(),
+      updatedAt: z.string()
+    })
+  },
+  emits: ['user.retrieved'],
+  flows: ['user-management']
+}
+
+export const handler: Handlers['GetUserV2'] = async (req, { emit, logger, state }) => {
+  const { userId } = req.pathParams
+  
+  try {
+    const user = await state.get('users', `id:${userId}`)
+    
+    if (!user) {
+      return {
+        status: 404,
+        body: { error: 'User not found' }
+      }
+    }
+    
+    // Get extended profile for v2
+    const profile = await state.get('profiles', userId) || {}
+    
+    const response = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profile: {
+        avatar: profile.avatar,
+        bio: profile.bio,
+        preferences: profile.preferences || {}
+      },
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    }
+    
+    await emit({
+      topic: 'user.retrieved',
+      data: { userId, version: 'v2' }
+    })
+    
+    return {
+      status: 200,
+      body: response
+    }
+  } catch (error) {
+    logger.error('Failed to retrieve user', { error: error.message, userId })
+    return {
+      status: 500,
+      body: { error: 'Internal server error' }
+    }
+  }
+}
+```
+
+## API Middleware Patterns
+
+### Rate Limiting Middleware
+
+```typescript
+// steps/middleware/rate-limiting.ts
+import { ApiMiddleware } from 'motia'
+
+interface RateLimitConfig {
+  windowMs: number
+  maxRequests: number
+  keyGenerator?: (req: any) => string
+}
+
+export function createRateLimitMiddleware(config: RateLimitConfig): ApiMiddleware {
+  return async (req, ctx, next) => {
+    const key = config.keyGenerator 
+      ? config.keyGenerator(req) 
+      : req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || 'default'
+    
+    const rateLimitKey = `rate-limit:${key}`
+    const now = Date.now()
+    const windowStart = now - config.windowMs
+    
+    // Get current requests in window
+    const requests = await ctx.state.get('rate-limits', rateLimitKey) || []
+    
+    // Remove old requests
+    const validRequests = requests.filter((timestamp: number) => timestamp > windowStart)
+    
+    // Check if limit exceeded
+    if (validRequests.length >= config.maxRequests) {
+      const retryAfter = Math.ceil((validRequests[0] - windowStart) / 1000)
+      
+      return {
+        status: 429,
+        headers: {
+          'Retry-After': retryAfter.toString(),
+          'X-RateLimit-Limit': config.maxRequests.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': new Date(validRequests[0] + config.windowMs).toISOString()
+        },
+        body: { 
+          error: 'Rate limit exceeded',
+          retryAfter: retryAfter
+        }
+      }
+    }
+    
+    // Add current request
+    validRequests.push(now)
+    await ctx.state.set('rate-limits', rateLimitKey, validRequests, config.windowMs / 1000)
+    
+    const response = await next()
+    
+    // Add rate limit headers to response
+    const remaining = Math.max(0, config.maxRequests - validRequests.length)
+    
+    return {
+      ...response,
+      headers: {
+        ...response.headers,
+        'X-RateLimit-Limit': config.maxRequests.toString(),
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Reset': new Date(now + config.windowMs).toISOString()
+      }
+    }
+  }
+}
+
+// Usage
+export const rateLimitMiddleware = createRateLimitMiddleware({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 100,
+  keyGenerator: (req) => req.user?.id || req.headers['x-real-ip'] || 'anonymous'
+})
+```
+
+### Request Validation Middleware
+
+```typescript
+// steps/middleware/validation.ts
+import { ApiMiddleware } from 'motia'
+import { z } from 'zod'
+
+interface ValidationConfig {
+  body?: z.ZodSchema
+  query?: z.ZodSchema
+  params?: z.ZodSchema
+  headers?: z.ZodSchema
+}
+
+export function createValidationMiddleware(config: ValidationConfig): ApiMiddleware {
+  return async (req, ctx, next) => {
+    try {
+      const validationErrors: string[] = []
+      
+      // Validate body
+      if (config.body) {
+        const bodyResult = config.body.safeParse(req.body)
+        if (!bodyResult.success) {
+          validationErrors.push(...bodyResult.error.errors.map(e => `Body: ${e.path.join('.')} - ${e.message}`))
+        } else {
+          req.body = bodyResult.data
+        }
+      }
+      
+      // Validate query parameters
+      if (config.query) {
+        const queryResult = config.query.safeParse(req.queryParams)
+        if (!queryResult.success) {
+          validationErrors.push(...queryResult.error.errors.map(e => `Query: ${e.path.join('.')} - ${e.message}`))
+        } else {
+          req.queryParams = queryResult.data
+        }
+      }
+      
+      // Validate path parameters
+      if (config.params) {
+        const paramsResult = config.params.safeParse(req.pathParams)
+        if (!paramsResult.success) {
+          validationErrors.push(...paramsResult.error.errors.map(e => `Params: ${e.path.join('.')} - ${e.message}`))
+        } else {
+          req.pathParams = paramsResult.data
+        }
+      }
+      
+      // Validate headers
+      if (config.headers) {
+        const headersResult = config.headers.safeParse(req.headers)
+        if (!headersResult.success) {
+          validationErrors.push(...headersResult.error.errors.map(e => `Headers: ${e.path.join('.')} - ${e.message}`))
+        }
+      }
+      
+      if (validationErrors.length > 0) {
+        return {
+          status: 400,
+          body: {
+            error: 'Validation failed',
+            details: validationErrors
+          }
+        }
+      }
+      
+      return await next()
+    } catch (error) {
+      ctx.logger.error('Validation middleware error', { error: error.message })
+      return {
+        status: 500,
+        body: { error: 'Internal server error' }
+      }
+    }
+  }
+}
+```
+
+This API design pattern system provides:
+- RESTful CRUD operations with proper status codes
+- Advanced filtering, sorting, and pagination
+- Batch operations for efficiency
+- API versioning strategies
+- Comprehensive middleware patterns
+- Error handling and validation
+- Rate limiting and security measures
+- Proper HTTP semantics and standards compliance

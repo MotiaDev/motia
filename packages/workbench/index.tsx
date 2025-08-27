@@ -13,3 +13,6 @@ export type {
   EventNodeProps,
   NoopNodeProps,
 } from './src/publicComponents/node-props'
+
+export type { TutorialStep } from './src/components/tutorial/engine/tutorial-types'
+export { workbenchXPath } from './src/components/tutorial/engine/workbench-xpath'

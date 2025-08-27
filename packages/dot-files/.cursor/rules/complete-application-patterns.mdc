@@ -1,0 +1,433 @@
+---
+description: Complete application patterns for building production-ready backends with Motia using proven architectural patterns
+globs: 
+alwaysApply: true
+---
+# Complete Application Patterns
+
+Build production-ready applications using proven patterns and architectural best practices for any type of application.
+
+## Project Structure
+
+A complete Motia application follows this structure:
+
+```
+my-app/
+├── steps/                        # Core Motia workflows (heart of your application)
+│   ├── 01-auth-api.step.ts       # User authentication API
+│   ├── 02-user-registration_step.py  # Registration processing
+│   ├── 03-send-welcome.step.js   # Welcome notifications
+│   ├── auth/                     # Optional: Feature-based organization
+│   │   ├── login.step.ts         # Login handling
+│   │   ├── register_step.py      # Registration logic
+│   │   └── verify.step.js        # Email verification
+│   ├── users/                    # User management features
+│   │   ├── profile.step.ts       # Profile management
+│   │   ├── preferences_step.py   # User preferences
+│   │   └── notifications.step.js # User notifications
+│   ├── payments/                 # Payment processing
+│   │   ├── process.step.ts       # Payment processing
+│   │   ├── validate_step.py      # Payment validation
+│   │   └── webhook.step.js       # Payment webhooks
+│   └── health-check.step.ts      # System monitoring
+├── package.json                  # Node.js dependencies
+├── requirements.txt              # Python dependencies  
+├── tsconfig.json                 # TypeScript configuration
+├── config.yml                    # Motia configuration
+├── types.d.ts                    # Auto-generated types
+└── motia-workbench.json          # Auto-generated UI layout
+```
+
+## Core Application Components
+
+### 1. Authentication System
+
+Follow this pattern for comprehensive authentication:
+
+```typescript
+// steps/auth/register.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { hashPassword, generateToken } from '../utils/auth'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'UserRegister',
+  description: 'User registration endpoint',
+  method: 'POST',
+  path: '/auth/register',
+  bodySchema: z.object({
+    email: z.string().email(),
+    password: z.string().min(8),
+    username: z.string().min(3).max(50)
+  }),
+  responseSchema: {
+    201: z.object({
+      user: z.object({
+        id: z.string(),
+        email: z.string(),
+        username: z.string()
+      }),
+      tokens: z.object({
+        accessToken: z.string(),
+        refreshToken: z.string()
+      })
+    }),
+    400: z.object({ error: z.string() }),
+    409: z.object({ error: z.string() })
+  },
+  emits: ['user.registered', 'notification.welcome'],
+  flows: ['user-onboarding']
+}
+
+export const handler: Handlers['UserRegister'] = async (req, { emit, logger, state }) => {
+  const { email, password, username } = req.body
+  
+  try {
+    // Check if user exists
+    const existingUser = await state.get('users', email)
+    if (existingUser) {
+      return {
+        status: 409,
+        body: { error: 'User already exists' }
+      }
+    }
+    
+    // Create user
+    const userId = crypto.randomUUID()
+    const hashedPassword = await hashPassword(password)
+    const user = {
+      id: userId,
+      email,
+      username,
+      password: hashedPassword,
+      createdAt: new Date().toISOString(),
+      verified: false
+    }
+    
+    // Store user
+    await state.set('users', email, user)
+    await state.set('userIds', userId, { email })
+    
+    // Generate tokens
+    const accessToken = generateToken(userId, '15m')
+    const refreshToken = generateToken(userId, '30d')
+    
+    // Store refresh token
+    await state.set('refreshTokens', refreshToken, { userId, createdAt: new Date().toISOString() })
+    
+    // Emit events
+    await emit({
+      topic: 'user.registered',
+      data: { userId, email, username }
+    })
+    
+    await emit({
+      topic: 'notification.welcome',
+      data: { email, username, userId }
+    })
+    
+    logger.info('User registered successfully', { userId, email })
+    
+    return {
+      status: 201,
+      body: {
+        user: { id: userId, email, username },
+        tokens: { accessToken, refreshToken }
+      }
+    }
+  } catch (error) {
+    logger.error('Registration failed', { error: error.message, email })
+    return {
+      status: 500,
+      body: { error: 'Registration failed' }
+    }
+  }
+}
+```
+
+### 2. Real-time Streaming
+
+Implement real-time features using Motia Streams:
+
+```typescript
+// steps/streams/live-updates.stream.ts
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+export const liveUpdateSchema = z.object({
+  id: z.string(),
+  type: z.enum(['user_action', 'system_event', 'notification']),
+  data: z.record(z.any()),
+  userId: z.string().optional(),
+  timestamp: z.string()
+})
+
+export type LiveUpdate = z.infer<typeof liveUpdateSchema>
+
+export const config: StreamConfig = {
+  name: 'live-updates',
+  schema: liveUpdateSchema,
+  baseConfig: { 
+    storageType: 'default',
+    ttl: 3600 // 1 hour
+  }
+}
+```
+
+```typescript
+// steps/core/broadcast-update.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'BroadcastUpdate',
+  description: 'Broadcasts real-time updates to connected clients',
+  subscribes: ['system.update', 'user.action'],
+  emits: [],
+  input: z.object({
+    type: z.string(),
+    data: z.record(z.any()),
+    userId: z.string().optional(),
+    broadcast: z.boolean().default(true)
+  }),
+  flows: ['real-time']
+}
+
+export const handler: Handlers['BroadcastUpdate'] = async (input, { streams, logger, traceId }) => {
+  const update = {
+    id: crypto.randomUUID(),
+    type: input.type,
+    data: input.data,
+    userId: input.userId,
+    timestamp: new Date().toISOString()
+  }
+  
+  if (input.userId) {
+    // Send to specific user
+    await streams['live-updates'].set(input.userId, update.id, update)
+  } else if (input.broadcast) {
+    // Broadcast to all users
+    await streams['live-updates'].set('global', update.id, update)
+  }
+  
+  logger.info('Update broadcasted', { updateId: update.id, type: update.type })
+}
+```
+
+### 3. Multi-language Workflows
+
+Combine TypeScript and Python for different capabilities:
+
+```typescript
+// steps/core/analyze-data.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'AnalyzeData',
+  description: 'Initial data analysis and preparation',
+  subscribes: ['data.received'],
+  emits: ['data.prepared'],
+  input: z.object({
+    dataId: z.string(),
+    type: z.string(),
+    metadata: z.record(z.any())
+  }),
+  flows: ['data-processing']
+}
+
+export const handler: Handlers['AnalyzeData'] = async (input, { emit, state, logger }) => {
+  // TypeScript excels at data transformation and API handling
+  const analysisResult = {
+    dataId: input.dataId,
+    preprocessed: true,
+    features: extractFeatures(input.metadata),
+    readyForML: true,
+    timestamp: new Date().toISOString()
+  }
+  
+  await state.set('analysis', input.dataId, analysisResult)
+  
+  await emit({
+    topic: 'data.prepared',
+    data: analysisResult
+  })
+  
+  logger.info('Data prepared for ML processing', { dataId: input.dataId })
+}
+```
+
+```python
+# steps/core/ml_processing_step.py
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+
+config = {
+    "type": "event",
+    "name": "MLProcessing", 
+    "description": "Machine learning processing using Python",
+    "subscribes": ["data.prepared"],
+    "emits": ["ml.completed"],
+    "input": {
+        "type": "object",
+        "properties": {
+            "dataId": {"type": "string"},
+            "features": {"type": "array"},
+            "preprocessed": {"type": "boolean"}
+        },
+        "required": ["dataId", "features"]
+    },
+    "flows": ["data-processing"]
+}
+
+async def handler(input_data, ctx):
+    """Python excels at ML and data science tasks"""
+    data_id = input_data.get("dataId")
+    features = np.array(input_data.get("features"))
+    
+    try:
+        # Load or create ML model
+        model = RandomForestClassifier(n_estimators=100)
+        
+        # Perform prediction (in real scenario, you'd load trained model)
+        predictions = model.fit(features.reshape(1, -1), [1]).predict_proba(features.reshape(1, -1))
+        
+        result = {
+            "dataId": data_id,
+            "predictions": predictions.tolist(),
+            "confidence": float(np.max(predictions)),
+            "processedAt": ctx.utils.dates.now().isoformat()
+        }
+        
+        # Store results
+        await ctx.state.set("ml_results", data_id, result)
+        
+        # Emit completion event
+        await ctx.emit({
+            "topic": "ml.completed",
+            "data": result
+        })
+        
+        ctx.logger.info(f"ML processing completed for {data_id}")
+        
+    except Exception as e:
+        ctx.logger.error(f"ML processing failed for {data_id}: {str(e)}")
+        await ctx.emit({
+            "topic": "ml.failed", 
+            "data": {"dataId": data_id, "error": str(e)}
+        })
+```
+
+### 4. Production Monitoring & Health Checks
+
+```typescript
+// steps/cron/health-check.step.ts
+import { CronConfig, Handlers } from 'motia'
+
+export const config: CronConfig = {
+  type: 'cron',
+  name: 'SystemHealthCheck',
+  description: 'Monitors system health and sends alerts',
+  cron: '*/5 * * * *', // Every 5 minutes
+  emits: ['system.alert', 'system.healthy'],
+  flows: ['monitoring']
+}
+
+export const handler: Handlers['SystemHealthCheck'] = async ({ emit, state, logger }) => {
+  const healthStatus = {
+    timestamp: new Date().toISOString(),
+    memory: process.memoryUsage(),
+    uptime: process.uptime(),
+    activeConnections: 0,
+    errors: []
+  }
+  
+  try {
+    // Check database connectivity
+    const dbHealth = await checkDatabaseHealth()
+    healthStatus.database = dbHealth
+    
+    // Check external services
+    const servicesHealth = await checkExternalServices()
+    healthStatus.services = servicesHealth
+    
+    // Store health data
+    await state.set('system', 'health', healthStatus)
+    
+    if (isSystemHealthy(healthStatus)) {
+      await emit({
+        topic: 'system.healthy',
+        data: healthStatus
+      })
+    } else {
+      await emit({
+        topic: 'system.alert',
+        data: { ...healthStatus, severity: 'warning' }
+      })
+    }
+    
+    logger.info('Health check completed', { status: 'healthy' })
+    
+  } catch (error) {
+    logger.error('Health check failed', { error: error.message })
+    await emit({
+      topic: 'system.alert',
+      data: {
+        ...healthStatus,
+        severity: 'critical',
+        error: error.message
+      }
+    })
+  }
+}
+
+async function checkDatabaseHealth() {
+  // Implementation depends on your database
+  return { status: 'healthy', responseTime: 50 }
+}
+
+async function checkExternalServices() {
+  // Check APIs, third-party services
+  return {
+    openai: { status: 'healthy', responseTime: 200 },
+    email: { status: 'healthy', responseTime: 100 }
+  }
+}
+
+function isSystemHealthy(health: any): boolean {
+  return health.errors.length === 0 && 
+         health.database.status === 'healthy' &&
+         Object.values(health.services).every((s: any) => s.status === 'healthy')
+}
+```
+
+## Best Practices
+
+### 1. Error Handling
+Always implement comprehensive error handling with proper logging and user feedback.
+
+### 2. State Management
+Use hierarchical keys and proper cleanup for production applications.
+
+### 3. Security
+- Validate all inputs using Zod schemas
+- Implement proper authentication and authorization
+- Use environment variables for sensitive data
+- Rate limiting for API endpoints
+
+### 4. Performance
+- Implement caching strategies
+- Use appropriate data structures
+- Monitor and optimize database queries
+- Implement proper pagination
+
+### 5. Testing
+- Unit tests for all handlers
+- Integration tests for workflows  
+- Load testing for production readiness
+- Mock external services in tests
+
+This architecture enables building complex, production-ready applications with proper separation of concerns, real-time capabilities, and multi-language support for any domain or use case.

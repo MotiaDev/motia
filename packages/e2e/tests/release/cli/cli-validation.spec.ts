@@ -1,26 +1,19 @@
-import { test, expect } from '@playwright/test'
-import { TestHelpers } from '../../utils/test-helpers'
+import { expect, test } from '@/src/motia-fixtures'
 import { execSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import path from 'path'
 
 test.describe('CLI Validation', () => {
-  let helpers: TestHelpers
   const testProjectPath = process.env.TEST_PROJECT_PATH || ''
-  const testTemplate = process.env.TEST_TEMPLATE || 'nodejs'
+  const testTemplate = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
 
-  test.beforeEach(async ({ page }) => {
-    helpers = new TestHelpers(page)
-  })
+  test.beforeEach(({ helpers }) => helpers.skipTutorial())
 
   test('should create project with correct structure', async () => {
     expect(existsSync(testProjectPath)).toBeTruthy()
-    
-    const expectedFiles = [
-      'package.json',
-      'steps'
-    ]
-    
+
+    const expectedFiles = ['package.json', 'steps', 'motia-workbench.json', 'tutorial.tsx']
+
     for (const file of expectedFiles) {
       const filePath = path.join(testProjectPath, file)
       expect(existsSync(filePath)).toBeTruthy()
@@ -30,31 +23,35 @@ test.describe('CLI Validation', () => {
   test('should generate steps with CLI commands', async () => {
     const stepsDir = path.join(testProjectPath, 'steps')
     expect(existsSync(stepsDir)).toBeTruthy()
-    
+
     let expectedSteps: string[] = []
-    
+
     if (testTemplate === 'python') {
       expectedSteps = [
-        '00-noop.step.py',
-        '00-noop.step.tsx',
-        '01-api.step.py',
-        '02-test-state.step.py',
-        '03-check-state-change.step.py'
+        'api_step.py',
+        'api_step.py-features.json',
+        'process_food_order_step.py',
+        'process_food_order_step.py-features.json',
+        'state_audit_job_step.py',
+        'state_audit_job_step.py-features.json',
+        'notification_step.py',
       ]
     } else {
       expectedSteps = [
-        '00-noop.step.ts',
-        '00-noop.step.tsx',
-        '01-api.step.ts',
-        '02-test-state.step.ts',
-        '03-check-state-change.step.ts'
+        'api.step.ts',
+        'api.step.ts-features.json',
+        'test_state.step.ts',
+        'test_state.step.ts-features.json',
+        'check_state_change.step.ts',
+        'check_state_change.step.ts-features.json',
+        'notification.step.ts',
       ]
     }
-    
+
     for (const step of expectedSteps) {
       const stepPath = path.join(stepsDir, step)
       const stepExists = existsSync(stepPath)
-      
+
       if (stepExists) {
         expect(stepExists).toBeTruthy()
       } else {
@@ -67,24 +64,23 @@ test.describe('CLI Validation', () => {
     try {
       execSync('npm run build', {
         cwd: testProjectPath,
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
-      
+
       const distDir = path.join(testProjectPath, 'dist')
       expect(existsSync(distDir)).toBeTruthy()
-      
     } catch (error) {
       console.log('Build command may have different structure or requirements')
       expect(true).toBeTruthy()
     }
   })
 
-  test('should start development server', async ({ page }) => {
+  test('should start development server', async ({ page, helpers }) => {
     await page.goto('/')
     await helpers.waitForMotiaApplication()
-    
+
     await expect(page.locator('body')).toBeVisible()
-    
+
     const title = await page.title()
     expect(title.length).toBeGreaterThan(0)
   })
@@ -92,11 +88,9 @@ test.describe('CLI Validation', () => {
   test('should validate package.json structure', async () => {
     const packageJsonPath = path.join(testProjectPath, 'package.json')
     expect(existsSync(packageJsonPath)).toBeTruthy()
-    
-    const packageJson = JSON.parse(
-      readFileSync(packageJsonPath, 'utf8')
-    )
-    
+
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
+
     expect(packageJson.name).toBeDefined()
     expect(packageJson.scripts).toBeDefined()
     expect(packageJson.dependencies || packageJson.devDependencies).toBeDefined()
@@ -107,14 +101,14 @@ test.describe('CLI Validation', () => {
       test.skip()
       return
     }
-    
+
     const tsconfigPath = path.join(testProjectPath, 'tsconfig.json')
-    
+
     if (existsSync(tsconfigPath)) {
       try {
         execSync('npx tsc --noEmit', {
           cwd: testProjectPath,
-          stdio: 'pipe'
+          stdio: 'pipe',
         })
         expect(true).toBeTruthy()
       } catch (error) {
@@ -122,4 +116,4 @@ test.describe('CLI Validation', () => {
       }
     }
   })
-}) 
+})

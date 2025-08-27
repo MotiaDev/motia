@@ -332,4 +332,4 @@ This enables a seamless multi-language development experience where you can:
 
 ---
 
-**Ready to build your first multi-language flow?** Check out **[Build Your First App](/docs/getting-started/build-your-first-app)** for a complete hands-on tutorial!
+**Ready to build your first REST API?** Check out **[API Endpoints](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)** for a complete hands-on tutorial!

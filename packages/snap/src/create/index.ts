@@ -130,7 +130,6 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
       scripts: {
         postinstall: 'motia install',
         dev: 'motia dev',
-        'dev:debug': 'motia dev --verbose',
         'generate-types': 'motia generate-types',
         build: 'motia build',
         clean: 'rm -rf dist node_modules python_modules .motia .mermaid',
@@ -228,42 +227,13 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     )
   }
 
-  const stepsDir = path.join(rootDir, 'steps')
-  if (!checkIfDirectoryExists(stepsDir)) {
-    fs.mkdirSync(stepsDir)
-    context.log('steps-directory-created', (message) =>
-      message.tag('success').append('Folder').append('steps', 'cyan').append('has been created.'),
-    )
-  }
-
-  if (!checkIfDirectoryExists(path.join(stepsDir, 'basic-tutorial'))) {
-    fs.mkdirSync(path.join(stepsDir, 'basic-tutorial'))
-  }
-
-  await setupTemplate('basic-tutorial', stepsDir, context)
-
   if (template) {
-    if (!checkIfDirectoryExists(path.join(stepsDir, template))) {
-      fs.mkdirSync(path.join(stepsDir, template))
-    }
-    await setupTemplate(template, stepsDir, context)
+    await setupTemplate(template, rootDir, context)
   }
 
   const packageManager = await installNodeDependencies(rootDir, context)
 
   if (template === 'python') {
-    if (!checkIfFileExists(rootDir, 'requirements.txt')) {
-      const requirementsContent = [
-        // TODO: motia PyPi package
-        // Add other Python dependencies as needed
-      ].join('\n')
-
-      fs.writeFileSync(path.join(rootDir, 'requirements.txt'), requirementsContent)
-      context.log('requirements-txt-created', (message) =>
-        message.tag('success').append('File').append('requirements.txt', 'gray').append('has been created.'),
-      )
-    }
-
     await pythonInstall({ baseDir: rootDir })
   }
 

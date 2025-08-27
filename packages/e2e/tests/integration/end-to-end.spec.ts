@@ -1,11 +1,7 @@
-import { test, expect } from '../fixtures/motia-fixtures'
+import { test, expect } from '@/src/motia-fixtures'
 
 test.describe('End-to-End Integration Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('motia-tutorial-skipped', 'true')
-    })
-  })
+  test.beforeEach(({ helpers }) => helpers.skipTutorial())
 
   test('complete user journey from API to logs', async ({ motiaApp, workbench, logsPage, api }) => {
     await test.step('Verify application is healthy', async () => {
@@ -14,26 +10,23 @@ test.describe('End-to-End Integration Tests', () => {
     })
 
     await test.step('Trigger flow via API', async () => {
-      const response = await api.post('/default', {
-        input: 'End-to-end test data',
-        timestamp: new Date().toISOString(),
-      })
+      const response = await workbench.executeTutorialFlow(api)
 
       await api.verifyResponseNotError(response)
     })
 
     await test.step('Navigate to workbench and verify flow execution', async () => {
       await workbench.open()
-      await workbench.navigateToFlow('default')
+      await workbench.navigateToFlow('basic-tutorial')
       await workbench.verifyWorkbenchInterface()
-      await workbench.startFlow()
+      await workbench.executeTutorialFlow(api)
       await workbench.navigateToLogs()
 
       await logsPage.waitForLogFromStep('ApiTrigger')
     })
 
     await test.step('Verify complete flow execution', async () => {
-      const expectedLogs = ['ApiTrigger', 'SetStateChange', 'CheckStateChange']
+      const expectedLogs = ['ApiTrigger']
 
       await logsPage.verifyStepsExecuted(expectedLogs)
     })
@@ -49,8 +42,8 @@ test.describe('End-to-End Integration Tests', () => {
       const flowCount = await workbench.getFlowCount()
       expect(flowCount).toBeGreaterThan(0)
 
-      await workbench.navigateToFlow('default')
-      await workbench.startFlow()
+      await workbench.navigateToFlow('basic-tutorial')
+      await workbench.executeTutorialFlow(api)
     })
 
     await test.step('Monitor execution in real-time', async () => {
@@ -63,7 +56,7 @@ test.describe('End-to-End Integration Tests', () => {
     })
 
     await test.step('Verify flow completion', async () => {
-      await logsPage.waitForFlowCompletion('default', 60000)
+      await logsPage.waitForFlowCompletion('basic-tutorial', 60000)
 
       const finalLogs = await logsPage.getAllLogMessages()
       console.log(`Flow completed with ${finalLogs.length} log entries`)
@@ -78,7 +71,7 @@ test.describe('End-to-End Integration Tests', () => {
     })
 
     await test.step('Test API endpoints work', async () => {
-      const endpoints = ['/default', '/health', '/api/status']
+      const endpoints = ['/basic-tutorial', '/health', '/api/status']
 
       for (const endpoint of endpoints) {
         const response = await api.get(endpoint)

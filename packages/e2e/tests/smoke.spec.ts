@@ -1,39 +1,29 @@
-import { test, expect } from '@playwright/test'
-import { MotiaApplicationPage, WorkbenchPage, ApiHelpers } from './page-objects'
+import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('CLI Generated Project - Smoke Tests', () => {
-  let motiaApp: MotiaApplicationPage
-  let workbench: WorkbenchPage
-  let api: ApiHelpers
+  test.beforeEach(({ helpers }) => helpers.skipTutorial())
 
-  test.beforeEach(async ({ page }) => {
-    motiaApp = new MotiaApplicationPage(page)
-    workbench = new WorkbenchPage(page)
-    api = new ApiHelpers(page)
-  })
-
-  test('CLI generated project loads successfully', async ({ page }) => {
+  test('CLI generated project loads successfully', async ({ motiaApp, workbench }) => {
     await workbench.open()
 
-    await motiaApp.hasTitle()
     await motiaApp.isApplicationLoaded()
   })
 
-  test('CLI generated project has basic API endpoints', async ({ page }) => {
+  test('CLI generated project has basic API endpoints', async ({ api }) => {
     const commonEndpoints = ['/default']
 
     const hasWorkingEndpoint = await api.verifyCommonEndpoints(commonEndpoints)
     expect(hasWorkingEndpoint).toBeTruthy()
   })
 
-  test('CLI generated project workbench is functional', async ({ page }) => {
+  test('CLI generated project workbench is functional', async ({ workbench }) => {
     await workbench.open()
 
     const hasWorkbenchFeatures = await workbench.hasWorkbenchFeatures()
     expect(hasWorkbenchFeatures).toBeTruthy()
   })
 
-  test('CLI generated project handles navigation', async ({ page }) => {
+  test('CLI generated project handles navigation', async ({ motiaApp, page, workbench }) => {
     await workbench.open()
 
     const links = page.locator('a[href]')
@@ -54,7 +44,7 @@ test.describe('CLI Generated Project - Smoke Tests', () => {
     expect(true).toBeTruthy()
   })
 
-  test('CLI generated project has no critical console errors', async ({ page }) => {
+  test('CLI generated project has no critical console errors', async ({ motiaApp, workbench }) => {
     const errors = await motiaApp.collectConsoleErrors()
 
     await workbench.open()
@@ -62,7 +52,7 @@ test.describe('CLI Generated Project - Smoke Tests', () => {
     expect(errors.length).toBeLessThanOrEqual(2)
   })
 
-  test('CLI generated project responds to basic HTTP requests', async ({ page }) => {
+  test('CLI generated project responds to basic HTTP requests', async ({ api }) => {
     const response = await api.get('/')
 
     await api.verifyResponseNotError(response)
