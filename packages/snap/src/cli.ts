@@ -43,10 +43,10 @@ program
         // Handle skip-tutorial option: 'true', 'false', or prompt user
         const skipTutorialValue = await (async () => {
           const skipValue = String(arg.skipTutorial).toLowerCase()
-          
+
           if (skipValue === 'true') return true
           if (skipValue === 'false') return false
-          
+
           // Prompt user when not explicitly set
           const { disableTutorial } = await inquirer.prompt({
             type: 'confirm',
