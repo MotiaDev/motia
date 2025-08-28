@@ -26,16 +26,20 @@ declare module 'motia' {
     'OpenAiApi': ApiRouteHandler<{ message: string }, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
     'CheckStateChange': EventHandler<{ key: string; expected: string }, never>
     'SetStateChange': EventHandler<{ message: string }, { topic: 'check-state-change'; data: { key: string; expected: string } }>
-    'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }, ApiResponse<200, { message: string; traceId: string }>, { topic: 'process-food-order'; data: { id: string; quantity: number; petId: number } }>
+    'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }, ApiResponse<200, { id: number; name: string; photoUrl: string }>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: number } }>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
-    'NewOrderNotifications': EventHandler<{ order_id: string }, never>
-    'StateAuditJob': CronHandler<never>
-    'ProcessFoodOrder': EventHandler<{ id: string; quantity: number; petId: number }, { topic: 'new-order-notification'; data: { order_id: string } }>
+    'StateAuditJob': CronHandler<{ topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
+    'ProcessFoodOrder': EventHandler<{ email: string; quantity: number; petId: number }, { topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
+    'Notification': EventHandler<{ templateId: string; email: string; templateData: Record<string, unknown> }, never>
     'Tested Event': EventHandler<never, never>
     'Test Event': EventHandler<never, { topic: 'tested'; data: never }>
     'Test API Endpoint': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'test'; data: never }>
     'CallOpenAiPython': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
     'OpenAiApiPython': ApiRouteHandler<{ message: string; threadId?: string }, ApiResponse<200, { threadId: string }>, { topic: 'openai-prompt-python'; data: { message: string; assistantMessageId: string; threadId: string } }>
+    'PythonStateAuditJob': CronHandler<{ topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
+    'PythonProcessFoodOrder': EventHandler<{ id: string; email: string; quantity: unknown; pet_id: unknown }, { topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
+    'PythonNotification': EventHandler<{ template_id: string; email: string; template_data: Record<string, unknown> }, never>
+    'PythonApiTrigger': ApiRouteHandler<{ pet: unknown; food_order?: unknown }, ApiResponse<200, { id: unknown; name: string; photoUrl: string }>, { topic: 'python-process-food-order'; data: { id: string; email: string; quantity: unknown; pet_id: unknown } }>
   }
 }

@@ -1,0 +1,656 @@
+---
+description: Real-time streaming patterns for live applications using Motia Streams
+globs: 
+alwaysApply: false
+---
+# Real-time Streaming Patterns
+
+Build real-time applications with live updates, notifications, and collaborative features using Motia Streams.
+
+## Stream Configuration
+
+### Core Stream Types
+
+```typescript
+// steps/streams/live-events.stream.ts
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+export const liveEventSchema = z.object({
+  id: z.string(),
+  type: z.enum(['user_action', 'user_joined', 'user_left', 'chat_message', 'system_update', 'content_update']),
+  userId: z.string().optional(),
+  resourceId: z.string().optional(), // Generic resource (game, document, room, etc.)
+  data: z.record(z.any()),
+  timestamp: z.string(),
+  metadata: z.record(z.any()).optional()
+})
+
+export type LiveEvent = z.infer<typeof liveEventSchema>
+
+export const config: StreamConfig = {
+  name: 'live-events',
+  schema: liveEventSchema,
+  baseConfig: {
+    storageType: 'default',
+    ttl: 3600, // 1 hour
+    maxItems: 1000 // Keep last 1000 events per stream
+  }
+}
+```
+
+```typescript
+// steps/streams/notifications.stream.ts
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+export const notificationSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  type: z.enum(['info', 'success', 'warning', 'error']),
+  title: z.string(),
+  message: z.string(),
+  read: z.boolean().default(false),
+  actionUrl: z.string().optional(),
+  createdAt: z.string(),
+  expiresAt: z.string().optional()
+})
+
+export type Notification = z.infer<typeof notificationSchema>
+
+export const config: StreamConfig = {
+  name: 'notifications',
+  schema: notificationSchema,
+  baseConfig: {
+    storageType: 'default',
+    ttl: 7 * 24 * 60 * 60, // 7 days
+    maxItems: 100 // Keep last 100 notifications per user
+  }
+}
+```
+
+## Real-time Content Updates Pattern
+
+```typescript
+// steps/content/update-resource.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { authMiddleware } from '../auth/middleware'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'UpdateResource',
+  description: 'Update resource and broadcast to subscribers',
+  method: 'POST',
+  path: '/resources/:resourceId/updates',
+  middleware: [authMiddleware],
+  bodySchema: z.object({
+    action: z.string().min(1),
+    data: z.record(z.any()),
+    metadata: z.record(z.any()).optional()
+  }),
+  responseSchema: {
+    200: z.object({
+      update: z.object({
+        id: z.string(),
+        action: z.string(),
+        data: z.record(z.any()),
+        timestamp: z.string(),
+        success: z.boolean()
+      }),
+      resourceState: z.object({
+        id: z.string(),
+        version: z.number(),
+        status: z.string(),
+        updatedAt: z.string()
+      })
+    }),
+    400: z.object({ error: z.string() }),
+    403: z.object({ error: z.string() }),
+    404: z.object({ error: z.string() })
+  },
+  emits: ['resource.updated', 'resource.state.changed'],
+  flows: ['real-time-updates']
+}
+
+export const handler: Handlers['UpdateResource'] = async (req, { emit, logger, state, streams }) => {
+  const { resourceId } = req.pathParams
+  const { userId } = req.user!
+  const { action, data, metadata } = req.body
+  
+  try {
+    // Get current resource state
+    const resource = await state.get('resources', resourceId)
+    if (!resource) {
+      return {
+        status: 404,
+        body: { error: 'Resource not found' }
+      }
+    }
+    
+    // Validate user permissions
+    if (!hasUpdatePermission(userId, resource)) {
+      return {
+        status: 403,
+        body: { error: 'Insufficient permissions to update this resource' }
+      }
+    }
+    
+    // Validate resource state
+    if (!canPerformAction(action, resource)) {
+      return {
+        status: 400,
+        body: { error: 'Action not allowed in current resource state' }
+      }
+    }
+    
+    // Apply update
+    const updateResult = await applyResourceUpdate(resource, action, data, userId)
+    if (!updateResult.success) {
+      return {
+        status: 400,
+        body: { error: updateResult.error }
+      }
+    }
+    
+    // Update resource state
+    const updatedResource = {
+      ...resource,
+      ...updateResult.changes,
+      version: resource.version + 1,
+      updatedAt: new Date().toISOString(),
+      lastUpdatedBy: userId
+    }
+    
+    await state.set('resources', resourceId, updatedResource)
+    
+    // Create update record
+    const updateId = crypto.randomUUID()
+    const updateRecord = {
+      id: updateId,
+      resourceId,
+      userId,
+      action,
+      data,
+      metadata,
+      timestamp: new Date().toISOString(),
+      version: updatedResource.version
+    }
+    
+    await state.set('updates', `${resourceId}:${updateId}`, updateRecord)
+    
+    // Broadcast update to subscribers
+    const liveEvent = {
+      id: crypto.randomUUID(),
+      type: 'resource_update' as const,
+      resourceId,
+      userId,
+      data: {
+        update: updateRecord,
+        resourceState: {
+          id: resourceId,
+          version: updatedResource.version,
+          status: updatedResource.status,
+          updatedAt: updatedResource.updatedAt
+        }
+      },
+      timestamp: new Date().toISOString()
+    }
+    
+    // Stream to resource subscribers
+    await streams['live-events'].set(`resource:${resourceId}`, liveEvent.id, liveEvent)
+    
+    // Stream to user's personal feed
+    await streams['live-events'].set(`user:${userId}`, liveEvent.id, liveEvent)
+    
+    // Notify other interested users
+    const subscribers = await getResourceSubscribers(resourceId, state)
+    for (const subscriberId of subscribers) {
+      if (subscriberId !== userId) {
+        await streams['live-events'].set(`user:${subscriberId}`, liveEvent.id, liveEvent)
+      }
+    }
+    
+    // Emit for further processing
+    await emit({
+      topic: 'resource.updated',
+      data: { resourceId, userId, update: updateRecord, resource: updatedResource }
+    })
+    
+    await emit({
+      topic: 'resource.state.changed',
+      data: { resourceId, previousVersion: resource.version, newVersion: updatedResource.version }
+    })
+    
+    logger.info('Resource updated successfully', { resourceId, userId, action })
+    
+    return {
+      status: 200,
+      body: {
+        update: updateRecord,
+        resourceState: {
+          id: resourceId,
+          version: updatedResource.version,
+          status: updatedResource.status,
+          updatedAt: updatedResource.updatedAt
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('Failed to update resource', { error: error.message, resourceId, userId })
+    return {
+      status: 500,
+      body: { error: 'Failed to update resource' }
+    }
+  }
+}
+
+function hasUpdatePermission(userId: string, resource: any): boolean {
+  // Check if user has permission to update this resource
+  return resource.ownerId === userId || resource.editors?.includes(userId) || false
+}
+
+function canPerformAction(action: string, resource: any): boolean {
+  // Check if the action can be performed on the resource in its current state
+  const allowedActions = resource.allowedActions || ['update', 'comment', 'share']
+  return allowedActions.includes(action)
+}
+
+async function applyResourceUpdate(resource: any, action: string, data: any, userId: string) {
+  // Apply the update based on the action type
+  switch (action) {
+    case 'update':
+      return {
+        success: true,
+        changes: { ...data, lastAction: action }
+      }
+    case 'comment':
+      return {
+        success: true,
+        changes: {
+          comments: [...(resource.comments || []), { userId, text: data.comment, timestamp: new Date().toISOString() }]
+        }
+      }
+    case 'share':
+      return {
+        success: true,
+        changes: {
+          sharedWith: [...(resource.sharedWith || []), data.shareWithUserId]
+        }
+      }
+    default:
+      return {
+        success: false,
+        error: `Unknown action: ${action}`
+      }
+  }
+}
+
+async function getResourceSubscribers(resourceId: string, state: any): Promise<string[]> {
+  const subscribers = await state.get('resource-subscribers', resourceId)
+  return subscribers || []
+}
+```
+
+## Live Chat System
+
+```typescript
+// steps/chat/send-message.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { authMiddleware } from '../auth/middleware'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'SendChatMessage',
+  description: 'Send chat message to game or global chat',
+  method: 'POST',
+  path: '/chat/:roomId/messages',
+  middleware: [authMiddleware],
+  bodySchema: z.object({
+    message: z.string().min(1).max(500).trim(),
+    type: z.enum(['text', 'emote', 'system']).default('text')
+  }),
+  responseSchema: {
+    201: z.object({
+      message: z.object({
+        id: z.string(),
+        userId: z.string(),
+        username: z.string(),
+        content: z.string(),
+        type: z.string(),
+        timestamp: z.string()
+      })
+    }),
+    400: z.object({ error: z.string() }),
+    403: z.object({ error: z.string() }),
+    429: z.object({ error: z.string() })
+  },
+  emits: ['chat.message.sent'],
+  flows: ['chat-system']
+}
+
+export const handler: Handlers['SendChatMessage'] = async (req, { emit, logger, state, streams }) => {
+  const { roomId } = req.pathParams
+  const { userId } = req.user!
+  const { message, type } = req.body
+  
+  try {
+    // Rate limiting check
+    const rateLimitKey = `rate-limit:chat:${userId}`
+    const recentMessages = await state.get('chat-limits', rateLimitKey) || []
+    const now = Date.now()
+    const oneMinuteAgo = now - 60000
+    
+    // Filter messages from last minute
+    const recentCount = recentMessages.filter((timestamp: number) => timestamp > oneMinuteAgo).length
+    
+    if (recentCount >= 10) { // Max 10 messages per minute
+      return {
+        status: 429,
+        body: { error: 'Rate limit exceeded. Please slow down.' }
+      }
+    }
+    
+    // Get user info
+    const user = await state.get('users', `id:${userId}`)
+    if (!user) {
+      return {
+        status: 403,
+        body: { error: 'User not found' }
+      }
+    }
+    
+    // Check room permissions
+    const hasPermission = await checkRoomPermission(userId, roomId, state)
+    if (!hasPermission) {
+      return {
+        status: 403,
+        body: { error: 'Access denied to this chat room' }
+      }
+    }
+    
+    // Create message
+    const messageId = crypto.randomUUID()
+    const chatMessage = {
+      id: messageId,
+      userId,
+      username: user.username,
+      content: message,
+      type,
+      roomId,
+      timestamp: new Date().toISOString()
+    }
+    
+    // Store message
+    await state.set('chat-messages', `${roomId}:${messageId}`, chatMessage)
+    
+    // Update rate limit
+    const updatedRateLimit = [...recentMessages.filter((t: number) => t > oneMinuteAgo), now]
+    await state.set('chat-limits', rateLimitKey, updatedRateLimit)
+    
+    // Create live event
+    const liveEvent = {
+      id: crypto.randomUUID(),
+      type: 'chat_message' as const,
+      userId,
+      data: chatMessage,
+      timestamp: new Date().toISOString()
+    }
+    
+    // Broadcast to room
+    await streams['live-events'].set(`room:${roomId}`, liveEvent.id, liveEvent)
+    
+    // Emit for moderation/filtering
+    await emit({
+      topic: 'chat.message.sent',
+      data: { roomId, userId, message: chatMessage }
+    })
+    
+    logger.info('Chat message sent', { roomId, userId, messageLength: message.length })
+    
+    return {
+      status: 201,
+      body: { message: chatMessage }
+    }
+  } catch (error) {
+    logger.error('Failed to send chat message', { error: error.message, roomId, userId })
+    return {
+      status: 500,
+      body: { error: 'Failed to send message' }
+    }
+  }
+}
+
+async function checkRoomPermission(userId: string, roomId: string, state: any): Promise<boolean> {
+  // Check if user has permission to post in this room
+  if (roomId.startsWith('resource:')) {
+    const resourceId = roomId.substring(9)
+    const resource = await state.get('resources', resourceId)
+    return resource && (resource.ownerId === userId || resource.participants?.includes(userId))
+  }
+  
+  if (roomId === 'global') {
+    return true // Global chat accessible to all
+  }
+  
+  // Check if user is member of the room
+  const room = await state.get('chat-rooms', roomId)
+  return room && room.members?.includes(userId)
+}
+```
+
+## Notification System
+
+```typescript
+// steps/notifications/send-notification.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'SendNotification',
+  description: 'Send real-time notification to users',
+  subscribes: ['notification.send'],
+  emits: ['notification.delivered'],
+  input: z.object({
+    userId: z.string(),
+    type: z.enum(['info', 'success', 'warning', 'error']),
+    title: z.string(),
+    message: z.string(),
+    actionUrl: z.string().optional(),
+    persistent: z.boolean().default(false),
+    expiresIn: z.number().default(24 * 60 * 60) // 24 hours in seconds
+  }),
+  flows: ['notifications']
+}
+
+export const handler: Handlers['SendNotification'] = async (input, { emit, logger, streams }) => {
+  const { userId, type, title, message, actionUrl, persistent, expiresIn } = input
+  
+  try {
+    const notificationId = crypto.randomUUID()
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + expiresIn * 1000)
+    
+    const notification = {
+      id: notificationId,
+      userId,
+      type,
+      title,
+      message,
+      read: false,
+      actionUrl,
+      createdAt: now.toISOString(),
+      expiresAt: persistent ? null : expiresAt.toISOString()
+    }
+    
+    // Stream notification to user
+    await streams['notifications'].set(userId, notificationId, notification)
+    
+    // Also create live event for immediate UI updates
+    const liveEvent = {
+      id: crypto.randomUUID(),
+      type: 'system_update' as const,
+      userId,
+      data: {
+        notification,
+        action: 'notification_received'
+      },
+      timestamp: now.toISOString()
+    }
+    
+    await streams['live-events'].set(`user:${userId}`, liveEvent.id, liveEvent)
+    
+    await emit({
+      topic: 'notification.delivered',
+      data: { userId, notificationId, type, title }
+    })
+    
+    logger.info('Notification sent', { userId, notificationId, type, title })
+    
+  } catch (error) {
+    logger.error('Failed to send notification', { error: error.message, userId })
+  }
+}
+```
+
+## Real-time Data Aggregation
+
+```typescript
+// steps/analytics/live-stats.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'UpdateLiveStats',
+  description: 'Update and broadcast live statistics',
+  subscribes: ['resource.updated', 'user.login.success', 'user.registered'],
+  emits: [],
+  input: z.union([
+    z.object({ type: z.literal('resource.updated'), resourceId: z.string(), userId: z.string() }),
+    z.object({ type: z.literal('user.login.success'), userId: z.string() }),
+    z.object({ type: z.literal('user.registered'), userId: z.string() })
+  ]),
+  flows: ['analytics']
+}
+
+export const handler: Handlers['UpdateLiveStats'] = async (input, { logger, state, streams }) => {
+  try {
+    const now = new Date()
+    const statsKey = `stats:${now.toISOString().split('T')[0]}` // Daily stats
+    
+    // Get current stats
+    const currentStats = await state.get('live-stats', 'current') || {
+      activeUsers: 0,
+      activeResources: 0,
+      totalUpdates: 0,
+      newRegistrations: 0,
+      lastUpdated: now.toISOString()
+    }
+    
+    // Update based on event type
+    switch (input.type) {
+      case 'resource.updated':
+        currentStats.totalUpdates++
+        break
+      case 'user.login.success':
+        // Update active users count (would need more sophisticated tracking)
+        break
+      case 'user.registered':
+        currentStats.newRegistrations++
+        break
+    }
+    
+    currentStats.lastUpdated = now.toISOString()
+    
+    // Store updated stats
+    await state.set('live-stats', 'current', currentStats)
+    await state.set('daily-stats', statsKey, currentStats)
+    
+    // Broadcast to dashboard/admin users
+    const liveEvent = {
+      id: crypto.randomUUID(),
+      type: 'system_update' as const,
+      data: {
+        stats: currentStats,
+        action: 'stats_updated'
+      },
+      timestamp: now.toISOString()
+    }
+    
+    await streams['live-events'].set('admin:dashboard', liveEvent.id, liveEvent)
+    
+    logger.info('Live stats updated', { type: input.type, stats: currentStats })
+    
+  } catch (error) {
+    logger.error('Failed to update live stats', { error: error.message })
+  }
+}
+```
+
+## Stream Cleanup & Management
+
+```typescript
+// steps/cron/cleanup-streams.step.ts
+import { CronConfig, Handlers } from 'motia'
+
+export const config: CronConfig = {
+  type: 'cron',
+  name: 'CleanupStreams',
+  description: 'Clean up expired stream data',
+  cron: '0 */6 * * *', // Every 6 hours
+  emits: ['streams.cleaned'],
+  flows: ['maintenance']
+}
+
+export const handler: Handlers['CleanupStreams'] = async ({ logger, streams, state, emit }) => {
+  try {
+    let cleanedCount = 0
+    
+    // Clean up expired notifications
+    const notifications = await streams['notifications'].getAll()
+    for (const [streamId, notificationMap] of Object.entries(notifications)) {
+      for (const [notifId, notification] of Object.entries(notificationMap)) {
+        if (notification.expiresAt && new Date() > new Date(notification.expiresAt)) {
+          await streams['notifications'].delete(streamId, notifId)
+          cleanedCount++
+        }
+      }
+    }
+    
+    // Clean up old live events
+    const liveEvents = await streams['live-events'].getAll()
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+    
+    for (const [streamId, eventMap] of Object.entries(liveEvents)) {
+      for (const [eventId, event] of Object.entries(eventMap)) {
+        if (new Date(event.timestamp) < oneHourAgo) {
+          await streams['live-events'].delete(streamId, eventId)
+          cleanedCount++
+        }
+      }
+    }
+    
+    await emit({
+      topic: 'streams.cleaned',
+      data: { cleanedCount, timestamp: new Date().toISOString() }
+    })
+    
+    logger.info('Stream cleanup completed', { cleanedCount })
+    
+  } catch (error) {
+    logger.error('Stream cleanup failed', { error: error.message })
+  }
+}
+```
+
+This real-time streaming system provides:
+- Live resource updates and synchronization
+- Real-time chat and messaging
+- Push notifications
+- Live statistics and analytics
+- Proper cleanup and maintenance
+- Scalable architecture for multiple concurrent users
+- Generic resource collaboration features

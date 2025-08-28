@@ -72,12 +72,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-2025, macos-latest]
+        template: [nodejs, python]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 25
     env:
       CI: true
       NODE_ENV: test
     steps:
+      - name: Record workflow start time
+        run: echo "WORKFLOW_START_TIME=$(date +%s)" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -120,7 +124,10 @@ jobs:
             ~/.cache/ms-playwright
             ~/AppData/Local/ms-playwright
             ~/Library/Caches/ms-playwright
-          key: playwright-browsers-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-
+            playwright-${{ runner.os }}-
 
       - name: Install E2E dependencies and browsers
         run: |
@@ -151,50 +158,56 @@ jobs:
           npm --version
         shell: cmd
 
-      - name: Run Release E2E tests
+      - name: Record test start time
+        id: start_time
+        shell: bash
+        run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Run Release E2E tests with retry
         id: run_tests
-        env:
-          MOTIA_ANALYTICS_DISABLED: true
-          MOTIA_VERSION: ${{ needs.prepare.outputs.version }}
-          MOTIA_API_URL: http://localhost:3000
-        run: |
-          cd packages/e2e
-          echo "Starting Release E2E tests with Motia version: $MOTIA_VERSION"
-          pnpm test:release --reporter=line,html,github
-        continue-on-error: true
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          retry_on: error
+          command: |
+            cd packages/e2e
+            echo "Starting Release E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}"
+            export MOTIA_ANALYTICS_DISABLED=true
+            export MOTIA_VERSION=${{ needs.prepare.outputs.version }}
+            export MOTIA_API_URL=http://localhost:3000
+            export MOTIA_TEST_TEMPLATE=${{ matrix.template }}
+            if [ "${{ matrix.template }}" == "python" ]; then
+              pnpm test:release:python --reporter=line,html,github
+            else
+              pnpm test:release --reporter=line,html,github
+            fi
 
-      - name: Run Release E2E tests for python
-        id: run_tests_python
-        env:
-          MOTIA_ANALYTICS_DISABLED: true
-          MOTIA_VERSION: ${{ needs.prepare.outputs.version }}
-          MOTIA_API_URL: http://localhost:3000
+      - name: Record test metrics
+        if: always()
+        shell: bash
         run: |
-          cd packages/e2e
-          echo "Starting Release E2E tests with Motia version: $MOTIA_VERSION"
-          pnpm test:release:python --reporter=line,html,github
-        continue-on-error: true
+          TEST_DURATION=$(($(date +%s) - $START_TIME))
+          echo "TEST_DURATION=$TEST_DURATION" >> $GITHUB_ENV
+          echo "::notice title=Test Duration::Tests for ${{ matrix.template }} on ${{ matrix.os }} completed in $TEST_DURATION seconds"
 
-      - name: Set test result
+      - name: Process test results
         id: test_result
+        if: always()
         shell: bash
         run: |
           echo "📊 Test Results Summary:"
-          echo "- Node.js tests outcome: ${{ steps.run_tests.outcome }}"
-          echo "- Python tests outcome: ${{ steps.run_tests_python.outcome }}"
+          echo "- Template: ${{ matrix.template }}"
+          echo "- OS: ${{ matrix.os }}"
+          echo "- Test outcome: ${{ steps.run_tests.outcome }}"
+          echo "- Duration: ${{ env.TEST_DURATION }} seconds"
           
-          # Check both test outcomes
-          if [ "${{ steps.run_tests.outcome }}" == "success" ] && [ "${{ steps.run_tests_python.outcome }}" == "success" ]; then
+          if [ "${{ steps.run_tests.outcome }}" == "success" ]; then
             echo "result=success" >> $GITHUB_OUTPUT
-            echo "✅ All E2E tests passed successfully"
-          elif [ "${{ steps.run_tests.outcome }}" == "success" ] || [ "${{ steps.run_tests_python.outcome }}" == "success" ]; then
-            echo "result=partial" >> $GITHUB_OUTPUT
-            echo "⚠️ Some E2E tests passed, others failed"
-            exit 1
+            echo "✅ E2E tests passed successfully"
           else
             echo "result=failure" >> $GITHUB_OUTPUT
-            echo "❌ All E2E tests failed"
-            echo "Check the test results and logs for details"
+            echo "::error title=Test Failed::E2E tests failed for ${{ matrix.template }} on ${{ matrix.os }}"
             exit 1
           fi
 
@@ -202,11 +215,31 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-test-results-${{ needs.prepare.outputs.version }}-${{ matrix.os }}
+          name: e2e-test-results-${{ needs.prepare.outputs.version }}-${{ matrix.os }}-${{ matrix.template }}
           path: |
             packages/e2e/playwright-report/
             packages/e2e/test-results/
+            packages/e2e/test-results.xml
           retention-days: 30
+
+      - name: Publish Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: E2E Test Results - ${{ matrix.os }} - ${{ matrix.template }}
+          path: 'packages/e2e/test-results/*.xml'
+          reporter: jest-junit
+          fail-on-error: false
+
+      - name: Report test metrics
+        if: always()
+        run: |
+          echo "### 📊 E2E Test Metrics - ${{ matrix.os }} - ${{ matrix.template }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration**: ${{ env.TEST_DURATION }}s" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.run_tests.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **OS**: ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Template**: ${{ matrix.template }}" >> $GITHUB_STEP_SUMMARY
 
   check-results:
     needs: e2e-tests

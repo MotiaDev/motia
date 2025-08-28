@@ -47,6 +47,7 @@ async function importFlow(flow: FlowResponse, flowConfig: FlowConfigResponse | n
       }
 
       try {
+        console.log(path)
         const module = await import(/* @vite-ignore */ `/@fs/${path}`)
         const component = module.Node ?? module.default
         nodeComponentCache.set(path, component)

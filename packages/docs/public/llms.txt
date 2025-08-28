@@ -229,8 +229,8 @@ Watch video tutorials, live streams, and learn from the Motia team and community
 ## 🎯 Quick Links
 
 ### Documentation
-- **[Getting Started](/docs/getting-started/core-concepts)** - Learn the basics of Motia
-- **[Build Your First App](/docs/getting-started/build-your-first-app)** - Hands-on tutorial
+- **[Getting Started](/docs/getting-started)** - Learn the basics of Motia
+- **[API Endpoints Tutorial](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)** - Hands-on REST API tutorial
 - **[Examples](/docs/examples)** - Real-world use cases and implementations
 - **[API Reference](/docs/concepts/steps)** - Complete API documentation
 
@@ -369,7 +369,6 @@ Options:
 
 - `-p, --port <port>`: The port to run the server on (default: 3000).
 - `-H, --host [host]`: The host address for the server (default: localhost).
-- `-v, --verbose`: Enable verbose logging.
 - `-d, --debug`: Enable debug logging.
 
 ### `get-config`
@@ -476,7 +475,7 @@ Options:
 
 ## Next Steps
 
-- Explore the [Core Concepts](/docs/getting-started/core-concepts) to learn more about Steps, Flows, Events, and Topics.
+- Explore the [Core Concepts](/docs/concepts) to learn more about Steps, Flows, Events, and Topics.
 - Check out the [Examples](/docs/examples) for common patterns and use cases.
 - Join our [Community](/community) for help and discussions.
 
@@ -1225,8 +1224,346 @@ This enables a seamless multi-language development experience where you can:
 
 ---
 
-**Ready to build your first multi-language flow?** Check out **[Build Your First App](/docs/getting-started/build-your-first-app)** for a complete hands-on tutorial!
+**Ready to build your first REST API?** Check out **[API Endpoints](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)** for a complete hands-on tutorial!
 
+
+-   [index](/docs/concepts): Documentation for index.
+---
+title: Core Concepts
+description: Understand the fundamental concepts behind Motia - the unified platform for modern backend systems.
+---
+
+# Core Concepts
+
+**Motia unifies what used to require 5+ different frameworks:** APIs, background jobs, workflows, AI agents, real-time streams, and state management - all with built-in observability and multi-language support.
+
+## The Unified Backend Vision
+
+Traditional backend development is fragmented. You need one framework for APIs, another for background jobs, separate tools for queues, workflows, AI agents, and real-time features. Each tool has different configs, different deployment strategies, and different observability approaches.
+
+**Motia changes this.** Everything becomes a **Step** - a single primitive that handles all backend patterns with unified state, events, and observability.
+
+<Callout type="info">
+**🌍 The Multi-Language Advantage** 
+
+Use **TypeScript** for APIs, **Python** for AI/ML, **JavaScript** for frontend logic - all in one unified system. Motia handles type safety, validation, and seamless communication between languages automatically.
+</Callout>
+
+## 🏗️ **Core Concept 1:** Steps - The Universal Backend Primitive
+
+**Steps are the building blocks of everything in Motia.** Like React components for the frontend, Steps are composable units that handle any backend pattern.
+
+### The Three Step Types
+
+#### 🌐 **API Steps** - HTTP Endpoints & REST APIs
+Transform any function into a production-ready API endpoint with automatic validation, error handling, and observability.
+
+```typescript title="user-api.step.ts"
+import { Handlers } from 'motia'
+
+// Create a REST API endpoint
+export const config = {
+  type: 'api' as const,
+  path: '/users/:id',
+  method: 'GET' as const,
+  emits: ['user.fetched']
+}
+
+// Handler processes the request
+export const handler: Handlers['GetUser'] = async (req, { logger, emit }) => {
+  const userId = req.pathParams.id
+  logger.info('Fetching user', { userId })
+  
+  // Emit event for next steps
+  await emit({
+    topic: 'user.fetched',
+    data: { userId, status: 'active' }
+  })
+  
+  return { status: 200, body: { message: 'User fetched' } }
+}
+```
+
+#### ⚡ **Event Steps** - Background Processing & Workflows  
+React to events from other steps. Handle business logic, data processing, AI workflows, and complex orchestration.
+
+```python title="process-user.step.py"
+config = {
+    'type': 'event',
+    'subscribes': ['user.fetched'],
+    'emits': ['user.processed']
+}
+
+# Process data with Python libraries (pandas, numpy, torch, etc.)
+async def handler(user_data, context):
+    # Your business logic here
+    processed_user = analyze_user_behavior(user_data)
+    
+    await context.emit({
+        'topic': 'user.processed',
+        'data': processed_user
+    })
+```
+
+#### ⏰ **Cron Steps** - Scheduled Jobs & Automation
+Run tasks on schedules - from simple cleanups to complex data pipelines and AI agent workflows.
+
+```typescript title="daily-report.step.ts"
+import { Handlers } from 'motia'
+
+export const config = {
+  type: 'cron',
+  schedule: '0 9 * * MON-FRI', // Weekdays at 9 AM
+  emits: ['report.generated']
+}
+
+// Handler runs on schedule
+export const handler: Handlers['DailyReport'] = async (input, { logger, emit }) => {
+  logger.info('Generating daily report')
+  
+  const report = {
+    date: new Date().toISOString(),
+    metrics: { users: 1250, revenue: 15000 }
+  }
+  
+  await emit({
+    topic: 'report.generated',
+    data: report
+  })
+}
+```
+
+## 🔄 **Core Concept 2:** Flows - Orchestrating Multi-System Workflows
+
+**Flows organize your steps into logical workflows.** Steps connect through topics - when one step emits an event, other steps can subscribe and react. This creates powerful data pipelines that span multiple languages and services.
+
+<Mermaid
+  chart="
+graph LR
+    A[TypeScript API] --> B[Python AI Agent]
+    B --> C[JavaScript Analytics]  
+    C --> D[TypeScript Notification]
+    
+    style A fill:#3178c6,color:#fff
+    style B fill:#3776ab,color:#fff  
+    style C fill:#f7df1e,color:#000
+    style D fill:#3178c6,color:#fff"
+/>
+
+### Real-World Flow Example
+
+```typescript title="01-api.step.ts"
+import { Handlers } from 'motia'
+
+// API receives request → triggers AI processing → generates analytics → sends notifications
+export const config = {
+  type: 'api',
+  path: '/analyze-document',
+  emits: ['document.received'],
+  flows: ['document-intelligence']
+}
+
+export const handler: Handlers['AnalyzeDocument'] = async (req, { logger, emit }) => {
+  logger.info('Document received for analysis')
+  
+  await emit({
+    topic: 'document.received',
+    data: { document: req.body, timestamp: new Date() }
+  })
+  
+  return { status: 200, body: { message: 'Document queued for analysis' } }
+}
+```
+
+```python title="02-ai-processor.step.py"
+config = {
+    'type': 'event',
+    'subscribes': ['document.received'],
+    'emits': ['document.analyzed'],
+    'flows': ['document-intelligence']
+}
+
+# Use Python AI libraries (transformers, torch, etc.)
+async def handler(document, context):
+    analysis = await ai_model.analyze(document.content)
+    await context.emit('document.analyzed', analysis)
+```
+
+```javascript title="03-analytics.step.js"
+// JavaScript handles final processing and notifications
+export const config = {
+  type: 'event',
+  subscribes: ['document.analyzed'],
+  emits: ['analytics.complete'],
+  flows: ['document-intelligence']
+}
+
+export const handler = async (analysis, { logger, emit }) => {
+  logger.info('Processing analytics', { documentId: analysis.id })
+  
+  const metrics = {
+    confidence: analysis.confidence,
+    processingTime: Date.now() - analysis.startTime,
+    categories: analysis.categories.length
+  }
+  
+  await emit({
+    topic: 'analytics.complete',
+    data: { documentId: analysis.id, metrics }
+  })
+}
+```
+
+## 🗄️ **Core Concept 3:** State Management - Shared Data Across Languages
+
+**Motia provides built-in state management** that works seamlessly across different programming languages. No need for external databases or complex state synchronization - Motia handles it automatically.
+
+```typescript title="user-state.ts"
+export class UserState {
+  constructor(private readonly state: InternalStateManager) {}
+
+  async getUser(id: string): Promise<User | null> {
+    return this.state.get<User>('user', id)
+  }
+
+  async setUser(id: string, user: User) {
+    await this.state.set('user', id, user)
+  }
+}
+
+// In your step handler
+export const handler: Handlers['UpdateUser'] = async (req, { state }) => {
+  const userState = new UserState(state)
+  
+  // Update user state
+  await userState.setUser('123', {
+    status: 'processing',
+    lastUpdated: new Date()
+  })
+}
+```
+
+```python title="ai-processor.py"
+# Python step reads the same state  
+def handler(input_data, context):
+    # Access state through context
+    user_data = context['state'].get('user', '123')
+    print(f"User status: {user_data['status']}")
+    
+    # Update state from Python
+    updated_user = {**user_data, 'aiScore': 0.95}
+    context['state'].set('user', '123', updated_user)
+```
+
+<Callout type="success">
+**🔄 Automatic State Synchronization**
+
+State changes are automatically synchronized across all steps, regardless of the programming language. TypeScript, Python, and JavaScript steps all share the same state seamlessly.
+</Callout>
+
+## 🌊 **Core Concept 4:** Real-Time Streams - Live Data to Clients
+
+**Streams provide real-time data flow** from your backend to any client application. Define your data structure once, and Motia automatically streams updates to subscribed clients.
+
+```typescript title="user-activity.stream.ts"
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+const UserActivitySchema = z.object({
+  userId: z.string(),
+  activity: z.string(),
+  timestamp: z.date()
+})
+
+export const config: StreamConfig = {
+  name: 'userActivity',
+  schema: UserActivitySchema,
+  baseConfig: { storageType: 'default' }
+}
+```
+
+```typescript title="update-activity.step.ts"
+// Update stream from any step handler
+export const handler: Handlers['UpdateActivity'] = async (req, { streams }) => {
+  const activityId = crypto.randomUUID()
+  
+  // Set data in the stream
+  await streams.userActivity.set('activity', activityId, {
+    userId: '123',
+    activity: 'document-processed',
+    timestamp: new Date()
+  })
+}
+```
+
+```javascript title="client.js"
+// Client automatically receives real-time updates
+import { createStreamClient } from '@motia/stream-client'
+
+const client = createStreamClient({ url: 'ws://localhost:8080' })
+const stream = client.subscribe('userActivity')
+
+stream.on('data', (update) => {
+  console.log(`User ${update.userId}: ${update.activity}`)
+})
+```
+
+## 📊 **Core Concept 5:** Built-in Observability - See Everything
+
+**Motia includes enterprise-grade observability** without any configuration. Every step, flow, and state change is automatically tracked and visualized.
+
+### What You Get Out of the Box:
+
+- **🔍 Real-time Flow Visualization** - See your workflows executing live
+- **📊 Request Tracing** - Follow data through multi-language steps
+- **📈 Performance Metrics** - Automatic monitoring of all steps
+- **🐛 Error Tracking** - Centralized error handling and alerting
+- **📝 Structured Logging** - Consistent logs across all languages
+- **⚡ State Inspection** - Real-time view of shared state
+
+![Motia Workbench](./../img/new-workbench.png)
+
+## The Developer Experience
+
+### Local Development
+```bash
+npx motia dev
+```
+- **Visual Workbench** at `http://localhost:3000`
+- **Hot reload** for all languages
+- **Real-time debugging** of flows and state
+- **API testing** interface built-in
+
+### Production Deployment
+```bash
+motia cloud deploy --api-key <api-key> --version-name <version> [options]
+```
+- **Atomic deployments** with one-click rollbacks
+- **Multi-language builds** handled automatically
+- **Infrastructure abstraction** - no cloud provider lock-in
+- **Built-in scaling** for each step independently
+
+## Why This Matters
+
+**Before Motia:**
+- API Framework (Express, FastAPI, etc.)
+- Background Job System (Celery, Bull, etc.)  
+- Workflow Engine (Temporal, Airflow, etc.)
+- Message Queue (Redis, RabbitMQ, etc.)
+- Real-time System (Socket.io, etc.)
+- Observability Tools (DataDog, New Relic, etc.)
+- State Management (Database + ORM, etc.)
+
+**With Motia:**
+- **One framework** handles everything
+- **One config** file per step
+- **One deployment** command
+- **One observability** interface
+- **One state system** across all languages
+
+---
+
+**Ready to see this in action?** Check out [API Endpoints](/docs/getting-started/build-your-first-app/creating-your-first-rest-api) to build a complete REST API in minutes.
 
 -   [Logging & Debugging](/docs/concepts/logging-and-debugging): Documentation for Logging & Debugging.
 ---
@@ -2546,7 +2883,7 @@ Steps are the core building blocks of Motia - isolated, composable functions tha
 
 Every step follows a simple, consistent pattern:
 
-1. **📁 File Naming**: `*.step.*` (e.g., `user-api.step.ts`, `process-data.step.py`)
+1. **📁 File Naming**: `*.step.*` or `*_step.*` (e.g., `user-api.step.ts`, `process-data.step.py`, `data_processor_step.py`)
 2. **⚙️ Configuration**: Export a `config` object defining step behavior
 3. **🔧 Handler**: Export a `handler` function containing business logic
 4. **🤖 Auto-Discovery**: Motia automatically finds and registers your steps
@@ -2584,10 +2921,10 @@ Each step exports a `config` object that tells Motia how to handle the step. The
 |----------|------|-------------|----------|
 | `type` | `'api' \| 'event' \| 'cron' \| 'noop'` | The step type | ✅ |
 | `name` | `string` | Unique identifier for the step | ✅ |
-| `description` | `string` | Documentation for the step | ❌ |
-| `subscribes` | `string[]` | Topics this step listens to | ❌ |
-| `emits` | `string[]` | Topics this step can emit | ❌ |
-| `flows` | `string[]` | Flow identifiers this step belongs to | ❌ |
+| `description` | `string` | Documentation for the step | - |
+| `subscribes` | `string[]` | Topics this step listens to | - |
+| `emits` | `string[]` | Topics this step can emit | - |
+| `flows` | `string[]` | Flow identifiers this step belongs to | - |
 
 ### Type-Specific Properties
 
@@ -2887,7 +3224,7 @@ Even in multi-language workflows, Motia ensures data consistency:
 <Callout type="default">
 **🚀 Ready to Build?**
 
-Check out **[Build Your First App](/docs/getting-started/build-your-first-app)** to see a complete multi-language workflow in action, or explore specific step types:
+Check out **[API Endpoints](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)** to see a complete REST API tutorial in action, or explore specific step types:
 
 - **[API Steps](/docs/concepts/steps/api)** - HTTP endpoints with validation
 - **[Event Steps](/docs/concepts/steps/event)** - Async event processing
@@ -3352,6 +3689,11 @@ We have curated a few examples to help you get started with Motia.
 
 <Cards>
   <Card
+    title="Multi-Language Data Processing"
+    href="/docs/examples/multi-language-data-processing"
+    description="A real-world example of a multi-language data processing flow"
+  />
+  <Card
     title="Sentiment Analysis"
     href="/docs/examples/sentiment-analysis"
     description="Sometimes you don't just want a simple “prompt => response.” Instead, you want the LLM to decide how to proceed A real-world example of a sentiment analysis flow"
@@ -3361,7 +3703,13 @@ We have curated a few examples to help you get started with Motia.
     href="/docs/examples/rag-docling-weaviate"
     description="A real-world example of a RAG flow using Docling and Weaviate"
   />
+  <Card
+    title="Uptime Monitor"
+    href="/docs/examples/uptime-discord-monitor"
+    description="A real-world example of a uptime monitor flow"
+  />
 </Cards>
+
 
 <br/>
 
@@ -3430,6 +3778,11 @@ We have curated a few examples to help you get started with Motia.
 
 <Cards>
   <Card
+    title="Multi-Language Data Processing"
+    href="/docs/examples/multi-language-data-processing"
+    description="A real-world example of a multi-language data processing flow"
+  />
+  <Card
     title="Sentiment Analysis"
     href="/docs/examples/sentiment-analysis"
     description="Sometimes you don't just want a simple “prompt => response.” Instead, you want the LLM to decide how to proceed A real-world example of a sentiment analysis flow"
@@ -3439,7 +3792,13 @@ We have curated a few examples to help you get started with Motia.
     href="/docs/examples/rag-docling-weaviate"
     description="A real-world example of a RAG flow using Docling and Weaviate"
   />
+  <Card
+    title="Uptime Monitor"
+    href="/docs/examples/uptime-discord-monitor"
+    description="A real-world example of a uptime monitor flow"
+  />
 </Cards>
+
 
 <br/>
 
@@ -3495,6 +3854,1074 @@ All examples include complete, runnable source code with configuration files, se
 ## Contribute
 
 We welcome contributions to the examples. Please submit a PR to the [examples repository](https://github.com/motiadev/motia-examples).
+
+
+-   ['Multi-Language Data Processing: Building Event-Driven Pipelines with TypeScript, Python & JavaScript'](/docs/examples/multi-language-data-processing): Documentation for 'Multi-Language Data Processing: Building Event-Driven Pipelines with TypeScript, Python & JavaScript'.
+---
+title: 'Multi-Language Data Processing: Building Event-Driven Pipelines with TypeScript, Python & JavaScript'
+---
+
+Modern backend development often requires combining the strengths of different programming languages. TypeScript for APIs, Python for data processing and AI, JavaScript for rapid prototyping. Traditional approaches involve complex microservices architectures with intricate communication patterns.
+
+This comprehensive guide explores how to build a unified multi-language data processing pipeline using Motia's **step** primitive. We'll cover:
+
+1. **Steps as Core Primitive**: How steps unify different languages under a single abstraction.
+2. **Building the Pipeline**: A step-by-step guide to creating a cohesive multi-language data processing workflow.
+3. **Unified Execution Model**: How steps enable seamless communication between different runtime environments.
+4. **Hands-On Development**: How to build, run, and observe your unified multi-language pipeline.
+
+Let's build a production-ready data processing system where steps unify TypeScript, Python, and JavaScript into a single cohesive workflow.
+
+---
+
+## The Power of Steps: A Unified Multi-Language Primitive
+
+<div className="my-8">![Multi-Language Data Processing in Motia Workbench](/docs-images/motia-build-your-app-2.gif)</div>
+
+At its core, our data processing pipeline demonstrates how **steps** solve the fundamental challenge of multi-language systems: unifying different programming languages under a single, coherent abstraction. Traditional polyglot architectures require complex inter-process communication and deployment coordination. Motia's **step** primitive unifies everything.
+
+**Steps enable true language unification:**
+
+- **[TypeScript](https://www.typescriptlang.org/)** steps: Strong typing and excellent tooling for APIs and orchestration
+- **[Python](https://www.python.org/)** steps: Rich ecosystem for data processing, ML, and scientific computing  
+- **[JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript)** steps: Dynamic processing and rapid development
+- **[Motia's Step Primitive](https://motia.dev)**: The unifying abstraction that makes all languages work as a single system
+
+Instead of managing multiple services, **steps** provide a single programming model. Whether written in TypeScript, Python, or JavaScript, every step follows the same pattern: receive data, process it, emit events. This unification is what makes multi-language development straightforward.
+
+---
+
+## The Anatomy of Our Multi-Language Pipeline
+
+Our application consists of five specialized steps, each leveraging the optimal language for its specific task. Let's explore the complete architecture.
+
+<Folder name="steps" defaultOpen>
+  <File name="01-starter.step.ts" />
+  <File name="02-bridge.step.ts" />
+  <File name="simple-python.step.py" />
+  <File name="notify.step.ts" />
+  <File name="04-final.step.ts" />
+  <File name="05-summary.step.js" />
+</Folder>
+
+<Folder name="types" defaultOpen>
+  <File name="index.ts" />
+</Folder>
+
+<Tabs items={['api-starter', 'bridge-step', 'python-processor', 'notification-handler', 'finalizer', 'summary-generator']}>
+  <Tab value="api-starter">
+    The entry point for our multi-language workflow. This TypeScript API endpoint receives data, validates it with Zod schemas, and kicks off the processing pipeline.
+
+```typescript
+import { Handlers } from 'motia'
+import { z } from 'zod'
+import { StartAppRequest, StartAppResponse, AppData } from '../types'
+
+const bodySchema = z.object({
+  data: z.record(z.unknown()).optional(),
+  message: z.string().optional()
+})
+
+// Basic app starter - TypeScript API endpoint
+export const config = {
+  type: 'api',
+  name: 'appStarter',
+  description: 'Start the basic multi-language app',
+
+  method: 'POST',
+  path: '/start-app',
+
+  emits: ['app.started'],
+  flows: ['data-processing'],
+  
+  bodySchema,
+  responseSchema: {
+    200: z.object({
+      message: z.string(),
+      appId: z.number(),
+      traceId: z.string()
+    })
+  }
+} as const
+
+export const handler: Handlers['appStarter'] = async (req, { logger, emit, traceId }) => {
+  logger.info('🚀 Starting basic app', { body: req.body, traceId })
+  
+  const validationResult = bodySchema.safeParse(req.body)
+  
+  if (!validationResult.success) {
+    logger.error('Invalid request body', { errors: validationResult.error.errors })
+    return { 
+      status: 400, 
+      body: { 
+        message: 'Invalid request body', 
+        errors: validationResult.error.errors 
+      } 
+    }
+  }
+  
+  const appData: AppData = {
+    id: Date.now(),
+    input: validationResult.data.data || {},
+    started_at: new Date().toISOString(),
+    traceId: traceId
+  }
+  
+  // Emit to start the app
+  await emit({
+    topic: 'app.started',
+    data: appData
+  })
+  
+  logger.info('app initiated successfully', { appId: appData.id })
+  
+  const response: StartAppResponse = {
+    message: 'Basic app started successfully',
+    appId: appData.id,
+    traceId: traceId
+  }
+  
+  return {
+    status: 200,
+    body: response
+  }
+} 
+```
+
+  </Tab>
+  <Tab value="bridge-step">
+    A TypeScript bridge that receives the app start event, processes the data, and forwards it to the Python processing step with proper type transformation.
+
+```typescript
+import { Handlers } from 'motia'
+import { AppData, ProcessedResult } from '../types'
+
+// Bridge step to connect app starter to Python processing
+export const config = {
+  type: 'event',
+  name: 'appBridge',
+  description: 'Bridge between app start and Python processing',
+  
+  subscribes: ['app.started'],
+  emits: ['data.processed'],
+  
+  flows: ['data-processing']
+} as const
+
+export const handler: Handlers['appBridge'] = async (input, { logger, emit }) => {
+  logger.info('🌉 Processing app data and sending to Python', { appId: input.id })
+  
+  // Process data for Python step
+  const processedResult: ProcessedResult = {
+    original_id: input.id,
+    processed_at: input.started_at,
+    result: `Processed: ${JSON.stringify(input.input)}`,
+    confidence: 0.95,
+    model_version: 'v2.1-ts'
+  }
+  
+  // Send to Python step for async processing
+  await emit({
+    topic: 'data.processed',
+    data: processedResult
+  })
+  
+  logger.info('Data sent to Python step for processing', { dataId: processedResult.original_id })
+} 
+```
+
+  </Tab>
+  <Tab value="python-processor">
+    The core data processor written in Python, demonstrating how Python steps integrate seamlessly with the TypeScript workflow while maintaining access to Python's rich ecosystem.
+
+```python
+# process-data.step.py
+config = {
+    'type': 'event',
+    'name': 'ProcessDataPython',
+    'description': 'Process incoming data and emit python.done',
+    'subscribes': ['data.processed'],
+    'emits': ['python.done'],
+    'flows': ['data-processing']
+}
+
+async def handler(input_data, context):
+    """
+    Process data received from TypeScript bridge step
+    
+    Args:
+        input_data: ProcessedResult with original_id, processed_at, result, confidence, model_version
+        context: Motia context with emit, logger, etc.
+    """
+    try:
+        # Validate required fields
+        required_fields = ['original_id', 'processed_at', 'result']
+        for field in required_fields:
+            if field not in input_data:
+                raise ValueError(f"Missing required field: {field}")
+        
+        context.logger.info("🐍 Processing data", {
+            "id": input_data['original_id'],
+            "confidence_level": input_data.get('confidence', 'N/A'),
+            "model_version": input_data.get('model_version', 'unknown'),
+        })
+
+        # Process the data (simulate complex Python processing)
+        python_result = {
+            'id': input_data['original_id'],
+            'python_message': f"Python processed: {input_data['result']}",
+            'processed_by': 'python-step',
+            'timestamp': input_data['processed_at']
+        }
+
+        context.logger.info(f"🐍 Processing complete, emitting python.done event")
+
+        # Emit with topic and data in dictionary format
+        await context.emit({"topic": "python.done", "data": python_result})
+
+        context.logger.info("🐍 Event emitted successfully", { "id": python_result['id'] })
+
+        # Return the payload so Motia passes it along automatically
+        return python_result
+        
+    except Exception as e:
+        context.logger.error(f"🐍 Error processing data: {str(e)}")
+        # Re-raise the exception to let Motia handle it
+        raise
+```
+
+  </Tab>
+  <Tab value="notification-handler">
+    A TypeScript notification handler that processes the Python results and sends notifications, showing seamless data flow between Python and TypeScript.
+
+```typescript
+import { Handlers } from 'motia'
+import { PythonResult, NotificationData } from '../types'
+
+export const config = {
+  type: 'event',
+  name: 'NotificationHandler',
+  description: 'Send notifications after Python processing',
+  
+  subscribes: ['python.done'],
+  emits: ['notification.sent'],
+  
+  flows: ['data-processing']
+} as const
+
+export const handler: Handlers['NotificationHandler'] = async (input, { logger, emit }) => {
+  logger.info('📧 Sending notifications after Python processing:', { id: input.id })
+  
+  // Simulate sending notifications (email, slack, etc.)
+  const notification: NotificationData = {
+    id: input.id,
+    message: `Notification: ${input.python_message}`,
+    processed_by: input.processed_by,
+    sent_at: new Date().toISOString()
+  }
+  
+  // Trigger final step
+  await emit({
+    topic: 'notification.sent',
+    data: notification
+  })
+  
+  logger.info('Notification sent successfully', notification)
+}
+```
+
+  </Tab>
+  <Tab value="finalizer">
+    A TypeScript finalizer that aggregates all the processing results and prepares the final summary data before handing off to JavaScript for metrics generation.
+
+```typescript
+import { Handlers } from 'motia'
+import { NotificationData, AppSummary } from '../types'
+
+// Final step to complete the app - TypeScript
+export const config = {
+  type: 'event',
+  name: 'appFinalizer',
+  description: 'Complete the basic app and log final results',
+  
+  subscribes: ['notification.sent'],
+  emits: ['app.completed'],
+  
+  flows: ['data-processing']
+} as const
+
+export const handler: Handlers['appFinalizer'] = async (input, { logger, emit }) => {
+  logger.info('🏁 Finalizing app', { 
+    notificationId: input.id,
+    message: input.message 
+  })
+  
+  // Create final app summary
+  const summary: AppSummary = {
+    appId: input.id,
+    status: 'completed',
+    completed_at: new Date().toISOString(),
+    steps_executed: [
+      'appStarter (TypeScript)',
+      'appBridge (TypeScript)', 
+      'ProcessDataPython (Python)',
+      'NotificationHandler (TypeScript)',
+      'appFinalizer (TypeScript)',
+      'summaryGenerator (JavaScript)'
+    ],
+    result: input.message
+  }
+  
+  // Emit completion event
+  await emit({
+    topic: 'app.completed',
+    data: summary
+  })
+  
+  logger.info('✅ Basic app completed successfully', summary)
+} 
+```
+
+  </Tab>
+  <Tab value="summary-generator">
+    The final step uses JavaScript for dynamic summary generation and metrics calculation, showcasing how all three languages work together in a single workflow.
+
+```javascript
+// Final summary step - JavaScript
+export const config = {
+  type: 'event',
+  name: 'summaryGenerator',
+  description: 'Generate final summary in JavaScript',
+  
+  subscribes: ['app.completed'],
+  emits: ['summary.generated'],
+  
+  flows: ['data-processing']
+}
+
+export const handler = async (input, { logger, emit }) => {
+  logger.info('📊 Generating final summary in JavaScript', { 
+    appId: input.appId,
+    status: input.status 
+  })
+  
+  // Calculate processing metrics
+  const processingTime = new Date() - new Date(input.completed_at)
+  const stepsCount = input.steps_executed.length
+  
+  // Create comprehensive summary
+  const summary = {
+    appId: input.appId,
+    finalStatus: input.status,
+    totalSteps: stepsCount,
+    processingTimeMs: Math.abs(processingTime),
+    languages: ['TypeScript', 'Python', 'JavaScript'],
+    summary: `Multi-language app completed successfully with ${stepsCount} steps`,
+    result: input.result,
+    completedAt: new Date().toISOString(),
+    generatedBy: 'javascript-summary-step'
+  }
+  
+  // Emit final summary
+  await emit({
+    topic: 'summary.generated',
+    data: summary
+  })
+  
+  logger.info('✨ Final summary generated successfully', summary)
+  
+  return summary
+}
+```
+
+  </Tab>
+</Tabs>
+
+---
+
+## Explore the Workbench
+
+The Motia Workbench provides a visual representation of your multi-language pipeline, making it easy to trace data flow between TypeScript, Python, and JavaScript steps.
+
+<div className="my-8">![Multi-Language Workflow in Motia Workbench](/docs-images/motia-build-your-app-2.gif)</div>
+
+You can monitor real-time execution, view logs from all languages in a unified interface, and trace the complete data flow from the TypeScript API through Python processing to JavaScript summary generation.
+
+---
+
+## Key Features & Benefits
+
+### 🧩 **Step as Universal Primitive**
+Every piece of logic—whether TypeScript, Python, or JavaScript—follows the same step pattern, creating true unification.
+
+### 🌐 **Seamless Language Integration**
+Steps eliminate the complexity of multi-language systems by providing a unified programming model.
+
+### 📊 **Unified Development Experience**
+Write, debug, and monitor all languages through a single interface and shared execution model.
+
+### ⚡ **Hot Reload Across Languages**
+Edit any step in any language and see changes instantly across the entire pipeline.
+
+### 🔄 **Event-Driven Communication**
+Steps communicate through events, enabling loose coupling and independent scaling.
+
+### 🎯 **Single Deployment Model**
+Deploy all languages together as a cohesive system, not as separate microservices.
+
+---
+
+## Trying It Out
+
+Ready to build your first multi-language Motia application? Let's get it running.
+
+<Steps>
+
+### Create Your Motia App
+
+Start by creating a new Motia project with the interactive setup.
+
+```shell
+npx motia@latest create -i
+```
+
+### Navigate and Start Development
+
+Move into your project directory and start the development server.
+
+```shell
+cd my-app  # Replace with your project name
+npx motia dev
+```
+
+### Open the Workbench
+
+Navigate to [`http://localhost:3000`](http://localhost:3000) to access the Workbench and run your workflow.
+
+### Test the Multi-Language Pipeline
+
+Send a request to your API endpoint to see the multi-language workflow in action:
+
+```shell
+curl -X POST http://localhost:3000/start-app \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"Hello multi-language world!","value":42}}'
+```
+
+Watch in the Workbench as your data flows through:
+1. **TypeScript** validation and event emission
+2. **TypeScript** bridge processing and forwarding  
+3. **Python** data processing with rich logging
+4. **TypeScript** notification handling
+5. **TypeScript** finalization and aggregation
+6. **JavaScript** summary generation and metrics
+
+</Steps>
+
+---
+
+## 💻 Dive into the Code
+
+Want to explore multi-language workflows further? Check out additional examples and the complete source code:
+
+<div className="not-prose">
+  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 my-6">
+    <div className="flex items-start space-x-4">
+      <div className="flex-shrink-0">
+        <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+        </svg>
+      </div>
+      <div className="flex-1">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Multi-Language Examples</h3>
+        <p className="text-gray-600 mb-4">Access complete multi-language implementations, configuration examples, and learn how to integrate TypeScript, Python, and JavaScript in production applications.</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <a 
+            href="https://github.com/MotiaDev/motia-examples" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors duration-200"
+          >
+            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.30 3.297-1.30.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+            </svg>
+            Explore Examples
+          </a>
+          <a 
+            href="/docs/getting-started/quick-start" 
+            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-md transition-colors duration-200"
+          >
+            Quick Start →
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+---
+
+## Conclusion: The Power of Unification Through Steps
+
+This multi-language data processing pipeline demonstrates how **steps** fundamentally change multi-language development. By providing a single primitive that works across TypeScript, Python, and JavaScript, we've eliminated the traditional complexity of polyglot architectures.
+
+**The step primitive enables true unification:**
+- **Universal Pattern** - Every step, regardless of language, follows the same receive-process-emit pattern
+- **Seamless Integration** - Add Ruby, Go, Rust, or any language using the same step abstraction
+- **Unified Deployment** - All languages deploy together as a single, coherent system
+- **Shared Development Model** - Write, debug, and monitor everything through the same interface
+
+**Key benefits of step-based unification:**
+- **Single Mental Model** - Learn the step pattern once, apply it to any language
+- **Cohesive System** - All components work together as parts of one application, not separate services
+- **Consistent Experience** - Development, debugging, and monitoring work the same way across all languages
+- **Natural Scaling** - Each step can scale independently while maintaining system coherence
+
+**Extend your pipeline with more steps:**
+- Add specialized processing steps for different data types and business logic
+- Integrate machine learning workflows with Python steps for AI processing
+- Build real-time analytics with streaming steps for live data processing
+- Connect to enterprise systems through database and API integration steps
+- Implement scheduled processing with cron steps for batch operations
+
+The **step primitive** makes all extensions natural and straightforward—every new capability follows the same unified pattern.
+
+Ready to unify your multi-language systems? Start building with steps today!
+
+
+
+## Examples
+['Multi-Language Data Processing: Building Event-Driven Pipelines with TypeScript, Python & JavaScript'](/docs/examples/multi-language-data-processing): Code example
+---
+title: 'Multi-Language Data Processing: Building Event-Driven Pipelines with TypeScript, Python & JavaScript'
+---
+
+Modern backend development often requires combining the strengths of different programming languages. TypeScript for APIs, Python for data processing and AI, JavaScript for rapid prototyping. Traditional approaches involve complex microservices architectures with intricate communication patterns.
+
+This comprehensive guide explores how to build a unified multi-language data processing pipeline using Motia's **step** primitive. We'll cover:
+
+1. **Steps as Core Primitive**: How steps unify different languages under a single abstraction.
+2. **Building the Pipeline**: A step-by-step guide to creating a cohesive multi-language data processing workflow.
+3. **Unified Execution Model**: How steps enable seamless communication between different runtime environments.
+4. **Hands-On Development**: How to build, run, and observe your unified multi-language pipeline.
+
+Let's build a production-ready data processing system where steps unify TypeScript, Python, and JavaScript into a single cohesive workflow.
+
+---
+
+## The Power of Steps: A Unified Multi-Language Primitive
+
+<div className="my-8">![Multi-Language Data Processing in Motia Workbench](/docs-images/motia-build-your-app-2.gif)</div>
+
+At its core, our data processing pipeline demonstrates how **steps** solve the fundamental challenge of multi-language systems: unifying different programming languages under a single, coherent abstraction. Traditional polyglot architectures require complex inter-process communication and deployment coordination. Motia's **step** primitive unifies everything.
+
+**Steps enable true language unification:**
+
+- **[TypeScript](https://www.typescriptlang.org/)** steps: Strong typing and excellent tooling for APIs and orchestration
+- **[Python](https://www.python.org/)** steps: Rich ecosystem for data processing, ML, and scientific computing  
+- **[JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript)** steps: Dynamic processing and rapid development
+- **[Motia's Step Primitive](https://motia.dev)**: The unifying abstraction that makes all languages work as a single system
+
+Instead of managing multiple services, **steps** provide a single programming model. Whether written in TypeScript, Python, or JavaScript, every step follows the same pattern: receive data, process it, emit events. This unification is what makes multi-language development straightforward.
+
+---
+
+## The Anatomy of Our Multi-Language Pipeline
+
+Our application consists of five specialized steps, each leveraging the optimal language for its specific task. Let's explore the complete architecture.
+
+<Folder name="steps" defaultOpen>
+  <File name="01-starter.step.ts" />
+  <File name="02-bridge.step.ts" />
+  <File name="simple-python.step.py" />
+  <File name="notify.step.ts" />
+  <File name="04-final.step.ts" />
+  <File name="05-summary.step.js" />
+</Folder>
+
+<Folder name="types" defaultOpen>
+  <File name="index.ts" />
+</Folder>
+
+<Tabs items={['api-starter', 'bridge-step', 'python-processor', 'notification-handler', 'finalizer', 'summary-generator']}>
+  <Tab value="api-starter">
+    The entry point for our multi-language workflow. This TypeScript API endpoint receives data, validates it with Zod schemas, and kicks off the processing pipeline.
+
+```typescript
+import { Handlers } from 'motia'
+import { z } from 'zod'
+import { StartAppRequest, StartAppResponse, AppData } from '../types'
+
+const bodySchema = z.object({
+  data: z.record(z.unknown()).optional(),
+  message: z.string().optional()
+})
+
+// Basic app starter - TypeScript API endpoint
+export const config = {
+  type: 'api',
+  name: 'appStarter',
+  description: 'Start the basic multi-language app',
+
+  method: 'POST',
+  path: '/start-app',
+
+  emits: ['app.started'],
+  flows: ['data-processing'],
+  
+  bodySchema,
+  responseSchema: {
+    200: z.object({
+      message: z.string(),
+      appId: z.number(),
+      traceId: z.string()
+    })
+  }
+} as const
+
+export const handler: Handlers['appStarter'] = async (req, { logger, emit, traceId }) => {
+  logger.info('🚀 Starting basic app', { body: req.body, traceId })
+  
+  const validationResult = bodySchema.safeParse(req.body)
+  
+  if (!validationResult.success) {
+    logger.error('Invalid request body', { errors: validationResult.error.errors })
+    return { 
+      status: 400, 
+      body: { 
+        message: 'Invalid request body', 
+        errors: validationResult.error.errors 
+      } 
+    }
+  }
+  
+  const appData: AppData = {
+    id: Date.now(),
+    input: validationResult.data.data || {},
+    started_at: new Date().toISOString(),
+    traceId: traceId
+  }
+  
+  // Emit to start the app
+  await emit({
+    topic: 'app.started',
+    data: appData
+  })
+  
+  logger.info('app initiated successfully', { appId: appData.id })
+  
+  const response: StartAppResponse = {
+    message: 'Basic app started successfully',
+    appId: appData.id,
+    traceId: traceId
+  }
+  
+  return {
+    status: 200,
+    body: response
+  }
+} 
+```
+
+  </Tab>
+  <Tab value="bridge-step">
+    A TypeScript bridge that receives the app start event, processes the data, and forwards it to the Python processing step with proper type transformation.
+
+```typescript
+import { Handlers } from 'motia'
+import { AppData, ProcessedResult } from '../types'
+
+// Bridge step to connect app starter to Python processing
+export const config = {
+  type: 'event',
+  name: 'appBridge',
+  description: 'Bridge between app start and Python processing',
+  
+  subscribes: ['app.started'],
+  emits: ['data.processed'],
+  
+  flows: ['data-processing']
+} as const
+
+export const handler: Handlers['appBridge'] = async (input, { logger, emit }) => {
+  logger.info('🌉 Processing app data and sending to Python', { appId: input.id })
+  
+  // Process data for Python step
+  const processedResult: ProcessedResult = {
+    original_id: input.id,
+    processed_at: input.started_at,
+    result: `Processed: ${JSON.stringify(input.input)}`,
+    confidence: 0.95,
+    model_version: 'v2.1-ts'
+  }
+  
+  // Send to Python step for async processing
+  await emit({
+    topic: 'data.processed',
+    data: processedResult
+  })
+  
+  logger.info('Data sent to Python step for processing', { dataId: processedResult.original_id })
+} 
+```
+
+  </Tab>
+  <Tab value="python-processor">
+    The core data processor written in Python, demonstrating how Python steps integrate seamlessly with the TypeScript workflow while maintaining access to Python's rich ecosystem.
+
+```python
+# process-data.step.py
+config = {
+    'type': 'event',
+    'name': 'ProcessDataPython',
+    'description': 'Process incoming data and emit python.done',
+    'subscribes': ['data.processed'],
+    'emits': ['python.done'],
+    'flows': ['data-processing']
+}
+
+async def handler(input_data, context):
+    """
+    Process data received from TypeScript bridge step
+    
+    Args:
+        input_data: ProcessedResult with original_id, processed_at, result, confidence, model_version
+        context: Motia context with emit, logger, etc.
+    """
+    try:
+        # Validate required fields
+        required_fields = ['original_id', 'processed_at', 'result']
+        for field in required_fields:
+            if field not in input_data:
+                raise ValueError(f"Missing required field: {field}")
+        
+        context.logger.info("🐍 Processing data", {
+            "id": input_data['original_id'],
+            "confidence_level": input_data.get('confidence', 'N/A'),
+            "model_version": input_data.get('model_version', 'unknown'),
+        })
+
+        # Process the data (simulate complex Python processing)
+        python_result = {
+            'id': input_data['original_id'],
+            'python_message': f"Python processed: {input_data['result']}",
+            'processed_by': 'python-step',
+            'timestamp': input_data['processed_at']
+        }
+
+        context.logger.info(f"🐍 Processing complete, emitting python.done event")
+
+        # Emit with topic and data in dictionary format
+        await context.emit({"topic": "python.done", "data": python_result})
+
+        context.logger.info("🐍 Event emitted successfully", { "id": python_result['id'] })
+
+        # Return the payload so Motia passes it along automatically
+        return python_result
+        
+    except Exception as e:
+        context.logger.error(f"🐍 Error processing data: {str(e)}")
+        # Re-raise the exception to let Motia handle it
+        raise
+```
+
+  </Tab>
+  <Tab value="notification-handler">
+    A TypeScript notification handler that processes the Python results and sends notifications, showing seamless data flow between Python and TypeScript.
+
+```typescript
+import { Handlers } from 'motia'
+import { PythonResult, NotificationData } from '../types'
+
+export const config = {
+  type: 'event',
+  name: 'NotificationHandler',
+  description: 'Send notifications after Python processing',
+  
+  subscribes: ['python.done'],
+  emits: ['notification.sent'],
+  
+  flows: ['data-processing']
+} as const
+
+export const handler: Handlers['NotificationHandler'] = async (input, { logger, emit }) => {
+  logger.info('📧 Sending notifications after Python processing:', { id: input.id })
+  
+  // Simulate sending notifications (email, slack, etc.)
+  const notification: NotificationData = {
+    id: input.id,
+    message: `Notification: ${input.python_message}`,
+    processed_by: input.processed_by,
+    sent_at: new Date().toISOString()
+  }
+  
+  // Trigger final step
+  await emit({
+    topic: 'notification.sent',
+    data: notification
+  })
+  
+  logger.info('Notification sent successfully', notification)
+}
+```
+
+  </Tab>
+  <Tab value="finalizer">
+    A TypeScript finalizer that aggregates all the processing results and prepares the final summary data before handing off to JavaScript for metrics generation.
+
+```typescript
+import { Handlers } from 'motia'
+import { NotificationData, AppSummary } from '../types'
+
+// Final step to complete the app - TypeScript
+export const config = {
+  type: 'event',
+  name: 'appFinalizer',
+  description: 'Complete the basic app and log final results',
+  
+  subscribes: ['notification.sent'],
+  emits: ['app.completed'],
+  
+  flows: ['data-processing']
+} as const
+
+export const handler: Handlers['appFinalizer'] = async (input, { logger, emit }) => {
+  logger.info('🏁 Finalizing app', { 
+    notificationId: input.id,
+    message: input.message 
+  })
+  
+  // Create final app summary
+  const summary: AppSummary = {
+    appId: input.id,
+    status: 'completed',
+    completed_at: new Date().toISOString(),
+    steps_executed: [
+      'appStarter (TypeScript)',
+      'appBridge (TypeScript)', 
+      'ProcessDataPython (Python)',
+      'NotificationHandler (TypeScript)',
+      'appFinalizer (TypeScript)',
+      'summaryGenerator (JavaScript)'
+    ],
+    result: input.message
+  }
+  
+  // Emit completion event
+  await emit({
+    topic: 'app.completed',
+    data: summary
+  })
+  
+  logger.info('✅ Basic app completed successfully', summary)
+} 
+```
+
+  </Tab>
+  <Tab value="summary-generator">
+    The final step uses JavaScript for dynamic summary generation and metrics calculation, showcasing how all three languages work together in a single workflow.
+
+```javascript
+// Final summary step - JavaScript
+export const config = {
+  type: 'event',
+  name: 'summaryGenerator',
+  description: 'Generate final summary in JavaScript',
+  
+  subscribes: ['app.completed'],
+  emits: ['summary.generated'],
+  
+  flows: ['data-processing']
+}
+
+export const handler = async (input, { logger, emit }) => {
+  logger.info('📊 Generating final summary in JavaScript', { 
+    appId: input.appId,
+    status: input.status 
+  })
+  
+  // Calculate processing metrics
+  const processingTime = new Date() - new Date(input.completed_at)
+  const stepsCount = input.steps_executed.length
+  
+  // Create comprehensive summary
+  const summary = {
+    appId: input.appId,
+    finalStatus: input.status,
+    totalSteps: stepsCount,
+    processingTimeMs: Math.abs(processingTime),
+    languages: ['TypeScript', 'Python', 'JavaScript'],
+    summary: `Multi-language app completed successfully with ${stepsCount} steps`,
+    result: input.result,
+    completedAt: new Date().toISOString(),
+    generatedBy: 'javascript-summary-step'
+  }
+  
+  // Emit final summary
+  await emit({
+    topic: 'summary.generated',
+    data: summary
+  })
+  
+  logger.info('✨ Final summary generated successfully', summary)
+  
+  return summary
+}
+```
+
+  </Tab>
+</Tabs>
+
+---
+
+## Explore the Workbench
+
+The Motia Workbench provides a visual representation of your multi-language pipeline, making it easy to trace data flow between TypeScript, Python, and JavaScript steps.
+
+<div className="my-8">![Multi-Language Workflow in Motia Workbench](/docs-images/motia-build-your-app-2.gif)</div>
+
+You can monitor real-time execution, view logs from all languages in a unified interface, and trace the complete data flow from the TypeScript API through Python processing to JavaScript summary generation.
+
+---
+
+## Key Features & Benefits
+
+### 🧩 **Step as Universal Primitive**
+Every piece of logic—whether TypeScript, Python, or JavaScript—follows the same step pattern, creating true unification.
+
+### 🌐 **Seamless Language Integration**
+Steps eliminate the complexity of multi-language systems by providing a unified programming model.
+
+### 📊 **Unified Development Experience**
+Write, debug, and monitor all languages through a single interface and shared execution model.
+
+### ⚡ **Hot Reload Across Languages**
+Edit any step in any language and see changes instantly across the entire pipeline.
+
+### 🔄 **Event-Driven Communication**
+Steps communicate through events, enabling loose coupling and independent scaling.
+
+### 🎯 **Single Deployment Model**
+Deploy all languages together as a cohesive system, not as separate microservices.
+
+---
+
+## Trying It Out
+
+Ready to build your first multi-language Motia application? Let's get it running.
+
+<Steps>
+
+### Create Your Motia App
+
+Start by creating a new Motia project with the interactive setup.
+
+```shell
+npx motia@latest create -i
+```
+
+### Navigate and Start Development
+
+Move into your project directory and start the development server.
+
+```shell
+cd my-app  # Replace with your project name
+npx motia dev
+```
+
+### Open the Workbench
+
+Navigate to [`http://localhost:3000`](http://localhost:3000) to access the Workbench and run your workflow.
+
+### Test the Multi-Language Pipeline
+
+Send a request to your API endpoint to see the multi-language workflow in action:
+
+```shell
+curl -X POST http://localhost:3000/start-app \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"Hello multi-language world!","value":42}}'
+```
+
+Watch in the Workbench as your data flows through:
+1. **TypeScript** validation and event emission
+2. **TypeScript** bridge processing and forwarding  
+3. **Python** data processing with rich logging
+4. **TypeScript** notification handling
+5. **TypeScript** finalization and aggregation
+6. **JavaScript** summary generation and metrics
+
+</Steps>
+
+---
+
+## 💻 Dive into the Code
+
+Want to explore multi-language workflows further? Check out additional examples and the complete source code:
+
+<div className="not-prose">
+  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 my-6">
+    <div className="flex items-start space-x-4">
+      <div className="flex-shrink-0">
+        <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+        </svg>
+      </div>
+      <div className="flex-1">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Multi-Language Examples</h3>
+        <p className="text-gray-600 mb-4">Access complete multi-language implementations, configuration examples, and learn how to integrate TypeScript, Python, and JavaScript in production applications.</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <a 
+            href="https://github.com/MotiaDev/motia-examples" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors duration-200"
+          >
+            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.30 3.297-1.30.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+            </svg>
+            Explore Examples
+          </a>
+          <a 
+            href="/docs/getting-started/quick-start" 
+            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-md transition-colors duration-200"
+          >
+            Quick Start →
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+---
+
+## Conclusion: The Power of Unification Through Steps
+
+This multi-language data processing pipeline demonstrates how **steps** fundamentally change multi-language development. By providing a single primitive that works across TypeScript, Python, and JavaScript, we've eliminated the traditional complexity of polyglot architectures.
+
+**The step primitive enables true unification:**
+- **Universal Pattern** - Every step, regardless of language, follows the same receive-process-emit pattern
+- **Seamless Integration** - Add Ruby, Go, Rust, or any language using the same step abstraction
+- **Unified Deployment** - All languages deploy together as a single, coherent system
+- **Shared Development Model** - Write, debug, and monitor everything through the same interface
+
+**Key benefits of step-based unification:**
+- **Single Mental Model** - Learn the step pattern once, apply it to any language
+- **Cohesive System** - All components work together as parts of one application, not separate services
+- **Consistent Experience** - Development, debugging, and monitoring work the same way across all languages
+- **Natural Scaling** - Each step can scale independently while maintaining system coherence
+
+**Extend your pipeline with more steps:**
+- Add specialized processing steps for different data types and business logic
+- Integrate machine learning workflows with Python steps for AI processing
+- Build real-time analytics with streaming steps for live data processing
+- Connect to enterprise systems through database and API integration steps
+- Implement scheduled processing with cron steps for batch operations
+
+The **step primitive** makes all extensions natural and straightforward—every new capability follows the same unified pattern.
+
+Ready to unify your multi-language systems? Start building with steps today!
 
 
 -   ['Intelligent Document Processing: Building a RAG Agent with Motia, Docling & Weaviate'](/docs/examples/rag-docling-weaviate): Documentation for 'Intelligent Document Processing: Building a RAG Agent with Motia, Docling & Weaviate'.
@@ -7569,762 +8996,1040 @@ The event-driven architecture makes all of these extensions straightforward to i
 Ready to build monitoring infrastructure that scales with your business? Start building with Motia today!
 
 
--   [build-your-first-app](/docs/getting-started/build-your-first-app): Documentation for build-your-first-app.
+-   [creating-your-first-rest-api](/docs/getting-started/build-your-first-app/creating-your-first-rest-api): Documentation for creating-your-first-rest-api.
 ---
-title: Build Your First Motia App
-description: Build your first multi-language Motia app in minutes. This guide walks you through creating, running, and understanding a Motia app using JavaScript, TypeScript, and Python.
+title: API Endpoints
+description: Learn how to build a complete REST API with CRUD operations using Motia. This guide covers HTTP endpoints, request validation, and response handling.
 ---
+If you haven't already, follow the [Quick Start Guide](/docs/getting-started/quick-start) to create a Motia project. This tutorial assumes you have a working project with the development server running.
 
-# Build Your First Motia App
+REST APIs are one of the fundamental foundations of most modern web architectures, especially for client-server communication. They allow clients to interact with your backend through standard HTTP methods like GET, POST, PUT, and DELETE. In Motia, creating APIs is straightforward, you define endpoints as API Steps.
+This guide will walk you through building a complete REST API in Motia. You'll learn how to create HTTP endpoints, validate requests, handle responses, and implement full CRUD operations for a pet store application.
 
-**Get up and running with Motia in just a few minutes!** This guide shows you how to create a Motia app that connects JavaScript, TypeScript, and Python as steps.
+## REST API Concepts You'll Use
 
-## What You'll Build
+Before we start building, let's cover the key concepts for creating REST APIs in Motia:
 
-A simple data processing Motia app:
-- **TypeScript** API endpoint receives data with validation
-- **TypeScript** bridges and notifies with proper types
-- **Python** processes the data with proper logging
-- **JavaScript** generates final summary and metrics
+- **API Step** – A file that defines an HTTP endpoint with validation schemas and request handling logic.
+- **HTTP Methods** – GET (retrieve), POST (create), PUT (update), DELETE (remove) operations on resources.
+- **Response Handling** – Returning proper HTTP status codes and structured JSON responses.
+- **Path Parameters** – Dynamic URL segments like `/pets/:id` to identify specific resources.
 
-All connected automatically with zero configuration and strict type safety.
+## API Step Structure
 
-## Step 1: Create Your Motia App
+Every API endpoint in Motia consists of two parts that work together:
+
+| Component | Type | Description |
+|-----------|------|-------------|
+| **`ApiRouteConfig`** | `object` | Configuration object that defines the HTTP endpoint structure, including the path, method, and validation schemas. This is where you specify what your API endpoint looks like and how it validates requests. |
+| **`Handlers[StepName]`** | `function` | The handler function that contains your business logic. It receives the HTTP request and returns an HTTP response with the appropriate status code and data. |
+
+## Building a Pet Store REST API
+
+Now that you understand the core parts of an API endpoint, let's build a complete REST API for a pet store.
+
+We'll create a Pet Store API with full CRUD operations:
+- `GET /pet` - List all pets
+- `POST /pets` - Create a new pet
+- `GET /pets/:id` - Get a specific pet by ID
+- `PUT /pets/:id` - Update a pet's information
+- `DELETE /pets/:id` - Remove a pet
+
+This covers all the essential REST API patterns you'll use in real applications.
+
+## Create Your First API Endpoint
+
+Let's start by creating a simple endpoint to add new pets to our store.
+
+### Creating the Add Pet API
+
+We'll create a `POST /pets` endpoint that accepts pet information and stores it. This endpoint will demonstrate key REST API concepts like request validation and response handling.
+
+Create a new file for your first endpoint:
+
+**File:** `steps/create-pet.step.ts`
+
+<Tabs items={['TS', 'JS', 'Python']}>
+  <Tab value="TS">
+    ```typescript
+    import { ApiRouteConfig, Handlers } from 'motia'
+    import { z } from 'zod'
+
+    export const config: ApiRouteConfig = {
+      type: 'api',
+      name: 'CreatePet',
+      description: 'Create a new pet in the store',
+      method: 'POST',
+      path: '/pets',
+      
+      bodySchema: z.object({
+        name: z.string(),
+        breed: z.string(),
+        age: z.number(),
+      }),
+
+      responseSchema: {
+        200: z.object({
+          id: z.string(),
+          name: z.string(),
+          breed: z.string(),
+          age: z.number(),
+        }),
+      },
+    }
+
+    export const handler: Handlers['CreatePet'] = async (req, { logger }) => {
+      logger.info('Creating new pet', { body: req.body })
+
+      // In a real app, you will save to a database
+      const newPet = {
+        id: Date.now().toString(),
+        ...req.body,
+      }
+
+      return {
+        status: 200,
+        body: newPet,
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const { z } = require('zod')
+
+    exports.config = {
+      type: 'api',
+      name: 'CreatePet',
+      description: 'Create a new pet in the store',
+      method: 'POST',
+      path: '/pets',
+      
+      bodySchema: z.object({
+        name: z.string(),
+        breed: z.string(),
+        age: z.number(),
+      }),
+
+      responseSchema: {
+        200: z.object({
+          id: z.string(),
+          name: z.string(),
+          breed: z.string(),
+          age: z.number(),
+        }),
+      },
+    }
+
+    exports.handler = async (req, { logger }) => {
+      logger.info('Creating new pet', { body: req.body })
+
+      // In a real app, you will save to a database
+      const newPet = {
+        id: Date.now().toString(),
+        ...req.body,
+      }
+
+      return {
+        status: 200,
+        body: newPet,
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    from pydantic import BaseModel
+    import time
+
+    class PetRequest(BaseModel):
+        name: str
+        breed: str
+        age: int
+
+    class PetResponse(BaseModel):
+        id: str
+        name: str
+        breed: str
+        age: int
+
+    config = {
+        'type': 'api',
+        'name': 'CreatePet',
+        'description': 'Create a new pet in the store',
+        'method': 'POST',
+        'path': '/pets',
+        'bodySchema': PetRequest.model_json_schema(),
+        'responseSchema': {
+            '200': PetResponse.model_json_schema()
+        }
+    }
+
+    async def handler(req, context):
+        context.logger.info('Creating new pet', {'body': req.get('body')})
+        
+        # In a real app, you will save to a database
+        new_pet = {
+            'id': str(int(time.time() * 1000)),
+            **req.get('body')
+        }
+        
+        return {
+            'status': 200,
+            'body': new_pet
+        }
+    ```
+  </Tab>
+</Tabs>
+
+The most fundamental part of any API endpoint is defining what HTTP method it accepts and where it lives:
+
+```typescript
+method: 'POST',
+path: '/pets',
+```
+This configuration tells Motia to create a POST endpoint at /pets. When your development server is running, users can send requests to http://localhost:3000/pets to create new pets. The POST method is the standard HTTP method for creating new resources in REST APIs.
+
+![Pet Creation](./../../img/pet-creation.png)
+
+##  Adding More CRUD Operations
+
+Now that we have a working POST endpoint, let's build out the complete REST API with all CRUD operations. We'll add endpoints to retrieve, update, and delete pets.
+
+### Get All Pets - `GET /pets`
+
+Create a new file to list all pets in the store:
+
+**File:** `steps/get-pets.step.ts`
+
+<Tabs items={['TS', 'JS', 'Python']}>
+  <Tab value="TS">
+    ```typescript
+    import { ApiRouteConfig, Handlers } from 'motia'
+    import { z } from 'zod'
+
+    export const config: ApiRouteConfig = {
+      type: 'api',
+      name: 'GetPets',
+      description: 'Get all pets in the store',
+      method: 'GET',
+      path: '/pets',
+      
+      responseSchema: {
+        200: z.array(z.object({
+          id: z.string(),
+          name: z.string(),
+          breed: z.string(),
+          age: z.number(),
+        })),
+      },
+    }
+
+    export const handler: Handlers['GetPets'] = async (req, { logger }) => {
+      logger.info('Retrieving all pets')
+
+      // In a real app, you'd fetch from a database
+      const pets = [
+        { id: "1", name: "Buddy", breed: "Golden Retriever", age: 3 },
+        { id: "2", name: "Max", breed: "German Shepherd", age: 5 },
+      ]
+
+      return {
+        status: 200,
+        body: pets,
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const { z } = require('zod')
+
+    exports.config = {
+      type: 'api',
+      name: 'GetPets',
+      description: 'Get all pets in the store',
+      method: 'GET',
+      path: '/pets',
+      
+      responseSchema: {
+        200: z.array(z.object({
+          id: z.string(),
+          name: z.string(),
+          breed: z.string(),
+          age: z.number(),
+        })),
+      },
+    }
+
+    exports.handler = async (req, { logger }) => {
+      logger.info('Retrieving all pets')
+
+      // In a real app, you'd fetch from a database
+      const pets = [
+        { id: "1", name: "Buddy", breed: "Golden Retriever", age: 3 },
+        { id: "2", name: "Max", breed: "German Shepherd", age: 5 },
+      ]
+
+      return {
+        status: 200,
+        body: pets,
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    from pydantic import BaseModel
+    from typing import List
+
+    class PetResponse(BaseModel):
+        id: str
+        name: str
+        breed: str
+        age: int
+
+    config = {
+        'type': 'api',
+        'name': 'GetPets',
+        'description': 'Get all pets in the store',
+        'method': 'GET',
+        'path': '/pets',
+        'responseSchema': {
+            '200': {
+                'type': 'array',
+                'items': PetResponse.model_json_schema()
+            }
+        }
+    }
+
+    async def handler(req, context):
+        context.logger.info('Retrieving all pets')
+        
+        # In a real app, you'd fetch from a database
+        pets = [
+            {'id': '1', 'name': 'Buddy', 'breed': 'Golden Retriever', 'age': 3},
+            {'id': '2', 'name': 'Max', 'breed': 'German Shepherd', 'age': 5},
+        ]
+        
+        return {
+            'status': 200,
+            'body': pets
+        }
+    ```
+  </Tab>
+</Tabs>
+
+![Get All Pets](./../../img/get-all-pets.png)
+
+### Get Pet by ID - `GET /pets/:id`
+
+Create a new file to retrieve a specific pet:
+
+**File:** `steps/get-pet-by-id.step.ts`
+
+<Tabs items={['TS', 'JS', 'Python']}>
+  <Tab value="TS">
+    ```typescript
+    import { ApiRouteConfig, Handlers } from 'motia'
+    import { z } from 'zod'
+
+    export const config: ApiRouteConfig = {
+      type: 'api',
+      name: 'GetPetById',
+      description: 'Get a specific pet by ID',
+      method: 'GET',
+      path: '/pets/:id',
+      
+      responseSchema: {
+        200: z.object({
+          id: z.string(),
+          name: z.string(),
+          breed: z.string(),
+          age: z.number(),
+        }),
+        404: z.object({
+          error: z.string(),
+        }),
+      },
+    }
+
+    export const handler: Handlers['GetPetById'] = async (req, { logger }) => {
+      const petId = req.pathParams.id
+      logger.info('Retrieving pet by ID', { petId })
+
+      // In a real app, you'd search your database
+      const pets = [
+        { id: "1", name: "Buddy", breed: "Golden Retriever", age: 3 },
+        { id: "2", name: "Max", breed: "German Shepherd", age: 5 },
+      ]
+
+      const pet = pets.find(p => p.id === petId)
+
+      if (!pet) {
+        return {
+          status: 404,
+          body: { error: 'Pet not found' },
+        }
+      }
+
+      return {
+        status: 200,
+        body: pet,
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const { z } = require('zod')
+
+    exports.config = {
+      type: 'api',
+      name: 'GetPetById',
+      description: 'Get a specific pet by ID',
+      method: 'GET',
+      path: '/pets/:id',
+      
+      responseSchema: {
+        200: z.object({
+          id: z.string(),
+          name: z.string(),
+          breed: z.string(),
+          age: z.number(),
+        }),
+        404: z.object({
+          error: z.string(),
+        }),
+      },
+    }
+
+    exports.handler = async (req, { logger }) => {
+      const petId = req.pathParams.id
+      logger.info('Retrieving pet by ID', { petId })
+
+      // In a real app, you'd search your database
+      const pets = [
+        { id: "1", name: "Buddy", breed: "Golden Retriever", age: 3 },
+        { id: "2", name: "Max", breed: "German Shepherd", age: 5 },
+      ]
+
+      const pet = pets.find(p => p.id === petId)
+
+      if (!pet) {
+        return {
+          status: 404,
+          body: { error: 'Pet not found' },
+        }
+      }
+
+      return {
+        status: 200,
+        body: pet,
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    from pydantic import BaseModel
+
+    class PetResponse(BaseModel):
+        id: str
+        name: str
+        breed: str
+        age: int
+
+    class ErrorResponse(BaseModel):
+        error: str
+
+    config = {
+        'type': 'api',
+        'name': 'GetPetById',
+        'description': 'Get a specific pet by ID',
+        'method': 'GET',
+        'path': '/pets/:id',
+        'responseSchema': {
+            '200': PetResponse.model_json_schema(),
+            '404': ErrorResponse.model_json_schema()
+        }
+    }
+
+    async def handler(req, context):
+        pet_id = req.get('pathParams', {}).get('id')
+        context.logger.info('Retrieving pet by ID', {'petId': pet_id})
+        
+        # In a real app, you'd search your database
+        pets = [
+            {'id': '1', 'name': 'Buddy', 'breed': 'Golden Retriever', 'age': 3},
+            {'id': '2', 'name': 'Max', 'breed': 'German Shepherd', 'age': 5},
+        ]
+        
+        pet = next((p for p in pets if p['id'] == pet_id), None)
+        
+        if not pet:
+            return {
+                'status': 404,
+                'body': {'error': 'Pet not found'}
+            }
+        
+        return {
+            'status': 200,
+            'body': pet
+        }
+    ```
+  </Tab>
+</Tabs>
+![Get One Pet](./../../img/get-one-pet.png)
+
+### Update Pet - `PUT /pets/:id`
+
+Create a new file to update existing pets:
+
+**File:** `steps/update-pet.step.ts`
+
+<Tabs items={['TS', 'JS', 'Python']}>
+  <Tab value="TS">
+    ```typescript
+    import { ApiRouteConfig, Handlers } from 'motia'
+    import { z } from 'zod'
+
+    export const config: ApiRouteConfig = {
+      type: 'api',
+      name: 'UpdatePet',
+      description: 'Update a pet by ID',
+      method: 'PUT',
+      path: '/pets/:id',
+      
+      bodySchema: z.object({
+        name: z.string(),
+        breed: z.string(),
+        age: z.number(),
+      }),
+
+      responseSchema: {
+        200: z.object({
+          id: z.string(),
+          name: z.string(),
+          breed: z.string(),
+          age: z.number(),
+        }),
+        404: z.object({
+          error: z.string(),
+        }),
+      },
+    }
+
+    export const handler: Handlers['UpdatePet'] = async (req, { logger }) => {
+      const petId = req.pathParams.id
+      logger.info('Updating pet', { petId, body: req.body })
+
+      // In a real app, you'd update your database
+      const pets = [
+        { id: "1", name: "Buddy", breed: "Golden Retriever", age: 3 },
+        { id: "2", name: "Max", breed: "German Shepherd", age: 5 },
+      ]
+
+      const petIndex = pets.findIndex(p => p.id === petId)
+
+      if (petIndex === -1) {
+        return {
+          status: 404,
+          body: { error: 'Pet not found' },
+        }
+      }
+
+      const updatedPet = {
+        id: petId,
+        ...req.body,
+      }
+
+      return {
+        status: 200,
+        body: updatedPet,
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const { z } = require('zod')
+
+    exports.config = {
+      type: 'api',
+      name: 'UpdatePet',
+      description: 'Update a pet by ID',
+      method: 'PUT',
+      path: '/pets/:id',
+      
+      bodySchema: z.object({
+        name: z.string(),
+        breed: z.string(),
+        age: z.number(),
+      }),
+
+      responseSchema: {
+        200: z.object({
+          id: z.string(),
+          name: z.string(),
+          breed: z.string(),
+          age: z.number(),
+        }),
+        404: z.object({
+          error: z.string(),
+        }),
+      },
+    }
+
+    exports.handler = async (req, { logger }) => {
+      const petId = req.pathParams.id
+      logger.info('Updating pet', { petId, body: req.body })
+
+      // In a real app, you'd update your database
+      const pets = [
+        { id: "1", name: "Buddy", breed: "Golden Retriever", age: 3 },
+        { id: "2", name: "Max", breed: "German Shepherd", age: 5 },
+      ]
+
+      const petIndex = pets.findIndex(p => p.id === petId)
+
+      if (petIndex === -1) {
+        return {
+          status: 404,
+          body: { error: 'Pet not found' },
+        }
+      }
+
+      const updatedPet = {
+        id: petId,
+        ...req.body,
+      }
+
+      return {
+        status: 200,
+        body: updatedPet,
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    from pydantic import BaseModel
+
+    class PetRequest(BaseModel):
+        name: str
+        breed: str
+        age: int
+
+    class PetResponse(BaseModel):
+        id: str
+        name: str
+        breed: str
+        age: int
+
+    class ErrorResponse(BaseModel):
+        error: str
+
+    config = {
+        'type': 'api',
+        'name': 'UpdatePet',
+        'description': 'Update a pet by ID',
+        'method': 'PUT',
+        'path': '/pets/:id',
+        'bodySchema': PetRequest.model_json_schema(),
+        'responseSchema': {
+            '200': PetResponse.model_json_schema(),
+            '404': ErrorResponse.model_json_schema()
+        }
+    }
+
+    async def handler(req, context):
+        pet_id = req.get('pathParams', {}).get('id')
+        context.logger.info('Updating pet', {'petId': pet_id, 'body': req.get('body')})
+        
+        # In a real app, you'd update your database
+        pets = [
+            {'id': '1', 'name': 'Buddy', 'breed': 'Golden Retriever', 'age': 3},
+            {'id': '2', 'name': 'Max', 'breed': 'German Shepherd', 'age': 5},
+        ]
+        
+        pet_index = next((i for i, p in enumerate(pets) if p['id'] == pet_id), -1)
+        
+        if pet_index == -1:
+            return {
+                'status': 404,
+                'body': {'error': 'Pet not found'}
+            }
+        
+        updated_pet = {
+            'id': pet_id,
+            **req.get('body')
+        }
+        
+        return {
+            'status': 200,
+            'body': updated_pet
+        }
+    ```
+  </Tab>
+</Tabs>
+
+### Delete Pet - `DELETE /pets/:id`
+
+Create a new file to remove pets from the store:
+
+**File:** `steps/delete-pet.step.ts`
+
+<Tabs items={['TS', 'JS', 'Python']}>
+  <Tab value="TS">
+    ```typescript
+    import { ApiRouteConfig, Handlers } from 'motia'
+    import { z } from 'zod'
+
+    export const config: ApiRouteConfig = {
+      type: 'api',
+      name: 'DeletePet',
+      description: 'Delete a pet by ID',
+      method: 'DELETE',
+      path: '/pets/:id',
+      
+      responseSchema: {
+        200: z.object({
+          message: z.string(),
+        }),
+        404: z.object({
+          error: z.string(),
+        }),
+      },
+    }
+
+    export const handler: Handlers['DeletePet'] = async (req, { logger }) => {
+      const petId = req.pathParams.id
+      logger.info('Deleting pet', { petId })
+
+      // In a real app, you'd remove from your database
+      const pets = [
+        { id: "1", name: "Buddy", breed: "Golden Retriever", age: 3 },
+        { id: "2", name: "Max", breed: "German Shepherd", age: 5 },
+      ]
+
+      const petExists = pets.some(p => p.id === petId)
+
+      if (!petExists) {
+        return {
+          status: 404,
+          body: { error: 'Pet not found' },
+        }
+      }
+
+      return {
+        status: 200,
+        body: { message: `Pet with ID ${petId} has been deleted` },
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="JS">
+    ```javascript
+    const { z } = require('zod')
+
+    exports.config = {
+      type: 'api',
+      name: 'DeletePet',
+      description: 'Delete a pet by ID',
+      method: 'DELETE',
+      path: '/pets/:id',
+      
+      responseSchema: {
+        200: z.object({
+          message: z.string(),
+        }),
+        404: z.object({
+          error: z.string(),
+        }),
+      },
+    }
+
+    exports.handler = async (req, { logger }) => {
+      const petId = req.pathParams.id
+      logger.info('Deleting pet', { petId })
+
+      // In a real app, you'd remove from your database
+      const pets = [
+        { id: "1", name: "Buddy", breed: "Golden Retriever", age: 3 },
+        { id: "2", name: "Max", breed: "German Shepherd", age: 5 },
+      ]
+
+      const petExists = pets.some(p => p.id === petId)
+
+      if (!petExists) {
+        return {
+          status: 404,
+          body: { error: 'Pet not found' },
+        }
+      }
+
+      return {
+        status: 200,
+        body: { message: `Pet with ID ${petId} has been deleted` },
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    from pydantic import BaseModel
+
+    class DeleteResponse(BaseModel):
+        message: str
+
+    class ErrorResponse(BaseModel):
+        error: str
+
+    config = {
+        'type': 'api',
+        'name': 'DeletePet',
+        'description': 'Delete a pet by ID',
+        'method': 'DELETE',
+        'path': '/pets/:id',
+        'responseSchema': {
+            '200': DeleteResponse.model_json_schema(),
+            '404': ErrorResponse.model_json_schema()
+        }
+    }
+
+    async def handler(req, context):
+        pet_id = req.get('pathParams', {}).get('id')
+        context.logger.info('Deleting pet', {'petId': pet_id})
+        
+        # In a real app, you'd remove from your database
+        pets = [
+            {'id': '1', 'name': 'Buddy', 'breed': 'Golden Retriever', 'age': 3},
+            {'id': '2', 'name': 'Max', 'breed': 'German Shepherd', 'age': 5},
+        ]
+        
+        pet_exists = any(p['id'] == pet_id for p in pets)
+        
+        if not pet_exists:
+            return {
+                'status': 404,
+                'body': {'error': 'Pet not found'}
+            }
+        
+        return {
+            'status': 200,
+            'body': {'message': f'Pet with ID {pet_id} has been deleted'}
+        }
+    ```
+  </Tab>
+</Tabs>
+
+![Delete One Pet](./../../img/delete-pet.png)
+
+## Testing the Complete REST API
+You now have a full CRUD REST API. Here are all the endpoints you can test:
+
+- `POST /pets` - Create a new pet
+- `GET /pets` - List all pets
+- `GET /pets/:id` - Get a specific pet
+- `PUT /pets/:id` - Update a pet
+- `DELETE /pets/:id` - Delete a pet
+
+You can test each endpoint using the Workbench interface or with curl commands. This covers all the essential patterns you'll need for building REST APIs.
+
+-   [quick-start](/docs/getting-started/quick-start): Documentation for quick-start.
+---
+title: Quick Start
+description: Get up and running with a new Motia project in just a few seconds.
+---
+<Steps>
+
+<Step>
+### 1. Create Your Project
+
+Use `npx` to create a new Motia project. This single command will scaffold a new application and install all necessary dependencies.
 
 ```bash
-# Create a new Motia app
 npx motia@latest create -i
 ```
+
 ![Create App Command](/docs-images/motia-build-your-app-1.gif)
 
+The installer will guide you through a few questions to set up your project. Once it's done, you will have a new project directory ready to go.
+
+</Step>
+
+<Step>
+### 2. Start the Development Server
+
+Navigate into your new project directory and start the Motia development server.
+
 ```bash
-# Change directory to my-app
-cd my-app
+cd <your-project-name> # If you've created a new folder for the project, navigate into it
+
+npx motia dev
 ```
+
 ![run dev command](/docs-images/motia-build-your-app-2.png)
 
-```bash
-### Start the development environment
-npx motia dev
-```
+<Callout>
+The `create` command uses `npm` by default. If you chose a different package manager during setup, use `pnpm dev`, `yarn dev`, or `bun dev`.
+</Callout>
+
+This command starts the Motia runtime and the Workbench, a powerful UI for developing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
+
+</Step>
+
+<Step>
+### 3. Run Your First Flow
+
+The starter project comes with a pre-built `default` flow. Let's run it.
+
+1.  **Open the Workbench** in your browser at [`http://localhost:3000`](http://localhost:3000).
+2.  **Select the `default` flow** from the left top panel.
+3.  **Run the flow.** You'll see a visual diagram of the workflow. Find the first node (the API Step) and click the **Start** button on it. This will trigger the flow.
+4.  **Observe the execution.** Watch the trace unfold in real-time in the bottom panel. You can inspect the logs, traces and state for each step as it completes.
+5.  **Explore the Workbench.** You can also read your files directly from the Workbench.
+
 ![run starter app](/docs-images/motia-build-your-app.gif)
 
+</Step>
 
-✅ That's it! You now have a working Motia app with a visual debugger at `http://localhost:3000`
+<Step>
+### Next Steps
 
-## Step 2: Add Environment Variables (Optional)
+Congratulations! You've successfully created, run, and observed your first Motia workflow.
 
-If you want to use external APIs, create a `.env` file:
+- To build a multi-language application from scratch, follow our **[Multi-Language Data Processing](/docs/examples/multi-language-data-processing)** guide.
+- To learn how to build REST APIs with Motia, check out our **[Creating Your First REST API](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)** guide.
+- To learn about Motia, dive into our **[Welcome to Motia](/docs)**.
 
-```bash title=".env"
-# Only add these if you need external services
-OPENAI_API_KEY=sk-your-api-key-here
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook
-```
+</Step>
+</Steps>
 
-<Callout type="info">
-The basic tutorial works without any API keys. Add environment variables only if you want to integrate external services.
 
-**➡️ [Learn about Environment Variables](/docs/concepts/environment-variables)**
-</Callout>
-
-## Step 3: Add Your Logic Steps
-
-### TypeScript API Endpoint (App Starter)
-// File: 01-starter.step.ts
-```typescript
-import { Handlers } from 'motia'
-import { z } from 'zod'
-import { StartAppRequest, StartAppResponse, AppData } from '../types'
-
-const bodySchema = z.object({
-  data: z.record(z.unknown()).optional(),
-  message: z.string().optional()
-})
-
-// Basic app starter - TypeScript API endpoint
-export const config = {
-  type: 'api',
-  name: 'appStarter',
-  description: 'Start the basic multi-language app',
-
-  method: 'POST',
-  path: '/start-app',
-
-  emits: ['app.started'],
-  flows: ['data-processing'],
-  
-  bodySchema,
-  responseSchema: {
-    200: z.object({
-      message: z.string(),
-      appId: z.number(),
-      traceId: z.string()
-    })
-  }
-} as const
-
-export const handler: Handlers['appStarter'] = async (req, { logger, emit, traceId }) => {
-  logger.info('🚀 Starting basic app', { body: req.body, traceId })
-  
-  const validationResult = bodySchema.safeParse(req.body)
-  
-  if (!validationResult.success) {
-    logger.error('Invalid request body', { errors: validationResult.error.errors })
-    return { 
-      status: 400, 
-      body: { 
-        message: 'Invalid request body', 
-        errors: validationResult.error.errors 
-      } 
-    }
-  }
-  
-  const appData: AppData = {
-    id: Date.now(),
-    input: validationResult.data.data || {},
-    started_at: new Date().toISOString(),
-    traceId: traceId
-  }
-  
-  // Emit to start the app
-  await emit({
-    topic: 'app.started',
-    data: appData
-  })
-  
-  logger.info('app initiated successfully', { appId: appData.id })
-  
-  const response: StartAppResponse = {
-    message: 'Basic app started successfully',
-    appId: appData.id,
-    traceId: traceId
-  }
-  
-  return {
-    status: 200,
-    body: response
-  }
-} 
-```
-
-### TypeScript Bridge Step
-// File: 02-bridge.step.ts
-```typescript
-import { Handlers } from 'motia'
-import { AppData, ProcessedResult } from '../types'
-
-// Bridge step to connect app starter to Python processing
-export const config = {
-  type: 'event',
-  name: 'appBridge',
-  description: 'Bridge between app start and Python processing',
-  
-  subscribes: ['app.started'],
-  emits: ['data.processed'],
-  
-  flows: ['data-processing']
-} as const
-
-export const handler: Handlers['appBridge'] = async (input, { logger, emit }) => {
-  logger.info('🌉 Processing app data and sending to Python', { appId: input.id })
-  
-  // Process data for Python step
-  const processedResult: ProcessedResult = {
-    original_id: input.id,
-    processed_at: input.started_at,
-    result: `Processed: ${JSON.stringify(input.input)}`,
-    confidence: 0.95,
-    model_version: 'v2.1-ts'
-  }
-  
-  // Send to Python step for async processing
-  await emit({
-    topic: 'data.processed',
-    data: processedResult
-  })
-  
-  logger.info('Data sent to Python step for processing', { dataId: processedResult.original_id })
-} 
-```
-
-### Python Data Processor
-// File: simple-python.step.py
-```python
-# process-data.step.py
-config = {
-    'type': 'event',
-    'name': 'ProcessDataPython',
-    'description': 'Process incoming data and emit python.done',
-    'subscribes': ['data.processed'],
-    'emits': ['python.done'],
-    'flows': ['data-processing']
-}
-
-async def handler(input_data, context):
-    """
-    Process data received from TypeScript bridge step
-    
-    Args:
-        input_data: ProcessedResult with original_id, processed_at, result, confidence, model_version
-        context: Motia context with emit, logger, etc.
-    """
-    try:
-        # Validate required fields
-        required_fields = ['original_id', 'processed_at', 'result']
-        for field in required_fields:
-            if field not in input_data:
-                raise ValueError(f"Missing required field: {field}")
-        
-        context.logger.info("🐍 Processing data", {
-            "id": input_data['original_id'],
-            "confidence_level": input_data.get('confidence', 'N/A'),
-            "model_version": input_data.get('model_version', 'unknown'),
-        })
-
-        # Process the data (simulate complex Python processing)
-        python_result = {
-            'id': input_data['original_id'],
-            'python_message': f"Python processed: {input_data['result']}",
-            'processed_by': 'python-step',
-            'timestamp': input_data['processed_at']
-        }
-
-        context.logger.info(f"🐍 Processing complete, emitting python.done event")
-
-        # Emit with topic and data in dictionary format
-        await context.emit({"topic": "python.done", "data": python_result})
-
-        context.logger.info("🐍 Event emitted successfully", { "id": python_result['id'] })
-
-        # Return the payload so Motia passes it along automatically
-        return python_result
-        
-    except Exception as e:
-        context.logger.error(f"🐍 Error processing data: {str(e)}")
-        # Re-raise the exception to let Motia handle it
-        raise
-```
-
-### TypeScript Notification Step
-// File: notify.step.ts
-```typescript
-import { Handlers } from 'motia'
-import { PythonResult, NotificationData } from '../types'
-
-export const config = {
-  type: 'event',
-  name: 'NotificationHandler',
-  description: 'Send notifications after Python processing',
-  
-  subscribes: ['python.done'],
-  emits: ['notification.sent'],
-  
-  flows: ['data-processing']
-} as const
-
-export const handler: Handlers['NotificationHandler'] = async (input, { logger, emit }) => {
-  logger.info('📧 Sending notifications after Python processing:', { id: input.id })
-  
-  // Simulate sending notifications (email, slack, etc.)
-  const notification: NotificationData = {
-    id: input.id,
-    message: `Notification: ${input.python_message}`,
-    processed_by: input.processed_by,
-    sent_at: new Date().toISOString()
-  }
-  
-  // Trigger final step
-  await emit({
-    topic: 'notification.sent',
-    data: notification
-  })
-  
-  logger.info('Notification sent successfully', notification)
-}
-```
-
-### TypeScript Finalizer Step
-// File: 04-final.step.ts
-```typescript
-import { Handlers } from 'motia'
-import { NotificationData, AppSummary } from '../types'
-
-// Final step to complete the app - TypeScript
-export const config = {
-  type: 'event',
-  name: 'appFinalizer',
-  description: 'Complete the basic app and log final results',
-  
-  subscribes: ['notification.sent'],
-  emits: ['app.completed'],
-  
-  flows: ['data-processing']
-} as const
-
-export const handler: Handlers['appFinalizer'] = async (input, { logger, emit }) => {
-  logger.info('🏁 Finalizing app', { 
-    notificationId: input.id,
-    message: input.message 
-  })
-  
-  // Create final app summary
-  const summary: AppSummary = {
-    appId: input.id,
-    status: 'completed',
-    completed_at: new Date().toISOString(),
-    steps_executed: [
-      'appStarter (TypeScript)',
-      'appBridge (TypeScript)', 
-      'ProcessDataPython (Python)',
-      'NotificationHandler (TypeScript)',
-      'appFinalizer (TypeScript)',
-      'summaryGenerator (JavaScript)'
-    ],
-    result: input.message
-  }
-  
-  // Emit completion event
-  await emit({
-    topic: 'app.completed',
-    data: summary
-  })
-  
-  logger.info('✅ Basic app completed successfully', summary)
-} 
-```
-
-### JavaScript Summary Generator
-// File: 05-summary.step.js
-```javascript
-// Final summary step - JavaScript
-export const config = {
-  type: 'event',
-  name: 'summaryGenerator',
-  description: 'Generate final summary in JavaScript',
-  
-  subscribes: ['app.completed'],
-  emits: ['summary.generated'],
-  
-  flows: ['data-processing']
-}
-
-export const handler = async (input, { logger, emit }) => {
-  logger.info('📊 Generating final summary in JavaScript', { 
-    appId: input.appId,
-    status: input.status 
-  })
-  
-  // Calculate processing metrics
-  const processingTime = new Date() - new Date(input.completed_at)
-  const stepsCount = input.steps_executed.length
-  
-  // Create comprehensive summary
-  const summary = {
-    appId: input.appId,
-    finalStatus: input.status,
-    totalSteps: stepsCount,
-    processingTimeMs: Math.abs(processingTime),
-    languages: ['TypeScript', 'Python', 'JavaScript'],
-    summary: `Multi-language app completed successfully with ${stepsCount} steps`,
-    result: input.result,
-    completedAt: new Date().toISOString(),
-    generatedBy: 'javascript-summary-step'
-  }
-  
-  // Emit final summary
-  await emit({
-    topic: 'summary.generated',
-    data: summary
-  })
-  
-  logger.info('✨ Final summary generated successfully', summary)
-  
-  return summary
-}
-```
-
-## What Happens Next?
-
-![motia-build-your-app](/docs-images/motia-build-your-app-2.gif)
-
-Watch in the **Workbench** (`http://localhost:3000`) as your data flows through:
-
-1. **TypeScript** API receives and validates the request
-2. **TypeScript** bridge processes and forwards data
-3. **Python** processes it with proper logging (access to numpy, pandas, torch, etc.)
-4. **TypeScript** handles notifications with full type safety
-5. **JavaScript** generates final summary with metrics
-
-All languages working together in one unified system with:
-- ✅ **Automatic observability** - see every step in real-time
-- ✅ **Built-in error handling** - retry logic included
-- ✅ **Shared state** - pass data between languages effortlessly
-- ✅ **Hot reload** - edit any file and see changes instantly
-- ✅ **Type safety** - proper TypeScript types throughout
-- ✅ **Input validation** - Zod schema validation for APIs
-- ✅ **Multi-language** - JavaScript, TypeScript, and Python working together
-
-## Deploy and Extend
-
-**You just built a production-ready multi-language Motia app!**
-
-Extend your app:
-- Add scheduled jobs with `cron` steps
-- Create UI components with React/Vue steps
-- Connect to databases, APIs, and external services
-- Scale to handle millions of requests
-
-Ready to deploy? Check out [Motia Cloud deployment](/docs/concepts/deployment/motia-cloud) for one-click production deployments.
-
-<Callout>
-**Ready to build more?** Check out our [Getting Started Guide](/docs/getting-started/quick-start) for more details.
-</Callout>
-
+-   [index](/docs/): Documentation for index.
+---
+title: Welcome to Motia
+description: Motia is an all-in-one framework for modern backend systems. Out of the box support for API endpoints, background jobs, scheduled tasks and agentic workflow orchestration through a unified runtime. Thanks to its event driven architecture you can run tasks in parallel, stream data to clients, or allow for seamless orchestration of flows. What used to take 5 frameworks to build now comes out of the box with Motia.
 ---
 
-**The bottom line:** Motia eliminates the complexity of managing separate runtimes. Write each piece in the best language for the job, and Motia handles the rest.
-
-
--   [core-concepts](/docs/getting-started/core-concepts): Documentation for core-concepts.
----
-title: Core Concepts
-description: Understand the fundamental concepts behind Motia - the unified platform for modern backend systems.
----
-
-# Core Concepts
-
-**Motia unifies what used to require 5+ different frameworks:** APIs, background jobs, workflows, AI agents, real-time streams, and state management - all with built-in observability and multi-language support.
-
-## The Unified Backend Vision
-
-Traditional backend development is fragmented. You need one framework for APIs, another for background jobs, separate tools for queues, workflows, AI agents, and real-time features. Each tool has different configs, different deployment strategies, and different observability approaches.
-
-**Motia changes this.** Everything becomes a **Step** - a single primitive that handles all backend patterns with unified state, events, and observability.
-
-<Callout type="info">
-**🌍 The Multi-Language Advantage** 
-
-Use **TypeScript** for APIs, **Python** for AI/ML, **JavaScript** for frontend logic - all in one unified system. Motia handles type safety, validation, and seamless communication between languages automatically.
-</Callout>
-
-## 🏗️ **Core Concept 1:** Steps - The Universal Backend Primitive
-
-**Steps are the building blocks of everything in Motia.** Like React components for the frontend, Steps are composable units that handle any backend pattern.
-
-### The Three Step Types
-
-#### 🌐 **API Steps** - HTTP Endpoints & REST APIs
-Transform any function into a production-ready API endpoint with automatic validation, error handling, and observability.
-
-```typescript title="user-api.step.ts"
-import { Handlers } from 'motia'
-
-// Create a REST API endpoint
-export const config = {
-  type: 'api' as const,
-  path: '/users/:id',
-  method: 'GET' as const,
-  emits: ['user.fetched']
-}
-
-// Handler processes the request
-export const handler: Handlers['GetUser'] = async (req, { logger, emit }) => {
-  const userId = req.pathParams.id
-  logger.info('Fetching user', { userId })
-  
-  // Emit event for next steps
-  await emit({
-    topic: 'user.fetched',
-    data: { userId, status: 'active' }
-  })
-  
-  return { status: 200, body: { message: 'User fetched' } }
-}
-```
-
-#### ⚡ **Event Steps** - Background Processing & Workflows  
-React to events from other steps. Handle business logic, data processing, AI workflows, and complex orchestration.
-
-```python title="process-user.step.py"
-config = {
-    'type': 'event',
-    'subscribes': ['user.fetched'],
-    'emits': ['user.processed']
-}
-
-# Process data with Python libraries (pandas, numpy, torch, etc.)
-async def handler(user_data, context):
-    # Your business logic here
-    processed_user = analyze_user_behavior(user_data)
-    
-    await context.emit({
-        'topic': 'user.processed',
-        'data': processed_user
-    })
-```
-
-#### ⏰ **Cron Steps** - Scheduled Jobs & Automation
-Run tasks on schedules - from simple cleanups to complex data pipelines and AI agent workflows.
-
-```typescript title="daily-report.step.ts"
-import { Handlers } from 'motia'
-
-export const config = {
-  type: 'cron',
-  schedule: '0 9 * * MON-FRI', // Weekdays at 9 AM
-  emits: ['report.generated']
-}
-
-// Handler runs on schedule
-export const handler: Handlers['DailyReport'] = async (input, { logger, emit }) => {
-  logger.info('Generating daily report')
-  
-  const report = {
-    date: new Date().toISOString(),
-    metrics: { users: 1250, revenue: 15000 }
-  }
-  
-  await emit({
-    topic: 'report.generated',
-    data: report
-  })
-}
-```
-
-## 🔄 **Core Concept 2:** Flows - Orchestrating Multi-System Workflows
-
-**Flows organize your steps into logical workflows.** Steps connect through topics - when one step emits an event, other steps can subscribe and react. This creates powerful data pipelines that span multiple languages and services.
-
-<Mermaid
-  chart="
-graph LR
-    A[TypeScript API] --> B[Python AI Agent]
-    B --> C[JavaScript Analytics]  
-    C --> D[TypeScript Notification]
-    
-    style A fill:#3178c6,color:#fff
-    style B fill:#3776ab,color:#fff  
-    style C fill:#f7df1e,color:#000
-    style D fill:#3178c6,color:#fff"
-/>
-
-### Real-World Flow Example
-
-```typescript title="01-api.step.ts"
-import { Handlers } from 'motia'
-
-// API receives request → triggers AI processing → generates analytics → sends notifications
-export const config = {
-  type: 'api',
-  path: '/analyze-document',
-  emits: ['document.received'],
-  flows: ['document-intelligence']
-}
-
-export const handler: Handlers['AnalyzeDocument'] = async (req, { logger, emit }) => {
-  logger.info('Document received for analysis')
-  
-  await emit({
-    topic: 'document.received',
-    data: { document: req.body, timestamp: new Date() }
-  })
-  
-  return { status: 200, body: { message: 'Document queued for analysis' } }
-}
-```
-
-```python title="02-ai-processor.step.py"
-config = {
-    'type': 'event',
-    'subscribes': ['document.received'],
-    'emits': ['document.analyzed'],
-    'flows': ['document-intelligence']
-}
-
-# Use Python AI libraries (transformers, torch, etc.)
-async def handler(document, context):
-    analysis = await ai_model.analyze(document.content)
-    await context.emit('document.analyzed', analysis)
-```
-
-```javascript title="03-analytics.step.js"
-// JavaScript handles final processing and notifications
-export const config = {
-  type: 'event',
-  subscribes: ['document.analyzed'],
-  emits: ['analytics.complete'],
-  flows: ['document-intelligence']
-}
-
-export const handler = async (analysis, { logger, emit }) => {
-  logger.info('Processing analytics', { documentId: analysis.id })
-  
-  const metrics = {
-    confidence: analysis.confidence,
-    processingTime: Date.now() - analysis.startTime,
-    categories: analysis.categories.length
-  }
-  
-  await emit({
-    topic: 'analytics.complete',
-    data: { documentId: analysis.id, metrics }
-  })
-}
-```
-
-## 🗄️ **Core Concept 3:** State Management - Shared Data Across Languages
-
-**Motia provides built-in state management** that works seamlessly across different programming languages. No need for external databases or complex state synchronization - Motia handles it automatically.
-
-```typescript title="user-state.ts"
-export class UserState {
-  constructor(private readonly state: InternalStateManager) {}
-
-  async getUser(id: string): Promise<User | null> {
-    return this.state.get<User>('user', id)
-  }
-
-  async setUser(id: string, user: User) {
-    await this.state.set('user', id, user)
-  }
-}
-
-// In your step handler
-export const handler: Handlers['UpdateUser'] = async (req, { state }) => {
-  const userState = new UserState(state)
-  
-  // Update user state
-  await userState.setUser('123', {
-    status: 'processing',
-    lastUpdated: new Date()
-  })
-}
-```
-
-```python title="ai-processor.py"
-# Python step reads the same state  
-def handler(input_data, context):
-    # Access state through context
-    user_data = context['state'].get('user', '123')
-    print(f"User status: {user_data['status']}")
-    
-    # Update state from Python
-    updated_user = {**user_data, 'aiScore': 0.95}
-    context['state'].set('user', '123', updated_user)
-```
-
-<Callout type="success">
-**🔄 Automatic State Synchronization**
-
-State changes are automatically synchronized across all steps, regardless of the programming language. TypeScript, Python, and JavaScript steps all share the same state seamlessly.
-</Callout>
-
-## 🌊 **Core Concept 4:** Real-Time Streams - Live Data to Clients
-
-**Streams provide real-time data flow** from your backend to any client application. Define your data structure once, and Motia automatically streams updates to subscribed clients.
-
-```typescript title="user-activity.stream.ts"
-import { StreamConfig } from 'motia'
-import { z } from 'zod'
-
-const UserActivitySchema = z.object({
-  userId: z.string(),
-  activity: z.string(),
-  timestamp: z.date()
-})
-
-export const config: StreamConfig = {
-  name: 'userActivity',
-  schema: UserActivitySchema,
-  baseConfig: { storageType: 'default' }
-}
-```
-
-```typescript title="update-activity.step.ts"
-// Update stream from any step handler
-export const handler: Handlers['UpdateActivity'] = async (req, { streams }) => {
-  const activityId = crypto.randomUUID()
-  
-  // Set data in the stream
-  await streams.userActivity.set('activity', activityId, {
-    userId: '123',
-    activity: 'document-processed',
-    timestamp: new Date()
-  })
-}
-```
-
-```javascript title="client.js"
-// Client automatically receives real-time updates
-import { createStreamClient } from '@motia/stream-client'
-
-const client = createStreamClient({ url: 'ws://localhost:8080' })
-const stream = client.subscribe('userActivity')
-
-stream.on('data', (update) => {
-  console.log(`User ${update.userId}: ${update.activity}`)
-})
-```
-
-## 📊 **Core Concept 5:** Built-in Observability - See Everything
-
-**Motia includes enterprise-grade observability** without any configuration. Every step, flow, and state change is automatically tracked and visualized.
-
-### What You Get Out of the Box:
-
-- **🔍 Real-time Flow Visualization** - See your workflows executing live
-- **📊 Request Tracing** - Follow data through multi-language steps
-- **📈 Performance Metrics** - Automatic monitoring of all steps
-- **🐛 Error Tracking** - Centralized error handling and alerting
-- **📝 Structured Logging** - Consistent logs across all languages
-- **⚡ State Inspection** - Real-time view of shared state
-
-![Motia Workbench](./../img/new-workbench.png)
-
-## The Developer Experience
-
-### Local Development
-```bash
-npx motia dev
-```
-- **Visual Workbench** at `http://localhost:3000`
-- **Hot reload** for all languages
-- **Real-time debugging** of flows and state
-- **API testing** interface built-in
-
-### Production Deployment
-```bash
-motia cloud deploy --api-key <api-key> --version-name <version> [options]
-```
-- **Atomic deployments** with one-click rollbacks
-- **Multi-language builds** handled automatically
-- **Infrastructure abstraction** - no cloud provider lock-in
-- **Built-in scaling** for each step independently
-
-## Why This Matters
-
-**Before Motia:**
-- API Framework (Express, FastAPI, etc.)
-- Background Job System (Celery, Bull, etc.)  
-- Workflow Engine (Temporal, Airflow, etc.)
-- Message Queue (Redis, RabbitMQ, etc.)
-- Real-time System (Socket.io, etc.)
-- Observability Tools (DataDog, New Relic, etc.)
-- State Management (Database + ORM, etc.)
-
-**With Motia:**
-- **One framework** handles everything
-- **One config** file per step
-- **One deployment** command
-- **One observability** interface
-- **One state system** across all languages
-
----
-
-**Ready to see this in action?** Check out [Build Your First App](/docs/getting-started/build-your-first-app) to create a multi-language workflow in minutes.
-
--   [project-structure](/docs/getting-started/project-structure): Documentation for project-structure.
+## Why use Motia
+
+Today, backend engineers and software architects face several recurring problems. Motia was created to simplify these common backend engineering challenges in a flexible and elegant way to provide world class developer experience while ensuring robust, event-driven infrastructure.
+
+- Unified vs. Fragmented backend
+  - Working with multiple Languages
+- Scalability
+- Observability
+- Fault tolerance
+- Building and shipping
+  - Rollbacks and deployment strategies
+- Real-time data streaming
+
+## How Motia simplifies all of this?
+
+Similar to how React simplified frontend development where everything is a component, Motia simplifies backend development where everything is a Step. In Motia, every backend pattern becomes a group of compensable steps with unified state, events and observability. In this way, engineers only have to learn a few concepts about how a Motia Step works, and they get an enterprise-grade event-driven system out of the box.
+
+- Steps represent a distinct entry point
+- Steps can have different triggers
+  - API Call _(Triggered by an HTTP request)_
+  - Event _(Triggered by an event from another Step)_
+  - CRON Job _(Triggered by a cron schedule)_
+  - More will come soon (Check the [Roadmap](https://github.com/orgs/MotiaDev/projects/2?pane=issue&itemId=121129696&issue=MotiaDev%7Cmotia%7C477))
+- Steps are composable and can be chained together
+
+![Motia](./img/what-is-motia/motia.gif)
+
+## Unified vs. Fragmented backend
+
+Modern software engineering is splintered. APIs live in one framework, background jobs in another, queues have their own tooling, and AI agents are springing up in yet more isolated runtimes. Motia exists to unify all of these concerns API endpoints, automations & workflows, background tasks, queues, and AI agents into a single, coherent system with shared observability and developer experience.
+
+To read more about this, check out our [manifesto](/manifesto).
+
+### Working with multiple Languages
+
+The rapid advancement of AI has reshaped the software industry—many cutting-edge AI tools are available only in specific programming languages, this forces companies to decide if they either change their team's skillset to a different language or not leveraging these technologies at all.
+
+Motia removes this limitation by allowing each Step to be written in any language, while still sharing a common state.
+
+![Multi-language](./img/what-is-motia/multi-language.png)
+
+_Each rectangle in the diagram above represents a Step, some of them are in TypeScript and others in Python._
+
+## Scalability
+
+One of the biggest dilemmas in backend development is choosing between scalability and development velocity. In startup environments, speed often takes priority, resulting in systems that don't scale well and become problematic under increased load.
+
+Motia addresses scalability by leveraging the core primitive of **Steps**: Each step can scale independently avoiding the bottlenecks common in monolithic architectures.
+
+![Scalable](./img/what-is-motia/scalable.png)
+
+## Observability
+
+Observability in traditional backends often demands significant engineering effort to implement logging, alerting, and tracing. Typically, these tools are only configured for cloud environments, local development is generally neglected—leading to low productivity and poor dev experience.
+
+Motia offers a complete observability toolkit available in both cloud and local environments, including:
+
+- Logs visualization
+- Tracing tool to quickly visualize the flow of requests through the system
+- State visualization
+- Diagram representation of dependencies between steps and how they are connected
+
+_The image below shows the Workbench interface available when you run `motia dev`. On the top panel you can see a workflow diagram with multiple steps connected.
+On the bottom panel you can see the trace view of a single request and what happened in each step._
+
+![Motia Workbench](./img/new-workbench.png)
+
+## Fault tolerance
+
+With the rise of AI, many backend tasks have become less deterministic and more error-prone. These scenarios require robust error handling and retry mechanisms. In traditional systems, developers often need to set up and maintain queue infrastructures to ensure resilience, especially when dealing with unreliable responses from LLMs.
+
+Motia provides fault tolerance out of the box, eliminating the need to manually spin up queue infrastructure.
+
+- Using Event Steps, you get retry mechanisms out of the box
+- Configuration of queue infrastructure is abstracted away
+
+## Building and Shipping
+
+Building and deploying backends is inherently complex—especially in polyglot environments. Shipping production systems requires tight collaboration between developers and operations, and automation often takes weeks to get right.
+
+Beyond that, cloud provider lock-in, complicated deployment strategies (e.g., rollbacks, blue/green deployments), and a lack of deployment tooling increase the risk of failure.
+
+Motia abstracts these concerns by providing:
+
+- True cloud-provider agnosticism
+- Atomic blue/green deployments and one-click rollbacks via Motia Cloud (canary support coming soon)
+- First-class polyglot backend support (currently Node.js and Python, with more on the way)
+
+![Deployments](./img/what-is-motia/deployments.png)
+
+_The image above shows several Steps being build to a single Motia deployable that are ultimately deployed to a cloud provider of your choice. 
+Currently we're supporting AWS and Kubernetes, more Cloud providers coming soon. Check our [roadmap](https://github.com/orgs/MotiaDev/projects/2/views/4?filterQuery=title%3A+BYOC) for more details._
+
+### Rollbacks and deployment strategies
+
+Deploying cloud-native, fault-tolerant applications often involves modifying queue systems and other infrastructure components. 
+These changes can introduce incompatibilities and lead to runtime failures.
+
+Motia Cloud solves this with **Atomic Deployments**, which:
+
+- Each deployment spins up a new isolated service that shares the same data layer
+- Ensures safe, rollback-capable deployments without risking service downtime
+- Instant rollbacks with one click since each deployment is isolated
+
+## Real-time data streaming
+
+Handling real-time data is one of the most common—and complex—challenges in backend development. It's necessary when building event-driven applications, 
+and it typically requires setting up and maintaining a significant amount of infrastructure.
+
+Motia provides what we call _Streams_: Developers define the structure of the data—any changes to these objects are streamed to all subscribed clients in real-time.
+
+![Real-time data streaming](./img/what-is-motia/streams.png)
+
+_The image above shows a Stream definition, a Node.js Step mutating the data and a client subscribing to the stream receiving real-time updates._
+
+-   [project-structure](/docs/project-structure): Documentation for project-structure.
 ---
 title: Project Structure
 description: Learn about Motia's project structure, file organization, and automatic step discovery system for building scalable workflow applications.
@@ -8357,16 +10062,16 @@ Here's what a typical Motia project looks like:
 
 | File | Purpose | Type | Auto-Generated |
 |------|---------|------|----------------|
-| `01-api-gateway.step.ts` | TypeScript API endpoint | User Code | ❌ |
-| `02-data-processor.step.py` | Python data processing | User Code | ❌ |
-| `03-send-notification.step.js` | JavaScript automation | User Code | ❌ |
-| `custom-ui.step.tsx` | Optional UI component | User Code | ❌ |
-| `package.json` | Node.js dependencies (if using JS/TS) | Config | ❌ |
-| `requirements.txt` | Python dependencies (if using Python) | Config | ❌ |
-| `tsconfig.json` | TypeScript config (if using TypeScript) | Config | ❌ |
+| `01-api-gateway.step.ts` | TypeScript API endpoint | User Code | - |
+| `02-data-processor.step.py` | Python data processing | User Code | - |
+| `03-send-notification.step.js` | JavaScript automation | User Code | - |
+| `custom-ui.step.tsx` | Optional UI component | User Code | - |
+| `package.json` | Node.js dependencies (if using JS/TS) | Config | - |
+| `requirements.txt` | Python dependencies (if using Python) | Config | - |
+| `tsconfig.json` | TypeScript config (if using TypeScript) | Config | - |
 | `types.d.ts` | **Type definitions for your project** | **Generated** | **✅ By TypeScript** |
 | `motia-workbench.json` | **🤖 Visual workflow positioning** | **Generated** | **✅ By Motia** |
-| `config.yml` | Optional Motia configuration | Config | ❌ |
+| `config.yml` | Optional Motia configuration | Config | - |
 
 <Callout type="info">
 The `steps/` directory is the heart of your Motia application - this is where all your workflow logic lives. Motia automatically discovers and registers any file following the naming pattern.
@@ -8384,7 +10089,7 @@ Motia will automatically discover and register **any file** that follows the `.s
 
 Motia scans your `steps/` directory and automatically registers files as steps based on these rules:
 
-1. **File must contain `.step.` in the filename** (e.g., `my-task.step.ts`)
+1. **File must contain `.step.` or `_step.` in the filename** (e.g., `my-task.step.ts`, `my_task_step.py`)
 2. **File must export a `config` object** defining the step configuration
 3. **File must export a `handler` function** containing the step logic
 4. **File extension determines the runtime** (`.ts` = TypeScript, `.py` = Python, `.js` = JavaScript)
@@ -8420,10 +10125,10 @@ The `.step.` part in the filename is **required** - this is how Motia identifies
 
 | Step Type | TypeScript | Python | JavaScript |
 |-----------|------------|---------|-----------|
-| **API Endpoint** | `01-auth-api.step.ts` | `01-auth-api.step.py` | `01-auth-api.step.js` |
-| **Event Handler** | `process-order.step.ts` | `process-order.step.py` | `process-order.step.js` |
-| **Cron Job** | `daily-report.step.ts` | `daily-report.step.py` | `daily-report.step.js` |
-| **Data Processing** | `transform-data.step.ts` | `ml-analysis.step.py` | `data-cleanup.step.js` |
+| **API Endpoint** | `01-auth-api.step.ts` | `01-auth-api.step.py` or `auth_api_step.py` | `01-auth-api.step.js` |
+| **Event Handler** | `process-order.step.ts` | `process-order.step.py` or `process_order_step.py` | `process-order.step.js` |
+| **Cron Job** | `daily-report.step.ts` | `daily-report.step.py` or `daily_report_step.py` | `daily-report.step.js` |
+| **Data Processing** | `transform-data.step.ts` | `ml-analysis.step.py` or `ml_analysis_step.py` | `data-cleanup.step.js` |
 
 ## Step Organization Patterns
 
@@ -8841,201 +10546,10 @@ motia dev
 
 Now that you understand how Motia discovers and organizes steps:
 
-- Learn about [Core Concepts](/docs/getting-started/core-concepts) to understand how steps work together
+- Learn about [Core Concepts](/docs/concepts) to understand how steps work together
 - Explore [Defining Steps](/docs/concepts/steps/defining-steps) for detailed step creation
 - Check out [API Steps](/docs/concepts/steps/api) for creating HTTP endpoints
 - Dive into [Event Steps](/docs/concepts/steps/event) for workflow orchestration
-
--   [quick-start](/docs/getting-started/quick-start): Documentation for quick-start.
----
-title: Quick Start
-description: Get up and running with a new Motia project in just a few seconds.
----
-<Steps>
-
-<Step>
-### 1. Create Your Project
-
-Use `npx` to create a new Motia project. This single command will scaffold a new application and install all necessary dependencies.
-
-```bash
-npx motia@latest create -i
-```
-
-![Create App Command](/docs-images/motia-build-your-app-1.gif)
-
-The installer will guide you through a few questions to set up your project. Once it's done, you will have a new project directory ready to go.
-
-</Step>
-
-<Step>
-### 2. Start the Development Server
-
-Navigate into your new project directory and start the Motia development server.
-
-```bash
-cd <your-project-name> # If you've created a new folder for the project, navigate into it
-
-npx motia dev
-```
-
-![run dev command](/docs-images/motia-build-your-app-2.png)
-
-<Callout>
-The `create` command uses `npm` by default. If you chose a different package manager during setup, use `pnpm dev`, `yarn dev`, or `bun dev`.
-</Callout>
-
-This command starts the Motia runtime and the Workbench, a powerful UI for developing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
-
-</Step>
-
-<Step>
-### 3. Run Your First Flow
-
-The starter project comes with a pre-built `default` flow. Let's run it.
-
-1.  **Open the Workbench** in your browser at [`http://localhost:3000`](http://localhost:3000).
-2.  **Select the `default` flow** from the left top panel.
-3.  **Run the flow.** You'll see a visual diagram of the workflow. Find the first node (the API Step) and click the **Start** button on it. This will trigger the flow.
-4.  **Observe the execution.** Watch the trace unfold in real-time in the bottom panel. You can inspect the logs, traces and state for each step as it completes.
-5.  **Explore the Workbench.** You can also read your files directly from the Workbench.
-
-![run starter app](/docs-images/motia-build-your-app.gif)
-
-</Step>
-
-<Step>
-### Next Steps
-
-Congratulations! You've successfully created, run, and observed your first Motia workflow.
-
-- To build a multi-language application from scratch, follow our **[Build Your First App](/docs/getting-started/build-your-first-app)** guide.
-- To learn about Motia, dive into our **[Welcome to Motia](/docs)**.
-
-</Step>
-</Steps>
-
-
--   [index](/docs/): Documentation for index.
----
-title: Welcome to Motia
-description: Motia is an all-in-one framework for modern backend systems. Out of the box support for API endpoints, background jobs, scheduled tasks and agentic workflow orchestration through a unified runtime. Thanks to its event driven architecture you can run tasks in parallel, stream data to clients, or allow for seamless orchestration of flows. What used to take 5 frameworks to build now comes out of the box with Motia.
----
-
-## Why use Motia
-
-Today, backend engineers and software architects face several recurring problems. Motia was created to simplify these common backend engineering challenges in a flexible and elegant way to provide world class developer experience while ensuring robust, event-driven infrastructure.
-
-- Unified vs. Fragmented backend
-  - Working with multiple Languages
-- Scalability
-- Observability
-- Fault tolerance
-- Building and shipping
-  - Rollbacks and deployment strategies
-- Real-time data streaming
-
-## How Motia simplifies all of this?
-
-Similar to how React simplified frontend development where everything is a component, Motia simplifies backend development where everything is a Step. In Motia, every backend pattern becomes a group of compensable steps with unified state, events and observability. In this way, engineers only have to learn a few concepts about how a Motia Step works, and they get an enterprise-grade event-driven system out of the box.
-
-- Steps represent a distinct entry point
-- Steps can have different triggers
-  - API Call _(Triggered by an HTTP request)_
-  - Event _(Triggered by an event from another Step)_
-  - CRON Job _(Triggered by a cron schedule)_
-  - More will come soon (Check the [Roadmap](https://github.com/orgs/MotiaDev/projects/2?pane=issue&itemId=121129696&issue=MotiaDev%7Cmotia%7C477))
-- Steps are composable and can be chained together
-
-![Motia](./img/what-is-motia/motia.gif)
-
-## Unified vs. Fragmented backend
-
-Modern software engineering is splintered. APIs live in one framework, background jobs in another, queues have their own tooling, and AI agents are springing up in yet more isolated runtimes. Motia exists to unify all of these concerns API endpoints, automations & workflows, background tasks, queues, and AI agents into a single, coherent system with shared observability and developer experience.
-
-To read more about this, check out our [manifesto](/manifesto).
-
-### Working with multiple Languages
-
-The rapid advancement of AI has reshaped the software industry—many cutting-edge AI tools are available only in specific programming languages, this forces companies to decide if they either change their team's skillset to a different language or not leveraging these technologies at all.
-
-Motia removes this limitation by allowing each Step to be written in any language, while still sharing a common state.
-
-![Multi-language](./img/what-is-motia/multi-language.png)
-
-_Each rectangle in the diagram above represents a Step, some of them are in TypeScript and others in Python._
-
-## Scalability
-
-One of the biggest dilemmas in backend development is choosing between scalability and development velocity. In startup environments, speed often takes priority, resulting in systems that don't scale well and become problematic under increased load.
-
-Motia addresses scalability by leveraging the core primitive of **Steps**: Each step can scale independently avoiding the bottlenecks common in monolithic architectures.
-
-![Scalable](./img/what-is-motia/scalable.png)
-
-## Observability
-
-Observability in traditional backends often demands significant engineering effort to implement logging, alerting, and tracing. Typically, these tools are only configured for cloud environments, local development is generally neglected—leading to low productivity and poor dev experience.
-
-Motia offers a complete observability toolkit available in both cloud and local environments, including:
-
-- Logs visualization
-- Tracing tool to quickly visualize the flow of requests through the system
-- State visualization
-- Diagram representation of dependencies between steps and how they are connected
-
-_The image below shows the Workbench interface available when you run `motia dev`. On the top panel you can see a workflow diagram with multiple steps connected.
-On the bottom panel you can see the trace view of a single request and what happened in each step._
-
-![Motia Workbench](./img/new-workbench.png)
-
-## Fault tolerance
-
-With the rise of AI, many backend tasks have become less deterministic and more error-prone. These scenarios require robust error handling and retry mechanisms. In traditional systems, developers often need to set up and maintain queue infrastructures to ensure resilience, especially when dealing with unreliable responses from LLMs.
-
-Motia provides fault tolerance out of the box, eliminating the need to manually spin up queue infrastructure.
-
-- Using Event Steps, you get retry mechanisms out of the box
-- Configuration of queue infrastructure is abstracted away
-
-## Building and Shipping
-
-Building and deploying backends is inherently complex—especially in polyglot environments. Shipping production systems requires tight collaboration between developers and operations, and automation often takes weeks to get right.
-
-Beyond that, cloud provider lock-in, complicated deployment strategies (e.g., rollbacks, blue/green deployments), and a lack of deployment tooling increase the risk of failure.
-
-Motia abstracts these concerns by providing:
-
-- True cloud-provider agnosticism
-- Atomic blue/green deployments and one-click rollbacks via Motia Cloud (canary support coming soon)
-- First-class polyglot backend support (currently Node.js and Python, with more on the way)
-
-![Deployments](./img/what-is-motia/deployments.png)
-
-_The image above shows several Steps being build to a single Motia deployable that are ultimately deployed to a cloud provider of your choice. 
-Currently we're supporting AWS and Kubernetes, more Cloud providers coming soon. Check our [roadmap](https://github.com/orgs/MotiaDev/projects/2/views/4?filterQuery=title%3A+BYOC) for more details._
-
-### Rollbacks and deployment strategies
-
-Deploying cloud-native, fault-tolerant applications often involves modifying queue systems and other infrastructure components. 
-These changes can introduce incompatibilities and lead to runtime failures.
-
-Motia Cloud solves this with **Atomic Deployments**, which:
-
-- Each deployment spins up a new isolated service that shares the same data layer
-- Ensures safe, rollback-capable deployments without risking service downtime
-- Instant rollbacks with one click since each deployment is isolated
-
-## Real-time data streaming
-
-Handling real-time data is one of the most common—and complex—challenges in backend development. It's necessary when building event-driven applications, 
-and it typically requires setting up and maintaining a significant amount of infrastructure.
-
-Motia provides what we call _Streams_: Developers define the structure of the data—any changes to these objects are streamed to all subscribed clients in real-time.
-
-![Real-time data streaming](./img/what-is-motia/streams.png)
-
-_The image above shows a Stream definition, a Node.js Step mutating the data and a client subscribing to the stream receiving real-time updates._
 
 -   [ai-deep-research-agent](/docs/real-world-use-cases/ai-deep-research-agent): Documentation for ai-deep-research-agent.
 ---

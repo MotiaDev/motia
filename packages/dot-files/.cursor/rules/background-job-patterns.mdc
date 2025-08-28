@@ -1,0 +1,628 @@
+---
+description: Background job patterns for handling asynchronous tasks, scheduled jobs, and long-running processes
+globs: 
+alwaysApply: false
+---
+# Background Job Patterns
+
+Implement robust background processing systems for asynchronous tasks, scheduled jobs, and long-running processes.
+
+## Event-Driven Job Processing
+
+### Job Queue System
+
+```typescript
+// steps/jobs/job-processor.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'JobProcessor',
+  description: 'Process background jobs from the job queue',
+  subscribes: ['job.enqueued', 'job.retry'],
+  emits: ['job.started', 'job.completed', 'job.failed', 'job.retry.scheduled'],
+  input: z.object({
+    jobId: z.string(),
+    type: z.string(),
+    payload: z.record(z.any()),
+    priority: z.enum(['low', 'medium', 'high']).default('medium'),
+    attempts: z.number().default(0),
+    maxAttempts: z.number().default(3),
+    delayUntil: z.string().optional(),
+    createdBy: z.string().optional()
+  }),
+  flows: ['job-processing']
+}
+
+export const handler: Handlers['JobProcessor'] = async (input, { emit, logger, state }) => {
+  const { jobId, type, payload, attempts, maxAttempts, createdBy } = input
+  
+  try {
+    // Update job status to processing
+    await state.set('jobs', jobId, {
+      ...input,
+      status: 'processing',
+      startedAt: new Date().toISOString(),
+      attempts: attempts + 1
+    })
+    
+    await emit({
+      topic: 'job.started',
+      data: { jobId, type, attempt: attempts + 1 }
+    })
+    
+    // Process job based on type
+    const result = await processJob(type, payload, { state, logger })
+    
+    // Mark job as completed
+    await state.set('jobs', jobId, {
+      ...input,
+      status: 'completed',
+      result,
+      completedAt: new Date().toISOString(),
+      attempts: attempts + 1
+    })
+    
+    await emit({
+      topic: 'job.completed',
+      data: { jobId, type, result, duration: calculateDuration(input) }
+    })
+    
+    logger.info('Job completed successfully', { jobId, type, attempts: attempts + 1 })
+    
+  } catch (error) {
+    const currentAttempts = attempts + 1
+    logger.error('Job processing failed', { 
+      error: error.message, 
+      jobId, 
+      type, 
+      attempts: currentAttempts 
+    })
+    
+    // Check if we should retry
+    if (currentAttempts < maxAttempts && isRetryableError(error)) {
+      const delay = calculateRetryDelay(currentAttempts)
+      const retryAt = new Date(Date.now() + delay).toISOString()
+      
+      await state.set('jobs', jobId, {
+        ...input,
+        status: 'failed',
+        error: error.message,
+        attempts: currentAttempts,
+        retryAt,
+        lastFailedAt: new Date().toISOString()
+      })
+      
+      await emit({
+        topic: 'job.retry.scheduled',
+        data: { 
+          jobId, 
+          type, 
+          attempt: currentAttempts, 
+          retryAt, 
+          delay 
+        }
+      })
+    } else {
+      // Max attempts reached or non-retryable error
+      await state.set('jobs', jobId, {
+        ...input,
+        status: 'failed',
+        error: error.message,
+        attempts: currentAttempts,
+        failedAt: new Date().toISOString()
+      })
+      
+      await emit({
+        topic: 'job.failed',
+        data: { 
+          jobId, 
+          type, 
+          error: error.message, 
+          finalAttempt: currentAttempts,
+          createdBy 
+        }
+      })
+    }
+  }
+}
+
+async function processJob(type: string, payload: any, context: any) {
+  switch (type) {
+    case 'email':
+      return await processEmailJob(payload, context)
+    case 'image_processing':
+      return await processImageJob(payload, context)
+    case 'data_export':
+      return await processDataExportJob(payload, context)
+    case 'report_generation':
+      return await processReportJob(payload, context)
+    default:
+      throw new Error(`Unknown job type: ${type}`)
+  }
+}
+
+function isRetryableError(error: any): boolean {
+  // Define which errors should be retried
+  const retryableErrors = [
+    'NETWORK_ERROR',
+    'TIMEOUT',
+    'RATE_LIMIT',
+    'TEMPORARY_FAILURE'
+  ]
+  
+  return retryableErrors.some(type => 
+    error.message.includes(type) || error.code === type
+  )
+}
+
+function calculateRetryDelay(attempt: number): number {
+  // Exponential backoff with jitter
+  const baseDelay = 1000 // 1 second
+  const maxDelay = 300000 // 5 minutes
+  const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay)
+  
+  // Add jitter (±25%)
+  const jitter = delay * 0.25 * (Math.random() - 0.5)
+  return Math.round(delay + jitter)
+}
+```
+
+### Job Scheduler
+
+```typescript
+// steps/jobs/job-scheduler.step.ts
+import { CronConfig, Handlers } from 'motia'
+
+export const config: CronConfig = {
+  type: 'cron',
+  name: 'JobScheduler',
+  description: 'Process scheduled and delayed jobs',
+  cron: '*/10 * * * * *', // Every 10 seconds
+  emits: ['job.enqueued'],
+  flows: ['job-scheduling']
+}
+
+export const handler: Handlers['JobScheduler'] = async ({ emit, logger, state }) => {
+  try {
+    const now = new Date().toISOString()
+    
+    // Get jobs that are ready to be processed
+    const readyJobs = await getJobsReadyForProcessing(now, state)
+    
+    for (const job of readyJobs) {
+      // Emit job for processing
+      await emit({
+        topic: 'job.enqueued',
+        data: job
+      })
+      
+      // Update job status
+      await state.set('jobs', job.jobId, {
+        ...job,
+        status: 'queued',
+        queuedAt: now
+      })
+    }
+    
+    if (readyJobs.length > 0) {
+      logger.info('Jobs scheduled for processing', { count: readyJobs.length })
+    }
+    
+    // Clean up old completed jobs
+    await cleanupOldJobs(state, logger)
+    
+  } catch (error) {
+    logger.error('Job scheduler failed', { error: error.message })
+  }
+}
+
+async function getJobsReadyForProcessing(now: string, state: any) {
+  // Get all jobs that are scheduled or need retry
+  const allJobs = await state.getGroup('jobs') || {}
+  
+  return Object.values(allJobs).filter((job: any) => {
+    return (job.status === 'scheduled' && job.delayUntil && job.delayUntil <= now) ||
+           (job.status === 'failed' && job.retryAt && job.retryAt <= now)
+  })
+}
+
+async function cleanupOldJobs(state: any, logger: any) {
+  const cutoffDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const allJobs = await state.getGroup('jobs') || {}
+  
+  let cleanedCount = 0
+  for (const [jobId, job] of Object.entries(allJobs)) {
+    if ((job as any).status === 'completed' && (job as any).completedAt < cutoffDate) {
+      await state.delete('jobs', jobId)
+      cleanedCount++
+    }
+  }
+  
+  if (cleanedCount > 0) {
+    logger.info('Cleaned up old completed jobs', { count: cleanedCount })
+  }
+}
+```
+
+## Specific Job Types
+
+### Email Processing Job
+
+```typescript
+// steps/jobs/email-processor.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'EmailProcessor',
+  description: 'Process email sending jobs',
+  subscribes: ['email.send.requested'],
+  emits: ['job.enqueued'],
+  input: z.object({
+    to: z.union([z.string().email(), z.array(z.string().email())]),
+    subject: z.string(),
+    templateId: z.string().optional(),
+    htmlContent: z.string().optional(),
+    textContent: z.string().optional(),
+    variables: z.record(z.any()).optional(),
+    attachments: z.array(z.object({
+      filename: z.string(),
+      content: z.string(), // base64 encoded
+      contentType: z.string()
+    })).optional(),
+    priority: z.enum(['low', 'medium', 'high']).default('medium'),
+    sendAt: z.string().optional(), // ISO timestamp for scheduled sending
+    userId: z.string().optional()
+  }),
+  flows: ['email-processing']
+}
+
+export const handler: Handlers['EmailProcessor'] = async (input, { emit, logger }) => {
+  try {
+    // Create email job
+    const jobId = crypto.randomUUID()
+    const emailJob = {
+      jobId,
+      type: 'email',
+      payload: input,
+      priority: input.priority,
+      maxAttempts: 3,
+      delayUntil: input.sendAt || new Date().toISOString(),
+      createdBy: input.userId
+    }
+    
+    // Enqueue the job
+    await emit({
+      topic: 'job.enqueued',
+      data: emailJob
+    })
+    
+    logger.info('Email job created', { 
+      jobId, 
+      recipients: Array.isArray(input.to) ? input.to.length : 1,
+      scheduled: !!input.sendAt 
+    })
+    
+  } catch (error) {
+    logger.error('Failed to create email job', { error: error.message })
+  }
+}
+
+async function processEmailJob(payload: any, context: any) {
+  const { to, subject, templateId, htmlContent, textContent, variables, attachments } = payload
+  
+  try {
+    let finalHtmlContent = htmlContent
+    let finalTextContent = textContent
+    
+    // Process template if provided
+    if (templateId) {
+      const template = await context.state.get('email-templates', templateId)
+      if (template) {
+        finalHtmlContent = processTemplate(template.html, variables || {})
+        finalTextContent = processTemplate(template.text, variables || {})
+      }
+    }
+    
+    // Send email(s)
+    const recipients = Array.isArray(to) ? to : [to]
+    const results = []
+    
+    for (const recipient of recipients) {
+      const result = await sendEmail({
+        to: recipient,
+        subject,
+        html: finalHtmlContent,
+        text: finalTextContent,
+        attachments
+      })
+      results.push({ recipient, messageId: result.messageId })
+    }
+    
+    return {
+      sent: results.length,
+      results,
+      timestamp: new Date().toISOString()
+    }
+  } catch (error) {
+    throw new Error(`Email sending failed: ${error.message}`)
+  }
+}
+
+function processTemplate(template: string, variables: Record<string, any>): string {
+  // Simple template variable substitution
+  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    return variables[key] || match
+  })
+}
+
+async function sendEmail(emailData: any) {
+  // Email service integration (SendGrid, SES, etc.)
+  return { messageId: crypto.randomUUID() }
+}
+```
+
+### Data Processing Job
+
+```typescript
+// steps/jobs/data-processor.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'DataProcessor',
+  description: 'Process large datasets in the background',
+  subscribes: ['data.processing.requested'],
+  emits: ['job.enqueued'],
+  input: z.object({
+    dataSource: z.string(), // file path, database query, etc.
+    processingType: z.enum(['transform', 'analyze', 'export', 'import']),
+    batchSize: z.number().default(1000),
+    outputDestination: z.string(),
+    filters: z.record(z.any()).optional(),
+    transformations: z.array(z.record(z.any())).optional(),
+    userId: z.string(),
+    priority: z.enum(['low', 'medium', 'high']).default('medium')
+  }),
+  flows: ['data-processing']
+}
+
+export const handler: Handlers['DataProcessor'] = async (input, { emit, logger }) => {
+  try {
+    const jobId = crypto.randomUUID()
+    
+    // Create data processing job
+    const dataJob = {
+      jobId,
+      type: 'data_processing',
+      payload: input,
+      priority: input.priority,
+      maxAttempts: 2, // Data jobs typically shouldn't be retried many times
+      createdBy: input.userId
+    }
+    
+    await emit({
+      topic: 'job.enqueued',
+      data: dataJob
+    })
+    
+    logger.info('Data processing job created', { 
+      jobId, 
+      type: input.processingType,
+      source: input.dataSource 
+    })
+    
+  } catch (error) {
+    logger.error('Failed to create data processing job', { error: error.message })
+  }
+}
+
+async function processDataProcessingJob(payload: any, context: any) {
+  const { dataSource, processingType, batchSize, outputDestination, filters, transformations } = payload
+  
+  try {
+    // Initialize processing
+    const processingStats = {
+      startTime: new Date().toISOString(),
+      totalRecords: 0,
+      processedRecords: 0,
+      errorRecords: 0,
+      batches: 0
+    }
+    
+    // Get data source
+    const dataIterator = await createDataIterator(dataSource, batchSize, filters)
+    
+    // Process data in batches
+    for await (const batch of dataIterator) {
+      processingStats.batches++
+      
+      try {
+        const processedBatch = await processBatch(batch, processingType, transformations)
+        await writeOutput(processedBatch, outputDestination)
+        
+        processingStats.processedRecords += batch.length
+      } catch (error) {
+        context.logger.error('Batch processing failed', { 
+          batch: processingStats.batches, 
+          error: error.message 
+        })
+        processingStats.errorRecords += batch.length
+      }
+      
+      processingStats.totalRecords += batch.length
+      
+      // Update progress periodically
+      if (processingStats.batches % 10 === 0) {
+        await updateProcessingProgress(processingStats, context.state)
+      }
+    }
+    
+    processingStats.endTime = new Date().toISOString()
+    processingStats.duration = new Date(processingStats.endTime).getTime() - 
+                               new Date(processingStats.startTime).getTime()
+    
+    return processingStats
+  } catch (error) {
+    throw new Error(`Data processing failed: ${error.message}`)
+  }
+}
+
+async function* createDataIterator(source: string, batchSize: number, filters: any) {
+  // Implementation would depend on data source type
+  // This is a simplified example
+  const totalRecords = 10000 // Would be determined from actual source
+  
+  for (let offset = 0; offset < totalRecords; offset += batchSize) {
+    const batch = await fetchDataBatch(source, offset, batchSize, filters)
+    if (batch.length === 0) break
+    yield batch
+  }
+}
+
+async function processBatch(batch: any[], type: string, transformations: any[]) {
+  switch (type) {
+    case 'transform':
+      return applyTransformations(batch, transformations || [])
+    case 'analyze':
+      return analyzeBatch(batch)
+    default:
+      return batch
+  }
+}
+```
+
+## Long-Running Process Management
+
+### Process Monitor
+
+```typescript
+// steps/jobs/process-monitor.step.ts
+import { CronConfig, Handlers } from 'motia'
+
+export const config: CronConfig = {
+  type: 'cron',
+  name: 'ProcessMonitor',
+  description: 'Monitor long-running processes and handle timeouts',
+  cron: '*/30 * * * * *', // Every 30 seconds
+  emits: ['process.timeout', 'process.status.updated'],
+  flows: ['process-monitoring']
+}
+
+export const handler: Handlers['ProcessMonitor'] = async ({ emit, logger, state }) => {
+  try {
+    const now = Date.now()
+    const timeoutThreshold = 30 * 60 * 1000 // 30 minutes
+    
+    // Get all running processes
+    const runningJobs = await getRunningJobs(state)
+    
+    for (const job of runningJobs) {
+      const startTime = new Date(job.startedAt).getTime()
+      const runningTime = now - startTime
+      
+      // Check for timeout
+      if (runningTime > timeoutThreshold) {
+        await handleJobTimeout(job, runningTime, { emit, state, logger })
+      }
+      
+      // Update process status
+      await updateJobStatus(job, runningTime, { emit, state })
+    }
+    
+    // Generate process health report
+    await generateProcessHealthReport(runningJobs, { emit, logger })
+    
+  } catch (error) {
+    logger.error('Process monitoring failed', { error: error.message })
+  }
+}
+
+async function getRunningJobs(state: any) {
+  const allJobs = await state.getGroup('jobs') || {}
+  return Object.values(allJobs).filter((job: any) => 
+    job.status === 'processing' && job.startedAt
+  )
+}
+
+async function handleJobTimeout(job: any, runningTime: number, context: any) {
+  const { emit, state, logger } = context
+  
+  // Mark job as timed out
+  await state.set('jobs', job.jobId, {
+    ...job,
+    status: 'timeout',
+    timedOutAt: new Date().toISOString(),
+    runningTime
+  })
+  
+  await emit({
+    topic: 'process.timeout',
+    data: {
+      jobId: job.jobId,
+      type: job.type,
+      runningTime,
+      startedAt: job.startedAt
+    }
+  })
+  
+  logger.warn('Job timed out', { 
+    jobId: job.jobId, 
+    type: job.type, 
+    runningTime 
+  })
+}
+
+async function generateProcessHealthReport(runningJobs: any[], context: any) {
+  const report = {
+    totalRunning: runningJobs.length,
+    byType: {},
+    averageRuntime: 0,
+    longestRunning: null,
+    timestamp: new Date().toISOString()
+  }
+  
+  const now = Date.now()
+  let totalRuntime = 0
+  
+  for (const job of runningJobs) {
+    const runtime = now - new Date(job.startedAt).getTime()
+    totalRuntime += runtime
+    
+    // Group by type
+    if (!report.byType[job.type]) {
+      report.byType[job.type] = { count: 0, totalRuntime: 0 }
+    }
+    report.byType[job.type].count++
+    report.byType[job.type].totalRuntime += runtime
+    
+    // Track longest running
+    if (!report.longestRunning || runtime > (now - new Date(report.longestRunning.startedAt).getTime())) {
+      report.longestRunning = { ...job, runtime }
+    }
+  }
+  
+  if (runningJobs.length > 0) {
+    report.averageRuntime = totalRuntime / runningJobs.length
+  }
+  
+  await context.emit({
+    topic: 'process.status.updated',
+    data: report
+  })
+}
+```
+
+This background job system provides:
+- Event-driven job processing with retry logic
+- Job scheduling and delayed execution
+- Specialized processors for different job types
+- Progress tracking and monitoring
+- Timeout handling and process health monitoring
+- Batch processing capabilities
+- Error handling and failure recovery
+- Job cleanup and maintenance

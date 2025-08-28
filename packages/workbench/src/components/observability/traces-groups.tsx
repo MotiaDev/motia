@@ -26,7 +26,7 @@ export const TracesGroups: React.FC<Props> = memo(({ groups, selectedGroupId, on
               data-testid={`trace-${group.id}`}
               key={group.id}
               className={cn(
-                'cursor-pointer transition-colors',
+                'motia-trace-group cursor-pointer transition-colors',
                 selectedGroupId === group.id ? 'bg-muted-foreground/10' : 'hover:bg-muted/70',
               )}
               onClick={() => onGroupSelect(group)}

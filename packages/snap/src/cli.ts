@@ -30,30 +30,39 @@ program
     '-n, --name <project name>',
     'The name for your project, used to create a directory, use ./ or . to create it under the existing directory',
   )
-  .option('-t, --template <template name>', 'The motia template name to use for your project')
+  .option('-t, --template <template name>', 'The motia template name to use for your project', 'typescript')
   .option('-c, --cursor', 'Copy .cursor folder from template')
   .option('-i, --interactive', 'Use interactive prompts to create project')
   .option('-y, --skip-confirmation', 'Skip confirmation prompt')
-  .option('-d, --skip-tutorial', 'Skip the motia tutorial', false)
+  .option('-d, --skip-tutorial [value]', 'Skip the motia tutorial (true/false)')
   .action(
     handler(async (arg, context) => {
       if (arg.name || arg.template || arg.cursor) {
         const { create } = require('./create')
 
-        const disableTutorial = await inquirer.prompt({
-          type: 'confirm',
-          name: 'disableTutorial',
-          message: 'Do you wish to disable the motia tutorial?',
-          default: arg.skipTutorial,
-          when: () => arg.skipTutorial === false,
-        })
+        // Handle skip-tutorial option: 'true', 'false', or prompt user
+        const skipTutorialValue = await (async () => {
+          const skipValue = String(arg.skipTutorial).toLowerCase()
+
+          if (skipValue === 'true') return true
+          if (skipValue === 'false') return false
+
+          // Prompt user when not explicitly set
+          const { disableTutorial } = await inquirer.prompt({
+            type: 'confirm',
+            name: 'disableTutorial',
+            message: 'Do you wish to disable the motia tutorial?',
+            default: false,
+          })
+          return disableTutorial
+        })()
 
         await create({
           projectName: arg.name ?? '.',
-          template: arg.template ?? 'default',
+          template: arg.template,
           cursorEnabled: arg.cursor,
           context,
-          skipTutorialTemplates: disableTutorial.disableTutorial,
+          skipTutorialTemplates: skipTutorialValue,
         })
       } else {
         const skipConfirmation = arg.skipConfirmation ?? false
@@ -175,17 +184,6 @@ generate
     })
   })
 
-generate
-  .command('tutorial-flow')
-  .description('Download the tutorial flow into an existing motia project')
-  .action(
-    handler(async (_, context) => {
-      const { createTutorialFlow } = require('./create/setup-tutorial-flow')
-      await createTutorialFlow({ context })
-      process.exit(0)
-    }),
-  )
-
 const docker = program.command('docker').description('Motia docker commands')
 
 docker
@@ -217,6 +215,51 @@ docker
     const { build } = require('./docker/build')
     await build(arg.projectName)
     process.exit(0)
+  })
+
+const rules = program
+  .command('rules')
+  .description('Manage Motia AI development guides (AGENTS.md, CLAUDE.md) and IDE-specific rules')
+
+rules
+  .command('pull')
+  .description('Install essential AI development guides (AGENTS.md, CLAUDE.md) and optional Cursor IDE rules')
+  .option('-f, --force', 'Overwrite existing files')
+  .action(async (options) => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ force: options.force })
+  })
+
+rules
+  .command('list')
+  .description('List available AI development guides and IDE rules')
+  .action(async () => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ list: true })
+  })
+
+rules
+  .command('show <rule-name>')
+  .description('Show content of a specific AI guide or IDE rule')
+  .action(async (ruleName) => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ show: ruleName })
+  })
+
+rules
+  .command('remove')
+  .description('Remove AI development guides and IDE rules from your project')
+  .action(async () => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ remove: true })
+  })
+
+rules
+  .command('version')
+  .description('Show AI development guides version')
+  .action(async () => {
+    const { handleAIGuides } = require('./cursor-rules')
+    await handleAIGuides({ version: true })
   })
 
 program.version(version, '-V, --version', 'Output the current version')

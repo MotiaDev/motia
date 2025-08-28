@@ -1,6 +1,6 @@
 # CLAUDE.md: Complete Guide for Claude Code to Write Motia Workflows
 
-This guide equips Claude Code to generate Motia workflows, a code-first, event-driven framework supporting TypeScript (TS), JavaScript (JS), Python, and Ruby. It covers all step types, state management, logging, testing, CLI commands, Workbench features, and best practices for creating robust, scalable workflows.
+This guide equips Claude Code to generate Motia workflows, a code-first, event-driven framework supporting JavaScript (JS), TypeScript (TS), Python, and Ruby. It covers all step types, state management, logging, testing, CLI commands, Workbench features, and best practices for creating robust, scalable workflows.
 
 ## Overview
 
@@ -16,7 +16,7 @@ This guide equips Claude Code to generate Motia workflows, a code-first, event-d
 ## Instructions for Claude Code
 
 - **Default Language**: For any given step, use the best lanaguge for the job. For example if the step requires a dependency that is best in npm use TypeScript. Same applies for Python and Ruby.
-- **Module Format**: Use ES modules (`import/export`) for TS/JS. Use standard module/require for Python and Ruby.
+- **Module Format**: Use ES modules (`import/export`) for TS, CommonJS (`module.exports`) for JS. Use standard module/require for Python and Ruby.
 - **File Structure**: Keep all code in one file unless I request multiple files.
 - **Dependencies**: Minimize external libraries; use official SDKs (e.g., `@slack/web-api`) when integrating services.
 - **Code Standards**:
@@ -26,7 +26,7 @@ This guide equips Claude Code to generate Motia workflows, a code-first, event-d
   - Never hardcode secrets—use `process.env`.
 - **Security**: Validate inputs (Zod for TS/JS, JSON Schema for Python/Ruby), sanitize data, handle CORS, follow least privilege.
 - **Output Format**: Use Markdown with separate blocks:
-  1. Main step code (e.g., `api.step.ts`, `api.step.py`, `api.step.rb`).
+  1. Main step code (e.g., `api.step.ts`, `api_step.py`, `api.step.rb`).
   2. Configuration (`config` object or method).
   3. Example usage (e.g., `curl` or `npx motia emit`).
 - **State Scope**: Use `ctx.traceId` as the default scope for state isolation.
@@ -40,7 +40,43 @@ This guide equips Claude Code to generate Motia workflows, a code-first, event-d
 - **Config**: Requires `path`, `method`, `bodySchema`.
 - **Handler**: Returns `{ status: number, body: any }`.
 
-**Template (TS)**:
+**Template (JavaScript)**:
+
+```javascript
+// api.step.js
+const config = {
+  type: 'api',
+  name: 'ApiTrigger',
+  description: 'Triggers workflow via API',
+  path: '/trigger',
+  method: 'POST',
+  emits: ['trigger.received'],
+  bodySchema: {
+    type: 'object',
+    properties: {
+      message: { type: 'string' }
+    },
+    required: ['message']
+  },
+  flows: ['my-flow']
+}
+
+const handler = async (req, { logger, emit }) => {
+  logger.info('API request received', { body: req.body })
+  try {
+    const data = req.body
+    await emit({ topic: 'trigger.received', data })
+    return { status: 200, body: { message: 'Success' } }
+  } catch (error) {
+    logger.error('API error', { error: error.message })
+    return { status: 500, body: { error: 'Internal error' } }
+  }
+}
+
+module.exports = { config, handler }
+```
+
+**Template (TypeScript)**:
 
 ```typescript
 // api.step.ts
@@ -74,7 +110,7 @@ export const handler: Handlers['ApiTrigger'] = async (req, { logger, emit }) => 
 **Template (Python)**:
 
 ```python
-# api.step.py
+# api_step.py
 config = {
     'type': 'api',
     'name': 'ApiTrigger',
@@ -146,7 +182,40 @@ end
 - **Purpose**: Listens to events and emits new ones.
 - **Config**: Requires `subscribes`, `emits`; optional `input` schema.
 
-**Template (TS)**:
+**Template (JavaScript)**:
+
+```javascript
+// event.step.js
+const config = {
+  type: 'event',
+  name: 'EventProcessor',
+  description: 'Processes event data',
+  subscribes: ['trigger.received'],
+  emits: ['trigger.processed'],
+  input: {
+    type: 'object',
+    properties: {
+      message: { type: 'string' }
+    },
+    required: ['message']
+  },
+  flows: ['my-flow']
+}
+
+const handler = async (input, { logger, emit, state, traceId }) => {
+  logger.info('Processing event', { input })
+  try {
+    await state.set(traceId, 'result', { value: input.message })
+    await emit({ topic: 'trigger.processed', data: { result: `Processed: ${input.message}` } })
+  } catch (error) {
+    logger.error('Event failed', { error: error.message })
+  }
+}
+
+module.exports = { config, handler }
+```
+
+**Template (TypeScript)**:
 
 ```typescript
 // event.step.ts
@@ -177,7 +246,7 @@ export const handler: Handlers['EventProcessor'] = async (input, { logger, emit,
 **Template (Python)**:
 
 ```python
-# event.step.py
+# event_step.py
 config = {
     'type': 'event',
     'name': 'EventProcessor',
@@ -243,7 +312,33 @@ end
 - **Purpose**: Runs on a schedule using cron syntax (e.g., `0 9 * * *` for 9 AM daily).
 - **Config**: Requires `cron`.
 
-**Template (TS)**:
+**Template (JavaScript)**:
+
+```javascript
+// cron.step.js
+const config = {
+  type: 'cron',
+  name: 'DailyTask',
+  description: 'Runs daily at 9 AM',
+  cron: '0 9 * * *',
+  emits: ['task.ran'],
+  flows: ['my-flow']
+}
+
+const handler = async (_, { logger, emit }) => {
+  logger.info('Cron job started')
+  try {
+    await emit({ topic: 'task.ran', data: { timestamp: Date.now() } })
+    logger.info('Cron job completed')
+  } catch (error) {
+    logger.error('Cron job failed', { error: error.message })
+  }
+}
+
+module.exports = { config, handler }
+```
+
+**Template (TypeScript)**:
 
 ```typescript
 // cron.step.ts
@@ -272,7 +367,7 @@ export const handler: Handlers['DailyTask'] = async (_, { logger, emit }) => {
 **Template (Python)**:
 
 ```python
-# cron.step.py
+# cron_step.py
 config = {
     'type': 'cron',
     'name': 'DailyTask',
@@ -370,7 +465,16 @@ export default function ExternalProcess() {
   - `cleanup()`: Maintenance (e.g., TTL cleanup).
 - **Scope**: Use `ctx.traceId` as the default scope for state isolation.
 
-**Example (TS)**:
+**Example (JavaScript)**:
+
+```javascript
+await ctx.state.set(ctx.traceId, 'data', { value: 'test' })
+const data = await ctx.state.get(ctx.traceId, 'data')
+await ctx.state.delete(ctx.traceId, 'data')
+await ctx.state.clear(ctx.traceId)
+```
+
+**Example (TypeScript)**:
 
 ```typescript
 await ctx.state.set(ctx.traceId, 'data', { value: 'test' })
@@ -418,7 +522,16 @@ ctx.state.clear(ctx.trace_id)
 - **Levels**: `info`, `warn`, `error`, `debug`.
 - **Usage**: Include context for structured logging.
 
-**Example (TS)**:
+**Example (JavaScript)**:
+
+```javascript
+logger.info('Processing started', { input })
+logger.warn('Large value', { value: 1000 })
+logger.error('Failed', { error: error.message, stack: error.stack })
+logger.debug('Details', { rawInput: input })
+```
+
+**Example (TypeScript)**:
 
 ```typescript
 logger.info('Processing started', { input })
@@ -532,25 +645,60 @@ export default function CustomStep({ data }: EventNodeProps) {
 - **Performance**: Batch state ops, monitor duration (`performance.now()`).
 - **Testing**: Provide realistic sample data and responses.
 
-## Complete Example: Feedback Workflow
+## Complete Example: Data Processing Workflow
 
-**Prompt**: "Build a workflow with an API step to receive feedback, an event step to analyze it, and a cron step to report daily."
+**Prompt**: "Build a workflow with an API step to receive data, an event step to process it, and a cron step to generate daily reports."
 
-### API Step: Receive Feedback (TypeScript)
+### API Step: Receive Data (JavaScript)
 
-````typescript
-// feedback-api.step.ts
+```javascript
+// data-api.step.js
+const config = {
+  type: 'api',
+  name: 'DataReceiver',
+  description: 'Receives data for processing',
+  path: '/data',
+  method: 'POST',
+  emits: ['data.received'],
+  flows: ['data-processor'],
+  bodySchema: {
+    type: 'object',
+    properties: {
+      message: { type: 'string' }
+    },
+    required: ['message']
+  }
+}
+
+const handler = async (req, { logger, emit }) => {
+  logger.info('Data received', { body: req.body })
+  try {
+    await emit({ topic: 'data.received', data: req.body })
+    return { status: 200, body: { message: 'Data accepted' } }
+  } catch (error) {
+    logger.error('Data processing error', { error: error.message })
+    return { status: 500, body: { error: 'Failed' } }
+  }
+}
+
+module.exports = { config, handler }
+```
+
+### API Step: Receive Data (TypeScript)
+
+```typescript
+// data-api.step.ts
 import { ApiRouteConfig, Handlers } from 'motia';
 import { z } from 'zod';
 
 export const config: ApiRouteConfig = {
   type: 'api',
-  name: 'FeedbackReceiver',
-  description: 'Receives feedback',
-  path: '/feedback',
+  name: 'DataReceiver',
+  description: 'Receives data for processing',
+  path: '/data',
   method: 'POST',
-  emits: ['feedback.received'],
-  flows: ['feedback-analyzer'],
+  emits: ['data.received'],
+  flows: ['data-processor'],
   bodySchema: z.object({ message: z.string() }),
   responseSchema: {
     200: z.object({ message: z.string() }),
@@ -558,28 +706,28 @@ export const config: ApiRouteConfig = {
   },
 };
 
-export const handler: Handlers['FeedbackReceiver'] = async (req, { logger, emit }) => {
-  logger.info('Feedback received', { body: req.body });
+export const handler: Handlers['DataReceiver'] = async (req, { logger, emit }) => {
+  logger.info('Data received', { body: req.body });
   try {
-    await emit({ topic: 'feedback.received', data: req.body });
-    return { status: 200, body: { message: 'Feedback accepted' } };
+    await emit({ topic: 'data.received', data: req.body });
+    return { status: 200, body: { message: 'Data accepted' } };
   } catch (error) {
-    logger.error('Feedback error', { error: error.message });
+    logger.error('Data processing error', { error: error.message });
     return { status: 500, body: { error: 'Failed' } };
   }
 };
-111
+```
 
-### API Step: Receive Feedback (Python)
+### API Step: Receive Data (Python)
 ```python
-# feedback-api.step.py
+# data_api_step.py
 config = {
     'type': 'api',
-    'name': 'FeedbackReceiver',
-    'description': 'Receives feedback',
-    'path': '/feedback',
+    'name': 'DataReceiver',
+    'description': 'Receives data for processing',
+    'path': '/data',
     'method': 'POST',
-    'emits': ['feedback.received'],
+    'emits': ['data.received'],
     'bodySchema': {
         'type': 'object',
         'properties': {
@@ -587,30 +735,30 @@ config = {
         },
         'required': ['message']
     },
-    'flows': ['feedback-analyzer']
+    'flows': ['data-processor']
 }
 
 async def handler(req, ctx):
-    ctx.logger.info('Feedback received', {'body': req.body})
+    ctx.logger.info('Data received', {'body': req.body})
     try:
-        await ctx.emit({'topic': 'feedback.received', 'data': req.body})
-        return {'status': 200, 'body': {'message': 'Feedback accepted'}}
+        await ctx.emit({'topic': 'data.received', 'data': req.body})
+        return {'status': 200, 'body': {'message': 'Data accepted'}}
     except Exception as error:
-        ctx.logger.error('Feedback error', {'error': str(error)})
+        ctx.logger.error('Data processing error', {'error': str(error)})
         return {'status': 500, 'body': {'error': 'Failed'}}
-111
+```
 
-### API Step: Receive Feedback (Ruby)
+### API Step: Receive Data (Ruby)
 ```ruby
-# feedback-api.step.rb
+# data-api.step.rb
 def config
   {
     type: 'api',
-    name: 'FeedbackReceiver',
-    description: 'Receives feedback',
-    path: '/feedback',
+    name: 'DataReceiver',
+    description: 'Receives data for processing',
+    path: '/data',
     method: 'POST',
-    emits: ['feedback.received'],
+    emits: ['data.received'],
     bodySchema: {
       type: 'object',
       properties: {
@@ -618,59 +766,93 @@ def config
       },
       required: ['message']
     },
-    flows: ['feedback-analyzer']
+    flows: ['data-processor']
   }
 end
 
 def handler(req, ctx)
-  ctx.logger.info('Feedback received', { body: req.body })
+  ctx.logger.info('Data received', { body: req.body })
   begin
-    ctx.emit({ topic: 'feedback.received', data: req.body })
-    { status: 200, body: { message: 'Feedback accepted' } }
+    ctx.emit({ topic: 'data.received', data: req.body })
+    { status: 200, body: { message: 'Data accepted' } }
   rescue StandardError => error
-    ctx.logger.error('Feedback error', { error: error.message })
+    ctx.logger.error('Data processing error', { error: error.message })
     { status: 500, body: { error: 'Failed' } }
   end
 end
-111
+```
 
-### Event Step: Analyze Feedback (TypeScript)
+### Event Step: Process Data (JavaScript)
+
+```javascript
+// data-processor.step.js
+const config = {
+  type: 'event',
+  name: 'DataProcessor',
+  description: 'Processes received data',
+  subscribes: ['data.received'],
+  emits: ['data.processed'],
+  input: {
+    type: 'object',
+    properties: {
+      message: { type: 'string' }
+    },
+    required: ['message']
+  },
+  flows: ['data-processor']
+}
+
+const handler = async (input, { logger, emit, state, traceId }) => {
+  logger.info('Processing data', { input })
+  try {
+    const result = input.message.includes('important') ? 'high-priority' : 'normal'
+    await state.set(traceId, 'priority', result)
+    await emit({ topic: 'data.processed', data: { priority: result } })
+  } catch (error) {
+    logger.error('Processing failed', { error: error.message })
+  }
+}
+
+module.exports = { config, handler }
+```
+
+### Event Step: Process Data (TypeScript)
 ```typescript
-// feedback-analyzer.step.ts
+// data-processor.step.ts
 import { EventConfig, Handlers } from 'motia';
 import { z } from 'zod';
 
 export const config: EventConfig = {
   type: 'event',
-  name: 'FeedbackAnalyzer',
-  description: 'Analyzes feedback',
-  subscribes: ['feedback.received'],
-  emits: ['feedback.analyzed'],
+  name: 'DataProcessor',
+  description: 'Processes received data',
+  subscribes: ['data.received'],
+  emits: ['data.processed'],
   input: z.object({ message: z.string() }),
-  flows: ['feedback-analyzer']
+  flows: ['data-processor']
 };
 
-export const handler: Handlers['FeedbackAnalyzer'] = async (input, { logger, emit, state, traceId }) => {
-  logger.info('Analyzing', { input });
+export const handler: Handlers['DataProcessor'] = async (input, { logger, emit, state, traceId }) => {
+  logger.info('Processing data', { input });
   try {
-    const sentiment = input.message.includes('good') ? 'positive' : 'neutral';
-    await state.set(traceId, 'sentiment', sentiment);
-    await emit({ topic: 'feedback.analyzed', data: { sentiment } });
+    const result = input.message.includes('important') ? 'high-priority' : 'normal';
+    await state.set(traceId, 'priority', result);
+    await emit({ topic: 'data.processed', data: { priority: result } });
   } catch (error) {
-    logger.error('Analysis failed', { error: error.message });
+    logger.error('Processing failed', { error: error.message });
   }
 };
-111
+```
 
-### Event Step: Analyze Feedback (Python)
+### Event Step: Process Data (Python)
 ```python
-# feedback-analyzer.step.py
+# data_processor_step.py
 config = {
     'type': 'event',
-    'name': 'FeedbackAnalyzer',
-    'description': 'Analyzes feedback',
-    'subscribes': ['feedback.received'],
-    'emits': ['feedback.analyzed'],
+    'name': 'DataProcessor',
+    'description': 'Processes received data',
+    'subscribes': ['data.received'],
+    'emits': ['data.processed'],
     'input': {
         'type': 'object',
         'properties': {
@@ -678,29 +860,29 @@ config = {
         },
         'required': ['message']
     },
-    'flows': ['feedback-analyzer']
+    'flows': ['data-processor']
 }
 
 async def handler(input, ctx):
-    ctx.logger.info('Analyzing', {'input': input})
+    ctx.logger.info('Processing data', {'input': input})
     try:
-        sentiment = 'positive' if 'good' in input['message'] else 'neutral'
-        await ctx.state.set(ctx.trace_id, 'sentiment', sentiment)
-        await ctx.emit({'topic': 'feedback.analyzed', 'data': {'sentiment': sentiment}})
+        result = 'high-priority' if 'important' in input['message'] else 'normal'
+        await ctx.state.set(ctx.trace_id, 'priority', result)
+        await ctx.emit({'topic': 'data.processed', 'data': {'priority': result}})
     except Exception as error:
-        ctx.logger.error('Analysis failed', {'error': str(error)})
-111
+        ctx.logger.error('Processing failed', {'error': str(error)})
+```
 
-### Event Step: Analyze Feedback (Ruby)
+### Event Step: Process Data (Ruby)
 ```ruby
-# feedback-analyzer.step.rb
+# data-processor.step.rb
 def config
   {
     type: 'event',
-    name: 'FeedbackAnalyzer',
-    description: 'Analyzes feedback',
-    subscribes: ['feedback.received'],
-    emits: ['feedback.analyzed'],
+    name: 'DataProcessor',
+    description: 'Processes received data',
+    subscribes: ['data.received'],
+    emits: ['data.processed'],
     input: {
       type: 'object',
       properties: {
@@ -708,120 +890,143 @@ def config
       },
       required: ['message']
     },
-    flows: ['feedback-analyzer']
+    flows: ['data-processor']
   }
 end
 
 def handler(input, ctx)
-  ctx.logger.info('Analyzing', { input: input })
+  ctx.logger.info('Processing data', { input: input })
   begin
-    sentiment = input[:message].include?('good') ? 'positive' : 'neutral'
-    ctx.state.set(ctx.trace_id, 'sentiment', sentiment)
-    ctx.emit({ topic: 'feedback.analyzed', data: { sentiment: sentiment } })
+    result = input[:message].include?('important') ? 'high-priority' : 'normal'
+    ctx.state.set(ctx.trace_id, 'priority', result)
+    ctx.emit({ topic: 'data.processed', data: { priority: result } })
   rescue StandardError => error
-    ctx.logger.error('Analysis failed', { error: error.message })
+    ctx.logger.error('Processing failed', { error: error.message })
   end
 end
-111
+```
 
+
+### Cron Step: Daily Report (JavaScript)
+
+```javascript
+// daily-report.step.js
+const config = {
+  type: 'cron',
+  name: 'DailyReporter',
+  description: 'Generates daily reports at 9 AM',
+  cron: '0 9 * * *',
+  emits: ['report.generated'],
+  flows: ['data-processor']
+}
+
+const handler = async (_, { logger, emit, state, traceId }) => {
+  logger.info('Generating daily report')
+  try {
+    const priority = await state.get(traceId, 'priority') || 'unknown'
+    await emit({ topic: 'report.generated', data: { priority, date: new Date().toISOString() } })
+    await state.clear(traceId)
+    logger.info('Report completed')
+  } catch (error) {
+    logger.error('Report failed', { error: error.message })
+  }
+}
+
+module.exports = { config, handler }
+```
 
 ### Cron Step: Daily Report (TypeScript)
 ```typescript
-// feedback-report.step.ts
+// daily-report.step.ts
 import { CronConfig, Handlers } from 'motia';
 
 export const config: CronConfig = {
   type: 'cron',
-  name: 'FeedbackReporter',
-  description: 'Reports daily at 9 AM',
+  name: 'DailyReporter',
+  description: 'Generates daily reports at 9 AM',
   cron: '0 9 * * *',
   emits: ['report.generated'],
-  flows: ['feedback-analyzer']
+  flows: ['data-processor']
 };
 
-export const handler: Handlers['FeedbackReporter'] = async (_, { logger, emit, state, traceId }) => {
-  logger.info('Generating report');
+export const handler: Handlers['DailyReporter'] = async (_, { logger, emit, state, traceId }) => {
+  logger.info('Generating daily report');
   try {
-    const sentiment = await state.get<string>(traceId, 'sentiment') || 'unknown';
-    await emit({ topic: 'report.generated', data: { sentiment, date: new Date().toISOString() } });
+    const priority = await state.get<string>(traceId, 'priority') || 'unknown';
+    await emit({ topic: 'report.generated', data: { priority, date: new Date().toISOString() } });
     await state.clear(traceId);
     logger.info('Report completed');
   } catch (error) {
     logger.error('Report failed', { error: error.message });
   }
 };
-111
+```
 
 ### Cron Step: Daily Report (Python)
 ```python
-# feedback-report.step.py
-config = {
-    'type': 'cron',
-    'name': 'FeedbackReporter',
-    'description': 'Reports daily at 9 AM',
-    'cron': '0 9 * * *',
-    'emits': ['report.generated'],
-    'flows': ['feedback-analyzer']
-}
+# daily_report_step.py
 import datetime
 
+config = {
+    'type': 'cron',
+    'name': 'DailyReporter',
+    'description': 'Generates daily reports at 9 AM',
+    'cron': '0 9 * * *',
+    'emits': ['report.generated'],
+    'flows': ['data-processor']
+}
+
 async def handler(input, ctx):
-    ctx.logger.info('Generating report')
+    ctx.logger.info('Generating daily report')
     try:
-        sentiment = await ctx.state.get(ctx.trace_id, 'sentiment') or 'unknown'
-        await ctx.emit({'topic': 'report.generated', 'data': {'sentiment': sentiment, 'date': datetime.datetime.now().isoformat()}})
+        priority = await ctx.state.get(ctx.trace_id, 'priority') or 'unknown'
+        await ctx.emit({'topic': 'report.generated', 'data': {'priority': priority, 'date': datetime.datetime.now().isoformat()}})
         await ctx.state.clear(ctx.trace_id)
         ctx.logger.info('Report completed')
     except Exception as error:
         ctx.logger.error('Report failed', {'error': str(error)})
-111
+```
 
 ### Cron Step: Daily Report (Ruby)
 ```ruby
-# feedback-report.step.rb
+# daily-report.step.rb
 def config
   {
     type: 'cron',
-    name: 'FeedbackReporter',
-    description: 'Reports daily at 9 AM',
+    name: 'DailyReporter',
+    description: 'Generates daily reports at 9 AM',
     cron: '0 9 * * *',
     emits: ['report.generated'],
-    flows: ['feedback-analyzer']
+    flows: ['data-processor']
   }
 end
 
 def handler(_, ctx)
-  ctx.logger.info('Generating report')
+  ctx.logger.info('Generating daily report')
   begin
-    sentiment = ctx.state.get(ctx.trace_id, 'sentiment') || 'unknown'
-    ctx.emit({ topic: 'report.generated', data: { sentiment: sentiment, date: Time.now.iso8601 } })
+    priority = ctx.state.get(ctx.trace_id, 'priority') || 'unknown'
+    ctx.emit({ topic: 'report.generated', data: { priority: priority, date: Time.now.iso8601 } })
     ctx.state.clear(ctx.trace_id)
     ctx.logger.info('Report completed')
   rescue StandardError => error
     ctx.logger.error('Report failed', { error: error.message })
   end
 end
-111
+```
 
 
 ### Example Usage
-````
 
+```bash
 # Test API
-
-curl -X POST http://localhost:3000/feedback -H "Content-Type: application/json" -d '{"message": "This is good"}'
+curl -X POST http://localhost:3000/data -H "Content-Type: application/json" -d '{"message": "This is important data"}'
 
 # Test Event (manual trigger)
-
-npx motia emit --topic feedback.received --message '{"message": "This is good"}'
+npx motia emit --topic data.received --message '{"message": "This is important data"}'
 
 # Expected Logs
-
-[INFO] Feedback received: {"message": "This is good"}
-[INFO] Analyzing: {"message": "This is good"}
-[INFO] Generating report (at 9 AM)
+[INFO] Data received: {"message": "This is important data"}
+[INFO] Processing data: {"message": "This is important data"}
+[INFO] Generating daily report (at 9 AM)
 [INFO] Report completed
-
-```
-
 ```

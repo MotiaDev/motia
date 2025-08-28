@@ -23,6 +23,9 @@ class RpcStreamManager:
 
     async def getGroup(self, group_id: str) -> asyncio.Future[None]:
         return await self.rpc.send(f'streams.{self.stream_name}.getGroup', {'groupId': group_id})
+
+    async def get_group(self, group_id: str) -> asyncio.Future[None]:
+        return await self.getGroup(group_id)
     
     async def send(self, channel: Dict, event: Dict) -> asyncio.Future[None]:
         return await self.rpc.send(f'streams.{self.stream_name}.send', {'channel': channel, 'event': event})

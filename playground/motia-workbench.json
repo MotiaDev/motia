@@ -71,27 +71,6 @@
     }
   },
   {
-    "id": "default",
-    "config": {
-      "steps/default-node/03-check-state-change.step.ts": {
-        "x": 18,
-        "y": 688
-      },
-      "steps/default-node/02-test-state.step.ts": {
-        "x": 0,
-        "y": 492
-      },
-      "steps/default-node/01-api.step.ts": {
-        "x": 17,
-        "y": 228
-      },
-      "steps/default-node/00-noop.step.ts": {
-        "x": 56,
-        "y": 0
-      }
-    }
-  },
-  {
     "id": "open-ai",
     "config": {
       "steps/open-ai/02-prompt.step.ts": {
@@ -128,28 +107,73 @@
     }
   },
   {
+    "id": "default",
+    "config": {
+      "steps/default-node/03-check-state-change.step.ts": {
+        "x": 0,
+        "y": 0
+      },
+      "steps/default-node/02-test-state.step.ts": {
+        "x": 0,
+        "y": 0
+      },
+      "steps/default-node/01-api.step.ts": {
+        "x": 0,
+        "y": 0
+      },
+      "steps/default-node/00-noop.step.ts": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  },
+  {
     "id": "basic-tutorial",
     "config": {
-      "steps/basic-tutorial/04_new_order_notifications.step.py": {
-        "x": 668,
-        "y": 266,
+      "steps/basic-tutorial/state-audit-cron.step.ts": {
+        "x": -165,
+        "y": 217,
+        "sourceHandlePosition": "right"
+      },
+      "steps/basic-tutorial/process-food-order.step.ts": {
+        "x": 211,
+        "y": 17,
+        "sourceHandlePosition": "bottom",
         "targetHandlePosition": "left"
       },
-      "steps/basic-tutorial/03-state-audit-cron.step.ts": {
-        "x": 224,
-        "y": 520
-      },
-      "steps/basic-tutorial/02-process-food-order.step.ts": {
-        "x": 220,
-        "y": 242,
+      "steps/basic-tutorial/api.step.ts": {
+        "x": -100,
+        "y": 3,
         "sourceHandlePosition": "right",
         "targetHandlePosition": "left"
       },
-      "steps/basic-tutorial/01-api.step.ts": {
-        "x": -243,
-        "y": 199,
-        "sourceHandlePosition": "right",
+      "steps/basic-tutorial/notification.step.ts": {
+        "x": 300,
+        "y": 264
+      }
+    }
+  },
+  {
+    "id": "python-tutorial",
+    "config": {
+      "steps/default_python/state_audit_cron_step.py": {
+        "x": -332,
+        "y": 149,
+        "sourceHandlePosition": "right"
+      },
+      "steps/default_python/process_food_order_step.py": {
+        "x": 81,
+        "y": -52,
         "targetHandlePosition": "left"
+      },
+      "steps/default_python/notification_step.py": {
+        "x": 142,
+        "y": 175
+      },
+      "steps/default_python/api_step.py": {
+        "x": -302,
+        "y": -66,
+        "sourceHandlePosition": "right"
       }
     }
   }

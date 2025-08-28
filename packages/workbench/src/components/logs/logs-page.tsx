@@ -53,6 +53,7 @@ export const LogsPage = () => {
           <TableBody className="font-mono font-medium">
             {filteredLogs.map((log, index) => (
               <TableRow
+                data-testid="log-row"
                 className={cn('font-mono font-semibold cursor-pointer border-0', {
                   'bg-muted-foreground/10 hover:bg-muted-foreground/20': selectedLogId === log.id,
                   'hover:bg-muted-foreground/10': selectedLogId !== log.id,

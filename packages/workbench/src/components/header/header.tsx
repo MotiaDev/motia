@@ -1,7 +1,7 @@
 import React from 'react'
 import { useThemeStore } from '@/stores/use-theme-store'
 import { ThemeToggle } from '../ui/theme-toggle'
-import { TutorialButton } from '../ui/tutorial-button'
+import { TutorialButton } from '../tutorial/tutorial-button'
 
 export const Header: React.FC = () => {
   const theme = useThemeStore((state) => state.theme)

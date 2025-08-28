@@ -11,7 +11,7 @@ Steps are the core building blocks of Motia - isolated, composable functions tha
 
 Every step follows a simple, consistent pattern:
 
-1. **📁 File Naming**: `*.step.*` (e.g., `user-api.step.ts`, `process-data.step.py`)
+1. **📁 File Naming**: `*.step.*` or `*_step.*` (e.g., `user-api.step.ts`, `process-data.step.py`, `data_processor_step.py`)
 2. **⚙️ Configuration**: Export a `config` object defining step behavior
 3. **🔧 Handler**: Export a `handler` function containing business logic
 4. **🤖 Auto-Discovery**: Motia automatically finds and registers your steps
@@ -49,10 +49,10 @@ Each step exports a `config` object that tells Motia how to handle the step. The
 |----------|------|-------------|----------|
 | `type` | `'api' \| 'event' \| 'cron' \| 'noop'` | The step type | ✅ |
 | `name` | `string` | Unique identifier for the step | ✅ |
-| `description` | `string` | Documentation for the step | ❌ |
-| `subscribes` | `string[]` | Topics this step listens to | ❌ |
-| `emits` | `string[]` | Topics this step can emit | ❌ |
-| `flows` | `string[]` | Flow identifiers this step belongs to | ❌ |
+| `description` | `string` | Documentation for the step | - |
+| `subscribes` | `string[]` | Topics this step listens to | - |
+| `emits` | `string[]` | Topics this step can emit | - |
+| `flows` | `string[]` | Flow identifiers this step belongs to | - |
 
 ### Type-Specific Properties
 
@@ -352,7 +352,7 @@ Even in multi-language workflows, Motia ensures data consistency:
 <Callout type="default">
 **🚀 Ready to Build?**
 
-Check out **[Build Your First App](/docs/getting-started/build-your-first-app)** to see a complete multi-language workflow in action, or explore specific step types:
+Check out **[API Endpoints](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)** to see a complete REST API tutorial in action, or explore specific step types:
 
 - **[API Steps](/docs/concepts/steps/api)** - HTTP endpoints with validation
 - **[Event Steps](/docs/concepts/steps/event)** - Async event processing

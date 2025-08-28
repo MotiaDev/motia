@@ -1,42 +1,31 @@
-import { test, expect } from '@playwright/test'
-import { WorkbenchPage, LogsPage } from '../page-objects'
+import { expect, test } from '@/src/motia-fixtures'
 
 test.use({ viewport: { width: 1920, height: 1080 } })
 
 test.describe('CLI Generated Project - Workbench Navigation', () => {
-  let workbench: WorkbenchPage
-  let logsPage: LogsPage
+  test.beforeEach(({ helpers }) => helpers.skipTutorial())
 
-  test.beforeEach(async ({ page }) => {
-    workbench = new WorkbenchPage(page)
-    logsPage = new LogsPage(page)
-
-    await page.addInitScript(() => {
-      localStorage.setItem('motia-tutorial-skipped', 'true')
-    })
-  })
-
-  test('should load workbench page of CLI generated project', async () => {
+  test('should load workbench page of CLI generated project', async ({ workbench }) => {
     await workbench.open()
 
     await expect(workbench.body).toBeVisible()
     await expect(workbench.logoIcon.first()).toBeVisible()
   })
 
-  test('should display workbench interface elements', async () => {
+  test('should display workbench interface elements', async ({ workbench }) => {
     await workbench.open()
 
     await workbench.verifyWorkbenchInterface()
   })
 
-  test('should show created steps in the workbench', async () => {
+  test('should show created steps in the workbench', async ({ workbench }) => {
     await workbench.open()
 
-    const expectedSteps = ['api-trigger', 'process-data', 'send-notification', 'basic-tutorial']
+    const expectedSteps = ['basic-tutorial']
     await workbench.verifyStepsInWorkbench(expectedSteps)
   })
 
-  test('should navigate through workbench sections', async () => {
+  test('should navigate through workbench sections', async ({ workbench }) => {
     await workbench.open()
 
     await test.step('Navigate to Logs section', async () => {
@@ -55,7 +44,7 @@ test.describe('CLI Generated Project - Workbench Navigation', () => {
     })
   })
 
-  test('should navigate through flow sections in sidebar', async () => {
+  test('should navigate through flow sections in sidebar', async ({ workbench }) => {
     await workbench.open()
 
     const flowCount = await workbench.getFlowCount()
@@ -74,14 +63,14 @@ test.describe('CLI Generated Project - Workbench Navigation', () => {
     }
   })
 
-  test('should display project information correctly', async () => {
+  test('should display project information correctly', async ({ workbench }) => {
     await workbench.open()
 
     const hasProjectInfo = await workbench.verifyProjectInformation()
     expect(hasProjectInfo).toBeTruthy()
   })
 
-  test('should handle CLI project structure validation', async () => {
+  test('should handle CLI project structure validation', async ({ workbench }) => {
     await workbench.open()
 
     const healthEndpoint = workbench.page.getByText(/health|status/)
@@ -93,26 +82,20 @@ test.describe('CLI Generated Project - Workbench Navigation', () => {
     expect(hasHealthInfo || hasStepsInfo).toBeTruthy()
   })
 
-  test('should execute default flow and verify logs', async () => {
+  test('should execute basic tutorial flow and verify logs', async ({ workbench, logsPage, api }) => {
     await workbench.open()
 
-    await test.step('Execute default flow', async () => {
-      await workbench.executeFlowAndNavigateToLogs('default')
+    await test.step('Execute basic tutorial flow', async () => {
+      await workbench.executeTutorialFlowAndNavigateToLogs(api)
     })
 
-    const stepsExecuted = ['ApiTrigger', 'SetStateChange', 'CheckStateChange']
+    const stepsExecuted = ['ApiTrigger']
 
     await test.step('Verify all expected logs are present', async () => {
       await logsPage.verifyStepsExecuted(stepsExecuted)
       console.log('✓ Found all expected logs')
     })
 
-    await test.step('Verify state validation message is present', async () => {
-      const stateValidationMessage = 'The provided value matches the state value 🏁'
-      await logsPage.verifyLogContainingText(stateValidationMessage)
-      console.log(`✓ Found state validation message: ${stateValidationMessage}`)
-    })
-
-    console.log('✅ Successfully executed default flow and verified all expected logs')
+    console.log('✅ Successfully executed basic tutorial flow and verified all expected logs')
   })
 })

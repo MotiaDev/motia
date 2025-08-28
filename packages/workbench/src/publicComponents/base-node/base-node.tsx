@@ -1,4 +1,5 @@
 import { useHandlePositions } from '@/hooks/use-update-handle-positions'
+import { Feature } from '@/types/file'
 import { Button, cn } from '@motiadev/ui'
 import { ScanSearch } from 'lucide-react'
 import React, { PropsWithChildren, useCallback, useEffect, useState } from 'react'
@@ -32,11 +33,13 @@ export const BaseNode: React.FC<Props> = ({
   const { sourcePosition, targetPosition, toggleTargetPosition, toggleSourcePosition } = useHandlePositions(data)
 
   const [content, setContent] = useState<string | null>(null)
+  const [features, setFeatures] = useState<Feature[]>([])
 
   const fetchContent = useCallback(async () => {
     const response = await fetch(`/step/${data.id}`)
     const responseData = await response.json()
     setContent(responseData.content)
+    setFeatures(responseData.features)
   }, [data.id])
 
   useEffect(() => {
@@ -95,6 +98,7 @@ export const BaseNode: React.FC<Props> = ({
 
       {content && (
         <NodeSidebar
+          features={features}
           content={content}
           title={title}
           subtitle={subtitle}

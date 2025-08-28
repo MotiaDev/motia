@@ -1,0 +1,186 @@
+---
+title: "Setup Guide"
+description: "How to install and configure Motia AI Development Guides in your project"
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Files, Folder, File } from 'fumadocs-ui/components/files';
+
+# AI Development Guides Setup Guide
+
+This guide will help you install and configure Motia's AI Development Guides in your project. These guides are designed to work with **any AI tool or IDE**—including Cursor, VS Code, Claude, ChatGPT, and more.
+
+<Callout type="info" title="Universal Compatibility">
+  Motia's guides are universal and work with any AI tool or IDE—not just Cursor!
+</Callout>
+
+## Prerequisites
+
+<Cards>
+  <Card title="Node.js 18+" icon="⚡">
+    Latest Node.js runtime for CLI tools
+  </Card>
+  <Card title="Motia Project" icon="🏗️">
+    Create one with <code>npx motia@latest create</code>
+  </Card>
+  <Card title="AI Tool/IDE" icon="🤖">
+    Any AI-powered code editor or AI assistant
+  </Card>
+</Cards>
+
+## Installation Methods
+
+<Tabs items={["CLI (Recommended)", "Manual Setup", "Git Submodule"]}>
+  <Tab value="CLI (Recommended)">
+    <Steps>
+      <Step>
+        ### Create a new Motia project
+        ```bash
+        npx motia@latest create my-motia-app
+        cd my-motia-app
+        ```
+      </Step>
+      <Step>
+        ### Pull AI development guides
+        ```bash
+        npx motia@latest rules pull
+        ```
+        This will create the following in your project root:
+        - **AGENTS.md** – Universal guide for any AI tool or IDE
+        - **CLAUDE.md** – Claude-specific guide with advanced techniques
+        - **.cursor/rules/** – IDE-specific patterns for Cursor (do not place AGENTS.md or CLAUDE.md inside this folder)
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab value="Manual Setup">
+    <Steps>
+      <Step>
+        ### Create the Cursor rules directory
+        ```bash
+        mkdir -p .cursor/rules
+        ```
+      </Step>
+      <Step>
+        ### Copy from local installation
+        ```bash
+        # If you have Motia installed locally
+        mkdir -p .cursor/rules
+        cp -r node_modules/@motiadev/snap/dot-files/.cursor/rules/* .cursor/rules/
+        cp node_modules/@motiadev/snap/dot-files/CLAUDE.md ./CLAUDE.md
+        cp node_modules/@motiadev/snap/dot-files/AGENTS.md ./AGENTS.md
+        ```
+        > **Note:** Only copy `.mdc` rule files into `.cursor/rules/`.  
+        > **AGENTS.md** and **CLAUDE.md** should remain in your project root, **not** inside `.cursor/rules/`.
+      </Step>
+      <Step>
+        ### Or download from GitHub
+        ```bash
+        curl -L https://github.com/MotiaDev/motia/archive/main.zip -o motia.zip
+        unzip motia.zip
+        mkdir -p .cursor/rules
+        cp -r motia-main/packages/dot-files/.cursor/rules/* .cursor/rules/
+        cp motia-main/packages/dot-files/CLAUDE.md ./CLAUDE.md
+        cp motia-main/packages/dot-files/AGENTS.md ./AGENTS.md
+        rm -rf motia.zip motia-main
+        ```
+        > **Again:** Do **not** place AGENTS.md or CLAUDE.md inside `.cursor/rules/`.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab value="Git Submodule">
+    <Callout type="tip" title="For Teams">
+      Perfect for teams wanting to stay synchronized with updates
+    </Callout>
+    <Steps>
+      <Step>
+        ### Add as submodule
+        ```bash
+        git submodule add https://github.com/MotiaDev/motia.git .motia-source
+        ```
+      </Step>
+      <Step>
+        ### Create symlink for Cursor rules
+        ```bash
+        ln -s .motia-source/packages/dot-files/.cursor/rules .cursor/rules
+        ```
+        > **Do not symlink or copy AGENTS.md or CLAUDE.md into `.cursor/rules/`.  
+        > These files should always be in your project root.**
+      </Step>
+      <Step>
+        ### Update Cursor rules (when needed)
+        ```bash
+        git submodule update --remote
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Project Structure After Setup
+
+After installation, your project should look like this:
+
+<Files>
+  <File name="AGENTS.md">Universal AI guide for ANY AI tool or IDE (project root)</File>
+  <File name="CLAUDE.md">Claude-specific guide with advanced techniques (project root)</File>
+  <Folder name=".cursor" defaultOpen>
+    <Folder name="rules" defaultOpen>
+      <File name="complete-application-patterns.mdc">Complete app patterns</File>
+      <File name="complete-backend-generator.mdc">Backend generator</File>
+      <File name="multi-language-workflows.mdc">JS/TS/Python/Ruby</File>
+      <File name="api-steps.mdc">API patterns</File>
+      <File name="event-steps.mdc">Event processing</File>
+      <File name="authentication-patterns.mdc">Auth patterns</File>
+      <File name="background-job-patterns.mdc">Background jobs</File>
+      <File name="realtime-streaming.mdc">Real-time features</File>
+      <File name="ai-agent-patterns.mdc">AI agents</File>
+      <File name="...">More cursor-specific rules</File>
+    </Folder>
+  </Folder>
+  <Folder name="steps">
+    <File name="...">Your Motia workflow steps</File>
+  </Folder>
+  <File name="package.json">Project dependencies</File>
+  <File name="config.yml">Motia configuration</File>
+</Files>
+
+> **Important:**  
+> - **AGENTS.md** and **CLAUDE.md** should be in your project root, **not** inside `.cursor/rules/`.
+> - Only `.mdc` rule files go inside `.cursor/rules/`.
+
+## Configuration for Different AI Tools
+
+### Cursor IDE Setup
+
+1. **Open your project in Cursor.**
+2. Cursor will automatically detect the `.cursor/rules/` directory and use the `.mdc` rule files for suggestions.
+3. Reference **AGENTS.md** (in your project root) for universal patterns and guidance.
+4. Use **CLAUDE.md** for Claude-specific advanced techniques.
+
+### VS Code with GitHub Copilot
+
+1. **Install the GitHub Copilot extension.**
+2. Open **AGENTS.md** in VS Code to understand available patterns.
+3. Reference specific guides in your prompts to Copilot.
+4. Use **CLAUDE.md** patterns when working with Claude.
+
+### Claude AI Assistant
+
+1. Open **CLAUDE.md** (from your project root)—this is specifically designed for Claude.
+2. Copy relevant sections into your Claude conversations.
+3. Reference **AGENTS.md** for broader architectural guidance.
+4. Use the structured templates provided in **CLAUDE.md**.
+
+### ChatGPT or Other AI Tools
+
+1. Start with **AGENTS.md**—it's universal for all AI tools.
+2. Copy relevant patterns into your AI conversations.
+3. Reference specific Cursor rules (`.mdc` files) as needed.
+4. Adapt the patterns to your AI tool's prompt format.
+
+## Verification
+
+Test that AI guides are set up correctly:

@@ -55,7 +55,7 @@ export const Sidebar: FC<SidebarProps> = ({ initialWidth, onClose, ...props }) =
       >
         <Equal className="rotate-90 w-4 h-4 text-muted-foreground" />
       </div>
-      <Panel {...props} variant="outlined" className="max-h-[calc(100vh-80px)] h-full" />
+      <Panel {...props} variant="outlined" className="max-h-[calc(100vh-80px)] h-full" data-testid="sidebar-panel" />
     </div>,
     document.querySelector(`#${APP_SIDEBAR_CONTAINER_ID}`) as HTMLDivElement,
   )

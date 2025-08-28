@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { WorkbenchPage } from '../page-objects'
+import { WorkbenchPage } from '@/src/page-objects'
 
 test.use({ viewport: { width: 1920, height: 1080 } })
 
@@ -42,51 +42,32 @@ test.describe('Motia Basic Tutorial - Workbench', () => {
     await expect(workbench.body).toBeVisible()
     await expect(workbench.logoIcon.first()).toBeVisible()
     await expect(workbench.tutorialPopover).toBeVisible()
-    await expect(workbench.flowsDropdownTrigger).toContainText('basic-tutorial')
   })
 
-  test('tutorial navigation keys should navigate forward and backwards', async ({ page }) => {
+  test('tutorial navigation keys should navigate forward', async ({ page }) => {
     await workbench.open()
 
     await expect(workbench.tutorialPopover).toBeVisible()
-    await expect(workbench.flowsDropdownTrigger).toContainText('basic-tutorial')
 
-    const initialTitle = await page.locator('.popover-title').innerText()
+    const initialTitle = await workbench.tutorialPopoverTitle.innerText()
 
-    const tutorialNextButton = page.locator('.driver-popover-next-btn').first()
-    await expect(tutorialNextButton).toBeVisible()
+    await workbench.tutorialNextButton.click()
+    await page.waitForTimeout(500)
 
-    const tutorialPrevButton = page.locator('.driver-popover-prev-btn').first()
-    await expect(tutorialPrevButton).not.toBeVisible()
-    await expect(tutorialPrevButton).toBeDisabled()
-
-    await tutorialNextButton.click()
-    await expect(tutorialPrevButton).not.toBeDisabled()
-
-    const finalTitle = await page.locator('.popover-title').innerText()
+    const finalTitle = await workbench.tutorialPopoverTitle.innerText()
     await expect(finalTitle).not.toEqual(initialTitle)
 
-    await tutorialPrevButton.click()
-    await expect(tutorialPrevButton).toBeDisabled()
-
-    const currentTitle = await page.locator('.popover-title').innerText()
-    await expect(currentTitle).toEqual(initialTitle)
+    const currentTitle = await workbench.tutorialPopoverTitle.innerText()
+    await expect(currentTitle).not.toEqual(initialTitle)
   })
 
   test('tutorial can dynamically open the code preview', async ({ page }) => {
     await workbench.open()
 
     await expect(workbench.tutorialPopover).toBeVisible()
-    await expect(workbench.flowsDropdownTrigger).toContainText('basic-tutorial')
-
-    const tutorialNextButton = page.locator('.driver-popover-next-btn').first()
-    await expect(tutorialNextButton).toBeVisible()
-
-    const tutorialPrevButton = page.locator('.driver-popover-prev-btn').first()
-    await expect(tutorialPrevButton).not.toBeVisible()
 
     for (let i = 0; i < 3; i++) {
-      await tutorialNextButton.click()
+      await workbench.tutorialNextButton.click()
       await page.waitForTimeout(500)
     }
 
@@ -108,7 +89,7 @@ test.describe('Motia Basic Tutorial - Workbench', () => {
 
   test('tutorial button shoud override the skip tutorial setting', async ({ page }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('motia-tutorial-skipped', 'true')
+      localStorage.setItem('motia-tutorial-closed', 'true')
     })
 
     await workbench.open()

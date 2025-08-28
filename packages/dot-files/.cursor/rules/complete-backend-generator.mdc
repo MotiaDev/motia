@@ -1,0 +1,415 @@
+---
+description: Complete backend generator - build full-featured applications following proven architectural patterns and best practices
+globs: 
+alwaysApply: true
+---
+# Complete Backend Generator
+
+Use this guide to build production-ready Motia applications from scratch, following proven architectural patterns and best practices.
+
+## Application Planning Checklist
+
+Before coding, define:
+- [ ] Core entities (User, Game, Order, etc.)
+- [ ] Required APIs (REST endpoints)
+- [ ] Real-time features (chat, live updates, notifications)
+- [ ] Background processing needs (ML, data export, cleanup)
+- [ ] External integrations (AI, email, payment, storage)
+- [ ] Authentication requirements
+- [ ] Multi-language needs (TS, Python, Ruby)
+
+## Step-by-Step Backend Implementation
+
+### Phase 1: Foundation & Authentication
+
+**1. Project Structure**
+```
+my-app/
+├── steps/                   # All workflow steps go here
+│   ├── 01-auth-api.step.ts          # Authentication API endpoints
+│   ├── 02-user-register_step.py    # User registration processing
+│   ├── 03-send-welcome.step.js     # Welcome email automation
+│   ├── 04-health-check.step.ts     # System health monitoring
+│   ├── auth/                        # Optional: Group by feature
+│   │   ├── login.step.ts           # Login handling
+│   │   ├── refresh_token_step.py   # Token refresh logic
+│   │   └── verify-email.step.js    # Email verification
+│   └── monitoring/                  # System monitoring
+│       ├── metrics.step.ts         # Collect metrics
+│       └── alerts_step.py          # Send alerts
+├── package.json             # Node.js dependencies
+├── requirements.txt         # Python dependencies
+├── tsconfig.json           # TypeScript config
+└── config.yml              # Motia configuration
+```
+
+**2. Essential Configuration**
+```yaml
+# config.yml
+state:
+  adapter: redis
+  host: localhost
+  port: 6379
+  ttl: 3600
+
+logging:
+  level: info
+  format: json
+```
+
+**3. Environment Setup**
+```bash
+# .env
+JWT_SECRET=your-super-secure-secret-key-here
+DATABASE_URL=postgresql://user:pass@localhost:5432/myapp
+REDIS_URL=redis://localhost:6379
+OPENAI_API_KEY=sk-...
+SENDGRID_API_KEY=SG...
+```
+
+### Phase 2: Core Business Logic
+
+**4. API Endpoints (TypeScript)**
+Create API steps for each entity:
+```typescript
+// steps/[entity]/create-[entity].step.ts
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'Create[Entity]',
+  method: 'POST',
+  path: '/[entities]',
+  middleware: [authMiddleware], // If auth required
+  bodySchema: [entity]CreateSchema,
+  responseSchema: { 201: [entity]Schema },
+  emits: ['[entity].created'],
+  flows: ['[entity]-management']
+}
+```
+
+**5. Event Processing**
+Create event steps for business logic:
+```typescript
+// steps/[entity]/process-[entity].step.ts
+export const config: EventConfig = {
+  type: 'event',
+  name: 'Process[Entity]',
+  subscribes: ['[entity].created'],
+  emits: ['[entity].processed', 'notification.send'],
+  input: [entity]InputSchema,
+  flows: ['[entity]-processing']
+}
+```
+
+### Phase 3: Real-time Features
+
+**6. Stream Configuration**
+```typescript
+// steps/streams/[feature].stream.ts
+export const config: StreamConfig = {
+  name: '[feature]-updates',
+  schema: [feature]UpdateSchema,
+  baseConfig: { storageType: 'default', ttl: 3600 }
+}
+```
+
+**7. Live Update Broadcasting**
+```typescript
+// steps/realtime/broadcast-update.step.ts
+// Handles live updates to connected clients
+export const handler = async (input, { streams }) => {
+  await streams['[feature]-updates'].set(userId, updateId, updateData)
+}
+```
+
+### Phase 4: Multi-language Integration
+
+**8. Python ML/AI Processing**
+```python
+# steps/ml/[process]_ai_step.py
+config = {
+    "type": "event",
+    "name": "[Process]AI",
+    "subscribes": ["[entity].needs.ai.processing"],
+    "emits": ["ai.processing.completed"],
+    "flows": ["ai-processing"]
+}
+
+async def handler(input_data, ctx):
+    # Python handles AI/ML tasks
+    result = process_with_ai(input_data)
+    await ctx.emit({
+        "topic": "ai.processing.completed",
+        "data": result
+    })
+```
+
+**9. Ruby Background Jobs**
+```ruby
+# steps/background/[task]-processor.step.rb
+def config
+  {
+    type: 'event',
+    name: '[Task]Processor',
+    subscribes: ['[task].requested'],
+    emits: ['[task].completed'],
+    flows: ['background-processing']
+  }
+end
+
+def handler(input, context)
+  # Ruby handles data processing, exports, etc.
+  result = process_[task](input)
+  context.emit(topic: '[task].completed', data: result)
+end
+```
+
+### Phase 5: Background Tasks & Monitoring
+
+**10. Scheduled Tasks**
+```typescript
+// steps/cron/[task].step.ts
+export const config: CronConfig = {
+  type: 'cron',
+  name: '[Task]Job',
+  cron: '0 */6 * * *', // Every 6 hours
+  emits: ['[task].executed'],
+  flows: ['maintenance']
+}
+```
+
+**11. System Monitoring**
+```typescript
+// steps/monitoring/metrics.step.ts
+// Collects and reports system metrics
+// Sends alerts when thresholds exceeded
+```
+
+### Phase 6: External Integrations
+
+**12. Email Service**
+```typescript
+// steps/integrations/email.step.ts
+export const config: EventConfig = {
+  type: 'event',
+  name: 'SendEmail',
+  subscribes: ['email.send'],
+  emits: ['email.sent', 'email.failed'],
+  flows: ['notifications']
+}
+```
+
+**13. AI Integration**
+```typescript
+// steps/integrations/openai.step.ts
+export const config: EventConfig = {
+  type: 'event', 
+  name: 'ProcessWithAI',
+  subscribes: ['ai.process.request'],
+  emits: ['ai.process.completed'],
+  flows: ['ai-integration']
+}
+```
+
+## Implementation Templates
+
+### Standard API Step Template
+```typescript
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { authMiddleware } from '../auth/middleware'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'STEP_NAME',
+  description: 'DESCRIPTION',
+  method: 'POST', // GET, PUT, DELETE, etc.
+  path: '/PATH',
+  middleware: [authMiddleware], // Optional
+  bodySchema: z.object({
+    // Define request body schema
+  }),
+  responseSchema: {
+    200: z.object({
+      // Define response schema
+    }),
+    400: z.object({ error: z.string() })
+  },
+  emits: ['TOPIC_NAME'],
+  flows: ['FLOW_NAME']
+}
+
+export const handler: Handlers['STEP_NAME'] = async (req, { emit, logger, state }) => {
+  try {
+    // Validate input
+    // Process business logic
+    // Update state if needed
+    // Emit events
+    // Return response
+    
+    logger.info('Operation completed', { /* context */ })
+    return { status: 200, body: { /* response */ } }
+  } catch (error) {
+    logger.error('Operation failed', { error: error.message })
+    return { status: 500, body: { error: 'Operation failed' } }
+  }
+}
+```
+
+### Standard Event Step Template
+```typescript
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'STEP_NAME',
+  description: 'DESCRIPTION',
+  subscribes: ['INPUT_TOPIC'],
+  emits: ['OUTPUT_TOPIC'],
+  input: z.object({
+    // Define input schema
+  }),
+  flows: ['FLOW_NAME']
+}
+
+export const handler: Handlers['STEP_NAME'] = async (input, { emit, logger, state }) => {
+  try {
+    // Process input data
+    // Perform business logic
+    // Update state if needed
+    // Emit result events
+    
+    await emit({
+      topic: 'OUTPUT_TOPIC',
+      data: { /* result data */ }
+    })
+    
+    logger.info('Event processed', { /* context */ })
+  } catch (error) {
+    logger.error('Event processing failed', { error: error.message })
+    // Handle error appropriately
+  }
+}
+```
+
+### Python Event Step Template
+```python
+config = {
+    "type": "event",
+    "name": "STEP_NAME",
+    "description": "DESCRIPTION",
+    "subscribes": ["INPUT_TOPIC"],
+    "emits": ["OUTPUT_TOPIC"],
+    "input": {
+        "type": "object",
+        "properties": {
+            # Define input properties
+        }
+    },
+    "flows": ["FLOW_NAME"]
+}
+
+async def handler(input_data, ctx):
+    try:
+        # Process input with Python capabilities
+        result = process_data(input_data)
+        
+        # Emit result
+        await ctx.emit({
+            "topic": "OUTPUT_TOPIC",
+            "data": result
+        })
+        
+        ctx.logger.info("Python processing completed")
+    except Exception as e:
+        ctx.logger.error(f"Processing failed: {str(e)}")
+        # Handle error appropriately
+```
+
+## Production Deployment Checklist
+
+### Security
+- [ ] Environment variables configured
+- [ ] JWT secrets properly set
+- [ ] HTTPS enabled
+- [ ] CORS configured
+- [ ] Rate limiting implemented
+- [ ] Input validation on all endpoints
+- [ ] SQL injection protection
+- [ ] XSS protection headers
+
+### Performance
+- [ ] Database connection pooling
+- [ ] Redis caching implemented
+- [ ] Response compression enabled
+- [ ] CDN configured for assets
+- [ ] Database queries optimized
+- [ ] Proper indexing in place
+
+### Monitoring
+- [ ] Health check endpoint
+- [ ] Structured logging
+- [ ] Error tracking (Sentry)
+- [ ] Performance monitoring
+- [ ] Alert systems configured
+- [ ] Backup strategies in place
+
+### Testing
+- [ ] Unit tests for all handlers
+- [ ] Integration tests for flows
+- [ ] Load testing completed
+- [ ] Security testing done
+- [ ] Error scenario testing
+
+## Common Application Patterns
+
+### SaaS Application
+1. User registration/authentication
+2. Subscription management  
+3. Feature access control
+4. Usage analytics
+5. Admin dashboard
+6. Email notifications
+7. Payment processing
+
+### Real-time Application
+1. User authentication
+2. Live data synchronization
+3. Real-time event streaming
+4. Chat/messaging system
+5. Live analytics and monitoring
+6. User activity tracking
+7. Collaborative features
+
+### E-commerce Platform
+1. Product catalog
+2. Shopping cart
+3. Order processing
+4. Payment integration
+5. Inventory management
+6. Email notifications
+7. Analytics dashboard
+
+### Social Platform
+1. User profiles
+2. Content creation/sharing
+3. Real-time chat
+4. News feeds
+5. Notification system
+6. Content moderation
+7. Analytics tracking
+
+## Best Practices Summary
+
+1. **Always start with authentication** - It's needed for most features
+2. **Plan your state structure** - Use consistent naming patterns
+3. **Implement proper error handling** - Log everything with context
+4. **Use TypeScript for APIs** - Strong typing prevents errors
+5. **Use Python for heavy processing** - ML, data science, algorithms
+6. **Use Ruby for background jobs** - Data manipulation, exports
+7. **Test everything** - Unit tests, integration tests, load tests
+8. **Monitor in production** - Logs, metrics, alerts, health checks
+9. **Security first** - Validate inputs, secure endpoints, use HTTPS
+10. **Document as you go** - Comment complex logic, update README
+
+This comprehensive guide enables building production-ready applications by following proven patterns and best practices for scalable, maintainable systems.
