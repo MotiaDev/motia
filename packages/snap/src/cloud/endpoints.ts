@@ -1,5 +1,4 @@
 import { randomUUID } from 'crypto'
-import { Request, Response } from 'express'
 import { LockedData, MotiaServer } from '@motiadev/core'
 import { buildValidation } from './build/build-validation'
 import { StreamingDeploymentListener } from './new-deployment/listeners/streaming-deployment-listener'
@@ -25,7 +24,7 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
 
   const deploymentManager = new DeploymentStreamManager(deploymentStream)
 
-  app.post('/cloud/deploy/start', async (req: Request, res: Response) => {
+  app.post('/cloud/deploy/start', async (req, res) => {
     try {
       const { deploymentToken, deploymentId, envs } = req.body
 
@@ -79,6 +78,7 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
             streams: builder.streamsConfig,
             routers: builder.routersConfig,
           })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
           console.error('Deployment failed:', error)
 
@@ -88,6 +88,7 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
           }
         }
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Failed to start deployment:', error)
       res.status(500).json({
@@ -98,7 +99,7 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
   })
 
   // Get deployment status by ID
-  app.get('/cloud/deploy/status/:deploymentId', async (req: Request, res: Response) => {
+  app.get('/cloud/deploy/status/:deploymentId', async (req, res) => {
     try {
       const { deploymentId } = req.params
       const deployment = await deploymentManager.getDeployment(deploymentId)
@@ -114,6 +115,7 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
         success: true,
         deployment,
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       res.status(500).json({
         success: false,
