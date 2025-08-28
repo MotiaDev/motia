@@ -117,7 +117,7 @@ export class DeploymentStreamManager {
       updatedBuild.push(buildOutput)
     }
 
-    const builtSteps = updatedBuild.filter(b => b.status === 'built').length
+    const builtSteps = updatedBuild.filter((b) => b.status === 'built').length
     const metadata = {
       ...current.metadata,
       builtSteps,
@@ -140,7 +140,7 @@ export class DeploymentStreamManager {
     }
 
     // Update uploadedSteps count
-    const uploadedSteps = updatedUpload.filter(u => u.status === 'uploaded').length
+    const uploadedSteps = updatedUpload.filter((u) => u.status === 'uploaded').length
     const metadata: Metadata = {
       ...current.metadata,
       uploadedSteps,

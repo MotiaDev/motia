@@ -104,7 +104,7 @@ export class StreamingDeploymentListener implements DeploymentListener {
       error: error.message,
     })
     await this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
-    }
+  }
 
   async onBuildSkip(step: Step, reason: string) {
     const message = `Skipped ${step.config.name}: ${reason}`

@@ -79,7 +79,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
             streams: builder.streamsConfig,
             routers: builder.routersConfig,
           })
-
         } catch (error: any) {
           console.error('Deployment failed:', error)
 
