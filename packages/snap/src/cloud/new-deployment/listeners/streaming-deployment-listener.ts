@@ -17,6 +17,10 @@ export class StreamingDeploymentListener implements DeploymentListener {
     this.streamManager = new DeploymentStreamManager(deploymentStream)
   }
 
+  private relativePath(path: string): string {
+    return path.replace(process.cwd(), '')
+  }
+
   private getStepType(step: Step): 'event' | 'api' | 'cron' {
     if (step.config.type === 'api') return 'api'
     if (step.config.type === 'cron') return 'cron'
@@ -48,108 +52,88 @@ export class StreamingDeploymentListener implements DeploymentListener {
   }
 
   // Build phase events
-  onBuildStart(step: Step) {
+  async onBuildStart(step: Step) {
     const message = `Building step: ${step.config.name}`
     const buildOutput: BuildOutput = {
-      packagePath: step.filePath,
+      packagePath: this.relativePath(step.filePath),
       language: this.getLanguage(step.filePath),
       status: 'building',
       type: this.getStepType(step),
     }
 
-    this.updateStream({
+    await this.updateStream({
       phase: 'build',
       status: 'building',
       message,
-      progress: 0,
     })
-    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
+    await this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
   }
 
-  onBuildProgress(step: Step, message: string) {
+  async onBuildProgress(step: Step, message: string) {
     const logMessage = `${step.config.name}: ${message}`
-    this.updateStream({
-      message: logMessage,
-      progress: 25,
-    })
+    await this.updateStream({ message: logMessage })
   }
 
-  onBuildEnd(step: Step, size: number) {
+  async onBuildEnd(step: Step, size: number) {
     const message = `Built ${step.config.name} (${size} bytes)`
     const buildOutput: BuildOutput = {
-      packagePath: step.filePath,
+      packagePath: this.relativePath(step.filePath),
       language: this.getLanguage(step.filePath),
       status: 'built',
       type: this.getStepType(step),
       size,
     }
 
-    this.updateStream({
-      message,
-      progress: 50,
-    })
-    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
+    await this.updateStream({ message })
+    await this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
   }
 
-  onBuildError(step: Step, error: Error) {
+  async onBuildError(step: Step, error: Error) {
     const message = `Error building ${step.config.name}: ${error.message}`
     const buildOutput: BuildOutput = {
-      packagePath: step.filePath,
+      packagePath: this.relativePath(step.filePath),
       language: this.getLanguage(step.filePath),
       status: 'error',
       type: this.getStepType(step),
       errorMessage: error.message,
     }
 
-    this.updateStream({
+    await this.updateStream({
       status: 'failed',
       message,
       error: error.message,
     })
-    this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
+    await this.streamManager.updateBuildOutput(this.deploymentId, buildOutput)
     }
 
-  onBuildSkip(step: Step, reason: string) {
+  async onBuildSkip(step: Step, reason: string) {
     const message = `Skipped ${step.config.name}: ${reason}`
-    this.updateStream({
-      message,
-      progress: 10,
-    })
+    await this.updateStream({ message })
   }
 
-  onStreamCreated(stream: Stream) {
+  async onStreamCreated(stream: Stream) {
     const message = `Created stream: ${stream.config.name}`
-    this.updateStream({
-      message,
-      progress: 20,
-    })
+    await this.updateStream({ message })
   }
 
-  onApiRouterBuilding(language: string) {
+  async onApiRouterBuilding(language: string) {
     const message = `Building API router for ${language}`
-    this.updateStream({
-      message,
-      progress: 60,
-    })
+    await this.updateStream({ message })
   }
 
-  onApiRouterBuilt(language: string, size: number) {
+  async onApiRouterBuilt(language: string, size: number) {
     const message = `Built API router for ${language} (${size} bytes)`
-    this.updateStream({
-      message,
-      progress: 80,
-    })
+    await this.updateStream({ message })
   }
 
-  onWarning(id: string, warning: string) {
+  async onWarning(id: string, warning: string) {
     this.warnings.push({
       relativePath: id,
       message: warning,
       step: {} as ValidationError['step'],
     })
-    this.updateStream({
+    await this.updateStream({
       message: `Warning: ${warning}`,
-      progress: 10,
     })
   }
 
@@ -157,7 +141,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
     this.warnings.push(warning)
     await this.updateStream({
       message: `Build warning: ${warning.message}`,
-      progress: 10,
     })
   }
 
@@ -172,26 +155,25 @@ export class StreamingDeploymentListener implements DeploymentListener {
   }
 
   // Upload phase events
-  stepUploadStart(stepPath: string, step: BuildStepConfig) {
+  async stepUploadStart(stepPath: string, step: BuildStepConfig) {
     const message = `Starting upload: ${step.config.name}`
     const uploadOutput: UploadOutput = {
-      packagePath: stepPath,
+      packagePath: this.relativePath(stepPath),
       language: this.getLanguage(step.filePath),
       status: 'uploading',
       type: step.config.type as 'event' | 'api' | 'cron',
       progress: 0,
     }
 
-    this.updateStream({
+    await this.updateStream({
       phase: 'upload',
       status: 'uploading',
       message,
     })
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
+    await this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
-  stepUploadProgress(stepPath: string, step: BuildStepConfig, progress: number) {
-    const message = `Uploading ${step.config.name}: ${progress}%`
+  async stepUploadProgress(stepPath: string, step: BuildStepConfig, progress: number) {
     const uploadOutput: UploadOutput = {
       packagePath: stepPath,
       language: this.getLanguage(step.filePath),
@@ -200,132 +182,109 @@ export class StreamingDeploymentListener implements DeploymentListener {
       progress,
     }
 
-    this.updateStream({
-      message,
-      progress,
-    })
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
+    await this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
-  stepUploadEnd(stepPath: string, step: BuildStepConfig) {
-    const message = `Uploaded: ${step.config.name}`
+  async stepUploadEnd(stepPath: string, step: BuildStepConfig) {
     const uploadOutput: UploadOutput = {
-      packagePath: stepPath,
+      packagePath: this.relativePath(stepPath),
       language: this.getLanguage(step.filePath),
       status: 'uploaded',
       type: step.config.type as 'event' | 'api' | 'cron',
       progress: 100,
     }
 
-    this.updateStream({
-      message,
-      progress: 100,
-    })
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
+    await this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
-  stepUploadError(stepPath: string, step: BuildStepConfig) {
+  async stepUploadError(stepPath: string, step: BuildStepConfig) {
     const message = `Upload failed: ${step.config.name}`
     const uploadOutput: UploadOutput = {
-      packagePath: stepPath,
+      packagePath: this.relativePath(stepPath),
       language: this.getLanguage(step.filePath),
       status: 'error',
       type: step.config.type as 'event' | 'api' | 'cron',
       errorMessage: message,
     }
 
-    this.updateStream({
+    await this.updateStream({
       status: 'failed',
       message,
       error: message,
     })
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
+    await this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
-  routeUploadStart(path: string, language: string) {
-    const message = `Starting upload: ${language} router`
+  async routeUploadStart(path: string, language: string) {
     const uploadOutput: UploadOutput = {
-      packagePath: path,
+      packagePath: this.relativePath(path),
       language,
       status: 'uploading',
       type: 'api',
       progress: 0,
     }
 
-    this.updateStream({
-      message,
-      progress: 50,
-    })
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
+    await this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
-  routeUploadProgress(path: string, language: string, progress: number) {
-    const message = `Uploading ${language} router: ${progress}%`
+  async routeUploadProgress(path: string, language: string, progress: number) {
     const uploadOutput: UploadOutput = {
-      packagePath: path,
+      packagePath: this.relativePath(path),
       language,
       status: 'uploading',
       type: 'api',
       progress,
     }
 
-    this.updateStream({
-      message,
-      progress,
-    })
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
+    await this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
-  routeUploadEnd(path: string, language: string) {
+  async routeUploadEnd(path: string, language: string) {
     const message = `Uploaded: ${language} router`
     const uploadOutput: UploadOutput = {
-      packagePath: path,
+      packagePath: this.relativePath(path),
       language,
       status: 'uploaded',
       type: 'api',
       progress: 100,
     }
 
-    this.updateStream({
-      message,
-      progress: 100,
-    })
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
+    await this.updateStream({ message })
+    await this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
-  routeUploadError(path: string, language: string) {
+  async routeUploadError(path: string, language: string) {
     const message = `Upload failed: ${language} router`
     const uploadOutput: UploadOutput = {
-      packagePath: path,
+      packagePath: this.relativePath(path),
       language,
       status: 'error',
       type: 'api',
       errorMessage: message,
     }
 
-    this.updateStream({
+    await this.updateStream({
       status: 'failed',
       message,
       error: message,
     })
-    this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
+    await this.streamManager.updateUploadOutput(this.deploymentId, uploadOutput)
   }
 
   // Deploy phase events
-  onDeployStart() {
+  async onDeployStart() {
     const message = 'Deployment started'
-    this.updateStream({
+    await this.updateStream({
       phase: 'deploy',
       status: 'deploying',
       message,
     })
   }
 
-  onDeployProgress(data: DeployData) {
+  async onDeployProgress(data: DeployData) {
     const message = `Deployment status: ${data.status}`
-    this.updateStream({
+    await this.updateStream({
       message,
-      progress: 50,
     })
   }
 
@@ -346,26 +305,11 @@ export class StreamingDeploymentListener implements DeploymentListener {
     })
   }
 
-  async completeBuildPhase() {
-    await this.updateStream({
-      message: 'Build phase completed',
-      progress: 100,
-    })
-  }
-
   async startUploadPhase() {
     await this.updateStream({
       phase: 'upload',
       status: 'uploading',
       message: 'Upload phase started',
-      progress: 0,
-    })
-  }
-
-  async completeUploadPhase() {
-    await this.updateStream({
-      message: 'Upload phase completed',
-      progress: 100,
     })
   }
 
@@ -374,7 +318,6 @@ export class StreamingDeploymentListener implements DeploymentListener {
       phase: 'deploy',
       status: 'deploying',
       message: 'Deploy phase started',
-      progress: 0,
     })
   }
 }
