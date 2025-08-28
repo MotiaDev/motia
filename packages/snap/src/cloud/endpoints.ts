@@ -7,6 +7,7 @@ import { build } from './new-deployment/build'
 import { uploadArtifacts } from './new-deployment/upload-artifacts'
 import { DeploymentData, DeploymentStreamManager } from './new-deployment/streams/deployment-stream'
 import { cloudApi } from './new-deployment/cloud-api'
+import colors from 'colors'
 
 export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => {
   const { app } = server
@@ -35,6 +36,8 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
         })
       }
 
+      colors.disable()
+
       const sessionId = deploymentId || randomUUID()
 
       await deploymentManager.startDeployment(sessionId)
@@ -62,8 +65,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
             await listener.onBuildErrors(listener.getErrors())
             return
           }
-
-          await listener.completeBuildPhase()
 
           await listener.startUploadPhase()
 

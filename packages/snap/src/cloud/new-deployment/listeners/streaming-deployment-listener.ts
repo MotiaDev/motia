@@ -18,7 +18,7 @@ export class StreamingDeploymentListener implements DeploymentListener {
   }
 
   private relativePath(path: string): string {
-    return path.replace(process.cwd(), '')
+    return path.replace(`${process.cwd()}/`, '')
   }
 
   private getStepType(step: Step): 'event' | 'api' | 'cron' {
@@ -150,7 +150,7 @@ export class StreamingDeploymentListener implements DeploymentListener {
     await this.updateStream({
       status: 'failed',
       message: errorMessage,
-      error: errorMessage,
+      error: errors.map((error) => error.message).join('\n'),
     })
   }
 
