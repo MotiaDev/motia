@@ -19,12 +19,11 @@ export class PythonBuilder implements StepBuilder {
   }
 
   private async buildStep(step: Step, archive: Archiver): Promise<string> {
-    const entrypointPath = step.filePath.replace(this.builder.projectDir, '')
-    const normalizedEntrypointPath = entrypointPath.replace(/[.]step.py$/, '_step.py')
+    const normalizedEntrypointPath = this.getStepPath(step)
     const sitePackagesDir = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
 
     // Get Python builder response
-    const { packages } = await this.getPythonBuilderData(step)
+    const { packages, files } = await this.getPythonBuilderData(step)
 
     // Add main file to archive
     if (!fs.existsSync(step.filePath)) {
@@ -33,6 +32,17 @@ export class PythonBuilder implements StepBuilder {
 
     archive.append(fs.createReadStream(step.filePath), path.relative(this.builder.projectDir, normalizedEntrypointPath))
 
+    // Add internal Python files to archive
+    for (const file of files) {
+      const fullPath = path.join(this.builder.projectDir, file)
+      if (fs.existsSync(fullPath) && fullPath !== step.filePath) {
+        // Normalize .step.py files to _step.py in the archive
+        const archivePath = file.replace(/[.]step.py$/, '_step.py')
+        archive.append(fs.createReadStream(fullPath), archivePath)
+      }
+    }
+
+    // Add external packages
     await Promise.all(packages.map(async (packageName) => addPackageToArchive(archive, sitePackagesDir, packageName)))
 
     return normalizedEntrypointPath
@@ -41,7 +51,6 @@ export class PythonBuilder implements StepBuilder {
   async build(step: Step): Promise<void> {
     const entrypointPath = step.filePath.replace(this.builder.projectDir, '')
     const bundlePath = path.join('python', entrypointPath.replace(/(.*)\.py$/, '$1.zip'))
-    const normalizedEntrypointPath = entrypointPath.replace(/[.]step.py$/, '_step.py')
     const outfile = path.join(distDir, bundlePath)
 
     try {
@@ -49,33 +58,12 @@ export class PythonBuilder implements StepBuilder {
       fs.mkdirSync(path.dirname(outfile), { recursive: true })
       this.listener.onBuildStart(step)
 
-      // Get Python builder response
-      const { packages } = await this.getPythonBuilderData(step)
+      // Build step and get all dependencies
       const stepArchiver = new Archiver(outfile)
       const stepPath = await this.buildStep(step, stepArchiver)
 
-      // Add main file to archive
-      if (!fs.existsSync(step.filePath)) {
-        throw new Error(`Source file not found: ${step.filePath}`)
-      }
-
-      stepArchiver.append(
-        fs.createReadStream(step.filePath),
-        path.relative(this.builder.projectDir, normalizedEntrypointPath),
-      )
-
-      // Add all imported files to archive
-      this.listener.onBuildProgress(step, 'Adding imported files to archive...')
-      const sitePackagesDir = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
-
+      // Add static files
       includeStaticFiles([step], this.builder, stepArchiver)
-
-      if (packages.length > 0) {
-        await Promise.all(
-          packages.map(async (packageName) => addPackageToArchive(stepArchiver, sitePackagesDir, packageName)),
-        )
-        this.listener.onBuildProgress(step, `Added ${packages.length} packages to archive`)
-      }
 
       // Finalize the archive and wait for completion
       const size = await stepArchiver.finalize()
@@ -88,14 +76,30 @@ export class PythonBuilder implements StepBuilder {
     }
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
-    const getStepPath = (step: Step<ApiRouteConfig>) => {
-      const normalizedEntrypointPath = step.filePath.replace(/[.]step.py$/, '_step.py')
-      return normalizedEntrypointPath
-        .replace(`${this.builder.projectDir}/`, '')
-        .replace(/(.*)\.py$/, '$1')
-        .replace(/\//g, '.')
+  private getStepPath(step: Step, normalizePythonModulePath: boolean = false) {
+    let normalizedStepPath = step.filePath
+      .replace(/[.]step.py$/, '_step.py') // Replace .step.py with _step.py
+      .replace(`${this.builder.projectDir}/`, '') // Remove the project directory from the path
+
+    if (normalizePythonModulePath) {
+      normalizedStepPath = normalizedStepPath.replace(/(.*)\.py$/, '$1') // Remove .py extension
     }
+
+    const pathParts = normalizedStepPath.split(path.sep).map((part) =>
+      part
+        .replace(/^[0-9]+/g, '') // Remove numeric prefixes
+        .replace(/[^a-zA-Z0-9._]/g, '_') // Replace any non-alphanumeric characters (except dots) with underscores
+        .replace(/^_/, ''),
+    ) // Remove leading underscore
+
+    normalizedStepPath = normalizePythonModulePath
+      ? pathParts.join('.') // Convert path delimiter to dot (python module separator)
+      : '/' + pathParts.join(path.sep)
+
+    return normalizedStepPath
+  }
+
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
 
     const zipName = 'router-python.zip'
     const archive = new Archiver(path.join(distDir, zipName))
@@ -116,7 +120,7 @@ export class PythonBuilder implements StepBuilder {
         steps
           .map(
             (step, index) =>
-              `from ${getStepPath(step)} import handler as route${index}_handler, config as route${index}_config`,
+              `from ${this.getStepPath(step, true)} import handler as route${index}_handler, config as route${index}_config`,
           )
           .join('\n'),
       )
@@ -140,16 +144,30 @@ export class PythonBuilder implements StepBuilder {
     return { size, path: zipName }
   }
 
-  private async getPythonBuilderData(step: Step): Promise<{ file: string; files: string[]; packages: string[] }> {
+  private async getPythonBuilderData(step: Step): Promise<{ packages: string[]; files: string[] }> {
     return new Promise((resolve, reject) => {
       const child = spawn('python', [path.join(__dirname, 'python-builder.py'), step.filePath], {
         cwd: this.builder.projectDir,
         stdio: [undefined, undefined, 'pipe', 'ipc'],
+        env: {
+          ...process.env,
+          PROJECT_ROOT: this.builder.projectDir,
+        },
       })
       const err: string[] = []
 
-      child.on('stderr', (data) => err.push(data.toString()))
-      child.on('message', resolve)
+      child.stderr?.on('data', (data) => err.push(data.toString()))
+      child.on('message', (data: any) => {
+        // Ensure we have the expected format
+        if (!data || typeof data !== 'object' || !Array.isArray(data.packages) || !Array.isArray(data.files)) {
+          reject(new Error('Invalid response from Python builder'))
+        } else {
+          resolve({
+            packages: data.packages as string[],
+            files: data.files as string[],
+          })
+        }
+      })
       child.on('close', (code) => {
         if (code !== 0) {
           reject(new Error(err.join('')))

@@ -1,206 +1,287 @@
+#!/usr/bin/env python3
+"""
+Improved Python builder for package deployment.
+Detects imports using AST, tracks internal file dependencies, and provides package information.
+"""
+
 import os
 import sys
 import json
-import importlib.util
-import traceback
-import site
-import builtins
 import ast
 import importlib.metadata
-import subprocess
-import re
-from typing import Set, List, Tuple, Optional, Dict, Any
 from pathlib import Path
-from functools import lru_cache
+from typing import Set, List, Dict, Optional, Any
+from dataclasses import dataclass, asdict
 
 NODEIPCFD = int(os.environ["NODE_CHANNEL_FD"])
 
-# Cache for built-in modules to avoid repeated checks
-_builtin_modules_cache: Set[str] = set()
-
-@lru_cache(maxsize=1024)
-def is_valid_package_name(name: str) -> bool:
-    """Check if a name is a valid package name."""
-    if not name or name.startswith('_'):
-        return False
+@dataclass
+class DependencyAnalysis:
+    """Results of dependency analysis"""
+    packages: List[str]  # External packages
+    files: List[str]     # Internal Python files (relative paths)
     
-    # Skip common special cases
-    invalid_names = {'__main__', 'module', 'cython_runtime', 'builtins'}
-    return name not in invalid_names
+    def to_dict(self):
+        return asdict(self)
 
-@lru_cache(maxsize=1024)
-def get_package_name(module_name: str) -> str:
-    """Get the top-level package name from a module name."""
-    return module_name.split('.')[0]
-
-@lru_cache(maxsize=1024)
-def clean_package_name(package_name: str) -> str:
-    """Clean package name by removing version specifiers and other metadata."""
-    # Remove version specifiers and conditions using regex
-    package_name = re.sub(r'[<>=~!;].*$', '', package_name)
-    # Remove any remaining whitespace and convert underscores to hyphens
-    return package_name.strip().replace('_', '-')
-
-@lru_cache(maxsize=1024)
-def extract_base_package_name(dependency_spec: str) -> str:
-    """
-    Extract the base package name from a complex dependency specification.
-    Handles cases like:
-    - 'package (>=1.2.1,<2.0.0)'
-    - 'package[extra] (>=1.2.1)'
-    - 'package ; extra == "vlm"'
-    - 'package (>=1.2.1) ; sys_platform == "darwin"'
-    """
-    # First, remove any conditions after semicolon
-    base_spec = dependency_spec.split(';')[0].strip()
+class PythonAnalyzer:
+    """Analyzes Python files to extract dependencies"""
     
-    # Extract the package name before any version specifiers or extras
-    match = re.match(r'^([a-zA-Z0-9_.-]+)(?:\[[^\]]+\])?(?:\s*\([^)]*\))?$', base_spec)
-    
-    return clean_package_name(match.group(1) if match else base_spec)
-
-@lru_cache(maxsize=1024)
-def is_package_installed(package_name: str) -> bool:
-    """Check if a package is installed in the current environment."""
-    try:
-        # Try both hyphenated and non-hyphenated versions
+    def __init__(self, entry_file: str, project_root: str = None):
+        self.entry_file = Path(entry_file).absolute()
+        self.project_root = Path(project_root or self.entry_file.parent).absolute()
+        self.analyzed_files: Set[Path] = set()
+        self.external_packages: Set[str] = set()
+        self.internal_files: Set[Path] = set()
+        
+        # Get standard library modules
+        self.stdlib_modules = self._get_stdlib_modules()
+        
+    def _get_stdlib_modules(self) -> Set[str]:
+        """Get set of standard library module names"""
+        if hasattr(sys, 'stdlib_module_names'):
+            return set(sys.stdlib_module_names)
+        
+        # Fallback for older Python versions
+        stdlib = set(sys.builtin_module_names)
+        
+        # Add known standard library modules
+        import distutils.sysconfig as sysconfig
+        std_lib_path = sysconfig.get_python_lib(standard_lib=True)
+        
+        try:
+            for item in os.listdir(std_lib_path):
+                if item.endswith('.py'):
+                    stdlib.add(item[:-3])
+                elif os.path.isdir(os.path.join(std_lib_path, item)) and not item.startswith('_'):
+                    stdlib.add(item)
+        except OSError:
+            pass
+            
+        return stdlib
+        
+    def analyze(self) -> DependencyAnalysis:
+        """Main analysis entry point"""
+        # Always include the entry file itself
+        self.internal_files.add(self.entry_file)
+        
+        # Analyze the entry file and its dependencies
+        self._analyze_file(self.entry_file)
+        
+        # Convert internal files to relative paths from project root
+        relative_files = []
+        for file_path in self.internal_files:
+            try:
+                rel_path = file_path.relative_to(self.project_root)
+                relative_files.append(str(rel_path))
+            except ValueError:
+                # File is outside project root, include absolute path
+                relative_files.append(str(file_path))
+                
+        return DependencyAnalysis(
+            packages=sorted(list(self.external_packages)),
+            files=sorted(relative_files)
+        )
+        
+    def _analyze_file(self, file_path: Path) -> None:
+        """Recursively analyze a Python file and its imports"""
+        if file_path in self.analyzed_files or not file_path.exists():
+            return
+            
+        self.analyzed_files.add(file_path)
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            tree = ast.parse(content, filename=str(file_path))
+            
+            # Walk through all nodes in the AST
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        self._process_import(alias.name, file_path)
+                elif isinstance(node, ast.ImportFrom):
+                    if node.module:
+                        self._process_import(node.module, file_path, node.level)
+                    # Handle "from . import x" case
+                    elif node.level > 0:
+                        self._process_relative_import(file_path, node.level, node.names)
+                        
+        except (SyntaxError, UnicodeDecodeError) as e:
+            print(f"Warning: Could not parse {file_path}: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: Error analyzing {file_path}: {e}", file=sys.stderr)
+            
+    def _process_import(self, module_name: str, from_file: Path, level: int = 0) -> None:
+        """Process an import statement"""
+        if not module_name:
+            return
+            
+        # Handle relative imports
+        if level > 0:
+            module_name = self._resolve_relative_import(module_name, from_file, level)
+            if not module_name:
+                return
+                
+        # Get the top-level package name
+        package_name = module_name.split('.')[0]
+        
+        # Skip invalid names
+        if not package_name or package_name.startswith('_'):
+            return
+            
+        # Check if it's a standard library module
+        if package_name in self.stdlib_modules:
+            return
+            
+        # Try to find if it's an internal module FIRST
+        # This is important - internal modules take precedence over external packages
+        internal_path = self._find_internal_module(module_name, from_file)
+        if internal_path:
+            self.internal_files.add(internal_path)
+            self._analyze_file(internal_path)  # Recursively analyze
+            # Don't add as external package if we found it internally
+            return
+            
+        # Only consider as external package if not found internally
+        # and it's actually installed
+        if self._is_package_installed(package_name):
+            self.external_packages.add(package_name)
+            # Also get its dependencies
+            self._add_package_dependencies(package_name)
+                
+    def _process_relative_import(self, from_file: Path, level: int, names: List) -> None:
+        """Handle relative imports like 'from . import module'"""
+        # Get the package directory
+        current_dir = from_file.parent
+        
+        # Go up 'level-1' directories for the package
+        for _ in range(level - 1):
+            current_dir = current_dir.parent
+            
+        # Process each imported name
+        for name_node in names:
+            if hasattr(name_node, 'name'):
+                module_file = current_dir / f"{name_node.name}.py"
+                module_dir = current_dir / name_node.name / "__init__.py"
+                
+                if module_file.exists():
+                    self.internal_files.add(module_file)
+                    self._analyze_file(module_file)
+                elif module_dir.exists():
+                    self.internal_files.add(module_dir)
+                    self._analyze_file(module_dir)
+                    
+    def _resolve_relative_import(self, module_name: str, from_file: Path, level: int) -> Optional[str]:
+        """Resolve relative imports to absolute module names"""
+        try:
+            # Get the package path relative to project root
+            rel_path = from_file.relative_to(self.project_root)
+            parts = list(rel_path.parts[:-1])  # Remove the file name
+            
+            # Go up 'level' directories
+            if level > len(parts):
+                return None
+                
+            base_parts = parts[:-level] if level > 0 else parts
+            
+            if module_name:
+                base_parts.extend(module_name.split('.'))
+                
+            return '.'.join(base_parts)
+        except ValueError:
+            return None
+            
+    def _find_internal_module(self, module_name: str, from_file: Path) -> Optional[Path]:
+        """Find internal module file in the project"""
+        # Convert module name to path components
+        module_parts = module_name.split('.')
+        
+        # Search locations in order of preference
+        search_dirs = [
+            from_file.parent,  # Look relative to the importing file first
+            self.project_root,
+        ]
+        
+        # Also check parent directories up to project root
+        current = from_file.parent
+        while current != self.project_root.parent and current != current.parent:
+            if current not in search_dirs:
+                search_dirs.append(current)
+            current = current.parent
+        
+        for base_dir in search_dirs:
+            # Build the path progressively
+            if len(module_parts) == 1:
+                # Single module name
+                paths_to_try = [
+                    base_dir / f"{module_parts[0]}.py",
+                    base_dir / module_parts[0] / "__init__.py",
+                ]
+            else:
+                # Multi-part module name
+                paths_to_try = [
+                    base_dir / Path(*module_parts[:-1]) / f"{module_parts[-1]}.py",
+                    base_dir / Path(*module_parts) / "__init__.py",
+                ]
+            
+            for path in paths_to_try:
+                if path.exists() and path.is_file():
+                    # Make sure it's within the project
+                    try:
+                        path.relative_to(self.project_root)
+                        return path.absolute()
+                    except ValueError:
+                        # Path is outside project root, skip it
+                        continue
+                
+        return None
+        
+    def _is_package_installed(self, package_name: str) -> bool:
+        """Check if a package is installed"""
         try:
             importlib.metadata.distribution(package_name)
             return True
         except importlib.metadata.PackageNotFoundError:
-            # Try with hyphens replaced by underscores
-            alt_name = package_name.replace('-', '_')
-            if alt_name != package_name:
-                importlib.metadata.distribution(alt_name)
-                return True
+            # Try alternative names
+            for alt_name in [package_name.replace('_', '-'), package_name.replace('-', '_')]:
+                try:
+                    importlib.metadata.distribution(alt_name)
+                    return True
+                except importlib.metadata.PackageNotFoundError:
+                    continue
             return False
-    except importlib.metadata.PackageNotFoundError:
-        return False
-
-@lru_cache(maxsize=1024)
-def is_builtin_module(module_name: str) -> bool:
-    """Check if a module is a Python built-in module."""
-    if module_name in _builtin_modules_cache:
-        return True
-        
-    try:
-        module = importlib.import_module(module_name)
-        
-        # Built-in modules either have no __file__ attribute or their file is in the standard library
-        if not hasattr(module, '__file__'):
-            _builtin_modules_cache.add(module_name)
-            return True
             
-        # Get the standard library path
-        stdlib_path = os.path.dirname(os.__file__)
+    def _add_package_dependencies(self, package_name: str, processed: Set[str] = None) -> None:
+        """Add package dependencies recursively"""
+        if processed is None:
+            processed = set()
+            
+        if package_name in processed:
+            return
+            
+        processed.add(package_name)
         
-        # Check if the module's file is in the standard library
-        is_builtin = module.__file__ and module.__file__.startswith(stdlib_path)
-        if is_builtin:
-            _builtin_modules_cache.add(module_name)
-        return is_builtin
-    except ImportError:
-        return False
-
-def get_direct_imports(file_path: str) -> Set[str]:
-    """Extract direct imports from a Python file using AST parsing."""
-    direct_imports = set()
-    
-    try:
-        with open(file_path, 'r') as f:
-            content = f.read()
-        
-        tree = ast.parse(content)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for name in node.names:
-                    base_pkg = name.name.split('.')[0]
-                    if is_valid_package_name(base_pkg) and not is_builtin_module(base_pkg):
-                        direct_imports.add(base_pkg)
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    base_pkg = node.module.split('.')[0]
-                    if is_valid_package_name(base_pkg) and not is_builtin_module(base_pkg):
-                        direct_imports.add(base_pkg)
-    except Exception as e:
-        print(f"Warning: Could not parse imports from {file_path}: {str(e)}")
-    
-    return direct_imports
-
-@lru_cache(maxsize=1024)
-def is_optional_dependency(req: str) -> bool:
-    """Check if a dependency is an optional dependency."""
-    return '[' in req or 'extra ==' in req
-
-def get_package_dependencies(package_name: str, processed: Set[str] = None) -> Set[str]:
-    """Get all dependencies (including sub-dependencies) for a given package."""
-    if processed is None:
-        processed = set()
-    
-    if package_name in processed or is_builtin_module(package_name):
-        return set()
-    
-    processed.add(package_name)
-    all_dependencies = set()
-    
-    try:
-        # Try to get the distribution
         try:
             dist = importlib.metadata.distribution(package_name)
-        except importlib.metadata.PackageNotFoundError:
-            print(f'Warning: Package {package_name} not found')
-            return all_dependencies
-
-        # Filter out optional dependencies
-        sub_dependencies = list(filter(lambda dep: not is_optional_dependency(dep), dist.requires or []))
-        
-        # Get direct dependencies
-        for req in sub_dependencies:                
-            base_pkg = extract_base_package_name(req)
+            requires = dist.requires or []
             
-            if base_pkg and base_pkg not in processed:
-                # Try both hyphenated and non-hyphenated versions
-                for dep_name in [base_pkg, base_pkg.replace('-', '_'), base_pkg.replace('_', '-')]:
-                    try:
-                        importlib.import_module(dep_name)
-                        all_dependencies.add(dep_name)
-                        # Recursively get sub-dependencies
-                        all_dependencies.update(get_package_dependencies(dep_name, processed))
-                        break
-                    except ImportError:
-                        continue
-            
-    except Exception as e:
-        print(f"Warning: Error processing {package_name}: {str(e)}")
-    
-    return all_dependencies
-
-def trace_imports(entry_file: str) -> List[str]:
-    """Find all imported Python packages and files starting from an entry file."""
-    entry_file = os.path.abspath(entry_file)
-    module_dir = os.path.dirname(entry_file)
-    
-    if module_dir not in sys.path:
-        sys.path.insert(0, module_dir)
-    
-    # Get direct imports from the entry file
-    direct_imports = get_direct_imports(entry_file)
-    
-    # Initialize sets to track packages
-    all_packages = set()
-    processed_packages = set()
-    
-    # Process each direct import and its dependencies
-    for package_name in direct_imports:
-        if is_valid_package_name(package_name):
-            all_packages.add(package_name)
-            # Get all dependencies including sub-dependencies
-            all_packages.update(get_package_dependencies(package_name, processed_packages))
-    
-    # Filter out built-in packages
-    non_builtin_packages = {pkg for pkg in all_packages if not is_builtin_module(pkg)}
-    
-    return sorted(list(non_builtin_packages))
+            for req in requires:
+                # Skip optional dependencies
+                if '[' in req or 'extra ==' in req:
+                    continue
+                    
+                # Extract package name from requirement spec
+                dep_name = req.split(';')[0].split('[')[0].split('(')[0].split('<')[0].split('>')[0].split('=')[0].strip()
+                
+                if dep_name and self._is_package_installed(dep_name):
+                    self.external_packages.add(dep_name)
+                    self._add_package_dependencies(dep_name, processed)
+                    
+        except Exception:
+            # Silently skip if we can't get dependencies
+            pass
 
 def main() -> None:
     """Main entry point for the script."""
@@ -209,15 +290,23 @@ def main() -> None:
         sys.exit(1)
 
     entry_file = sys.argv[1]
+    
     try:
-        packages = trace_imports(entry_file)
-        output = {
-            'packages': packages
-        }
+        # Get project root from environment or use parent directory
+        project_root = os.environ.get('PROJECT_ROOT', os.path.dirname(os.path.dirname(entry_file)))
+        
+        # Analyze the file
+        analyzer = PythonAnalyzer(entry_file, project_root)
+        result = analyzer.analyze()
+        
+        # Send result back via IPC
+        output = result.to_dict()
         bytes_message = (json.dumps(output) + '\n').encode('utf-8')
         os.write(NODEIPCFD, bytes_message)
         sys.exit(0)
+        
     except Exception as e:
+        import traceback
         print(f"Error: {str(e)}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         sys.exit(3)

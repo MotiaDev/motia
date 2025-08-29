@@ -4,7 +4,18 @@ import colors from 'colors'
 import { Archiver } from '../archiver'
 
 const shouldIgnore = (filePath: string): boolean => {
-  const ignorePatterns = [/\.pyc$/, /\.egg$/, /__pycache__/, /\.dist-info$/]
+  const ignorePatterns = [
+    /\.pyc$/,
+    /\.pyo$/,
+    /\.egg$/,
+    /\.egg-info$/,
+    /__pycache__/,
+    /\.dist-info$/,
+    /^tests?\//,
+    /^docs?\//,
+    /^examples?\//,
+    /\.pytest_cache/,
+  ]
   return ignorePatterns.some((pattern) => pattern.test(filePath))
 }
 
