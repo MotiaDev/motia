@@ -5,6 +5,7 @@ import { activatePythonVenv } from './utils/activate-python-env'
 import { installLambdaPythonPackages } from './utils/install-lambda-python-packages'
 import { getStepFiles } from './generate-locked-data'
 import { getPythonCommand } from './utils/python-version-utils'
+import { ensureUvInstalled } from './utils/ensure-uv'
 
 interface InstallConfig {
   isVerbose?: boolean
@@ -41,6 +42,12 @@ export const pythonInstall = async ({
     }
 
     activatePythonVenv({ baseDir, isVerbose, pythonVersion })
+
+    // Ensure UV is installed
+    console.log('🔧 Checking UV installation...')
+    await ensureUvInstalled()
+    console.log('✅ UV is available')
+
     installLambdaPythonPackages({ isVerbose, requirementsList })
 
     // Install requirements
@@ -65,6 +72,7 @@ export const pythonInstall = async ({
 
 export const install = async ({ isVerbose = false, pythonVersion = '3.13' }: InstallConfig): Promise<void> => {
   const baseDir = process.cwd()
+  
   const steps = getStepFiles(baseDir)
   if (steps.some((file) => file.endsWith('.py'))) {
     await pythonInstall({ baseDir, isVerbose, pythonVersion })
