@@ -90,7 +90,7 @@ export class PythonBuilder implements StepBuilder {
         .replace(/^[0-9]+/g, '') // Remove numeric prefixes
         .replace(/[^a-zA-Z0-9._]/g, '_') // Replace any non-alphanumeric characters (except dots) with underscores
         .replace(/^_/, ''),
-    ) // Remove leading underscore
+    )
 
     normalizedStepPath = normalizePythonModulePath
       ? pathParts.join('.') // Convert path delimiter to dot (python module separator)
@@ -146,31 +146,55 @@ export class PythonBuilder implements StepBuilder {
 
   private async getPythonBuilderData(step: Step): Promise<{ packages: string[]; files: string[] }> {
     return new Promise((resolve, reject) => {
-      const child = spawn('python', [path.join(__dirname, 'python-builder.py'), step.filePath], {
+      // Pass project directory and entry file explicitly
+      const child = spawn('python', [
+        path.join(__dirname, 'python-builder.py'),
+        this.builder.projectDir,
+        step.filePath
+      ], {
         cwd: this.builder.projectDir,
         stdio: [undefined, undefined, 'pipe', 'ipc'],
         env: {
           ...process.env,
-          PROJECT_ROOT: this.builder.projectDir,
+          NODE_CHANNEL_FD: '3',  // Explicitly set IPC channel
         },
       })
+      
       const err: string[] = []
 
       child.stderr?.on('data', (data) => err.push(data.toString()))
+      
       child.on('message', (data: any) => {
-        // Ensure we have the expected format
-        if (!data || typeof data !== 'object' || !Array.isArray(data.packages) || !Array.isArray(data.files)) {
+        // Handle both old format (string array) and new format (with versions)
+        if (!data || typeof data !== 'object') {
           reject(new Error('Invalid response from Python builder'))
-        } else {
-          resolve({
-            packages: data.packages as string[],
-            files: data.files as string[],
-          })
+          return
         }
+        
+        // Extract packages (handle both formats)
+        let packages: string[] = []
+        if (Array.isArray(data.packages)) {
+          packages = data.packages.map((pkg: any) => {
+            if (typeof pkg === 'string') return pkg
+            if (pkg && typeof pkg === 'object' && pkg.name) return pkg.name
+            return null
+          }).filter(Boolean)
+        }
+        
+        // Extract files
+        const files = Array.isArray(data.files) ? data.files : []
+        
+        resolve({ packages, files })
       })
+      
+      child.on('error', (error) => {
+        reject(new Error(`Failed to spawn Python builder: ${error.message}`))
+      })
+      
       child.on('close', (code) => {
         if (code !== 0) {
-          reject(new Error(err.join('')))
+          const errorMsg = err.join('').trim() || `Python builder exited with code ${code}`
+          reject(new Error(errorMsg))
         }
       })
     })

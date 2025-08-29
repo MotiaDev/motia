@@ -44,23 +44,66 @@ const addDirectoryToArchive = async (archive: Archiver, baseDir: string, dirPath
   )
 }
 
+const findInSitePackages = (sitePackagesDir: string, packageName: string): string | null => {
+  // Get potential module names
+  const moduleNames = this.cache[packageName] 
+
+  for (const moduleName of moduleNames) {
+    // Check as directory
+    const dirPath = path.join(sitePackagesDir, moduleName)
+    if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+      return dirPath
+    }
+
+    // Check as .py file
+    const pyPath = path.join(sitePackagesDir, `${moduleName}.py`)
+    if (fs.existsSync(pyPath)) {
+      return pyPath
+    }
+  }
+
+  return null
+}
+
 export const addPackageToArchive = async (
   archive: Archiver,
   sitePackagesDir: string,
   packageName: string,
 ): Promise<void> => {
-  // First try the package name as is
-  let fullPath = path.join(sitePackagesDir, packageName)
-
-  // If not found, try with .py extension
-  if (!fs.existsSync(fullPath)) {
-    const pyPath = path.join(sitePackagesDir, `${packageName}.py`)
-    if (fs.existsSync(pyPath)) {
-      fullPath = pyPath
+  // Try dynamic resolution first
+  let fullPath = findInSitePackages(sitePackagesDir, packageName)
+  
+  // If dynamic resolution didn't work, try heuristics
+  if (!fullPath) {
+    // Generate package name variations to try
+    const namesToTry = [
+      packageName,
+      packageName.replace(/-/g, '_'),
+      packageName.replace(/_/g, '-'),
+      packageName.toLowerCase(),
+    ]
+    
+    // Handle python- prefix
+    if (packageName.startsWith('python-') || packageName.startsWith('python_')) {
+      namesToTry.push(packageName.substring(7))
+    }
+    
+    for (const name of namesToTry) {
+      const dirPath = path.join(sitePackagesDir, name)
+      if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+        fullPath = dirPath
+        break
+      }
+      
+      const pyPath = path.join(sitePackagesDir, `${name}.py`)
+      if (fs.existsSync(pyPath)) {
+        fullPath = pyPath
+        break
+      }
     }
   }
 
-  if (!fs.existsSync(fullPath)) {
+  if (!fullPath) {
     console.log(colors.yellow(`Warning: Package not found in site-packages: ${packageName}`))
     return
   }
