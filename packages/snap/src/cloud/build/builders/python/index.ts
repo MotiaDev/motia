@@ -94,6 +94,7 @@ export class PythonBuilder implements StepBuilder {
       return normalizedEntrypointPath
         .replace(`${this.builder.projectDir}/`, '')
         .replace(/(.*)\.py$/, '$1')
+        .replace(/\\/g, '.')
         .replace(/\//g, '.')
     }
 

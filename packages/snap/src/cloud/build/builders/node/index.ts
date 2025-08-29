@@ -36,7 +36,10 @@ export class NodeBuilder implements StepBuilder {
   async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
     const relativePath = path.relative(distDir, this.builder.projectDir)
     const getStepPath = (step: Step<ApiRouteConfig>) => {
-      return step.filePath.replace(this.builder.projectDir, relativePath).replace(/(.*)\.(ts|js)$/, '$1.js')
+      return step.filePath
+        .replace(this.builder.projectDir, relativePath)
+        .replace(/(.*)\.(ts|js)$/, '$1.js')
+        .replace(/\\/g, '/')
     }
 
     const file = fs
