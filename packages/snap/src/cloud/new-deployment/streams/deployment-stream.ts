@@ -90,15 +90,15 @@ export class DeploymentStreamManager {
     })
   }
 
-  async completeDeployment(deploymentId: string, success: boolean, error?: string): Promise<void> {
+  async completeDeployment(deploymentId: string, error?: string): Promise<void> {
     const current = await this.getDeployment(deploymentId)
     if (!current) return
 
     await this.stream.set(deploymentId, 'data', {
       ...current,
-      status: success ? 'completed' : 'failed',
-      phase: null,
-      message: success ? 'Deployment completed successfully' : `Deployment failed: ${error}`,
+      status: error ? 'failed' : 'completed',
+      phase: error ? current.phase : null,
+      message: error || 'Deployment completed successfully',
       completedAt: Date.now(),
       error,
     })

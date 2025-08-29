@@ -98,7 +98,7 @@ export const dev = async (
       require('@motiadev/workbench/middleware')
     : // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('@motiadev/workbench/dist/middleware')
-  await applyMiddleware(motiaServer.app)
+  await applyMiddleware(motiaServer.app, port)
 
   // 6) Gracefully shut down on SIGTERM
   process.on('SIGTERM', async () => {
