@@ -15,7 +15,7 @@ const processCwdPlugin = () => {
   }
 }
 
-export const applyMiddleware = async (app: Express) => {
+export const applyMiddleware = async (app: Express, port: number) => {
   const vite = await createViteServer({
     appType: 'spa',
     root: __dirname,
@@ -24,6 +24,7 @@ export const applyMiddleware = async (app: Express) => {
       middlewareMode: true,
       allowedHosts: true,
       host: true,
+      hmr: { port: 21678 + port },
       fs: {
         allow: [
           __dirname, // workbench root

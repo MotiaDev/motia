@@ -289,11 +289,11 @@ export class StreamingDeploymentListener implements DeploymentListener {
   }
 
   async onDeployEnd(): Promise<void> {
-    await this.streamManager.completeDeployment(this.deploymentId, true)
+    await this.streamManager.completeDeployment(this.deploymentId)
   }
 
   async onDeployError(errorMessage: string): Promise<void> {
-    await this.streamManager.completeDeployment(this.deploymentId, false, errorMessage)
+    await this.streamManager.completeDeployment(this.deploymentId, errorMessage)
   }
 
   // Utility methods for phase management

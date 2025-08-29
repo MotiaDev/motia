@@ -6,7 +6,7 @@ import { build } from './new-deployment/build'
 import { uploadArtifacts } from './new-deployment/upload-artifacts'
 import { DeploymentData, DeploymentStreamManager } from './new-deployment/streams/deployment-stream'
 import { cloudApi } from './new-deployment/cloud-api'
-import colors from 'colors'
+import { version } from '../version'
 
 export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => {
   const { app } = server
@@ -24,9 +24,15 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
 
   const deploymentManager = new DeploymentStreamManager(deploymentStream)
 
-  app.post('/cloud/deploy/start', async (req, res) => {
+  app.get('/__motia', (_, res) => {
+    res.status(200).json({ version: version })
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.post('/__motia/cloud/deploy/start', async (req: any, res: any) => {
     try {
       const { deploymentToken, deploymentId, envs } = req.body
+      const sessionId = deploymentId || randomUUID()
 
       if (!deploymentToken || !deploymentId) {
         return res.status(400).json({
@@ -34,10 +40,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
           error: 'deploymentToken and deploymentId are required',
         })
       }
-
-      colors.disable()
-
-      const sessionId = deploymentId || randomUUID()
 
       await deploymentManager.startDeployment(sessionId)
 
@@ -56,7 +58,9 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
         try {
           await listener.startBuildPhase()
 
-          const builder = await build(listener)
+          const builder = await build(listener).catch(() => {
+            throw new Error('Build failed, check the logs for more information')
+          })
 
           const isValid = buildValidation(builder, listener)
 
@@ -66,11 +70,9 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
           }
 
           await listener.startUploadPhase()
-
           await uploadArtifacts(builder, deploymentToken, listener)
 
           await listener.startDeployPhase()
-
           await cloudApi.startDeployment({
             deploymentToken,
             envVars: envs,
@@ -91,36 +93,24 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Failed to start deployment:', error)
-      res.status(500).json({
-        success: false,
-        error: error.message,
-      })
+
+      res.status(500).json({ success: false, error: error.message })
     }
   })
 
-  // Get deployment status by ID
-  app.get('/cloud/deploy/status/:deploymentId', async (req, res) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.get('/__motia/cloud/deploy/status/:deploymentId', async (req: any, res: any) => {
     try {
       const { deploymentId } = req.params
       const deployment = await deploymentManager.getDeployment(deploymentId)
 
-      if (!deployment) {
-        return res.status(404).json({
-          success: false,
-          error: 'Deployment not found',
-        })
-      }
+      return deployment
+        ? res.status(200).json({ success: true, deployment })
+        : res.status(404).json({ success: false, error: 'Deployment not found' })
 
-      res.json({
-        success: true,
-        deployment,
-      })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        error: error.message,
-      })
+      res.status(500).json({ success: false, error: error.message })
     }
   })
 }
