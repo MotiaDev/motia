@@ -49,9 +49,10 @@ This guide will help you install and configure Motia's AI Development Guides in 
         npx motia@latest rules pull
         ```
         This will create the following in your project root:
-        - **AGENTS.md** – Universal guide for any AI tool or IDE
+        - **AGENTS.md** – Universal AI guide for ANY AI tool or IDE
         - **CLAUDE.md** – Claude-specific guide with advanced techniques
-        - **.cursor/rules/** – IDE-specific patterns for Cursor (do not place AGENTS.md or CLAUDE.md inside this folder)
+        - **.cursor/rules/** – IDE-specific patterns for Cursor
+        - **.claude/** – Claude IDE configurations and commands
       </Step>
     </Steps>
   </Tab>
@@ -66,27 +67,47 @@ This guide will help you install and configure Motia's AI Development Guides in 
       <Step>
         ### Copy from local installation
         ```bash
-        # If you have Motia installed locally
+        # If you have Motia installed locally or globally
         mkdir -p .cursor/rules
-        cp -r node_modules/@motiadev/snap/dot-files/.cursor/rules/* .cursor/rules/
-        cp node_modules/@motiadev/snap/dot-files/CLAUDE.md ./CLAUDE.md
-        cp node_modules/@motiadev/snap/dot-files/AGENTS.md ./AGENTS.md
+
+        # Copy Cursor IDE rules
+        cp -r node_modules/motia/dist/dot-files/.cursor/rules/* .cursor/rules/
+
+        # Copy AI development guides to project root
+        cp node_modules/motia/dist/dot-files/AGENTS.md ./AGENTS.md
+        cp node_modules/motia/dist/dot-files/CLAUDE.md ./CLAUDE.md
+
+        # Copy Claude IDE configurations
+        cp -r node_modules/motia/dist/dot-files/.claude ./.claude
         ```
-        > **Note:** Only copy `.mdc` rule files into `.cursor/rules/`.  
-        > **AGENTS.md** and **CLAUDE.md** should remain in your project root, **not** inside `.cursor/rules/`.
+        > **Important:** Only copy `.mdc` rule files into `.cursor/rules/`.
+        > **CLAUDE.md** should be in your project root, **not** inside `.cursor/rules/`.
       </Step>
       <Step>
         ### Or download from GitHub
         ```bash
+        # Download and extract Motia repository
         curl -L https://github.com/MotiaDev/motia/archive/main.zip -o motia.zip
         unzip motia.zip
+
+        # Create directories
         mkdir -p .cursor/rules
-        cp -r motia-main/packages/dot-files/.cursor/rules/* .cursor/rules/
-        cp motia-main/packages/dot-files/CLAUDE.md ./CLAUDE.md
-        cp motia-main/packages/dot-files/AGENTS.md ./AGENTS.md
+
+        # Copy Cursor IDE rules
+        cp -r motia-main/packages/snap/dist/dot-files/.cursor/rules/* .cursor/rules/
+
+        # Copy AI development guides to project root
+        cp motia-main/packages/snap/dist/dot-files/AGENTS.md ./AGENTS.md
+        cp motia-main/packages/snap/dist/dot-files/CLAUDE.md ./CLAUDE.md
+
+        # Copy Claude IDE configurations
+        cp -r motia-main/packages/snap/dist/dot-files/.claude ./.claude
+
+        # Clean up
         rm -rf motia.zip motia-main
         ```
-        > **Again:** Do **not** place AGENTS.md or CLAUDE.md inside `.cursor/rules/`.
+        > **Critical:** Do **not** place AGENTS.md or CLAUDE.md inside `.cursor/rules/`. They belong in project root.
+        > The `.claude` folder contains Claude IDE-specific configurations and should be in your project root.
       </Step>
     </Steps>
   </Tab>
@@ -102,17 +123,30 @@ This guide will help you install and configure Motia's AI Development Guides in 
         ```
       </Step>
       <Step>
-        ### Create symlink for Cursor rules
+        ### Create symlinks for AI guides and rules
         ```bash
-        ln -s .motia-source/packages/dot-files/.cursor/rules .cursor/rules
+        # Create directories
+        mkdir -p .cursor/rules
+
+        # Symlink Cursor IDE rules
+        ln -s ../.motia-source/packages/snap/dist/dot-files/.cursor/rules/* .cursor/rules/
+
+        # Copy AI development guides to project root
+        cp .motia-source/packages/snap/dist/dot-files/CLAUDE.md ./CLAUDE.md
+        cp .motia-source/packages/snap/dist/dot-files/AGENTS.md ./AGENTS.md
         ```
-        > **Do not symlink or copy AGENTS.md or CLAUDE.md into `.cursor/rules/`.  
-        > These files should always be in your project root.**
+        > **Important:** Do **not** symlink or copy AGENTS.md or CLAUDE.md into `.cursor/rules/`.
+        > These files should always be in your project root.
       </Step>
       <Step>
-        ### Update Cursor rules (when needed)
+        ### Update AI guides and rules (when needed)
         ```bash
+        # Update submodule to latest version
         git submodule update --remote
+
+        # Re-copy AI guides if they were updated
+        cp .motia-source/packages/snap/dist/dot-files/CLAUDE.md ./CLAUDE.md
+        cp .motia-source/packages/snap/dist/dot-files/AGENTS.md ./AGENTS.md
         ```
       </Step>
     </Steps>
@@ -137,8 +171,25 @@ After installation, your project should look like this:
       <File name="background-job-patterns.mdc">Background jobs</File>
       <File name="realtime-streaming.mdc">Real-time features</File>
       <File name="ai-agent-patterns.mdc">AI agents</File>
-      <File name="...">More cursor-specific rules</File>
+      <File name="workflow-patterns.mdc">Business workflows</File>
+      <File name="production-deployment.mdc">DevOps patterns</File>
+      <File name="api-design-patterns.mdc">REST API best practices</File>
+      <File name="state-management.mdc">Data persistence patterns</File>
+      <File name="testing.mdc">Testing strategies</File>
+      <File name="typescript.mdc">TypeScript patterns</File>
+      <File name="instructions.mdc">Step modifications</File>
+      <File name="architecture.mdc">System architecture</File>
+      <File name="cron-steps.mdc">Scheduled tasks</File>
+      <File name="noop-steps.mdc">Workflow connections</File>
+      <File name="ui-steps.mdc">Custom UI components</File>
     </Folder>
+  </Folder>
+  <Folder name=".claude">
+    <File name="CLAUDE.md">Claude-specific guide</File>
+    <Folder name="commands">Command templates and patterns</Folder>
+    <Folder name="agents">AI agent configurations</Folder>
+    <Folder name="hooks">Pre/post-deployment scripts</Folder>
+    <File name="settings.json">Claude IDE settings</File>
   </Folder>
   <Folder name="steps">
     <File name="...">Your Motia workflow steps</File>
@@ -147,8 +198,9 @@ After installation, your project should look like this:
   <File name="config.yml">Motia configuration</File>
 </Files>
 
-> **Important:**  
+> **Important:**
 > - **AGENTS.md** and **CLAUDE.md** should be in your project root, **not** inside `.cursor/rules/`.
+> - The **`.claude`** folder should be in your project root and contains Claude IDE configurations.
 > - Only `.mdc` rule files go inside `.cursor/rules/`.
 
 ## Configuration for Different AI Tools
@@ -181,6 +233,186 @@ After installation, your project should look like this:
 3. Reference specific Cursor rules (`.mdc` files) as needed.
 4. Adapt the patterns to your AI tool's prompt format.
 
+## Sharing AI Guides with Team Members
+
+<Callout type="info" title="Easy Sharing Methods">
+  Once AI guides are set up in your project, sharing them with team members is straightforward.
+</Callout>
+
+<Tabs items={["Git Commit", "Shared Drive", "NPM Package"]}>
+  <Tab value="Git Commit">
+    ### Commit to Your Repository
+    ```bash
+    # Add AI guides to your repository
+    git add AGENTS.md CLAUDE.md .cursor/
+
+    # Commit with descriptive message
+    git commit -m "feat: add Motia AI development guides and Cursor rules
+
+    - AGENTS.md: Universal AI guide for all AI tools and IDEs
+    - CLAUDE.md: Claude-specific advanced techniques
+    - .cursor/rules/: IDE-specific patterns for Cursor
+
+    These guides enable one-shot complete backend development
+    using proven Motia architectural patterns."
+
+    # Push to your repository
+    git push origin main
+    ```
+
+    **Benefits:**
+    - Automatic distribution to all team members
+    - Version control with your project
+    - No additional setup required for new developers
+  </Tab>
+
+  <Tab value="Shared Drive">
+    ### Share via Company Drive
+    ```bash
+    # Create a shared package
+    mkdir motia-ai-guides-v1.0.0
+    cp AGENTS.md motia-ai-guides-v1.0.0/
+    cp CLAUDE.md motia-ai-guides-v1.0.0/
+    cp -r .cursor motia-ai-guides-v1.0.0/
+
+    # Create setup script
+    cat > motia-ai-guides-v1.0.0/setup.sh << 'EOF'
+    #!/bin/bash
+    echo "Setting up Motia AI Development Guides..."
+
+    # Copy to current directory
+    cp AGENTS.md ./AGENTS.md
+    cp CLAUDE.md ./CLAUDE.md
+    cp -r .cursor ./ 2>/dev/null || mkdir -p .cursor && cp -r .cursor/rules .cursor/
+
+    echo "✅ AI guides installed successfully!"
+    echo "📖 Open AGENTS.md to get started"
+    EOF
+
+    chmod +x motia-ai-guides-v1.0.0/setup.sh
+    ```
+  </Tab>
+
+  <Tab value="NPM Package">
+    ### Create Team NPM Package
+    ```json
+    // team-motia-guides/package.json
+    {
+      "name": "@yourcompany/motia-ai-guides",
+      "version": "1.0.0",
+      "description": "Motia AI Development Guides and Cursor Rules",
+      "main": "index.js",
+      "scripts": {
+        "install": "node setup.js"
+      },
+      "files": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".cursor/"
+      ]
+    }
+    ```
+
+    ```javascript
+    // team-motia-guides/setup.js
+    const fs = require('fs');
+    const path = require('path');
+
+    console.log('🚀 Installing Motia AI Development Guides...');
+
+    // Copy AGENTS.md
+    if (fs.existsSync(path.join(__dirname, 'AGENTS.md'))) {
+      fs.copyFileSync(path.join(__dirname, 'AGENTS.md'), './AGENTS.md');
+      console.log('✅ AGENTS.md installed');
+    }
+
+    // Copy CLAUDE.md
+    if (fs.existsSync(path.join(__dirname, 'CLAUDE.md'))) {
+      fs.copyFileSync(path.join(__dirname, 'CLAUDE.md'), './CLAUDE.md');
+      console.log('✅ CLAUDE.md installed');
+    }
+
+    // Copy .cursor rules
+    const cursorSrc = path.join(__dirname, '.cursor');
+    if (fs.existsSync(cursorSrc)) {
+      const cursorDest = './.cursor';
+      if (!fs.existsSync(cursorDest)) {
+        fs.mkdirSync(cursorDest, { recursive: true });
+      }
+      fs.cpSync(cursorSrc, cursorDest, { recursive: true });
+      console.log('✅ Cursor rules installed');
+    }
+
+    console.log('');
+    console.log('🎉 Installation complete!');
+    console.log('📖 Open AGENTS.md to start building with AI');
+    ```
+  </Tab>
+</Tabs>
+
 ## Verification
 
 Test that AI guides are set up correctly:
+
+<Steps>
+  <Step>
+    ### Verify AI development guides
+    ```bash
+    # Check if guides exist in project root
+    ls -la AGENTS.md CLAUDE.md
+
+    # Verify content (should not be empty)
+    wc -l AGENTS.md CLAUDE.md
+    ```
+  </Step>
+
+  <Step>
+    ### Verify Cursor rules
+    ```bash
+    # Check Cursor rules directory
+    ls -la .cursor/rules/
+
+    # Count number of rule files
+    ls .cursor/rules/*.mdc | wc -l
+    ```
+  </Step>
+
+  <Step>
+    ### Test CLI commands
+    ```bash
+    # Test rules list command
+    npx motia@latest rules list
+
+    # Test showing guides
+    npx motia@latest rules show agents
+    npx motia@latest rules show claude
+
+    # Test showing a specific rule
+    npx motia@latest rules show api-steps
+    ```
+  </Step>
+
+  <Step>
+    ### Verify file integrity
+    ```bash
+    # Check file sizes (should be > 0)
+    ls -lh AGENTS.md CLAUDE.md .cursor/rules/*.mdc
+
+    # Verify no empty files
+    find .cursor/rules/ -name "*.mdc" -size 0
+    ```
+  </Step>
+
+  <Step>
+    ### Test in your IDE
+    ```bash
+    # Open your project in Cursor/VS Code
+    # The .cursor/rules/ should be automatically detected
+    # Try creating a new step file and see if patterns appear
+    ```
+  </Step>
+</Steps>
+
+<Callout type="success" title="Setup Complete!">
+  If all verification steps pass, you're ready to start building with AI-powered development!
+</Callout>

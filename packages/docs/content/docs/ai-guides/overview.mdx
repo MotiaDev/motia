@@ -120,9 +120,10 @@ Motia provides comprehensive AI development guides that work with **any AI tool 
     npx motia@latest rules pull
     
     # This creates:
-    # • AGENTS.md - Universal guide for ANY AI tool (project root)
+    # • AGENTS.md - Universal AI guide for ANY AI tool or IDE (project root)
     # • CLAUDE.md - Claude-specific guide (project root)
     # • .cursor/rules/ - IDE-specific patterns for Cursor
+    # • .claude/ - Claude IDE configurations
     ```
   </Tab>
   
@@ -130,17 +131,24 @@ Motia provides comprehensive AI development guides that work with **any AI tool 
     ```bash
     # Create directory and copy files
     mkdir -p .cursor/rules
-    cp -r node_modules/@motiadev/snap/dot-files/.cursor/rules/* .cursor/rules/
-    cp node_modules/@motiadev/snap/dot-files/CLAUDE.md ./CLAUDE.md
-    cp node_modules/@motiadev/snap/dot-files/AGENTS.md ./AGENTS.md
+
+    # Copy Cursor IDE rules
+    cp -r node_modules/motia/dist/dot-files/.cursor/rules/* .cursor/rules/
+
+    # Copy AI development guides to project root
+    cp node_modules/motia/dist/dot-files/AGENTS.md ./AGENTS.md
+    cp node_modules/motia/dist/dot-files/CLAUDE.md ./CLAUDE.md
+
+    # Copy Claude IDE configurations
+    cp -r node_modules/motia/dist/dot-files/.claude ./.claude
     ```
   </Tab>
 </Tabs>
 
 ## Usage Examples
 
-<Callout type="info" title="Primary AI Development Guides">
-  **AGENTS.md** and **CLAUDE.md** are your main development guides. They work with ANY AI tool and contain all the patterns you need. The `.cursor/rules/` files are optional IDE-specific enhancements for Cursor users.
+<Callout type="info" title="AI Development Guides">
+  **AGENTS.md** is the universal guide that works with ANY AI tool or IDE. **CLAUDE.md** provides Claude-specific optimizations. The `.cursor/rules/` files are optional IDE-specific enhancements for Cursor users, and `.claude/` contains Claude IDE configurations.
 </Callout>
 
 <Callout type="tip" title="AI-Powered Development">
