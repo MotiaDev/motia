@@ -248,24 +248,19 @@ export class PythonBuilder implements StepBuilder {
 
       try {
         const content = fs.readFileSync(filePath, 'utf-8')
-        const importRegex = /^(?:from|import)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/gm
+        // Regex melhorada para capturar imports mais complexos
+        const importRegex = /^(?:from\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s+import|import\s+([a-zA-Z_][a-zA-Z0-9_.]*))/gm
         let match
 
         while ((match = importRegex.exec(content)) !== null) {
-          const moduleName = match[1].split('.')[0]
-          const possiblePaths = [
-            path.join(path.dirname(filePath), `${moduleName}.py`),
-            path.join(path.dirname(filePath), moduleName, '__init__.py'),
-            path.join(this.builder.projectDir, `${moduleName}.py`),
-            path.join(this.builder.projectDir, moduleName, '__init__.py'),
-          ]
-
-          for (const possiblePath of possiblePaths) {
+          const moduleName = match[1] || match[2] // from X import Y ou import X
+          
+          // Verificar diferentes formas de import
+          this.resolveModulePaths(moduleName, path.dirname(filePath)).forEach(possiblePath => {
             if (fs.existsSync(possiblePath)) {
               analyzeFile(possiblePath)
-              break
             }
-          }
+          })
         }
       } catch (error) {
         console.warn(`Could not analyze file: ${filePath}`)
@@ -274,6 +269,28 @@ export class PythonBuilder implements StepBuilder {
 
     analyzeFile(entryFile)
     return files
+  }
+
+  private resolveModulePaths(moduleName: string, currentDir: string): string[] {
+    const parts = moduleName.split('.')
+    const baseName = parts[0]
+    const subPath = parts.length > 1 ? path.join(...parts) : baseName
+
+    return [
+      // Relativo ao arquivo atual
+      path.join(currentDir, `${baseName}.py`),
+      path.join(currentDir, baseName, '__init__.py'),
+      path.join(currentDir, `${subPath}.py`),
+      
+      // Relativo ao diretório do projeto
+      path.join(this.builder.projectDir, `${baseName}.py`),
+      path.join(this.builder.projectDir, baseName, '__init__.py'),
+      path.join(this.builder.projectDir, `${subPath}.py`),
+      
+      // Para utils.database -> utils/database.py
+      path.join(this.builder.projectDir, subPath + '.py'),
+      path.join(this.builder.projectDir, subPath, '__init__.py'),
+    ]
   }
 
   private getModuleName(step: Step): string {

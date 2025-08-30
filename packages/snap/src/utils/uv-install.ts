@@ -12,7 +12,7 @@ export interface UvInstallConfig {
 export const uvInstall = async ({
   baseDir,
   isVerbose = false,
-  pythonVersion = '3.11'
+  pythonVersion = '3.13'
 }: UvInstallConfig): Promise<void> => {
   const projectDir = baseDir
   console.log('📦 Installing Python dependencies with UV...', projectDir)

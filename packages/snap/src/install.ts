@@ -5,12 +5,10 @@ import { activatePythonVenv } from './utils/activate-python-env'
 import { installLambdaPythonPackages } from './utils/install-lambda-python-packages'
 import { getStepFiles } from './generate-locked-data'
 import { getPythonCommand } from './utils/python-version-utils'
-import { uvInstall } from './utils/uv-install'
 
 interface InstallConfig {
   isVerbose?: boolean
   pythonVersion?: string
-  useUv?: boolean
 }
 
 type PythonInstallConfig = InstallConfig & { baseDir: string }
@@ -65,31 +63,11 @@ export const pythonInstall = async ({
   }
 }
 
-export const pythonInstallUV = async ({
-  baseDir,
-  isVerbose = false,
-  pythonVersion = '3.11',
-}: PythonInstallConfig): Promise<void> => {
-  try {
-    await uvInstall({ baseDir, isVerbose, pythonVersion })
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    console.error('❌ UV Installation failed:', errorMessage)
-    console.log('🔄 Falling back to traditional pip installation...')
-    
-    await pythonInstall({ baseDir, isVerbose, pythonVersion })
-  }
-}
-
-export const install = async ({ isVerbose = false, pythonVersion = '3.11', useUv = true }: InstallConfig): Promise<void> => {
+export const install = async ({ isVerbose = false, pythonVersion = '3.13' }: InstallConfig): Promise<void> => {
   const baseDir = process.cwd()
   const steps = getStepFiles(baseDir)
   if (steps.some((file) => file.endsWith('.py'))) {
-    if (useUv) {
-      await pythonInstallUV({ baseDir, isVerbose, pythonVersion })
-    } else {
-      await pythonInstall({ baseDir, isVerbose, pythonVersion })
-    }
+    await pythonInstall({ baseDir, isVerbose, pythonVersion })
   }
 
   console.info('✅ Installation completed successfully!')

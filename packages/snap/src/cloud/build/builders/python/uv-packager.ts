@@ -9,7 +9,7 @@ export interface UvPackageConfig {
 }
 
 export const defaultUvConfig: UvPackageConfig = {
-  pythonVersion: '3.11',
+  pythonVersion: '3.13',
   platform: 'x86_64-manylinux2014',
   onlyBinary: true
 }
@@ -42,8 +42,9 @@ export class UvPackager {
       'pip', 'install',
       '--target', targetDir,
       '--requirement', requirementsFile,
+      '--python-version', this.config.pythonVersion || '3.13',
       '--python-platform', this.config.platform || 'x86_64-manylinux2014',
-      '--force-reinstall',
+      '--force-reinstall'
     ]
 
     if (this.config.onlyBinary) {
