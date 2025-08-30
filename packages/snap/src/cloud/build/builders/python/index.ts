@@ -50,6 +50,10 @@ export class PythonBuilder implements StepBuilder {
     
     try {
       await this.uvPackager.packageDependencies(tempSitePackages)
+      
+      // Pequena pausa para garantir que o filesystem sincronize
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       await this.addPackagesToArchive(archive, tempSitePackages)
       
       for (const step of steps) {
@@ -92,8 +96,11 @@ export class PythonBuilder implements StepBuilder {
 
       try {
         await this.uvPackager.packageDependencies(tempSitePackages)
-        await this.addPackagesToArchive(archive, tempSitePackages)
+        
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
         await this.addStepToArchive(step, archive)
+        await this.addPackagesToArchive(archive, tempSitePackages)
 
         includeStaticFiles([step], this.builder, archive)
 
@@ -113,31 +120,57 @@ export class PythonBuilder implements StepBuilder {
   private async addStepToArchive(step: Step, archive: Archiver): Promise<void> {
     const normalizedPath = this.normalizeStepPath(step, false)
     archive.append(fs.createReadStream(step.filePath), normalizedPath)
+
+    const internalFiles = await this.findInternalFiles(step.filePath)
+    for (const file of internalFiles) {
+      const fullPath = path.join(this.builder.projectDir, file)
+      if (fs.existsSync(fullPath) && fullPath !== step.filePath) {
+        const archivePath = file.replace(/\.step\.py$/, '_step.py')
+        archive.append(fs.createReadStream(fullPath), archivePath)
+      }
+    }
   }
 
   private async addPackagesToArchive(archive: Archiver, sitePackagesDir: string): Promise<void> {
     if (!fs.existsSync(sitePackagesDir)) {
+      console.warn(`Warning: Site packages directory not found: ${sitePackagesDir}`)
+      return
+    }
+
+    // Verificar se o diretório está acessível
+    try {
+      fs.accessSync(sitePackagesDir, fs.constants.R_OK)
+    } catch (error) {
+      console.warn(`Warning: Cannot access site packages directory: ${sitePackagesDir}`)
       return
     }
 
     const addDirectory = (dirPath: string, basePath: string = sitePackagesDir) => {
-      const items = fs.readdirSync(dirPath)
-      
-      for (const item of items) {
-        const fullPath = path.join(dirPath, item)
-        const relativePath = path.relative(basePath, fullPath)
+      try {
+        const items = fs.readdirSync(dirPath)
         
-        if (this.shouldIgnoreFile(relativePath)) {
-          continue
-        }
+        for (const item of items) {
+          const fullPath = path.join(dirPath, item)
+          const relativePath = path.relative(basePath, fullPath)
+          
+          if (this.shouldIgnoreFile(relativePath)) {
+            continue
+          }
 
-        const stat = fs.statSync(fullPath)
-        
-        if (stat.isDirectory()) {
-          addDirectory(fullPath, basePath)
-        } else {
-          archive.append(fs.createReadStream(fullPath), relativePath)
+          try {
+            const stat = fs.statSync(fullPath)
+            
+            if (stat.isDirectory()) {
+              addDirectory(fullPath, basePath)
+            } else {
+              archive.append(fs.createReadStream(fullPath), relativePath)
+            }
+          } catch (error) {
+            console.warn(`Warning: Could not process file ${fullPath}: ${error}`)
+          }
         }
+      } catch (error) {
+        console.warn(`Warning: Could not read directory ${dirPath}: ${error}`)
       }
     }
 
@@ -199,6 +232,48 @@ export class PythonBuilder implements StepBuilder {
       .readFileSync(path.join(__dirname, 'router_template.py'), 'utf-8')
       .replace('# {{imports}}', imports)
       .replace('# {{router paths}}', routerPaths)
+  }
+
+  private async findInternalFiles(entryFile: string): Promise<string[]> {
+    const files: string[] = []
+    const visited = new Set<string>()
+
+    const analyzeFile = (filePath: string) => {
+      if (visited.has(filePath) || !fs.existsSync(filePath)) {
+        return
+      }
+
+      visited.add(filePath)
+      files.push(path.relative(this.builder.projectDir, filePath))
+
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8')
+        const importRegex = /^(?:from|import)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/gm
+        let match
+
+        while ((match = importRegex.exec(content)) !== null) {
+          const moduleName = match[1].split('.')[0]
+          const possiblePaths = [
+            path.join(path.dirname(filePath), `${moduleName}.py`),
+            path.join(path.dirname(filePath), moduleName, '__init__.py'),
+            path.join(this.builder.projectDir, `${moduleName}.py`),
+            path.join(this.builder.projectDir, moduleName, '__init__.py'),
+          ]
+
+          for (const possiblePath of possiblePaths) {
+            if (fs.existsSync(possiblePath)) {
+              analyzeFile(possiblePath)
+              break
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`Could not analyze file: ${filePath}`)
+      }
+    }
+
+    analyzeFile(entryFile)
+    return files
   }
 
   private getModuleName(step: Step): string {
