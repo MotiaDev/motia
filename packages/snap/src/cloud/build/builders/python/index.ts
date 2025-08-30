@@ -1,51 +1,75 @@
 import { ApiRouteConfig, Step } from '@motiadev/core'
-import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { activatePythonVenv } from '../../../../utils/activate-python-env'
 import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
-import { addPackageToArchive } from './add-package-to-archive'
 import { BuildListener } from '../../../new-deployment/listeners/listener.types'
 import { distDir } from '../../../new-deployment/constants'
+import { UvPackager, UvPackageConfig, defaultUvConfig } from './uv-packager'
 
 export class PythonBuilder implements StepBuilder {
+  private uvPackager: UvPackager
+  private uvConfig: UvPackageConfig
+
   constructor(
     private readonly builder: Builder,
     private readonly listener: BuildListener,
   ) {
-    activatePythonVenv({ baseDir: this.builder.projectDir })
+    this.uvConfig = { ...defaultUvConfig, ...this.loadUvConfig() }
+    this.uvPackager = new UvPackager(this.builder.projectDir, this.uvConfig)
   }
 
-  private async buildStep(step: Step, archive: Archiver): Promise<string> {
-    const normalizedEntrypointPath = this.getStepPath(step)
-    const sitePackagesDir = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
+  private loadUvConfig(): Partial<UvPackageConfig> {
+    const configFiles = ['uv.config.json', '.uvrc.json']
 
-    // Get Python builder response
-    const { packages, files } = await this.getPythonBuilderData(step)
-
-    // Add main file to archive
-    if (!fs.existsSync(step.filePath)) {
-      throw new Error(`Source file not found: ${step.filePath}`)
-    }
-
-    archive.append(fs.createReadStream(step.filePath), path.relative(this.builder.projectDir, normalizedEntrypointPath))
-
-    // Add internal Python files to archive
-    for (const file of files) {
-      const fullPath = path.join(this.builder.projectDir, file)
-      if (fs.existsSync(fullPath) && fullPath !== step.filePath) {
-        // Normalize .step.py files to _step.py in the archive
-        const archivePath = file.replace(/[.]step.py$/, '_step.py')
-        archive.append(fs.createReadStream(fullPath), archivePath)
+    for (const configFile of configFiles) {
+      const configPath = path.join(this.builder.projectDir, configFile)
+      if (fs.existsSync(configPath)) {
+        try {
+          const configContent = fs.readFileSync(configPath, 'utf-8')
+          return JSON.parse(configContent)
+        } catch (err) {
+          console.warn(`Warning: Failed to load UV config from ${configFile}`)
+        }
       }
     }
 
-    // Add external packages
-    await Promise.all(packages.map(async (packageName) => addPackageToArchive(archive, sitePackagesDir, packageName)))
+    return {}
+  }
 
-    return normalizedEntrypointPath
+  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
+    const zipName = 'router-python.zip'
+    const archive = new Archiver(path.join(distDir, zipName))
+
+    if (!await this.uvPackager.checkUvInstalled()) {
+      throw new Error('UV is not installed. Please install UV: curl -LsSf https://astral.sh/uv/install.sh | sh')
+    }
+
+    const tempSitePackages = path.join(distDir, `temp-python-packages-${Date.now()}`)
+    
+    try {
+      await this.uvPackager.packageDependencies(tempSitePackages)
+      await this.addPackagesToArchive(archive, tempSitePackages)
+      
+      for (const step of steps) {
+        await this.addStepToArchive(step, archive)
+      }
+
+      const routerTemplate = this.createRouterTemplate(steps)
+      archive.append(routerTemplate, 'router.py')
+
+      includeStaticFiles(steps, this.builder, archive)
+      
+      const size = await archive.finalize()
+      return { size, path: zipName }
+    } catch (error) {
+      throw new Error(`Failed to build Python API router: ${error}`)
+    } finally {
+      if (fs.existsSync(tempSitePackages)) {
+        fs.rmSync(tempSitePackages, { recursive: true, force: true })
+      }
+    }
   }
 
   async build(step: Step): Promise<void> {
@@ -53,44 +77,100 @@ export class PythonBuilder implements StepBuilder {
     const bundlePath = path.join('python', entrypointPath.replace(/(.*)\.py$/, '$1.zip'))
     const outfile = path.join(distDir, bundlePath)
 
+    this.builder.registerStep({ entrypointPath, bundlePath, step, type: 'python' })
+    this.listener.onBuildStart(step)
+
     try {
-      // Create output directory
+      if (!await this.uvPackager.checkUvInstalled()) {
+        throw new Error('UV is not installed. Please install UV: curl -LsSf https://astral.sh/uv/install.sh | sh')
+      }
+
       fs.mkdirSync(path.dirname(outfile), { recursive: true })
-      this.listener.onBuildStart(step)
 
-      // Build step and get all dependencies
-      const stepArchiver = new Archiver(outfile)
-      const stepPath = await this.buildStep(step, stepArchiver)
+      const archive = new Archiver(outfile)
+      const tempSitePackages = path.join(distDir, `temp-python-packages-${Date.now()}`)
 
-      // Add static files
-      includeStaticFiles([step], this.builder, stepArchiver)
+      try {
+        await this.uvPackager.packageDependencies(tempSitePackages)
+        await this.addPackagesToArchive(archive, tempSitePackages)
+        await this.addStepToArchive(step, archive)
 
-      // Finalize the archive and wait for completion
-      const size = await stepArchiver.finalize()
+        includeStaticFiles([step], this.builder, archive)
 
-      this.builder.registerStep({ entrypointPath: stepPath, bundlePath, step, type: 'python' })
-      this.listener.onBuildEnd(step, size)
+        const size = await archive.finalize()
+        this.listener.onBuildEnd(step, size)
+      } finally {
+        if (fs.existsSync(tempSitePackages)) {
+          fs.rmSync(tempSitePackages, { recursive: true, force: true })
+        }
+      }
     } catch (err) {
       this.listener.onBuildError(step, err as Error)
       throw err
     }
   }
 
-  private getStepPath(step: Step, normalizePythonModulePath: boolean = false) {
+  private async addStepToArchive(step: Step, archive: Archiver): Promise<void> {
+    const normalizedPath = this.normalizeStepPath(step, false)
+    archive.append(fs.createReadStream(step.filePath), normalizedPath)
+  }
+
+  private async addPackagesToArchive(archive: Archiver, sitePackagesDir: string): Promise<void> {
+    if (!fs.existsSync(sitePackagesDir)) {
+      return
+    }
+
+    const addDirectory = (dirPath: string, basePath: string = sitePackagesDir) => {
+      const items = fs.readdirSync(dirPath)
+      
+      for (const item of items) {
+        const fullPath = path.join(dirPath, item)
+        const relativePath = path.relative(basePath, fullPath)
+        
+        if (this.shouldIgnoreFile(relativePath)) {
+          continue
+        }
+
+        const stat = fs.statSync(fullPath)
+        
+        if (stat.isDirectory()) {
+          addDirectory(fullPath, basePath)
+        } else {
+          archive.append(fs.createReadStream(fullPath), relativePath)
+        }
+      }
+    }
+
+    addDirectory(sitePackagesDir)
+  }
+
+  private shouldIgnoreFile(filePath: string): boolean {
+    const ignorePatterns = [
+      /\.pyc$/,
+      /\.pyo$/,
+      /\.egg$/,
+      /\.egg-info$/,
+      /__pycache__/,
+      /\.dist-info$/,
+      /^tests?\//,
+      /^docs?\//,
+      /^examples?\//,
+      /\.pytest_cache/,
+    ]
+    return ignorePatterns.some((pattern) => pattern.test(filePath))
+  }
+
+  private normalizeStepPath(step: Step, normalizePythonModulePath: boolean): string {
     let normalizedStepPath = step.filePath
       .replace(/[.]step.py$/, '_step.py') // Replace .step.py with _step.py
       .replace(`${this.builder.projectDir}/`, '') // Remove the project directory from the path
-
-    if (normalizePythonModulePath) {
-      normalizedStepPath = normalizedStepPath.replace(/(.*)\.py$/, '$1') // Remove .py extension
-    }
 
     const pathParts = normalizedStepPath.split(path.sep).map((part) =>
       part
         .replace(/^[0-9]+/g, '') // Remove numeric prefixes
         .replace(/[^a-zA-Z0-9._]/g, '_') // Replace any non-alphanumeric characters (except dots) with underscores
         .replace(/^_/, ''),
-    )
+    ) // Remove leading underscore
 
     normalizedStepPath = normalizePythonModulePath
       ? pathParts.join('.') // Convert path delimiter to dot (python module separator)
@@ -99,104 +179,31 @@ export class PythonBuilder implements StepBuilder {
     return normalizedStepPath
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
+  private createRouterTemplate(steps: Step<ApiRouteConfig>[]): string {
+    const imports = steps
+      .map((step, index) => {
+        const moduleName = this.getModuleName(step)
+        return `from ${moduleName} import handler as route${index}_handler, config as route${index}_config`
+      })
+      .join('\n')
 
-    const zipName = 'router-python.zip'
-    const archive = new Archiver(path.join(distDir, zipName))
-    const dependencies = ['uvicorn', 'pydantic', 'pydantic_core', 'uvloop', 'starlette', 'typing_inspection']
-    const lambdaSitePackages = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
-    await Promise.all(
-      dependencies.map(async (packageName) => addPackageToArchive(archive, lambdaSitePackages, packageName)),
-    )
+    const routerPaths = steps
+      .map((step, index) => {
+        const method = step.config.method.toUpperCase()
+        const path = step.config.path
+        return `    '${method} ${path}': RouterPath('${step.config.name}', '${step.config.method.toLowerCase()}', route${index}_handler, route${index}_config)`
+      })
+      .join(',\n')
 
-    for (const step of steps) {
-      await this.buildStep(step, archive)
-    }
-
-    const file = fs
+    return fs
       .readFileSync(path.join(__dirname, 'router_template.py'), 'utf-8')
-      .replace(
-        '# {{imports}}',
-        steps
-          .map(
-            (step, index) =>
-              `from ${this.getStepPath(step, true)} import handler as route${index}_handler, config as route${index}_config`,
-          )
-          .join('\n'),
-      )
-      .replace(
-        '# {{router paths}}',
-        steps
-          .map(
-            (step, index) =>
-              `'${step.config.method} ${step.config.path}': RouterPath('${step.config.name}', '${step.config.method.toLowerCase()}', route${index}_handler, route${index}_config)`,
-          )
-          .join(',\n    '),
-      )
-
-    archive.append(file, 'router.py')
-
-    includeStaticFiles(steps, this.builder, archive)
-
-    // Finalize the archive and wait for completion
-    const size = await archive.finalize()
-
-    return { size, path: zipName }
+      .replace('# {{imports}}', imports)
+      .replace('# {{router paths}}', routerPaths)
   }
 
-  private async getPythonBuilderData(step: Step): Promise<{ packages: string[]; files: string[] }> {
-    return new Promise((resolve, reject) => {
-      // Pass project directory and entry file explicitly
-      const child = spawn('python', [
-        path.join(__dirname, 'python-builder.py'),
-        this.builder.projectDir,
-        step.filePath
-      ], {
-        cwd: this.builder.projectDir,
-        stdio: [undefined, undefined, 'pipe', 'ipc'],
-        env: {
-          ...process.env,
-          NODE_CHANNEL_FD: '3',  // Explicitly set IPC channel
-        },
-      })
-      
-      const err: string[] = []
-
-      child.stderr?.on('data', (data) => err.push(data.toString()))
-      
-      child.on('message', (data: any) => {
-        // Handle both old format (string array) and new format (with versions)
-        if (!data || typeof data !== 'object') {
-          reject(new Error('Invalid response from Python builder'))
-          return
-        }
-        
-        // Extract packages (handle both formats)
-        let packages: string[] = []
-        if (Array.isArray(data.packages)) {
-          packages = data.packages.map((pkg: any) => {
-            if (typeof pkg === 'string') return pkg
-            if (pkg && typeof pkg === 'object' && pkg.name) return pkg.name
-            return null
-          }).filter(Boolean)
-        }
-        
-        // Extract files
-        const files = Array.isArray(data.files) ? data.files : []
-        
-        resolve({ packages, files })
-      })
-      
-      child.on('error', (error) => {
-        reject(new Error(`Failed to spawn Python builder: ${error.message}`))
-      })
-      
-      child.on('close', (code) => {
-        if (code !== 0) {
-          const errorMsg = err.join('').trim() || `Python builder exited with code ${code}`
-          reject(new Error(errorMsg))
-        }
-      })
-    })
+  private getModuleName(step: Step): string {
+    return this.normalizeStepPath(step, true)
+      .replace(/\.py$/, '')
+      .replace(/\//g, '.')
   }
 }
