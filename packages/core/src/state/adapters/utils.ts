@@ -4,7 +4,7 @@ const getNestedValue = (obj: StateItem['value'], path: string): string | undefin
   if (!obj || typeof obj !== 'object') return undefined
 
   const mappedObj = obj as Record<string, string>
-  
+
   return mappedObj[path]
 }
 
