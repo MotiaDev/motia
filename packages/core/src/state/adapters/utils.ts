@@ -1,5 +1,12 @@
-import get from 'lodash.get'
 import { StateFilter, StateItem } from '../state-adapter'
+
+const getNestedValue = (obj: StateItem['value'], path: string): string | undefined => {
+  if (!obj || typeof obj !== 'object') return undefined
+
+  const mappedObj = obj as Record<string, string>
+  
+  return mappedObj[path]
+}
 
 export const inferType = (value: unknown): StateItem['type'] => {
   if (typeof value === 'string') {
@@ -47,7 +54,7 @@ export const filterItem = (item: StateItem, filters: StateFilter[]): boolean => 
   }
 
   return filters.every((filter) => {
-    const valueFromKey = get(item.value, filter.valueKey)
+    const valueFromKey = getNestedValue(item.value, filter.valueKey)
 
     if (filter.valueKey === 'key') {
       return compare(item.key, filter.operation, filter.value) || compare(valueFromKey, filter.operation, filter.value)
