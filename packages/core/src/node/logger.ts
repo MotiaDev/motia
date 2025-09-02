@@ -8,8 +8,19 @@ export class Logger {
   ) {}
 
   private _log(level: string, message: string, args?: Record<string, unknown>): void {
+    const argsCopy = args ? { ...args } : {}
+
+    if (argsCopy.error && argsCopy.error instanceof Error) {
+      argsCopy.error = {
+        ...argsCopy.error,
+        message: argsCopy.error.message,
+        stack: argsCopy.error.stack,
+        name: argsCopy.error.name,
+      }
+    }
+
     const logEntry = {
-      ...(args || {}),
+      ...argsCopy,
       level,
       time: Date.now(),
       traceId: this.traceId,

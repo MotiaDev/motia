@@ -4,8 +4,8 @@ import { BaseNodeProps } from '../publicComponents/node-props'
 export const useHandlePositions = (data: BaseNodeProps) => {
   const reactFlow = useReactFlow()
   const updateNodeInternals = useUpdateNodeInternals()
-  const sourcePosition = data.nodeConfig?.sourceHandlePosition === 'right' ? Position.Right : Position.Bottom
-  const targetPosition = data.nodeConfig?.targetHandlePosition === 'left' ? Position.Left : Position.Top
+  const sourcePosition = data.nodeConfig?.sourceHandlePosition === 'bottom' ? Position.Bottom : Position.Right
+  const targetPosition = data.nodeConfig?.targetHandlePosition === 'top' ? Position.Top : Position.Left
 
   const updateSourcePosition = (position: 'bottom' | 'right') => {
     reactFlow.updateNode(data.id, {
