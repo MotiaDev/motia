@@ -80,9 +80,6 @@ importers:
       express:
         specifier: ^4.21.2
         version: 4.21.2
-      lodash.get:
-        specifier: ^4.4.2
-        version: 4.4.2
       node-cron:
         specifier: ^3.0.3
         version: 3.0.3
@@ -117,9 +114,6 @@ importers:
       '@types/jest':
         specifier: ^29.5.14
         version: 29.5.14
-      '@types/lodash.get':
-        specifier: ^4.4.9
-        version: 4.4.9
       '@types/node-cron':
         specifier: ^3.0.11
         version: 3.0.11
@@ -3383,12 +3377,6 @@ packages:
   '@types/json5@0.0.29':
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
 
-  '@types/lodash.get@4.4.9':
-    resolution: {integrity: sha512-J5dvW98sxmGnamqf+/aLP87PYXyrha9xIgc2ZlHl6OHMFR2Ejdxep50QfU0abO1+CH6+ugx+8wEUN1toImAinA==}
-
-  '@types/lodash@4.17.20':
-    resolution: {integrity: sha512-H3MHACvFUEiujabxhaI/ImO6gUrd8oOurg7LQtS7mbwIXA/cUqWrvBsaeJ23aZEPk1TAYkurjfMbSELfoCXlGA==}
-
   '@types/luxon@3.6.2':
     resolution: {integrity: sha512-R/BdP7OxEMc44l2Ex5lSXHoIXTB2JLNa3y2QISIbr58U/YcsffyQrYW//hZSdrfxrjRZj3GcUoxMPGdO8gSYuw==}
 
@@ -6311,10 +6299,6 @@ packages:
 
   lodash.flattendeep@4.4.0:
     resolution: {integrity: sha512-uHaJFihxmJcEX3kT4I23ABqKKalJ/zDrDg0lsFtc1h+3uw49SIJ5beyhx5ExVRti3AvKoOJngIj7xz3oylPdWQ==}
-
-  lodash.get@4.4.2:
-    resolution: {integrity: sha512-z+Uw/vLuy6gQe8cfaFWD7p0wVv8fJl3mbzXh33RS+0oW2wvUqiRXiQ69gLWSLpgB5/6sU+r6BlQR0MBILadqTQ==}
-    deprecated: This package is deprecated. Use the optional chaining (?.) operator instead.
 
   lodash.memoize@4.1.2:
     resolution: {integrity: sha512-t7j+NzmgnQzTAYXcsHYLgimltOV1MXHtlOWf6GjL9Kj8GK5FInw5JotxvbOs+IvV1/Dzo04/fCGfLVs7aXb4Ag==}
@@ -11471,12 +11455,6 @@ snapshots:
 
   '@types/json5@0.0.29': {}
 
-  '@types/lodash.get@4.4.9':
-    dependencies:
-      '@types/lodash': 4.17.20
-
-  '@types/lodash@4.17.20': {}
-
   '@types/luxon@3.6.2': {}
 
   '@types/mdast@4.0.4':
@@ -15064,8 +15042,6 @@ snapshots:
   lodash-es@4.17.21: {}
 
   lodash.flattendeep@4.4.0: {}
-
-  lodash.get@4.4.2: {}
 
   lodash.memoize@4.1.2: {}
 
