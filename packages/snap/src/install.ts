@@ -29,24 +29,18 @@ export const pythonInstall = async ({
   const requirementsList = [coreRequirementsPath, snapRequirementsPath, localRequirements]
 
   try {
-    // Get the appropriate Python command
-    const pythonCmd = await getPythonCommand(pythonVersion, baseDir)
-    if (isVerbose) {
-      console.log(`🐍 Using Python command: ${pythonCmd}`)
-    }
-
-    // Check if virtual environment exists
-    if (!fs.existsSync(venvPath)) {
-      console.log('📦 Creating Python virtual environment...')
-      await executeCommand(`${pythonCmd} -m venv python_modules`, baseDir)
-    }
-
-    activatePythonVenv({ baseDir, isVerbose, pythonVersion })
-
-    // Ensure UV is installed
+    // Ensure UV is installed first
     console.log('🔧 Checking UV installation...')
     await ensureUvInstalled()
     console.log('✅ UV is available')
+
+    // Check if virtual environment exists
+    if (!fs.existsSync(venvPath)) {
+      console.log('📦 Creating Python virtual environment with UV...')
+      await executeCommand(`uv venv python_modules --python ${pythonVersion}`, baseDir)
+    }
+
+    activatePythonVenv({ baseDir, isVerbose, pythonVersion })
 
     installLambdaPythonPackages({ isVerbose, requirementsList })
 
@@ -60,7 +54,7 @@ export const pythonInstall = async ({
         if (isVerbose) {
           console.log('📄 Using requirements from:', requirement)
         }
-        await executeCommand(`pip install -r "${requirement}" --only-binary=:all:`, baseDir)
+        await executeCommand(`uv pip install -r "${requirement}" --only-binary=:all:`, baseDir)
       }
     }
   } catch (error) {

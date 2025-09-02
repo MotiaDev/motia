@@ -19,11 +19,11 @@ export const installLambdaPythonPackages = ({ isVerbose = false, requirementsLis
     }
 
     try {
-      // Install packages to lambda site-packages with platform specification
-      const command = `pip install -r "${requirement}" --target "${sitePackagesPath}" --platform manylinux2014_x86_64 --only-binary=:all: --upgrade --upgrade-strategy only-if-needed`
+      // Install packages to lambda site-packages with platform specification using UV
+        const command = `uv pip install -r "${requirement}" --target "${sitePackagesPath}" --python-platform x86_64-manylinux2014 --only-binary=:all:`
 
       if (isVerbose) {
-        console.log('📦 Installing Python packages with platform specification...')
+        console.log('📦 Installing Python packages with platform specification using UV...')
         console.log('📦 Command:', command)
       }
 

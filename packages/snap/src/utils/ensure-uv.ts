@@ -3,14 +3,14 @@ import { spawn } from 'child_process'
 export const ensureUvInstalled = async (): Promise<void> => {
   if (!(await checkCommand('uv', ['--version']))) {
     if (await installUv()) {
-      console.log('✅ UV installed successfully via pip')
+      console.log('✅ UV installed successfully')
     } else {
       throw new Error(
         'UV could not be installed automatically. Please install manually using one of these methods:\n' +
-          '  • pip install uv (recommended)\n' +
+          '  • curl -LsSf https://astral.sh/uv/install.sh | sh (recommended)\n' +
+          '  • pip install uv\n' +
           '  • pip3 install uv\n' +
           '  • brew install uv (macOS)\n' +
-          '  • curl -LsSf https://astral.sh/uv/install.sh | sh (if pip is not available)\n' +
           'For more information, visit: https://github.com/astral-sh/uv',
       )
     }
@@ -26,19 +26,39 @@ const checkCommand = async (command: string, args: string[]): Promise<boolean> =
 }
 
 const installUv = async (): Promise<boolean> => {
-  console.log('Installing UV via pip...')
+  console.log('Installing UV...')
 
   try {
-    const pipAvailable = await checkCommand('pip', ['--version'])
-
-    if (!pipAvailable) {
-      throw new Error('Pip is not available. Cannot auto-install UV.')
+    // Try official installer script first (works on Unix-like systems)
+    if (process.platform !== 'win32') {
+      try {
+        console.log('Attempting to install UV via official installer...')
+        await runCommand('sh', ['-c', 'curl -LsSf https://astral.sh/uv/install.sh | sh'])
+        
+        // Add UV to PATH for current session if installed in default location
+        const uvPath = `${process.env.HOME}/.cargo/bin`
+        if (process.env.PATH && !process.env.PATH.includes(uvPath)) {
+          process.env.PATH = `${uvPath}:${process.env.PATH}`
+        }
+        
+        if (await verifyUvInstallation()) {
+          return true
+        }
+      } catch {
+        console.log('Official installer failed, trying pip...')
+      }
     }
 
-    await runCommand('pip', ['install', 'uv'])
-    return await verifyUvInstallation()
+    // Fallback to pip installation
+    const pipAvailable = await checkCommand('pip', ['--version'])
+    if (pipAvailable) {
+      await runCommand('pip', ['install', 'uv'])
+      return await verifyUvInstallation()
+    }
+
+    return false
   } catch (error) {
-    console.error('Failed to install UV via pip:', error)
+    console.error('Failed to install UV:', error)
     return false
   }
 }
