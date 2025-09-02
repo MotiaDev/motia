@@ -17,37 +17,37 @@ export const defaultUvConfig: UvPackageConfig = {
 export class UvPackager {
   constructor(
     private readonly projectDir: string,
-    private readonly config: UvPackageConfig = defaultUvConfig
+    private readonly config: UvPackageConfig = defaultUvConfig,
   ) {}
 
   private async runCommand(
-    command: string, 
-    args: string[], 
+    command: string,
+    args: string[],
     options?: {
       cwd?: string
       showOutput?: boolean
-    }
+    },
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const child = spawn(command, args, {
         cwd: options?.cwd,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
       })
-      
+
       let stdout = ''
       let stderr = ''
-      
+
       child.stdout?.on('data', (data) => {
         stdout += data.toString()
         if (options?.showOutput) {
           process.stdout.write(data)
         }
       })
-      
+
       child.stderr?.on('data', (data) => {
         stderr += data.toString()
       })
-      
+
       child.on('close', (code) => {
         if (code === 0) {
           resolve(stdout)
@@ -56,7 +56,7 @@ export class UvPackager {
           reject(new Error(`${errorPrefix} failed: ${stderr || stdout}`))
         }
       })
-      
+
       child.on('error', (error) => {
         reject(new Error(`Failed to spawn ${command}: ${error.message}`))
       })
@@ -74,11 +74,16 @@ export class UvPackager {
     }
 
     const args = [
-      'pip', 'install',
-      '--target', targetDir,
-      '--requirement', requirementsFile,
-      '--python-version', this.config.pythonVersion || '3.13',
-      '--python-platform', this.config.platform || 'x86_64-manylinux2014',
+      'pip',
+      'install',
+      '--target',
+      targetDir,
+      '--requirement',
+      requirementsFile,
+      '--python-version',
+      this.config.pythonVersion || '3.13',
+      '--python-platform',
+      this.config.platform || 'x86_64-manylinux2014',
     ]
 
     if (this.config.onlyBinary) {
@@ -87,5 +92,4 @@ export class UvPackager {
 
     await this.runCommand('uv', args, { cwd: this.projectDir })
   }
-
 }

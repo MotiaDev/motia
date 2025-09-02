@@ -25,15 +25,15 @@ export class PythonBuilder implements StepBuilder {
     const archive = new Archiver(path.join(distDir, zipName))
 
     const tempSitePackages = path.join(distDir, `temp-python-packages-${Date.now()}`)
-    
+
     try {
       await this.uvPackager.packageDependencies(tempSitePackages)
-      
+
       // Wait for directory to be ready with proper access checks
       await this.waitForDirectoryReady(tempSitePackages)
-      
+
       await this.addPackagesToArchive(archive, tempSitePackages)
-      
+
       for (const step of steps) {
         await this.addStepToArchive(step, archive)
       }
@@ -42,7 +42,7 @@ export class PythonBuilder implements StepBuilder {
       archive.append(routerTemplate, 'router.py')
 
       includeStaticFiles(steps, this.builder, archive)
-      
+
       const size = await archive.finalize()
       return { size, path: zipName }
     } catch (error) {
@@ -70,9 +70,9 @@ export class PythonBuilder implements StepBuilder {
 
       try {
         await this.uvPackager.packageDependencies(tempSitePackages)
-        
+
         await this.waitForDirectoryReady(tempSitePackages)
-        
+
         await this.addStepToArchive(step, archive)
         await this.addPackagesToArchive(archive, tempSitePackages)
 
@@ -121,18 +121,18 @@ export class PythonBuilder implements StepBuilder {
     const addDirectory = (dirPath: string, basePath: string = sitePackagesDir) => {
       try {
         const items = fs.readdirSync(dirPath)
-        
+
         for (const item of items) {
           const fullPath = path.join(dirPath, item)
           const relativePath = path.relative(basePath, fullPath)
-          
+
           if (this.shouldIgnoreFile(relativePath)) {
             continue
           }
 
           try {
             const stat = fs.statSync(fullPath)
-            
+
             if (stat.isDirectory()) {
               addDirectory(fullPath, basePath)
             } else {
@@ -226,8 +226,8 @@ export class PythonBuilder implements StepBuilder {
 
         while ((match = importRegex.exec(content)) !== null) {
           const moduleName = match[1] || match[2] // from X import Y ou import X
-          
-          this.resolveModulePaths(moduleName, path.dirname(filePath)).forEach(possiblePath => {
+
+          this.resolveModulePaths(moduleName, path.dirname(filePath)).forEach((possiblePath) => {
             if (fs.existsSync(possiblePath)) {
               analyzeFile(possiblePath)
             }
@@ -251,57 +251,56 @@ export class PythonBuilder implements StepBuilder {
       path.join(currentDir, `${baseName}.py`),
       path.join(currentDir, baseName, '__init__.py'),
       path.join(currentDir, `${subPath}.py`),
-      
+
       path.join(this.builder.projectDir, `${baseName}.py`),
       path.join(this.builder.projectDir, baseName, '__init__.py'),
       path.join(this.builder.projectDir, `${subPath}.py`),
-      
+
       path.join(this.builder.projectDir, subPath + '.py'),
       path.join(this.builder.projectDir, subPath, '__init__.py'),
     ]
   }
 
   private getModuleName(step: Step): string {
-    return this.normalizeStepPath(step, true)
-      .replace(/\.py$/, '')
-      .replace(/\//g, '.')
+    return this.normalizeStepPath(step, true).replace(/\.py$/, '').replace(/\//g, '.')
   }
 
   private async waitForDirectoryReady(
-    dirPath: string, 
+    dirPath: string,
     maxRetries: number = 10,
-    initialDelayMs: number = 10
+    initialDelayMs: number = 10,
   ): Promise<void> {
     let lastError: Error | null = null
-    
+
     for (let i = 0; i < maxRetries; i++) {
       try {
-        const exists = await fs.promises.access(dirPath, fs.constants.F_OK)
+        const exists = await fs.promises
+          .access(dirPath, fs.constants.F_OK)
           .then(() => true)
           .catch(() => false)
-        
+
         if (!exists) {
           // Directory doesn't exist yet, wait
           lastError = new Error(`Directory ${dirPath} does not exist yet`)
         } else {
           await fs.promises.access(dirPath, fs.constants.R_OK)
-          
+
           return
         }
       } catch (error) {
         lastError = error as Error
       }
-      
+
       if (i === maxRetries - 1) {
         throw new Error(
           `Directory ${dirPath} is not accessible after ${maxRetries} attempts. ` +
-          `Last error: ${lastError?.message || 'Unknown error'}`
+            `Last error: ${lastError?.message || 'Unknown error'}`,
         )
       }
-      
+
       // Exponential backoff: 10ms, 20ms, 40ms, 80ms, etc.
       const delay = initialDelayMs * Math.pow(2, i)
-      await new Promise(resolve => setTimeout(resolve, Math.min(delay, 1000))) // Cap at 1 second
+      await new Promise((resolve) => setTimeout(resolve, Math.min(delay, 1000))) // Cap at 1 second
     }
   }
 }
