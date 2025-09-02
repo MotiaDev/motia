@@ -7,6 +7,7 @@ import { includeStaticFiles } from '../include-static-files'
 import { BuildListener } from '../../../new-deployment/listeners/listener.types'
 import { distDir } from '../../../new-deployment/constants'
 import { UvPackager } from './uv-packager'
+import { activatePythonVenv } from '../../../../utils/activate-python-env'
 
 export class PythonBuilder implements StepBuilder {
   private uvPackager: UvPackager
@@ -15,6 +16,7 @@ export class PythonBuilder implements StepBuilder {
     private readonly builder: Builder,
     private readonly listener: BuildListener,
   ) {
+    activatePythonVenv({ baseDir: this.builder.projectDir })
     this.uvPackager = new UvPackager(this.builder.projectDir)
   }
 

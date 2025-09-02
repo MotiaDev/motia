@@ -79,7 +79,6 @@ export class UvPackager {
       '--requirement', requirementsFile,
       '--python-version', this.config.pythonVersion || '3.13',
       '--python-platform', this.config.platform || 'x86_64-manylinux2014',
-      '--force-reinstall'
     ]
 
     if (this.config.onlyBinary) {
