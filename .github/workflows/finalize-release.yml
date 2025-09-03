@@ -112,38 +112,157 @@ jobs:
           token: ${{ steps.generate_token.outputs.token }}
           fetch-depth: 0
 
-      - name: Generate changelog
+      - name: Generate enhanced changelog
         id: changelog
         run: |
           # Get the previous tag
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ needs.prepare.outputs.tag_name }}^)
           echo "Previous tag: $PREVIOUS_TAG"
 
-          # Generate changelog
-          CHANGELOG=$(git log $PREVIOUS_TAG..${{ needs.prepare.outputs.tag_name }} --pretty=format:"* %s (%h)" --no-merges)
+          # Create temporary files for categorized changes
+          mkdir -p /tmp/changelog
+          touch /tmp/changelog/{features,fixes,performance,docs,deps,refactor,tests,build,ci,chores,reverts,other}.md
 
-          # Create release notes
-          cat > release_notes.md << EOF
-          ## What's Changed
+          # Process commits and categorize them
+          git log $PREVIOUS_TAG..${{ needs.prepare.outputs.tag_name }} --pretty=format:"%s|%h|%an" --no-merges | while IFS='|' read -r subject hash author; do
+            # Extract conventional commit type
+            if [[ $subject =~ ^(feat|feature)(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/features.md
+            elif [[ $subject =~ ^(fix|bugfix)(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/fixes.md
+            elif [[ $subject =~ ^perf(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/performance.md
+            elif [[ $subject =~ ^docs(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/docs.md
+            elif [[ $subject =~ ^(deps|dependencies)(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/deps.md
+            elif [[ $subject =~ ^refactor(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/refactor.md
+            elif [[ $subject =~ ^test(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/tests.md
+            elif [[ $subject =~ ^build(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/build.md
+            elif [[ $subject =~ ^ci(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/ci.md
+            elif [[ $subject =~ ^chore(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/chores.md
+            elif [[ $subject =~ ^revert(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/reverts.md
+            else
+              echo "- ${subject} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/other.md
+            fi
+          done
 
-          $CHANGELOG
+          # Build the changelog
+          cat > release_notes.md << 'CHANGELOG_EOF'
+          ## 🚀 What's New in Motia ${{ needs.prepare.outputs.version }}
 
-          ## Package Versions
-          - @motiadev/core@${{ needs.prepare.outputs.version }}
-          - @motiadev/workbench@${{ needs.prepare.outputs.version }}
-          - @motiadev/stream-client-browser@${{ needs.prepare.outputs.version }}
-          - @motiadev/stream-client-react@${{ needs.prepare.outputs.version }}
-          - motia@${{ needs.prepare.outputs.version }}
-          - @motiadev/test@${{ needs.prepare.outputs.version }}
-          - @motiadev/ui@${{ needs.prepare.outputs.version }}
+          CHANGELOG_EOF
 
-          ## Installation
-          \`\`\`bash
+          # Add each section if it has content
+          if [ -s /tmp/changelog/features.md ]; then
+            echo -e "\n### ✨ New Features" >> release_notes.md
+            cat /tmp/changelog/features.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/fixes.md ]; then
+            echo -e "\n### 🐛 Bug Fixes" >> release_notes.md
+            cat /tmp/changelog/fixes.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/performance.md ]; then
+            echo -e "\n### ⚡ Performance Improvements" >> release_notes.md
+            cat /tmp/changelog/performance.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/docs.md ]; then
+            echo -e "\n### 📝 Documentation Updates" >> release_notes.md
+            cat /tmp/changelog/docs.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/deps.md ]; then
+            echo -e "\n### 📦 Dependency Updates" >> release_notes.md
+            cat /tmp/changelog/deps.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/refactor.md ]; then
+            echo -e "\n### ♻️ Code Refactoring" >> release_notes.md
+            cat /tmp/changelog/refactor.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/tests.md ]; then
+            echo -e "\n### ✅ Tests" >> release_notes.md
+            cat /tmp/changelog/tests.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/build.md ]; then
+            echo -e "\n### 🔨 Build System" >> release_notes.md
+            cat /tmp/changelog/build.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/ci.md ]; then
+            echo -e "\n### 👷 CI/CD Improvements" >> release_notes.md
+            cat /tmp/changelog/ci.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/chores.md ]; then
+            echo -e "\n### 🧹 Maintenance" >> release_notes.md
+            cat /tmp/changelog/chores.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/reverts.md ]; then
+            echo -e "\n### ⏪ Reverts" >> release_notes.md
+            cat /tmp/changelog/reverts.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/other.md ]; then
+            echo -e "\n### 🔧 Other Changes" >> release_notes.md
+            cat /tmp/changelog/other.md >> release_notes.md
+          fi
+
+          # Add package versions and installation info
+          cat >> release_notes.md << 'FOOTER_EOF'
+
+          ## 📦 Package Versions
+          - **motia**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/core**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/workbench**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/ui**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/stream-client**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/stream-client-browser**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/stream-client-node**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/stream-client-react**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/test**: ${{ needs.prepare.outputs.version }}
+
+          ## 🚀 Installation & Upgrade
+
+          ### NPM
+          ```bash
           npm install motia@${{ needs.prepare.outputs.version }}
-          \`\`\`
+          ```
 
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG..${{ needs.prepare.outputs.tag_name }}
-          EOF
+          ### Yarn
+          ```bash
+          yarn add motia@${{ needs.prepare.outputs.version }}
+          ```
+
+          ### PNPM
+          ```bash
+          pnpm add motia@${{ needs.prepare.outputs.version }}
+          ```
+
+          ## 🔗 Links
+          - 📖 [Documentation](https://motia.dev)
+          - 💬 [Community Discussions](https://github.com/${{ github.repository }}/discussions)
+          - 🐛 [Report Issues](https://github.com/${{ github.repository }}/issues)
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/
+          FOOTER_EOF
+          
+          echo "$PREVIOUS_TAG..${{ needs.prepare.outputs.tag_name }}" >> release_notes.md
+
+          # Clean up
+          rm -rf /tmp/changelog
 
       - name: Create GitHub Release
         uses: actions/github-script@v7
