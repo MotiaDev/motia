@@ -10,6 +10,10 @@ permissions:
   contents: read
   actions: write
 
+concurrency:
+  group: e2e-release-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   workflow_run:
     workflows: ["Deploy Release"]

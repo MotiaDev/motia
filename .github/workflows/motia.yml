@@ -17,6 +17,10 @@ on:
     tags:
       - 'v*' # Match tags that start with "v"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   quality:
     runs-on: ubuntu-latest
