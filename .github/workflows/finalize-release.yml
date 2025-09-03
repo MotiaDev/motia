@@ -283,6 +283,133 @@ jobs:
             });
 
             console.log('Release created:', release.data.html_url);
+            
+            // Store release URL for Slack notification
+            const fs = require('fs');
+            fs.writeFileSync('release_url.txt', release.data.html_url);
+
+  send-slack-notification:
+    needs: [prepare, create-github-release]
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Read release notes and URL
+        id: release_info
+        run: |
+          # Read the release notes (truncate if too long for Slack)
+          RELEASE_NOTES=$(head -c 2500 release_notes.md)
+          if [ ${#RELEASE_NOTES} -eq 2500 ]; then
+            RELEASE_NOTES="${RELEASE_NOTES}..."
+          fi
+          
+          # Read release URL
+          RELEASE_URL=$(cat release_url.txt)
+          
+          # Prepare Slack payload
+          cat > slack_payload.json << EOF
+          {
+            "text": "🚀 New Motia Release: v${{ needs.prepare.outputs.version }}",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🚀 Motia v${{ needs.prepare.outputs.version }} Released!"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Release Notes:*\n\`\`\`${RELEASE_NOTES}\`\`\`"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Version:*\nv${{ needs.prepare.outputs.version }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Tag:*\n${{ needs.prepare.outputs.tag_name }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "📦 *Installation:*\n\`npm install motia@${{ needs.prepare.outputs.version }}\`"
+                }
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Release"
+                    },
+                    "url": "${RELEASE_URL}",
+                    "style": "primary"
+                  },
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "Documentation"
+                    },
+                    "url": "https://motia.dev"
+                  }
+                ]
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "🤖 Automated release notification from GitHub Actions"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          
+      - name: Send Slack notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            echo "📤 Sending Slack notification..."
+            
+            response=$(curl -s -w "%{http_code}" -X POST \
+              -H 'Content-type: application/json' \
+              --data @slack_payload.json \
+              "$SLACK_WEBHOOK_URL")
+            
+            http_code="${response: -3}"
+            response_body="${response%???}"
+            
+            if [ "$http_code" = "200" ]; then
+              echo "✅ Slack notification sent successfully!"
+            else
+              echo "❌ Failed to send Slack notification. HTTP Code: $http_code"
+              echo "Response: $response_body"
+              exit 1
+            fi
+          else
+            echo "⚠️  SLACK_WEBHOOK_URL secret not found. Skipping Slack notification."
+            echo "To enable Slack notifications, add SLACK_WEBHOOK_URL to your repository secrets."
+          fi
 
   commit-version-changes:
     needs: [prepare, create-github-release]
