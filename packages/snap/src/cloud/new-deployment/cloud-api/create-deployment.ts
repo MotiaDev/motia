@@ -17,7 +17,12 @@ type CreateDeploymentResult = {
 }
 
 export const createDeployment = async (request: CreateDeploymentRequest): Promise<CreateDeploymentResult> => {
-  const { data } = await axios.post<CreateDeploymentResult>(cloudEndpoints.createDeployment, request)
+  const { apiKey, ...body } = request
+  const { data } = await axios.post<CreateDeploymentResult>(cloudEndpoints.createDeployment, body, {
+    headers: {
+      'x-api-key': apiKey,
+    },
+  })
 
   return data
 }
