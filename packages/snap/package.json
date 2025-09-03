@@ -33,7 +33,7 @@
     "move:python": "sh scripts/move-python.sh",
     "move:dot-files": "sh scripts/move-dot-files.sh",
     "build": "sh scripts/build.sh",
-    "lint": "eslint --config ../../eslint.config.js"
+    "lint": "biome check ."
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.3.8",

@@ -4,9 +4,7 @@
   "version": "0.5.11-beta.119",
   "main": "dist/index.js",
   "scripts": {
-    "lint": "pnpm run lint:ts && pnpm run lint:tsx",
-    "lint:ts": "eslint",
-    "lint:tsx": "eslint --config ../../eslint.config.tsx.js",
+    "lint": "biome check .",
     "build": "rm -rf dist && tsc --build && sh post-build.sh",
     "test:watch": "jest --watch"
   },
@@ -47,7 +45,6 @@
     "tailwindcss": "^4.1.7",
     "tw-animate-css": "^1.2.9",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.32.1",
     "vite": "^6.3.5",
     "zustand": "^5.0.6"
   },

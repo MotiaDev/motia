@@ -6,8 +6,9 @@
     "dev": "pnpm run build && pnpm -r --filter=playground dev",
     "dev:workbench": "pnpm run build && pnpm -r --filter=playground dev:workbench",
     "build": "pnpm --filter=!docs run -r build",
-    "lint": "pnpm run -r --no-bail lint",
-    "lint:fix": "pnpm run -r --no-bail lint --fix",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "test": "pnpm -r run test",
     "test:e2e": "pnpm --filter=@motiadev/e2e test",
     "test:e2e:ui": "pnpm --filter=@motiadev/e2e test:ui",
@@ -16,22 +17,11 @@
     "clean": "rm -rf node_modules pnpm-lock.yaml dist .turbo .next"
   },
   "devDependencies": {
-    "@types/node": "^22.15.18",
-    "@typescript-eslint/eslint-plugin": "^8.32.1",
-    "@typescript-eslint/parser": "^8.32.1",
-    "eslint": "^9.26.0",
-    "@eslint/js": "^9.28.0",
-    "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-jest": "^28.11.0",
-    "eslint-plugin-prettier": "^5.4.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.1.0",
-    "prettier": "^3.5.3"
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.15.18"
   },
   "resolutions": {
     "autoprefixer": "^10.4.20",
-    "eslint": "^9.17.0",
     "postcss": "^8.5.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
