@@ -61,14 +61,17 @@
   },
   "files": {
     "ignore": [
-      "**/dist/**",
-      "**/node_modules/**",
       "**/.next/**",
-      "**/build/**",
+      "**/.source/**",
       "**/.turbo/**",
-      "**/coverage/**",
       "**/.vscode/**",
       "**/.idea/**",
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/build/**",
+      "**/coverage/**",
+      "**/playwright-report/**",
+      "**/test-results/**",
       "pnpm-lock.yaml",
       "package-lock.json",
       "yarn.lock",
@@ -77,12 +80,9 @@
       "*.min.css"
     ],
     "include": [
-      "**/*.js",
-      "**/*.jsx",
       "**/*.ts",
       "**/*.tsx",
-      "**/*.json",
-      "**/*.jsonc"
+      "**/*.json"
     ]
   }
 }
