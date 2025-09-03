@@ -30,9 +30,8 @@
   },
   "patterns": {
     "api": "commands/create-api.md",
-    "events": "commands/process-events.md",
-    "multiLanguage": "commands/multi-language.md",
-    "deployment": "commands/deploy.md"
+    "events": "commands/data-processing.md",
+    "multiLanguage": "commands/claude-workflows.md"
   },
   "agents": {
     "codeReviewer": {
@@ -49,8 +48,7 @@
     }
   },
   "hooks": {
-    "preCommit": "hooks/pre-commit.sh",
-    "postDeploy": "hooks/post-deploy.sh"
+    "preCommit": ["hooks/pre-commit.sh"]
   },
   "context": {
     "framework": "Motia",
