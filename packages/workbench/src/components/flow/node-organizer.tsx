@@ -1,19 +1,29 @@
+import { EdgeData, NodeData } from '@/types/flow'
 import { Edge, Node, useNodesInitialized, useReactFlow } from '@xyflow/react'
-import React, { useEffect, useRef } from 'react'
-import { ApiNodeData, EdgeData, EventNodeData } from '@/types/flow'
 import dagre from 'dagre'
+import isEqual from 'fast-deep-equal'
+import React, { useEffect, useRef } from 'react'
 
-const organizeNodes = (
-  nodes: Node<EventNodeData | ApiNodeData>[],
-  edges: Edge<EdgeData>[],
-): Node<EventNodeData | ApiNodeData>[] => {
-  const dagreGraph = new dagre.graphlib.Graph({ compound: true })
+const organizeNodes = (nodes: Node<NodeData>[], edges: Edge<EdgeData>[]): Node<NodeData>[] => {
+  const dagreGraph = new dagre.graphlib.Graph({ directed: true, compound: false, multigraph: false })
+
   dagreGraph.setDefaultEdgeLabel(() => ({}))
-
-  dagreGraph.setGraph({ rankdir: 'LR', ranksep: 80, nodesep: 60, edgesep: 20, ranker: 'tight-tree' })
+  dagreGraph.setGraph({ rankdir: 'LR', ranksep: 0, nodesep: 20, edgesep: 0 })
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: node.measured?.width, height: node.measured?.height })
+    if (node.position.x !== 0 || node.position.y !== 0) {
+      dagreGraph.setNode(node.id, {
+        width: node.measured?.width,
+        height: node.measured?.height,
+        x: node.position.x,
+        y: node.position.y,
+      })
+    } else {
+      dagreGraph.setNode(node.id, {
+        width: node.measured?.width,
+        height: node.measured?.height,
+      })
+    }
   })
 
   edges.forEach((edge) => {
@@ -48,26 +58,45 @@ const organizeNodes = (
 
 type Props = {
   onInitialized: () => void
+  nodes: Node<NodeData>[]
+  edges: Edge<EdgeData>[]
 }
 
-export const NodeOrganizer: React.FC<Props> = ({ onInitialized }) => {
+export const NodeOrganizer: React.FC<Props> = ({ onInitialized, nodes, edges }) => {
   const { setNodes, getNodes, getEdges, fitView } = useReactFlow()
   const nodesInitialized = useNodesInitialized()
   const initialized = useRef(false)
 
+  const lastNodesRef = useRef<Node<NodeData>[]>([])
+  const lastEdgesRef = useRef<Edge<EdgeData>[]>([])
+
   useEffect(() => {
-    if (nodesInitialized && !initialized.current) {
-      initialized.current = true
+    if (nodesInitialized) {
+      if (isEqual(lastNodesRef.current, nodes) && isEqual(lastEdgesRef.current, edges)) {
+        return
+      }
 
-      const nodes = getNodes() as Node<EventNodeData | ApiNodeData>[]
-      const edges = getEdges() as Edge<EdgeData>[]
-      const organizedNodes = organizeNodes(nodes, edges)
+      lastNodesRef.current = nodes
+      lastEdgesRef.current = edges
 
-      setNodes(organizedNodes)
-      onInitialized()
-      setTimeout(() => fitView(), 1)
+      try {
+        const nodesToOrganize = nodes.some((node) => node.position.x === 0 && node.position.y === 0)
+
+        if (nodesToOrganize) {
+          const organizedNodes = organizeNodes(nodes, edges)
+          setNodes(organizedNodes)
+        }
+
+        if (!initialized.current) {
+          initialized.current = true
+          onInitialized()
+          setTimeout(() => fitView(), 1)
+        }
+      } catch (error) {
+        console.error('Error organizing nodes:', error)
+      }
     }
-  }, [nodesInitialized, onInitialized, setNodes, getNodes, getEdges, fitView])
+  }, [nodesInitialized, onInitialized, setNodes, getNodes, getEdges, fitView, nodes, edges])
 
   return null
 }

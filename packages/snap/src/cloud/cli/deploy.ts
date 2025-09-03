@@ -12,11 +12,13 @@ cloudCli
   .command('deploy')
   .description('Deploy a new version to Motia Cloud')
   .requiredOption('-k, --api-key <key>', 'The API key for authentication', process.env.MOTIA_API_KEY)
-  .requiredOption('-v, --version-name <version>', 'The version to deploy')
   .option('-p, --project-id <id>', 'Project ID (Deprecated)')
+  .option('-n, --project-name <name>', 'Project name (used when creating a new project)')
   .option('-s, --environment-id <id>', 'Environment ID', process.env.MOTIA_ENVIRONMENT_ID)
+  .option('--environment-name <name>', 'Environment name')
   .option('-e, --env-file <path>', 'Path to environment file')
-  .option('-n, --project-name <name>', 'Project name (used when creating a new project)', '')
+  .requiredOption('-v, --version-name <version>', 'The version to deploy')
+  .option('-d, --version-description <description>', 'The description of the version')
   .action(
     handler(async (arg, context) => {
       const listener = new CliListener(context)
@@ -33,9 +35,11 @@ cloudCli
       const deployment = await cloudApi
         .createDeployment({
           apiKey: arg.apiKey,
-          versionName: arg.versionName,
-          environmentId: arg.environmentId,
           projectName: arg.projectName,
+          environmentId: arg.environmentId,
+          environmentName: arg.environmentName,
+          versionName: arg.versionName,
+          versionDescription: arg.versionDescription,
         })
         .catch((error) => {
           context.log('creating-deployment', (message) => message.tag('failed').append('Failed to create deployment'))

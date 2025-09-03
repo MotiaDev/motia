@@ -3,9 +3,11 @@ import { cloudEndpoints } from './endpoints'
 
 type CreateDeploymentRequest = {
   apiKey: string
-  environmentId?: string
-  versionName: string
   projectName?: string
+  environmentId?: string
+  environmentName?: string
+  versionName: string
+  versionDescription?: string
 }
 
 type CreateDeploymentResult = {
