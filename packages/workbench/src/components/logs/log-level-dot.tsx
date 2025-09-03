@@ -5,11 +5,11 @@ const badgeVariants = cva('text-xs font-medium tracking-wide rounded-full h-[6px
   variants: {
     variant: {
       info: 'bg-[#2862FE] outline-[#2862FE]/20',
-      trace: 'bg-sky-500 outline-sky-500',
-      debug: 'bg-sky-500 outline-sky-500',
-      error: 'bg-rose-500 outline-rose-500',
-      fatal: 'bg-rose-500 outline-rose-500',
-      warn: 'bg-amber-500 outline-amber-500',
+      trace: 'bg-[#2862FE] outline-[#2862FE]/20',
+      debug: 'bg-[#2862FE] outline-[#2862FE]/20',
+      error: 'bg-[#E22A6D] outline-[#E22A6D]/20',
+      fatal: 'bg-[#E22A6D] outline-[#E22A6D]/20',
+      warn: 'bg-[#F59F0B] outline-[#F59F0B]/20',
     },
   },
 })

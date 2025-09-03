@@ -34,6 +34,7 @@ export class Logger {
     const time = Date.now()
     const meta = { ...this.meta, ...(args ?? {}) }
     prettyPrint({ level, time, msg, ...meta }, !this.isVerbose)
+
     this.coreListeners.forEach((listener) => listener(level, msg, meta))
     this.listeners.forEach((listener) => listener(level, msg, meta))
   }
@@ -62,7 +63,7 @@ export class Logger {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   log(args: any) {
-    this._log('info', args.msg, args)
+    this._log(args.level ?? 'info', args.msg, args)
   }
 
   addListener(listener: LogListener) {
