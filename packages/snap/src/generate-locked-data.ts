@@ -3,6 +3,7 @@ import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import { randomUUID } from 'crypto'
 import { globSync } from 'glob'
 import path from 'path'
+import { CompilationError } from './utils/errors/compilation.error'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
@@ -24,18 +25,23 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   ]
 
   for (const filePath of stepFiles) {
-    const config = await getStepConfig(filePath)
+    try {
+      const config = await getStepConfig(filePath)
 
-    if (!config) {
-      console.warn(`No config found in step ${filePath}, step skipped`)
-      continue
+      if (!config) {
+        console.warn(`No config found in step ${filePath}, step skipped`)
+        continue
+      }
+  
+      const result = lockedData.createStep({ filePath, version, config }, { disableTypeCreation: true })
+  
+      if (!result) {
+        invalidSteps.push({ filePath, version, config })
+      }
+    } catch (err) {
+      throw new CompilationError(`Error collecting flow ${filePath}`, path.relative(projectDir, filePath), err as Error)
     }
-
-    const result = lockedData.createStep({ filePath, version, config }, { disableTypeCreation: true })
-
-    if (!result) {
-      invalidSteps.push({ filePath, version, config })
-    }
+    
   }
 
   for (const filePath of streamFiles) {
