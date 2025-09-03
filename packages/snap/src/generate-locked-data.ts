@@ -32,16 +32,15 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
         console.warn(`No config found in step ${filePath}, step skipped`)
         continue
       }
-  
+
       const result = lockedData.createStep({ filePath, version, config }, { disableTypeCreation: true })
-  
+
       if (!result) {
         invalidSteps.push({ filePath, version, config })
       }
     } catch (err) {
       throw new CompilationError(`Error collecting flow ${filePath}`, path.relative(projectDir, filePath), err as Error)
     }
-    
   }
 
   for (const filePath of streamFiles) {

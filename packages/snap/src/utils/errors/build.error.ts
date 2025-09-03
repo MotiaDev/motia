@@ -18,5 +18,4 @@ export class BuildError extends Error {
       Error.captureStackTrace(this, BuildError)
     }
   }
-
 }

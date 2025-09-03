@@ -35,12 +35,10 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
   }
 
   const invalidSteps = await collectFlows(projectDir, lockedData).catch((err) => {
-    const errorMessage = err.filePath 
-        ? `Compilation error in ${err.filePath}`
-        : 'Compilation error'
-    
+    const errorMessage = err.filePath ? `Build error in ${err.filePath}` : 'Build error'
+
     const finalMessage = `${errorMessage}\nPlease check the logs above for details`
-      
+
     throw new BuildError(BuildErrorType.COMPILATION, err.filePath, finalMessage, err)
   })
 
