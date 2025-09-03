@@ -148,6 +148,112 @@ export default function ManifestoPage() {
               </p>
             </div>
           </section>
+
+          <section
+            className={`${normalText} relative overflow-hidden border-l-[3px] border-[#5AC5FF] bg-[#17181F] p-[32px]`}
+          >
+            <Image
+              src={bgManifestoDeclaration}
+              alt="Features Glow"
+              aria-hidden
+              className="pointer-events-none absolute top-0 left-0 z-0"
+            />
+            <div className="relative flex flex-col gap-[20px]">
+              <h2 className={headingText}>What Motia Provides</h2>
+
+              <div className="space-y-[24px]">
+                <div>
+                  <h3 className="text-[20px] font-medium text-white mb-[12px]">Core Technical Capabilities</h3>
+                  <ul className="list-inside list-disc space-y-[16px] pl-[16px]">
+                    <li>
+                      <span className={gradientTextBlue}>Multi-Language Polyglot Runtime</span> - True cross-language execution with zero-copy interoperability, shared state management, and unified debugging across TypeScript, Python, and JavaScript
+                    </li>
+                    <li>
+                      <span className={gradientTextBlue}>Durable Execution Engine</span> - Parallel execution, merge patterns, continue-as-new workflows, execution with shared states, and distributed fault tolerance
+                    </li>
+                    <li>
+                      <span className={gradientTextBlue}>Event Sourcing State Management</span> - Shared state across different languages with automatic persistence and recovery
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="text-[20px] font-medium text-white mb-[12px]">Real-time Capabilities</h3>
+                  <ul className="list-inside list-disc space-y-[16px] pl-[16px]">
+                    <li>
+                      <span className={gradientTextBlue}>Simplified Streaming</span> - WebSocket-based "Streams" provide real-time updates to client subscribers with zero configuration
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="text-[20px] font-medium text-white mb-[12px]">Observability: Workbench UI</h3>
+                  <ul className="list-inside list-disc space-y-[16px] pl-[16px]">
+                    <li>Comprehensive logging across all Steps and languages</li>
+                    <li>Request tracing and dependency visualization</li>
+                    <li>Visual Step flow diagrams and state monitoring</li>
+                    <li>Real-time Stream monitoring and debugging</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="text-[20px] font-medium text-white mb-[12px]">Developer Experience</h3>
+                  <ul className="list-inside list-disc space-y-[16px] pl-[16px]">
+                    <li>
+                      <span className={gradientTextBlue}>Type-Safe APIs</span> - Schema-first development with Zod validation and automatic code generation
+                    </li>
+                    <li>
+                      <span className={gradientTextBlue}>Advanced Tooling</span> - Hot reload, time travel debugging, and dependency mocking
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className={normalText}>
+            <p>
+              <span className={gradientTextBlue}>The Journey: Build from APIs to Fully-Featured Backends</span>
+            </p>
+            <p className="mt-[16px]">
+              Motia scales with your needs: <span className={gradientText}>API → Background Jobs → Workflows → AI Agents → Real-time Streaming Agents</span>.
+              Start simple, evolve naturally into complex, intelligent systems without architectural rewrites.
+            </p>
+          </section>
+
+          <section
+            className={`${normalText} relative overflow-hidden border-l-[3px] border-[#C4E5FF] bg-[#17181F] p-[32px]`}
+          >
+            <Image
+              src={bgManifestoDeclaration}
+              alt="Value Props Glow"
+              aria-hidden
+              className="pointer-events-none absolute top-0 left-0 z-0"
+            />
+            <div className="relative flex flex-col gap-[20px]">
+              <h2 className={headingText}>Our Value Proposition</h2>
+              
+              <div className="grid gap-[20px] md:grid-cols-2">
+                <div>
+                  <h3 className="text-[18px] font-medium text-white mb-[8px]">Developer Experience</h3>
+                  <p className="text-white/70">Unified tooling, type safety, and hot reload across languages. Write once, debug everywhere.</p>
+                </div>
+                <div>
+                  <h3 className="text-[18px] font-medium text-white mb-[8px]">Speed & Velocity</h3>
+                  <p className="text-white/70">From prototype to production in minutes. No infrastructure setup, no deployment complexity.</p>
+                </div>
+                <div>
+                  <h3 className="text-[18px] font-medium text-white mb-[8px]">Versatility</h3>
+                  <p className="text-white/70">APIs to AI agents in one framework. Polyglot by design, scalable by default.</p>
+                </div>
+                <div>
+                  <h3 className="text-[18px] font-medium text-white mb-[8px]">Reliability</h3>
+                  <p className="text-white/70"><span className={gradientTextBlue}>Resilience built in, no infrastructure burden.</span> Deploy fault-tolerant backends without the ops overhead.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section className={normalText}>
             <p>
               Setting up powerful, resilient event-based microservice systems is incredibly difficult to do correctly.{' '}
@@ -158,22 +264,55 @@ export default function ManifestoPage() {
 
           <section className={normalText}>
             <p>
+              Beyond unified architecture, Motia provides <span className={gradientTextBlue}>enterprise-grade observability out of the box</span>.
+              Traditional backends force teams to piece together logging, tracing, and monitoring across multiple tools.
+              Motia offers complete visibility into your system with <span className={gradientText}>logs visualization, request tracing, state monitoring, and dependency diagrams</span> — all available in both local development and cloud environments through the integrated Workbench interface.
+            </p>
+          </section>
+
+          <section className={normalText}>
+            <p>
+              Fault tolerance becomes critical as AI introduces non-deterministic behavior into backend systems.
+              While traditional setups require manual queue infrastructure and complex retry logic, 
+              <span className={gradientTextBlue}> Motia provides robust error handling and retry mechanisms automatically</span>.
+              Event Steps include built-in resilience patterns, and the queue infrastructure is completely abstracted away — no manual setup required.
+            </p>
+          </section>
+
+          <section className={normalText}>
+            <p>
               We have <span className={gradientTextBlue}>25 years of knowledge</span> about event-based systems and
-              microservices. We don't need new ways to connect workflows when we have strong patterns already
-              established. Motia leverages this knowledge to build a unified system that joins the functions previously spread across disconnected silos — API servers, background job processors, cron schedulers, and workflow orchestration engines.
+              microservices. With strong patterns already established, Motia builds on this foundation to create a unified system that brings together the functions traditionally handled by API servers, background job processors, cron schedulers, and workflow orchestration engines.
             </p>
           </section>
 
           <section className={normalText}>
             <p>
               Motia has been built from the ground up as <span className={gradientTextBlue}> a highly scalable enterprise solution</span>, solving
-              key problems that other systems miss. It addresses the hidden yet critical challenges that emerge as codebases grow, problems that are difficult to grasp without experiencing them firsthand yourself.
+              key problems that other systems miss. <span className={gradientText}>Each Step can scale independently</span>, avoiding the bottlenecks common in monolithic architectures.
+              This addresses the hidden yet critical challenges that emerge as codebases grow, problems that are difficult to grasp without experiencing them firsthand yourself.
             </p>
           </section>
 
           <section className={normalText}>
             <p>
-              A developer-focused event-driven system is needed and will become a tool of choice. Whether Motia becomes the main choice or not, a solution that brings these concerns together and gives a clear, developer-focused approach is the natural next step in how software engineering will change with AI. {' '}
+              Modern applications demand real-time capabilities, yet setting up streaming infrastructure is complex and error-prone.
+              Motia solves this with built-in <span className={gradientTextBlue}>Streams</span> — define your data structures and any changes are automatically streamed to subscribed clients in real-time.
+              <span className={gradientText}>No infrastructure setup, no manual pub/sub configuration</span> — real-time data streaming works out of the box.
+            </p>
+          </section>
+
+          <section className={normalText}>
+            <p>
+              Deployment complexity multiplies in polyglot, event-driven systems. Cloud provider lock-in, complicated rollback strategies, and fragmented deployment pipelines increase failure risk.
+              Motia abstracts these concerns with <span className={gradientTextBlue}>atomic deployments and one-click rollbacks</span>.
+              Each deployment creates an isolated service sharing the same data layer, ensuring safe, rollback-capable deployments with true cloud-provider agnosticism.
+            </p>
+          </section>
+
+          <section className={normalText}>
+            <p>
+              A developer-focused event-driven system with built-in observability, fault tolerance, independent scaling, real-time capabilities, and atomic deployments is needed and will become a tool of choice. Whether Motia becomes the main choice or not, a solution that brings these concerns together and gives a clear, developer-focused approach is the natural next step in how software engineering will change with AI. {' '}
               <span className={gradientTextBlue}>Motia is that system.</span>
             </p>
           </section>
