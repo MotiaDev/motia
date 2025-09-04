@@ -1,73 +1,37 @@
 {
-  "name": "Motia Framework Assistant",
-  "version": "1.0.0",
-  "description": "AI assistant rules for building backends with Motia",
   "permissions": {
-    "allowFileCreation": true,
-    "allowFileEditing": true,
-    "allowCommandExecution": true,
-    "restrictedPaths": [
-      "node_modules",
-      ".git",
-      "dist",
-      "build"
+    "allow": [
+      "Read",
+      "Write", 
+      "Edit",
+      "MultiEdit",
+      "Bash",
+      "Glob", 
+      "Grep",
+      "LS",
+      "Task",
+      "TodoWrite",
+      "NotebookRead",
+      "NotebookEdit",
+      "WebSearch",
+      "WebFetch"
+    ],
+    "additionalDirectories": [
+      "steps",
+      "commands", 
+      "agents",
+      "services"
     ]
   },
-  "preferences": {
-    "language": "typescript",
-    "indentation": 2,
-    "lineEndings": "lf",
-    "trailingComma": true,
-    "semicolons": false,
-    "quotes": "single"
-  },
-  "codeGeneration": {
-    "alwaysUseTypes": true,
-    "preferAsync": true,
-    "errorHandling": "try-catch",
-    "logging": "structured",
-    "testing": "jest"
-  },
-  "patterns": {
-    "api": "commands/create-api.md",
-    "events": "commands/data-processing.md",
-    "multiLanguage": "commands/claude-workflows.md"
-  },
-  "agents": {
-    "codeReviewer": {
-      "path": "agents/code-reviewer.md",
-      "autoActivate": ["review", "check", "audit"]
-    },
-    "testRunner": {
-      "path": "agents/test-runner.md",
-      "autoActivate": ["test", "spec", "coverage"]
-    },
-    "debugger": {
-      "path": "agents/debugger.md",
-      "autoActivate": ["debug", "troubleshoot", "fix"]
-    }
+  "env": {
+    "MOTIA_FRAMEWORK": "true",
+    "PRIMARY_LANGUAGE": "typescript",
+    "NODE_ENV": "development"
   },
   "hooks": {
-    "preCommit": ["hooks/pre-commit.sh"]
+    "preToolUse": [],
+    "postToolUse": []
   },
-  "context": {
-    "framework": "Motia",
-    "architecture": "step-based",
-    "languages": ["typescript", "javascript", "python", "ruby"],
-    "primaryLanguage": "typescript",
-    "stateManagement": "redis",
-    "eventSystem": "topic-based-pubsub"
-  },
-  "rules": [
-    "Everything is a Step (api, event, cron, noop)",
-    "Focus modifications on the steps/ directory",
-    "Use structured logging, not console.log",
-    "Always handle errors with try-catch",
-    "Emit events for async processing",
-    "Validate all inputs with Zod schemas",
-    "Use TypeScript for APIs and orchestration",
-    "Use Python for AI/ML and data science",
-    "Use Ruby for data manipulation and reports",
-    "Test critical paths with at least 80% coverage"
-  ]
+  "model": "claude",
+  "outputStyle": "concise"
 }
