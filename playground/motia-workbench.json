@@ -145,32 +145,32 @@
     "id": "parallel-merge",
     "config": {
       "steps/parallelMergeState/stepC.step.py": {
-        "x": 99,
-        "y": 361
+        "x": 101,
+        "y": 349
       },
       "steps/parallelMergeState/stepB.step.py": {
-        "x": 107,
-        "y": 204
-      },
-      "steps/parallelMergeState/stepA.step.ts": {
-        "x": 108,
-        "y": 61
+        "x": 102,
+        "y": 203
       },
       "steps/parallelMergeState/startParallelMerge.step.ts": {
         "x": -339,
         "y": 158
       },
       "steps/parallelMergeState/noopStartButton.step.ts": {
-        "x": -606,
-        "y": 187
-      },
-      "steps/parallelMergeState/joinStep.step.ts": {
-        "x": 349,
-        "y": 203
+        "x": -607,
+        "y": 186
       },
       "steps/parallelMergeState/joinComplete.step.ts": {
         "x": 728,
         "y": 202
+      },
+      "steps/parallelMergeState/stepA.step.ts": {
+        "x": 101,
+        "y": 58
+      },
+      "steps/parallelMergeState/joinStep.step.ts": {
+        "x": 366,
+        "y": 201
       }
     }
   }

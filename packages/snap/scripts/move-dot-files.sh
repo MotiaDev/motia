@@ -1,25 +1,13 @@
 #!/bin/bash
 
-# Copy dot files to the correct location
-# Get the absolute path to the script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-DOT_FILES_SRC="$PROJECT_ROOT/dot-files"
-DIST_DIR="$SCRIPT_DIR/../dist"
+mkdir -p dist/cjs/cursor-rules/dot-files
+mkdir -p dist/esm/cursor-rules/dot-files
 
-echo "Script directory: $SCRIPT_DIR"
-echo "Project root: $PROJECT_ROOT"
-echo "Dot files source: $DOT_FILES_SRC"
-echo "Dist directory: $DIST_DIR"
+cp -r src/cursor-rules/dot-files/* dist/cjs/cursor-rules/dot-files/
+cp -r src/cursor-rules/dot-files/* dist/esm/cursor-rules/dot-files/
 
-# Ensure dist directory exists
-mkdir -p "$DIST_DIR"
+cp -r src/cursor-rules/dot-files/.cursor dist/cjs/cursor-rules/dot-files/.cursor
+cp -r src/cursor-rules/dot-files/.cursor dist/esm/cursor-rules/dot-files/.cursor
 
-# Copy dot files
-if [ -d "$DOT_FILES_SRC" ]; then
-    cp -r "$DOT_FILES_SRC" "$DIST_DIR/dot-files"
-    echo "Successfully copied dot-files to $DIST_DIR/dot-files"
-else
-    echo "Error: Source directory $DOT_FILES_SRC does not exist"
-    exit 1
-fi
+cp -r src/cursor-rules/dot-files/.claude dist/cjs/cursor-rules/dot-files/.claude
+cp -r src/cursor-rules/dot-files/.claude dist/esm/cursor-rules/dot-files/.claude

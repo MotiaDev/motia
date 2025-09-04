@@ -90,8 +90,8 @@ const wrapUp = async (context: CliContext, packageManager: string) => {
 
 type Args = {
   projectName: string
-  template?: string
-  cursorEnabled?: boolean
+  template: string
+  cursorEnabled: boolean
   context: CliContext
   skipTutorialTemplates?: boolean
 }
@@ -217,14 +217,27 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     )
   }
 
-  const cursorTemplateDir = path.join(__dirname, '../../dot-files/.cursor')
-  const cursorTargetDir = path.join(rootDir, '.cursor')
+  if (cursorEnabled) {
+  }
+  const cursorTemplateDir = path.join(__dirname, '..', 'cursor-rules', 'dot-files')
+  const files = fs.readdirSync(cursorTemplateDir)
 
-  if (cursorEnabled && !checkIfDirectoryExists(cursorTargetDir)) {
-    fs.cpSync(cursorTemplateDir, cursorTargetDir, { recursive: true })
-    context.log('cursor-folder-created', (message) =>
-      message.tag('success').append('Folder').append('.cursor', 'cyan').append('has been created.'),
-    )
+  for (const file of files) {
+    const targetFile = path.join(rootDir, file)
+
+    if (!checkIfDirectoryExists(targetFile)) {
+      const isFolder = fs.statSync(path.join(cursorTemplateDir, file)).isDirectory()
+
+      fs.cpSync(path.join(cursorTemplateDir, file), targetFile, { recursive: isFolder })
+
+      context.log(`${file}-created`, (message) =>
+        message
+          .tag('success')
+          .append(isFolder ? 'Folder' : 'File')
+          .append(file, 'cyan')
+          .append('has been created.'),
+      )
+    }
   }
 
   if (template) {
