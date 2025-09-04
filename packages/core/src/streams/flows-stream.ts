@@ -18,7 +18,7 @@ export class FlowsStream extends StreamAdapter<FlowResponse> {
     return generateFlow(id, flow.steps)
   }
 
-  // biome-ignore lint/suspicious/noUnusedVariables: migration
+  // biome-ignore lint/correctness/noUnusedVariables: migration
   async delete(_: string): Promise<FlowResponse | null> {
     return null
   }

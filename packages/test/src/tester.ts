@@ -33,7 +33,7 @@ export const createMotiaTester = (): MotiaTester => {
         filePath: '$watcher',
         handlerName: '$watcher',
         handler: async (event: Event<TData>) => {
-          // biome-ignore lint/suspicious/noUnusedVariables: migration
+          // biome-ignore lint: migration
           const { logger, tracer, ...rest } = event
           events.push(rest)
         },

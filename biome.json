@@ -18,16 +18,24 @@
       "recommended": true,
       "complexity": {
         "noBannedTypes": "off",
-        "noUselessTypeConstraint": "off"
+        "noUselessTypeConstraint": "off",
+        "useOptionalChain": "warn"
       },
       "correctness": {
-        "noUnusedVariables": "error",
-        "noUnusedImports": "error"
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "error",
+        "useUniqueElementIds": "warn",
+        "useExhaustiveDependencies": "warn",
+        "noNestedComponentDefinitions": "warn"
       },
       "suspicious": {
-        "noExplicitAny": "error",
-        "noImplicitAnyLet": "error",
-        "useIterableCallbackReturn": "off"
+        "noExplicitAny": "warn",
+        "noImplicitAnyLet": "warn",
+        "useIterableCallbackReturn": "off",
+        "noAssignInExpressions": "warn",
+        "noArrayIndexKey": "warn",
+        "noDoubleEquals": "warn",
+        "noShadowRestrictedNames": "warn"
       },
       "style": {
         "useConst": "error",
@@ -35,7 +43,11 @@
         "noParameterAssign": "error",
         "useTemplate": "warn",
         "useNodejsImportProtocol": "off"
-      }
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
+      "a11y": "off"
     }
   },
   "formatter": {

@@ -14,7 +14,7 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
   globalLogger.debug(`[step handler] creating step handlers for ${eventSteps.length} steps`)
 
   const removeLogger = (event: Event) => {
-    // biome-ignore lint/suspicious/noUnusedVariables: migration
+    // biome-ignore lint/correctness/noUnusedVariables: migration
     const { logger, tracer, ...rest } = event
     return rest
   }

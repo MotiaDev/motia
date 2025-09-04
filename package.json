@@ -6,7 +6,7 @@
     "dev": "pnpm run build && pnpm -r --filter=playground dev",
     "dev:workbench": "pnpm run build && pnpm -r --filter=playground dev:workbench",
     "build": "pnpm --filter=!docs run -r build",
-    "lint": "biome check .",
+    "lint": "biome check . --max-diagnostics 310",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "test": "pnpm -r run test",

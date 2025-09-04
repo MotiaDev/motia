@@ -9,6 +9,6 @@ export abstract class StreamAdapter<TData> implements MotiaStream<TData> {
   abstract delete(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
   abstract getGroup(groupId: string): Promise<BaseStreamItem<TData>[]>
 
-  // biome-ignore lint/suspicious/noUnusedVariables: migration
+  // biome-ignore lint/correctness/noUnusedVariables: migration
   async send<T>(channel: StateStreamEventChannel, event: StateStreamEvent<T>): Promise<void> {}
 }

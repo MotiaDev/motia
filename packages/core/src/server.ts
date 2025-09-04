@@ -78,7 +78,7 @@ export const createServer = (
 
       if (stream) {
         const result = stream ? await stream().getGroup(groupId) : []
-        // biome-ignore lint/suspicious/noUnusedVariables: migration
+        // biome-ignore lint/correctness/noUnusedVariables: migration
         return result.map(({ __motia, ...rest }) => rest)
       }
     },
