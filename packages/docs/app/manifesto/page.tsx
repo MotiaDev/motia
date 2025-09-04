@@ -57,7 +57,7 @@ export default function ManifestoPage() {
                 <span className="font-medium text-white">their own deployment and maintenance overhead.</span>
               </li>
               <li>
-                <span className={gradientTextBlue}>AI Agent Integration:</span> Intelligent automation systems require specialized platforms that{' '}
+                <span className={gradientTextBlue}>AI Agent:</span> Intelligent automation systems require specialized platforms that{' '}
                 <span className={gradientText}>don't connect seamlessly with traditional backend architecture.</span>
               </li>
               <li>
@@ -106,10 +106,10 @@ export default function ManifestoPage() {
                   bus, or scheduled task).
                 </li>
                 <li>
-                  <span className="font-medium text-white">Receive:</span> How it accepts input data.
+                  <span className="font-medium text-white">Subscribe:</span> How it accepts input data.
                 </li>
                 <li>
-                  <span className="font-medium text-white">Activate:</span> How it performs logic or an action.
+                  <span className="font-medium text-white">Handler:</span> How it performs logic or an action.
                 </li>
                 <li>
                   <span className="font-medium text-white">Emit:</span> How it optionally outputs data or triggers other steps.
