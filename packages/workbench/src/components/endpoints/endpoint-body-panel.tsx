@@ -5,7 +5,6 @@ import { JsonEditor } from './json-editor'
 import ReactJson from 'react18-json-view'
 import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
-import { convertJsonSchemaToJson } from './hooks/utils'
 
 type Props = {
   endpoint: ApiEndpoint
@@ -32,7 +31,7 @@ export const EndpointBodyPanel: FC<Props> = ({ endpoint, onChange, onValidate, p
         <JsonEditor value={value} schema={endpoint.bodySchema} onChange={handleBodyChange} onValidate={onValidate} />
       ) : (
         <ReactJson
-          src={convertJsonSchemaToJson(endpoint.bodySchema)}
+          src={value ? JSON.parse(value) : {}}
           theme="default"
           enableClipboard={false}
           style={{ backgroundColor: 'transparent' }}
