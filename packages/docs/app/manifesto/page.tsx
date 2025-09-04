@@ -29,80 +29,58 @@ export default function ManifestoPage() {
 
           <section className={normalText}>
             <p>
-              Modern software engineering is splintered. APIs live in one framework, background jobs in another, queues
-              have their own tooling, and complex workflows require separate orchestration engines. <span
-                className={gradientText}>Motia</span> exists to <span className={gradientText}>unify</span>{' '}
-              all of these concerns, <span className={gradientText}>API endpoints, scheduled tasks, background
-              jobs, message queues, and workflow orchestration into a single, coherent system with shared observability and developer
-              experience.</span>
+              Backend development has become fragmented across too many tools. Teams build APIs in Express, run background tasks through BullMQ queues, orchestrate complex workflows in Temporal, deploy AI agents on separate platforms, manage streaming data with different systems, piece together observability tools, handle state across various databases, juggle multiple deployment pipelines, and configure scaling solutions independently. <span className={gradientText}>We're drowning in complexity</span> while AI introduces even more nondeterminism, retries, and orchestration demands that existing frameworks can't handle cohesively.
             </p>
           </section>
 
           <section className={normalText}>
             <p>
-              We are standing at the edge of a new chapter in software engineering driven by AI and large language
-              models. These technologies are automating workflows previously handled by humans and shifting the
-              bulk of work to backend automation systems. This shift is introducing a <span className={gradientText}>massive
-              influx of complexity</span> into existing architectures, similar to the transition from PHP spaghetti code era
-              to structured MVC frameworks and the later rise of React for UI complexity.
-            </p>
-          </section>
-
-          <section className={normalText}>
-            <p>
-              History shows that <span className={gradientText}>complexity is always followed by abstraction</span>. The
-              next abstraction must accommodate AI-driven workflows while eliminating the fragmentation between the
-              systems that power them.
-            </p>
-          </section>
-
-          <section className={normalText}>
-            <p>
-              Just as past complexity demanded new frameworks, this backend fragmentation requires a unified solution. 
-              Consider what it takes to build a typical backend today, teams are juggling Express.js/Flask for APIs, BullMQ for queues, 
-              traditional cron jobs for scheduling, Next.js API routes for endpoints, and separate workflow engines for orchestration, each requiring different setup, monitoring, and deployment strategies:
+              History shows that <span className={gradientText}>complexity is always followed by abstraction</span>, and we refuse to accept this fragmentation as permanent. Today's backend landscape forces teams to master entirely different systems for each core function, creating operational overhead and cognitive burden. <span className={gradientText}>No unified solution exists.</span> <span className={gradientTextBlue}>We believe the Step is the inevitable abstraction for the AI era</span> - one interoperable primitive that brings together all ten essential backend concerns into a single coherent system.
             </p>
           </section>
           <section className={normalText}>
             <ul className="list-disc space-y-[28px]">
               <li>
-                <span className={gradientTextBlue}>From Express.js/Flask:</span> API endpoints with routing and middleware, but{' '}
-                <span className={gradientText}>no built-in background job processing or scheduling.</span> You need separate tools for anything beyond HTTP requests.
+                <span className={gradientTextBlue}>APIs:</span> HTTP endpoints require their own framework, middleware, and routing logic with{' '}
+                <span className={gradientText}>no native integration to other backend concerns.</span>
               </li>
               <li>
-                <span className={gradientTextBlue}>From Message Queues</span> (BullMQ, RabbitMQ): Reliable job processing and retries, but{' '}
-                <span className={gradientText}>completely separate from your API layer.</span> Different configuration, deployment, and monitoring.
+                <span className={gradientTextBlue}>Background Processing:</span> Scheduled tasks and async work need separate job runners with{' '}
+                <span className={gradientText}>isolated configuration and monitoring.</span>
               </li>
               <li>
-                <span className={gradientTextBlue}>From Traditional Cron Jobs:</span> Scheduled background tasks, but{' '}
-                <span className="font-medium text-white">no integration with your application logic or shared state.</span>
+                <span className={gradientTextBlue}>Queue Management:</span> Message processing requires dedicated queue infrastructure that{' '}
+                <span className="font-medium text-white">operates completely apart from your main application.</span>
               </li>
               <li>
-                <span className={gradientTextBlue}>From Workflow Engines:</span> Multi-step process orchestration, but{' '}
-                <span className="font-medium text-white">yet another system to configure and maintain separately.</span>
+                <span className={gradientTextBlue}>Workflow Orchestration:</span> Complex multi-step processes demand separate orchestration engines with{' '}
+                <span className="font-medium text-white">their own deployment and maintenance overhead.</span>
+              </li>
+              <li>
+                <span className={gradientTextBlue}>AI Agent Integration:</span> Intelligent automation systems require specialized platforms that{' '}
+                <span className={gradientText}>don't connect seamlessly with traditional backend architecture.</span>
+              </li>
+              <li>
+                <span className={gradientTextBlue}>Streaming Data:</span> Real-time updates need separate pub/sub systems with{' '}
+                <span className={gradientText}>complex WebSocket management and event handling.</span>
+              </li>
+              <li>
+                <span className={gradientTextBlue}>Observability:</span> Monitoring and debugging requires piecing together multiple tools for{' '}
+                <span className="font-medium text-white">logs, metrics, and tracing across different systems.</span>
+              </li>
+              <li>
+                <span className={gradientTextBlue}>State Management:</span> Data persistence and sharing across services demands{' '}
+                <span className={gradientText}>careful coordination between databases and caching layers.</span>
+              </li>
+              <li>
+                <span className={gradientTextBlue}>Deployment:</span> Each system requires its own deployment pipeline with{' '}
+                <span className="font-medium text-white">different rollback strategies and configuration management.</span>
+              </li>
+              <li>
+                <span className={gradientTextBlue}>Scaling:</span> Independent scaling of different components creates{' '}
+                <span className={gradientText}>coordination challenges and resource management complexity.</span>
               </li>
             </ul>
-          </section>
-          <section className={normalText}>
-            <p>
-              There has been
-              <span className={gradientText}>
-                {' '}
-                no unified solution that brings together the essential backend building blocks that every modern application needs.{' '}
-              </span>{' '}
-              Furthermore, attempting to integrate Express.js APIs with BullMQ workers, traditional cron jobs, and workflow engines creates a fragmented architecture requiring{' '}
-              <span className={gradientText}>multiple deployment pipelines, separate monitoring tools, and disconnected debugging experiences</span> forcing teams to
-              either split expertise across tools or make engineers learn too many different systems at once.
-            </p>
-          </section>
-
-          <section className={normalText}>
-            <p>
-              <span className={gradientTextBlue}>Motia is designed to fill that missing piece</span>, providing a
-              <span className={gradientTextBlue}> unified backend framework that replaces the need for multiple tools. </span> We looked
-              at the lessons learned from past paradigm shifts, particularly React's success with its simple core
-              primitive.
-            </p>
           </section>
           <section
             className={`${normalText} relative overflow-hidden border-l-[3px] border-white bg-[#17181F] p-[32px]`}
@@ -149,75 +127,13 @@ export default function ManifestoPage() {
             </div>
           </section>
 
-          <section
-            className={`${normalText} relative overflow-hidden border-l-[3px] border-[#5AC5FF] bg-[#17181F] p-[32px]`}
-          >
-            <Image
-              src={bgManifestoDeclaration}
-              alt="Features Glow"
-              aria-hidden
-              className="pointer-events-none absolute top-0 left-0 z-0"
-            />
-            <div className="relative flex flex-col gap-[20px]">
-              <h2 className={headingText}>What Motia Provides</h2>
-
-              <div className="space-y-[24px]">
-                <div>
-                  <h3 className="text-[20px] font-medium text-white mb-[12px]">Core Technical Capabilities</h3>
-                  <ul className="list-inside list-disc space-y-[16px] pl-[16px]">
-                    <li>
-                      <span className={gradientTextBlue}>Multi-Language Polyglot Runtime</span> - True cross-language execution with zero-copy interoperability, shared state management, and unified debugging across TypeScript, Python, and JavaScript
-                    </li>
-                    <li>
-                      <span className={gradientTextBlue}>Durable Execution Engine</span> - Parallel execution, merge patterns, continue-as-new workflows, execution with shared states, and distributed fault tolerance
-                    </li>
-                    <li>
-                      <span className={gradientTextBlue}>Event Sourcing State Management</span> - Shared state across different languages with automatic persistence and recovery
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-[20px] font-medium text-white mb-[12px]">Real-time Capabilities</h3>
-                  <ul className="list-inside list-disc space-y-[16px] pl-[16px]">
-                    <li>
-                      <span className={gradientTextBlue}>Simplified Streaming</span> - WebSocket-based "Streams" provide real-time updates to client subscribers with zero configuration
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-[20px] font-medium text-white mb-[12px]">Observability: Workbench UI</h3>
-                  <ul className="list-inside list-disc space-y-[16px] pl-[16px]">
-                    <li>Comprehensive logging across all Steps and languages</li>
-                    <li>Request tracing and dependency visualization</li>
-                    <li>Visual Step flow diagrams and state monitoring</li>
-                    <li>Real-time Stream monitoring and debugging</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-[20px] font-medium text-white mb-[12px]">Developer Experience</h3>
-                  <ul className="list-inside list-disc space-y-[16px] pl-[16px]">
-                    <li>
-                      <span className={gradientTextBlue}>Type-Safe APIs</span> - Schema-first development with Zod validation and automatic code generation
-                    </li>
-                    <li>
-                      <span className={gradientTextBlue}>Advanced Tooling</span> - Hot reload, time travel debugging, and dependency mocking
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </section>
-
           <section className={normalText}>
             <p>
-              <span className={gradientTextBlue}>The Journey: Build from APIs to Fully-Featured Backends</span>
+              <span className={gradientTextBlue}>The Future of Backend Development</span>
             </p>
             <p className="mt-[16px]">
-              Motia scales with your needs: <span className={gradientText}>API → Background Jobs → Workflows → AI Agents → Real-time Streaming Agents</span>.
-              Start simple, evolve naturally into complex, intelligent systems without architectural rewrites.
+              Every team will take this journey toward intelligent backend systems. 
+              It's inevitable - <span className="font-medium text-white">API</span> <span className="text-white/40">→</span> <span className="font-medium text-white">Background Jobs</span> <span className="text-white/40">→</span> <span className="font-medium text-white">Workflows</span> <span className="text-white/40">→</span> <span className="font-medium text-white">AI Agents</span> <span className="text-white/40">→</span> <span className="font-medium bg-gradient-to-r from-[#5AC5FF] to-[#C4E5FF] bg-clip-text text-transparent">Real-time Streaming Intelligence</span>. The question isn't whether you'll build these capabilities, but how painful the transition will be. Motia ensures this evolution happens naturally, without the architectural rewrites that have plagued every major shift in software development.
             </p>
           </section>
 
@@ -240,15 +156,15 @@ export default function ManifestoPage() {
                 </div>
                 <div>
                   <h3 className="text-[18px] font-medium text-white mb-[8px]">Speed & Velocity</h3>
-                  <p className="text-white/70">From prototype to production in minutes. No infrastructure setup, no deployment complexity.</p>
+                  <p className="text-white/70">From prototype to production in minutes. Unified development environment eliminates context switching.</p>
                 </div>
                 <div>
                   <h3 className="text-[18px] font-medium text-white mb-[8px]">Versatility</h3>
-                  <p className="text-white/70">APIs to AI agents in one framework. Polyglot by design, scalable by default.</p>
+                  <p className="text-white/70">APIs to AI agents in one framework. Polyglot by design with true language interoperability.</p>
                 </div>
                 <div>
                   <h3 className="text-[18px] font-medium text-white mb-[8px]">Reliability</h3>
-                  <p className="text-white/70"><span className={gradientTextBlue}>Resilience built in, no infrastructure burden.</span> Deploy fault-tolerant backends without the ops overhead.</p>
+                  <p className="text-white/70"><span className={gradientTextBlue}>Resilience built in</span> - fault tolerance without operational complexity or manual configuration.</p>
                 </div>
               </div>
             </div>
@@ -256,64 +172,19 @@ export default function ManifestoPage() {
 
           <section className={normalText}>
             <p>
-              Setting up powerful, resilient event-based microservice systems is incredibly difficult to do correctly.{' '}
-              <span className={gradientTextBlue}>Motia builds this foundation for you</span>, providing the
-              necessary resiliency without requiring engineers to worry about the underlying complexity. They can instead focus on building workflows, and writing business logic.
+              Setting up resilient event-driven systems has been incredibly difficult to do correctly. <span className={gradientTextBlue}>Motia builds this foundation for you</span>, providing enterprise-grade observability with complete system visibility through logs visualization, request tracing, state monitoring, and dependency diagrams. Automatic error handling and retry mechanisms replace manual queue infrastructure, letting developers focus on business logic instead of infrastructure complexity.
             </p>
           </section>
 
           <section className={normalText}>
             <p>
-              Beyond unified architecture, Motia provides <span className={gradientTextBlue}>enterprise-grade observability out of the box</span>.
-              Traditional backends force teams to piece together logging, tracing, and monitoring across multiple tools.
-              Motia offers complete visibility into your system with <span className={gradientText}>logs visualization, request tracing, state monitoring, and dependency diagrams</span> — all available in both local development and cloud environments through the integrated Workbench interface.
+              Built on 25 years of knowledge about event-based systems, each Step scales independently, avoiding monolithic bottlenecks. <span className={gradientText}>Atomic deployments and one-click rollbacks</span> create isolated services that share the same data layer while ensuring cloud-provider agnosticism. Real-time streaming requires no configuration - define your data structures and changes automatically stream to subscribed clients.
             </p>
           </section>
 
           <section className={normalText}>
             <p>
-              Fault tolerance becomes critical as AI introduces non-deterministic behavior into backend systems.
-              While traditional setups require manual queue infrastructure and complex retry logic, 
-              <span className={gradientTextBlue}> Motia provides robust error handling and retry mechanisms automatically</span>.
-              Event Steps include built-in resilience patterns, and the queue infrastructure is completely abstracted away — no manual setup required.
-            </p>
-          </section>
-
-          <section className={normalText}>
-            <p>
-              We have <span className={gradientTextBlue}>25 years of knowledge</span> about event-based systems and
-              microservices. With strong patterns already established, Motia builds on this foundation to create a unified system that brings together the functions traditionally handled by API servers, background job processors, cron schedulers, and workflow orchestration engines.
-            </p>
-          </section>
-
-          <section className={normalText}>
-            <p>
-              Motia has been built from the ground up as <span className={gradientTextBlue}> a highly scalable enterprise solution</span>, solving
-              key problems that other systems miss. <span className={gradientText}>Each Step can scale independently</span>, avoiding the bottlenecks common in monolithic architectures.
-              This addresses the hidden yet critical challenges that emerge as codebases grow, problems that are difficult to grasp without experiencing them firsthand yourself.
-            </p>
-          </section>
-
-          <section className={normalText}>
-            <p>
-              Modern applications demand real-time capabilities, yet setting up streaming infrastructure is complex and error-prone.
-              Motia solves this with built-in <span className={gradientTextBlue}>Streams</span> — define your data structures and any changes are automatically streamed to subscribed clients in real-time.
-              <span className={gradientText}>No infrastructure setup, no manual pub/sub configuration</span> — real-time data streaming works out of the box.
-            </p>
-          </section>
-
-          <section className={normalText}>
-            <p>
-              Deployment complexity multiplies in polyglot, event-driven systems. Cloud provider lock-in, complicated rollback strategies, and fragmented deployment pipelines increase failure risk.
-              Motia abstracts these concerns with <span className={gradientTextBlue}>atomic deployments and one-click rollbacks</span>.
-              Each deployment creates an isolated service sharing the same data layer, ensuring safe, rollback-capable deployments with true cloud-provider agnosticism.
-            </p>
-          </section>
-
-          <section className={normalText}>
-            <p>
-              A developer-focused event-driven system with built-in observability, fault tolerance, independent scaling, real-time capabilities, and atomic deployments is needed and will become a tool of choice. Whether Motia becomes the main choice or not, a solution that brings these concerns together and gives a clear, developer-focused approach is the natural next step in how software engineering will change with AI. {' '}
-              <span className={gradientTextBlue}>Motia is that system.</span>
+              <span className={gradientTextBlue}>Motia is built for the future of software development</span> - a unified system designed to evolve with AI-driven complexity while remaining fundamentally simple for developers to use.
             </p>
           </section>
         </div>
