@@ -70,6 +70,8 @@
   --light-30: #ffffff08;
   
   --error: #d61355;
+
+  --canvas-background: #EBEBEB;
   
   /* Light Theme Semantic Tokens */
   --background: var(--light-1000);
@@ -152,6 +154,8 @@
 }
 
 .dark {
+  --canvas-background: #030303;
+
   /* Dark Theme Semantic Tokens */
   --background: var(--dark-1000);
   --foreground: var(--light-1000);
@@ -268,6 +272,7 @@
   --color-error: var(--error);
   
   /* Expose semantic tokens */
+  --color-canvas-background: var(--canvas-background);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);

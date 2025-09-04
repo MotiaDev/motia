@@ -163,6 +163,23 @@ jobs:
         shell: bash
         run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
 
+      - name: Set test environment variables (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          echo "MOTIA_ANALYTICS_DISABLED=true" >> $GITHUB_ENV
+          echo "MOTIA_VERSION=${{ needs.prepare.outputs.version }}" >> $GITHUB_ENV
+          echo "MOTIA_API_URL=http://localhost:3000" >> $GITHUB_ENV
+          echo "MOTIA_TEST_TEMPLATE=${{ matrix.template }}" >> $GITHUB_ENV
+
+      - name: Set test environment variables (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "MOTIA_ANALYTICS_DISABLED=true" >> $env:GITHUB_ENV
+          echo "MOTIA_VERSION=${{ needs.prepare.outputs.version }}" >> $env:GITHUB_ENV
+          echo "MOTIA_API_URL=http://localhost:3000" >> $env:GITHUB_ENV
+          echo "MOTIA_TEST_TEMPLATE=${{ matrix.template }}" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Run Release E2E tests with retry
         id: run_tests
         uses: nick-fields/retry@v3
@@ -170,13 +187,10 @@ jobs:
           timeout_minutes: 10
           max_attempts: 2
           retry_on: error
+          shell: bash
           command: |
             cd packages/e2e
             echo "Starting Release E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}"
-            export MOTIA_ANALYTICS_DISABLED=true
-            export MOTIA_VERSION=${{ needs.prepare.outputs.version }}
-            export MOTIA_API_URL=http://localhost:3000
-            export MOTIA_TEST_TEMPLATE=${{ matrix.template }}
             if [ "${{ matrix.template }}" == "python" ]; then
               pnpm test:release:python --reporter=line,html,github
             else
@@ -221,15 +235,6 @@ jobs:
             packages/e2e/test-results/
             packages/e2e/test-results.xml
           retention-days: 30
-
-      - name: Publish Test Report
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: E2E Test Results - ${{ matrix.os }} - ${{ matrix.template }}
-          path: 'packages/e2e/test-results/*.xml'
-          reporter: jest-junit
-          fail-on-error: false
 
       - name: Report test metrics
         if: always()

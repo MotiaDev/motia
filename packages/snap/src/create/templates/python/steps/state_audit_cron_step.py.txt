@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 config = {
     "type": "cron",
-    "cron": "*/5 * * * *",  # run every 5 minutes
+    "cron": "0 0 * * 1", # run once every Monday at midnight
     "name": "StateAuditJob",
     "description": "Checks the state for orders that are not complete and have a ship date in the past",
     "emits": ["notification"],

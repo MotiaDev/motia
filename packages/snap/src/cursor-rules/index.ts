@@ -12,7 +12,9 @@ export interface AIGuidesOptions {
 
 const AI_GUIDES_VERSION = '1.0.0'
 const CURSOR_RULES_SOURCE = path.join(__dirname, '../../dot-files/.cursor/rules')
+const CLAUDE_SOURCE = path.join(__dirname, '../../dot-files/.claude')
 const TARGET_DIR = '.cursor/rules'
+const CLAUDE_TARGET_DIR = '.claude'
 
 export async function handleAIGuides(options: AIGuidesOptions): Promise<void> {
   if (options.version) {
@@ -64,12 +66,12 @@ async function pullAIGuides(force: boolean): Promise<void> {
     // First, copy the essential AI development guides
     console.log(colors.blue('🤖 Installing AI Development Guides...'))
 
-    let claudePath = path.join(__dirname, '../../dot-files/CLAUDE.md')
+    let claudePath = path.join(__dirname, '../../dot-files/.claude/CLAUDE.md')
     let agentsPath = path.join(__dirname, '../../dot-files/AGENTS.md')
 
     // Try node_modules paths if local paths don't exist
     if (!fs.existsSync(claudePath)) {
-      claudePath = path.join('node_modules', '@motiadev/snap', 'dist', 'dot-files', 'CLAUDE.md')
+      claudePath = path.join('node_modules', '@motiadev/snap', 'dist', 'dot-files', '.claude', 'CLAUDE.md')
     }
     if (!fs.existsSync(agentsPath)) {
       agentsPath = path.join('node_modules', '@motiadev/snap', 'dist', 'dot-files', 'AGENTS.md')
@@ -107,18 +109,39 @@ async function pullAIGuides(force: boolean): Promise<void> {
 
     await copyDirectory(sourcePath, TARGET_DIR)
 
+    // Copy Claude IDE configurations
     console.log('')
-    console.log(colors.green('🎉 AI Development Guides & Cursor Rules installed successfully!'))
+    console.log(colors.blue('🧠 Installing Claude IDE Configurations...'))
+
+    if (!fs.existsSync(CLAUDE_TARGET_DIR) || force) {
+      if (fs.existsSync(CLAUDE_TARGET_DIR) && force) {
+        fs.rmSync(CLAUDE_TARGET_DIR, { recursive: true, force: true })
+      }
+
+      if (fs.existsSync(CLAUDE_SOURCE)) {
+        await copyDirectory(CLAUDE_SOURCE, CLAUDE_TARGET_DIR)
+        console.log(colors.green('✅ Claude IDE configurations installed'))
+      } else {
+        console.log(colors.yellow('⚠️  Claude configurations not found - this is optional'))
+      }
+    } else {
+      console.log(colors.yellow('⚠️  Claude configurations already exist. Use --force to overwrite.'))
+    }
+
+    console.log('')
+    console.log(colors.green('🎉 AI Development Guides, Cursor Rules & Claude Configs installed successfully!'))
     console.log('')
     console.log(colors.blue('📋 What you got:'))
     console.log(colors.gray('   • AGENTS.md - Universal guide for ANY AI tool (project root)'))
     console.log(colors.gray('   • CLAUDE.md - Specific guide for Claude AI assistant (project root)'))
     console.log(colors.gray(`   • Cursor Rules - IDE-specific patterns (${TARGET_DIR})`))
+    console.log(colors.gray(`   • Claude Configs - Claude IDE configurations (${CLAUDE_TARGET_DIR})`))
     console.log('')
     console.log(colors.blue('📁 File locations:'))
     console.log(colors.gray(`   ./AGENTS.md`))
     console.log(colors.gray(`   ./CLAUDE.md`))
     console.log(colors.gray(`   ${path.resolve(TARGET_DIR)}/`))
+    console.log(colors.gray(`   ${path.resolve(CLAUDE_TARGET_DIR)}/`))
     console.log('')
     console.log(colors.blue('🚀 Next steps:'))
     console.log(colors.gray('   1. Open AGENTS.md to understand Motia development patterns'))
@@ -241,6 +264,14 @@ async function removeAIGuides(): Promise<void> {
     console.log(colors.yellow('🗑️  Removing cursor rules...'))
     fs.rmSync(TARGET_DIR, { recursive: true, force: true })
     console.log(colors.yellow('🗑️  Removed .cursor/rules/'))
+    removed = true
+  }
+
+  // Remove Claude configurations directory
+  if (fs.existsSync(CLAUDE_TARGET_DIR)) {
+    console.log(colors.yellow('🗑️  Removing Claude configurations...'))
+    fs.rmSync(CLAUDE_TARGET_DIR, { recursive: true, force: true })
+    console.log(colors.yellow('🗑️  Removed .claude/'))
     removed = true
   }
 

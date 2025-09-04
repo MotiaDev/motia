@@ -1,4 +1,4 @@
-# CLAUDE.md: Complete Guide for Claude Code to Write Motia Workflows
+# claude-workflows.md: Complete Guide for Claude Code to Write Motia Workflows
 
 This guide equips Claude Code to generate Motia workflows, a code-first, event-driven framework supporting JavaScript (JS), TypeScript (TS), Python, and Ruby. It covers all step types, state management, logging, testing, CLI commands, Workbench features, and best practices for creating robust, scalable workflows.
 

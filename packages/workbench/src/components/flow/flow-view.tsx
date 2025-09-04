@@ -46,6 +46,7 @@ export const FlowView: React.FC<Props> = ({ flow, flowConfig }) => {
     <div className="w-full h-full relative">
       {!initialized && <FlowLoader />}
       <ReactFlow
+        minZoom={0.1}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -53,13 +54,8 @@ export const FlowView: React.FC<Props> = ({ flow, flowConfig }) => {
         onNodesChange={onNodesChangeHandler}
         onEdgesChange={onEdgesChange}
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={50}
-          size={2}
-          className="[--xy-background-color-dots:theme(colors.muted.DEFAULT)] [--xy-background-color:theme(colors.background)]"
-        />
-        <NodeOrganizer onInitialized={onInitialized} />
+        <Background variant={BackgroundVariant.Dots} gap={50} size={2} className="bg-canvas-background!" />
+        <NodeOrganizer onInitialized={onInitialized} nodes={nodes} edges={edges} />
       </ReactFlow>
     </div>
   )

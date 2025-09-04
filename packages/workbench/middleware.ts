@@ -15,6 +15,29 @@ const processCwdPlugin = () => {
   }
 }
 
+const reoPlugin = () => {
+  return {
+    name: 'html-transform',
+    transformIndexHtml(html: string) {
+      const isAnalyticsEnabled = process.env.MOTIA_ANALYTICS_DISABLED !== 'true'
+
+      if (!isAnalyticsEnabled) {
+        return html
+      }
+
+      // inject before </head>
+      return html.replace(
+        '</head>',
+        `
+        <script type="text/javascript">
+          !function(){var e,t,n;e="d8f0ce9cae8ae64",t=function(){Reo.init({clientID:"d8f0ce9cae8ae64", source: "internal"})},(n=document.createElement("script")).src="https://static.reo.dev/"+e+"/reo.js",n.defer=!0,n.onload=t,document.head.appendChild(n)}();
+        </script>
+    </head>`,
+      )
+    },
+  }
+}
+
 export const applyMiddleware = async (app: Express, port: number) => {
   const vite = await createViteServer({
     appType: 'spa',
@@ -36,7 +59,7 @@ export const applyMiddleware = async (app: Express, port: number) => {
     resolve: {
       alias: { '@': path.resolve(__dirname, './src') },
     },
-    plugins: [react(), processCwdPlugin()],
+    plugins: [react(), processCwdPlugin(), reoPlugin()],
   })
 
   app.use(vite.middlewares)

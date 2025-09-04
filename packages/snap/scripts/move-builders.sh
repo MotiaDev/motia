@@ -1,8 +1,6 @@
 #!/bin/bash
 
 # Copy Python files to both CJS and ESM directories
-cp src/cloud/build/builders/python/python-builder.py dist/cjs/cloud/build/builders/python/python-builder.py
-cp src/cloud/build/builders/python/python-builder.py dist/esm/cloud/build/builders/python/python-builder.py
 cp src/cloud/build/builders/node/router-template.ts dist/cjs/cloud/build/builders/node/router-template.ts
 cp src/cloud/build/builders/node/router-template.ts dist/esm/cloud/build/builders/node/router-template.ts
 cp src/cloud/build/builders/python/router_template.py dist/cjs/cloud/build/builders/python/router_template.py

@@ -55,7 +55,7 @@ export const BaseNode: React.FC<Props> = ({
       })}
     >
       <div
-        className="rounded-lg bg-background border-1 border-muted-foreground/30 border-solid"
+        className="rounded-lg dark:bg-[#222] bg-background border-1 border-muted-foreground/30 border-solid"
         data-testid={`node-${title?.toLowerCase().replace(/ /g, '-')}`}
       >
         <div className="group relative">
