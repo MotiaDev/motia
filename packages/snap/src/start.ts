@@ -1,7 +1,7 @@
 import { createEventManager, createServer, createStateAdapter } from '@motiadev/core'
 import path from 'path'
-import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { stateEndpoints } from './dev/state-endpoints'
+import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { activatePythonVenv } from './utils/activate-python-env'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports

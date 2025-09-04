@@ -1,9 +1,9 @@
-import { cn } from '@/lib/utils'
+import { ChevronsUpDown } from 'lucide-react'
+import type { ComponentProps, FC, ReactNode } from 'react'
 import * as React from 'react'
-import { ComponentProps, FC, ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 import { Button } from './button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
-import { ChevronsUpDown } from 'lucide-react'
 
 export interface BreadcrumbItemProps {
   label: string | ReactNode
@@ -84,7 +84,11 @@ export const Breadcrumb: FC<BreadcrumbProps> = ({ className, items, ...props }) 
     <div className={cn('flex items-center', className)} {...props}>
       {items.map((item, index) => (
         <React.Fragment key={`${item.label}-fragment`}>
-          {index !== 0 && <span key={`${item.label}-separator`} className="mx-1.5 text-muted-foreground">/</span>}
+          {index !== 0 && (
+            <span key={`${item.label}-separator`} className="mx-1.5 text-muted-foreground">
+              /
+            </span>
+          )}
           <BreadcrumbItem
             key={`${item.label}-item`}
             label={item.label}

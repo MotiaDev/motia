@@ -1,6 +1,6 @@
-import inquirer from 'inquirer'
 import colors from 'colors'
-import { HTTP_METHODS, LANGUAGES, STEP_TYPES, StepAnswers } from './types'
+import inquirer from 'inquirer'
+import { HTTP_METHODS, LANGUAGES, STEP_TYPES, type StepAnswers } from './types'
 
 export const getStepAnswers = async (): Promise<StepAnswers> => {
   console.log('\n📝 ', colors.bold('Create a new Motia step\n'))
@@ -32,7 +32,7 @@ export const getStepAnswers = async (): Promise<StepAnswers> => {
 
   let answers = { ...basicInfo }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   const languageAnswer: any = {
     type: 'list',
     name: 'language',

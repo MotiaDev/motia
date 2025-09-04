@@ -1,13 +1,13 @@
-import { useStateStream } from '@/components/endpoints/hooks/use-state-stream'
-import { useThemeStore } from '@/stores/use-theme-store'
 import { Panel } from '@motiadev/ui'
 import { XCircle } from 'lucide-react'
-import { FC, useMemo } from 'react'
+import { type FC, useMemo } from 'react'
 import ReactJson from 'react18-json-view'
+import { useStateStream } from '@/components/endpoints/hooks/use-state-stream'
+import { useThemeStore } from '@/stores/use-theme-store'
 
 type EndpointResponseProps = {
   responseCode: number | string | undefined
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   responseBody: Record<string, any> | undefined
   executionTime?: number
 }

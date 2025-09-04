@@ -1,5 +1,9 @@
-import { ChildProcess } from 'child_process'
-import { RpcProcessorInterface, RpcHandler, MessageCallback } from './process-communication/rpc-processor-interface'
+import type { ChildProcess } from 'child_process'
+import type {
+  MessageCallback,
+  RpcHandler,
+  RpcProcessorInterface,
+} from './process-communication/rpc-processor-interface'
 
 export type RpcMessage = {
   type: 'rpc_request'
@@ -9,9 +13,9 @@ export type RpcMessage = {
 }
 
 export class RpcProcessor implements RpcProcessorInterface {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   private handlers: Record<string, RpcHandler<any, any>> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   private messageCallback?: MessageCallback<any>
   private isClosed = false
 
@@ -46,7 +50,7 @@ export class RpcProcessor implements RpcProcessorInterface {
   }
 
   async init() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /* biome-ignore lint/suspicious/noExplicitAny: migration */
     this.child.on('message', (msg: any) => {
       // Call generic message callback if registered
       if (this.messageCallback) {

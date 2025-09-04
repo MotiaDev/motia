@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { BuildRoutersConfig, BuildStepsConfig, BuildStreamsConfig } from '../../build/builder'
+import type { BuildRoutersConfig, BuildStepsConfig, BuildStreamsConfig } from '../../build/builder'
 import { cloudEndpoints } from './endpoints'
 
 type StartDeploymentRequest = {

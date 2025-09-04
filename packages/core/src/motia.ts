@@ -1,8 +1,8 @@
-import { Printer } from './printer'
-import { TracerFactory } from './observability'
-import { EventManager, InternalStateManager } from './types'
-import { LockedData } from './locked-data'
-import { LoggerFactory } from './logger-factory'
+import type { LockedData } from './locked-data'
+import type { LoggerFactory } from './logger-factory'
+import type { TracerFactory } from './observability'
+import type { Printer } from './printer'
+import type { EventManager, InternalStateManager } from './types'
 
 export type Motia = {
   loggerFactory: LoggerFactory

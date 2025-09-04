@@ -1,8 +1,8 @@
 import axios from 'axios'
 import fs from 'fs'
 import path from 'path'
-import { distDir, maxUploadSize } from '../constants'
 import { cloudApi } from '../cloud-api'
+import { distDir, maxUploadSize } from '../constants'
 
 export const upload = async (deploymentToken: string, fileName: string, onProgress: (progress: number) => void) => {
   const filePath = path.join(distDir, fileName)

@@ -1,4 +1,4 @@
-import { Preview } from '@storybook/react'
+import type { Preview } from '@storybook/react'
 import '../src/styles/globals.css'
 import { withThemeByClassName } from '@storybook/addon-themes'
 import { DocsContainer } from './DocsContainer'

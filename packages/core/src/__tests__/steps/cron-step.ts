@@ -1,4 +1,4 @@
-import { CronConfig, CronHandler, FlowContext } from '../../types'
+import type { CronConfig, CronHandler, FlowContext } from '../../types'
 
 export const config: CronConfig = {
   type: 'cron',

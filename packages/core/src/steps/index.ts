@@ -1,5 +1,5 @@
 import path from 'path'
-import { Step } from '../types'
+import type { Step } from '../types'
 import { config as emitConfig } from './emit.step'
 
 export const systemSteps: Step[] = [

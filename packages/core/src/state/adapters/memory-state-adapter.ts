@@ -1,4 +1,4 @@
-import { StateAdapter, StateItem, StateItemsInput } from '../state-adapter'
+import type { StateAdapter, StateItem, StateItemsInput } from '../state-adapter'
 import { filterItem, inferType } from './utils'
 
 export class MemoryStateAdapter implements StateAdapter {

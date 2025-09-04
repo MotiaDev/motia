@@ -1,4 +1,4 @@
-import { ApiResponse, ApiRouteConfig, ApiRouteHandler, FlowContext } from '../../types'
+import type { ApiResponse, ApiRouteConfig, ApiRouteHandler, FlowContext } from '../../types'
 
 export const config: ApiRouteConfig = {
   type: 'api',

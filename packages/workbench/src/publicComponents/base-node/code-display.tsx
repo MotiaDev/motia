@@ -1,9 +1,10 @@
-import { useThemeStore } from '@/stores/use-theme-store'
-import { Feature } from '@/types/file'
-import { FeatureCard } from './feature-card'
-import React, { useRef, useState } from 'react'
+import type React from 'react'
+import { useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { dracula, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { useThemeStore } from '@/stores/use-theme-store'
+import type { Feature } from '@/types/file'
+import { FeatureCard } from './feature-card'
 import { LanguageIndicator } from './language-indicator'
 
 type CodeDisplayProps = {
@@ -27,7 +28,7 @@ const customStyle = {
 
 const isHighlighted = (lines: string[], lineNumber: number) => {
   return lines.some((line) => {
-    const [start, end] = line.split('-').map((num) => parseInt(num, 10))
+    const [start, end] = line.split('-').map((num) => Number.parseInt(num, 10))
 
     if (end !== undefined) {
       return lineNumber >= start && lineNumber <= end
@@ -38,7 +39,7 @@ const isHighlighted = (lines: string[], lineNumber: number) => {
 }
 
 const getFirstLineNumber = (line: string) => {
-  const [start] = line.split('-').map((num) => parseInt(num, 10))
+  const [start] = line.split('-').map((num) => Number.parseInt(num, 10))
   return start
 }
 

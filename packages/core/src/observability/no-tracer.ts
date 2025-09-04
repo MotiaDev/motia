@@ -1,4 +1,4 @@
-import { Tracer } from '.'
+import type { Tracer } from '.'
 
 export class NoTracer implements Tracer {
   end() {}

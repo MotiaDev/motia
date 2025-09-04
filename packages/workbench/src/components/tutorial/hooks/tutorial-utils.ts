@@ -1,8 +1,8 @@
 export const waitForElementByXPath = async (
   xpath: string,
-  optional: boolean = false,
-  maxAttempts: number = 50,
-  delayMs: number = 50,
+  optional = false,
+  maxAttempts = 50,
+  delayMs = 50,
 ): Promise<HTMLElement | null> => {
   let attempts = 0
 

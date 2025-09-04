@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useCallback } from 'react'
+import type React from 'react'
+import { useCallback } from 'react'
 import Particles from 'react-tsparticles'
 import type { Engine } from 'tsparticles-engine'
 import { loadSlim } from 'tsparticles-slim'

@@ -1,4 +1,4 @@
-import { Order, Pet } from './types'
+import type { Order, Pet } from './types'
 
 export const petStoreService = {
   createPet: async (pet: Omit<Pet, 'id'>): Promise<Pet> => {

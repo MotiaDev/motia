@@ -1,6 +1,6 @@
-import { useThemeStore } from '@/stores/use-theme-store'
 import Editor, { useMonaco } from '@monaco-editor/react'
-import { FC, useEffect, useMemo } from 'react'
+import { type FC, useEffect, useMemo } from 'react'
+import { useThemeStore } from '@/stores/use-theme-store'
 
 type JsonEditorProps = {
   value: string
@@ -28,7 +28,9 @@ export const JsonEditor: FC<JsonEditorProps> = ({
   useEffect(() => {
     if (!monaco) return
 
-    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({ isolatedModules: true })
+    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+      isolatedModules: true,
+    })
     monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
       schemas: schema
         ? [

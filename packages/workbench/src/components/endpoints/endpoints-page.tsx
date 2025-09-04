@@ -1,6 +1,6 @@
+import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { useGlobalStore } from '@/stores/use-global-store'
-import { useMemo } from 'react'
 import { EndpointBadge } from './endpoint-badge'
 import { EndpointSidePanel } from './endpoint-side-panel'
 import { useGetEndpoints } from './hooks/use-get-endpoints'

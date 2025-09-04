@@ -1,6 +1,6 @@
-import type { MetadataRoute } from 'next'
 import fs from 'node:fs'
 import path from 'node:path'
+import type { MetadataRoute } from 'next'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://motia.dev'
 

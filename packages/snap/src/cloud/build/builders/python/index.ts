@@ -1,13 +1,13 @@
-import { ApiRouteConfig, Step } from '@motiadev/core'
+import type { ApiRouteConfig, Step } from '@motiadev/core'
 import fs from 'fs'
 import path from 'path'
-import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
+import { activatePythonVenv } from '../../../../utils/activate-python-env'
+import { distDir } from '../../../new-deployment/constants'
+import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
+import type { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
-import { BuildListener } from '../../../new-deployment/listeners/listener.types'
-import { distDir } from '../../../new-deployment/constants'
 import { UvPackager } from './uv-packager'
-import { activatePythonVenv } from '../../../../utils/activate-python-env'
 
 export class PythonBuilder implements StepBuilder {
   private uvPackager: UvPackager
@@ -59,7 +59,12 @@ export class PythonBuilder implements StepBuilder {
     const bundlePath = path.join('python', entrypointPath.replace(/(.*)\.py$/, '$1.zip'))
     const outfile = path.join(distDir, bundlePath)
 
-    this.builder.registerStep({ entrypointPath, bundlePath, step, type: 'python' })
+    this.builder.registerStep({
+      entrypointPath,
+      bundlePath,
+      step,
+      type: 'python',
+    })
     this.listener.onBuildStart(step)
 
     try {
@@ -299,7 +304,7 @@ export class PythonBuilder implements StepBuilder {
       }
 
       // Exponential backoff: 10ms, 20ms, 40ms, 80ms, etc.
-      const delay = initialDelayMs * Math.pow(2, i)
+      const delay = initialDelayMs * 2 ** i
       await new Promise((resolve) => setTimeout(resolve, Math.min(delay, 1000))) // Cap at 1 second
     }
   }

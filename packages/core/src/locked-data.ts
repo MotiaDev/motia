@@ -1,15 +1,15 @@
 import fs from 'fs'
 import path from 'path'
 import { isApiStep, isCronStep, isEventStep } from './guards'
-import { Printer } from './printer'
+import type { Printer } from './printer'
 import { validateStep } from './step-validator'
 import { FileStreamAdapter } from './streams/adapters/file-stream-adapter'
 import { MemoryStreamAdapter } from './streams/adapters/memory-stream-adapter'
-import { StreamAdapter } from './streams/adapters/stream-adapter'
-import { StreamFactory } from './streams/stream-factory'
-import { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
-import { Stream } from './types-stream'
+import type { StreamAdapter } from './streams/adapters/stream-adapter'
+import type { StreamFactory } from './streams/stream-factory'
+import type { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
+import type { Stream } from './types-stream'
 
 type FlowEvent = 'flow-created' | 'flow-removed' | 'flow-updated'
 type StepEvent = 'step-created' | 'step-removed' | 'step-updated'
@@ -28,7 +28,7 @@ export class LockedData {
   private streamHandlers: Record<StreamEvent, ((stream: Stream) => void)[]>
   private streams: Record<string, Stream>
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   private streamWrapper?: StreamWrapper<any>
 
   constructor(
@@ -105,7 +105,7 @@ export class LockedData {
     return this.activeSteps.filter((step) => step.filePath.endsWith('.ts'))
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   getStreams(): Record<string, StreamFactory<any>> {
     const streams: Record<string, StreamFactory<unknown>> = {}
 

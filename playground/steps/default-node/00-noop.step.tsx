@@ -1,6 +1,6 @@
-import React from 'react'
-import { BaseNode, NoopNodeProps } from '@motiadev/workbench'
 import { Button } from '@motiadev/ui'
+import { BaseNode, type NoopNodeProps } from '@motiadev/workbench'
+import type React from 'react'
 
 /**
  * For more information on how to override UI nodes, check documentation https://www.motia.dev/docs/workbench/ui-steps

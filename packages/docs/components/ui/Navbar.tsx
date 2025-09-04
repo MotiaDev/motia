@@ -1,12 +1,12 @@
 'use client'
+import { AnimatePresence, motion, useScroll } from 'framer-motion'
 import Image from 'next/image'
-import { AnimatePresence, motion, spring, useScroll } from 'framer-motion'
-import logoFull from '@/public/images/logoFull.png'
-import { DISCORD_HANDLE, GITHUB_LINK } from '@/utils/constants'
-import { discordIcon, githubIcon, starIcon } from '../Icons'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useGithubStars } from '@/hooks/useGithubStars'
+import logoFull from '@/public/images/logoFull.png'
+import { DISCORD_HANDLE, GITHUB_LINK } from '@/utils/constants'
+import { discordIcon, githubIcon, starIcon } from '../Icons'
 import ModalCTA, { ModalCTAVariants } from '../ModalCTA'
 
 export default function Navbar() {
@@ -26,17 +26,6 @@ export default function Navbar() {
       setScrolled(y > 100)
     })
   }, [scrollY])
-
-  {
-    /**
-     *
-     *
-     * Hamburger MENU
-     *
-     *
-     *
-     * */
-  }
   const HamburgerMenu: React.FC = () => {
     return (
       <button
@@ -62,17 +51,6 @@ export default function Navbar() {
         </div>
       </button>
     )
-  }
-
-  {
-    /**
-     *
-     *
-     * Main Return Function
-     *
-     *
-     *
-     * */
   }
   return (
     <motion.div
@@ -144,17 +122,8 @@ export default function Navbar() {
                   target="_blank"
                   className="vercel-oss-button gap-2"
                 >
-                  <svg
-                    aria-label="Vercel logomark"
-                    height="15"
-                    role="img"
-                    viewBox="0 0 74 64"
-                    className="fill-current"
-                  >
-                    <path
-                      d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z"
-                      fill="white"
-                    ></path>
+                  <svg aria-label="Vercel logomark" height="15" role="img" viewBox="0 0 74 64" className="fill-current">
+                    <path d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z" fill="white"></path>
                   </svg>
                   Vercel OSS 2025
                 </Link>
@@ -181,14 +150,8 @@ export default function Navbar() {
                 >
                   {githubIcon} <p>Contribute on Github </p> <p className="max-md:hidden">|</p>
                   <div className="flex items-center gap-[6px] text-white max-md:hidden">
-                    {starIcon} 
-                    <p>
-                      {isLoading ? (
-                        <span className="inline-block animate-pulse">----</span>
-                      ) : (
-                        starCount || '----'
-                      )}
-                    </p>
+                    {starIcon}
+                    <p>{isLoading ? <span className="inline-block animate-pulse">----</span> : starCount || '----'}</p>
                   </div>
                 </Link>
               </div>
@@ -269,10 +232,7 @@ export default function Navbar() {
               viewBox="0 0 74 64"
               className="fill-current block m-0 p-0"
             >
-              <path
-                d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z"
-                fill="white"
-              ></path>
+              <path d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z" fill="white"></path>
             </svg>
             <span className="max-lg:hidden">Vercel OSS 2025</span>
           </Link>
@@ -298,18 +258,12 @@ export default function Navbar() {
             target="_blank"
             className="font-tasa flex cursor-pointer items-center gap-[16px] rounded-[4px] border-[1px] border-white/20 bg-black/40 px-[8px] py-[4px] text-[16px] font-medium tracking-wider text-white transition-colors ease-in-out hover:text-white max-sm:gap-[8px] max-sm:py-[8px] max-sm:text-[14px]"
           >
-            {githubIcon} 
-            <p className="sm:-ml-[8px] max-lg:hidden">Github </p> 
+            {githubIcon}
+            <p className="sm:-ml-[8px] max-lg:hidden">Github </p>
             <p className="text-white/40 max-lg:hidden">|</p>
             <div className="flex items-center gap-[6px] text-white">
-              {starIcon} 
-              <p>
-                {isLoading ? (
-                  <span className="inline-block animate-pulse">----</span>
-                ) : (
-                  starCount || '----'
-                )}
-              </p>
+              {starIcon}
+              <p>{isLoading ? <span className="inline-block animate-pulse">----</span> : starCount || '----'}</p>
             </div>
           </Link>
           <HamburgerMenu />

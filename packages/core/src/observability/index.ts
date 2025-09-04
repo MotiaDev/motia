@@ -1,6 +1,6 @@
-import { Logger } from '../logger'
-import { Step } from '../types'
-import { StateOperation, StreamOperation, TraceError } from './types'
+import type { Logger } from '../logger'
+import type { Step } from '../types'
+import type { StateOperation, StreamOperation, TraceError } from './types'
 
 export interface TracerFactory {
   createTracer(traceId: string, step: Step, logger: Logger): Promise<Tracer> | Tracer

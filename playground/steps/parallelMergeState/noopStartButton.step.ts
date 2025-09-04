@@ -1,4 +1,4 @@
-import { NoopConfig } from 'motia'
+import type { NoopConfig } from 'motia'
 
 export const config: NoopConfig = {
   type: 'noop',

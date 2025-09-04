@@ -11,8 +11,14 @@ type RpcResponse = {
 export class RpcSender {
   private readonly pendingRequests: Record<
     string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { resolve: (result: any) => void; reject: (error: any) => void; method: string; args: any }
+    /* biome-ignore-start lint/suspicious/noExplicitAny: migration */
+    {
+      resolve: (result: any) => void
+      reject: (error: any) => void
+      method: string
+      args: any
+    }
+    /* biome-ignore-end lint/suspicious/noExplicitAny: migration */
   > = {}
 
   constructor(private readonly process: NodeJS.Process) {}

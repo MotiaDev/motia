@@ -1,4 +1,4 @@
-import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteHandler, FlowContext, ApiMiddleware } from '../../types'
+import type { ApiMiddleware, ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteHandler, FlowContext } from '../../types'
 
 const loggerMiddleware: ApiMiddleware = async (req, ctx, next) => {
   ctx.logger.info(`[Middleware] Request with body:`, req.body)
@@ -37,7 +37,7 @@ const jsonValidatorMiddleware: ApiMiddleware<unknown, unknown, unknown> = async 
       req.body = JSON.parse(req.body)
     }
     return next()
-  } catch (error) {
+  } catch (_error) {
     ctx.logger.error('Invalid JSON in request body')
     return {
       status: 400,

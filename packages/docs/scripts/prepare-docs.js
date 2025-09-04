@@ -108,7 +108,7 @@ Now follow these instructions:
 
     for (const file of mdFiles) {
       const relativePath = path.relative(contentDir, file)
-      const url = '/docs/' + relativePath.replace(/\.mdx?$/, '').replace(/\/?index$/,'')
+      const url = '/docs/' + relativePath.replace(/\.mdx?$/, '').replace(/\/?index$/, '')
 
       // Extract title from frontmatter (assuming it's at the beginning)
       const content = await getContentFromMdx(file)

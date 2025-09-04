@@ -244,21 +244,29 @@ export const AccessibilityExample: Story = {
         <h3 className="text-sm font-semibold mb-3">Accessible Status Indicators</h3>
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Badge variant="error" aria-label="Error status">●</Badge>
+            <Badge variant="error" aria-label="Error status">
+              ●
+            </Badge>
             <span>Server Status</span>
             <span className="sr-only">Error</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="warning" aria-label="Warning status">⚠</Badge>
+            <Badge variant="warning" aria-label="Warning status">
+              ⚠
+            </Badge>
             <span>System Warning</span>
             <span className="sr-only">Warning</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="info" aria-label="5 unread notifications">5</Badge>
+            <Badge variant="info" aria-label="5 unread notifications">
+              5
+            </Badge>
             <span>Notifications</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="success" aria-label="System healthy">✓</Badge>
+            <Badge variant="success" aria-label="System healthy">
+              ✓
+            </Badge>
             <span>System Health</span>
           </div>
         </div>
@@ -286,4 +294,4 @@ export const DarkModeExample: Story = {
       </div>
     </div>
   ),
-} 
+}

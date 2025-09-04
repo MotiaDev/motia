@@ -6,12 +6,7 @@
     "allowFileCreation": true,
     "allowFileEditing": true,
     "allowCommandExecution": true,
-    "restrictedPaths": [
-      "node_modules",
-      ".git",
-      "dist",
-      "build"
-    ]
+    "restrictedPaths": ["node_modules", ".git", "dist", "build"]
   },
   "preferences": {
     "language": "typescript",

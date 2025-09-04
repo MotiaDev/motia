@@ -1,10 +1,10 @@
-import defaultMdxComponents from 'fumadocs-ui/mdx';
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
-import { ImageZoom } from 'fumadocs-ui/components/image-zoom'
-import { CodeBlock, Pre } from 'fumadocs-ui/components/codeblock'
-import { Mermaid } from '@/components/Mermaid'
 import * as Twoslash from 'fumadocs-twoslash/ui'
-import type { MDXComponents } from 'mdx/types';
+import { CodeBlock, Pre } from 'fumadocs-ui/components/codeblock'
+import { ImageZoom } from 'fumadocs-ui/components/image-zoom'
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
+import defaultMdxComponents from 'fumadocs-ui/mdx'
+import type { MDXComponents } from 'mdx/types'
+import { Mermaid } from '@/components/Mermaid'
 
 // use this function to get MDX components, you will need it for rendering MDX
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
@@ -26,5 +26,5 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     // Enable Twoslash components
     ...Twoslash,
     ...components,
-  };
+  }
 }

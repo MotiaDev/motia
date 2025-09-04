@@ -1,6 +1,6 @@
-import React from 'react'
-import { TraceEvent as TraceEventType } from '@/types/observability'
 import { MessageCircle, Package, Radio, ScrollText } from 'lucide-react'
+import type React from 'react'
+import type { TraceEvent as TraceEventType } from '@/types/observability'
 
 type Props = {
   event: TraceEventType

@@ -1,7 +1,8 @@
-import { Edge, Node, useNodesInitialized, useReactFlow } from '@xyflow/react'
-import React, { useEffect, useRef } from 'react'
-import { ApiNodeData, EdgeData, EventNodeData } from '@/types/flow'
+import { type Edge, type Node, useNodesInitialized, useReactFlow } from '@xyflow/react'
 import dagre from 'dagre'
+import type React from 'react'
+import { useEffect, useRef } from 'react'
+import type { ApiNodeData, EdgeData, EventNodeData } from '@/types/flow'
 
 const organizeNodes = (
   nodes: Node<EventNodeData | ApiNodeData>[],
@@ -10,10 +11,19 @@ const organizeNodes = (
   const dagreGraph = new dagre.graphlib.Graph({ compound: true })
   dagreGraph.setDefaultEdgeLabel(() => ({}))
 
-  dagreGraph.setGraph({ rankdir: 'LR', ranksep: 80, nodesep: 60, edgesep: 20, ranker: 'tight-tree' })
+  dagreGraph.setGraph({
+    rankdir: 'LR',
+    ranksep: 80,
+    nodesep: 60,
+    edgesep: 20,
+    ranker: 'tight-tree',
+  })
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: node.measured?.width, height: node.measured?.height })
+    dagreGraph.setNode(node.id, {
+      width: node.measured?.width,
+      height: node.measured?.height,
+    })
   })
 
   edges.forEach((edge) => {

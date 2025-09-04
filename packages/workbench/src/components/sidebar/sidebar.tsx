@@ -1,8 +1,8 @@
 import { Panel, type PanelProps } from '@motiadev/ui'
-import { createPortal } from 'react-dom'
-import { FC, useEffect, useMemo } from 'react'
-import { useResizable } from 'react-use-resizable'
 import { Equal } from 'lucide-react'
+import { type FC, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { useResizable } from 'react-use-resizable'
 
 export const APP_SIDEBAR_CONTAINER_ID = 'app-sidebar-container'
 
@@ -28,7 +28,9 @@ export const Sidebar: FC<SidebarProps> = ({ initialWidth, onClose, ...props }) =
   })
 
   useEffect(() => {
-    const event = new CustomEvent(CLOSE_PREVIOUS_SIDEBAR_EVENT, { detail: { sidebarId } })
+    const event = new CustomEvent(CLOSE_PREVIOUS_SIDEBAR_EVENT, {
+      detail: { sidebarId },
+    })
     window.dispatchEvent(event)
 
     const handleClose = (e: Event) => {

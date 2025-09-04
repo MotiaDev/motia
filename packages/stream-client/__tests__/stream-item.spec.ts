@@ -1,5 +1,5 @@
+import type { ItemEventMessage, JoinMessage } from '../src/stream.types'
 import { StreamItemSubscription } from '../src/stream-item'
-import { ItemEventMessage, JoinMessage } from '../src/stream.types'
 
 type TestData = { id: string; name: string; value: number }
 

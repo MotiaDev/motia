@@ -3,7 +3,7 @@ import { expect, type Page } from '@playwright/test'
 export class ApiHelpers {
   constructor(private page: Page) {}
 
-  async createRequest(endpoint: string, method: string = 'GET', body?: any): Promise<Response> {
+  async createRequest(endpoint: string, method = 'GET', body?: any): Promise<Response> {
     const options: RequestInit = {
       method,
       headers: {
@@ -98,9 +98,7 @@ export class ApiHelpers {
         if (response.status === 200) {
           return response
         }
-      } catch (error) {
-        continue
-      }
+      } catch (error) {}
     }
 
     throw new Error('No working health endpoint found')

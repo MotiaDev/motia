@@ -1,5 +1,5 @@
-import React from 'react'
-import { Badge, BadgeProps } from '@motiadev/ui'
+import { Badge, type BadgeProps } from '@motiadev/ui'
+import type React from 'react'
 
 const map: Record<string, BadgeProps['variant']> = {
   info: 'info',

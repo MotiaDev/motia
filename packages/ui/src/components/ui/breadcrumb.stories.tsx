@@ -31,7 +31,10 @@ export const Default: Story = {
     items: [
       { label: 'Home', onClick: () => console.log('Home') },
       { label: 'Projects', onClick: () => console.log('Projects') },
-      { label: 'Current Project', onClick: () => console.log('Current Project') },
+      {
+        label: 'Current Project',
+        onClick: () => console.log('Current Project'),
+      },
     ],
   },
 }
@@ -41,7 +44,10 @@ export const WithLinks: Story = {
     items: [
       { label: 'Home', onClick: () => console.log('Home') },
       { label: 'Projects', onClick: () => console.log('Projects') },
-      { label: 'Current Project', onClick: () => console.log('Current Project') },
+      {
+        label: 'Current Project',
+        onClick: () => console.log('Current Project'),
+      },
     ],
   },
 }
@@ -49,9 +55,21 @@ export const WithLinks: Story = {
 export const WithIcons: Story = {
   args: {
     items: [
-      { label: 'Home', onClick: () => console.log('Home'), icon: <Home className="size-4" /> },
-      { label: 'Documents', onClick: () => console.log('Documents'), icon: <Folder className="size-4" /> },
-      { label: 'Report.pdf', onClick: () => console.log('Report.pdf'), icon: <FileText className="size-4" /> },
+      {
+        label: 'Home',
+        onClick: () => console.log('Home'),
+        icon: <Home className="size-4" />,
+      },
+      {
+        label: 'Documents',
+        onClick: () => console.log('Documents'),
+        icon: <Folder className="size-4" />,
+      },
+      {
+        label: 'Report.pdf',
+        onClick: () => console.log('Report.pdf'),
+        icon: <FileText className="size-4" />,
+      },
     ],
   },
 }
@@ -65,12 +83,24 @@ export const WithDropdown: Story = {
         onClick: () => console.log('Organizations'),
         dropdownItems: [
           { label: 'Acme Corp', onClick: () => console.log('Acme Corp') },
-          { label: 'Tech Solutions', onClick: () => console.log('Tech Solutions') },
-          { label: 'Design Studio', onClick: () => console.log('Design Studio') },
-          { label: 'All Organizations', onClick: () => console.log('All Organizations') },
+          {
+            label: 'Tech Solutions',
+            onClick: () => console.log('Tech Solutions'),
+          },
+          {
+            label: 'Design Studio',
+            onClick: () => console.log('Design Studio'),
+          },
+          {
+            label: 'All Organizations',
+            onClick: () => console.log('All Organizations'),
+          },
         ],
       },
-      { label: 'Current Project', onClick: () => console.log('Current Project') },
+      {
+        label: 'Current Project',
+        onClick: () => console.log('Current Project'),
+      },
     ],
   },
 }
@@ -86,9 +116,15 @@ export const LongPath: Story = {
     items: [
       { label: 'Home', onClick: () => console.log('Home') },
       { label: 'Organizations', onClick: () => console.log('Organizations') },
-      { label: 'Development Team', onClick: () => console.log('Development Team') },
+      {
+        label: 'Development Team',
+        onClick: () => console.log('Development Team'),
+      },
       { label: 'Projects', onClick: () => console.log('Projects') },
-      { label: 'Web Application', onClick: () => console.log('Web Application') },
+      {
+        label: 'Web Application',
+        onClick: () => console.log('Web Application'),
+      },
     ],
   },
 }
@@ -142,7 +178,11 @@ export const MixedTypes: Story = {
             icon: <Building2 className="size-4" />,
             onClick: () => console.log('My Organization'),
           },
-          { label: 'Partner Org', icon: <Building2 className="size-4" />, onClick: () => console.log('Partner Org') },
+          {
+            label: 'Partner Org',
+            icon: <Building2 className="size-4" />,
+            onClick: () => console.log('Partner Org'),
+          },
           {
             label: 'All Organizations',
             icon: <Building2 className="size-4" />,
@@ -151,7 +191,10 @@ export const MixedTypes: Story = {
         ],
       },
       { label: 'Projects', onClick: () => console.log('Projects') },
-      { label: 'Current Project', onClick: () => console.log('Current Project') },
+      {
+        label: 'Current Project',
+        onClick: () => console.log('Current Project'),
+      },
     ],
   },
 }
@@ -210,8 +253,16 @@ export const Interactive: Story = {
                     icon: <Building2 className="size-4" />,
                     onClick: () => handleItemClick('Personal'),
                   },
-                  { label: 'Work', icon: <Building2 className="size-4" />, onClick: () => handleItemClick('Work') },
-                  { label: 'Shared', icon: <Folder className="size-4" />, onClick: () => handleItemClick('Shared') },
+                  {
+                    label: 'Work',
+                    icon: <Building2 className="size-4" />,
+                    onClick: () => handleItemClick('Work'),
+                  },
+                  {
+                    label: 'Shared',
+                    icon: <Folder className="size-4" />,
+                    onClick: () => handleItemClick('Shared'),
+                  },
                   {
                     label: 'All Documents',
                     icon: <FileText className="size-4" />,

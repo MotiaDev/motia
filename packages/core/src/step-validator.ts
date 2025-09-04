@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Step } from './types'
+import type { Step } from './types'
 
 const jsonSchema = z.object({
   type: z.string(),
@@ -140,7 +140,10 @@ export const validateStep = (step: Step): ValidationResult => {
       return {
         success: false,
         error: error.errors.map((err) => err.message).join(', '),
-        errors: error.errors.map((err) => ({ path: err.path.join('.'), message: err.message })),
+        errors: error.errors.map((err) => ({
+          path: err.path.join('.'),
+          message: err.message,
+        })),
       }
     }
 

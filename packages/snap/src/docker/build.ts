@@ -1,9 +1,9 @@
+import { getProjectIdentifier, trackEvent } from '@motiadev/core'
 import * as fs from 'fs'
 import * as path from 'path'
-import { printMotiaDockerIntro } from './utils/print-intro'
-import { buildDockerImage } from './utils/build-docker-image'
 import { identifyUser } from '../utils/analytics'
-import { getProjectIdentifier, trackEvent } from '@motiadev/core'
+import { buildDockerImage } from './utils/build-docker-image'
+import { printMotiaDockerIntro } from './utils/print-intro'
 
 export const build = async (projectName?: string): Promise<void> => {
   printMotiaDockerIntro()

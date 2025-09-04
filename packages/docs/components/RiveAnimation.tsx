@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react'
-import { useRive, Layout, Fit, Alignment } from '@rive-app/react-webgl2'
+import { Alignment, Fit, Layout, useRive } from '@rive-app/react-webgl2'
+import type React from 'react'
 
 interface RiveAnimationProps {
   /** Path under public/, e.g. '/animations/yourAnimation.riv' */

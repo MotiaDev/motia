@@ -19,7 +19,7 @@ const booleanTag = (value: string) => colors.blue(value)
 const arrayBrackets = ['[', ']'].map((s) => colors.gray(s))
 const objectBrackets = ['{', '}'].map((s) => colors.gray(s))
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* biome-ignore lint/suspicious/noExplicitAny: migration */
 const prettyPrintObject = (obj: Record<string, any>, depth = 0, parentIsLast = false, prefix = ''): string => {
   const tab = prefix + (depth === 0 ? '' : parentIsLast ? '│ ' : '│ ')
 
@@ -57,9 +57,9 @@ const prettyPrintObject = (obj: Record<string, any>, depth = 0, parentIsLast = f
     .join('\n')
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* biome-ignore lint/suspicious/noExplicitAny: migration */
 export const prettyPrint = (json: Record<string, any>, excludeDetails = false): void => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // biome-ignore lint/correctness/noUnusedVariables: migration
   const { time, traceId, msg, flows, level, step, ...details } = json
   const levelTag = levelTags[level]
   const timestamp = timestampTag(`[${new Date(time).toLocaleTimeString()}]`)

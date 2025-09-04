@@ -1,9 +1,9 @@
+import type { Express, Request, Response } from 'express'
 import path from 'path'
-import { Express, Request, Response } from 'express'
 import { z } from 'zod'
-import { LockedData } from './locked-data'
+import type { LockedData } from './locked-data'
 import { FlowsConfigStream } from './streams/flows-config-stream'
-import { FlowConfig } from './types/flows-config-types'
+import type { FlowConfig } from './types/flows-config-types'
 
 interface ParamId {
   id: string

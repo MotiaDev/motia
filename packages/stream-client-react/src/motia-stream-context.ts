@@ -1,5 +1,5 @@
+import type { Stream } from '@motiadev/stream-client-browser'
 import React from 'react'
-import { Stream } from '@motiadev/stream-client-browser'
 
 type MotiaStreamContextType = {
   stream: Stream | null

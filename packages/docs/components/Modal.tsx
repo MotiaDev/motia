@@ -1,13 +1,13 @@
 'use client'
 
-import React, { FC } from 'react'
 import { Dialog, DialogPanel } from '@headlessui/react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { closeIcon } from './Icons'
-import bgBento3 from '@/public/images/landing/bgModalSignUp.webp'
+import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
+import type { FC } from 'react'
+import bgBento3 from '@/public/images/landing/bgModalSignUp.webp'
 import useEarlyAccessForm from '../hooks/useEarlyAccessForm'
 import EarlyAccessFormContent from './EarlyAccessFormContent'
+import { closeIcon } from './Icons'
 import SuccessContent from './SuccessContent'
 
 type ModalFormProps = {

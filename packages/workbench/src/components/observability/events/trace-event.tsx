@@ -1,5 +1,6 @@
-import { TraceEvent as TraceEventType } from '@/types/observability'
-import React, { memo } from 'react'
+import type React from 'react'
+import { memo } from 'react'
+import type { TraceEvent as TraceEventType } from '@/types/observability'
 import { TraceEmitEvent } from './trace-emit-event'
 import { TraceLogEvent } from './trace-log-event'
 import { TraceStateEvent } from './trace-state-event'

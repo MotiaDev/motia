@@ -1,9 +1,11 @@
 import { spawn } from 'child_process'
 
-export const promiseExec = (command: string, inheritStdio: boolean = true): Promise<void> => {
+export const promiseExec = (command: string, inheritStdio = true): Promise<void> => {
   return new Promise((resolve, reject) => {
     const [cmd, ...args] = command.split(' ')
-    const child = spawn(cmd, args, { stdio: inheritStdio ? 'inherit' : 'pipe' })
+    const child = spawn(cmd, args, {
+      stdio: inheritStdio ? 'inherit' : 'pipe',
+    })
 
     child.on('close', (code) => {
       if (code !== 0) {

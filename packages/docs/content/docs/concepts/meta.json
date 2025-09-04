@@ -4,7 +4,7 @@
   "pages": [
     "steps",
     "flows-and-visualization",
-    "state-management", 
+    "state-management",
     "environment-variables",
     "streams",
     "logging-and-debugging",

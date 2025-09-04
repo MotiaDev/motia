@@ -1,5 +1,5 @@
 import { globalLogger } from './logger'
-import { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
+import type { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
 
 type EventHandler = {
   filePath: string
@@ -13,7 +13,11 @@ export const createEventManager = (): EventManager => {
     const eventHandlers = handlers[event.topic] ?? []
     const { logger, ...rest } = event
 
-    logger.debug('[Flow Emit] Event emitted', { handlers: eventHandlers.length, data: rest, file })
+    logger.debug('[Flow Emit] Event emitted', {
+      handlers: eventHandlers.length,
+      data: rest,
+      file,
+    })
     eventHandlers.map((eventHandler) => eventHandler.handler(event))
   }
 
@@ -24,7 +28,10 @@ export const createEventManager = (): EventManager => {
       handlers[event] = []
     }
 
-    globalLogger.debug('[Flow Sub] Subscribing to event', { event, handlerName })
+    globalLogger.debug('[Flow Sub] Subscribing to event', {
+      event,
+      handlerName,
+    })
     handlers[event].push({ filePath, handler: handler as Handler })
   }
 

@@ -1,4 +1,4 @@
-import { StepConfig } from './types'
+import type { StepConfig } from './types'
 
 export type StateConfig = {
   adapter: string

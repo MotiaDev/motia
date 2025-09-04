@@ -1,6 +1,6 @@
+import colors from 'colors'
 import fs from 'fs'
 import path from 'path'
-import colors from 'colors'
 
 export interface AIGuidesOptions {
   force?: boolean
@@ -171,19 +171,52 @@ async function listAIGuides(): Promise<void> {
 
   console.log(colors.blue('📋 Cursor-Specific Rules:'))
   const rules = [
-    { name: 'complete-application-patterns', description: 'End-to-end patterns for complete applications' },
-    { name: 'complete-backend-generator', description: 'Step-by-step backend generation guide' },
-    { name: 'multi-language-workflows', description: 'JavaScript, TypeScript, Python, Ruby patterns' },
+    {
+      name: 'complete-application-patterns',
+      description: 'End-to-end patterns for complete applications',
+    },
+    {
+      name: 'complete-backend-generator',
+      description: 'Step-by-step backend generation guide',
+    },
+    {
+      name: 'multi-language-workflows',
+      description: 'JavaScript, TypeScript, Python, Ruby patterns',
+    },
     { name: 'api-steps', description: 'REST API endpoint patterns' },
-    { name: 'event-steps', description: 'Asynchronous event processing patterns' },
-    { name: 'authentication-patterns', description: 'JWT authentication and middleware' },
-    { name: 'background-job-patterns', description: 'Background processing and job queues' },
-    { name: 'realtime-streaming', description: 'Real-time data synchronization' },
-    { name: 'ai-agent-patterns', description: 'AI agent and workflow orchestration' },
+    {
+      name: 'event-steps',
+      description: 'Asynchronous event processing patterns',
+    },
+    {
+      name: 'authentication-patterns',
+      description: 'JWT authentication and middleware',
+    },
+    {
+      name: 'background-job-patterns',
+      description: 'Background processing and job queues',
+    },
+    {
+      name: 'realtime-streaming',
+      description: 'Real-time data synchronization',
+    },
+    {
+      name: 'ai-agent-patterns',
+      description: 'AI agent and workflow orchestration',
+    },
     { name: 'workflow-patterns', description: 'Business process workflows' },
-    { name: 'production-deployment', description: 'DevOps and deployment patterns' },
-    { name: 'api-design-patterns', description: 'REST API design best practices' },
-    { name: 'state-management', description: 'Data persistence and state patterns' },
+    {
+      name: 'production-deployment',
+      description: 'DevOps and deployment patterns',
+    },
+    {
+      name: 'api-design-patterns',
+      description: 'REST API design best practices',
+    },
+    {
+      name: 'state-management',
+      description: 'Data persistence and state patterns',
+    },
     { name: 'steps', description: 'Basic step creation patterns' },
   ]
 

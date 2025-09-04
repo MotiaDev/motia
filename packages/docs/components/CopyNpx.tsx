@@ -2,7 +2,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
 import ButtonPrimary from './ButtonPrimary'
-import { blueTick, copyIconBlack } from './Icons'
+import { copyIconBlack } from './Icons'
 
 export default function CopyNPX() {
   const [copied, setCopied] = useState(false)

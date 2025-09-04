@@ -1,7 +1,7 @@
 import { isApiStep } from '../guards'
-import { LockedData } from '../locked-data'
-import { ApiRouteConfig, ApiRouteMethod, Step } from '../types'
-import { JsonSchema } from '../types/schema.types'
+import type { LockedData } from '../locked-data'
+import type { ApiRouteConfig, ApiRouteMethod, Step } from '../types'
+import type { JsonSchema } from '../types/schema.types'
 import { StreamAdapter } from './adapters/stream-adapter'
 
 type QueryParam = {
@@ -60,7 +60,10 @@ export const apiEndpoints = (lockedData: LockedData) => {
     hidden: true,
     config: {
       name: '__motia.api-endpoints',
-      baseConfig: { storageType: 'custom', factory: () => new ApiEndpointsStream(lockedData) },
+      baseConfig: {
+        storageType: 'custom',
+        factory: () => new ApiEndpointsStream(lockedData),
+      },
       schema: null as never,
     },
   })()

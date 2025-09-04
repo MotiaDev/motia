@@ -1,7 +1,8 @@
-import { TraceGroup } from '@/types/observability'
-import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
-import React, { memo } from 'react'
+import type React from 'react'
+import { memo } from 'react'
+import { cn } from '@/lib/utils'
+import type { TraceGroup } from '@/types/observability'
 import { TraceStatusBadge } from './trace-status'
 
 interface Props {

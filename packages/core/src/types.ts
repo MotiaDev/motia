@@ -1,6 +1,6 @@
-import { z, ZodObject } from 'zod'
-import { Logger } from './logger'
-import { Tracer } from './observability'
+import type { ZodObject, z } from 'zod'
+import type { Logger } from './logger'
+import type { Tracer } from './observability'
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
@@ -14,7 +14,7 @@ export type EmitData = { topic: ''; data: unknown }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface FlowContextStateStreams {}
+export type FlowContextStateStreams = {}
 
 export interface FlowContext<TEmitData = never> {
   emit: Emitter<TEmitData>
@@ -165,7 +165,11 @@ export type EventManager = {
 
 export type StepConfig = EventConfig | NoopConfig | ApiRouteConfig | CronConfig
 
-export type Step<TConfig extends StepConfig = StepConfig> = { filePath: string; version: string; config: TConfig }
+export type Step<TConfig extends StepConfig = StepConfig> = {
+  filePath: string
+  version: string
+  config: TConfig
+}
 
 export type Flow = {
   name: string
@@ -174,4 +178,4 @@ export type Flow = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface Handlers {}
+export type Handlers = {}

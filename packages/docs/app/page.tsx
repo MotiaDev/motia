@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic'
 import Hero from '@/components/Hero'
+
 const Navbar = dynamic(() => import('@/components/ui/Navbar'))
 const AgentsExplorer = dynamic(() => import('@/components/AgentsExplorer'))
 const Bento = dynamic(() => import('@/components/Bento'))
@@ -8,8 +9,9 @@ const MotiaCloud = dynamic(() => import('@/components/MotiaCloud'))
 const SuperchargeAI = dynamic(() => import('@/components/SuperchargeAI'))
 const Comparison = dynamic(() => import('@/components/Comparison'))
 const CTASection = dynamic(() => import('@/components/CTASection'))
+
+import type { Metadata } from 'next'
 import { fetchAgents } from '@/lib/fetchAgents'
-import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   openGraph: {
@@ -26,7 +28,7 @@ export const metadata: Metadata = {
   twitter: {
     images: ['/og-image-updated-new.jpg'],
   },
-};
+}
 
 export default async function Home() {
   const agentsData = await fetchAgents()

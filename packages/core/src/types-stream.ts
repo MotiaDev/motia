@@ -1,12 +1,12 @@
-import { ZodObject } from 'zod'
-import { StreamFactory } from './streams/stream-factory'
+import type { ZodObject } from 'zod'
+import type { StreamFactory } from './streams/stream-factory'
 
 export interface StreamConfig {
   name: string
   schema: ZodObject<any> // eslint-disable-line @typescript-eslint/no-explicit-any
   baseConfig:
     | { storageType: 'default' }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /* biome-ignore lint/suspicious/noExplicitAny: migration */
     | { storageType: 'custom'; factory: () => MotiaStream<any> }
 }
 

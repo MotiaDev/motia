@@ -1,9 +1,11 @@
-import { ApiEndpoint } from '@/types/endpoint'
-import { Input } from '@motiadev/ui'
-import { Panel } from '@motiadev/ui'
-import { FC, Fragment, useState } from 'react'
+import { Input, Panel } from '@motiadev/ui'
+import { type FC, Fragment, useState } from 'react'
+import type { ApiEndpoint } from '@/types/endpoint'
 
-type Props = { endpoint: ApiEndpoint; onChange?: (queryParamsValues: Record<string, string>) => void }
+type Props = {
+  endpoint: ApiEndpoint
+  onChange?: (queryParamsValues: Record<string, string>) => void
+}
 
 export const EndpointQueryParamsPanel: FC<Props> = ({ endpoint, onChange }) => {
   const [queryParamsValues, setQueryParamsValues] = useState<Record<string, string>>(

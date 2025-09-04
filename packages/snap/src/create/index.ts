@@ -1,12 +1,12 @@
-import path from 'path'
 import fs from 'fs'
-import { executeCommand } from '../utils/execute-command'
-import { pythonInstall } from '../install'
+import path from 'path'
+import type { CliContext } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
+import { pythonInstall } from '../install'
+import { executeCommand } from '../utils/execute-command'
 import { version } from '../version'
-import { CliContext } from '../cloud/config-utils'
 import { setupTemplate } from './setup-template'
-import { checkIfFileExists, checkIfDirectoryExists } from './utils'
+import { checkIfDirectoryExists, checkIfFileExists } from './utils'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({

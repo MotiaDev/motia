@@ -1,15 +1,15 @@
 'use client'
-import React from 'react'
 import Image from 'next/image'
+import type React from 'react'
 import bentoSectionTitleIcon from '@/public/images/landing/bentoSectionTitleIcon.png'
-import SectionAppearAnimation from './SectionAppearAnimation'
-import Title from './Title'
-import { TextAppearBlur } from './TextAnimations'
-import CodeFirst from './CodeFirst'
-import ChooseLanguage from './ChooseLanguage'
-import TestAndDeploy from './TestAndDeploy'
 import AIReady from './AIReady'
+import ChooseLanguage from './ChooseLanguage'
+import CodeFirst from './CodeFirst'
+import SectionAppearAnimation from './SectionAppearAnimation'
 import StateAndLogging from './StateAndLogging'
+import TestAndDeploy from './TestAndDeploy'
+import { TextAppearBlur } from './TextAnimations'
+import Title from './Title'
 
 const BentoLayout: React.FC = () => (
   <div className="w-full max-w-[1200px] max-xl:p-[24px]">

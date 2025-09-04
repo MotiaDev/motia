@@ -1,4 +1,4 @@
-import { NoopConfig } from 'motia'
+import type { NoopConfig } from 'motia'
 
 /**
  * NOOP Steps don"t hold any logic in code. They are a way

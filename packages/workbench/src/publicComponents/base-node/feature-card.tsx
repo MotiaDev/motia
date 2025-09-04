@@ -1,6 +1,6 @@
+import type React from 'react'
 import { cn } from '@/lib/utils'
-import { Feature } from '@/types/file'
-import React from 'react'
+import type { Feature } from '@/types/file'
 
 type Props = {
   feature: Feature

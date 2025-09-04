@@ -1,4 +1,4 @@
-import { MotiaStream } from '@motiadev/core'
+import type { MotiaStream } from '@motiadev/core'
 
 export type BuildOutput = {
   packagePath: string
@@ -123,7 +123,10 @@ export class DeploymentStreamManager {
       builtSteps,
     }
 
-    await this.updateDeployment(deploymentId, { build: updatedBuild, metadata })
+    await this.updateDeployment(deploymentId, {
+      build: updatedBuild,
+      metadata,
+    })
   }
 
   async updateUploadOutput(deploymentId: string, uploadOutput: UploadOutput): Promise<void> {
@@ -146,6 +149,9 @@ export class DeploymentStreamManager {
       uploadedSteps,
     }
 
-    await this.updateDeployment(deploymentId, { upload: updatedUpload, metadata })
+    await this.updateDeployment(deploymentId, {
+      upload: updatedUpload,
+      metadata,
+    })
   }
 }

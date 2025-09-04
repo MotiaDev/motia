@@ -1,12 +1,13 @@
-import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json'
-import { ApiEndpoint } from '@/types/endpoint'
 import { Panel } from '@motiadev/ui'
-import { FC } from 'react'
-import { JsonEditor } from './json-editor'
+import type { FC } from 'react'
 import ReactJson from 'react18-json-view'
+import type { ApiEndpoint } from '@/types/endpoint'
+import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json'
+import { JsonEditor } from './json-editor'
 import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
 import { convertJsonSchemaToJson } from './hooks/utils'
+
 type Props = {
   endpoint: ApiEndpoint
   onChange?: (body: string) => void

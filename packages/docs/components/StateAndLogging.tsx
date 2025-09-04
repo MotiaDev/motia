@@ -1,12 +1,12 @@
 'use client'
 import { motion } from 'framer-motion'
-import { BentoCard, CardText } from './BentoCard'
-import bgBento2 from '@/public/images/landing/bgBento2.webp'
-import bento2Glow from '@/public/images/landing/bento2Glow.svg'
-import stateLoggingDefault from '@/public/images/landing/stateandlogsbg.png'
-import statsLogsGif from '@/public/images/landing/Stats&logs-GIF.gif'
 import Image from 'next/image'
-import React from 'react'
+import type React from 'react'
+import bento2Glow from '@/public/images/landing/bento2Glow.svg'
+import bgBento2 from '@/public/images/landing/bgBento2.webp'
+import statsLogsGif from '@/public/images/landing/Stats&logs-GIF.gif'
+import stateLoggingDefault from '@/public/images/landing/stateandlogsbg.png'
+import { BentoCard, CardText } from './BentoCard'
 
 const transition = { type: 'spring' as const, bounce: 0, duration: 0.6 }
 const childVariants = {
@@ -15,8 +15,16 @@ const childVariants = {
     hover: { opacity: 1, y: 0 },
     transition,
   },
-  codeScreen: { initial: { filter: 'blur(0)' }, hover: { filter: 'blur(2px)' }, transition },
-  dashboardStroke: { initial: { opacity: 1 }, hover: { opacity: 1 }, transition },
+  codeScreen: {
+    initial: { filter: 'blur(0)' },
+    hover: { filter: 'blur(2px)' },
+    transition,
+  },
+  dashboardStroke: {
+    initial: { opacity: 1 },
+    hover: { opacity: 1 },
+    transition,
+  },
   dashboard: {
     initial: { y: 0 },
     hover: { y: -60 },
@@ -58,11 +66,7 @@ export default function StateAndLogging() {
               style={loggerStyle}
             >
               <Image src={bento2Glow} alt="Background Glow" className="absolute top-0 left-0 z-0" />
-              <motion.div
-                transition={transition}
-                variants={childVariants.dashboardStroke}
-                className="relative w-full"
-              >
+              <motion.div transition={transition} variants={childVariants.dashboardStroke} className="relative w-full">
                 <Image src={statsLogsGif} alt="Stats and Logs Animation" className="w-full" />
               </motion.div>
             </div>

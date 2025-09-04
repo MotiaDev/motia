@@ -1,7 +1,8 @@
-import { cn } from '@/lib/utils'
-import { cva, VariantProps } from 'class-variance-authority'
+import { cva, type VariantProps } from 'class-variance-authority'
 import { CalendarClock, CircleOff, Link2, Waypoints } from 'lucide-react'
-import React, { PropsWithChildren } from 'react'
+import type React from 'react'
+import type { PropsWithChildren } from 'react'
+import { cn } from '@/lib/utils'
 
 const baseIcon = cva('rounded-md p-2', {
   variants: {

@@ -1,9 +1,9 @@
-import path from 'path'
-import fs from 'fs'
 import colors from 'colors'
+import fs from 'fs'
+import path from 'path'
+import { getStepAnswers } from './getAnswers'
 import { generateTemplate } from './teamplateUtils'
 import { generateOverride } from './templates/ui/overrides'
-import { getStepAnswers } from './getAnswers'
 import { getFileExtension } from './utils'
 
 export async function createStep(options: { stepFilePath?: string }) {

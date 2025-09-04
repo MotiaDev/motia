@@ -1,7 +1,7 @@
-import { useFlowStore } from '@/stores/use-flow-store'
-import { FlowResponse } from '@/types/flow'
 import { useStreamGroup } from '@motiadev/stream-client-react'
 import { useEffect } from 'react'
+import { useFlowStore } from '@/stores/use-flow-store'
+import type { FlowResponse } from '@/types/flow'
 
 export const useFetchFlows = () => {
   const setFlows = useFlowStore((state) => state.setFlows)

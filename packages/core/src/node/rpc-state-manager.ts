@@ -1,5 +1,5 @@
-import { InternalStateManager } from '../types'
-import { RpcSender } from './rpc'
+import type { InternalStateManager } from '../types'
+import type { RpcSender } from './rpc'
 
 export class RpcStateManager implements InternalStateManager {
   constructor(private readonly sender: RpcSender) {}

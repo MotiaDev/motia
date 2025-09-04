@@ -42,4 +42,4 @@ const useEarlyAccessForm = () =>
     errors: {},
   })
 
-export default useEarlyAccessForm 
+export default useEarlyAccessForm

@@ -1,4 +1,4 @@
-import { ApiMiddleware } from '../../types'
+import type { ApiMiddleware } from '../../types'
 
 export const loggerMiddleware: ApiMiddleware = async (req, ctx, next) => {
   console.log(`[Middleware] Request with body:`, req.body)

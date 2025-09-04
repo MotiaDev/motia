@@ -1,7 +1,7 @@
-import { expect, test } from '@/src/motia-fixtures'
 import { execSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import path from 'path'
+import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('CLI Validation', () => {
   const testProjectPath = process.env.TEST_PROJECT_PATH || ''

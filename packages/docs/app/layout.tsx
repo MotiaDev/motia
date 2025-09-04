@@ -2,12 +2,12 @@ import type { Metadata, ResolvingMetadata } from 'next'
 import { DM_Mono, Geist } from 'next/font/google'
 import localFont from 'next/font/local'
 import './globals.css'
-import { RootProvider } from 'fumadocs-ui/provider'
 import { GoogleTagManager } from '@next/third-parties/google'
 import { Analytics } from '@vercel/analytics/react'
+import { RootProvider } from 'fumadocs-ui/provider'
 import { headers } from 'next/headers'
-import PlausibleProvider from 'next-plausible'
 import Script from 'next/script'
+import PlausibleProvider from 'next-plausible'
 
 const tasaExplorer = localFont({
   src: [
@@ -199,7 +199,7 @@ export default function RootLayout({
             url: 'https://motia.dev',
             image: ['https://motia.dev/og-image-updated-new.jpg'],
           }}
-         />
+        />
       </head>
       <body
         suppressHydrationWarning

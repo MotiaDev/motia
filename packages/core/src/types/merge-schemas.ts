@@ -1,4 +1,4 @@
-import { JsonSchema, JsonSchemaError, JsonSchemaType } from './schema.types'
+import { type JsonSchema, JsonSchemaError, type JsonSchemaType } from './schema.types'
 
 export const isCompatible = (schema: JsonSchema, otherSchema: JsonSchema): boolean => {
   if (schema.type !== otherSchema.type) {
@@ -34,7 +34,10 @@ export const mergeSchemas = (schema: JsonSchema, otherSchema: JsonSchema): JsonS
   }
 
   if (schema.type === 'object' && otherSchema.type === 'object') {
-    const mergedProperties = { ...schema.properties, ...otherSchema.properties }
+    const mergedProperties = {
+      ...schema.properties,
+      ...otherSchema.properties,
+    }
     const otherSchemaKeys = Object.keys(otherSchema.properties).reduce(
       (acc, key) => ({ ...acc, [key]: true }),
       {} as Record<string, boolean>,

@@ -1,8 +1,8 @@
 import path from 'path'
-import { StepConfig } from './types'
 import { globalLogger } from './logger'
-import { StreamConfig } from './types-stream'
 import { ProcessManager } from './process-communication/process-manager'
+import type { StepConfig } from './types'
+import type { StreamConfig } from './types-stream'
 
 const getLanguageBasedRunner = (
   stepFilePath = '',
@@ -24,7 +24,11 @@ const getLanguageBasedRunner = (
   } else if (isNode) {
     if (process.env._MOTIA_TEST_MODE === 'true') {
       const nodeRunner = path.join(__dirname, 'node', 'get-config.ts')
-      return { runner: nodeRunner, command: 'node', args: ['-r', 'ts-node/register'] }
+      return {
+        runner: nodeRunner,
+        command: 'node',
+        args: ['-r', 'ts-node/register'],
+      }
     }
 
     const nodeRunner = path.join(__dirname, 'node', 'get-config.js')

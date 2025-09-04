@@ -1,5 +1,5 @@
 import * as TabsPrimitive from '@radix-ui/react-tabs'
-import { FC, ComponentProps } from 'react'
+import type { ComponentProps, FC } from 'react'
 
 import { cn } from '@/lib/utils'
 

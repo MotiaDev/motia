@@ -1,7 +1,7 @@
 'use client'
 
+import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { chevronDownIcon, fileIcon, folderIcon } from './Icons'
 
 type Props = {
@@ -58,7 +58,14 @@ export default function CollapsibleFolder({ folder, files, selectedFile, setSele
         {isOpen && (
           <motion.div
             layout
-            transition={{ layout: { type: 'spring', mass: 0.15, damping: 20, stiffness: 200 } }}
+            transition={{
+              layout: {
+                type: 'spring',
+                mass: 0.15,
+                damping: 20,
+                stiffness: 200,
+              },
+            }}
             className="relative flex flex-col"
             initial="closed"
             animate="open"
@@ -68,7 +75,10 @@ export default function CollapsibleFolder({ folder, files, selectedFile, setSele
             {/**Left Border */}
             <motion.div
               variants={{
-                open: { height: '100%', transition: { duration: files.length * 0.15 } },
+                open: {
+                  height: '100%',
+                  transition: { duration: files.length * 0.15 },
+                },
                 closed: { height: 0, transition: { duration: 0.25 } },
               }}
               className="absolute top-0 left-[3px] w-[1px] bg-[#696969]"

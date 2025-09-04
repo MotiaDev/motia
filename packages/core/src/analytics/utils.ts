@@ -1,8 +1,8 @@
-import path from 'path'
+import { track } from '@amplitude/analytics-node'
+import crypto from 'crypto'
 import fs from 'fs'
 import os from 'os'
-import crypto from 'crypto'
-import { track } from '@amplitude/analytics-node'
+import path from 'path'
 
 export const getProjectName = (baseDir: string): string => {
   const packageJsonPath = path.join(baseDir, 'package.json')
@@ -22,7 +22,7 @@ export const getUserIdentifier = (): string => {
 export const getProjectIdentifier = (baseDir: string): string => {
   try {
     return crypto.createHash('sha256').update(getProjectName(baseDir)).digest('hex').substring(0, 16)
-  } catch (error) {
+  } catch (_error) {
     return 'unknown'
   }
 }
@@ -31,7 +31,7 @@ export const isAnalyticsEnabled = (): boolean => {
   return process.env.MOTIA_ANALYTICS_DISABLED !== 'true'
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* biome-ignore lint/suspicious/noExplicitAny: migration */
 export const trackEvent = (eventName: string, properties: Record<string, any> = {}) => {
   try {
     if (isAnalyticsEnabled()) {
@@ -39,7 +39,7 @@ export const trackEvent = (eventName: string, properties: Record<string, any> = 
         user_id: getUserIdentifier() || 'unknown',
       })
     }
-  } catch (error) {
+  } catch (_error) {
     // Silently fail to not disrupt dev server
   }
 }

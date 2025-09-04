@@ -1,13 +1,16 @@
-import { TraceTimeline } from '@/components/observability/trace-timeline'
-import { TraceGroup } from '@/types/observability'
 import { useStreamGroup } from '@motiadev/stream-client-react'
+import { TraceTimeline } from '@/components/observability/trace-timeline'
 import { TracesGroups } from '@/components/observability/traces-groups'
+import type { TraceGroup } from '@/types/observability'
 import { useGlobalStore } from '../../stores/use-global-store'
 
 export const TracesPage = () => {
   const selectedGroupId = useGlobalStore((state) => state.selectedTraceGroupId)
   const selectTraceGroupId = useGlobalStore((state) => state.selectTraceGroupId)
-  const { data } = useStreamGroup<TraceGroup>({ streamName: 'motia-trace-group', groupId: 'default' })
+  const { data } = useStreamGroup<TraceGroup>({
+    streamName: 'motia-trace-group',
+    groupId: 'default',
+  })
   const handleGroupSelect = (group: TraceGroup) => selectTraceGroupId(group.id)
 
   return (

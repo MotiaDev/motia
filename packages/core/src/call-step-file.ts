@@ -1,13 +1,13 @@
 import path from 'path'
 import { trackEvent } from './analytics/utils'
-import { Motia } from './motia'
+import type { Logger } from './logger'
+import type { Motia } from './motia'
+import type { Tracer } from './observability'
+import type { TraceError } from './observability/types'
 import { ProcessManager } from './process-communication/process-manager'
-import { Event, Step } from './types'
-import { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './types-stream'
+import type { Event, Step } from './types'
+import type { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 import { isAllowedToEmit } from './utils'
-import { Logger } from './logger'
-import { Tracer } from './observability'
-import { TraceError } from './observability/types'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }
@@ -15,8 +15,15 @@ type StateDeleteInput = { traceId: string; key: string }
 type StateClearInput = { traceId: string }
 
 type StateStreamGetInput = { groupId: string; id: string }
-type StateStreamSendInput = { channel: StateStreamEventChannel; event: StateStreamEvent<unknown> }
-type StateStreamMutateInput = { groupId: string; id: string; data: BaseStreamItem }
+type StateStreamSendInput = {
+  channel: StateStreamEventChannel
+  event: StateStreamEvent<unknown>
+}
+type StateStreamMutateInput = {
+  groupId: string
+  id: string
+  data: BaseStreamItem
+}
 
 const getLanguageBasedRunner = (
   stepFilePath = '',
@@ -38,7 +45,11 @@ const getLanguageBasedRunner = (
   } else if (isNode) {
     if (process.env._MOTIA_TEST_MODE === 'true') {
       const nodeRunner = path.join(__dirname, 'node', 'node-runner.ts')
-      return { runner: nodeRunner, command: 'node', args: ['-r', 'ts-node/register'] }
+      return {
+        runner: nodeRunner,
+        command: 'node',
+        args: ['-r', 'ts-node/register'],
+      }
     }
 
     const nodeRunner = path.join(__dirname, 'node', 'node-runner.js')
@@ -65,7 +76,13 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
   return new Promise((resolve, reject) => {
     const streamConfig = motia.lockedData.getStreams()
     const streams = Object.keys(streamConfig).map((name) => ({ name }))
-    const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
+    const jsonData = JSON.stringify({
+      data,
+      flows,
+      traceId,
+      contextInFirstArg,
+      streams,
+    })
     const { runner, command, args } = getLanguageBasedRunner(step.filePath)
     let result: TData | undefined
 
@@ -115,7 +132,11 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
 
         processManager.handler<StateSetInput, unknown>('state.set', async (input) => {
-          tracer.stateOperation('set', { traceId: input.traceId, key: input.key, value: true })
+          tracer.stateOperation('set', {
+            traceId: input.traceId,
+            key: input.key,
+            value: true,
+          })
           return motia.state.set(input.traceId, input.key, input.value)
         })
 
@@ -159,7 +180,11 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           })
 
           processManager.handler<StateStreamMutateInput>(`streams.${name}.set`, async (input) => {
-            tracer.streamOperation(name, 'set', { groupId: input.groupId, id: input.id, data: true })
+            tracer.streamOperation(name, 'set', {
+              groupId: input.groupId,
+              id: input.id,
+              data: true,
+            })
             return stateStream.set(input.groupId, input.id, input.data)
           })
 
@@ -196,7 +221,11 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           if (code !== 0 && code !== null) {
             const error = { message: `Process exited with code ${code}`, code }
             tracer.end(error)
-            trackEvent('step_execution_error', { stepName: step.config.name, traceId, code })
+            trackEvent('step_execution_error', {
+              stepName: step.config.name,
+              traceId,
+              code,
+            })
             reject(`Process exited with code ${code}`)
           } else {
             tracer.end()

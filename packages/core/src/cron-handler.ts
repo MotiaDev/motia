@@ -2,8 +2,8 @@ import * as cron from 'node-cron'
 import { callStepFile } from './call-step-file'
 import { generateTraceId } from './generate-trace-id'
 import { globalLogger } from './logger'
-import { Motia } from './motia'
-import { CronConfig, Step } from './types'
+import type { Motia } from './motia'
+import type { CronConfig, Step } from './types'
 
 export type CronManager = {
   createCronJob: (step: Step<CronConfig>) => void
@@ -40,7 +40,7 @@ export const setupCronHandlers = (motia: Motia) => {
       try {
         await callStepFile({ contextInFirstArg: true, step, traceId, tracer, logger }, motia)
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        /* biome-ignore lint/suspicious/noExplicitAny: migration */
       } catch (error: any) {
         logger.error('[cron handler] error executing cron job', {
           error: error.message,

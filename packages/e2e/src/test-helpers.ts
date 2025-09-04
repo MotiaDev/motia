@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 export class TestHelpers {
   constructor(private page: Page) {}
@@ -22,7 +22,7 @@ export class TestHelpers {
     await this.waitForMotiaApplication()
   }
 
-  async createApiRequest(endpoint: string, method: string = 'GET', body?: any) {
+  async createApiRequest(endpoint: string, method = 'GET', body?: any) {
     const options: any = {
       method,
       headers: {
@@ -37,11 +37,11 @@ export class TestHelpers {
     return await this.page.request.fetch(endpoint, options)
   }
 
-  async waitForStepExecution(stepName: string, timeout: number = 30000) {
+  async waitForStepExecution(stepName: string, timeout = 30000) {
     await this.page.waitForSelector(`[data-testid="step-${stepName}"][data-status="completed"]`, { timeout })
   }
 
-  async waitForFlowCompletion(flowName: string, timeout: number = 60000) {
+  async waitForFlowCompletion(flowName: string, timeout = 60000) {
     await this.page.waitForSelector(`[data-testid="flow-${flowName}"][data-status="completed"]`, { timeout })
   }
 
@@ -64,13 +64,13 @@ export class TestHelpers {
     })
   }
 
-  async waitForLogEntry(logText: string, timeout: number = 15000) {
+  async waitForLogEntry(logText: string, timeout = 15000) {
     const logElement = this.page.locator(`text=${logText}`).first()
     await logElement.waitFor({ timeout })
     return logElement
   }
 
-  async waitForMultipleLogEntries(logTexts: string[], timeout: number = 15000) {
+  async waitForMultipleLogEntries(logTexts: string[], timeout = 15000) {
     const results = []
     for (const logText of logTexts) {
       const logElement = await this.waitForLogEntry(logText, timeout)
@@ -79,7 +79,7 @@ export class TestHelpers {
     return results
   }
 
-  async executeFlowAndWaitForCompletion(flowName: string = 'default') {
+  async executeFlowAndWaitForCompletion(flowName = 'default') {
     // Navigate to flow
     const flowLink = this.page.getByTestId(`flow-${flowName}-link`)
     await flowLink.click()

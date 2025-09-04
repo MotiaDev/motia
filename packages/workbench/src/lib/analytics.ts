@@ -48,7 +48,7 @@ class WorkbenchAnalytics {
         this.projectIdCache = data.projectId
         this.motiaVersion = data.motiaVersion
 
-        window.amplitude.setOptOut(!data.analyticsEnabled);
+        window.amplitude.setOptOut(!data.analyticsEnabled)
         // Set the user ID in Amplitude to match backend
         if (window.amplitude && data.userId) {
           window.amplitude.setUserId(data.userId)
@@ -137,4 +137,4 @@ export const useAnalytics = () => {
     track,
     getAnalyticsIds,
   }
-} 
+}

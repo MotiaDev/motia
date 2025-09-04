@@ -1,4 +1,4 @@
-import { MotiaServer, StateAdapter } from '@motiadev/core'
+import type { MotiaServer, StateAdapter } from '@motiadev/core'
 
 export const stateEndpoints = (server: MotiaServer, stateAdapter: StateAdapter) => {
   const { app } = server
@@ -10,7 +10,7 @@ export const stateEndpoints = (server: MotiaServer, stateAdapter: StateAdapter) 
       const items = await stateAdapter.items({ groupId, filter })
 
       res.json(items)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      /* biome-ignore lint/suspicious/noExplicitAny: migration */
     } catch (error: any) {
       res.status(500).json({ error: error.message })
     }
@@ -21,7 +21,7 @@ export const stateEndpoints = (server: MotiaServer, stateAdapter: StateAdapter) 
       const { key, groupId, value } = req.body
       await stateAdapter.set(groupId, key, value)
       res.json({ key, groupId, value })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      /* biome-ignore lint/suspicious/noExplicitAny: migration */
     } catch (error: any) {
       res.status(500).json({ error: error.message })
     }

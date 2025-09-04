@@ -1,7 +1,7 @@
-import { Sidebar } from '@/components/sidebar/sidebar'
-import { Feature } from '@/types/file'
 import { X } from 'lucide-react'
-import React from 'react'
+import type React from 'react'
+import { Sidebar } from '@/components/sidebar/sidebar'
+import type { Feature } from '@/types/file'
 import { CodeDisplay } from './code-display'
 
 type NodeSidebarProps = {

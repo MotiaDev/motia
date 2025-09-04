@@ -1,5 +1,5 @@
-import React from 'react'
-import { EmitEvent } from '@/types/observability'
+import type React from 'react'
+import type { EmitEvent } from '@/types/observability'
 import { FunctionCall } from './code/function-call'
 
 export const TraceEmitEvent: React.FC<{ event: EmitEvent }> = ({ event }) => {

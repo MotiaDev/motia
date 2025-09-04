@@ -1,16 +1,16 @@
-import { TracerFactory } from '.'
-import { LockedData } from '../locked-data'
-import { Logger } from '../logger'
-import { Step } from '../types'
-import { MotiaStream } from '../types-stream'
+import type { LockedData } from '../locked-data'
+import type { Logger } from '../logger'
+import type { Step } from '../types'
+import type { MotiaStream } from '../types-stream'
+import type { TracerFactory } from '.'
 import { createTrace } from './create-trace'
 import { StreamTracer } from './stream-tracer'
 import { TraceManager } from './trace-manager'
 import { TraceStreamAdapter } from './trace-stream-adapter'
-import { Trace, TraceGroup } from './types'
+import type { Trace, TraceGroup } from './types'
 
 const MAX_TRACE_GROUPS = process.env.MOTIA_MAX_TRACE_GROUPS //
-  ? parseInt(process.env.MOTIA_MAX_TRACE_GROUPS)
+  ? Number.parseInt(process.env.MOTIA_MAX_TRACE_GROUPS)
   : 50
 
 export class BaseTracerFactory implements TracerFactory {
@@ -90,7 +90,10 @@ export const createTracerFactory = (lockedData: LockedData): TracerFactory => {
     hidden: true,
     config: {
       name: traceGroupName,
-      baseConfig: { storageType: 'custom', factory: () => traceGroupStreamAdapter },
+      baseConfig: {
+        storageType: 'custom',
+        factory: () => traceGroupStreamAdapter,
+      },
       schema: null as never,
     },
   })()

@@ -1,8 +1,8 @@
 'use client'
 
 import { DocsLayout } from 'fumadocs-ui/layouts/docs'
-import type { ReactNode } from 'react'
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared'
+import type { ReactNode } from 'react'
 import CopyDocsButton from './CopyDocsButton'
 
 // Using the same props type that DocsLayout accepts

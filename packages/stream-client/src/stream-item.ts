@@ -1,5 +1,5 @@
+import type { ItemEventMessage, JoinMessage } from './stream.types'
 import { StreamSubscription } from './stream-subscription'
-import { ItemEventMessage, JoinMessage } from './stream.types'
 
 export class StreamItemSubscription<TData extends { id: string }> extends StreamSubscription<
   TData | null,

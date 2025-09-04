@@ -1,8 +1,8 @@
-import { BuildListener } from '../new-deployment/listeners/listener.types'
-import { Builder, BuildStepConfig } from './builder'
 import colors from 'colors'
 import * as cron from 'cron'
 import path from 'path'
+import type { BuildListener } from '../new-deployment/listeners/listener.types'
+import type { Builder, BuildStepConfig } from './builder'
 
 export const buildValidation = (builder: Builder, listener: BuildListener) => {
   const { errors, warnings } = validateStepsConfig(builder)

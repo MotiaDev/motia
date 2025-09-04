@@ -1,6 +1,7 @@
-import { TraceGroup } from '@/types/observability'
-import { Badge, BadgeProps } from '@motiadev/ui'
-import React, { useMemo } from 'react'
+import { Badge, type BadgeProps } from '@motiadev/ui'
+import type React from 'react'
+import { useMemo } from 'react'
+import type { TraceGroup } from '@/types/observability'
 
 type Props = {
   status: TraceGroup['status']

@@ -22,7 +22,14 @@ const SectionAppearAnimation: React.FC<Props> = ({
       initial={{ opacity: 0, y: initialY }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.5 }}
-      transition={{ type: 'spring', damping: 30, stiffness: 200, mass: 0.15, delay: delay, ...transition }}
+      transition={{
+        type: 'spring',
+        damping: 30,
+        stiffness: 200,
+        mass: 0.15,
+        delay: delay,
+        ...transition,
+      }}
     >
       {children}
     </motion.div>

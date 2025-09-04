@@ -1,5 +1,5 @@
 import path from 'path'
-import { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
+import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { Logger } from './logger'
 import { composeMiddleware } from './middleware-compose'
 import { RpcSender } from './rpc'
@@ -75,7 +75,7 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
     await sender.close()
 
     process.exit(0)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /* biome-ignore lint/suspicious/noExplicitAny: migration */
   } catch (err: any) {
     const stack: string[] = err.stack?.split('\n') ?? []
 

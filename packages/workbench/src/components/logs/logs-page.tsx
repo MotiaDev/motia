@@ -1,12 +1,12 @@
+import { Button, cn, Input } from '@motiadev/ui'
+import { CircleX, Trash } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { formatTimestamp } from '@/lib/utils'
 import { useGlobalStore } from '@/stores/use-global-store'
 import { useLogsStore } from '@/stores/use-logs-store'
-import { useMemo, useState } from 'react'
 import { LogDetail } from './log-detail'
 import { LogLevelDot } from './log-level-dot'
-import { Button, cn, Input } from '@motiadev/ui'
-import { CircleX, Trash } from 'lucide-react'
 
 export const LogsPage = () => {
   const logs = useLogsStore((state) => state.logs)

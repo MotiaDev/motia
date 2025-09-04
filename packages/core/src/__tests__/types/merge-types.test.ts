@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import zodToJsonSchema from 'zod-to-json-schema'
 import { mergeSchemas } from '../../types/merge-schemas'
-import { JsonSchema, JsonSchemaError } from '../../types/schema.types'
+import { type JsonSchema, JsonSchemaError } from '../../types/schema.types'
 
 describe('mergeSchemas', () => {
   it('should merge two schemas with optional properties', () => {

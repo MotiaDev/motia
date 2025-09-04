@@ -1,11 +1,11 @@
+import type { GroupEventMessage, JoinMessage } from './stream.types'
 import { StreamSubscription } from './stream-subscription'
-import { GroupEventMessage, JoinMessage } from './stream.types'
 
 export class StreamGroupSubscription<TData extends { id: string }> extends StreamSubscription<
   TData[],
   GroupEventMessage<TData>
 > {
-  private lastTimestamp: number = 0
+  private lastTimestamp = 0
   private lastTimestampMap: Map<string, number> = new Map()
 
   constructor(
