@@ -1,6 +1,6 @@
 import { generateTemplateSteps, Generator } from './generate'
 
 export const templates: Record<string, Generator> = {
-  typescript: generateTemplateSteps('typescript'),
+  nodejs: generateTemplateSteps('nodejs'),
   python: generateTemplateSteps('python'),
 }

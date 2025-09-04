@@ -69,7 +69,7 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
   if (questions.length > 0) {
     const answers: InteractiveAnswers = await inquirer.prompt(questions)
 
-    if (!answers.proceed) {
+    if (!args.confirm && !answers.proceed) {
       context.log('cancelled', (message) => message.tag('info').append('\n❌ Project creation cancelled.'))
       return
     }
