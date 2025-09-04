@@ -23,7 +23,7 @@ interface CreateInteractiveArgs {
 export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
   context.log('welcome', (message) => message.append('\n🚀 ' + colors.bold('Welcome to Motia Project Creator!')))
 
-  const questions: QuestionCollection<any>[] = []
+  const questions: QuestionCollection<never>[] = []
 
   let name = args.name
   let template = args.template
