@@ -1,4 +1,4 @@
-import inquirer from 'inquirer'
+import inquirer, { QuestionCollection } from 'inquirer'
 import colors from 'colors'
 import { create } from './index'
 import { CliContext } from '../cloud/config-utils'
@@ -15,13 +15,13 @@ const choices: Record<string, string> = {
 }
 
 interface CreateInteractiveArgs {
-  skipConfirmation?: boolean
+  name?: string
 }
 
-export const createInteractive = async (_args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
+export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
   context.log('welcome', (message) => message.append('\n🚀 ' + colors.bold('Welcome to Motia Project Creator!')))
 
-  const answers: InteractiveAnswers = await inquirer.prompt([
+  const questions: QuestionCollection<any>[] = [
     {
       type: 'list',
       name: 'template',
@@ -31,7 +31,10 @@ export const createInteractive = async (_args: CreateInteractiveArgs, context: C
         value: key,
       })),
     },
-    {
+  ]
+
+  if (!args.name) {
+    questions.push({
       type: 'input',
       name: 'projectName',
       message: '2. Project name (leave blank to use current folder):',
@@ -44,14 +47,17 @@ export const createInteractive = async (_args: CreateInteractiveArgs, context: C
         return true
       },
       filter: (input: string) => input.trim(),
-    },
-    {
-      type: 'confirm',
-      name: 'proceed',
-      message: '3. Proceed? [Y/n]:',
-      default: true,
-    },
-  ])
+    })
+  }
+
+  questions.push({
+    type: 'confirm',
+    name: 'proceed',
+    message: '3. Proceed? [Y/n]:',
+    default: true,
+  })
+
+  const answers: InteractiveAnswers = await inquirer.prompt(questions)
 
   if (!answers.proceed) {
     context.log('cancelled', (message) => message.tag('info').append('\n❌ Project creation cancelled.'))
@@ -61,7 +67,7 @@ export const createInteractive = async (_args: CreateInteractiveArgs, context: C
   context.log('creating', (message) => message.append('\n🔨 Creating your Motia project...\n'))
 
   await create({
-    projectName: answers.projectName || '.',
+    projectName: args.name || answers.projectName || '.',
     template: answers.template,
     cursorEnabled: true, // Default to true for cursor rules
     context,

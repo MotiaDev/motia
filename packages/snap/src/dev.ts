@@ -80,7 +80,7 @@ export const dev = async (
 
   motiaServer.server.listen(port, hostname)
   console.log('🚀 Server ready and listening on port', port)
-  console.log(`🔗 Open http://${hostname}:${port}/ to open workbench 🛠️`)
+  console.log(`🔗 Open http://localhost:${port} to open workbench 🛠️`)
 
   trackEvent('dev_server_ready', {
     port,

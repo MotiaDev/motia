@@ -18,22 +18,13 @@ The Motia CLI is automatically installed when you install the `motia` package. Y
 Create a new Motia project.
 
 ```bash
-npx motia create [options]
+npx motia@latest create [options]
 ```
 
 Options:
 
 - `-n, --name <project name>`: The name for your project, used to create a directory. Use `.` or `./` to create it in the current directory.
-- `-t, --template <template name>`: The Motia template to use for your project. Run `npx motia templates` to see available templates.
-- `-c, --cursor`: Enable Cursor IDE integration by adding `.cursor` configuration folder
 
-### `templates`
-
-Print the list of available project templates.
-
-```bash
-npx motia templates
-```
 
 ### `build`
 
@@ -61,10 +52,12 @@ motia cloud deploy --api-key <api-key> --version-name <version> [options]
 Options:
 
 - `-k, --api-key <key>` (required): Your API key for authentication
+- `-n, --project-name <name>`: Project name (used when creating a new project)
+- `-s, --environment-id <id>`: Environment ID (can also be set via MOTIA_ENVIRONMENT_ID env var)
+- `--environment-name <name>`: Environment name (used when creating a new environment)
 - `-v, --version-name <version>` (required): The version to deploy
-- `-s, --environment-id <environment>`: The environment ID to deploy to
-- `-e, --env-file <file>`: Path to environment file
-- `-n, --project-name <name>`: Project name (used when environment-id is not provided)
+- `-d, --version-description <description>`: The description of the version
+- `-e, --env-file <path>`: Path to environment file
 
 Example:
 
@@ -74,11 +67,9 @@ motia cloud deploy --api-key your-api-key-here --version-name 1.2.3 --environmen
 
 The deployment process:
 
-1. Uploads each zip file individually with its path information
-2. Uploads the steps configuration from `motia.steps.json`
+1. Build your project
+2. Uploads each zip file individually with its path information
 3. Starts the deployment process on the server
-4. Generates deployment results in `dist/motia.deployments.json`
-5. Creates a human-readable summary in `dist/motia.deployments.summary.json`
 
 ### `dev`
 

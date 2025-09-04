@@ -4,7 +4,6 @@ import { program } from 'commander'
 import './cloud'
 import { version } from './version'
 import { handler } from './cloud/config-utils'
-import inquirer from 'inquirer'
 
 const defaultPort = 3000
 const defaultHost = '0.0.0.0'
@@ -30,47 +29,12 @@ program
     '-n, --name <project name>',
     'The name for your project, used to create a directory, use ./ or . to create it under the existing directory',
   )
-  .option('-t, --template <template name>', 'The motia template name to use for your project', 'typescript')
-  .option('-c, --cursor', 'Copy .cursor folder from template')
-  .option('-i, --interactive', 'Use interactive prompts to create project')
-  .option('-y, --skip-confirmation', 'Skip confirmation prompt')
-  .option('-d, --skip-tutorial [value]', 'Skip the motia tutorial (true/false)')
+  .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .action(
     handler(async (arg, context) => {
-      if (arg.name || arg.template || arg.cursor) {
-        const { create } = require('./create')
+      const { createInteractive } = require('./create/interactive')
 
-        // Handle skip-tutorial option: 'true', 'false', or prompt user
-        const skipTutorialValue = await (async () => {
-          const skipValue = String(arg.skipTutorial).toLowerCase()
-
-          if (skipValue === 'true') return true
-          if (skipValue === 'false') return false
-
-          // Prompt user when not explicitly set
-          const { disableTutorial } = await inquirer.prompt({
-            type: 'confirm',
-            name: 'disableTutorial',
-            message: 'Do you wish to disable the motia tutorial?',
-            default: false,
-          })
-          return disableTutorial
-        })()
-
-        await create({
-          projectName: arg.name ?? '.',
-          template: arg.template,
-          cursorEnabled: arg.cursor,
-          context,
-          skipTutorialTemplates: skipTutorialValue,
-        })
-      } else {
-        const skipConfirmation = arg.skipConfirmation ?? false
-        const { createInteractive } = require('./create/interactive')
-
-        await createInteractive({ skipConfirmation }, context)
-      }
-      process.exit(0)
+      await createInteractive({ name: arg.name }, context)
     }),
   )
 
@@ -81,14 +45,6 @@ program
     const { generateTypes } = require('./generate-types')
     await generateTypes(process.cwd())
     process.exit(0)
-  })
-
-program
-  .command('templates')
-  .description('Prints the list of available templates')
-  .action(async () => {
-    const { templates } = require('./create/templates')
-    console.log(`📝 Available templates: \n\n ${Object.keys(templates).join('\n')}`)
   })
 
 program
