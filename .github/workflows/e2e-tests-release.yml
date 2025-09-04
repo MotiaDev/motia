@@ -222,15 +222,6 @@ jobs:
             packages/e2e/test-results.xml
           retention-days: 30
 
-      - name: Publish Test Report
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: E2E Test Results - ${{ matrix.os }} - ${{ matrix.template }}
-          path: 'packages/e2e/test-results/*.xml'
-          reporter: jest-junit
-          fail-on-error: false
-
       - name: Report test metrics
         if: always()
         run: |
