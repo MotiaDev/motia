@@ -1,6 +1,7 @@
-import React, { HTMLAttributes } from 'react'
-import { HandleProps, Position, Handle as RFHandle } from '@xyflow/react'
+import { type HandleProps, Position, Handle as RFHandle } from '@xyflow/react'
 import clsx from 'clsx'
+import type React from 'react'
+import type { HTMLAttributes } from 'react'
 
 type Props = HandleProps &
   Omit<HTMLAttributes<HTMLDivElement>, 'id'> & {

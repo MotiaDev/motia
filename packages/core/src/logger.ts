@@ -29,7 +29,7 @@ export class Logger {
     return new Logger(this.isVerbose, { ...this.meta, ...meta }, this.coreListeners)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   private _log(level: string, msg: string, args?: any) {
     const time = Date.now()
     const meta = { ...this.meta, ...(args ?? {}) }
@@ -61,7 +61,7 @@ export class Logger {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   log(args: any) {
     this._log(args.level ?? 'info', args.msg, args)
   }

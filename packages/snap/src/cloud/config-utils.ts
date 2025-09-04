@@ -1,4 +1,4 @@
-import { CLIOutputManager, Message } from './cli-output-manager'
+import { CLIOutputManager, type Message } from './cli-output-manager'
 
 export class CliContext {
   private readonly output = new CLIOutputManager()
@@ -23,17 +23,17 @@ export class CliContext {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* biome-ignore lint/suspicious/noExplicitAny: migration */
 export type CliHandler = <TArgs extends Record<string, any>>(args: TArgs, context: CliContext) => Promise<void>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* biome-ignore lint/suspicious/noExplicitAny: migration */
 export function handler(handler: CliHandler): (args: Record<string, any>) => Promise<void> {
   return async (args: Record<string, unknown>) => {
     const context = new CliContext()
 
     try {
       await handler(args, context)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      /* biome-ignore lint/suspicious/noExplicitAny: migration */
     } catch (error: any) {
       if (error instanceof Error) {
         context.log('error', (message) => message.tag('failed').append(error.message))

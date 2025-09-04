@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
+import type { ApiHelpers } from './ApiHelpers'
 import { MotiaApplicationPage } from './MotiaApplicationPage'
-import { ApiHelpers } from './ApiHelpers'
 
 export class WorkbenchPage extends MotiaApplicationPage {
   readonly sidebarContainer: Locator
@@ -91,7 +91,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
     await this.page.waitForTimeout(3000)
   }
 
-  async executeFlowAndNavigateToLogs(flowName: string = 'default') {
+  async executeFlowAndNavigateToLogs(flowName = 'default') {
     await this.navigateToFlow(flowName)
     await this.startFlow()
     await this.navigateToLogs()

@@ -1,11 +1,11 @@
-import path from 'path'
 import fs from 'fs'
-import { executeCommand } from './utils/execute-command'
-import { activatePythonVenv } from './utils/activate-python-env'
-import { installLambdaPythonPackages } from './utils/install-lambda-python-packages'
+import path from 'path'
 import { getStepFiles } from './generate-locked-data'
-import { getPythonCommand } from './utils/python-version-utils'
+import { activatePythonVenv } from './utils/activate-python-env'
 import { ensureUvInstalled } from './utils/ensure-uv'
+import { executeCommand } from './utils/execute-command'
+import { installLambdaPythonPackages } from './utils/install-lambda-python-packages'
+import { getPythonCommand } from './utils/python-version-utils'
 
 interface InstallConfig {
   isVerbose?: boolean

@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { program } from 'commander'
 import './cloud'
-import { version } from './version'
-import { handler } from './cloud/config-utils'
 import inquirer from 'inquirer'
+import { handler } from './cloud/config-utils'
+import { version } from './version'
 
 const defaultPort = 3000
 const defaultHost = '0.0.0.0'
@@ -114,7 +114,7 @@ program
       process.env.LOG_LEVEL = 'debug'
     }
 
-    const port = arg.port ? parseInt(arg.port) : defaultPort
+    const port = arg.port ? Number.parseInt(arg.port) : defaultPort
     const host = arg.host ? arg.host : defaultHost
     const { dev } = require('./dev')
     await dev(port, host, arg.disableVerbose, arg.mermaid)
@@ -133,7 +133,7 @@ program
       process.env.LOG_LEVEL = 'debug'
     }
 
-    const port = arg.port ? parseInt(arg.port) : defaultPort
+    const port = arg.port ? Number.parseInt(arg.port) : defaultPort
     const host = arg.host ? arg.host : defaultHost
     const { start } = require('./start')
     await start(port, host, arg.disableVerbose)

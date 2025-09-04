@@ -1,9 +1,9 @@
 import fs from 'fs'
 import path from 'path'
-import { createMermaidGenerator } from '../mermaid-generator'
-import { createApiStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 import { LockedData } from '../locked-data'
+import { createMermaidGenerator } from '../mermaid-generator'
 import { NoPrinter } from '../printer'
+import { createApiStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 
 // Mock fs module
 jest.mock('fs', () => ({
@@ -26,7 +26,9 @@ describe('Mermaid Generator', () => {
     it('should create diagrams directory if it does not exist', () => {
       ;(fs.existsSync as jest.Mock).mockReturnValue(false)
       createMermaidGenerator(baseDir)
-      expect(fs.mkdirSync).toHaveBeenCalledWith(diagramsDir, { recursive: true })
+      expect(fs.mkdirSync).toHaveBeenCalledWith(diagramsDir, {
+        recursive: true,
+      })
     })
 
     it('should not create diagrams directory if it already exists', () => {

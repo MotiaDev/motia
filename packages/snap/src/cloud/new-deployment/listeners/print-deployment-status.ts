@@ -1,6 +1,6 @@
-import { CliContext } from '../../config-utils'
-import { DeployData, DeployStatus } from './listener.types'
-import colors, { Color } from 'colors'
+import colors, { type Color } from 'colors'
+import type { CliContext } from '../../config-utils'
+import type { DeployData, DeployStatus } from './listener.types'
 
 let spinnerIndex = 0
 

@@ -1,4 +1,4 @@
-import { LockedData, Step, getStepConfig, getStreamConfig } from '@motiadev/core'
+import { getStepConfig, getStreamConfig, LockedData, type Step } from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import { randomUUID } from 'crypto'
 import { globSync } from 'glob'

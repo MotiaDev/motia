@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { FiCheck, FiCopy, FiX } from 'react-icons/fi'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FiCheck, FiCopy, FiX } from 'react-icons/fi'
 
 interface CopyButtonProps {
   code: string

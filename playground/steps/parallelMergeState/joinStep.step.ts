@@ -1,6 +1,6 @@
-import { EventConfig, Handlers } from 'motia'
+import type { EventConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { ParallelMergeStep } from './parallelMerge.types'
+import type { ParallelMergeStep } from './parallelMerge.types'
 
 export const config: EventConfig = {
   type: 'event',
@@ -20,11 +20,19 @@ export const handler: Handlers['join-step'] = async (input, { emit, traceId, sta
   const stepC = await state.get<ParallelMergeStep>(traceId, 'stepC')
 
   if (!stepA || !stepB || !stepC) {
-    logger.info('[join-step] Not all steps done yet, ignoring for now.', { stepA, stepB, stepC })
+    logger.info('[join-step] Not all steps done yet, ignoring for now.', {
+      stepA,
+      stepB,
+      stepC,
+    })
     return
   }
 
-  logger.info('[join-step] All steps are complete. Merging results...', { stepA, stepB, stepC })
+  logger.info('[join-step] All steps are complete. Merging results...', {
+    stepA,
+    stepB,
+    stepC,
+  })
 
   const mergedAt = new Date().toISOString()
   const merged = { stepA, stepB, stepC, mergedAt }

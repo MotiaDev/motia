@@ -1,12 +1,13 @@
-import { formatTimestamp } from '@/lib/utils'
-import React, { useMemo, useState } from 'react'
+import type React from 'react'
+import { useMemo, useState } from 'react'
 import ReactJson from 'react18-json-view'
+import { formatTimestamp } from '@/lib/utils'
 import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
-import { Log } from '@/stores/use-logs-store'
-import { LogLevelDot } from './log-level-dot'
-import { Sidebar } from '@/components/sidebar/sidebar'
 import { X } from 'lucide-react'
+import { Sidebar } from '@/components/sidebar/sidebar'
+import type { Log } from '@/stores/use-logs-store'
+import { LogLevelDot } from './log-level-dot'
 
 type Props = {
   log?: Log

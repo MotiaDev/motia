@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid'
+import type { SocketAdapterFactory } from './adapter-factory'
+import type { SocketAdapter } from './socket-adapter'
+import type { BaseMessage, ItemEventMessage } from './stream.types'
 import { StreamGroupSubscription } from './stream-group'
 import { StreamItemSubscription } from './stream-item'
-import { StreamSubscription } from './stream-subscription'
-import { BaseMessage, ItemEventMessage } from './stream.types'
-import { SocketAdapter } from './socket-adapter'
-import { SocketAdapterFactory } from './adapter-factory'
+import type { StreamSubscription } from './stream-subscription'
 
 export class Stream {
   private ws: SocketAdapter
@@ -97,7 +97,7 @@ export class Stream {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   private subscribe(subscription: StreamSubscription<any, any>): void {
     const room = this.roomName(subscription.sub)
 

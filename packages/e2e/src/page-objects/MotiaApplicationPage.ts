@@ -17,7 +17,7 @@ export class MotiaApplicationPage {
     this.logoIcon = page.getByTestId('logo-icon')
   }
 
-  async goto(path: string = '/') {
+  async goto(path = '/') {
     await this.page.goto(path)
     await this.waitForApplication()
   }

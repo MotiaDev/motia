@@ -1,14 +1,14 @@
 'use client'
 
-import React from 'react'
-import Image from 'next/image'
 import { DialogTitle } from '@headlessui/react'
+import Image from 'next/image'
+import type React from 'react'
 import { useFormStatus } from 'react-dom'
 
 import motiaLogoWhiteFull from '@/public/images/logoFull.png'
+import type { FormState } from '../hooks/useEarlyAccessForm'
 import ButtonPrimary from './ButtonPrimary'
 import { chevronRightCircle } from './Icons'
-import { FormState } from '../hooks/useEarlyAccessForm'
 
 type Props = {
   formAction: (formData: FormData) => void
@@ -20,11 +20,7 @@ const FormSubmitButton: React.FC = () => {
   const { pending } = useFormStatus()
   return (
     <ButtonPrimary type="submit" disabled={pending}>
-      {pending ? 'Submitting...' : (
-        <>
-          Get early access to Motia Cloud {chevronRightCircle}
-        </>
-      )}
+      {pending ? 'Submitting...' : <>Get early access to Motia Cloud {chevronRightCircle}</>}
     </ButtonPrimary>
   )
 }
@@ -65,4 +61,4 @@ const EarlyAccessFormContent: React.FC<Props> = ({ formAction, errors, title }) 
   </form>
 )
 
-export default EarlyAccessFormContent 
+export default EarlyAccessFormContent

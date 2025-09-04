@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock'
 
@@ -10,7 +10,7 @@ export function PlausibleExample() {
   return (
     <div className="space-y-4 p-4 border rounded-lg">
       <h3 className="text-lg font-semibold">Plausible Analytics Examples</h3>
-      
+
       <div className="grid grid-cols-2 gap-4">
         <button
           onClick={() => trackEvent('Button Click', { position: 'hero', method: 'click' })}
@@ -44,17 +44,29 @@ export function PlausibleExample() {
       <div className="text-sm text-gray-600">
         <p>These buttons demonstrate various Plausible event tracking capabilities:</p>
         <ul className="list-disc list-inside mt-2 space-y-1">
-          <li><strong>Custom Events:</strong> Track any user interaction with custom properties</li>
-          <li><strong>File Downloads:</strong> Automatically tracked due to file-downloads extension</li>
-          <li><strong>Outbound Links:</strong> External links tracked automatically</li>
-          <li><strong>Revenue Tracking:</strong> Track purchases with amount and currency</li>
-          <li><strong>Hash Navigation:</strong> Single-page app navigation tracking</li>
-          <li><strong>Pageview Props:</strong> Custom properties on page views</li>
+          <li>
+            <strong>Custom Events:</strong> Track any user interaction with custom properties
+          </li>
+          <li>
+            <strong>File Downloads:</strong> Automatically tracked due to file-downloads extension
+          </li>
+          <li>
+            <strong>Outbound Links:</strong> External links tracked automatically
+          </li>
+          <li>
+            <strong>Revenue Tracking:</strong> Track purchases with amount and currency
+          </li>
+          <li>
+            <strong>Hash Navigation:</strong> Single-page app navigation tracking
+          </li>
+          <li>
+            <strong>Pageview Props:</strong> Custom properties on page views
+          </li>
         </ul>
       </div>
     </div>
   )
-} 
+}
 
 export function CodeDemo() {
   return <DynamicCodeBlock lang="ts" code='console.log("Hello World")' />

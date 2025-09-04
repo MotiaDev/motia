@@ -1,5 +1,6 @@
 import { Stream } from '@motiadev/stream-client-browser'
-import React, { useEffect, useState } from 'react'
+import type React from 'react'
+import { useEffect, useState } from 'react'
 import { MotiaStreamContext } from './motia-stream-context'
 
 type Props = React.PropsWithChildren<{

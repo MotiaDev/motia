@@ -1,4 +1,4 @@
-import { Language } from './types'
+import type { Language } from './types'
 
 export const getFileExtension = (language: Language): string => {
   const extensions: Record<Language, string> = {

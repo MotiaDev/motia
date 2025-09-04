@@ -1,8 +1,8 @@
 import { CollapsiblePanel, CollapsiblePanelGroup, Panel, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import { analytics } from '@/lib/analytics'
 import { ReactFlowProvider } from '@xyflow/react'
 import { File, GanttChart, Link2, LogsIcon } from 'lucide-react'
-import { FC, useCallback, useEffect, useMemo, useState } from 'react'
+import { type FC, useCallback, useEffect, useMemo, useState } from 'react'
+import { analytics } from '@/lib/analytics'
 import { EndpointsPage } from './components/endpoints/endpoints-page'
 import { FlowPage } from './components/flow/flow-page'
 import { FlowTabMenuItem } from './components/flow/flow-tab-menu-item'
@@ -35,7 +35,10 @@ export const App: FC = () => {
 
   const onTabChange = useCallback(
     (location: TabLocation) => (newTab: string) => {
-      analytics.track(`${location} tab changed`, { [`new.${location}`]: newTab, tab })
+      analytics.track(`${location} tab changed`, {
+        [`new.${location}`]: newTab,
+        tab,
+      })
       tabChangeCallbacks[location](newTab)
     },
     [tabChangeCallbacks, tab],

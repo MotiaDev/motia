@@ -1,26 +1,29 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
-import express, { Express, Request, Response } from 'express'
+import express, { type Express, type Request, type Response } from 'express'
 import http from 'http'
-import { Server as WsServer } from 'ws'
-import { analyticsEndpoint } from './analytics-endpoint'
+import type { Server as WsServer } from 'ws'
 import { trackEvent } from './analytics/utils'
+import { analyticsEndpoint } from './analytics-endpoint'
 import { callStepFile } from './call-step-file'
-import { CronManager, setupCronHandlers } from './cron-handler'
+import { type CronManager, setupCronHandlers } from './cron-handler'
 import { flowsConfigEndpoint } from './flows-config-endpoint'
 import { flowsEndpoint } from './flows-endpoint'
 import { generateTraceId } from './generate-trace-id'
 import { isApiStep } from './guards'
-import { LockedData } from './locked-data'
+import type { LockedData } from './locked-data'
+import { globalLogger } from './logger'
 import { BaseLoggerFactory } from './logger-factory'
-import { Motia } from './motia'
+import type { Motia } from './motia'
 import { createTracerFactory } from './observability/tracer'
+import { Printer } from './printer'
 import { createSocketServer } from './socket-server'
-import { createStepHandlers, MotiaEventManager } from './step-handlers'
+import { stepEndpoint } from './step-endpoint'
+import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
 import { apiEndpoints } from './streams/api-endpoints'
-import { Log, LogsStream } from './streams/logs-stream'
-import {
+import { type Log, LogsStream } from './streams/logs-stream'
+import type {
   ApiRequest,
   ApiResponse,
   ApiRouteConfig,
@@ -29,10 +32,7 @@ import {
   InternalStateManager,
   Step,
 } from './types'
-import { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
-import { globalLogger } from './logger'
-import { Printer } from './printer'
-import { stepEndpoint } from './step-endpoint'
+import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 
 export type MotiaServer = {
   app: Express
@@ -78,7 +78,7 @@ export const createServer = (
 
       if (stream) {
         const result = stream ? await stream().getGroup(groupId) : []
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // biome-ignore lint/suspicious/noUnusedVariables: migration
         return result.map(({ __motia, ...rest }) => rest)
       }
     },
@@ -87,7 +87,7 @@ export const createServer = (
   lockedData.applyStreamWrapper((streamName, stream) => {
     return (): MotiaStream<BaseStreamItem> => {
       const main = stream() as MotiaStream<BaseStreamItem>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      /* biome-ignore lint/suspicious/noExplicitAny: migration */
       const wrapObject = (groupId: string, id: string, object: any) => {
         if (!object) {
           return null
@@ -137,7 +137,12 @@ export const createServer = (
       main.delete = async (groupId: string, id: string) => {
         const result = await mainDelete.apply(main, [groupId, id])
 
-        pushEvent({ streamName, groupId, id, event: { type: 'delete', data: result } })
+        pushEvent({
+          streamName,
+          groupId,
+          id,
+          event: { type: 'delete', data: result },
+        })
 
         return wrapObject(groupId, id, result)
       }
@@ -159,7 +164,14 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  const motia: Motia = { loggerFactory, eventManager, state, lockedData, printer, tracerFactory }
+  const motia: Motia = {
+    loggerFactory,
+    eventManager,
+    state,
+    lockedData,
+    printer,
+    tracerFactory,
+  }
 
   const cronManager = setupCronHandlers(motia)
   const motiaEventManager = createStepHandlers(motia)
@@ -171,7 +183,9 @@ export const createServer = (
       const logger = loggerFactory.create({ traceId, flows, stepName })
       const tracer = await motia.tracerFactory.createTracer(traceId, step, logger)
 
-      logger.debug('[API] Received request, processing step', { path: req.path })
+      logger.debug('[API] Received request, processing step', {
+        path: req.path,
+      })
 
       const data: ApiRequest = {
         body: req.body,
@@ -242,7 +256,7 @@ export const createServer = (
     const { path, method } = step.config
     const routerStack = router.stack
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /* biome-ignore lint/suspicious/noExplicitAny: migration */
     const filteredStack = routerStack.filter((layer: any) => {
       if (layer.route) {
         const match = layer.route.path === path && layer.route.methods[method.toLowerCase()]
@@ -273,5 +287,14 @@ export const createServer = (
     socketServer.close()
   }
 
-  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager }
+  return {
+    app,
+    server,
+    socketServer,
+    close,
+    removeRoute,
+    addRoute,
+    cronManager,
+    motiaEventManager,
+  }
 }

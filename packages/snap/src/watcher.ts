@@ -1,7 +1,7 @@
-import chokidar, { FSWatcher } from 'chokidar'
-import { randomUUID } from 'crypto'
-import { getStepConfig, getStreamConfig, LockedData, Step } from '@motiadev/core'
+import { getStepConfig, getStreamConfig, type LockedData, type Step } from '@motiadev/core'
 import type { Stream } from '@motiadev/core/dist/src/types-stream'
+import chokidar, { type FSWatcher } from 'chokidar'
+import { randomUUID } from 'crypto'
 
 type StepChangeHandler = (oldStep: Step, newStep: Step) => void
 type StepCreateHandler = (step: Step) => void
@@ -123,7 +123,11 @@ export class Watcher {
       return
     }
 
-    this.streamCreateHandler?.({ filePath: path, config, factory: null as never })
+    this.streamCreateHandler?.({
+      filePath: path,
+      config,
+      factory: null as never,
+    })
   }
 
   private async onStreamFileChange(path: string): Promise<void> {
@@ -131,9 +135,17 @@ export class Watcher {
     const config = await getStreamConfig(path).catch((err) => console.error(err))
 
     if (!stream && config) {
-      this.streamCreateHandler?.({ filePath: path, config, factory: null as never })
+      this.streamCreateHandler?.({
+        filePath: path,
+        config,
+        factory: null as never,
+      })
     } else if (stream && config) {
-      this.streamChangeHandler?.(stream, { filePath: path, config, factory: null as never })
+      this.streamChangeHandler?.(stream, {
+        filePath: path,
+        config,
+        factory: null as never,
+      })
     } else if (stream && !config) {
       this.streamDeleteHandler?.(stream)
     }

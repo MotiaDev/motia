@@ -1,4 +1,4 @@
-import { CliContext } from '@/cloud/config-utils'
+import type { CliContext } from '@/cloud/config-utils'
 import { templates } from './templates'
 
 export const setupTemplate = async (template: string, rootDir: string, context: CliContext) => {

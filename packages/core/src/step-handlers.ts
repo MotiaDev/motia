@@ -1,7 +1,7 @@
 import { callStepFile } from './call-step-file'
 import { globalLogger } from './logger'
-import { Motia } from './motia'
-import { Event, EventConfig, Step } from './types'
+import type { Motia } from './motia'
+import type { Event, EventConfig, Step } from './types'
 
 export type MotiaEventManager = {
   createHandler: (step: Step<EventConfig>) => void
@@ -14,7 +14,7 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
   globalLogger.debug(`[step handler] creating step handlers for ${eventSteps.length} steps`)
 
   const removeLogger = (event: Event) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // biome-ignore lint/suspicious/noUnusedVariables: migration
     const { logger, tracer, ...rest } = event
     return rest
   }
@@ -23,7 +23,10 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
     const { config, filePath } = step
     const { subscribes, name } = config
 
-    globalLogger.debug('[step handler] establishing step subscriptions', { filePath, step: step.config.name })
+    globalLogger.debug('[step handler] establishing step subscriptions', {
+      filePath,
+      step: step.config.name,
+    })
 
     subscribes.forEach((subscribe) => {
       motia.eventManager.subscribe({
@@ -35,12 +38,15 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
           const logger = event.logger.child({ step: step.config.name })
           const tracer = event.tracer.child(step, logger)
 
-          globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })
+          globalLogger.debug('[step handler] received event', {
+            event: removeLogger(event),
+            step: name,
+          })
 
           try {
             await callStepFile({ step, data, traceId, tracer, logger }, motia)
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            /* biome-ignore lint/suspicious/noExplicitAny: migration */
           } catch (error: any) {
             const message = typeof error === 'string' ? error : error.message
             logger.error(message)

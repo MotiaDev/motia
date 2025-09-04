@@ -1,6 +1,6 @@
-import { defineDocs, defineConfig } from 'fumadocs-mdx/config'
-import { transformerTwoslash } from 'fumadocs-twoslash'
 import { rehypeCodeDefaultOptions } from 'fumadocs-core/mdx-plugins'
+import { defineConfig, defineDocs } from 'fumadocs-mdx/config'
+import { transformerTwoslash } from 'fumadocs-twoslash'
 
 // Options: https://fumadocs.vercel.app/docs/mdx/collections#define-docs
 export const docs = defineDocs({
@@ -14,10 +14,7 @@ export default defineConfig({
         light: 'github-light',
         dark: 'github-dark',
       },
-      transformers: [
-        ...(rehypeCodeDefaultOptions.transformers ?? []),
-        transformerTwoslash(),
-      ],
+      transformers: [...(rehypeCodeDefaultOptions.transformers ?? []), transformerTwoslash()],
     },
   },
 })

@@ -1,11 +1,11 @@
 import { isApiStep, isCronStep, isEventStep } from '../guards'
-import { Printer } from '../printer'
-import { Emit, Step } from '../types'
-import { Stream } from '../types-stream'
+import type { Printer } from '../printer'
+import type { Emit, Step } from '../types'
+import type { Stream } from '../types-stream'
 import { generateTypeFromSchema } from './generate-type-from-schema'
 import { generateTypesFromResponse } from './generate-types-from-response'
 import { mergeSchemas } from './merge-schemas'
-import { JsonSchema } from './schema.types'
+import type { JsonSchema } from './schema.types'
 
 type HandlersMap = Record<string, { type: string; generics: string[] }>
 type StreamsMap = Record<string, string>
@@ -97,7 +97,10 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
 
     if (isEventStep(step)) {
       const input = step.config.input ? generateTypeFromSchema(step.config.input as never as JsonSchema) : 'never'
-      handlers[step.config.name] = { type: 'EventHandler', generics: [input, emits] }
+      handlers[step.config.name] = {
+        type: 'EventHandler',
+        generics: [input, emits],
+      }
     } else if (isApiStep(step)) {
       const input = step.config.bodySchema
         ? generateTypeFromSchema(step.config.bodySchema as never as JsonSchema)
@@ -105,7 +108,10 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
       const result = step.config.responseSchema
         ? generateTypesFromResponse(step.config.responseSchema as never as Record<number, JsonSchema>)
         : 'unknown'
-      handlers[step.config.name] = { type: 'ApiRouteHandler', generics: [input, result, emits] }
+      handlers[step.config.name] = {
+        type: 'ApiRouteHandler',
+        generics: [input, result, emits],
+      }
     } else if (isCronStep(step)) {
       handlers[step.config.name] = { type: 'CronHandler', generics: [emits] }
     }

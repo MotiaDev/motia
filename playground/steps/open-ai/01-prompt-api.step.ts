@@ -1,7 +1,7 @@
-import { ApiRouteConfig, Handlers } from 'motia'
+import { randomUUID } from 'crypto'
+import type { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import { messageSchema } from './00-open-ai-message.stream'
-import { randomUUID } from 'crypto'
 
 const inputSchema = z.object({
   message: z.string({ description: 'The message to send to OpenAI' }),
@@ -20,7 +20,9 @@ export const config: ApiRouteConfig = {
 }
 
 export const handler: Handlers['OpenAiApi'] = async (req, { logger, emit, streams }) => {
-  logger.info('[Call OpenAI] Received callOpenAi event', { message: req.body.message })
+  logger.info('[Call OpenAI] Received callOpenAi event', {
+    message: req.body.message,
+  })
 
   const { message } = req.body
   const { threadId } = req.pathParams
@@ -28,14 +30,21 @@ export const handler: Handlers['OpenAiApi'] = async (req, { logger, emit, stream
   const userMessageId = randomUUID()
   const assistantMessageId = randomUUID()
 
-  await streams.message.set(threadId, userMessageId, { message, from: 'user', status: 'created' })
+  await streams.message.set(threadId, userMessageId, {
+    message,
+    from: 'user',
+    status: 'created',
+  })
   const assistantMessage = await streams.message.set(threadId, assistantMessageId, {
     message: '',
     from: 'assistant',
     status: 'created',
   })
 
-  await emit({ topic: 'openai-prompt', data: { message, threadId, assistantMessageId } })
+  await emit({
+    topic: 'openai-prompt',
+    data: { message, threadId, assistantMessageId },
+  })
 
   return { status: 200, body: assistantMessage }
 }

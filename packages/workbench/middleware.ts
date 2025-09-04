@@ -1,8 +1,8 @@
+import react from '@vitejs/plugin-react'
 import type { Express, NextFunction, Request, Response } from 'express'
 import fs from 'fs'
 import path from 'path'
 import { createServer as createViteServer } from 'vite'
-import react from '@vitejs/plugin-react'
 
 const processCwdPlugin = () => {
   return {

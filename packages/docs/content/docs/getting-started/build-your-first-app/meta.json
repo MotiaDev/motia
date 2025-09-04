@@ -1,8 +1,5 @@
 {
   "title": "Build Your First Motia App",
   "defaultOpen": true,
-  "pages": [
-    "creating-your-first-rest-api",
-    "build-your-first-background-jobs"
-  ]
+  "pages": ["creating-your-first-rest-api", "build-your-first-background-jobs"]
 }

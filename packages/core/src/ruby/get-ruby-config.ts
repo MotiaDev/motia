@@ -1,7 +1,7 @@
 import { spawn } from 'child_process'
 import path from 'path'
-import { StepConfig } from '../types'
 import { globalLogger } from '../logger'
+import type { StepConfig } from '../types'
 
 export const getRubyConfig = (file: string): Promise<StepConfig> => {
   const getConfig = path.join(__dirname, 'get_config.rb')

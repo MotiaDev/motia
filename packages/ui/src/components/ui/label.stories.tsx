@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Label } from './label'
-import { Input } from './input'
 import { useState } from 'react'
+import { Input } from './input'
+import { Label } from './label'
 
 const meta: Meta<typeof Label> = {
   title: 'UI/Label',
@@ -80,10 +80,10 @@ export const ErrorState: Story = {
       <Label htmlFor="error-field" className="text-destructive">
         Email Address
       </Label>
-      <Input 
-        id="error-field" 
-        type="email" 
-        placeholder="Enter your email..." 
+      <Input
+        id="error-field"
+        type="email"
+        placeholder="Enter your email..."
         aria-invalid={true}
         className="border-destructive"
       />
@@ -111,9 +111,9 @@ export const FormExample: Story = {
     })
 
     const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [field]: e.target.value
+        [field]: e.target.value,
       }))
     }
 
@@ -122,21 +122,11 @@ export const FormExample: Story = {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="firstName">First Name</Label>
-            <Input 
-              id="firstName" 
-              value={formData.firstName}
-              onChange={handleChange('firstName')}
-              placeholder="John" 
-            />
+            <Input id="firstName" value={formData.firstName} onChange={handleChange('firstName')} placeholder="John" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="lastName">Last Name</Label>
-            <Input 
-              id="lastName" 
-              value={formData.lastName}
-              onChange={handleChange('lastName')}
-              placeholder="Doe" 
-            />
+            <Input id="lastName" value={formData.lastName} onChange={handleChange('lastName')} placeholder="Doe" />
           </div>
         </div>
 
@@ -145,19 +135,19 @@ export const FormExample: Story = {
             Email Address
             <span className="text-destructive ml-1">*</span>
           </Label>
-          <Input 
-            id="email-form" 
-            type="email" 
+          <Input
+            id="email-form"
+            type="email"
             value={formData.email}
             onChange={handleChange('email')}
-            placeholder="john.doe@example.com" 
+            placeholder="john.doe@example.com"
             required
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="message">Message</Label>
-          <textarea 
+          <textarea
             id="message"
             value={formData.message}
             onChange={handleChange('message')}
@@ -206,12 +196,7 @@ export const AllStates: Story = {
           <Label htmlFor="error-state" className="text-destructive">
             Error Label
           </Label>
-          <Input 
-            id="error-state" 
-            placeholder="Invalid input..." 
-            aria-invalid={true}
-            className="border-destructive"
-          />
+          <Input id="error-state" placeholder="Invalid input..." aria-invalid={true} className="border-destructive" />
           <p className="text-sm text-destructive">This field has an error.</p>
         </div>
       </div>
@@ -234,9 +219,11 @@ export const AccessibilityExample: Story = {
         <Label htmlFor="accessible-input">
           Accessible Input
           <span className="sr-only">(required)</span>
-          <span className="text-destructive ml-1" aria-hidden="true">*</span>
+          <span className="text-destructive ml-1" aria-hidden="true">
+            *
+          </span>
         </Label>
-        <Input 
+        <Input
           id="accessible-input"
           placeholder="This input has proper accessibility..."
           aria-describedby="accessible-input-description"
@@ -252,7 +239,7 @@ export const AccessibilityExample: Story = {
           Password
           <span className="sr-only">(minimum 8 characters)</span>
         </Label>
-        <Input 
+        <Input
           id="password-input"
           type="password"
           placeholder="Enter password..."
@@ -265,4 +252,4 @@ export const AccessibilityExample: Story = {
       </div>
     </div>
   ),
-} 
+}

@@ -3,21 +3,21 @@
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 
-import sheets from '@/public/images/landing/sheets.png'
-import discord from '@/public/images/landing/discord.png'
-import outlook from '@/public/images/landing/outlook.png'
-import telegram from '@/public/images/landing/telegram.png'
-import openai from '@/public/images/landing/openai.png'
-import slack from '@/public/images/landing/slack.png'
-import trello from '@/public/images/landing/trello.png'
-import drive from '@/public/images/landing/drive.png'
-import asana from '@/public/images/landing/asana.png'
-import googleCalendar from '@/public/images/landing/calendar.png'
-import salesforce from '@/public/images/landing/salesforce.png'
-import mailchimp from '@/public/images/landing/mailchimp.png'
-import bubble from '@/public/images/landing/bubbleio.png'
-import gemini from '@/public/images/landing/gemini.png'
 import airtable from '@/public/images/landing/airtable.png'
+import asana from '@/public/images/landing/asana.png'
+import bubble from '@/public/images/landing/bubbleio.png'
+import googleCalendar from '@/public/images/landing/calendar.png'
+import discord from '@/public/images/landing/discord.png'
+import drive from '@/public/images/landing/drive.png'
+import gemini from '@/public/images/landing/gemini.png'
+import mailchimp from '@/public/images/landing/mailchimp.png'
+import openai from '@/public/images/landing/openai.png'
+import outlook from '@/public/images/landing/outlook.png'
+import salesforce from '@/public/images/landing/salesforce.png'
+import sheets from '@/public/images/landing/sheets.png'
+import slack from '@/public/images/landing/slack.png'
+import telegram from '@/public/images/landing/telegram.png'
+import trello from '@/public/images/landing/trello.png'
 
 const logos = [
   sheets,
@@ -62,7 +62,7 @@ export default function InfiniteLogoList() {
           x: ['0%', `-${logos.length * SCROLL_STEP}px`],
         }}
         transition={{
-          repeat: Infinity,
+          repeat: Number.POSITIVE_INFINITY,
           repeatType: 'loop',
           ease: 'linear',
           duration: 20,

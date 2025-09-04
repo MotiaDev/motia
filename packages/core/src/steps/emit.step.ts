@@ -1,5 +1,5 @@
-import { ApiResponse, ApiRouteConfig, ApiRouteHandler } from '../types'
 import { z } from 'zod'
+import type { ApiResponse, ApiRouteConfig, ApiRouteHandler } from '../types'
 
 export const config: ApiRouteConfig = {
   type: 'api',

@@ -1,6 +1,6 @@
-import { CustomEvent, JoinMessage, Listener } from './stream.types'
+import type { CustomEvent, JoinMessage, Listener } from './stream.types'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* biome-ignore lint/suspicious/noExplicitAny: migration */
 type CustomEventListener = (event: any) => void
 
 export abstract class StreamSubscription<TData = unknown, TEventData = unknown> {

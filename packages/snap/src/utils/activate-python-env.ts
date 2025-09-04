@@ -1,7 +1,7 @@
-import path from 'path'
 import fs from 'fs'
-import { findPythonSitePackagesDir } from './python-version-utils'
+import path from 'path'
 import { internalLogger } from './internal-logger'
+import { findPythonSitePackagesDir } from './python-version-utils'
 
 interface VenvConfig {
   baseDir: string

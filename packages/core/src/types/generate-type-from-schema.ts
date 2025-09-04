@@ -1,4 +1,4 @@
-import { JsonSchema } from './schema.types'
+import type { JsonSchema } from './schema.types'
 
 export const generateTypeFromSchema = (schema: JsonSchema): string => {
   if (schema.type === 'array') {
