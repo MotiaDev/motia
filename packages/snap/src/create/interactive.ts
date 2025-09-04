@@ -10,34 +10,41 @@ interface InteractiveAnswers {
 }
 
 const choices: Record<string, string> = {
-  typescript: 'Base (TypeScript)',
+  nodejs: 'Base (TypeScript)',
   python: 'Base (Python)',
 }
 
 interface CreateInteractiveArgs {
   name?: string
+  template?: string
+  confirm?: boolean
 }
 
 export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
   context.log('welcome', (message) => message.append('\n🚀 ' + colors.bold('Welcome to Motia Project Creator!')))
 
-  const questions: QuestionCollection<any>[] = [
-    {
+  const questions: QuestionCollection<any>[] = []
+
+  let name = args.name
+  let template = args.template
+
+  if (!args.template) {
+    questions.push({
       type: 'list',
       name: 'template',
-      message: '1. What template do you want to use? (Use arrow keys)',
+      message: 'What template do you want to use? (Use arrow keys)',
       choices: Object.keys(choices).map((key) => ({
         name: choices[key],
         value: key,
       })),
-    },
-  ]
+    })
+  }
 
   if (!args.name) {
     questions.push({
       type: 'input',
       name: 'projectName',
-      message: '2. Project name (leave blank to use current folder):',
+      message: 'Project name (leave blank to use current folder):',
       validate: (input: string) => {
         if (input && input.trim().length > 0) {
           if (!/^[a-zA-Z0-9][a-zA-Z0-9-_]*$/.test(input.trim())) {
@@ -50,25 +57,32 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
     })
   }
 
-  questions.push({
-    type: 'confirm',
-    name: 'proceed',
-    message: '3. Proceed? [Y/n]:',
-    default: true,
-  })
+  if (!args.confirm) {
+    questions.push({
+      type: 'confirm',
+      name: 'proceed',
+      message: 'Proceed? [Y/n]:',
+      default: true,
+    })
+  }
 
-  const answers: InteractiveAnswers = await inquirer.prompt(questions)
+  if (questions.length > 0) {
+    const answers: InteractiveAnswers = await inquirer.prompt(questions)
 
-  if (!answers.proceed) {
-    context.log('cancelled', (message) => message.tag('info').append('\n❌ Project creation cancelled.'))
-    return
+    if (!answers.proceed) {
+      context.log('cancelled', (message) => message.tag('info').append('\n❌ Project creation cancelled.'))
+      return
+    }
+
+    name = args.name || answers.projectName
+    template = args.template || answers.template
   }
 
   context.log('creating', (message) => message.append('\n🔨 Creating your Motia project...\n'))
 
   await create({
-    projectName: args.name || answers.projectName || '.',
-    template: answers.template,
+    projectName: name || '.',
+    template: template || 'nodejs',
     cursorEnabled: true, // Default to true for cursor rules
     context,
   })

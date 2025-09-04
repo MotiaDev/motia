@@ -29,12 +29,33 @@ program
     '-n, --name <project name>',
     'The name for your project, used to create a directory, use ./ or . to create it under the existing directory',
   )
+  .option('-t, --template <template>', 'The template to use for your project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
+  .option('-c, --confirm', 'Confirm the project creation', false)
   .action(
     handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive')
 
-      await createInteractive({ name: arg.name }, context)
+      await createInteractive(
+        {
+          name: arg.name,
+          template: arg.template,
+          confirm: !!arg.confirm,
+        },
+        context,
+      )
+    }),
+  )
+
+program
+  .command('rules')
+  .command('pull')
+  .description('Install essential AI development guides (AGENTS.md, CLAUDE.md) and optional Cursor IDE rules')
+  .option('-f, --force', 'Overwrite existing files')
+  .action(
+    handler(async (arg, context) => {
+      const { pullRules } = require('./create/pull-rules')
+      await pullRules({ force: arg.force, rootDir: process.cwd() }, context)
     }),
   )
 

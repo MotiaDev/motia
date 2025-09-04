@@ -7,6 +7,7 @@ import { version } from '../version'
 import { CliContext } from '../cloud/config-utils'
 import { setupTemplate } from './setup-template'
 import { checkIfFileExists, checkIfDirectoryExists } from './utils'
+import { pullRules } from './pull-rules'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
@@ -218,26 +219,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   }
 
   if (cursorEnabled) {
-  }
-  const cursorTemplateDir = path.join(__dirname, '..', 'cursor-rules', 'dot-files')
-  const files = fs.readdirSync(cursorTemplateDir)
-
-  for (const file of files) {
-    const targetFile = path.join(rootDir, file)
-
-    if (!checkIfDirectoryExists(targetFile)) {
-      const isFolder = fs.statSync(path.join(cursorTemplateDir, file)).isDirectory()
-
-      fs.cpSync(path.join(cursorTemplateDir, file), targetFile, { recursive: isFolder })
-
-      context.log(`${file}-created`, (message) =>
-        message
-          .tag('success')
-          .append(isFolder ? 'Folder' : 'File')
-          .append(file, 'cyan')
-          .append('has been created.'),
-      )
-    }
+    await pullRules({ force: true, rootDir }, context)
   }
 
   if (template) {
