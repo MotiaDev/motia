@@ -1,4 +1,3 @@
-import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json'
 import { ApiEndpoint } from '@/types/endpoint'
 import { Panel } from '@motiadev/ui'
 import { FC } from 'react'
@@ -7,19 +6,19 @@ import ReactJson from 'react18-json-view'
 import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
 import { convertJsonSchemaToJson } from './hooks/utils'
+
 type Props = {
   endpoint: ApiEndpoint
+  value: string
   onChange?: (body: string) => void
   onValidate?: (isValid: boolean) => void
   panelName: string
 }
 
-export const EndpointBodyPanel: FC<Props> = ({ endpoint, onChange, onValidate, panelName }) => {
+export const EndpointBodyPanel: FC<Props> = ({ endpoint, onChange, onValidate, panelName, value }) => {
   const shouldHaveBody = ['post', 'put', 'patch'].includes(endpoint.method.toLowerCase())
-  const { body, setBody } = useJsonSchemaToJson(endpoint.bodySchema)
 
   const handleBodyChange = (body: string) => {
-    setBody(body)
     onChange?.(body)
   }
 
@@ -30,7 +29,7 @@ export const EndpointBodyPanel: FC<Props> = ({ endpoint, onChange, onValidate, p
   return (
     <Panel title="Body" size="sm" contentClassName="p-0" data-testid={`endpoint-body-panel__${panelName}`}>
       {onChange ? (
-        <JsonEditor value={body} schema={endpoint.bodySchema} onChange={handleBodyChange} onValidate={onValidate} />
+        <JsonEditor value={value} schema={endpoint.bodySchema} onChange={handleBodyChange} onValidate={onValidate} />
       ) : (
         <ReactJson
           src={convertJsonSchemaToJson(endpoint.bodySchema)}
