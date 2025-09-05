@@ -29,7 +29,13 @@ export default function ManifestoPage() {
 
           <section className={normalText}>
             <p>
-              Backend development has become fragmented across too many tools. Teams build APIs in Express, run background tasks through BullMQ queues, orchestrate complex workflows in Temporal, deploy AI agents on separate platforms, manage streaming data with different systems, piece together observability tools, handle state across various databases, juggle multiple deployment pipelines, and configure scaling solutions independently. <span className={gradientText}>We're drowning in complexity</span> while AI introduces even more nondeterminism, retries, and orchestration demands that existing frameworks can't handle cohesively.
+              Backend development has become fragmented across too many tools. Teams build APIs with one framework, run background tasks through dedicated job queues, orchestrate complex workflows with separate engines, deploy AI agents on specialized platforms, manage streaming data with different systems, piece together observability tools, handle state across various databases, juggle multiple deployment pipelines, and configure scaling solutions independently. <span className={gradientText}>We're drowning in complexity</span> while AI introduces even more nondeterminism, retries, and orchestration demands that existing frameworks can't handle cohesively.
+            </p>
+          </section>
+
+          <section className={normalText}>
+            <p>
+              The future belongs to <span className={gradientTextBlue}>multi-language, natively asynchronous, event-driven backends</span> because they mirror how the world actually works - distributed, concurrent, and reactive. Traditional request-response models can't scale with the complexity of modern applications that need to handle millions of simultaneous connections, process streaming data in real-time, and coordinate AI-driven workflows across multiple services. Event-driven systems provide the foundation for true scalability, resilience, and adaptability that tomorrow's applications demand.
             </p>
           </section>
 
@@ -82,6 +88,12 @@ export default function ManifestoPage() {
               </li>
             </ul>
           </section>
+          <section className={normalText}>
+            <p>
+              Simply combining all these systems into one monolithic framework would still result in overwhelming complexity. The real challenge isn't unification, it's creating a primitive so elegant and developer-friendly that it becomes invisible. A core primitive must have minimal API surface area, intuitive patterns, and the ability to compose complex behaviors from simple building blocks. It should feel like writing regular code, not struggling with infrastructure. This is the difference between a heavy integration and true abstraction.
+            </p>
+          </section>
+
           <section
             className={`${normalText} relative overflow-hidden border-l-[3px] border-white bg-[#17181F] p-[32px]`}
           >
@@ -96,13 +108,13 @@ export default function ManifestoPage() {
 
               <p>
                 Drawing inspiration from the power of simple, elegant primitives like React's 'component', Motia
-                introduces the <span className="font-medium text-white">"step"</span>. This core concept distills
+                introduces the <span className="font-medium text-white">"Step"</span>. This core concept distills
                 complexity into four fundamental, easy-to-understand elements:
               </p>
 
               <ul className="list-inside list-disc space-y-[30px]">
                 <li>
-                  <span className="font-medium text-white">Trigger:</span> How a step is initiated (via API, event
+                  <span className="font-medium text-white">Trigger:</span> How a Step is initiated (via API, event
                   bus, or scheduled task).
                 </li>
                 <li>
@@ -112,7 +124,7 @@ export default function ManifestoPage() {
                   <span className="font-medium text-white">Handler:</span> How it performs logic or an action.
                 </li>
                 <li>
-                  <span className="font-medium text-white">Emit:</span> How it optionally outputs data or triggers other steps.
+                  <span className="font-medium text-white">Emit:</span> How it optionally outputs data or triggers other Steps.
                 </li>
               </ul>
 
