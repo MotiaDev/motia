@@ -63,12 +63,12 @@ export const steps: TutorialStep[] = [
           <br />
           <br />
           Let's start with the configuration, the common config attributes are
-          <i>type, name, description, and flows</i>.<br />
+          <i> type, name, description, and flows</i>.<br />
           <br />
         </p>
         <ul>
           <li>
-            The <b>type</b> attribute is important since it declares the type of Step primitive
+            The <b>type</b> attribute is important since it declares the type of step
           </li>
           <li>
             The <b>flows</b> attribute will associate your Step with a given flow or set of flows.
@@ -202,8 +202,8 @@ export const steps: TutorialStep[] = [
       <p>
         Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
         specific task.
-        <br /> For this we will look at the <b>Event</b> Step.
-        <b>Event</b> Steps are an essential primitive for Motia's event driven architecture. Let's dive deeper into the
+        <br /> For this we will look at the <b>Event</b> Step. 
+        <b> Event</b> Steps are an essential step type for Motia's event driven architecture. Let's dive deeper into the
         anatomy of an Event Step by taking a look at the code visualization tool.
         <br />
         💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
@@ -222,7 +222,7 @@ export const steps: TutorialStep[] = [
         <br /> <br />
         For this we will look at the <b>Event</b> Step.
         <br /> <br />
-        <b>Event</b> Steps are an essential primitive for Motia's event driven architecture. Let's dive deeper into the
+        <b>Event</b> Steps are an essential step type for Motia's event driven architecture. Let's dive deeper into the
         anatomy of an Event Step by taking a look at the code visualization tool.
         <br /> <br />
         💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
@@ -238,7 +238,7 @@ export const steps: TutorialStep[] = [
     title: 'Event Step Input',
     description: () => (
       <p>
-        <b>Event</b> Steps like other primitives are composed by a configuration and a handler.
+        <b>Event</b> Steps like other step types are composed by a configuration and a handler.
         <br />
         <br />
         <b>Event</b> Steps have a specific attribute from their config, the <b>input</b> attribute, which declares the
@@ -261,7 +261,7 @@ export const steps: TutorialStep[] = [
         Let's take a look at the <b>Event</b> Step Handler.
         <br />
         <br />
-        The handler will seem familiar other primitive Step Handlers, but notice that the first argument holds the data
+        The handler will seem familiar to other step type handlers, but notice that the first argument holds the data
         provided for the topic or topics your Step subscribes to.
         <br />
         <br />
@@ -294,12 +294,12 @@ export const steps: TutorialStep[] = [
     link: 'https://www.motia.dev/docs/concepts/steps/cron',
     description: () => (
       <p>
-        Let's do a recap of what you've learned, thus far you've become familiar with three Motia primitives <b>API</b>{' '}
+        Let's do a recap of what you've learned, thus far you've become familiar with two step types: <b>API</b>{' '}
         and <b>Event</b> Steps.
         <br />
         <br />
-        You've also started to learn how to navigate around Workbench. Let's wrap up Motia's primitives with the last
-        one the <b>CRON</b> Step. Let's take a deeper look at its definition.
+        You've also started to learn how to navigate around Workbench. Let's wrap up the step types with the last
+        one: the <b>CRON</b> Step. Let's take a deeper look at its definition.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
@@ -310,7 +310,7 @@ export const steps: TutorialStep[] = [
     link: 'https://www.motia.dev/docs/concepts/steps/cron',
     description: () => (
       <p>
-        <b>CRON</b> Steps are similar to the other primitives, they are composed by a configuration and a handler.
+        <b>CRON</b> Steps are similar to the other step types, they are composed by a configuration and a handler.
         <br />
         <br />
         The <b>CRON</b> Step config has a distinct attribute, the <b>cron</b> attribute, through this attribute you will
@@ -350,7 +350,7 @@ export const steps: TutorialStep[] = [
     title: 'Endpoints',
     description: () => (
       <p>
-        Now that we've looked at Motia primitives, let's trigger the API Step from the <b>endpoints</b> section in
+        Now that we've looked at Motia step types, let's trigger the API Step from the <b>endpoints</b> section in
         Workbench.
         <br />
         <br />
@@ -606,7 +606,7 @@ export const steps: TutorialStep[] = [
         You've completed our Motia basics tutorial!
         <br />
         <br />
-        You've learned about Motia's primitives, how to navigate around Workbench, and how to use core features from the
+        You've learned about Motia's step types, how to navigate around Workbench, and how to use core features from the
         Motia Framework (State Management, Logging, and Tracing).
         <br />
         <br />
