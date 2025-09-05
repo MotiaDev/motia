@@ -5,8 +5,7 @@ import { BuildStepConfig } from '../../build/builder'
 import { BuildPrinter } from './build-printer'
 import { CliContext } from '../../config-utils'
 import { DeployPrinter } from './printer'
-import { ValidationError } from '../utils/validation'
-import { DeployData, DeploymentListener, DeploymentOutput } from './listener.types'
+import { DeployData, DeploymentListener, DeploymentOutput, ValidationError } from './listener.types'
 import { printDeploymentStatus } from './print-deployment-status'
 
 export class CliListener implements DeploymentListener {

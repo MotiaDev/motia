@@ -1,5 +1,5 @@
-import { BuildListener } from '../new-deployment/listeners/listener.types'
-import { Builder, BuildStepConfig } from './builder'
+import { BuildListener, ValidationError } from '../new-deployment/listeners/listener.types'
+import { Builder } from './builder'
 import colors from 'colors'
 import * as cron from 'cron'
 import path from 'path'
@@ -17,12 +17,6 @@ export const buildValidation = (builder: Builder, listener: BuildListener) => {
   }
 
   return true
-}
-
-export type ValidationError = {
-  relativePath: string
-  message: string
-  step: BuildStepConfig
 }
 
 export const validateStepsConfig = (builder: Builder) => {
@@ -78,11 +72,11 @@ export const validateStepsConfig = (builder: Builder) => {
       }
     }
 
-    if (step.config.name.length > 30) {
+    if (step.config.name.length > 40) {
       errors.push({
         relativePath,
         message: [
-          `Step name is too long. Maximum is 30 characters.`,
+          `Step name is too long. Maximum is 40 characters.`,
           `  ${colors.red('➜')} ${colors.magenta(step.config.name)}`,
         ].join('\n'),
         step,
