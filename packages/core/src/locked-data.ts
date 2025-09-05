@@ -10,6 +10,7 @@ import { StreamFactory } from './streams/stream-factory'
 import { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
 import { Stream } from './types-stream'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
+import { generatePythonTypesString } from './types/generate-python-types'
 
 type FlowEvent = 'flow-created' | 'flow-removed' | 'flow-updated'
 type StepEvent = 'step-created' | 'step-removed' | 'step-updated'
@@ -66,11 +67,101 @@ export class LockedData {
     this.streamWrapper = streamWrapper
   }
 
+  // saveTypes() {
+  //   const types = generateTypesFromSteps(this.activeSteps, this.printer)
+  //   const streams = generateTypesFromStreams(this.streams)
+  //   const typesString = generateTypesString(types, streams)
+  //   const { internal, exports } = generatePythonTypesString(types, streams);
+
+  //   // ✨ NEW: ensure motia/ directory exists
+  //   const motiaDir = path.join(this.baseDir, "motia");
+  //   if (!fs.existsSync(motiaDir)) {
+  //     fs.mkdirSync(motiaDir, { recursive: true });
+  //   }
+
+  //   // 🔄 CHANGE: write internal to motia/_internal.py instead of flat _motia_internal.py
+  //   fs.writeFileSync(path.join(motiaDir, "_internal.py"), internal);
+
+  //   // 🔄 CHANGE: re-exports now use _internal, not _motia_internal
+  //   const reExports = exports.map(
+  //     (name) => `${name} = _internal.${name}`
+  //   ).join("\n");
+
+  //   const allBlock = `\n\n__all__ = [\n${exports.map((e) => `    "${e}",`).join("\n")}\n]`;
+
+  //   // 🔄 CHANGE: write __init__.py instead of motia.py
+  //   const initContent =
+  //     `import motia._internal as _internal\n\n${reExports}${allBlock}\n`;
+
+  //   fs.writeFileSync(path.join(motiaDir, "__init__.py"), initContent);
+
+  //   // ✅ unchanged: still emit TS types
+  //   fs.writeFileSync(path.join(this.baseDir, 'types.d.ts'), typesString)
+  // }
   saveTypes() {
     const types = generateTypesFromSteps(this.activeSteps, this.printer)
     const streams = generateTypesFromStreams(this.streams)
+    // Pretty print types
+    console.log('\n=== Generated Types ===')
+    console.group()
+    Object.entries(types).forEach(([name, type]) => {
+      console.log(`📦 ${name}:`)
+      console.group()
+      console.log(JSON.stringify(type, null, 2))
+      console.groupEnd()
+    })
+    console.groupEnd()
+
+    // Pretty print streams
+    console.log('\n=== Generated Streams ===')
+    console.group()
+    Object.entries(streams).forEach(([name, stream]) => {
+      console.log(`🌊 ${name}:`)
+      console.group()
+      console.log(JSON.stringify(stream, null, 2))
+      console.groupEnd()
+    })
+    console.groupEnd()
     const typesString = generateTypesString(types, streams)
-    fs.writeFileSync(path.join(this.baseDir, 'types.d.ts'), typesString)
+    const { internal, exports } = generatePythonTypesString(types, streams);
+
+    // Ensure motia/ directory exists
+    const motiaDir = path.join(this.baseDir, "motia");
+    if (!fs.existsSync(motiaDir)) {
+      fs.mkdirSync(motiaDir, { recursive: true });
+    }
+
+    // Write internal types (always regenerated)
+    fs.writeFileSync(path.join(motiaDir, "_internal.py"), internal);
+
+    // Core source (repo types) and destination (inside motia/)
+    const coreSource = path.resolve(__dirname, "../../src/python/motia_core");
+    const coreDest = path.join(motiaDir, "core");
+
+    // ✅ Copy only if motia/core does not already exist
+    if (!fs.existsSync(coreDest)) {
+      fs.cpSync(coreSource, coreDest, { recursive: true });
+      console.log("[motia] Core types copied to motia/core/");
+    } else {
+      // optional: you can log or silently skip
+      console.log("[motia] Core types already exist, skipping copy");
+    }
+
+    // Re-exports for generated types
+    const reExports = exports.map(
+      (name) => `${name} = _internal.${name}`
+    ).join("\n");
+
+    const allBlock = `\n\n__all__ = [\n${exports.map((e) => `    "${e}",`).join("\n")}\n]`;
+
+    // __init__.py: import core + internal
+    const initContent =
+      `from motia.core import *\nimport motia._internal as _internal\n\n${reExports}${allBlock}\n`;
+
+    fs.writeFileSync(path.join(motiaDir, "__init__.py"), initContent);
+
+    // Emit TS types
+    fs.writeFileSync(path.join(this.baseDir, "types.d.ts"), typesString);
   }
 
   on(event: FlowEvent, handler: (flowName: string) => void) {
