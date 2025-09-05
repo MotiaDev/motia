@@ -21,25 +21,6 @@ def parse_args(arg: str) -> Dict:
         print('Error parsing args:', arg)
         return arg
 
-# def dataclass_to_clean_dict(obj, exclude=None):
-#     exclude = set(exclude or [])
-
-#     def clean(value):
-#         if is_dataclass(value):
-#             return clean(asdict(value))
-#         elif isinstance(value, dict):
-#             return {
-#                 k: clean(v)
-#                 for k, v in value.items()
-#                 if v is not None and k not in exclude
-#             }
-#         elif isinstance(value, list):
-#             return [clean(v) for v in value if v is not None]
-#         else:
-#             return value
-
-#     return clean(asdict(obj))
-
 async def run_python_module(file_path: str, rpc: RpcSender, args: Dict) -> None:
     """Execute a Python module with the given arguments"""
     try:

@@ -318,20 +318,12 @@ import copy
 import types
 from contextlib import contextmanager
 
-# =====================================================
-# Function: sendMessage
-# =====================================================
 def sendMessage(text):
-    print("[DEBUG] Entered sendMessage()")  # debug
     bytesMessage = (json.dumps(text) + "\n").encode('utf-8')
-    print("[DEBUG] Encoded message:", bytesMessage)  # debug
-    
     if platform.system() == 'Windows':
-        print("[DEBUG] Platform = Windows, writing to stdout")  # debug
         sys.stdout.buffer.write(bytesMessage)
         sys.stdout.buffer.flush()
     else:
-        print("[DEBUG] Platform != Windows, writing to NODE_CHANNEL_FD")  # debug
         NODEIPCFD = int(os.environ["NODE_CHANNEL_FD"])
         os.write(NODEIPCFD, bytesMessage)
 
