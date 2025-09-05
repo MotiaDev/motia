@@ -212,7 +212,7 @@ export const steps: TutorialStep[] = [
         For this we will look at the <b>Event</b> Step.
         <br />
         <br />
-        <b>Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
+        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
         anatomy of an Event Step by taking a look at the code visualization tool.
         <br />
         <br />
@@ -234,7 +234,7 @@ export const steps: TutorialStep[] = [
         For this we will look at the <b>Event</b> Step.
         <br />
         <br />
-        <b>Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
+        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
         anatomy of an Event Step by taking a look at the code visualization tool.
         <br />
         <br />
