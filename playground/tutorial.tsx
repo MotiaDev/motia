@@ -251,7 +251,7 @@ export const steps: TutorialStep[] = [
     title: 'Event Step Input',
     description: () => (
       <p>
-        <b> Event Steps</b>, like other Steps, are composed of a configuration and a handler.
+        <b> Event Steps</b>, like other Step types, are composed of a configuration and a handler.
         <br />
         <br />
         <b>Event Steps</b> have a specific attribute from their config, the <b>input</b> attribute, which declares the
