@@ -101,7 +101,7 @@ export default function ManifestoPage() {
           
           <div className="flex justify-center my-[8px]">
             <Image
-              src="/image.png"
+              src="/features.png"
               alt="Motia Features - APIs, Background Jobs, Queues, Workflows, AI Agents, Streaming, Observability, State, Deployment, and Scaling"
               width={1000}
               height={500}
