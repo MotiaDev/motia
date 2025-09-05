@@ -19,7 +19,7 @@ export const deploy = async (input: DeployInput): Promise<void> => {
   const { envVars, deploymentToken, builder, deploymentId, listener, context, ci } = input
   const client = new Stream(cloudApiWsUrl)
 
-  await cloudApi.startDeployment({
+  const response = await cloudApi.startDeployment({
     deploymentToken,
     envVars,
     steps: builder.stepsConfig,
@@ -58,7 +58,8 @@ export const deploy = async (input: DeployInput): Promise<void> => {
     })
   } else {
     context.log('deploy-progress', (message) =>
-      message.tag('progress').append('Deployment in progress... You will be notified when it is completed'),
+      message.tag('progress').append(`Deployment in progress... You can view the deployment at ${response.deploymentUrl}`),
     )
+    client.close()
   }
 }
