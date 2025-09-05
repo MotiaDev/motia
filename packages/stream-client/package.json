@@ -20,7 +20,7 @@
   },
   "scripts": {
     "build": "sh scripts/build.sh",
-    "lint": "eslint --config ../../eslint.config.js",
+    "lint": "biome check .",
     "test": "jest"
   },
   "dependencies": {
