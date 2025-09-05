@@ -33,13 +33,23 @@ export default function ManifestoPage() {
             </p>
           </section>
 
+          <div className="flex justify-center my-[8px]">
+            <Image
+              src="/disconnected-flows.png"
+              alt="Motia Features - APIs, Background Jobs, Queues, Workflows, AI Agents, Streaming, Observability, State, Deployment, and Scaling"
+              width={600}
+              height={300}
+              className="max-w-full h-auto"
+            />
+          </div>
+
           <section className={normalText}>
             <p>
               The future belongs to <span className={gradientTextBlue}>multi-language, natively asynchronous, event-driven backends</span> because they mirror how the world actually works - distributed, concurrent, and reactive. Traditional request-response models can't scale with the complexity of modern applications that need to handle millions of simultaneous connections, process streaming data in real-time, and coordinate AI-driven workflows across multiple services. Event-driven systems provide the foundation for true scalability, resilience, and adaptability that tomorrow's applications demand.
             </p>
           </section>
 
-          <section className={normalText}>
+          {/* <section className={normalText}>
             <p>
               History shows that <span className={gradientText}>complexity is always followed by abstraction</span>, and we refuse to accept this fragmentation as permanent. Today's backend landscape forces teams to master entirely different systems for each core function, creating operational overhead and cognitive burden. <span className={gradientText}>No unified solution exists.</span> <span className={gradientTextBlue}>We believe the Step is the inevitable abstraction for the AI era</span> - one interoperable primitive that brings together all ten essential backend concerns into a single coherent system.
             </p>
@@ -87,10 +97,21 @@ export default function ManifestoPage() {
                 <span className={gradientText}>coordination challenges and resource management complexity.</span>
               </li>
             </ul>
-          </section>
+          </section> */}
+          
+          <div className="flex justify-center my-[8px]">
+            <Image
+              src="/image.png"
+              alt="Motia Features - APIs, Background Jobs, Queues, Workflows, AI Agents, Streaming, Observability, State, Deployment, and Scaling"
+              width={1000}
+              height={500}
+              className="max-w-full h-auto"
+            />
+          </div>
+
           <section className={normalText}>
             <p>
-              Simply combining all these systems into one monolithic framework would still result in overwhelming complexity. The real challenge isn't unification, it's creating a primitive so elegant and developer-friendly that it becomes invisible. A core primitive must have minimal API surface area, intuitive patterns, and the ability to compose complex behaviors from simple building blocks. It should feel like writing regular code, not struggling with infrastructure. This is the difference between a heavy integration and true abstraction.
+            Simply combining all these systems into one monolithic framework would still result in overwhelming complexity. The real challenge isn't unification, it's creating a primitive so elegant and developer-friendly that it becomes invisible. A core primitive must have minimal API surface area, intuitive patterns, and the ability to compose complex behaviors from simple building blocks. It should feel like writing regular code, not struggling with infrastructure. This is the difference between a heavy integration and true abstraction.
             </p>
           </section>
 
