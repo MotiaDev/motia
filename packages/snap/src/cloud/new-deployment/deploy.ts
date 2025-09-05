@@ -12,10 +12,11 @@ export type DeployInput = {
   builder: Builder
   listener: DeployListener
   context: CliContext
+  ci: boolean
 }
 
 export const deploy = async (input: DeployInput): Promise<void> => {
-  const { envVars, deploymentToken, builder, deploymentId, listener, context } = input
+  const { envVars, deploymentToken, builder, deploymentId, listener, context, ci } = input
   const client = new Stream(cloudApiWsUrl)
 
   await cloudApi.startDeployment({
@@ -28,30 +29,34 @@ export const deploy = async (input: DeployInput): Promise<void> => {
 
   context.log('starting-deployment', (message) => message.tag('success').append('Deployment started'))
 
-  const subscription = client.subscribeItem<DeployData>('deployment', deploymentId, 'data')
+  if (!ci) {
+    const subscription = client.subscribeItem<DeployData>('deployment', deploymentId, 'data')
 
-  const interval = setInterval(() => {
-    const state = subscription.getState()
-    if (state) {
-      listener.onDeployProgress(state)
-    }
-  }, 1000)
-
-  await new Promise<void>((resolve) => {
-    subscription.addChangeListener((item) => {
-      if (item && ['failed', 'completed'].includes(item.status)) {
-        clearInterval(interval)
-        listener.onDeployProgress(item)
-
-        if (item.status === 'completed') {
-          listener.onDeployEnd({
-            output: item.outputs,
-          })
-        }
-
-        client.close()
-        resolve()
+    const interval = setInterval(() => {
+      const state = subscription.getState()
+      if (state) {
+        listener.onDeployProgress(state)
       }
+    }, 1000)
+
+    await new Promise<void>((resolve) => {
+      subscription.addChangeListener((item) => {
+        if (item && ['failed', 'completed'].includes(item.status)) {
+          clearInterval(interval)
+          listener.onDeployProgress(item)
+
+          if (item.status === 'completed') {
+            listener.onDeployEnd({
+              output: item.outputs,
+            })
+          }
+
+          client.close()
+          resolve()
+        }
+      })
     })
-  })
+  } else {
+    context.log('deploy-progress', (message) => message.tag('progress').append('Deployment in progress... You will be notified when it is completed'))
+  }
 }

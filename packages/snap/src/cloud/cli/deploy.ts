@@ -12,13 +12,14 @@ cloudCli
   .command('deploy')
   .description('Deploy a new version to Motia Cloud')
   .requiredOption('-k, --api-key <key>', 'The API key for authentication', process.env.MOTIA_API_KEY)
+  .requiredOption('-v, --version-name <version>', 'The version to deploy')
   .option('-p, --project-id <id>', 'Project ID (Deprecated)')
   .option('-n, --project-name <name>', 'Project name (used when creating a new project)')
   .option('-s, --environment-id <id>', 'Environment ID', process.env.MOTIA_ENVIRONMENT_ID)
   .option('--environment-name <name>', 'Environment name')
   .option('-e, --env-file <path>', 'Path to environment file')
-  .requiredOption('-v, --version-name <version>', 'The version to deploy')
   .option('-d, --version-description <description>', 'The description of the version')
+  .option('-c, --ci', 'CI mode', process.env.CI)
   .action(
     handler(async (arg, context) => {
       const listener = new CliListener(context)
@@ -61,6 +62,7 @@ cloudCli
         builder,
         listener,
         context,
+        ci: arg.ci,
       })
 
       context.exit(0)
