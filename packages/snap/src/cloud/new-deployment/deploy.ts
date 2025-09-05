@@ -58,7 +58,9 @@ export const deploy = async (input: DeployInput): Promise<void> => {
     })
   } else {
     context.log('deploy-progress', (message) =>
-      message.tag('progress').append(`Deployment in progress... You can view the deployment at ${response.deploymentUrl}`),
+      message
+        .tag('progress')
+        .append(`Deployment in progress... You can view the deployment at ${response.deploymentUrl}`),
     )
     client.close()
   }
