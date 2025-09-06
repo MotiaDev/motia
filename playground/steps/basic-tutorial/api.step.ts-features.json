@@ -2,7 +2,7 @@
   {
     "id": "step-configuration",
     "title": "Step Configuration",
-    "description": "All steps should have a defined configuration, this is how you define the step's behavior and how it will be triggered.",
+    "description": "All steps should have a defined configuration. This is how you define the step's behavior and how it will be triggered.",
     "lines": [
       "6-30"
     ]
@@ -26,7 +26,7 @@
   {
     "id": "response-payload",
     "title": "Response Payload",
-    "description": "Definition of the expected response payload, Motia will generate the types automatically based on this schema. This is also important to create the Open API spec later.",
+    "description": "Definition of the expected response payload. Motia will generate the types automatically based on this schema. This is also important to create the Open API spec later.",
     "lines": [
       "26-28"
     ]
@@ -34,7 +34,7 @@
   {
     "id": "event-driven-architecture",
     "title": "Emits",
-    "description": "We can define the events that this step will emit, this is how we can trigger other Motia Steps.",
+    "description": "We can define the events that this step will emit. This is how we can trigger other Motia steps.",
     "lines": [
       "29",
       "39-46"
@@ -59,7 +59,7 @@
   {
     "id": "http-response",
     "title": "HTTP Response",
-    "description": "The handler can return a response to the client. This is how we can return a response to the client. It must comply with the responseSchema defined in the step configuration.",
+    "description": "The handler can return a response to the client. It must comply with the responseSchema defined in the step configuration.",
     "lines": [
       "49"
     ]
