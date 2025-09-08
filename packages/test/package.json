@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "lint": "eslint --config ../../eslint.config.js"
+    "lint": "biome check ."
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
