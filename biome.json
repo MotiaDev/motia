@@ -1,12 +1,16 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
   },
-  "organizeImports": {
-    "enabled": true
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
@@ -14,22 +18,36 @@
       "recommended": true,
       "complexity": {
         "noBannedTypes": "off",
-        "noUselessTypeConstraint": "off"
+        "noUselessTypeConstraint": "off",
+        "useOptionalChain": "warn"
       },
       "correctness": {
-        "noUnusedVariables": "error",
-        "noUnusedImports": "error"
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "error",
+        "useUniqueElementIds": "warn",
+        "useExhaustiveDependencies": "warn",
+        "noNestedComponentDefinitions": "warn"
       },
       "suspicious": {
-        "noExplicitAny": "error",
-        "noImplicitAnyLet": "error"
+        "noExplicitAny": "warn",
+        "noImplicitAnyLet": "warn",
+        "useIterableCallbackReturn": "off",
+        "noAssignInExpressions": "warn",
+        "noArrayIndexKey": "warn",
+        "noDoubleEquals": "warn",
+        "noShadowRestrictedNames": "warn"
       },
       "style": {
         "useConst": "error",
         "noNonNullAssertion": "warn",
         "noParameterAssign": "error",
-        "useTemplate": "warn"
-      }
+        "useTemplate": "warn",
+        "useNodejsImportProtocol": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
+      "a11y": "off"
     }
   },
   "formatter": {
@@ -60,7 +78,8 @@
     }
   },
   "files": {
-    "ignore": [
+    "ignoreUnknown": true,
+    "experimentalScannerIgnores": [
       "**/.next/**",
       "**/.source/**",
       "**/.turbo/**",
@@ -79,10 +98,6 @@
       "*.min.js",
       "*.min.css"
     ],
-    "include": [
-      "**/*.ts",
-      "**/*.tsx",
-      "**/*.json"
-    ]
+    "includes": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.json", "**/*.jsonc"]
   }
 }

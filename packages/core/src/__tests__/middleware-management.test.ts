@@ -1,12 +1,12 @@
 import path from 'path'
 import request from 'supertest'
 import { createEventManager } from '../event-manager'
-import { LockedData } from '../locked-data'
+import type { LockedData } from '../locked-data'
 import { Printer } from '../printer'
 import { createServer } from '../server'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { MemoryStreamAdapter } from '../streams/adapters/memory-stream-adapter'
-import { ApiMiddleware, ApiRouteConfig, Step } from '../types'
+import type { ApiMiddleware, ApiRouteConfig, Step } from '../types'
 
 // Mock callStepFile to prevent actual file execution
 jest.mock('../call-step-file', () => ({
@@ -51,7 +51,9 @@ describe('Middleware Management', () => {
     const eventManager = createEventManager()
     const state = new MemoryStateAdapter()
 
-    server = createServer(lockedData, eventManager, state, { isVerbose: false })
+    server = createServer(lockedData, eventManager, state, {
+      isVerbose: false,
+    })
   })
 
   afterEach(async () => {

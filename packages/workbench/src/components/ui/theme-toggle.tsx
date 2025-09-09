@@ -1,7 +1,8 @@
 import { Moon, Sun } from 'lucide-react'
-import { Theme, useThemeStore } from '@/stores/use-theme-store'
+import type React from 'react'
+import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import React, { useEffect } from 'react'
+import { type Theme, useThemeStore } from '@/stores/use-theme-store'
 
 export const ThemeToggle: React.FC = () => {
   const theme = useThemeStore((state) => state.theme)

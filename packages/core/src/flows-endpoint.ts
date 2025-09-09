@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { LockedData } from './locked-data'
-import { FlowsStream } from './streams/flows-stream'
 import { generateFlow } from './helper/flows-helper'
+import type { LockedData } from './locked-data'
+import { FlowsStream } from './streams/flows-stream'
 
 export const flowsEndpoint = (lockedData: LockedData) => {
   const flowsStream = lockedData.createStream(
@@ -10,8 +10,16 @@ export const flowsEndpoint = (lockedData: LockedData) => {
       hidden: true,
       config: {
         name: '__motia.flows',
-        schema: z.object({ id: z.string(), name: z.string(), steps: z.any(), edges: z.any() }),
-        baseConfig: { storageType: 'custom', factory: () => new FlowsStream(lockedData) },
+        schema: z.object({
+          id: z.string(),
+          name: z.string(),
+          steps: z.any(),
+          edges: z.any(),
+        }),
+        baseConfig: {
+          storageType: 'custom',
+          factory: () => new FlowsStream(lockedData),
+        },
       },
     },
     { disableTypeCreation: true },

@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import type { AgentData } from '@/lib/fetchAgents'
+import { AgentWorkflowExplorer } from './AgentWorkflowExplorer'
+import { AGENT_TABS } from './constants/agentExplorer'
 import { TabSelector } from './TabSelector'
 import Title from './Title'
-import { AgentWorkflowExplorer } from './AgentWorkflowExplorer'
-import { AgentData } from '@/lib/fetchAgents'
-import { AGENT_TABS } from './constants/agentExplorer'
 
 type Props = {
   initialData: AgentData

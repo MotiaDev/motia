@@ -1,8 +1,7 @@
-import React from 'react'
+import { Alignment, Fit } from '@rive-app/react-webgl2'
 import bgBento3 from '@/public/images/landing/bgBento3.webp'
 import { BentoCard, CardText } from './BentoCard'
 import RiveAnimation from './RiveAnimation'
-import { Alignment, Fit } from '@rive-app/react-webgl2'
 
 export default function ChooseLanguage() {
   return (

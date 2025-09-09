@@ -1,4 +1,4 @@
-import { test, expect } from '@/src/motia-fixtures'
+import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('End-to-End Integration Tests', () => {
   test.beforeEach(({ helpers }) => helpers.skipTutorial())

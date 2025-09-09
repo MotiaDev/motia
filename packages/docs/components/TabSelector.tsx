@@ -1,7 +1,8 @@
 'use client'
 
-import React, { MouseEventHandler, ReactNode } from 'react'
 import { motion } from 'framer-motion'
+import type React from 'react'
+import type { MouseEventHandler, ReactNode } from 'react'
 import { AGENT_GMAIL, AGENT_ICONS, AGENT_TABS } from './constants/agentExplorer'
 
 const transition = {
@@ -89,7 +90,10 @@ const IconWrapper: React.FC<IconWrapper> = ({ children, variant, tab }) => {
           backgroundColor: tab === AGENT_GMAIL ? '#fff' : 'rgba(0,0,0,1)',
           filter: tab === AGENT_GMAIL ? 'invert(0%)' : 'invert(100%)',
         },
-        inactive: { boxShadow: '0px 15px 6px -6px rgba(255, 237, 220, 0)', backgroundColor: 'rgba(0,0,0,0)' },
+        inactive: {
+          boxShadow: '0px 15px 6px -6px rgba(255, 237, 220, 0)',
+          backgroundColor: 'rgba(0,0,0,0)',
+        },
       }}
       className="flex h-[32px] w-[32px] items-center justify-center rounded-[4px]"
     >

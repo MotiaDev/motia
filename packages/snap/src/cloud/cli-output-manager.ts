@@ -1,5 +1,5 @@
-import readline from 'readline'
 import colors from 'colors'
+import readline from 'readline'
 import { table } from 'table'
 
 const progress = colors.yellow('➜ [PROGRESS]')

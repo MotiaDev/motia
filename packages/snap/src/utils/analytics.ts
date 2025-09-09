@@ -1,8 +1,8 @@
 import { add, Identify, identify, init, setOptOut, Types } from '@amplitude/analytics-node'
-import { MotiaEnrichmentPlugin } from './amplitude/enrichment-plugin'
-import { isAnalyticsEnabled, getUserIdentifier } from '@motiadev/core'
+import { getUserIdentifier, isAnalyticsEnabled } from '@motiadev/core'
 import { getProjectName } from '@motiadev/core/dist/src/analytics/utils'
 import { version } from '../version'
+import { MotiaEnrichmentPlugin } from './amplitude/enrichment-plugin'
 
 init('ab2408031a38aa5cb85587a27ecfc69c', {
   logLevel: Types.LogLevel.None,

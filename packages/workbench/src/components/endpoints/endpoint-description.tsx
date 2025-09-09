@@ -1,9 +1,9 @@
-import { FC } from 'react'
-import { EndpointResponseSchema } from './endpoint-response-schema'
-import { ApiEndpoint } from '@/types/endpoint'
+import type { FC } from 'react'
+import type { ApiEndpoint } from '@/types/endpoint'
+import { EndpointBodyPanel } from './endpoint-body-panel'
 import { EndpointPathParamsPanel } from './endpoint-path-params-panel'
 import { EndpointQueryParamsPanel } from './endpoint-query-params-panel'
-import { EndpointBodyPanel } from './endpoint-body-panel'
+import { EndpointResponseSchema } from './endpoint-response-schema'
 
 type Props = { endpoint: ApiEndpoint }
 

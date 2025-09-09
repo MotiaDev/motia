@@ -176,19 +176,71 @@ export const WorkbenchLayout: Story = {
               <TabsContent value="logs" className="h-full">
                 <div className="font-mono text-sm">
                   {[
-                    { time: 'Jan 01, 16:20:20.000', id: 'U7WFZ-113568', task: 'Content writing function result' },
-                    { time: 'Jan 01, 12:15:29.000', id: 'WWWWW-44...', task: 'SEO optimization task completion' },
-                    { time: 'Jan 01, 12:15:30.000', id: 'COMP-4456...', task: 'User feedback analysis' },
-                    { time: 'Jan 01, 14:15:55.000', id: 'E2SDF-6678901', task: 'Social media campaign planning' },
-                    { time: 'Jan 01, 16:55:30.000', id: 'G4UJL-8890123', task: 'Website UX improvements' },
-                    { time: 'Jan 01, 15:45:25.000', id: 'I6WNM-1012345', task: 'Product launch planning' },
-                    { time: 'Jan 01, 09:05:00.000', id: 'K8YGR-32345...', task: 'Customer onboarding process' },
-                    { time: 'Jan 01, 14:22:00.000', id: 'MOATS-54567...', task: 'Content calendar creation' },
-                    { time: 'Jan 01, 13:50:30.000', id: 'O2CVG-76789...', task: 'Brand strategy meeting' },
-                    { time: 'Jan 01, 10:50:40.000', id: 'Q4EXY-98901...', task: 'Website performance review' },
-                    { time: 'Jan 01, 11:10:45.000', id: 'S6GHA-1012345', task: 'Market trends analysis' },
-                    { time: 'Jan 01, 12:34:56.444', id: 'U8IKC-3234567', task: 'Partnership outreach initiative' },
-                    { time: 'Jan 01, 15:35:50.000', id: 'U7WFZ-113568', task: 'Content writing function result' },
+                    {
+                      time: 'Jan 01, 16:20:20.000',
+                      id: 'U7WFZ-113568',
+                      task: 'Content writing function result',
+                    },
+                    {
+                      time: 'Jan 01, 12:15:29.000',
+                      id: 'WWWWW-44...',
+                      task: 'SEO optimization task completion',
+                    },
+                    {
+                      time: 'Jan 01, 12:15:30.000',
+                      id: 'COMP-4456...',
+                      task: 'User feedback analysis',
+                    },
+                    {
+                      time: 'Jan 01, 14:15:55.000',
+                      id: 'E2SDF-6678901',
+                      task: 'Social media campaign planning',
+                    },
+                    {
+                      time: 'Jan 01, 16:55:30.000',
+                      id: 'G4UJL-8890123',
+                      task: 'Website UX improvements',
+                    },
+                    {
+                      time: 'Jan 01, 15:45:25.000',
+                      id: 'I6WNM-1012345',
+                      task: 'Product launch planning',
+                    },
+                    {
+                      time: 'Jan 01, 09:05:00.000',
+                      id: 'K8YGR-32345...',
+                      task: 'Customer onboarding process',
+                    },
+                    {
+                      time: 'Jan 01, 14:22:00.000',
+                      id: 'MOATS-54567...',
+                      task: 'Content calendar creation',
+                    },
+                    {
+                      time: 'Jan 01, 13:50:30.000',
+                      id: 'O2CVG-76789...',
+                      task: 'Brand strategy meeting',
+                    },
+                    {
+                      time: 'Jan 01, 10:50:40.000',
+                      id: 'Q4EXY-98901...',
+                      task: 'Website performance review',
+                    },
+                    {
+                      time: 'Jan 01, 11:10:45.000',
+                      id: 'S6GHA-1012345',
+                      task: 'Market trends analysis',
+                    },
+                    {
+                      time: 'Jan 01, 12:34:56.444',
+                      id: 'U8IKC-3234567',
+                      task: 'Partnership outreach initiative',
+                    },
+                    {
+                      time: 'Jan 01, 15:35:50.000',
+                      id: 'U7WFZ-113568',
+                      task: 'Content writing function result',
+                    },
                   ].map((log, index) => (
                     <div
                       key={index}

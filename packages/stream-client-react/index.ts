@@ -1,8 +1,10 @@
-export { Stream } from '@motiadev/stream-client-browser'
-export { StreamItemSubscription } from '@motiadev/stream-client-browser'
-export { StreamGroupSubscription } from '@motiadev/stream-client-browser'
+export {
+  Stream,
+  StreamGroupSubscription,
+  StreamItemSubscription,
+} from '@motiadev/stream-client-browser'
 export { MotiaStreamProvider } from './src/motia-stream-provider'
 export { useMotiaStream } from './src/use-motia-stream'
-export { useStreamItem, type StreamItemArgs } from './src/use-stream-item'
-export { useStreamGroup, type StreamGroupArgs } from './src/use-stream-group'
 export { useStreamEventHandler } from './src/use-stream-event-handler'
+export { type StreamGroupArgs, useStreamGroup } from './src/use-stream-group'
+export { type StreamItemArgs, useStreamItem } from './src/use-stream-item'

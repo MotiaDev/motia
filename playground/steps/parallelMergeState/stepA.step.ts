@@ -1,6 +1,6 @@
+import type { EventConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { EventConfig, Handlers } from 'motia'
-import { ParallelMergeStep } from './parallelMerge.types'
+import type { ParallelMergeStep } from './parallelMerge.types'
 
 export const config: EventConfig = {
   type: 'event',
@@ -17,7 +17,10 @@ export const handler: Handlers['stepA'] = async (_, { emit, traceId, state, logg
 
   await new Promise((resolve) => setTimeout(resolve, 300))
 
-  const partialResultA: ParallelMergeStep = { msg: 'Hello from Step A', timestamp: Date.now() }
+  const partialResultA: ParallelMergeStep = {
+    msg: 'Hello from Step A',
+    timestamp: Date.now(),
+  }
   await state.set<ParallelMergeStep>(traceId, 'stepA', partialResultA)
 
   await emit({

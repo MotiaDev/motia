@@ -1,7 +1,7 @@
 import colors from 'colors'
 import * as cron from 'cron'
-import { Builder, BuildStepConfig } from '../../build/builder'
 import path from 'path'
+import type { Builder, BuildStepConfig } from '../../build/builder'
 
 export type ValidationError = {
   relativePath: string

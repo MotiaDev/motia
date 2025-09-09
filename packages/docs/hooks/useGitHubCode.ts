@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 interface UseGitHubCodeProps {
   repo: string
@@ -7,7 +7,7 @@ interface UseGitHubCodeProps {
 }
 
 export class GitHubService {
-  static async fetchCode(repo: string, path: string, branch: string = 'main'): Promise<string> {
+  static async fetchCode(repo: string, path: string, branch = 'main'): Promise<string> {
     const url = `https://raw.githubusercontent.com/${repo}/${branch}/${path}`
     const response = await fetch(url)
 

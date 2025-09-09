@@ -1,7 +1,7 @@
-import { LockedData } from '../locked-data'
-import { StreamAdapter } from './adapters/stream-adapter'
 import { generateFlow } from '../helper/flows-helper'
-import { FlowResponse } from '../types/flows-types'
+import type { LockedData } from '../locked-data'
+import type { FlowResponse } from '../types/flows-types'
+import { StreamAdapter } from './adapters/stream-adapter'
 
 export class FlowsStream extends StreamAdapter<FlowResponse> {
   constructor(private readonly lockedData: LockedData) {
@@ -18,7 +18,7 @@ export class FlowsStream extends StreamAdapter<FlowResponse> {
     return generateFlow(id, flow.steps)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // biome-ignore lint/correctness/noUnusedVariables: migration
   async delete(_: string): Promise<FlowResponse | null> {
     return null
   }

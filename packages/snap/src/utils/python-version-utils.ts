@@ -21,9 +21,11 @@ export async function getPythonCommand(requestedVersion: string, baseDir: string
 
   // Check if python exists and is version 3+
   try {
-    const result = await executeCommand('python --version', baseDir, { silent: true })
+    const result = await executeCommand('python --version', baseDir, {
+      silent: true,
+    })
     const versionMatch = result.match(/Python\s+(\d+)\.(\d+)\.(\d+)/)
-    if (versionMatch && parseInt(versionMatch[1], 10) >= 3) {
+    if (versionMatch && Number.parseInt(versionMatch[1], 10) >= 3) {
       return 'python'
     }
   } catch (error) {
@@ -53,7 +55,7 @@ export function findPythonSitePackagesDir(venvLibPath: string, pythonVersion: st
         internalLogger.info('Found Python directory', pythonVersionPath)
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /* biome-ignore lint/suspicious/noExplicitAny: migration */
   } catch (error: any) {
     internalLogger.warn('Could not determine Python version directory', error.message)
   }

@@ -1,6 +1,6 @@
 import fs from 'fs'
 import * as path from 'path'
-import { StateAdapter, StateItem, StateItemsInput } from '../state-adapter'
+import type { StateAdapter, StateItem, StateItemsInput } from '../state-adapter'
 import { filterItem, inferType } from './utils'
 
 export type FileAdapterConfig = {
@@ -110,7 +110,12 @@ export class FileStateAdapter implements StateAdapter {
       .map(([key, value]) => {
         const [groupId, itemKey] = key.split(':')
         const itemValue = JSON.parse(value)
-        return { groupId, key: itemKey, value: itemValue, type: inferType(itemValue) }
+        return {
+          groupId,
+          key: itemKey,
+          value: itemValue,
+          type: inferType(itemValue),
+        }
       })
       .filter((item) => (input.groupId ? item.groupId === input.groupId : true))
       .filter((item) => (input.filter ? filterItem(item, input.filter) : true))

@@ -1,5 +1,5 @@
+import { type FC, type ReactNode, useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import { FC, ReactNode, useMemo } from 'react'
 import { Button } from './button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
 
@@ -98,7 +98,9 @@ export const Panel: FC<PanelProps> = ({
           </TabsList>
         )}
         <div className={cn('flex flex-col gap-2 p-4', contentClassName)}>
-          {details?.map((detail, index) => <PanelDetailItem key={index} {...detail} />)}
+          {details?.map((detail, index) => (
+            <PanelDetailItem key={index} {...detail} />
+          ))}
 
           {hasTabs &&
             tabs.map((tab) => (

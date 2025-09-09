@@ -1,4 +1,4 @@
-import { InternalStateManager } from '../types'
+import type { InternalStateManager } from '../types'
 
 export interface StateItem {
   groupId: string

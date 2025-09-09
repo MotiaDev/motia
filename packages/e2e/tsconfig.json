@@ -15,16 +15,8 @@
     "paths": {
       "@/src/*": ["./src/*"],
       "@/fixtures/*": ["./src/fixtures/*"]
-    },
+    }
   },
-  "include": [
-    "tests/**/*",
-    "src/**/*",
-    "playwright.config.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "test-results",
-    "playwright-report"
-  ]
-} 
+  "include": ["tests/**/*", "src/**/*", "playwright.config.ts"],
+  "exclude": ["node_modules", "test-results", "playwright-report"]
+}

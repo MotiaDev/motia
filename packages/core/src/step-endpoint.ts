@@ -1,19 +1,19 @@
-import { LockedData } from './locked-data'
-import { Express } from 'express'
+import type { Express } from 'express'
 import fs from 'fs/promises'
 import { generateStepId } from './helper/flows-helper'
+import type { LockedData } from './locked-data'
 
 const getFeatures = async (filePath: string) => {
-  const stat = await fs.stat(filePath + '-features.json').catch(() => null)
+  const stat = await fs.stat(`${filePath}-features.json`).catch(() => null)
 
   if (!stat || stat.isDirectory()) {
     return []
   }
 
   try {
-    const content = await fs.readFile(filePath + '-features.json', 'utf8')
+    const content = await fs.readFile(`${filePath}-features.json`, 'utf8')
     return JSON.parse(content)
-  } catch (error) {
+  } catch (_error) {
     return []
   }
 }
@@ -35,7 +35,7 @@ export const stepEndpoint = (app: Express, lockedData: LockedData) => {
       const features = await getFeatures(step.filePath)
 
       res.status(200).send({ id, content, features })
-    } catch (error) {
+    } catch (_error) {
       console.error('Error reading step file:', error)
       res.status(500).send({
         error: 'Failed to read step file',

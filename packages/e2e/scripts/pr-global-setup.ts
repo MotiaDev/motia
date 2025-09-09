@@ -1,5 +1,5 @@
-import { execSync, exec } from 'child_process'
-import { existsSync, rmSync, readFileSync, writeFileSync } from 'fs'
+import { exec, execSync } from 'child_process'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'

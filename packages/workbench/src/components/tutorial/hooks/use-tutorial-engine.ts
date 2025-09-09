@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MotiaTutorial } from '../engine/tutorial-engine'
-import { TutorialImage } from '../engine/tutorial-types'
+import type { TutorialImage } from '../engine/tutorial-types'
 import { waitForElementByXPath } from './tutorial-utils'
 
 export const useTutorialEngine = () => {
@@ -49,7 +49,7 @@ export const useTutorialEngine = () => {
       // Run any before actions
       if (step.before) {
         for (const action of step.before) {
-          const monaco = (window as any).monaco;
+          const monaco = (window as any).monaco
           if (action.type === 'click') {
             const element = await waitForElementByXPath(action.selector, action.optional)
 
@@ -57,7 +57,12 @@ export const useTutorialEngine = () => {
               element.scrollIntoView({ behavior: 'smooth', block: 'center' })
               element.click()
               element.dispatchEvent(
-                new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', keyCode: 13 }),
+                new KeyboardEvent('keydown', {
+                  bubbles: true,
+                  cancelable: true,
+                  key: 'Enter',
+                  keyCode: 13,
+                }),
               )
             }
           } else if (action.type === 'fill-editor' && monaco) {

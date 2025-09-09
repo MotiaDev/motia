@@ -1,10 +1,5 @@
 {
   "title": "Examples",
   "defaultOpen": true,
-  "pages": [
-    "multi-language-data-processing",
-    "sentiment-analysis",
-    "rag-docling-weaviate",
-    "uptime-discord-monitor"
-  ]
+  "pages": ["multi-language-data-processing", "sentiment-analysis", "rag-docling-weaviate", "uptime-discord-monitor"]
 }

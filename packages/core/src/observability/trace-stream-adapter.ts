@@ -1,9 +1,9 @@
 import { FileStreamAdapter } from '../streams/adapters/file-stream-adapter'
-import { BaseStreamItem } from '../types-stream'
+import type { BaseStreamItem } from '../types-stream'
 
 export class TraceStreamAdapter<TData> extends FileStreamAdapter<TData> {
   private state: Record<string, unknown> = {}
-  private isDirty: boolean = false
+  private isDirty = false
 
   constructor(filePath: string, streamName: string, streamAdapter: 'file' | 'memory') {
     super(filePath ?? '', streamName)

@@ -1,19 +1,18 @@
 'use client'
 import Image from 'next/image'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import type React from 'react'
+import { useGithubStars } from '@/hooks/useGithubStars'
 import bgFooter from '@/public/images/landing/bgFooter.svg'
 import footerBlueGlow from '@/public/images/landing/footerBlueGlow.svg'
 import footerWordmark from '@/public/images/landing/footerWordmark.svg'
 import footerWordmarkGlow from '@/public/images/landing/footerWordmarkGlow.svg'
-import { discordIcon, githubIcon, starIcon, twitterIcon, linkedinIcon, youtubeIcon } from './Icons'
-import React from 'react'
-import Link from 'next/link'
-
-import SectionAppearAnimation from './SectionAppearAnimation'
-import { GITHUB_LINK, DISCORD_HANDLE, TWITTER_HANDLE, LINKEDIN_HANDLE, YOUTUBE_HANDLE } from '@/utils/constants'
-import { useGithubStars } from '@/hooks/useGithubStars'
-import ModalCTA, { ModalCTAVariants } from './ModalCTA'
-import { usePathname, useRouter } from 'next/navigation'
 import { scrollToId } from '@/utils'
+import { DISCORD_HANDLE, GITHUB_LINK, LINKEDIN_HANDLE, TWITTER_HANDLE, YOUTUBE_HANDLE } from '@/utils/constants'
+import { discordIcon, githubIcon, linkedinIcon, starIcon, twitterIcon, youtubeIcon } from './Icons'
+import ModalCTA, { ModalCTAVariants } from './ModalCTA'
+import SectionAppearAnimation from './SectionAppearAnimation'
 
 const SocialLinks: React.FC = () => {
   const { starCount, isLoading } = useGithubStars()
@@ -44,14 +43,8 @@ const SocialLinks: React.FC = () => {
         >
           {githubIcon} <p>Contribute on Github </p> <p className="max-sm:hidden">|</p>
           <div className="flex items-center gap-[6px] text-white max-sm:hidden">
-            {starIcon} 
-            <p>
-              {isLoading ? (
-                <span className="inline-block animate-pulse">----</span>
-              ) : (
-                starCount || '----'
-              )}
-            </p>
+            {starIcon}
+            <p>{isLoading ? <span className="inline-block animate-pulse">----</span> : starCount || '----'}</p>
           </div>
         </Link>
 
@@ -132,7 +125,10 @@ const HomePageLinks: React.FC = () => {
           Documentation
         </Link>
         <ModalCTA variant={ModalCTAVariants.CLOUD_COMING_SOON} />
-        <Link href="/privacy-policy" className="text-[16px] text-white/60 transition-colors ease-in-out hover:text-white">
+        <Link
+          href="/privacy-policy"
+          className="text-[16px] text-white/60 transition-colors ease-in-out hover:text-white"
+        >
           Privacy Policy
         </Link>
       </div>

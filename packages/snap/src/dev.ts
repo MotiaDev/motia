@@ -1,3 +1,4 @@
+import { flush } from '@amplitude/analytics-node'
 // packages/snap/src/dev.ts
 import {
   createEventManager,
@@ -8,11 +9,10 @@ import {
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
-import { flush } from '@amplitude/analytics-node'
-import { generateLockedData, getStepFiles } from './generate-locked-data'
-import { createDevWatchers } from './dev-watchers'
-import { stateEndpoints } from './dev/state-endpoints'
 import { deployEndpoints } from './cloud/endpoints'
+import { stateEndpoints } from './dev/state-endpoints'
+import { createDevWatchers } from './dev-watchers'
+import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'

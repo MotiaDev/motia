@@ -1,5 +1,5 @@
 import { Position, useReactFlow, useUpdateNodeInternals } from '@xyflow/react'
-import { BaseNodeProps } from '../publicComponents/node-props'
+import type { BaseNodeProps } from '../publicComponents/node-props'
 
 export const useHandlePositions = (data: BaseNodeProps) => {
   const reactFlow = useReactFlow()
@@ -9,14 +9,20 @@ export const useHandlePositions = (data: BaseNodeProps) => {
 
   const updateSourcePosition = (position: 'bottom' | 'right') => {
     reactFlow.updateNode(data.id, {
-      data: { ...data, nodeConfig: { ...data.nodeConfig, sourceHandlePosition: position } },
+      data: {
+        ...data,
+        nodeConfig: { ...data.nodeConfig, sourceHandlePosition: position },
+      },
     })
     updateNodeInternals(data.id)
   }
 
   const updateTargetPosition = (position: 'top' | 'left') => {
     reactFlow.updateNode(data.id, {
-      data: { ...data, nodeConfig: { ...data.nodeConfig, targetHandlePosition: position } },
+      data: {
+        ...data,
+        nodeConfig: { ...data.nodeConfig, targetHandlePosition: position },
+      },
     })
     updateNodeInternals(data.id)
   }

@@ -6,7 +6,7 @@
     "dev": "pnpm run build && pnpm -r --filter=playground dev",
     "dev:workbench": "pnpm run build && pnpm -r --filter=playground dev:workbench",
     "build": "pnpm --filter=!docs run -r build",
-    "lint": "biome check .",
+    "lint": "biome check . --max-diagnostics 310",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "test": "pnpm -r run test",
@@ -17,7 +17,7 @@
     "clean": "rm -rf node_modules pnpm-lock.yaml dist .turbo .next"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.2.2",
     "@types/node": "^22.15.18"
   },
   "resolutions": {

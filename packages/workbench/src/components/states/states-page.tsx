@@ -1,8 +1,8 @@
-import { useGlobalStore } from '@/stores/use-global-store'
 import { cn } from '@motiadev/ui'
 import { useMemo } from 'react'
+import { useGlobalStore } from '@/stores/use-global-store'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
-import { StateItem, useGetStateItems } from './hooks/states-hooks'
+import { type StateItem, useGetStateItems } from './hooks/states-hooks'
 import { StateSidebar } from './state-sidebar'
 
 export const StatesPage = () => {

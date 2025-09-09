@@ -1,46 +1,35 @@
-'use client';
-import { useMemo, useState } from 'react';
-import {
-  Check,
-  ChevronDown,
-  Copy,
-  ExternalLinkIcon,
-  MessageCircleIcon,
-} from 'lucide-react';
-import { Search as SearchIcon } from 'lucide-react'
+'use client'
+import { buttonVariants } from 'fumadocs-ui/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from 'fumadocs-ui/components/ui/popover'
+import { useCopyButton } from 'fumadocs-ui/utils/use-copy-button'
+import { Check, ChevronDown, Copy, ExternalLinkIcon, Search as SearchIcon } from 'lucide-react'
 import Image from 'next/image'
-import { cn } from '@/lib/cn';
-import { useCopyButton } from 'fumadocs-ui/utils/use-copy-button';
-import { buttonVariants } from 'fumadocs-ui/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from 'fumadocs-ui/components/ui/popover';
+import { useMemo, useState } from 'react'
+import { cn } from '@/lib/cn'
 
-const cache = new Map<string, string>();
+const cache = new Map<string, string>()
 
 export function LLMCopyButton({ markdownUrl }: { markdownUrl: string }) {
-  const [isLoading, setLoading] = useState(false);
+  const [isLoading, setLoading] = useState(false)
   const [checked, onClick] = useCopyButton(async () => {
-    const cached = cache.get(markdownUrl);
-    if (cached) return navigator.clipboard.writeText(cached);
+    const cached = cache.get(markdownUrl)
+    if (cached) return navigator.clipboard.writeText(cached)
 
-    setLoading(true);
+    setLoading(true)
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
           'text/plain': fetch(markdownUrl).then(async (res) => {
-            const content = await res.text();
-            cache.set(markdownUrl, content);
-            return content;
+            const content = await res.text()
+            cache.set(markdownUrl, content)
+            return content
           }),
         }),
-      ]);
+      ])
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  });
+  })
 
   return (
     <button
@@ -57,25 +46,16 @@ export function LLMCopyButton({ markdownUrl }: { markdownUrl: string }) {
       {checked ? <Check /> : <Copy />}
       Copy Markdown
     </button>
-  );
+  )
 }
 
 const optionClasses =
-  'text-sm p-2 rounded-lg inline-flex items-center gap-2 hover:text-fd-accent-foreground hover:bg-fd-accent [&_svg]:size-4';
+  'text-sm p-2 rounded-lg inline-flex items-center gap-2 hover:text-fd-accent-foreground hover:bg-fd-accent [&_svg]:size-4'
 
-export function ViewOptions({
-  markdownUrl,
-  githubUrl,
-}: {
-  markdownUrl: string;
-  githubUrl: string;
-}) {
+export function ViewOptions({ markdownUrl, githubUrl }: { markdownUrl: string; githubUrl: string }) {
   const items = useMemo(() => {
-    const fullMarkdownUrl =
-      typeof window !== 'undefined'
-        ? new URL(markdownUrl, window.location.origin)
-        : 'loading';
-    const q = `Read ${fullMarkdownUrl}, I want to ask questions about it.`;
+    const fullMarkdownUrl = typeof window !== 'undefined' ? new URL(markdownUrl, window.location.origin) : 'loading'
+    const q = `Read ${fullMarkdownUrl}, I want to ask questions about it.`
 
     return [
       {
@@ -108,14 +88,18 @@ export function ViewOptions({
         href: `https://scira.ai/?${new URLSearchParams({ q })}`,
         icon: <Image src="/icons/scira.png" alt="Scira AI" width={16} height={16} />,
       },
-    ];
-  }, [githubUrl, markdownUrl]);
+    ]
+  }, [githubUrl, markdownUrl])
 
   return (
     <Popover>
       <PopoverTrigger
         className={cn(
-          buttonVariants({ color: 'secondary', size: 'sm', className: 'gap-2' }),
+          buttonVariants({
+            color: 'secondary',
+            size: 'sm',
+            className: 'gap-2',
+          }),
         )}
       >
         Open
@@ -123,13 +107,7 @@ export function ViewOptions({
       </PopoverTrigger>
       <PopoverContent className="flex flex-col overflow-auto">
         {items.map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            rel="noreferrer noopener"
-            target="_blank"
-            className={cn(optionClasses)}
-          >
+          <a key={item.href} href={item.href} rel="noreferrer noopener" target="_blank" className={cn(optionClasses)}>
             {item.icon}
             {item.title}
             <ExternalLinkIcon className="text-fd-muted-foreground size-3.5 ms-auto" />
@@ -137,7 +115,5 @@ export function ViewOptions({
         ))}
       </PopoverContent>
     </Popover>
-  );
+  )
 }
-
-

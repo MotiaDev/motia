@@ -1,5 +1,5 @@
-import { WebSocket, Server as WsServer } from 'ws'
-import http from 'http'
+import type http from 'http'
+import { type WebSocket, Server as WsServer } from 'ws'
 
 type BaseMessage = { streamName: string; groupId: string; id?: string }
 type JoinMessage = BaseMessage & { subscriptionId: string }
@@ -8,9 +8,12 @@ type StreamEvent<TData> =
   | { type: 'create'; data: TData }
   | { type: 'update'; data: TData }
   | { type: 'delete'; data: TData }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* biome-ignore lint/suspicious/noExplicitAny: migration */
   | { type: 'event'; event: { type: string; data: any } }
-type EventMessage<TData> = BaseMessage & { timestamp: number; event: StreamEvent<TData> }
+type EventMessage<TData> = BaseMessage & {
+  timestamp: number
+  event: StreamEvent<TData>
+}
 
 type Message = { type: 'join' | 'leave'; data: JoinMessage }
 

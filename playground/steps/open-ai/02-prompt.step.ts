@@ -1,4 +1,4 @@
-import { EventConfig, Handlers } from 'motia'
+import type { EventConfig, Handlers } from 'motia'
 import { OpenAI } from 'openai'
 import { z } from 'zod'
 
@@ -33,7 +33,10 @@ export const handler: Handlers['CallOpenAi'] = async (input, context) => {
     await context.state.set('openai-thread-id', threadId, openAiThreadId)
   }
 
-  await openai.beta.threads.messages.create(openAiThreadId, { content: message, role: 'user' })
+  await openai.beta.threads.messages.create(openAiThreadId, {
+    content: message,
+    role: 'user',
+  })
 
   const threadStream = openai.beta.threads.runs.stream(openAiThreadId, {
     assistant_id: assistantId,

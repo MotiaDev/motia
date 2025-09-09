@@ -1,7 +1,7 @@
 import path from 'path'
 import { LockedData } from '../locked-data'
-import { createApiStep, createCronStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 import { NoPrinter } from '../printer'
+import { createApiStep, createCronStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 
 describe('LockedData', () => {
   describe('step creation', () => {
@@ -89,7 +89,10 @@ describe('LockedData', () => {
 
       expect(Object.keys(lockedData.flows)).toEqual(['flow-1', 'flow-2'])
 
-      const newStep = createApiStep({ ...oldStep.config, flows: ['flow-2', 'flow-3'] })
+      const newStep = createApiStep({
+        ...oldStep.config,
+        flows: ['flow-2', 'flow-3'],
+      })
       lockedData.updateStep(oldStep, newStep, { disableTypeCreation: true })
 
       expect(Object.keys(lockedData.flows)).toEqual(['flow-2', 'flow-3'])
@@ -193,7 +196,9 @@ describe('LockedData', () => {
       const handler = jest.fn()
 
       lockedData.on('flow-created', handler)
-      lockedData.createStep(createApiStep({ flows: ['flow-1'] }), { disableTypeCreation: true })
+      lockedData.createStep(createApiStep({ flows: ['flow-1'] }), {
+        disableTypeCreation: true,
+      })
 
       expect(handler).toHaveBeenCalledWith('flow-1')
     })
@@ -216,10 +221,14 @@ describe('LockedData', () => {
       const handler = jest.fn()
 
       lockedData.on('flow-updated', handler)
-      lockedData.createStep(createApiStep({ flows: ['flow-1'] }), { disableTypeCreation: true })
+      lockedData.createStep(createApiStep({ flows: ['flow-1'] }), {
+        disableTypeCreation: true,
+      })
       expect(handler).not.toHaveBeenCalled()
 
-      lockedData.createStep(createEventStep({ flows: ['flow-1'] }), { disableTypeCreation: true })
+      lockedData.createStep(createEventStep({ flows: ['flow-1'] }), {
+        disableTypeCreation: true,
+      })
       expect(handler).toHaveBeenCalledWith('flow-1')
     })
 
@@ -228,7 +237,9 @@ describe('LockedData', () => {
       const updateHandler = jest.fn()
       const event = createEventStep({ flows: ['flow-1'] })
 
-      lockedData.createStep(createApiStep({ flows: ['flow-1'] }), { disableTypeCreation: true })
+      lockedData.createStep(createApiStep({ flows: ['flow-1'] }), {
+        disableTypeCreation: true,
+      })
       lockedData.createStep(event, { disableTypeCreation: true })
 
       // only after second step is added
@@ -246,7 +257,9 @@ describe('LockedData', () => {
 
       lockedData.on('flow-removed', deleteHandler)
 
-      lockedData.createStep(createApiStep({ flows: ['flow-1'] }), { disableTypeCreation: true })
+      lockedData.createStep(createApiStep({ flows: ['flow-1'] }), {
+        disableTypeCreation: true,
+      })
       lockedData.createStep(event, { disableTypeCreation: true })
       expect(deleteHandler).not.toHaveBeenCalled()
 

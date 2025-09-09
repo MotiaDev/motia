@@ -1,9 +1,10 @@
-import { useGlobalStore } from '@/stores/use-global-store'
-import { Trace, TraceGroup } from '@/types/observability'
 import { useStreamGroup, useStreamItem } from '@motiadev/stream-client-react'
 import { Button } from '@motiadev/ui'
 import { Minus, Plus } from 'lucide-react'
-import React, { memo, useMemo, useState } from 'react'
+import type React from 'react'
+import { memo, useMemo, useState } from 'react'
+import { useGlobalStore } from '@/stores/use-global-store'
+import type { Trace, TraceGroup } from '@/types/observability'
 import { useGetEndTime } from './hooks/use-get-endtime'
 import { TraceItem } from './trace-item/trace-item'
 import { TraceItemDetail } from './trace-item/trace-item-detail'
@@ -18,7 +19,10 @@ export const TraceTimeline: React.FC<Props> = memo(({ groupId }) => {
     groupId: 'default',
     id: groupId,
   })
-  const { data } = useStreamGroup<Trace>({ streamName: 'motia-trace', groupId })
+  const { data } = useStreamGroup<Trace>({
+    streamName: 'motia-trace',
+    groupId,
+  })
   const endTime = useGetEndTime(group)
   const [zoom, setZoom] = useState(1)
   const selectedTraceId = useGlobalStore((state) => state.selectedTraceId)

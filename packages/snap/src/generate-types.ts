@@ -7,8 +7,14 @@ const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
 export const generateTypes = async (projectDir: string) => {
   const stepsDir = path.join(projectDir, 'steps')
-  const files = globSync('**/*.step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir })
-  const streamsFiles = globSync('**/*.stream.{ts,js,py,rb}', { absolute: true, cwd: stepsDir })
+  const files = globSync('**/*.step.{ts,js,py,rb}', {
+    absolute: true,
+    cwd: stepsDir,
+  })
+  const streamsFiles = globSync('**/*.stream.{ts,js,py,rb}', {
+    absolute: true,
+    cwd: stepsDir,
+  })
   const lockedData = new LockedData(projectDir, 'memory', new Printer(projectDir))
 
   for (const filePath of files) {

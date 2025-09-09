@@ -1,9 +1,14 @@
-import { Step, MotiaStream } from '@motiadev/core'
-import { Stream } from '@motiadev/core/dist/src/types-stream'
-import { BuildStepConfig } from '../../build/builder'
-import { ValidationError } from '../../build/build-validation'
-import { DeploymentListener, DeployData } from './listener.types'
-import { DeploymentData, DeploymentStreamManager, BuildOutput, UploadOutput } from '../streams/deployment-stream'
+import type { MotiaStream, Step } from '@motiadev/core'
+import type { Stream } from '@motiadev/core/dist/src/types-stream'
+import type { ValidationError } from '../../build/build-validation'
+import type { BuildStepConfig } from '../../build/builder'
+import {
+  type BuildOutput,
+  type DeploymentData,
+  DeploymentStreamManager,
+  type UploadOutput,
+} from '../streams/deployment-stream'
+import type { DeployData, DeploymentListener } from './listener.types'
 
 export class StreamingDeploymentListener implements DeploymentListener {
   private errors: ValidationError[] = []

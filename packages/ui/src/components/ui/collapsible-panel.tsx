@@ -1,10 +1,10 @@
-import React, { PropsWithChildren, ReactNode, useCallback, useMemo, useRef, useState } from 'react'
-import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
-import { Container, ContainerContent, ContainerHeader, ContainerHeaderProps } from '@/components/ui/container.tsx'
-import { Button } from '@/components/ui/button.tsx'
 import { ChevronDown, Equal } from 'lucide-react'
-import { cn } from '@/lib/utils.ts'
+import React, { type PropsWithChildren, type ReactNode, useCallback, useMemo, useRef, useState } from 'react'
+import { type ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { Button } from '@/components/ui/button.tsx'
+import { Container, ContainerContent, ContainerHeader, type ContainerHeaderProps } from '@/components/ui/container.tsx'
 import { Tabs } from '@/components/ui/tabs.tsx'
+import { cn } from '@/lib/utils.ts'
 
 export interface CollapsiblePanelProps extends PropsWithChildren {
   id: string
@@ -33,9 +33,15 @@ const PanelControls: React.FC<PanelControlProps> = ({ header, isCollapsed, onTog
           variant="default"
           onClick={onToggle}
           aria-label={isCollapsed ? 'Expand panel' : 'Collapse panel'}
-          className={cn('h-8 px-3 [&_svg]:size-5', { 'mr-5': variant === 'tabs' })}
+          className={cn('h-8 px-3 [&_svg]:size-5', {
+            'mr-5': variant === 'tabs',
+          })}
         >
-          <ChevronDown className={cn('transition-transform', { '-rotate-180': !isCollapsed })} />
+          <ChevronDown
+            className={cn('transition-transform', {
+              '-rotate-180': !isCollapsed,
+            })}
+          />
         </Button>
       )}
     </ContainerHeader>
@@ -134,7 +140,9 @@ export const CollapsiblePanelGroup: React.FC<React.ComponentProps<typeof PanelGr
         if (React.isValidElement<CollapsiblePanelProps>(child)) {
           const last = resizeHandleCount - 1 === index
           const hasResizeHandle = resizeHandleCount > 1
-          return React.cloneElement(child, { withResizeHandle: hasResizeHandle && !last })
+          return React.cloneElement(child, {
+            withResizeHandle: hasResizeHandle && !last,
+          })
         }
         return child
       })}

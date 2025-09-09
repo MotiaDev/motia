@@ -1,5 +1,6 @@
-import React, { forwardRef, useEffect } from 'react'
-import { TutorialImage } from './engine/tutorial-types'
+import type React from 'react'
+import { forwardRef, useEffect } from 'react'
+import type { TutorialImage } from './engine/tutorial-types'
 
 type TutorialStepProps = {
   step: number
@@ -44,7 +45,12 @@ export const TutorialStep = forwardRef<HTMLDivElement, TutorialStepProps>(
         <div className="driver-popover-description">{description}</div>
 
         {link && (
-          <a href={link} target="_blank" className="text-foreground text-xs font-semibold px-4 hover:underline">
+          <a
+            href={link}
+            target="_blank"
+            className="text-foreground text-xs font-semibold px-4 hover:underline"
+            rel="noreferrer"
+          >
             Learn more
           </a>
         )}
