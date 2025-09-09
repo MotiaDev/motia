@@ -26,7 +26,8 @@ export type StepsConfigFile = {
 }
 
 export interface RouterBuildResult {
-  size: number
+  compressedSize: number
+  uncompressedSize: number
   path: string
 }
 
@@ -39,6 +40,10 @@ export class Builder {
   public readonly stepsConfig: BuildStepsConfig
   public readonly streamsConfig: BuildStreamsConfig
   public routersConfig: BuildRoutersConfig
+  public readonly stepCompressedSizes: Map<string, number> = new Map()
+  public readonly stepUncompressedSizes: Map<string, number> = new Map()
+  public readonly routerCompressedSizes: Map<string, number> = new Map()
+  public readonly routerUncompressedSizes: Map<string, number> = new Map()
   public modulegraphInstalled: boolean = false
   private readonly builders: Map<string, StepBuilder> = new Map()
 
@@ -73,6 +78,11 @@ export class Builder {
     }
   }
 
+  recordStepSize(step: Step, compressedSize: number, uncompressedSize: number) {
+    this.stepCompressedSizes.set(step.filePath, compressedSize)
+    this.stepUncompressedSizes.set(step.filePath, uncompressedSize)
+  }
+
   async buildStep(step: Step): Promise<void> {
     const type = this.determineStepType(step)
     const builder = this.builders.get(type)
@@ -100,15 +110,19 @@ export class Builder {
 
     if (nodeSteps.length > 0 && nodeBuilder) {
       this.listener.onApiRouterBuilding('node')
-      const { size, path } = await nodeBuilder.buildApiSteps(nodeSteps)
-      this.listener.onApiRouterBuilt('node', size)
+      const { compressedSize, uncompressedSize, path } = await nodeBuilder.buildApiSteps(nodeSteps)
+      this.listener.onApiRouterBuilt('node', compressedSize)
       this.routersConfig.node = path
+      this.routerCompressedSizes.set('node', compressedSize)
+      this.routerUncompressedSizes.set('node', uncompressedSize)
     }
     if (pythonSteps.length > 0 && pythonBuilder) {
       this.listener.onApiRouterBuilding('python')
-      const { size, path } = await pythonBuilder.buildApiSteps(pythonSteps)
-      this.listener.onApiRouterBuilt('python', size)
+      const { compressedSize, uncompressedSize, path } = await pythonBuilder.buildApiSteps(pythonSteps)
+      this.listener.onApiRouterBuilt('python', compressedSize)
       this.routersConfig.python = path
+      this.routerCompressedSizes.set('python', compressedSize)
+      this.routerUncompressedSizes.set('python', uncompressedSize)
     }
   }
 

@@ -92,4 +92,59 @@ export class UvPackager {
 
     await this.runCommand('uv', args, { cwd: this.projectDir })
   }
+
+  async packageSpecificDependencies(targetDir: string, packages: Set<string>): Promise<void> {
+    if (packages.size === 0) {
+      return
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true })
+    }
+
+    const requirementsFile = path.join(this.projectDir, 'requirements.txt')
+    const packageVersions = new Map<string, string>()
+
+    if (fs.existsSync(requirementsFile)) {
+      const requirements = fs.readFileSync(requirementsFile, 'utf-8')
+      const lines = requirements.split('\n').filter((line) => line.trim() && !line.startsWith('#'))
+
+      for (const line of lines) {
+        const match = line.match(/^([a-zA-Z0-9_-]+)(.*)$/)
+        if (match) {
+          const [, packageName, versionSpec] = match
+          packageVersions.set(packageName.toLowerCase(), versionSpec || '')
+        }
+      }
+    }
+
+    const packagesToInstall: string[] = []
+    for (const pkg of packages) {
+      const versionSpec = packageVersions.get(pkg.toLowerCase()) || ''
+      packagesToInstall.push(`${pkg}${versionSpec}`)
+    }
+
+    if (packagesToInstall.length === 0) {
+      return
+    }
+
+    const args = [
+      'pip',
+      'install',
+      '--target',
+      targetDir,
+      '--python-version',
+      this.config.pythonVersion || '3.13',
+      '--python-platform',
+      this.config.platform || 'x86_64-manylinux2014',
+    ]
+
+    if (this.config.onlyBinary) {
+      args.push('--only-binary=:all:')
+    }
+
+    args.push(...packagesToInstall)
+
+    await this.runCommand('uv', args, { cwd: this.projectDir })
+  }
 }
