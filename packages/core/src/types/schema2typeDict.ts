@@ -1,5 +1,3 @@
-// schema2typeddict.ts
-// TypeScript port of schema2typeddict.py — behaviorally equivalent
 // Generates Python TypedDict code from a concise schema language.
 
 import { unknown } from "zod";

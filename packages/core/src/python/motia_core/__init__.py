@@ -38,18 +38,9 @@ class FlowContext[TEmitData = Never](Protocol):
     logger: Logger
     streams: FlowContextStateStreams
 
-@dataclass
-class ApiRequest[
-    TBody = object,
-]:
-    pathParams: dict[str, str]
-    queryParams: dict[str, str | list[str]]
-    body: TBody
-    headers: dict[str, str | list[str]]
-
 TApiReqBody = TypeVar("TApiReqBody")
 
-class ApiReq(TypedDict, Generic[TApiReqBody]):
+class ApiRequest(TypedDict, Generic[TApiReqBody]):
     pathParams: dict[str, str]
     queryParams: dict[str, str | list[str]]
     body: TApiReqBody
@@ -77,53 +68,46 @@ class EmitObject:
 
 Emit = str | EmitObject
 
-@dataclass
-class ApiRouteConfig:
+class ApiRouteConfig(TypedDict):
     type: Literal["api"]
     name: str
     path: str
     method: ApiRouteMethod
     emits: list[Emit]
-    description: str | None = None
-    virtualEmits: list[Emit] | None = None
-    virtualSubscribes: list[str] | None = None
-    flows: list[str] | None = None
-    middleware: list[ApiMiddleware[Any, Any, Any]] | None = None
-    bodySchema: object | None = None
-    responseSchema: dict[int, object] | None = None                
-    queryParams: list[QueryParam] | None = None
-    includeFiles: list[str] | None = None
+    description: NotRequired[str | None]
+    virtualEmits: NotRequired[list[Emit] | None]
+    virtualSubscribes: NotRequired[list[str] | None]
+    flows: NotRequired[list[str] | None]
+    middleware: NotRequired[list[ApiMiddleware[Any, Any, Any]] | None]
+    bodySchema: NotRequired[object | None]
+    responseSchema: NotRequired[dict[int, object] | None]
+    queryParams: NotRequired[list[QueryParam] | None]
+    includeFiles: NotRequired[list[str] | None]
 
-@dataclass
-class CronStepConfig:
+class CronStepConfig(TypedDict):
     type: Literal["cron"]
     name: str
     cron: str
     emits: list[Emit]
-    description: str | None = None
-    virtualEmits: list[Emit] | None = None
-    flows: list[str] | None = None
+    # Optional/omittable keys
+    description: NotRequired[str | None]
+    virtualEmits: NotRequired[list[Emit] | None]
+    flows: NotRequired[list[str] | None]
+    includeFiles: NotRequired[list[str] | None]
 
-    # Files to include in the step bundle.
-    # Needs to be relative to the step file.
-    includeFiles: list[str] | None = None
-
-@dataclass
-class EventStepConfig:
+class EventStepConfig(TypedDict):
     type: Literal["event"]
     name: str
     subscribes: list[str]
     emits: list[Emit]
     input: object
-    description: str | None = None
-    virtualEmits: list[Emit] | None = None
-    flows: list[str] | None = None
-    
-    # Files to include in the step bundle.
-    # Needs to be relative to the step file.
-    includeFiles: list[str] | None = None
+    # Optional/omittable keys
+    description: NotRequired[str | None]
+    virtualEmits: NotRequired[list[Emit] | None]
+    flows: NotRequired[list[str] | None]
+    includeFiles: NotRequired[list[str] | None]
 
-# Stream - Types
+# Stream - Types ----------------------------------------------------------------------------------------
 class HasId(TypedDict):
     id: str
 
