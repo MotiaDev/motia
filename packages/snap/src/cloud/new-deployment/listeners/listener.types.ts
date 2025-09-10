@@ -1,7 +1,12 @@
 import { Step } from '@motiadev/core'
 import { Stream } from '@motiadev/core/dist/src/types-stream'
 import { BuildStepConfig } from '../../build/builder'
-import { ValidationError } from '../utils/validation'
+
+export type ValidationError = {
+  relativePath: string
+  message: string
+  step: BuildStepConfig
+}
 
 export type BuildListener = {
   onBuildStart: (step: Step) => void

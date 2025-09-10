@@ -10,6 +10,10 @@ type StartDeploymentRequest = {
   routers: BuildRoutersConfig
 }
 
-export const startDeployment = async (request: StartDeploymentRequest): Promise<void> => {
-  await axios.post(cloudEndpoints.startDeployment, request)
+type StartDeploymentResult = {
+  deploymentUrl: string
+}
+
+export const startDeployment = async (request: StartDeploymentRequest): Promise<StartDeploymentResult> => {
+  return axios.post<StartDeploymentRequest, StartDeploymentResult>(cloudEndpoints.startDeployment, request)
 }

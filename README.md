@@ -55,7 +55,7 @@ Motia unifies APIs, background jobs, workflows, and AI agents into a **single co
 
 Write **JavaScript, TypeScript, Python, and more** in the same workflow. **What used to take 5 frameworks to build now comes out of the box with Motia.**
 
-[![Motia combines APIs, background queues, and AI agents into one system](assets/Motia_Github_Repository_GIF.gif)](https://motia.dev)
+[![Motia combines APIs, background queues, and AI agents into one system](assets/github-readme-banner.gif)](https://motia.dev)
 
 ## 🚀 Quickstart
 
@@ -64,7 +64,7 @@ Get Motia project up and running in **under 60 seconds**:
 ### 1. Bootstrap a New Motia Project
 
 ```bash
-npx motia@latest create -i   # runs the interactive terminal
+npx motia@latest create   # runs the interactive terminal
 ```
 
 Follow the prompts to pick a template, project name, and language.
