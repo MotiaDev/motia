@@ -4282,7 +4282,7 @@ Ready to build your first multi-language Motia application? Let's get it running
 Start by creating a new Motia project with the interactive setup.
 
 ```shell
-npx motia@latest create -i
+npx motia@latest create
 ```
 
 ### Navigate and Start Development
@@ -4817,7 +4817,7 @@ Ready to build your first multi-language Motia application? Let's get it running
 Start by creating a new Motia project with the interactive setup.
 
 ```shell
-npx motia@latest create -i
+npx motia@latest create
 ```
 
 ### Navigate and Start Development
@@ -9850,7 +9850,7 @@ description: Get up and running with a new Motia project in just a few seconds.
 Use `npx` to create a new Motia project. This single command will scaffold a new application and install all necessary dependencies.
 
 ```bash
-npx motia@latest create -i
+npx motia@latest create
 ```
 
 ![Create App Command](/docs-images/motia-build-your-app-1.gif)

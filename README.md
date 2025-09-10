@@ -64,7 +64,7 @@ Get Motia project up and running in **under 60 seconds**:
 ### 1. Bootstrap a New Motia Project
 
 ```bash
-npx motia@latest create -i   # runs the interactive terminal
+npx motia@latest create   # runs the interactive terminal
 ```
 
 Follow the prompts to pick a template, project name, and language.

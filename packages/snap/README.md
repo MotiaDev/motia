@@ -32,7 +32,7 @@ Get Motia project up and running in **under 60 seconds**:
 ### 1. Bootstrap a New Motia Project
 
 ```bash
-npx motia@latest create -i   # runs the interactive terminal
+npx motia@latest create   # runs the interactive terminal
 ```
 
 Follow the prompts to pick a template, project name, and language.
@@ -228,7 +228,7 @@ npx motia create [options]
   # -n, --name <project name>: Project name; use . or ./ to use current directory
   # -t, --template <template name>: Template to use; run npx motia templates to view available ones
   # -c, --cursor: Adds .cursor config for Cursor IDE
-  # Alternatively, you can use `npx motia create -i` to use the create command in interactive mode
+  # Alternatively, you can use `npx motia create` to use the create command in interactive mode
 ```
 
 ### `npx motia dev`
