@@ -21,7 +21,7 @@ All connected automatically with zero configuration and strict type safety.
 
 ```bash
 # Create a new Motia app
-npx motia@latest create -i
+npx motia@latest create
 ```
 ![Create App Command](/docs-images/motia-build-your-app-1.gif)
 

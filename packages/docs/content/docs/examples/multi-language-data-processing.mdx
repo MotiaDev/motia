@@ -423,7 +423,7 @@ Ready to build your first multi-language Motia application? Let's get it running
 Start by creating a new Motia project with the interactive setup.
 
 ```shell
-npx motia@latest create -i
+npx motia@latest create
 ```
 
 ### Navigate and Start Development

@@ -10,7 +10,7 @@ description: Get up and running with a new Motia project in just a few seconds.
 Use `npx` to create a new Motia project. This single command will scaffold a new application and install all necessary dependencies.
 
 ```bash
-npx motia@latest create -i
+npx motia@latest create
 ```
 
 ![Create App Command](/docs-images/motia-build-your-app-1.gif)
