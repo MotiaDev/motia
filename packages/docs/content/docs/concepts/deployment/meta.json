@@ -1,4 +1,8 @@
 {
   "defaultOpen": true,
-  "pages": ["getting-started", "motia-cloud", "self-hosted"]
+  "pages": [
+    "getting-started",
+    "motia-cloud",
+    "self-hosted"
+  ]
 }
