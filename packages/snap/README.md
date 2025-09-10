@@ -21,7 +21,7 @@ Motia is a **modern backend framework** that unifies APIs, background jobs, work
 
 Motia brings cohesion to the fragmented backend world with our core primitive: the **Step**.
 
-![Motia combines APIs, background queues, and AI agents into one system](https://github.com/MotiaDev/motia/raw/main/assets/Motia_Github_Repository_GIF.gif)
+![Motia combines APIs, background queues, and AI agents into one system](https://github.com/MotiaDev/motia/raw/main/assets/github-readme-banner.gif)
 
 ---
 
