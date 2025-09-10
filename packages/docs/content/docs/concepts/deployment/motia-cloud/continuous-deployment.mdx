@@ -19,12 +19,12 @@ clicking on the Settings tab.
 ## Creating an API Key
 
 When you open Motia Cloud, you should see API Keys tab. Click on the Create API Key button to create a new API Key.
-Copy the API Key and add it to your project [as a secret](https://docs.github.com/pt/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
+Copy the API Key and add it to your project [as a secret](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
 Do NOT paste the API Key content to your workflow file.
 
 ## Populating Environment Variables
 
-Add all environment variables you need on your project to [repository secrets](https://docs.github.com/pt/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets),
+Add all environment variables you need on your project to [repository secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets),
 then make sure to update `Create Env file` section in the workflow file.
 
 ## Using GitHub Actions
@@ -49,7 +49,7 @@ on:
 
 env:
   # Add your API Key as a Secret in your Repository (Do NOT add it here)
-  # https://docs.github.com/pt/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
+  # https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
   MOTIA_API_KEY: ${{ secrets.MOTIA_API_KEY }}
   # Fill your environment ID here
   MOTIA_ENV_ID: __FILL YOUR ENVIRONMENT ID HERE__
@@ -92,7 +92,7 @@ jobs:
 
       # Replace MY_SECRET with your secret
       # Add as many as you need
-      # https://docs.github.com/pt/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
+      # https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
       - name: Create Env file
         run: |
           echo "MY_SECRET=${{ secrets.MY_SECRET }}" > .env
