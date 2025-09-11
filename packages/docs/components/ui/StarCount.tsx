@@ -7,7 +7,7 @@ import { useStreamItem } from '@motiadev/stream-client-react'
 // Single digit reel
 function Reel({ digit }: { digit: number }) {
   return (
-    <div className="overflow-hidden h-6 w-[12px] flex justify-center items-center rounded-md text-center">
+    <div className="overflow-hidden h-6 w-[10px] font-mono font-bold flex justify-center items-center rounded-md text-center">
       <AnimatePresence initial={false} mode="popLayout">
         <motion.div
           key={digit}
