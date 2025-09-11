@@ -37,9 +37,16 @@ export class PackageHandler {
     const usedPackages = analysisResult.usedPackages
 
     // Check if we can use optimized packaging
-    const canOptimize = this.packageCopier.isLambdaSitePackagesAvailable() && usedPackages.size > 0
+    const canOptimize =
+      this.packageCopier.isLambdaSitePackagesAvailable() &&
+      usedPackages.size > 0 &&
+      process.env.MOTIA_PYTHON_OPTIMIZED === 'true' //disabling optimization by default for now
 
-    return await this.buildFallback(archive)
+    if (canOptimize) {
+      return await this.buildOptimized(usedPackages, archive, projectDir)
+    } else {
+      return await this.buildFallback(archive)
+    }
   }
 
   private async buildOptimized(
