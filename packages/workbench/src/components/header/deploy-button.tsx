@@ -74,8 +74,13 @@ export const DeployButton = () => {
           </div>
         </div>
       )}
-      <Button variant="accent" onClick={onOpen}>
-        Deploy <Rocket />
+      <Button
+        variant="ghost"
+        onClick={onOpen}
+        className="font-semibold text-sm dark:bg-white dark:text-black dark:hover:bg-white/90 bg-black/90 hover:bg-black/80 text-white"
+      >
+        <Rocket />
+        Deploy
       </Button>
     </>
   )
