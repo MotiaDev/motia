@@ -57,12 +57,10 @@ export class CliListener implements DeploymentListener {
       message.box(['Unable to deploy to Motia Cloud, please fix the following errors'], 'red')
     })
 
-    const errorTag = colors.red('✗ [ERROR]')
-
     errors.map((error) => {
       const filePath = colors.gray(`[${error.relativePath}]`)
       this.context.log(`build-errors-${error.relativePath}`, (message) => {
-        message.tag('failed').append(`${errorTag} ${filePath} ${error.message}`)
+        message.tag('failed').append(`${filePath} ${error.message}`)
       })
     })
 

@@ -121,7 +121,7 @@
   flex-grow: 0;
 }
 
-.driver-popover-navigation-btns:hover:before {
+.driver-popover-navigation-btns-hint:hover:before {
   content: 'Use arrow keys to navigate';
   position: absolute;
   color: white;
@@ -156,9 +156,16 @@
 }
 
 .driver-popover-next-btn, .driver-popover-next-btn:hover {
-  background-color: var(--accent-1000);
   color: white;
   padding: 16px 32px;
+}
+
+.driver-popover-next-btn {
+  background-color: var(--accent-1000);
+}
+
+.driver-popover-next-btn:hover {
+  background-color: var(--accent-900);
 }
 
 .driver-popover-footer {

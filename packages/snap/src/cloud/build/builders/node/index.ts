@@ -81,13 +81,13 @@ export class NodeBuilder implements StepBuilder {
     archiver.append(fs.createReadStream(routerMap), 'router.js.map')
     includeStaticFiles(steps, this.builder, archiver)
 
-    const size = await archiver.finalize()
+    const { compressedSize, uncompressedSize } = await archiver.finalize()
 
     fs.unlinkSync(tsRouter)
     fs.unlinkSync(routerJs)
     fs.unlinkSync(routerMap)
 
-    return { size, path: zipName }
+    return { compressedSize, uncompressedSize, path: zipName }
   }
 
   async build(step: Step): Promise<void> {
@@ -119,12 +119,13 @@ export class NodeBuilder implements StepBuilder {
       archiver.append(fs.createReadStream(outputMapFile), entrypointMapPath)
       includeStaticFiles([step], this.builder, archiver)
 
-      const size = await archiver.finalize()
+      const { compressedSize, uncompressedSize } = await archiver.finalize()
 
       fs.unlinkSync(outputJsFile)
       fs.unlinkSync(outputMapFile)
 
-      this.listener.onBuildEnd(step, size)
+      this.builder.recordStepSize(step, compressedSize, uncompressedSize)
+      this.listener.onBuildEnd(step, compressedSize)
     } catch (err) {
       this.listener.onBuildError(step, err as Error)
       throw err
