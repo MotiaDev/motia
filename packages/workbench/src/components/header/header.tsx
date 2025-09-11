@@ -2,6 +2,7 @@ import React from 'react'
 import { useThemeStore } from '@/stores/use-theme-store'
 import { ThemeToggle } from '../ui/theme-toggle'
 import { TutorialButton } from '../tutorial/tutorial-button'
+import { DeployButton } from './deploy-button'
 
 export const Header: React.FC = () => {
   const theme = useThemeStore((state) => state.theme)
@@ -11,6 +12,7 @@ export const Header: React.FC = () => {
       <img src={`/motia-${theme}.png`} className="h-5" id="logo-icon" data-testid="logo-icon" />
       <div className="flex-1" />
       <TutorialButton />
+      <DeployButton />
       <ThemeToggle />
     </header>
   )

@@ -54,7 +54,7 @@ export const TutorialStep = forwardRef<HTMLDivElement, TutorialStepProps>(
             {step} <span className="text-foreground">/</span> {totalSteps}
           </div>
 
-          <div className="driver-popover-navigation-btns flex gap-2">
+          <div className="driver-popover-navigation-btns driver-popover-navigation-btns-hint flex gap-2">
             <button className="driver-popover-next-btn" onClick={onNext}>
               {step < totalSteps ? 'Continue' : 'Finish'}
             </button>
