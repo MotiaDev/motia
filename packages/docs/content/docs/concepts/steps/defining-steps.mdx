@@ -7,6 +7,14 @@ description: Learn how to create powerful, type-safe steps in TypeScript, Python
 
 Steps are the core building blocks of Motia - isolated, composable functions that handle specific pieces of business logic. Each step is **automatically discovered**, **type-safe**, and **observable** across multiple programming languages.
 
+<Callout type="default">
+<strong>Where to place step files</strong>
+
+- Place all step files inside the top-level `steps/` directory of your project.
+- You can organize steps in nested subfolders within `steps/` (e.g., `steps/payments/webhook.step.ts`, `steps/auth/login.step.ts`).
+- Files outside `steps/` (like `src/steps/...`) are not discovered yet.
+</Callout>
+
 ## The Motia Step Pattern
 
 Every step follows a simple, consistent pattern:

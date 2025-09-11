@@ -1,7 +1,7 @@
 import { BuildListener, ValidationError } from '../new-deployment/listeners/listener.types'
 import { Builder } from './builder'
 import colors from 'colors'
-import * as cron from 'cron'
+import * as cron from 'node-cron'
 import path from 'path'
 
 export const buildValidation = (builder: Builder, listener: BuildListener) => {
@@ -38,11 +38,31 @@ export const validateStepsConfig = (builder: Builder) => {
   }
 
   for (const step of Object.values(builder.stepsConfig)) {
-    // TODO: check bundle size
     const relativePath = path.relative(builder.projectDir, step.filePath)
 
+    // Check individual step bundle size (150MB limit - uncompressed)
+    const stepUncompressedSize = builder.stepUncompressedSizes.get(step.filePath)
+    if (stepUncompressedSize !== undefined) {
+      const maxSize = 250 * 1024 * 1024 // 250MB in bytes
+      if (stepUncompressedSize > maxSize) {
+        const sizeMB = (stepUncompressedSize / (1024 * 1024)).toFixed(2)
+        const compressedSize = builder.stepCompressedSizes.get(step.filePath)
+        const compressedSizeMB = compressedSize ? (compressedSize / (1024 * 1024)).toFixed(2) : 'unknown'
+        errors.push({
+          relativePath,
+          message: [
+            'Step bundle size exceeds 250MB limit (uncompressed).',
+            `  ${colors.red('➜')} Uncompressed size: ${colors.magenta(sizeMB + 'MB')}`,
+            `  ${colors.red('➜')} Compressed size: ${colors.cyan(compressedSizeMB + 'MB')}`,
+            `  ${colors.red('➜')} Maximum allowed: ${colors.blue('250MB')}`,
+          ].join('\n'),
+          step,
+        })
+      }
+    }
+
     if (step.config.type === 'cron') {
-      if (!cron.validateCronExpression(step.config.cron)) {
+      if (!cron.validate(step.config.cron)) {
         errors.push({
           relativePath,
           message: [
@@ -80,6 +100,26 @@ export const validateStepsConfig = (builder: Builder) => {
           `  ${colors.red('➜')} ${colors.magenta(step.config.name)}`,
         ].join('\n'),
         step,
+      })
+    }
+  }
+
+  // Check API router bundle sizes (150MB limit - uncompressed)
+  const maxRouterSize = 150 * 1024 * 1024 // 150MB in bytes
+  for (const [routerType, uncompressedSize] of builder.routerUncompressedSizes.entries()) {
+    if (uncompressedSize > maxRouterSize) {
+      const uncompressedSizeMB = (uncompressedSize / (1024 * 1024)).toFixed(2)
+      const compressedSize = builder.routerCompressedSizes.get(routerType)
+      const compressedSizeMB = compressedSize ? (compressedSize / (1024 * 1024)).toFixed(2) : 'unknown'
+      errors.push({
+        relativePath: `${routerType} API router`,
+        message: [
+          `${routerType.charAt(0).toUpperCase() + routerType.slice(1)} API router bundle size exceeds 150MB limit (uncompressed).`,
+          `  ${colors.red('➜')} Uncompressed size: ${colors.magenta(uncompressedSizeMB + 'MB')}`,
+          `  ${colors.red('➜')} Compressed size: ${colors.cyan(compressedSizeMB + 'MB')}`,
+          `  ${colors.red('➜')} Maximum allowed: ${colors.blue('150MB')}`,
+        ].join('\n'),
+        step: Object.values(builder.stepsConfig)[0], // Use first step as reference
       })
     }
   }

@@ -45,6 +45,14 @@ Here's what a typical Motia project looks like:
 The `steps/` directory is the heart of your Motia application - this is where all your workflow logic lives. Motia automatically discovers and registers any file following the naming pattern.
 </Callout>
 
+<Callout>
+<strong>Location and nesting rules</strong>
+
+- The `steps/` directory must live at the <em>project root</em> (e.g., `my-motia-project/steps`).
+- You can freely nest steps in subfolders under `steps/` (e.g., `steps/aaa/a1.step.ts`, `steps/bbb/ccc/c1.step.py`).
+- Discovery is recursive inside `steps/`, so deeper folder structures for large apps are supported.
+</Callout>
+
 ## Automatic Step Discovery
 
 <Callout type="default">
