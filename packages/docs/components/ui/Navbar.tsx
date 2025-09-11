@@ -1,13 +1,14 @@
 'use client'
-import Image from 'next/image'
-import { AnimatePresence, motion, spring, useScroll } from 'framer-motion'
 import logoFull from '@/public/images/logoFull.png'
 import { DISCORD_HANDLE, GITHUB_LINK } from '@/utils/constants'
-import { discordIcon, githubIcon, starIcon } from '../Icons'
+import { MotiaStreamProvider } from '@motiadev/stream-client-react'
+import { AnimatePresence, motion, useScroll } from 'framer-motion'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { useGithubStars } from '@/hooks/useGithubStars'
+import { discordIcon, githubIcon } from '../Icons'
 import ModalCTA, { ModalCTAVariants } from '../ModalCTA'
+import { StarCount } from './StarCount'
 
 export default function Navbar() {
   //Hook for mobile navigation menu to open on clicking the hamburger
@@ -16,9 +17,6 @@ export default function Navbar() {
   //ScrollY offset to change the navbar to a background blur after user scrolls the page
   const { scrollY } = useScroll()
   const [scrolled, setScrolled] = useState(false)
-
-  //Hook to get live star count
-  const { starCount, isLoading } = useGithubStars()
 
   //Set scroll value to triger the animation
   useEffect(() => {
@@ -144,17 +142,8 @@ export default function Navbar() {
                   target="_blank"
                   className="vercel-oss-button gap-2"
                 >
-                  <svg
-                    aria-label="Vercel logomark"
-                    height="15"
-                    role="img"
-                    viewBox="0 0 74 64"
-                    className="fill-current"
-                  >
-                    <path
-                      d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z"
-                      fill="white"
-                    ></path>
+                  <svg aria-label="Vercel logomark" height="15" role="img" viewBox="0 0 74 64" className="fill-current">
+                    <path d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z" fill="white"></path>
                   </svg>
                   Vercel OSS 2025
                 </Link>
@@ -180,16 +169,6 @@ export default function Navbar() {
                   className="flex cursor-pointer items-center gap-[16px] py-[8px] text-[16px] text-white"
                 >
                   {githubIcon} <p>Contribute on Github </p> <p className="max-md:hidden">|</p>
-                  <div className="flex items-center gap-[6px] text-white max-md:hidden">
-                    {starIcon} 
-                    <p>
-                      {isLoading ? (
-                        <span className="inline-block animate-pulse">----</span>
-                      ) : (
-                        starCount || '----'
-                      )}
-                    </p>
-                  </div>
                 </Link>
               </div>
             </div>
@@ -269,10 +248,7 @@ export default function Navbar() {
               viewBox="0 0 74 64"
               className="fill-current block m-0 p-0"
             >
-              <path
-                d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z"
-                fill="white"
-              ></path>
+              <path d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z" fill="white"></path>
             </svg>
             <span className="max-lg:hidden">Vercel OSS 2025</span>
           </Link>
@@ -293,25 +269,10 @@ export default function Navbar() {
            * Github Link
            *
            **/}
-          <Link
-            href={GITHUB_LINK}
-            target="_blank"
-            className="font-tasa flex cursor-pointer items-center gap-[16px] rounded-[4px] border-[1px] border-white/20 bg-black/40 px-[8px] py-[4px] text-[16px] font-medium tracking-wider text-white transition-colors ease-in-out hover:text-white max-sm:gap-[8px] max-sm:py-[8px] max-sm:text-[14px]"
-          >
-            {githubIcon} 
-            <p className="sm:-ml-[8px] max-lg:hidden">Github </p> 
-            <p className="text-white/40 max-lg:hidden">|</p>
-            <div className="flex items-center gap-[6px] text-white">
-              {starIcon} 
-              <p>
-                {isLoading ? (
-                  <span className="inline-block animate-pulse">----</span>
-                ) : (
-                  starCount || '----'
-                )}
-              </p>
-            </div>
-          </Link>
+
+          <MotiaStreamProvider address="wss://ws-er966d-aqckhh.sergio-1kbj.motia.cloud">
+            <StarCount />
+          </MotiaStreamProvider>
           <HamburgerMenu />
         </div>
       </nav>
