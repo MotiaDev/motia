@@ -85,27 +85,25 @@ export function tokenize(src: string): Tok[] {
       const word = s.slice(i, j);
       const kind: TokKind = KWDS.has(word) ? "KW" : "IDENT";
       out.push({ kind, value: word, pos: i });
-      i = j; continue;
+      i = j; 
+      continue;
     }else{
-    // catch-all: consume until whitespace or a stop char
-    const STOP = new Set(["{","}","[","]",":",";",",","<",">","?"]);
-    let j = i;
-    while (
-      j < s.length &&
-      !(s[j] === "[" && s[j+1] === "]") && // stop before []
-      !STOP.has(s[j]!)
-    ) {
-      j++;
+      // catch-all: consume until whitespace or a stop char
+      const STOP = new Set(["{","}","[","]",":",";",",","<",">","?"]);
+      let j = i;
+      while (
+        j < s.length &&
+        !(s[j] === "[" && s[j+1] === "]") && // stop before []
+        !STOP.has(s[j]!)
+      ) {
+        j++;
+      }
+      if (j === i) j++;
+      const text = s.slice(i, j);
+      out.push({ kind: "UNKNOWN", value: text, pos: i });
+      i = j;
+      continue;
     }
-    if (j === i) j++; // safety: always consume at least one char
-    const text = s.slice(i, j);
-    out.push({ kind: "UNKNOWN", value: text, pos: i });
-    i = j;
-    continue;
-  }
-
-
-    throw new SyntaxError(`Unexpected character ${JSON.stringify(c)} at ${i}`);
   }
   return out;
 }
@@ -131,8 +129,7 @@ class Parser {
     if (!t || t.kind !== kind) {
       const got = t ? t.kind : "EOF";
       const pos = t ? t.pos : "EOF";
-      console.log(this.src)
-      throw new SyntaxError(`Expected ${kind}, got ${got} at pos ${pos}`);
+      throw new SyntaxError(`Expected ${kind}, got ${got} at pos ${pos}. The source schema is : ${this.src}`);
     }
     this.i++;
     return t;
@@ -144,25 +141,22 @@ class Parser {
     return null;
   }
 
-  // Schema := Object
-  parse_schema(): Obj { return this.parse_object(); }
+  parse_schema(): Obj { 
+    return this.parse_object(); 
+  }
 
-  // Object := '{' ( Field (';' Field)* )? '}' (trailing ';' allowed)
   private parse_object(): Obj {
     this.want("LBRACE");
     const fields: Field[] = [];
     while (this.peek() && this.peek()!.kind !== "RBRACE") {
       fields.push(this.parse_field());
-      this.accept("SEMI");
-      if (this.accept("SEMI") || this.accept("COMMA")) {
-        while (this.accept("SEMI") || this.accept("COMMA")) { /* swallow extras */ }
-      }
+      while (this.accept("SEMI") || this.accept("COMMA")) {}
     }
     this.want("RBRACE");
     return { node: "Obj", fields };
   }
 
-  // Field := Ident Opt? ':' Type
+  // Parse the field name
   private parse_field(): Field {
     const name_tok = this.want("IDENT");
     const optional = !!this.accept("Q");
@@ -171,7 +165,7 @@ class Parser {
     return { name: name_tok.value, typ, optional };
   }
 
-  // Type := Primary ('[]')*
+  // Parse the field type
   private parse_type(): TypeNode {
     let t = this.parse_primary();
     while (this.accept("SQBRACKETS")) {
@@ -180,7 +174,6 @@ class Parser {
     return t;
   }
 
-  // Parse the basic types or structures
   private parse_primary(): TypeNode {
     const t = this.peek();
     if (!t) throw new SyntaxError("Unexpected EOF while parsing Type");
@@ -207,15 +200,10 @@ class Parser {
       return { node: "MappingType", value: val };
     }
 
-    // Base keywords
+    // Base Case -> Base keywords
     if (t.kind === "KW") {
       const v = this.want("KW").value;
       return { node: "Base", kind: v };
-    }
-
-    if (t.kind === "IDENT") {
-      const name = this.want("IDENT").value;
-      return { node: "Base", kind: name };
     }
 
     if (t.kind === "UNKNOWN") {
@@ -223,14 +211,12 @@ class Parser {
       return { node: "Unknown" };
     }
 
-    console.log(this.src)
-    throw new SyntaxError(`Unexpected token ${JSON.stringify(t)} in Primary`);
+    throw new SyntaxError(`Unexpected token ${JSON.stringify(t)} in Primary. The source schema was : ${this.src}`);
   }
 }
 
 export function parse_schema(src: string): Obj {
   const toks = tokenize(src);
-  console.log("===Tokens=====\n", toks)
   const p = new Parser(toks, src);
   const root = p.parse_schema();
   if (p["peek"]() !== null) {
@@ -256,7 +242,7 @@ export type Sig =
   | ["array", Sig]
   | ["obj", ReadonlyArray<[string, boolean, Sig]>]
   | ["mapping", Sig]
-  | ["unknoen"];
+  | ["unknown"];
 
 export function type_signature(t: TypeNode): Sig {
   if (t.node === "Base") return ["base", t.kind];
@@ -268,7 +254,7 @@ export function type_signature(t: TypeNode): Sig {
     return ["obj", items];
   }
   if (t.node === "MappingType") return ["mapping", type_signature(t.value)];
-  if(t.node == "Unknown") return ["unknoen"]
+  if(t.node == "Unknown") return ["unknown"]
   throw new TypeError(`Unknown TypeNode: ${(t as any) && (t as any).node}`);
 }
 
@@ -296,7 +282,6 @@ class Registry {
     const K = this.key(sig);
     const found = this.sig_to_name.get(K);
     if (found) return found;
-    // let raw = path_hint.filter(Boolean).map(seg => seg.slice(0,1).toUpperCase() + seg.slice(1)).join("");
     let raw = path_hint.filter(Boolean).join("_");
 
     if (!raw) raw = "Root";
@@ -304,11 +289,6 @@ class Registry {
     const name = this.uniquify(raw);
     this.sig_to_name.set(K, name);
     return name;
-    // if (!raw) raw = "Root";
-    // if (!valid_identifier(raw)) raw = "Type";
-    // const name = this.uniquify(raw);
-    // this.sig_to_name.set(K, name);
-    // return name;
   }
 }
 
@@ -317,24 +297,32 @@ export function collect_objects(root: Obj, root_hint = "Root"): TDClass[] {
   const out: TDClass[] = [];
   const seen = new Set<string>();
 
-  const visit = (t: TypeNode, path: string[]): string | null => {
+  const visit = (t: TypeNode, path: string[]) => {
     if (t.node === "Obj") {
-      if (t.fields.length === 0) return null; // '{}' → Mapping[str, object], no class
+      if (t.fields.length === 0) 
+        return; // '{}' → Mapping[str, object], no class
+
       const name = reg.name_for_obj(t, path);
-      if (seen.has(name)) return name;
-      // Visit children first
-      for (const f of t.fields) visit(f.typ, path.concat([f.name]));
+
+      if (seen.has(name)) 
+        return;
+
+      for (const f of t.fields){
+        visit(f.typ, path.concat([f.name]));
+      }
+        
       seen.add(name);
       reg.defined.set(name, { name, fields: t.fields });
       out.push({ name, fields: t.fields });
-      return name;
+    
     } else if (t.node === "Array") {
-      // ensure visiting item type
-      visit(t.item, path); return null;
+
+      visit(t.item, path);
+
     } else if (t.node === "MappingType") {
-      visit(t.value, path); return null;
-    } else {
-      return null;
+      
+      visit(t.value, path);
+
     }
   };
 
@@ -347,7 +335,7 @@ export function collect_objects(root: Obj, root_hint = "Root"): TDClass[] {
 export function py_type(t: TypeNode, name_of: Map<string, string>): string {
   if (t.node === "Base") {
     if (t.kind === "string") return "str";
-    if (t.kind === "number") return "int";
+    if (t.kind === "number") return "float";
     if (t.kind === "int") return "int";
     if (t.kind === "boolean") return "bool";
     if (t.kind === "emptyobj") return "Mapping[str, object]"; // (unused here)
@@ -420,6 +408,8 @@ export function render_typeddicts(root: Obj, rootName: string = "Root"): string 
         }
       }
     } else {
+
+      //TODO : Check this branch
       lines.push(`${cls.name} = TypedDict("${cls.name}", {`);
       cls.fields.forEach((f, idx) => {
         const t_str = opt_wrap(field_type_str(f.typ), f.optional);
@@ -434,7 +424,7 @@ export function render_typeddicts(root: Obj, rootName: string = "Root"): string 
   return lines.join("\n");
 }
 
-export function schema_to_typeddicts_code(src: string, rootName: string = 'Root'): string {
+export function schema_to_typeddict(src: string, rootName: string = 'Root'): string {
   const root = parse_schema(src);
   return render_typeddicts(root, rootName);
 }

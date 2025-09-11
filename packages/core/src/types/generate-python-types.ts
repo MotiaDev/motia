@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { schema_to_typeddicts_code } from "./schema2typeDict";
+import { schema_to_typeddict } from "./schema-to-typedDict";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { string } from "zod";
 
@@ -19,17 +19,6 @@ function generateHandlerName(name: string): string {
   );
 }
 
-function transformNameToSmall(name: string): string {
-  return (
-    "_" +
-    name
-      .toLowerCase()
-      .split("_")
-      .slice(0, 2)
-      .join("_")
-  );
-}
-
 const generateApiRequest = (
   requestBodySchema: string,
   handlerName: string,
@@ -39,13 +28,13 @@ const generateApiRequest = (
   let generated = "";
 
   try {
-    // Try schema conversion
+
     generated +=
-      schema_to_typeddicts_code(requestBodySchema, safeRootName(api_req_root_name)).trimEnd() +
+      schema_to_typeddict(requestBodySchema, safeRootName(api_req_root_name)).trimEnd() +
       "\n\n";
 
     generated +=
-      `${handlerName}_ApiRequest_type: TypeAlias = ApiReq[${api_req_root_name}]` + "\n\n";
+      `${handlerName}_ApiRequest_type: TypeAlias = ApiRequest[${api_req_root_name}]` + "\n\n";
   } catch (error) {
     generated +=
       `${handlerName}_ApiRequest_type: TypeAlias = ApiRequest[Dict[str, Any]]` + "\n\n";
@@ -54,7 +43,6 @@ const generateApiRequest = (
   exportedSymbols.push(`${handlerName}_ApiRequest_type`);
   return generated;
 };
-
 
 const generateApiResponse = (
   responseSchema: string,
@@ -92,7 +80,7 @@ const generateApiResponse = (
     for (const { status, schema } of responses) {
       const api_res_root_name = "_" + handlerName + `_ApiResponse_${status}_type_root`;
 
-      generated += schema_to_typeddicts_code(schema, api_res_root_name).trimEnd() + "\n\n";
+      generated += schema_to_typeddict(schema, api_res_root_name).trimEnd() + "\n\n";
 
       combinedApiResponseTypes +=
         combinedApiResponseTypes === ""
@@ -175,7 +163,7 @@ const generateFlowContext = (
       const schemaClassName = "_" + name + "_" + topic;
       const mainClassName = `${name}_${topic}Main`;
       
-      generated += '\n' + schema_to_typeddicts_code(schema, schemaClassName).trimEnd() + "\n\n";
+      generated += '\n' + schema_to_typeddict(schema, schemaClassName).trimEnd() + "\n\n";
 
       generated += `class ${mainClassName}(TypedDict):\n        topic: Literal['${topicMatch ? topicMatch[1] : ""}']\n        data: ${
         schemaClassName
@@ -205,7 +193,7 @@ const generateInput = (
   const rootName = safeRootName(name + "_Input_Type");
 
   try {
-    const result = schema_to_typeddicts_code(schema, rootName) + "\n";
+    const result = schema_to_typeddict(schema, rootName) + "\n";
     exportedSymbols.push(rootName);
     return result;
   } catch (error) {
@@ -231,7 +219,7 @@ export function generatePythonTypesString(
     const stream_schema_root_item_name = "_" + streamName + "Item";
 
     generated +=
-      schema_to_typeddicts_code(streamSchema, "_" + streamName + "Payload") +
+      schema_to_typeddict(streamSchema, "_" + streamName + "Payload") +
       "\n";
 
     generated +=
@@ -296,7 +284,7 @@ export function generatePythonTypesString(
   });
 
   const header = `from typing import Any, TypeAlias, TypedDict, Literal, Protocol, Never, Union, Optional, Callable, Iterable, Iterator, Sequence, Mapping, Dict, List, Tuple, Set, FrozenSet, Generator, AsyncGenerator, Awaitable, Coroutine, TypeVar, Generic, overload, cast, Final, ClassVar, Concatenate, ParamSpec
-from motia.core.py_types import ApiRequest, ApiResponse, FlowContext,  MotiaStream, FlowContextStateStreams \n
+from motia.core import ApiRequest, ApiResponse, FlowContext,  MotiaStream, FlowContextStateStreams \n
 `;
 
   generated = header + generated;
