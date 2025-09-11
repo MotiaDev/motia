@@ -13,6 +13,7 @@
   "dependencies": {
     "@formspree/react": "^3.0.0",
     "@headlessui/react": "^2.2.2",
+    "@motiadev/stream-client-react": "0.6.4-beta.130",
     "@next/third-parties": "^15.3.2",
     "@rive-app/react-webgl2": "^4.18.9",
     "@vercel/analytics": "^1.5.0",
