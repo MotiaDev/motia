@@ -22,9 +22,11 @@ export class EndpointPage extends MotiaApplicationPage {
   async setValueInBodyEditor(value: string) {
     await this.page.waitForTimeout(2000)
     await expect(this.editor).toBeVisible()
-    await this.page.evaluate((value) => {
-      // @ts-ignore monaco should be present
-      window.monaco.editor.getEditors()[0].setValue(value)
+    await this.page.evaluate((val) => {
+      const w = globalThis as any
+      const editors = w?.monaco?.editor?.getEditors?.() ?? []
+      const editor = editors[0]
+      if (editor?.setValue) editor.setValue(val)
     }, value)
   }
 
@@ -32,8 +34,10 @@ export class EndpointPage extends MotiaApplicationPage {
     await this.page.waitForTimeout(2000)
     await expect(this.editor).toBeVisible()
     return await this.page.evaluate(() => {
-      // @ts-ignore monaco should be present
-      return window.monaco.editor.getEditors()[0].getValue()
+      const w = globalThis as any
+      const editors = w?.monaco?.editor?.getEditors?.() ?? []
+      const editor = editors[0]
+      return editor?.getValue ? editor.getValue() : ''
     })
   }
 }
