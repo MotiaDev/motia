@@ -22,29 +22,31 @@ export const FlowTabMenuItem = () => {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <div
-          data-testid="flows-dropdown-trigger"
-          className="flex flex-row justify-center items-center gap-2 cursor-pointer"
-        >
-          <Workflow />
-          {selectedFlowId ?? 'No flow selected'}
-          <ChevronsUpDown className="size-4" />
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-background text-foreground flows-dropdown">
-        {flows.map((item) => (
-          <DropdownMenuItem
-            data-testid={`dropdown-${item}`}
-            key={`dropdown-${item}`}
-            className="cursor-pointer gap-2 flow-link"
-            onClick={() => handleFlowSelect(item)}
+    <div className="flex flex-row justify-center items-center gap-2 cursor-pointer">
+      <Workflow />
+      {selectedFlowId ?? 'No flow selected'}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <div
+            data-testid="flows-dropdown-trigger"
+            className="flex flex-row justify-center items-center gap-2 cursor-pointer"
           >
-            {item}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <ChevronsUpDown className="size-4" />
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="bg-background text-foreground flows-dropdown">
+          {flows.map((item) => (
+            <DropdownMenuItem
+              data-testid={`dropdown-${item}`}
+              key={`dropdown-${item}`}
+              className="cursor-pointer gap-2 flow-link"
+              onClick={() => handleFlowSelect(item)}
+            >
+              {item}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }

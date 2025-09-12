@@ -1,4 +1,4 @@
-import { Button } from '@motiadev/ui'
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { Rocket } from 'lucide-react'
 import { useState } from 'react'
 import { analytics } from '@/lib/analytics'
@@ -6,8 +6,7 @@ import { analytics } from '@/lib/analytics'
 export const DeployButton = () => {
   const [isOpen, setIsOpen] = useState(false)
 
-  const onOpen = () => {
-    setIsOpen(true)
+  const onDeployButtonClick = () => {
     analytics.track('deploy_button_clicked')
   }
 
@@ -19,6 +18,16 @@ export const DeployButton = () => {
   const onClose = () => {
     setIsOpen(false)
     analytics.track('deploy_button_closed')
+  }
+
+  const onMotiaCloudClick = () => {
+    setIsOpen(true)
+    analytics.track('deploy_button_motia_cloud_clicked')
+  }
+
+  const onSelfHostedClick = () => {
+    analytics.track('deploy_button_self_hosted_clicked')
+    window.open('https://www.motia.dev/docs/concepts/deployment/self-hosted', '_blank')
   }
 
   return (
@@ -74,14 +83,26 @@ export const DeployButton = () => {
           </div>
         </div>
       )}
-      <Button
-        variant="ghost"
-        onClick={onOpen}
-        className="font-semibold text-sm dark:bg-white dark:text-black dark:hover:bg-white/90 bg-black/90 hover:bg-black/80 text-white"
-      >
-        <Rocket />
-        Deploy
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="font-semibold text-sm dark:bg-white dark:text-black dark:hover:bg-white/90 bg-black/90 hover:bg-black/80 text-white"
+            onClick={onDeployButtonClick}
+          >
+            <Rocket />
+            Deploy
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="bg-background text-foreground w-56">
+          <DropdownMenuItem className="cursor-pointer h-10 font-semibold" onClick={onMotiaCloudClick}>
+            Motia Cloud
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer h-10 font-semibold" onClick={onSelfHostedClick}>
+            Self-Hosted (Docker)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   )
 }
