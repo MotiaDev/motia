@@ -57,6 +57,9 @@ Write **JavaScript, TypeScript, Python, and more** in the same workflow. **What 
 
 [![Motia combines APIs, background queues, and AI agents into one system](assets/github-readme-banner.gif)](https://motia.dev)
 
+## 💻 Remix your own Motia App in Replit
+[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-blue?logo=replit&style=for-the-badge)](https://replit.com/@motiadev/motia)
+
 ## 🚀 Quickstart
 
 Get Motia project up and running in **under 60 seconds**:
