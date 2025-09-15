@@ -33,7 +33,7 @@ export const resolveDepNames = (depNames: string[], sitePackagesDir: string): [s
 
         for (const line of recordLines) {
           // RECORD format: path/__init__.py,sha256=hash,size
-          const match = /^([^\/]+)\/__init__\.py,/.exec(line)
+          const match = /^([^/]+)\/__init__\.py,/.exec(line)
 
           if (match) {
             result.push([depName, match[1]])

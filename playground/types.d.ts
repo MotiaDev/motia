@@ -13,28 +13,26 @@ declare module 'motia' {
   }
 
   interface Handlers {
-    'Test State With Python': EventHandler<unknown, { topic: 'test-state-check'; data: { key: string; expected?: unknown } }>
     'TestStateCheck': EventHandler<{ key: string; expected?: unknown }, never>
     'TestStateApiTrigger': ApiRouteHandler<{}, unknown, { topic: 'test-state-python'; data: unknown }>
-    'stepC': EventHandler<never, { topic: 'pms.stepC.done'; data: { msg: string; timestamp: number } }>
-    'stepB': EventHandler<never, { topic: 'pms.stepB.done'; data: { msg: string; timestamp: number } }>
     'stepA': EventHandler<{}, { topic: 'pms.stepA.done'; data: { msg: string; timestamp: number } }>
     'Parallel Merge': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'pms.start'; data: {} }>
     'join-step': EventHandler<{ msg: string; timestamp: number }, { topic: 'pms.join.complete'; data: { stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string } }>
     'JoinComplete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
     'CallOpenAi': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
     'OpenAiApi': ApiRouteHandler<{ message: string }, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
-    'CheckStateChange': EventHandler<{ key: string; expected: string }, never>
-    'SetStateChange': EventHandler<{ message: string }, { topic: 'check-state-change'; data: { key: string; expected: string } }>
-    'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }, ApiResponse<200, { id: number; name: string; photoUrl: string }>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: number } }>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
     'StateAuditJob': CronHandler<{ topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'ProcessFoodOrder': EventHandler<{ email: string; quantity: number; petId: number }, { topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'Notification': EventHandler<{ templateId: string; email: string; templateData: Record<string, unknown> }, never>
+    'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }, ApiResponse<200, { id: number; name: string; photoUrl: string }>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: number } }>
+    'Test State With Python': EventHandler<unknown, { topic: 'test-state-check'; data: { key: string; expected?: unknown } }>
     'Tested Event': EventHandler<never, never>
     'Test Event': EventHandler<never, { topic: 'tested'; data: never }>
     'Test API Endpoint': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'test'; data: never }>
+    'stepC': EventHandler<never, { topic: 'pms.stepC.done'; data: { msg: string; timestamp: number } }>
+    'stepB': EventHandler<never, { topic: 'pms.stepB.done'; data: { msg: string; timestamp: number } }>
     'CallOpenAiPython': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
     'OpenAiApiPython': ApiRouteHandler<{ message: string; threadId?: string }, ApiResponse<200, { threadId: string }>, { topic: 'openai-prompt-python'; data: { message: string; assistantMessageId: string; threadId: string } }>
     'PythonStateAuditJob': CronHandler<{ topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
