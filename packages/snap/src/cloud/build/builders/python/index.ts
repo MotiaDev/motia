@@ -1,7 +1,7 @@
 import { ApiRouteConfig, Step } from '@motiadev/core'
 import fs from 'fs'
 import path from 'path'
-import { activatePythonVenv } from '../../../../utils/activate-python-env'
+import { activatePythonVenv, getSitePackagesPath } from '../../../../utils/activate-python-env'
 import { distDir } from '../../../new-deployment/constants'
 import { BuildListener } from '../../../new-deployment/listeners/listener.types'
 import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
@@ -9,6 +9,7 @@ import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
 import { extractPythonData } from './python-data/extract-python-data'
 import { readRequirements, Requirements } from './python-data/read-requirements'
+import { resolveDepNames } from './python-data/resolve-dep-name'
 import { UvPackager } from './uv-packager'
 
 export class PythonBuilder implements StepBuilder {
@@ -23,9 +24,17 @@ export class PythonBuilder implements StepBuilder {
   }
 
   private getRequirements(): Requirements {
-    // TODO implement the describer using .dist-info files
-    const describer = (name: string) => ({ name, importName: name })
-    return readRequirements(path.join(this.builder.projectDir, 'requirements.txt'), describer)
+    const requirementsFile = path.join(this.builder.projectDir, 'requirements.txt')
+    const depNames = Object.keys(readRequirements(requirementsFile, (name: string) => ({ name, importName: name })))
+    const sitePackagesPath = getSitePackagesPath({ baseDir: this.builder.projectDir })
+    const mapper = resolveDepNames(depNames, sitePackagesPath)
+
+    const describer = (name: string) => {
+      const [, to] = mapper.find(([from]) => from === name) ?? []
+      return { name, importName: to ?? name }
+    }
+
+    return readRequirements(requirementsFile, describer)
   }
 
   async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {

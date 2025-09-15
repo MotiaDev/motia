@@ -9,17 +9,22 @@ interface VenvConfig {
   pythonVersion?: string
 }
 
+export const getSitePackagesPath = ({ baseDir, pythonVersion = '3.13' }: VenvConfig): string => {
+  const venvPath = path.join(baseDir, 'python_modules')
+  const libPath = path.join(venvPath, 'lib')
+  const actualPythonVersionPath = findPythonSitePackagesDir(libPath, pythonVersion)
+  return path.join(venvPath, 'lib', actualPythonVersionPath, 'site-packages')
+}
+
 export const activatePythonVenv = ({ baseDir, isVerbose = false, pythonVersion = '3.13' }: VenvConfig): void => {
   internalLogger.info('Activating Python environment')
 
   // Set the virtual environment path
   const venvPath = path.join(baseDir, 'python_modules')
   const venvBinPath = path.join(venvPath, process.platform === 'win32' ? 'Scripts' : 'bin')
-  const libPath = path.join(venvPath, 'lib')
 
   // Find the Python version directory using the utility function
-  const actualPythonVersionPath = findPythonSitePackagesDir(libPath, pythonVersion)
-  const sitePackagesPath = path.join(venvPath, 'lib', actualPythonVersionPath, 'site-packages')
+  const sitePackagesPath = getSitePackagesPath({ baseDir, pythonVersion })
 
   // Verify that the virtual environment exists
   if (fs.existsSync(venvPath)) {
