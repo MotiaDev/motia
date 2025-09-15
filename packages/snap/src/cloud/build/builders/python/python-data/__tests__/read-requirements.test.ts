@@ -132,4 +132,17 @@ numpy>=1.20.0
     expect(requirements.numpy).toBe('numpy>=1.20.0')
     expect(requirements.flask).toBe('flask~=2.0')
   })
+
+  test('handles requirements with no versions', () => {
+    const content = ['requests', 'numpy', 'flask'].join('\n')
+
+    fs.writeFileSync(tempFilePath, content)
+
+    const requirements = readRequirements(tempFilePath, mockPackageDescriber)
+
+    expect(Object.keys(requirements)).toHaveLength(3)
+    expect(requirements.requests).toBe('requests')
+    expect(requirements.numpy).toBe('numpy')
+    expect(requirements.flask).toBe('flask')
+  })
 })
