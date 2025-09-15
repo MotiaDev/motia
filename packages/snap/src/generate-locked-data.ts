@@ -1,5 +1,6 @@
 import { LockedData, Step, getStepConfig, getStreamConfig } from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
+import colors from 'colors'
 import { randomUUID } from 'crypto'
 import { globSync } from 'glob'
 import path from 'path'
@@ -28,6 +29,7 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   const invalidSteps: Step[] = []
   const stepFiles = getStepFiles(projectDir)
   const streamFiles = getStreamFiles(projectDir)
+  const deprecatedSteps = globSync('**/*.step.py', { absolute: true, cwd: path.join(projectDir, 'steps') })
 
   for (const filePath of stepFiles) {
     try {
@@ -57,6 +59,31 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
     }
 
     lockedData.createStream({ filePath, config }, { disableTypeCreation: true })
+  }
+
+  if (deprecatedSteps.length > 0) {
+    const warning = colors.yellow('! [WARNING]')
+    console.warn(
+      colors.yellow(
+        [
+          '',
+          '========================================',
+          warning,
+          '',
+          `Python steps with ${colors.gray('.step.py')} extensions are no longer supported.`,
+          `Please rename them to ${colors.gray('_step.py')}.`,
+          '',
+          colors.bold('Steps:'),
+          ...deprecatedSteps.map((step) =>
+            colors.reset(
+              `- ${colors.cyan(colors.bold(step.replace(projectDir, '')))} rename to ${colors.gray(`${step.replace(projectDir, '').replace('.step.py', '_step.py')}`)}`,
+            ),
+          ),
+          '========================================',
+          '',
+        ].join('\n'),
+      ),
+    )
   }
 
   return invalidSteps
