@@ -79,6 +79,10 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
               `- ${colors.cyan(colors.bold(step.replace(projectDir, '')))} rename to ${colors.gray(`${step.replace(projectDir, '').replace('.step.py', '_step.py')}`)}`,
             ),
           ),
+
+          '',
+          'Make sure the step names are importable from Python:',
+          `- Don't use numbers, dots, dashes, commas, spaces, colons, or special characters`,
           '========================================',
           '',
         ].join('\n'),
