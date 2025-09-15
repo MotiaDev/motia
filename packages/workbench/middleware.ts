@@ -53,6 +53,7 @@ export const applyMiddleware = async (app: Express, port: number) => {
           __dirname, // workbench root
           path.join(process.cwd(), './steps'), // steps directory
           path.join(process.cwd(), './tutorial.tsx'), // tutorial file
+          path.join(process.cwd(), './node_modules'), // node_modules directory
         ],
       },
     },

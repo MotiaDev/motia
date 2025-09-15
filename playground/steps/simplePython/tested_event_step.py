@@ -11,6 +11,3 @@ async def handler(input, context):
     context.logger.info("event has been received", input)
     message = await context.state.get(context.trace_id, "message")
     context.logger.info("State requested", {"message": message })
-
-
-    

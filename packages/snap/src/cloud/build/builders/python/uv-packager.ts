@@ -1,5 +1,4 @@
 import { spawn } from 'child_process'
-import fs from 'fs'
 import path from 'path'
 
 export interface UvPackageConfig {
@@ -15,10 +14,29 @@ export const defaultUvConfig: UvPackageConfig = {
 }
 
 export class UvPackager {
-  constructor(
-    private readonly projectDir: string,
-    private readonly config: UvPackageConfig = defaultUvConfig,
-  ) {}
+  constructor(private readonly config: UvPackageConfig = defaultUvConfig) {}
+
+  async packageDependencies(cwd: string): Promise<void> {
+    const requirementsFile = path.join(cwd, 'requirements.txt')
+    const args = [
+      'pip',
+      'install',
+      '--target',
+      cwd,
+      '--requirement',
+      requirementsFile,
+      '--python-version',
+      this.config.pythonVersion || '3.13',
+      '--python-platform',
+      this.config.platform || 'x86_64-manylinux2014',
+    ]
+
+    if (this.config.onlyBinary) {
+      args.push('--only-binary=:all:')
+    }
+
+    await this.runCommand('uv', args, { cwd })
+  }
 
   private async runCommand(
     command: string,
@@ -61,90 +79,5 @@ export class UvPackager {
         reject(new Error(`Failed to spawn ${command}: ${error.message}`))
       })
     })
-  }
-
-  async packageDependencies(targetDir: string): Promise<void> {
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true })
-    }
-
-    const requirementsFile = path.join(this.projectDir, 'requirements.txt')
-    if (!fs.existsSync(requirementsFile)) {
-      return
-    }
-
-    const args = [
-      'pip',
-      'install',
-      '--target',
-      targetDir,
-      '--requirement',
-      requirementsFile,
-      '--python-version',
-      this.config.pythonVersion || '3.13',
-      '--python-platform',
-      this.config.platform || 'x86_64-manylinux2014',
-    ]
-
-    if (this.config.onlyBinary) {
-      args.push('--only-binary=:all:')
-    }
-
-    await this.runCommand('uv', args, { cwd: this.projectDir })
-  }
-
-  async packageSpecificDependencies(targetDir: string, packages: Set<string>): Promise<void> {
-    if (packages.size === 0) {
-      return
-    }
-
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true })
-    }
-
-    const requirementsFile = path.join(this.projectDir, 'requirements.txt')
-    const packageVersions = new Map<string, string>()
-
-    if (fs.existsSync(requirementsFile)) {
-      const requirements = fs.readFileSync(requirementsFile, 'utf-8')
-      const lines = requirements.split('\n').filter((line) => line.trim() && !line.startsWith('#'))
-
-      for (const line of lines) {
-        const match = line.match(/^([a-zA-Z0-9_-]+)(.*)$/)
-        if (match) {
-          const [, packageName, versionSpec] = match
-          packageVersions.set(packageName.toLowerCase(), versionSpec || '')
-        }
-      }
-    }
-
-    const packagesToInstall: string[] = []
-    for (const pkg of packages) {
-      const versionSpec = packageVersions.get(pkg.toLowerCase()) || ''
-      packagesToInstall.push(`${pkg}${versionSpec}`)
-    }
-
-    if (packagesToInstall.length === 0) {
-      return
-    }
-
-    const args = [
-      'pip',
-      'install',
-      '--target',
-      targetDir,
-      '--python-version',
-      this.config.pythonVersion || '3.13',
-      '--python-platform',
-      this.config.platform || 'x86_64-manylinux2014',
-    ]
-
-    if (this.config.onlyBinary) {
-      args.push('--only-binary=:all:')
-    }
-
-    args.push(...packagesToInstall)
-
-    await this.runCommand('uv', args, { cwd: this.projectDir })
   }
 }
