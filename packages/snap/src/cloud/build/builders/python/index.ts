@@ -136,14 +136,17 @@ export class PythonBuilder implements StepBuilder {
 
   private createRouterTemplate(steps: Step<ApiRouteConfig>[]): string {
     const imports = steps
-      .map((step, index) => `from ${this.getModuleName(step)} import handler as route${index}_module`)
+      .map(
+        (step, index) =>
+          `from ${this.getModuleName(step)} import handler as route${index}_handler, config as route${index}_config`,
+      )
       .join('\n')
 
     const routerPaths = steps
       .map((step, index) => {
         const method = step.config.method.toUpperCase()
         const path = step.config.path
-        return `    '${method} ${path}': RouterPath('${step.config.name}', '${step.config.method.toLowerCase()}', route${index}_module.handler, route${index}_module.config)`
+        return `    '${method} ${path}': RouterPath('${step.config.name}', '${step.config.method.toLowerCase()}', route${index}_handler, route${index}_config)`
       })
       .join(',\n')
 
