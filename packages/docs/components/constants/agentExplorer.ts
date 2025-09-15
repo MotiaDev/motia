@@ -1,6 +1,6 @@
 export const AGENT_GMAIL = 'Gmail Manager Agent'
 export const AGENT_TRELLO = 'Trello Agent'
-export const AGENT_PDF = 'PDF RAG Agent'
+export const AGENT_PDF = 'RAG Document Agent'
 export const AGENT_FINANCE = 'Finance Agent'
 import { financeIcon, gmailIcon, pdfIcon, trelloIcon } from '../Icons'
 import trelloFlow from '@/public/images/landing/trelloFlow.avif'
@@ -18,7 +18,7 @@ type FolderMap = {
 export const folderMap: FolderMap = {
   [AGENT_TRELLO]: 'trello-flow',
   [AGENT_GMAIL]: 'gmail-workflow',
-  [AGENT_PDF]: 'rag_example',
+  [AGENT_PDF]: 'rag-docling-weaviate-agent',
   [AGENT_FINANCE]: 'finance-agent',
 }
 export const fileFolders = ['services', 'steps']
