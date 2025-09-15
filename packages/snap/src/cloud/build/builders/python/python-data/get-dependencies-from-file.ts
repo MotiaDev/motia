@@ -70,11 +70,13 @@ export const getDependenciesFromFile = (content: string, path: string, requireme
   }
 
   for (const module of modulesSet) {
+    const [moduleName] = module.split('.')
+
     if (module[0] === '.') {
       dependencies.projectDependencies.add(module)
     } else if (STANDARD_LIB_MODULES.has(module)) {
       dependencies.standardLibDependencies.add(module)
-    } else if (requirements[module]) {
+    } else if (requirements[module] || requirements[moduleName]) {
       dependencies.externalDependencies.add(module)
     } else {
       dependencies.projectDependencies.add(module)

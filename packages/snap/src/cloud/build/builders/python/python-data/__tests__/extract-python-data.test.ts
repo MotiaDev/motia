@@ -40,4 +40,12 @@ describe('extractPythonData', () => {
       ),
     )
   })
+
+  test('extracts python data with nested import from requirements', () => {
+    const rootDir = path.join(__dirname, './examples/chessarena')
+    const requirements = readRequirements(path.join(rootDir, 'requirements.txt'), mockPackageDescriber)
+
+    const result = extractPythonData(rootDir, `/steps/evaluate_player_move_step.py`, requirements)
+    expect(result.externalDependencies).toEqual({ chess: 'chess>=1.0.0', pydantic: 'pydantic>=2.6.1' })
+  })
 })
