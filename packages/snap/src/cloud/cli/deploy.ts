@@ -19,7 +19,7 @@ cloudCli
   .option('--environment-name <name>', 'Environment name')
   .option('-e, --env-file <path>', 'Path to environment file')
   .option('-d, --version-description <description>', 'The description of the version')
-  .option('-c, --ci', 'CI mode', process.env.CI)
+  .option('-c, --ci', 'CI mode')
   .action(
     handler(async (arg, context) => {
       const listener = new CliListener(context)
