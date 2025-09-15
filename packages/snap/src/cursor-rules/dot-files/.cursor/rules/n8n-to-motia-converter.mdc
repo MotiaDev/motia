@@ -1,0 +1,1085 @@
+---
+description: One-shot converter for n8n workflows to scalable Motia backends - transforms visual workflows into production-ready event-driven architectures
+globs: 
+alwaysApply: true
+---
+# n8n to Motia Converter
+
+Transform n8n visual workflows into production-ready, scalable Motia backends using event-driven architecture patterns.
+
+## CRITICAL RULE FIXES for n8n to Motia Conversion
+
+### 1. NO Unnecessary Middleware Imports
+- NEVER import or use middleware unless explicitly requested by user
+- Motia steps should be clean and minimal
+- Only use core Motia imports: EventConfig, Handlers, ApiRouteConfig
+
+### 2. Event Flow Validation
+- ALWAYS ensure emitted events have subscribers
+- If a step emits an event, another step MUST subscribe to it
+- Remove any emits that have no subscribers
+- Use empty emits array [] if step doesn't emit events
+
+### 3. Correct Motia Version Usage
+- Use latest stable Motia version: "^0.6.4-beta.130"
+- NEVER use beta versions in production examples
+
+### 4. TypeScript Best Practices
+- Remove unused imports, variables, and parameters
+- Fix null pointer issues with proper checks
+- Use proper error handling with try/catch
+
+### 5. Handler Function Signatures
+- Only include parameters that are actually used
+- Remove unused context parameters (emit, logger, state, etc.)
+- Keep handler signatures minimal and clean
+
+### 6. Final Step Event Handling
+- Final steps in a workflow should NOT emit events that have no subscribers
+- If a step is the last in the workflow, use emits: [] or only emit to logging/monitoring events
+- Example: Text processing step that outputs results should not emit "processed" events unless another step subscribes
+
+## Core Conversion Principles
+
+### n8n → Motia Architecture Mapping
+
+| n8n Component | Motia Equivalent | Implementation |
+|---------------|------------------|----------------|
+| **Webhook Trigger** | API Step | HTTP endpoint with validation |
+| **Text Splitter** | Event Step (JS/TS) | Data preprocessing step |
+| **Embeddings** | Event Step (Python) | AI/ML processing step |
+| **Vector Store Insert** | Event Step (TS) | Database operations |
+| **Vector Store Query** | Event Step (TS) | Data retrieval |
+| **RAG Agent** | Event Step (Python) | AI agent processing |
+| **Google Sheets** | Event Step (TS) | External integration |
+| **Slack Alert** | Event Step (TS) | Notification system |
+| **Memory Buffer** | Stream/State | Persistent data management |
+
+### Workflow Conversion Strategy
+
+1. **Entry Points**: Convert n8n triggers to Motia API Steps
+2. **Processing Chains**: Convert node connections to event-driven steps
+3. **AI/ML Operations**: Map to Python event steps for heavy computation
+4. **Integrations**: Convert to TypeScript event steps for external APIs
+5. **Error Handling**: Add comprehensive error flows and monitoring
+
+## n8n Workflow Analysis Patterns
+
+### Common n8n Workflow Structure
+```json
+{
+  "name": "Workflow Name",
+  "nodes": [
+    {"type": "n8n-nodes-base.webhook", "parameters": {"path": "/endpoint"}},
+    {"type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter"},
+    {"type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi"},
+    {"type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase"},
+    {"type": "@n8n/n8n-nodes-langchain.agent"},
+    {"type": "n8n-nodes-base.googleSheets"},
+    {"type": "n8n-nodes-base.slack"}
+  ],
+  "connections": { /* node flow connections */ }
+}
+```
+
+### Motia Equivalent Structure
+```typescript
+// steps/01-webhook-trigger.step.ts - API Step
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'WorkflowTrigger',
+  path: '/endpoint',
+  method: 'POST',
+  emits: ['data.received'],
+  flows: ['main-workflow']
+}
+
+// steps/02-text-processor.step.ts - Event Step  
+export const config: EventConfig = {
+  type: 'event',
+  name: 'TextProcessor',
+  subscribes: ['data.received'],
+  emits: ['text.processed'],
+  flows: ['main-workflow']
+}
+
+// steps/03-ai-processor.step.py - Python Event Step
+config = {
+    "type": "event",
+    "name": "AIProcessor", 
+    "subscribes": ["text.processed"],
+    "emits": ["ai.completed"],
+    "flows": ["main-workflow"]
+}
+```
+
+## Conversion Templates
+
+### 1. Basic RAG Workflow Conversion
+
+**n8n Pattern**: Webhook → Text Splitter → Embeddings → Vector Store → RAG Agent → Output
+
+**Motia Implementation**:
+```typescript
+// steps/01-data-ingestion.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'DataIngestion',
+  description: 'Ingest data for RAG processing',
+  method: 'POST',
+  path: '/process',
+  bodySchema: z.object({
+    content: z.string(),
+    source: z.string().optional(),
+    metadata: z.record(z.any()).optional()
+  }),
+  responseSchema: {
+    200: z.object({
+      requestId: z.string(),
+      status: z.string(),
+      message: z.string()
+    }),
+    400: z.object({ error: z.string() })
+  },
+  emits: ['data.ingested'],
+  flows: ['rag-processing']
+}
+
+export const handler: Handlers['DataIngestion'] = async (req, { emit, logger, state }) => {
+  const { content, source, metadata } = req.body
+  const requestId = crypto.randomUUID()
+  
+  try {
+    // Store request for tracking
+    await state.set('requests', requestId, {
+      content,
+      source,
+      metadata,
+      status: 'processing',
+      createdAt: new Date().toISOString()
+    })
+    
+    await emit({
+      topic: 'data.ingested',
+      data: { requestId, content, source, metadata }
+    })
+    
+    logger.info('Data ingestion started', { requestId, contentLength: content.length })
+    
+    return {
+      status: 200,
+      body: {
+        requestId,
+        status: 'processing',
+        message: 'Data ingestion started successfully'
+      }
+    }
+  } catch (error) {
+    logger.error('Data ingestion failed', { error: error.message, requestId })
+    return {
+      status: 500,
+      body: { error: 'Data ingestion failed' }
+    }
+  }
+}
+```
+
+```typescript
+// steps/02-text-splitter.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'TextSplitter',
+  description: 'Split text into manageable chunks',
+  subscribes: ['data.ingested'],
+  emits: ['text.split'],
+  input: z.object({
+    requestId: z.string(),
+    content: z.string(),
+    source: z.string().optional(),
+    metadata: z.record(z.any()).optional()
+  }),
+  flows: ['rag-processing']
+}
+
+export const handler: Handlers['TextSplitter'] = async (input, { emit, logger, state }) => {
+  const { requestId, content, source, metadata } = input
+  
+  try {
+    // Split text into chunks (equivalent to n8n Text Splitter)
+    const chunks = splitTextIntoChunks(content, {
+      chunkSize: 400,
+      chunkOverlap: 40
+    })
+    
+    // Store chunks
+    await state.set('chunks', requestId, { chunks, totalChunks: chunks.length })
+    
+    await emit({
+      topic: 'text.split',
+      data: {
+        requestId,
+        chunks,
+        source,
+        metadata,
+        totalChunks: chunks.length
+      }
+    })
+    
+    logger.info('Text splitting completed', { requestId, chunksCreated: chunks.length })
+    
+  } catch (error) {
+    logger.error('Text splitting failed', { error: error.message, requestId })
+    
+    await emit({
+      topic: 'processing.failed',
+      data: { requestId, step: 'text-splitting', error: error.message }
+    })
+  }
+}
+
+function splitTextIntoChunks(text: string, options: { chunkSize: number; chunkOverlap: number }) {
+  const { chunkSize, chunkOverlap } = options
+  const chunks = []
+  let start = 0
+  
+  while (start < text.length) {
+    const end = Math.min(start + chunkSize, text.length)
+    chunks.push(text.slice(start, end))
+    start = end - chunkOverlap
+    
+    if (start >= text.length) break
+  }
+  
+  return chunks
+}
+```
+
+```python
+# steps/03-embeddings-processor.step.py
+import openai
+from datetime import datetime
+
+config = {
+    "type": "event",
+    "name": "EmbeddingsProcessor",
+    "description": "Generate embeddings for text chunks",
+    "subscribes": ["text.split"],
+    "emits": ["embeddings.generated"],
+    "input": {
+        "type": "object",
+        "properties": {
+            "requestId": {"type": "string"},
+            "chunks": {"type": "array"},
+            "source": {"type": "string"},
+            "metadata": {"type": "object"}
+        },
+        "required": ["requestId", "chunks"]
+    },
+    "flows": ["rag-processing"]
+}
+
+async def handler(input_data, ctx):
+    """Python handles AI/ML operations efficiently"""
+    request_id = input_data.get("requestId")
+    chunks = input_data.get("chunks", [])
+    source = input_data.get("source")
+    metadata = input_data.get("metadata", {})
+    
+    try:
+        ctx.logger.info(f"Generating embeddings for {len(chunks)} chunks", request_id=request_id)
+        
+        # Initialize OpenAI client (equivalent to n8n OpenAI Embeddings node)
+        client = openai.OpenAI()
+        
+        embeddings = []
+        for i, chunk in enumerate(chunks):
+            response = await client.embeddings.create(
+                model="text-embedding-3-small",
+                input=chunk
+            )
+            
+            embedding_data = {
+                "chunk_index": i,
+                "text": chunk,
+                "embedding": response.data[0].embedding,
+                "metadata": {
+                    **metadata,
+                    "source": source,
+                    "chunk_size": len(chunk)
+                }
+            }
+            embeddings.append(embedding_data)
+        
+        # Store embeddings
+        await ctx.state.set("embeddings", request_id, {
+            "embeddings": embeddings,
+            "total_embeddings": len(embeddings),
+            "model": "text-embedding-3-small",
+            "generated_at": datetime.now().isoformat()
+        })
+        
+        await ctx.emit({
+            "topic": "embeddings.generated",
+            "data": {
+                "requestId": request_id,
+                "embeddings": embeddings,
+                "source": source,
+                "metadata": metadata
+            }
+        })
+        
+        ctx.logger.info(f"Embeddings generation completed", 
+                       request_id=request_id, embeddings_count=len(embeddings))
+        
+    except Exception as e:
+        ctx.logger.error(f"Embeddings generation failed: {str(e)}", request_id=request_id)
+        
+        await ctx.emit({
+            "topic": "processing.failed",
+            "data": {
+                "requestId": request_id,
+                "step": "embeddings-generation", 
+                "error": str(e)
+            }
+        })
+```
+
+```typescript
+// steps/04-vector-store.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { createClient } from '@supabase/supabase-js'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'VectorStoreManager',
+  description: 'Store and query embeddings in vector database',
+  subscribes: ['embeddings.generated', 'query.request'],
+  emits: ['vectors.stored', 'query.results'],
+  input: z.union([
+    z.object({
+      requestId: z.string(),
+      embeddings: z.array(z.record(z.any())),
+      source: z.string().optional(),
+      metadata: z.record(z.any()).optional()
+    }),
+    z.object({
+      queryId: z.string(),
+      query: z.string(),
+      topK: z.number().default(5)
+    })
+  ]),
+  flows: ['rag-processing']
+}
+
+export const handler: Handlers['VectorStoreManager'] = async (input, { emit, logger, state }) => {
+  const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_ANON_KEY!
+  )
+  
+  try {
+    if ('embeddings' in input) {
+      // Store embeddings (equivalent to n8n Supabase Insert)
+      const { requestId, embeddings, source, metadata } = input
+      
+      for (const embeddingData of embeddings) {
+        await supabase
+          .from('documents')
+          .insert({
+            request_id: requestId,
+            content: embeddingData.text,
+            embedding: embeddingData.embedding,
+            metadata: embeddingData.metadata,
+            source,
+            created_at: new Date().toISOString()
+          })
+      }
+      
+      await emit({
+        topic: 'vectors.stored',
+        data: { requestId, count: embeddings.length, source }
+      })
+      
+      logger.info('Vectors stored successfully', { requestId, count: embeddings.length })
+      
+    } else {
+      // Query vectors (equivalent to n8n Supabase Query)
+      const { queryId, query, topK } = input
+      
+      // Generate query embedding first
+      const queryEmbedding = await generateQueryEmbedding(query)
+      
+      const { data: results } = await supabase.rpc('match_documents', {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.7,
+        match_count: topK
+      })
+      
+      await emit({
+        topic: 'query.results',
+        data: { queryId, results, query }
+      })
+      
+      logger.info('Vector query completed', { queryId, resultsCount: results?.length || 0 })
+    }
+    
+  } catch (error) {
+    logger.error('Vector store operation failed', { error: error.message })
+    
+    await emit({
+      topic: 'processing.failed',
+      data: { 
+        requestId: 'requestId' in input ? input.requestId : input.queryId,
+        step: 'vector-store',
+        error: error.message
+      }
+    })
+  }
+}
+
+async function generateQueryEmbedding(query: string) {
+  // Implementation for query embedding generation
+  return []
+}
+```
+
+```python
+# steps/05-rag-agent.step.py
+import openai
+from datetime import datetime
+
+config = {
+    "type": "event",
+    "name": "RAGAgent",
+    "description": "Process queries with RAG using vector context",
+    "subscribes": ["query.results"],
+    "emits": ["rag.completed", "response.ready"],
+    "input": {
+        "type": "object", 
+        "properties": {
+            "queryId": {"type": "string"},
+            "results": {"type": "array"},
+            "query": {"type": "string"}
+        },
+        "required": ["queryId", "results", "query"]
+    },
+    "flows": ["rag-processing"]
+}
+
+async def handler(input_data, ctx):
+    """RAG agent processing with context from vector search"""
+    query_id = input_data.get("queryId")
+    results = input_data.get("results", [])
+    query = input_data.get("query")
+    
+    try:
+        ctx.logger.info(f"RAG processing started", query_id=query_id, context_count=len(results))
+        
+        # Build context from vector search results
+        context_text = "\n\n".join([
+            f"Document {i+1}: {doc.get('content', '')}"
+            for i, doc in enumerate(results[:5])  # Top 5 results
+        ])
+        
+        # Initialize OpenAI client
+        client = openai.OpenAI()
+        
+        # Generate response with context (equivalent to n8n RAG Agent)
+        response = await client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"""You are a helpful assistant. Use the following context to answer questions accurately:
+
+Context:
+{context_text}
+
+If the context doesn't contain relevant information, say so clearly."""
+                },
+                {
+                    "role": "user", 
+                    "content": query
+                }
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        
+        answer = response.choices[0].message.content
+        
+        # Store response
+        response_data = {
+            "queryId": query_id,
+            "query": query,
+            "answer": answer,
+            "context_used": len(results),
+            "generated_at": datetime.now().isoformat(),
+            "model": "gpt-4"
+        }
+        
+        await ctx.state.set("responses", query_id, response_data)
+        
+        await ctx.emit({
+            "topic": "rag.completed",
+            "data": response_data
+        })
+        
+        await ctx.emit({
+            "topic": "response.ready",
+            "data": {
+                "queryId": query_id,
+                "answer": answer,
+                "confidence": 0.9  # Calculate based on context relevance
+            }
+        })
+        
+        ctx.logger.info(f"RAG processing completed", query_id=query_id)
+        
+    except Exception as e:
+        ctx.logger.error(f"RAG processing failed: {str(e)}", query_id=query_id)
+        
+        await ctx.emit({
+            "topic": "processing.failed",
+            "data": {
+                "requestId": query_id,
+                "step": "rag-agent",
+                "error": str(e)
+            }
+        })
+```
+
+```typescript
+// steps/06-output-handler.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'OutputHandler',
+  description: 'Handle final output and notifications',
+  subscribes: ['response.ready', 'processing.failed'],
+  emits: ['notification.sent'],
+  input: z.union([
+    z.object({
+      queryId: z.string(),
+      answer: z.string(),
+      confidence: z.number()
+    }),
+    z.object({
+      requestId: z.string(),
+      step: z.string(),
+      error: z.string()
+    })
+  ]),
+  flows: ['rag-processing']
+}
+
+export const handler: Handlers['OutputHandler'] = async (input, { emit, logger, state }) => {
+  try {
+    if ('answer' in input) {
+      // Success case - log to Google Sheets equivalent
+      const { queryId, answer, confidence } = input
+      
+      await logToSheets({
+        queryId,
+        status: 'success',
+        answer: answer.substring(0, 100) + '...',
+        confidence,
+        timestamp: new Date().toISOString()
+      })
+      
+      logger.info('Response processed successfully', { queryId, confidence })
+      
+    } else {
+      // Error case - send Slack alert equivalent  
+      const { requestId, step, error } = input
+      
+      await sendSlackAlert({
+        type: 'error',
+        message: `Processing failed in ${step}: ${error}`,
+        requestId,
+        timestamp: new Date().toISOString()
+      })
+      
+      await logToSheets({
+        queryId: requestId,
+        status: 'failed',
+        error: error,
+        step,
+        timestamp: new Date().toISOString()
+      })
+      
+      logger.error('Processing failed', { requestId, step, error })
+    }
+    
+    await emit({
+      topic: 'notification.sent',
+      data: { processed: true, timestamp: new Date().toISOString() }
+    })
+    
+  } catch (error) {
+    logger.error('Output handling failed', { error: error.message })
+  }
+}
+
+async function logToSheets(data: any) {
+  // Google Sheets integration equivalent
+  logger.info('Logging to sheets', data)
+}
+
+async function sendSlackAlert(alert: any) {
+  // Slack notification equivalent
+  logger.info('Sending Slack alert', alert)
+}
+```
+
+### 2. Multi-Provider AI Workflow
+
+**n8n Pattern**: Multiple AI providers (OpenAI, Anthropic, Cohere) + Vector stores (Pinecone, Supabase, Weaviate)
+
+**Motia Implementation**:
+```typescript
+// steps/ai-providers/multi-provider-processor.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'MultiProviderProcessor',
+  description: 'Process with multiple AI providers for redundancy',
+  subscribes: ['ai.process.request'],
+  emits: ['ai.providers.completed'],
+  input: z.object({
+    requestId: z.string(),
+    prompt: z.string(),
+    providers: z.array(z.enum(['openai', 'anthropic', 'cohere'])).default(['openai']),
+    vectorStore: z.enum(['pinecone', 'supabase', 'weaviate']).default('supabase')
+  }),
+  flows: ['multi-ai-processing']
+}
+
+export const handler: Handlers['MultiProviderProcessor'] = async (input, { emit, logger, state }) => {
+  const { requestId, prompt, providers, vectorStore } = input
+  
+  try {
+    // Process with multiple providers in parallel
+    const providerResults = await Promise.allSettled(
+      providers.map(provider => processWithProvider(provider, prompt, requestId))
+    )
+    
+    const results = providerResults.map((result, index) => ({
+      provider: providers[index],
+      success: result.status === 'fulfilled',
+      data: result.status === 'fulfilled' ? result.value : null,
+      error: result.status === 'rejected' ? result.reason.message : null
+    }))
+    
+    // Choose best result based on confidence or fallback strategy
+    const bestResult = selectBestResult(results)
+    
+    await state.set('ai-results', requestId, {
+      results,
+      bestResult,
+      vectorStore,
+      processedAt: new Date().toISOString()
+    })
+    
+    await emit({
+      topic: 'ai.providers.completed',
+      data: {
+        requestId,
+        bestResult,
+        allResults: results,
+        vectorStore
+      }
+    })
+    
+    logger.info('Multi-provider processing completed', { 
+      requestId, 
+      successfulProviders: results.filter(r => r.success).length,
+      selectedProvider: bestResult.provider
+    })
+    
+  } catch (error) {
+    logger.error('Multi-provider processing failed', { error: error.message, requestId })
+  }
+}
+
+async function processWithProvider(provider: string, prompt: string, requestId: string) {
+  // Implementation for each AI provider
+  switch (provider) {
+    case 'openai':
+      return await processWithOpenAI(prompt)
+    case 'anthropic':
+      return await processWithAnthropic(prompt)
+    case 'cohere':
+      return await processWithCohere(prompt)
+    default:
+      throw new Error(`Unsupported provider: ${provider}`)
+  }
+}
+
+function selectBestResult(results: any[]) {
+  // Select best result based on success rate and confidence
+  const successfulResults = results.filter(r => r.success)
+  return successfulResults[0] || results[0] // Fallback to first result
+}
+```
+
+### 3. Scheduled Workflow Conversion
+
+**n8n Pattern**: Cron Trigger → Data Processing → Notifications
+
+**Motia Implementation**:
+```typescript
+// steps/cron/scheduled-processor.step.ts
+import { CronConfig, Handlers } from 'motia'
+
+export const config: CronConfig = {
+  type: 'cron',
+  name: 'ScheduledProcessor',
+  description: 'Run scheduled data processing',
+  cron: '0 */6 * * *', // Every 6 hours
+  emits: ['scheduled.started'],
+  flows: ['scheduled-processing']
+}
+
+export const handler: Handlers['ScheduledProcessor'] = async ({ emit, logger, state }) => {
+  try {
+    const batchId = crypto.randomUUID()
+    
+    await emit({
+      topic: 'scheduled.started',
+      data: {
+        batchId,
+        startedAt: new Date().toISOString(),
+        type: 'scheduled-processing'
+      }
+    })
+    
+    logger.info('Scheduled processing started', { batchId })
+    
+  } catch (error) {
+    logger.error('Scheduled processing failed to start', { error: error.message })
+  }
+}
+```
+
+## Conversion Rules
+
+### 1. Node Type Mappings
+
+```typescript
+const N8N_TO_MOTIA_MAPPINGS = {
+  // Triggers
+  'n8n-nodes-base.webhook': 'ApiStep',
+  'n8n-nodes-base.cron': 'CronStep',
+  'n8n-nodes-base.manualTrigger': 'NoopStep',
+  
+  // AI/ML Nodes
+  '@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter': 'EventStep_TextProcessing',
+  '@n8n/n8n-nodes-langchain.embeddingsOpenAi': 'EventStep_Python_Embeddings',
+  '@n8n/n8n-nodes-langchain.embeddingsCohere': 'EventStep_Python_Embeddings',
+  '@n8n/n8n-nodes-langchain.embeddingsHuggingFace': 'EventStep_Python_Embeddings',
+  '@n8n/n8n-nodes-langchain.lmChatOpenAi': 'EventStep_Python_AIChat',
+  '@n8n/n8n-nodes-langchain.lmChatAnthropic': 'EventStep_Python_AIChat',
+  '@n8n/n8n-nodes-langchain.agent': 'EventStep_Python_RAGAgent',
+  
+  // Vector Stores
+  '@n8n/n8n-nodes-langchain.vectorStoreSupabase': 'EventStep_VectorStore',
+  '@n8n/n8n-nodes-langchain.vectorStorePinecone': 'EventStep_VectorStore',
+  '@n8n/n8n-nodes-langchain.vectorStoreWeaviate': 'EventStep_VectorStore',
+  '@n8n/n8n-nodes-langchain.vectorStoreRedis': 'EventStep_VectorStore',
+  
+  // Memory and Tools
+  '@n8n/n8n-nodes-langchain.memoryBufferWindow': 'StreamStep',
+  '@n8n/n8n-nodes-langchain.toolVectorStore': 'EventStep_ToolIntegration',
+  
+  // Integrations
+  'n8n-nodes-base.googleSheets': 'EventStep_Integration',
+  'n8n-nodes-base.slack': 'EventStep_Integration',
+  'n8n-nodes-base.email': 'EventStep_Integration',
+  'n8n-nodes-base.http': 'EventStep_Integration'
+}
+```
+
+### 2. Connection Flow Mapping
+
+```typescript
+// Convert n8n connections to Motia event flow
+function convertConnectionsToEventFlow(n8nConnections: any) {
+  const eventFlow = []
+  
+  for (const [sourceNode, connections] of Object.entries(n8nConnections)) {
+    for (const connectionType of Object.keys(connections)) {
+      for (const targetConnections of connections[connectionType]) {
+        for (const target of targetConnections) {
+          eventFlow.push({
+            from: sourceNode,
+            to: target.node,
+            topic: generateTopicName(sourceNode, target.node),
+            connectionType
+          })
+        }
+      }
+    }
+  }
+  
+  return eventFlow
+}
+
+function generateTopicName(sourceNode: string, targetNode: string): string {
+  // Generate semantic topic names based on node types
+  const sourceType = getNodeType(sourceNode)
+  const targetType = getNodeType(targetNode)
+  
+  return `${sourceType}.${targetType}`.toLowerCase().replace(/[^a-z.]/g, '')
+}
+```
+
+### 3. Automatic Flow Generation
+
+When converting an n8n workflow, automatically generate:
+
+1. **Project Structure**:
+```
+motia-project/
+├── steps/
+│   ├── 01-api-trigger.step.ts      # From webhook trigger
+│   ├── 02-text-processor.step.ts   # From text splitter
+│   ├── 03-ai-embeddings.step.py    # From embeddings nodes
+│   ├── 04-vector-store.step.ts     # From vector store nodes
+│   ├── 05-rag-agent.step.py        # From agent nodes
+│   ├── 06-integrations.step.ts     # From output nodes
+│   └── streams/
+│       └── memory-buffer.stream.ts # From memory nodes
+├── services/
+│   ├── ai/
+│   │   ├── openai.service.ts
+│   │   ├── anthropic.service.ts
+│   │   └── cohere.service.ts
+│   └── integrations/
+│       ├── sheets.service.ts
+│       └── slack.service.ts
+├── package.json
+├── requirements.txt
+├── config.yml
+└── types.d.ts
+```
+
+2. **Environment Configuration**:
+```bash
+# Auto-generated from n8n credentials
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+COHERE_API_KEY=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+PINECONE_API_KEY=
+SLACK_BOT_TOKEN=
+GOOGLE_SHEETS_CREDENTIALS=
+```
+
+3. **Flow Configuration**:
+```yaml
+# config.yml
+state:
+  adapter: redis
+  host: localhost
+  port: 6379
+  ttl: 3600
+
+logging:
+  level: info
+  format: json
+
+flows:
+  - name: rag-processing
+    description: "Converted from n8n RAG workflow"
+    steps:
+      - DataIngestion
+      - TextSplitter
+      - EmbeddingsProcessor
+      - VectorStoreManager
+      - RAGAgent
+      - OutputHandler
+```
+
+## Domain-Specific Conversion Patterns
+
+### Agriculture Workflows
+```typescript
+// Convert agriculture n8n workflows to specialized Motia patterns
+// Example: soil_nutrient_analysis.json → Motia AgTech Backend
+
+// steps/agriculture/soil-analysis.step.ts
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'SoilAnalysisAPI',
+  path: '/agriculture/soil/analyze',
+  method: 'POST',
+  bodySchema: z.object({
+    sensorData: z.record(z.number()),
+    location: z.object({
+      latitude: z.number(),
+      longitude: z.number()
+    }),
+    farmId: z.string()
+  }),
+  emits: ['soil.data.received'],
+  flows: ['agriculture-analytics']
+}
+```
+
+### E-commerce Workflows  
+```typescript
+// Convert e-commerce n8n workflows
+// Example: shopify_order_sms.json → Motia E-commerce Backend
+
+// steps/ecommerce/order-processor.step.ts
+export const config: EventConfig = {
+  type: 'event',
+  name: 'OrderProcessor',
+  subscribes: ['order.received'],
+  emits: ['order.processed', 'notification.sms'],
+  flows: ['ecommerce-fulfillment']
+}
+```
+
+### Healthcare Workflows
+```typescript
+// Convert healthcare n8n workflows
+// Example: appointment_whatsapp_notify.json → Motia Healthcare Backend
+
+// steps/healthcare/appointment-manager.step.ts
+export const config: EventConfig = {
+  type: 'event', 
+  name: 'AppointmentManager',
+  subscribes: ['appointment.scheduled'],
+  emits: ['notification.whatsapp'],
+  flows: ['healthcare-notifications']
+}
+```
+
+## Advanced Conversion Features
+
+### 1. Error Handling Enhancement
+```typescript
+// Enhance n8n error handling with Motia patterns
+export const config: EventConfig = {
+  type: 'event',
+  name: 'ErrorHandler',
+  subscribes: ['processing.failed'],
+  emits: ['error.logged', 'admin.alerted'],
+  flows: ['error-management']
+}
+
+export const handler: Handlers['ErrorHandler'] = async (input, { emit, logger, state }) => {
+  const { requestId, step, error } = input
+  
+  // Enhanced error tracking
+  await state.set('errors', requestId, {
+    step,
+    error,
+    timestamp: new Date().toISOString(),
+    severity: calculateErrorSeverity(error),
+    retryable: isRetryableError(error)
+  })
+  
+  // Multi-channel alerting
+  await emit({
+    topic: 'error.logged',
+    data: { requestId, step, error, severity: 'high' }
+  })
+  
+  if (shouldAlertAdmin(error)) {
+    await emit({
+      topic: 'admin.alerted', 
+      data: { requestId, step, error, urgency: 'immediate' }
+    })
+  }
+}
+```
+
+### 2. Performance Optimization
+```typescript
+// Add performance monitoring and optimization
+export const config: EventConfig = {
+  type: 'event',
+  name: 'PerformanceMonitor',
+  subscribes: ['*.completed', '*.failed'],
+  emits: ['metrics.recorded'],
+  flows: ['monitoring']
+}
+
+export const handler: Handlers['PerformanceMonitor'] = async (input, { emit, logger, state }) => {
+  // Track processing times, success rates, resource usage
+  const metrics = {
+    stepName: input.step,
+    duration: input.duration,
+    success: !input.error,
+    timestamp: new Date().toISOString()
+  }
+  
+  await state.set('metrics', `${input.requestId}:${input.step}`, metrics)
+  
+  await emit({
+    topic: 'metrics.recorded',
+    data: metrics
+  })
+}
+```
+
+### 3. Scalability Enhancements
+```typescript
+// Add horizontal scaling and load balancing
+export const config: EventConfig = {
+  type: 'event',
+  name: 'LoadBalancer',
+  subscribes: ['heavy.processing.request'],
+  emits: ['processing.distributed'],
+  flows: ['scaling']
+}
+
+export const handler: Handlers['LoadBalancer'] = async (input, { emit, logger, state }) => {
+  const { requestId, data, priority } = input
+  
+  // Distribute load across multiple workers
+  const workerCount = await getAvailableWorkers()
+  const chunks = distributeData(data, workerCount)
+  
+  for (let i = 0; i < chunks.length; i++) {
+    await emit({
+      topic: 'processing.distributed',
+      data: {
+        requestId,
+        chunkId: i,
+        chunk: chunks[i],
+        totalChunks: chunks.length,
+        priority
+      }
+    })
+  }
+}
+```
+
+## Best Practices for Conversion
+
+1. **Preserve Workflow Intent**: Maintain the original business logic while improving architecture
+2. **Language Selection**: Use TypeScript for APIs, Python for AI/ML, Ruby for data processing
+3. **Event-Driven Design**: Convert linear n8n flows to event-driven Motia patterns
+4. **Error Resilience**: Add comprehensive error handling and retry mechanisms
+5. **Monitoring**: Include observability and performance tracking
+6. **Security**: Add authentication, validation, and security middleware
+7. **Scalability**: Design for horizontal scaling and high availability
+8. **Testing**: Include unit tests and integration tests for all steps
+
+This conversion system transforms n8n's visual workflows into production-ready, scalable Motia backends while preserving functionality and enhancing reliability.

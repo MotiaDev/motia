@@ -1,0 +1,389 @@
+---
+description: Analyze and understand n8n workflows for intelligent conversion to Motia backends
+globs: ["**/*.json"]
+alwaysApply: false
+---
+# n8n Workflow Analyzer
+
+Intelligent analysis of n8n workflow JSON files to extract patterns, dependencies, and conversion requirements for Motia backends.
+
+## CRITICAL RULE FIXES for n8n to Motia Conversion
+
+### 1. NO Unnecessary Middleware Imports
+- NEVER import or use middleware unless explicitly requested by user
+- Motia steps should be clean and minimal
+- Only use core Motia imports: EventConfig, Handlers, ApiRouteConfig
+
+### 2. Event Flow Validation
+- ALWAYS ensure emitted events have subscribers
+- If a step emits an event, another step MUST subscribe to it
+- Remove any emits that have no subscribers
+- Use empty emits array [] if step doesn't emit events
+
+### 3. Correct Motia Version Usage
+- Use latest stable Motia version: "^0.6.4-beta.130"
+- NEVER use beta versions in production examples
+
+### 4. TypeScript Best Practices
+- Remove unused imports, variables, and parameters
+- Fix null pointer issues with proper checks
+- Use proper error handling with try/catch
+
+### 5. Handler Function Signatures
+- Only include parameters that are actually used
+- Remove unused context parameters (emit, logger, state, etc.)
+- Keep handler signatures minimal and clean
+
+## n8n Workflow Structure Analysis
+
+### Core Workflow Components
+
+```typescript
+interface N8nWorkflow {
+  name: string
+  nodes: N8nNode[]
+  connections: N8nConnections
+  settings: {
+    executionOrder: string
+  }
+  triggerCount?: number
+}
+
+interface N8nNode {
+  id: string
+  name: string
+  type: string
+  typeVersion: number
+  position: [number, number]
+  parameters: Record<string, any>
+  credentials?: Record<string, any>
+}
+
+interface N8nConnections {
+  [nodeName: string]: {
+    [connectionType: string]: Array<{
+      node: string
+      type: string
+      index: number
+    }[]>
+  }
+}
+```
+
+### Node Type Categories
+
+#### 1. Trigger Nodes (Entry Points)
+```typescript
+const TRIGGER_NODES = {
+  'n8n-nodes-base.webhook': {
+    motiaType: 'ApiStep',
+    language: 'typescript',
+    pattern: 'HTTP endpoint trigger',
+    generates: 'API route configuration with validation'
+  },
+  'n8n-nodes-base.cron': {
+    motiaType: 'CronStep', 
+    language: 'typescript',
+    pattern: 'Scheduled execution',
+    generates: 'Cron step with schedule expression'
+  },
+  'n8n-nodes-base.manualTrigger': {
+    motiaType: 'NoopStep',
+    language: 'typescript', 
+    pattern: 'Manual workflow initiation',
+    generates: 'NOOP step for manual triggers'
+  }
+}
+```
+
+#### 2. AI/ML Processing Nodes
+```typescript
+const AI_ML_NODES = {
+  '@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter': {
+    motiaType: 'EventStep',
+    language: 'typescript',
+    pattern: 'Text preprocessing',
+    generates: 'Text chunking and preprocessing logic'
+  },
+  '@n8n/n8n-nodes-langchain.embeddingsOpenAi': {
+    motiaType: 'EventStep',
+    language: 'python',
+    pattern: 'Embedding generation',
+    generates: 'OpenAI embeddings API integration'
+  },
+  '@n8n/n8n-nodes-langchain.embeddingsCohere': {
+    motiaType: 'EventStep',
+    language: 'python', 
+    pattern: 'Embedding generation',
+    generates: 'Cohere embeddings API integration'
+  },
+  '@n8n/n8n-nodes-langchain.embeddingsHuggingFace': {
+    motiaType: 'EventStep',
+    language: 'python',
+    pattern: 'Embedding generation', 
+    generates: 'HuggingFace embeddings integration'
+  },
+  '@n8n/n8n-nodes-langchain.lmChatOpenAi': {
+    motiaType: 'EventStep',
+    language: 'python',
+    pattern: 'LLM chat completion',
+    generates: 'OpenAI chat completion integration'
+  },
+  '@n8n/n8n-nodes-langchain.lmChatAnthropic': {
+    motiaType: 'EventStep',
+    language: 'python',
+    pattern: 'LLM chat completion',
+    generates: 'Anthropic Claude integration'
+  },
+  '@n8n/n8n-nodes-langchain.lmChatHf': {
+    motiaType: 'EventStep',
+    language: 'python',
+    pattern: 'LLM chat completion',
+    generates: 'HuggingFace chat integration'
+  },
+  '@n8n/n8n-nodes-langchain.agent': {
+    motiaType: 'EventStep',
+    language: 'python',
+    pattern: 'RAG agent processing',
+    generates: 'Intelligent agent with tool access'
+  }
+}
+```
+
+#### 3. Vector Store Nodes
+```typescript
+const VECTOR_STORE_NODES = {
+  '@n8n/n8n-nodes-langchain.vectorStoreSupabase': {
+    motiaType: 'EventStep',
+    language: 'typescript',
+    pattern: 'Vector database operations',
+    generates: 'Supabase vector store integration'
+  },
+  '@n8n/n8n-nodes-langchain.vectorStorePinecone': {
+    motiaType: 'EventStep', 
+    language: 'typescript',
+    pattern: 'Vector database operations',
+    generates: 'Pinecone vector store integration'
+  },
+  '@n8n/n8n-nodes-langchain.vectorStoreWeaviate': {
+    motiaType: 'EventStep',
+    language: 'typescript',
+    pattern: 'Vector database operations', 
+    generates: 'Weaviate vector store integration'
+  },
+  '@n8n/n8n-nodes-langchain.vectorStoreRedis': {
+    motiaType: 'EventStep',
+    language: 'typescript',
+    pattern: 'Vector database operations',
+    generates: 'Redis vector store integration'
+  }
+}
+```
+
+#### 4. Integration Nodes
+```typescript
+const INTEGRATION_NODES = {
+  'n8n-nodes-base.googleSheets': {
+    motiaType: 'EventStep',
+    language: 'typescript',
+    pattern: 'External service integration',
+    generates: 'Google Sheets API integration'
+  },
+  'n8n-nodes-base.slack': {
+    motiaType: 'EventStep',
+    language: 'typescript', 
+    pattern: 'Notification service',
+    generates: 'Slack notification integration'
+  },
+  'n8n-nodes-base.email': {
+    motiaType: 'EventStep',
+    language: 'typescript',
+    pattern: 'Email service',
+    generates: 'Email sending integration'
+  },
+  'n8n-nodes-base.http': {
+    motiaType: 'EventStep',
+    language: 'typescript',
+    pattern: 'HTTP client',
+    generates: 'Generic HTTP API integration'
+  }
+}
+```
+
+## Workflow Analysis Functions
+
+### 1. Extract Workflow Metadata
+```typescript
+function analyzeN8nWorkflow(workflow: N8nWorkflow) {
+  return {
+    name: workflow.name,
+    complexity: calculateComplexity(workflow.nodes),
+    domains: extractDomains(workflow.name, workflow.nodes),
+    aiCapabilities: extractAICapabilities(workflow.nodes),
+    integrations: extractIntegrations(workflow.nodes),
+    dataFlow: analyzeDataFlow(workflow.connections),
+    scalabilityRequirements: assessScalability(workflow.nodes),
+    securityRequirements: assessSecurity(workflow.nodes)
+  }
+}
+
+function calculateComplexity(nodes: N8nNode[]): 'simple' | 'medium' | 'complex' {
+  const nodeCount = nodes.length
+  const aiNodeCount = nodes.filter(n => n.type.includes('langchain')).length
+  
+  if (nodeCount <= 5 && aiNodeCount <= 2) return 'simple'
+  if (nodeCount <= 10 && aiNodeCount <= 5) return 'medium'
+  return 'complex'
+}
+
+function extractDomains(name: string, nodes: N8nNode[]): string[] {
+  const domains = []
+  
+  // Extract from workflow name
+  const namePatterns = {
+    'agriculture': ['crop', 'farm', 'soil', 'harvest', 'irrigation'],
+    'ecommerce': ['shopify', 'order', 'cart', 'inventory', 'payment'],
+    'healthcare': ['appointment', 'patient', 'medical', 'clinic'],
+    'finance': ['invoice', 'payment', 'accounting', 'expense'],
+    'education': ['student', 'quiz', 'course', 'grade'],
+    'manufacturing': ['production', 'quality', 'maintenance', 'safety'],
+    'iot': ['sensor', 'device', 'telemetry', 'monitoring'],
+    'media': ['content', 'social', 'campaign', 'publish']
+  }
+  
+  for (const [domain, keywords] of Object.entries(namePatterns)) {
+    if (keywords.some(keyword => name.toLowerCase().includes(keyword))) {
+      domains.push(domain)
+    }
+  }
+  
+  return domains
+}
+```
+
+### 2. Generate Conversion Plan
+```typescript
+function generateConversionPlan(analysis: WorkflowAnalysis): ConversionPlan {
+  return {
+    projectStructure: generateProjectStructure(analysis),
+    stepSequence: generateStepSequence(analysis),
+    dependencies: extractDependencies(analysis),
+    environmentVariables: extractEnvironmentVariables(analysis),
+    configurationFiles: generateConfigFiles(analysis),
+    testingStrategy: generateTestingStrategy(analysis)
+  }
+}
+
+function generateProjectStructure(analysis: WorkflowAnalysis) {
+  const structure = {
+    'steps/': {},
+    'services/': {},
+    'types/': {},
+    'config.yml': 'Motia configuration',
+    'package.json': 'Node.js dependencies', 
+    'requirements.txt': 'Python dependencies',
+    'types.d.ts': 'Auto-generated types'
+  }
+  
+  // Generate step files based on node analysis
+  analysis.nodeSequence.forEach((node, index) => {
+    const stepNumber = String(index + 1).padStart(2, '0')
+    const stepName = generateStepName(node)
+    const language = getLanguageForNode(node)
+    const extension = language === 'python' ? '.py' : '.ts'
+    
+    structure['steps/'][`${stepNumber}-${stepName}.step${extension}`] = 
+      `${node.motiaType} for ${node.pattern}`
+  })
+  
+  return structure
+}
+```
+
+### 3. Domain-Specific Optimizations
+
+```typescript
+const DOMAIN_OPTIMIZATIONS = {
+  agriculture: {
+    additionalSteps: [
+      'weather-integration.step.ts',
+      'sensor-data-processor.step.py', 
+      'crop-analytics.step.py'
+    ],
+    services: [
+      'weather.service.ts',
+      'sensors.service.ts'
+    ],
+    integrations: ['weather-api', 'iot-sensors']
+  },
+  
+  ecommerce: {
+    additionalSteps: [
+      'inventory-manager.step.ts',
+      'payment-processor.step.ts',
+      'order-fulfillment.step.ts'
+    ],
+    services: [
+      'payment.service.ts',
+      'inventory.service.ts'
+    ],
+    integrations: ['stripe', 'shopify', 'inventory-apis']
+  },
+  
+  healthcare: {
+    additionalSteps: [
+      'patient-privacy.step.ts',
+      'appointment-scheduler.step.ts',
+      'medical-records.step.ts'
+    ],
+    services: [
+      'hipaa-compliance.service.ts',
+      'scheduling.service.ts'
+    ],
+    integrations: ['ehr-systems', 'appointment-apis']
+  }
+}
+```
+
+## Conversion Execution
+
+### Step-by-Step Conversion Process
+
+1. **Analysis Phase**:
+   - Parse n8n workflow JSON
+   - Identify node types and connections
+   - Extract credentials and parameters
+   - Analyze data flow patterns
+
+2. **Planning Phase**:
+   - Generate Motia project structure
+   - Plan step sequence and event flow
+   - Identify required services and integrations
+   - Plan testing and deployment strategy
+
+3. **Generation Phase**:
+   - Generate Motia step configurations
+   - Create handler implementations
+   - Set up service integrations
+   - Configure environment and dependencies
+
+4. **Enhancement Phase**:
+   - Add error handling and monitoring
+   - Implement security measures
+   - Add performance optimizations
+   - Include comprehensive testing
+
+### Automated Conversion Commands
+
+```bash
+# Convert single n8n workflow
+motia convert n8n --input workflow.json --output ./motia-project
+
+# Convert entire n8n template category
+motia convert n8n --input ./n8n-templates/AI_ML/ --output ./motia-backends/
+
+# Convert with domain-specific optimizations
+motia convert n8n --input workflow.json --domain agriculture --output ./agtech-backend
+```
+
+This analyzer provides the intelligence needed to convert any n8n workflow into a production-ready Motia backend while preserving functionality and enhancing scalability.

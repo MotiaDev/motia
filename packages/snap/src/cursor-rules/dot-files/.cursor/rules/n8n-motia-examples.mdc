@@ -1,0 +1,1264 @@
+---
+description: Practical examples of converting specific n8n workflows to Motia backends with complete implementations
+globs: 
+alwaysApply: false
+---
+# n8n to Motia Conversion Examples
+
+Complete, practical examples of converting real n8n workflows to production-ready Motia backends.
+
+## CRITICAL RULE FIXES for n8n to Motia Conversion
+
+### 1. NO Unnecessary Middleware Imports
+- NEVER import or use middleware unless explicitly requested by user
+- Motia steps should be clean and minimal
+- Only use core Motia imports: EventConfig, Handlers, ApiRouteConfig
+
+### 2. Event Flow Validation
+- ALWAYS ensure emitted events have subscribers
+- If a step emits an event, another step MUST subscribe to it
+- Remove any emits that have no subscribers
+- Use empty emits array [] if step doesn't emit events
+
+### 3. Correct Motia Version Usage
+- Use latest stable Motia version: "^0.6.4-beta.130"
+- NEVER use beta versions in production examples
+
+### 4. TypeScript Best Practices
+- Remove unused imports, variables, and parameters
+- Fix null pointer issues with proper checks
+- Use proper error handling with try/catch
+
+### 5. Handler Function Signatures
+- Only include parameters that are actually used
+- Remove unused context parameters (emit, logger, state, etc.)
+- Keep handler signatures minimal and clean
+
+## Example 1: Daily Content Ideas (AI_ML/daily_content_ideas.json)
+
+### Original n8n Workflow
+- **Trigger**: Webhook POST `/daily-content-ideas`
+- **Processing**: Text Splitter → Cohere Embeddings → Supabase Vector → RAG Agent
+- **Output**: Google Sheets logging + Slack alerts
+
+### Converted Motia Backend
+
+```typescript
+// steps/01-content-ideas-api.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { rateLimitMiddleware } from '../middleware/rate-limit'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'ContentIdeasAPI',
+  description: 'Generate daily content ideas using AI',
+  method: 'POST',
+  path: '/content/ideas/generate',
+  middleware: [rateLimitMiddleware],
+  bodySchema: z.object({
+    topic: z.string().min(1).max(200),
+    industry: z.string().optional(),
+    audience: z.string().optional(),
+    contentType: z.enum(['blog', 'social', 'video', 'newsletter']).default('blog'),
+    count: z.number().min(1).max(20).default(5),
+    tone: z.enum(['professional', 'casual', 'creative', 'technical']).default('professional')
+  }),
+  responseSchema: {
+    200: z.object({
+      requestId: z.string(),
+      status: z.enum(['processing', 'completed']),
+      ideas: z.array(z.object({
+        title: z.string(),
+        description: z.string(),
+        tags: z.array(z.string()),
+        difficulty: z.enum(['easy', 'medium', 'hard'])
+      })).optional()
+    }),
+    400: z.object({ error: z.string() }),
+    429: z.object({ error: z.string(), retryAfter: z.number() })
+  },
+  emits: ['content.ideas.requested'],
+  flows: ['content-generation']
+}
+
+export const handler: Handlers['ContentIdeasAPI'] = async (req, { emit, logger, state }) => {
+  const { topic, industry, audience, contentType, count, tone } = req.body
+  const requestId = crypto.randomUUID()
+  
+  try {
+    // Store request for tracking
+    await state.set('content-requests', requestId, {
+      topic,
+      industry,
+      audience,
+      contentType,
+      count,
+      tone,
+      status: 'processing',
+      createdAt: new Date().toISOString()
+    })
+    
+    await emit({
+      topic: 'content.ideas.requested',
+      data: {
+        requestId,
+        topic,
+        industry,
+        audience,
+        contentType,
+        count,
+        tone,
+        metadata: {
+          userAgent: req.headers['user-agent'],
+          ip: req.headers['x-forwarded-for'] || 'unknown'
+        }
+      }
+    })
+    
+    logger.info('Content ideas generation requested', {
+      requestId,
+      topic,
+      contentType,
+      count
+    })
+    
+    return {
+      status: 200,
+      body: {
+        requestId,
+        status: 'processing',
+        message: `Generating ${count} ${contentType} content ideas for "${topic}"`
+      }
+    }
+    
+  } catch (error) {
+    logger.error('Content ideas request failed', { 
+      error: error.message, 
+      requestId 
+    })
+    
+    return {
+      status: 500,
+      body: { error: 'Failed to process content ideas request' }
+    }
+  }
+}
+```
+
+```python
+# steps/02-content-intelligence.step.py
+import openai
+import cohere
+from datetime import datetime
+from typing import List, Dict, Any
+
+config = {
+    "type": "event",
+    "name": "ContentIntelligence",
+    "description": "Generate intelligent content ideas using AI with context awareness",
+    "subscribes": ["content.ideas.requested"],
+    "emits": ["content.ideas.generated", "content.processing.failed"],
+    "input": {
+        "type": "object",
+        "properties": {
+            "requestId": {"type": "string"},
+            "topic": {"type": "string"},
+            "industry": {"type": "string"},
+            "audience": {"type": "string"},
+            "contentType": {"type": "string"},
+            "count": {"type": "number"},
+            "tone": {"type": "string"},
+            "metadata": {"type": "object"}
+        },
+        "required": ["requestId", "topic", "contentType", "count"]
+    },
+    "flows": ["content-generation"]
+}
+
+async def handler(input_data, ctx):
+    """Generate intelligent content ideas with industry and audience awareness"""
+    request_id = input_data.get("requestId")
+    topic = input_data.get("topic")
+    industry = input_data.get("industry", "general")
+    audience = input_data.get("audience", "general")
+    content_type = input_data.get("contentType", "blog")
+    count = input_data.get("count", 5)
+    tone = input_data.get("tone", "professional")
+    
+    try:
+        ctx.logger.info(f"Generating content ideas", 
+                       request_id=request_id, topic=topic, count=count)
+        
+        # Build context-aware prompt
+        prompt = await build_content_prompt(topic, industry, audience, content_type, tone, count)
+        
+        # Generate ideas with primary provider
+        try:
+            ideas = await generate_with_openai(prompt, count, ctx)
+            provider_used = "openai"
+        except Exception as e1:
+            ctx.logger.warn(f"OpenAI failed, trying Cohere: {str(e1)}")
+            try:
+                ideas = await generate_with_cohere(prompt, count, ctx)
+                provider_used = "cohere"
+            except Exception as e2:
+                ctx.logger.error(f"All providers failed: OpenAI={str(e1)}, Cohere={str(e2)}")
+                raise Exception("All AI providers unavailable")
+        
+        # Enhance ideas with additional metadata
+        enhanced_ideas = await enhance_content_ideas(ideas, topic, industry, audience)
+        
+        # Store results
+        result_data = {
+            "requestId": request_id,
+            "topic": topic,
+            "industry": industry,
+            "audience": audience,
+            "contentType": content_type,
+            "tone": tone,
+            "ideas": enhanced_ideas,
+            "provider": provider_used,
+            "generatedAt": datetime.now().isoformat(),
+            "qualityScore": calculate_ideas_quality(enhanced_ideas)
+        }
+        
+        await ctx.state.set("content_results", request_id, result_data)
+        
+        await ctx.emit({
+            "topic": "content.ideas.generated",
+            "data": result_data
+        })
+        
+        ctx.logger.info(f"Content ideas generated successfully", 
+                       request_id=request_id, ideas_count=len(enhanced_ideas), 
+                       provider=provider_used)
+        
+    except Exception as e:
+        ctx.logger.error(f"Content generation failed: {str(e)}", request_id=request_id)
+        
+        await ctx.emit({
+            "topic": "content.processing.failed",
+            "data": {
+                "requestId": request_id,
+                "topic": topic,
+                "error": str(e),
+                "step": "content-intelligence"
+            }
+        })
+
+async def build_content_prompt(topic: str, industry: str, audience: str, 
+                             content_type: str, tone: str, count: int) -> str:
+    """Build context-aware prompt for content generation"""
+    
+    industry_context = get_industry_context(industry)
+    audience_context = get_audience_context(audience)
+    content_guidelines = get_content_type_guidelines(content_type)
+    
+    return f"""Generate {count} creative and engaging {content_type} content ideas about "{topic}".
+
+Industry Context: {industry_context}
+Target Audience: {audience_context}
+Content Guidelines: {content_guidelines}
+Tone: {tone}
+
+For each idea, provide:
+1. Compelling title
+2. Brief description (2-3 sentences)
+3. Key talking points (3-5 bullet points)
+4. Relevant tags/keywords
+5. Estimated difficulty level
+6. Potential engagement hooks
+
+Format as JSON array with this structure:
+[
+  {{
+    "title": "Engaging Title",
+    "description": "Brief description of the content idea",
+    "talkingPoints": ["Point 1", "Point 2", "Point 3"],
+    "tags": ["tag1", "tag2", "tag3"],
+    "difficulty": "easy|medium|hard",
+    "hooks": ["Hook 1", "Hook 2"],
+    "estimatedEngagement": "high|medium|low"
+  }}
+]"""
+
+async def generate_with_openai(prompt: str, count: int, ctx) -> List[Dict]:
+    """Generate content ideas using OpenAI"""
+    client = openai.OpenAI()
+    
+    response = await client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a creative content strategist with expertise in generating engaging, audience-specific content ideas."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        max_tokens=2000,
+        temperature=0.8,
+        response_format={"type": "json_object"}
+    )
+    
+    import json
+    ideas = json.loads(response.choices[0].message.content)
+    return ideas if isinstance(ideas, list) else ideas.get("ideas", [])
+
+async def generate_with_cohere(prompt: str, count: int, ctx) -> List[Dict]:
+    """Generate content ideas using Cohere"""
+    co = cohere.Client()
+    
+    response = await co.chat(
+        model="command-r-plus",
+        message=prompt,
+        max_tokens=2000,
+        temperature=0.8
+    )
+    
+    # Parse response and extract ideas
+    import json
+    try:
+        ideas = json.loads(response.text)
+        return ideas if isinstance(ideas, list) else ideas.get("ideas", [])
+    except:
+        # Fallback parsing if JSON parsing fails
+        return parse_ideas_from_text(response.text, count)
+
+async def enhance_content_ideas(ideas: List[Dict], topic: str, industry: str, audience: str) -> List[Dict]:
+    """Enhance generated ideas with additional metadata and scoring"""
+    enhanced = []
+    
+    for i, idea in enumerate(ideas):
+        enhanced_idea = {
+            **idea,
+            "id": f"idea_{i+1}",
+            "topic": topic,
+            "industry": industry,
+            "targetAudience": audience,
+            "createdAt": datetime.now().isoformat(),
+            "virality_score": calculate_virality_score(idea),
+            "seo_potential": calculate_seo_potential(idea, topic),
+            "production_effort": estimate_production_effort(idea),
+            "trending_relevance": calculate_trending_relevance(idea, topic)
+        }
+        enhanced.append(enhanced_idea)
+    
+    # Sort by overall potential score
+    enhanced.sort(key=lambda x: calculate_overall_score(x), reverse=True)
+    
+    return enhanced
+
+def calculate_virality_score(idea: Dict) -> float:
+    """Calculate potential virality based on content characteristics"""
+    score = 0.5  # Base score
+    
+    title = idea.get("title", "").lower()
+    description = idea.get("description", "").lower()
+    
+    # Viral keywords boost
+    viral_keywords = ["secret", "hack", "ultimate", "proven", "insider", "breakthrough"]
+    for keyword in viral_keywords:
+        if keyword in title or keyword in description:
+            score += 0.1
+    
+    # Question-based titles
+    if "?" in idea.get("title", ""):
+        score += 0.15
+    
+    # List-based content
+    if any(word in title for word in ["ways", "tips", "steps", "reasons"]):
+        score += 0.1
+    
+    return min(score, 1.0)
+
+def calculate_seo_potential(idea: Dict, topic: str) -> float:
+    """Calculate SEO potential based on keyword relevance"""
+    title = idea.get("title", "").lower()
+    tags = idea.get("tags", [])
+    
+    # Topic keyword presence
+    topic_words = topic.lower().split()
+    title_words = title.split()
+    
+    keyword_overlap = len(set(topic_words).intersection(set(title_words)))
+    base_score = keyword_overlap / len(topic_words) if topic_words else 0
+    
+    # Tag diversity bonus
+    tag_bonus = min(len(tags) * 0.05, 0.2)
+    
+    return min(base_score + tag_bonus, 1.0)
+
+def get_industry_context(industry: str) -> str:
+    """Get industry-specific context for content generation"""
+    contexts = {
+        "technology": "Focus on innovation, digital transformation, emerging tech trends, and technical solutions",
+        "healthcare": "Emphasize patient care, medical innovations, health education, and wellness",
+        "finance": "Cover financial planning, investment strategies, market analysis, and economic trends",
+        "education": "Include learning methodologies, educational technology, skill development, and academic insights",
+        "agriculture": "Focus on sustainable farming, crop optimization, agricultural technology, and rural development",
+        "manufacturing": "Cover production efficiency, quality control, industrial automation, and supply chain",
+        "retail": "Emphasize customer experience, sales strategies, market trends, and brand building"
+    }
+    return contexts.get(industry.lower(), "General business and industry insights")
+
+def get_audience_context(audience: str) -> str:
+    """Get audience-specific context for content generation"""
+    contexts = {
+        "executives": "C-level decision makers seeking strategic insights and business intelligence",
+        "professionals": "Working professionals looking for career development and industry knowledge",
+        "students": "Learners seeking educational content and skill development resources",
+        "entrepreneurs": "Business founders and startup teams needing practical guidance",
+        "consumers": "General public interested in accessible, practical information",
+        "technical": "Technical professionals seeking in-depth, specialized knowledge"
+    }
+    return contexts.get(audience.lower(), "General audience seeking valuable, actionable information")
+
+def get_content_type_guidelines(content_type: str) -> str:
+    """Get content type specific guidelines"""
+    guidelines = {
+        "blog": "Long-form, SEO-optimized articles with clear structure and actionable insights",
+        "social": "Short, engaging posts optimized for social media platforms with strong hooks",
+        "video": "Visual content scripts with clear narrative arc and engaging storytelling",
+        "newsletter": "Curated, valuable content designed for email consumption with clear CTAs"
+    }
+    return guidelines.get(content_type.lower(), "Engaging, valuable content optimized for the target medium")
+```
+
+```typescript
+// steps/03-content-vector-manager.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { createClient } from '@supabase/supabase-js'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'ContentVectorManager',
+  description: 'Manage content vectors for similarity and trend analysis',
+  subscribes: ['content.ideas.generated'],
+  emits: ['vectors.stored', 'trends.analyzed'],
+  input: z.object({
+    requestId: z.string(),
+    ideas: z.array(z.record(z.any())),
+    topic: z.string(),
+    industry: z.string().optional(),
+    metadata: z.record(z.any()).optional()
+  }),
+  flows: ['content-generation']
+}
+
+export const handler: Handlers['ContentVectorManager'] = async (input, { emit, logger, state }) => {
+  const { requestId, ideas, topic, industry, metadata } = input
+  
+  try {
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!
+    )
+    
+    // Generate embeddings for each idea
+    const ideaVectors = []
+    for (const idea of ideas) {
+      const combinedText = `${idea.title} ${idea.description} ${idea.talkingPoints?.join(' ') || ''}`
+      
+      // Generate embedding (would call embeddings service)
+      const embedding = await generateEmbedding(combinedText)
+      
+      ideaVectors.push({
+        request_id: requestId,
+        idea_id: idea.id,
+        title: idea.title,
+        content: combinedText,
+        embedding,
+        topic,
+        industry,
+        metadata: {
+          ...idea,
+          generatedAt: new Date().toISOString()
+        }
+      })
+    }
+    
+    // Store vectors in Supabase
+    const { error } = await supabase
+      .from('content_ideas')
+      .insert(ideaVectors)
+    
+    if (error) throw error
+    
+    // Analyze trends and similarities
+    const trendAnalysis = await analyzeTrends(topic, industry, supabase)
+    
+    await emit({
+      topic: 'vectors.stored',
+      data: {
+        requestId,
+        vectorCount: ideaVectors.length,
+        topic,
+        industry
+      }
+    })
+    
+    await emit({
+      topic: 'trends.analyzed',
+      data: {
+        requestId,
+        trendAnalysis,
+        topic,
+        industry
+      }
+    })
+    
+    logger.info('Content vectors stored and analyzed', {
+      requestId,
+      vectorCount: ideaVectors.length,
+      trendsFound: trendAnalysis.trends?.length || 0
+    })
+    
+  } catch (error) {
+    logger.error('Content vector management failed', { 
+      error: error.message, 
+      requestId 
+    })
+  }
+}
+
+async function generateEmbedding(text: string): Promise<number[]> {
+  // Implementation would use embeddings service
+  return []
+}
+
+async function analyzeTrends(topic: string, industry: string, supabase: any) {
+  // Analyze content trends in the same topic/industry
+  const { data: similarContent } = await supabase
+    .from('content_ideas')
+    .select('*')
+    .eq('topic', topic)
+    .eq('industry', industry)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  
+  return {
+    trends: extractTrends(similarContent),
+    popularTags: extractPopularTags(similarContent),
+    contentGaps: identifyContentGaps(similarContent, topic)
+  }
+}
+```
+
+```typescript
+// steps/04-output-orchestrator.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { GoogleSpreadsheet } from 'google-spreadsheet'
+import { WebClient } from '@slack/web-api'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'OutputOrchestrator',
+  description: 'Orchestrate outputs to multiple channels with formatting',
+  subscribes: ['content.ideas.generated', 'content.processing.failed'],
+  emits: ['outputs.completed'],
+  input: z.union([
+    z.object({
+      type: z.literal('success'),
+      requestId: z.string(),
+      ideas: z.array(z.record(z.any())),
+      topic: z.string(),
+      metadata: z.record(z.any())
+    }),
+    z.object({
+      type: z.literal('error'),
+      requestId: z.string(),
+      error: z.string(),
+      step: z.string()
+    })
+  ]),
+  flows: ['content-generation']
+}
+
+export const handler: Handlers['OutputOrchestrator'] = async (input, { emit, logger, state }) => {
+  try {
+    if (input.type === 'success') {
+      await handleSuccessOutput(input, { emit, logger, state })
+    } else {
+      await handleErrorOutput(input, { emit, logger, state })
+    }
+  } catch (error) {
+    logger.error('Output orchestration failed', { error: error.message })
+  }
+}
+
+async function handleSuccessOutput(input: any, context: any) {
+  const { requestId, ideas, topic, metadata } = input
+  const { emit, logger } = context
+  
+  // Format for Google Sheets
+  const sheetsData = ideas.map((idea: any, index: number) => ({
+    'Request ID': requestId,
+    'Idea #': index + 1,
+    'Title': idea.title,
+    'Description': idea.description,
+    'Content Type': metadata?.contentType || 'blog',
+    'Topic': topic,
+    'Difficulty': idea.difficulty,
+    'Virality Score': idea.virality_score?.toFixed(2) || 'N/A',
+    'SEO Potential': idea.seo_potential?.toFixed(2) || 'N/A',
+    'Generated At': new Date().toISOString()
+  }))
+  
+  // Log to Google Sheets
+  await logToGoogleSheets(sheetsData, 'Content Ideas Log')
+  
+  // Send summary to Slack
+  await sendSlackSummary({
+    requestId,
+    topic,
+    ideasCount: ideas.length,
+    topIdea: ideas[0],
+    averageQuality: ideas.reduce((sum: number, idea: any) => 
+      sum + (idea.virality_score || 0), 0) / ideas.length
+  })
+  
+  logger.info('Success output completed', { requestId, ideasCount: ideas.length })
+}
+
+async function handleErrorOutput(input: any, context: any) {
+  const { requestId, error, step } = input
+  const { emit, logger } = context
+  
+  // Log error to sheets
+  await logToGoogleSheets([{
+    'Request ID': requestId,
+    'Status': 'FAILED',
+    'Error': error,
+    'Failed Step': step,
+    'Timestamp': new Date().toISOString()
+  }], 'Error Log')
+  
+  // Send Slack alert
+  const slack = new WebClient(process.env.SLACK_BOT_TOKEN)
+  await slack.chat.postMessage({
+    channel: '#alerts',
+    text: `🚨 Content Ideas Generation Failed`,
+    blocks: [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*Request ID:* ${requestId}\n*Failed Step:* ${step}\n*Error:* ${error}`
+        }
+      }
+    ]
+  })
+  
+  logger.error('Error output completed', { requestId, step, error })
+}
+
+async function logToGoogleSheets(data: any[], sheetName: string) {
+  try {
+    const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEETS_ID!)
+    await doc.useServiceAccountAuth({
+      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!,
+      private_key: process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
+    })
+    
+    await doc.loadInfo()
+    
+    let sheet = doc.sheetsByTitle[sheetName]
+    if (!sheet) {
+      sheet = await doc.addSheet({ title: sheetName })
+      // Add headers
+      if (data.length > 0) {
+        await sheet.setHeaderRow(Object.keys(data[0]))
+      }
+    }
+    
+    await sheet.addRows(data)
+    
+  } catch (error) {
+    console.error('Google Sheets logging failed:', error)
+  }
+}
+
+async function sendSlackSummary(summary: any) {
+  try {
+    const slack = new WebClient(process.env.SLACK_BOT_TOKEN)
+    
+    await slack.chat.postMessage({
+      channel: '#content-ideas',
+      text: `✅ Content Ideas Generated`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Topic:* ${summary.topic}\n*Ideas Generated:* ${summary.ideasCount}\n*Top Idea:* ${summary.topIdea.title}\n*Average Quality:* ${summary.averageQuality.toFixed(2)}`
+          }
+        }
+      ]
+    })
+    
+  } catch (error) {
+    console.error('Slack notification failed:', error)
+  }
+}
+```
+
+## Example 2: E-commerce Order Processing (shopify_order_sms.json)
+
+### Converted Motia E-commerce Backend
+
+```typescript
+// steps/01-order-webhook.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { verifyShopifyWebhook } from '../services/shopify/webhook-verification'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'ShopifyOrderWebhook',
+  description: 'Receive and process Shopify order webhooks',
+  method: 'POST',
+  path: '/webhooks/shopify/orders',
+  bodySchema: z.object({
+    id: z.number(),
+    order_number: z.string(),
+    customer: z.object({
+      id: z.number(),
+      email: z.string(),
+      phone: z.string().optional(),
+      first_name: z.string(),
+      last_name: z.string()
+    }),
+    line_items: z.array(z.object({
+      id: z.number(),
+      title: z.string(),
+      quantity: z.number(),
+      price: z.string()
+    })),
+    total_price: z.string(),
+    financial_status: z.string(),
+    fulfillment_status: z.string().optional(),
+    created_at: z.string(),
+    shipping_address: z.object({
+      address1: z.string(),
+      city: z.string(),
+      country: z.string(),
+      zip: z.string()
+    }).optional()
+  }),
+  responseSchema: {
+    200: z.object({ received: z.boolean() }),
+    401: z.object({ error: z.string() }),
+    400: z.object({ error: z.string() })
+  },
+  emits: ['order.received'],
+  flows: ['ecommerce-fulfillment']
+}
+
+export const handler: Handlers['ShopifyOrderWebhook'] = async (req, { emit, logger, state }) => {
+  try {
+    // Verify Shopify webhook signature
+    const signature = req.headers['x-shopify-hmac-sha256'] as string
+    const isValid = verifyShopifyWebhook(JSON.stringify(req.body), signature)
+    
+    if (!isValid) {
+      return { status: 401, body: { error: 'Invalid webhook signature' } }
+    }
+    
+    const order = req.body
+    const orderId = `shopify_${order.id}`
+    
+    // Store order data
+    await state.set('orders', orderId, {
+      ...order,
+      processedAt: new Date().toISOString(),
+      status: 'processing'
+    })
+    
+    await emit({
+      topic: 'order.received',
+      data: {
+        orderId,
+        orderNumber: order.order_number,
+        customer: order.customer,
+        items: order.line_items,
+        totalPrice: parseFloat(order.total_price),
+        financialStatus: order.financial_status,
+        fulfillmentStatus: order.fulfillment_status,
+        shippingAddress: order.shipping_address,
+        createdAt: order.created_at
+      }
+    })
+    
+    logger.info('Shopify order received', {
+      orderId,
+      orderNumber: order.order_number,
+      customerEmail: order.customer.email,
+      totalPrice: order.total_price
+    })
+    
+    return { status: 200, body: { received: true } }
+    
+  } catch (error) {
+    logger.error('Shopify webhook processing failed', { error: error.message })
+    return { status: 500, body: { error: 'Webhook processing failed' } }
+  }
+}
+```
+
+```typescript
+// steps/02-order-intelligence.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'OrderIntelligence',
+  description: 'Analyze order patterns and generate insights',
+  subscribes: ['order.received'],
+  emits: ['order.analyzed', 'sms.notification.ready'],
+  input: z.object({
+    orderId: z.string(),
+    orderNumber: z.string(),
+    customer: z.record(z.any()),
+    items: z.array(z.record(z.any())),
+    totalPrice: z.number(),
+    financialStatus: z.string(),
+    fulfillmentStatus: z.string().optional(),
+    shippingAddress: z.record(z.any()).optional()
+  }),
+  flows: ['ecommerce-fulfillment']
+}
+
+export const handler: Handlers['OrderIntelligence'] = async (input, { emit, logger, state }) => {
+  const { orderId, customer, items, totalPrice, financialStatus } = input
+  
+  try {
+    // Analyze order characteristics
+    const orderAnalysis = await analyzeOrder(input, state)
+    
+    // Determine notification strategy
+    const notificationStrategy = determineNotificationStrategy(orderAnalysis, customer)
+    
+    // Store analysis
+    await state.set('order-analysis', orderId, {
+      ...orderAnalysis,
+      notificationStrategy,
+      analyzedAt: new Date().toISOString()
+    })
+    
+    await emit({
+      topic: 'order.analyzed',
+      data: {
+        orderId,
+        analysis: orderAnalysis,
+        notificationStrategy
+      }
+    })
+    
+    // Prepare SMS notification if customer has phone
+    if (customer.phone && notificationStrategy.sendSMS) {
+      await emit({
+        topic: 'sms.notification.ready',
+        data: {
+          orderId,
+          phoneNumber: customer.phone,
+          customerName: `${customer.first_name} ${customer.last_name}`,
+          orderNumber: input.orderNumber,
+          totalPrice,
+          items: items.slice(0, 3), // Top 3 items for SMS
+          estimatedDelivery: orderAnalysis.estimatedDelivery,
+          personalizedMessage: orderAnalysis.personalizedMessage
+        }
+      })
+    }
+    
+    logger.info('Order intelligence completed', {
+      orderId,
+      customerSegment: orderAnalysis.customerSegment,
+      orderValue: orderAnalysis.orderValue,
+      willSendSMS: notificationStrategy.sendSMS
+    })
+    
+  } catch (error) {
+    logger.error('Order intelligence failed', { error: error.message, orderId })
+  }
+}
+
+async function analyzeOrder(orderData: any, state: any) {
+  const { customer, items, totalPrice } = orderData
+  
+  // Get customer history
+  const customerHistory = await state.get('customers', customer.email) || { orders: [] }
+  
+  // Calculate customer metrics
+  const isReturningCustomer = customerHistory.orders.length > 0
+  const lifetimeValue = customerHistory.orders.reduce((sum: number, order: any) => sum + order.total, totalPrice)
+  
+  // Analyze order composition
+  const itemCategories = items.map((item: any) => categorizeProduct(item.title))
+  const dominantCategory = findDominantCategory(itemCategories)
+  
+  // Determine customer segment
+  let customerSegment = 'new'
+  if (lifetimeValue > 1000) customerSegment = 'vip'
+  else if (isReturningCustomer) customerSegment = 'returning'
+  
+  // Generate personalized insights
+  const personalizedMessage = generatePersonalizedMessage(customerSegment, dominantCategory, totalPrice)
+  
+  return {
+    customerSegment,
+    isReturningCustomer,
+    lifetimeValue,
+    orderValue: totalPrice > 100 ? 'high' : totalPrice > 50 ? 'medium' : 'low',
+    dominantCategory,
+    itemCount: items.length,
+    estimatedDelivery: calculateEstimatedDelivery(orderData.shippingAddress),
+    personalizedMessage,
+    riskScore: calculateRiskScore(orderData, customerHistory)
+  }
+}
+
+function determineNotificationStrategy(analysis: any, customer: any) {
+  return {
+    sendSMS: !!customer.phone && analysis.orderValue !== 'low',
+    sendEmail: true,
+    urgency: analysis.customerSegment === 'vip' ? 'high' : 'normal',
+    personalizationLevel: analysis.isReturningCustomer ? 'high' : 'medium'
+  }
+}
+```
+
+## Example 3: IoT Sensor Monitoring (sensor_fault_detector.json)
+
+### Converted Motia IoT Backend
+
+```typescript
+// steps/01-sensor-data-api.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'SensorDataAPI',
+  description: 'Receive IoT sensor data for fault detection',
+  method: 'POST',
+  path: '/iot/sensors/data',
+  bodySchema: z.object({
+    deviceId: z.string(),
+    sensorType: z.string(),
+    readings: z.array(z.object({
+      timestamp: z.string(),
+      value: z.number(),
+      unit: z.string(),
+      quality: z.number().min(0).max(1).optional()
+    })),
+    location: z.object({
+      latitude: z.number(),
+      longitude: z.number(),
+      zone: z.string().optional()
+    }).optional(),
+    metadata: z.record(z.any()).optional()
+  }),
+  responseSchema: {
+    200: z.object({
+      deviceId: z.string(),
+      status: z.string(),
+      readingsProcessed: z.number()
+    })
+  },
+  emits: ['sensor.data.received'],
+  flows: ['iot-monitoring']
+}
+
+export const handler: Handlers['SensorDataAPI'] = async (req, { emit, logger, state }) => {
+  const { deviceId, sensorType, readings, location, metadata } = req.body
+  
+  try {
+    // Store sensor data
+    await state.set('sensor-data', `${deviceId}:${Date.now()}`, {
+      deviceId,
+      sensorType,
+      readings,
+      location,
+      metadata,
+      receivedAt: new Date().toISOString()
+    })
+    
+    await emit({
+      topic: 'sensor.data.received',
+      data: {
+        deviceId,
+        sensorType,
+        readings,
+        location,
+        metadata,
+        dataQuality: calculateDataQuality(readings)
+      }
+    })
+    
+    logger.info('Sensor data received', {
+      deviceId,
+      sensorType,
+      readingsCount: readings.length
+    })
+    
+    return {
+      status: 200,
+      body: {
+        deviceId,
+        status: 'processing',
+        readingsProcessed: readings.length
+      }
+    }
+    
+  } catch (error) {
+    logger.error('Sensor data processing failed', { error: error.message, deviceId })
+    return { status: 500, body: { error: 'Sensor data processing failed' } }
+  }
+}
+
+function calculateDataQuality(readings: any[]): number {
+  if (readings.length === 0) return 0
+  
+  const qualityScores = readings.map(r => r.quality || 1.0)
+  return qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length
+}
+```
+
+```python
+# steps/02-fault-detector.step.py
+import numpy as np
+from sklearn.ensemble import IsolationForest
+from datetime import datetime, timedelta
+import asyncio
+
+config = {
+    "type": "event",
+    "name": "FaultDetector",
+    "description": "Detect sensor faults using ML anomaly detection",
+    "subscribes": ["sensor.data.received"],
+    "emits": ["fault.detected", "sensor.status.normal"],
+    "input": {
+        "type": "object",
+        "properties": {
+            "deviceId": {"type": "string"},
+            "sensorType": {"type": "string"},
+            "readings": {"type": "array"},
+            "location": {"type": "object"},
+            "dataQuality": {"type": "number"}
+        },
+        "required": ["deviceId", "sensorType", "readings"]
+    },
+    "flows": ["iot-monitoring"]
+}
+
+async def handler(input_data, ctx):
+    """Detect sensor faults using advanced ML techniques"""
+    device_id = input_data.get("deviceId")
+    sensor_type = input_data.get("sensorType")
+    readings = input_data.get("readings", [])
+    location = input_data.get("location", {})
+    data_quality = input_data.get("dataQuality", 1.0)
+    
+    try:
+        ctx.logger.info(f"Fault detection started", 
+                       device_id=device_id, readings_count=len(readings))
+        
+        # Extract values and timestamps
+        values = [reading["value"] for reading in readings]
+        timestamps = [reading["timestamp"] for reading in readings]
+        
+        if len(values) < 5:
+            ctx.logger.warn(f"Insufficient data for fault detection", device_id=device_id)
+            return
+        
+        # Get historical data for comparison
+        historical_data = await get_historical_data(device_id, sensor_type, ctx)
+        
+        # Perform anomaly detection
+        anomaly_results = detect_anomalies(values, historical_data)
+        
+        # Analyze patterns
+        pattern_analysis = analyze_patterns(values, timestamps)
+        
+        # Calculate fault probability
+        fault_probability = calculate_fault_probability(
+            anomaly_results, pattern_analysis, data_quality
+        )
+        
+        # Determine fault status
+        if fault_probability > 0.8:
+            fault_status = "critical_fault"
+        elif fault_probability > 0.6:
+            fault_status = "potential_fault"
+        elif fault_probability > 0.3:
+            fault_status = "degraded_performance"
+        else:
+            fault_status = "normal"
+        
+        # Store analysis results
+        analysis_result = {
+            "deviceId": device_id,
+            "sensorType": sensor_type,
+            "faultStatus": fault_status,
+            "faultProbability": fault_probability,
+            "anomalyResults": anomaly_results,
+            "patternAnalysis": pattern_analysis,
+            "dataQuality": data_quality,
+            "analyzedAt": datetime.now().isoformat(),
+            "readingsAnalyzed": len(readings)
+        }
+        
+        await ctx.state.set("fault_analysis", f"{device_id}:latest", analysis_result)
+        
+        if fault_status != "normal":
+            await ctx.emit({
+                "topic": "fault.detected",
+                "data": {
+                    **analysis_result,
+                    "location": location,
+                    "severity": map_fault_severity(fault_status),
+                    "recommendedActions": generate_recommendations(fault_status, sensor_type)
+                }
+            })
+        else:
+            await ctx.emit({
+                "topic": "sensor.status.normal",
+                "data": {
+                    "deviceId": device_id,
+                    "sensorType": sensor_type,
+                    "lastChecked": datetime.now().isoformat(),
+                    "dataQuality": data_quality
+                }
+            })
+        
+        ctx.logger.info(f"Fault detection completed", 
+                       device_id=device_id, fault_status=fault_status, 
+                       probability=fault_probability)
+        
+    except Exception as e:
+        ctx.logger.error(f"Fault detection failed: {str(e)}", device_id=device_id)
+
+def detect_anomalies(values: list, historical_data: list) -> dict:
+    """Detect anomalies using Isolation Forest and statistical methods"""
+    
+    # Combine current and historical data
+    all_data = np.array(historical_data + values).reshape(-1, 1)
+    
+    if len(all_data) < 10:
+        return {"method": "statistical", "anomalies": [], "anomaly_score": 0.0}
+    
+    # Isolation Forest for anomaly detection
+    iso_forest = IsolationForest(contamination=0.1, random_state=42)
+    anomaly_labels = iso_forest.fit_predict(all_data)
+    
+    # Get anomaly scores for current readings
+    current_data = np.array(values).reshape(-1, 1)
+    anomaly_scores = iso_forest.decision_function(current_data)
+    
+    # Statistical analysis
+    mean_val = np.mean(historical_data) if historical_data else np.mean(values)
+    std_val = np.std(historical_data) if historical_data else np.std(values)
+    
+    statistical_anomalies = []
+    for i, value in enumerate(values):
+        z_score = abs((value - mean_val) / std_val) if std_val > 0 else 0
+        if z_score > 3:  # 3-sigma rule
+            statistical_anomalies.append({
+                "index": i,
+                "value": value,
+                "z_score": z_score,
+                "type": "statistical_outlier"
+            })
+    
+    return {
+        "method": "hybrid",
+        "isolation_forest_score": float(np.mean(anomaly_scores)),
+        "statistical_anomalies": statistical_anomalies,
+        "anomaly_score": calculate_combined_anomaly_score(anomaly_scores, statistical_anomalies)
+    }
+
+def analyze_patterns(values: list, timestamps: list) -> dict:
+    """Analyze temporal patterns in sensor data"""
+    
+    if len(values) < 3:
+        return {"pattern": "insufficient_data"}
+    
+    # Trend analysis
+    trend = calculate_trend(values)
+    
+    # Volatility analysis
+    volatility = calculate_volatility(values)
+    
+    # Frequency analysis
+    frequency_analysis = analyze_frequency_patterns(values, timestamps)
+    
+    return {
+        "trend": trend,
+        "volatility": volatility,
+        "frequency_analysis": frequency_analysis,
+        "stability_score": calculate_stability_score(values),
+        "pattern_type": classify_pattern(trend, volatility)
+    }
+
+def calculate_fault_probability(anomaly_results: dict, pattern_analysis: dict, data_quality: float) -> float:
+    """Calculate overall fault probability from multiple indicators"""
+    
+    # Base probability from anomaly detection
+    anomaly_prob = min(abs(anomaly_results.get("anomaly_score", 0)) * 2, 1.0)
+    
+    # Pattern-based probability
+    pattern_prob = 0.0
+    if pattern_analysis.get("pattern_type") == "erratic":
+        pattern_prob = 0.4
+    elif pattern_analysis.get("stability_score", 1.0) < 0.3:
+        pattern_prob = 0.3
+    
+    # Data quality impact
+    quality_factor = 1.0 - data_quality
+    
+    # Combined probability
+    combined_prob = (anomaly_prob * 0.5 + pattern_prob * 0.3 + quality_factor * 0.2)
+    
+    return min(combined_prob, 1.0)
+
+def generate_recommendations(fault_status: str, sensor_type: str) -> list:
+    """Generate maintenance recommendations based on fault analysis"""
+    
+    recommendations = {
+        "critical_fault": [
+            "Immediate inspection required",
+            "Consider sensor replacement",
+            "Check power supply and connections",
+            "Verify calibration settings"
+        ],
+        "potential_fault": [
+            "Schedule maintenance within 24 hours",
+            "Monitor readings more frequently",
+            "Check environmental conditions",
+            "Verify sensor mounting"
+        ],
+        "degraded_performance": [
+            "Schedule routine maintenance",
+            "Clean sensor if applicable",
+            "Check for interference sources",
+            "Update calibration if needed"
+        ]
+    }
+    
+    base_recommendations = recommendations.get(fault_status, [])
+    
+    # Add sensor-specific recommendations
+    sensor_specific = get_sensor_specific_recommendations(sensor_type, fault_status)
+    
+    return base_recommendations + sensor_specific
+```
+
+This comprehensive example system demonstrates how to convert any n8n workflow into a production-ready Motia backend with advanced capabilities, proper error handling, and domain-specific optimizations.

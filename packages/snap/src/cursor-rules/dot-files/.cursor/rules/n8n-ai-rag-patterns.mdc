@@ -1,0 +1,1061 @@
+---
+description: Specialized patterns for converting n8n AI/RAG workflows to production-ready Motia backends with advanced AI capabilities
+globs: 
+alwaysApply: false
+---
+# n8n AI/RAG to Motia Patterns
+
+Convert complex n8n AI/RAG workflows into scalable, production-ready Motia backends with advanced AI capabilities.
+
+## CRITICAL RULE FIXES for n8n to Motia Conversion
+
+### 1. NO Unnecessary Middleware Imports
+- NEVER import or use middleware unless explicitly requested by user
+- Motia steps should be clean and minimal
+- Only use core Motia imports: EventConfig, Handlers, ApiRouteConfig
+
+### 2. Event Flow Validation
+- ALWAYS ensure emitted events have subscribers
+- If a step emits an event, another step MUST subscribe to it
+- Remove any emits that have no subscribers
+- Use empty emits array [] if step doesn't emit events
+
+### 3. Correct Motia Version Usage
+- Use latest stable Motia version: "^0.6.4-beta.130"
+- NEVER use beta versions in production examples
+
+### 4. TypeScript Best Practices
+- Remove unused imports, variables, and parameters
+- Fix null pointer issues with proper checks
+- Use proper error handling with try/catch
+
+### 5. Handler Function Signatures
+- Only include parameters that are actually used
+- Remove unused context parameters (emit, logger, state, etc.)
+- Keep handler signatures minimal and clean
+
+## RAG Architecture Conversion
+
+### n8n RAG Pattern Analysis
+Most n8n AI workflows follow this pattern:
+```
+Webhook → Text Splitter → Embeddings → Vector Store Insert → Vector Store Query → Vector Tool → Memory → Chat Model → RAG Agent → Output
+```
+
+### Motia RAG Architecture
+```typescript
+// Scalable event-driven RAG system
+API Step → Text Processing → Embedding Generation → Vector Operations → RAG Processing → Response Handling
+```
+
+## AI/ML Step Patterns
+
+### 1. Embedding Generation (Python)
+
+```python
+# steps/ai/embeddings-generator.step.py
+import openai
+import cohere
+from sentence_transformers import SentenceTransformer
+from datetime import datetime
+import asyncio
+
+config = {
+    "type": "event",
+    "name": "EmbeddingsGenerator",
+    "description": "Multi-provider embedding generation with fallback",
+    "subscribes": ["text.chunks.ready"],
+    "emits": ["embeddings.generated", "embeddings.failed"],
+    "input": {
+        "type": "object",
+        "properties": {
+            "requestId": {"type": "string"},
+            "chunks": {"type": "array"},
+            "provider": {"type": "string", "enum": ["openai", "cohere", "huggingface"]},
+            "model": {"type": "string"},
+            "metadata": {"type": "object"}
+        },
+        "required": ["requestId", "chunks"]
+    },
+    "flows": ["ai-processing"]
+}
+
+async def handler(input_data, ctx):
+    """Generate embeddings with multiple provider support and automatic fallback"""
+    request_id = input_data.get("requestId")
+    chunks = input_data.get("chunks", [])
+    provider = input_data.get("provider", "openai")
+    model = input_data.get("model")
+    metadata = input_data.get("metadata", {})
+    
+    try:
+        ctx.logger.info(f"Generating embeddings with {provider}", 
+                       request_id=request_id, chunks_count=len(chunks))
+        
+        # Multi-provider embedding generation
+        embeddings = []
+        
+        if provider == "openai":
+            embeddings = await generate_openai_embeddings(chunks, model or "text-embedding-3-small")
+        elif provider == "cohere":
+            embeddings = await generate_cohere_embeddings(chunks, model or "embed-english-v3.0")
+        elif provider == "huggingface":
+            embeddings = await generate_huggingface_embeddings(chunks, model or "sentence-transformers/all-MiniLM-L6-v2")
+        else:
+            # Fallback chain: OpenAI → Cohere → HuggingFace
+            try:
+                embeddings = await generate_openai_embeddings(chunks)
+            except Exception as e1:
+                ctx.logger.warn(f"OpenAI failed, trying Cohere: {str(e1)}")
+                try:
+                    embeddings = await generate_cohere_embeddings(chunks)
+                except Exception as e2:
+                    ctx.logger.warn(f"Cohere failed, trying HuggingFace: {str(e2)}")
+                    embeddings = await generate_huggingface_embeddings(chunks)
+        
+        # Enrich embeddings with metadata
+        enriched_embeddings = []
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+            enriched_embeddings.append({
+                "chunk_index": i,
+                "text": chunk,
+                "embedding": embedding,
+                "provider": provider,
+                "model": model,
+                "metadata": {
+                    **metadata,
+                    "chunk_length": len(chunk),
+                    "generated_at": datetime.now().isoformat()
+                }
+            })
+        
+        # Store embeddings with versioning
+        await ctx.state.set("embeddings", f"{request_id}:v1", {
+            "embeddings": enriched_embeddings,
+            "provider": provider,
+            "model": model,
+            "total_chunks": len(chunks),
+            "generated_at": datetime.now().isoformat(),
+            "version": "1.0"
+        })
+        
+        await ctx.emit({
+            "topic": "embeddings.generated",
+            "data": {
+                "requestId": request_id,
+                "embeddings": enriched_embeddings,
+                "provider": provider,
+                "model": model,
+                "metadata": metadata
+            }
+        })
+        
+        ctx.logger.info(f"Embeddings generated successfully", 
+                       request_id=request_id, provider=provider, count=len(embeddings))
+        
+    except Exception as e:
+        ctx.logger.error(f"Embeddings generation failed: {str(e)}", 
+                        request_id=request_id, provider=provider)
+        
+        await ctx.emit({
+            "topic": "embeddings.failed",
+            "data": {
+                "requestId": request_id,
+                "provider": provider,
+                "error": str(e),
+                "step": "embeddings-generation"
+            }
+        })
+
+async def generate_openai_embeddings(chunks, model="text-embedding-3-small"):
+    """Generate embeddings using OpenAI"""
+    client = openai.OpenAI()
+    embeddings = []
+    
+    # Batch process for efficiency
+    batch_size = 100
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i:i+batch_size]
+        
+        response = await client.embeddings.create(
+            model=model,
+            input=batch
+        )
+        
+        batch_embeddings = [data.embedding for data in response.data]
+        embeddings.extend(batch_embeddings)
+    
+    return embeddings
+
+async def generate_cohere_embeddings(chunks, model="embed-english-v3.0"):
+    """Generate embeddings using Cohere"""
+    co = cohere.Client()
+    
+    response = await co.embed(
+        texts=chunks,
+        model=model,
+        input_type="search_document"
+    )
+    
+    return response.embeddings
+
+async def generate_huggingface_embeddings(chunks, model="sentence-transformers/all-MiniLM-L6-v2"):
+    """Generate embeddings using HuggingFace"""
+    model_instance = SentenceTransformer(model)
+    embeddings = model_instance.encode(chunks)
+    return embeddings.tolist()
+```
+
+### 2. Vector Store Operations (TypeScript)
+
+```typescript
+// steps/ai/vector-store-manager.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+import { createClient } from '@supabase/supabase-js'
+import { PineconeClient } from '@pinecone-database/pinecone'
+import weaviate from 'weaviate-ts-client'
+import Redis from 'ioredis'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'VectorStoreManager',
+  description: 'Multi-provider vector store operations with automatic failover',
+  subscribes: ['embeddings.generated', 'vector.query.request'],
+  emits: ['vectors.stored', 'query.results', 'vector.operation.failed'],
+  input: z.union([
+    z.object({
+      operation: z.literal('store'),
+      requestId: z.string(),
+      embeddings: z.array(z.record(z.any())),
+      provider: z.enum(['supabase', 'pinecone', 'weaviate', 'redis']),
+      indexName: z.string()
+    }),
+    z.object({
+      operation: z.literal('query'),
+      queryId: z.string(),
+      queryEmbedding: z.array(z.number()),
+      provider: z.enum(['supabase', 'pinecone', 'weaviate', 'redis']),
+      indexName: z.string(),
+      topK: z.number().default(5),
+      threshold: z.number().default(0.7)
+    })
+  ]),
+  flows: ['vector-operations']
+}
+
+export const handler: Handlers['VectorStoreManager'] = async (input, { emit, logger, state }) => {
+  try {
+    if (input.operation === 'store') {
+      await handleVectorStore(input, { emit, logger, state })
+    } else {
+      await handleVectorQuery(input, { emit, logger, state })
+    }
+  } catch (error) {
+    logger.error('Vector store operation failed', { error: error.message })
+    
+    await emit({
+      topic: 'vector.operation.failed',
+      data: {
+        requestId: 'requestId' in input ? input.requestId : input.queryId,
+        operation: input.operation,
+        provider: input.provider,
+        error: error.message
+      }
+    })
+  }
+}
+
+async function handleVectorStore(input: any, context: any) {
+  const { requestId, embeddings, provider, indexName } = input
+  const { emit, logger } = context
+  
+  let client: any
+  let stored = false
+  
+  try {
+    switch (provider) {
+      case 'supabase':
+        client = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!)
+        await storeInSupabase(client, embeddings, indexName)
+        stored = true
+        break
+        
+      case 'pinecone':
+        client = new PineconeClient()
+        await client.init({ apiKey: process.env.PINECONE_API_KEY! })
+        await storeInPinecone(client, embeddings, indexName)
+        stored = true
+        break
+        
+      case 'weaviate':
+        client = weaviate.client({ scheme: 'http', host: process.env.WEAVIATE_HOST! })
+        await storeInWeaviate(client, embeddings, indexName)
+        stored = true
+        break
+        
+      case 'redis':
+        client = new Redis(process.env.REDIS_URL!)
+        await storeInRedis(client, embeddings, indexName)
+        stored = true
+        break
+    }
+    
+    if (stored) {
+      await emit({
+        topic: 'vectors.stored',
+        data: {
+          requestId,
+          provider,
+          indexName,
+          count: embeddings.length,
+          storedAt: new Date().toISOString()
+        }
+      })
+      
+      logger.info('Vectors stored successfully', { 
+        requestId, 
+        provider, 
+        count: embeddings.length 
+      })
+    }
+    
+  } catch (error) {
+    // Implement automatic failover to backup provider
+    const backupProvider = getBackupProvider(provider)
+    if (backupProvider) {
+      logger.warn(`${provider} failed, trying backup ${backupProvider}`, { requestId })
+      await handleVectorStore({...input, provider: backupProvider}, context)
+    } else {
+      throw error
+    }
+  }
+}
+
+async function handleVectorQuery(input: any, context: any) {
+  const { queryId, queryEmbedding, provider, indexName, topK, threshold } = input
+  const { emit, logger } = context
+  
+  let results: any[] = []
+  
+  switch (provider) {
+    case 'supabase':
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!)
+      const { data } = await supabase.rpc('match_documents', {
+        query_embedding: queryEmbedding,
+        match_threshold: threshold,
+        match_count: topK,
+        index_name: indexName
+      })
+      results = data || []
+      break
+      
+    case 'pinecone':
+      const pinecone = new PineconeClient()
+      await pinecone.init({ apiKey: process.env.PINECONE_API_KEY! })
+      const index = pinecone.Index(indexName)
+      const queryResponse = await index.query({
+        vector: queryEmbedding,
+        topK,
+        includeMetadata: true
+      })
+      results = queryResponse.matches || []
+      break
+      
+    // Add other providers...
+  }
+  
+  await emit({
+    topic: 'query.results',
+    data: {
+      queryId,
+      results,
+      provider,
+      indexName,
+      resultCount: results.length
+    }
+  })
+  
+  logger.info('Vector query completed', { 
+    queryId, 
+    provider, 
+    resultCount: results.length 
+  })
+}
+
+function getBackupProvider(primaryProvider: string): string | null {
+  const backupMap = {
+    'supabase': 'pinecone',
+    'pinecone': 'weaviate', 
+    'weaviate': 'redis',
+    'redis': 'supabase'
+  }
+  return backupMap[primaryProvider] || null
+}
+```
+
+### 3. Advanced RAG Agent (Python)
+
+```python
+# steps/ai/advanced-rag-agent.step.py
+import openai
+import anthropic
+from typing import List, Dict, Any
+from datetime import datetime
+import json
+
+config = {
+    "type": "event",
+    "name": "AdvancedRAGAgent",
+    "description": "Advanced RAG agent with multi-modal capabilities and reasoning",
+    "subscribes": ["query.results", "rag.process.request"],
+    "emits": ["rag.response.generated", "rag.processing.failed"],
+    "input": {
+        "type": "object",
+        "properties": {
+            "queryId": {"type": "string"},
+            "query": {"type": "string"},
+            "results": {"type": "array"},
+            "context": {"type": "object"},
+            "options": {
+                "type": "object",
+                "properties": {
+                    "model": {"type": "string"},
+                    "provider": {"type": "string"},
+                    "temperature": {"type": "number"},
+                    "max_tokens": {"type": "number"},
+                    "reasoning_mode": {"type": "boolean"}
+                }
+            }
+        },
+        "required": ["queryId", "query", "results"]
+    },
+    "flows": ["advanced-rag"]
+}
+
+async def handler(input_data, ctx):
+    """Advanced RAG processing with reasoning and multi-modal support"""
+    query_id = input_data.get("queryId")
+    query = input_data.get("query")
+    results = input_data.get("results", [])
+    context = input_data.get("context", {})
+    options = input_data.get("options", {})
+    
+    try:
+        ctx.logger.info(f"Advanced RAG processing started", 
+                       query_id=query_id, context_count=len(results))
+        
+        # Enhanced context building with relevance scoring
+        enhanced_context = await build_enhanced_context(results, query, ctx)
+        
+        # Multi-step reasoning if enabled
+        if options.get("reasoning_mode", False):
+            response = await process_with_reasoning(query, enhanced_context, options, ctx)
+        else:
+            response = await process_standard_rag(query, enhanced_context, options, ctx)
+        
+        # Post-process response with quality checks
+        processed_response = await post_process_response(response, query, enhanced_context)
+        
+        # Store comprehensive response data
+        response_data = {
+            "queryId": query_id,
+            "query": query,
+            "response": processed_response,
+            "context_used": enhanced_context,
+            "metadata": {
+                "provider": options.get("provider", "openai"),
+                "model": options.get("model"),
+                "reasoning_mode": options.get("reasoning_mode", False),
+                "confidence_score": processed_response.get("confidence", 0.8),
+                "context_relevance": enhanced_context.get("relevance_score", 0.7),
+                "generated_at": datetime.now().isoformat()
+            }
+        }
+        
+        await ctx.state.set("rag_responses", query_id, response_data)
+        
+        await ctx.emit({
+            "topic": "rag.response.generated",
+            "data": response_data
+        })
+        
+        ctx.logger.info(f"Advanced RAG processing completed", 
+                       query_id=query_id, confidence=processed_response.get("confidence"))
+        
+    except Exception as e:
+        ctx.logger.error(f"Advanced RAG processing failed: {str(e)}", query_id=query_id)
+        
+        await ctx.emit({
+            "topic": "rag.processing.failed",
+            "data": {
+                "queryId": query_id,
+                "query": query,
+                "error": str(e),
+                "step": "advanced-rag-agent"
+            }
+        })
+
+async def build_enhanced_context(results: List[Dict], query: str, ctx) -> Dict[str, Any]:
+    """Build enhanced context with relevance scoring and summarization"""
+    if not results:
+        return {"documents": [], "summary": "", "relevance_score": 0.0}
+    
+    # Score and rank results by relevance
+    scored_results = []
+    for result in results:
+        relevance_score = calculate_relevance_score(result.get("content", ""), query)
+        scored_results.append({
+            **result,
+            "relevance_score": relevance_score
+        })
+    
+    # Sort by relevance and take top results
+    scored_results.sort(key=lambda x: x["relevance_score"], reverse=True)
+    top_results = scored_results[:5]
+    
+    # Generate context summary
+    context_texts = [doc["content"] for doc in top_results if doc.get("content")]
+    context_summary = await generate_context_summary(context_texts, query)
+    
+    return {
+        "documents": top_results,
+        "summary": context_summary,
+        "relevance_score": sum(doc["relevance_score"] for doc in top_results) / len(top_results),
+        "total_documents": len(results),
+        "used_documents": len(top_results)
+    }
+
+async def process_with_reasoning(query: str, context: Dict, options: Dict, ctx) -> Dict[str, Any]:
+    """Process query with multi-step reasoning"""
+    client = openai.OpenAI()
+    
+    # Step 1: Analyze query intent
+    intent_analysis = await client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {
+                "role": "system",
+                "content": "Analyze the user's query intent and break it down into sub-questions."
+            },
+            {
+                "role": "user",
+                "content": f"Query: {query}\n\nBreak this down into specific sub-questions that need to be answered."
+            }
+        ],
+        max_tokens=300
+    )
+    
+    # Step 2: Answer each sub-question
+    sub_questions = extract_sub_questions(intent_analysis.choices[0].message.content)
+    sub_answers = []
+    
+    for sub_q in sub_questions:
+        answer = await answer_sub_question(sub_q, context, client)
+        sub_answers.append({"question": sub_q, "answer": answer})
+    
+    # Step 3: Synthesize final answer
+    final_response = await client.chat.completions.create(
+        model=options.get("model", "gpt-4"),
+        messages=[
+            {
+                "role": "system",
+                "content": f"""Synthesize a comprehensive answer using the context and sub-question analysis.
+
+Context Summary: {context['summary']}
+
+Sub-question Analysis:
+{json.dumps(sub_answers, indent=2)}
+
+Provide a well-structured, accurate response."""
+            },
+            {
+                "role": "user",
+                "content": query
+            }
+        ],
+        max_tokens=options.get("max_tokens", 1000),
+        temperature=options.get("temperature", 0.7)
+    )
+    
+    return {
+        "answer": final_response.choices[0].message.content,
+        "reasoning_steps": sub_answers,
+        "confidence": calculate_confidence(context, sub_answers),
+        "reasoning_mode": True
+    }
+
+async def process_standard_rag(query: str, context: Dict, options: Dict, ctx) -> Dict[str, Any]:
+    """Standard RAG processing"""
+    provider = options.get("provider", "openai")
+    
+    if provider == "openai":
+        client = openai.OpenAI()
+        response = await client.chat.completions.create(
+            model=options.get("model", "gpt-4"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"""You are a helpful assistant. Use the following context to answer questions accurately:
+
+Context Summary: {context['summary']}
+
+Relevant Documents:
+{format_context_documents(context['documents'])}
+
+If the context doesn't contain relevant information, say so clearly."""
+                },
+                {
+                    "role": "user",
+                    "content": query
+                }
+            ],
+            max_tokens=options.get("max_tokens", 1000),
+            temperature=options.get("temperature", 0.7)
+        )
+        
+        return {
+            "answer": response.choices[0].message.content,
+            "confidence": context["relevance_score"],
+            "reasoning_mode": False
+        }
+    
+    elif provider == "anthropic":
+        client = anthropic.Anthropic()
+        response = await client.messages.create(
+            model=options.get("model", "claude-3-sonnet-20240229"),
+            max_tokens=options.get("max_tokens", 1000),
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"""Context: {context['summary']}
+
+Question: {query}
+
+Please provide a helpful answer based on the context."""
+                }
+            ]
+        )
+        
+        return {
+            "answer": response.content[0].text,
+            "confidence": context["relevance_score"],
+            "reasoning_mode": False
+        }
+
+def calculate_relevance_score(content: str, query: str) -> float:
+    """Calculate relevance score between content and query"""
+    # Simple keyword-based scoring (can be enhanced with semantic similarity)
+    query_words = set(query.lower().split())
+    content_words = set(content.lower().split())
+    
+    if not query_words:
+        return 0.0
+    
+    intersection = query_words.intersection(content_words)
+    return len(intersection) / len(query_words)
+
+async def generate_context_summary(texts: List[str], query: str) -> str:
+    """Generate a summary of context documents relevant to the query"""
+    if not texts:
+        return "No relevant context found."
+    
+    combined_text = "\n\n".join(texts[:3])  # Top 3 documents
+    
+    client = openai.OpenAI()
+    response = await client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "system",
+                "content": "Summarize the following documents in relation to the user's query."
+            },
+            {
+                "role": "user", 
+                "content": f"Query: {query}\n\nDocuments:\n{combined_text}"
+            }
+        ],
+        max_tokens=300
+    )
+    
+    return response.choices[0].message.content
+
+def extract_sub_questions(analysis_text: str) -> List[str]:
+    """Extract sub-questions from intent analysis"""
+    # Simple extraction - can be enhanced with NLP
+    lines = analysis_text.split('\n')
+    questions = []
+    
+    for line in lines:
+        if '?' in line:
+            questions.append(line.strip())
+    
+    return questions[:3]  # Limit to 3 sub-questions
+
+async def answer_sub_question(question: str, context: Dict, client) -> str:
+    """Answer individual sub-question using context"""
+    response = await client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "system",
+                "content": f"Answer this specific question using the provided context: {context['summary']}"
+            },
+            {
+                "role": "user",
+                "content": question
+            }
+        ],
+        max_tokens=200
+    )
+    
+    return response.choices[0].message.content
+
+def calculate_confidence(context: Dict, sub_answers: List[Dict]) -> float:
+    """Calculate confidence score based on context relevance and reasoning quality"""
+    base_confidence = context.get("relevance_score", 0.5)
+    reasoning_bonus = len(sub_answers) * 0.1  # Bonus for reasoning steps
+    
+    return min(base_confidence + reasoning_bonus, 1.0)
+
+def format_context_documents(documents: List[Dict]) -> str:
+    """Format context documents for prompt"""
+    formatted = []
+    for i, doc in enumerate(documents[:5]):
+        formatted.append(f"Document {i+1}: {doc.get('content', '')[:500]}...")
+    
+    return "\n\n".join(formatted)
+
+async def post_process_response(response: Dict, query: str, context: Dict) -> Dict[str, Any]:
+    """Post-process response with quality checks and enhancements"""
+    answer = response.get("answer", "")
+    
+    # Quality checks
+    quality_score = assess_answer_quality(answer, query, context)
+    
+    # Add citations if available
+    citations = extract_citations(answer, context.get("documents", []))
+    
+    return {
+        **response,
+        "quality_score": quality_score,
+        "citations": citations,
+        "word_count": len(answer.split()),
+        "processed_at": datetime.now().isoformat()
+    }
+
+def assess_answer_quality(answer: str, query: str, context: Dict) -> float:
+    """Assess the quality of the generated answer"""
+    # Basic quality metrics
+    if not answer or len(answer.strip()) < 10:
+        return 0.0
+    
+    # Check if answer addresses the query
+    query_words = set(query.lower().split())
+    answer_words = set(answer.lower().split())
+    relevance = len(query_words.intersection(answer_words)) / len(query_words)
+    
+    # Check if answer uses context
+    context_usage = 0.0
+    if context.get("documents"):
+        context_words = set()
+        for doc in context["documents"][:3]:
+            context_words.update(doc.get("content", "").lower().split())
+        
+        if context_words:
+            context_usage = len(answer_words.intersection(context_words)) / len(answer_words)
+    
+    return (relevance * 0.6 + context_usage * 0.4)
+
+def extract_citations(answer: str, documents: List[Dict]) -> List[Dict]:
+    """Extract potential citations from answer based on document content"""
+    citations = []
+    
+    for i, doc in enumerate(documents):
+        content = doc.get("content", "")
+        # Simple citation detection - can be enhanced
+        if any(phrase in answer.lower() for phrase in content.lower().split()[:10]):
+            citations.append({
+                "document_index": i,
+                "source": doc.get("metadata", {}).get("source", "Unknown"),
+                "relevance": doc.get("relevance_score", 0.0)
+            })
+    
+    return citations
+```
+
+### 4. Memory and Context Management
+
+```typescript
+// steps/ai/memory-manager.step.ts
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+export const conversationMemorySchema = z.object({
+  id: z.string(),
+  sessionId: z.string(),
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string(),
+    timestamp: z.string(),
+    metadata: z.record(z.any()).optional()
+  })),
+  context: z.record(z.any()).optional(),
+  lastUpdated: z.string()
+})
+
+export type ConversationMemory = z.infer<typeof conversationMemorySchema>
+
+export const config: StreamConfig = {
+  name: 'conversation-memory',
+  schema: conversationMemorySchema,
+  baseConfig: {
+    storageType: 'default',
+    ttl: 24 * 60 * 60, // 24 hours
+    maxItems: 100 // Keep last 100 messages per session
+  }
+}
+```
+
+```typescript
+// steps/ai/context-manager.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'ContextManager', 
+  description: 'Manage conversation context and memory',
+  subscribes: ['conversation.message', 'context.update.request'],
+  emits: ['context.updated', 'memory.stored'],
+  input: z.union([
+    z.object({
+      sessionId: z.string(),
+      message: z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string()
+      }),
+      context: z.record(z.any()).optional()
+    }),
+    z.object({
+      sessionId: z.string(),
+      contextUpdate: z.record(z.any())
+    })
+  ]),
+  flows: ['context-management']
+}
+
+export const handler: Handlers['ContextManager'] = async (input, { emit, logger, streams, state }) => {
+  try {
+    if ('message' in input) {
+      // Handle new conversation message
+      const { sessionId, message, context } = input
+      
+      // Get existing conversation
+      const existingMemory = await streams['conversation-memory'].get(sessionId, 'current') || {
+        id: crypto.randomUUID(),
+        sessionId,
+        messages: [],
+        context: {},
+        lastUpdated: new Date().toISOString()
+      }
+      
+      // Add new message
+      const updatedMemory = {
+        ...existingMemory,
+        messages: [
+          ...existingMemory.messages,
+          {
+            ...message,
+            timestamp: new Date().toISOString(),
+            metadata: { source: 'user_input' }
+          }
+        ],
+        context: { ...existingMemory.context, ...context },
+        lastUpdated: new Date().toISOString()
+      }
+      
+      // Keep only last 20 messages for efficiency
+      if (updatedMemory.messages.length > 20) {
+        updatedMemory.messages = updatedMemory.messages.slice(-20)
+      }
+      
+      // Store updated memory
+      await streams['conversation-memory'].set(sessionId, 'current', updatedMemory)
+      
+      await emit({
+        topic: 'memory.stored',
+        data: {
+          sessionId,
+          messageCount: updatedMemory.messages.length,
+          lastUpdated: updatedMemory.lastUpdated
+        }
+      })
+      
+      await emit({
+        topic: 'context.updated',
+        data: {
+          sessionId,
+          context: updatedMemory.context,
+          recentMessages: updatedMemory.messages.slice(-5) // Last 5 messages
+        }
+      })
+      
+      logger.info('Context updated with new message', { 
+        sessionId, 
+        messageCount: updatedMemory.messages.length 
+      })
+      
+    } else {
+      // Handle context update request
+      const { sessionId, contextUpdate } = input
+      
+      const existingMemory = await streams['conversation-memory'].get(sessionId, 'current')
+      if (existingMemory) {
+        const updatedMemory = {
+          ...existingMemory,
+          context: { ...existingMemory.context, ...contextUpdate },
+          lastUpdated: new Date().toISOString()
+        }
+        
+        await streams['conversation-memory'].set(sessionId, 'current', updatedMemory)
+        
+        await emit({
+          topic: 'context.updated',
+          data: {
+            sessionId,
+            context: updatedMemory.context,
+            recentMessages: updatedMemory.messages.slice(-5)
+          }
+        })
+        
+        logger.info('Context updated manually', { sessionId })
+      }
+    }
+    
+  } catch (error) {
+    logger.error('Context management failed', { error: error.message })
+  }
+}
+```
+
+## AI Provider Service Abstractions
+
+### 1. Unified AI Service
+```typescript
+// services/ai/unified-ai.service.ts
+export class UnifiedAIService {
+  private providers: Map<string, any> = new Map()
+  
+  constructor() {
+    this.initializeProviders()
+  }
+  
+  private initializeProviders() {
+    if (process.env.OPENAI_API_KEY) {
+      this.providers.set('openai', new OpenAI({ apiKey: process.env.OPENAI_API_KEY }))
+    }
+    
+    if (process.env.ANTHROPIC_API_KEY) {
+      this.providers.set('anthropic', new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }))
+    }
+    
+    // Add other providers...
+  }
+  
+  async generateEmbeddings(text: string[], provider = 'openai', model?: string) {
+    const client = this.providers.get(provider)
+    if (!client) throw new Error(`Provider ${provider} not available`)
+    
+    // Provider-specific implementation
+    switch (provider) {
+      case 'openai':
+        return await this.generateOpenAIEmbeddings(client, text, model)
+      case 'cohere':
+        return await this.generateCohereEmbeddings(client, text, model)
+      // Add other providers...
+    }
+  }
+  
+  async generateChatCompletion(messages: any[], provider = 'openai', options: any = {}) {
+    const client = this.providers.get(provider)
+    if (!client) throw new Error(`Provider ${provider} not available`)
+    
+    // Unified chat completion interface
+    return await this.callChatCompletion(client, messages, provider, options)
+  }
+  
+  private async generateOpenAIEmbeddings(client: any, texts: string[], model = 'text-embedding-3-small') {
+    const response = await client.embeddings.create({
+      model,
+      input: texts
+    })
+    
+    return response.data.map((item: any) => item.embedding)
+  }
+  
+  private async callChatCompletion(client: any, messages: any[], provider: string, options: any) {
+    switch (provider) {
+      case 'openai':
+        return await client.chat.completions.create({
+          model: options.model || 'gpt-4',
+          messages,
+          max_tokens: options.maxTokens || 1000,
+          temperature: options.temperature || 0.7
+        })
+      
+      case 'anthropic':
+        return await client.messages.create({
+          model: options.model || 'claude-3-sonnet-20240229',
+          max_tokens: options.maxTokens || 1000,
+          messages
+        })
+        
+      // Add other providers...
+    }
+  }
+}
+```
+
+### 2. Vector Store Service
+```typescript
+// services/vector/unified-vector.service.ts
+export class UnifiedVectorService {
+  private stores: Map<string, any> = new Map()
+  
+  constructor() {
+    this.initializeStores()
+  }
+  
+  async store(provider: string, indexName: string, vectors: any[]) {
+    const store = this.stores.get(provider)
+    if (!store) throw new Error(`Vector store ${provider} not available`)
+    
+    switch (provider) {
+      case 'supabase':
+        return await this.storeInSupabase(store, indexName, vectors)
+      case 'pinecone':
+        return await this.storeInPinecone(store, indexName, vectors)
+      case 'weaviate':
+        return await this.storeInWeaviate(store, indexName, vectors)
+      case 'redis':
+        return await this.storeInRedis(store, indexName, vectors)
+    }
+  }
+  
+  async query(provider: string, indexName: string, queryVector: number[], options: any = {}) {
+    const store = this.stores.get(provider)
+    if (!store) throw new Error(`Vector store ${provider} not available`)
+    
+    switch (provider) {
+      case 'supabase':
+        return await this.querySupabase(store, indexName, queryVector, options)
+      case 'pinecone':
+        return await this.queryPinecone(store, indexName, queryVector, options)
+      // Add other providers...
+    }
+  }
+}
+```
+
+This comprehensive AI/RAG pattern system enables converting complex n8n AI workflows into production-ready Motia backends with advanced capabilities, multi-provider support, and intelligent reasoning.
