@@ -5,6 +5,7 @@
     "multi-language-data-processing",
     "sentiment-analysis",
     "rag-docling-weaviate",
-    "uptime-discord-monitor"
+    "uptime-discord-monitor",
+    "ai-content-moderation"
   ]
 }
