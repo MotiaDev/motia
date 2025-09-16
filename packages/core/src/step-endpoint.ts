@@ -19,7 +19,7 @@ const getFeatures = async (filePath: string) => {
 }
 
 export const stepEndpoint = (app: Express, lockedData: LockedData) => {
-  app.get('/step/:stepId', async (req, res) => {
+  app.get('/__motia/step/:stepId', async (req, res) => {
     const id = req.params.stepId
 
     const allSteps = [...lockedData.activeSteps, ...lockedData.devSteps]
