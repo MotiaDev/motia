@@ -3,6 +3,7 @@ import { Builder } from './builder'
 import colors from 'colors'
 import * as cron from 'node-cron'
 import path from 'path'
+import { globSync } from 'glob'
 
 export const buildValidation = (builder: Builder, listener: BuildListener) => {
   const { errors, warnings } = validateStepsConfig(builder)
@@ -24,6 +25,30 @@ export const validateStepsConfig = (builder: Builder) => {
   const warnings: ValidationError[] = []
   const endpoints = new Map<string, string>()
   const stepNames = new Set<string>()
+
+  // Check for deprecated .step.py pattern
+  const deprecatedPythonSteps = globSync('**/*.step.py', {
+    absolute: true,
+    cwd: path.join(builder.projectDir, 'steps')
+  })
+
+  if (deprecatedPythonSteps.length > 0) {
+    warnings.push({
+      relativePath: 'steps/',
+      message: [
+        `Python steps with ${colors.yellow('.step.py')} extension are deprecated.`,
+        `Please rename them to ${colors.green('_step.py')} format.`,
+        '',
+        'Deprecated files:',
+        ...deprecatedPythonSteps.map(stepPath => {
+          const relative = path.relative(builder.projectDir, stepPath)
+          const newName = relative.replace('.step.py', '_step.py')
+          return `  ${colors.yellow('➜')} ${colors.cyan(relative)} → ${colors.green(newName)}`
+        })
+      ].join('\n'),
+      step: Object.values(builder.stepsConfig)[0], // Use first step as reference
+    })
+  }
 
   for (const step of Object.values(builder.stepsConfig)) {
     if (stepNames.has(step.config.name)) {
