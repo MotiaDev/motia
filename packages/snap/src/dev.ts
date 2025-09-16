@@ -61,7 +61,7 @@ export const dev = async (
     filePath: path.join(baseDir, '.motia'),
   })
 
-  const config = { isVerbose }
+  const config = { isVerbose, isDev: true, version }
   const motiaServer = createServer(lockedData, eventManager, state, config)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
 
@@ -75,7 +75,6 @@ export const dev = async (
   watcher.init()
 
   stateEndpoints(motiaServer, state)
-
   deployEndpoints(motiaServer, lockedData)
 
   motiaServer.server.listen(port, hostname)

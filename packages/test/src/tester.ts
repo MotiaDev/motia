@@ -14,6 +14,8 @@ export const createMotiaTester = (): MotiaTester => {
     const state = createStateAdapter({ adapter: 'memory' })
     const { server, socketServer, close } = createServer(lockedData, eventManager, state, {
       isVerbose: false,
+      isDev: true,
+      version: 'DEV',
     })
 
     return { server, socketServer, eventManager, state, close }

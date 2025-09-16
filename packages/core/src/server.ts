@@ -48,6 +48,8 @@ export type MotiaServer = {
 type MotiaServerConfig = {
   isVerbose: boolean
   printer?: Printer
+  isDev: boolean
+  version: string
 }
 
 export const createServer = (
@@ -212,6 +214,10 @@ export const createServer = (
 
   app.use(bodyParser.json())
   app.use(bodyParser.urlencoded({ extended: true }))
+  app.get('/__motia', (_, res) => {
+    const { version, isDev } = config
+    res.status(200).json({ version, isDev })
+  })
 
   const router = express.Router()
 

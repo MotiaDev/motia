@@ -8,7 +8,7 @@ import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import path from 'path'
 import { NoPrinter } from '../printer'
 
-const config = { isVerbose: true }
+const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
 describe('Server', () => {
   beforeAll(() => {
