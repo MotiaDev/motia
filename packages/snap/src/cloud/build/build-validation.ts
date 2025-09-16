@@ -29,7 +29,7 @@ export const validateStepsConfig = (builder: Builder) => {
   // Check for deprecated .step.py pattern
   const deprecatedPythonSteps = globSync('**/*.step.py', {
     absolute: true,
-    cwd: path.join(builder.projectDir, 'steps')
+    cwd: path.join(builder.projectDir, 'steps'),
   })
 
   if (deprecatedPythonSteps.length > 0) {
@@ -40,11 +40,11 @@ export const validateStepsConfig = (builder: Builder) => {
         `Please rename them to ${colors.green('_step.py')} format.`,
         '',
         'Deprecated files:',
-        ...deprecatedPythonSteps.map(stepPath => {
+        ...deprecatedPythonSteps.map((stepPath) => {
           const relative = path.relative(builder.projectDir, stepPath)
           const newName = relative.replace('.step.py', '_step.py')
           return `  ${colors.yellow('➜')} ${colors.cyan(relative)} → ${colors.green(newName)}`
-        })
+        }),
       ].join('\n'),
       step: Object.values(builder.stepsConfig)[0], // Use first step as reference
     })
