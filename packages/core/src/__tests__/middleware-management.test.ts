@@ -50,8 +50,9 @@ describe('Middleware Management', () => {
 
     const eventManager = createEventManager()
     const state = new MemoryStateAdapter()
+    const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
-    server = createServer(lockedData, eventManager, state, { isVerbose: false })
+    server = createServer(lockedData, eventManager, state, config)
   })
 
   afterEach(async () => {

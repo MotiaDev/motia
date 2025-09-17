@@ -6,7 +6,6 @@ import { build } from './new-deployment/build'
 import { uploadArtifacts } from './new-deployment/upload-artifacts'
 import { DeploymentData, DeploymentStreamManager } from './new-deployment/streams/deployment-stream'
 import { cloudApi } from './new-deployment/cloud-api'
-import { version } from '../version'
 
 export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => {
   const { app } = server
@@ -23,10 +22,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
   })()
 
   const deploymentManager = new DeploymentStreamManager(deploymentStream)
-
-  app.get('/__motia', (_, res) => {
-    res.status(200).json({ version: version })
-  })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.post('/__motia/cloud/deploy/start', async (req: any, res: any) => {

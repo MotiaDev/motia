@@ -180,11 +180,11 @@ export class Watcher {
   }
 
   private isStepFile(path: string): boolean {
-    return /[._]step\.[^.]+$/.test(path) && !/\.tsx$/.test(path)
+    return /[._]step\.[^.]+$/.test(path) && !/\.tsx$/.test(path) && !/\.step\.py$/.test(path)
   }
 
   private isStreamFile(path: string): boolean {
-    return /[._]stream\.[^.]+$/.test(path) && !/\.tsx$/.test(path)
+    return /[._]stream\.[^.]+$/.test(path) && !/\.tsx$/.test(path) && !/\.stream\.py$/.test(path)
   }
 
   async stop(): Promise<void> {

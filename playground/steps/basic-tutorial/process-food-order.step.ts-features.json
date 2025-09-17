@@ -2,7 +2,7 @@
   {
     "id": "step-configuration",
     "title": "Step Configuration",
-    "description": "All steps should have a defined configuration, this is how you define the step's behavior and how it will be triggered.",
+    "description": "All steps should have a defined configuration. This is how you define the step's behavior and how it will be triggered.",
     "lines": [
       "5-17"
     ]
@@ -27,7 +27,7 @@
   {
     "id": "event-emits",
     "title": "Emits",
-    "description": "We can define the events that this step will emit, triggering other Motia Steps.",
+    "description": "We can define the events that this step will emit, triggering other Motia steps.",
     "lines": [
       "11"
     ]
