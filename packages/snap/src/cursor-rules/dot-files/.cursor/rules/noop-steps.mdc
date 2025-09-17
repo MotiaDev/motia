@@ -1,5 +1,5 @@
 ---
-description: 
+description: NOOP Steps for workflow connections and manual triggers with correct configurations
 globs: 
 alwaysApply: false
 ---
@@ -8,20 +8,40 @@ alwaysApply: false
 
 NOOP (No Operation) steps are useful for testing workflows and creating manual trigger points.
 
-## Basic NOOP Step
+## CORRECT NOOP CONFIGURATION (✅ VERIFIED from examples)
+
+### Basic NOOP Step
 ```typescript
 import { NoopConfig } from 'motia'
 
 export const config: NoopConfig = {
-  type: 'noop',
-  name: 'manual-trigger',
-  description: 'Manual trigger point for workflow',
-  virtualEmits: ['workflow.start'],
-  virtualSubscribes: ['manual.trigger'],
-  flows: ['my-workflow']
+  type: 'noop',                    // ✅ REQUIRED: Step type
+  name: 'ManualTrigger',          // ✅ REQUIRED: Unique identifier
+  description: 'Manual trigger point for workflow',  // ✅ OPTIONAL: Description
+  virtualEmits: ['workflow.start'],      // ✅ REQUIRED: Virtual topic emissions
+  virtualSubscribes: ['manual.trigger'], // ✅ REQUIRED: Virtual topic subscriptions
+  flows: ['my-workflow']                 // ✅ REQUIRED: Flow association
 }
 
-// NOOP steps don't need handlers - they're for workflow connections
+// ✅ IMPORTANT: NOOP steps have NO handler - they're for workflow visualization only
+```
+
+### UI Trigger NOOP (for UI Steps)
+```typescript
+// For interactive UI components that trigger API calls
+export const config: NoopConfig = {
+  type: 'noop',
+  name: 'ButtonTrigger',
+  description: 'UI button that triggers API endpoints',
+  virtualSubscribes: [],                    // ✅ REQUIRED: Empty array for UI triggers
+  virtualEmits: [
+    {
+      topic: '/api/button-action',          // ✅ Must match API step path exactly
+      label: 'Button clicked action'
+    }
+  ],
+  flows: ['ui-workflow']
+}
 ```
 
 ## Common Use Cases

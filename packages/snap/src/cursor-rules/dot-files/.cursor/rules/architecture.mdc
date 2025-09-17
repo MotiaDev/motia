@@ -24,6 +24,181 @@ Motia is a framework designed to help you build robust, event-driven workflows. 
 
 -   **Flows**: A logical grouping of related steps that together achieve a larger business process or workflow. Associating steps with flows helps in organizing, visualizing, and managing complex systems.
 
+## COMPLETE MOTIA STEP TYPES (✅ from [motia.dev/docs](https://www.motia.dev/docs) and verified examples)
+
+**Latest Version**: Use Motia `^0.7.1-beta.132` for all new projects
+**Python Naming**: Use `_step.py` suffix for Python files (e.g., `ai_processor_step.py`)
+
+### 1. API Steps - HTTP Endpoints
+
+```typescript
+// VERIFIED from examples/ai-content-moderation/steps/api.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: ApiRouteConfig = {
+  type: 'api',                    // ✅ REQUIRED: Step type
+  name: 'StepName',              // ✅ REQUIRED: Unique identifier
+  description: 'Description',    // ✅ OPTIONAL: Human readable description
+  method: 'POST',                // ✅ REQUIRED: HTTP method
+  path: '/endpoint',             // ✅ REQUIRED: URL path
+  bodySchema: z.object({         // ✅ OPTIONAL: Request validation
+    field: z.string()
+  }),
+  responseSchema: {              // ✅ OPTIONAL: Response validation
+    200: z.object({ success: z.boolean() }),
+    400: z.object({ error: z.string() })
+  },
+  emits: ['event.topic'],        // ✅ REQUIRED: Events this step emits
+  flows: ['flow-name']           // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async (req, { emit, logger, state, traceId }) => {
+  // req.body, req.pathParams, req.queryParams, req.headers available
+  // Must return: { status: number, body: any, headers?: Record<string, string> }
+}
+```
+
+### 2. Event Steps - Event Processing
+
+```typescript
+// VERIFIED from examples/ai-content-moderation/steps/process-food-order.step.ts
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',                 // ✅ REQUIRED: Step type
+  name: 'StepName',             // ✅ REQUIRED: Unique identifier
+  description: 'Description',   // ✅ OPTIONAL: Human readable description
+  subscribes: ['input.topic'],  // ✅ REQUIRED: Topics to listen to
+  emits: ['output.topic'],      // ✅ REQUIRED: Events this step emits (use [] for final steps)
+  input: z.object({             // ✅ REQUIRED: Input validation schema
+    field: z.string()
+  }),
+  flows: ['flow-name']          // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async (input, { emit, logger, state, traceId }) => {
+  // input contains validated data from subscribed topic
+  // No return value required (void function)
+}
+```
+
+### 3. Cron Steps - Scheduled Tasks
+
+```typescript
+// VERIFIED from examples/ai-content-moderation/steps/state-audit-cron.step.ts
+import { CronConfig, Handlers } from 'motia'
+
+export const config: CronConfig = {
+  type: 'cron',                 // ✅ REQUIRED: Step type
+  name: 'StepName',            // ✅ REQUIRED: Unique identifier
+  description: 'Description',  // ✅ OPTIONAL: Human readable description
+  cron: '0 0 * * 1',          // ✅ REQUIRED: Cron expression
+  emits: ['scheduled.event'],  // ✅ REQUIRED: Events this step emits
+  flows: ['flow-name']         // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async ({ emit, logger, state }) => {
+  // No input parameter (scheduled execution)
+  // Context available: emit, logger, state (no traceId for cron)
+}
+```
+
+### 4. Stream Configuration - Real-time Data
+
+```typescript
+// VERIFIED from chessarena-ai/api/steps/chess/streams/00-chess-game.stream.ts
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+export const config: StreamConfig = {
+  name: 'streamName',           // ✅ REQUIRED: Stream identifier (available as streams.streamName)
+  schema: z.object({            // ✅ REQUIRED: Data structure validation
+    field: z.string(),
+    status: z.enum(['active', 'inactive'])
+  }),
+  baseConfig: {                 // ✅ REQUIRED: Storage configuration
+    storageType: 'default'     // ✅ ONLY valid option (ttl, maxItems are NOT real)
+  }
+}
+
+// Usage in handlers:
+await streams.streamName.set(groupId, id, data)          // Set data
+const data = await streams.streamName.get(groupId, id)   // Get single item
+await streams.streamName.delete(groupId, id)             // Delete item
+const items = await streams.streamName.getGroup(groupId) // ✅ Get all items (REAL API)
+```
+
+### 5. NOOP Steps - Workflow Connectors
+
+```typescript
+// VERIFIED from cursor rules and examples
+import { NoopConfig } from 'motia'
+
+export const config: NoopConfig = {
+  type: 'noop',                    // ✅ REQUIRED: Step type
+  name: 'StepName',               // ✅ REQUIRED: Unique identifier
+  description: 'Description',     // ✅ OPTIONAL: Human readable description
+  virtualSubscribes: ['topic'],   // ✅ REQUIRED: Virtual topic subscriptions
+  virtualEmits: ['topic'],        // ✅ REQUIRED: Virtual topic emissions
+  flows: ['flow-name']            // ✅ REQUIRED: Flow association
+}
+
+// NOOP steps have NO handler - they're for workflow visualization and connections
+```
+
+## CORRECT STATE & STREAMS APIs
+
+### State Management API (✅ VERIFIED from examples)
+```typescript
+// From examples/ai-content-moderation/steps/state-audit-cron.step.ts
+await state.set(scope, key, value)           // Store data (scope, key, value)
+const data = await state.get(scope, key)     // Retrieve data  
+await state.delete(scope, key)               // Delete specific key
+await state.clear(scope)                     // Clear all data in scope
+const items = await state.getGroup(scope)    // ✅ Get ALL items in scope (REAL API)
+
+// Real usage examples:
+await state.set('orders', order.id, order)              // From process-food-order.step.ts
+const stateValue = await state.getGroup<Order>('orders') // From state-audit-cron.step.ts
+```
+
+### Streams API (✅ VERIFIED from examples)
+```typescript
+// From chessarena-ai and streaming examples
+await streams.streamName.set(groupId, id, data)          // Set stream data
+const data = await streams.streamName.get(groupId, id)   // Get single item
+await streams.streamName.delete(groupId, id)             // Delete item
+const items = await streams.streamName.getGroup(groupId) // ✅ Get all items (REAL API)
+
+// Real usage examples:
+await streams.conversation.set(conversationId, messageId, messageData)  // From streaming examples
+const games = await streams.chessLiveAiGames.getGroup('game')           // From chessarena-ai
+```
+
+### Handler Context (✅ Only include what you use)
+```typescript
+// CORRECT: Minimal handler signature (from examples)
+export const handler: Handlers['StepName'] = async (input, { logger }) => {
+  logger.info('Processing')  // Only using logger
+}
+
+// CORRECT: Multiple parameters if all used (from examples)
+export const handler: Handlers['StepName'] = async (input, { emit, logger, state, traceId }) => {
+  await state.set('scope', 'key', data)  // Using state
+  await emit({ topic: 'done', data })    // Using emit  
+  logger.info('Complete', { traceId })   // Using logger and traceId
+}
+
+// Available context parameters:
+// - emit: (event) => Promise<void>
+// - logger: Logger
+// - state: StateManager  
+// - streams: StreamManager
+// - traceId: string (not available in Cron steps)
+```
+
 ## Basic Workflow Pattern
 
 A common pattern involves an API Step initiating a workflow, followed by one or more Event Steps processing the data in sequence, and potentially a final step to conclude the process.

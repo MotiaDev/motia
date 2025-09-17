@@ -41,7 +41,7 @@ export const handler: Handlers['ValidateOrder'] = async (input, { emit, logger, 
   const { orderId, customerId, items, shippingAddress, paymentMethod } = input
   
   try {
-    // Initialize workflow state
+    // CORRECT: state.set(scope, key, value) - from motia.dev/docs
     await state.set('workflows', `order:${orderId}`, {
       orderId,
       status: 'validating',

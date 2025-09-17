@@ -7,6 +7,9 @@ alwaysApply: true
 
 Use this guide to build production-ready Motia applications from scratch, following proven architectural patterns and best practices.
 
+**Latest Version**: Use Motia `^0.7.1-beta.132` for all new projects
+**Python Naming**: Use `_step.py` suffix for Python files (e.g., `data_processor_step.py`)
+
 ## Application Planning Checklist
 
 Before coding, define:
@@ -78,7 +81,7 @@ export const config: ApiRouteConfig = {
   name: 'Create[Entity]',
   method: 'POST',
   path: '/[entities]',
-  middleware: [authMiddleware], // If auth required
+  // No middleware unless explicitly requested
   bodySchema: [entity]CreateSchema,
   responseSchema: { 201: [entity]Schema },
   emits: ['[entity].created'],
@@ -105,10 +108,12 @@ export const config: EventConfig = {
 **6. Stream Configuration**
 ```typescript
 // steps/streams/[feature].stream.ts
+// CORRECT: Stream Config from motia.dev/docs
 export const config: StreamConfig = {
   name: '[feature]-updates',
   schema: [feature]UpdateSchema,
-  baseConfig: { storageType: 'default', ttl: 3600 }
+  baseConfig: { storageType: 'default' }
+  // Note: ttl is not a real config option - it was hallucinated
 }
 ```
 
@@ -216,15 +221,14 @@ export const config: EventConfig = {
 ```typescript
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { authMiddleware } from '../auth/middleware'
-
+// CLEAN: No middleware imports unless explicitly requested
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'STEP_NAME',
   description: 'DESCRIPTION',
   method: 'POST', // GET, PUT, DELETE, etc.
   path: '/PATH',
-  middleware: [authMiddleware], // Optional
+  // No middleware unless explicitly requested
   bodySchema: z.object({
     // Define request body schema
   }),

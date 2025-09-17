@@ -1,20 +1,152 @@
- ---
- description: Basic concepts for creating Motia steps
- globs: 
- alwaysApply: false
- ---
- # Motia Steps Reference
+---
+description: Basic concepts for creating Motia steps with correct APIs
+globs: 
+alwaysApply: false
+---
+# Motia Steps Reference
 
 Steps are the fundamental building blocks of Motia workflows. Each step is designed to handle a specific piece of business logic, triggered by an event or an API call, or run on a schedule.
 
-## Step Types
-Motia supports several types of steps, each tailored for different purposes:
+## CORRECT MOTIA APIs (from [motia.dev/docs](https://www.motia.dev/docs))
 
--   **API Steps**: Expose HTTP endpoints (e.g., RESTful APIs) that can initiate or interact with workflows. They handle incoming HTTP requests and can emit events.
--   **Event Steps**: The most common type of step. They subscribe to topics, process incoming event data, execute business logic, and can emit new events to other topics, chaining workflow operations.
--   **Cron Steps**: Scheduled tasks that run based on cron expressions. Useful for periodic jobs like generating reports, data synchronization, or sending out scheduled notifications.
--   **NOOP Steps** (No Operation): These steps don't execute any custom logic. They are used for workflow connections, testing, manual trigger points, or as placeholders, aiding in workflow visualization and structure.
--   **UI Steps**: Allow for custom visual components in the Motia Workbench, providing richer UIs for monitoring and interacting with specific steps.
+### State Management API
+```typescript
+// VERIFIED from official docs and examples
+await state.set(scope, key, value)           // Store data (scope, key, value)
+const data = await state.get(scope, key)     // Retrieve data  
+await state.delete(scope, key)               // Delete specific key
+await state.clear(scope)                     // Clear all data in scope
+const items = await state.getGroup(scope)    // ✅ Get ALL items in scope (REAL API)
+```
+
+### Streams API  
+```typescript
+// VERIFIED from official docs and examples
+await streams.streamName.set(groupId, id, data)          // Set stream data
+const data = await streams.streamName.get(groupId, id)   // Get single item
+await streams.streamName.delete(groupId, id)             // Delete item
+const items = await streams.streamName.getGroup(groupId) // ✅ Get ALL items (REAL API)
+```
+
+### Handler Context (Only include what you use)
+```typescript
+// CORRECT: Minimal handler signature
+export const handler: Handlers['StepName'] = async (input, { logger }) => {
+  logger.info('Processing')  // Only using logger
+}
+
+// CORRECT: Multiple parameters if all used
+export const handler: Handlers['StepName'] = async (input, { emit, logger, state }) => {
+  await state.set('scope', 'key', data)  // Using state
+  await emit({ topic: 'done', data })    // Using emit  
+  logger.info('Complete')                // Using logger
+}
+```
+
+## Step Types (✅ VERIFIED from examples and [motia.dev/docs](https://www.motia.dev/docs))
+
+**Latest Version**: Use Motia `^0.7.1-beta.132` for all new projects
+
+### 1. API Steps - HTTP Endpoints
+```typescript
+// VERIFIED from examples/ai-content-moderation/steps/api.step.ts
+export const config: ApiRouteConfig = {
+  type: 'api',                    // ✅ REQUIRED: Step type
+  name: 'StepName',              // ✅ REQUIRED: Unique identifier
+  description: 'Description',    // ✅ OPTIONAL: Human readable description
+  method: 'POST',                // ✅ REQUIRED: HTTP method ('GET', 'POST', 'PUT', 'DELETE', 'PATCH')
+  path: '/endpoint',             // ✅ REQUIRED: URL path
+  bodySchema: z.object({         // ✅ OPTIONAL: Request validation with Zod
+    field: z.string()
+  }),
+  responseSchema: {              // ✅ OPTIONAL: Response validation
+    200: z.object({ success: z.boolean() }),
+    400: z.object({ error: z.string() })
+  },
+  emits: ['event.topic'],        // ✅ REQUIRED: Events this step emits
+  flows: ['flow-name']           // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async (req, { emit, logger, state, traceId }) => {
+  // req.body, req.pathParams, req.queryParams, req.headers available
+  // Must return: { status: number, body: any, headers?: Record<string, string> }
+}
+```
+
+### 2. Event Steps - Event Processing
+```typescript
+// VERIFIED from examples/ai-content-moderation/steps/process-food-order.step.ts
+export const config: EventConfig = {
+  type: 'event',                 // ✅ REQUIRED: Step type
+  name: 'StepName',             // ✅ REQUIRED: Unique identifier
+  description: 'Description',   // ✅ OPTIONAL: Human readable description
+  subscribes: ['input.topic'],  // ✅ REQUIRED: Topics to listen to
+  emits: ['output.topic'],      // ✅ REQUIRED: Events this step emits (use [] for final steps)
+  input: z.object({             // ✅ REQUIRED: Input validation schema
+    field: z.string()
+  }),
+  flows: ['flow-name']          // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async (input, { emit, logger, state, traceId }) => {
+  // input contains validated data from subscribed topic
+  // No return value required (void function)
+}
+```
+
+### 3. Cron Steps - Scheduled Tasks
+```typescript
+// VERIFIED from examples/ai-content-moderation/steps/state-audit-cron.step.ts
+export const config: CronConfig = {
+  type: 'cron',                 // ✅ REQUIRED: Step type
+  name: 'StepName',            // ✅ REQUIRED: Unique identifier
+  description: 'Description',  // ✅ OPTIONAL: Human readable description
+  cron: '0 0 * * 1',          // ✅ REQUIRED: Cron expression (standard crontab format)
+  emits: ['scheduled.event'],  // ✅ REQUIRED: Events this step emits
+  flows: ['flow-name']         // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async ({ emit, logger, state }) => {
+  // No input parameter (scheduled execution)
+  // Context available: emit, logger, state (no traceId for cron)
+}
+```
+
+### 4. Stream Configuration - Real-time Data
+```typescript
+// VERIFIED from chessarena-ai/api/steps/chess/streams/00-chess-game.stream.ts
+export const config: StreamConfig = {
+  name: 'streamName',           // ✅ REQUIRED: Stream identifier (available as streams.streamName)
+  schema: z.object({            // ✅ REQUIRED: Data structure validation
+    field: z.string(),
+    status: z.enum(['active', 'inactive'])
+  }),
+  baseConfig: {                 // ✅ REQUIRED: Storage configuration
+    storageType: 'default'     // ✅ ONLY valid option (ttl, maxItems are NOT real)
+  }
+}
+
+// Usage in handlers:
+await streams.streamName.set(groupId, id, data)          // Set data
+const data = await streams.streamName.get(groupId, id)   // Get single item
+await streams.streamName.delete(groupId, id)             // Delete item
+const items = await streams.streamName.getGroup(groupId) // ✅ Get all items (REAL API)
+```
+
+### 5. NOOP Steps - Workflow Connectors
+```typescript
+// VERIFIED from cursor rules and examples
+export const config: NoopConfig = {
+  type: 'noop',                    // ✅ REQUIRED: Step type
+  name: 'StepName',               // ✅ REQUIRED: Unique identifier
+  description: 'Description',     // ✅ OPTIONAL: Human readable description
+  virtualSubscribes: ['topic'],   // ✅ REQUIRED: Virtual topic subscriptions
+  virtualEmits: ['topic'],        // ✅ REQUIRED: Virtual topic emissions
+  flows: ['flow-name']            // ✅ REQUIRED: Flow association
+}
+
+// NOOP steps have NO handler - they're for workflow visualization and connections
+```
 
 ## Basic Step Structure
 
@@ -192,7 +324,7 @@ Consistent naming helps in organizing and understanding your project:
 
 -   **Descriptive Step Names**: Choose names that clearly indicate the step's function (e.g., `process-request`, `send-notification`, `generate-report`).
 -   **File Naming**: Use kebab-case for step filenames (e.g., `my-cool-step.step.ts`).
--   **Extension**: Include `.step` before the language extension in the filename (e.g., `process-request.step.ts`, `data_validator_step.py`, `report-generator.step.rb`). This helps Motia identify step files.
+-   **Extension**: Include `.step` before the language extension in the filename (e.g., `process-request.step.ts`, `data_validator_step.py`, `report-generator.step.rb`). For Python, use `_step.py` suffix. This helps Motia identify step files.
 
 ## Context Object
 

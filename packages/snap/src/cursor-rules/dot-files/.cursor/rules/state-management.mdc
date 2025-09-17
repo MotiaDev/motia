@@ -18,47 +18,48 @@ State management in Motia allows data to be persisted and shared between steps w
 
 The `state` object is available in the handler's context.
 
-**TypeScript Example:**
+**TypeScript Example (✅ CORRECT APIs from [motia.dev/docs](https://www.motia.dev/docs/concepts/state-management)):**
 ```typescript
-// Assuming FlowContext is imported or defined, providing 'state' and 'traceId'.
-// import { FlowContext } from 'motia';
+import { Handlers } from 'motia'
 
-// Example handler function demonstrating state operations.
-export const handler = async (input: any, { state, traceId, logger }: FlowContext) => {
-  // 'traceId' is crucial: it scopes all state operations to the current flow instance.
+// Example handler function demonstrating CORRECT state operations.
+export const handler: Handlers['ExampleStep'] = async (input, { state, traceId, logger }) => {
+  // CORRECT: state.set(scope, key, value) - scope first, then key, then value
   
-  // Store data: Associates 'resourceObject' with the key 'resource' under the current 'traceId'.
-  // The value can be any JSON-serializable object.
   const resourceObject = { 
     id: 'res_001', 
     title: 'Sample Resource', 
     category: 'documents', 
     metadata: { tags: ['important', 'draft'], priority: 'high' } 
   };
+  
+  // Store data: state.set(scope, key, value)
   await state.set(traceId, 'resource', resourceObject);
-  logger.info('Resource data stored in state', { traceId, key: 'resource', value: resourceObject });
+  logger.info('Resource data stored in state', { traceId, key: 'resource' });
 
-  // Retrieve data: Fetches the value associated with the key 'resource' for the current 'traceId'.
-  // It's good practice to type the expected return value if known.
+  // Retrieve data: state.get(scope, key)
   const retrievedResource = await state.get<{ 
     id: string, 
     title: string, 
     category: string, 
     metadata: { tags: string[], priority: string } 
   }>(traceId, 'resource');
+  
   if (retrievedResource) {
-    logger.info('Resource data retrieved from state', { traceId, key: 'resource', value: retrievedResource });
-    // console.log(retrievedResource.title); // Sample Resource
+    logger.info('Resource data retrieved from state', { traceId, key: 'resource' });
   } else {
     logger.warn('No resource data found in state for key', { traceId, key: 'resource' });
   }
   
-  // Delete specific data: Removes the key-value pair for 'resource' under the current 'traceId'.
+  // Get all items in scope: state.getGroup(scope) - REAL API from examples
+  const allOrders = await state.getGroup<Order>('orders');
+  logger.info('Retrieved all orders', { count: allOrders.length });
+  
+  // Delete specific data: state.delete(scope, key)
   await state.delete(traceId, 'resource');
   logger.info('Resource data deleted from state', { traceId, key: 'resource' });
 
-  // Clear all flow state: Removes all key-value pairs associated with the current 'traceId'.
-  // Use with caution, as this erases all state for the flow instance.
+  // Clear all flow state: state.clear(scope)
   await state.clear(traceId);
   logger.info('All state cleared for flow instance', { traceId });
 };
@@ -150,14 +151,16 @@ def handler(input_data, context)
 end
 ```
 
-## State Methods
+## State Methods (✅ CORRECT from [motia.dev/docs](https://www.motia.dev/docs/concepts/state-management))
 
 | Method   | Usage                                       | Description                                                                 |
 | :------- | :------------------------------------------ | :-------------------------------------------------------------------------- |
-| `get`    | `await state.get(traceId, key)`             | Retrieves the value associated with `key` for the given `traceId`.          |
-| `set`    | `await state.set(traceId, key, value)`      | Stores the `value` associated with `key` for the given `traceId`.           |
-| `delete` | `await state.delete(traceId, key)`          | Deletes the key-value pair for `key` for the given `traceId`.             |
-| `clear`  | `await state.clear(traceId)`                | Removes all key-value pairs associated with the given `traceId`.            |
+| `get`    | `await state.get(scope, key)`               | Retrieves the value associated with `key` for the given `scope`.           |
+| `set`    | `await state.set(scope, key, value)`        | Stores the `value` associated with `key` for the given `scope`.            |
+| `delete` | `await state.delete(scope, key)`            | Deletes the key-value pair for `key` for the given `scope`.               |
+| `clear`  | `await state.clear(scope)`                  | Removes all key-value pairs associated with the given `scope`.             |
+| `getGroup` | `await state.getGroup(scope)`               | ✅ Gets ALL items in the scope (REAL API from examples).                   |
+| `cleanup` | `await state.cleanup()`                     | Performs maintenance tasks like TTL cleanup.                               |
 
 ## Storage Adapters
 

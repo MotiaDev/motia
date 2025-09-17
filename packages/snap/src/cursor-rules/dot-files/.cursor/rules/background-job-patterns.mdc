@@ -198,7 +198,6 @@ export const handler: Handlers['JobScheduler'] = async ({ emit, logger, state })
         data: job
       })
       
-      // Update job status
       await state.set('jobs', job.jobId, {
         ...job,
         status: 'queued',
@@ -219,10 +218,9 @@ export const handler: Handlers['JobScheduler'] = async ({ emit, logger, state })
 }
 
 async function getJobsReadyForProcessing(now: string, state: any) {
-  // Get all jobs that are scheduled or need retry
-  const allJobs = await state.getGroup('jobs') || {}
+  const allJobs = await state.getGroup('jobs') || []
   
-  return Object.values(allJobs).filter((job: any) => {
+  return allJobs.filter((job: any) => {
     return (job.status === 'scheduled' && job.delayUntil && job.delayUntil <= now) ||
            (job.status === 'failed' && job.retryAt && job.retryAt <= now)
   })
@@ -230,12 +228,13 @@ async function getJobsReadyForProcessing(now: string, state: any) {
 
 async function cleanupOldJobs(state: any, logger: any) {
   const cutoffDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const allJobs = await state.getGroup('jobs') || {}
+  
+  const allJobs = await state.getGroup('jobs') || []
   
   let cleanedCount = 0
-  for (const [jobId, job] of Object.entries(allJobs)) {
-    if ((job as any).status === 'completed' && (job as any).completedAt < cutoffDate) {
-      await state.delete('jobs', jobId)
+  for (const job of allJobs) {
+    if (job.status === 'completed' && job.completedAt < cutoffDate) {
+      await state.delete('jobs', job.jobId)
       cleanedCount++
     }
   }

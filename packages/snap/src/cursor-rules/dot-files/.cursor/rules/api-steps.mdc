@@ -1,14 +1,49 @@
 ---
-<<<<<<< HEAD
-description: How to create basic API Steps in Motia
-=======
-description: What are Motia API Steps and a Typescript example
+description: How to create basic API Steps in Motia with correct APIs and clean implementation
 globs: 
 alwaysApply: false
 ---
 # API Steps Guide
 
 API Steps expose HTTP endpoints that can trigger workflows and emit events.
+
+**Latest Version**: Use Motia `^0.7.1-beta.132` for all new projects
+
+## CORRECT MOTIA APIs (from [motia.dev/docs](https://www.motia.dev/docs))
+
+### State Management API
+```typescript
+// VERIFIED from official docs and examples
+await state.set(scope, key, value)           // Store data (scope, key, value)
+const data = await state.get(scope, key)     // Retrieve data  
+await state.delete(scope, key)               // Delete specific key
+await state.clear(scope)                     // Clear all data in scope
+const items = await state.getGroup(scope)    // ✅ Get ALL items in scope (REAL API)
+```
+
+### Streams API  
+```typescript
+// VERIFIED from official docs and examples
+await streams.streamName.set(groupId, id, data)          // Set stream data
+const data = await streams.streamName.get(groupId, id)   // Get single item
+await streams.streamName.delete(groupId, id)             // Delete item
+const items = await streams.streamName.getGroup(groupId) // ✅ Get ALL items (REAL API)
+```
+
+### Handler Context (Only include what you use)
+```typescript
+// CORRECT: Minimal handler signature
+export const handler: Handlers['StepName'] = async (req, { logger }) => {
+  logger.info('Processing')  // Only using logger
+}
+
+// CORRECT: Multiple parameters if all used
+export const handler: Handlers['StepName'] = async (req, { emit, logger, state }) => {
+  await state.set('scope', 'key', data)  // Using state
+  await emit({ topic: 'done', data })    // Using emit  
+  logger.info('Complete')                // Using logger
+}
+```
 
 ## Basic API Step Pattern
 ```typescript

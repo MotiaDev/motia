@@ -1,15 +1,225 @@
 ---
-description: Focus on "steps" Folder Modifications
+description: Comprehensive Motia development instructions and best practices for building production-ready backends
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
-Rule: Focus on "steps" Folder Modifications
+# Motia Development Instructions
 
-All workflow modifications must be confined to the "steps" folder only.
+Complete guidelines for building production-ready Motia backends with correct APIs, clean implementation, and comprehensive functionality.
 
-DO NOT modify or generate any changes to configuration files such as:
-- package.json
-- tsconfig.json
-- types.d.ts
+## CORE DEVELOPMENT PRINCIPLES
 
-This rule ensures that Motia remains focused on the workflow steps, keeping project configuration files intact.
+### 1. Step-Focused Development
+**PRIMARY RULE**: All workflow logic must be in the `steps/` folder only.
+
+**DO NOT modify configuration files unless explicitly requested**:
+- `package.json` - Only modify if adding new dependencies
+- `tsconfig.json` - Keep existing TypeScript configuration
+- `types.d.ts` - Auto-generated, don't modify manually
+- `config.yml` - Only modify for environment/state configuration
+
+### 2. CORRECT MOTIA APIs (✅ VERIFIED from [motia.dev/docs](https://www.motia.dev/docs))
+
+```typescript
+// State Management API (scope, key, value pattern)
+await state.set(scope, key, value)           // Store data
+const data = await state.get(scope, key)     // Retrieve data
+await state.delete(scope, key)               // Delete key
+await state.clear(scope)                     // Clear scope
+const items = await state.getGroup(scope)    // ✅ Get all items (REAL API)
+
+// Streams API 
+await streams.streamName.set(groupId, id, data)          // Set data
+const data = await streams.streamName.get(groupId, id)   // Get data
+await streams.streamName.delete(groupId, id)             // Delete data
+const items = await streams.streamName.getGroup(groupId) // ✅ Get all (REAL API)
+
+// Handler Context (only include what you use)
+export const handler: Handlers['StepName'] = async (input, { logger }) => {
+  // Minimal - only logger
+}
+
+export const handler: Handlers['StepName'] = async (input, { emit, logger, state }) => {
+  // Multiple parameters only if all are used
+}
+```
+
+### 3. Clean Implementation Standards
+- **NO Middleware**: Don't import/use middleware unless explicitly requested
+- **Minimal Imports**: Only core Motia imports (EventConfig, Handlers, ApiRouteConfig)
+- **Clean Handlers**: Only include context parameters actually used
+- **Latest Version**: Use Motia "^0.7.1-beta.132"
+- **Python Naming**: Use `_step.py` suffix for Python files (e.g., `data_processor_step.py`)
+- **No Unused Code**: Remove unused variables, imports, parameters
+
+## STEP TYPE REQUIREMENTS (✅ VERIFIED from examples)
+
+### API Steps (HTTP Endpoints)
+```typescript
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: ApiRouteConfig = {
+  type: 'api',                    // ✅ REQUIRED
+  name: 'StepName',              // ✅ REQUIRED: Unique identifier
+  method: 'POST',                // ✅ REQUIRED: HTTP method
+  path: '/endpoint',             // ✅ REQUIRED: URL path
+  bodySchema: z.object({         // ✅ OPTIONAL: Request validation
+    field: z.string()
+  }),
+  emits: ['event.topic'],        // ✅ REQUIRED: Events emitted
+  flows: ['flow-name']           // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async (req, { emit, logger, state, traceId }) => {
+  // Must return: { status: number, body: any }
+}
+```
+
+### Event Steps (Event Processing)
+```typescript
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',                 // ✅ REQUIRED
+  name: 'StepName',             // ✅ REQUIRED: Unique identifier
+  subscribes: ['input.topic'],  // ✅ REQUIRED: Topics to listen to
+  emits: ['output.topic'],      // ✅ REQUIRED: Events emitted ([] for final steps)
+  input: z.object({             // ✅ REQUIRED: Input validation
+    field: z.string()
+  }),
+  flows: ['flow-name']          // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async (input, { emit, logger, state, traceId }) => {
+  // No return value required (void function)
+}
+```
+
+### Cron Steps (Scheduled Tasks)
+```typescript
+import { CronConfig, Handlers } from 'motia'
+
+export const config: CronConfig = {
+  type: 'cron',                 // ✅ REQUIRED
+  name: 'StepName',            // ✅ REQUIRED: Unique identifier
+  cron: '0 0 * * 1',          // ✅ REQUIRED: Cron expression
+  emits: ['scheduled.event'],  // ✅ REQUIRED: Events emitted
+  flows: ['flow-name']         // ✅ REQUIRED: Flow association
+}
+
+export const handler: Handlers['StepName'] = async ({ emit, logger, state }) => {
+  // No input parameter, no traceId for cron steps
+}
+```
+
+### Stream Configuration (Real-time Data)
+```typescript
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+export const config: StreamConfig = {
+  name: 'streamName',           // ✅ REQUIRED: Available as streams.streamName
+  schema: z.object({            // ✅ REQUIRED: Data validation
+    field: z.string()
+  }),
+  baseConfig: {                 // ✅ REQUIRED
+    storageType: 'default'     // ✅ ONLY valid option
+  }
+}
+```
+
+### NOOP Steps (Workflow Connectors)
+```typescript
+import { NoopConfig } from 'motia'
+
+export const config: NoopConfig = {
+  type: 'noop',                    // ✅ REQUIRED
+  name: 'StepName',               // ✅ REQUIRED: Unique identifier
+  virtualSubscribes: ['topic'],   // ✅ REQUIRED
+  virtualEmits: ['topic'],        // ✅ REQUIRED
+  flows: ['flow-name']            // ✅ REQUIRED
+}
+
+// NO handler for NOOP steps - visualization only
+```
+
+## EVENT FLOW VALIDATION
+
+### Complete Event Chains
+- ✅ **Every emit MUST have a subscriber**: If step emits 'data.processed', another step must subscribe to it
+- ✅ **No orphan events**: Remove emits that have no subscribers
+- ✅ **Final steps**: Use `emits: []` for steps that don't trigger further processing
+- ✅ **Semantic topics**: Use descriptive names (webhook.received, data.processed, user.created)
+
+### Example Event Flow
+```typescript
+// Step 1: API emits event
+export const config: ApiRouteConfig = {
+  emits: ['data.received'],  // ✅ Next step subscribes to this
+}
+
+// Step 2: Event processes and emits
+export const config: EventConfig = {
+  subscribes: ['data.received'],  // ✅ Subscribes to previous emit
+  emits: ['data.processed'],      // ✅ Next step subscribes to this
+}
+
+// Step 3: Final step
+export const config: EventConfig = {
+  subscribes: ['data.processed'],  // ✅ Subscribes to previous emit
+  emits: [],                      // ✅ Final step - no further processing
+}
+```
+
+## FORBIDDEN PATTERNS
+
+### ❌ NEVER DO THESE:
+```typescript
+// ❌ DON'T: Import unnecessary middleware
+import { authMiddleware, rateLimitMiddleware } from '../middleware'
+
+// ❌ DON'T: Use hallucinated APIs
+await state.getAll()
+await state.get('', *)
+const items = await streams.streamName.getAll()
+
+// ❌ DON'T: Include unused handler parameters
+export const handler: Handlers['StepName'] = async (input, { emit, logger, state, streams, traceId }) => {
+  logger.info('Only using logger')  // Remove emit, state, streams, traceId
+}
+
+// ❌ DON'T: Use fake stream config options
+export const config: StreamConfig = {
+  baseConfig: {
+    storageType: 'default',
+    ttl: 3600,        // ❌ Not real
+    maxItems: 100     // ❌ Not real
+  }
+}
+
+// ❌ DON'T: Create orphan events
+export const config: EventConfig = {
+  emits: ['no.subscriber.for.this']  // ❌ No step subscribes to this
+}
+```
+
+## SUPPORTED APPLICATION TYPES
+
+Motia supports **ANY** type of backend application:
+
+### Business Applications
+- **E-commerce**: Order processing, inventory, payments, customer management
+- **SaaS Platforms**: User management, subscriptions, feature access, analytics
+- **CRM Systems**: Contact management, sales pipelines, communication tracking
+- **Healthcare**: Patient records, appointment scheduling, compliance workflows
+- **Finance**: Transaction processing, fraud detection, regulatory compliance
+
+### Technical Applications  
+- **API Gateways**: Request routing, authentication, rate limiting, transformation
+- **Data Pipelines**: ETL processes, data validation, transformation, loading
+- **IoT Systems**: Sensor data processing, device management, real-time monitoring
+- **AI-Powered**: RAG systems, content generation, decision engines, chatbots
+
+This comprehensive guide ensures all Motia development follows proven patterns and produces production-ready, scalable backends.
