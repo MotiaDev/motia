@@ -6,6 +6,7 @@
     "sentiment-analysis",
     "rag-docling-weaviate",
     "uptime-discord-monitor",
-    "ai-content-moderation"
+    "ai-content-moderation",
+    "github-stars-counter"
   ]
 }
