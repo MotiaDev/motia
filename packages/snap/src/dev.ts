@@ -83,6 +83,7 @@ export const dev = async (
       version,
       isDev: true,
       isTutorialDisabled,
+      workbenchBase,
     }
 
     res //
