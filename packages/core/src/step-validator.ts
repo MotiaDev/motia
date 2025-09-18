@@ -130,7 +130,6 @@ export const validateStep = (step: Step): ValidationResult => {
 
     return { success: true }
   } catch (error) {
-    console.log(step.config)
     if (error instanceof z.ZodError) {
       return {
         success: false,
