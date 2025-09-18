@@ -1,38 +1,32 @@
 import { z } from 'zod'
 import { Step } from './types'
 
-const jsonSchema = z.object({
-  type: z.string(),
+const objectSchema = z.object({
+  type: z.literal('object'),
   properties: z.record(z.any()),
   required: z.array(z.string()).optional(),
   additionalProperties: z.boolean().optional(),
   description: z.string().optional(),
   title: z.string().optional(),
-  definitions: z.record(z.any()).optional(),
-  $ref: z.string().optional(),
-  items: z.any().optional(),
-  enum: z.array(z.any()).optional(),
-  allOf: z.array(z.any()).optional(),
-  anyOf: z.array(z.any()).optional(),
-  oneOf: z.array(z.any()).optional(),
-  not: z.any().optional(),
-  format: z.string().optional(),
-  default: z.any().optional(),
-  examples: z.array(z.any()).optional(),
-  multipleOf: z.number().optional(),
-  maximum: z.number().optional(),
-  exclusiveMaximum: z.union([z.boolean(), z.number()]).optional(),
-  minimum: z.number().optional(),
-  exclusiveMinimum: z.union([z.boolean(), z.number()]).optional(),
-  maxLength: z.number().optional(),
-  minLength: z.number().optional(),
-  pattern: z.string().optional(),
-  maxItems: z.number().optional(),
-  minItems: z.number().optional(),
-  uniqueItems: z.boolean().optional(),
-  maxProperties: z.number().optional(),
-  minProperties: z.number().optional(),
-  const: z.any().optional(),
+})
+
+const arraySchema = z.object({
+  type: z.literal('array'),
+  items: objectSchema,
+  description: z.string().optional(),
+  title: z.string().optional(),
+})
+
+const jsonSchema = z.any().refine((data) => {
+  if (!data) {
+    return true
+  } else if (data.type === 'object') {
+    return objectSchema.parse(data)
+  } else if (data.type === 'array') {
+    return arraySchema.parse(data)
+  }
+
+  return true
 })
 
 const emits = z.array(
@@ -136,6 +130,7 @@ export const validateStep = (step: Step): ValidationResult => {
 
     return { success: true }
   } catch (error) {
+    console.log(step.config)
     if (error instanceof z.ZodError) {
       return {
         success: false,

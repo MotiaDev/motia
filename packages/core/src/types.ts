@@ -1,6 +1,8 @@
-import { z, ZodObject } from 'zod'
+import { z, ZodArray, ZodObject } from 'zod'
 import { Logger } from './logger'
 import { Tracer } from './observability'
+
+export type ZodInput = ZodObject<any> | ZodArray<any> // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
@@ -35,7 +37,7 @@ export type EventConfig = {
   subscribes: string[]
   emits: Emit[]
   virtualEmits?: Emit[]
-  input: ZodObject<any> // eslint-disable-line @typescript-eslint/no-explicit-any
+  input: ZodInput
   flows?: string[]
   /**
    * Files to include in the step bundle.
@@ -61,12 +63,12 @@ export type ApiMiddleware<TBody = unknown, TEmitData = never, TResult = unknown>
   next: () => Promise<ApiResponse<number, TResult>>,
 ) => Promise<ApiResponse<number, TResult>>
 
-export type QueryParam = {
+export interface QueryParam {
   name: string
   description: string
 }
 
-export type ApiRouteConfig = {
+export interface ApiRouteConfig {
   type: 'api'
   name: string
   description?: string
@@ -77,8 +79,8 @@ export type ApiRouteConfig = {
   virtualSubscribes?: string[]
   flows?: string[]
   middleware?: ApiMiddleware<any, any, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
-  bodySchema?: ZodObject<any> // eslint-disable-line @typescript-eslint/no-explicit-any
-  responseSchema?: Record<number, ZodObject<any>> // eslint-disable-line @typescript-eslint/no-explicit-any
+  bodySchema?: ZodInput
+  responseSchema?: Record<number, ZodInput>
   queryParams?: QueryParam[]
   /**
    * Files to include in the step bundle.

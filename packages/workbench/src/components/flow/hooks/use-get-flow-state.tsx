@@ -47,7 +47,6 @@ async function importFlow(flow: FlowResponse, flowConfig: FlowConfigResponse | n
       }
 
       try {
-        console.log(path)
         const module = await import(/* @vite-ignore */ `/@fs/${path}`)
         const component = module.Node ?? module.default
         nodeComponentCache.set(path, component)
@@ -142,8 +141,6 @@ export const useGetFlowState = (flow: FlowResponse, flowConfig: FlowConfigRespon
         }, {})
 
         if (!isEqual(steps, lastSavedConfigRef.current)) {
-          console.log('steps', steps, lastSavedConfigRef.current)
-
           lastSavedConfigRef.current = steps
           const newConfig = { id: flowIdRef.current, config: steps }
 
