@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { cn } from '@motiadev/ui'
 import { Trace, TraceGroup } from '@/types/observability'
 import React from 'react'
 

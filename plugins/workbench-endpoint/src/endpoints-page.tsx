@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { EndpointBadge } from './endpoint-badge'
 import { EndpointSidePanel } from './endpoint-side-panel'
 import { useGetEndpoints } from './hooks/use-get-endpoints'
-import { cn } from './lib/utils'
+import { cn } from '@motiadev/ui'
 import { useGlobalStore } from './hooks/use-global-store'
 import { ApiEndpoint } from './types/endpoint'
 

@@ -1,6 +1,6 @@
 import { Moon, Sun } from 'lucide-react'
 import { Theme, useThemeStore } from '@/stores/use-theme-store'
-import { cn } from '@/lib/utils'
+import { cn } from '@motiadev/ui'
 import React, { useEffect } from 'react'
 
 export const ThemeToggle: React.FC = () => {

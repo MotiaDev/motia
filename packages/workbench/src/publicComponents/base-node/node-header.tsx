@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { cn } from '@motiadev/ui'
 import { cva, VariantProps } from 'class-variance-authority'
 import { CalendarClock, CircleOff, Link2, Waypoints } from 'lucide-react'
 import React, { PropsWithChildren } from 'react'
