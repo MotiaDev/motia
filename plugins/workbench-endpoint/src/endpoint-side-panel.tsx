@@ -1,10 +1,10 @@
-import { Sidebar } from '@/components/sidebar/sidebar'
-import { ApiEndpoint } from '@/types/endpoint'
+import { Sidebar } from '@motiadev/ui'
+import { ApiEndpoint } from './types/endpoint.js'
 import { X } from 'lucide-react'
 import { FC } from 'react'
-import { EndpointBadge } from './endpoint-badge'
-import { EndpointCall } from './endpoint-call'
-import { EndpointDescription } from './endpoint-description'
+import { EndpointBadge } from './endpoint-badge.js'
+import { EndpointCall } from './endpoint-call.js'
+import { EndpointDescription } from './endpoint-description.js'
 
 type Props = { endpoint: ApiEndpoint; onClose: () => void }
 

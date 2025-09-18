@@ -1,0 +1,46 @@
+{
+  "name": "@motiadev/workbench-endpoint",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run build:css && tsc",
+    "build:css": "postcss src/styles.css -o dist/styles.css",
+    "dev": "npm run build:css && npm run dev:parallel",
+    "dev:parallel": "npm run dev:css & tsc --watch",
+    "dev:css": "postcss src/styles.css -o dist/styles.css --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@motiadev/stream-client-react": "workspace:*",
+    "@motiadev/ui": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "tailwind-merge": "^3.3.0",
+    "clsx": "^2.1.1",
+    "@monaco-editor/react": "^4.6.1",
+    "lucide-react": "^0.510.0",
+    "react18-json-view": "^0.2.9",
+    "json-schema": "^0.4.0",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "@types/json-schema": "^7.0.15",
+    "react": "^18.2.0",
+    "@types/react": "^18.2.0",
+    "typescript": "^5.0.4",
+    "@types/node": "^20.11.17",
+    "@tailwindcss/postcss": "^4.1.7",
+    "tailwindcss": "^4.1.7",
+    "postcss": "^8.5.3",
+    "postcss-cli": "^11.0.0"
+  }
+}

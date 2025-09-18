@@ -1,23 +1,24 @@
-import { cn } from '@/lib/utils'
-import { useGlobalStore } from '@/stores/use-global-store'
 import { useMemo } from 'react'
-import { EndpointBadge } from './endpoint-badge'
-import { EndpointSidePanel } from './endpoint-side-panel'
-import { useGetEndpoints } from './hooks/use-get-endpoints'
+import { EndpointBadge } from './endpoint-badge.js'
+import { EndpointSidePanel } from './endpoint-side-panel.js'
+import { useGetEndpoints } from './hooks/use-get-endpoints.js'
+import { cn } from './lib/utils.js'
+import { useGlobalStore } from './hooks/use-global-store.js'
+import { ApiEndpoint } from './types/endpoint.js'
 
 export const EndpointsPage = () => {
   const endpoints = useGetEndpoints()
   const selectedEndpointId = useGlobalStore((state) => state.selectedEndpointId)
   const selectEndpointId = useGlobalStore((state) => state.selectEndpointId)
   const selectedEndpoint = useMemo(
-    () => selectedEndpointId && endpoints.find((endpoint) => endpoint.id === selectedEndpointId),
+    () => selectedEndpointId && endpoints.find((endpoint: ApiEndpoint) => endpoint.id === selectedEndpointId),
     [endpoints, selectedEndpointId],
   )
 
   return (
-    <div className="flex flex-row w-full h-full">
+    <div className="flex flex-row">
       <div className="flex flex-col flex-1 overflow-y-auto">
-        {endpoints.map((endpoint) => (
+        {endpoints.map((endpoint: ApiEndpoint) => (
           <div
             data-testid={`endpoint-${endpoint.method}-${endpoint.path}`}
             key={`${endpoint.method} ${endpoint.path}`}

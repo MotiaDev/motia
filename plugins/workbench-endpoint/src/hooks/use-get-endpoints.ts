@@ -1,5 +1,5 @@
 import { useStreamGroup } from '@motiadev/stream-client-react'
-import { ApiEndpoint } from '@/types/endpoint'
+import { ApiEndpoint } from '../types/endpoint.js'
 
 export const useGetEndpoints = () => {
   const { data: endpoints } = useStreamGroup<ApiEndpoint>({
