@@ -31,7 +31,7 @@ export const config: ApiRouteConfig = {
   emits: ['process-food-order'],
 }
 
-export const handler: Handlers['ArrayStep'] = async (req, { logger, traceId, emit }) => {
+export const handler: Handlers['ArrayStep'] = async (req, { logger, emit }) => {
   logger.info('Step 01 – Processing API Step', { body: req.body })
 
   const [{ pet, foodOrder }] = req.body
