@@ -1,10 +1,10 @@
 import { FC } from 'react'
-import { EndpointResponseSchema } from './endpoint-response-schema.js'
-import { ApiEndpoint } from './types/endpoint.js'
-import { EndpointPathParamsPanel } from './endpoint-path-params-panel.js'
-import { EndpointQueryParamsPanel } from './endpoint-query-params-panel.js'
-import { EndpointBodyPanel } from './endpoint-body-panel.js'
-import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json.js'
+import { EndpointResponseSchema } from './endpoint-response-schema'
+import { ApiEndpoint } from './types/endpoint'
+import { EndpointPathParamsPanel } from './endpoint-path-params-panel'
+import { EndpointQueryParamsPanel } from './endpoint-query-params-panel'
+import { EndpointBodyPanel } from './endpoint-body-panel'
+import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json'
 
 type Props = { endpoint: ApiEndpoint }
 

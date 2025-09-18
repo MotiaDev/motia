@@ -1,12 +1,12 @@
-import { ApiEndpoint } from './types/endpoint.js'
+import { ApiEndpoint } from './types/endpoint'
 import { Button } from '@motiadev/ui'
 import { Loader2, Play } from 'lucide-react'
 import { FC, useEffect, useMemo, useState } from 'react'
-import { EndpointBodyPanel } from './endpoint-body-panel.js'
-import { EndpointPathParamsPanel } from './endpoint-path-params-panel.js'
-import { EndpointQueryParamsPanel } from './endpoint-query-params-panel.js'
-import { EndpointResponse } from './endpoint-response.js'
-import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json.js'
+import { EndpointBodyPanel } from './endpoint-body-panel'
+import { EndpointPathParamsPanel } from './endpoint-path-params-panel'
+import { EndpointQueryParamsPanel } from './endpoint-query-params-panel'
+import { EndpointResponse } from './endpoint-response'
+import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json'
 
 type Props = { endpoint: ApiEndpoint }
 

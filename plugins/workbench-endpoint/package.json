@@ -24,23 +24,23 @@
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "tailwind-merge": "^3.3.0",
+    "tailwind-merge": "^3.3.1",
     "clsx": "^2.1.1",
-    "@monaco-editor/react": "^4.6.1",
-    "lucide-react": "^0.510.0",
+    "@monaco-editor/react": "^4.7.0",
+    "lucide-react": "^0.544.0",
     "react18-json-view": "^0.2.9",
     "json-schema": "^0.4.0",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@types/json-schema": "^7.0.15",
-    "react": "^18.2.0",
-    "@types/react": "^18.2.0",
-    "typescript": "^5.0.4",
-    "@types/node": "^20.11.17",
-    "@tailwindcss/postcss": "^4.1.7",
-    "tailwindcss": "^4.1.7",
-    "postcss": "^8.5.3",
-    "postcss-cli": "^11.0.0"
+    "react": "^19.1.1",
+    "@types/react": "^19.1.13",
+    "typescript": "^5.9.2",
+    "@types/node": "^24.5.2",
+    "@tailwindcss/postcss": "^4.1.13",
+    "tailwindcss": "^4.1.13",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1"
   }
 }

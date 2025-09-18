@@ -1,14 +1,17 @@
-import { ApiEndpoint } from './types/endpoint.js'
+import { ApiEndpoint } from './types/endpoint'
 import { Input, Panel } from '@motiadev/ui'
 import { FC, Fragment, useState, ChangeEvent } from 'react'
-import { usePathParams } from './hooks/use-path-params.js'
+import { usePathParams } from './hooks/use-path-params'
 
 type Props = { endpoint: ApiEndpoint; onChange?: (pathParamsValues: Record<string, string>) => void }
 
 export const EndpointPathParamsPanel: FC<Props> = ({ endpoint, onChange }) => {
   const pathParams = usePathParams(endpoint.path)
   const [pathParamsValues, setPathParamsValues] = useState<Record<string, string>>(
-    pathParams?.reduce((acc: Record<string, string>, param: string) => ({ ...acc, [param]: '' }), {} as Record<string, string>),
+    pathParams?.reduce(
+      (acc: Record<string, string>, param: string) => ({ ...acc, [param]: '' }),
+      {} as Record<string, string>,
+    ),
   )
 
   const onPathParamChange = (param: string, value: string) => {

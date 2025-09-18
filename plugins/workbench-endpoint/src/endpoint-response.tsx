@@ -1,5 +1,5 @@
-import { useStateStream } from './hooks/use-state-stream.js'
-import { useThemeStore } from './stores/use-theme-store.js'
+import { useStateStream } from './hooks/use-state-stream'
+import { useThemeStore } from './stores/use-theme-store'
 import { Panel } from '@motiadev/ui'
 import { XCircle } from 'lucide-react'
 import { FC, useMemo } from 'react'

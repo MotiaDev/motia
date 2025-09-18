@@ -1,5 +1,5 @@
 import React from 'react'
-import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json.js'
+import { useJsonSchemaToJson } from './hooks/use-json-schema-to-json'
 
 type Props = { status: string; body: Record<string, any> }
 

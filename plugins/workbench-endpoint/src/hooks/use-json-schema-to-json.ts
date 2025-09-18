@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { convertJsonSchemaToJson } from './utils.js'
+import { convertJsonSchemaToJson } from './utils'
 
 export const useJsonSchemaToJson = (schema: Record<string, any> | undefined) => {
   const [body, setBody] = useState<string>('')

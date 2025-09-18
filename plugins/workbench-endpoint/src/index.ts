@@ -1,1 +1,1 @@
-export { EndpointsPage } from './endpoints-page.js'
+export { EndpointsPage } from './endpoints-page'

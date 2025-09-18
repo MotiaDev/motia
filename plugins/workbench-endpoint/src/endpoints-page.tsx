@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { EndpointBadge } from './endpoint-badge.js'
-import { EndpointSidePanel } from './endpoint-side-panel.js'
-import { useGetEndpoints } from './hooks/use-get-endpoints.js'
-import { cn } from './lib/utils.js'
-import { useGlobalStore } from './hooks/use-global-store.js'
-import { ApiEndpoint } from './types/endpoint.js'
+import { EndpointBadge } from './endpoint-badge'
+import { EndpointSidePanel } from './endpoint-side-panel'
+import { useGetEndpoints } from './hooks/use-get-endpoints'
+import { cn } from './lib/utils'
+import { useGlobalStore } from './hooks/use-global-store'
+import { ApiEndpoint } from './types/endpoint'
 
 export const EndpointsPage = () => {
   const endpoints = useGetEndpoints()

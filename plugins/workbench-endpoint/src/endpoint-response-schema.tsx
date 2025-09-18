@@ -1,5 +1,5 @@
-import { convertJsonSchemaToJson } from './hooks/utils.js'
-import { useThemeStore } from './stores/use-theme-store.js'
+import { convertJsonSchemaToJson } from './hooks/utils'
+import { useThemeStore } from './stores/use-theme-store'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
 import { FC, useMemo } from 'react'
 import ReactJson from 'react18-json-view'
