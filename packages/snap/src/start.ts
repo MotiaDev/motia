@@ -3,6 +3,7 @@ import path from 'path'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { stateEndpoints } from './dev/state-endpoints'
 import { activatePythonVenv } from './utils/activate-python-env'
+import { version } from './version'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
@@ -22,15 +23,11 @@ export const start = async (port: number, hostname: string, disableVerbose: bool
     activatePythonVenv({ baseDir, isVerbose })
   }
 
+  const dotMotia = path.join(baseDir, '.motia')
   const lockedData = await generateLockedData(baseDir)
-
   const eventManager = createEventManager()
-  const state = createStateAdapter({
-    adapter: 'default',
-    filePath: path.join(baseDir, '.motia'),
-  })
-
-  const config = { isVerbose }
+  const state = createStateAdapter({ adapter: 'default', filePath: dotMotia })
+  const config = { isVerbose, isDev: false, version }
   const motiaServer = createServer(lockedData, eventManager, state, config)
 
   motiaServer.server.listen(port, hostname)

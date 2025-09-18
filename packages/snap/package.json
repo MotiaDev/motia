@@ -1,7 +1,7 @@
 {
   "name": "motia",
   "description": "A Modern Unified Backend Framework for APIs, Events and Agents",
-  "version": "0.6.4-beta.130",
+  "version": "0.7.1-beta.132",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -33,13 +33,15 @@
     "move:python": "sh scripts/move-python.sh",
     "move:dot-files": "sh scripts/move-dot-files.sh",
     "build": "sh scripts/build.sh",
+    "test": "jest",
     "lint": "eslint --config ../../eslint.config.js"
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.3.8",
     "@motiadev/core": "workspace:*",
-    "@motiadev/workbench": "workspace:*",
     "@motiadev/stream-client-node": "workspace:*",
+    "@motiadev/workbench": "workspace:*",
+    "antlr4ts": "0.5.0-alpha.4",
     "archiver": "^7.0.1",
     "axios": "^1.8.2",
     "chokidar": "^4.0.3",
@@ -52,6 +54,7 @@
     "glob": "^11.0.1",
     "inquirer": "^8.2.5",
     "node-cron": "^3.0.3",
+    "python-ast": "^0.1.0",
     "table": "^6.9.0",
     "ts-node": "^10.9.2"
   },

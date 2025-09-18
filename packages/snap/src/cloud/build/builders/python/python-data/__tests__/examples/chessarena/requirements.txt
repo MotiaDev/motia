@@ -1,0 +1,2 @@
+chess>=1.0.0
+pydantic>=2.6.1

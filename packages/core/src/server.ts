@@ -48,6 +48,8 @@ export type MotiaServer = {
 type MotiaServerConfig = {
   isVerbose: boolean
   printer?: Printer
+  isDev: boolean
+  version: string
 }
 
 export const createServer = (
@@ -210,8 +212,15 @@ export const createServer = (
     }
   }
 
-  app.use(bodyParser.json())
-  app.use(bodyParser.urlencoded({ extended: true }))
+  app.use(bodyParser.json({ limit: '1gb' }))
+  app.use(bodyParser.urlencoded({ extended: true, limit: '1gb' }))
+  app.get('/__motia', (_, res) => {
+    const { version, isDev } = config
+    res //
+      .header('Access-Control-Allow-Origin', '*')
+      .status(200)
+      .json({ version, isDev })
+  })
 
   const router = express.Router()
 

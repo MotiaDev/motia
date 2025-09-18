@@ -1,10 +1,6 @@
 import { AGENT_TABS, fileFolders, folderMap } from '@/components/constants/agentExplorer'
 import { GITHUB_API_BASE } from '@/utils/constants'
 
-/* const AGENT_GMAIL = 'Gmail Manager Agent'
-const AGENT_TRELLO = 'Trello Agent'
-const AGENT_PDF = 'PDF RAG Agent'
-const AGENT_FINANCE = 'Finance Agent' */
 
 export type FolderData = {
   [key: string]: {
@@ -17,28 +13,12 @@ export type AgentData = {
   [key: string]: FolderData
 }
 
-type FolderMap = {
-  [key: string]: string
-}
-/* const folderMapSteps: FolderMap = {
-  'trello-flow/steps': AGENT_TRELLO,
-  'finance-agent/steps': AGENT_FINANCE,
-  'gmail-workflow/steps': AGENT_GMAIL,
-  'rag_example/steps': AGENT_PDF,
-}
-
-const folderMapServices: FolderMap = {
-  'trello-flow/services': AGENT_TRELLO,
-  'finance-agent/services': AGENT_FINANCE,
-  'gmail-workflow/services': AGENT_GMAIL,
-}
-
-const data: Record<string, FolderMap> = { steps: folderMapSteps, services: folderMapServices } */
 
 const REVALIDATE_TIME = 60 * 60 * 24 * 7 // Refresh the cache every week
 
 export async function fetchAgents(): Promise<AgentData> {
   const result: AgentData = { steps: {}, services: {} }
+  
   for (const agent of AGENT_TABS) {
     for (const folder of fileFolders) {
       try {
@@ -49,62 +29,108 @@ export async function fetchAgents(): Promise<AgentData> {
           next: { revalidate: REVALIDATE_TIME }, // ⬅️ REVALIDATE every 1 hour
         })
 
+        if (!folderResponse.ok) {
+          console.error(`Failed to fetch ${folderMap[agent]}/${folder}: ${folderResponse.status} ${folderResponse.statusText}`)
+          continue
+        }
+
         const filesList = await folderResponse.json()
+        
         if (filesList.length > 0) {
-          const filesData = await Promise.all(
-            filesList
-              .filter((file: any) => file.type === 'file')
-              .map(async (file: any) => {
-                const fileResponse = await fetch(file.download_url, {
-                  next: { revalidate: REVALIDATE_TIME }, // ⬅️ REVALIDATE each file too
-                })
-                const content = await fileResponse.text()
+          // Separate files and directories
+          const files = filesList.filter((item: any) => item.type === 'file')
+          const directories = filesList.filter((item: any) => item.type === 'dir')
+          
+          let allFiles: any[] = []
+          
+          // Process direct files
+          if (files.length > 0) {
+            const directFiles = await Promise.all(
+              files.map(async (file: any) => {
+                try {
+                  const fileResponse = await fetch(file.download_url, {
+                    next: { revalidate: REVALIDATE_TIME },
+                  })
 
-                return {
-                  name: file.name,
-                  content: content,
+                  if (!fileResponse.ok) {
+                    console.error(`Failed to fetch file ${file.name}: ${fileResponse.status} ${fileResponse.statusText}`)
+                    return null
+                  }
+
+                  const content = await fileResponse.text()
+                  return {
+                    name: file.name,
+                    content: content,
+                  }
+                } catch (fileError) {
+                  console.error(`Error fetching file ${file.name}:`, fileError)
+                  return null
                 }
-              }),
-          )
+              })
+            )
+            allFiles = allFiles.concat(directFiles.filter(f => f !== null))
+          }
+          
+          // Process subdirectories (for cases like RAG agent with api-steps/event-steps)
+          if (directories.length > 0) {
+            for (const dir of directories) {
+              try {
+                const subDirResponse = await fetch(`${GITHUB_API_BASE}/${folderMap[agent]}/${folder}/${dir.name}`, {
+                  headers: {
+                    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                  },
+                  next: { revalidate: REVALIDATE_TIME },
+                })
 
-          result[folder][agent] = filesData
+                if (!subDirResponse.ok) {
+                  console.error(`Failed to fetch subdirectory ${dir.name}: ${subDirResponse.status} ${subDirResponse.statusText}`)
+                  continue
+                }
+
+                const subDirFilesList = await subDirResponse.json()
+                const subDirFiles = await Promise.all(
+                  subDirFilesList
+                    .filter((file: any) => file.type === 'file')
+                    .map(async (file: any) => {
+                      try {
+                        const fileResponse = await fetch(file.download_url, {
+                          next: { revalidate: REVALIDATE_TIME },
+                        })
+
+                        if (!fileResponse.ok) {
+                          console.error(`Failed to fetch file ${file.name}: ${fileResponse.status} ${fileResponse.statusText}`)
+                          return null
+                        }
+
+                        const content = await fileResponse.text()
+                        return {
+                          name: file.name,
+                          content: content,
+                        }
+                      } catch (fileError) {
+                        console.error(`Error fetching file ${file.name}:`, fileError)
+                        return null
+                      }
+                    })
+                )
+                allFiles = allFiles.concat(subDirFiles.filter(f => f !== null))
+              } catch (subDirError) {
+                console.error(`Error fetching subdirectory ${dir.name}:`, subDirError)
+              }
+            }
+          }
+          
+          if (allFiles.length > 0) {
+            result[folder][agent] = allFiles
+          }
         }
       } catch (error) {
-        console.error(`Error fetching ${folder}:`, error)
+        console.error(`Error fetching ${folder} for ${agent}:`, error)
       }
     }
   }
-  /*  for (const [folder, folderMap] of Object.entries(data))
-    for (const [folderName, agentName] of Object.entries(folderMap)) {
-      try {
-        const folderResponse = await fetch(`${GITHUB_API_BASE}/${folderName}`, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-          },
-          next: { revalidate: REVALIDATE_TIME }, // ⬅️ REVALIDATE every 1 hour
-        })
-        const filesList = await folderResponse.json()
-        //console.log(filesList)
-        const filesData = await Promise.all(
-          filesList
-            .filter((file: any) => file.type === 'file')
-            .map(async (file: any) => {
-              const fileResponse = await fetch(file.download_url, {
-                next: { revalidate: REVALIDATE_TIME }, // ⬅️ REVALIDATE each file too
-              })
-              const content = await fileResponse.text()
-
-              return {
-                name: file.name,
-                content: content,
-              }
-            }),
-        )
-
-        result[folder][agentName] = filesData
-      } catch (error) {
-        console.error(`Error fetching ${folderName}:`, error)
-      } 
-    }*/
   return result
 }
+
+
+

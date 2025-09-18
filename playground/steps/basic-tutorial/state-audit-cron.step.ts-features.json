@@ -2,7 +2,7 @@
   {
     "id": "step-configuration",
     "title": "Step Configuration",
-    "description": "All steps should have a defined configuration, this is how you define the step's behavior and how it will be triggered.",
+    "description": "All steps should have a defined configuration. This is how you define the step's behavior and how it will be triggered.",
     "lines": [
       "3-10"
     ]
