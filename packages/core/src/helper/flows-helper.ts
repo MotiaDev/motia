@@ -10,7 +10,10 @@ import { v5 as uuidv5 } from 'uuid'
 const getNodeComponentPath = (filePath: string): string | undefined => {
   const filePathWithoutExtension = filePath.replace(/\.[^/.]+$/, '')
   const tsxPath = filePathWithoutExtension + '.tsx'
-  return fs.existsSync(tsxPath) ? tsxPath : undefined
+  const jsxPath = filePathWithoutExtension + '.jsx'
+
+  if (fs.existsSync(tsxPath)) return tsxPath
+  if (fs.existsSync(jsxPath)) return jsxPath
 }
 
 const getRelativePath = (filePath: string): string => {

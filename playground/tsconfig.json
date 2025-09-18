@@ -14,6 +14,6 @@
     "baseUrl": ".",
     "jsx": "react-jsx"
   },
-  "include": ["**/*.ts", "motia.mts", "**/*.tsx", "types.d.ts"],
+  "include": ["**/*.ts", "motia.mts", "**/*.tsx", "types.d.ts", "**/*.jsx"],
   "exclude": ["node_modules", "dist", "tests"]
 }

@@ -36,7 +36,7 @@ export const BaseNode: React.FC<Props> = ({
   const [features, setFeatures] = useState<Feature[]>([])
 
   const fetchContent = useCallback(async () => {
-    const response = await fetch(`/step/${data.id}`)
+    const response = await fetch(`/__motia/step/${data.id}`)
     const responseData = await response.json()
     setContent(responseData.content)
     setFeatures(responseData.features)

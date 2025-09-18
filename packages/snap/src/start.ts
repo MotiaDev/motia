@@ -4,6 +4,7 @@ import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { stateEndpoints } from './dev/state-endpoints'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
+import { workbenchBase } from './constants'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
@@ -30,16 +31,16 @@ export const start = async (port: number, hostname: string, disableVerbose: bool
   const config = { isVerbose, isDev: false, version }
   const motiaServer = createServer(lockedData, eventManager, state, config)
 
-  motiaServer.server.listen(port, hostname)
-  console.log('🚀 Server ready and listening on port', port)
-  console.log(`🔗 Open http://${hostname}:${port}/ to open workbench 🛠️`)
-
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
     stateEndpoints(motiaServer, state)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { applyMiddleware } = require('@motiadev/workbench/dist/middleware')
-    await applyMiddleware(motiaServer.app)
+    await applyMiddleware(motiaServer.app, port, workbenchBase)
   }
+
+  motiaServer.server.listen(port, hostname)
+  console.log('🚀 Server ready and listening on port', port)
+  console.log(`🔗 Open http://${hostname}:${port}${workbenchBase} to open workbench 🛠️`)
 
   // 6) Gracefully shut down on SIGTERM
   process.on('SIGTERM', async () => {

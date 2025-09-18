@@ -11,7 +11,7 @@ export const useGetStateItems = (): StateItem[] => {
   const [items, setItems] = useState<StateItem[]>([])
 
   useEffect(() => {
-    fetch('/motia/state')
+    fetch('/__motia/state')
       .then(async (res) => {
         if (res.ok) {
           return res.json()

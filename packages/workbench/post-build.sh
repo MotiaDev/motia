@@ -2,6 +2,7 @@ cp README.md dist/README.md
 cp index.html dist/index.html
 cp components.json dist/components.json
 cp -r public/ dist/public
+cp -r src/assets/ dist/src/assets
 cp src/index.css dist/src/index.css
 cp src/components/tutorial/tutorial.css dist/src/components/tutorial/tutorial.css
 cp tailwind.config.js dist/tailwind.config.js

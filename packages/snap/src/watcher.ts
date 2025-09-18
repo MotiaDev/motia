@@ -180,11 +180,17 @@ export class Watcher {
   }
 
   private isStepFile(path: string): boolean {
-    return /[._]step\.[^.]+$/.test(path) && !/\.tsx$/.test(path) && !/\.step\.py$/.test(path)
+    const isUiNode = /\.(tsx|jsx)$/.test(path)
+    const isDeprecatedPythonStep = /\.step\.py$/.test(path)
+
+    return /[._]step\.[^.]+$/.test(path) && !isUiNode && !isDeprecatedPythonStep
   }
 
   private isStreamFile(path: string): boolean {
-    return /[._]stream\.[^.]+$/.test(path) && !/\.tsx$/.test(path) && !/\.stream\.py$/.test(path)
+    const isUiNode = /\.(tsx|jsx)$/.test(path)
+    const isDeprecatedPythonStream = /\.stream\.py$/.test(path)
+
+    return /[._]stream\.[^.]+$/.test(path) && !isUiNode && !isDeprecatedPythonStream
   }
 
   async stop(): Promise<void> {

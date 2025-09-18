@@ -32,7 +32,7 @@ export const StateEditor: React.FC<Props> = ({ state }) => {
       setIsRequestLoading(true)
       setSaveStatus('idle')
 
-      const response = await fetch('/motia/state', {
+      const response = await fetch('/__motia/state', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -16,6 +16,7 @@ import { deployEndpoints } from './cloud/endpoints'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
+import { workbenchBase, isTutorialDisabled } from './constants'
 
 process.env.VITE_CJS_IGNORE_WARNING = 'true'
 
@@ -61,7 +62,7 @@ export const dev = async (
     filePath: path.join(baseDir, '.motia'),
   })
 
-  const config = { isVerbose, isDev: true, version }
+  const config = { isVerbose }
   const motiaServer = createServer(lockedData, eventManager, state, config)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
 
@@ -77,9 +78,18 @@ export const dev = async (
   stateEndpoints(motiaServer, state)
   deployEndpoints(motiaServer, lockedData)
 
-  motiaServer.server.listen(port, hostname)
-  console.log('🚀 Server ready and listening on port', port)
-  console.log(`🔗 Open http://localhost:${port} to open workbench 🛠️`)
+  motiaServer.app.get('/__motia', (_, res) => {
+    const meta = {
+      version,
+      isDev: true,
+      isTutorialDisabled,
+    }
+
+    res //
+      .header('Access-Control-Allow-Origin', '*')
+      .status(200)
+      .json(meta)
+  })
 
   trackEvent('dev_server_ready', {
     port,
@@ -97,7 +107,11 @@ export const dev = async (
       require('@motiadev/workbench/middleware')
     : // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('@motiadev/workbench/dist/middleware')
-  await applyMiddleware(motiaServer.app, port)
+  await applyMiddleware(motiaServer.app, port, workbenchBase)
+
+  motiaServer.server.listen(port, hostname)
+  console.log('🚀 Server ready and listening on port', port)
+  console.log(`🔗 Open http://localhost:${port}${workbenchBase} to open workbench 🛠️`)
 
   // 6) Gracefully shut down on SIGTERM
   process.on('SIGTERM', async () => {

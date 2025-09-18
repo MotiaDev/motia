@@ -38,11 +38,11 @@ const reoPlugin = () => {
   }
 }
 
-export const applyMiddleware = async (app: Express, port: number) => {
+export const applyMiddleware = async (app: Express, port: number, workbenchBase: string = '') => {
   const vite = await createViteServer({
     appType: 'spa',
     root: __dirname,
-
+    base: workbenchBase,
     server: {
       middlewareMode: true,
       allowedHosts: true,
@@ -58,17 +58,18 @@ export const applyMiddleware = async (app: Express, port: number) => {
       },
     },
     resolve: {
-      alias: { '@': path.resolve(__dirname, './src') },
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+        '@/assets': path.resolve(__dirname, './src/assets'),
+      },
     },
     plugins: [react(), processCwdPlugin(), reoPlugin()],
+    assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico', '**/*.webp', '**/*.avif'],
   })
 
-  app.use(vite.middlewares)
-
-  app.use('*', async (req: Request, res: Response, next: NextFunction) => {
+  app.use(workbenchBase, vite.middlewares)
+  app.use(`${workbenchBase}/*`, async (req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl
-
-    console.log('[UI] Request', { url })
 
     try {
       const index = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf-8')
