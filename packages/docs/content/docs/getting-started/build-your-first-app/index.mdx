@@ -1,120 +1,445 @@
 ---
 title: Build Your First Motia App
-description: Follow this step-by-step journey to build a complete pet store application. Learn API endpoints, background jobs, workflows, and advanced features in a structured progression.
+description: Build your first multi-language Motia app in minutes. This guide walks you through creating, running, and understanding a Motia app using JavaScript, TypeScript, and Python.
 ---
 
 # Build Your First Motia App
 
-**Learn Motia by building a real application step-by-step.** This tutorial series guides you through creating a complete pet store application, starting with basic API endpoints and progressively adding advanced features.
+**Get up and running with Motia in just a few minutes!** This guide shows you how to create a Motia app that connects JavaScript, TypeScript, and Python as steps.
 
-## What You'll Build 🎯
+## What You'll Build
 
-A **complete pet store application** that demonstrates real-world patterns:
-- ✅ **REST API** with full CRUD operations
-- ✅ **Background job processing** for automated tasks  
-- ⏳ **Workflows** for complex business logic
-- ⏳ **AI Agents** for intelligent automation
-- ⏳ **Real-time Streams** for live updates
-- ⏳ **Database integration** and state management
+A simple data processing Motia app:
+- **TypeScript** API endpoint receives data with validation
+- **TypeScript** bridges and notifies with proper types
+- **Python** processes the data with proper logging
+- **JavaScript** generates final summary and metrics
 
-## Learning Path 📚
+All connected automatically with zero configuration and strict type safety.
 
-This is a **progressive tutorial series**. Each section builds on the previous one:
+## Step 1: Create Your Motia App
 
-### 1. API Endpoints (Start Here)
-**Build your foundation with REST APIs**
-- Create, read, update, and delete pets
-- Request validation and error handling
-- HTTP methods and proper responses
+```bash
+# Create a new Motia app
+npx motia@latest create
+```
+![build-app](/docs-images/motia-terminal.gif)
 
-[**Start with API Endpoints →**](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)
+```bash
+### Start the development environment
+npx motia dev
+```
+![tldr motia](/docs-images/motia-build-your-app.gif)
 
----
 
-### 2. Background Jobs
-**Add automated processing to your API**
-- Event-driven architecture  
-- Scheduled tasks and cron jobs
-- Async processing without blocking APIs
+✅ That's it! You now have a working Motia app with a visual debugger at `http://localhost:3000`
 
-[**Continue with Background Jobs →**](/docs/getting-started/build-your-first-app/build-your-first-background-jobs)
+## Step 2: Add Your Logic Steps
 
----
+### TypeScript API Endpoint (App Starter)
+// File: 01-starter.step.ts
+```typescript
+import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
 
-### 3. Workflows *(Coming Next)*
-**Orchestrate complex business processes**
-- Multi-step workflows with conditional logic
-- Sequential and parallel processing
-- Error handling and retries across steps
+const bodySchema = z.object({
+  data: z.record(z.unknown()).optional(),
+  message: z.string().optional()
+})
 
-*Available soon*
+// API endpoint to start the multi-language pipeline
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'AppStarter',
+  description: 'Start the multi-language app pipeline',
 
----
+  method: 'POST',
+  path: '/start-app',
 
-### 4. AI Agents *(Coming Next)*
-**Integrate intelligent automation**
-- LLM-powered decision making
-- AI-driven data processing
-- Automated content generation and analysis
+  bodySchema,
+  responseSchema: {
+    200: z.object({
+      message: z.string(),
+      appId: z.number(),
+      traceId: z.string()
+    })
+  },
 
-*Available soon*
+  emits: ['app.started'],
+  flows: ['data-processing']
+} as const
 
----
+export const handler: Handlers['AppStarter'] = async (req, { logger, emit, traceId }) => {
+  logger.info('🚀 Starting multi-language app', { body: req.body, traceId })
+  
+  const appData = {
+    id: Date.now(),
+    input: req.body.data || {},
+    started_at: new Date().toISOString(),
+    traceId
+  }
 
-### 5. Real-time Streams *(Coming Next)*
-**Add live updates and data streams**
-- WebSocket connections and live updates
-- Real-time data streaming and processing
-- Live notifications and collaboration features
+  // Emit to next step
+  await emit({
+    topic: 'app.started',
+    data: appData
+  })
 
-*Available soon*
+  logger.info('✅ App started successfully', { 
+    appId: appData.id,
+    traceId 
+  })
 
-## Prerequisites ✅
+  return {
+    status: 200,
+    body: {
+      message: 'Multi-language app started successfully',
+      appId: appData.id,
+      traceId
+    }
+  }
+}
+```
 
-- [Complete Quick Start](/docs/getting-started/quick-start) tutorial
-- Basic understanding of REST APIs
-- Familiarity with JavaScript/TypeScript or Python
+### TypeScript Bridge Step
+// File: 02-bridge.step.ts
+```typescript
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
 
-## Why This Progression? 🤔
+// Bridge step to connect app starter to Python processing
+export const config: EventConfig = {
+  type: 'event',
+  name: 'AppBridge',
+  description: 'Bridge between app start and Python processing',
+  subscribes: ['app.started'],
+  emits: ['data.processed'],
+  input: z.object({
+    id: z.number(),
+    input: z.record(z.unknown()),
+    started_at: z.string(),
+    traceId: z.string()
+  }),
+  flows: ['data-processing']
+} as const
 
-**APIs First**: Learn the foundation - how to create endpoints and handle requests.
+export const handler: Handlers['AppBridge'] = async (input, { logger, emit }) => {
+  logger.info('🌉 Processing app data and sending to Python', { appId: input.id })
+  
+  // Process data for Python step
+  const processedResult = {
+    original_id: input.id,
+    processed_at: input.started_at,
+    result: `Processed: ${JSON.stringify(input.input)}`,
+    confidence: 0.95,
+    model_version: '1.0'
+  }
 
-**Background Jobs Next**: Add real-world functionality - automated emails, scheduled tasks, and async processing that every application needs.
+  // Send to Python processing
+  await emit({
+    topic: 'data.processed', 
+    data: processedResult
+  })
 
-**Workflows Then**: Orchestrate complex business logic that spans multiple steps and systems with conditional branching.
+  logger.info('✅ Data sent to Python processing', { 
+    originalId: input.id
+  })
+}
+```
 
-**AI Agents Next**: Integrate intelligent automation - let AI make decisions, process data, and generate content within your workflows.
+### Python Data Processor
+// File: simple-python_step.py
+```python
+import time
+from datetime import datetime
 
-**Real-time Streams Finally**: Add live capabilities - real-time updates, notifications, and collaborative features that make your app interactive.
+# Python processing step configuration
+config = {
+    "type": "event",
+    "name": "ProcessDataPython",
+    "description": "Process data using Python capabilities",
+    "subscribes": ["data.processed"],
+    "emits": ["python.done"],
+    "flows": ["data-processing"]
+}
 
-## Get Started Now! 🚀
-
-Ready to build your first complete Motia application?
-
-<div className="not-prose">
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-    <a
-      href="/docs/getting-started/build-your-first-app/creating-your-first-rest-api"
-      className="block p-6 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
-    >
-      <h3 className="text-lg font-semibold mb-2">1. Start with API Endpoints</h3>
-      <p className="text-gray-600 mb-4">Build a complete REST API with CRUD operations for your pet store.</p>
-      <span className="text-blue-600 font-medium">Start Building →</span>
-    </a>
+async def handler(input_data, ctx):
+    """
+    Python step that processes data and demonstrates Python capabilities
+    """
+    logger = ctx.logger
+    emit = ctx.emit
     
-    <a
-      href="/docs/getting-started/build-your-first-app/build-your-first-background-jobs"
-      className="block p-6 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
-    >
-      <h3 className="text-lg font-semibold mb-2">2. Add Background Jobs</h3>
-      <p className="text-gray-600 mb-4">Extend your API with automated tasks, scheduled jobs, and async processing.</p>
-      <span className="text-blue-600 font-medium">Add Background Jobs →</span>
-    </a>
-  </div>
-</div>
+    # Extract data from input
+    original_id = input_data.get("original_id")
+    result = input_data.get("result", "")
+    
+    logger.info(f"🐍 Python processing data for ID: {original_id}")
+    
+    start_time = time.time()
+    
+    # Simulate Python data processing
+    processed_message = f"Python processed: {result}"
+    
+    # Add some Python-specific processing
+    data_analysis = {
+        "word_count": len(result.split()) if isinstance(result, str) else 0,
+        "character_count": len(result) if isinstance(result, str) else 0,
+        "processed_timestamp": datetime.now().isoformat(),
+        "processing_language": "Python 3.x"
+    }
+    
+    processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+    
+    # Create result object
+    python_result = {
+        "id": original_id,
+        "python_message": processed_message,
+        "processed_by": ["appStarter", "appBridge", "ProcessDataPython"],
+        "processing_time": processing_time,
+        "analysis": data_analysis
+    }
+    
+    # Emit to next step
+    await emit({
+        "topic": "python.done",
+        "data": python_result
+    })
+    
+    logger.info(f"✅ Python processing completed in {processing_time:.2f}ms")
+```
+
+### TypeScript Notification Step
+// File: notify.step.ts
+```typescript
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+export const config: EventConfig = {
+  type: 'event',
+  name: 'NotificationHandler',
+  description: 'Send notifications after Python processing',
+  subscribes: ['python.done'],
+  emits: ['notification.sent'],
+  input: z.object({
+    id: z.number(),
+    python_message: z.string(),
+    processed_by: z.array(z.string()),
+    processing_time: z.number(),
+    analysis: z.record(z.unknown()).optional()
+  }),
+  flows: ['data-processing']
+} as const
+
+export const handler: Handlers['NotificationHandler'] = async (input, { logger, emit }) => {
+  logger.info('📧 Sending notifications after Python processing', { id: input.id })
+  
+  // Simulate sending notifications (email, slack, etc.)
+  const notification = {
+    id: input.id,
+    message: `Notification: ${input.python_message}`,
+    processed_by: input.processed_by,
+    sent_at: new Date().toISOString()
+  }
+
+  // Send notification data to final step
+  await emit({
+    topic: 'notification.sent',
+    data: {
+      ...notification,
+      processing_time: input.processing_time
+    }
+  })
+
+  logger.info('✅ Notifications sent successfully', { id: input.id })
+}
+```
+
+### TypeScript Finalizer Step
+// File: 04-final.step.ts
+```typescript
+import { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+// Final step to complete the app - TypeScript
+export const config: EventConfig = {
+  type: 'event',
+  name: 'AppFinalizer',
+  description: 'Complete the basic app and log final results',
+  subscribes: ['notification.sent'],
+  emits: ['app.completed'],
+  input: z.object({
+    id: z.number(),
+    message: z.string(),
+    processed_by: z.array(z.string()),
+    sent_at: z.string(),
+    processing_time: z.number()
+  }),
+  flows: ['data-processing']
+} as const
+
+export const handler: Handlers['AppFinalizer'] = async (input, { logger, emit }) => {
+  logger.info('🏁 Finalizing app', { 
+    notificationId: input.id,
+    message: input.message 
+  })
+  
+  // Create final app summary
+  const summary = {
+    appId: input.id,
+    status: 'completed',
+    completed_at: new Date().toISOString(),
+    steps_executed: [
+      'app-starter',
+      'app-bridge', 
+      'python-processor',
+      'notification-handler',
+      'app-finalizer'
+    ],
+    result: input.message
+  }
+
+  // Send to JavaScript summary generator
+  await emit({
+    topic: 'app.completed',
+    data: {
+      ...summary,
+      total_processing_time: input.processing_time
+    }
+  })
+
+  logger.info('✅ App finalized successfully', { 
+    appId: input.id,
+    totalSteps: summary.steps_executed.length
+  })
+}
+```
+
+### JavaScript Summary Generator
+// File: 05-summary.step.js
+```javascript
+// Final summary step - JavaScript
+export const config = {
+  type: 'event',
+  name: 'summaryGenerator',
+  description: 'Generate final summary in JavaScript',
+  subscribes: ['app.completed'],
+  emits: [], // Final step - no further processing needed
+  flows: ['data-processing']
+}
+
+export const handler = async (input, { logger }) => {
+  logger.info('📊 Generating final summary in JavaScript', { 
+    appId: input.appId,
+    status: input.status 
+  })
+  
+  // Calculate processing metrics
+  const processingTime = input.total_processing_time || 0
+  const stepsCount = input.steps_executed ? input.steps_executed.length : 0
+  
+  // Create comprehensive summary
+  const summary = {
+    appId: input.appId,
+    finalStatus: input.status,
+    totalSteps: stepsCount,
+    processingTimeMs: processingTime,
+    languages: ['TypeScript', 'Python', 'JavaScript'],
+    summary: `Multi-language app completed successfully with ${stepsCount} steps`,
+    result: input.result,
+    completedAt: new Date().toISOString(),
+    generatedBy: 'javascript-summary-step'
+  }
+  
+  // Log final summary (final step - no emit needed)
+  logger.info('✨ Final summary generated successfully', summary)
+  
+  return summary
+}
+```
+
+## Type Definitions
+
+Our unified system uses shared TypeScript types to ensure type safety across the multi-language pipeline:
+
+```typescript
+// types/index.ts
+export interface AppData {
+  id: number
+  input: Record<string, unknown>
+  started_at: string
+  traceId: string
+}
+
+export interface ProcessedResult {
+  original_id: number
+  processed_at: string
+  result: string
+  confidence: number
+  model_version: string
+}
+
+export interface PythonResult {
+  id: number
+  python_message: string
+  processed_by: string[]
+  processing_time: number
+}
+
+export interface NotificationData {
+  id: number
+  message: string
+  processed_by: string[]
+  sent_at: string
+}
+
+export interface AppSummary {
+  appId: number
+  status: string
+  completed_at: string
+  steps_executed: string[]
+  result: string
+}
+```
+
+## What Happens Next?
+
+![motia-build-your-app](/docs-images/motia-build-your-app-2.gif)
+
+Watch in the **Workbench** (`http://localhost:3000`) as your data flows through:
+
+1. **TypeScript** API receives and validates the request with Zod schemas
+2. **TypeScript** bridge processes and forwards data with proper typing
+3. **Python** processes data with rich analysis (access to numpy, pandas, torch, etc.)
+4. **TypeScript** handles notifications after Python processing
+5. **TypeScript** finalizes and aggregates results
+6. **JavaScript** generates final summary with comprehensive metrics
+
+All languages working together in one unified system with:
+- ✅ **Automatic observability** - see every step in real-time
+- ✅ **Built-in error handling** - retry logic included
+- ✅ **Shared state** - pass data between languages effortlessly
+- ✅ **Hot reload** - edit any file and see changes instantly
+- ✅ **Type safety** - proper TypeScript types throughout
+- ✅ **Input validation** - Zod schema validation for APIs
+- ✅ **Multi-language** - JavaScript, TypeScript, and Python working together
+
+## Deploy and Extend
+
+**You just built a production-ready multi-language Motia app!**
+
+Extend your app:
+- Add scheduled jobs with `cron` steps
+- Create UI components with React/Vue steps
+- Connect to databases, APIs, and external services
+- Scale to handle millions of requests
+
+Ready to deploy? Check out [Motia Cloud deployment](/docs/concepts/deployment/motia-cloud) for one-click production deployments.
+
+<Callout>
+**Ready to build more?** Check out our [Getting Started Guide](/docs/getting-started/quick-start) for more details.
+</Callout>
 
 ---
 
-**Time Investment**: Each section takes 3-5 minutes. Complete the full series in about 15 minutes.
-
-**Support**: Need help? Join our [Discord community](https://discord.gg/motia) or [open an issue](https://github.com/MotiaDev/motia/issues).
+**The bottom line:** Motia eliminates the complexity of managing separate runtimes. Write each piece in the best language for the job, and Motia handles the rest.
