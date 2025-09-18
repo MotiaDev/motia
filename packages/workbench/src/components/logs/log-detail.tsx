@@ -5,7 +5,7 @@ import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
 import { Log } from '@/stores/use-logs-store'
 import { LogLevelDot } from './log-level-dot'
-import { Sidebar } from '@/components/sidebar/sidebar'
+import { Sidebar } from '@motiadev/ui'
 import { X } from 'lucide-react'
 
 type Props = {
