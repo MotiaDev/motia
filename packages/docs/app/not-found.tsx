@@ -1,68 +1,101 @@
-'use client'
-
-import { useEffect } from 'react'
-import { usePlausibleTracking } from '../hooks/usePlausibleTracking'
 import Link from 'next/link'
-import ButtonPrimary from '@/components/ButtonPrimary'
-import ButtonSecondary from '@/components/ButtonSecondary'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: '404 - Page Not Found',
+  description: 'The page you are looking for does not exist. Explore Motia documentation and examples.',
+  robots: {
+    index: false,
+    follow: false,
+  },
+}
+
+const suggestedPages = [
+  { title: 'Documentation Home', href: '/docs', description: 'Start with the main documentation' },
+  { title: 'Getting Started', href: '/docs/getting-started', description: 'Learn how to build your first app' },
+  { title: 'Examples', href: '/docs/examples', description: 'Explore real-world examples' },
+  { title: 'Concepts', href: '/docs/concepts', description: 'Understand core framework concepts' },
+  { title: 'Real-world Use Cases', href: '/docs/real-world-use-cases', description: 'Industry applications' },
+]
 
 export default function NotFound() {
-  const { track404Error } = usePlausibleTracking()
-
-  useEffect(() => {
-    // Track 404 error with the current path
-    if (typeof window !== 'undefined') {
-      track404Error(window.location.pathname)
-    }
-  }, [track404Error])
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-black via-gray-900 to-blue-950 font-[family-name:var(--font-geist-sans)]">
-      <div className="w-full max-w-2xl px-6 text-center">
-        <div className="mb-8">
-          <h2 className="mb-4 bg-gradient-to-r from-blue-400 via-white to-blue-300 bg-clip-text text-8xl font-bold text-transparent">
-            404
-          </h2>
-          <div className="mx-auto h-px w-32 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50"></div>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-6xl font-bold text-gray-900 dark:text-white mb-4">404</h1>
+        <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-6">
+          Page Not Found
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-8 text-lg">
+          The page you're looking for doesn't exist or has been moved. 
+          Let's get you back on track with these helpful resources.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {suggestedPages.map((page) => (
+            <Link
+              key={page.href}
+              href={page.href}
+              className="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gray-300 dark:hover:border-gray-600 transition-colors text-left"
+            >
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                {page.title}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {page.description}
+              </p>
+            </Link>
+          ))}
+        </div>
+        
+        <div className="space-x-4">
+          <Link
+            href="/"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+          >
+            Go Home
+          </Link>
+          <Link
+            href="/docs"
+            className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            Browse Docs
+          </Link>
         </div>
 
-        <div className="mb-12">
-          <h1 className="mb-4 text-3xl font-semibold text-white">Page Not Found</h1>
-          <p className="mx-auto max-w-lg text-lg leading-relaxed text-white/70">
-          Sorry, we couldn&apos;t find the page you&apos;re looking for.
+        <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            If you believe this is an error, please{' '}
+            <a
+              href="https://github.com/MotiaDev/motia/issues"
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              report it on GitHub
+            </a>
           </p>
         </div>
-
-        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link href="/">
-            <ButtonPrimary className="gap-2 px-6 py-3 text-base hover:scale-105">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                />
-              </svg>
-              Go Home
-            </ButtonPrimary>
-          </Link>
-
-          <Link href="/docs">
-            <ButtonSecondary className="gap-2 px-6 py-3 text-base hover:scale-105 hover:bg-[rgba(255,255,255,0.12)]">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
-              Browse Docs
-            </ButtonSecondary>
-          </Link>
-        </div>
       </div>
+
+      {/* Add structured data for better SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebPage',
+            name: '404 - Page Not Found',
+            description: 'The page you are looking for does not exist.',
+            url: 'https://motia.dev/404',
+            mainEntity: {
+              '@type': 'Thing',
+              name: 'Page Not Found',
+              description: 'The requested page could not be found.',
+            },
+          }),
+        }}
+      />
     </div>
   )
 }

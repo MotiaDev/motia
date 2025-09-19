@@ -8,6 +8,8 @@ import { Analytics } from '@vercel/analytics/react'
 import { headers } from 'next/headers'
 import PlausibleProvider from 'next-plausible'
 import Script from 'next/script'
+import { CanonicalUrl } from '@/components/CanonicalUrl'
+import { StructuredData } from '@/components/StructuredData'
 
 const tasaExplorer = localFont({
   src: [
@@ -213,6 +215,10 @@ export default function RootLayout({
           }}
         >
           <RootProvider>
+            <CanonicalUrl />
+            <StructuredData type="WebSite" />
+            <StructuredData type="Organization" />
+            <StructuredData type="SoftwareApplication" />
             {children}
             <Analytics />
           </RootProvider>
