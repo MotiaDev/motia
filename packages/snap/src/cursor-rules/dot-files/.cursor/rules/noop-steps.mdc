@@ -1,14 +1,11 @@
 ---
-description: NOOP Steps for workflow connections and manual triggers with correct configurations
+description: NOOP Steps for workflow connections and manual triggers
 globs: 
 alwaysApply: false
 ---
-
 # NOOP Steps Guide
 
 NOOP (No Operation) steps are useful for testing workflows and creating manual trigger points.
-
-## CORRECT NOOP CONFIGURATION (✅ VERIFIED from examples)
 
 ### Basic NOOP Step
 ```typescript

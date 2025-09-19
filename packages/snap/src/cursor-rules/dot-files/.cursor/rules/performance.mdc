@@ -1,0 +1,233 @@
+---
+description: Performance optimization patterns for Motia applications
+alwaysApply: false
+---
+# Performance Optimization
+
+Best practices for building high-performance Motia applications.
+
+## Async Operations
+
+### Parallel Processing
+```typescript
+// ❌ Sequential processing
+const results = []
+for (const item of items) {
+  results.push(await processItem(item))
+}
+
+// ✅ Parallel processing
+const results = await Promise.all(
+  items.map(item => processItem(item))
+)
+```
+
+### Batch Operations
+```typescript
+// ❌ Individual database calls
+for (const user of users) {
+  await state.set('users', user.id, user)
+}
+
+// ✅ Batch state operations
+const stateOps = users.map(user => 
+  state.set('users', user.id, user)
+)
+await Promise.all(stateOps)
+```
+
+## State Optimization
+
+### Efficient State Keys
+```typescript
+// ✅ Use hierarchical keys for better organization
+await state.set('users', `profile:${userId}`, profile)
+await state.set('users', `settings:${userId}`, settings)
+
+// ✅ Use getGroup for bulk operations
+const allProfiles = await state.getGroup('users')
+```
+
+### State Cleanup
+```typescript
+// Clean up state to prevent memory bloat
+export const handler = async (input, { state, traceId }) => {
+  try {
+    // Business logic
+  } finally {
+    // Clean up temporary state
+    await state.delete(traceId, 'temp-data')
+  }
+}
+```
+
+## Stream Performance
+
+### Efficient Stream Operations
+```typescript
+// ✅ Use specific group IDs for targeted updates
+await streams.notifications.set(`user:${userId}`, notificationId, notification)
+
+// ✅ Batch stream operations
+const streamOps = notifications.map(notif => 
+  streams.notifications.set(`user:${notif.userId}`, notif.id, notif)
+)
+await Promise.all(streamOps)
+```
+
+## Memory Management
+
+### Large Data Handling
+```typescript
+// ❌ Don't load everything into memory
+const allUsers = await getAllUsers() // Could be millions
+const processed = allUsers.map(processUser)
+
+// ✅ Process in chunks
+async function processUsersInChunks(chunkSize = 100) {
+  let offset = 0
+  while (true) {
+    const chunk = await getUserChunk(offset, chunkSize)
+    if (chunk.length === 0) break
+    
+    await Promise.all(chunk.map(processUser))
+    offset += chunkSize
+  }
+}
+```
+
+## Event Flow Optimization
+
+### Avoid Deep Chains
+```typescript
+// ❌ Too many sequential steps
+// Step1 → Step2 → Step3 → Step4 → Step5
+
+// ✅ Use parallel processing where possible
+// Step1 → [Step2a, Step2b, Step2c] → Step3
+```
+
+### Conditional Emissions
+```typescript
+export const handler = async (input, { emit, logger }) => {
+  const result = await processData(input)
+  
+  // Only emit if necessary
+  if (result.requiresNotification) {
+    await emit({
+      topic: 'notification.send',
+      data: result.notificationData
+    })
+  }
+}
+```
+
+## Caching Strategies
+
+### State-based Caching
+```typescript
+export const handler = async (input, { state, logger }) => {
+  const cacheKey = `cache:${input.id}`
+  
+  // Check cache first
+  let result = await state.get('cache', cacheKey)
+  if (result) {
+    logger.info('Cache hit', { cacheKey })
+    return result
+  }
+  
+  // Compute and cache
+  result = await expensiveOperation(input)
+  await state.set('cache', cacheKey, result)
+  
+  return result
+}
+```
+
+## Database Optimization
+
+### Connection Pooling
+```typescript
+// Use connection pooling for database operations
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20, // Maximum pool size
+  idleTimeoutMillis: 30000
+})
+```
+
+### Query Optimization
+```typescript
+// ❌ N+1 queries
+const users = await getUsers()
+for (const user of users) {
+  user.profile = await getUserProfile(user.id)
+}
+
+// ✅ Single query with joins
+const usersWithProfiles = await getUsersWithProfiles()
+```
+
+## Error Handling Performance
+
+### Avoid Expensive Error Operations
+```typescript
+try {
+  // Business logic
+} catch (error) {
+  // ❌ Don't do expensive operations in catch
+  // await sendDetailedErrorReport(error)
+  
+  // ✅ Log error and handle async
+  logger.error('Operation failed', { error: error.message })
+  
+  await emit({
+    topic: 'error.report.async',
+    data: { error: error.message }
+  })
+}
+```
+
+## Monitoring Performance
+
+### Key Metrics to Track
+```typescript
+export const handler = async (input, { logger }) => {
+  const startTime = Date.now()
+  
+  try {
+    const result = await processData(input)
+    
+    const duration = Date.now() - startTime
+    logger.info('Operation completed', { 
+      duration,
+      inputSize: JSON.stringify(input).length
+    })
+    
+    return result
+  } catch (error) {
+    const duration = Date.now() - startTime
+    logger.error('Operation failed', { duration, error: error.message })
+    throw error
+  }
+}
+```
+
+## Production Config
+
+### Redis for State
+```yaml
+# config.yml
+state:
+  adapter: redis
+  host: localhost
+  port: 6379
+  ttl: 3600  # Automatic cleanup
+```
+
+### Optimized Logging
+```yaml
+logging:
+  level: info  # Don't use debug in production
+  format: json
+```

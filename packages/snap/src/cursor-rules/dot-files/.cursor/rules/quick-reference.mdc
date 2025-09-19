@@ -1,0 +1,155 @@
+---
+description: Quick reference cheat sheet for common Motia patterns
+alwaysApply: false
+---
+# Motia Quick Reference
+
+Cheat sheet for the most common Motia patterns.
+
+## Step Templates
+
+### API Step
+```typescript
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'StepName',
+  path: '/endpoint',
+  method: 'POST',
+  emits: ['topic.name'],
+  flows: ['flow-name']
+}
+
+export const handler: Handlers['StepName'] = async (req, { emit, logger }) => {
+  return { status: 200, body: { success: true } }
+}
+```
+
+### Event Step
+```typescript
+export const config: EventConfig = {
+  type: 'event',
+  name: 'StepName',
+  subscribes: ['input.topic'],
+  emits: ['output.topic'],
+  input: z.object({ field: z.string() }),
+  flows: ['flow-name']
+}
+
+export const handler: Handlers['StepName'] = async (input, { emit, logger }) => {
+  await emit({ topic: 'output.topic', data: result })
+}
+```
+
+### Cron Step
+```typescript
+export const config: CronConfig = {
+  type: 'cron',
+  name: 'StepName',
+  cron: '0 */6 * * *',
+  emits: ['scheduled.topic'],
+  flows: ['flow-name']
+}
+
+export const handler: Handlers['StepName'] = async ({ emit, logger }) => {
+  await emit({ topic: 'scheduled.topic', data: {} })
+}
+```
+
+## State Operations
+
+```typescript
+// Store data
+await state.set(scope, key, value)
+
+// Retrieve data
+const data = await state.get(scope, key)
+
+// Get all items in scope
+const items = await state.getGroup(scope)
+
+// Delete specific key
+await state.delete(scope, key)
+
+// Clear entire scope
+await state.clear(scope)
+```
+
+## Stream Operations
+
+```typescript
+// Set stream data
+await streams.streamName.set(groupId, id, data)
+
+// Get single item
+const item = await streams.streamName.get(groupId, id)
+
+// Get all items in group
+const items = await streams.streamName.getGroup(groupId)
+
+// Delete item
+await streams.streamName.delete(groupId, id)
+```
+
+## Common Patterns
+
+### API with Validation
+```typescript
+export const config: ApiRouteConfig = {
+  bodySchema: z.object({
+    email: z.string().email(),
+    password: z.string().min(8)
+  }),
+  responseSchema: {
+    200: z.object({ success: z.boolean() }),
+    400: z.object({ error: z.string() })
+  }
+}
+```
+
+### Error Handling
+```typescript
+try {
+  const result = await processData(input)
+  await emit({ topic: 'success.topic', data: result })
+} catch (error) {
+  logger.error('Processing failed', { error: error.message })
+  await emit({ topic: 'error.topic', data: { error: error.message } })
+}
+```
+
+### State with traceId
+```typescript
+// Flow-scoped state
+await state.set(traceId, 'resource', data)
+const resource = await state.get(traceId, 'resource')
+
+// Global state
+await state.set('users', userId, userData)
+const user = await state.get('users', userId)
+```
+
+## Cron Expressions
+
+| Pattern | Description |
+|---------|-------------|
+| `*/5 * * * *` | Every 5 minutes |
+| `0 * * * *` | Every hour |
+| `0 0 * * *` | Daily at midnight |
+| `0 0 * * 0` | Weekly on Sunday |
+| `0 0 1 * *` | Monthly on 1st |
+
+## Topic Naming
+
+Use descriptive, hierarchical names:
+- `user.created`
+- `order.payment.processed`  
+- `notification.email.sent`
+- `data.validation.failed`
+
+## File Naming
+
+- **TypeScript/JavaScript**: `step-name.step.ts`
+- **Python**: `step_name_step.py`
+- **Ruby**: `step-name.step.rb`
+- **Streams**: `stream-name.stream.ts`
+- **UI Components**: `component-name.step.tsx`

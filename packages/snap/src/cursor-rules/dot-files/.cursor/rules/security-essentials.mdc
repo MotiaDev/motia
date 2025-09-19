@@ -1,0 +1,165 @@
+---
+description: Essential security practices for Motia applications
+globs: ["**/*.step.ts", "**/*.step.js"]
+alwaysApply: false
+---
+# Security Essentials
+
+Core security practices for production Motia applications.
+
+## Input Validation
+
+Always validate inputs with Zod schemas:
+
+```typescript
+import { z } from 'zod'
+
+export const config: ApiRouteConfig = {
+  bodySchema: z.object({
+    email: z.string().email(),
+    password: z.string().min(8).max(128),
+    username: z.string().regex(/^[a-zA-Z0-9_-]+$/)
+  }),
+  // ... rest of config
+}
+```
+
+## Authentication
+
+### JWT Token Validation
+```typescript
+function extractUserId(authHeader: string): string | null {
+  if (!authHeader?.startsWith('Bearer ')) return null
+  
+  const token = authHeader.substring(7)
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET!)
+    return payload.userId
+  } catch {
+    return null
+  }
+}
+
+export const handler = async (req, { logger }) => {
+  const userId = extractUserId(req.headers.authorization)
+  if (!userId) {
+    return { status: 401, body: { error: 'Unauthorized' } }
+  }
+  
+  // Continue with authenticated request
+}
+```
+
+## Environment Variables
+
+Never hardcode secrets:
+
+```typescript
+// ❌ Don't do this
+const apiKey = 'sk-1234567890abcdef'
+
+// ✅ Use environment variables
+const apiKey = process.env.OPENAI_API_KEY
+if (!apiKey) {
+  throw new Error('OPENAI_API_KEY environment variable required')
+}
+```
+
+## Sensitive Data
+
+### Logging
+```typescript
+// ❌ Don't log sensitive data
+logger.info('User login', { email, password })
+
+// ✅ Log safely
+logger.info('User login attempt', { email })
+```
+
+### Response Sanitization
+```typescript
+// Remove sensitive fields from responses
+const { password, ...safeUser } = user
+return {
+  status: 200,
+  body: { user: safeUser }
+}
+```
+
+## Rate Limiting
+
+Implement rate limiting for public APIs:
+
+```typescript
+const rateLimitKey = `rate-limit:${userId || clientIP}`
+const requests = await state.get('rate-limits', rateLimitKey) || []
+const recentRequests = requests.filter(t => t > Date.now() - 60000)
+
+if (recentRequests.length >= 10) {
+  return {
+    status: 429,
+    body: { error: 'Rate limit exceeded' }
+  }
+}
+```
+
+## Data Sanitization
+
+### SQL Injection Prevention
+```typescript
+// ❌ Don't concatenate user input
+const query = `SELECT * FROM users WHERE email = '${email}'`
+
+// ✅ Use parameterized queries
+const query = 'SELECT * FROM users WHERE email = $1'
+const result = await db.query(query, [email])
+```
+
+### XSS Prevention
+```typescript
+// Sanitize user content before storing
+import DOMPurify from 'isomorphic-dompurify'
+
+const sanitizedContent = DOMPurify.sanitize(userContent)
+```
+
+## Security Headers
+
+For API responses:
+
+```typescript
+return {
+  status: 200,
+  headers: {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block'
+  },
+  body: data
+}
+```
+
+## Error Handling Security
+
+Don't expose internal details:
+
+```typescript
+try {
+  // Business logic
+} catch (error) {
+  logger.error('Internal error', { error: error.message })
+  
+  // ❌ Don't expose stack traces
+  return { status: 500, body: { error: error.stack } }
+  
+  // ✅ Generic error message
+  return { status: 500, body: { error: 'Internal server error' } }
+}
+```
+
+## Required Environment Variables
+
+- `JWT_SECRET`: 32+ character secret for JWT signing
+- `DATABASE_URL`: Database connection string
+- `REDIS_URL`: Redis connection string
+- External API keys (OpenAI, SendGrid, etc.)

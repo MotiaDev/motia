@@ -1,0 +1,107 @@
+---
+description: Guidelines for maintaining and updating cursor rules
+alwaysApply: false
+---
+# Cursor Rules Maintenance
+
+Guidelines for maintaining clean, focused cursor rules.
+
+## Rule Creation Principles
+
+### Focus and Brevity
+- Each rule should focus on ONE specific aspect
+- Keep rules under 100 lines when possible
+- Avoid repetitive content between files
+- Use concise examples over verbose explanations
+
+### File Organization
+```
+.cursor/rules/
+├── architecture.mdc          # Core concepts (always applied)
+├── instructions.mdc          # Essential guidelines (always applied)
+├── api-steps.mdc            # API-specific patterns
+├── event-steps.mdc          # Event-specific patterns
+├── error-handling.mdc       # Error patterns
+├── performance.mdc          # Performance tips
+├── security-essentials.mdc  # Security practices
+├── deployment.mdc           # Production deployment
+└── quick-reference.mdc      # Cheat sheet
+```
+
+## Anti-Patterns to Avoid
+
+### ❌ Don't Repeat API Information
+```markdown
+# WRONG - in every file
+## CORRECT MOTIA APIs
+### State Management API
+await state.set(scope, key, value)
+```
+
+### ❌ Don't Add Verbose Comments
+```typescript
+// WRONG - over-commented code
+export const config: ApiRouteConfig = {
+  // 'type' specifies the step as an API endpoint that handles HTTP requests
+  type: 'api',
+  // 'name' is a unique identifier for this API step used internally
+  name: 'CreateResource',
+}
+
+// RIGHT - clean, focused examples
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'CreateResource',
+  path: '/resources',
+  method: 'POST',
+  emits: ['resource.created'],
+  flows: ['resource-management']
+}
+```
+
+## Rule Quality Checklist
+
+- [ ] **Single Focus**: Rule covers one specific topic
+- [ ] **Concise**: Under 100 lines when possible
+- [ ] **Practical**: Contains actionable examples
+- [ ] **No Repetition**: Doesn't duplicate content from other rules
+- [ ] **Correct APIs**: Uses verified Motia APIs
+- [ ] **Proper Metadata**: Has correct frontmatter
+- [ ] **Clean Examples**: Code examples are minimal and clear
+
+## When to Create New Rules
+
+✅ **Create rules for:**
+- New feature patterns not covered elsewhere
+- Common debugging scenarios
+- Specific deployment patterns
+- Domain-specific implementations
+
+❌ **Don't create rules for:**
+- Basic concepts already covered
+- One-off solutions
+- Overly specific edge cases
+- Repetitive content
+
+## Rule Naming
+
+Use descriptive, specific names:
+- `error-handling.mdc` (not `errors.mdc`)
+- `security-essentials.mdc` (not `security.mdc`)
+- `performance.mdc` (not `optimization.mdc`)
+
+## Metadata Best Practices
+
+```yaml
+---
+description: Clear, specific description for fetching
+globs: ["**/*.step.ts"]  # Specific file patterns
+alwaysApply: false       # Only apply when relevant
+---
+```
+
+### Glob Patterns
+- `["**/*.step.ts"]` - TypeScript steps only
+- `["**/*.step.tsx"]` - React UI components only  
+- `["**/*_step.py"]` - Python steps only
+- `[]` - No specific pattern (manual application)

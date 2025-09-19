@@ -1,0 +1,148 @@
+---
+description: Debugging and troubleshooting guide for Motia applications
+alwaysApply: false
+---
+# Debugging Guide
+
+Common issues and troubleshooting steps for Motia development.
+
+## Step Not Executing
+
+### Check Event Flow
+```bash
+# Verify step names match config names
+# Ensure topic names match between emits/subscribes
+# Check flows are consistent across connected steps
+```
+
+### Common Issues
+- **Handler name mismatch**: Handler name must match config name exactly
+- **Topic mismatch**: `emits: ['user.created']` must have `subscribes: ['user.created']`
+- **Flow mismatch**: Connected steps must be in same flow
+
+## State Issues
+
+### Debug State Operations
+```typescript
+export const handler = async (input, { state, logger, traceId }) => {
+  // Always log state operations
+  logger.info('Setting state', { traceId, key: 'resource' })
+  await state.set(traceId, 'resource', data)
+  
+  // Verify state was set
+  const stored = await state.get(traceId, 'resource')
+  if (!stored) {
+    logger.error('State not stored', { traceId, key: 'resource' })
+  }
+}
+```
+
+### Common State Problems
+- **Wrong scope**: Use consistent scope naming
+- **Missing traceId**: Always use traceId for flow-scoped state
+- **State adapter issues**: Check config.yml state configuration
+
+## API Debugging
+
+### Test API Endpoints
+```bash
+# Test with curl
+curl -X POST http://localhost:3000/api/endpoint \
+  -H "Content-Type: application/json" \
+  -d '{"field": "value"}'
+
+# Check logs for validation errors
+# Verify bodySchema matches request data
+```
+
+### API Response Issues
+- **Missing return**: API handlers must return `{ status, body }`
+- **Wrong status codes**: Use appropriate HTTP status codes
+- **Schema validation**: Check Zod schemas match request data
+
+## Event Flow Debugging
+
+### Trace Event Propagation
+```typescript
+export const handler = async (input, { emit, logger, traceId }) => {
+  logger.info('Event received', { traceId, topic: 'input.topic', input })
+  
+  try {
+    const result = await processData(input)
+    
+    logger.info('Emitting event', { traceId, topic: 'output.topic', result })
+    await emit({
+      topic: 'output.topic',
+      data: result
+    })
+  } catch (error) {
+    logger.error('Event processing failed', { traceId, error: error.message })
+  }
+}
+```
+
+## Development Tools
+
+### Enable Debug Logging
+```yaml
+# config.yml
+logging:
+  level: debug
+  format: json
+```
+
+### Use Workbench
+```bash
+# Start with workbench for visual debugging
+npm run dev:workbench
+# Open http://localhost:3000 to see workflow visualization
+```
+
+### Test Individual Steps
+```typescript
+// Use @motiadev/test for unit testing
+import { createMockContext } from '@motiadev/test'
+
+const { emit, logger, state } = createMockContext()
+await handler(testInput, { emit, logger, state })
+
+// Verify expected calls
+expect(emit).toHaveBeenCalledWith({
+  topic: 'expected.topic',
+  data: expectedData
+})
+```
+
+## Performance Issues
+
+### Async Operations
+```typescript
+// ❌ Don't block event loop
+const results = []
+for (const item of items) {
+  results.push(await processItem(item))
+}
+
+// ✅ Process in parallel
+const results = await Promise.all(
+  items.map(item => processItem(item))
+)
+```
+
+### State Cleanup
+```typescript
+// Clean up state to prevent memory leaks
+try {
+  // Process data
+} finally {
+  await state.clear(traceId) // Clean up when flow completes
+}
+```
+
+## Common Error Messages
+
+- **"Step not found"**: Check step file naming and exports
+- **"Topic has no subscribers"**: Add subscriber step or remove emit
+- **"Validation failed"**: Check Zod schemas match data structure
+- **"State adapter error"**: Verify config.yml state configuration
+- **"Handler not found"**: Ensure handler name matches config name

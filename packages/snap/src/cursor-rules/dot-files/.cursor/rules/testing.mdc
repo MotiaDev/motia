@@ -1,38 +1,11 @@
 ---
-description: How to add step and flow tests with correct Motia APIs
+description: Testing guide for Motia steps
 globs: 
 alwaysApply: false
 ---
-# Motia Testing Guide
+# Testing Guide
 
-This guide explains how to set up and write tests for your Motia steps (Event Steps, API Steps, etc.) using Jest and the `@motiadev/test` utility.
-
-## CORRECT MOTIA APIs (from [motia.dev/docs](https://www.motia.dev/docs))
-
-### State Management API
-```typescript
-// VERIFIED from official docs and examples
-await state.set(scope, key, value)           // Store data (scope, key, value)
-const data = await state.get(scope, key)     // Retrieve data  
-await state.delete(scope, key)               // Delete specific key
-await state.clear(scope)                     // Clear all data in scope
-const items = await state.getGroup(scope)    // ✅ Get ALL items in scope (REAL API)
-```
-
-### Handler Context (Only include what you use)
-```typescript
-// CORRECT: Minimal handler signature
-export const handler: Handlers['StepName'] = async (input, { logger }) => {
-  logger.info('Processing')  // Only using logger
-}
-
-// CORRECT: Multiple parameters if all used
-export const handler: Handlers['StepName'] = async (input, { emit, logger, state }) => {
-  await state.set('scope', 'key', data)  // Using state
-  await emit({ topic: 'done', data })    // Using emit  
-  logger.info('Complete')                // Using logger
-}
-```
+Test your Motia steps using Jest and `@motiadev/test`.
 
 ## Setup
 
