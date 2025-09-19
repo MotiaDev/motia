@@ -15,5 +15,6 @@ type StartDeploymentResult = {
 }
 
 export const startDeployment = async (request: StartDeploymentRequest): Promise<StartDeploymentResult> => {
-  return axios.post<StartDeploymentRequest, StartDeploymentResult>(cloudEndpoints.startDeployment, request)
+  const response = await axios.post<StartDeploymentResult>(cloudEndpoints.startDeployment, request)
+  return response.data
 }
