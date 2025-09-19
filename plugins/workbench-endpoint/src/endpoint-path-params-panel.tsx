@@ -1,6 +1,6 @@
-import { ApiEndpoint } from '@/types/endpoint'
+import { ApiEndpoint } from './types/endpoint'
 import { Input, Panel } from '@motiadev/ui'
-import { FC, Fragment, useState } from 'react'
+import { FC, Fragment, useState, ChangeEvent } from 'react'
 import { usePathParams } from './hooks/use-path-params'
 
 type Props = { endpoint: ApiEndpoint; onChange?: (pathParamsValues: Record<string, string>) => void }
@@ -8,7 +8,10 @@ type Props = { endpoint: ApiEndpoint; onChange?: (pathParamsValues: Record<strin
 export const EndpointPathParamsPanel: FC<Props> = ({ endpoint, onChange }) => {
   const pathParams = usePathParams(endpoint.path)
   const [pathParamsValues, setPathParamsValues] = useState<Record<string, string>>(
-    pathParams?.reduce((acc, param) => ({ ...acc, [param]: '' }), {} as Record<string, string>),
+    pathParams?.reduce(
+      (acc: Record<string, string>, param: string) => ({ ...acc, [param]: '' }),
+      {} as Record<string, string>,
+    ),
   )
 
   const onPathParamChange = (param: string, value: string) => {
@@ -24,7 +27,7 @@ export const EndpointPathParamsPanel: FC<Props> = ({ endpoint, onChange }) => {
   return (
     <Panel title="Path params" size="sm" variant="default">
       <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 2fr' }}>
-        {pathParams.map((param) => (
+        {pathParams.map((param: string) => (
           <Fragment key={param}>
             <div className="font-bold leading-[36px] flex text-xs">{param}</div>
             <div className="flex items-center text-xs">
@@ -33,7 +36,7 @@ export const EndpointPathParamsPanel: FC<Props> = ({ endpoint, onChange }) => {
                   className="w-full text-xs"
                   placeholder={param}
                   value={pathParamsValues[param]}
-                  onChange={(e) => onPathParamChange(param, e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => onPathParamChange(param, e.target.value)}
                 />
               )}
             </div>

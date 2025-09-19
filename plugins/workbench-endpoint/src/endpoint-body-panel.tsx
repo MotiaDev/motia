@@ -1,4 +1,4 @@
-import { ApiEndpoint } from '@/types/endpoint'
+import { ApiEndpoint } from './types/endpoint'
 import { Panel } from '@motiadev/ui'
 import { FC } from 'react'
 import { JsonEditor } from './json-editor'

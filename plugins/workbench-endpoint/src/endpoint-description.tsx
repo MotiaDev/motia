@@ -1,6 +1,6 @@
 import { FC } from 'react'
 import { EndpointResponseSchema } from './endpoint-response-schema'
-import { ApiEndpoint } from '@/types/endpoint'
+import { ApiEndpoint } from './types/endpoint'
 import { EndpointPathParamsPanel } from './endpoint-path-params-panel'
 import { EndpointQueryParamsPanel } from './endpoint-query-params-panel'
 import { EndpointBodyPanel } from './endpoint-body-panel'

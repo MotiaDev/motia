@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { cn } from '@motiadev/ui'
 import { Feature } from '@/types/file'
 import React from 'react'
 

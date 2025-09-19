@@ -3,15 +3,15 @@ import { analytics } from '@/lib/analytics'
 import { ReactFlowProvider } from '@xyflow/react'
 import { File, GanttChart, Link2, LogsIcon } from 'lucide-react'
 import { FC, useCallback, useEffect, useMemo, useState } from 'react'
-import { EndpointsPage } from './components/endpoints/endpoints-page'
 import { FlowPage } from './components/flow/flow-page'
 import { FlowTabMenuItem } from './components/flow/flow-tab-menu-item'
 import { Header } from './components/header/header'
 import { LogsPage } from './components/logs/logs-page'
 import { TracesPage } from './components/observability/traces-page'
-import { APP_SIDEBAR_CONTAINER_ID } from './components/sidebar/sidebar'
+import { APP_SIDEBAR_CONTAINER_ID } from '@motiadev/ui'
 import { StatesPage } from './components/states/states-page'
 import { useTabsStore } from './stores/use-tabs-store'
+import { EndpointsPage } from '@motiadev/workbench-endpoint'
 
 enum TabLocation {
   TOP = 'top',

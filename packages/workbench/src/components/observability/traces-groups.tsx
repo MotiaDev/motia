@@ -1,5 +1,5 @@
 import { TraceGroup } from '@/types/observability'
-import { cn } from '@/lib/utils'
+import { cn } from '@motiadev/ui'
 import { formatDistanceToNow } from 'date-fns'
 import React, { memo } from 'react'
 import { TraceStatusBadge } from './trace-status'

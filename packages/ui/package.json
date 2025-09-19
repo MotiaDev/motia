@@ -44,6 +44,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.525.0",
     "react-resizable-panels": "^3.0.3",
+    "react-use-resizable": "^0.2.0",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {

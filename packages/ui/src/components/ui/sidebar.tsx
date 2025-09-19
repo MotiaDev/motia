@@ -1,4 +1,4 @@
-import { Panel, type PanelProps } from '@motiadev/ui'
+import { Panel, type PanelProps } from './panel'
 import { createPortal } from 'react-dom'
 import { FC, useEffect, useMemo } from 'react'
 import { useResizable } from 'react-use-resizable'
@@ -11,9 +11,10 @@ const CLOSE_PREVIOUS_SIDEBAR_EVENT = 'close-previous-sidebar'
 export type SidebarProps = PanelProps & {
   onClose: () => void
   initialWidth?: number
+  containerId?: string
 }
 
-export const Sidebar: FC<SidebarProps> = ({ initialWidth, onClose, ...props }) => {
+export const Sidebar: FC<SidebarProps> = ({ initialWidth, onClose, containerId, ...props }) => {
   const sidebarId = useMemo(() => Symbol(), [])
   const { getRootProps, getHandleProps } = useResizable({
     lockVertical: true,
@@ -57,6 +58,6 @@ export const Sidebar: FC<SidebarProps> = ({ initialWidth, onClose, ...props }) =
       </div>
       <Panel {...props} variant="outlined" className="max-h-[calc(100vh-80px)] h-full" data-testid="sidebar-panel" />
     </div>,
-    document.querySelector(`#${APP_SIDEBAR_CONTAINER_ID}`) as HTMLDivElement,
+    document.querySelector(`#${containerId ?? APP_SIDEBAR_CONTAINER_ID}`) as HTMLDivElement,
   )
 }

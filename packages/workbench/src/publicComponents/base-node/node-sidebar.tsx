@@ -1,4 +1,4 @@
-import { Sidebar } from '@/components/sidebar/sidebar'
+import { Sidebar } from '@motiadev/ui'
 import { Feature } from '@/types/file'
 import { X } from 'lucide-react'
 import React from 'react'

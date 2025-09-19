@@ -1,5 +1,5 @@
-import { Sidebar } from '@/components/sidebar/sidebar'
-import { ApiEndpoint } from '@/types/endpoint'
+import { Sidebar } from '@motiadev/ui'
+import { ApiEndpoint } from './types/endpoint'
 import { X } from 'lucide-react'
 import { FC } from 'react'
 import { EndpointBadge } from './endpoint-badge'
