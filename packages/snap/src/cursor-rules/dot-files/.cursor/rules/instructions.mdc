@@ -1,15 +1,97 @@
 ---
-description: Focus on "steps" Folder Modifications
+description: Essential Motia development guidelines
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
-Rule: Focus on "steps" Folder Modifications
+# Motia Development Instructions
 
-All workflow modifications must be confined to the "steps" folder only.
+## CORE PRINCIPLES
 
-DO NOT modify or generate any changes to configuration files such as:
-- package.json
-- tsconfig.json
-- types.d.ts
+### Step-Focused Development
+- All workflow logic goes in `steps/` folder only
+- Don't modify config files unless explicitly requested
+- Use Motia "^0.7.1-beta.132"
 
-This rule ensures that Motia remains focused on the workflow steps, keeping project configuration files intact.
+### Clean Implementation
+- No middleware imports unless requested
+- Only include context parameters actually used
+- Python files: use `_step.py` suffix
+- Remove unused code
+
+## STEP TYPES
+
+### API Steps
+```typescript
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'StepName',
+  method: 'POST',
+  path: '/endpoint',
+  emits: ['event.topic'],
+  flows: ['flow-name']
+}
+
+export const handler: Handlers['StepName'] = async (req, { emit, logger }) => {
+  // Return: { status: number, body: any }
+}
+```
+
+### Event Steps
+```typescript
+export const config: EventConfig = {
+  type: 'event',
+  name: 'StepName',
+  subscribes: ['input.topic'],
+  emits: ['output.topic'],
+  input: z.object({ field: z.string() }),
+  flows: ['flow-name']
+}
+
+export const handler: Handlers['StepName'] = async (input, { emit, logger }) => {
+  // Process event data
+}
+```
+
+### Cron Steps
+```typescript
+export const config: CronConfig = {
+  type: 'cron',
+  name: 'StepName',
+  cron: '0 0 * * 1',
+  emits: ['scheduled.event'],
+  flows: ['flow-name']
+}
+
+export const handler: Handlers['StepName'] = async ({ emit, logger }) => {
+  // Scheduled task logic
+}
+```
+
+## EVENT FLOW RULES
+- Every emit must have a subscriber
+- Use `emits: []` for final steps
+- Use descriptive topic names (user.created, data.processed)
+
+## FORBIDDEN
+- Don't import middleware unless requested
+- Don't include unused handler parameters  
+- Don't create orphan events with no subscribers
+
+## SUPPORTED APPLICATION TYPES
+
+Motia supports **ANY** type of backend application:
+
+### Business Applications
+- **E-commerce**: Order processing, inventory, payments, customer management
+- **SaaS Platforms**: User management, subscriptions, feature access, analytics
+- **CRM Systems**: Contact management, sales pipelines, communication tracking
+- **Healthcare**: Patient records, appointment scheduling, compliance workflows
+- **Finance**: Transaction processing, fraud detection, regulatory compliance
+
+### Technical Applications  
+- **API Gateways**: Request routing, authentication, rate limiting, transformation
+- **Data Pipelines**: ETL processes, data validation, transformation, loading
+- **IoT Systems**: Sensor data processing, device management, real-time monitoring
+- **AI-Powered**: RAG systems, content generation, decision engines, chatbots
+
+This comprehensive guide ensures all Motia development follows proven patterns and produces production-ready, scalable backends.

@@ -177,7 +177,7 @@ export const handler: Handlers['UserRegister'] = async (req, { emit, logger, sta
       role: 'user'
     }
     
-    // Store user data
+    // state.set(scope, key, value) - from motia.dev/docs
     await state.set('users', `email:${email}`, user)
     await state.set('users', `username:${username}`, { userId, email })
     await state.set('users', `id:${userId}`, user)
@@ -271,7 +271,7 @@ export const handler: Handlers['UserLogin'] = async (req, { emit, logger, state 
   const clientIP = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown'
   
   try {
-    // Get user
+    // state.get(scope, key) - from motia.dev/docs
     const user = await state.get('users', `email:${email}`)
     if (!user) {
       await emit({
@@ -547,15 +547,14 @@ export const handler: Handlers['RefreshToken'] = async (req, { emit, logger, sta
 // steps/users/profile.step.ts
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { authMiddleware } from '../auth/middleware'
-
+// CLEAN: No middleware imports unless explicitly requested
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'GetUserProfile',
   description: 'Get authenticated user profile',
   method: 'GET',
   path: '/users/me',
-  middleware: [authMiddleware], // Require authentication
+  // No middleware unless explicitly requested
   responseSchema: {
     200: z.object({
       user: z.object({
@@ -577,7 +576,8 @@ export const config: ApiRouteConfig = {
 }
 
 export const handler: Handlers['GetUserProfile'] = async (req, { emit, logger, state }) => {
-  const { userId } = req.user! // Available from authMiddleware
+  // Note: In real implementation, you'd extract userId from JWT token in request headers
+  const userId = extractUserIdFromToken(req.headers.authorization) // Custom implementation
   
   try {
     const user = await state.get('users', `id:${userId}`)

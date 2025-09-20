@@ -7,6 +7,8 @@ alwaysApply: true
 
 Build production-ready applications using proven patterns and architectural best practices for any type of application.
 
+**Latest Version**: Use Motia `^0.7.1-beta.132` for all new projects
+
 ## Project Structure
 
 A complete Motia application follows this structure:
@@ -105,7 +107,7 @@ export const handler: Handlers['UserRegister'] = async (req, { emit, logger, sta
       verified: false
     }
     
-    // Store user
+    // state.set(scope, key, value) - from motia.dev/docs
     await state.set('users', email, user)
     await state.set('userIds', userId, { email })
     
@@ -165,12 +167,13 @@ export const liveUpdateSchema = z.object({
 
 export type LiveUpdate = z.infer<typeof liveUpdateSchema>
 
+// CORRECT: Stream Config from motia.dev/docs
 export const config: StreamConfig = {
   name: 'live-updates',
   schema: liveUpdateSchema,
   baseConfig: { 
-    storageType: 'default',
-    ttl: 3600 // 1 hour
+    storageType: 'default'
+    // Note: ttl is not a real config option - it was hallucinated
   }
 }
 ```

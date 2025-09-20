@@ -1,11 +1,11 @@
 ---
-description: AI Agent workflow patterns for building intelligent applications with Motia
+description: AI Agent workflow patterns for intelligent applications
 globs: 
 alwaysApply: false
 ---
 # AI Agent Patterns
 
-Build intelligent applications with AI agents using Motia's event-driven architecture for scalable, maintainable AI workflows.
+Build intelligent applications with AI agents using Motia's event-driven architecture.
 
 ## Core AI Agent Architecture
 

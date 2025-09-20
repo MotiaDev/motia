@@ -1,0 +1,130 @@
+---
+description: Quick setup guide for new Motia projects
+alwaysApply: false
+---
+# Project Setup Guide
+
+Quick reference for setting up new Motia projects.
+
+## Essential Files
+
+```
+my-project/
+├── steps/           # All workflow logic
+├── package.json     # Node dependencies
+├── requirements.txt # Python dependencies (if using Python)
+├── tsconfig.json    # TypeScript config
+└── config.yml       # Motia configuration
+```
+
+## package.json Template
+
+```json
+{
+  "name": "my-motia-app",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "motia dev",
+    "dev:workbench": "motia dev --workbench",
+    "build": "motia build",
+    "test": "jest"
+  },
+  "dependencies": {
+    "motia": "^0.7.1-beta.132",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@motiadev/test": "latest",
+    "@types/node": "latest",
+    "jest": "latest",
+    "typescript": "latest"
+  }
+}
+```
+
+## tsconfig.json Template
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "allowJs": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["steps/**/*", "types.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+## config.yml Template
+
+```yaml
+state:
+  adapter: memory  # Use 'redis' for production
+
+logging:
+  level: info
+  format: json
+
+server:
+  port: 3000
+```
+
+## Environment Variables
+
+Create `.env` file:
+```
+JWT_SECRET=your-secure-secret-key
+DATABASE_URL=postgresql://user:pass@localhost:5432/myapp
+REDIS_URL=redis://localhost:6379
+```
+
+## First Step Template
+
+```typescript
+// steps/hello-world.step.ts
+import { ApiRouteConfig, Handlers } from 'motia'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'HelloWorld',
+  path: '/hello',
+  method: 'GET',
+  emits: ['hello.requested'],
+  flows: ['demo']
+}
+
+export const handler: Handlers['HelloWorld'] = async (req, { emit, logger }) => {
+  await emit({
+    topic: 'hello.requested',
+    data: { timestamp: new Date().toISOString() }
+  })
+  
+  return {
+    status: 200,
+    body: { message: 'Hello from Motia!' }
+  }
+}
+```
+
+## Quick Start Commands
+
+```bash
+# Initialize project
+npm init -y
+npm install motia@^0.7.1-beta.132 zod
+
+# Start development
+npm run dev
+
+# Open workbench
+npm run dev:workbench
+```

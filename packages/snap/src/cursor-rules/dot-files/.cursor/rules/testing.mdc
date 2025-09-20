@@ -1,11 +1,11 @@
 ---
-description: How to add step and flow tests
+description: Testing guide for Motia steps
 globs: 
 alwaysApply: false
 ---
-# Motia Testing Guide
+# Testing Guide
 
-This guide explains how to set up and write tests for your Motia steps (Event Steps, API Steps, etc.) using Jest and the `@motiadev/test` utility.
+Test your Motia steps using Jest and `@motiadev/test`.
 
 ## Setup
 
@@ -147,7 +147,8 @@ export const exampleApiHandler = async (req: ApiRequest<CreateUserInput>, { emit
   }
 
   const userId = `user_${Date.now()}`;
-  await state.set(`user_${userId}_details`, { username, email, id: userId });
+  // CORRECT: state.set(scope, key, value) - from motia.dev/docs
+  await state.set('users', `user_${userId}_details`, { username, email, id: userId });
 
   await emit({
     topic: 'user.created',

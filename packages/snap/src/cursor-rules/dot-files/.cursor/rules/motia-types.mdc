@@ -1,0 +1,129 @@
+---
+description: Essential Motia TypeScript types
+globs: ["**/*.step.ts", "**/*.ts"]
+alwaysApply: false
+---
+# Motia TypeScript Types
+
+Essential type definitions for Motia development.
+
+## Step Configuration Types
+
+```typescript
+type ApiRouteConfig = {
+  type: 'api'
+  name: string
+  path: string
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+  bodySchema?: ZodObject<any>
+  responseSchema?: Record<number, ZodObject<any>>
+  emits: string[]
+  flows: string[]
+}
+
+type EventConfig = {
+  type: 'event'
+  name: string
+  subscribes: string[]
+  emits: string[]
+  input: ZodObject<any>
+  flows: string[]
+}
+
+type CronConfig = {
+  type: 'cron'
+  name: string
+  cron: string
+  emits: string[]
+  flows: string[]
+}
+
+type NoopConfig = {
+  type: 'noop'
+  name: string
+  virtualSubscribes: string[]
+  virtualEmits: string[]
+  flows: string[]
+}
+
+type StreamConfig = {
+  name: string
+  schema: ZodObject<any>
+  baseConfig: { storageType: 'default' }
+}
+```
+
+## Handler Types
+
+```typescript
+type FlowContext = {
+  emit: (event: { topic: string; data: any }) => Promise<void>
+  traceId: string
+  state: StateManager
+  streams: StreamManager
+  logger: Logger
+}
+
+type ApiRequest = {
+  pathParams: Record<string, string>
+  queryParams: Record<string, string | string[]>
+  body: Record<string, any>
+  headers: Record<string, string | string[]>
+}
+
+type ApiResponse = {
+  status: number
+  headers?: Record<string, string>
+  body: any
+}
+
+// Handler function signatures
+type ApiHandler = (req: ApiRequest, ctx: FlowContext) => Promise<ApiResponse>
+type EventHandler<T> = (input: T, ctx: FlowContext) => Promise<void>
+type CronHandler = (ctx: Omit<FlowContext, 'traceId'>) => Promise<void>
+```
+
+## State Manager Types
+
+```typescript
+interface StateManager {
+  get(scope: string, key: string): Promise<any>
+  set(scope: string, key: string, value: any): Promise<void>
+  delete(scope: string, key: string): Promise<void>
+  clear(scope: string): Promise<void>
+  getGroup(scope: string): Promise<any[]>
+}
+```
+
+## Stream Manager Types
+
+```typescript
+interface StreamManager {
+  [streamName: string]: {
+    set(groupId: string, id: string, data: any): Promise<void>
+    get(groupId: string, id: string): Promise<any>
+    delete(groupId: string, id: string): Promise<void>
+    getGroup(groupId: string): Promise<any[]>
+  }
+}
+```
+
+## Usage Examples
+
+```typescript
+// Type-safe handler
+export const handler: Handlers['StepName'] = async (
+  input: z.infer<typeof inputSchema>, 
+  { emit, logger, state }: FlowContext
+) => {
+  // Implementation
+}
+
+// Type-safe API handler
+export const handler: Handlers['ApiStepName'] = async (
+  req: ApiRequest,
+  { logger }: FlowContext
+): Promise<ApiResponse> => {
+  return { status: 200, body: { success: true } }
+}
+```

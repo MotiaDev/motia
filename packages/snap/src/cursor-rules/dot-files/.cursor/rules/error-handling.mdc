@@ -1,0 +1,121 @@
+---
+description: Error handling patterns for robust Motia applications
+globs: ["**/*.step.ts", "**/*.step.js", "**/*_step.py"]
+alwaysApply: false
+---
+# Error Handling Patterns
+
+Implement robust error handling across all step types for production reliability.
+
+## API Step Error Handling
+
+```typescript
+export const handler: Handlers['StepName'] = async (req, { emit, logger }) => {
+  try {
+    // Business logic
+    const result = await processRequest(req.body)
+    
+    return {
+      status: 200,
+      body: { success: true, data: result }
+    }
+  } catch (error) {
+    logger.error('API request failed', { 
+      error: error.message,
+      path: req.path,
+      body: req.body 
+    })
+    
+    // Return appropriate HTTP status
+    if (error.name === 'ValidationError') {
+      return { status: 400, body: { error: 'Invalid input' } }
+    }
+    if (error.name === 'NotFoundError') {
+      return { status: 404, body: { error: 'Resource not found' } }
+    }
+    
+    return { status: 500, body: { error: 'Internal server error' } }
+  }
+}
+```
+
+## Event Step Error Handling
+
+```typescript
+export const handler: Handlers['StepName'] = async (input, { emit, logger }) => {
+  try {
+    // Process event
+    const result = await processEvent(input)
+    
+    await emit({
+      topic: 'processing.completed',
+      data: result
+    })
+  } catch (error) {
+    logger.error('Event processing failed', { 
+      error: error.message,
+      input,
+      stack: error.stack 
+    })
+    
+    // Emit error event for downstream handling
+    await emit({
+      topic: 'processing.failed',
+      data: { 
+        error: error.message, 
+        originalInput: input,
+        retryable: isRetryableError(error)
+      }
+    })
+  }
+}
+
+function isRetryableError(error: Error): boolean {
+  return ['NETWORK_ERROR', 'TIMEOUT', 'RATE_LIMIT'].includes(error.name)
+}
+```
+
+## Python Error Handling
+
+```python
+async def handler(input_data, ctx):
+    try:
+        result = await process_data(input_data)
+        await ctx.emit({
+            "topic": "processing.completed",
+            "data": result
+        })
+    except ValueError as e:
+        ctx.logger.error(f"Validation error: {str(e)}")
+        await ctx.emit({
+            "topic": "processing.failed",
+            "data": {"error": "validation_error", "details": str(e)}
+        })
+    except Exception as e:
+        ctx.logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        await ctx.emit({
+            "topic": "processing.failed", 
+            "data": {"error": "system_error", "retryable": True}
+        })
+```
+
+## Error Event Patterns
+
+Always include error handling events in your flow:
+
+```typescript
+export const config: EventConfig = {
+  // Include both success and error topics
+  emits: ['data.processed', 'data.processing.failed'],
+  flows: ['data-flow']
+}
+```
+
+## Common Error Types
+
+- **ValidationError**: Invalid input data
+- **NotFoundError**: Resource doesn't exist  
+- **PermissionError**: Insufficient permissions
+- **NetworkError**: External service failures
+- **TimeoutError**: Operation took too long
+- **RateLimitError**: Rate limit exceeded

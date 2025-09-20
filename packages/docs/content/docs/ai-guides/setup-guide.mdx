@@ -172,7 +172,6 @@ After installation, your project should look like this:
       <File name="realtime-streaming.mdc">Real-time features</File>
       <File name="ai-agent-patterns.mdc">AI agents</File>
       <File name="workflow-patterns.mdc">Business workflows</File>
-      <File name="production-deployment.mdc">DevOps patterns</File>
       <File name="api-design-patterns.mdc">REST API best practices</File>
       <File name="state-management.mdc">Data persistence patterns</File>
       <File name="testing.mdc">Testing strategies</File>
@@ -374,21 +373,6 @@ Test that AI guides are set up correctly:
 
     # Count number of rule files
     ls .cursor/rules/*.mdc | wc -l
-    ```
-  </Step>
-
-  <Step>
-    ### Test CLI commands
-    ```bash
-    # Test rules list command
-    npx motia@latest rules list
-
-    # Test showing guides
-    npx motia@latest rules show agents
-    npx motia@latest rules show claude
-
-    # Test showing a specific rule
-    npx motia@latest rules show api-steps
     ```
   </Step>
 

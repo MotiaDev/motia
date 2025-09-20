@@ -15,15 +15,14 @@ Build robust, scalable REST APIs following industry best practices and proven pa
 // steps/api/users/create-user.step.ts
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { authMiddleware, validateMiddleware } from '../middleware'
-
+// CLEAN: No middleware imports unless explicitly requested
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'CreateUser',
   description: 'Create a new user account',
   method: 'POST',
   path: '/users',
-  middleware: [validateMiddleware],
+  // No middleware unless explicitly requested
   bodySchema: z.object({
     email: z.string().email(),
     username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
@@ -95,6 +94,7 @@ export const handler: Handlers['CreateUser'] = async (req, { emit, logger, state
     }
     
     // Store user
+    // state.set(scope, key, value) - from motia.dev/docs
     await state.set('users', `id:${userId}`, newUser)
     await state.set('users', `email:${email}`, { id: userId })
     await state.set('users', `username:${username}`, { id: userId })
@@ -155,15 +155,14 @@ async function checkUserExists(email: string, username: string, state: any) {
 // steps/api/users/list-users.step.ts
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { authMiddleware, paginationMiddleware } from '../middleware'
-
+// CLEAN: No middleware imports unless explicitly requested
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'ListUsers',
   description: 'Retrieve users with filtering, sorting, and pagination',
   method: 'GET',
   path: '/users',
-  middleware: [authMiddleware, paginationMiddleware],
+  // No middleware unless explicitly requested
   responseSchema: {
     200: z.object({
       users: z.array(z.object({
@@ -264,8 +263,7 @@ export const handler: Handlers['ListUsers'] = async (req, { emit, logger, state 
 }
 
 async function getUsersWithFilters(filters: any, pagination: any, state: any) {
-  // Implementation would typically use a database with proper indexing
-  // This is a simplified example
+  // state.getGroup(scope) returns array - REAL API from examples
   const allUsers = await state.getGroup('users') || []
   
   let filteredUsers = allUsers.filter(user => {
@@ -329,7 +327,7 @@ export const config: ApiRouteConfig = {
   description: 'Execute multiple operations in a single request',
   method: 'POST',
   path: '/batch',
-  middleware: [authMiddleware],
+  // No middleware unless explicitly requested
   bodySchema: BatchOperationSchema,
   responseSchema: {
     200: z.object({
@@ -438,7 +436,7 @@ export const config: ApiRouteConfig = {
   description: 'Get user details - API Version 1',
   method: 'GET',
   path: '/v1/users/:userId',
-  middleware: [authMiddleware],
+  // No middleware unless explicitly requested
   responseSchema: {
     200: z.object({
       id: z.string(),
@@ -503,7 +501,7 @@ export const config: ApiRouteConfig = {
   description: 'Get user details - API Version 2',
   method: 'GET',
   path: '/v2/users/:userId',
-  middleware: [authMiddleware],
+  // No middleware unless explicitly requested
   responseSchema: {
     200: z.object({
       id: z.string(),
@@ -623,7 +621,7 @@ export function createRateLimitMiddleware(config: RateLimitConfig): ApiMiddlewar
     
     // Add current request
     validRequests.push(now)
-    await ctx.state.set('rate-limits', rateLimitKey, validRequests, config.windowMs / 1000)
+    await ctx.state.set('rate-limits', rateLimitKey, validRequests)
     
     const response = await next()
     

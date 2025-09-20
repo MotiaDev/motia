@@ -1,0 +1,262 @@
+---
+description: Production deployment guide for Motia applications
+alwaysApply: false
+---
+# Deployment Guide
+
+Deploy Motia applications to production environments.
+
+## Docker Deployment
+
+### Dockerfile Template
+```dockerfile
+FROM node:18-alpine
+
+# Install Python and Ruby if needed
+RUN apk add --no-cache python3 py3-pip ruby
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY requirements.txt* ./
+
+# Install dependencies
+RUN npm ci --only=production
+RUN pip install -r requirements.txt || true
+
+# Copy application code
+COPY steps/ ./steps/
+COPY config.yml ./
+COPY tsconfig.json ./
+
+# Build if needed
+RUN npm run build || true
+
+# Create non-root user
+RUN adduser -D motia
+USER motia
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+```
+
+## Environment Configuration
+
+### Production config.yml
+```yaml
+state:
+  adapter: redis
+  host: ${REDIS_HOST}
+  port: ${REDIS_PORT}
+  password: ${REDIS_PASSWORD}
+  ttl: 3600
+
+logging:
+  level: info
+  format: json
+
+server:
+  port: ${PORT:-3000}
+  host: 0.0.0.0
+```
+
+### Required Environment Variables
+```bash
+# Security
+JWT_SECRET=your-secure-secret-key-32-chars-min
+
+# Database
+DATABASE_URL=postgresql://user:pass@host:5432/db
+REDIS_URL=redis://user:pass@host:6379
+
+# External Services
+OPENAI_API_KEY=sk-...
+SENDGRID_API_KEY=SG...
+
+# Infrastructure
+PORT=3000
+NODE_ENV=production
+```
+
+## Health Checks
+
+### Health Check Endpoint
+```typescript
+// steps/health-check.step.ts
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'HealthCheck',
+  path: '/health',
+  method: 'GET',
+  emits: [],
+  flows: ['monitoring']
+}
+
+export const handler: Handlers['HealthCheck'] = async (req, { state, logger }) => {
+  try {
+    // Check state adapter
+    await state.set('health', 'test', { timestamp: Date.now() })
+    await state.get('health', 'test')
+    
+    // Check external dependencies
+    const health = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version,
+      uptime: process.uptime()
+    }
+    
+    return { status: 200, body: health }
+  } catch (error) {
+    logger.error('Health check failed', { error: error.message })
+    return {
+      status: 503,
+      body: { status: 'unhealthy', error: error.message }
+    }
+  }
+}
+```
+
+## Docker Compose
+
+### Development
+```yaml
+# docker-compose.dev.yml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./steps:/app/steps
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+```
+
+### Production
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+services:
+  app:
+    image: your-registry/motia-app:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
+```
+
+## Monitoring
+
+### Structured Logging
+```typescript
+export const handler = async (input, { logger, traceId }) => {
+  const startTime = Date.now()
+  
+  try {
+    logger.info('Processing started', { 
+      traceId,
+      operation: 'process-data',
+      inputSize: JSON.stringify(input).length
+    })
+    
+    const result = await processData(input)
+    
+    logger.info('Processing completed', {
+      traceId,
+      duration: Date.now() - startTime,
+      outputSize: JSON.stringify(result).length
+    })
+    
+    return result
+  } catch (error) {
+    logger.error('Processing failed', {
+      traceId,
+      duration: Date.now() - startTime,
+      error: error.message
+    })
+    throw error
+  }
+}
+```
+
+## Scaling Considerations
+
+### Horizontal Scaling
+- Use Redis for shared state across instances
+- Ensure steps are stateless (except for flow state)
+- Use load balancers for API endpoints
+
+### Resource Limits
+```yaml
+# Kubernetes deployment
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+```
+
+## Security in Production
+
+### HTTPS Configuration
+```yaml
+# Use reverse proxy (nginx, traefik) for HTTPS termination
+server:
+  trustProxy: true  # Trust X-Forwarded headers
+```
+
+### API Security
+```typescript
+// Implement rate limiting and security headers
+return {
+  status: 200,
+  headers: {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Strict-Transport-Security': 'max-age=31536000'
+  },
+  body: data
+}
+```
+
+## Deployment Checklist
+
+- [ ] Environment variables configured
+- [ ] Health check endpoint implemented
+- [ ] Logging configured for production
+- [ ] State adapter set to Redis
+- [ ] Security headers implemented
+- [ ] Rate limiting enabled
+- [ ] Database connections optimized
+- [ ] Error tracking configured (Sentry)
+- [ ] Monitoring and alerts set up
+- [ ] Backup strategies implemented

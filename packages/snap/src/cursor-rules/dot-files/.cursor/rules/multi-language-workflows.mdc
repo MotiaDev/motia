@@ -1,11 +1,11 @@
 ---
-description: Multi-language workflow patterns combining JavaScript, TypeScript, Python, and Ruby in Motia
+description: Multi-language workflow patterns
 globs: 
 alwaysApply: false
 ---
 # Multi-language Workflows
 
-Build ANY type of application by combining the strengths of different languages in unified Motia workflows. Whether you're building e-commerce, social platforms, fintech, IoT systems, or any other domain - leverage each language's strengths.
+Combine JavaScript, TypeScript, Python, and Ruby in unified Motia workflows.
 
 ## Language Selection Guidelines
 

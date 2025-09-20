@@ -28,13 +28,13 @@ export const liveEventSchema = z.object({
 
 export type LiveEvent = z.infer<typeof liveEventSchema>
 
+// Stream Config (✅ from motia.dev/docs)
 export const config: StreamConfig = {
   name: 'live-events',
   schema: liveEventSchema,
   baseConfig: {
-    storageType: 'default',
-    ttl: 3600, // 1 hour
-    maxItems: 1000 // Keep last 1000 events per stream
+    storageType: 'default'
+    // Note: ttl and maxItems are not real config options
   }
 }
 ```
@@ -58,13 +58,13 @@ export const notificationSchema = z.object({
 
 export type Notification = z.infer<typeof notificationSchema>
 
+// Stream Config (✅ from motia.dev/docs)
 export const config: StreamConfig = {
   name: 'notifications',
   schema: notificationSchema,
   baseConfig: {
-    storageType: 'default',
-    ttl: 7 * 24 * 60 * 60, // 7 days
-    maxItems: 100 // Keep last 100 notifications per user
+    storageType: 'default'
+    // Note: ttl and maxItems are not real config options - they were hallucinated
   }
 }
 ```
@@ -75,15 +75,14 @@ export const config: StreamConfig = {
 // steps/content/update-resource.step.ts
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { authMiddleware } from '../auth/middleware'
-
+// CLEAN: No middleware imports unless explicitly requested
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'UpdateResource',
   description: 'Update resource and broadcast to subscribers',
   method: 'POST',
   path: '/resources/:resourceId/updates',
-  middleware: [authMiddleware],
+  // No middleware unless explicitly requested
   bodySchema: z.object({
     action: z.string().min(1),
     data: z.record(z.any()),
@@ -115,7 +114,8 @@ export const config: ApiRouteConfig = {
 
 export const handler: Handlers['UpdateResource'] = async (req, { emit, logger, state, streams }) => {
   const { resourceId } = req.pathParams
-  const { userId } = req.user!
+  // Note: In real implementation, extract userId from JWT token in headers
+  const userId = extractUserIdFromToken(req.headers.authorization) // Custom implementation
   const { action, data, metadata } = req.body
   
   try {
@@ -197,7 +197,7 @@ export const handler: Handlers['UpdateResource'] = async (req, { emit, logger, s
       timestamp: new Date().toISOString()
     }
     
-    // Stream to resource subscribers
+    // CORRECT: streams.streamName.set(groupId, id, data) - from motia.dev/docs
     await streams['live-events'].set(`resource:${resourceId}`, liveEvent.id, liveEvent)
     
     // Stream to user's personal feed
@@ -298,15 +298,14 @@ async function getResourceSubscribers(resourceId: string, state: any): Promise<s
 // steps/chat/send-message.step.ts
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { authMiddleware } from '../auth/middleware'
-
+// CLEAN: No middleware imports unless explicitly requested
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'SendChatMessage',
   description: 'Send chat message to game or global chat',
   method: 'POST',
   path: '/chat/:roomId/messages',
-  middleware: [authMiddleware],
+  // No middleware unless explicitly requested
   bodySchema: z.object({
     message: z.string().min(1).max(500).trim(),
     type: z.enum(['text', 'emote', 'system']).default('text')
@@ -332,7 +331,8 @@ export const config: ApiRouteConfig = {
 
 export const handler: Handlers['SendChatMessage'] = async (req, { emit, logger, state, streams }) => {
   const { roomId } = req.pathParams
-  const { userId } = req.user!
+  // Note: In real implementation, extract userId from JWT token in headers
+  const userId = extractUserIdFromToken(req.headers.authorization) // Custom implementation
   const { message, type } = req.body
   
   try {
@@ -609,27 +609,22 @@ export const handler: Handlers['CleanupStreams'] = async ({ logger, streams, sta
   try {
     let cleanedCount = 0
     
-    // Clean up expired notifications
-    const notifications = await streams['notifications'].getAll()
-    for (const [streamId, notificationMap] of Object.entries(notifications)) {
-      for (const [notifId, notification] of Object.entries(notificationMap)) {
-        if (notification.expiresAt && new Date() > new Date(notification.expiresAt)) {
-          await streams['notifications'].delete(streamId, notifId)
-          cleanedCount++
-        }
+    const allNotifications = await state.getGroup('notifications') || []
+    for (const notification of allNotifications) {
+      if (notification.expiresAt && new Date() > new Date(notification.expiresAt)) {
+        await state.delete('notifications', notification.id)
+        cleanedCount++
       }
     }
     
-    // Clean up old live events
-    const liveEvents = await streams['live-events'].getAll()
+    // Clean up old live events using CORRECT API
+    const allEvents = await state.getGroup('live-events') || []
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
     
-    for (const [streamId, eventMap] of Object.entries(liveEvents)) {
-      for (const [eventId, event] of Object.entries(eventMap)) {
-        if (new Date(event.timestamp) < oneHourAgo) {
-          await streams['live-events'].delete(streamId, eventId)
-          cleanedCount++
-        }
+    for (const event of allEvents) {
+      if (new Date(event.timestamp) < oneHourAgo) {
+        await state.delete('live-events', event.id)
+        cleanedCount++
       }
     }
     
