@@ -14,7 +14,7 @@ export const config: StepConfig = {
   }],
   method: 'POST',
   path: '/basic-tutorial',
-  bodySchema: z.object({
+  input: z.object({
     pet: z.object({
       name: z.string(),
       photoUrl: z.string(),

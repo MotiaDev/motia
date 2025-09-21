@@ -1,10 +1,12 @@
 import time
 
 config = {
-    "type": "event",
     "name": "stepC", 
     "description": "Hello from Step C",
-    "subscribes": ["pms.start"],
+    "triggers": [{
+        "type": "event",
+        "topic": "pms.start"
+    }],
     "emits": ["pms.stepC.done"],
     "flows": ["parallel-merge"]
 }

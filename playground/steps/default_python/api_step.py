@@ -16,13 +16,17 @@ class RequestBody(BaseModel):
     food_order: Optional[FoodOrder] = None
 
 config = {
-    "type": "api",
     "name": "PythonApiTrigger",
     "description": "basic-tutorial api trigger",
     "flows": ["python-tutorial"],
+    "triggers": [{
+        "type": "api",
+        "path": "/python-basic-tutorial",
+        "method": "POST"
+    }],
     "method": "POST",
     "path": "/python-basic-tutorial",
-    "bodySchema": RequestBody.model_json_schema(),
+    "input": RequestBody.model_json_schema(),
     "responseSchema": {
         200: Pet.model_json_schema(),
     },

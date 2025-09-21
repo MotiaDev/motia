@@ -11,7 +11,7 @@ export const config: StepConfig = {
   }],
   method: 'POST',
   path: '/update-score',
-  bodySchema: z.object({
+  input: z.object({
     userId: z.string(),
     scoreChange: z.number(),
   }),

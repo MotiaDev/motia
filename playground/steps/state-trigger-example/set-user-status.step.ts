@@ -11,7 +11,7 @@ export const config: StepConfig = {
   }],
   method: 'POST',
   path: '/set-user-status',
-  bodySchema: z.object({
+  input: z.object({
     userId: z.string(),
     status: z.enum(['inactive', 'active', 'suspended']),
   }),

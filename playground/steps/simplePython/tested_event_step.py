@@ -1,7 +1,9 @@
 config = {
-    "type": "event",
     "name": "Tested Event",
-    "subscribes": ["tested"],
+    "triggers": [{
+        "type": "event",
+        "topic": "tested"
+    }],
     "emits": [],
     "input": None,
     "flows": ["simple-python"]

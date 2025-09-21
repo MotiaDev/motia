@@ -19,7 +19,7 @@ export const config: StepConfig = {
   method: 'POST',
   emits: ['openai-prompt'],
   flows: ['open-ai'],
-  bodySchema: inputSchema,
+  input: inputSchema,
   responseSchema: { 200: messageSchema },
 }
 
