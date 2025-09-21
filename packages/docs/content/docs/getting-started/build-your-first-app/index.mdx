@@ -39,7 +39,7 @@ npx motia dev
 ### TypeScript API Endpoint (App Starter)
 // File: 01-starter.step.ts
 ```typescript
-import { ApiRouteConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 const bodySchema = z.object({
@@ -48,11 +48,14 @@ const bodySchema = z.object({
 })
 
 // API endpoint to start the multi-language pipeline
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'AppStarter',
   description: 'Start the multi-language app pipeline',
-
+  triggers: [{
+    type: 'api',
+    path: '/start-app',
+    method: 'POST',
+  }],
   method: 'POST',
   path: '/start-app',
 
@@ -104,15 +107,17 @@ export const handler: Handlers['AppStarter'] = async (req, { logger, emit, trace
 ### TypeScript Bridge Step
 // File: 02-bridge.step.ts
 ```typescript
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 // Bridge step to connect app starter to Python processing
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'AppBridge',
   description: 'Bridge between app start and Python processing',
-  subscribes: ['app.started'],
+  triggers: [{
+    type: 'event',
+    topic: 'app.started',
+  }],
   emits: ['data.processed'],
   input: z.object({
     id: z.number(),
@@ -212,11 +217,14 @@ async def handler(input_data, ctx):
 ### TypeScript Notification Step
 // File: notify.step.ts
 ```typescript
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
+  triggers: [{
+    type: 'event',
+    topic: 'data.processed',
+  }],
   name: 'NotificationHandler',
   description: 'Send notifications after Python processing',
   subscribes: ['python.done'],
@@ -258,15 +266,17 @@ export const handler: Handlers['NotificationHandler'] = async (input, { logger, 
 ### TypeScript Finalizer Step
 // File: 04-final.step.ts
 ```typescript
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 // Final step to complete the app - TypeScript
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'AppFinalizer',
   description: 'Complete the basic app and log final results',
-  subscribes: ['notification.sent'],
+  triggers: [{
+    type: 'event',
+    topic: 'notification.sent',
+  }],
   emits: ['app.completed'],
   input: z.object({
     id: z.number(),

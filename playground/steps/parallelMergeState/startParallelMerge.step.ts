@@ -1,4 +1,4 @@
-import { ApiRouteConfig, Handlers, ApiMiddleware } from 'motia'
+import { StepConfig, Handlers, ApiMiddleware } from 'motia'
 
 const timingMiddleware: ApiMiddleware = async (_, ctx, next) => {
   const start = Date.now()
@@ -11,10 +11,14 @@ const timingMiddleware: ApiMiddleware = async (_, ctx, next) => {
   return response
 }
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'Parallel Merge',
   description: 'Triggered when a message is received from parallel merge',
+  triggers: [{
+    type: 'api',
+    path: '/api/parallel-merge',
+    method: 'POST',
+  }],
   path: '/api/parallel-merge',
   method: 'POST',
   virtualSubscribes: ['/api/parallel-merge'],

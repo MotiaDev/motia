@@ -1,13 +1,15 @@
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 const stepSchema = z.object({ msg: z.string(), timestamp: z.number() })
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'JoinComplete',
   description: 'Logs the merge',
-  subscribes: ['pms.join.complete'],
+  triggers: [{
+    type: 'event',
+    topic: 'pms.join.complete',
+  }],
   emits: [],
   input: z.object({ stepA: stepSchema, stepB: stepSchema, stepC: stepSchema, mergedAt: z.string() }),
   flows: ['parallel-merge'],

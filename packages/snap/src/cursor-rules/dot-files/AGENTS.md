@@ -110,12 +110,16 @@ module.exports = { config, handler }
 
 ### API Steps (TypeScript)
 ```typescript
-import { ApiRouteConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'CreateResource',
+  triggers: [{
+    type: 'api',
+    path: '/resources',
+    method: 'POST',
+  }],
   method: 'POST',
   path: '/resources',
   bodySchema: z.object({
@@ -152,9 +156,11 @@ export const handler: Handlers['CreateResource'] = async (req, { emit, state, lo
 ```python
 # resource_processor_step.py
 config = {
-    "type": "event",
     "name": "ProcessResourceData",
-    "subscribes": ["resource.created"],
+    "triggers": [{
+        "type": "event",
+        "topic": "resource.created"
+    }],
     "emits": ["resource.processed"],
     "flows": ["resource-management"]
 }

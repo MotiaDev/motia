@@ -1,4 +1,4 @@
-import { ApiRouteConfig, Step, StepConfig } from '@motiadev/core'
+import { Step, StepConfig } from '@motiadev/core'
 import { Stream } from '@motiadev/core/dist/src/types-stream'
 import { BuildListener } from '../new-deployment/listeners/listener.types'
 
@@ -33,7 +33,7 @@ export interface RouterBuildResult {
 
 export interface StepBuilder {
   build(step: Step): Promise<void>
-  buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult>
+  buildApiSteps(steps: Step[]): Promise<RouterBuildResult>
 }
 
 export class Builder {
@@ -100,7 +100,7 @@ export class Builder {
     }
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<void> {
+  async buildApiSteps(steps: Step[]): Promise<void> {
     const nodeSteps = steps.filter((step) => this.determineStepType(step) === 'node')
     const pythonSteps = steps.filter((step) => this.determineStepType(step) === 'python')
     const nodeBuilder = this.builders.get('node')
@@ -127,7 +127,7 @@ export class Builder {
   }
 
   private determineStepType(step: Step): string {
-    if (step.config.type === 'noop') {
+    if (step.config.triggers.length === 0) {
       return 'noop'
     } else if (step.filePath.endsWith('.ts') || step.filePath.endsWith('.js')) {
       return 'node'

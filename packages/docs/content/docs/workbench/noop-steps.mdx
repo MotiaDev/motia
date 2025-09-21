@@ -21,12 +21,12 @@ NOOP steps require two files with the same base name:
   <Tab value="TS">
     ```typescript
     // myStep.step.ts
-    import { NoopConfig } from 'motia'
+    import { StepConfig } from 'motia'
 
-    export const config: NoopConfig = {
-      type: 'noop',
+    export const config: StepConfig = {
       name: 'My NOOP Step',
       description: 'Description of what this step simulates',
+      triggers: [],
       virtualEmits: ['event.one', 'event.two'],
       virtualSubscribes: [], // Required even if empty
       flows: ['my-flow'],
@@ -37,9 +37,9 @@ NOOP steps require two files with the same base name:
     ```javascript
     // myStep.step.js
     const config = {
-      type: 'noop',
       name: 'My NOOP Step',
       description: 'Description of what this step simulates',
+      triggers: [],
       virtualEmits: ['event.one', 'event.two'],
       virtualSubscribes: [], // Required even if empty
       flows: ['my-flow'],

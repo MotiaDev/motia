@@ -1,12 +1,14 @@
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { OpenAI } from 'openai'
 import { z } from 'zod'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'CallOpenAi',
   description: 'Call OpenAI',
-  subscribes: ['openai-prompt'],
+  triggers: [{
+    type: 'event',
+    topic: 'openai-prompt',
+  }],
   emits: [],
   input: z.object({
     message: z.string({ description: 'The message to send to OpenAI' }),
