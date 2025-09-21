@@ -1,8 +1,12 @@
-import { ApiResponse, ApiRouteConfig, ApiRouteHandler, FlowContext } from '../../types'
+import { ApiResponse, StepConfig, ApiRouteHandler, FlowContext } from '../../types'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'api-step',
+  triggers: [{
+    type: 'api',
+    path: '/test',
+    method: 'POST',
+  }],
   emits: ['TEST_EVENT'],
   path: '/test',
   method: 'POST',

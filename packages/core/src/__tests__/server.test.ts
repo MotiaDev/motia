@@ -1,7 +1,7 @@
 import { createServer, MotiaServer } from '../server'
 import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
-import { ApiRouteConfig, Step } from '../types'
+import { Step } from '../types'
 import request from 'supertest'
 import { createApiStep } from './fixtures/step-fixtures'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'

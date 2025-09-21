@@ -10,7 +10,7 @@ import { CronManager, setupCronHandlers } from './cron-handler'
 import { flowsConfigEndpoint } from './flows-config-endpoint'
 import { flowsEndpoint } from './flows-endpoint'
 import { generateTraceId } from './generate-trace-id'
-import { isApiStep } from './guards'
+import { hasApiTrigger, getTriggersByType } from './guards'
 import { LockedData } from './locked-data'
 import { BaseLoggerFactory } from './logger-factory'
 import { Motia } from './motia'
@@ -23,11 +23,11 @@ import { Log, LogsStream } from './streams/logs-stream'
 import {
   ApiRequest,
   ApiResponse,
-  ApiRouteConfig,
   ApiRouteMethod,
   EventManager,
   InternalStateManager,
   Step,
+  ApiTrigger,
 } from './types'
 import { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 import { globalLogger } from './logger'
@@ -39,8 +39,8 @@ export type MotiaServer = {
   server: http.Server
   socketServer: WsServer
   close: () => Promise<void>
-  removeRoute: (step: Step<ApiRouteConfig>) => void
-  addRoute: (step: Step<ApiRouteConfig>) => void
+  removeRoute: (step: Step) => void
+  addRoute: (step: Step) => void
   cronManager: CronManager
   motiaEventManager: MotiaEventManager
 }
@@ -164,7 +164,7 @@ export const createServer = (
   const cronManager = setupCronHandlers(motia)
   const motiaEventManager = createStepHandlers(motia)
 
-  const asyncHandler = (step: Step<ApiRouteConfig>) => {
+  const asyncHandler = (step: Step, apiTrigger: ApiTrigger) => {
     return async (req: Request, res: Response) => {
       const traceId = generateTraceId()
       const { name: stepName, flows } = step.config
@@ -215,45 +215,61 @@ export const createServer = (
 
   const router = express.Router()
 
-  const addRoute = (step: Step<ApiRouteConfig>) => {
-    const { method, path } = step.config
-    globalLogger.debug('[API] Registering route', step.config)
-
-    const handler = asyncHandler(step)
-    const methods: Record<ApiRouteMethod, () => void> = {
-      GET: () => router.get(path, handler),
-      POST: () => router.post(path, handler),
-      PUT: () => router.put(path, handler),
-      DELETE: () => router.delete(path, handler),
-      PATCH: () => router.patch(path, handler),
-      OPTIONS: () => router.options(path, handler),
-      HEAD: () => router.head(path, handler),
+  const addRoute = (step: Step) => {
+    if (!hasApiTrigger(step)) {
+      return // No API triggers, nothing to do
     }
 
-    const methodHandler = methods[method]
-    if (!methodHandler) {
-      throw new Error(`Unsupported method: ${method}`)
-    }
+    const apiTriggers = getTriggersByType(step, 'api')
+    
+    apiTriggers.forEach((apiTrigger: ApiTrigger) => {
+      const { method, path } = apiTrigger
+      globalLogger.debug('[API] Registering route', { step: step.config.name, method, path })
 
-    methodHandler()
-  }
-
-  const removeRoute = (step: Step<ApiRouteConfig>) => {
-    const { path, method } = step.config
-    const routerStack = router.stack
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filteredStack = routerStack.filter((layer: any) => {
-      if (layer.route) {
-        const match = layer.route.path === path && layer.route.methods[method.toLowerCase()]
-        return !match
+      const handler = asyncHandler(step, apiTrigger)
+      const methods: Record<ApiRouteMethod, () => void> = {
+        GET: () => router.get(path, handler),
+        POST: () => router.post(path, handler),
+        PUT: () => router.put(path, handler),
+        DELETE: () => router.delete(path, handler),
+        PATCH: () => router.patch(path, handler),
+        OPTIONS: () => router.options(path, handler),
+        HEAD: () => router.head(path, handler),
       }
-      return true
+
+      const methodHandler = methods[method]
+      if (!methodHandler) {
+        throw new Error(`Unsupported method: ${method}`)
+      }
+
+      methodHandler()
     })
-    router.stack = filteredStack
   }
 
-  allSteps.filter(isApiStep).forEach(addRoute)
+  const removeRoute = (step: Step) => {
+    if (!hasApiTrigger(step)) {
+      return // No API triggers, nothing to do
+    }
+
+    const apiTriggers = getTriggersByType(step, 'api')
+    
+    apiTriggers.forEach((apiTrigger: ApiTrigger) => {
+      const { path, method } = apiTrigger
+      const routerStack = router.stack
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const filteredStack = routerStack.filter((layer: any) => {
+        if (layer.route) {
+          const match = layer.route.path === path && layer.route.methods[method.toLowerCase()]
+          return !match
+        }
+        return true
+      })
+      router.stack = filteredStack
+    })
+  }
+
+  allSteps.filter(hasApiTrigger).forEach(addRoute)
 
   app.use(cors())
   app.use(router)

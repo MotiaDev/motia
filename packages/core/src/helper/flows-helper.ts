@@ -1,6 +1,6 @@
 // Helper functions
-import { Emit, Step } from 'src/types'
-import { isApiStep, isCronStep, isEventStep, isNoopStep } from '../guards'
+import { Emit, Step, Trigger } from 'src/types'
+import { hasApiTrigger, hasEventTrigger, hasCronTrigger, getTriggersByType } from '../guards'
 import { FlowEdge, FlowResponse, FlowStepResponse } from '../types/flows-types'
 import { getStepLanguage } from '../get-step-language'
 import path from 'path'
@@ -83,61 +83,76 @@ const createBaseStepResponse = (
   language: getStepLanguage(step.filePath),
 })
 
-const createApiStepResponse = (step: Step, id: string): FlowStepResponse => {
-  if (!isApiStep(step)) {
-    throw new Error('Attempted to create API step response with non-API step')
-  }
+// Helper function to get trigger types for display
+const getTriggerTypes = (step: Step): string[] => {
+  return step.config.triggers.map(trigger => trigger.type)
+}
 
-  return {
+// Helper function to get event topics from event triggers
+const getEventTopics = (step: Step): string[] => {
+  const eventTriggers = getTriggersByType(step, 'event')
+  return eventTriggers.map(trigger => trigger.topic)
+}
+
+// Helper function to get API endpoints from API triggers
+const getApiEndpoints = (step: Step): string[] => {
+  const apiTriggers = getTriggersByType(step, 'api')
+  return apiTriggers.map(trigger => `${trigger.method} ${trigger.path}`)
+}
+
+// Helper function to get cron expressions from cron triggers
+const getCronExpressions = (step: Step): string[] => {
+  const cronTriggers = getTriggersByType(step, 'cron')
+  return cronTriggers.map(trigger => trigger.cron)
+}
+
+const createUnifiedStepResponse = (step: Step, id: string): FlowStepResponse => {
+  const triggerTypes = getTriggerTypes(step)
+  const primaryType = triggerTypes[0] || 'unknown' // Use first trigger type as primary type
+  
+  const baseResponse = {
     ...createBaseStepResponse(step, id),
-    type: 'api',
-    emits: step.config.emits,
+    type: primaryType,
+    emits: step.config.emits ?? [],
     virtualEmits: step.config.virtualEmits ?? [],
     subscribes: step.config.virtualSubscribes ?? undefined,
-    action: 'webhook',
-    webhookUrl: `${step.config.method} ${step.config.path}`,
-    bodySchema: step.config.bodySchema ?? undefined,
-  }
-}
-
-const createEventStepResponse = (step: Step, id: string): FlowStepResponse => {
-  if (!isEventStep(step)) {
-    throw new Error('Attempted to create Event step response with non-Event step')
   }
 
+  // Add type-specific properties based on triggers
+  if (hasApiTrigger(step)) {
+    const apiEndpoints = getApiEndpoints(step)
+    return {
+      ...baseResponse,
+      type: 'api',
+      action: 'webhook',
+      webhookUrl: apiEndpoints[0], // Use first API endpoint
+      bodySchema: step.config.bodySchema ?? undefined,
+    }
+  }
+
+  if (hasEventTrigger(step)) {
+    const eventTopics = getEventTopics(step)
+    return {
+      ...baseResponse,
+      type: 'event',
+      subscribes: eventTopics,
+    }
+  }
+
+  if (hasCronTrigger(step)) {
+    const cronExpressions = getCronExpressions(step)
+    return {
+      ...baseResponse,
+      type: 'cron',
+      cronExpression: cronExpressions[0], // Use first cron expression
+    }
+  }
+
+  // Default case for steps with only virtual triggers or no triggers
   return {
-    ...createBaseStepResponse(step, id),
-    type: 'event',
-    emits: step.config.emits,
-    virtualEmits: step.config.virtualEmits ?? [],
-    subscribes: step.config.subscribes,
-  }
-}
-
-const createNoopStepResponse = (step: Step, id: string): FlowStepResponse => {
-  if (!isNoopStep(step)) {
-    throw new Error('Attempted to create Noop step response with non-Noop step')
-  }
-
-  return {
-    ...createBaseStepResponse(step, id),
+    ...baseResponse,
     type: 'noop',
     emits: [],
-    virtualEmits: step.config.virtualEmits,
-    subscribes: step.config.virtualSubscribes,
-  }
-}
-
-const createCronStepResponse = (step: Step, id: string): FlowStepResponse => {
-  if (!isCronStep(step)) {
-    throw new Error('Attempted to create Cron step response with non-Cron step')
-  }
-
-  return {
-    ...createBaseStepResponse(step, id),
-    type: 'cron',
-    emits: step.config.emits,
-    cronExpression: step.config.cron,
   }
 }
 
@@ -148,12 +163,7 @@ export const generateStepId = (filePath: string): string => {
 
 const createStepResponse = (step: Step): FlowStepResponse => {
   const id = generateStepId(step.filePath)
-  if (isApiStep(step)) return createApiStepResponse(step, id)
-  if (isEventStep(step)) return createEventStepResponse(step, id)
-  if (isNoopStep(step)) return createNoopStepResponse(step, id)
-  if (isCronStep(step)) return createCronStepResponse(step, id)
-
-  throw new Error(`Unknown step type for step: ${step.config.name}`)
+  return createUnifiedStepResponse(step, id)
 }
 
 const createEdgesForStep = (sourceStep: FlowStepResponse, allSteps: FlowStepResponse[]): FlowEdge[] => {

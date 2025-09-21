@@ -1,15 +1,16 @@
 import { callStepFile } from './call-step-file'
 import { globalLogger } from './logger'
 import { Motia } from './motia'
-import { Event, EventConfig, Step } from './types'
+import { Event, Step, EventTrigger } from './types'
+import { hasEventTrigger, getTriggersByType } from './guards'
 
 export type MotiaEventManager = {
-  createHandler: (step: Step<EventConfig>) => void
-  removeHandler: (step: Step<EventConfig>) => void
+  createHandler: (step: Step) => void
+  removeHandler: (step: Step) => void
 }
 
 export const createStepHandlers = (motia: Motia): MotiaEventManager => {
-  const eventSteps = motia.lockedData.eventSteps()
+  const eventSteps = motia.lockedData.stepsWithEventTriggers()
 
   globalLogger.debug(`[step handler] creating step handlers for ${eventSteps.length} steps`)
 
@@ -19,16 +20,23 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
     return rest
   }
 
-  const createHandler = (step: Step<EventConfig>) => {
+  const createHandler = (step: Step) => {
+    if (!hasEventTrigger(step)) {
+      return // No event triggers, nothing to do
+    }
+
     const { config, filePath } = step
-    const { subscribes, name } = config
+    const { name } = config
+    const eventTriggers = getTriggersByType(step, 'event')
 
     globalLogger.debug('[step handler] establishing step subscriptions', { filePath, step: step.config.name })
 
-    subscribes.forEach((subscribe) => {
+    eventTriggers.forEach((eventTrigger: EventTrigger) => {
+      const { topic } = eventTrigger
+      
       motia.eventManager.subscribe({
         filePath,
-        event: subscribe,
+        event: topic,
         handlerName: step.config.name,
         handler: async (event) => {
           const { data, traceId } = event
@@ -50,12 +58,17 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
     })
   }
 
-  const removeHandler = (step: Step<EventConfig>) => {
-    const { config, filePath } = step
-    const { subscribes } = config
+  const removeHandler = (step: Step) => {
+    if (!hasEventTrigger(step)) {
+      return // No event triggers, nothing to do
+    }
 
-    subscribes.forEach((subscribe) => {
-      motia.eventManager.unsubscribe({ filePath, event: subscribe })
+    const { filePath } = step
+    const eventTriggers = getTriggersByType(step, 'event')
+
+    eventTriggers.forEach((eventTrigger: EventTrigger) => {
+      const { topic } = eventTrigger
+      motia.eventManager.unsubscribe({ filePath, event: topic })
     })
   }
 

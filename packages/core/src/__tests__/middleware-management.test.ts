@@ -6,7 +6,7 @@ import { Printer } from '../printer'
 import { createServer } from '../server'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { MemoryStreamAdapter } from '../streams/adapters/memory-stream-adapter'
-import { ApiMiddleware, ApiRouteConfig, Step } from '../types'
+import { ApiMiddleware, Step } from '../types'
 
 // Mock callStepFile to prevent actual file execution
 jest.mock('../call-step-file', () => ({

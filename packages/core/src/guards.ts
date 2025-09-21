@@ -1,6 +1,23 @@
-import { ApiRouteConfig, EventConfig, NoopConfig, Step, CronConfig } from './types'
+import { Step, Trigger } from './types'
 
-export const isApiStep = (step: Step): step is Step<ApiRouteConfig> => step.config.type === 'api'
-export const isEventStep = (step: Step): step is Step<EventConfig> => step.config.type === 'event'
-export const isNoopStep = (step: Step): step is Step<NoopConfig> => step.config.type === 'noop'
-export const isCronStep = (step: Step): step is Step<CronConfig> => step.config.type === 'cron'
+// Helper functions to check trigger types in the new unified structure
+export const hasApiTrigger = (step: Step): boolean => 
+  step.config.triggers.some(trigger => trigger.type === 'api')
+
+export const hasEventTrigger = (step: Step): boolean => 
+  step.config.triggers.some(trigger => trigger.type === 'event')
+
+export const hasCronTrigger = (step: Step): boolean => 
+  step.config.triggers.some(trigger => trigger.type === 'cron')
+
+export const hasStateTrigger = (step: Step): boolean => 
+  step.config.triggers.some(trigger => trigger.type === 'state')
+
+// Helper to get triggers of a specific type
+export const getTriggersByType = <T extends Trigger['type']>(
+  step: Step, 
+  type: T
+): Extract<Trigger, { type: T }>[] => 
+  step.config.triggers.filter((trigger): trigger is Extract<Trigger, { type: T }> => 
+    trigger.type === type
+  )
