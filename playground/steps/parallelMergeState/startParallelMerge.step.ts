@@ -19,8 +19,6 @@ export const config: StepConfig = {
     path: '/api/parallel-merge',
     method: 'POST',
   }],
-  path: '/api/parallel-merge',
-  method: 'POST',
   virtualSubscribes: ['/api/parallel-merge'],
   emits: ['pms.start'],
   flows: ['parallel-merge'],

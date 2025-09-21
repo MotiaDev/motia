@@ -281,47 +281,44 @@ describe('Triggers System', () => {
     })
 
     it('should fail validation for API step without path/method', () => {
-      const step: Step = {
+      const step = {
         filePath: '/test.step.ts',
         version: '1',
         config: {
           name: 'Invalid API Step',
           triggers: [{
             type: 'api',
-            path: '/api/test',
-            method: 'POST',
+            // Missing path and method in trigger
           }],
-          // Missing path and method in config
           emits: ['test.event'],
         },
-      }
+      } as any
 
       const result = validateStep(step)
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error).toContain('API triggers require path and method')
+        expect(result.error).toContain('Invalid input')
       }
     })
 
     it('should fail validation for cron step without cron expression', () => {
-      const step: Step = {
+      const step = {
         filePath: '/test.step.ts',
         version: '1',
         config: {
           name: 'Invalid Cron Step',
           triggers: [{
             type: 'cron',
-            cron: '0 0 * * *',
+            // Missing cron expression in trigger
           }],
-          // Missing cron in config
           emits: ['test.scheduled'],
         },
-      }
+      } as any
 
       const result = validateStep(step)
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error).toContain('Cron triggers require cron expression')
+        expect(result.error).toContain('Invalid input')
       }
     })
 

@@ -9,8 +9,6 @@ export const config: StepConfig = {
     path: '/test-state',
     method: 'POST',
   }],
-  path: '/test-state',
-  method: 'POST',
   emits: ['test-state-python'],
   input: z.object({}),
   flows: ['test-state'],

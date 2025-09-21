@@ -132,19 +132,29 @@ export const validateStep = (step: Step): ValidationResult => {
     const hasApiTriggers = step.config.triggers.some(t => t.type === 'api')
     const hasCronTriggers = step.config.triggers.some(t => t.type === 'cron')
     
-    // If there are API triggers, ensure path and method are defined
-    if (hasApiTriggers && (!step.config.path || !step.config.method)) {
-      return {
-        success: false,
-        error: 'API triggers require path and method to be defined in step config',
+    // If there are API triggers, ensure each API trigger has path and method defined
+    if (hasApiTriggers) {
+      const apiTriggers = step.config.triggers.filter(t => t.type === 'api')
+      for (const trigger of apiTriggers) {
+        if (!trigger.path || !trigger.method) {
+          return {
+            success: false,
+            error: 'API triggers require path and method to be defined in the trigger configuration',
+          }
+        }
       }
     }
     
-    // If there are cron triggers, ensure cron expression is defined
-    if (hasCronTriggers && !step.config.cron) {
-      return {
-        success: false,
-        error: 'Cron triggers require cron expression to be defined in step config',
+    // If there are cron triggers, ensure each cron trigger has cron expression defined
+    if (hasCronTriggers) {
+      const cronTriggers = step.config.triggers.filter(t => t.type === 'cron')
+      for (const trigger of cronTriggers) {
+        if (!trigger.cron) {
+          return {
+            success: false,
+            error: 'Cron triggers require cron expression to be defined in the trigger configuration',
+          }
+        }
       }
     }
 

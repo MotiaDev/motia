@@ -9,8 +9,6 @@ export const config: StepConfig = {
     path: '/update-score',
     method: 'POST',
   }],
-  method: 'POST',
-  path: '/update-score',
   input: z.object({
     userId: z.string(),
     scoreChange: z.number(),

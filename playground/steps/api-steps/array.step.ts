@@ -12,8 +12,6 @@ export const config: StepConfig = {
     path: '/array',
     method: 'POST',
   }],
-  method: 'POST',
-  path: '/array',
   input: z.array(
     z.object({
       pet: z.object({

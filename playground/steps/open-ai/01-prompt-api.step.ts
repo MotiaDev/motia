@@ -15,8 +15,6 @@ export const config: StepConfig = {
     path: '/open-ai/:threadId',
     method: 'POST',
   }],
-  path: '/open-ai/:threadId',
-  method: 'POST',
   emits: ['openai-prompt'],
   flows: ['open-ai'],
   input: inputSchema,

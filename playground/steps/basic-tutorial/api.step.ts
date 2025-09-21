@@ -12,8 +12,6 @@ export const config: StepConfig = {
     path: '/basic-tutorial',
     method: 'POST',
   }],
-  method: 'POST',
-  path: '/basic-tutorial',
   input: z.object({
     pet: z.object({
       name: z.string(),

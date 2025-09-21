@@ -20,9 +20,6 @@ config = {
     "emits": ["test"],
     "flows": ["simple-python"],
 
-    "path": "/test-python",
-    "method": "POST",
-
     "middleware": [
         enrich_data
     ]

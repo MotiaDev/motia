@@ -24,8 +24,6 @@ config = {
         "path": "/python-basic-tutorial",
         "method": "POST"
     }],
-    "method": "POST",
-    "path": "/python-basic-tutorial",
     "input": RequestBody.model_json_schema(),
     "responseSchema": {
         200: Pet.model_json_schema(),

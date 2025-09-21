@@ -9,8 +9,6 @@ export const config: StepConfig = {
     path: '/set-user-status',
     method: 'POST',
   }],
-  method: 'POST',
-  path: '/set-user-status',
   input: z.object({
     userId: z.string(),
     status: z.enum(['inactive', 'active', 'suspended']),

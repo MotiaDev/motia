@@ -8,8 +8,6 @@ config = {
     "path": "/open-ai-python",
     "method": "POST"
   }],
-  "path": "/open-ai-python",
-  "method": "POST",
   "emits": ["openai-prompt-python"],
   "flows": ["open-ai"],
   "input": {
