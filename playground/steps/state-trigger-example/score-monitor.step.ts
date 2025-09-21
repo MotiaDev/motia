@@ -3,20 +3,13 @@ import { StepConfig, Handlers } from 'motia'
 export const config: StepConfig = {
   name: 'ScoreMonitor',
   description: 'Monitors user score changes and triggers achievements',
-  triggers: [
-    {
-      type: 'state',
-      key: 'user.score',
-      condition: (value: any) => value >= 1000, // Trigger when score reaches 1000+
-    },
-    {
-      type: 'state',
-      key: 'user.score',
-      condition: (value: any) => value >= 5000, // Trigger when score reaches 5000+
-    },
-  ],
-  emits: ['achievement.unlocked'],
-  flows: ['user-management'],
+  triggers: [{
+    type: 'state',
+    key: 'user.score',
+    condition: (value: any) => typeof value === 'number' && value > 100, // Trigger when score exceeds 100
+  }],
+  emits: ['user.score.high'],
+  flows: ['user-achievements'],
 }
 
 export const handler: Handlers['ScoreMonitor'] = async (input, { emit, logger, state }) => {
@@ -24,24 +17,14 @@ export const handler: Handlers['ScoreMonitor'] = async (input, { emit, logger, s
   
   logger.info('User score changed', { key, value, traceId })
   
-  let achievement = ''
-  if (value >= 5000) {
-    achievement = 'master'
-  } else if (value >= 1000) {
-    achievement = 'expert'
-  }
+  // Emit an event when score exceeds 100
+  await emit({
+    topic: 'user.score.high',
+    data: {
+      userId: traceId,
+      score: value,
+    },
+  })
   
-  if (achievement) {
-    await emit({
-      topic: 'achievement.unlocked',
-      data: {
-        userId: traceId,
-        achievement,
-        score: value,
-        unlockedAt: new Date().toISOString(),
-      },
-    })
-    
-    logger.info('Achievement unlocked', { userId: traceId, achievement, score: value })
-  }
+  logger.info('High score achievement event emitted', { userId: traceId, score: value })
 }

@@ -23,7 +23,6 @@ export const handler: Handlers['StateMonitor'] = async (input, { emit, logger, s
     data: {
       userId: traceId,
       status: value,
-      activatedAt: new Date().toISOString(),
     },
   })
   

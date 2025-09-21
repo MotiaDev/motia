@@ -1,5 +1,5 @@
 import { Step, Emit } from './types'
-import { hasApiTrigger, hasCronTrigger, hasEventTrigger } from './guards'
+import { hasApiTrigger, hasCronTrigger, hasEventTrigger, hasStateTrigger } from './guards'
 
 const toTopic = (emit: Emit) => (typeof emit === 'string' ? emit : emit.topic)
 
@@ -8,7 +8,7 @@ export const isAllowedToEmit = (step: Step, emit: string): boolean => {
   if (step.config.triggers.length === 0) return false
 
   // Check if step has any of the supported trigger types
-  if (!hasApiTrigger(step) && !hasCronTrigger(step) && !hasEventTrigger(step)) return false
+  if (!hasApiTrigger(step) && !hasCronTrigger(step) && !hasEventTrigger(step) && !hasStateTrigger(step)) return false
 
   // If no emits are defined, allow all emissions
   if (!step.config.emits || step.config.emits.length === 0) return true
