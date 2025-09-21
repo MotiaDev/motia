@@ -17,6 +17,8 @@ import { Motia } from './motia'
 import { createTracerFactory } from './observability/tracer'
 import { createSocketServer } from './socket-server'
 import { createStepHandlers, MotiaEventManager } from './step-handlers'
+import { createStateHandlers, MotiaStateManager } from './state-trigger-handler'
+import { StateWrapper } from './state-wrapper'
 import { systemSteps } from './steps'
 import { apiEndpoints } from './streams/api-endpoints'
 import { Log, LogsStream } from './streams/logs-stream'
@@ -43,6 +45,7 @@ export type MotiaServer = {
   addRoute: (step: Step) => void
   cronManager: CronManager
   motiaEventManager: MotiaEventManager
+  motiaStateManager: MotiaStateManager
 }
 
 type MotiaServerConfig = {
@@ -159,10 +162,17 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  const motia: Motia = { loggerFactory, eventManager, state, lockedData, printer, tracerFactory }
+  
+  // Wrap state with StateWrapper to enable state triggers
+  const stateWrapper = new StateWrapper(state)
+  const motia: Motia = { loggerFactory, eventManager, state: stateWrapper, lockedData, printer, tracerFactory }
 
   const cronManager = setupCronHandlers(motia)
   const motiaEventManager = createStepHandlers(motia)
+  const motiaStateManager = createStateHandlers(motia)
+  
+  // Connect state wrapper to state trigger handler
+  stateWrapper.setStateChangeCallback(motiaStateManager.checkStateTriggers)
 
   const asyncHandler = (step: Step, apiTrigger: ApiTrigger) => {
     return async (req: Request, res: Response) => {
@@ -289,5 +299,5 @@ export const createServer = (
     socketServer.close()
   }
 
-  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager }
+  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motiaStateManager }
 }

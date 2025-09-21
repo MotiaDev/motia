@@ -30,7 +30,7 @@ export interface Trace {
   startTime: number
   endTime?: number
   error?: TraceError
-  entryPoint: { type: StepConfig['type']; stepName: string }
+  entryPoint: { type: string; stepName: string }
   events: TraceEvent[]
 }
 

@@ -298,7 +298,9 @@ describe('Triggers System', () => {
 
       const result = validateStep(step)
       expect(result.success).toBe(false)
-      expect(result.error).toContain('API triggers require path and method')
+      if (!result.success) {
+        expect(result.error).toContain('API triggers require path and method')
+      }
     })
 
     it('should fail validation for cron step without cron expression', () => {
@@ -318,7 +320,9 @@ describe('Triggers System', () => {
 
       const result = validateStep(step)
       expect(result.success).toBe(false)
-      expect(result.error).toContain('Cron triggers require cron expression')
+      if (!result.success) {
+        expect(result.error).toContain('Cron triggers require cron expression')
+      }
     })
 
     it('should fail validation for step with invalid trigger type', () => {

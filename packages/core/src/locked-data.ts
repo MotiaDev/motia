@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { hasApiTrigger, hasEventTrigger, hasCronTrigger } from './guards'
+import { hasApiTrigger, hasEventTrigger, hasCronTrigger, hasStateTrigger } from './guards'
 import { Printer } from './printer'
 import { validateStep } from './step-validator'
 import { FileStreamAdapter } from './streams/adapters/file-stream-adapter'
@@ -100,6 +100,10 @@ export class LockedData {
 
   stepsWithCronTriggers(): Step[] {
     return this.activeSteps.filter(hasCronTrigger)
+  }
+
+  stepsWithStateTriggers(): Step[] {
+    return this.activeSteps.filter(hasStateTrigger)
   }
 
   pythonSteps(): Step[] {

@@ -40,8 +40,11 @@ describe('Middleware Management', () => {
     const lockedData = {
       printer,
       activeSteps: [],
-      eventSteps: () => [],
-      cronSteps: () => [],
+      steps: () => [],
+      stepsWithEventTriggers: () => [],
+      stepsWithApiTriggers: () => [],
+      stepsWithCronTriggers: () => [],
+      stepsWithStateTriggers: () => [],
       onStep: () => {},
       applyStreamWrapper: () => {},
       createStream: () => () => new MemoryStreamAdapter(),
@@ -60,12 +63,16 @@ describe('Middleware Management', () => {
   })
 
   it('should apply middleware when adding a route', async () => {
-    const step: Step<ApiRouteConfig> = {
+    const step: Step = {
       filePath: path.join(__dirname, 'steps', 'api-step.ts'),
       version: '1.0.0',
       config: {
-        type: 'api',
         name: 'test-middleware-step',
+        triggers: [{
+          type: 'api',
+          path: '/test-middleware-route',
+          method: 'POST',
+        }],
         path: '/test-middleware-route',
         method: 'POST',
         emits: [],
@@ -82,12 +89,16 @@ describe('Middleware Management', () => {
   })
 
   it('should remove route with middleware', async () => {
-    const step: Step<ApiRouteConfig> = {
+    const step: Step = {
       filePath: path.join(__dirname, 'steps', 'api-step.ts'),
       version: '1.0.0',
       config: {
-        type: 'api',
         name: 'removable-middleware-step',
+        triggers: [{
+          type: 'api',
+          path: '/removable-route',
+          method: 'GET',
+        }],
         path: '/removable-route',
         method: 'GET',
         emits: [],
@@ -114,12 +125,16 @@ describe('Middleware Management', () => {
       body: { success: true },
     }))
 
-    const step: Step<ApiRouteConfig> = {
+    const step: Step = {
       filePath: path.join(__dirname, 'steps', 'api-step.ts'),
       version: '1.0.0',
       config: {
-        type: 'api',
         name: 'updatable-middleware-step',
+        triggers: [{
+          type: 'api',
+          path: '/updatable-route',
+          method: 'POST',
+        }],
         path: '/updatable-route',
         method: 'POST',
         emits: [],

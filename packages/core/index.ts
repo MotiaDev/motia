@@ -1,6 +1,7 @@
 export * from './src/types'
 export { createServer, MotiaServer } from './src/server'
 export { createStepHandlers, MotiaEventManager } from './src/step-handlers'
+export { createStateHandlers, MotiaStateManager } from './src/state-trigger-handler'
 export { createEventManager } from './src/event-manager'
 export { Logger } from './src/logger'
 export { createStateAdapter } from './src/state/create-state-adapter'

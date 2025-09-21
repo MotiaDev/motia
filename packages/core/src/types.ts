@@ -92,6 +92,7 @@ export interface StepConfig {
   virtualEmits?: Emit[]
   virtualSubscribes?: string[]
   input?: ZodInput
+  bodySchema?: ZodInput // For API steps
   responseSchema?: Record<number, ZodInput>
   queryParams?: QueryParam[]
   middleware?: ApiMiddleware<any, any, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -101,6 +102,9 @@ export interface StepConfig {
    * Needs to be relative to the step file.
    */
   includeFiles?: string[]
+  // Legacy properties for backward compatibility
+  type?: string // Deprecated: use triggers array instead
+  subscribes?: string[] // Deprecated: use triggers array instead
 }
 
 export interface ApiRequest<TBody = unknown> {
@@ -128,7 +132,7 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
  * @deprecated Use `Handlers` instead.
  */
 export type StepHandler<T> = T extends StepConfig
-  ? EventHandler<z.infer<T['input']>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  ? EventHandler<T['input'] extends z.ZodType<any, any, any> ? z.infer<T['input']> : any, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
   | ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
   | CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
   : never

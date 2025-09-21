@@ -161,7 +161,10 @@ describe('Mermaid Generator', () => {
       const eventStep = createEventStep(
         {
           flows: ['flow-1'],
-          subscribes: ['event.topic'],
+          triggers: [{
+            type: 'event',
+            topic: 'event.topic',
+          }],
           emits: ['event.processed'],
         },
         path.join(baseDir, 'steps/flow-1/event.step.ts'),

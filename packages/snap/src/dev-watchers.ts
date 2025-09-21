@@ -3,9 +3,11 @@ import {
   hasApiTrigger,
   hasCronTrigger,
   hasEventTrigger,
+  hasStateTrigger,
   LockedData,
   MotiaEventManager,
   MotiaServer,
+  MotiaStateManager,
   Step,
   trackEvent,
 } from '@motiadev/core'
@@ -18,6 +20,7 @@ export const createDevWatchers = (
   server: MotiaServer,
   eventHandler: MotiaEventManager,
   cronManager: CronManager,
+  stateManager: MotiaStateManager,
 ) => {
   const stepDir = path.join(process.cwd(), 'steps')
   const watcher = new Watcher(stepDir, lockedData)
@@ -53,6 +56,7 @@ export const createDevWatchers = (
     if (hasApiTrigger(oldStep)) server.removeRoute(oldStep)
     if (hasCronTrigger(oldStep)) cronManager.removeCronJob(oldStep)
     if (hasEventTrigger(oldStep)) eventHandler.removeHandler(oldStep)
+    if (hasStateTrigger(oldStep)) stateManager.removeStateHandler(oldStep)
 
     const isUpdated = lockedData.updateStep(oldStep, newStep)
 
@@ -65,6 +69,7 @@ export const createDevWatchers = (
       if (hasCronTrigger(newStep)) cronManager.createCronJob(newStep)
       if (hasEventTrigger(newStep)) eventHandler.createHandler(newStep)
       if (hasApiTrigger(newStep)) server.addRoute(newStep)
+      if (hasStateTrigger(newStep)) stateManager.createStateHandler(newStep)
     }
   })
 
@@ -80,6 +85,7 @@ export const createDevWatchers = (
       if (hasApiTrigger(step)) server.addRoute(step)
       if (hasEventTrigger(step)) eventHandler.createHandler(step)
       if (hasCronTrigger(step)) cronManager.createCronJob(step)
+      if (hasStateTrigger(step)) stateManager.createStateHandler(step)
     }
   })
 
@@ -92,6 +98,7 @@ export const createDevWatchers = (
     if (hasApiTrigger(step)) server.removeRoute(step)
     if (hasEventTrigger(step)) eventHandler.removeHandler(step)
     if (hasCronTrigger(step)) cronManager.removeCronJob(step)
+    if (hasStateTrigger(step)) stateManager.removeStateHandler(step)
 
     lockedData.deleteStep(step)
   })
