@@ -40,6 +40,21 @@ async function getConfig(filePath: string) {
       module.config.schema = zodToJsonSchema(module.config.schema)
     }
 
+    // Handle triggers array - preserve functions in state triggers
+    if (module.config.triggers && Array.isArray(module.config.triggers)) {
+      module.config.triggers = module.config.triggers.map((trigger: any) => {
+        if (trigger.type === 'state' && typeof trigger.condition === 'function') {
+          // For state triggers, we need to preserve the condition function
+          // We'll serialize it as a string and reconstruct it later
+          return {
+            ...trigger,
+            condition: trigger.condition.toString()
+          }
+        }
+        return trigger
+      })
+    }
+
     process.send?.(module.config)
 
     process.exit(0)

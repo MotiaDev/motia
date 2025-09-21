@@ -28,7 +28,12 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
     const { name } = config
     const stateTriggers = getTriggersByType(step, 'state')
 
-    globalLogger.debug('[state handler] establishing state subscriptions', { filePath, step: step.config.name })
+      globalLogger.debug('[state handler] establishing state subscriptions', {
+        filePath,
+        step: step.config.name,
+        stepId: `${filePath}:${name}`,
+        stateTriggersCount: stateTriggers.length
+      })
 
     stateTriggers.forEach((stateTrigger: StateTrigger) => {
       const { key } = stateTrigger
@@ -37,7 +42,19 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
       if (!stateTriggersByKey.has(key)) {
         stateTriggersByKey.set(key, new Set())
       }
-      stateTriggersByKey.get(key)!.add(step)
+      
+      const stepsForKey = stateTriggersByKey.get(key)!
+      const beforeSize = stepsForKey.size
+      stepsForKey.add(step)
+      const afterSize = stepsForKey.size
+      
+      globalLogger.debug('[state handler] added step to state trigger', {
+        key,
+        step: step.config.name,
+        beforeSize,
+        afterSize,
+        wasNew: beforeSize !== afterSize
+      })
     })
   }
 
@@ -70,29 +87,98 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
       return // No steps watching this key
     }
 
-    globalLogger.debug('[state handler] checking state triggers', { key, value, stepCount: stepsForKey.size })
+    globalLogger.debug('[state handler] checking state triggers', { 
+      key, 
+      value, 
+      stepCount: stepsForKey.size,
+      stepNames: Array.from(stepsForKey).map(s => s.config.name)
+    })
 
-    // Check each step that's watching this key
+    // Deduplicate steps by name to prevent multiple triggers for the same logical step
+    const uniqueSteps = new Map<string, Step>()
     for (const step of stepsForKey) {
+      const stepKey = `${step.filePath}:${step.config.name}`
+      if (!uniqueSteps.has(stepKey)) {
+        uniqueSteps.set(stepKey, step)
+      }
+    }
+
+    globalLogger.debug('[state handler] deduplicated steps', { 
+      originalCount: stepsForKey.size,
+      uniqueCount: uniqueSteps.size,
+      uniqueStepNames: Array.from(uniqueSteps.values()).map(s => s.config.name)
+    })
+
+    // Check each unique step that's watching this key
+    for (const step of uniqueSteps.values()) {
       const stateTriggers = getTriggersByType(step, 'state')
+      
+      globalLogger.debug('[state handler] processing step', {
+        stepName: step.config.name,
+        stateTriggersCount: stateTriggers.length,
+        triggers: stateTriggers.map(t => ({ key: t.key, hasCondition: !!t.condition }))
+      })
       
       for (const stateTrigger of stateTriggers) {
         if (stateTrigger.key !== key) {
           continue // This trigger is for a different key
         }
 
+        globalLogger.debug('[state handler] evaluating trigger', {
+          stepName: step.config.name,
+          key,
+          value,
+          hasCondition: !!stateTrigger.condition
+        })
+
         // If no condition is specified, trigger on any state change
         if (!stateTrigger.condition) {
+          globalLogger.debug('[state handler] triggering step (no condition)', { step: step.config.name })
           await triggerStep(step, { key, value, traceId })
           continue
         }
 
         // Check if the condition is met
         try {
-          const conditionMet = stateTrigger.condition(value, motia.state)
+          let conditionFunction: (input: any, state: InternalStateManager) => boolean
+          
+          // If condition is a string (serialized function), reconstruct it
+          if (typeof stateTrigger.condition === 'string') {
+            try {
+              // Reconstruct the function from the string
+              conditionFunction = new Function('value', 'state', `return (${stateTrigger.condition})(value, state)`) as (input: any, state: InternalStateManager) => boolean
+            } catch (reconstructError: any) {
+              globalLogger.error('[state handler] failed to reconstruct condition function', {
+                step: step.config.name,
+                key,
+                error: reconstructError.message
+              })
+              continue
+            }
+          } else if (typeof stateTrigger.condition === 'function') {
+            conditionFunction = stateTrigger.condition
+          } else {
+            globalLogger.error('[state handler] invalid condition type', {
+              step: step.config.name,
+              key,
+              conditionType: typeof stateTrigger.condition
+            })
+            continue
+          }
+          
+          const conditionMet = conditionFunction(value, motia.state)
+            globalLogger.debug('[state handler] condition result', {
+              stepName: step.config.name,
+              key,
+              value,
+              conditionMet
+            })
           
           if (conditionMet) {
+            globalLogger.debug('[state handler] triggering step (condition met)', { step: step.config.name })
             await triggerStep(step, { key, value, traceId })
+          } else {
+            globalLogger.debug('[state handler] condition not met, skipping', { step: step.config.name })
           }
         } catch (error: any) {
           globalLogger.error('[state handler] condition evaluation failed', { 

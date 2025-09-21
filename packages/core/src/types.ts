@@ -60,7 +60,7 @@ export interface CronTrigger extends BaseTrigger {
 export interface StateTrigger extends BaseTrigger {
   type: 'state'
   key: string
-  condition?: (input: any, state: InternalStateManager) => boolean
+  condition?: ((input: any, state: InternalStateManager) => boolean) | string
 }
 
 // Union type for all trigger types

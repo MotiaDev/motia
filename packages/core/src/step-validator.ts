@@ -72,7 +72,7 @@ const cronTriggerSchema = baseTriggerSchema.extend({
 const stateTriggerSchema = baseTriggerSchema.extend({
   type: z.literal('state'),
   key: z.string(),
-  condition: z.function().optional(),
+  condition: z.union([z.function(), z.string()]).optional(),
 })
 
 // Union of all trigger types
