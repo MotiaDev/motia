@@ -1,4 +1,4 @@
-import { isApiStep, LockedData } from '@motiadev/core'
+import { hasApiTrigger, LockedData } from '@motiadev/core'
 import { NoPrinter } from '@motiadev/core/dist/src/printer'
 import fs from 'fs'
 import { collectFlows, getStepFiles } from '../../generate-locked-data'
@@ -46,7 +46,7 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
   }
 
   await Promise.all(lockedData.activeSteps.map((step) => builder.buildStep(step)))
-  await builder.buildApiSteps(lockedData.activeSteps.filter(isApiStep))
+  await builder.buildApiSteps(lockedData.activeSteps.filter(hasApiTrigger))
 
   const streams = lockedData.listStreams()
 

@@ -1,10 +1,14 @@
-import { ApiRouteConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: '{{STEP_NAME}}',
   description: '{{DESCRIPTION}}',
+  triggers: [{
+    type: 'api',
+    path: '{{PATH}}',
+    method: '{{METHOD}}',
+  }],
   path: '{{PATH}}',
   method: '{{METHOD}}',
   emits: {{EMITS}},

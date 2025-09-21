@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { Flow, Step } from './types'
-import { isApiStep, isCronStep, isEventStep, isNoopStep } from './guards'
+import { hasApiTrigger, hasCronTrigger, hasEventTrigger, getTriggersByType } from './guards'
 import { LockedData } from './locked-data'
 
 // Pure function to ensure diagrams directory exists
@@ -29,12 +29,13 @@ const getNodeLabel = (step: Step): string => {
   // Get display name for node
   const displayName = step.config.name || path.basename(step.filePath, path.extname(step.filePath))
 
-  // Add node type prefix to help distinguish types
+  // Add node type prefix to help distinguish types based on triggers
   let prefix = ''
-  if (isApiStep(step)) prefix = '🌐 '
-  else if (isEventStep(step)) prefix = '⚡ '
-  else if (isCronStep(step)) prefix = '⏰ '
-  else if (isNoopStep(step)) prefix = '⚙️ '
+  if (hasApiTrigger(step)) prefix = '🌐 '
+  else if (hasEventTrigger(step)) prefix = '⚡ '
+  else if (hasCronTrigger(step)) prefix = '⏰ '
+  else if (step.config.triggers.length === 0) prefix = '⚙️ ' // Noop step
+  else prefix = '🔧 ' // Multi-trigger or other types
 
   // Create a node label with the step name
   return `["${prefix}${displayName}"]`
@@ -42,12 +43,12 @@ const getNodeLabel = (step: Step): string => {
 
 // Pure function to get node style
 const getNodeStyle = (step: Step): string => {
-  // Apply style class based on step type
-  if (isApiStep(step)) return ':::apiStyle'
-  if (isEventStep(step)) return ':::eventStyle'
-  if (isCronStep(step)) return ':::cronStyle'
-  if (isNoopStep(step)) return ':::noopStyle'
-  return ''
+  // Apply style class based on step type (prioritize first trigger type)
+  if (hasApiTrigger(step)) return ':::apiStyle'
+  if (hasEventTrigger(step)) return ':::eventStyle'
+  if (hasCronTrigger(step)) return ':::cronStyle'
+  if (step.config.triggers.length === 0) return ':::noopStyle'
+  return ':::multiStyle' // Multi-trigger steps
 }
 
 // Pure function to generate connections
@@ -66,19 +67,16 @@ const generateConnections = (
 
   // Helper function to check if a step subscribes to a topic
   const stepSubscribesToTopic = (step: Step, topic: string): boolean => {
-    // Event steps use regular subscribes
-    if (
-      isEventStep(step) &&
-      step.config.subscribes &&
-      Array.isArray(step.config.subscribes) &&
-      step.config.subscribes.includes(topic)
-    ) {
-      return true
+    // Check event triggers for the topic
+    if (hasEventTrigger(step)) {
+      const eventTriggers = getTriggersByType(step, 'event')
+      if (eventTriggers.some(trigger => trigger.topic === topic)) {
+        return true
+      }
     }
 
-    // Noop and API steps use virtualSubscribes
+    // Check virtualSubscribes for noop and API steps
     if (
-      (isNoopStep(step) || isApiStep(step)) &&
       step.config.virtualSubscribes &&
       Array.isArray(step.config.virtualSubscribes) &&
       step.config.virtualSubscribes.includes(topic)
@@ -115,6 +113,7 @@ const generateFlowDiagram = (flowName: string, steps: Step[], baseDir: string): 
     `    classDef eventStyle fill:#69f,stroke:#333,stroke-width:2px,color:#fff`,
     `    classDef cronStyle fill:#9c6,stroke:#333,stroke-width:2px,color:#fff`,
     `    classDef noopStyle fill:#3f3a50,stroke:#333,stroke-width:2px,color:#fff`,
+    `    classDef multiStyle fill:#ff6b6b,stroke:#333,stroke-width:2px,color:#fff`,
   ]
   diagram += classDefinitions.join('\n') + '\n'
 
@@ -151,8 +150,8 @@ const generateFlowDiagram = (flowName: string, steps: Step[], baseDir: string): 
     }
 
     // Semantic variables to clarify which step types support which emission types
-    const supportsEmits = isApiStep(sourceStep) || isEventStep(sourceStep) || isCronStep(sourceStep)
-    const supportsVirtualEmits = supportsEmits || isNoopStep(sourceStep)
+    const supportsEmits = hasApiTrigger(sourceStep) || hasEventTrigger(sourceStep) || hasCronTrigger(sourceStep)
+    const supportsVirtualEmits = supportsEmits || sourceStep.config.triggers.length === 0
 
     // Process regular emissions if supported
     if (supportsEmits) {

@@ -1,13 +1,15 @@
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: '{{STEP_NAME}}',
   description: '{{DESCRIPTION}}',
-  subscribes: {{SUBSCRIPTIONS}},
+  triggers: [{
+    type: 'event',
+    topic: '{{TOPIC}}',
+  }],
   emits: {{EMITS}},
-  input: inputSchema = z.object({
+  input: z.object({
     // Add your schema here
   }),
   flows: {{FLOWS}}

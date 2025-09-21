@@ -1,14 +1,17 @@
-import { ApiRouteConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 import { petSchema } from './services/types'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'ApiTrigger',
   description: 'basic-tutorial api trigger',
   flows: ['basic-tutorial'],
-
+  triggers: [{
+    type: 'api',
+    path: '/basic-tutorial',
+    method: 'POST',
+  }],
   method: 'POST',
   path: '/basic-tutorial',
   bodySchema: z.object({

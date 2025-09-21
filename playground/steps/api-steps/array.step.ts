@@ -1,14 +1,17 @@
-import { ApiRouteConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from '../basic-tutorial/services/pet-store'
 import { petSchema } from '../basic-tutorial/services/types'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'ArrayStep',
   description: 'Basic API Example step with Array in Body and in Response',
   flows: ['array-step'],
-
+  triggers: [{
+    type: 'api',
+    path: '/array',
+    method: 'POST',
+  }],
   method: 'POST',
   path: '/array',
   bodySchema: z.array(
