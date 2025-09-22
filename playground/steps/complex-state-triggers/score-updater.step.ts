@@ -37,7 +37,6 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
   }
 
   try {
-    logger.info('Updating user score', { userId, operation, value, reason, traceId })
 
     // Use the simple update method for atomic read-modify-write
     // Create a function that can be serialized without closures
@@ -78,7 +77,6 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
       return scoreHistory;
     `) as (history: unknown[] | null) => unknown[])
 
-    logger.info('User score updated', { userId, operation, newScore, reason })
 
     return {
       status: 200,
@@ -90,11 +88,6 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
       },
     }
   } catch (error: unknown) {
-    logger.error('Score update failed', {
-      error: error instanceof Error ? error.message : String(error),
-      userId,
-      operation,
-    })
     return {
       status: 400,
       body: { error: 'Score update failed' },

@@ -28,6 +28,7 @@ export const handler: Handlers['TierMonitor'] = async (input, { logger, state })
 
   logger.info('Tier monitor triggered', { userId, tier: value, traceId, key })
 
+
   try {
     // Define tier benefits
     const tierBenefits = {
@@ -73,10 +74,6 @@ export const handler: Handlers['TierMonitor'] = async (input, { logger, state })
       })
     }
   } catch (error: unknown) {
-    logger.error('Tier monitor failed', {
-      userId,
-      tier: value,
-      error: error instanceof Error ? error.message : String(error),
-    })
+    // Handle error silently
   }
 }

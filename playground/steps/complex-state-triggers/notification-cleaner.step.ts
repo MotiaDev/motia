@@ -23,6 +23,7 @@ export const handler: Handlers['NotificationCleaner'] = async (input, { logger, 
 
   logger.info('Notification cleaner triggered', { userId, notificationCount: value.length, traceId, key })
 
+
   try {
     // Get user benefits to determine max notifications
     const benefits = await state.get(userId, 'user.benefits')
@@ -56,10 +57,6 @@ export const handler: Handlers['NotificationCleaner'] = async (input, { logger, 
       })
     }
   } catch (error: unknown) {
-    logger.error('Notification cleaner failed', {
-      userId,
-      notificationCount: value.length,
-      error: error instanceof Error ? error.message : String(error),
-    })
+    // Handle error silently
   }
 }

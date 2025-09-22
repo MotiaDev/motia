@@ -38,7 +38,6 @@ export const handler: Handlers['UserRegistration'] = async (req, { state, logger
     // Generate user ID
     const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-    logger.info('Registering new user', { userId, email, name, initialScore, tier, traceId })
 
     // Set initial user state - this will trigger multiple state monitors
     await state.set(userId, 'user.profile', {
@@ -56,7 +55,6 @@ export const handler: Handlers['UserRegistration'] = async (req, { state, logger
     await state.set(userId, 'user.achievements', [])
     await state.set(userId, 'user.notifications', [])
 
-    logger.info('User registration completed', { userId, email, tier })
 
     return {
       status: 201,
@@ -68,7 +66,6 @@ export const handler: Handlers['UserRegistration'] = async (req, { state, logger
       },
     }
   } catch (error: unknown) {
-    logger.error('User registration failed', { error: error instanceof Error ? error.message : String(error), email })
     return {
       status: 400,
       body: { error: 'Registration failed' },

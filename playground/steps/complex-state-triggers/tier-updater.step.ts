@@ -27,7 +27,6 @@ export const handler: Handlers['TierUpdater'] = async (req, { state, logger, tra
   const { userId, tier } = req.body
 
   try {
-    logger.info('Updating user tier', { userId, tier, traceId })
 
     // Get current tier
     const currentTier = (await state.get(userId, 'user.tier')) || 'bronze'
@@ -44,7 +43,6 @@ export const handler: Handlers['TierUpdater'] = async (req, { state, logger, tra
     })
     await state.set(userId, 'user.tier.history', tierHistory)
 
-    logger.info('User tier updated', { userId, oldTier: currentTier, newTier: tier })
 
     return {
       status: 200,
@@ -56,7 +54,6 @@ export const handler: Handlers['TierUpdater'] = async (req, { state, logger, tra
       },
     }
   } catch (error: unknown) {
-    logger.error('Tier update failed', { error: error instanceof Error ? error.message : String(error), userId, tier })
     return {
       status: 400,
       body: { error: 'Tier update failed' },

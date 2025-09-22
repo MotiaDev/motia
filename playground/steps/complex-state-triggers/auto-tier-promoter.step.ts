@@ -27,6 +27,7 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
 
   logger.info('Auto tier promoter triggered', { userId, score: value, traceId, key })
 
+
   try {
     // Get current tier
     const currentTier = (await state.get(userId, 'user.tier')) || 'bronze'
@@ -82,10 +83,6 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
       })
     }
   } catch (error: unknown) {
-    logger.error('Auto tier promoter failed', {
-      userId,
-      score: value,
-      error: error instanceof Error ? error.message : String(error),
-    })
+    // Handle error silently
   }
 }

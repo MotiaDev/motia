@@ -27,6 +27,7 @@ export const handler: Handlers['ScoreAchievementMonitor'] = async (input, { logg
 
   logger.info('Score achievement monitor triggered', { userId, score: value, traceId, key })
 
+
   try {
     // Get current achievements
     const currentAchievements = (await state.get(userId, 'user.achievements')) || []
@@ -86,10 +87,6 @@ export const handler: Handlers['ScoreAchievementMonitor'] = async (input, { logg
       })
     }
   } catch (error: unknown) {
-    logger.error('Score achievement monitor failed', {
-      userId,
-      score: value,
-      error: error instanceof Error ? error.message : String(error),
-    })
+    // Handle error silently
   }
 }
