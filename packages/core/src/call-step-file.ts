@@ -134,6 +134,56 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           return motia.state.getGroup(input.groupId)
         })
 
+        // Add atomicUpdate handler if available
+        if (motia.state.atomicUpdate) {
+          processManager.handler('state.atomicUpdate', async (input: { traceId: string; key: string; operation: string; value: number; reason?: string }) => {
+            tracer.stateOperation('atomicUpdate', { traceId: input.traceId, key: input.key })
+            
+            // Use the actual atomic update on the server side
+            const result = await motia.state.atomicUpdate!(input.traceId, input.key, (current: number | null) => {
+              const currentValue = current || 0
+              let newValue: number
+              
+              switch (input.operation) {
+                case 'add':
+                  newValue = currentValue + input.value
+                  break
+                case 'subtract':
+                  newValue = Math.max(0, currentValue - input.value)
+                  break
+                case 'multiply':
+                  newValue = currentValue * input.value
+                  break
+                case 'set':
+                  newValue = input.value
+                  break
+                default:
+                  throw new Error(`Invalid operation: ${input.operation}`)
+              }
+              
+              return newValue
+            })
+            
+            // Also update the score history atomically
+            if (input.key === 'user.score') {
+              await motia.state.atomicUpdate!(input.traceId, 'user.score.history', (currentHistory: any[] | null) => {
+                const scoreHistory = currentHistory || []
+                scoreHistory.push({
+                  operation: input.operation,
+                  value: input.value,
+                  oldScore: (result as number) - input.value, // Approximate old score
+                  newScore: result,
+                  reason: input.reason,
+                  timestamp: new Date().toISOString(),
+                })
+                return scoreHistory
+              })
+            }
+            
+            return result
+          })
+        }
+
         processManager.handler<TData, void>('result', async (input) => {
           result = input
         })

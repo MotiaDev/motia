@@ -3,6 +3,8 @@ import { filterItem, inferType } from './utils'
 
 export class MemoryStateAdapter implements StateAdapter {
   private state: Record<string, unknown> = {}
+  private lockQueues: Map<string, Array<() => void>> = new Map()
+  private lockedKeys: Set<string> = new Set()
 
   constructor() {
     this.state = {}
@@ -26,6 +28,53 @@ export class MemoryStateAdapter implements StateAdapter {
     this.state[fullKey] = value
 
     return value
+  }
+
+  async atomicUpdate<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
+    const fullKey = this._makeKey(traceId, key)
+    
+    // Wait for lock to be available
+    await this._acquireLock(fullKey)
+    
+    try {
+      const currentValue = this.state[fullKey] as T | null
+      const newValue = updateFn(currentValue)
+      this.state[fullKey] = newValue
+      return newValue
+    } finally {
+      // Release the lock
+      this._releaseLock(fullKey)
+    }
+  }
+
+  private async _acquireLock(key: string): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (!this.lockedKeys.has(key)) {
+        // No lock exists, acquire it immediately
+        this.lockedKeys.add(key)
+        resolve()
+        return
+      }
+      
+      // Lock exists, add to queue
+      if (!this.lockQueues.has(key)) {
+        this.lockQueues.set(key, [])
+      }
+      this.lockQueues.get(key)!.push(resolve)
+    })
+  }
+
+  private _releaseLock(key: string): void {
+    this.lockedKeys.delete(key)
+    
+    const queue = this.lockQueues.get(key)
+    if (queue && queue.length > 0) {
+      const nextResolver = queue.shift()!
+      this.lockedKeys.add(key)
+      nextResolver()
+    } else {
+      this.lockQueues.delete(key)
+    }
   }
 
   async delete<T>(traceId: string, key: string): Promise<T | null> {

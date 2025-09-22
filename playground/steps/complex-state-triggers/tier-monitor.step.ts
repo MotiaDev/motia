@@ -65,7 +65,7 @@ export const handler: Handlers['TierMonitor'] = async (input, { logger, state })
 
       await state.set(userId, 'user.notifications', notifications)
 
-      logger.info('Tier benefits updated', {
+      logger.info('Tier Upgraded', {
         userId,
         tier: value,
         multiplier: benefits.multiplier,

@@ -54,6 +54,29 @@ export class StateWrapper implements InternalStateManager {
     // Individual delete operations will trigger their own callbacks
   }
 
+  async atomicUpdate<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
+    if (this.stateManager.atomicUpdate) {
+      const result = await this.stateManager.atomicUpdate(traceId, key, updateFn)
+      
+      // Notify state change callback if set
+      if (this.stateChangeCallback) {
+        try {
+          await this.stateChangeCallback(traceId, key, result)
+        } catch (error) {
+          // Log error but don't fail the state operation
+          console.error('[StateWrapper] State change callback failed:', error)
+        }
+      }
+      
+      return result
+    } else {
+      // Fallback to regular set operation if atomicUpdate is not available
+      const currentValue = await this.get<T>(traceId, key)
+      const newValue = updateFn(currentValue)
+      return await this.set(traceId, key, newValue)
+    }
+  }
+
   async getGroup<T>(groupId: string): Promise<T[]> {
     return this.stateManager.getGroup<T>(groupId)
   }

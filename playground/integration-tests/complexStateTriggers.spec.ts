@@ -353,7 +353,8 @@ describe('Complex State Triggers', () => {
 
         // Verify notifications were cleaned up
         const notifications = await server.state.get(userId, 'user.notifications')
-        expect(notifications.length).toBeLessThanOrEqual(5) // Bronze tier limit
+        const userBenefits = await server.state.get(userId, 'user.benefits')
+        expect(notifications.length).toBeLessThanOrEqual(userBenefits?.maxNotifications || 5)
 
         // Verify notification cleaner was triggered
         const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))

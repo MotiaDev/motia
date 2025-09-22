@@ -41,4 +41,6 @@ export interface StateAdapter extends InternalStateManager {
   traceIds(): Promise<string[]>
 
   items(input: StateItemsInput): Promise<StateItem[]>
+  
+  atomicUpdate?<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T>
 }

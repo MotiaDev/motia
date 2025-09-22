@@ -10,6 +10,7 @@ export type InternalStateManager = {
   delete<T>(groupId: string, key: string): Promise<T | null>
   getGroup<T>(groupId: string): Promise<T[]>
   clear(groupId: string): Promise<void>
+  atomicUpdate?<T>(groupId: string, key: string, updateFn: (current: T | null) => T): Promise<T>
 }
 
 export type EmitData = { topic: ''; data: unknown }

@@ -157,6 +157,7 @@ describe('State Triggers Functionality', () => {
       key: 'user.status',
       value: 'active',
       traceId: 'test-trace',
+      depth: 0,
     })
 
     // Restore the original function

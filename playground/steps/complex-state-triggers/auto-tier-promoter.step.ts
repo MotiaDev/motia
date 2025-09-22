@@ -31,21 +31,11 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
     // Get current tier
     const currentTier = (await state.get(userId, 'user.tier')) || 'bronze'
 
-    // Define tier promotion thresholds
-    const tierThresholds = {
-      bronze: 100, // bronze -> silver
-      silver: 500, // silver -> gold
-      gold: 1000, // gold -> platinum
-      platinum: 5000, // platinum stays platinum
-    }
-
     // Determine what tier the user should be at based on score
     let targetTier = 'bronze'
-    if (value >= tierThresholds.platinum) {
-      targetTier = 'platinum'
-    } else if (value >= tierThresholds.gold) {
+    if (value >= 500) {
       targetTier = 'gold'
-    } else if (value >= tierThresholds.silver) {
+    } else if (value >= 100) {
       targetTier = 'silver'
     }
 
