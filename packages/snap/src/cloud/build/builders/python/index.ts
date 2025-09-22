@@ -8,7 +8,7 @@ import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
 import { extractPythonData } from './python-data/extract-python-data'
-import { readRequirements, Requirements } from './python-data/read-requirements'
+import { readRequirements } from './python-data/read-requirements'
 import { resolveDepNames } from './python-data/resolve-dep-names'
 import { UvPackager } from './uv-packager'
 

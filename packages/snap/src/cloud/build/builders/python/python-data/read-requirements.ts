@@ -8,9 +8,6 @@ import fs from 'fs'
  */
 export type Requirements = Record<string, string>
 
-type PackageInfo = { name: string; importName: string }
-type PackageDescriber = (packageName: string) => PackageInfo
-
 /**
  * Read the requirements.txt file and return a set of dependencies
  * @param filePath
