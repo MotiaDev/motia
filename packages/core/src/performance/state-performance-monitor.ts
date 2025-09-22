@@ -3,6 +3,8 @@
  * Tracks operation times, lock contention, and provides performance metrics
  */
 
+import { performance } from 'node:perf_hooks'
+
 export interface PerformanceMetrics {
   operationCounts: Record<string, number>
   operationTimes: Record<string, number[]>

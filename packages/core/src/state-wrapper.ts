@@ -1,6 +1,9 @@
 import { InternalStateManager, StateOperation, BatchOperation, TransactionResult, BatchResult } from './types'
 
-export type StateChangeCallback = (traceId: string, key: string, value: any) => Promise<void>
+export type StateChangeCallback = (traceId: string, key: string, value: any, depth?: number) => Promise<void>
+
+// Helper to identify mutating operations that should trigger state change callbacks
+const MUTATING_OPS = new Set(['set', 'update', 'delete', 'increment', 'decrement', 'compareAndSwap', 'push', 'pop', 'shift', 'unshift', 'setField', 'deleteField'])
 
 export class StateWrapper implements InternalStateManager {
   private stateChangeCallback?: StateChangeCallback
@@ -11,6 +14,15 @@ export class StateWrapper implements InternalStateManager {
     this.stateChangeCallback = callback
   }
 
+  private async notify(traceId: string, key: string, value: any, depth = 0) {
+    if (!this.stateChangeCallback) return
+    try {
+      await this.stateChangeCallback(traceId, key, value, depth + 1)
+    } catch (error) {
+      console.error('[StateWrapper] State change callback failed:', error)
+    }
+  }
+
   async get<T>(traceId: string, key: string): Promise<T | null> {
     return this.stateManager.get<T>(traceId, key)
   }
@@ -19,14 +31,7 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.set<T>(traceId, key, value)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, value)
-      } catch (error) {
-        // Log error but don't fail the state operation
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, value)
     
     return result
   }
@@ -35,14 +40,7 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.update<T>(traceId, key, updateFn)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, result)
-      } catch (error) {
-        // Log error but don't fail the state operation
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, result)
     
     return result
   }
@@ -51,14 +49,7 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.delete<T>(traceId, key)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, null) // null indicates deletion
-      } catch (error) {
-        // Log error but don't fail the state operation
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, null) // null indicates deletion
     
     return result
   }
@@ -81,13 +72,7 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.increment(traceId, key, delta)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, result)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, result)
     
     return result
   }
@@ -96,13 +81,7 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.decrement(traceId, key, delta)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, result)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, result)
     
     return result
   }
@@ -111,12 +90,8 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.compareAndSwap<T>(traceId, key, expected, newValue)
     
     // Only notify callback if the swap was successful
-    if (result && this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, newValue)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
+    if (result) {
+      await this.notify(traceId, key, newValue)
     }
     
     return result
@@ -128,13 +103,7 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.push<T>(traceId, key, ...items)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, result)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, result)
     
     return result
   }
@@ -144,13 +113,9 @@ export class StateWrapper implements InternalStateManager {
     
     // Notify state change callback if set
     if (this.stateChangeCallback) {
-      try {
-        // Get the current state after pop to notify callback
-        const currentState = await this.stateManager.get<T[]>(traceId, key)
-        await this.stateChangeCallback(traceId, key, currentState)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
+      // Get the current state after pop to notify callback
+      const currentState = await this.stateManager.get<T[]>(traceId, key)
+      await this.notify(traceId, key, currentState)
     }
     
     return result
@@ -161,13 +126,9 @@ export class StateWrapper implements InternalStateManager {
     
     // Notify state change callback if set
     if (this.stateChangeCallback) {
-      try {
-        // Get the current state after shift to notify callback
-        const currentState = await this.stateManager.get<T[]>(traceId, key)
-        await this.stateChangeCallback(traceId, key, currentState)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
+      // Get the current state after shift to notify callback
+      const currentState = await this.stateManager.get<T[]>(traceId, key)
+      await this.notify(traceId, key, currentState)
     }
     
     return result
@@ -177,13 +138,7 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.unshift<T>(traceId, key, ...items)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, result)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, result)
     
     return result
   }
@@ -194,13 +149,7 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.setField<T>(traceId, key, field, value)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, result)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, result)
     
     return result
   }
@@ -209,32 +158,29 @@ export class StateWrapper implements InternalStateManager {
     const result = await this.stateManager.deleteField<T>(traceId, key, field)
     
     // Notify state change callback if set
-    if (this.stateChangeCallback) {
-      try {
-        await this.stateChangeCallback(traceId, key, result)
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
-      }
-    }
+    await this.notify(traceId, key, result)
     
     return result
   }
 
   // === TRANSACTION SUPPORT ===
 
-  async transaction<T>(traceId: string, operations: StateOperation[]): Promise<TransactionResult<T>> {
+  async transaction<T>(traceId: string, operations: StateOperation[], depth = 0): Promise<TransactionResult<T>> {
     const result = await this.stateManager.transaction<T>(traceId, operations)
     
-    // Notify state change callbacks for all operations if transaction was successful
+    // Notify state change callbacks for mutating operations only if transaction was successful
     if (result.success && this.stateChangeCallback) {
-      try {
-        for (const operation of operations) {
+      for (const operation of operations) {
+        // Only notify for mutating operations, skip 'get' operations
+        if (!MUTATING_OPS.has(operation.type)) continue
+        
+        try {
           // Get the current value after transaction
           const currentValue = await this.stateManager.get(traceId, operation.key)
-          await this.stateChangeCallback(traceId, operation.key, currentValue)
+          await this.notify(traceId, operation.key, currentValue, depth)
+        } catch (error) {
+          console.error('[StateWrapper] State change callback failed:', error)
         }
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
       }
     }
     
@@ -243,25 +189,25 @@ export class StateWrapper implements InternalStateManager {
 
   // === BATCH OPERATIONS ===
 
-  async batch<T>(traceId: string, operations: BatchOperation[]): Promise<BatchResult<T>> {
+  async batch<T>(traceId: string, operations: BatchOperation[], depth = 0): Promise<BatchResult<T>> {
     const result = await this.stateManager.batch<T>(traceId, operations)
     
-    // Notify state change callbacks for successful operations
+    // Notify state change callbacks for successful mutating operations
     if (this.stateChangeCallback) {
-      try {
-        for (const operationResult of result.results) {
-          if (!operationResult.error && operationResult.id) {
-            // Find the operation by id to get the key
-            const operation = operations.find(op => op.id === operationResult.id)
-            if (operation) {
+      for (const operationResult of result.results) {
+        if (!operationResult.error && operationResult.id) {
+          // Find the operation by id to get the key
+          const operation = operations.find(op => op.id === operationResult.id)
+          if (operation && MUTATING_OPS.has(operation.type)) {
+            try {
               // Get the current value after batch operation
               const currentValue = await this.stateManager.get(traceId, operation.key)
-              await this.stateChangeCallback(traceId, operation.key, currentValue)
+              await this.notify(traceId, operation.key, currentValue, depth)
+            } catch (error) {
+              console.error('[StateWrapper] State change callback failed:', error)
             }
           }
         }
-      } catch (error) {
-        console.error('[StateWrapper] State change callback failed:', error)
       }
     }
     

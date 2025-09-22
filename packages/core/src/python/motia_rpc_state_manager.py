@@ -45,13 +45,14 @@ class RpcStateManager:
         return await self.rpc.send('state.clear', {'traceId': trace_id})
 
     async def update(self, trace_id: str, key: str, update_fn) -> asyncio.Future[Any]:
-        # For RPC, we need to pass the function as a string, but this loses closures
-        # We'll pass the function string and let the server handle it
-        return await self.rpc.send('state.update', {
-            'traceId': trace_id,
-            'key': key,
-            'updateFn': str(update_fn)
-        })
+        # SECURITY NOTE: state.update over RPC is disabled for security reasons
+        # Python function stringification doesn't work with JavaScript Function reconstruction
+        # Use atomic operations instead: increment, decrement, compare_and_swap, etc.
+        raise NotImplementedError(
+            "state.update over RPC is not supported in Python for security reasons. "
+            "Use atomic operations instead: increment, decrement, compare_and_swap, "
+            "push, pop, set_field, delete_field, or transactions."
+        )
 
     # === NEW ATOMIC PRIMITIVES ===
 

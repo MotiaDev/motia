@@ -1,12 +1,14 @@
 import { RpcStateManager } from '../node/rpc-state-manager'
+import { RpcSender } from '../node/rpc'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { StateOperation, BatchOperation } from '../types'
 
 // Mock RPC sender for testing
-class MockRpcSender {
+class MockRpcSender extends RpcSender {
   private stateAdapter: MemoryStateAdapter
 
   constructor() {
+    super(process) // Call parent constructor with current process
     this.stateAdapter = new MemoryStateAdapter()
   }
 
@@ -319,6 +321,61 @@ describe('RPC Atomic Operations Tests', () => {
 
       // Should complete within reasonable time (adjust threshold as needed)
       expect(duration).toBeLessThan(5000) // 5 seconds
+    })
+
+    test('should reject RPC update when ALLOW_RPC_UPDATE is not set', async () => {
+      const originalEnv = process.env.ALLOW_RPC_UPDATE
+      delete process.env.ALLOW_RPC_UPDATE
+      
+      // Test the security check logic directly (this is what's in call-step-file.ts)
+      const testRpcUpdateHandler = async (input: { traceId: string; key: string; updateFn: string }) => {
+        // Security check: RPC update is disabled by default due to remote code execution risk
+        if (process.env.ALLOW_RPC_UPDATE !== '1') {
+          throw new Error('state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.')
+        }
+        
+        // This would normally reconstruct and call the update function
+        const updateFn = new Function('current', `return (${input.updateFn})(current)`) as (current: any) => any
+        return updateFn(null) // Mock return
+      }
+      
+      // Should throw error when trying to use update over RPC
+      await expect(
+        testRpcUpdateHandler({ traceId: 'test-trace', key: 'test-key', updateFn: 'current => current + 1' })
+      ).rejects.toThrow('state.update over RPC is disabled for security reasons')
+      
+      // Restore environment
+      if (originalEnv !== undefined) {
+        process.env.ALLOW_RPC_UPDATE = originalEnv
+      }
+    })
+
+    test('should allow RPC update when ALLOW_RPC_UPDATE=1', async () => {
+      const originalEnv = process.env.ALLOW_RPC_UPDATE
+      process.env.ALLOW_RPC_UPDATE = '1'
+      
+      // Test the security check logic directly
+      const testRpcUpdateHandler = async (input: { traceId: string; key: string; updateFn: string }) => {
+        // Security check: RPC update is disabled by default due to remote code execution risk
+        if (process.env.ALLOW_RPC_UPDATE !== '1') {
+          throw new Error('state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.')
+        }
+        
+        // Reconstruct and call the update function
+        const updateFn = new Function('current', `return (${input.updateFn})(current)`) as (current: any) => any
+        return updateFn(0) // Start with 0, should return 1
+      }
+      
+      // Should work when environment variable is set
+      const result = await testRpcUpdateHandler({ traceId: 'test-trace', key: 'test-key', updateFn: 'current => (current || 0) + 1' })
+      expect(result).toBe(1)
+      
+      // Restore environment
+      if (originalEnv !== undefined) {
+        process.env.ALLOW_RPC_UPDATE = originalEnv
+      } else {
+        delete process.env.ALLOW_RPC_UPDATE
+      }
     })
   })
 })

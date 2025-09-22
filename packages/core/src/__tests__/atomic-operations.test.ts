@@ -284,9 +284,9 @@ describe('Atomic Operations Tests', () => {
       await memoryWrapper.setField(testTraceId, 'callback-obj', 'field', 'value')
 
       expect(callback).toHaveBeenCalledTimes(3)
-      expect(callback).toHaveBeenCalledWith(testTraceId, 'callback-test', 1)
-      expect(callback).toHaveBeenCalledWith(testTraceId, 'callback-array', ['item'])
-      expect(callback).toHaveBeenCalledWith(testTraceId, 'callback-obj', { field: 'value' })
+      expect(callback).toHaveBeenCalledWith(testTraceId, 'callback-test', 1, 1)
+      expect(callback).toHaveBeenCalledWith(testTraceId, 'callback-array', ['item'], 1)
+      expect(callback).toHaveBeenCalledWith(testTraceId, 'callback-obj', { field: 'value' }, 1)
     })
 
     test('should handle callback errors gracefully', async () => {
@@ -299,6 +299,106 @@ describe('Atomic Operations Tests', () => {
       const result = await memoryWrapper.increment(testTraceId, 'error-test')
       expect(result).toBe(1)
       expect(callback).toHaveBeenCalled()
+    })
+
+    test('should only fire callbacks for mutating operations in transactions', async () => {
+      const callback = jest.fn()
+      const testTraceId = 'transaction-filter-test'
+      const memoryWrapper = new StateWrapper(new MemoryStateAdapter())
+      memoryWrapper.setStateChangeCallback(callback)
+
+      const operations: StateOperation[] = [
+        { type: 'get', key: 'read-only' },
+        { type: 'set', key: 'mutating', value: 'test' },
+        { type: 'get', key: 'another-read' },
+        { type: 'increment', key: 'counter' },
+      ]
+
+      const result = await memoryWrapper.transaction(testTraceId, operations)
+      
+      expect(result.success).toBe(true)
+      
+      // Should only call callback for mutating operations (set, increment)
+      // Not for get operations
+      expect(callback).toHaveBeenCalledTimes(2)
+      
+      // Verify the calls were for the mutating operations
+      const callArgs = callback.mock.calls
+      expect(callArgs[0][1]).toBe('mutating') // set operation
+      expect(callArgs[1][1]).toBe('counter')  // increment operation
+      // Verify depth parameter is passed (incremented in notify method)
+      expect(callArgs[0][3]).toBe(1) // depth for transaction/batch
+      expect(callArgs[1][3]).toBe(1) // depth for transaction/batch
+    })
+
+    test('should only fire callbacks for mutating operations in batches', async () => {
+      const callback = jest.fn()
+      const testTraceId = 'batch-filter-test'
+      const memoryWrapper = new StateWrapper(new MemoryStateAdapter())
+      memoryWrapper.setStateChangeCallback(callback)
+
+      const operations: BatchOperation[] = [
+        { type: 'get', key: 'read-only', id: '1' },
+        { type: 'set', key: 'mutating', value: 'test', id: '2' },
+        { type: 'get', key: 'another-read', id: '3' },
+        { type: 'increment', key: 'counter', id: '4' },
+      ]
+
+      const result = await memoryWrapper.batch(testTraceId, operations)
+      
+      expect(result.results).toBeDefined()
+      
+      // Should only call callback for mutating operations (set, increment)
+      // Not for get operations
+      expect(callback).toHaveBeenCalledTimes(2)
+      
+      // Verify the calls were for the mutating operations
+      const callArgs = callback.mock.calls
+      expect(callArgs[0][1]).toBe('mutating') // set operation
+      expect(callArgs[1][1]).toBe('counter')  // increment operation
+      // Verify depth parameter is passed (incremented in notify method)
+      expect(callArgs[0][3]).toBe(1) // depth for transaction/batch
+      expect(callArgs[1][3]).toBe(1) // depth for transaction/batch
+    })
+
+    test('should handle object equality in compareAndSwap using JSON comparison', async () => {
+      const testTraceId = 'cas-object-test'
+      
+      // Set initial object
+      const initialObj = { name: 'test', value: 42 }
+      await memoryAdapter.set(testTraceId, 'object', initialObj)
+      
+      // Create a new object with same content (different reference)
+      const sameContentObj = { name: 'test', value: 42 }
+      const newObj = { name: 'updated', value: 100 }
+      
+      // Should succeed because content is the same (JSON comparison)
+      const result = await memoryAdapter.compareAndSwap(testTraceId, 'object', sameContentObj, newObj)
+      expect(result).toBe(true)
+      
+      // Verify the object was updated
+      const updated = await memoryAdapter.get(testTraceId, 'object')
+      expect(updated).toEqual(newObj)
+    })
+
+    test('should fail compareAndSwap when object content differs', async () => {
+      const testTraceId = 'cas-object-fail-test'
+      
+      // Set initial object
+      const initialObj = { name: 'test', value: 42 }
+      await memoryAdapter.set(testTraceId, 'object', initialObj)
+      
+      // Try to swap with different content
+      const differentObj = { name: 'different', value: 99 }
+      const newObj = { name: 'updated', value: 100 }
+      
+      // Should fail because content is different
+      const result = await memoryAdapter.compareAndSwap(testTraceId, 'object', differentObj, newObj)
+      expect(result).toBe(false)
+      
+      // Verify the object was not updated
+      const unchanged = await memoryAdapter.get(testTraceId, 'object')
+      expect(unchanged).toEqual(initialObj)
     })
   })
 })

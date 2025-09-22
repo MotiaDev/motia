@@ -40,13 +40,14 @@ class RpcStateManager
   end
 
   def update(trace_id, key, update_fn)
-    # For RPC, we need to pass the function as a string, but this loses closures
-    # We'll pass the function string and let the server handle it
-    @sender.send('state.update', { 
-      traceId: trace_id, 
-      key: key, 
-      updateFn: update_fn.to_s 
-    })
+    # SECURITY NOTE: state.update over RPC is disabled for security reasons
+    # Ruby function stringification doesn't work with JavaScript Function reconstruction
+    # Use atomic operations instead: increment, decrement, compare_and_swap, etc.
+    raise NotImplementedError.new(
+      "state.update over RPC is not supported in Ruby for security reasons. " +
+      "Use atomic operations instead: increment, decrement, compare_and_swap, " +
+      "push, pop, set_field, delete_field, or transactions."
+    )
   end
 
   # === NEW ATOMIC PRIMITIVES ===

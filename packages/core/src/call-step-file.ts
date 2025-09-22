@@ -138,6 +138,11 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         processManager.handler('state.update', async (input: { traceId: string; key: string; updateFn: string }) => {
           tracer.stateOperation('update', { traceId: input.traceId, key: input.key })
           
+          // Security check: RPC update is disabled by default due to remote code execution risk
+          if (process.env.ALLOW_RPC_UPDATE !== '1') {
+            throw new Error('state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.')
+          }
+          
           // Reconstruct the update function from the serialized string
           const updateFn = new Function('current', `return (${input.updateFn})(current)`) as (current: any) => any
           

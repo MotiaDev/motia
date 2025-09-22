@@ -165,7 +165,26 @@ export class MemoryStateAdapter implements StateAdapter {
     
     try {
       const current = this.state[fullKey] as T | null
+      
+      // Use JSON comparison for objects to handle deep equality
+      let isEqual: boolean
       if (current === expected) {
+        isEqual = true
+      } else if (current === null || expected === null) {
+        isEqual = false
+      } else if (typeof current === 'object' && typeof expected === 'object') {
+        // For objects, compare serialized JSON to handle deep equality
+        try {
+          isEqual = JSON.stringify(current) === JSON.stringify(expected)
+        } catch {
+          // If JSON serialization fails, fall back to strict equality
+          isEqual = false
+        }
+      } else {
+        isEqual = false
+      }
+      
+      if (isEqual) {
         this.state[fullKey] = newValue
         return true
       }

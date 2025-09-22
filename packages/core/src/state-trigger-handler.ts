@@ -245,7 +245,8 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
       const logger = motia.loggerFactory.create({ traceId: data.traceId, stepName: name })
       const tracer = await motia.tracerFactory.createTracer(data.traceId, step, logger)
 
-      await callStepFile({ step, data, traceId: data.traceId, tracer, logger }, motia)
+      // Pass the depth through to the step execution so it can be used in subsequent state operations
+      await callStepFile({ step, data: { ...data, depth: data.depth }, traceId: data.traceId, tracer, logger }, motia)
     } catch (error: any) {
       const message = typeof error === 'string' ? error : error.message
       globalLogger.error('[state handler] step execution failed', { step: name, error: message })

@@ -20,7 +20,7 @@ The `state` object, accessible within your step handlers via the `ctx` context, 
 | --------- | -------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `get`     | `scope: string, key: string`           | `Promise<T \| null>` | Retrieves a value associated with the given `key` and `scope` from the state store. Returns `null` if the key is not found. The type `T` is inferred based on how you use the returned value. |
 | `set`     | `scope: string, key: string, value: T` | `Promise<T>`         | Stores a `value` associated with the given `key` and `scope` in the state store. The type `T` can be any serializable JavaScript/JSON value. Returns the stored value.                        |
-| `update`  | `scope: string, key: string, updateFn: (current: T \| null) => T` | `Promise<T>` | Atomically updates a value using a function. The function receives the current value (or null) and returns the new value. |
+| `update`  | `scope: string, key: string, updateFn: (current: T \| null) => T` | `Promise<T>` | Atomically updates a value using a function. The function receives the current value (or null) and returns the new value. **Note:** Over RPC, this is disabled by default for security reasons. Use atomic operations instead. |
 | `delete`  | `scope: string, key: string`           | `Promise<T \| null>` | Removes the key-value pair associated with the given `key` and `scope` from the state store. Returns the deleted value.                                                                       |
 | `clear`   | `scope: string`                        | `Promise<void>`      | Removes **all** state data associated with the provided `scope`. This is useful for cleaning up state for a specific scope.                                                                   |
 | `exists`  | `scope: string, key: string`           | `Promise<boolean>`   | Checks if a key exists in the state store for the given scope.                                                                                                                                |
@@ -31,8 +31,8 @@ The `state` object, accessible within your step handlers via the `ctx` context, 
 | Method           | Parameters                                    | Return Type        | Description                                                                                                 |
 | ---------------- | --------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------- |
 | `increment`      | `scope: string, key: string, delta?: number` | `Promise<number>`  | Atomically increments a numeric value by the specified delta (default: 1). Creates the key with value 0 if it doesn't exist. |
-| `decrement`      | `scope: string, key: string, delta?: number` | `Promise<number>`  | Atomically decrements a numeric value by the specified delta (default: 1). Never goes below 0.             |
-| `compareAndSwap` | `scope: string, key: string, expected: T \| null, newValue: T` | `Promise<boolean>` | Atomically compares the current value with `expected` and sets it to `newValue` if they match. Returns true if the swap was successful. |
+| `decrement`      | `scope: string, key: string, delta?: number` | `Promise<number>`  | Atomically decrements a numeric value by the specified delta (default: 1). **Note:** Values are clamped to 0 (never negative). |
+| `compareAndSwap` | `scope: string, key: string, expected: T \| null, newValue: T` | `Promise<boolean>` | Atomically compares the current value with `expected` and sets it to `newValue` if they match. For objects, uses JSON comparison for deep equality. Returns true if the swap was successful. |
 
 ### Array Operations
 
@@ -54,8 +54,8 @@ The `state` object, accessible within your step handlers via the `ctx` context, 
 
 | Method        | Parameters                                    | Return Type                    | Description                                                                                                 |
 | ------------- | --------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `transaction` | `scope: string, operations: StateOperation[]` | `Promise<TransactionResult<T>>` | Executes multiple operations atomically. All operations succeed or all fail.                                |
-| `batch`       | `scope: string, operations: BatchOperation[]` | `Promise<BatchResult<T>>`      | Executes multiple operations in parallel. Individual operations can succeed or fail independently.         |
+| `transaction` | `scope: string, operations: StateOperation[]` | `Promise<TransactionResult<T>>` | Executes multiple operations atomically. All operations succeed or all fail. **Note:** Atomic per adapter (Memory/File). |
+| `batch`       | `scope: string, operations: BatchOperation[]` | `Promise<BatchResult<T>>`      | Executes multiple operations in parallel. Individual operations can succeed or fail independently. **Note:** Not transactional - operations can interleave. |
 
 **Important:** State manager methods (`get`, `set`, `delete`, `clear`) **require a `scope` string as the first parameter.** While in most cases, you will use the `traceId` (automatically provided in `ctx.traceId`) as the scope to ensure flow-level isolation, **you can technically use any string value as the scope** to group and manage state data as needed. Using `traceId` is the recommended and most common practice for flow-isolated state.
 
@@ -888,6 +888,28 @@ state:
 
 > **Info: Redis Adapter**
 > Recommended for production environments. Requires a running Redis server. The `ttl` (Time-To-Live) option is available to automatically expire state data after a specified number of seconds, helping to manage Redis storage.
+
+### Security Considerations
+
+#### RPC Update Function Security
+
+The `state.update()` method over RPC (Remote Procedure Call) is **disabled by default** for security reasons:
+
+- **Node.js**: Requires `ALLOW_RPC_UPDATE=1` environment variable to enable
+- **Python/Ruby**: Not supported - throws `NotImplementedError`
+- **Recommendation**: Use atomic operations (`increment`, `decrement`, `compareAndSwap`, etc.) instead
+
+#### Multi-Language Support
+
+- **TypeScript/JavaScript**: Full support for all operations including `update`
+- **Python**: All operations supported except `update` (use atomic operations)
+- **Ruby**: All operations supported except `update` (use atomic operations)
+
+#### State Isolation
+
+- Each flow execution uses a unique `traceId` as the scope
+- State is automatically isolated between different flow executions
+- Use consistent `traceId` values to ensure proper isolation
 
 ### Common Issues
 
