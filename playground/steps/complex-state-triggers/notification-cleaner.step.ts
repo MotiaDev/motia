@@ -16,8 +16,8 @@ export const config: StepConfig = {
 export const handler: Handlers['NotificationCleaner'] = async (input, { logger, state }) => {
   const { key, value, traceId } = input
   
-  // Extract userId from the state key (format: userId.user.notifications)
-  const userId = key.split('.')[0]
+  // Extract userId from the traceId (format: user_123_abc)
+  const userId = traceId
   
   logger.info('Notification cleaner triggered', { userId, notificationCount: value.length, traceId, key })
   

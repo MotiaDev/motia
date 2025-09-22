@@ -16,8 +16,8 @@ export const config: StepConfig = {
 export const handler: Handlers['TierMonitor'] = async (input, { logger, state }) => {
   const { key, value, traceId } = input
   
-  // Extract userId from the state key (format: userId.user.tier)
-  const userId = key.split('.')[0]
+  // Extract userId from the traceId (format: user_123_abc)
+  const userId = traceId
   
   logger.info('Tier monitor triggered', { userId, tier: value, traceId, key })
   

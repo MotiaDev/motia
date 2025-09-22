@@ -55,7 +55,6 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
     }
     
     // Update the score - this will trigger score-related state monitors
-    console.log('DEBUG: Setting state', { userId, key: 'user.score', value: newScore })
     await state.set(userId, 'user.score', newScore)
     
     // Also update score history for tracking

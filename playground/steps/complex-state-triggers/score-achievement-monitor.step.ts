@@ -16,8 +16,8 @@ export const config: StepConfig = {
 export const handler: Handlers['ScoreAchievementMonitor'] = async (input, { logger, state }) => {
   const { key, value, traceId } = input
   
-  // Extract userId from the state key (format: userId.user.score)
-  const userId = key.split('.')[0]
+  // Extract userId from the traceId (format: user_123_abc)
+  const userId = traceId
   
   logger.info('Score achievement monitor triggered', { userId, score: value, traceId, key })
   

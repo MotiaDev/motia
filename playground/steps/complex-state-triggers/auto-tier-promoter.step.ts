@@ -16,12 +16,9 @@ export const config: StepConfig = {
 export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, state }) => {
   const { key, value, traceId } = input
   
-  // Extract userId from the state key (format: userId.user.score)
-  const userId = key.split('.')[0]
+  // Extract userId from the traceId (format: user_123_abc)
+  const userId = traceId
   
-  // Debug logging
-  console.log('DEBUG: AutoTierPromoter triggered!', { userId, score: value, traceId, key })
-  console.log('DEBUG: State key parts:', key.split('.'))
   
   logger.info('Auto tier promoter triggered', { userId, score: value, traceId, key })
   
@@ -52,14 +49,6 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
     const currentTierLevel = tierOrder[currentTier as keyof typeof tierOrder]
     const targetTierLevel = tierOrder[targetTier as keyof typeof tierOrder]
     
-    console.log('DEBUG: Tier promotion check', { 
-      userId, 
-      currentTier, 
-      targetTier, 
-      currentTierLevel, 
-      targetTierLevel, 
-      score: value 
-    })
     
     if (targetTierLevel > currentTierLevel) {
       logger.info('Auto-promoting user tier', { 
