@@ -20,8 +20,9 @@ export const config: StepConfig = {
       status: z.string(),
     }),
   },
-  emits: ['user.status.changed'],
+  emits: [],
   flows: ['user-management'],
+  virtualEmits: [{ topic: 'user.status', label: 'User status state changed' }], // Shows it's changing user.status state
 }
 
 export const handler: Handlers['SetUserStatus'] = async (req, { emit, state, logger, traceId }) => {
@@ -32,17 +33,7 @@ export const handler: Handlers['SetUserStatus'] = async (req, { emit, state, log
   // Set the state - this will trigger any state triggers watching 'user.status'
   await state.set(userId, 'user.status', status)
   
-  // Also emit an event for other event-based steps
-  await emit({
-    topic: 'user.status.changed',
-    data: {
-      userId,
-      status,
-      changedAt: new Date().toISOString(),
-    },
-  })
-  
-  logger.info('User status updated and events emitted', { userId, status })
+  logger.info('User status updated', { userId, status })
   
   return {
     status: 200,

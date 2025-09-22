@@ -15,7 +15,7 @@ declare module 'motia' {
   interface Handlers {
     'TestStateCheck': EventHandler<{ key: string; expected?: unknown }, never>
     'TestStateApiTrigger': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'test-state-python'; data: unknown }>
-    'UpdateScore': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; newScore: number }>, never>
+    'UpdateUserScore': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; newScore: number }>, never>
     'SetUserStatus': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; status: string }>, never>
     'stepA': EventHandler<{}, { topic: 'pms.stepA.done'; data: { msg: string; timestamp: number } }>
     'Parallel Merge': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'pms.start'; data: {} }>

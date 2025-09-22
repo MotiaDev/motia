@@ -2,7 +2,7 @@ import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 export const config: StepConfig = {
-  name: 'UpdateScore',
+  name: 'UpdateUserScore',
   description: 'API endpoint to update user score, which will trigger score monitors',
   triggers: [{
     type: 'api',
@@ -20,10 +20,12 @@ export const config: StepConfig = {
       newScore: z.number(),
     }),
   },
+  emits: [],
   flows: ['user-management'],
+  virtualEmits: [{ topic: 'user.score', label: 'User score state changed' }], // Shows it's changing user.score state
 }
 
-export const handler: Handlers['UpdateScore'] = async (req, { emit, state, logger, traceId }) => {
+export const handler: Handlers['UpdateUserScore'] = async (req, { emit, state, logger, traceId }) => {
   const { userId, scoreChange } = req.body
   
   logger.info('Updating user score', { userId, scoreChange, traceId })

@@ -173,5 +173,39 @@
         "targetHandlePosition": "left"
       }
     }
+  },
+  {
+    "id": "user-achievements",
+    "config": {
+      "steps/state-trigger-example/score-monitor.step.ts": {
+        "x": 0,
+        "y": 0
+      },
+      "steps/state-trigger-example/process-high-score.step.ts": {
+        "x": 0,
+        "y": 156
+      }
+    }
+  },
+  {
+    "id": "user-management",
+    "config": {
+      "steps/state-trigger-example/update-score.step.ts": {
+        "x": -854,
+        "y": 180
+      },
+      "steps/state-trigger-example/state-monitor.step.ts": {
+        "x": -141,
+        "y": -47
+      },
+      "steps/state-trigger-example/set-user-status.step.ts": {
+        "x": -856,
+        "y": -81
+      },
+      "steps/state-trigger-example/score-monitor.step.ts": {
+        "x": -141,
+        "y": 213
+      }
+    }
   }
 ]
