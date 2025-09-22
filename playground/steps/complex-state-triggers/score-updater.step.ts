@@ -23,7 +23,10 @@ export const config: StepConfig = {
   },
   emits: [],
   flows: ['user-lifecycle'],
-  virtualEmits: [{ topic: 'user.score', label: 'User score state changed' }],
+  virtualEmits: [
+    { topic: 'user.score', label: 'User score updated' },
+    { topic: 'user.score.history', label: 'Score history updated' }
+  ],
 }
 
 export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, traceId }) => {

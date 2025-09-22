@@ -22,7 +22,13 @@ export const config: StepConfig = {
   },
   emits: [],
   flows: ['user-lifecycle'],
-  virtualEmits: [{ topic: 'user.registered', label: 'User registration state changed' }],
+  virtualEmits: [
+    { topic: 'user.profile', label: 'User profile created' },
+    { topic: 'user.score', label: 'Initial score set' },
+    { topic: 'user.tier', label: 'User tier set' },
+    { topic: 'user.status', label: 'User status set' },
+    { topic: 'user.notifications', label: 'Notifications initialized' }
+  ],
 }
 
 export const handler: Handlers['UserRegistration'] = async (req, { state, logger, traceId }) => {

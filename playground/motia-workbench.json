@@ -212,32 +212,37 @@
     "id": "user-lifecycle",
     "config": {
       "steps/complex-state-triggers/user-registration.step.ts": {
-        "x": -176,
-        "y": -6
+        "x": -320,
+        "y": -547,
+        "sourceHandlePosition": "bottom"
       },
       "steps/complex-state-triggers/tier-updater.step.ts": {
-        "x": -312,
-        "y": 221
+        "x": 1495,
+        "y": 500,
+        "sourceHandlePosition": "bottom"
       },
       "steps/complex-state-triggers/tier-monitor.step.ts": {
-        "x": 350,
-        "y": 258
+        "x": 1831,
+        "y": 861,
+        "targetHandlePosition": "left"
       },
       "steps/complex-state-triggers/score-updater.step.ts": {
-        "x": -457,
-        "y": 507
+        "x": 130,
+        "y": -550,
+        "sourceHandlePosition": "bottom"
       },
       "steps/complex-state-triggers/score-achievement-monitor.step.ts": {
-        "x": 350,
-        "y": 414
+        "x": 1225,
+        "y": -292
       },
       "steps/complex-state-triggers/notification-cleaner.step.ts": {
-        "x": 348,
-        "y": 882
+        "x": 2422,
+        "y": 66,
+        "targetHandlePosition": "left"
       },
       "steps/complex-state-triggers/auto-tier-promoter.step.ts": {
-        "x": 350,
-        "y": 726
+        "x": 475,
+        "y": 385
       }
     }
   }

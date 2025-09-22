@@ -11,6 +11,10 @@ export const config: StepConfig = {
   emits: [],
   flows: ['user-lifecycle'],
   virtualSubscribes: ['user.score'],
+  virtualEmits: [
+    { topic: 'user.tier', label: 'User tier updated' },
+    { topic: 'user.notifications', label: 'Promotion notification added' }
+  ],
 }
 
 export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, state }) => {

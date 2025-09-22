@@ -11,6 +11,10 @@ export const config: StepConfig = {
   emits: [],
   flows: ['user-lifecycle'],
   virtualSubscribes: ['user.tier'],
+  virtualEmits: [
+    { topic: 'user.benefits', label: 'User benefits updated' },
+    { topic: 'user.notifications', label: 'Tier upgrade notification added' }
+  ],
 }
 
 export const handler: Handlers['TierMonitor'] = async (input, { logger, state }) => {

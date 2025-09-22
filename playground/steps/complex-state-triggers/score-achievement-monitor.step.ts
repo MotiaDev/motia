@@ -11,6 +11,10 @@ export const config: StepConfig = {
   emits: [],
   flows: ['user-lifecycle'],
   virtualSubscribes: ['user.score'],
+  virtualEmits: [
+    { topic: 'user.achievements', label: 'Achievements updated' },
+    { topic: 'user.notifications', label: 'Achievement notification added' }
+  ],
 }
 
 export const handler: Handlers['ScoreAchievementMonitor'] = async (input, { logger, state }) => {
