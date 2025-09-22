@@ -14,20 +14,25 @@ declare module 'motia' {
 
   interface Handlers {
     'TestStateCheck': EventHandler<{ key: string; expected?: unknown }, never>
-    'TestStateApiTrigger': ApiRouteHandler<{}, unknown, { topic: 'test-state-python'; data: unknown }>
+    'TestStateApiTrigger': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'test-state-python'; data: unknown }>
+    'UpdateUserScore': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; newScore: number }>, never>
+    'SetUserStatus': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; status: string }>, never>
     'stepA': EventHandler<{}, { topic: 'pms.stepA.done'; data: { msg: string; timestamp: number } }>
     'Parallel Merge': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'pms.start'; data: {} }>
     'join-step': EventHandler<{ msg: string; timestamp: number }, { topic: 'pms.join.complete'; data: { stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string } }>
     'JoinComplete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
     'CallOpenAi': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
-    'OpenAiApi': ApiRouteHandler<{ message: string }, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
+    'OpenAiApi': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
+    'UserRegistration': ApiRouteHandler<Record<string, unknown>, ApiResponse<201, { message: string; userId: string; email: string; tier: string }> | ApiResponse<400, { error: string }>, never>
+    'TierUpdater': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; oldTier: string; newTier: string }> | ApiResponse<400, { error: string }>, never>
+    'ScoreUpdater': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; oldScore: number; newScore: number; operation: string }> | ApiResponse<400, { error: string }>, never>
     'StateAuditJob': CronHandler<{ topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'ProcessFoodOrder': EventHandler<{ email: string; quantity: number; petId: number }, { topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'Notification': EventHandler<{ templateId: string; email: string; templateData: Record<string, unknown> }, never>
-    'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }, ApiResponse<200, { id: number; name: string; photoUrl: string }>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: number } }>
-    'ArrayStep': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }[], ApiResponse<200, { id: number; name: string; photoUrl: string }[]>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: number } }>
+    'ApiTrigger': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { id: number; name: string; photoUrl: string }>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: number } }>
+    'ArrayStep': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { id: number; name: string; photoUrl: string }[]>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: number } }>
     'Test State With Python': EventHandler<unknown, { topic: 'test-state-check'; data: { key: string; expected?: unknown } }>
     'Tested Event': EventHandler<never, never>
     'Test Event': EventHandler<never, { topic: 'tested'; data: never }>
@@ -35,10 +40,10 @@ declare module 'motia' {
     'stepC': EventHandler<never, { topic: 'pms.stepC.done'; data: { msg: string; timestamp: number } }>
     'stepB': EventHandler<never, { topic: 'pms.stepB.done'; data: { msg: string; timestamp: number } }>
     'CallOpenAiPython': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
-    'OpenAiApiPython': ApiRouteHandler<{ message: string; threadId?: string }, ApiResponse<200, { threadId: string }>, { topic: 'openai-prompt-python'; data: { message: string; assistantMessageId: string; threadId: string } }>
+    'OpenAiApiPython': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { threadId: string }>, { topic: 'openai-prompt-python'; data: { message: string; assistantMessageId: string; threadId: string } }>
     'PythonStateAuditJob': CronHandler<{ topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
     'PythonProcessFoodOrder': EventHandler<{ id: string; email: string; quantity: unknown; pet_id: unknown }, { topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
     'PythonNotification': EventHandler<{ template_id: string; email: string; template_data: Record<string, unknown> }, never>
-    'PythonApiTrigger': ApiRouteHandler<{ pet: unknown; food_order?: unknown }, ApiResponse<200, { id: unknown; name: string; photoUrl: string }>, { topic: 'python-process-food-order'; data: { id: string; email: string; quantity: unknown; pet_id: unknown } }>
+    'PythonApiTrigger': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { id: unknown; name: string; photoUrl: string }>, { topic: 'python-process-food-order'; data: { id: string; email: string; quantity: unknown; pet_id: unknown } }>
   }
 }

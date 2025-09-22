@@ -1,10 +1,14 @@
-import { ApiResponse, ApiRouteConfig, ApiRouteHandler } from '../types'
+import { ApiResponse, StepConfig, ApiRouteHandler } from '../types'
 import { z } from 'zod'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'Event Emitter',
   description: 'System endpoint for emitting events',
+  triggers: [{
+    type: 'api',
+    path: '/emit',
+    method: 'POST',
+  }],
   path: '/emit',
   method: 'POST',
   emits: [], // Dynamic emissions

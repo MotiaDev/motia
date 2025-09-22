@@ -116,7 +116,7 @@ Each language has its own runner that communicates with the core framework.
 The package exports TypeScript types for all components:
 
 ```typescript
-import { Event, FlowContext, ApiRouteConfig, EventConfig, CronConfig } from '@motiadev/core'
+import { Event, FlowContext, StepConfig } from '@motiadev/core'
 ```
 
 ## License

@@ -173,5 +173,77 @@
         "targetHandlePosition": "left"
       }
     }
+  },
+  {
+    "id": "user-achievements",
+    "config": {
+      "steps/state-trigger-example/score-monitor.step.ts": {
+        "x": 0,
+        "y": 0
+      },
+      "steps/state-trigger-example/process-high-score.step.ts": {
+        "x": 0,
+        "y": 156
+      }
+    }
+  },
+  {
+    "id": "user-management",
+    "config": {
+      "steps/state-trigger-example/update-score.step.ts": {
+        "x": -854,
+        "y": 180
+      },
+      "steps/state-trigger-example/state-monitor.step.ts": {
+        "x": -141,
+        "y": -47
+      },
+      "steps/state-trigger-example/set-user-status.step.ts": {
+        "x": -856,
+        "y": -81
+      },
+      "steps/state-trigger-example/score-monitor.step.ts": {
+        "x": -141,
+        "y": 213
+      }
+    }
+  },
+  {
+    "id": "user-lifecycle",
+    "config": {
+      "steps/complex-state-triggers/user-registration.step.ts": {
+        "x": -320,
+        "y": -547,
+        "sourceHandlePosition": "bottom"
+      },
+      "steps/complex-state-triggers/tier-updater.step.ts": {
+        "x": 1495,
+        "y": 500,
+        "sourceHandlePosition": "bottom"
+      },
+      "steps/complex-state-triggers/tier-monitor.step.ts": {
+        "x": 1831,
+        "y": 861,
+        "targetHandlePosition": "left"
+      },
+      "steps/complex-state-triggers/score-updater.step.ts": {
+        "x": 130,
+        "y": -550,
+        "sourceHandlePosition": "bottom"
+      },
+      "steps/complex-state-triggers/score-achievement-monitor.step.ts": {
+        "x": 1225,
+        "y": -292
+      },
+      "steps/complex-state-triggers/notification-cleaner.step.ts": {
+        "x": 2422,
+        "y": 66,
+        "targetHandlePosition": "left"
+      },
+      "steps/complex-state-triggers/auto-tier-promoter.step.ts": {
+        "x": 475,
+        "y": 385
+      }
+    }
   }
 ]

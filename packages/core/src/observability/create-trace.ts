@@ -12,7 +12,7 @@ export const createTrace = (traceGroup: TraceGroup, step: Step) => {
     status: 'running',
     startTime: Date.now(),
     endTime: undefined,
-    entryPoint: { type: step.config.type, stepName: step.config.name },
+    entryPoint: { type: step.config.type || 'unknown', stepName: step.config.name },
     events: [],
   }
 

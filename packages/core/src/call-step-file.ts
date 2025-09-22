@@ -79,7 +79,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
     trackEvent('step_execution_started', {
       stepName: step.config.name,
       language: command,
-      type: step.config.type,
+      triggers: step.config.triggers.map(t => t.type),
       streams: streams.length,
     })
 

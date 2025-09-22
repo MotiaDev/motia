@@ -1,13 +1,17 @@
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'ProcessFoodOrder',
   description: 'basic-tutorial event step, demonstrates how to consume an event from a topic and persist data in state',
   flows: ['basic-tutorial'],
-  subscribes: ['process-food-order'],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'process-food-order',
+    },
+  ],
   emits: ['notification'],
   input: z.object({
     email: z.string(),

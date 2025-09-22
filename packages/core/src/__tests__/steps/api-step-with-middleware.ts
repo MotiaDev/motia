@@ -1,4 +1,4 @@
-import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteHandler, FlowContext, ApiMiddleware } from '../../types'
+import { ApiRequest, ApiResponse, StepConfig, ApiRouteHandler, FlowContext, ApiMiddleware } from '../../types'
 
 const loggerMiddleware: ApiMiddleware = async (req, ctx, next) => {
   ctx.logger.info(`[Middleware] Request with body:`, req.body)
@@ -79,9 +79,13 @@ const rateLimiterMiddleware: ApiMiddleware<unknown, unknown, unknown> = (() => {
   }
 })()
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'api-with-middleware',
+  triggers: [{
+    type: 'api',
+    path: '/test-middleware',
+    method: 'POST',
+  }],
   emits: ['TEST_EVENT'],
   path: '/test-middleware',
   method: 'POST',

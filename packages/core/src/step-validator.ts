@@ -42,58 +42,64 @@ const emits = z.array(
   ]),
 )
 
-const noopSchema = z
-  .object({
-    type: z.literal('noop'),
-    name: z.string(),
-    description: z.string().optional(),
-    virtualEmits: emits,
-    virtualSubscribes: z.array(z.string()),
-    flows: z.array(z.string()).optional(),
-  })
-  .strict()
+// Base trigger schema
+const baseTriggerSchema = z.object({
+  type: z.string(),
+  description: z.string().optional(),
+})
 
-const eventSchema = z
-  .object({
-    type: z.literal('event'),
-    name: z.string(),
-    description: z.string().optional(),
-    subscribes: z.array(z.string()),
-    emits: emits,
-    virtualEmits: emits.optional(),
-    input: z.union([jsonSchema, z.object({}), z.null()]).optional(),
-    flows: z.array(z.string()).optional(),
-    includeFiles: z.array(z.string()).optional(),
-  })
-  .strict()
+// Event trigger schema
+const eventTriggerSchema = baseTriggerSchema.extend({
+  type: z.literal('event'),
+  topic: z.string(),
+  condition: z.function().optional(),
+})
 
-const apiSchema = z
+// API trigger schema
+const apiTriggerSchema = baseTriggerSchema.extend({
+  type: z.literal('api'),
+  path: z.string(),
+  method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD']),
+})
+
+// Cron trigger schema
+const cronTriggerSchema = baseTriggerSchema.extend({
+  type: z.literal('cron'),
+  cron: z.string(),
+})
+
+// State trigger schema
+const stateTriggerSchema = baseTriggerSchema.extend({
+  type: z.literal('state'),
+  key: z.string(),
+  condition: z.union([z.function(), z.string()]).optional(),
+})
+
+// Union of all trigger types
+const triggerSchema = z.union([
+  eventTriggerSchema,
+  apiTriggerSchema,
+  cronTriggerSchema,
+  stateTriggerSchema,
+])
+
+// Unified StepConfig schema
+const stepConfigSchema = z
   .object({
-    type: z.literal('api'),
     name: z.string(),
     description: z.string().optional(),
-    path: z.string(),
-    method: z.string(),
-    emits: emits,
+    triggers: z.array(triggerSchema),
+    emits: emits.optional(),
+    // Optional attributes for different trigger types
+    path: z.string().optional(),
+    method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD']).optional(),
+    cron: z.string().optional(),
     virtualEmits: emits.optional(),
     virtualSubscribes: z.array(z.string()).optional(),
-    flows: z.array(z.string()).optional(),
-    includeFiles: z.array(z.string()).optional(),
-    middleware: z.array(z.any()).optional(),
-    queryParams: z.array(z.object({ name: z.string(), description: z.string().optional() })).optional(),
-    bodySchema: z.union([jsonSchema, z.object({}), z.null()]).optional(),
+    input: z.union([jsonSchema, z.object({}), z.null()]).optional(),
     responseSchema: z.record(z.string(), jsonSchema).optional(),
-  })
-  .strict()
-
-const cronSchema = z
-  .object({
-    type: z.literal('cron'),
-    name: z.string(),
-    description: z.string().optional(),
-    cron: z.string(),
-    virtualEmits: emits.optional(),
-    emits: emits,
+    queryParams: z.array(z.object({ name: z.string(), description: z.string().optional() })).optional(),
+    middleware: z.array(z.any()).optional(),
     flows: z.array(z.string()).optional(),
     includeFiles: z.array(z.string()).optional(),
   })
@@ -113,18 +119,42 @@ export type ValidationResult = ValidationSuccess | ValidationError
 
 export const validateStep = (step: Step): ValidationResult => {
   try {
-    if (step.config.type === 'noop') {
-      noopSchema.parse(step.config)
-    } else if (step.config.type === 'event') {
-      eventSchema.parse(step.config)
-    } else if (step.config.type === 'api') {
-      apiSchema.parse(step.config)
-    } else if (step.config.type === 'cron') {
-      cronSchema.parse(step.config)
-    } else {
-      return {
-        success: false,
-        error: 'Invalid step type',
+    // Validate the unified StepConfig structure
+    stepConfigSchema.parse(step.config)
+
+    // Additional validation: ensure triggers array is not empty for active steps
+    if (step.config.triggers.length === 0) {
+      // This is allowed for noop/dev steps, but we should warn
+      return { success: true }
+    }
+
+    // Validate that trigger-specific attributes are consistent
+    const hasApiTriggers = step.config.triggers.some(t => t.type === 'api')
+    const hasCronTriggers = step.config.triggers.some(t => t.type === 'cron')
+    
+    // If there are API triggers, ensure each API trigger has path and method defined
+    if (hasApiTriggers) {
+      const apiTriggers = step.config.triggers.filter(t => t.type === 'api')
+      for (const trigger of apiTriggers) {
+        if (!trigger.path || !trigger.method) {
+          return {
+            success: false,
+            error: 'API triggers require path and method to be defined in the trigger configuration',
+          }
+        }
+      }
+    }
+    
+    // If there are cron triggers, ensure each cron trigger has cron expression defined
+    if (hasCronTriggers) {
+      const cronTriggers = step.config.triggers.filter(t => t.type === 'cron')
+      for (const trigger of cronTriggers) {
+        if (!trigger.cron) {
+          return {
+            success: false,
+            error: 'Cron triggers require cron expression to be defined in the trigger configuration',
+          }
+        }
       }
     }
 

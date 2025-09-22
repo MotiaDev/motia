@@ -1,13 +1,17 @@
 import path from 'path'
 import { z } from 'zod'
 import zodToJsonSchema from 'zod-to-json-schema'
-import { ApiRouteConfig, CronConfig, EventConfig, NoopConfig, Step } from '../../types'
+import { StepConfig, Step } from '../../types'
 
-export const createApiStep = (config: Partial<ApiRouteConfig> = {}, filePath?: string): Step<ApiRouteConfig> => ({
+export const createApiStep = (config: Partial<StepConfig> = {}, filePath?: string): Step => ({
   config: {
-    type: 'api',
     name: 'Start Event',
     description: 'Start the Motia Server Example flow',
+    triggers: [{
+      type: 'api',
+      path: '/api/motia-server-example',
+      method: 'POST',
+    }],
     path: '/api/motia-server-example',
     method: 'POST',
     emits: ['ws-server-example.start'],
@@ -18,11 +22,13 @@ export const createApiStep = (config: Partial<ApiRouteConfig> = {}, filePath?: s
   filePath: filePath ?? path.join(process.cwd(), '/playground/steps/motiaServerExample/startServerExample.step.ts'),
 })
 
-export const createEventStep = (config: Partial<EventConfig> = {}, filePath?: string): Step<EventConfig> => ({
+export const createEventStep = (config: Partial<StepConfig> = {}, filePath?: string): Step => ({
   config: {
-    type: 'event',
     name: 'Processor',
-    subscribes: ['ws-server-example.start'],
+    triggers: [{
+      type: 'event',
+      topic: 'ws-server-example.start',
+    }],
     emits: ['ws-server-example.processed'],
     input: zodToJsonSchema(z.object({})) as never,
     flows: ['motia-server'],
@@ -32,10 +38,13 @@ export const createEventStep = (config: Partial<EventConfig> = {}, filePath?: st
   filePath: filePath ?? path.join(process.cwd(), '/playground/steps/motiaServerExample/processor.step.ts'),
 })
 
-export const createCronStep = (config: Partial<CronConfig> = {}, filePath?: string): Step<CronConfig> => ({
+export const createCronStep = (config: Partial<StepConfig> = {}, filePath?: string): Step => ({
   config: {
-    type: 'cron',
     name: 'Cron Job',
+    triggers: [{
+      type: 'cron',
+      cron: '* * * * *',
+    }],
     cron: '* * * * *',
     emits: [],
     flows: ['motia-server'],
@@ -45,10 +54,10 @@ export const createCronStep = (config: Partial<CronConfig> = {}, filePath?: stri
   filePath: filePath ?? path.join(process.cwd(), '/playground/steps/motiaServerExample/cronJob.step.ts'),
 })
 
-export const createNoopStep = (config: Partial<NoopConfig> = {}, filePath?: string): Step<NoopConfig> => ({
+export const createNoopStep = (config: Partial<StepConfig> = {}, filePath?: string): Step => ({
   config: {
-    type: 'noop',
     name: 'Noop',
+    triggers: [], // No triggers for noop steps
     virtualEmits: ['noop-event'],
     virtualSubscribes: ['noop-subscription'],
     flows: ['motia-server'],

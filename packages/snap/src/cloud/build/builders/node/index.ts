@@ -1,4 +1,4 @@
-import { ApiRouteConfig, Step } from '@motiadev/core'
+import { Step } from '@motiadev/core'
 import colors from 'colors'
 import * as esbuild from 'esbuild'
 import fs from 'fs'
@@ -33,9 +33,9 @@ export class NodeBuilder implements StepBuilder {
     return null
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
+  async buildApiSteps(steps: Step[]): Promise<RouterBuildResult> {
     const relativePath = path.relative(distDir, this.builder.projectDir)
-    const getStepPath = (step: Step<ApiRouteConfig>) => {
+    const getStepPath = (step: Step) => {
       return step.filePath
         .replace(this.builder.projectDir, relativePath)
         .replace(/(.*)\.(ts|js)$/, '$1.js')

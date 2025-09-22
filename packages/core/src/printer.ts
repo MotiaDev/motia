@@ -2,7 +2,7 @@ import colors from 'colors'
 import path from 'path'
 import { ValidationError } from './step-validator'
 import { Step } from './types'
-import { isApiStep, isCronStep, isEventStep, isNoopStep } from './guards'
+import { hasApiTrigger, hasEventTrigger, hasCronTrigger } from './guards'
 import { Stream } from './types-stream'
 
 const stepTag = colors.bold(colors.magenta('Step'))
@@ -102,12 +102,31 @@ export class Printer {
   }
 
   getStepType(step: Step) {
-    if (isApiStep(step)) return colors.gray('(API)')
-    if (isEventStep(step)) return colors.gray('(Event)')
-    if (isCronStep(step)) return colors.gray('(Cron)')
-    if (isNoopStep(step)) return colors.gray('(Noop)')
-
-    return colors.gray('(Unknown)')
+    const triggerTypes = step.config.triggers.map(trigger => trigger.type)
+    
+    if (triggerTypes.length === 0) {
+      return colors.gray('(Noop)')
+    }
+    
+    // Show primary trigger type, or multiple types if there are many
+    if (triggerTypes.length === 1) {
+      const type = triggerTypes[0]
+      switch (type) {
+        case 'api': return colors.gray('(API)')
+        case 'event': return colors.gray('(Event)')
+        case 'cron': return colors.gray('(Cron)')
+        case 'state': return colors.gray('(State)')
+        default: return colors.gray(`(${type})`)
+      }
+    }
+    
+    // Multiple trigger types
+    const uniqueTypes = [...new Set(triggerTypes)]
+    if (uniqueTypes.length <= 2) {
+      return colors.gray(`(${uniqueTypes.join('+')})`)
+    }
+    
+    return colors.gray(`(${uniqueTypes.length} triggers)`)
   }
 
   getStepPath(step: Step) {

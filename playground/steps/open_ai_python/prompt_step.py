@@ -2,10 +2,12 @@ from openai import OpenAI
 import os
 
 config = {
-  "type": "event",
   "name": "CallOpenAiPython",
   "description": "Call OpenAI",
-  "subscribes": ["openai-prompt-python"],
+  "triggers": [{
+    "type": "event",
+    "topic": "openai-prompt-python"
+  }],
   "emits": [],
   "input": {
     "type": "object",

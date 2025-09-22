@@ -1,12 +1,17 @@
-import { CronConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 
-export const config: CronConfig = {
-  type: 'cron',
-  cron: '*/5 * * * *', // run every 5 minutes
+export const config: StepConfig = {
   name: 'StateAuditJob',
   description: 'Checks the state for orders that are not complete and have a ship date in the past',
-  emits: ['notification'],
   flows: ['basic-tutorial'],
+  triggers: [
+    {
+      type: 'cron',
+      cron: '*/5 * * * *', // run every 5 minutes
+    },
+  ],
+  cron: '*/5 * * * *', // run every 5 minutes
+  emits: ['notification'],
 }
 
 type Order = {

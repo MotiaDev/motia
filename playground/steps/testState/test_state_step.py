@@ -1,7 +1,9 @@
 config = {
-    "type": "event",
     "name": "Test State With Python",
-    "subscribes": ["test-state-python"],
+    "triggers": [{
+        "type": "event",
+        "topic": "test-state-python"
+    }],
     "emits": ["test-state-check"],
     "input": {
         "key": { "type": "string" },

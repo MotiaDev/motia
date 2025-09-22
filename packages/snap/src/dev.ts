@@ -64,7 +64,7 @@ export const dev = async (
 
   const config = { isVerbose }
   const motiaServer = createServer(lockedData, eventManager, state, config)
-  const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
+  const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager, motiaServer.motiaStateManager)
 
   // Initialize mermaid generator
   if (enableMermaid) {

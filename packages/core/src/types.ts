@@ -30,30 +30,41 @@ export type EventHandler<TInput, TEmitData> = (input: TInput, ctx: FlowContext<T
 
 export type Emit = string | { topic: string; label?: string; conditional?: boolean }
 
-export type EventConfig = {
-  type: 'event'
-  name: string
+// Base trigger interface
+export interface BaseTrigger {
+  type: string
   description?: string
-  subscribes: string[]
-  emits: Emit[]
-  virtualEmits?: Emit[]
-  input: ZodInput
-  flows?: string[]
-  /**
-   * Files to include in the step bundle.
-   * Needs to be relative to the step file.
-   */
-  includeFiles?: string[]
 }
 
-export type NoopConfig = {
-  type: 'noop'
-  name: string
-  description?: string
-  virtualEmits: Emit[]
-  virtualSubscribes: string[]
-  flows?: string[]
+// Event trigger for subscribing to events
+export interface EventTrigger extends BaseTrigger {
+  type: 'event'
+  topic: string
+  condition?: (data: any) => boolean // Function to evaluate the trigger
 }
+
+// API trigger for HTTP endpoints
+export interface ApiTrigger extends BaseTrigger {
+  type: 'api'
+  path: string
+  method: ApiRouteMethod
+}
+
+// Cron trigger for scheduled tasks
+export interface CronTrigger extends BaseTrigger {
+  type: 'cron'
+  cron: string
+}
+
+// State trigger for state-based conditions
+export interface StateTrigger extends BaseTrigger {
+  type: 'state'
+  key: string
+  condition?: ((input: any, state: InternalStateManager) => boolean) | string
+}
+
+// Union type for all trigger types
+export type Trigger = EventTrigger | ApiTrigger | CronTrigger | StateTrigger
 
 export type ApiRouteMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
@@ -68,25 +79,32 @@ export interface QueryParam {
   description: string
 }
 
-export interface ApiRouteConfig {
-  type: 'api'
+// Unified StepConfig that replaces all previous config types
+export interface StepConfig {
   name: string
   description?: string
-  path: string
-  method: ApiRouteMethod
-  emits: Emit[]
+  triggers: Trigger[]
+  emits?: Emit[]
+  // Optional attributes for different trigger types
+  path?: string
+  method?: ApiRouteMethod
+  cron?: string
   virtualEmits?: Emit[]
   virtualSubscribes?: string[]
-  flows?: string[]
-  middleware?: ApiMiddleware<any, any, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
-  bodySchema?: ZodInput
+  input?: ZodInput
+  bodySchema?: ZodInput // For API steps
   responseSchema?: Record<number, ZodInput>
   queryParams?: QueryParam[]
+  middleware?: ApiMiddleware<any, any, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
+  flows?: string[]
   /**
    * Files to include in the step bundle.
    * Needs to be relative to the step file.
    */
   includeFiles?: string[]
+  // Legacy properties for backward compatibility
+  type?: string // Deprecated: use triggers array instead
+  subscribes?: string[] // Deprecated: use triggers array instead
 }
 
 export interface ApiRequest<TBody = unknown> {
@@ -108,33 +126,16 @@ export type ApiRouteHandler<
   TEmitData = never,
 > = (req: ApiRequest<TRequestBody>, ctx: FlowContext<TEmitData>) => Promise<TResponseBody>
 
-export type CronConfig = {
-  type: 'cron'
-  name: string
-  description?: string
-  cron: string
-  virtualEmits?: Emit[]
-  emits: Emit[]
-  flows?: string[]
-  /**
-   * Files to include in the step bundle.
-   * Needs to be relative to the step file.
-   */
-  includeFiles?: string[]
-}
-
 export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Promise<void>
 
 /**
  * @deprecated Use `Handlers` instead.
  */
-export type StepHandler<T> = T extends EventConfig
-  ? EventHandler<z.infer<T['input']>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-  : T extends ApiRouteConfig
-    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-    : T extends CronConfig
-      ? CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-      : never
+export type StepHandler<T> = T extends StepConfig
+  ? EventHandler<T['input'] extends z.ZodType<any, any, any> ? z.infer<T['input']> : any, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  | ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  | CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  : never
 
 export type Event<TData = unknown> = {
   topic: string
@@ -164,8 +165,6 @@ export type EventManager = {
   subscribe: <TData>(config: SubscribeConfig<TData>) => void
   unsubscribe: (config: UnsubscribeConfig) => void
 }
-
-export type StepConfig = EventConfig | NoopConfig | ApiRouteConfig | CronConfig
 
 export type Step<TConfig extends StepConfig = StepConfig> = { filePath: string; version: string; config: TConfig }
 

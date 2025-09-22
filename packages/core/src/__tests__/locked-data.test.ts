@@ -63,19 +63,19 @@ describe('LockedData', () => {
     })
 
     it('should filter api steps correctly', () => {
-      const apiSteps = lockedData.apiSteps()
+      const apiSteps = lockedData.stepsWithApiTriggers()
       expect(apiSteps).toHaveLength(1)
       expect(apiSteps).toEqual([apiStep])
     })
 
     it('should filter event steps correctly', () => {
-      const eventSteps = lockedData.eventSteps()
+      const eventSteps = lockedData.stepsWithEventTriggers()
       expect(eventSteps).toHaveLength(1)
       expect(eventSteps).toEqual([eventStep])
     })
 
     it('should filter cron steps correctly', () => {
-      const cronSteps = lockedData.cronSteps()
+      const cronSteps = lockedData.stepsWithCronTriggers()
       expect(cronSteps).toHaveLength(1)
       expect(cronSteps).toEqual([cronStep])
     })
@@ -109,8 +109,8 @@ describe('LockedData', () => {
       const newStep = createEventStep({}, filePath)
       lockedData.updateStep(oldStep, newStep, { disableTypeCreation: true })
 
-      expect(lockedData.apiSteps()).toHaveLength(0)
-      expect(lockedData.eventSteps()).toHaveLength(1)
+      expect(lockedData.stepsWithApiTriggers()).toHaveLength(0)
+      expect(lockedData.stepsWithEventTriggers()).toHaveLength(1)
     })
 
     it('should trigger event handlers when step is updated', () => {

@@ -104,15 +104,19 @@ Our application consists of just two specialized components, each handling a spe
     The secure webhook endpoint that receives GitHub star events, verifies their authenticity, and updates the real-time stream with new star counts.
 
     ```typescript
-    import { ApiRouteConfig, Handlers } from 'motia'
+    import { StepConfig, Handlers } from 'motia'
     import { z } from 'zod'
     import { verifyWebhookSignature } from '../utils/verify-webhook-signature'
     import { checkUserProfile } from '../utils/check-user-profile'
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config: StepConfig = {
       name: 'GitHubStarWebhook',
       description: 'Process GitHub star webhook events with signature verification',
+      triggers: [{
+        type: 'api',
+        path: '/webhooks/github/star',
+        method: 'POST',
+      }],
       method: 'POST',
       path: '/webhooks/github/star',
       bodySchema: z.object({

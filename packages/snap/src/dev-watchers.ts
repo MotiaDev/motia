@@ -1,11 +1,13 @@
 import {
   CronManager,
-  isApiStep,
-  isCronStep,
-  isEventStep,
+  hasApiTrigger,
+  hasCronTrigger,
+  hasEventTrigger,
+  hasStateTrigger,
   LockedData,
   MotiaEventManager,
   MotiaServer,
+  MotiaStateManager,
   Step,
   trackEvent,
 } from '@motiadev/core'
@@ -18,6 +20,7 @@ export const createDevWatchers = (
   server: MotiaServer,
   eventHandler: MotiaEventManager,
   cronManager: CronManager,
+  stateManager: MotiaStateManager,
 ) => {
   const stepDir = path.join(process.cwd(), 'steps')
   const watcher = new Watcher(stepDir, lockedData)
@@ -50,21 +53,23 @@ export const createDevWatchers = (
   })
 
   watcher.onStepChange((oldStep: Step, newStep: Step) => {
-    if (isApiStep(oldStep)) server.removeRoute(oldStep)
-    if (isCronStep(oldStep)) cronManager.removeCronJob(oldStep)
-    if (isEventStep(oldStep)) eventHandler.removeHandler(oldStep)
+    if (hasApiTrigger(oldStep)) server.removeRoute(oldStep)
+    if (hasCronTrigger(oldStep)) cronManager.removeCronJob(oldStep)
+    if (hasEventTrigger(oldStep)) eventHandler.removeHandler(oldStep)
+    if (hasStateTrigger(oldStep)) stateManager.removeStateHandler(oldStep)
 
     const isUpdated = lockedData.updateStep(oldStep, newStep)
 
     if (isUpdated) {
       trackEvent('step_updated', {
         stepName: newStep.config.name,
-        type: newStep.config.type,
+        triggers: newStep.config.triggers.map(t => t.type),
       })
 
-      if (isCronStep(newStep)) cronManager.createCronJob(newStep)
-      if (isEventStep(newStep)) eventHandler.createHandler(newStep)
-      if (isApiStep(newStep)) server.addRoute(newStep)
+      if (hasCronTrigger(newStep)) cronManager.createCronJob(newStep)
+      if (hasEventTrigger(newStep)) eventHandler.createHandler(newStep)
+      if (hasApiTrigger(newStep)) server.addRoute(newStep)
+      if (hasStateTrigger(newStep)) stateManager.createStateHandler(newStep)
     }
   })
 
@@ -74,24 +79,26 @@ export const createDevWatchers = (
     if (isCreated) {
       trackEvent('step_created', {
         stepName: step.config.name,
-        type: step.config.type,
+        triggers: step.config.triggers.map(t => t.type),
       })
 
-      if (isApiStep(step)) server.addRoute(step)
-      if (isEventStep(step)) eventHandler.createHandler(step)
-      if (isCronStep(step)) cronManager.createCronJob(step)
+      if (hasApiTrigger(step)) server.addRoute(step)
+      if (hasEventTrigger(step)) eventHandler.createHandler(step)
+      if (hasCronTrigger(step)) cronManager.createCronJob(step)
+      if (hasStateTrigger(step)) stateManager.createStateHandler(step)
     }
   })
 
   watcher.onStepDelete((step: Step) => {
     trackEvent('step_deleted', {
       stepName: step.config.name,
-      type: step.config.type,
+      triggers: step.config.triggers.map(t => t.type),
     })
 
-    if (isApiStep(step)) server.removeRoute(step)
-    if (isEventStep(step)) eventHandler.removeHandler(step)
-    if (isCronStep(step)) cronManager.removeCronJob(step)
+    if (hasApiTrigger(step)) server.removeRoute(step)
+    if (hasEventTrigger(step)) eventHandler.removeHandler(step)
+    if (hasCronTrigger(step)) cronManager.removeCronJob(step)
+    if (hasStateTrigger(step)) stateManager.removeStateHandler(step)
 
     lockedData.deleteStep(step)
   })

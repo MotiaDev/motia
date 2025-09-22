@@ -8,11 +8,13 @@ class InputSchema(BaseModel):
     template_data: Dict[str, Any]
 
 config = {
-    "type": "event",
     "name": "PythonNotification",
     "description": "Checks a state change",
     "flows": ["python-tutorial"],
-    "subscribes": ["python-notification"],
+    "triggers": [{
+        "type": "event",
+        "topic": "python-notification"
+    }],
     "emits": [],
     "input": InputSchema.model_json_schema(),
 }

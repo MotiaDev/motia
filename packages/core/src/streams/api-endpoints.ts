@@ -1,6 +1,6 @@
-import { isApiStep } from '../guards'
+import { hasApiTrigger, getTriggersByType } from '../guards'
 import { LockedData } from '../locked-data'
-import { ApiRouteConfig, ApiRouteMethod, Step } from '../types'
+import { ApiRouteMethod, Step } from '../types'
 import { JsonSchema } from '../types/schema.types'
 import { StreamAdapter } from './adapters/stream-adapter'
 
@@ -19,15 +19,23 @@ type ApiEndpoint = {
   bodySchema?: JsonSchema
 }
 
-const mapEndpoint = (step: Step<ApiRouteConfig>): ApiEndpoint => {
+const mapEndpoint = (step: Step): ApiEndpoint => {
+  // Get the first API trigger (there should only be one per step)
+  const apiTriggers = getTriggersByType(step, 'api')
+  const apiTrigger = apiTriggers[0]
+  
+  if (!apiTrigger) {
+    throw new Error(`Step ${step.config.name} has no API trigger`)
+  }
+  
   return {
     id: step.filePath,
-    method: step.config.method,
-    path: step.config.path,
+    method: apiTrigger.method,
+    path: apiTrigger.path,
     description: step.config.description,
     queryParams: step.config.queryParams,
     responseSchema: step.config.responseSchema as never as JsonSchema,
-    bodySchema: step.config.bodySchema as never as JsonSchema,
+    bodySchema: step.config.input as never as JsonSchema, // Use 'input' instead of 'bodySchema'
   }
 }
 
@@ -37,7 +45,10 @@ class ApiEndpointsStream extends StreamAdapter<ApiEndpoint> {
   }
 
   async get(id: string): Promise<ApiEndpoint | null> {
-    const endpoint = this.lockedData.apiSteps().find((step) => step.config.path === id)
+    const endpoint = this.lockedData.stepsWithApiTriggers().find((step) => {
+      const apiTriggers = getTriggersByType(step, 'api')
+      return apiTriggers.some(trigger => trigger.path === id)
+    })
     return endpoint ? mapEndpoint(endpoint) : null
   }
 
@@ -50,7 +61,7 @@ class ApiEndpointsStream extends StreamAdapter<ApiEndpoint> {
   }
 
   async getGroup(): Promise<ApiEndpoint[]> {
-    return this.lockedData.apiSteps().map(mapEndpoint)
+    return this.lockedData.stepsWithApiTriggers().map(mapEndpoint)
   }
 }
 
@@ -66,25 +77,19 @@ export const apiEndpoints = (lockedData: LockedData) => {
   })()
 
   const apiStepCreated = (step: Step) => {
-    if (isApiStep(step)) {
-      stream.set('default', step.filePath, {
-        id: step.filePath,
-        method: step.config.method,
-        path: step.config.path,
-        description: step.config.description,
-        queryParams: step.config.queryParams,
-      })
+    if (hasApiTrigger(step)) {
+      stream.set('default', step.filePath, mapEndpoint(step))
     }
   }
 
   const apiStepUpdated = (step: Step) => {
-    if (isApiStep(step)) {
+    if (hasApiTrigger(step)) {
       stream.set('default', step.filePath, mapEndpoint(step))
     }
   }
 
   const apiStepRemoved = (step: Step) => {
-    if (isApiStep(step)) {
+    if (hasApiTrigger(step)) {
       stream.delete('default', step.filePath)
     }
   }

@@ -1,14 +1,18 @@
-import { ApiRouteConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'TestStateApiTrigger',
   description: 'test state',
-  path: '/test-state',
-  method: 'POST',
+  triggers: [
+    {
+      type: 'api',
+      path: '/test-state',
+      method: 'POST',
+    },
+  ],
   emits: ['test-state-python'],
-  bodySchema: z.object({}),
+  input: z.object({}),
   flows: ['test-state'],
 }
 

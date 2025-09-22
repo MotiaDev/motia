@@ -1,12 +1,16 @@
 import { z } from 'zod'
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { ParallelMergeStep } from './parallelMerge.types'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'stepA',
   description: 'Hello from Step A',
-  subscribes: ['pms.start'],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'pms.start',
+    },
+  ],
   emits: ['pms.stepA.done'],
   input: z.object({}),
   flows: ['parallel-merge'],

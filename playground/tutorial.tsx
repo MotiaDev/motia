@@ -190,8 +190,8 @@ export const steps: TutorialStep[] = [
         <br />
         <br />
         <br />
-        You simply need to return an object that complies with one of the <b>responseSchema</b> definitions
-        declared in your Step configuration.
+        You simply need to return an object that complies with one of the <b>responseSchema</b> definitions declared in
+        your Step configuration.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.feature('http-response') }],
@@ -212,8 +212,8 @@ export const steps: TutorialStep[] = [
         For this we will look at the <b>Event</b> Step.
         <br />
         <br />
-        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
-        anatomy of an Event Step by taking a look at the code visualization tool.
+        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the anatomy of
+        an Event Step by taking a look at the code visualization tool.
         <br />
         <br />
         💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
@@ -234,8 +234,8 @@ export const steps: TutorialStep[] = [
         For this we will look at the <b>Event</b> Step.
         <br />
         <br />
-        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
-        anatomy of an Event Step by taking a look at the code visualization tool.
+        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the anatomy of
+        an Event Step by taking a look at the code visualization tool.
         <br />
         <br />
         💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
@@ -307,8 +307,8 @@ export const steps: TutorialStep[] = [
     link: 'https://www.motia.dev/docs/concepts/steps/cron',
     description: () => (
       <p>
-        Let's do a recap of what you've learned. Thus far, you've become familiar with two Step types: <b>API</b>{' '}
-        and <b>Event</b> Steps.
+        Let's do a recap of what you've learned. Thus far, you've become familiar with two Step types: <b>API</b> and{' '}
+        <b>Event</b> Steps.
         <br />
         <br />
         You've also started to learn how to navigate around Workbench. Let's wrap up Motia's Step types with the last

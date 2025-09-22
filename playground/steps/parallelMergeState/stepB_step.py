@@ -4,10 +4,12 @@ import time
 # For now using simple dict for config
 
 config = {
-    "type": "event",
     "name": "stepB", 
     "description": "Hello from Step B",
-    "subscribes": ["pms.start"],
+    "triggers": [{
+        "type": "event",
+        "topic": "pms.start"
+    }],
     "emits": ["pms.stepB.done"],
     "flows": ["parallel-merge"]
 }
