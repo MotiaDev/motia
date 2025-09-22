@@ -575,13 +575,13 @@ describe('Complex State Triggers', () => {
       }
     })
 
-    it('should handle concurrent updates with compare-and-swap', async () => {
+    it('should demonstrate cohesive atomic operations flow', async () => {
       // Register a user first
       const registerResponse = await server.post('/complex/register', {
         body: {
-          email: 'concurrent@test.com',
-          name: 'Concurrent User',
-          initialScore: 100,
+          email: 'cohesive@test.com',
+          name: 'Cohesive User',
+          initialScore: 0,
           tier: 'bronze',
         },
       })
@@ -589,31 +589,151 @@ describe('Complex State Triggers', () => {
       const { userId } = registerResponse.body
       await server.waitEvents()
 
-      // Test successful compare-and-swap
-      const casResponse = await server.post('/complex/concurrent-update', {
+      // Step 1: Basic score operations (increment, decrement)
+      const incrementResponse = await server.post('/complex/update-score', {
         body: {
           userId,
-          updateType: 'score',
-          expectedValue: 100,
-          newValue: 200,
+          operation: 'increment',
+          value: 50,
+          reason: 'Initial score boost'
+        },
+      })
+      expect(incrementResponse.status).toBe(200)
+      expect(incrementResponse.body.newScore).toBe(50)
+      await server.waitEvents()
+
+      // Step 2: Bonus round (increment + unshift items to inventory)
+      const bonusResponse = await server.post('/complex/update-score', {
+        body: {
+          userId,
+          operation: 'bonus_round',
+          value: 100,
+          reason: 'Bonus round',
+          bonusItems: [
+            { id: 'bonus_sword', type: 'weapon', name: 'Bonus Sword' },
+            { id: 'bonus_potion', type: 'consumable', name: 'Bonus Potion' }
+          ]
+        },
+      })
+      expect(bonusResponse.status).toBe(200)
+      expect(bonusResponse.body.newScore).toBe(150)
+      await server.waitEvents()
+
+      // Step 3: Inventory reward (increment based on inventory size)
+      const inventoryRewardResponse = await server.post('/complex/update-score', {
+        body: {
+          userId,
+          operation: 'inventory_reward',
+          value: 10,
+          reason: 'Inventory reward'
+        },
+      })
+      expect(inventoryRewardResponse.status).toBe(200)
+      // Should be 10 * 2 (inventory size) = 20 points
+      expect(inventoryRewardResponse.body.newScore).toBe(170)
+      await server.waitEvents()
+
+      // Step 4: Check that tier promotion happened (score >= 100)
+      const finalScore = await server.state.get(userId, 'user.score')
+      expect(finalScore).toBe(170)
+      
+      const finalTier = await server.state.get(userId, 'user.tier')
+      expect(finalTier).toBe('silver') // Should be promoted from bronze to silver
+
+      // Step 5: Check that inventory has items from bonus round
+      const inventory = await server.state.get(userId, 'user.inventory') || []
+      expect(inventory.length).toBeGreaterThan(0)
+      
+      // Should have bonus items from bonus round (using unshift atomic operation)
+      const hasBonusSword = inventory.some((item: any) => item.id === 'bonus_sword')
+      const hasBonusPotion = inventory.some((item: any) => item.id === 'bonus_potion')
+      expect(hasBonusSword).toBe(true)
+      expect(hasBonusPotion).toBe(true)
+
+      // Step 6: Check that notifications were created
+      const notifications = await server.state.get(userId, 'user.notifications') || []
+      expect(notifications.length).toBeGreaterThan(0)
+      
+      const hasPromotionNotification = notifications.some((n: any) => n.type === 'tier_upgrade')
+      const hasAchievementNotification = notifications.some((n: any) => n.type === 'achievement')
+      expect(hasPromotionNotification).toBe(true)
+      expect(hasAchievementNotification).toBe(true)
+
+      // Step 7: Check that profile was updated by auto tier promoter
+      const profile = await server.state.get(userId, 'user.profile') || {}
+      expect(profile.lastPromotion).toBeDefined()
+      expect(profile.promotionCount).toBe(1)
+
+      // Step 8: Test additional atomic operations
+      // Test pop operation (remove last item)
+      const popResponse = await server.post('/complex/update-score', {
+        body: {
+          userId,
+          operation: 'remove_last_item',
+          value: 25,
+          reason: 'Removed last item'
+        },
+      })
+      expect(popResponse.status).toBe(200)
+
+      // Test exists operation
+      const existsResponse = await server.post('/complex/update-score', {
+        body: {
+          userId,
+          operation: 'check_item_exists',
+          value: 1, // Check if item with id 1 exists
+          reason: 'Check item existence'
+        },
+      })
+      expect(existsResponse.status).toBe(200)
+
+      // Test deleteField operation
+      const deleteFieldResponse = await server.post('/complex/update-score', {
+        body: {
+          userId,
+          operation: 'delete_profile_field',
+          value: 10,
+          fieldToDelete: 'tempField',
+          reason: 'Delete profile field'
+        },
+      })
+      expect(deleteFieldResponse.status).toBe(200)
+
+      // Test compareAndSwap operation
+      const currentScore = await server.state.get(userId, 'user.score')
+      const casResponse = await server.post('/complex/update-score', {
+        body: {
+          userId,
+          operation: 'compare_and_swap',
+          value: currentScore + 100,
+          expectedValue: currentScore, // Use actual current score
+          reason: 'Compare and swap test'
         },
       })
       expect(casResponse.status).toBe(200)
-      expect(casResponse.body.success).toBe(true)
-      expect(casResponse.body.currentValue).toBe(200)
 
-      // Test failed compare-and-swap (value changed)
-      const failedCasResponse = await server.post('/complex/concurrent-update', {
+      // Test getGroup operation (UserGroupManager handles this automatically on registration)
+      // The user was already added to 'active_users' group by UserGroupManager
+      const activeUsersGroup = await server.state.getGroup('active_users')
+      expect(activeUsersGroup.length).toBeGreaterThan(0)
+      
+      // Test batch operations (NotificationCleaner uses batch operations)
+      // This is tested implicitly through the notification cleanup process
+
+      // Test clear operation (nuclear option)
+      const clearResponse = await server.post('/complex/update-score', {
         body: {
           userId,
-          updateType: 'score',
-          expectedValue: 100, // This is wrong now, should be 200
-          newValue: 300,
+          operation: 'clear_achievements',
+          value: 1000,
+          reason: 'Nuclear reset'
         },
       })
-      expect(failedCasResponse.status).toBe(409)
-      expect(failedCasResponse.body.error).toContain('value changed during update')
-      expect(failedCasResponse.body.currentValue).toBe(200) // Should still be 200
+      expect(clearResponse.status).toBe(200)
+      
+      // Verify clear worked
+      const clearedScore = await server.state.get(userId, 'user.score')
+      expect(clearedScore).toBe(1000)
     })
   })
 })

@@ -28,6 +28,7 @@ export const config: StepConfig = {
     { topic: 'user.tier', label: 'User tier set' },
     { topic: 'user.status', label: 'User status set' },
     { topic: 'user.notifications', label: 'Notifications initialized' },
+    { topic: 'user.registration', label: 'User registered' },
   ],
 }
 
@@ -54,6 +55,9 @@ export const handler: Handlers['UserRegistration'] = async (req, { state, logger
     await state.set(userId, 'user.verification.attempts', 0)
     await state.set(userId, 'user.achievements', [])
     await state.set(userId, 'user.notifications', [])
+    
+    // Set registration flag to trigger group manager
+    await state.set(userId, 'user.registered', true)
 
 
     return {

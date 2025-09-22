@@ -41,11 +41,24 @@ export const handler: Handlers['NotificationCleaner'] = async (input, { logger, 
       const trimmedNotifications = sortedNotifications.slice(0, maxNotifications)
       const removedCount = value.length - trimmedNotifications.length
 
-      // Use batch operations to atomically update notifications and track cleanup stats
+      // Use batch operations to atomically update notifications, track cleanup stats, and manage inventory
       const cleanupOperations = [
         { type: 'set', key: 'user.notifications', value: trimmedNotifications },
         { type: 'increment', key: 'user.stats.notificationsCleaned', value: removedCount },
-        { type: 'setField', key: 'user.profile', field: 'lastCleanup', value: new Date().toISOString() }
+        { type: 'setField', key: 'user.profile', field: 'lastCleanup', value: new Date().toISOString() },
+        // Add cleanup reward to inventory if significant cleanup occurred
+        ...(removedCount > 5 ? [{
+          type: 'unshift' as const,
+          key: 'user.inventory',
+          value: {
+            id: 'cleanup_reward',
+            type: 'reward',
+            name: 'Cleanup Reward',
+            description: `Cleaned up ${removedCount} old notifications`,
+            value: removedCount * 10, // 10 points per cleaned notification
+            timestamp: new Date().toISOString()
+          }
+        }] : [])
       ]
 
       const cleanupResult = await state.batch(userId, cleanupOperations)

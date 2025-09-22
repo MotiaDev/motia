@@ -212,41 +212,48 @@
     "id": "user-lifecycle",
     "config": {
       "steps/complex-state-triggers/user-registration.step.ts": {
-        "x": -320,
-        "y": -547,
+        "x": -795,
+        "y": 207,
         "sourceHandlePosition": "bottom"
+      },
+      "steps/complex-state-triggers/user-group-manager.step.ts": {
+        "x": -568,
+        "y": 669,
+        "sourceHandlePosition": "bottom",
+        "targetHandlePosition": "top"
       },
       "steps/complex-state-triggers/tier-updater.step.ts": {
-        "x": 1495,
-        "y": 500,
-        "sourceHandlePosition": "bottom"
+        "x": 327,
+        "y": 1532,
+        "sourceHandlePosition": "right"
       },
       "steps/complex-state-triggers/tier-monitor.step.ts": {
-        "x": 1831,
-        "y": 861,
-        "targetHandlePosition": "left"
+        "x": 865,
+        "y": 1382
       },
       "steps/complex-state-triggers/score-updater.step.ts": {
-        "x": 130,
-        "y": -550,
+        "x": -338,
+        "y": 202,
         "sourceHandlePosition": "bottom"
       },
       "steps/complex-state-triggers/score-achievement-monitor.step.ts": {
-        "x": 1225,
-        "y": -292
+        "x": 957,
+        "y": 387,
+        "sourceHandlePosition": "bottom"
       },
       "steps/complex-state-triggers/notification-cleaner.step.ts": {
-        "x": 2422,
-        "y": 66,
+        "x": 1320,
+        "y": 859,
         "targetHandlePosition": "left"
       },
-      "steps/complex-state-triggers/concurrent-update-handler.step.ts": {
-        "x": 2,
-        "y": 514
+      "steps/complex-state-triggers/inventory-manager.step.ts": {
+        "x": 298,
+        "y": 702,
+        "sourceHandlePosition": "right"
       },
       "steps/complex-state-triggers/auto-tier-promoter.step.ts": {
-        "x": 475,
-        "y": 385
+        "x": -120,
+        "y": 1246
       }
     }
   }

@@ -16,6 +16,7 @@ export const config: StepConfig = {
   virtualEmits: [
     { topic: 'user.tier', label: 'User tier updated' },
     { topic: 'user.notifications', label: 'Promotion notification added' },
+    { topic: 'user.inventory', label: 'Tier rewards added to inventory' },
   ],
 }
 
@@ -53,7 +54,7 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
         score: value,
       })
 
-      // Use transaction to atomically update tier and add notification
+      // Use transaction to atomically update tier, add notification, and reward items
       const promotionTransaction = [
         { type: 'set', key: 'user.tier', value: targetTier },
         { type: 'push', key: 'user.notifications', value: {
@@ -65,7 +66,22 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
           score: value,
         }},
         { type: 'setField', key: 'user.profile', field: 'lastPromotion', value: new Date().toISOString() },
-        { type: 'setField', key: 'user.profile', field: 'promotionCount', value: 1 }
+        { type: 'setField', key: 'user.profile', field: 'promotionCount', value: 1 },
+        // Add tier-specific reward items to inventory
+        { type: 'unshift', key: 'user.inventory', value: {
+          id: `${targetTier}_badge`,
+          type: 'badge',
+          name: `${targetTier.charAt(0).toUpperCase() + targetTier.slice(1)} Tier Badge`,
+          tier: targetTier,
+          timestamp: new Date().toISOString()
+        }},
+        { type: 'unshift', key: 'user.inventory', value: {
+          id: `${targetTier}_reward`,
+          type: 'reward',
+          name: `${targetTier.charAt(0).toUpperCase() + targetTier.slice(1)} Tier Reward`,
+          value: value * 0.1, // 10% of score as reward value
+          timestamp: new Date().toISOString()
+        }}
       ]
 
       const transactionResult = await state.transaction(userId, promotionTransaction)
@@ -77,6 +93,7 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
         score: value,
         transactionSuccess: transactionResult.success,
         operationsCount: promotionTransaction.length,
+        transactionResults: transactionResult.results.map((r: any) => ({ success: r.success, error: r.error }))
       })
     } else {
       logger.info('No tier promotion needed', {
