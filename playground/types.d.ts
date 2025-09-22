@@ -25,6 +25,9 @@ declare module 'motia' {
     'OpenAiApi': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
+    'UserRegistration': ApiRouteHandler<Record<string, unknown>, ApiResponse<201, { message: string; userId: string; email: string; tier: string }> | ApiResponse<400, { error: string }>, never>
+    'TierUpdater': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; oldTier: string; newTier: string }> | ApiResponse<400, { error: string }>, never>
+    'ScoreUpdater': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; oldScore: number; newScore: number; operation: string }> | ApiResponse<400, { error: string }>, never>
     'StateAuditJob': CronHandler<{ topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'ProcessFoodOrder': EventHandler<{ email: string; quantity: number; petId: number }, { topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'Notification': EventHandler<{ templateId: string; email: string; templateData: Record<string, unknown> }, never>
