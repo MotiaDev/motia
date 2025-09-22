@@ -26,11 +26,11 @@ export const StateSidebar: React.FC<Props> = ({ state, onClose }) => {
       tabs={[
         {
           label: 'Overview',
-          content: <StateDetails state={state} />,
+          content: <StateDetails key={refreshTrigger} state={state} />,
         },
         {
           label: 'Editor',
-          content: <StateEditor state={state} />,
+          content: <StateEditor key={refreshTrigger} state={state} />,
         },
         {
           label: 'Atomic Ops',

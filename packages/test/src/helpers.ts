@@ -35,6 +35,24 @@ export const createMockContext = (options?: {
       delete: jest.fn(),
       clear: jest.fn(),
       getGroup: jest.fn(),
+      // New atomic primitives
+      increment: jest.fn(),
+      decrement: jest.fn(),
+      compareAndSwap: jest.fn(),
+      // Atomic array operations
+      push: jest.fn(),
+      pop: jest.fn(),
+      shift: jest.fn(),
+      unshift: jest.fn(),
+      // Atomic object operations
+      setField: jest.fn(),
+      deleteField: jest.fn(),
+      // Transaction support
+      transaction: jest.fn(),
+      // Batch operations
+      batch: jest.fn(),
+      // Utility operations
+      exists: jest.fn(),
       ...(state || {}),
     },
   }
