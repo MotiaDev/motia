@@ -56,17 +56,16 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
       // Update the tier - this will trigger the tier monitor
       await state.set(userId, 'user.tier', targetTier)
 
-      // Add promotion notification
-      const notifications = (await state.get(userId, 'user.notifications')) || []
-      notifications.push({
+      // Add promotion notification using atomic push operation
+      const notification = {
         type: 'auto_promotion',
         message: `🚀 Auto-Promoted to ${targetTier.toUpperCase()} tier! Your score of ${value} earned you this promotion!`,
         timestamp: new Date().toISOString(),
         fromTier: currentTier,
         toTier: targetTier,
         score: value,
-      })
-      await state.set(userId, 'user.notifications', notifications)
+      }
+      await state.push(userId, 'user.notifications', notification)
 
       logger.info('User auto-promoted', {
         userId,

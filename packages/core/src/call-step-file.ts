@@ -145,55 +145,78 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           return motia.state.update(input.traceId, input.key, updateFn)
         })
 
-        // Add atomicUpdate handler if available
-        if (motia.state.atomicUpdate) {
-          processManager.handler('state.atomicUpdate', async (input: { traceId: string; key: string; operation: string; value: number; reason?: string }) => {
-            tracer.stateOperation('atomicUpdate', { traceId: input.traceId, key: input.key })
-            
-            // Use the actual atomic update on the server side
-            const result = await motia.state.atomicUpdate!(input.traceId, input.key, (current: number | null) => {
-              const currentValue = current || 0
-              let newValue: number
-              
-              switch (input.operation) {
-                case 'add':
-                  newValue = currentValue + input.value
-                  break
-                case 'subtract':
-                  newValue = Math.max(0, currentValue - input.value)
-                  break
-                case 'multiply':
-                  newValue = currentValue * input.value
-                  break
-                case 'set':
-                  newValue = input.value
-                  break
-                default:
-                  throw new Error(`Invalid operation: ${input.operation}`)
-              }
-              
-              return newValue
-            })
-            
-            // Also update the score history atomically
-            if (input.key === 'user.score') {
-              await motia.state.atomicUpdate!(input.traceId, 'user.score.history', (currentHistory: any[] | null) => {
-                const scoreHistory = currentHistory || []
-                scoreHistory.push({
-                  operation: input.operation,
-                  value: input.value,
-                  oldScore: (result as number) - input.value, // Approximate old score
-                  newScore: result,
-                  reason: input.reason,
-                  timestamp: new Date().toISOString(),
-                })
-                return scoreHistory
-              })
-            }
-            
-            return result
-          })
-        }
+
+        // === NEW ATOMIC PRIMITIVES ===
+
+        processManager.handler('state.increment', async (input: { traceId: string; key: string; delta?: number }) => {
+          tracer.stateOperation('increment', { traceId: input.traceId, key: input.key })
+          return motia.state.increment(input.traceId, input.key, input.delta)
+        })
+
+        processManager.handler('state.decrement', async (input: { traceId: string; key: string; delta?: number }) => {
+          tracer.stateOperation('decrement', { traceId: input.traceId, key: input.key })
+          return motia.state.decrement(input.traceId, input.key, input.delta)
+        })
+
+        processManager.handler('state.compareAndSwap', async (input: { traceId: string; key: string; expected: any; newValue: any }) => {
+          tracer.stateOperation('compareAndSwap', { traceId: input.traceId, key: input.key })
+          return motia.state.compareAndSwap(input.traceId, input.key, input.expected, input.newValue)
+        })
+
+        // === ATOMIC ARRAY OPERATIONS ===
+
+        processManager.handler('state.push', async (input: { traceId: string; key: string; items: any[] }) => {
+          tracer.stateOperation('push', { traceId: input.traceId, key: input.key })
+          return motia.state.push(input.traceId, input.key, ...input.items)
+        })
+
+        processManager.handler('state.pop', async (input: { traceId: string; key: string }) => {
+          tracer.stateOperation('pop', { traceId: input.traceId, key: input.key })
+          return motia.state.pop(input.traceId, input.key)
+        })
+
+        processManager.handler('state.shift', async (input: { traceId: string; key: string }) => {
+          tracer.stateOperation('shift', { traceId: input.traceId, key: input.key })
+          return motia.state.shift(input.traceId, input.key)
+        })
+
+        processManager.handler('state.unshift', async (input: { traceId: string; key: string; items: any[] }) => {
+          tracer.stateOperation('unshift', { traceId: input.traceId, key: input.key })
+          return motia.state.unshift(input.traceId, input.key, ...input.items)
+        })
+
+        // === ATOMIC OBJECT OPERATIONS ===
+
+        processManager.handler('state.setField', async (input: { traceId: string; key: string; field: string; value: any }) => {
+          tracer.stateOperation('setField', { traceId: input.traceId, key: input.key })
+          return (motia.state as any).setField(input.traceId, input.key, input.field, input.value)
+        })
+
+        processManager.handler('state.deleteField', async (input: { traceId: string; key: string; field: string }) => {
+          tracer.stateOperation('deleteField', { traceId: input.traceId, key: input.key })
+          return motia.state.deleteField(input.traceId, input.key, input.field)
+        })
+
+        // === TRANSACTION SUPPORT ===
+
+        processManager.handler('state.transaction', async (input: { traceId: string; operations: any[] }) => {
+          tracer.stateOperation('transaction', { traceId: input.traceId, key: 'multiple' })
+          return motia.state.transaction(input.traceId, input.operations)
+        })
+
+        // === BATCH OPERATIONS ===
+
+        processManager.handler('state.batch', async (input: { traceId: string; operations: any[] }) => {
+          tracer.stateOperation('batch', { traceId: input.traceId, key: 'multiple' })
+          return motia.state.batch(input.traceId, input.operations)
+        })
+
+        // === UTILITY OPERATIONS ===
+
+        processManager.handler('state.exists', async (input: { traceId: string; key: string }) => {
+          tracer.stateOperation('exists', { traceId: input.traceId, key: input.key })
+          return motia.state.exists(input.traceId, input.key)
+        })
 
         processManager.handler<TData, void>('result', async (input) => {
           result = input

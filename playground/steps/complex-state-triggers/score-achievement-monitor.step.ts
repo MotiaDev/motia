@@ -65,25 +65,26 @@ export const handler: Handlers['ScoreAchievementMonitor'] = async (input, { logg
 
     // Update achievements if any new ones were unlocked
     if (newAchievements.length > 0) {
-      const updatedAchievements = [...currentAchievements, ...newAchievements]
-      await state.set(userId, 'user.achievements', updatedAchievements)
-
-      // Add notification for new achievements
-      const notifications = (await state.get(userId, 'user.notifications')) || []
+      // Use atomic push operations to add new achievements
       for (const achievement of newAchievements) {
-        notifications.push({
+        await state.push(userId, 'user.achievements', achievement)
+      }
+
+      // Add notifications for new achievements using atomic push operations
+      for (const achievement of newAchievements) {
+        const notification = {
           type: 'achievement',
           message: `🎉 Achievement Unlocked: ${achievement.name}! ${achievement.description}`,
           timestamp: new Date().toISOString(),
           achievementId: achievement.id,
-        })
+        }
+        await state.push(userId, 'user.notifications', notification)
       }
-      await state.set(userId, 'user.notifications', notifications)
 
       logger.info('Achievements updated', {
         userId,
         newAchievementsCount: newAchievements.length,
-        totalAchievements: updatedAchievements.length,
+        totalAchievements: currentAchievements.length + newAchievements.length,
       })
     }
   } catch (error: unknown) {

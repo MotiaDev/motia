@@ -5,13 +5,38 @@ import { Tracer } from './observability'
 export type ZodInput = ZodObject<any> | ZodArray<any> // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export type InternalStateManager = {
-  get<T>(groupId: string, key: string): Promise<T | null>
-  set<T>(groupId: string, key: string, value: T): Promise<T>
-  update<T>(groupId: string, key: string, updateFn: (current: T | null) => T): Promise<T>
-  delete<T>(groupId: string, key: string): Promise<T | null>
+  // Existing operations (all atomic)
+  get<T>(traceId: string, key: string): Promise<T | null>
+  set<T>(traceId: string, key: string, value: T): Promise<T>
+  update<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T>
+  delete<T>(traceId: string, key: string): Promise<T | null>
   getGroup<T>(groupId: string): Promise<T[]>
-  clear(groupId: string): Promise<void>
-  atomicUpdate?<T>(groupId: string, key: string, updateFn: (current: T | null) => T): Promise<T>
+  clear(traceId: string): Promise<void>
+  
+  // New atomic primitives
+  increment(traceId: string, key: string, delta?: number): Promise<number>
+  decrement(traceId: string, key: string, delta?: number): Promise<number>
+  compareAndSwap<T>(traceId: string, key: string, expected: T | null, newValue: T): Promise<boolean>
+  
+  // Atomic array operations
+  push<T>(traceId: string, key: string, ...items: T[]): Promise<T[]>
+  pop<T>(traceId: string, key: string): Promise<T | null>
+  shift<T>(traceId: string, key: string): Promise<T | null>
+  unshift<T>(traceId: string, key: string, ...items: T[]): Promise<T[]>
+  
+  // Atomic object operations
+  setField<T>(traceId: string, key: string, field: string, value: any): Promise<T>
+  deleteField<T>(traceId: string, key: string, field: string): Promise<T>
+  
+  // Transaction support
+  transaction<T>(traceId: string, operations: StateOperation[]): Promise<TransactionResult<T>>
+  
+  // Batch operations
+  batch<T>(traceId: string, operations: BatchOperation[]): Promise<BatchResult<T>>
+  
+  // Utility operations
+  exists(traceId: string, key: string): Promise<boolean>
+  
 }
 
 export type EmitData = { topic: ''; data: unknown }
@@ -174,6 +199,32 @@ export type Flow = {
   name: string
   description?: string
   steps: Step[]
+}
+
+// New types for transactions and batches
+export interface StateOperation {
+  type: 'get' | 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'compareAndSwap' | 'push' | 'pop' | 'shift' | 'unshift' | 'setField' | 'deleteField'
+  key: string
+  value?: any
+  updateFn?: (current: any) => any
+  expected?: any
+  delta?: number
+  items?: any[]
+  field?: string
+}
+
+export interface BatchOperation extends StateOperation {
+  id?: string // For result mapping
+}
+
+export interface TransactionResult<T> {
+  success: boolean
+  results: T[]
+  error?: string
+}
+
+export interface BatchResult<T> {
+  results: Array<{ id?: string; value: T; error?: string }>
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

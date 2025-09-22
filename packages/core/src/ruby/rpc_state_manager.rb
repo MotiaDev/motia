@@ -38,4 +38,84 @@ class RpcStateManager
     # Return promise to match Python/Node behavior
     @sender.send('state.clear', { traceId: trace_id })
   end
+
+  def update(trace_id, key, update_fn)
+    # For RPC, we need to pass the function as a string, but this loses closures
+    # We'll pass the function string and let the server handle it
+    @sender.send('state.update', { 
+      traceId: trace_id, 
+      key: key, 
+      updateFn: update_fn.to_s 
+    })
+  end
+
+  # === NEW ATOMIC PRIMITIVES ===
+
+  def increment(trace_id, key, delta = 1)
+    @sender.send('state.increment', { traceId: trace_id, key: key, delta: delta })
+  end
+
+  def decrement(trace_id, key, delta = 1)
+    @sender.send('state.decrement', { traceId: trace_id, key: key, delta: delta })
+  end
+
+  def compare_and_swap(trace_id, key, expected, new_value)
+    @sender.send('state.compareAndSwap', { 
+      traceId: trace_id, 
+      key: key, 
+      expected: expected, 
+      newValue: new_value 
+    })
+  end
+
+  # === ATOMIC ARRAY OPERATIONS ===
+
+  def push(trace_id, key, *items)
+    @sender.send('state.push', { traceId: trace_id, key: key, items: items })
+  end
+
+  def pop(trace_id, key)
+    @sender.send('state.pop', { traceId: trace_id, key: key })
+  end
+
+  def shift(trace_id, key)
+    @sender.send('state.shift', { traceId: trace_id, key: key })
+  end
+
+  def unshift(trace_id, key, *items)
+    @sender.send('state.unshift', { traceId: trace_id, key: key, items: items })
+  end
+
+  # === ATOMIC OBJECT OPERATIONS ===
+
+  def set_field(trace_id, key, field, value)
+    @sender.send('state.setField', { 
+      traceId: trace_id, 
+      key: key, 
+      field: field.to_s, 
+      value: value 
+    })
+  end
+
+  def delete_field(trace_id, key, field)
+    @sender.send('state.deleteField', { traceId: trace_id, key: key, field: field })
+  end
+
+  # === TRANSACTION SUPPORT ===
+
+  def transaction(trace_id, operations)
+    @sender.send('state.transaction', { traceId: trace_id, operations: operations })
+  end
+
+  # === BATCH OPERATIONS ===
+
+  def batch(trace_id, operations)
+    @sender.send('state.batch', { traceId: trace_id, operations: operations })
+  end
+
+  # === UTILITY OPERATIONS ===
+
+  def exists(trace_id, key)
+    @sender.send('state.exists', { traceId: trace_id, key: key })
+  end
 end

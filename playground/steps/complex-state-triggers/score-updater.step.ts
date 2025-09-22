@@ -37,46 +37,44 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
   }
 
   try {
+    let newScore: number
 
-    // Use the simple update method for atomic read-modify-write
-    // Create a function that can be serialized without closures
-    const newScore = await state.update(userId, 'user.score', new Function('current', `
-      const currentScore = current || 0;
-      const operation = "${operation}";
-      const value = ${value};
-      
-      switch (operation) {
-        case 'add':
-          return currentScore + value;
-        case 'subtract':
-          return Math.max(0, currentScore - value);
-        case 'multiply':
-          return currentScore * value;
-        case 'set':
-          return value;
-        default:
-          throw new Error('Invalid operation: ' + operation);
-      }
-    `) as (current: number | null) => number)
+    // Use atomic operations for better performance and clarity
+    switch (operation) {
+      case 'add':
+        newScore = await state.increment(userId, 'user.score', value)
+        break
+      case 'subtract':
+        // For subtract, use get/set to avoid closure issues with RPC
+        const currentScoreForSubtract = (await state.get(userId, 'user.score')) || 0
+        newScore = Math.max(0, currentScoreForSubtract - value)
+        await state.set(userId, 'user.score', newScore)
+        break
+      case 'multiply':
+        // For multiply, use get/set to avoid closure issues with RPC
+        const currentScoreForMultiply = (await state.get(userId, 'user.score')) || 0
+        newScore = currentScoreForMultiply * value
+        await state.set(userId, 'user.score', newScore)
+        break
+      case 'set':
+        newScore = await state.set(userId, 'user.score', value)
+        break
+      default:
+        throw new Error(`Invalid operation: ${operation}`)
+    }
 
-    // Update score history atomically
-    await state.update(userId, 'user.score.history', new Function('history', `
-      const scoreHistory = history || [];
-      const operation = "${operation}";
-      const value = ${value};
-      const newScore = ${newScore};
-      const reason = "${reason || ''}";
-      
-      scoreHistory.push({
-        operation: operation,
-        value: value,
-        newScore: newScore,
-        reason: reason,
-        timestamp: new Date().toISOString()
-      });
-      return scoreHistory;
-    `) as (history: unknown[] | null) => unknown[])
+    // Update score history atomically using push operation
+    const historyEntry = {
+      operation,
+      value,
+      newScore,
+      reason: reason || '',
+      timestamp: new Date().toISOString()
+    }
+    
+    await state.push(userId, 'user.score.history', historyEntry)
 
+    logger.info('Score updated successfully', { userId, operation, value, newScore })
 
     return {
       status: 200,
@@ -88,6 +86,7 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
       },
     }
   } catch (error: unknown) {
+    logger.error('Score update failed', { userId, operation, value, error })
     return {
       status: 400,
       body: { error: 'Score update failed' },

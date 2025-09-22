@@ -36,13 +36,13 @@ export interface Trace {
 
 export type TraceEvent = StateEvent | EmitEvent | StreamEvent | LogEntry
 
-export type StateOperation = 'get' | 'getGroup' | 'set' | 'update' | 'delete' | 'clear' | 'atomicUpdate'
+export type StateOperation = 'get' | 'getGroup' | 'set' | 'update' | 'delete' | 'clear' | 'increment' | 'decrement' | 'compareAndSwap' | 'push' | 'pop' | 'shift' | 'unshift' | 'setField' | 'deleteField' | 'transaction' | 'batch' | 'exists'
 export type StreamOperation = 'get' | 'getGroup' | 'set' | 'update' | 'delete' | 'clear' | 'send'
 
 export interface StateEvent {
   type: 'state'
   timestamp: number
-  operation: 'get' | 'getGroup' | 'set' | 'update' | 'delete' | 'clear' | 'atomicUpdate'
+  operation: StateOperation
   key?: string
   duration?: number
   data: unknown

@@ -8,7 +8,7 @@ describe('Complex State Triggers', () => {
 
   describe('Successive Updates', () => {
     it('should handle multiple score updates in sequence and trigger all appropriate monitors', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+      // const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
 
       try {
         // Register a user first
@@ -20,12 +20,16 @@ describe('Complex State Triggers', () => {
             tier: 'bronze',
           },
         })
+        if (registerResponse.status !== 201) {
+          console.log('Registration error:', registerResponse.body)
+        }
         expect(registerResponse.status).toBe(201)
         const { userId } = registerResponse.body
         await server.waitEvents()
+        
 
         // Clear initial logs
-        consoleSpy.mockClear()
+        // consoleSpy.mockClear()
 
         // Test successive score updates
         const scoreUpdates = [
@@ -75,7 +79,7 @@ describe('Complex State Triggers', () => {
         // Verify achievements were unlocked
         expect(achievements.length).toBeGreaterThan(0)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
 
@@ -124,7 +128,7 @@ describe('Complex State Triggers', () => {
         expect(benefits.tier).toBe('platinum')
         expect(benefits.scoreMultiplier).toBe(2.0)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
   })
@@ -188,7 +192,7 @@ describe('Complex State Triggers', () => {
         const scoreMonitorLogs = logCalls.filter((log) => log.includes('Score achievement monitor triggered'))
         expect(scoreMonitorLogs.length).toBeGreaterThanOrEqual(users.length)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
 
@@ -244,7 +248,7 @@ describe('Complex State Triggers', () => {
         const scoreMonitorLogs = logCalls.filter((log) => log.includes('Score achievement monitor triggered'))
         expect(scoreMonitorLogs.length).toBeGreaterThan(0)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
   })
@@ -311,7 +315,7 @@ describe('Complex State Triggers', () => {
         expect(tierPromoterLogs.length).toBeGreaterThan(0)
         expect(tierMonitorLogs.length).toBeGreaterThan(0)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
 
@@ -354,7 +358,7 @@ describe('Complex State Triggers', () => {
         const cleanerLogs = logCalls.filter((log) => log.includes('Notification cleaner triggered'))
         expect(cleanerLogs.length).toBeGreaterThan(0)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
   })
@@ -402,7 +406,7 @@ describe('Complex State Triggers', () => {
         const tier = await server.state.get(userId, 'user.tier')
         expect(tier).toBe('bronze')
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
 
@@ -455,7 +459,7 @@ describe('Complex State Triggers', () => {
           expect(tier).toBe(testCase.expectedTier)
         }
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
 
@@ -505,7 +509,7 @@ describe('Complex State Triggers', () => {
         const scoreHistory = await server.state.get(userId, 'user.score.history')
         expect(scoreHistory.length).toBe(3)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
   })
@@ -543,7 +547,7 @@ describe('Complex State Triggers', () => {
         const score = await server.state.get(userId, 'user.score')
         expect(score).toBe(100)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
 
@@ -566,7 +570,7 @@ describe('Complex State Triggers', () => {
         const score = await server.state.get('non-existent-user', 'user.score')
         expect(score).toBe(100)
       } finally {
-        consoleSpy.mockRestore()
+        // consoleSpy.mockRestore()
       }
     })
   })

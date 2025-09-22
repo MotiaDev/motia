@@ -12,15 +12,50 @@ State management is fundamental to building robust and dynamic workflows in Moti
 
 ## Core Concepts: State Manager Methods
 
-The `state` object, accessible within your step handlers via the `ctx` context, provides the following methods for state management:
+The `state` object, accessible within your step handlers via the `ctx` context, provides comprehensive methods for state management. **All operations are atomic by default**, ensuring data consistency in concurrent scenarios.
+
+### Basic Operations
 
 | Method    | Parameters                             | Return Type          | Description                                                                                                                                                                                   |
 | --------- | -------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `get`     | `scope: string, key: string`           | `Promise<T \| null>` | Retrieves a value associated with the given `key` and `scope` from the state store. Returns `null` if the key is not found. The type `T` is inferred based on how you use the returned value. |
-| `set`     | `scope: string, key: string, value: T` | `Promise<void>`      | Stores a `value` associated with the given `key` and `scope` in the state store. The type `T` can be any serializable JavaScript/JSON value.                                                  |
-| `delete`  | `scope: string, key: string`           | `Promise<void>`      | Removes the key-value pair associated with the given `key` and `scope` from the state store.                                                                                                  |
+| `set`     | `scope: string, key: string, value: T` | `Promise<T>`         | Stores a `value` associated with the given `key` and `scope` in the state store. The type `T` can be any serializable JavaScript/JSON value. Returns the stored value.                        |
+| `update`  | `scope: string, key: string, updateFn: (current: T \| null) => T` | `Promise<T>` | Atomically updates a value using a function. The function receives the current value (or null) and returns the new value. |
+| `delete`  | `scope: string, key: string`           | `Promise<T \| null>` | Removes the key-value pair associated with the given `key` and `scope` from the state store. Returns the deleted value.                                                                       |
 | `clear`   | `scope: string`                        | `Promise<void>`      | Removes **all** state data associated with the provided `scope`. This is useful for cleaning up state for a specific scope.                                                                   |
+| `exists`  | `scope: string, key: string`           | `Promise<boolean>`   | Checks if a key exists in the state store for the given scope.                                                                                                                                |
 | `cleanup` | _(None)_                               | `Promise<void>`      | Performs periodic maintenance tasks, such as removing expired state data (TTL cleanup). The actual implementation depends on the configured state adapter.                                    |
+
+### Atomic Primitives
+
+| Method           | Parameters                                    | Return Type        | Description                                                                                                 |
+| ---------------- | --------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `increment`      | `scope: string, key: string, delta?: number` | `Promise<number>`  | Atomically increments a numeric value by the specified delta (default: 1). Creates the key with value 0 if it doesn't exist. |
+| `decrement`      | `scope: string, key: string, delta?: number` | `Promise<number>`  | Atomically decrements a numeric value by the specified delta (default: 1). Never goes below 0.             |
+| `compareAndSwap` | `scope: string, key: string, expected: T \| null, newValue: T` | `Promise<boolean>` | Atomically compares the current value with `expected` and sets it to `newValue` if they match. Returns true if the swap was successful. |
+
+### Array Operations
+
+| Method    | Parameters                                    | Return Type        | Description                                                                                                 |
+| --------- | --------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `push`    | `scope: string, key: string, ...items: T[]`  | `Promise<T[]>`     | Atomically adds items to the end of an array. Creates the key as an empty array if it doesn't exist.       |
+| `pop`     | `scope: string, key: string`                  | `Promise<T \| null>` | Atomically removes and returns the last item from an array. Returns null if the array is empty.            |
+| `shift`   | `scope: string, key: string`                  | `Promise<T \| null>` | Atomically removes and returns the first item from an array. Returns null if the array is empty.           |
+| `unshift` | `scope: string, key: string, ...items: T[]`  | `Promise<T[]>`     | Atomically adds items to the beginning of an array. Creates the key as an empty array if it doesn't exist. |
+
+### Object Operations
+
+| Method       | Parameters                                    | Return Type | Description                                                                                                 |
+| ------------ | --------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| `setField`   | `scope: string, key: string, field: K, value: T[K]` | `Promise<T>` | Atomically sets a field in an object. Creates the key as an empty object if it doesn't exist.              |
+| `deleteField`| `scope: string, key: string, field: string`  | `Promise<T>` | Atomically removes a field from an object. Creates the key as an empty object if it doesn't exist.         |
+
+### Transaction and Batch Operations
+
+| Method        | Parameters                                    | Return Type                    | Description                                                                                                 |
+| ------------- | --------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `transaction` | `scope: string, operations: StateOperation[]` | `Promise<TransactionResult<T>>` | Executes multiple operations atomically. All operations succeed or all fail.                                |
+| `batch`       | `scope: string, operations: BatchOperation[]` | `Promise<BatchResult<T>>`      | Executes multiple operations in parallel. Individual operations can succeed or fail independently.         |
 
 **Important:** State manager methods (`get`, `set`, `delete`, `clear`) **require a `scope` string as the first parameter.** While in most cases, you will use the `traceId` (automatically provided in `ctx.traceId`) as the scope to ensure flow-level isolation, **you can technically use any string value as the scope** to group and manage state data as needed. Using `traceId` is the recommended and most common practice for flow-isolated state.
 
@@ -61,6 +96,8 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
 
 ## Using State in Steps
 
+### Basic Operations
+
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab label="TypeScript">
     
@@ -72,7 +109,7 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
     venue: { id: string; name: string };
   }
 
-  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
+  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => {
     // Store state (using traceId as scope)
     await state.set<BookingData>(traceId, 'booking', {
       customer: input.customer,
@@ -81,6 +118,15 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
 
     // Retrieve state (using traceId as scope)
     const booking = await state.get<BookingData>(traceId, 'booking');
+
+    // Check if key exists
+    const exists = await state.exists(traceId, 'booking');
+
+    // Update state atomically
+    await state.update(traceId, 'booking', (current) => ({
+      ...current,
+      status: 'confirmed'
+    }));
 
     // Delete specific state (using traceId as scope)
     await state.delete(traceId, 'booking');
@@ -97,7 +143,7 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
   ```javascript
   import { Handlers } from 'motia'
 
-  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
+  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => {
     // Store state (using traceId as scope)
     await state.set(traceId, 'booking', {
       customer: input.customer,
@@ -106,6 +152,15 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
 
     // Retrieve state (using traceId as scope)
     const booking = await state.get(traceId, 'booking');
+
+    // Check if key exists
+    const exists = await state.exists(traceId, 'booking');
+
+    // Update state atomically
+    await state.update(traceId, 'booking', (current) => ({
+      ...current,
+      status: 'confirmed'
+    }));
 
     // Delete specific state (using traceId as scope)
     await state.delete(traceId, 'booking');
@@ -120,8 +175,8 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
   <Tab label="Python">
   
   ```python
-  async def handler(input, ctx): # ctx is the context object
-      trace_id = ctx.trace_id # Access traceId from context
+  async def handler(input, ctx):
+      trace_id = ctx.trace_id
 
       # Store state (using traceId as scope)
       await ctx.state.set(trace_id, 'booking', {
@@ -132,11 +187,406 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
       # Retrieve state (using traceId as scope)
       booking = await ctx.state.get(trace_id, 'booking')
 
+      # Check if key exists
+      exists = await ctx.state.exists(trace_id, 'booking')
+
+      # Update state atomically
+      await ctx.state.update(trace_id, 'booking', lambda current: {
+          **current,
+          'status': 'confirmed'
+      })
+
       # Delete specific state (using traceId as scope)
       await ctx.state.delete(trace_id, 'booking')
 
       # Clear all state (using traceId as scope)
       await ctx.state.clear(trace_id)
+  ```
+  </Tab>
+</Tabs>
+
+### Atomic Primitives
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab label="TypeScript">
+    
+  ```typescript
+  export const handler: Handlers['CounterStep'] = async (input, { state, traceId }) => {
+    // Atomic increment (creates key with value 0 if it doesn't exist)
+    const count = await state.increment(traceId, 'pageViews');
+    
+    // Atomic increment with custom delta
+    const score = await state.increment(traceId, 'userScore', 10);
+    
+    // Atomic decrement (never goes below 0)
+    const remaining = await state.decrement(traceId, 'tickets', 1);
+    
+    // Compare and swap for optimistic locking
+    const success = await state.compareAndSwap(traceId, 'userStatus', 'pending', 'active');
+    
+    if (success) {
+      console.log('User status updated successfully');
+    } else {
+      console.log('User status was already changed by another process');
+    }
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="JavaScript">
+    
+  ```javascript
+  export const handler = async (input, { state, traceId }) => {
+    // Atomic increment (creates key with value 0 if it doesn't exist)
+    const count = await state.increment(traceId, 'pageViews');
+    
+    // Atomic increment with custom delta
+    const score = await state.increment(traceId, 'userScore', 10);
+    
+    // Atomic decrement (never goes below 0)
+    const remaining = await state.decrement(traceId, 'tickets', 1);
+    
+    // Compare and swap for optimistic locking
+    const success = await state.compareAndSwap(traceId, 'userStatus', 'pending', 'active');
+    
+    if (success) {
+      console.log('User status updated successfully');
+    } else {
+      console.log('User status was already changed by another process');
+    }
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="Python">
+  
+  ```python
+  async def handler(input, ctx):
+      trace_id = ctx.trace_id
+      
+      # Atomic increment (creates key with value 0 if it doesn't exist)
+      count = await ctx.state.increment(trace_id, 'pageViews')
+      
+      # Atomic increment with custom delta
+      score = await ctx.state.increment(trace_id, 'userScore', 10)
+      
+      # Atomic decrement (never goes below 0)
+      remaining = await ctx.state.decrement(trace_id, 'tickets', 1)
+      
+      # Compare and swap for optimistic locking
+      success = await ctx.state.compare_and_swap(trace_id, 'userStatus', 'pending', 'active')
+      
+      if success:
+          print('User status updated successfully')
+      else:
+          print('User status was already changed by another process')
+  ```
+  </Tab>
+</Tabs>
+
+### Array Operations
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab label="TypeScript">
+    
+  ```typescript
+  export const handler: Handlers['ArrayStep'] = async (input, { state, traceId }) => {
+    // Add items to the end of an array
+    const items = await state.push(traceId, 'shoppingCart', 'apple', 'banana');
+    
+    // Add items to the beginning of an array
+    const queue = await state.unshift(traceId, 'processingQueue', 'urgent-task');
+    
+    // Remove and get the last item
+    const lastItem = await state.pop(traceId, 'shoppingCart');
+    
+    // Remove and get the first item
+    const firstTask = await state.shift(traceId, 'processingQueue');
+    
+    console.log('Shopping cart:', items);
+    console.log('Last item removed:', lastItem);
+    console.log('First task processed:', firstTask);
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="JavaScript">
+    
+  ```javascript
+  export const handler = async (input, { state, traceId }) => {
+    // Add items to the end of an array
+    const items = await state.push(traceId, 'shoppingCart', 'apple', 'banana');
+    
+    // Add items to the beginning of an array
+    const queue = await state.unshift(traceId, 'processingQueue', 'urgent-task');
+    
+    // Remove and get the last item
+    const lastItem = await state.pop(traceId, 'shoppingCart');
+    
+    // Remove and get the first item
+    const firstTask = await state.shift(traceId, 'processingQueue');
+    
+    console.log('Shopping cart:', items);
+    console.log('Last item removed:', lastItem);
+    console.log('First task processed:', firstTask);
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="Python">
+  
+  ```python
+  async def handler(input, ctx):
+      trace_id = ctx.trace_id
+      
+      # Add items to the end of an array
+      items = await ctx.state.push(trace_id, 'shoppingCart', 'apple', 'banana')
+      
+      # Add items to the beginning of an array
+      queue = await ctx.state.unshift(trace_id, 'processingQueue', 'urgent-task')
+      
+      # Remove and get the last item
+      last_item = await ctx.state.pop(trace_id, 'shoppingCart')
+      
+      # Remove and get the first item
+      first_task = await ctx.state.shift(trace_id, 'processingQueue')
+      
+      print('Shopping cart:', items)
+      print('Last item removed:', last_item)
+      print('First task processed:', first_task)
+  ```
+  </Tab>
+</Tabs>
+
+### Object Operations
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab label="TypeScript">
+    
+  ```typescript
+  export const handler: Handlers['ObjectStep'] = async (input, { state, traceId }) => {
+    // Set a field in an object atomically
+    const user = await state.setField(traceId, 'user', 'lastLogin', new Date().toISOString());
+    
+    // Update multiple fields
+    await state.setField(traceId, 'user', 'loginCount', 1);
+    await state.setField(traceId, 'user', 'status', 'active');
+    
+    // Remove a field from an object
+    const cleanedUser = await state.deleteField(traceId, 'user', 'temporaryData');
+    
+    console.log('Updated user:', user);
+    console.log('Cleaned user:', cleanedUser);
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="JavaScript">
+    
+  ```javascript
+  export const handler = async (input, { state, traceId }) => {
+    // Set a field in an object atomically
+    const user = await state.setField(traceId, 'user', 'lastLogin', new Date().toISOString());
+    
+    // Update multiple fields
+    await state.setField(traceId, 'user', 'loginCount', 1);
+    await state.setField(traceId, 'user', 'status', 'active');
+    
+    // Remove a field from an object
+    const cleanedUser = await state.deleteField(traceId, 'user', 'temporaryData');
+    
+    console.log('Updated user:', user);
+    console.log('Cleaned user:', cleanedUser);
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="Python">
+  
+  ```python
+  async def handler(input, ctx):
+      trace_id = ctx.trace_id
+      
+      # Set a field in an object atomically
+      user = await ctx.state.set_field(trace_id, 'user', 'lastLogin', datetime.now().isoformat())
+      
+      # Update multiple fields
+      await ctx.state.set_field(trace_id, 'user', 'loginCount', 1)
+      await ctx.state.set_field(trace_id, 'user', 'status', 'active')
+      
+      # Remove a field from an object
+      cleaned_user = await ctx.state.delete_field(trace_id, 'user', 'temporaryData')
+      
+      print('Updated user:', user)
+      print('Cleaned user:', cleaned_user)
+  ```
+  </Tab>
+</Tabs>
+
+### Transaction Operations
+
+Transactions ensure that multiple operations either all succeed or all fail together, maintaining data consistency:
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab label="TypeScript">
+    
+  ```typescript
+  export const handler: Handlers['TransactionStep'] = async (input, { state, traceId }) => {
+    const operations = [
+      { type: 'set', key: 'user', value: { name: 'John', balance: 100 } },
+      { type: 'increment', key: 'totalUsers', delta: 1 },
+      { type: 'push', key: 'userLog', items: ['user created'] },
+      { type: 'setField', key: 'user', field: 'status', value: 'active' }
+    ];
+
+    const result = await state.transaction(traceId, operations);
+    
+    if (result.success) {
+      console.log('All operations completed successfully');
+      console.log('Results:', result.results);
+    } else {
+      console.error('Transaction failed:', result.error);
+      // All operations were rolled back
+    }
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="JavaScript">
+    
+  ```javascript
+  export const handler = async (input, { state, traceId }) => {
+    const operations = [
+      { type: 'set', key: 'user', value: { name: 'John', balance: 100 } },
+      { type: 'increment', key: 'totalUsers', delta: 1 },
+      { type: 'push', key: 'userLog', items: ['user created'] },
+      { type: 'setField', key: 'user', field: 'status', value: 'active' }
+    ];
+
+    const result = await state.transaction(traceId, operations);
+    
+    if (result.success) {
+      console.log('All operations completed successfully');
+      console.log('Results:', result.results);
+    } else {
+      console.error('Transaction failed:', result.error);
+      // All operations were rolled back
+    }
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="Python">
+  
+  ```python
+  async def handler(input, ctx):
+      trace_id = ctx.trace_id
+      
+      operations = [
+          { 'type': 'set', 'key': 'user', 'value': { 'name': 'John', 'balance': 100 } },
+          { 'type': 'increment', 'key': 'totalUsers', 'delta': 1 },
+          { 'type': 'push', 'key': 'userLog', 'items': ['user created'] },
+          { 'type': 'setField', 'key': 'user', 'field': 'status', 'value': 'active' }
+      ]
+
+      result = await ctx.state.transaction(trace_id, operations)
+      
+      if result['success']:
+          print('All operations completed successfully')
+          print('Results:', result['results'])
+      else:
+          print('Transaction failed:', result['error'])
+          # All operations were rolled back
+  ```
+  </Tab>
+</Tabs>
+
+### Batch Operations
+
+Batch operations execute multiple operations in parallel, with individual success/failure tracking:
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab label="TypeScript">
+    
+  ```typescript
+  export const handler: Handlers['BatchStep'] = async (input, { state, traceId }) => {
+    const operations = [
+      { type: 'get', key: 'user1', id: 'op1' },
+      { type: 'get', key: 'user2', id: 'op2' },
+      { type: 'increment', key: 'counter1', delta: 1, id: 'op3' },
+      { type: 'increment', key: 'counter2', delta: 5, id: 'op4' }
+    ];
+
+    const result = await state.batch(traceId, operations);
+    
+    // Check individual operation results
+    for (const opResult of result.results) {
+      if (opResult.error) {
+        console.error(`Operation ${opResult.id} failed:`, opResult.error);
+      } else {
+        console.log(`Operation ${opResult.id} succeeded:`, opResult.value);
+      }
+    }
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="JavaScript">
+    
+  ```javascript
+  export const handler = async (input, { state, traceId }) => {
+    const operations = [
+      { type: 'get', key: 'user1', id: 'op1' },
+      { type: 'get', key: 'user2', id: 'op2' },
+      { type: 'increment', key: 'counter1', delta: 1, id: 'op3' },
+      { type: 'increment', key: 'counter2', delta: 5, id: 'op4' }
+    ];
+
+    const result = await state.batch(traceId, operations);
+    
+    // Check individual operation results
+    for (const opResult of result.results) {
+      if (opResult.error) {
+        console.error(`Operation ${opResult.id} failed:`, opResult.error);
+      } else {
+        console.log(`Operation ${opResult.id} succeeded:`, opResult.value);
+      }
+    }
+  }
+  ```
+
+  </Tab>
+
+  <Tab label="Python">
+  
+  ```python
+  async def handler(input, ctx):
+      trace_id = ctx.trace_id
+      
+      operations = [
+          { 'type': 'get', 'key': 'user1', 'id': 'op1' },
+          { 'type': 'get', 'key': 'user2', 'id': 'op2' },
+          { 'type': 'increment', 'key': 'counter1', 'delta': 1, 'id': 'op3' },
+          { 'type': 'increment', 'key': 'counter2', 'delta': 5, 'id': 'op4' }
+      ]
+
+      result = await ctx.state.batch(trace_id, operations)
+      
+      # Check individual operation results
+      for op_result in result['results']:
+          if op_result.get('error'):
+              print(f"Operation {op_result['id']} failed:", op_result['error'])
+          else:
+              print(f"Operation {op_result['id']} succeeded:", op_result['value'])
   ```
   </Tab>
 </Tabs>

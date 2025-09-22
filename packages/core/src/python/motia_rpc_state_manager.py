@@ -44,6 +44,73 @@ class RpcStateManager:
     async def clear(self, trace_id: str) -> asyncio.Future[None]:
         return await self.rpc.send('state.clear', {'traceId': trace_id})
 
+    async def update(self, trace_id: str, key: str, update_fn) -> asyncio.Future[Any]:
+        # For RPC, we need to pass the function as a string, but this loses closures
+        # We'll pass the function string and let the server handle it
+        return await self.rpc.send('state.update', {
+            'traceId': trace_id,
+            'key': key,
+            'updateFn': str(update_fn)
+        })
+
+    # === NEW ATOMIC PRIMITIVES ===
+
+    async def increment(self, trace_id: str, key: str, delta: int = 1) -> asyncio.Future[int]:
+        return await self.rpc.send('state.increment', {'traceId': trace_id, 'key': key, 'delta': delta})
+
+    async def decrement(self, trace_id: str, key: str, delta: int = 1) -> asyncio.Future[int]:
+        return await self.rpc.send('state.decrement', {'traceId': trace_id, 'key': key, 'delta': delta})
+
+    async def compare_and_swap(self, trace_id: str, key: str, expected: Any, new_value: Any) -> asyncio.Future[bool]:
+        return await self.rpc.send('state.compareAndSwap', {
+            'traceId': trace_id,
+            'key': key,
+            'expected': expected,
+            'newValue': new_value
+        })
+
+    # === ATOMIC ARRAY OPERATIONS ===
+
+    async def push(self, trace_id: str, key: str, *items) -> asyncio.Future[list]:
+        return await self.rpc.send('state.push', {'traceId': trace_id, 'key': key, 'items': list(items)})
+
+    async def pop(self, trace_id: str, key: str) -> asyncio.Future[Any]:
+        return await self.rpc.send('state.pop', {'traceId': trace_id, 'key': key})
+
+    async def shift(self, trace_id: str, key: str) -> asyncio.Future[Any]:
+        return await self.rpc.send('state.shift', {'traceId': trace_id, 'key': key})
+
+    async def unshift(self, trace_id: str, key: str, *items) -> asyncio.Future[list]:
+        return await self.rpc.send('state.unshift', {'traceId': trace_id, 'key': key, 'items': list(items)})
+
+    # === ATOMIC OBJECT OPERATIONS ===
+
+    async def set_field(self, trace_id: str, key: str, field: str, value: Any) -> asyncio.Future[dict]:
+        return await self.rpc.send('state.setField', {
+            'traceId': trace_id,
+            'key': key,
+            'field': field,
+            'value': value
+        })
+
+    async def delete_field(self, trace_id: str, key: str, field: str) -> asyncio.Future[dict]:
+        return await self.rpc.send('state.deleteField', {'traceId': trace_id, 'key': key, 'field': field})
+
+    # === TRANSACTION SUPPORT ===
+
+    async def transaction(self, trace_id: str, operations: list) -> asyncio.Future[dict]:
+        return await self.rpc.send('state.transaction', {'traceId': trace_id, 'operations': operations})
+
+    # === BATCH OPERATIONS ===
+
+    async def batch(self, trace_id: str, operations: list) -> asyncio.Future[dict]:
+        return await self.rpc.send('state.batch', {'traceId': trace_id, 'operations': operations})
+
+    # === UTILITY OPERATIONS ===
+
+    async def exists(self, trace_id: str, key: str) -> asyncio.Future[bool]:
+        return await self.rpc.send('state.exists', {'traceId': trace_id, 'key': key})
+
     # Add wrappers to handle non-awaited coroutines
     def __getattribute__(self, name):
         attr = super().__getattribute__(name)

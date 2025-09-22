@@ -32,14 +32,10 @@ export const handler: Handlers['UpdateUserScore'] = async (req, { state, logger,
 
   logger.info('Updating user score', { userId, scoreChange, traceId })
 
-  // Get current score
-  const currentScore = (await state.get(userId, 'user.score')) || 0
-  const newScore = currentScore + scoreChange
+  // Use atomic increment operation for better performance and consistency
+  const newScore = await state.increment(userId, 'user.score', scoreChange)
 
-  // Set the new score - this will trigger any state triggers watching 'user.score'
-  await state.set(userId, 'user.score', newScore)
-
-  logger.info('User score updated', { userId, oldScore: currentScore, newScore })
+  logger.info('User score updated', { userId, scoreChange, newScore })
 
   return {
     status: 200,
