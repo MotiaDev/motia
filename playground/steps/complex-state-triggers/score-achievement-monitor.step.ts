@@ -81,10 +81,15 @@ export const handler: Handlers['ScoreAchievementMonitor'] = async (input, { logg
         await state.push(userId, 'user.notifications', notification)
       }
 
+      // Verify achievements were actually stored
+      const storedAchievements = await state.get(userId, 'user.achievements') || []
+      
       logger.info('Achievements updated', {
         userId,
         newAchievementsCount: newAchievements.length,
         totalAchievements: currentAchievements.length + newAchievements.length,
+        storedAchievementsCount: storedAchievements.length,
+        storedAchievements,
       })
     }
   } catch (error: unknown) {

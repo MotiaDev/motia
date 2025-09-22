@@ -12,7 +12,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user first
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'test@example.com',
             name: 'Test User',
@@ -34,10 +34,11 @@ describe('Complex State Triggers', () => {
         // Test successive score updates
         const scoreUpdates = [
           { operation: 'add', value: 50, expectedScore: 50 },
-          { operation: 'add', value: 100, expectedScore: 150 },
+          { operation: 'increment', value: 100, expectedScore: 150 },
           { operation: 'multiply', value: 2, expectedScore: 300 },
           { operation: 'add', value: 200, expectedScore: 500 },
-          { operation: 'add', value: 500, expectedScore: 1000 },
+          { operation: 'decrement', value: 50, expectedScore: 450 },
+          { operation: 'add', value: 550, expectedScore: 1000 },
         ]
 
         for (const update of scoreUpdates) {
@@ -88,7 +89,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'tier-test@example.com',
             name: 'Tier Test User',
@@ -141,7 +142,7 @@ describe('Complex State Triggers', () => {
         // Register multiple users
         const users = []
         for (let i = 0; i < 5; i++) {
-          const response = await server.post('/register-user', {
+          const response = await server.post('/complex/register', {
             body: {
               email: `user${i}@example.com`,
               name: `User ${i}`,
@@ -201,7 +202,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'rapid-test@example.com',
             name: 'Rapid Test User',
@@ -259,7 +260,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'durable-test@example.com',
             name: 'Durable Test User',
@@ -324,7 +325,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user with bronze tier (max 5 notifications)
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'notification-test@example.com',
             name: 'Notification Test User',
@@ -369,7 +370,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'condition-test@example.com',
             name: 'Condition Test User',
@@ -415,7 +416,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'specific-condition@example.com',
             name: 'Specific Condition User',
@@ -468,7 +469,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'edge-case@example.com',
             name: 'Edge Case User',
@@ -520,7 +521,7 @@ describe('Complex State Triggers', () => {
 
       try {
         // Register a user
-        const registerResponse = await server.post('/register-user', {
+        const registerResponse = await server.post('/complex/register', {
           body: {
             email: 'error-test@example.com',
             name: 'Error Test User',
@@ -572,6 +573,47 @@ describe('Complex State Triggers', () => {
       } finally {
         // consoleSpy.mockRestore()
       }
+    })
+
+    it('should handle concurrent updates with compare-and-swap', async () => {
+      // Register a user first
+      const registerResponse = await server.post('/complex/register', {
+        body: {
+          email: 'concurrent@test.com',
+          name: 'Concurrent User',
+          initialScore: 100,
+          tier: 'bronze',
+        },
+      })
+      expect(registerResponse.status).toBe(201)
+      const { userId } = registerResponse.body
+      await server.waitEvents()
+
+      // Test successful compare-and-swap
+      const casResponse = await server.post('/complex/concurrent-update', {
+        body: {
+          userId,
+          updateType: 'score',
+          expectedValue: 100,
+          newValue: 200,
+        },
+      })
+      expect(casResponse.status).toBe(200)
+      expect(casResponse.body.success).toBe(true)
+      expect(casResponse.body.currentValue).toBe(200)
+
+      // Test failed compare-and-swap (value changed)
+      const failedCasResponse = await server.post('/complex/concurrent-update', {
+        body: {
+          userId,
+          updateType: 'score',
+          expectedValue: 100, // This is wrong now, should be 200
+          newValue: 300,
+        },
+      })
+      expect(failedCasResponse.status).toBe(409)
+      expect(failedCasResponse.body.error).toContain('value changed during update')
+      expect(failedCasResponse.body.currentValue).toBe(200) // Should still be 200
     })
   })
 })

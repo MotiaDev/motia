@@ -4,7 +4,7 @@ import { z } from 'zod'
 export const config: StepConfig = {
   name: 'UserRegistration',
   description: 'API endpoint to register a new user with initial profile data',
-  triggers: [{ type: 'api', path: '/register-user', method: 'POST' }],
+  triggers: [{ type: 'api', path: '/complex/register', method: 'POST' }],
   input: z.object({
     email: z.string().email(),
     name: z.string().min(2),

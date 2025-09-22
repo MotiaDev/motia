@@ -39,15 +39,24 @@ export const handler: Handlers['NotificationCleaner'] = async (input, { logger, 
 
       // Keep only the most recent notifications
       const trimmedNotifications = sortedNotifications.slice(0, maxNotifications)
+      const removedCount = value.length - trimmedNotifications.length
 
-      // Update the notifications
-      await state.set(userId, 'user.notifications', trimmedNotifications)
+      // Use batch operations to atomically update notifications and track cleanup stats
+      const cleanupOperations = [
+        { type: 'set', key: 'user.notifications', value: trimmedNotifications },
+        { type: 'increment', key: 'user.stats.notificationsCleaned', value: removedCount },
+        { type: 'setField', key: 'user.profile', field: 'lastCleanup', value: new Date().toISOString() }
+      ]
 
-      logger.info('Notifications cleaned up', {
+      const cleanupResult = await state.batch(userId, cleanupOperations)
+
+      logger.info('Notifications cleaned up atomically', {
         userId,
         originalCount: value.length,
         trimmedCount: trimmedNotifications.length,
+        removedCount,
         maxAllowed: maxNotifications,
+        batchSuccess: cleanupResult.results.every(r => r.success),
       })
     } else {
       logger.info('No notification cleanup needed', {

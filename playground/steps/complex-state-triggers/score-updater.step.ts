@@ -7,7 +7,7 @@ export const config: StepConfig = {
   triggers: [{ type: 'api', path: '/complex/update-score', method: 'POST' }],
   input: z.object({
     userId: z.string(),
-    operation: z.enum(['add', 'subtract', 'multiply', 'set']),
+    operation: z.enum(['add', 'subtract', 'multiply', 'set', 'decrement', 'increment']),
     value: z.number(),
     reason: z.string().optional(),
   }),
@@ -31,7 +31,7 @@ export const config: StepConfig = {
 export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, traceId }) => {
   const { userId, operation, value, reason } = req.body as {
     userId: string
-    operation: 'add' | 'subtract' | 'multiply' | 'set'
+    operation: 'add' | 'subtract' | 'multiply' | 'set' | 'decrement' | 'increment'
     value: number
     reason?: string
   }
@@ -42,13 +42,16 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
     // Use atomic operations for better performance and clarity
     switch (operation) {
       case 'add':
+      case 'increment':
         newScore = await state.increment(userId, 'user.score', value)
         break
       case 'subtract':
-        // For subtract, use get/set to avoid closure issues with RPC
-        const currentScoreForSubtract = (await state.get(userId, 'user.score')) || 0
-        newScore = Math.max(0, currentScoreForSubtract - value)
-        await state.set(userId, 'user.score', newScore)
+      case 'decrement':
+        newScore = await state.decrement(userId, 'user.score', value)
+        // Ensure score doesn't go below 0
+        if (newScore < 0) {
+          newScore = await state.set(userId, 'user.score', 0)
+        }
         break
       case 'multiply':
         // For multiply, use get/set to avoid closure issues with RPC

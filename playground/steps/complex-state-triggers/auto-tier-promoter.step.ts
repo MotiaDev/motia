@@ -53,25 +53,30 @@ export const handler: Handlers['AutoTierPromoter'] = async (input, { logger, sta
         score: value,
       })
 
-      // Update the tier - this will trigger the tier monitor
-      await state.set(userId, 'user.tier', targetTier)
+      // Use transaction to atomically update tier and add notification
+      const promotionTransaction = [
+        { type: 'set', key: 'user.tier', value: targetTier },
+        { type: 'push', key: 'user.notifications', value: {
+          type: 'auto_promotion',
+          message: `🚀 Auto-Promoted to ${targetTier.toUpperCase()} tier! Your score of ${value} earned you this promotion!`,
+          timestamp: new Date().toISOString(),
+          fromTier: currentTier,
+          toTier: targetTier,
+          score: value,
+        }},
+        { type: 'setField', key: 'user.profile', field: 'lastPromotion', value: new Date().toISOString() },
+        { type: 'setField', key: 'user.profile', field: 'promotionCount', value: 1 }
+      ]
 
-      // Add promotion notification using atomic push operation
-      const notification = {
-        type: 'auto_promotion',
-        message: `🚀 Auto-Promoted to ${targetTier.toUpperCase()} tier! Your score of ${value} earned you this promotion!`,
-        timestamp: new Date().toISOString(),
-        fromTier: currentTier,
-        toTier: targetTier,
-        score: value,
-      }
-      await state.push(userId, 'user.notifications', notification)
+      const transactionResult = await state.transaction(userId, promotionTransaction)
 
-      logger.info('User auto-promoted', {
+      logger.info('User auto-promoted atomically', {
         userId,
         fromTier: currentTier,
         toTier: targetTier,
         score: value,
+        transactionSuccess: transactionResult.success,
+        operationsCount: promotionTransaction.length,
       })
     } else {
       logger.info('No tier promotion needed', {

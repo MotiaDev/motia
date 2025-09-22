@@ -240,6 +240,10 @@
         "y": 66,
         "targetHandlePosition": "left"
       },
+      "steps/complex-state-triggers/concurrent-update-handler.step.ts": {
+        "x": 2,
+        "y": 514
+      },
       "steps/complex-state-triggers/auto-tier-promoter.step.ts": {
         "x": 475,
         "y": 385

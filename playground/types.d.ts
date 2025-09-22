@@ -28,6 +28,7 @@ declare module 'motia' {
     'UserRegistration': ApiRouteHandler<Record<string, unknown>, ApiResponse<201, { message: string; userId: string; email: string; tier: string }> | ApiResponse<400, { error: string }>, never>
     'TierUpdater': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; oldTier: string; newTier: string }> | ApiResponse<400, { error: string }>, never>
     'ScoreUpdater': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; newScore: number; operation: string }> | ApiResponse<400, { error: string }>, never>
+    'ConcurrentUpdateHandler': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; updateType: string; success: boolean; currentValue?: unknown; retryCount: number }> | ApiResponse<409, { error: string; currentValue?: unknown; retryCount: number }>, never>
     'StateAuditJob': CronHandler<{ topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'ProcessFoodOrder': EventHandler<{ email: string; quantity: number; petId: number }, { topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'Notification': EventHandler<{ templateId: string; email: string; templateData: Record<string, unknown> }, never>
