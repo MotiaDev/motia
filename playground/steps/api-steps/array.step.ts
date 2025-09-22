@@ -7,11 +7,13 @@ export const config: StepConfig = {
   name: 'ArrayStep',
   description: 'Basic API Example step with Array in Body and in Response',
   flows: ['array-step'],
-  triggers: [{
-    type: 'api',
-    path: '/array',
-    method: 'POST',
-  }],
+  triggers: [
+    {
+      type: 'api',
+      path: '/array',
+      method: 'POST',
+    },
+  ],
   input: z.array(
     z.object({
       pet: z.object({

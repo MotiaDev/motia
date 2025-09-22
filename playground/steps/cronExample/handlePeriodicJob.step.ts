@@ -3,10 +3,12 @@ import { StepConfig, Handlers } from 'motia'
 export const config: StepConfig = {
   name: 'HandlePeriodicJob',
   description: 'Handles the periodic job event',
-  triggers: [{
-    type: 'cron',
-    cron: '0 */1 * * *',
-  }],
+  triggers: [
+    {
+      type: 'cron',
+      cron: '0 */1 * * *',
+    },
+  ],
   cron: '0 */1 * * *',
   emits: ['periodic-job-handled'],
   flows: ['cron-example'],

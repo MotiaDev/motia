@@ -5,10 +5,12 @@ export const config: StepConfig = {
   name: 'Notification',
   description: 'Sends notifications to users',
   flows: ['basic-tutorial'],
-  triggers: [{
-    type: 'event',
-    topic: 'notification',
-  }],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'notification',
+    },
+  ],
   emits: [],
   input: z.object({
     templateId: z.string(),

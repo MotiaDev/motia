@@ -5,10 +5,12 @@ import { z } from 'zod'
 export const config: StepConfig = {
   name: 'CallOpenAi',
   description: 'Call OpenAI',
-  triggers: [{
-    type: 'event',
-    topic: 'openai-prompt',
-  }],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'openai-prompt',
+    },
+  ],
   emits: [],
   input: z.object({
     message: z.string({ description: 'The message to send to OpenAI' }),

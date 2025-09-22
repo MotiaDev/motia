@@ -9,13 +9,13 @@ describe('stateTriggers', () => {
   it('should trigger state monitor when user status changes to active', async () => {
     // Capture console.log to verify state trigger behavior
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
-    
+
     try {
       // Set user status to 'active' - this should trigger the state monitor
       const response = await server.post('/set-user-status', {
         body: {
           userId: 'test-user-123',
-          status: 'active'
+          status: 'active',
         },
       })
 
@@ -32,10 +32,10 @@ describe('stateTriggers', () => {
 
       // Verify that the state trigger DID fire
       // Check that we see the "Welcome email sent to user" log
-      const logCalls = consoleSpy.mock.calls.map(call => call.join(' '))
-      const welcomeEmailLogs = logCalls.filter(log => log.includes('Welcome email sent to user'))
+      const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+      const welcomeEmailLogs = logCalls.filter((log) => log.includes('Welcome email sent to user'))
       expect(welcomeEmailLogs).toHaveLength(1)
-      
+
       // This demonstrates the simple reactive flow:
       // API Call → State Change → State Trigger → Action (welcome email sent)
     } finally {
@@ -46,13 +46,13 @@ describe('stateTriggers', () => {
   it('should NOT trigger state monitor when user status changes to inactive', async () => {
     // Capture console.log to verify state trigger behavior
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
-    
+
     try {
       // Set user status to 'inactive' - this should NOT trigger the state monitor
       const response = await server.post('/set-user-status', {
         body: {
           userId: 'test-user-456',
-          status: 'inactive'
+          status: 'inactive',
         },
       })
 
@@ -69,12 +69,12 @@ describe('stateTriggers', () => {
 
       // Verify that the state trigger did NOT fire
       // Check that we don't see the "Welcome email sent to user" log
-      const logCalls = consoleSpy.mock.calls.map(call => call.join(' '))
-      const welcomeEmailLogs = logCalls.filter(log => log.includes('Welcome email sent to user'))
+      const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+      const welcomeEmailLogs = logCalls.filter((log) => log.includes('Welcome email sent to user'))
       expect(welcomeEmailLogs).toHaveLength(0)
-      
+
       // But we should see the status change log
-      const statusChangeLogs = logCalls.filter(log => log.includes('User status updated'))
+      const statusChangeLogs = logCalls.filter((log) => log.includes('User status updated'))
       expect(statusChangeLogs).toHaveLength(1)
     } finally {
       consoleSpy.mockRestore()
@@ -84,13 +84,13 @@ describe('stateTriggers', () => {
   it('should trigger score monitor when score exceeds 100', async () => {
     // Capture console.log to verify state trigger behavior
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
-    
+
     try {
       // Update score to 150 - this should trigger the score monitor
       const response = await server.post('/update-score', {
         body: {
           userId: 'test-user-789',
-          scoreChange: 150
+          scoreChange: 150,
         },
       })
 
@@ -107,10 +107,10 @@ describe('stateTriggers', () => {
 
       // Verify that the state trigger DID fire
       // Check that we see the "High score achievement unlocked" log
-      const logCalls = consoleSpy.mock.calls.map(call => call.join(' '))
-      const achievementLogs = logCalls.filter(log => log.includes('High score achievement unlocked'))
+      const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+      const achievementLogs = logCalls.filter((log) => log.includes('High score achievement unlocked'))
       expect(achievementLogs).toHaveLength(1)
-      
+
       // This demonstrates the simple reactive flow:
       // API Call → State Change → State Trigger → Action (achievement unlocked)
     } finally {
@@ -121,13 +121,13 @@ describe('stateTriggers', () => {
   it('should NOT trigger score monitor when score is below 100', async () => {
     // Capture console.log to verify state trigger behavior
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
-    
+
     try {
       // Update score to 50 - this should NOT trigger the score monitor
       const response = await server.post('/update-score', {
-        body: { 
+        body: {
           userId: 'test-user-999',
-          scoreChange: 50 
+          scoreChange: 50,
         },
       })
 
@@ -144,12 +144,12 @@ describe('stateTriggers', () => {
 
       // Verify that the state trigger did NOT fire
       // Check that we don't see the "High score achievement unlocked" log
-      const logCalls = consoleSpy.mock.calls.map(call => call.join(' '))
-      const achievementLogs = logCalls.filter(log => log.includes('High score achievement unlocked'))
+      const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+      const achievementLogs = logCalls.filter((log) => log.includes('High score achievement unlocked'))
       expect(achievementLogs).toHaveLength(0)
-      
+
       // But we should see the score update log
-      const scoreUpdateLogs = logCalls.filter(log => log.includes('User score updated'))
+      const scoreUpdateLogs = logCalls.filter((log) => log.includes('User score updated'))
       expect(scoreUpdateLogs).toHaveLength(1)
     } finally {
       consoleSpy.mockRestore()
@@ -159,9 +159,9 @@ describe('stateTriggers', () => {
   it('should trigger score monitor when score accumulates to exceed 100', async () => {
     // First update: add 60 points (total: 60)
     const response1 = await server.post('/update-score', {
-      body: { 
+      body: {
         userId: 'test-user-accumulate',
-        scoreChange: 60 
+        scoreChange: 60,
       },
     })
 
@@ -171,14 +171,14 @@ describe('stateTriggers', () => {
     // Verify first update
     expect(response1.status).toBe(200)
     expect(response1.body.newScore).toBe(60)
-    
+
     // Should not trigger achievement yet (no "High score achievement unlocked" logs)
 
     // Second update: add 50 points (total: 110) - this should trigger
     const response2 = await server.post('/update-score', {
-      body: { 
+      body: {
         userId: 'test-user-accumulate',
-        scoreChange: 50 
+        scoreChange: 50,
       },
     })
 
@@ -196,16 +196,16 @@ describe('stateTriggers', () => {
   it('should handle multiple state triggers for the same user', async () => {
     // Set user status to active AND update score to high value
     const statusResponse = await server.post('/set-user-status', {
-      body: { 
+      body: {
         userId: 'test-user-multi',
-        status: 'active' 
+        status: 'active',
       },
     })
 
     const scoreResponse = await server.post('/update-score', {
-      body: { 
+      body: {
         userId: 'test-user-multi',
-        scoreChange: 200 
+        scoreChange: 200,
       },
     })
 

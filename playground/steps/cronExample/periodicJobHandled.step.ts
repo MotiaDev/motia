@@ -4,10 +4,12 @@ import { z } from 'zod'
 export const config: StepConfig = {
   name: 'PeriodicJobHandled',
   description: 'Handles the periodic job event',
-  triggers: [{
-    type: 'event',
-    topic: 'periodic-job-handled',
-  }],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'periodic-job-handled',
+    },
+  ],
   input: z.object({
     message: z.string(),
   }),

@@ -9,7 +9,7 @@ export const config: StepConfig = {
     userId: z.string(),
     operation: z.enum(['add', 'subtract', 'multiply', 'set']),
     value: z.number(),
-    reason: z.string().optional()
+    reason: z.string().optional(),
   }),
   responseSchema: {
     200: z.object({
@@ -17,28 +17,28 @@ export const config: StepConfig = {
       userId: z.string(),
       oldScore: z.number(),
       newScore: z.number(),
-      operation: z.string()
+      operation: z.string(),
     }),
-    400: z.object({ error: z.string() })
+    400: z.object({ error: z.string() }),
   },
   emits: [],
   flows: ['user-lifecycle'],
   virtualEmits: [
     { topic: 'user.score', label: 'User score updated' },
-    { topic: 'user.score.history', label: 'Score history updated' }
+    { topic: 'user.score.history', label: 'Score history updated' },
   ],
 }
 
 export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, traceId }) => {
   const { userId, operation, value, reason } = req.body
-  
+
   try {
     logger.info('Updating user score', { userId, operation, value, reason, traceId })
-    
+
     // Get current score
     const currentScore = (await state.get(userId, 'user.score')) || 0
     let newScore: number
-    
+
     // Perform the operation
     switch (operation) {
       case 'add':
@@ -56,10 +56,10 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
       default:
         throw new Error(`Invalid operation: ${operation}`)
     }
-    
+
     // Update the score - this will trigger score-related state monitors
     await state.set(userId, 'user.score', newScore)
-    
+
     // Also update score history for tracking
     const scoreHistory = (await state.get(userId, 'user.score.history')) || []
     scoreHistory.push({
@@ -68,12 +68,12 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
       oldScore: currentScore,
       newScore,
       reason,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
     await state.set(userId, 'user.score.history', scoreHistory)
-    
+
     logger.info('User score updated', { userId, operation, oldScore: currentScore, newScore, reason })
-    
+
     return {
       status: 200,
       body: {
@@ -81,14 +81,18 @@ export const handler: Handlers['ScoreUpdater'] = async (req, { state, logger, tr
         userId,
         oldScore: currentScore,
         newScore,
-        operation
-      }
+        operation,
+      },
     }
-  } catch (error: any) {
-    logger.error('Score update failed', { error: error.message, userId, operation })
+  } catch (error: unknown) {
+    logger.error('Score update failed', {
+      error: error instanceof Error ? error.message : String(error),
+      userId,
+      operation,
+    })
     return {
       status: 400,
-      body: { error: 'Score update failed' }
+      body: { error: 'Score update failed' },
     }
   }
 }

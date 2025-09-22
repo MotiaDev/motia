@@ -10,11 +10,13 @@ const inputSchema = z.object({
 export const config: StepConfig = {
   name: 'OpenAiApi',
   description: 'Call OpenAI',
-  triggers: [{
-    type: 'api',
-    path: '/open-ai/:threadId',
-    method: 'POST',
-  }],
+  triggers: [
+    {
+      type: 'api',
+      path: '/open-ai/:threadId',
+      method: 'POST',
+    },
+  ],
   emits: ['openai-prompt'],
   flows: ['open-ai'],
   input: inputSchema,

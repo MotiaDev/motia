@@ -5,10 +5,12 @@ import { ParallelMergeStep } from './parallelMerge.types'
 export const config: StepConfig = {
   name: 'stepA',
   description: 'Hello from Step A',
-  triggers: [{
-    type: 'event',
-    topic: 'pms.start',
-  }],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'pms.start',
+    },
+  ],
   emits: ['pms.stepA.done'],
   input: z.object({}),
   flows: ['parallel-merge'],

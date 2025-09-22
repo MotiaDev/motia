@@ -5,10 +5,12 @@ import equal from 'deep-equal'
 export const config: StepConfig = {
   name: 'TestStateCheck',
   description: 'check state change',
-  triggers: [{
-    type: 'event',
-    topic: 'test-state-check',
-  }],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'test-state-check',
+    },
+  ],
   emits: [],
   input: z.object({
     key: z.string(),

@@ -4,10 +4,12 @@ export const config: StepConfig = {
   name: 'StateAuditJob',
   description: 'Checks the state for orders that are not complete and have a ship date in the past',
   flows: ['basic-tutorial'],
-  triggers: [{
-    type: 'cron',
-    cron: '*/5 * * * *', // run every 5 minutes
-  }],
+  triggers: [
+    {
+      type: 'cron',
+      cron: '*/5 * * * *', // run every 5 minutes
+    },
+  ],
   cron: '*/5 * * * *', // run every 5 minutes
   emits: ['notification'],
 }

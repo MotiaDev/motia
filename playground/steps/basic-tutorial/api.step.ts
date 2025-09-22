@@ -7,11 +7,13 @@ export const config: StepConfig = {
   name: 'ApiTrigger',
   description: 'basic-tutorial api trigger',
   flows: ['basic-tutorial'],
-  triggers: [{
-    type: 'api',
-    path: '/basic-tutorial',
-    method: 'POST',
-  }],
+  triggers: [
+    {
+      type: 'api',
+      path: '/basic-tutorial',
+      method: 'POST',
+    },
+  ],
   input: z.object({
     pet: z.object({
       name: z.string(),

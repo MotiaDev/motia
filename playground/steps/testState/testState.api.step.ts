@@ -4,11 +4,13 @@ import { z } from 'zod'
 export const config: StepConfig = {
   name: 'TestStateApiTrigger',
   description: 'test state',
-  triggers: [{
-    type: 'api',
-    path: '/test-state',
-    method: 'POST',
-  }],
+  triggers: [
+    {
+      type: 'api',
+      path: '/test-state',
+      method: 'POST',
+    },
+  ],
   emits: ['test-state-python'],
   input: z.object({}),
   flows: ['test-state'],
