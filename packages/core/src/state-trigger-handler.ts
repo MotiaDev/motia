@@ -7,12 +7,19 @@ import { Event, Step, StateTrigger, InternalStateManager } from './types'
 export type MotiaStateManager = {
   createStateHandler: (step: Step) => void
   removeStateHandler: (step: Step) => void
-  checkStateTriggers: (traceId: string, key: string, value: any) => Promise<void>
+  checkStateTriggers: (traceId: string, key: string, value: any, depth?: number) => Promise<void>
   clearAllHandlers: () => void
 }
 
 // Map to track state triggers by key
 const stateTriggersByKey = new Map<string, Set<Step>>()
+
+// Track active state changes to prevent infinite loops
+const activeStateChanges = new Set<string>()
+
+// Configuration for loop prevention
+const MAX_STATE_CHANGE_DEPTH = 10
+const STATE_CHANGE_TIMEOUT = 5000 // 5 seconds
 
 export const createStateHandlers = (motia: Motia): MotiaStateManager => {
   const stateSteps = motia.lockedData.stepsWithStateTriggers()
@@ -80,16 +87,49 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
     })
   }
 
-  const checkStateTriggers = async (traceId: string, key: string, value: any) => {
+  const checkStateTriggers = async (traceId: string, key: string, value: any, depth: number = 0) => {
+    // Prevent infinite loops
+    if (depth >= MAX_STATE_CHANGE_DEPTH) {
+      globalLogger.warn('[state handler] maximum state change depth reached, stopping to prevent infinite loop', {
+        key,
+        depth,
+        maxDepth: MAX_STATE_CHANGE_DEPTH
+      })
+      return
+    }
+
+    // Create a unique identifier for this state change
+    const stateChangeId = `${traceId}:${key}:${depth}`
+    
+    // Check if this state change is already being processed
+    if (activeStateChanges.has(stateChangeId)) {
+      globalLogger.warn('[state handler] state change already being processed, skipping to prevent loop', {
+        key,
+        stateChangeId,
+        depth
+      })
+      return
+    }
+
+    // Mark this state change as active
+    activeStateChanges.add(stateChangeId)
+    
+    // Set a timeout to clean up the active state change
+    setTimeout(() => {
+      activeStateChanges.delete(stateChangeId)
+    }, STATE_CHANGE_TIMEOUT)
+
     const stepsForKey = stateTriggersByKey.get(key)
     
     if (!stepsForKey || stepsForKey.size === 0) {
+      activeStateChanges.delete(stateChangeId)
       return // No steps watching this key
     }
 
     globalLogger.debug('[state handler] checking state triggers', { 
       key, 
       value, 
+      depth,
       stepCount: stepsForKey.size,
       stepNames: Array.from(stepsForKey).map(s => s.config.name)
     })
@@ -134,7 +174,7 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
         // If no condition is specified, trigger on any state change
         if (!stateTrigger.condition) {
           globalLogger.debug('[state handler] triggering step (no condition)', { step: step.config.name })
-          await triggerStep(step, { key, value, traceId })
+          await triggerStep(step, { key, value, traceId, depth })
           continue
         }
 
@@ -176,7 +216,7 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
           
           if (conditionMet) {
             globalLogger.debug('[state handler] triggering step (condition met)', { step: step.config.name })
-            await triggerStep(step, { key, value, traceId })
+            await triggerStep(step, { key, value, traceId, depth })
           } else {
             globalLogger.debug('[state handler] condition not met, skipping', { step: step.config.name })
           }
@@ -189,13 +229,16 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
         }
       }
     }
+    
+    // Clean up the active state change
+    activeStateChanges.delete(stateChangeId)
   }
 
-  const triggerStep = async (step: Step, data: { key: string; value: any; traceId: string }) => {
+  const triggerStep = async (step: Step, data: { key: string; value: any; traceId: string; depth: number }) => {
     const { config, filePath } = step
     const { name } = config
 
-    globalLogger.debug('[state handler] triggering step', { step: name, key: data.key })
+    globalLogger.debug('[state handler] triggering step', { step: name, key: data.key, depth: data.depth })
 
     try {
       // Create logger and tracer for the step execution
@@ -211,6 +254,7 @@ export const createStateHandlers = (motia: Motia): MotiaStateManager => {
 
   const clearAllHandlers = () => {
     stateTriggersByKey.clear()
+    activeStateChanges.clear()
   }
 
   // Initialize handlers for existing steps
