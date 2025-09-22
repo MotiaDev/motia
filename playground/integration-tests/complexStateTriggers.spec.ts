@@ -1,12 +1,235 @@
 import { createMotiaTester } from '@motiadev/test'
 
-describe('Complex State Triggers', () => {
+describe('State Triggers', () => {
   let server: ReturnType<typeof createMotiaTester>
 
   beforeEach(async () => (server = createMotiaTester()))
   afterEach(async () => server.close())
 
-  describe('Successive Updates', () => {
+  describe('Basic State Triggers', () => {
+    it('should trigger state monitor when user status changes to active', async () => {
+      // Capture console.log to verify state trigger behavior
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      try {
+        // Set user status to 'active' - this should trigger the state monitor
+        const response = await server.post('/set-user-status', {
+          body: {
+            userId: 'test-user-123',
+            status: 'active',
+          },
+        })
+
+        // Wait for all events to be processed
+        await server.waitEvents()
+
+        // Verify the API response
+        expect(response.status).toBe(200)
+        expect(response.body).toEqual({
+          message: 'User status updated successfully',
+          userId: 'test-user-123',
+          status: 'active',
+        })
+
+        // Verify that the state trigger DID fire
+        // Check that we see the "Welcome email sent to user" log
+        const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+        const welcomeEmailLogs = logCalls.filter((log) => log.includes('Welcome email sent to user'))
+        expect(welcomeEmailLogs).toHaveLength(1)
+
+        // This demonstrates the simple reactive flow:
+        // API Call → State Change → State Trigger → Action (welcome email sent)
+      } finally {
+        consoleSpy.mockRestore()
+      }
+    })
+
+    it('should NOT trigger state monitor when user status changes to inactive', async () => {
+      // Capture console.log to verify state trigger behavior
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      try {
+        // Set user status to 'inactive' - this should NOT trigger the state monitor
+        const response = await server.post('/set-user-status', {
+          body: {
+            userId: 'test-user-456',
+            status: 'inactive',
+          },
+        })
+
+        // Wait for all events to be processed
+        await server.waitEvents()
+
+        // Verify the API response
+        expect(response.status).toBe(200)
+        expect(response.body).toEqual({
+          message: 'User status updated successfully',
+          userId: 'test-user-456',
+          status: 'inactive',
+        })
+
+        // Verify that the state trigger did NOT fire
+        // Check that we don't see the "Welcome email sent to user" log
+        const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+        const welcomeEmailLogs = logCalls.filter((log) => log.includes('Welcome email sent to user'))
+        expect(welcomeEmailLogs).toHaveLength(0)
+
+        // But we should see the status change log
+        const statusChangeLogs = logCalls.filter((log) => log.includes('User status updated'))
+        expect(statusChangeLogs).toHaveLength(1)
+      } finally {
+        consoleSpy.mockRestore()
+      }
+    })
+
+    it('should trigger score monitor when score exceeds 100', async () => {
+      // Capture console.log to verify state trigger behavior
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      try {
+        // Update score to 150 - this should trigger the score monitor
+        const response = await server.post('/update-score', {
+          body: {
+            userId: 'test-user-789',
+            scoreChange: 150,
+          },
+        })
+
+        // Wait for all events to be processed
+        await server.waitEvents()
+
+        // Verify the API response
+        expect(response.status).toBe(200)
+        expect(response.body).toEqual({
+          message: 'Score updated successfully',
+          userId: 'test-user-789',
+          newScore: 150,
+        })
+
+        // Verify that the score monitor DID fire
+        // Check that we see the "High score achievement unlocked" log
+        const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+        const highScoreLogs = logCalls.filter((log) => log.includes('High score achievement unlocked'))
+        expect(highScoreLogs).toHaveLength(1)
+      } finally {
+        consoleSpy.mockRestore()
+      }
+    })
+
+    it('should NOT trigger score monitor when score is below 100', async () => {
+      // Capture console.log to verify state trigger behavior
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      try {
+        // Update score to 50 - this should NOT trigger the score monitor
+        const response = await server.post('/update-score', {
+          body: {
+            userId: 'test-user-101',
+            scoreChange: 50,
+          },
+        })
+
+        // Wait for all events to be processed
+        await server.waitEvents()
+
+        // Verify the API response
+        expect(response.status).toBe(200)
+        expect(response.body).toEqual({
+          message: 'Score updated successfully',
+          userId: 'test-user-101',
+          newScore: 50,
+        })
+
+        // Verify that the score monitor did NOT fire
+        // Check that we don't see the "High score achievement unlocked" log
+        const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+        const highScoreLogs = logCalls.filter((log) => log.includes('High score achievement unlocked'))
+        expect(highScoreLogs).toHaveLength(0)
+      } finally {
+        consoleSpy.mockRestore()
+      }
+    })
+
+    it('should trigger score monitor when score accumulates to exceed 100', async () => {
+      // Capture console.log to verify state trigger behavior
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      try {
+        // First update: 60 points
+        const response1 = await server.post('/update-score', {
+          body: {
+            userId: 'test-user-accumulate',
+            scoreChange: 60,
+          },
+        })
+
+        // Second update: 50 points (total: 110, should trigger monitor)
+        const response2 = await server.post('/update-score', {
+          body: {
+            userId: 'test-user-accumulate',
+            scoreChange: 50,
+          },
+        })
+
+        // Wait for all events to be processed
+        await server.waitEvents()
+
+        // Verify both API responses
+        expect(response1.status).toBe(200)
+        expect(response2.status).toBe(200)
+
+        // Verify that the score monitor DID fire after the second update
+        // Check that we see the "High score achievement unlocked" log
+        const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+        const highScoreLogs = logCalls.filter((log) => log.includes('High score achievement unlocked'))
+        expect(highScoreLogs).toHaveLength(1)
+      } finally {
+        consoleSpy.mockRestore()
+      }
+    })
+
+    it('should handle multiple state triggers for the same user', async () => {
+      // Capture console.log to verify state trigger behavior
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      try {
+        // Set user status to active (should trigger status monitor)
+        const statusResponse = await server.post('/set-user-status', {
+          body: {
+            userId: 'test-user-multi',
+            status: 'active',
+          },
+        })
+
+        // Update score to 150 (should trigger score monitor)
+        const scoreResponse = await server.post('/update-score', {
+          body: {
+            userId: 'test-user-multi',
+            scoreChange: 150,
+          },
+        })
+
+        // Wait for all events to be processed
+        await server.waitEvents()
+
+        // Verify both API responses
+        expect(statusResponse.status).toBe(200)
+        expect(scoreResponse.status).toBe(200)
+
+        // Verify that BOTH monitors fired
+        const logCalls = consoleSpy.mock.calls.map((call) => call.join(' '))
+        const welcomeEmailLogs = logCalls.filter((log) => log.includes('Welcome email sent to user'))
+        const highScoreLogs = logCalls.filter((log) => log.includes('High score achievement unlocked'))
+        
+        expect(welcomeEmailLogs).toHaveLength(1)
+        expect(highScoreLogs).toHaveLength(1)
+      } finally {
+        consoleSpy.mockRestore()
+      }
+    })
+  })
+
+  describe('Intermediate State Triggers', () => {
     it('should handle multiple score updates in sequence and trigger all appropriate monitors', async () => {
       // const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
 
