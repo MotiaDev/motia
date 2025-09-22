@@ -19,6 +19,7 @@ export interface MotiaTester {
   state: {
     get(userId: string, key: string): Promise<any>
     set(userId: string, key: string, value: any): Promise<void>
+    update(userId: string, key: string, updateFn: (current: any) => any): Promise<any>
     delete(userId: string, key: string): Promise<void>
     clear(userId: string): Promise<void>
     getGroup(userId: string): Promise<Record<string, any>>

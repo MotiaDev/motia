@@ -31,10 +31,11 @@ export const createMockContext = (options?: {
     state: {
       get: jest.fn(),
       set: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
       clear: jest.fn(),
       getGroup: jest.fn(),
-      ...state,
+      ...(state || {}),
     },
   }
 }

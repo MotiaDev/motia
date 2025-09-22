@@ -24,13 +24,18 @@ export class MemoryStateAdapter implements StateAdapter {
 
   async set<T>(traceId: string, key: string, value: T) {
     const fullKey = this._makeKey(traceId, key)
-
-    this.state[fullKey] = value
-
-    return value
+    
+    // Always use locking for atomicity
+    await this._acquireLock(fullKey)
+    try {
+      this.state[fullKey] = value
+      return value
+    } finally {
+      this._releaseLock(fullKey)
+    }
   }
 
-  async atomicUpdate<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
+  async update<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
     const fullKey = this._makeKey(traceId, key)
     
     // Wait for lock to be available
@@ -45,6 +50,11 @@ export class MemoryStateAdapter implements StateAdapter {
       // Release the lock
       this._releaseLock(fullKey)
     }
+  }
+
+  async atomicUpdate<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
+    // Delegate to the new update method for consistency
+    return this.update(traceId, key, updateFn)
   }
 
   private async _acquireLock(key: string): Promise<void> {

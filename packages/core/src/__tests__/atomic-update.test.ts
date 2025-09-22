@@ -7,6 +7,75 @@ describe('Atomic Update Functionality', () => {
     stateAdapter = new MemoryStateAdapter()
   })
 
+  describe('New Update Method', () => {
+    it('should perform updates correctly using the new update method', async () => {
+      const traceId = 'test-trace'
+      const key = 'counter'
+
+      // Initial value should be null
+      const initialValue = await stateAdapter.get(traceId, key)
+      expect(initialValue).toBeNull()
+
+      // Perform update using the new method
+      const result = await stateAdapter.update(traceId, key, (current: number | null) => {
+        return (current || 0) + 1
+      })
+
+      expect(result).toBe(1)
+
+      // Verify the value was set
+      const storedValue = await stateAdapter.get(traceId, key)
+      expect(storedValue).toBe(1)
+    })
+
+    it('should handle complex update operations', async () => {
+      const traceId = 'test-trace'
+      const key = 'score'
+
+      // Set initial value
+      await stateAdapter.set(traceId, key, 100)
+
+      // Perform complex update
+      const result = await stateAdapter.update(traceId, key, (current: number | null) => {
+        const currentScore = current || 0
+        return currentScore * 2 + 50 // Double and add 50
+      })
+
+      expect(result).toBe(250) // (100 * 2) + 50
+
+      // Verify the value was set
+      const storedValue = await stateAdapter.get(traceId, key)
+      expect(storedValue).toBe(250)
+    })
+
+    it('should handle array updates', async () => {
+      const traceId = 'test-trace'
+      const key = 'items'
+
+      // Perform array update
+      const result = await stateAdapter.update(traceId, key, (current: string[] | null) => {
+        const items = current || []
+        items.push('new-item')
+        return items
+      })
+
+      expect(result).toEqual(['new-item'])
+
+      // Add another item
+      const result2 = await stateAdapter.update(traceId, key, (current: string[] | null) => {
+        const items = current || []
+        items.push('another-item')
+        return items
+      })
+
+      expect(result2).toEqual(['new-item', 'another-item'])
+
+      // Verify the value was set
+      const storedValue = await stateAdapter.get(traceId, key)
+      expect(storedValue).toEqual(['new-item', 'another-item'])
+    })
+  })
+
   describe('Basic Atomic Update', () => {
     it('should perform atomic updates correctly', async () => {
       const traceId = 'test-trace'

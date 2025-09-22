@@ -31,6 +31,22 @@ export class StateWrapper implements InternalStateManager {
     return result
   }
 
+  async update<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
+    const result = await this.stateManager.update<T>(traceId, key, updateFn)
+    
+    // Notify state change callback if set
+    if (this.stateChangeCallback) {
+      try {
+        await this.stateChangeCallback(traceId, key, result)
+      } catch (error) {
+        // Log error but don't fail the state operation
+        console.error('[StateWrapper] State change callback failed:', error)
+      }
+    }
+    
+    return result
+  }
+
   async delete<T>(traceId: string, key: string): Promise<T | null> {
     const result = await this.stateManager.delete<T>(traceId, key)
     
@@ -55,26 +71,8 @@ export class StateWrapper implements InternalStateManager {
   }
 
   async atomicUpdate<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
-    if (this.stateManager.atomicUpdate) {
-      const result = await this.stateManager.atomicUpdate(traceId, key, updateFn)
-      
-      // Notify state change callback if set
-      if (this.stateChangeCallback) {
-        try {
-          await this.stateChangeCallback(traceId, key, result)
-        } catch (error) {
-          // Log error but don't fail the state operation
-          console.error('[StateWrapper] State change callback failed:', error)
-        }
-      }
-      
-      return result
-    } else {
-      // Fallback to regular set operation if atomicUpdate is not available
-      const currentValue = await this.get<T>(traceId, key)
-      const newValue = updateFn(currentValue)
-      return await this.set(traceId, key, newValue)
-    }
+    // Delegate to the new update method for consistency
+    return this.update(traceId, key, updateFn)
   }
 
   async getGroup<T>(groupId: string): Promise<T[]> {

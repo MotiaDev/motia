@@ -7,6 +7,7 @@ export type ZodInput = ZodObject<any> | ZodArray<any> // eslint-disable-line @ty
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
   set<T>(groupId: string, key: string, value: T): Promise<T>
+  update<T>(groupId: string, key: string, updateFn: (current: T | null) => T): Promise<T>
   delete<T>(groupId: string, key: string): Promise<T | null>
   getGroup<T>(groupId: string): Promise<T[]>
   clear(groupId: string): Promise<void>

@@ -134,6 +134,17 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           return motia.state.getGroup(input.groupId)
         })
 
+        // Add update handler for the new atomic update method
+        processManager.handler('state.update', async (input: { traceId: string; key: string; updateFn: string }) => {
+          tracer.stateOperation('update', { traceId: input.traceId, key: input.key })
+          
+          // Reconstruct the update function from the serialized string
+          const updateFn = new Function('current', `return (${input.updateFn})(current)`) as (current: any) => any
+          
+          // Use the actual update method on the server side
+          return motia.state.update(input.traceId, input.key, updateFn)
+        })
+
         // Add atomicUpdate handler if available
         if (motia.state.atomicUpdate) {
           processManager.handler('state.atomicUpdate', async (input: { traceId: string; key: string; operation: string; value: number; reason?: string }) => {

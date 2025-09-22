@@ -52,9 +52,24 @@ export class FileStateAdapter implements StateAdapter {
 
     data[fullKey] = JSON.stringify(value)
 
+    // Atomic file write operation
     this._writeFile(data)
 
     return value
+  }
+
+  async update<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
+    const data = this._readFile()
+    const fullKey = this._makeKey(traceId, key)
+    
+    const currentValue = data[fullKey] ? JSON.parse(data[fullKey]) as T : null
+    const newValue = updateFn(currentValue)
+    data[fullKey] = JSON.stringify(newValue)
+    
+    // Atomic file write operation
+    this._writeFile(data)
+    
+    return newValue
   }
 
   async delete<T>(traceId: string, key: string): Promise<T | null> {
