@@ -1,5 +1,6 @@
 ---
-title: 'Intelligent Document Processing: Building a RAG Agent with Motia, Docling & Weaviate'
+title: 'RAG PDF Analyzer'
+description: 'Intelligent Document Processing: Building a RAG System with Motia'
 ---
 
 In the era of AI-powered applications, the ability to extract insights from documents is crucial. Whether you're building a knowledge base, a research assistant, or a customer support system, you need to transform static PDFs into queryable, intelligent systems. This is where Retrieval-Augmented Generation (RAG) architecture shines, and where the Motia framework provides an elegant solution.
