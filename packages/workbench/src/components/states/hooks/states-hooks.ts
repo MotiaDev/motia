@@ -7,7 +7,7 @@ export interface StateItem {
   value: string | number | boolean | object | unknown[] | null
 }
 
-export const useGetStateItems = (): StateItem[] => {
+export const useGetStateItems = (refreshTrigger?: number): StateItem[] => {
   const [items, setItems] = useState<StateItem[]>([])
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export const useGetStateItems = (): StateItem[] => {
       })
       .then(setItems)
       .catch((err) => console.error(err))
-  }, [])
+  }, [refreshTrigger])
 
   return items
 }

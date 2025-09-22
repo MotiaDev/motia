@@ -1,27 +1,60 @@
 import { useGlobalStore } from '@/stores/use-global-store'
-import { cn } from '@motiadev/ui'
-import { useMemo } from 'react'
+import { cn, Button } from '@motiadev/ui'
+import { useMemo, useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { StateItem, useGetStateItems } from './hooks/states-hooks'
 import { StateSidebar } from './state-sidebar'
+import { Database } from 'lucide-react'
 
 export const StatesPage = () => {
   const selectedStateId = useGlobalStore((state) => state.selectedStateId)
   const selectStateId = useGlobalStore((state) => state.selectStateId)
-  const items = useGetStateItems()
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const items = useGetStateItems(refreshTrigger)
   const selectedItem = useMemo(
     () => (selectedStateId ? items.find((item) => `${item.groupId}:${item.key}` === selectedStateId) : null),
     [items, selectedStateId],
   )
+  const [isClearing, setIsClearing] = useState(false)
 
   const handleRowClick = (item: StateItem) => selectStateId(`${item.groupId}:${item.key}`)
   const onClose = () => selectStateId(undefined)
+
+  const clearState = async () => {
+    setIsClearing(true)
+    try {
+      const response = await fetch('/__motia/clear-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ traceId: 'all' }),
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      // Refresh the state data
+      setRefreshTrigger(prev => prev + 1)
+    } catch (error) {
+      console.error('Error clearing state:', error)
+    } finally {
+      setIsClearing(false)
+    }
+  }
 
   return (
     <div className="flex flex-row gap-4 h-full" data-testid="states-container">
       {selectedItem && <StateSidebar state={selectedItem} onClose={onClose} />}
 
-      <Table>
+      <div className="flex-1 flex flex-col">
+        <div className="flex p-2 border-b gap-4">
+          <div className="flex-1" />
+          <Button variant="outline" onClick={clearState} disabled={isClearing}>
+            <Database className="h-4 w-4 mr-2" />
+            {isClearing ? 'Clearing...' : 'Clear State'}
+          </Button>
+        </div>
+        <Table>
         <TableHeader className="sticky top-0 bg-background">
           <TableRow>
             <TableHead className="rounded-0">Group ID</TableHead>
@@ -48,7 +81,8 @@ export const StatesPage = () => {
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+        </Table>
+      </div>
     </div>
   )
 }

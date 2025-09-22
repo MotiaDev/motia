@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react'
 import { LogDetail } from './log-detail'
 import { LogLevelDot } from './log-level-dot'
 import { Button, cn, Input } from '@motiadev/ui'
-import { CircleX, Trash } from 'lucide-react'
+import { CircleX, FileText } from 'lucide-react'
 
 export const LogsPage = () => {
   const logs = useLogsStore((state) => state.logs)
@@ -19,6 +19,29 @@ export const LogsPage = () => {
   )
 
   const [search, setSearch] = useState('')
+  const [isClearing, setIsClearing] = useState(false)
+
+  const clearLogs = async () => {
+    setIsClearing(true)
+    try {
+      const response = await fetch('/__motia/clear-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      // Also clear local logs store
+      resetLogs()
+    } catch (error) {
+      console.error('Error clearing logs:', error)
+    } finally {
+      setIsClearing(false)
+    }
+  }
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       return (
@@ -45,8 +68,9 @@ export const LogsPage = () => {
               onClick={() => setSearch('')}
             />
           </div>
-          <Button variant="outline" onClick={resetLogs}>
-            <Trash /> Clear
+          <Button variant="outline" onClick={clearLogs} disabled={isClearing}>
+            <FileText className="h-4 w-4 mr-2" />
+            {isClearing ? 'Clearing...' : 'Clear Logs'}
           </Button>
         </div>
         <Table>

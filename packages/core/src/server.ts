@@ -169,9 +169,12 @@ export const createServer = (
       const traceId = generateTraceId()
       const { name: stepName, flows } = step.config
       const logger = loggerFactory.create({ traceId, flows, stepName })
-      const tracer = await motia.tracerFactory.createTracer(traceId, step, logger)
+      
+      // Skip tracing for system steps (those with _system flow)
+      const isSystemStep = flows?.includes('_system')
+      const tracer = isSystemStep ? null : await motia.tracerFactory.createTracer(traceId, step, logger)
 
-      logger.debug('[API] Received request, processing step', { path: req.path })
+      logger.debug('[API] Received request, processing step', { path: req.path, isSystemStep })
 
       const data: ApiRequest = {
         body: req.body,

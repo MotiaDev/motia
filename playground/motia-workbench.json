@@ -1,22 +1,5 @@
 [
   {
-    "id": "simple-python",
-    "config": {
-      "steps/simplePython/testedEvent.step.py": {
-        "x": 18,
-        "y": 425
-      },
-      "steps/simplePython/testEvent.step.py": {
-        "x": 28,
-        "y": 263
-      },
-      "steps/simplePython/apiEndpoint.step.py": {
-        "x": 0,
-        "y": 0
-      }
-    }
-  },
-  {
     "id": "open-ai",
     "config": {
       "steps/open-ai/02-prompt.step.ts": {
@@ -98,39 +81,6 @@
     }
   },
   {
-    "id": "parallel-merge",
-    "config": {
-      "steps/parallelMergeState/stepC.step.py": {
-        "x": 101,
-        "y": 349
-      },
-      "steps/parallelMergeState/stepB.step.py": {
-        "x": 102,
-        "y": 203
-      },
-      "steps/parallelMergeState/startParallelMerge.step.ts": {
-        "x": -339,
-        "y": 158
-      },
-      "steps/parallelMergeState/noopStartButton.step.ts": {
-        "x": -607,
-        "y": 186
-      },
-      "steps/parallelMergeState/joinComplete.step.ts": {
-        "x": 728,
-        "y": 202
-      },
-      "steps/parallelMergeState/stepA.step.ts": {
-        "x": 101,
-        "y": 58
-      },
-      "steps/parallelMergeState/joinStep.step.ts": {
-        "x": 366,
-        "y": 201
-      }
-    }
-  },
-  {
     "id": "test-state",
     "config": {
       "steps/testState/testStateCheck.step.ts": {
@@ -171,6 +121,56 @@
         "y": 14,
         "sourceHandlePosition": "right",
         "targetHandlePosition": "left"
+      }
+    }
+  },
+  {
+    "id": "parallel-merge",
+    "config": {
+      "steps/parallelMergeState/stepA.step.ts": {
+        "x": 155,
+        "y": 44
+      },
+      "steps/parallelMergeState/startParallelMerge.step.ts": {
+        "x": -339,
+        "y": 158
+      },
+      "steps/parallelMergeState/noopStartButton.step.ts": {
+        "x": -607,
+        "y": 186
+      },
+      "steps/parallelMergeState/joinStep.step.ts": {
+        "x": 472,
+        "y": 199
+      },
+      "steps/parallelMergeState/joinComplete.step.ts": {
+        "x": 804,
+        "y": 202
+      },
+      "steps/parallelMergeState/stepC_step.py": {
+        "x": 161,
+        "y": 365
+      },
+      "steps/parallelMergeState/stepB_step.py": {
+        "x": 160,
+        "y": 202
+      }
+    }
+  },
+  {
+    "id": "simple-python",
+    "config": {
+      "steps/simplePython/tested_event_step.py": {
+        "x": 393,
+        "y": 58
+      },
+      "steps/simplePython/test_event_step.py": {
+        "x": 220,
+        "y": 58
+      },
+      "steps/simplePython/api_endpoint_step.py": {
+        "x": 0,
+        "y": 0
       }
     }
   }

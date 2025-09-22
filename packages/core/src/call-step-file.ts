@@ -7,6 +7,7 @@ import { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './typ
 import { isAllowedToEmit } from './utils'
 import { Logger } from './logger'
 import { Tracer } from './observability'
+import { NoTracer } from './observability/no-tracer'
 import { TraceError } from './observability/types'
 
 type StateGetInput = { traceId: string; key: string }
@@ -54,7 +55,7 @@ type CallStepFileOptions = {
   data?: unknown
   contextInFirstArg?: boolean
   logger: Logger
-  tracer: Tracer
+  tracer: Tracer | null
 }
 
 export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia): Promise<TData | undefined> => {
@@ -97,40 +98,42 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
             })
           }
 
-          if (err) {
-            tracer.end({
-              message: err.message,
-              code: err.code,
-              stack: err.stack?.replace(new RegExp(`${motia.lockedData.baseDir}/`), ''),
-            })
-          } else {
-            tracer.end()
+          if (tracer) {
+            if (err) {
+              tracer.end({
+                message: err.message,
+                code: err.code,
+                stack: err.stack?.replace(new RegExp(`${motia.lockedData.baseDir}/`), ''),
+              })
+            } else {
+              tracer.end()
+            }
           }
         })
         processManager.handler<unknown>('log', async (input: unknown) => logger.log(input))
 
         processManager.handler<StateGetInput, unknown>('state.get', async (input) => {
-          tracer.stateOperation('get', input)
+          tracer?.stateOperation('get', input)
           return motia.state.get(input.traceId, input.key)
         })
 
         processManager.handler<StateSetInput, unknown>('state.set', async (input) => {
-          tracer.stateOperation('set', { traceId: input.traceId, key: input.key, value: true })
+          tracer?.stateOperation('set', { traceId: input.traceId, key: input.key, value: true })
           return motia.state.set(input.traceId, input.key, input.value)
         })
 
         processManager.handler<StateDeleteInput, unknown>('state.delete', async (input) => {
-          tracer.stateOperation('delete', input)
+          tracer?.stateOperation('delete', input)
           return motia.state.delete(input.traceId, input.key)
         })
 
         processManager.handler<StateClearInput, void>('state.clear', async (input) => {
-          tracer.stateOperation('clear', input)
+          tracer?.stateOperation('clear', input)
           return motia.state.clear(input.traceId)
         })
 
         processManager.handler<StateStreamGetInput>(`state.getGroup`, (input) => {
-          tracer.stateOperation('getGroup', input)
+          tracer?.stateOperation('getGroup', input)
           return motia.state.getGroup(input.groupId)
         })
 
@@ -142,39 +145,39 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           const flows = step.config.flows
 
           if (!isAllowedToEmit(step, input.topic)) {
-            tracer.emitOperation(input.topic, input.data, false)
+            tracer?.emitOperation(input.topic, input.data, false)
             return motia.printer.printInvalidEmit(step, input.topic)
           }
 
-          tracer.emitOperation(input.topic, input.data, true)
-          return motia.eventManager.emit({ ...input, traceId, flows, logger, tracer }, step.filePath)
+          tracer?.emitOperation(input.topic, input.data, true)
+          return motia.eventManager.emit({ ...input, traceId, flows, logger, tracer: tracer || new NoTracer() }, step.filePath)
         })
 
         Object.entries(streamConfig).forEach(([name, streamFactory]) => {
           const stateStream = streamFactory()
 
           processManager.handler<StateStreamGetInput>(`streams.${name}.get`, async (input) => {
-            tracer.streamOperation(name, 'get', input)
+            tracer?.streamOperation(name, 'get', input)
             return stateStream.get(input.groupId, input.id)
           })
 
           processManager.handler<StateStreamMutateInput>(`streams.${name}.set`, async (input) => {
-            tracer.streamOperation(name, 'set', { groupId: input.groupId, id: input.id, data: true })
+            tracer?.streamOperation(name, 'set', { groupId: input.groupId, id: input.id, data: true })
             return stateStream.set(input.groupId, input.id, input.data)
           })
 
           processManager.handler<StateStreamGetInput>(`streams.${name}.delete`, async (input) => {
-            tracer.streamOperation(name, 'delete', input)
+            tracer?.streamOperation(name, 'delete', input)
             return stateStream.delete(input.groupId, input.id)
           })
 
           processManager.handler<StateStreamGetInput>(`streams.${name}.getGroup`, async (input) => {
-            tracer.streamOperation(name, 'getGroup', input)
+            tracer?.streamOperation(name, 'getGroup', input)
             return stateStream.getGroup(input.groupId)
           })
 
           processManager.handler<StateStreamSendInput>(`streams.${name}.send`, async (input) => {
-            tracer.streamOperation(name, 'send', input)
+            tracer?.streamOperation(name, 'send', input)
             return stateStream.send(input.channel, input.event)
           })
         })
@@ -195,18 +198,18 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
           if (code !== 0 && code !== null) {
             const error = { message: `Process exited with code ${code}`, code }
-            tracer.end(error)
+            tracer?.end(error)
             trackEvent('step_execution_error', { stepName: step.config.name, traceId, code })
             reject(`Process exited with code ${code}`)
           } else {
-            tracer.end()
+            tracer?.end()
             resolve(result)
           }
         })
 
         processManager.onProcessError((error) => {
           processManager.close()
-          tracer.end({
+          tracer?.end({
             message: error.message,
             code: error.code,
             stack: error.stack,
@@ -226,7 +229,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
       })
       .catch((error) => {
-        tracer.end({
+        tracer?.end({
           message: error.message,
           code: error.code,
           stack: error.stack,
