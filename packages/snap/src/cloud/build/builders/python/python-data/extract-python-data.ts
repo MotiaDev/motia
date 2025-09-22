@@ -10,7 +10,7 @@ export type PythonResult = {
 export const extractPythonData = (
   rootDir: string,
   filePath: string,
-  externalDependencies: Requirements,
+  dependenciesMap: Record<string, string>,
   // optional
   fileContent?: string, // used on files that are not on the file system
 ): PythonResult => {
@@ -20,12 +20,12 @@ export const extractPythonData = (
     files: new Set(),
   }
 
-  traverseTree(rootDir, filePath, result, externalDependencies, fileContent)
+  traverseTree(rootDir, filePath, result, dependenciesMap, fileContent)
 
   const resultDependencies: Requirements = {}
 
   result.externalDependencies.forEach((dependency) => {
-    resultDependencies[dependency] = externalDependencies[dependency]
+    resultDependencies[dependency] = dependenciesMap[dependency]
   })
 
   return {

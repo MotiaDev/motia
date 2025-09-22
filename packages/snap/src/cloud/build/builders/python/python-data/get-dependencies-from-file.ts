@@ -3,7 +3,6 @@ import { Python3Lexer } from 'python-ast/dist/parser/Python3Lexer'
 import { Python3Parser } from 'python-ast/dist/parser/Python3Parser'
 import { CharStreams, CommonTokenStream, ANTLRErrorListener, Token } from 'antlr4ts'
 import { STANDARD_LIB_MODULES } from './constants'
-import { Requirements } from './read-requirements'
 import { PythonCompilationError } from './python-errors'
 
 function parse(source: string, sourceName: string) {
@@ -33,7 +32,11 @@ export type Dependencies = {
   projectDependencies: Set<string>
 }
 
-export const getDependenciesFromFile = (content: string, path: string, requirements: Requirements): Dependencies => {
+export const getDependenciesFromFile = (
+  content: string,
+  path: string,
+  externalDependenciesMap: Record<string, string>,
+): Dependencies => {
   const result = parse(content + '\n', path)
   const modulesSet = new Set<string>()
 
@@ -76,7 +79,7 @@ export const getDependenciesFromFile = (content: string, path: string, requireme
       dependencies.projectDependencies.add(module)
     } else if (STANDARD_LIB_MODULES.has(module)) {
       dependencies.standardLibDependencies.add(module)
-    } else if (requirements[module] || requirements[moduleName]) {
+    } else if (externalDependenciesMap[module] || externalDependenciesMap[moduleName]) {
       dependencies.externalDependencies.add(module)
     } else {
       dependencies.projectDependencies.add(module)

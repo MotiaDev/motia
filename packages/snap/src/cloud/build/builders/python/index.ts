@@ -9,7 +9,7 @@ import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
 import { extractPythonData } from './python-data/extract-python-data'
 import { readRequirements, Requirements } from './python-data/read-requirements'
-import { resolveDepNames } from './python-data/resolve-dep-name'
+import { resolveDepNames } from './python-data/resolve-dep-names'
 import { UvPackager } from './uv-packager'
 
 export class PythonBuilder implements StepBuilder {
@@ -21,20 +21,6 @@ export class PythonBuilder implements StepBuilder {
   ) {
     activatePythonVenv({ baseDir: this.builder.projectDir })
     this.packager = new UvPackager()
-  }
-
-  private getRequirements(): Requirements {
-    const requirementsFile = path.join(this.builder.projectDir, 'requirements.txt')
-    const depNames = Object.keys(readRequirements(requirementsFile, (name: string) => ({ name, importName: name })))
-    const sitePackagesPath = getSitePackagesPath({ baseDir: this.builder.projectDir })
-    const mapper = resolveDepNames(depNames, sitePackagesPath)
-
-    const describer = (name: string) => {
-      const [, to] = mapper.find(([from]) => from === name) ?? []
-      return { name, importName: to ?? name }
-    }
-
-    return readRequirements(requirementsFile, describer)
   }
 
   async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
@@ -93,11 +79,15 @@ export class PythonBuilder implements StepBuilder {
   }
 
   private async generatePackage(bundleDir: string, entrypointPath: string, archive: Archiver, fileContent?: string) {
-    const requirements = this.getRequirements()
+    const requirementsFile = path.join(this.builder.projectDir, 'requirements.txt')
+    const requirements = readRequirements(requirementsFile)
+    const sitePackagesPath = getSitePackagesPath({ baseDir: this.builder.projectDir })
+    const dependenciesMap = resolveDepNames(Object.keys(requirements), sitePackagesPath)
+
     const { externalDependencies, files } = extractPythonData(
       this.builder.projectDir,
       entrypointPath,
-      requirements,
+      dependenciesMap,
       fileContent,
     )
 
@@ -116,7 +106,11 @@ export class PythonBuilder implements StepBuilder {
 
     if (dependencies.length > 0) {
       // create requirements.txt
-      fs.writeFileSync(path.join(bundleDir, 'requirements.txt'), Object.values(externalDependencies).join('\n'))
+      const requirementsContent = Object.values(externalDependencies)
+        .map((dependency) => requirements[dependency])
+        .join('\n')
+
+      fs.writeFileSync(path.join(bundleDir, 'requirements.txt'), requirementsContent)
       await this.packager.packageDependencies(bundleDir)
     }
 

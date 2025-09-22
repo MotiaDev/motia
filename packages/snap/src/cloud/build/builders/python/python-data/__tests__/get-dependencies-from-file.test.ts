@@ -11,10 +11,7 @@ from .local_module import something
 from ..parent_module import other
 `
 
-    const requirements = {
-      requests: 'requests==2.25.1',
-    }
-
+    const requirements = { requests: 'requests' }
     const deps = getDependenciesFromFile(pythonCode, 'test.py', requirements)
 
     expect(Array.from(deps.standardLibDependencies)).toEqual(['os', 'sys', 'collections'])
@@ -38,9 +35,7 @@ import numpy
 import mypackage.submodule
 `
 
-    const requirements = {
-      numpy: 'numpy==1.21.0',
-    }
+    const requirements = { numpy: 'numpy' }
 
     const deps = getDependenciesFromFile(pythonCode, 'test.py', requirements)
 
@@ -56,10 +51,7 @@ import numpy as np
 import mypackage.submodule
 `
 
-    const requirements = {
-      numpy: 'numpy==1.21.0',
-    }
-
+    const requirements = { numpy: 'numpy' }
     const deps = getDependenciesFromFile(pythonCode, 'test.py', requirements)
 
     expect(Array.from(deps.standardLibDependencies)).toEqual(['json'])
@@ -70,7 +62,6 @@ import mypackage.submodule
   test('handles empty file', () => {
     const pythonCode = ''
     const requirements = {}
-
     const deps = getDependenciesFromFile(pythonCode, 'test.py', requirements)
 
     expect(deps.standardLibDependencies.size).toBe(0)
@@ -81,7 +72,6 @@ import mypackage.submodule
   test('handles unknown external dependencies as project dependencies', () => {
     const pythonCode = 'import unknown_package'
     const requirements = {}
-
     const deps = getDependenciesFromFile(pythonCode, 'test.py', requirements)
 
     expect(Array.from(deps.projectDependencies)).toEqual(['unknown_package'])

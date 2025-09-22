@@ -1,5 +1,5 @@
 import path from 'path'
-import { resolveDepNames } from '../resolve-dep-name'
+import { resolveDepNames } from '../resolve-dep-names'
 import { PythonError } from '../python-errors'
 
 const sitePackagesDir = path.join(__dirname, 'site-packages')
@@ -9,18 +9,29 @@ describe('resolveDepName', () => {
     const depNames = ['httpx']
     const result = resolveDepNames(depNames, sitePackagesDir)
 
-    expect(result).toEqual([['httpx', 'httpx']])
+    expect(result).toEqual({ httpx: 'httpx' })
   })
 
   test('resolves multiple dependency names correctly', () => {
     const depNames = ['httpx', 'scikit-learn', 'opencv-python']
     const result = resolveDepNames(depNames, sitePackagesDir)
 
-    expect(result).toEqual([
-      ['httpx', 'httpx'],
-      ['scikit-learn', 'sklearn'],
-      ['opencv-python', 'cv2'],
-    ])
+    expect(result).toEqual({
+      httpx: 'httpx',
+      sklearn: 'scikit-learn',
+      cv2: 'opencv-python',
+    })
+  })
+
+  test('resolves pymongo correctly', () => {
+    const depNames = ['pymongo']
+    const result = resolveDepNames(depNames, sitePackagesDir)
+
+    expect(result).toEqual({
+      pymongo: 'pymongo',
+      bson: 'pymongo',
+      gridfs: 'pymongo',
+    })
   })
 
   test('should throw an error if the dependency is not found', () => {

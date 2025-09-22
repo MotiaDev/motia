@@ -5,14 +5,14 @@ import { PythonError } from './python-errors'
 /**
  * Resolve the name of the import from the name of the package
  * @param depName the package name
- * @returns the import name
+ * @returns a map of the import name to the package name
  */
-export const resolveDepNames = (depNames: string[], sitePackagesDir: string): [string, string][] => {
+export const resolveDepNames = (depNames: string[], sitePackagesDir: string): Record<string, string> => {
   const folders = fs
     .readdirSync(sitePackagesDir)
     .filter((folder) => fs.statSync(path.join(sitePackagesDir, folder)).isDirectory())
 
-  const result: [string, string][] = []
+  const result: Record<string, string> = {}
 
   for (const depName of depNames) {
     const regex = new RegExp(`^${depName.replace(/-/g, '[-_]')}-.*\\.dist-info$`)
@@ -24,7 +24,7 @@ export const resolveDepNames = (depNames: string[], sitePackagesDir: string): [s
 
       if (topLevelFile) {
         const topLevel = fs.readFileSync(path.join(sitePackagesDir, folder, 'top_level.txt'), 'utf8').trim()
-        result.push([depName, topLevel])
+        result[topLevel] = depName
       } else if (recordFile) {
         const record = fs.readFileSync(path.join(sitePackagesDir, folder, 'RECORD'), 'utf8').trim()
 
@@ -36,8 +36,7 @@ export const resolveDepNames = (depNames: string[], sitePackagesDir: string): [s
           const match = /^([^/]+)\/__init__\.py,/.exec(line)
 
           if (match) {
-            result.push([depName, match[1]])
-            break
+            result[match[1]] = depName
           }
         }
       } else {

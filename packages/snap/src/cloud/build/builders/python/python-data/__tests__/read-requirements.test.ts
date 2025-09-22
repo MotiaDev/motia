@@ -6,8 +6,6 @@ import { tmpdir } from 'os'
 describe('readRequirements', () => {
   let tempFilePath: string
 
-  const mockPackageDescriber = jest.fn((name: string) => ({ name, importName: name }))
-
   beforeEach(() => {
     // Create a temporary file path
     tempFilePath = path.join(tmpdir(), `requirements-${Date.now()}.txt`)
@@ -27,7 +25,7 @@ flask~=2.0`
 
     fs.writeFileSync(tempFilePath, content)
 
-    const requirements = readRequirements(tempFilePath, mockPackageDescriber)
+    const requirements = readRequirements(tempFilePath)
 
     expect(Object.keys(requirements)).toHaveLength(3)
     expect(requirements.requests).toBe('requests==2.25.1')
@@ -46,38 +44,12 @@ flask~=2.0`
 
     fs.writeFileSync(tempFilePath, content)
 
-    const requirements = readRequirements(tempFilePath, mockPackageDescriber)
+    const requirements = readRequirements(tempFilePath)
 
     expect(Object.keys(requirements)).toHaveLength(3)
     expect(requirements.requests).toBe('requests==2.25.1')
     expect(requirements.numpy).toBe('numpy>=1.20.0')
     expect(requirements.flask).toBe('flask~=2.0')
-  })
-
-  test('handles complex package names and version specifiers', () => {
-    const content = `scikit-learn==1.0.2
-python-dateutil==1.4
-Django<4.0.0,>=3.2.0`
-
-    fs.writeFileSync(tempFilePath, content)
-
-    const describer = jest.fn((name: string) => {
-      // mocking a describer resolution for these packages
-      // we're going to implement it separately
-      const map: Record<string, string> = {
-        'scikit-learn': 'sklearn',
-        'python-dateutil': 'dateutil',
-        Django: 'django',
-      }
-      return map[name] ? { name, importName: map[name] } : { name, importName: name }
-    })
-
-    const requirements = readRequirements(tempFilePath, describer)
-
-    expect(Object.keys(requirements)).toEqual(['sklearn', 'dateutil', 'django'])
-    expect(requirements['sklearn']).toBe('scikit-learn==1.0.2')
-    expect(requirements['dateutil']).toBe('python-dateutil==1.4')
-    expect(requirements['django']).toBe('Django<4.0.0,>=3.2.0')
   })
 
   test('handles requirements with extra dependencies', () => {
@@ -86,7 +58,7 @@ flask[async]==2.0.1`
 
     fs.writeFileSync(tempFilePath, content)
 
-    const requirements = readRequirements(tempFilePath, mockPackageDescriber)
+    const requirements = readRequirements(tempFilePath)
 
     expect(Object.keys(requirements)).toHaveLength(2)
     expect(requirements['requests']).toBe('requests[security]==2.25.1')
@@ -100,7 +72,7 @@ flask[async]==2.0.1`
 
     fs.writeFileSync(tempFilePath, content)
 
-    const requirements = readRequirements(tempFilePath, mockPackageDescriber)
+    const requirements = readRequirements(tempFilePath)
 
     expect(Object.keys(requirements)).toHaveLength(0)
   })
@@ -113,7 +85,7 @@ numpy>=1.20.0
 
     fs.writeFileSync(tempFilePath, content)
 
-    const requirements = readRequirements(tempFilePath, mockPackageDescriber)
+    const requirements = readRequirements(tempFilePath)
 
     expect(Object.keys(requirements)).toHaveLength(2)
     expect(requirements.requests).toBe('requests==2.25.1')
@@ -125,7 +97,7 @@ numpy>=1.20.0
 
     fs.writeFileSync(tempFilePath, content)
 
-    const requirements = readRequirements(tempFilePath, mockPackageDescriber)
+    const requirements = readRequirements(tempFilePath)
 
     expect(Object.keys(requirements)).toHaveLength(3)
     expect(requirements.requests).toBe('requests==2.25.1')
@@ -138,7 +110,7 @@ numpy>=1.20.0
 
     fs.writeFileSync(tempFilePath, content)
 
-    const requirements = readRequirements(tempFilePath, mockPackageDescriber)
+    const requirements = readRequirements(tempFilePath)
 
     expect(Object.keys(requirements)).toHaveLength(3)
     expect(requirements.requests).toBe('requests')

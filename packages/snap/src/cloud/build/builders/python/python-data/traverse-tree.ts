@@ -3,7 +3,6 @@ import path from 'path'
 import { convertImportToPath } from './convert-import-path'
 import { getDependenciesFromFile } from './get-dependencies-from-file'
 import { PythonFileNotFoundError, PythonImportNotFoundError } from './python-errors'
-import { Requirements } from './read-requirements'
 
 export type TraverseTreeResult = {
   standardLibDependencies: Set<string>
@@ -15,7 +14,7 @@ export const traverseTree = (
   rootDir: string,
   filePath: string,
   result: TraverseTreeResult,
-  externalDependencies: Requirements,
+  dependenciesMap: Record<string, string>,
   // optional
   fileContent?: string,
 ): void => {
@@ -32,7 +31,7 @@ export const traverseTree = (
   }
 
   const content = fileContent || fs.readFileSync(fileAbsolutePath, 'utf8')
-  const dependencies = getDependenciesFromFile(content, filePath, externalDependencies)
+  const dependencies = getDependenciesFromFile(content, filePath, dependenciesMap)
 
   result.files.add(filePath)
 
@@ -51,14 +50,14 @@ export const traverseTree = (
 
     if (!result.files.has(dependencyPath)) {
       try {
-        traverseTree(rootDir, dependencyPath, result, externalDependencies)
+        traverseTree(rootDir, dependencyPath, result, dependenciesMap)
       } catch (error) {
         if (error instanceof PythonFileNotFoundError) {
           if (dependency[0] !== '.') {
             // try root folder
             try {
               const rootDependencyFilePath = path.resolve(rootDir, `${pythonPath}.py`).replace(rootDir, '')
-              return traverseTree(rootDir, rootDependencyFilePath, result, externalDependencies)
+              return traverseTree(rootDir, rootDependencyFilePath, result, dependenciesMap)
             } catch (_error) {
               // let it throw
             }
