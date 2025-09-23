@@ -1,4 +1,6 @@
 import { useGlobalStore } from '@/stores/use-global-store'
+import { useStatesStore } from '@/stores/use-states-store'
+import { useStateListener } from '@/hooks/use-state-listener'
 import { cn, Button, Input } from '@motiadev/ui'
 import { useMemo, useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
@@ -11,7 +13,17 @@ export const StatesPage = () => {
   const selectStateId = useGlobalStore((state) => state.selectStateId)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [search, setSearch] = useState('')
-  const items = useGetStateItems(refreshTrigger)
+  
+  // Use streaming data
+  const streamItems = useStatesStore((state) => state.stateItems)
+  const fallbackItems = useGetStateItems(refreshTrigger)
+  
+  // Use streaming data if available, otherwise fall back to API
+  const items = streamItems.length > 0 ? streamItems : fallbackItems
+  
+  // Set up state listener for real-time updates
+  useStateListener()
+  
   const selectedItem = useMemo(
     () => (selectedStateId ? items.find((item) => `${item.groupId}:${item.key}` === selectedStateId) : null),
     [items, selectedStateId],
@@ -46,6 +58,9 @@ export const StatesPage = () => {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
       }
+      
+      // Clear local state store
+      useStatesStore.getState().clearStateItems()
       
       // Refresh the state data
       setRefreshTrigger(prev => prev + 1)

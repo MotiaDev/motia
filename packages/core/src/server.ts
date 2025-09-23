@@ -20,6 +20,7 @@ import { createStepHandlers, MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
 import { apiEndpoints } from './streams/api-endpoints'
 import { Log, LogsStream } from './streams/logs-stream'
+import { setupStateStreaming } from './streams/state-stream-setup'
 import {
   ApiRequest,
   ApiResponse,
@@ -156,10 +157,13 @@ export const createServer = (
     },
   })()
 
+  // Set up state streaming
+  const { wrappedStateAdapter } = setupStateStreaming(lockedData, state)
+
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  const motia: Motia = { loggerFactory, eventManager, state, lockedData, printer, tracerFactory }
+  const motia: Motia = { loggerFactory, eventManager, state: wrappedStateAdapter, lockedData, printer, tracerFactory }
 
   const cronManager = setupCronHandlers(motia)
   const motiaEventManager = createStepHandlers(motia)
