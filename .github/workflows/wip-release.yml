@@ -80,6 +80,7 @@ jobs:
         run: |
           pnpm publish -r --filter @motiadev/core --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/ui --no-git-checks --tag ${{ github.event.inputs.tag }}
+          pnpm publish -r --filter @motiadev/plugin-endpoint --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/workbench --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/stream-client --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/stream-client-browser --no-git-checks --tag ${{ github.event.inputs.tag }}
@@ -87,4 +88,3 @@ jobs:
           pnpm publish -r --filter @motiadev/stream-client-react --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter motia --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/test --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/plugin-endpoint --no-git-checks --tag ${{ github.event.inputs.tag }}
