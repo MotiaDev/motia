@@ -1,4 +1,4 @@
-# @motiadev/workbench-endpoint
+# @motiadev/plugin-endpoint
 
 This package provides React components for the Motia workbench endpoint functionality.
 
@@ -17,7 +17,7 @@ The build process includes two steps:
 To use the compiled styles in consuming packages, import the CSS file:
 
 ```css
-@import "@motiadev/workbench-endpoint/styles.css";
+@import "@motiadev/plugin-endpoint/styles.css";
 ```
 
 ### Development

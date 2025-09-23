@@ -605,7 +605,7 @@ importers:
         version: link:../ui
       '@motiadev/workbench-endpoint':
         specifier: workspace:*
-        version: link:../../plugins/workbench-endpoint
+        version: link:../../plugins/plugin-endpoint
       '@radix-ui/react-collapsible':
         specifier: ^1.1.10
         version: 1.1.10(@types/react-dom@19.1.5(@types/react@19.1.4))(@types/react@19.1.4)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
