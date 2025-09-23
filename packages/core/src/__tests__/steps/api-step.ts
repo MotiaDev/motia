@@ -2,11 +2,13 @@ import { ApiResponse, StepConfig, ApiRouteHandler, FlowContext } from '../../typ
 
 export const config: StepConfig = {
   name: 'api-step',
-  triggers: [{
-    type: 'api',
-    path: '/test',
-    method: 'POST',
-  }],
+  triggers: [
+    {
+      type: 'api',
+      path: '/test',
+      method: 'POST',
+    },
+  ],
   emits: ['TEST_EVENT'],
   path: '/test',
   method: 'POST',

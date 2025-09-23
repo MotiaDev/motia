@@ -19,11 +19,11 @@ export const stateEndpoints = (server: MotiaServer, stateAdapter: StateAdapter) 
   app.post('/__motia/state', async (req, res) => {
     try {
       const { key, groupId, value, operation } = req.body
-      
+
       if (operation) {
         // Handle atomic operations
         let result: any
-        
+
         switch (operation) {
           case 'increment':
             result = await stateAdapter.increment(groupId, key, value?.delta || 1)
@@ -64,7 +64,7 @@ export const stateEndpoints = (server: MotiaServer, stateAdapter: StateAdapter) 
           default:
             throw new Error(`Unknown operation: ${operation}`)
         }
-        
+
         res.json({ key, groupId, operation, result })
       } else {
         // Handle regular set operation

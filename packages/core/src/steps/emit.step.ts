@@ -4,11 +4,13 @@ import { z } from 'zod'
 export const config: StepConfig = {
   name: 'Event Emitter',
   description: 'System endpoint for emitting events',
-  triggers: [{
-    type: 'api',
-    path: '/emit',
-    method: 'POST',
-  }],
+  triggers: [
+    {
+      type: 'api',
+      path: '/emit',
+      method: 'POST',
+    },
+  ],
   path: '/emit',
   method: 'POST',
   emits: [], // Dynamic emissions

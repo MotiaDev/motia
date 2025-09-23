@@ -7,11 +7,13 @@ export const createApiStep = (config: Partial<StepConfig> = {}, filePath?: strin
   config: {
     name: 'Start Event',
     description: 'Start the Motia Server Example flow',
-    triggers: [{
-      type: 'api',
-      path: '/api/motia-server-example',
-      method: 'POST',
-    }],
+    triggers: [
+      {
+        type: 'api',
+        path: '/api/motia-server-example',
+        method: 'POST',
+      },
+    ],
     path: '/api/motia-server-example',
     method: 'POST',
     emits: ['ws-server-example.start'],
@@ -25,10 +27,12 @@ export const createApiStep = (config: Partial<StepConfig> = {}, filePath?: strin
 export const createEventStep = (config: Partial<StepConfig> = {}, filePath?: string): Step => ({
   config: {
     name: 'Processor',
-    triggers: [{
-      type: 'event',
-      topic: 'ws-server-example.start',
-    }],
+    triggers: [
+      {
+        type: 'event',
+        topic: 'ws-server-example.start',
+      },
+    ],
     emits: ['ws-server-example.processed'],
     input: zodToJsonSchema(z.object({})) as never,
     flows: ['motia-server'],
@@ -41,10 +45,12 @@ export const createEventStep = (config: Partial<StepConfig> = {}, filePath?: str
 export const createCronStep = (config: Partial<StepConfig> = {}, filePath?: string): Step => ({
   config: {
     name: 'Cron Job',
-    triggers: [{
-      type: 'cron',
-      cron: '* * * * *',
-    }],
+    triggers: [
+      {
+        type: 'cron',
+        cron: '* * * * *',
+      },
+    ],
     cron: '* * * * *',
     emits: [],
     flows: ['motia-server'],

@@ -49,15 +49,17 @@ describe('Server', () => {
 
     it('should run node API steps', async () => {
       const mockApiStep: Step = createApiStep(
-        { 
-          emits: ['TEST_EVENT'], 
-          path: '/test', 
+        {
+          emits: ['TEST_EVENT'],
+          path: '/test',
           method: 'POST',
-          triggers: [{
-            type: 'api',
-            path: '/test',
-            method: 'POST',
-          }],
+          triggers: [
+            {
+              type: 'api',
+              path: '/test',
+              method: 'POST',
+            },
+          ],
         },
         path.join(baseDir, 'api-step.ts'),
       )
@@ -71,15 +73,17 @@ describe('Server', () => {
 
     it('should run python API steps', async () => {
       const mockApiStep: Step = createApiStep(
-        { 
-          emits: ['TEST_EVENT'], 
-          path: '/test', 
+        {
+          emits: ['TEST_EVENT'],
+          path: '/test',
           method: 'POST',
-          triggers: [{
-            type: 'api',
-            path: '/test',
-            method: 'POST',
-          }],
+          triggers: [
+            {
+              type: 'api',
+              path: '/test',
+              method: 'POST',
+            },
+          ],
         },
         path.join(baseDir, 'api-step.py'),
       )
@@ -112,15 +116,17 @@ describe('Server', () => {
       const baseDir = __dirname
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
       const mockApiStep: Step = createApiStep(
-        { 
-          emits: ['TEST_EVENT'], 
-          path: '/test', 
+        {
+          emits: ['TEST_EVENT'],
+          path: '/test',
           method: 'POST',
-          triggers: [{
-            type: 'api',
-            path: '/test',
-            method: 'POST',
-          }],
+          triggers: [
+            {
+              type: 'api',
+              path: '/test',
+              method: 'POST',
+            },
+          ],
         },
         path.join(baseDir, 'steps', 'api-step.ts'),
       )

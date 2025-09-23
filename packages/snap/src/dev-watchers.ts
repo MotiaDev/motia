@@ -63,7 +63,7 @@ export const createDevWatchers = (
     if (isUpdated) {
       trackEvent('step_updated', {
         stepName: newStep.config.name,
-        triggers: newStep.config.triggers.map(t => t.type),
+        triggers: newStep.config.triggers.map((t) => t.type),
       })
 
       if (hasCronTrigger(newStep)) cronManager.createCronJob(newStep)
@@ -79,7 +79,7 @@ export const createDevWatchers = (
     if (isCreated) {
       trackEvent('step_created', {
         stepName: step.config.name,
-        triggers: step.config.triggers.map(t => t.type),
+        triggers: step.config.triggers.map((t) => t.type),
       })
 
       if (hasApiTrigger(step)) server.addRoute(step)
@@ -92,7 +92,7 @@ export const createDevWatchers = (
   watcher.onStepDelete((step: Step) => {
     trackEvent('step_deleted', {
       stepName: step.config.name,
-      triggers: step.config.triggers.map(t => t.type),
+      triggers: step.config.triggers.map((t) => t.type),
     })
 
     if (hasApiTrigger(step)) server.removeRoute(step)

@@ -22,15 +22,7 @@ import { StateWrapper } from './state-wrapper'
 import { systemSteps } from './steps'
 import { apiEndpoints } from './streams/api-endpoints'
 import { Log, LogsStream } from './streams/logs-stream'
-import {
-  ApiRequest,
-  ApiResponse,
-  ApiRouteMethod,
-  EventManager,
-  InternalStateManager,
-  Step,
-  ApiTrigger,
-} from './types'
+import { ApiRequest, ApiResponse, ApiRouteMethod, EventManager, InternalStateManager, Step, ApiTrigger } from './types'
 import { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 import { globalLogger } from './logger'
 import { Printer } from './printer'
@@ -162,7 +154,7 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  
+
   // Wrap state with StateWrapper to enable state triggers
   const stateWrapper = new StateWrapper(state)
   const motia: Motia = { loggerFactory, eventManager, state: stateWrapper, lockedData, printer, tracerFactory }
@@ -170,7 +162,7 @@ export const createServer = (
   const cronManager = setupCronHandlers(motia)
   const motiaEventManager = createStepHandlers(motia)
   const motiaStateManager = createStateHandlers(motia)
-  
+
   // Connect state wrapper to state trigger handler
   stateWrapper.setStateChangeCallback(motiaStateManager.checkStateTriggers)
 
@@ -231,7 +223,7 @@ export const createServer = (
     }
 
     const apiTriggers = getTriggersByType(step, 'api')
-    
+
     apiTriggers.forEach((apiTrigger: ApiTrigger) => {
       const { method, path } = apiTrigger
       globalLogger.debug('[API] Registering route', { step: step.config.name, method, path })
@@ -262,7 +254,7 @@ export const createServer = (
     }
 
     const apiTriggers = getTriggersByType(step, 'api')
-    
+
     apiTriggers.forEach((apiTrigger: ApiTrigger) => {
       const { path, method } = apiTrigger
       const routerStack = router.stack

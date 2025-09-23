@@ -81,11 +81,13 @@ const rateLimiterMiddleware: ApiMiddleware<unknown, unknown, unknown> = (() => {
 
 export const config: StepConfig = {
   name: 'api-with-middleware',
-  triggers: [{
-    type: 'api',
-    path: '/test-middleware',
-    method: 'POST',
-  }],
+  triggers: [
+    {
+      type: 'api',
+      path: '/test-middleware',
+      method: 'POST',
+    },
+  ],
   emits: ['TEST_EVENT'],
   path: '/test-middleware',
   method: 'POST',

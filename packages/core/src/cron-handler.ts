@@ -18,10 +18,10 @@ export const setupCronHandlers = (motia: Motia) => {
   const createCronJob = (step: Step) => {
     const { config, filePath } = step
     const { name: stepName, flows } = config
-    
+
     // Get all cron triggers for this step
     const cronTriggers = getTriggersByType(step, 'cron')
-    
+
     if (cronTriggers.length === 0) {
       return // No cron triggers, nothing to do
     }
@@ -69,7 +69,7 @@ export const setupCronHandlers = (motia: Motia) => {
 
   const removeCronJob = (step: Step) => {
     const cronTriggers = getTriggersByType(step, 'cron')
-    
+
     cronTriggers.forEach((cronTrigger: CronTrigger) => {
       const cronJobKey = `${step.filePath}:${cronTrigger.cron}`
       const task = cronJobs.get(cronJobKey)
@@ -87,7 +87,7 @@ export const setupCronHandlers = (motia: Motia) => {
   }
 
   // Initialize cron jobs for all steps that have cron triggers
-  motia.lockedData.steps().forEach(step => {
+  motia.lockedData.steps().forEach((step) => {
     if (getTriggersByType(step, 'cron').length > 0) {
       createCronJob(step)
     }

@@ -68,11 +68,13 @@ describe('Middleware Management', () => {
       version: '1.0.0',
       config: {
         name: 'test-middleware-step',
-        triggers: [{
-          type: 'api',
-          path: '/test-middleware-route',
-          method: 'POST',
-        }],
+        triggers: [
+          {
+            type: 'api',
+            path: '/test-middleware-route',
+            method: 'POST',
+          },
+        ],
         path: '/test-middleware-route',
         method: 'POST',
         emits: [],
@@ -94,11 +96,13 @@ describe('Middleware Management', () => {
       version: '1.0.0',
       config: {
         name: 'removable-middleware-step',
-        triggers: [{
-          type: 'api',
-          path: '/removable-route',
-          method: 'GET',
-        }],
+        triggers: [
+          {
+            type: 'api',
+            path: '/removable-route',
+            method: 'GET',
+          },
+        ],
         path: '/removable-route',
         method: 'GET',
         emits: [],
@@ -130,11 +134,13 @@ describe('Middleware Management', () => {
       version: '1.0.0',
       config: {
         name: 'updatable-middleware-step',
-        triggers: [{
-          type: 'api',
-          path: '/updatable-route',
-          method: 'POST',
-        }],
+        triggers: [
+          {
+            type: 'api',
+            path: '/updatable-route',
+            method: 'POST',
+          },
+        ],
         path: '/updatable-route',
         method: 'POST',
         emits: [],

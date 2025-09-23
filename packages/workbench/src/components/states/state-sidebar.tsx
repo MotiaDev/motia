@@ -15,7 +15,7 @@ export const StateSidebar: React.FC<Props> = ({ state, onClose }) => {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const handleStateChange = () => {
-    setRefreshTrigger(prev => prev + 1)
+    setRefreshTrigger((prev) => prev + 1)
   }
 
   return (

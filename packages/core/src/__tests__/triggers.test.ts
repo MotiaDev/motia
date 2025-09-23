@@ -10,11 +10,13 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'API Step',
-          triggers: [{
-            type: 'api',
-            path: '/api/test',
-            method: 'POST',
-          }],
+          triggers: [
+            {
+              type: 'api',
+              path: '/api/test',
+              method: 'POST',
+            },
+          ],
         },
       }
 
@@ -30,10 +32,12 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Event Step',
-          triggers: [{
-            type: 'event',
-            topic: 'test.event',
-          }],
+          triggers: [
+            {
+              type: 'event',
+              topic: 'test.event',
+            },
+          ],
         },
       }
 
@@ -49,10 +53,12 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Cron Step',
-          triggers: [{
-            type: 'cron',
-            cron: '0 0 * * *',
-          }],
+          triggers: [
+            {
+              type: 'cron',
+              cron: '0 0 * * *',
+            },
+          ],
         },
       }
 
@@ -68,10 +74,12 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'State Step',
-          triggers: [{
-            type: 'state',
-            key: 'test.key',
-          }],
+          triggers: [
+            {
+              type: 'state',
+              key: 'test.key',
+            },
+          ],
         },
       }
 
@@ -192,11 +200,13 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'API Only Step',
-          triggers: [{
-            type: 'api',
-            path: '/api/test',
-            method: 'POST',
-          }],
+          triggers: [
+            {
+              type: 'api',
+              path: '/api/test',
+              method: 'POST',
+            },
+          ],
         },
       }
 
@@ -212,11 +222,13 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Valid API Step',
-          triggers: [{
-            type: 'api',
-            path: '/api/test',
-            method: 'POST',
-          }],
+          triggers: [
+            {
+              type: 'api',
+              path: '/api/test',
+              method: 'POST',
+            },
+          ],
           path: '/api/test',
           method: 'POST',
           emits: ['test.event'],
@@ -233,10 +245,12 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Valid Event Step',
-          triggers: [{
-            type: 'event',
-            topic: 'test.event',
-          }],
+          triggers: [
+            {
+              type: 'event',
+              topic: 'test.event',
+            },
+          ],
           emits: ['test.processed'],
         },
       }
@@ -251,10 +265,12 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Valid Cron Step',
-          triggers: [{
-            type: 'cron',
-            cron: '0 0 * * *',
-          }],
+          triggers: [
+            {
+              type: 'cron',
+              cron: '0 0 * * *',
+            },
+          ],
           cron: '0 0 * * *',
           emits: ['test.scheduled'],
         },
@@ -286,10 +302,12 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Invalid API Step',
-          triggers: [{
-            type: 'api',
-            // Missing path and method in trigger
-          }],
+          triggers: [
+            {
+              type: 'api',
+              // Missing path and method in trigger
+            },
+          ],
           emits: ['test.event'],
         },
       } as any
@@ -307,10 +325,12 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Invalid Cron Step',
-          triggers: [{
-            type: 'cron',
-            // Missing cron expression in trigger
-          }],
+          triggers: [
+            {
+              type: 'cron',
+              // Missing cron expression in trigger
+            },
+          ],
           emits: ['test.scheduled'],
         },
       } as any
@@ -328,11 +348,13 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Invalid Step',
-          triggers: [{
-            type: 'invalid' as any,
-            path: '/api/test',
-            method: 'POST',
-          }],
+          triggers: [
+            {
+              type: 'invalid' as any,
+              path: '/api/test',
+              method: 'POST',
+            },
+          ],
         },
       }
 
@@ -403,11 +425,13 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Conditional Event Step',
-          triggers: [{
-            type: 'event',
-            topic: 'test.event',
-            condition: (data: any) => data.priority === 'high',
-          }],
+          triggers: [
+            {
+              type: 'event',
+              topic: 'test.event',
+              condition: (data: any) => data.priority === 'high',
+            },
+          ],
           emits: ['test.processed'],
         },
       }
@@ -424,11 +448,13 @@ describe('Triggers System', () => {
         version: '1',
         config: {
           name: 'Conditional State Step',
-          triggers: [{
-            type: 'state',
-            key: 'test.key',
-            condition: (input: any, state: any) => state.get('test.key') === 'trigger',
-          }],
+          triggers: [
+            {
+              type: 'state',
+              key: 'test.key',
+              condition: (input: any, state: any) => state.get('test.key') === 'trigger',
+            },
+          ],
           emits: ['test.processed'],
         },
       }

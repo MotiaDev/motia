@@ -27,13 +27,12 @@ export class RpcStateManager implements InternalStateManager {
   async update<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
     // For RPC, we need to pass the function as a string, but this loses closures
     // We'll pass the function string and let the server handle it
-    return this.sender.send<T>('state.update', { 
-      traceId, 
-      key, 
-      updateFn: updateFn.toString() 
+    return this.sender.send<T>('state.update', {
+      traceId,
+      key,
+      updateFn: updateFn.toString(),
     })
   }
-
 
   // === NEW ATOMIC PRIMITIVES ===
 

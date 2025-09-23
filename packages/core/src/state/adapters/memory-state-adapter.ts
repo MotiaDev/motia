@@ -26,7 +26,7 @@ export class MemoryStateAdapter implements StateAdapter {
 
   async set<T>(traceId: string, key: string, value: T) {
     const fullKey = this._makeKey(traceId, key)
-    
+
     // Always use locking for atomicity
     await this._acquireLock(fullKey)
     try {
@@ -40,10 +40,10 @@ export class MemoryStateAdapter implements StateAdapter {
   async update<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
     const endOperation = globalStatePerformanceMonitor.startOperation('update')
     const fullKey = this._makeKey(traceId, key)
-    
+
     // Wait for lock to be available
     await this._acquireLock(fullKey)
-    
+
     try {
       const currentValue = this.state[fullKey] as T | null
       const newValue = updateFn(currentValue)
@@ -56,7 +56,6 @@ export class MemoryStateAdapter implements StateAdapter {
     }
   }
 
-
   private async _acquireLock(key: string): Promise<void> {
     return new Promise<void>((resolve) => {
       if (!this.lockedKeys.has(key)) {
@@ -65,7 +64,7 @@ export class MemoryStateAdapter implements StateAdapter {
         resolve()
         return
       }
-      
+
       // Lock exists, record contention and add to queue
       globalStatePerformanceMonitor.recordLockContention(key)
       if (!this.lockQueues.has(key)) {
@@ -77,7 +76,7 @@ export class MemoryStateAdapter implements StateAdapter {
 
   private _releaseLock(key: string): void {
     this.lockedKeys.delete(key)
-    
+
     const queue = this.lockQueues.get(key)
     if (queue && queue.length > 0) {
       const nextResolver = queue.shift()!
@@ -162,10 +161,10 @@ export class MemoryStateAdapter implements StateAdapter {
   async compareAndSwap<T>(traceId: string, key: string, expected: T | null, newValue: T): Promise<boolean> {
     const fullKey = this._makeKey(traceId, key)
     await this._acquireLock(fullKey)
-    
+
     try {
       const current = this.state[fullKey] as T | null
-      
+
       // Use JSON comparison for objects to handle deep equality
       let isEqual: boolean
       if (current === expected) {
@@ -183,7 +182,7 @@ export class MemoryStateAdapter implements StateAdapter {
       } else {
         isEqual = false
       }
-      
+
       if (isEqual) {
         this.state[fullKey] = newValue
         return true
@@ -206,12 +205,12 @@ export class MemoryStateAdapter implements StateAdapter {
   async pop<T>(traceId: string, key: string): Promise<T | null> {
     const fullKey = this._makeKey(traceId, key)
     await this._acquireLock(fullKey)
-    
+
     try {
       const current = this.state[fullKey] as T[] | null
       const array = current || []
       if (array.length === 0) return null
-      
+
       const removedItem = array[array.length - 1]
       this.state[fullKey] = array.slice(0, -1)
       return removedItem
@@ -223,12 +222,12 @@ export class MemoryStateAdapter implements StateAdapter {
   async shift<T>(traceId: string, key: string): Promise<T | null> {
     const fullKey = this._makeKey(traceId, key)
     await this._acquireLock(fullKey)
-    
+
     try {
       const current = this.state[fullKey] as T[] | null
       const array = current || []
       if (array.length === 0) return null
-      
+
       const removedItem = array[0]
       this.state[fullKey] = array.slice(1)
       return removedItem
@@ -265,14 +264,14 @@ export class MemoryStateAdapter implements StateAdapter {
 
   async transaction<T>(traceId: string, operations: StateOperation[]): Promise<TransactionResult<T>> {
     // Get all unique keys involved in the transaction
-    const keys = [...new Set(operations.map(op => this._makeKey(traceId, op.key)))]
-    
+    const keys = [...new Set(operations.map((op) => this._makeKey(traceId, op.key)))]
+
     // Acquire locks for all keys in sorted order to prevent deadlocks
     // Acquire locks sequentially to avoid deadlocks
     for (const key of keys.sort()) {
       await this._acquireLock(key)
     }
-    
+
     try {
       const results: T[] = []
       for (const operation of operations) {
@@ -284,7 +283,7 @@ export class MemoryStateAdapter implements StateAdapter {
       return { success: false, results: [], error: error instanceof Error ? error.message : String(error) }
     } finally {
       // Release all locks
-      keys.forEach(key => this._releaseLock(key))
+      keys.forEach((key) => this._releaseLock(key))
     }
   }
 
@@ -298,23 +297,25 @@ export class MemoryStateAdapter implements StateAdapter {
           const value = await this._executeOperation(traceId, operation)
           return { id: operation.id, value, error: undefined }
         } catch (error) {
-          return { 
-            id: operation.id, 
-            value: undefined as T, 
-            error: error instanceof Error ? error.message : String(error) 
+          return {
+            id: operation.id,
+            value: undefined as T,
+            error: error instanceof Error ? error.message : String(error),
           }
         }
-      })
+      }),
     )
 
     return {
-      results: results.map(result => 
-        result.status === 'fulfilled' ? result.value : { 
-          id: undefined, 
-          value: undefined as T, 
-          error: 'Operation failed' 
-        }
-      ) as Array<{ id?: string; value: T; error?: string }>
+      results: results.map((result) =>
+        result.status === 'fulfilled'
+          ? result.value
+          : {
+              id: undefined,
+              value: undefined as T,
+              error: 'Operation failed',
+            },
+      ) as Array<{ id?: string; value: T; error?: string }>,
     }
   }
 
@@ -329,7 +330,7 @@ export class MemoryStateAdapter implements StateAdapter {
 
   private async _executeOperation<T>(traceId: string, operation: StateOperation): Promise<T> {
     const fullKey = this._makeKey(traceId, operation.key)
-    
+
     switch (operation.type) {
       case 'get':
         return (this.state[fullKey] ?? null) as T

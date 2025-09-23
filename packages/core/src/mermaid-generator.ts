@@ -34,7 +34,8 @@ const getNodeLabel = (step: Step): string => {
   if (hasApiTrigger(step)) prefix = '🌐 '
   else if (hasEventTrigger(step)) prefix = '⚡ '
   else if (hasCronTrigger(step)) prefix = '⏰ '
-  else if (step.config.triggers.length === 0) prefix = '⚙️ ' // Noop step
+  else if (step.config.triggers.length === 0)
+    prefix = '⚙️ ' // Noop step
   else prefix = '🔧 ' // Multi-trigger or other types
 
   // Create a node label with the step name
@@ -70,7 +71,7 @@ const generateConnections = (
     // Check event triggers for the topic
     if (hasEventTrigger(step)) {
       const eventTriggers = getTriggersByType(step, 'event')
-      if (eventTriggers.some(trigger => trigger.topic === topic)) {
+      if (eventTriggers.some((trigger) => trigger.topic === topic)) {
         return true
       }
     }

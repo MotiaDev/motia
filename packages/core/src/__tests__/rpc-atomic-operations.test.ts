@@ -18,60 +18,60 @@ class MockRpcSender extends RpcSender {
     switch (method) {
       case 'state.get':
         return this.stateAdapter.get(traceId, key) as T
-      
+
       case 'state.set':
         return this.stateAdapter.set(traceId, key, value) as T
-      
+
       case 'state.delete':
         return this.stateAdapter.delete(traceId, key) as T
-      
+
       case 'state.clear':
         await this.stateAdapter.clear(traceId)
         return undefined as T
-      
+
       case 'state.getGroup':
         return this.stateAdapter.getGroup(params.groupId) as T
-      
+
       case 'state.update':
         const updateFn = new Function('current', `return (${params.updateFn})(current)`) as (current: any) => any
         return this.stateAdapter.update(traceId, key, updateFn) as T
-      
+
       case 'state.increment':
         return this.stateAdapter.increment(traceId, key, delta) as T
-      
+
       case 'state.decrement':
         return this.stateAdapter.decrement(traceId, key, delta) as T
-      
+
       case 'state.compareAndSwap':
         return this.stateAdapter.compareAndSwap(traceId, key, expected, newValue) as T
-      
+
       case 'state.push':
         return this.stateAdapter.push(traceId, key, ...items) as T
-      
+
       case 'state.pop':
         return this.stateAdapter.pop(traceId, key) as T
-      
+
       case 'state.shift':
         return this.stateAdapter.shift(traceId, key) as T
-      
+
       case 'state.unshift':
         return this.stateAdapter.unshift(traceId, key, ...items) as T
-      
+
       case 'state.setField':
         return this.stateAdapter.setField(traceId, key, field as any, value) as T
-      
+
       case 'state.deleteField':
         return this.stateAdapter.deleteField(traceId, key, field) as T
-      
+
       case 'state.transaction':
         return this.stateAdapter.transaction(traceId, operations) as T
-      
+
       case 'state.batch':
         return this.stateAdapter.batch(traceId, operations) as T
-      
+
       case 'state.exists':
         return this.stateAdapter.exists(traceId, key) as T
-      
+
       default:
         throw new Error(`Unknown RPC method: ${method}`)
     }
@@ -99,7 +99,7 @@ describe('RPC Atomic Operations Tests', () => {
       await rpcStateManager.set(testTraceId, 'delete-key', 'delete-value')
       const deleted = await rpcStateManager.delete(testTraceId, 'delete-key')
       expect(deleted).toBe('delete-value')
-      
+
       const result = await rpcStateManager.get(testTraceId, 'delete-key')
       expect(result).toBeNull()
     })
@@ -107,9 +107,9 @@ describe('RPC Atomic Operations Tests', () => {
     test('should perform RPC clear', async () => {
       await rpcStateManager.set(testTraceId, 'key1', 'value1')
       await rpcStateManager.set(testTraceId, 'key2', 'value2')
-      
+
       await rpcStateManager.clear(testTraceId)
-      
+
       const result1 = await rpcStateManager.get(testTraceId, 'key1')
       const result2 = await rpcStateManager.get(testTraceId, 'key2')
       expect(result1).toBeNull()
@@ -131,7 +131,7 @@ describe('RPC Atomic Operations Tests', () => {
 
     test('should perform RPC decrement', async () => {
       await rpcStateManager.set(testTraceId, 'counter', 10)
-      
+
       const result1 = await rpcStateManager.decrement(testTraceId, 'counter')
       expect(result1).toBe(9)
 
@@ -141,16 +141,16 @@ describe('RPC Atomic Operations Tests', () => {
 
     test('should perform RPC compare and swap', async () => {
       await rpcStateManager.set(testTraceId, 'value', 'initial')
-      
+
       const success1 = await rpcStateManager.compareAndSwap(testTraceId, 'value', 'initial', 'updated')
       expect(success1).toBe(true)
-      
+
       const current1 = await rpcStateManager.get(testTraceId, 'value')
       expect(current1).toBe('updated')
 
       const success2 = await rpcStateManager.compareAndSwap(testTraceId, 'value', 'wrong', 'failed')
       expect(success2).toBe(false)
-      
+
       const current2 = await rpcStateManager.get(testTraceId, 'value')
       expect(current2).toBe('updated')
     })
@@ -167,27 +167,27 @@ describe('RPC Atomic Operations Tests', () => {
 
     test('should perform RPC pop', async () => {
       await rpcStateManager.set(testTraceId, 'array', ['a', 'b', 'c'])
-      
+
       const popped = await rpcStateManager.pop(testTraceId, 'array')
       expect(popped).toBe('c')
-      
+
       const current = await rpcStateManager.get(testTraceId, 'array')
       expect(current).toEqual(['a', 'b'])
     })
 
     test('should perform RPC shift', async () => {
       await rpcStateManager.set(testTraceId, 'array', ['a', 'b', 'c'])
-      
+
       const shifted = await rpcStateManager.shift(testTraceId, 'array')
       expect(shifted).toBe('a')
-      
+
       const current = await rpcStateManager.get(testTraceId, 'array')
       expect(current).toEqual(['b', 'c'])
     })
 
     test('should perform RPC unshift', async () => {
       await rpcStateManager.set(testTraceId, 'array', ['c'])
-      
+
       const result = await rpcStateManager.unshift(testTraceId, 'array', 'a', 'b')
       expect(result).toEqual(['a', 'b', 'c'])
     })
@@ -196,14 +196,14 @@ describe('RPC Atomic Operations Tests', () => {
   describe('RPC Object Operations', () => {
     test('should perform RPC setField', async () => {
       await rpcStateManager.set(testTraceId, 'user', { name: 'John', age: 30 })
-      
+
       const result = await rpcStateManager.setField(testTraceId, 'user', 'age', 31)
       expect(result).toEqual({ name: 'John', age: 31 })
     })
 
     test('should perform RPC deleteField', async () => {
       await rpcStateManager.set(testTraceId, 'user', { name: 'John', age: 30, temp: 'data' })
-      
+
       const result = await rpcStateManager.deleteField(testTraceId, 'user', 'temp')
       expect(result).toEqual({ name: 'John', age: 30 })
     })
@@ -215,7 +215,7 @@ describe('RPC Atomic Operations Tests', () => {
         { type: 'set', key: 'counter', value: 0 },
         { type: 'increment', key: 'counter', delta: 5 },
         { type: 'set', key: 'status', value: 'active' },
-        { type: 'push', key: 'log', items: ['transaction started'] }
+        { type: 'push', key: 'log', items: ['transaction started'] },
       ]
 
       const result = await rpcStateManager.transaction(testTraceId, operations)
@@ -239,7 +239,7 @@ describe('RPC Atomic Operations Tests', () => {
         { type: 'set', key: 'user1', value: 'Alice', id: 'op1' },
         { type: 'set', key: 'user2', value: 'Bob', id: 'op2' },
         { type: 'increment', key: 'counter', delta: 1, id: 'op3' },
-        { type: 'push', key: 'users', items: ['Charlie'], id: 'op4' }
+        { type: 'push', key: 'users', items: ['Charlie'], id: 'op4' },
       ]
 
       const result = await rpcStateManager.batch(testTraceId, operations)
@@ -269,7 +269,7 @@ describe('RPC Atomic Operations Tests', () => {
       expect(exists1).toBe(false)
 
       await rpcStateManager.set(testTraceId, 'test', 'value')
-      
+
       const exists2 = await rpcStateManager.exists(testTraceId, 'test')
       expect(exists2).toBe(true)
     })
@@ -279,11 +279,11 @@ describe('RPC Atomic Operations Tests', () => {
     test('should handle RPC errors gracefully', async () => {
       // Test with invalid method
       const invalidSender = {
-        send: jest.fn().mockRejectedValue(new Error('RPC Error'))
+        send: jest.fn().mockRejectedValue(new Error('RPC Error')),
       }
-      
+
       const invalidRpcManager = new RpcStateManager(invalidSender as any)
-      
+
       await expect(invalidRpcManager.get(testTraceId, 'test')).rejects.toThrow('RPC Error')
     })
 
@@ -302,11 +302,9 @@ describe('RPC Atomic Operations Tests', () => {
   describe('RPC Performance', () => {
     test('should handle multiple RPC calls efficiently', async () => {
       const startTime = Date.now()
-      
+
       // Perform multiple RPC operations
-      const promises = Array.from({ length: 100 }, (_, i) => 
-        rpcStateManager.set(testTraceId, `key-${i}`, `value-${i}`)
-      )
+      const promises = Array.from({ length: 100 }, (_, i) => rpcStateManager.set(testTraceId, `key-${i}`, `value-${i}`))
 
       await Promise.all(promises)
 
@@ -326,24 +324,26 @@ describe('RPC Atomic Operations Tests', () => {
     test('should reject RPC update when ALLOW_RPC_UPDATE is not set', async () => {
       const originalEnv = process.env.ALLOW_RPC_UPDATE
       delete process.env.ALLOW_RPC_UPDATE
-      
+
       // Test the security check logic directly (this is what's in call-step-file.ts)
       const testRpcUpdateHandler = async (input: { traceId: string; key: string; updateFn: string }) => {
         // Security check: RPC update is disabled by default due to remote code execution risk
         if (process.env.ALLOW_RPC_UPDATE !== '1') {
-          throw new Error('state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.')
+          throw new Error(
+            'state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.',
+          )
         }
-        
+
         // This would normally reconstruct and call the update function
         const updateFn = new Function('current', `return (${input.updateFn})(current)`) as (current: any) => any
         return updateFn(null) // Mock return
       }
-      
+
       // Should throw error when trying to use update over RPC
       await expect(
-        testRpcUpdateHandler({ traceId: 'test-trace', key: 'test-key', updateFn: 'current => current + 1' })
+        testRpcUpdateHandler({ traceId: 'test-trace', key: 'test-key', updateFn: 'current => current + 1' }),
       ).rejects.toThrow('state.update over RPC is disabled for security reasons')
-      
+
       // Restore environment
       if (originalEnv !== undefined) {
         process.env.ALLOW_RPC_UPDATE = originalEnv
@@ -353,23 +353,29 @@ describe('RPC Atomic Operations Tests', () => {
     test('should allow RPC update when ALLOW_RPC_UPDATE=1', async () => {
       const originalEnv = process.env.ALLOW_RPC_UPDATE
       process.env.ALLOW_RPC_UPDATE = '1'
-      
+
       // Test the security check logic directly
       const testRpcUpdateHandler = async (input: { traceId: string; key: string; updateFn: string }) => {
         // Security check: RPC update is disabled by default due to remote code execution risk
         if (process.env.ALLOW_RPC_UPDATE !== '1') {
-          throw new Error('state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.')
+          throw new Error(
+            'state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.',
+          )
         }
-        
+
         // Reconstruct and call the update function
         const updateFn = new Function('current', `return (${input.updateFn})(current)`) as (current: any) => any
         return updateFn(0) // Start with 0, should return 1
       }
-      
+
       // Should work when environment variable is set
-      const result = await testRpcUpdateHandler({ traceId: 'test-trace', key: 'test-key', updateFn: 'current => (current || 0) + 1' })
+      const result = await testRpcUpdateHandler({
+        traceId: 'test-trace',
+        key: 'test-key',
+        updateFn: 'current => (current || 0) + 1',
+      })
       expect(result).toBe(1)
-      
+
       // Restore environment
       if (originalEnv !== undefined) {
         process.env.ALLOW_RPC_UPDATE = originalEnv

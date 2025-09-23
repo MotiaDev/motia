@@ -25,11 +25,13 @@ describe('Observability Tests', () => {
         version: '1',
         config: {
           name: 'APIStep',
-          triggers: [{
-            type: 'api',
-            path: '/api/test',
-            method: 'POST',
-          }],
+          triggers: [
+            {
+              type: 'api',
+              path: '/api/test',
+              method: 'POST',
+            },
+          ],
         },
       }
 
@@ -42,10 +44,12 @@ describe('Observability Tests', () => {
         version: '1',
         config: {
           name: 'EventStep',
-          triggers: [{
-            type: 'event',
-            topic: 'test.event',
-          }],
+          triggers: [
+            {
+              type: 'event',
+              topic: 'test.event',
+            },
+          ],
         },
       }
 
@@ -58,10 +62,12 @@ describe('Observability Tests', () => {
         version: '1',
         config: {
           name: 'CronStep',
-          triggers: [{
-            type: 'cron',
-            cron: '0 0 * * *',
-          }],
+          triggers: [
+            {
+              type: 'cron',
+              cron: '0 0 * * *',
+            },
+          ],
         },
       }
 
@@ -127,10 +133,12 @@ describe('Observability Tests', () => {
         config: {
           name: 'LegacyStep',
           type: 'api', // Legacy type field
-          triggers: [{
-            type: 'event',
-            topic: 'test.event',
-          }],
+          triggers: [
+            {
+              type: 'event',
+              topic: 'test.event',
+            },
+          ],
         },
       }
 

@@ -79,7 +79,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
     trackEvent('step_execution_started', {
       stepName: step.config.name,
       language: command,
-      triggers: step.config.triggers.map(t => t.type),
+      triggers: step.config.triggers.map((t) => t.type),
       streams: streams.length,
     })
 
@@ -137,19 +137,20 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         // Add update handler for the new atomic update method
         processManager.handler('state.update', async (input: { traceId: string; key: string; updateFn: string }) => {
           tracer.stateOperation('update', { traceId: input.traceId, key: input.key })
-          
+
           // Security check: RPC update is disabled by default due to remote code execution risk
           if (process.env.ALLOW_RPC_UPDATE !== '1') {
-            throw new Error('state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.')
+            throw new Error(
+              'state.update over RPC is disabled for security reasons. Use atomic operations (increment, decrement, compareAndSwap, etc.) or set ALLOW_RPC_UPDATE=1 to enable.',
+            )
           }
-          
+
           // Reconstruct the update function from the serialized string
           const updateFn = new Function('current', `return (${input.updateFn})(current)`) as (current: any) => any
-          
+
           // Use the actual update method on the server side
           return motia.state.update(input.traceId, input.key, updateFn)
         })
-
 
         // === NEW ATOMIC PRIMITIVES ===
 
@@ -163,10 +164,13 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           return motia.state.decrement(input.traceId, input.key, input.delta)
         })
 
-        processManager.handler('state.compareAndSwap', async (input: { traceId: string; key: string; expected: any; newValue: any }) => {
-          tracer.stateOperation('compareAndSwap', { traceId: input.traceId, key: input.key })
-          return motia.state.compareAndSwap(input.traceId, input.key, input.expected, input.newValue)
-        })
+        processManager.handler(
+          'state.compareAndSwap',
+          async (input: { traceId: string; key: string; expected: any; newValue: any }) => {
+            tracer.stateOperation('compareAndSwap', { traceId: input.traceId, key: input.key })
+            return motia.state.compareAndSwap(input.traceId, input.key, input.expected, input.newValue)
+          },
+        )
 
         // === ATOMIC ARRAY OPERATIONS ===
 
@@ -192,10 +196,13 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
         // === ATOMIC OBJECT OPERATIONS ===
 
-        processManager.handler('state.setField', async (input: { traceId: string; key: string; field: string; value: any }) => {
-          tracer.stateOperation('setField', { traceId: input.traceId, key: input.key })
-          return (motia.state as any).setField(input.traceId, input.key, input.field, input.value)
-        })
+        processManager.handler(
+          'state.setField',
+          async (input: { traceId: string; key: string; field: string; value: any }) => {
+            tracer.stateOperation('setField', { traceId: input.traceId, key: input.key })
+            return (motia.state as any).setField(input.traceId, input.key, input.field, input.value)
+          },
+        )
 
         processManager.handler('state.deleteField', async (input: { traceId: string; key: string; field: string }) => {
           tracer.stateOperation('deleteField', { traceId: input.traceId, key: input.key })

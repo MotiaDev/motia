@@ -5,14 +5,18 @@ import { hasApiTrigger, hasEventTrigger, hasCronTrigger } from '../guards'
 
 export const createTrace = (traceGroup: TraceGroup, step: Step) => {
   const id = randomUUID()
-  
+
   // Determine primary trigger type using guard functions
-  const primaryType = 
-    hasApiTrigger(step) ? 'api' :
-    hasEventTrigger(step) ? 'event' :
-    hasCronTrigger(step) ? 'cron' :
-    step.config.triggers.length === 0 ? 'noop' : 'multi'
-  
+  const primaryType = hasApiTrigger(step)
+    ? 'api'
+    : hasEventTrigger(step)
+      ? 'event'
+      : hasCronTrigger(step)
+        ? 'cron'
+        : step.config.triggers.length === 0
+          ? 'noop'
+          : 'multi'
+
   const trace: Trace = {
     id,
     name: step.config.name,

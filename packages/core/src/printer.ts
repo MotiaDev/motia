@@ -102,30 +102,35 @@ export class Printer {
   }
 
   getStepType(step: Step) {
-    const triggerTypes = step.config.triggers.map(trigger => trigger.type)
-    
+    const triggerTypes = step.config.triggers.map((trigger) => trigger.type)
+
     if (triggerTypes.length === 0) {
       return colors.gray('(Noop)')
     }
-    
+
     // Show primary trigger type, or multiple types if there are many
     if (triggerTypes.length === 1) {
       const type = triggerTypes[0]
       switch (type) {
-        case 'api': return colors.gray('(API)')
-        case 'event': return colors.gray('(Event)')
-        case 'cron': return colors.gray('(Cron)')
-        case 'state': return colors.gray('(State)')
-        default: return colors.gray(`(${type})`)
+        case 'api':
+          return colors.gray('(API)')
+        case 'event':
+          return colors.gray('(Event)')
+        case 'cron':
+          return colors.gray('(Cron)')
+        case 'state':
+          return colors.gray('(State)')
+        default:
+          return colors.gray(`(${type})`)
       }
     }
-    
+
     // Multiple trigger types
     const uniqueTypes = [...new Set(triggerTypes)]
     if (uniqueTypes.length <= 2) {
       return colors.gray(`(${uniqueTypes.join('+')})`)
     }
-    
+
     return colors.gray(`(${uniqueTypes.length} triggers)`)
   }
 

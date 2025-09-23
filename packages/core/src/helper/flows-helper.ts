@@ -85,31 +85,31 @@ const createBaseStepResponse = (
 
 // Helper function to get trigger types for display
 const getTriggerTypes = (step: Step): string[] => {
-  return step.config.triggers.map(trigger => trigger.type)
+  return step.config.triggers.map((trigger) => trigger.type)
 }
 
 // Helper function to get event topics from event triggers
 const getEventTopics = (step: Step): string[] => {
   const eventTriggers = getTriggersByType(step, 'event')
-  return eventTriggers.map(trigger => trigger.topic)
+  return eventTriggers.map((trigger) => trigger.topic)
 }
 
 // Helper function to get API endpoints from API triggers
 const getApiEndpoints = (step: Step): string[] => {
   const apiTriggers = getTriggersByType(step, 'api')
-  return apiTriggers.map(trigger => `${trigger.method} ${trigger.path}`)
+  return apiTriggers.map((trigger) => `${trigger.method} ${trigger.path}`)
 }
 
 // Helper function to get cron expressions from cron triggers
 const getCronExpressions = (step: Step): string[] => {
   const cronTriggers = getTriggersByType(step, 'cron')
-  return cronTriggers.map(trigger => trigger.cron)
+  return cronTriggers.map((trigger) => trigger.cron)
 }
 
 const createUnifiedStepResponse = (step: Step, id: string): FlowStepResponse => {
   const triggerTypes = getTriggerTypes(step)
   const primaryType = triggerTypes[0] || 'unknown' // Use first trigger type as primary type
-  
+
   const baseResponse = {
     ...createBaseStepResponse(step, id),
     type: primaryType,

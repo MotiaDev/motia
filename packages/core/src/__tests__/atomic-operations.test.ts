@@ -38,7 +38,7 @@ describe('Atomic Operations Tests', () => {
 
       test('should perform atomic decrement', async () => {
         await memoryAdapter.set(testTraceId, 'counter', 10)
-        
+
         const result1 = await memoryAdapter.decrement(testTraceId, 'counter')
         expect(result1).toBe(9)
 
@@ -48,7 +48,7 @@ describe('Atomic Operations Tests', () => {
 
       test('should perform compare and swap', async () => {
         await memoryAdapter.set(testTraceId, 'value', 'initial')
-        
+
         const success1 = await memoryAdapter.compareAndSwap(testTraceId, 'value', 'initial', 'updated')
         expect(success1).toBe(true)
 
@@ -80,7 +80,7 @@ describe('Atomic Operations Tests', () => {
 
       test('should perform atomic pop', async () => {
         await memoryAdapter.set(testTraceId, 'array', ['a', 'b', 'c'])
-        
+
         const popped = await memoryAdapter.pop(testTraceId, 'array')
         expect(popped).toBe('c')
 
@@ -95,7 +95,7 @@ describe('Atomic Operations Tests', () => {
 
       test('should perform atomic shift', async () => {
         await memoryAdapter.set(testTraceId, 'array', ['a', 'b', 'c'])
-        
+
         const shifted = await memoryAdapter.shift(testTraceId, 'array')
         expect(shifted).toBe('a')
 
@@ -105,7 +105,7 @@ describe('Atomic Operations Tests', () => {
 
       test('should perform atomic unshift', async () => {
         await memoryAdapter.set(testTraceId, 'array', ['c'])
-        
+
         const result = await memoryAdapter.unshift(testTraceId, 'array', 'a', 'b')
         expect(result).toEqual(['a', 'b', 'c'])
       })
@@ -114,14 +114,14 @@ describe('Atomic Operations Tests', () => {
     describe('Memory - Object Operations', () => {
       test('should perform atomic setField', async () => {
         await memoryAdapter.set(testTraceId, 'user', { name: 'John', age: 30 })
-        
+
         const result = await memoryAdapter.setField(testTraceId, 'user', 'age', 31)
         expect(result).toEqual({ name: 'John', age: 31 })
       })
 
       test('should perform atomic deleteField', async () => {
         await memoryAdapter.set(testTraceId, 'user', { name: 'John', age: 30, temp: 'data' })
-        
+
         const result = await memoryAdapter.deleteField(testTraceId, 'user', 'temp')
         expect(result).toEqual({ name: 'John', age: 30 })
       })
@@ -133,7 +133,7 @@ describe('Atomic Operations Tests', () => {
           { type: 'set', key: 'counter', value: 0 },
           { type: 'increment', key: 'counter', delta: 5 },
           { type: 'set', key: 'status', value: 'active' },
-          { type: 'push', key: 'log', items: ['transaction started'] }
+          { type: 'push', key: 'log', items: ['transaction started'] },
         ]
 
         const result = await memoryAdapter.transaction(testTraceId, operations)
@@ -153,8 +153,14 @@ describe('Atomic Operations Tests', () => {
       test('should handle transaction failure', async () => {
         const operations: StateOperation[] = [
           { type: 'set', key: 'counter', value: 0 },
-          { type: 'update', key: 'counter', updateFn: () => { throw new Error('Test error') } },
-          { type: 'set', key: 'status', value: 'active' }
+          {
+            type: 'update',
+            key: 'counter',
+            updateFn: () => {
+              throw new Error('Test error')
+            },
+          },
+          { type: 'set', key: 'status', value: 'active' },
         ]
 
         const result = await memoryAdapter.transaction(testTraceId, operations)
@@ -169,7 +175,7 @@ describe('Atomic Operations Tests', () => {
           { type: 'set', key: 'user1', value: 'Alice', id: 'op1' },
           { type: 'set', key: 'user2', value: 'Bob', id: 'op2' },
           { type: 'increment', key: 'counter', delta: 1, id: 'op3' },
-          { type: 'push', key: 'log', items: ['batch operation'], id: 'op4' }
+          { type: 'push', key: 'log', items: ['batch operation'], id: 'op4' },
         ]
 
         const result = await memoryAdapter.batch(testTraceId, operations)
@@ -190,8 +196,15 @@ describe('Atomic Operations Tests', () => {
       test('should handle batch operation failures gracefully', async () => {
         const operations: BatchOperation[] = [
           { type: 'set', key: 'user1', value: 'Alice', id: 'op1' },
-          { type: 'update', key: 'invalid', updateFn: () => { throw new Error('Test error') }, id: 'op2' },
-          { type: 'set', key: 'user2', value: 'Bob', id: 'op3' }
+          {
+            type: 'update',
+            key: 'invalid',
+            updateFn: () => {
+              throw new Error('Test error')
+            },
+            id: 'op2',
+          },
+          { type: 'set', key: 'user2', value: 'Bob', id: 'op3' },
         ]
 
         const result = await memoryAdapter.batch(testTraceId, operations)
@@ -216,9 +229,7 @@ describe('Atomic Operations Tests', () => {
 
     describe('Memory - Concurrency Tests', () => {
       test('should handle concurrent increments atomically', async () => {
-        const promises = Array.from({ length: 100 }, () => 
-          memoryAdapter.increment(testTraceId, 'concurrent-counter')
-        )
+        const promises = Array.from({ length: 100 }, () => memoryAdapter.increment(testTraceId, 'concurrent-counter'))
 
         await Promise.all(promises)
 
@@ -227,8 +238,8 @@ describe('Atomic Operations Tests', () => {
       })
 
       test('should handle concurrent array operations atomically', async () => {
-        const promises = Array.from({ length: 50 }, (_, i) => 
-          memoryAdapter.push(testTraceId, 'concurrent-array', `item-${i}`)
+        const promises = Array.from({ length: 50 }, (_, i) =>
+          memoryAdapter.push(testTraceId, 'concurrent-array', `item-${i}`),
         )
 
         await Promise.all(promises)
@@ -240,9 +251,7 @@ describe('Atomic Operations Tests', () => {
       test('should handle concurrent compare and swap operations', async () => {
         await memoryAdapter.set(testTraceId, 'cas-value', 0)
 
-        const promises = Array.from({ length: 100 }, () => 
-          memoryAdapter.compareAndSwap(testTraceId, 'cas-value', 0, 1)
-        )
+        const promises = Array.from({ length: 100 }, () => memoryAdapter.compareAndSwap(testTraceId, 'cas-value', 0, 1))
 
         const results = await Promise.all(promises)
         const successCount = results.filter(Boolean).length
@@ -254,14 +263,14 @@ describe('Atomic Operations Tests', () => {
       test('should handle invalid operations gracefully', async () => {
         // Test invalid increment on non-numeric value
         await memoryAdapter.set(testTraceId, 'string-value', 'not-a-number')
-        
+
         await expect(memoryAdapter.increment(testTraceId, 'string-value')).rejects.toThrow()
       })
 
       test('should handle missing keys in operations', async () => {
         const operations: StateOperation[] = [
           { type: 'get', key: 'nonexistent' },
-          { type: 'increment', key: 'nonexistent', delta: 1 }
+          { type: 'increment', key: 'nonexistent', delta: 1 },
         ]
 
         const result = await memoryAdapter.transaction(testTraceId, operations)
@@ -315,17 +324,17 @@ describe('Atomic Operations Tests', () => {
       ]
 
       const result = await memoryWrapper.transaction(testTraceId, operations)
-      
+
       expect(result.success).toBe(true)
-      
+
       // Should only call callback for mutating operations (set, increment)
       // Not for get operations
       expect(callback).toHaveBeenCalledTimes(2)
-      
+
       // Verify the calls were for the mutating operations
       const callArgs = callback.mock.calls
       expect(callArgs[0][1]).toBe('mutating') // set operation
-      expect(callArgs[1][1]).toBe('counter')  // increment operation
+      expect(callArgs[1][1]).toBe('counter') // increment operation
       // Verify depth parameter is passed (incremented in notify method)
       expect(callArgs[0][3]).toBe(1) // depth for transaction/batch
       expect(callArgs[1][3]).toBe(1) // depth for transaction/batch
@@ -345,17 +354,17 @@ describe('Atomic Operations Tests', () => {
       ]
 
       const result = await memoryWrapper.batch(testTraceId, operations)
-      
+
       expect(result.results).toBeDefined()
-      
+
       // Should only call callback for mutating operations (set, increment)
       // Not for get operations
       expect(callback).toHaveBeenCalledTimes(2)
-      
+
       // Verify the calls were for the mutating operations
       const callArgs = callback.mock.calls
       expect(callArgs[0][1]).toBe('mutating') // set operation
-      expect(callArgs[1][1]).toBe('counter')  // increment operation
+      expect(callArgs[1][1]).toBe('counter') // increment operation
       // Verify depth parameter is passed (incremented in notify method)
       expect(callArgs[0][3]).toBe(1) // depth for transaction/batch
       expect(callArgs[1][3]).toBe(1) // depth for transaction/batch
@@ -363,19 +372,19 @@ describe('Atomic Operations Tests', () => {
 
     test('should handle object equality in compareAndSwap using JSON comparison', async () => {
       const testTraceId = 'cas-object-test'
-      
+
       // Set initial object
       const initialObj = { name: 'test', value: 42 }
       await memoryAdapter.set(testTraceId, 'object', initialObj)
-      
+
       // Create a new object with same content (different reference)
       const sameContentObj = { name: 'test', value: 42 }
       const newObj = { name: 'updated', value: 100 }
-      
+
       // Should succeed because content is the same (JSON comparison)
       const result = await memoryAdapter.compareAndSwap(testTraceId, 'object', sameContentObj, newObj)
       expect(result).toBe(true)
-      
+
       // Verify the object was updated
       const updated = await memoryAdapter.get(testTraceId, 'object')
       expect(updated).toEqual(newObj)
@@ -383,19 +392,19 @@ describe('Atomic Operations Tests', () => {
 
     test('should fail compareAndSwap when object content differs', async () => {
       const testTraceId = 'cas-object-fail-test'
-      
+
       // Set initial object
       const initialObj = { name: 'test', value: 42 }
       await memoryAdapter.set(testTraceId, 'object', initialObj)
-      
+
       // Try to swap with different content
       const differentObj = { name: 'different', value: 99 }
       const newObj = { name: 'updated', value: 100 }
-      
+
       // Should fail because content is different
       const result = await memoryAdapter.compareAndSwap(testTraceId, 'object', differentObj, newObj)
       expect(result).toBe(false)
-      
+
       // Verify the object was not updated
       const unchanged = await memoryAdapter.get(testTraceId, 'object')
       expect(unchanged).toEqual(initialObj)

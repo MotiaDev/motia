@@ -62,14 +62,14 @@ export class FileStateAdapter implements StateAdapter {
   async update<T>(traceId: string, key: string, updateFn: (current: T | null) => T): Promise<T> {
     const data = this._readFile()
     const fullKey = this._makeKey(traceId, key)
-    
-    const currentValue = data[fullKey] ? JSON.parse(data[fullKey]) as T : null
+
+    const currentValue = data[fullKey] ? (JSON.parse(data[fullKey]) as T) : null
     const newValue = updateFn(currentValue)
     data[fullKey] = JSON.stringify(newValue)
-    
+
     // Atomic file write operation
     this._writeFile(data)
-    
+
     return newValue
   }
 
@@ -149,9 +149,9 @@ export class FileStateAdapter implements StateAdapter {
   async compareAndSwap<T>(traceId: string, key: string, expected: T | null, newValue: T): Promise<boolean> {
     const data = this._readFile()
     const fullKey = this._makeKey(traceId, key)
-    
-    const current = data[fullKey] ? JSON.parse(data[fullKey]) as T : null
-    
+
+    const current = data[fullKey] ? (JSON.parse(data[fullKey]) as T) : null
+
     // Use JSON comparison for objects to handle deep equality
     let isEqual: boolean
     if (current === expected) {
@@ -169,7 +169,7 @@ export class FileStateAdapter implements StateAdapter {
     } else {
       isEqual = false
     }
-    
+
     if (isEqual) {
       data[fullKey] = JSON.stringify(newValue)
       this._writeFile(data)
@@ -190,11 +190,11 @@ export class FileStateAdapter implements StateAdapter {
   async pop<T>(traceId: string, key: string): Promise<T | null> {
     const data = this._readFile()
     const fullKey = this._makeKey(traceId, key)
-    
-    const current = data[fullKey] ? JSON.parse(data[fullKey]) as T[] : null
+
+    const current = data[fullKey] ? (JSON.parse(data[fullKey]) as T[]) : null
     const array = current || []
     if (array.length === 0) return null
-    
+
     const removedItem = array[array.length - 1]
     data[fullKey] = JSON.stringify(array.slice(0, -1))
     this._writeFile(data)
@@ -204,11 +204,11 @@ export class FileStateAdapter implements StateAdapter {
   async shift<T>(traceId: string, key: string): Promise<T | null> {
     const data = this._readFile()
     const fullKey = this._makeKey(traceId, key)
-    
-    const current = data[fullKey] ? JSON.parse(data[fullKey]) as T[] : null
+
+    const current = data[fullKey] ? (JSON.parse(data[fullKey]) as T[]) : null
     const array = current || []
     if (array.length === 0) return null
-    
+
     const removedItem = array[0]
     data[fullKey] = JSON.stringify(array.slice(1))
     this._writeFile(data)
@@ -243,7 +243,7 @@ export class FileStateAdapter implements StateAdapter {
 
   async transaction<T>(traceId: string, operations: StateOperation[]): Promise<TransactionResult<T>> {
     const data = this._readFile()
-    
+
     try {
       const results: T[] = []
       for (const operation of operations) {
@@ -267,23 +267,25 @@ export class FileStateAdapter implements StateAdapter {
           const value = await this._executeOperation(traceId, operation, this._readFile())
           return { id: operation.id, value, error: undefined }
         } catch (error) {
-          return { 
-            id: operation.id, 
-            value: undefined as T, 
-            error: error instanceof Error ? error.message : String(error) 
+          return {
+            id: operation.id,
+            value: undefined as T,
+            error: error instanceof Error ? error.message : String(error),
           }
         }
-      })
+      }),
     )
 
     return {
-      results: results.map(result => 
-        result.status === 'fulfilled' ? result.value : { 
-          id: undefined, 
-          value: undefined as T, 
-          error: 'Operation failed' 
-        }
-      ) as Array<{ id?: string; value: T; error?: string }>
+      results: results.map((result) =>
+        result.status === 'fulfilled'
+          ? result.value
+          : {
+              id: undefined,
+              value: undefined as T,
+              error: 'Operation failed',
+            },
+      ) as Array<{ id?: string; value: T; error?: string }>,
     }
   }
 
@@ -297,40 +299,46 @@ export class FileStateAdapter implements StateAdapter {
 
   // === PRIVATE HELPER METHODS ===
 
-  private async _executeOperation<T>(traceId: string, operation: StateOperation, data: Record<string, string>): Promise<T> {
+  private async _executeOperation<T>(
+    traceId: string,
+    operation: StateOperation,
+    data: Record<string, string>,
+  ): Promise<T> {
     switch (operation.type) {
       case 'get':
         const fullKey = this._makeKey(traceId, operation.key)
-        return data[fullKey] ? JSON.parse(data[fullKey]) as T : null as T
+        return data[fullKey] ? (JSON.parse(data[fullKey]) as T) : (null as T)
       case 'set':
         data[this._makeKey(traceId, operation.key)] = JSON.stringify(operation.value)
         return operation.value
       case 'update':
         if (!operation.updateFn) throw new Error('Update function required for update operation')
-        const currentValue = data[this._makeKey(traceId, operation.key)] ? JSON.parse(data[this._makeKey(traceId, operation.key)]) as T : null
+        const currentValue = data[this._makeKey(traceId, operation.key)]
+          ? (JSON.parse(data[this._makeKey(traceId, operation.key)]) as T)
+          : null
         const newValue = operation.updateFn(currentValue)
         data[this._makeKey(traceId, operation.key)] = JSON.stringify(newValue)
         return newValue
       case 'delete':
         const deleteKey = this._makeKey(traceId, operation.key)
-        const deleteValue = data[deleteKey] ? JSON.parse(data[deleteKey]) as T : null
+        const deleteValue = data[deleteKey] ? (JSON.parse(data[deleteKey]) as T) : null
         delete data[deleteKey]
         return deleteValue as T
       case 'increment':
         const incKey = this._makeKey(traceId, operation.key)
-        const incCurrent = data[incKey] ? JSON.parse(data[incKey]) as number : 0
+        const incCurrent = data[incKey] ? (JSON.parse(data[incKey]) as number) : 0
         const incNew = incCurrent + (operation.delta || 1)
         data[incKey] = JSON.stringify(incNew)
         return incNew as T
       case 'decrement':
         const decKey = this._makeKey(traceId, operation.key)
-        const decCurrent = data[decKey] ? JSON.parse(data[decKey]) as number : 0
+        const decCurrent = data[decKey] ? (JSON.parse(data[decKey]) as number) : 0
         const decNew = Math.max(0, decCurrent - (operation.delta || 1))
         data[decKey] = JSON.stringify(decNew)
         return decNew as T
       case 'compareAndSwap':
         const casKey = this._makeKey(traceId, operation.key)
-        const casCurrent = data[casKey] ? JSON.parse(data[casKey]) as T : null
+        const casCurrent = data[casKey] ? (JSON.parse(data[casKey]) as T) : null
         if (casCurrent === operation.expected) {
           data[casKey] = JSON.stringify(operation.value)
           return true as T
@@ -338,41 +346,41 @@ export class FileStateAdapter implements StateAdapter {
         return false as T
       case 'push':
         const pushKey = this._makeKey(traceId, operation.key)
-        const pushCurrent = data[pushKey] ? JSON.parse(data[pushKey]) as T[] : []
+        const pushCurrent = data[pushKey] ? (JSON.parse(data[pushKey]) as T[]) : []
         const pushNew = [...pushCurrent, ...(operation.items || [])]
         data[pushKey] = JSON.stringify(pushNew)
         return pushNew as T
       case 'pop':
         const popKey = this._makeKey(traceId, operation.key)
-        const popCurrent = data[popKey] ? JSON.parse(data[popKey]) as T[] : []
+        const popCurrent = data[popKey] ? (JSON.parse(data[popKey]) as T[]) : []
         if (popCurrent.length === 0) return null as T
         const popRemoved = popCurrent[popCurrent.length - 1]
         data[popKey] = JSON.stringify(popCurrent.slice(0, -1))
         return popRemoved
       case 'shift':
         const shiftKey = this._makeKey(traceId, operation.key)
-        const shiftCurrent = data[shiftKey] ? JSON.parse(data[shiftKey]) as T[] : []
+        const shiftCurrent = data[shiftKey] ? (JSON.parse(data[shiftKey]) as T[]) : []
         if (shiftCurrent.length === 0) return null as T
         const shiftRemoved = shiftCurrent[0]
         data[shiftKey] = JSON.stringify(shiftCurrent.slice(1))
         return shiftRemoved
       case 'unshift':
         const unshiftKey = this._makeKey(traceId, operation.key)
-        const unshiftCurrent = data[unshiftKey] ? JSON.parse(data[unshiftKey]) as T[] : []
+        const unshiftCurrent = data[unshiftKey] ? (JSON.parse(data[unshiftKey]) as T[]) : []
         const unshiftNew = [...(operation.items || []), ...unshiftCurrent]
         data[unshiftKey] = JSON.stringify(unshiftNew)
         return unshiftNew as T
       case 'setField':
         if (!operation.field) throw new Error('Field required for setField operation')
         const setFieldKey = this._makeKey(traceId, operation.key)
-        const setFieldCurrent = data[setFieldKey] ? JSON.parse(data[setFieldKey]) as T : ({} as T)
+        const setFieldCurrent = data[setFieldKey] ? (JSON.parse(data[setFieldKey]) as T) : ({} as T)
         const setFieldNew = { ...setFieldCurrent, [operation.field]: operation.value }
         data[setFieldKey] = JSON.stringify(setFieldNew)
         return setFieldNew
       case 'deleteField':
         if (!operation.field) throw new Error('Field required for deleteField operation')
         const deleteFieldKey = this._makeKey(traceId, operation.key)
-        const deleteFieldCurrent = data[deleteFieldKey] ? JSON.parse(data[deleteFieldKey]) as T : ({} as T)
+        const deleteFieldCurrent = data[deleteFieldKey] ? (JSON.parse(data[deleteFieldKey]) as T) : ({} as T)
         const { [operation.field as keyof T]: _, ...deleteFieldRest } = deleteFieldCurrent
         data[deleteFieldKey] = JSON.stringify(deleteFieldRest)
         return deleteFieldRest as T
@@ -398,11 +406,11 @@ export class FileStateAdapter implements StateAdapter {
   private _writeFile(data: unknown) {
     const tempPath = this.filePath + '.tmp'
     const jsonData = JSON.stringify(data, null, 2)
-    
+
     try {
       // Write to temporary file first
       fs.writeFileSync(tempPath, jsonData, 'utf-8')
-      
+
       // Atomically rename temp file to final location (atomic on POSIX systems)
       fs.renameSync(tempPath, this.filePath)
     } catch (error) {
@@ -412,7 +420,7 @@ export class FileStateAdapter implements StateAdapter {
       } catch {
         // Ignore cleanup errors
       }
-      
+
       // Fallback: try to initialize and write directly
       this.init()
       fs.writeFileSync(this.filePath, jsonData, 'utf-8')

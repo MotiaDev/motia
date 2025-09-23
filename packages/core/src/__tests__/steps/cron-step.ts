@@ -2,10 +2,12 @@ import { StepConfig, CronHandler, FlowContext } from '../../types'
 
 export const config: StepConfig = {
   name: 'cron-step',
-  triggers: [{
-    type: 'cron',
-    cron: '* * * * *', // Run every minute
-  }],
+  triggers: [
+    {
+      type: 'cron',
+      cron: '* * * * *', // Run every minute
+    },
+  ],
   emits: ['TEST_EVENT'],
   cron: '* * * * *', // Run every minute
 }

@@ -23,11 +23,11 @@ const mapEndpoint = (step: Step): ApiEndpoint => {
   // Get the first API trigger (there should only be one per step)
   const apiTriggers = getTriggersByType(step, 'api')
   const apiTrigger = apiTriggers[0]
-  
+
   if (!apiTrigger) {
     throw new Error(`Step ${step.config.name} has no API trigger`)
   }
-  
+
   return {
     id: step.filePath,
     method: apiTrigger.method,
@@ -47,7 +47,7 @@ class ApiEndpointsStream extends StreamAdapter<ApiEndpoint> {
   async get(id: string): Promise<ApiEndpoint | null> {
     const endpoint = this.lockedData.stepsWithApiTriggers().find((step) => {
       const apiTriggers = getTriggersByType(step, 'api')
-      return apiTriggers.some(trigger => trigger.path === id)
+      return apiTriggers.some((trigger) => trigger.path === id)
     })
     return endpoint ? mapEndpoint(endpoint) : null
   }

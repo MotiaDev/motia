@@ -1,16 +1,5 @@
 import { Button } from '@motiadev/ui'
-import { 
-  Plus, 
-  Minus, 
-  ArrowUp, 
-  ArrowDown, 
-  Settings, 
-  Trash2, 
-  RotateCcw,
-  Loader2,
-  Check,
-  X
-} from 'lucide-react'
+import { Plus, Minus, ArrowUp, ArrowDown, Settings, Trash2, RotateCcw, Loader2, Check, X } from 'lucide-react'
 import React, { useState } from 'react'
 import { StateItem } from './hooks/states-hooks'
 
@@ -31,7 +20,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
 
   const executeOperation = async (operation: string, payload: any) => {
     const operationKey = `${operation}_${Date.now()}`
-    setOperationStatus(prev => ({ ...prev, [operationKey]: 'loading' }))
+    setOperationStatus((prev) => ({ ...prev, [operationKey]: 'loading' }))
 
     try {
       const response = await fetch('/__motia/state', {
@@ -52,14 +41,14 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
       }
 
       const result = await response.json()
-      setOperationStatus(prev => ({ ...prev, [operationKey]: 'success' }))
-      
+      setOperationStatus((prev) => ({ ...prev, [operationKey]: 'success' }))
+
       // Trigger state refresh
       onStateChange()
-      
+
       // Clear success status after 2 seconds
       setTimeout(() => {
-        setOperationStatus(prev => {
+        setOperationStatus((prev) => {
           const newStatus = { ...prev }
           delete newStatus[operationKey]
           return newStatus
@@ -69,11 +58,11 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
       return result
     } catch (error) {
       console.error(`Failed to execute ${operation}:`, error)
-      setOperationStatus(prev => ({ ...prev, [operationKey]: 'error' }))
-      
+      setOperationStatus((prev) => ({ ...prev, [operationKey]: 'error' }))
+
       // Clear error status after 3 seconds
       setTimeout(() => {
-        setOperationStatus(prev => {
+        setOperationStatus((prev) => {
           const newStatus = { ...prev }
           delete newStatus[operationKey]
           return newStatus
@@ -105,7 +94,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-medium">Atomic Operations</h3>
-      
+
       {/* Numeric Operations */}
       {isNumericValue && (
         <div className="space-y-2">
@@ -122,7 +111,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
               size="sm"
               variant="outline"
               onClick={() => executeOperation('increment', { delta: deltaValue })}
-              disabled={!!Object.values(operationStatus).find(s => s === 'loading')}
+              disabled={!!Object.values(operationStatus).find((s) => s === 'loading')}
             >
               <Plus className="w-3 h-3 mr-1" />
               Increment
@@ -131,7 +120,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
               size="sm"
               variant="outline"
               onClick={() => executeOperation('decrement', { delta: deltaValue })}
-              disabled={!!Object.values(operationStatus).find(s => s === 'loading')}
+              disabled={!!Object.values(operationStatus).find((s) => s === 'loading')}
             >
               <Minus className="w-3 h-3 mr-1" />
               Decrement
@@ -149,7 +138,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
               size="sm"
               variant="outline"
               onClick={() => executeOperation('pop', {})}
-              disabled={!!Object.values(operationStatus).find(s => s === 'loading')}
+              disabled={!!Object.values(operationStatus).find((s) => s === 'loading')}
             >
               <ArrowUp className="w-3 h-3 mr-1" />
               Pop
@@ -158,7 +147,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
               size="sm"
               variant="outline"
               onClick={() => executeOperation('shift', {})}
-              disabled={!!Object.values(operationStatus).find(s => s === 'loading')}
+              disabled={!!Object.values(operationStatus).find((s) => s === 'loading')}
             >
               <ArrowDown className="w-3 h-3 mr-1" />
               Shift
@@ -198,7 +187,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
                     alert('Invalid JSON for field value')
                   }
                 }}
-                disabled={!fieldName || !fieldValue || !!Object.values(operationStatus).find(s => s === 'loading')}
+                disabled={!fieldName || !fieldValue || !!Object.values(operationStatus).find((s) => s === 'loading')}
               >
                 <Settings className="w-3 h-3 mr-1" />
                 Set Field
@@ -216,7 +205,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
                 size="sm"
                 variant="outline"
                 onClick={() => executeOperation('deleteField', { field: fieldName })}
-                disabled={!fieldName || !!Object.values(operationStatus).find(s => s === 'loading')}
+                disabled={!fieldName || !!Object.values(operationStatus).find((s) => s === 'loading')}
               >
                 <Trash2 className="w-3 h-3 mr-1" />
                 Delete Field
@@ -257,7 +246,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
                   alert('Invalid JSON for expected or new value')
                 }
               }}
-              disabled={!newValue || !!Object.values(operationStatus).find(s => s === 'loading')}
+              disabled={!newValue || !!Object.values(operationStatus).find((s) => s === 'loading')}
             >
               <RotateCcw className="w-3 h-3 mr-1" />
               Compare & Swap
@@ -274,7 +263,7 @@ export const AtomicOperations: React.FC<Props> = ({ state, onStateChange }) => {
             size="sm"
             variant="outline"
             onClick={() => executeOperation('exists', {})}
-            disabled={!!Object.values(operationStatus).find(s => s === 'loading')}
+            disabled={!!Object.values(operationStatus).find((s) => s === 'loading')}
           >
             Check Exists
           </Button>

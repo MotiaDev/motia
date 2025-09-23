@@ -36,7 +36,25 @@ export interface Trace {
 
 export type TraceEvent = StateEvent | EmitEvent | StreamEvent | LogEntry
 
-export type StateOperation = 'get' | 'getGroup' | 'set' | 'update' | 'delete' | 'clear' | 'increment' | 'decrement' | 'compareAndSwap' | 'push' | 'pop' | 'shift' | 'unshift' | 'setField' | 'deleteField' | 'transaction' | 'batch' | 'exists'
+export type StateOperation =
+  | 'get'
+  | 'getGroup'
+  | 'set'
+  | 'update'
+  | 'delete'
+  | 'clear'
+  | 'increment'
+  | 'decrement'
+  | 'compareAndSwap'
+  | 'push'
+  | 'pop'
+  | 'shift'
+  | 'unshift'
+  | 'setField'
+  | 'deleteField'
+  | 'transaction'
+  | 'batch'
+  | 'exists'
 export type StreamOperation = 'get' | 'getGroup' | 'set' | 'update' | 'delete' | 'clear' | 'send'
 
 export interface StateEvent {

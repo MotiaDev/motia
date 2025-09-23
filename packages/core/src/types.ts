@@ -12,31 +12,30 @@ export type InternalStateManager = {
   delete<T>(traceId: string, key: string): Promise<T | null>
   getGroup<T>(groupId: string): Promise<T[]>
   clear(traceId: string): Promise<void>
-  
+
   // New atomic primitives
   increment(traceId: string, key: string, delta?: number): Promise<number>
   decrement(traceId: string, key: string, delta?: number): Promise<number>
   compareAndSwap<T>(traceId: string, key: string, expected: T | null, newValue: T): Promise<boolean>
-  
+
   // Atomic array operations
   push<T>(traceId: string, key: string, ...items: T[]): Promise<T[]>
   pop<T>(traceId: string, key: string): Promise<T | null>
   shift<T>(traceId: string, key: string): Promise<T | null>
   unshift<T>(traceId: string, key: string, ...items: T[]): Promise<T[]>
-  
+
   // Atomic object operations
   setField<T>(traceId: string, key: string, field: string, value: any): Promise<T>
   deleteField<T>(traceId: string, key: string, field: string): Promise<T>
-  
+
   // Transaction support
   transaction<T>(traceId: string, operations: StateOperation[]): Promise<TransactionResult<T>>
-  
+
   // Batch operations
   batch<T>(traceId: string, operations: BatchOperation[]): Promise<BatchResult<T>>
-  
+
   // Utility operations
   exists(traceId: string, key: string): Promise<boolean>
-  
 }
 
 export type EmitData = { topic: ''; data: unknown }
@@ -159,9 +158,13 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
  * @deprecated Use `Handlers` instead.
  */
 export type StepHandler<T> = T extends StepConfig
-  ? EventHandler<T['input'] extends z.ZodType<any, any, any> ? z.infer<T['input']> : any, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-  | ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-  | CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  ?
+      | EventHandler<
+          T['input'] extends z.ZodType<any, any, any> ? z.infer<T['input']> : any,
+          { topic: string; data: any }
+        >
+      | ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+      | CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
   : never
 
 export type Event<TData = unknown> = {
@@ -203,7 +206,20 @@ export type Flow = {
 
 // New types for transactions and batches
 export interface StateOperation {
-  type: 'get' | 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'compareAndSwap' | 'push' | 'pop' | 'shift' | 'unshift' | 'setField' | 'deleteField'
+  type:
+    | 'get'
+    | 'set'
+    | 'update'
+    | 'delete'
+    | 'increment'
+    | 'decrement'
+    | 'compareAndSwap'
+    | 'push'
+    | 'pop'
+    | 'shift'
+    | 'unshift'
+    | 'setField'
+    | 'deleteField'
   key: string
   value?: any
   updateFn?: (current: any) => any

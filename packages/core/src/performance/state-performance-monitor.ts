@@ -21,7 +21,7 @@ export class StatePerformanceMonitor {
     lockContention: {},
     averageOperationTime: {},
     totalOperations: 0,
-    startTime: Date.now()
+    startTime: Date.now(),
   }
 
   private isEnabled: boolean = false
@@ -44,7 +44,7 @@ export class StatePerformanceMonitor {
     if (!this.isEnabled) return () => {}
 
     const startTime = performance.now()
-    
+
     return () => {
       const endTime = performance.now()
       const duration = endTime - startTime
@@ -125,7 +125,7 @@ export class StatePerformanceMonitor {
       operationsPerSecond,
       averageOperationTimes: this.metrics.averageOperationTime,
       mostContendedKeys,
-      slowestOperations
+      slowestOperations,
     }
   }
 
@@ -139,7 +139,7 @@ export class StatePerformanceMonitor {
       lockContention: {},
       averageOperationTime: {},
       totalOperations: 0,
-      startTime: Date.now()
+      startTime: Date.now(),
     }
   }
 
@@ -154,14 +154,14 @@ export class StatePerformanceMonitor {
     console.log(`  Uptime: ${(summary.uptime / 1000).toFixed(2)}s`)
     console.log(`  Total Operations: ${summary.totalOperations}`)
     console.log(`  Operations/sec: ${summary.operationsPerSecond.toFixed(2)}`)
-    
+
     if (summary.slowestOperations.length > 0) {
       console.log('  Slowest Operations:')
       summary.slowestOperations.forEach(({ operation, averageTime }) => {
         console.log(`    ${operation}: ${averageTime.toFixed(3)}ms`)
       })
     }
-    
+
     if (summary.mostContendedKeys.length > 0) {
       console.log('  Most Contended Keys:')
       summary.mostContendedKeys.forEach(({ key, contention }) => {
@@ -173,5 +173,5 @@ export class StatePerformanceMonitor {
 
 // Global performance monitor instance
 export const globalStatePerformanceMonitor = new StatePerformanceMonitor(
-  process.env.NODE_ENV === 'development' || process.env.MOTIA_PERFORMANCE_MONITORING === 'true'
+  process.env.NODE_ENV === 'development' || process.env.MOTIA_PERFORMANCE_MONITORING === 'true',
 )

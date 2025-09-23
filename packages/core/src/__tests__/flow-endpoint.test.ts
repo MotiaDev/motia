@@ -17,20 +17,24 @@ const mockFlowSteps: Step[] = [
   }),
   createEventStep({
     name: 'Processor',
-    triggers: [{
-      type: 'event',
-      topic: 'ws-server-example.start',
-    }],
+    triggers: [
+      {
+        type: 'event',
+        topic: 'ws-server-example.start',
+      },
+    ],
     emits: ['ws-server-example.processed'],
     input: zodToJsonSchema(z.object({})) as never,
     flows: ['motia-server'],
   }),
   createEventStep({
     name: 'Finalizer',
-    triggers: [{
-      type: 'event',
-      topic: 'ws-server-example.processed',
-    }],
+    triggers: [
+      {
+        type: 'event',
+        topic: 'ws-server-example.processed',
+      },
+    ],
     emits: [],
     input: zodToJsonSchema(z.object({})) as never,
     flows: ['motia-server'],

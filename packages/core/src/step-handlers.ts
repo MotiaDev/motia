@@ -33,7 +33,7 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
 
     eventTriggers.forEach((eventTrigger: EventTrigger) => {
       const { topic } = eventTrigger
-      
+
       motia.eventManager.subscribe({
         filePath,
         event: topic,

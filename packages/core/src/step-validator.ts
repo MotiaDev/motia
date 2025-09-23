@@ -76,12 +76,7 @@ const stateTriggerSchema = baseTriggerSchema.extend({
 })
 
 // Union of all trigger types
-const triggerSchema = z.union([
-  eventTriggerSchema,
-  apiTriggerSchema,
-  cronTriggerSchema,
-  stateTriggerSchema,
-])
+const triggerSchema = z.union([eventTriggerSchema, apiTriggerSchema, cronTriggerSchema, stateTriggerSchema])
 
 // Unified StepConfig schema
 const stepConfigSchema = z
@@ -129,12 +124,12 @@ export const validateStep = (step: Step): ValidationResult => {
     }
 
     // Validate that trigger-specific attributes are consistent
-    const hasApiTriggers = step.config.triggers.some(t => t.type === 'api')
-    const hasCronTriggers = step.config.triggers.some(t => t.type === 'cron')
-    
+    const hasApiTriggers = step.config.triggers.some((t) => t.type === 'api')
+    const hasCronTriggers = step.config.triggers.some((t) => t.type === 'cron')
+
     // If there are API triggers, ensure each API trigger has path and method defined
     if (hasApiTriggers) {
-      const apiTriggers = step.config.triggers.filter(t => t.type === 'api')
+      const apiTriggers = step.config.triggers.filter((t) => t.type === 'api')
       for (const trigger of apiTriggers) {
         if (!trigger.path || !trigger.method) {
           return {
@@ -144,10 +139,10 @@ export const validateStep = (step: Step): ValidationResult => {
         }
       }
     }
-    
+
     // If there are cron triggers, ensure each cron trigger has cron expression defined
     if (hasCronTriggers) {
-      const cronTriggers = step.config.triggers.filter(t => t.type === 'cron')
+      const cronTriggers = step.config.triggers.filter((t) => t.type === 'cron')
       for (const trigger of cronTriggers) {
         if (!trigger.cron) {
           return {

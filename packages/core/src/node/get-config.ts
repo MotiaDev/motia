@@ -48,7 +48,7 @@ async function getConfig(filePath: string) {
           // We'll serialize it as a string and reconstruct it later
           return {
             ...trigger,
-            condition: trigger.condition.toString()
+            condition: trigger.condition.toString(),
           }
         }
         return trigger
