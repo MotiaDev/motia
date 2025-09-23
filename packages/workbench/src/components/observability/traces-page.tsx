@@ -14,6 +14,10 @@ export const TracesPage = () => {
   const [isClearing, setIsClearing] = useState(false)
   const handleGroupSelect = (group: TraceGroup) => selectTraceGroupId(group.id)
 
+  // Filter out system step traces
+  const systemStepNames = ['Clear Traces', 'Clear State', 'Clear Logs', 'Event Emitter']
+  const filteredData = data?.filter(group => !systemStepNames.includes(group.name)) || []
+
   const clearTraces = async () => {
     setIsClearing(true)
     try {
@@ -36,14 +40,14 @@ export const TracesPage = () => {
   }
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      const group = data[data.length - 1]
+    if (filteredData && filteredData.length > 0) {
+      const group = filteredData[filteredData.length - 1]
 
       if (group && group.status === 'running' && group.id !== selectedGroupId) {
         selectTraceGroupId(group.id)
       }
     }
-  }, [data])
+  }, [filteredData])
 
   return (
     <div className="flex flex-1 overflow-hidden h-full flex-col">
@@ -56,7 +60,7 @@ export const TracesPage = () => {
       </div>
       <div className="flex flex-1 overflow-hidden">
         <div className="max-w-1/3 border-r border-border overflow-auto h-full" data-testid="traces-container">
-          <TracesGroups groups={data} selectedGroupId={selectedGroupId} onGroupSelect={handleGroupSelect} />
+          <TracesGroups groups={filteredData} selectedGroupId={selectedGroupId} onGroupSelect={handleGroupSelect} />
         </div>
 
         <div className="flex-2 overflow-auto" data-testid="trace-details">
