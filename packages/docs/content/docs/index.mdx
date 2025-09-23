@@ -18,15 +18,135 @@ Today, backend engineers and software architects face several recurring problems
 
 ## How Motia simplifies all of this?
 
-Similar to how React simplified frontend development where everything is a component, Motia simplifies backend development where everything is a Step. In Motia, every backend pattern becomes a group of compensable steps with unified state, events and observability. In this way, engineers only have to learn a few concepts about how a Motia Step works, and they get an enterprise-grade event-driven system out of the box.
+Similar to how React simplified frontend development where everything is a component, Motia simplifies backend development where everything is a **Step**. In Motia, every backend pattern becomes a group of composable steps with unified state, events and observability. In this way, engineers only have to learn a few concepts about how a Motia Step works, and they get an enterprise-grade event-driven system out of the box.
 
-- Steps represent a distinct entry point
-- Steps can have different triggers
-  - API Call _(Triggered by an HTTP request)_
-  - Event _(Triggered by an event from another Step)_
-  - CRON Job _(Triggered by a cron schedule)_
-  - More will come soon (Check the [Roadmap](https://github.com/orgs/MotiaDev/projects/2?pane=issue&itemId=121129696&issue=MotiaDev%7Cmotia%7C477))
-- Steps are composable and can be chained together
+## How Simple is a Step?
+
+Every Step has exactly **4 elements** and comes in **3 types**:
+
+### 4 Elements (Master these, build anything)
+1. **Trigger** - Define how your Step gets initiated - through an API request, event subscription, or scheduled task.
+2. **Subscribe** - Specify what data structure your Step expects to receive.  
+3. **Handler** - The core function that processes data and performs your business logic.
+4. **Emit** - Define what events your Step can emit. These events can be subscribed to by other Steps.
+
+### 3 Step Types (Cover every backend need)
+- **API** - API endpoints for client requests
+- **Event** - Async processing triggered by other Steps  
+- **Cron** - Scheduled tasks that run on timers
+
+### Multi-Language by Design
+
+Write each Step in the best language for the job - all working together in one unified system:
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+
+<Tab value="TypeScript">
+```typescript
+// steps/api/analyze-data.step.ts - TypeScript for APIs
+import { ApiRouteConfig, Handlers } from 'motia'
+
+export const config: ApiRouteConfig = {
+  name: 'AnalyzeData',
+  type: 'api',                    // ← TRIGGER: API endpoint
+  method: 'POST',
+  path: '/analyze',
+  emits: ['data.received'],       // ← EMIT: Triggers Python step
+  flows: ['ai-pipeline']
+}
+
+export const handler: Handlers['AnalyzeData'] = async (req, { emit }) => {
+  const { dataset } = req.body    // ← SUBSCRIBE: Get request data
+  
+  // ← HANDLER: Validate and prepare data
+  const processedData = { dataset, timestamp: new Date().toISOString() }
+  
+  // ← EMIT: Send to AI processing step (Python)
+  await emit({ topic: 'data.received', data: processedData })
+  return { status: 200, body: { message: 'Analysis started' } }
+}
+```
+</Tab>
+
+<Tab value="Python">
+```python
+# steps/events/ai_analysis_step.py - Python for AI processing
+config = {
+    "name": "AIAnalysis",
+    "type": "event",               # ← TRIGGER: Event-driven
+    "subscribes": ["data.received"], # ← TRIGGER: Listen to TypeScript step
+    "emits": ["analysis.completed"], # ← EMIT: Triggers JavaScript step
+    "flows": ["ai-pipeline"]
+}
+
+async def handler(input_data, context):
+    dataset = input_data.get("dataset")  # ← SUBSCRIBE: Get data from TypeScript
+    
+    # ← HANDLER: AI/ML processing with Python libraries
+    analysis_result = {
+        "dataset": dataset,
+        "insights": ["Pattern A detected", "Anomaly at point B"],
+        "confidence": 0.95,
+        "completed_at": context.utils.dates.now().isoformat()
+    }
+    
+    # ← EMIT: Send results to notification step (JavaScript)
+    await context.emit({
+        "topic": "analysis.completed",
+        "data": analysis_result
+    })
+```
+</Tab>
+
+<Tab value="JavaScript">
+```javascript
+// steps/events/send-notification.step.js - JavaScript for notifications
+exports.config = {
+  name: 'SendNotification',
+  type: 'event',                  // ← TRIGGER: Event-driven
+  subscribes: ['analysis.completed'], // ← TRIGGER: Listen to Python step
+  emits: ['notification.sent'],   // ← EMIT: Final step
+  flows: ['notification-pipeline']
+}
+
+exports.handler = async (input, { emit, logger }) => {
+  const { insights, confidence } = input  // ← SUBSCRIBE: Get AI results from Python
+  
+  // ← HANDLER: Send notifications using JavaScript libraries
+  const notification = {
+    message: `Analysis complete! Found ${insights.length} insights with ${confidence * 100}% confidence`,
+    channels: ['email', 'slack'],
+    sent_at: new Date().toISOString()
+  }
+  
+  logger.info('Notification sent', notification)
+  
+  // ← EMIT: Mark workflow complete
+  await emit({ topic: 'notification.sent', data: notification })
+}
+```
+</Tab>
+
+</Tabs>
+
+### Steps are Composable
+
+Chain Steps together to build complex workflows:
+
+![Steps](./img/welcome-to-motia-example-dark.png)
+
+Each language does what it does best, sharing state and events across the entire workflow.
+
+### The Power of Steps
+
+- **Simple**: Master 4 elements, build anything
+- **Composable**: Chain any Step with any other Step
+- **Multi-language**: TypeScript, JavaScript, Python work together
+- **Event-driven**: Built for modern async, real-time applications
+- **Scalable**: Each Step scales independently
+- **Reusable**: Share Steps across projects and teams
+
+From simple APIs to complex AI workflows, from real-time chat to scheduled data processing - it's all just Steps connecting through events.
 
 ![Motia](./img/what-is-motia/motia.gif)
 
