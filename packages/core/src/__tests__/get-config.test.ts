@@ -1,6 +1,6 @@
 import path from 'path'
 import { getStepConfig } from '../get-step-config'
-import { ApiRouteConfig } from '../types'
+import { StepConfig } from '../types'
 
 describe('Get Config', () => {
   beforeAll(() => {
@@ -12,9 +12,11 @@ describe('Get Config', () => {
     const mockApiStep = await getStepConfig(path.join(baseDir, 'steps', 'api-step.ts'))
 
     expect(mockApiStep).toBeDefined()
-    expect(mockApiStep?.type).toEqual('api')
+    expect(mockApiStep?.triggers).toBeDefined()
+    expect(mockApiStep?.triggers.length).toBeGreaterThan(0)
+    expect(mockApiStep?.triggers[0].type).toEqual('api')
 
-    const apiStep = mockApiStep as ApiRouteConfig
+    const apiStep = mockApiStep as StepConfig
 
     expect(apiStep.path).toEqual('/test')
     expect(apiStep.method).toEqual('POST')
@@ -25,9 +27,11 @@ describe('Get Config', () => {
     const mockApiStep = await getStepConfig(path.join(baseDir, 'steps', 'api-step.py'))
 
     expect(mockApiStep).toBeDefined()
-    expect(mockApiStep?.type).toEqual('api')
+    expect(mockApiStep?.triggers).toBeDefined()
+    expect(mockApiStep?.triggers.length).toBeGreaterThan(0)
+    expect(mockApiStep?.triggers[0].type).toEqual('api')
 
-    const apiStep = mockApiStep as ApiRouteConfig
+    const apiStep = mockApiStep as StepConfig
 
     expect(apiStep.path).toEqual('/test')
     expect(apiStep.method).toEqual('POST')
@@ -38,9 +42,11 @@ describe('Get Config', () => {
     const mockApiStep = await getStepConfig(path.join(baseDir, 'steps', 'api-step.rb'))
 
     expect(mockApiStep).toBeDefined()
-    expect(mockApiStep?.type).toEqual('api')
+    expect(mockApiStep?.triggers).toBeDefined()
+    expect(mockApiStep?.triggers.length).toBeGreaterThan(0)
+    expect(mockApiStep?.triggers[0].type).toEqual('api')
 
-    const apiStep = mockApiStep as ApiRouteConfig
+    const apiStep = mockApiStep as StepConfig
 
     expect(apiStep.path).toEqual('/test')
     expect(apiStep.method).toEqual('POST')

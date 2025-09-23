@@ -22,12 +22,15 @@ The following examples showcase how to configure an **CRON Step**
 <Tabs  items={['TS', 'JS', 'Python']}>
   <Tab value="TS">
     ```typescript
-    import { CronConfig, Handlers } from 'motia'
+    import { StepConfig, Handlers } from 'motia'
 
-    export const config: CronConfig = {
-      type: 'cron' as const,
+    export const config: StepConfig = {
       name: 'PeriodicJob',
       description: 'Runs every minute and emits a timestamp',
+      triggers: [{
+        type: 'cron',
+        cron: '0 * * * *', // run every hour at minute 0
+      }],
       cron: '0 * * * *', // run every hour at minute 0
       emits: ['cron-ticked'],
       flows: ['cron-example'],

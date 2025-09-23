@@ -1,4 +1,4 @@
-import { ApiRouteConfig, Step } from '@motiadev/core'
+import { Step } from '@motiadev/core'
 import fs from 'fs'
 import path from 'path'
 import { activatePythonVenv, getSitePackagesPath } from '../../../../utils/activate-python-env'
@@ -37,7 +37,7 @@ export class PythonBuilder implements StepBuilder {
     return readRequirements(requirementsFile, describer)
   }
 
-  async buildApiSteps(steps: Step<ApiRouteConfig>[]): Promise<RouterBuildResult> {
+  async buildApiSteps(steps: Step[]): Promise<RouterBuildResult> {
     const zipName = 'router-python.zip'
     const archive = new Archiver(path.join(distDir, zipName))
     const bundleDir = path.join(distDir, 'python', 'router')
@@ -134,7 +134,7 @@ export class PythonBuilder implements StepBuilder {
     }
   }
 
-  private createRouterTemplate(steps: Step<ApiRouteConfig>[]): string {
+  private createRouterTemplate(steps: Step[]): string {
     const imports = steps
       .map(
         (step, index) =>

@@ -1,4 +1,4 @@
-import { ApiRouteConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import { messageSchema } from './00-open-ai-message.stream'
 import { randomUUID } from 'crypto'
@@ -7,15 +7,19 @@ const inputSchema = z.object({
   message: z.string({ description: 'The message to send to OpenAI' }),
 })
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'OpenAiApi',
   description: 'Call OpenAI',
-  path: '/open-ai/:threadId',
-  method: 'POST',
+  triggers: [
+    {
+      type: 'api',
+      path: '/open-ai/:threadId',
+      method: 'POST',
+    },
+  ],
   emits: ['openai-prompt'],
   flows: ['open-ai'],
-  bodySchema: inputSchema,
+  input: inputSchema,
   responseSchema: { 200: messageSchema },
 }
 

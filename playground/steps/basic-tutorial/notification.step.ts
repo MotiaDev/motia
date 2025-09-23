@@ -1,12 +1,16 @@
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'Notification',
   description: 'Sends notifications to users',
   flows: ['basic-tutorial'],
-  subscribes: ['notification'],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'notification',
+    },
+  ],
   emits: [],
   input: z.object({
     templateId: z.string(),

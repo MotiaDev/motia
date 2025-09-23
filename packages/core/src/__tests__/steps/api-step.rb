@@ -1,7 +1,11 @@
 def config
     {
-      type: "api",
       name: "api-step",
+      triggers: [{
+        type: "api",
+        path: "/test",
+        method: "POST"
+      }],
       emits: ["TEST_EVENT"], 
       path: "/test",
       method: "POST"

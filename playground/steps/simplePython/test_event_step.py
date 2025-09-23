@@ -1,7 +1,9 @@
 config = {
-    "type": "event",
     "name": "Test Event",
-    "subscribes": ["test"],
+    "triggers": [{
+        "type": "event",
+        "topic": "test"
+    }],
     "emits": ["tested"],
     "input": None,  # No schema validation in Python version
     "flows": ["simple-python"]

@@ -258,16 +258,20 @@ Let's see how Motia discovers different step types:
 ### Example 1: TypeScript API Step
 
 ```typescript title="steps/user-api.step.ts"
-import { ApiRouteConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 // Motia discovers this file because:
 // 1. Filename contains '.step.'
 // 2. Exports 'config' object
 // 3. Has .ts extension -> uses TypeScript runtime
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config: StepConfig = {
   name: 'user-api',
+  triggers: [{
+    type: 'api',
+    path: '/users',
+    method: 'GET',
+  }],
   path: '/users',
   method: 'GET',
   emits: ['users.fetched'],

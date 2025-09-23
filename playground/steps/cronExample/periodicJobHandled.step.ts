@@ -1,11 +1,15 @@
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'PeriodicJobHandled',
   description: 'Handles the periodic job event',
-  subscribes: ['periodic-job-handled'],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'periodic-job-handled',
+    },
+  ],
   input: z.object({
     message: z.string(),
   }),

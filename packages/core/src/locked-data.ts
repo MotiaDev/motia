@@ -1,13 +1,13 @@
 import fs from 'fs'
 import path from 'path'
-import { isApiStep, isCronStep, isEventStep } from './guards'
+import { hasApiTrigger, hasEventTrigger, hasCronTrigger, hasStateTrigger } from './guards'
 import { Printer } from './printer'
 import { validateStep } from './step-validator'
 import { FileStreamAdapter } from './streams/adapters/file-stream-adapter'
 import { MemoryStreamAdapter } from './streams/adapters/memory-stream-adapter'
 import { StreamAdapter } from './streams/adapters/stream-adapter'
 import { StreamFactory } from './streams/stream-factory'
-import { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
+import { Flow, Step } from './types'
 import { Stream } from './types-stream'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
 
@@ -85,16 +85,25 @@ export class LockedData {
     this.streamHandlers[event].push(handler)
   }
 
-  eventSteps(): Step<EventConfig>[] {
-    return this.activeSteps.filter(isEventStep)
+  steps(): Step[] {
+    return this.activeSteps
   }
 
-  apiSteps(): Step<ApiRouteConfig>[] {
-    return this.activeSteps.filter(isApiStep)
+  // Helper methods to get steps with specific trigger types
+  stepsWithEventTriggers(): Step[] {
+    return this.activeSteps.filter(hasEventTrigger)
   }
 
-  cronSteps(): Step<CronConfig>[] {
-    return this.activeSteps.filter(isCronStep)
+  stepsWithApiTriggers(): Step[] {
+    return this.activeSteps.filter(hasApiTrigger)
+  }
+
+  stepsWithCronTriggers(): Step[] {
+    return this.activeSteps.filter(hasCronTrigger)
+  }
+
+  stepsWithStateTriggers(): Step[] {
+    return this.activeSteps.filter(hasStateTrigger)
   }
 
   pythonSteps(): Step[] {
@@ -131,11 +140,17 @@ export class LockedData {
       return false
     }
 
-    if (oldStep.config.type !== newStep.config.type) {
+    // Check if triggers have changed significantly (e.g., from having triggers to no triggers)
+    const oldHasTriggers = oldStep.config.triggers.length > 0
+    const newHasTriggers = newStep.config.triggers.length > 0
+    const triggersChanged = oldHasTriggers !== newHasTriggers
+
+    if (triggersChanged) {
       this.activeSteps = this.activeSteps.filter((s) => s.filePath !== oldStep.filePath)
       this.devSteps = this.devSteps.filter((s) => s.filePath !== oldStep.filePath)
 
-      if (newStep.config.type === 'noop') {
+      // If new step has no triggers, it's a dev step (like old noop)
+      if (!newHasTriggers) {
         this.devSteps.push(newStep)
       } else {
         this.activeSteps.push(newStep)
@@ -188,7 +203,8 @@ export class LockedData {
 
     this.stepsMap[step.filePath] = step
 
-    if (step.config.type === 'noop') {
+    // If step has no triggers, it's a dev step (like old noop)
+    if (step.config.triggers.length === 0) {
       this.devSteps.push(step)
     } else {
       this.activeSteps.push(step)

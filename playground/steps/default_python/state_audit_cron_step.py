@@ -1,10 +1,13 @@
 from datetime import datetime, timezone
 
 config = {
-    "type": "cron",
-    "cron": "*/5 * * * *",  # run every 5 minutes
     "name": "PythonStateAuditJob",
     "description": "Checks the state for orders that are not complete and have a ship date in the past",
+    "triggers": [{
+        "type": "cron",
+        "cron": "*/5 * * * *"  # run every 5 minutes
+    }],
+    "cron": "*/5 * * * *",  # run every 5 minutes
     "emits": ["python-notification"],
     "flows": ["python-tutorial"],
 }

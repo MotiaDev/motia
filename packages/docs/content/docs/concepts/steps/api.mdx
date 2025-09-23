@@ -44,13 +44,17 @@ The following properties are specific to the API Step, in addition to the [commo
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-    import { ApiRouteConfig, Handlers } from 'motia'
+    import { StepConfig, Handlers } from 'motia'
     import { z } from 'zod'
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config: StepConfig = {
       name: 'GetMessage',
       description: 'Retrieves a generated message from OpenAI based on the Trace ID returned by the POST /openai endpoint',
+      triggers: [{
+        type: 'api',
+        path: '/openai/:traceId',
+        method: 'GET',
+      }],
       path: '/openai/:traceId',
       method: 'GET',
       emits: ['call-openai'],
@@ -323,11 +327,15 @@ const rateLimiterMiddleware: ApiMiddleware = (() => {
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-      import { ApiRouteConfig, Handlers } from 'motia'
+      import { StepConfig, Handlers } from 'motia'
       import { z } from 'zod'
 
-      export const config: ApiRouteConfig = {
-        type: 'api',
+      export const config: StepConfig = {
+        triggers: [{
+          type: 'api',
+          path: '/api/example',
+          method: 'POST',
+        }],
         name: 'TestStateApiTrigger',
         description: 'test state',
         path: '/test-state',

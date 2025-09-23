@@ -1,12 +1,16 @@
-import { EventConfig, Handlers } from 'motia'
+import { StepConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import equal from 'deep-equal'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config: StepConfig = {
   name: 'TestStateCheck',
   description: 'check state change',
-  subscribes: ['test-state-check'],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'test-state-check',
+    },
+  ],
   emits: [],
   input: z.object({
     key: z.string(),

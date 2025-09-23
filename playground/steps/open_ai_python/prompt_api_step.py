@@ -1,14 +1,16 @@
 import uuid
 
 config = {
-  "type": "api",
   "name": "OpenAiApiPython", 
   "description": "Call OpenAI",
-  "path": "/open-ai-python",
-  "method": "POST",
+  "triggers": [{
+    "type": "api",
+    "path": "/open-ai-python",
+    "method": "POST"
+  }],
   "emits": ["openai-prompt-python"],
   "flows": ["open-ai"],
-  "bodySchema": {
+  "input": {
     "type": "object",
     "properties": {
       "message": { "type": "string", "description": "The message to send to OpenAI" },

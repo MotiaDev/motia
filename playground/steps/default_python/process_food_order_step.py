@@ -9,11 +9,13 @@ class InputSchema(BaseModel):
     pet_id: int
 
 config = {
-    "type": "event",
     "name": "PythonProcessFoodOrder",
     "description": "basic-tutorial event step, demonstrates how to consume an event from a topic and persist data in state",
     "flows": ["python-tutorial"],
-    "subscribes": ["python-process-food-order"],
+    "triggers": [{
+        "type": "event",
+        "topic": "python-process-food-order"
+    }],
     "emits": ["python-notification"],
     "input": InputSchema.model_json_schema(),
 }

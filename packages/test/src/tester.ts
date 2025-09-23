@@ -19,6 +19,17 @@ export const createMotiaTester = (): MotiaTester => {
 
   return {
     logger,
+    state: {
+      get: async (userId: string, key: string) => promise.then(({ state }) => state.get(userId, key)),
+      set: async (userId: string, key: string, value: any) =>
+        promise.then(({ state }) => state.set(userId, key, value)),
+      update: async (userId: string, key: string, updateFn: (current: any) => any) =>
+        promise.then(({ state }) => state.update(userId, key, updateFn)),
+      delete: async (userId: string, key: string) =>
+        promise.then(({ state }) => state.delete(userId, key).then(() => {})),
+      clear: async (userId: string) => promise.then(({ state }) => state.clear(userId)),
+      getGroup: async (userId: string) => promise.then(({ state }) => state.getGroup(userId)),
+    },
     waitEvents: async () => promise.then(({ eventManager }) => eventManager.waitEvents()),
     post: async (path, options) => promise.then(({ server }) => request(server).post(path).send(options.body)),
     get: async (path, options) => promise.then(({ server }) => request(server).get(path).send(options.body)),

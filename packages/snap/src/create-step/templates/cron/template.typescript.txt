@@ -1,9 +1,12 @@
-import { CronConfig, FlowContext } from 'motia'
+import { StepConfig, FlowContext } from 'motia'
 
-export const config = {
-  type: 'cron',
+export const config: StepConfig = {
   name: '{{STEP_NAME}}',
   description: '{{DESCRIPTION}}',
+  triggers: [{
+    type: 'cron',
+    cron: '{{CRON_EXPRESSION}}',
+  }],
   cron: '{{CRON_EXPRESSION}}',
   emits: {{EMITS}},
   flows: {{FLOWS}}

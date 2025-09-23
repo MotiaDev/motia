@@ -1,11 +1,11 @@
-import type { ApiRouteConfig, ApiRouteHandler } from '@motiadev/core'
+import type { StepConfig, ApiRouteHandler } from '@motiadev/core'
 // {{imports}}
 
 type RouterPath = {
   stepName: string
   method: 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options' | 'head'
   handler: ApiRouteHandler
-  config: ApiRouteConfig
+  config: StepConfig
 }
 
 export const routerPaths: Record<string, RouterPath> = {

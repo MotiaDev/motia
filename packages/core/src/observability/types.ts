@@ -30,19 +30,37 @@ export interface Trace {
   startTime: number
   endTime?: number
   error?: TraceError
-  entryPoint: { type: StepConfig['type']; stepName: string }
+  entryPoint: { type: string; stepName: string }
   events: TraceEvent[]
 }
 
 export type TraceEvent = StateEvent | EmitEvent | StreamEvent | LogEntry
 
-export type StateOperation = 'get' | 'getGroup' | 'set' | 'delete' | 'clear'
-export type StreamOperation = 'get' | 'getGroup' | 'set' | 'delete' | 'clear' | 'send'
+export type StateOperation =
+  | 'get'
+  | 'getGroup'
+  | 'set'
+  | 'update'
+  | 'delete'
+  | 'clear'
+  | 'increment'
+  | 'decrement'
+  | 'compareAndSwap'
+  | 'push'
+  | 'pop'
+  | 'shift'
+  | 'unshift'
+  | 'setField'
+  | 'deleteField'
+  | 'transaction'
+  | 'batch'
+  | 'exists'
+export type StreamOperation = 'get' | 'getGroup' | 'set' | 'update' | 'delete' | 'clear' | 'send'
 
 export interface StateEvent {
   type: 'state'
   timestamp: number
-  operation: 'get' | 'getGroup' | 'set' | 'delete' | 'clear'
+  operation: StateOperation
   key?: string
   duration?: number
   data: unknown

@@ -11,13 +11,14 @@ async def enrich_data(req, ctx, next_fn):
         }
 
 config = {
-    "type": "api",
     "name": "Test API Endpoint",
+    "triggers": [{
+        "type": "api",
+        "path": "/test-python",
+        "method": "POST"
+    }],
     "emits": ["test"],
     "flows": ["simple-python"],
-
-    "path": "/test-python",
-    "method": "POST",
 
     "middleware": [
         enrich_data

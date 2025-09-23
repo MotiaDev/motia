@@ -1,4 +1,4 @@
-import { isApiStep, isCronStep, isEventStep } from '../guards'
+import { hasApiTrigger, hasCronTrigger, hasEventTrigger, getTriggersByType } from '../guards'
 import { Printer } from '../printer'
 import { Emit, Step } from '../types'
 import { Stream } from '../types-stream'
@@ -43,9 +43,11 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
   const topicsSteps: Record<string, Step[]> = {}
 
   for (const step of steps) {
-    if (isEventStep(step)) {
+    if (hasEventTrigger(step)) {
       if (!step.config.input) {
-        for (const topic of step.config.subscribes) {
+        const eventTriggers = getTriggersByType(step, 'event')
+        for (const trigger of eventTriggers) {
+          const topic = trigger.topic
           if (!topics[topic]) {
             topics[topic] = 'never'
           }
@@ -53,7 +55,9 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
         continue
       }
 
-      for (const topic of step.config.subscribes) {
+      const eventTriggers = getTriggersByType(step, 'event')
+      for (const trigger of eventTriggers) {
+        const topic = trigger.topic
         const existingSchema = topicsSchemas[topic]
 
         topicsSteps[topic] = topicsSteps[topic] ?? []
@@ -93,12 +97,13 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
   }
 
   for (const step of steps) {
-    const emits = 'emits' in step.config ? generateEmitData(step.config.emits, step) : 'never'
+    const emits = step.config.emits ? generateEmitData(step.config.emits, step) : 'never'
 
-    if (isEventStep(step)) {
+    // Determine the primary handler type based on triggers
+    if (hasEventTrigger(step)) {
       const input = step.config.input ? generateTypeFromSchema(step.config.input as never as JsonSchema) : 'never'
       handlers[step.config.name] = { type: 'EventHandler', generics: [input, emits] }
-    } else if (isApiStep(step)) {
+    } else if (hasApiTrigger(step)) {
       const input = step.config.bodySchema
         ? generateTypeFromSchema(step.config.bodySchema as never as JsonSchema)
         : 'Record<string, unknown>'
@@ -106,9 +111,10 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
         ? generateTypesFromResponse(step.config.responseSchema as never as Record<number, JsonSchema>)
         : 'unknown'
       handlers[step.config.name] = { type: 'ApiRouteHandler', generics: [input, result, emits] }
-    } else if (isCronStep(step)) {
+    } else if (hasCronTrigger(step)) {
       handlers[step.config.name] = { type: 'CronHandler', generics: [emits] }
     }
+    // Note: Steps with no triggers (noop/dev steps) don't generate handlers
   }
 
   return handlers
