@@ -61,6 +61,7 @@ export const LogsPage = () => {
               variant="shade"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search logs by message, trace ID, or step..."
               className="pr-10 font-medium"
             />
             <CircleX
