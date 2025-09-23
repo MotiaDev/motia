@@ -11,7 +11,7 @@ import { TracesPage } from './components/observability/traces-page'
 import { APP_SIDEBAR_CONTAINER_ID } from '@motiadev/ui'
 import { StatesPage } from './components/states/states-page'
 import { useTabsStore } from './stores/use-tabs-store'
-import { EndpointsPage } from '@motiadev/workbench-endpoint'
+import { EndpointsPage } from '@motiadev/plugin-endpoint'
 
 enum TabLocation {
   TOP = 'top',

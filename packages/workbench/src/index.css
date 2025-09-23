@@ -1,6 +1,6 @@
-@import "@motiadev/workbench-endpoint/styles.css";
-@import "@motiadev/ui/styles.css";
-@import "@motiadev/ui/globals.css";
+@import '@motiadev/plugin-endpoint/styles.css';
+@import '@motiadev/ui/styles.css';
+@import '@motiadev/ui/globals.css';
 
 @import 'tw-animate-css';
 @config "../tailwind.config.js";
@@ -15,12 +15,12 @@
 }
 
 .json-view {
-  background:rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .dark {
   .react-flow__panel {
-    background: var(--background)
+    background: var(--background);
   }
   .json-view {
     background: rgba(0, 0, 0, 0.8);
@@ -47,7 +47,9 @@
   font-weight: 500;
 }
 
-.json-view--pair, .json-view--property, .json-view > span {
+.json-view--pair,
+.json-view--property,
+.json-view > span {
   line-height: 24px;
 }
 
