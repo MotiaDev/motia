@@ -1,0 +1,26 @@
+---
+description: Rules for the project
+globs:
+alwaysApply: true
+---
+
+## Adding migration
+
+Make sure to use [migration guide](./architecture/database/database-migration.mdc) to create a new migration.
+
+## Database integration
+
+Whenever database is used, please use [database guide](./architecture/database/database.mdc) to create a database connection and methods.
+
+## Real time events
+
+Make sure to use [real time events guide](./rules/motia/realtime-streaming.mdc) to create a new real time event.
+
+## State/Cache management
+
+Make sure to use [state management guide](./rules/motia/state-management.mdc) to create a new state management.
+
+## Authentication
+
+If ever need to add authentication, make sure to use middleware to authenticate the request.
+Make sure to use [middlewares](./rules/motia/middlewares.mdc) to validate the requests.

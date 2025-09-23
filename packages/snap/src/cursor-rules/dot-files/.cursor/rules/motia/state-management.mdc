@@ -1,0 +1,73 @@
+---
+description: Managing state across Steps
+globs: steps/**/*.step.ts,steps/**/*.step.js,steps/**/*_step.py
+alwaysApply: false
+---
+
+# State Management
+
+State Management is a core concept in Motia. It's used to store data across Steps.
+They can be stored across different workflows.
+
+If we want to trigger Event Steps, we can add data to the emit call, which can be used later in the Event Step execution. But this is limited and can't store too much data, 
+that's why we need to use the State Management to store data across Steps.
+
+## Use-cases
+
+**When State Management is recommended:**
+- Pulling data from an external source, like an API, and storing it in the state, then triggering an Event Step to process the data.
+- Storing data that needs to be used later in the workflow.
+- Can be used for caching layer, like caching the result of an API call that usually can take a few seconds to complete and doesn't change very often.
+
+**When another solution can be better suited:**
+- Storing persistent user data: it's preferred to use a database like Postgres or MongoDB to store user data.
+- Storing file data like Base64 encoded images, PDFs, etc: it's preferred to use a storage solution like S3, etc.
+
+## StateManager Interface
+
+```typescript
+type InternalStateManager = {
+  /**
+   * Retrieves a single item from the state
+   * 
+   * @param groupId - The group id of the state
+   * @param key - The key of the item to get
+   * @returns The item or null if it doesn't exist
+   */
+  get<T>(groupId: string, key: string): Promise<T | null>
+
+  /**
+   * Sets a single item in the state
+   * 
+   * @param groupId - The group id of the state
+   * @param key - The key of the item to set
+   * @param value - The value of the item to set
+   * @returns The item
+   */
+  set<T>(groupId: string, key: string, value: T): Promise<T>
+
+  /**
+   * Deletes a single item from the state
+   * 
+   * @param groupId - The group id of the state
+   * @param key - The key of the item to delete
+   * @returns The item or null if it doesn't exist
+   */
+  delete<T>(groupId: string, key: string): Promise<T | null>
+
+  /**
+   * Retrieves a group of items from the state
+   * 
+   * @param groupId - The group id of the state
+   * @returns A list with all the items in the group
+   */
+  getGroup<T>(groupId: string): Promise<T[]>
+
+  /**
+   * Clears a group of items from the state
+   * 
+   * @param groupId - The group id of the state
+   */
+  clear(groupId: string): Promise<void>
+}
+```

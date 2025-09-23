@@ -1,0 +1,96 @@
+---
+description: How to structure your Motia project
+globs:
+alwaysApply: true
+---
+
+# Architecture Guide
+
+## Overview
+
+This guide covers the architecture of a Motia project.
+
+## File Structure
+
+All step files should be underneath the `steps/` folder.
+
+Underneath the `steps/` folder, create subfolders for Flows. Flows are used to group steps together.
+
+## Step Naming Conventions
+
+### Typescript
+
+- Use kebab-case for filenames: `resource-processing.step.ts`
+- Include `.step` before language extension
+
+### Python
+
+- Use snake_case for filenames: `data_processor_step.py`
+- Include `_step` before language extension
+
+### Global
+
+- Match handler names to config names
+- Use descriptive, action-oriented names
+
+## Code Style Guidelines
+
+- **JavaScript**: Use modern ES6+ features, async/await, proper error handling
+- **TypeScript**: Make sure you use the correct Handlers type that is auto generated on the `types.d.ts` file.
+
+## Defining Middlewares
+
+Middleware is a powerful feature in Motia to help adding common validation, error
+handling and other common logic to your steps.
+
+- Make sure to add all the middlewares in a single folder, called `middlewares/`.
+- Create a comprehensive file name for the middleware, like `auth.middleware.ts`.
+- Follow SOLID principles with separation of concerns in middlewares, create a middleware for each responsibility.
+- Use core middleware to handle ZodError gracefully (see [Error Handling Guide](./error-handling.mdc))
+- Rate limiting and CORS are not needed to be handled in middleware since they're an infrastructure concern.
+
+## Domain Driven Design
+
+Make sure you follow Domain Driven Design principles in your project.
+
+- Create `/src/services` folder to store your services, this is where it holds business logic.
+- Create `/src/repositories` folder to store your repositories, this is where it holds data access logic.
+- Create `/src/utils` folder to store your utility functions.
+- Models and DTOs are not quite necessary, we can rely on zod to create the models and DTOs from the steps.
+- Controller layer is the Steps, it should have mostly logic around validation and calling services.
+- Avoid having Service methods with just a call to the Repository, it should have some logic around it, if it doesn't have, then Steps can have access to repositories directly.
+
+### Services
+
+Defining services can be done in the following way:
+
+- Create a folder underneath `/src/services/` folder, like `/src/services/auth/`.
+- Create a file inside the folder called `index.ts`.
+- Inside `index.ts`, export a constant with the name of the service, with the methods as properties.
+- Methods should be defined as separate files, use export named functions.
+- Use the service in the Steps.
+
+#### Example
+
+```typescript
+/**
+ * Business logic for authentication defined in a separate file in the same folder.
+ */
+import { login } from './login'
+
+/**
+ * Constant with the name of the service, with the methods as properties.
+ */
+export const authService = {
+  login
+}
+```
+
+## Logging and observability
+
+- Make sure to use the Logger from Motia (from context object) to log messages.
+- Make sure to have visibility of what is going on in a request
+- Before throwing errors, make sure to log the issue, identify if issue is a validation blocker, then log with `logger.warn`, if it's something that is not supposed to happen, then log with `logger.error`.
+- Make sure to add context to the logs to help identify any potential issues.
+
+
