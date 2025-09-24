@@ -24,6 +24,7 @@ export type FlowStepResponse = {
   subscribes?: string[]
   emits: Emit[]
   virtualEmits?: Emit[]
+  virtualSubscribes?: string[]
   action?: 'webhook'
   webhookUrl?: string
   bodySchema?: unknown

@@ -20,16 +20,24 @@ export type JsonString = {
   enum?: string[]
 }
 
+export type JsonAnyOf = {
+  anyOf: JsonSchema[]
+}
+
 export type JsonProperty = {
   type: JsonSchemaType
   description?: string
 }
 
-export type JsonSchema = JsonArray | JsonObject | JsonString | JsonProperty
+export type JsonSchema = JsonArray | JsonObject | JsonString | JsonProperty | JsonAnyOf
 
 export class JsonSchemaError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'JsonSchemaError'
   }
+}
+
+export const isAnyOf = (schema: JsonSchema): schema is JsonAnyOf => {
+  return typeof schema === 'object' && schema !== null && 'anyOf' in schema
 }

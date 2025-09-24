@@ -31,12 +31,23 @@ describe('generateTypeFromSchema', () => {
   it('should generate a type from a schema with an array of objects', () => {
     const schema = zodToJsonSchema(z.array(z.object({ name: z.string() }))) as JsonSchema
     const type = generateTypeFromSchema(schema)
-    expect(type).toEqual('{ name: string }[]')
+    expect(type).toEqual('Array<{ name: string }>')
+  })
+
+  it('should generate a type from a schema with an array of optional objects', () => {
+    const schema = zodToJsonSchema(z.array(z.object({ name: z.string() }).optional())) as JsonSchema
+    const type = generateTypeFromSchema(schema)
+    expect(type).toEqual('Array<undefined | { name: string }>')
   })
 
   it('should generate a type from a schema with an enum', () => {
     const schema = zodToJsonSchema(z.object({ status: z.enum(['open', 'closed']) })) as JsonSchema
     const type = generateTypeFromSchema(schema)
     expect(type).toEqual("{ status: 'open' | 'closed' }")
+  })
+
+  it('should generate a type from null schema', () => {
+    const type = generateTypeFromSchema(null as never)
+    expect(type).toEqual('unknown')
   })
 })

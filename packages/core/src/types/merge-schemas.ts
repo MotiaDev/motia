@@ -1,6 +1,12 @@
-import { JsonSchema, JsonSchemaError, JsonSchemaType } from './schema.types'
+import { isAnyOf, JsonSchema, JsonSchemaError, JsonSchemaType } from './schema.types'
 
 export const isCompatible = (schema: JsonSchema, otherSchema: JsonSchema): boolean => {
+  if (isAnyOf(schema)) {
+    return schema.anyOf.every((item) => isCompatible(item, otherSchema))
+  } else if (isAnyOf(otherSchema)) {
+    return otherSchema.anyOf.every((item) => isCompatible(schema, item))
+  }
+
   if (schema.type !== otherSchema.type) {
     return false // different types
   }
@@ -31,6 +37,16 @@ export const isCompatible = (schema: JsonSchema, otherSchema: JsonSchema): boole
 export const mergeSchemas = (schema: JsonSchema, otherSchema: JsonSchema): JsonSchema => {
   if (!isCompatible(schema, otherSchema)) {
     throw new JsonSchemaError('Cannot merge schemas of different types')
+  }
+
+  if (isAnyOf(schema)) {
+    return {
+      anyOf: schema.anyOf.map((item) => mergeSchemas(item, otherSchema)),
+    }
+  } else if (isAnyOf(otherSchema)) {
+    return {
+      anyOf: otherSchema.anyOf.map((item) => mergeSchemas(schema, item)),
+    }
   }
 
   if (schema.type === 'object' && otherSchema.type === 'object') {
