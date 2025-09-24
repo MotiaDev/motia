@@ -1,5 +1,5 @@
-import { Button, Checkbox, cn, Input, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@motiadev/ui'
-import { AlertCircle, Check, GripVertical, Trash2 } from 'lucide-react'
+import { Button, Checkbox, cn, Input } from '@motiadev/ui'
+import { AlertCircle, Check, Trash2 } from 'lucide-react'
 import { FC, memo, useCallback, useRef, useState } from 'react'
 import { ConfigurationLitItem } from '../hooks/use-endpoint-configuration'
 
@@ -41,13 +41,10 @@ export const ConfigurationListItem: FC<ConfigurationListItemProps> = memo(
 
     return (
       <div
-        className={cn('flex items-center p-2 bg-muted/30 rounded-lg gap-2', isActive && 'bg-card')}
+        className={cn('flex items-center py-2 px-4 bg-muted/30 rounded-lg gap-2', isActive && 'bg-card')}
         onMouseOver={onMouseOver}
         onMouseLeave={onMouseLeave}
       >
-        <Button variant="ghost" size="icon" className="h-6 w-6">
-          <GripVertical className={cn('h-3 w-3', !value.active && 'text-muted-foreground')} />
-        </Button>
         <Checkbox
           checked={value.active}
           onCheckedChange={(checked: boolean) => onUpdate(id, 'active', checked)}
@@ -59,7 +56,7 @@ export const ConfigurationListItem: FC<ConfigurationListItemProps> = memo(
           <Input
             readOnly={required}
             disabled={!value.active}
-            variant="outline"
+            variant={required ? 'outlineReadonly' : 'outline'}
             id={`name-${id}`}
             defaultValue={value.name}
             onBlur={(e: React.ChangeEvent<HTMLInputElement>) => onUpdate(id, 'name', e.target.value)}
@@ -68,7 +65,7 @@ export const ConfigurationListItem: FC<ConfigurationListItemProps> = memo(
           />
           <Input
             disabled={!value.active}
-            variant="outline"
+            variant={'outline'}
             id={`value-${id}`}
             defaultValue={value.value}
             onBlur={(e: React.FocusEvent<HTMLInputElement>) => onUpdate(id, 'value', e.target.value)}
@@ -76,31 +73,21 @@ export const ConfigurationListItem: FC<ConfigurationListItemProps> = memo(
             className="h-8"
           />
         </div>
-        <TooltipProvider>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              if (valueToDelete === id) {
-                onRemove?.(id)
-              } else {
-                onDelete(id)
-              }
-            }}
-            className={cn('h-6 w-6 opacity-0 transition-opacity duration-200', isActive && 'opacity-100')}
-          >
-            {valueToDelete === id ? (
-              <Tooltip open={valueToDelete === id && isActive}>
-                <TooltipTrigger asChild>
-                  <AlertCircle className="h-3 w-3 text-destructive" />
-                </TooltipTrigger>
-                <TooltipContent side="left">Click again to remove</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Trash2 className="h-3 w-3" />
-            )}
-          </Button>
-        </TooltipProvider>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            if (valueToDelete === id) {
+              onRemove?.(id)
+            } else {
+              onDelete(id)
+            }
+          }}
+          className={cn('h-6 w-6 opacity-0 transition-opacity duration-200', isActive && 'opacity-100')}
+          title={valueToDelete === id && isActive ? 'Click again to remove' : 'Remove'}
+        >
+          {valueToDelete === id ? <AlertCircle className="h-3 w-3 text-destructive" /> : <Trash2 className="h-3 w-3" />}
+        </Button>
       </div>
     )
   },

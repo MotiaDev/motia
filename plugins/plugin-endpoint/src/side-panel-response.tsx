@@ -1,4 +1,4 @@
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger, useThemeStore } from '@motiadev/ui'
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
 import { X } from 'lucide-react'
 import { memo, useState } from 'react'
 import ReactJson from 'react18-json-view'
@@ -11,7 +11,6 @@ export const SidePanelResponse = memo(() => {
   const { setResponse } = useEndpointConfiguration()
   const response = useEndpointConfiguration(getResponseSelector)
 
-  const theme = useThemeStore((state: { theme: string }) => state.theme)
   const { data } = useStateStream(response?.body)
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview')
 
@@ -45,7 +44,7 @@ export const SidePanelResponse = memo(() => {
       </div>
 
       <TabsContent value="preview">
-        <ReactJson src={data as object} dark={theme === 'dark'} />
+        <ReactJson src={data as object} />
       </TabsContent>
 
       <TabsContent value="headers">

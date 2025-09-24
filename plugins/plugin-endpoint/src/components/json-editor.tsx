@@ -23,7 +23,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
 }) => {
   const monaco = useMonaco()
   const theme = useThemeStore((state: { theme: string }) => state.theme)
-  const editorTheme = useMemo(() => (theme === 'dark' ? 'vs-dark' : 'light'), [theme])
+  const editorTheme = useMemo(() => (theme === 'dark' ? 'transparent-dark' : 'transparent-light'), [theme])
 
   useEffect(() => {
     if (!monaco) return
@@ -40,7 +40,41 @@ export const JsonEditor: FC<JsonEditorProps> = ({
           ]
         : [],
     })
-  }, [monaco, schema, language])
+
+    monaco.editor.defineTheme('transparent-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#00000000',
+        'editor.lineHighlightBackground': '#00000000',
+        'editorLineNumber.foreground': '#999999',
+        'editorLineNumber.activeForeground': '#000000',
+        focusBorder: '#00000000',
+        'widget.border': '#00000000',
+        'editor.border': '#00000000',
+        'editorWidget.border': '#00000000',
+      },
+    })
+
+    monaco.editor.defineTheme('transparent-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#00000000',
+        'editor.lineHighlightBackground': '#00000000',
+        'editorLineNumber.foreground': '#666666',
+        'editorLineNumber.activeForeground': '#ffffff',
+        focusBorder: '#00000000',
+        'widget.border': '#00000000',
+        'editor.border': '#00000000',
+        'editorWidget.border': '#00000000',
+      },
+    })
+
+    monaco?.editor.setTheme(editorTheme)
+  }, [monaco, schema, editorTheme])
 
   return (
     <Editor

@@ -66,7 +66,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           </div>
 
           <TabsContent value="params">
-            <SidePanelParamsTab path={endpoint.path} method={endpoint.method} />
+            <SidePanelParamsTab path={endpoint.path} />
           </TabsContent>
           <TabsContent value="body">
             <SidePanelBodyTab schema={endpoint.bodySchema} />

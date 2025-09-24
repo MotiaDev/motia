@@ -1,21 +1,14 @@
-import { usePathUrl } from '../hooks/use-path-url'
-import { FC, useState } from 'react'
 import { Button, cn } from '@motiadev/ui'
-import { Copy, Check } from 'lucide-react'
-import { ApiRouteMethod } from '../types/endpoint'
-import { EndpointBadge } from './endpoint-badge'
+import { Check, Copy } from 'lucide-react'
+import { FC, useState } from 'react'
+import { usePathUrl } from '../hooks/use-path-url'
 
 interface EndpointPathPreviewProps {
   path: string
-  method: ApiRouteMethod
   baseUrl?: string
 }
 
-export const EndpointPathPreview: FC<EndpointPathPreviewProps> = ({
-  path,
-  method,
-  baseUrl = window.location.origin,
-}) => {
+export const EndpointPathPreview: FC<EndpointPathPreviewProps> = ({ path, baseUrl = window.location.origin }) => {
   const pathUrl = usePathUrl(path)
   const fullUrl = `${baseUrl}${pathUrl}`
   const [copied, setCopied] = useState(false)
@@ -31,20 +24,20 @@ export const EndpointPathPreview: FC<EndpointPathPreviewProps> = ({
   }
 
   return (
-    <div className="flex items-center px-5 relative border-b border-border">
-      <div className="border-r border-border pr-5 py-2">
-        <EndpointBadge variant={method}>{method}</EndpointBadge>
-      </div>
+    <div className="grid grid-cols-[auto_1fr] items-center gap-5 px-5 relative border-b border-border">
+      <div className="text-sm font-medium py-2">URL Preview</div>
 
-      <div className="flex-1 bg-muted-foreground/10 box-border flex gap-1 ml-5 h-6 items-center px-2 py-1 rounded border border-border">
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-xs text-muted-foreground truncate">{fullUrl}</div>
+      <div className="bg-muted-foreground/10 box-border grid grid-cols-[1fr_auto] gap-1 h-6 items-center px-2 py-1 rounded border border-border">
+        <div className="min-w-0">
+          <div className="font-medium text-xs text-muted-foreground truncate" title={fullUrl}>
+            {fullUrl}
+          </div>
         </div>
 
         <Button
           onClick={handleCopy}
           className={cn(
-            'w-3 h-3 flex items-center justify-center transition-colors cursor-pointer',
+            'w-3 h-3 grid place-items-center transition-colors cursor-pointer',
             copied ? 'text-green-400' : 'text-muted-foreground',
           )}
           variant="icon"

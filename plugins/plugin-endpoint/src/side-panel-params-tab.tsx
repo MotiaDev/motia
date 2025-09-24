@@ -3,20 +3,18 @@ import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ConfigurationListItem } from './components/configuration-list-item'
+import { EndpointPathPreview } from './components/endpoint-path-preview'
 import {
   getPathParamsSelector,
   getQueryParamsSelector,
   useEndpointConfiguration,
 } from './hooks/use-endpoint-configuration'
-import { EndpointPathPreview } from './components/endpoint-path-preview'
-import { ApiRouteMethod } from './types/endpoint'
 
 type SidePanelParamsTabProps = {
   path: string
-  method: ApiRouteMethod
 }
 
-export const SidePanelParamsTab = ({ path, method }: SidePanelParamsTabProps) => {
+export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
   const { setQueryParams, removeQueryParams, setPathParams } = useEndpointConfiguration()
   const queryParams = useEndpointConfiguration(useShallow(getQueryParamsSelector))
   const pathParams = useEndpointConfiguration(useShallow(getPathParamsSelector))
@@ -68,7 +66,7 @@ export const SidePanelParamsTab = ({ path, method }: SidePanelParamsTabProps) =>
           Add
         </Button>
       </div>
-      <EndpointPathPreview path={path} method={method} />
+      <EndpointPathPreview path={path} />
 
       <div className="flex flex-col flex-1">
         {pathParamsConfig.length > 0 && (

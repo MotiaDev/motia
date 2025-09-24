@@ -139,6 +139,15 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
       setHeaders: (headers: Headers) =>
         set((state) => ({ headers: { ...state.headers, [state.selectedEndpointId]: headers } })),
       setResponse: async (response: Response | undefined) => {
+        if (!response) {
+          set((state) => ({
+            response: {
+              ...state.response,
+              [state.selectedEndpointId]: undefined,
+            },
+          }))
+          return
+        }
         let body = undefined
         try {
           body = response ? await response.json() : undefined

@@ -18,7 +18,8 @@ const inputVariants = cva(
           'bg-input border border-border hover:border-border focus-visible:border-ring text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/20',
         shade: 'bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/12 focus:bg-muted-foreground/15',
         outline:
-          'focus-visible:border-border hover:border-border hover:bg-card focus-visible:bg-card bg-transparent text-foreground border border-transparent',
+          'focus-visible:border-border focus-visible:bg-card hover:border-border hover:bg-card bg-transparent text-foreground border border-transparent',
+        outlineReadonly: 'bg-transparent text-foreground border border-transparent',
       },
     },
     defaultVariants: {
