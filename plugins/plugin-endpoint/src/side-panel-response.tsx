@@ -1,4 +1,4 @@
-import { Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger, useThemeStore } from '@motiadev/ui'
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger, useThemeStore } from '@motiadev/ui'
 import { X } from 'lucide-react'
 import { memo, useState } from 'react'
 import ReactJson from 'react18-json-view'
