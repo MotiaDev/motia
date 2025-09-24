@@ -23,7 +23,6 @@
   "dependencies": {
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
-    "class-variance-authority": "^0.7.1",
     "tailwind-merge": "^3.3.1",
     "clsx": "^2.1.1",
     "@monaco-editor/react": "^4.7.0",

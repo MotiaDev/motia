@@ -1,4 +1,4 @@
-import { useThemeStore } from './stores/use-theme-store'
+import { useThemeStore } from '@motiadev/ui'
 import { Editor, useMonaco } from '@monaco-editor/react'
 import { FC, useEffect, useMemo } from 'react'
 

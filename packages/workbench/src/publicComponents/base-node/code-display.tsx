@@ -1,4 +1,4 @@
-import { useThemeStore } from '@/stores/use-theme-store'
+import { useThemeStore } from '@motiadev/ui'
 import { Feature } from '@/types/file'
 import { FeatureCard } from './feature-card'
 import React, { useRef, useState } from 'react'

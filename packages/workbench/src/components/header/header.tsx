@@ -1,6 +1,6 @@
 import motiaLogoDark from '@/assets/motia-dark.png'
 import motiaLogoLight from '@/assets/motia-light.png'
-import { useThemeStore } from '@/stores/use-theme-store'
+import { useThemeStore } from '@motiadev/ui'
 import React, { useEffect, useState } from 'react'
 import { Tutorial } from '../tutorial/tutorial'
 import { TutorialButton } from '../tutorial/tutorial-button'

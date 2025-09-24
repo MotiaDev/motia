@@ -1,42 +1,50 @@
-import { useMemo } from 'react'
-import { EndpointBadge } from './endpoint-badge'
-import { EndpointSidePanel } from './endpoint-side-panel'
-import { useGetEndpoints } from './hooks/use-get-endpoints'
 import { cn } from '@motiadev/ui'
-import { useGlobalStore } from './hooks/use-global-store'
+import { useCallback, useMemo } from 'react'
+import { EndpointPath } from './components/endpoint-path'
+import { SidePanel } from './side-panel'
+import { useEndpointConfiguration } from './hooks/use-endpoint-configuration'
+import { useGetEndpoints } from './hooks/use-get-endpoints'
 import { ApiEndpoint } from './types/endpoint'
 
 export const EndpointsPage = () => {
   const endpoints = useGetEndpoints()
-  const selectedEndpointId = useGlobalStore((state) => state.selectedEndpointId)
-  const selectEndpointId = useGlobalStore((state) => state.selectEndpointId)
+  const { selectedEndpointId, setSelectedEndpointId } = useEndpointConfiguration()
   const selectedEndpoint = useMemo(
     () => selectedEndpointId && endpoints.find((endpoint: ApiEndpoint) => endpoint.id === selectedEndpointId),
     [endpoints, selectedEndpointId],
   )
 
+  console.log(endpoints)
+
+  const onClose = useCallback(() => {
+    setSelectedEndpointId('')
+  }, [setSelectedEndpointId])
+
   return (
-    <div className="flex flex-row">
-      <div className="flex flex-col flex-1 overflow-y-auto">
+    <div
+      className="grid h-full"
+      style={{ gridTemplateColumns: selectedEndpoint ? 'minmax(300px, 1fr) minmax(600px, 1fr)' : '1fr' }}
+    >
+      <div className="flex flex-col overflow-y-auto min-w-0">
         {endpoints.map((endpoint: ApiEndpoint) => (
           <div
             data-testid={`endpoint-${endpoint.method}-${endpoint.path}`}
             key={`${endpoint.method} ${endpoint.path}`}
-            className={cn(selectedEndpoint === endpoint && 'bg-muted-foreground/10', 'cursor-pointer select-none')}
-            onClick={() => selectEndpointId(endpoint.id)}
+            className={cn(
+              selectedEndpoint === endpoint && 'bg-muted-foreground/10',
+              'cursor-pointer select-none hover:bg-muted-foreground/10',
+            )}
+            onClick={() => setSelectedEndpointId(endpoint.id)}
           >
-            <div className="flex flex-row gap-2 items-center hover:bg-muted-foreground/10 p-2">
-              <EndpointBadge variant={endpoint.method as never}>{endpoint.method.toUpperCase()}</EndpointBadge>
-              <span className="text-md font-mono font-bold whitespace-nowrap">{endpoint.path}</span>
+            <div className="flex flex-row gap-2 items-center p-2">
+              <EndpointPath method={endpoint.method} path={endpoint.path} />
               <span className="text-md text-muted-foreground truncate">{endpoint.description}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {selectedEndpoint && (
-        <EndpointSidePanel endpoint={selectedEndpoint} onClose={() => selectEndpointId(undefined)} />
-      )}
+      {selectedEndpoint && <SidePanel endpoint={selectedEndpoint} onClose={onClose} />}
     </div>
   )
 }

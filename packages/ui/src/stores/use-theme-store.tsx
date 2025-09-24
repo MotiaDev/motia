@@ -18,10 +18,15 @@ const updateTheme = (theme: Theme) => {
   root.classList.add(theme)
 }
 
-export type ThemeState = {
-  theme: Theme
+type Actions = {
   setTheme: (theme: Theme) => void
 }
+
+type State = {
+  theme: Theme
+}
+
+export type ThemeState = State & Actions
 
 export const useThemeStore = create<ThemeState>()(
   persist(

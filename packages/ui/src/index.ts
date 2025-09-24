@@ -34,3 +34,7 @@ export { SidePanelDetail, SidePanelDetailItem } from './components/ui/side-panel
 export { Label } from './components/ui/label'
 export { Badge, type BadgeProps } from './components/ui/badge'
 export { Sidebar, APP_SIDEBAR_CONTAINER_ID } from './components/ui/sidebar'
+export { Checkbox } from './components/ui/checkbox'
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip'
+export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select'
+export { type ThemeState, type Theme, useThemeStore } from './stores/use-theme-store'
