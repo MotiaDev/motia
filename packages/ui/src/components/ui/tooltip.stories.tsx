@@ -20,10 +20,6 @@ const meta: Meta<typeof Tooltip> = {
       control: { type: 'number' },
       description: 'The delay in milliseconds before the tooltip appears.',
     },
-    skipDelayDuration: {
-      control: { type: 'number' },
-      description: 'The delay in milliseconds before the tooltip appears when moving between tooltips.',
-    },
     disableHoverableContent: {
       control: { type: 'boolean' },
       description: 'Whether to disable hoverable content inside the tooltip.',
