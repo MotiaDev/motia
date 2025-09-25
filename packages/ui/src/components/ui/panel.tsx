@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils'
 import { FC, ReactNode, useMemo } from 'react'
 import { Button } from './button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
+import { BackgroundEffect } from './background-effect'
 
 export interface PanelDetailItemProps {
   label: string | ReactNode
@@ -122,7 +123,7 @@ export const Panel: FC<PanelProps> = ({
   return (
     <div
       className={cn(
-        'relative size-full backdrop-blur-[48px] backdrop-filter',
+        'relative isolate size-full backdrop-blur-[48px] backdrop-filter',
         'text-foreground',
         'rounded-lg overflow-hidden',
         panelVariants[variant],
@@ -130,6 +131,7 @@ export const Panel: FC<PanelProps> = ({
       )}
       data-testid={dataTestId}
     >
+      <BackgroundEffect />
       <div className="flex flex-col size-full">
         <div
           className={cn('relative shrink-0 w-full border-b border-border bg-card', {

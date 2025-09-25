@@ -15,6 +15,7 @@ import { useGetFlowState } from './hooks/use-get-flow-state'
 import { NodeOrganizer } from './node-organizer'
 
 import '@xyflow/react/dist/style.css'
+import { BackgroundEffect } from '@motiadev/ui'
 
 export type FlowNode = ReactFlowNode<NodeData>
 export type FlowEdge = ReactFlowEdge<EdgeData>
@@ -53,8 +54,10 @@ export const FlowView: React.FC<Props> = ({ flow, flowConfig }) => {
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChangeHandler}
         onEdgesChange={onEdgesChange}
+        className="isolate"
       >
-        <Background variant={BackgroundVariant.Dots} gap={50} size={2} className="bg-canvas-background!" />
+        <BackgroundEffect />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <NodeOrganizer onInitialized={onInitialized} nodes={nodes} edges={edges} />
       </ReactFlow>
     </div>

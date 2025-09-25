@@ -3,7 +3,7 @@ import { Feature } from '@/types/file'
 import { FeatureCard } from './feature-card'
 import React, { useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { dracula, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { LanguageIndicator } from './language-indicator'
 
 type CodeDisplayProps = {
@@ -44,7 +44,7 @@ const getFirstLineNumber = (line: string) => {
 
 export const CodeDisplay: React.FC<CodeDisplayProps> = ({ code, language, features }) => {
   const theme = useThemeStore((state) => state.theme)
-  const themeStyle = theme === 'dark' ? dracula : oneLight
+  const themeStyle = theme === 'dark' ? oneDark : oneLight
   const [highlightedLines, setHighlightedLines] = useState<string[]>([])
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
   const ref = useRef<HTMLDivElement>(null)

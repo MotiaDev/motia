@@ -1,4 +1,4 @@
-import { Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
+import { Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger, BackgroundEffect } from '@motiadev/ui'
 import { X } from 'lucide-react'
 import { FC, memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -32,7 +32,8 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
   const paramsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
 
   return (
-    <div className="grid grid-cols-1 overflow-y-auto min-w-0 grid-rows-[auto_1fr] border-l border-border">
+    <div className="isolate grid grid-cols-1 overflow-y-auto min-w-0 grid-rows-[auto_1fr] border-l border-border">
+      <BackgroundEffect />
       <div className="grid grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 border-b bg-card w-full">
         <div className="grid grid-rows-2 gap-2">
           <EndpointPath method={endpoint.method} path={endpoint.path} />

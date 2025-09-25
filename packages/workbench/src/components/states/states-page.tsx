@@ -22,7 +22,7 @@ export const StatesPage = () => {
       {selectedItem && <StateSidebar state={selectedItem} onClose={onClose} />}
 
       <Table>
-        <TableHeader className="sticky top-0 bg-background">
+        <TableHeader className="sticky top-0 bg-background/20 backdrop-blur-sm">
           <TableRow>
             <TableHead className="rounded-0">Group ID</TableHead>
             <TableHead>Key</TableHead>

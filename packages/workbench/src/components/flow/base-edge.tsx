@@ -1,7 +1,7 @@
 import { BaseEdge as BaseReactFlowEdge, EdgeLabelRenderer, EdgeProps, getSmoothStepPath } from '@xyflow/react'
 import { cva } from 'class-variance-authority'
 import React from 'react'
-import { cn } from '@motiadev/ui'
+import { cn, useThemeStore } from '@motiadev/ui'
 
 const labelVariants = cva('absolute pointer-events-all text-cs border p-1 px-2', {
   variants: {
@@ -16,9 +16,11 @@ const labelVariants = cva('absolute pointer-events-all text-cs border p-1 px-2',
 })
 
 export const BaseEdge: React.FC<EdgeProps> = (props: EdgeProps) => {
+  const theme = useThemeStore((state) => state.theme)
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data } = props
   const label = data?.label as string | undefined
   const labelVariant = data?.labelVariant as 'default' | 'conditional' | null | undefined
+  const virtualColor = theme === 'dark' ? 'rgb(225, 225, 225)' : 'rgb(85, 85, 85)'
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -36,7 +38,7 @@ export const BaseEdge: React.FC<EdgeProps> = (props: EdgeProps) => {
       <BaseReactFlowEdge
         path={edgePath}
         style={{
-          stroke: data?.variant === 'virtual' ? 'rgb(111, 111, 111)' : '#0094FF',
+          stroke: data?.variant === 'virtual' ? virtualColor : '#0094FF',
           strokeWidth: 2,
           shapeRendering: 'geometricPrecision',
           fill: 'none',

@@ -1,6 +1,7 @@
 import { forwardRef, HTMLAttributes } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
+import { BackgroundEffect } from './background-effect'
 
 interface ContainerProps extends HTMLAttributes<HTMLDivElement> {}
 
@@ -8,7 +9,10 @@ export const Container = forwardRef<HTMLDivElement, ContainerProps>(({ className
   return (
     <div
       ref={ref}
-      className={cn('border border-border text-foreground rounded-lg overflow-hidden flex flex-col h-full', className)}
+      className={cn(
+        'relative border border-border text-foreground rounded-lg overflow-hidden flex flex-col h-full',
+        className,
+      )}
       {...props}
     >
       {children}
@@ -17,7 +21,7 @@ export const Container = forwardRef<HTMLDivElement, ContainerProps>(({ className
 })
 Container.displayName = 'Container'
 
-const containerHeaderVariants = cva('w-full bg-card flex min-h-10 items-center', {
+const containerHeaderVariants = cva('isolate w-full bg-card flex min-h-10 items-center', {
   variants: {
     variant: {
       default: 'px-5 py-2 items-center',
@@ -35,6 +39,7 @@ export const ContainerHeader = forwardRef<HTMLDivElement, ContainerHeaderProps>(
   ({ className, variant, children, ...props }, ref) => {
     return (
       <div ref={ref} className={cn(containerHeaderVariants({ variant, className }))} {...props}>
+        <BackgroundEffect />
         {children}
       </div>
     )
