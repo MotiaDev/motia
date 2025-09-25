@@ -64,7 +64,7 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
 
       <div className="grid grid-rows-[1fr_1fr]">
         <div className="p-2 border-b border-border">
-          <div className="text-sm font-medium">Query</div>
+          <div className="text-sm font-medium pl-3">Query</div>
           {Object.entries(queryParams).map(([key, param]) => (
             <ConfigurationListItem
               key={key}
@@ -86,7 +86,7 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
 
         {pathParamsConfig.length > 0 && (
           <div className="p-2">
-            <div className="text-sm font-medium">Path</div>
+            <div className="text-sm font-medium pl-3">Path</div>
             {pathParamsConfig.map((pathName) => (
               <ConfigurationListItem
                 key={pathName.name}
