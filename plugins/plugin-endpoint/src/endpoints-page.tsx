@@ -14,18 +14,16 @@ export const EndpointsPage = () => {
     [endpoints, selectedEndpointId],
   )
 
-  console.log(endpoints)
-
   const onClose = useCallback(() => {
     setSelectedEndpointId('')
   }, [setSelectedEndpointId])
 
   return (
     <div
-      className="grid h-full"
+      className="grid h-full max-h-full"
       style={{ gridTemplateColumns: selectedEndpoint ? 'minmax(300px, 1fr) minmax(600px, 1fr)' : '1fr' }}
     >
-      <div className="flex flex-col overflow-y-auto min-w-0">
+      <div className="grid grid-cols-1 auto-rows-max overflow-y-auto min-w-0">
         {endpoints.map((endpoint: ApiEndpoint) => (
           <div
             data-testid={`endpoint-${endpoint.method}-${endpoint.path}`}
