@@ -32,9 +32,9 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
   const paramsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
 
   return (
-    <div className="grid grid-cols-1 overflow-auto min-w-0 grid-rows-[auto_1fr] border-l border-border">
-      <div className="grid grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 border-b bg-card">
-        <div className="grid grid-rows-[auto_auto] gap-2">
+    <div className="grid grid-cols-1 overflow-y-auto min-w-0 grid-rows-[auto_1fr] border-l border-border">
+      <div className="grid grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 border-b bg-card w-full">
+        <div className="grid grid-rows-2 gap-2">
           <EndpointPath method={endpoint.method} path={endpoint.path} />
           <p className="text-sm text-muted-foreground">{endpoint.description || 'Retrieves a list of all versions'}</p>
         </div>

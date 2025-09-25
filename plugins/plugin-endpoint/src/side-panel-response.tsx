@@ -48,12 +48,12 @@ export const SidePanelResponse = memo(() => {
       </TabsContent>
 
       <TabsContent value="headers">
-        <div className="grid grid-cols-[auto_1fr] gap-4 p-4">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 p-4 overflow-auto auto-rows-max h-full">
           {response.headers &&
             Object.entries(response.headers).map(([key, value]) => (
               <>
-                <span className="font-bold text-sm h-8 items-center grid">{key}</span>
-                <span className="text-sm break-all truncate text-muted-foregroundh-8 items-center grid">{value}</span>
+                <span className="font-bold text-sm h-8 items-center grid whitespace-nowrap">{key}</span>
+                <span className="text-sm text-muted-foreground h-8 items-center grid whitespace-nowrap">{value}</span>
               </>
             ))}
         </div>
