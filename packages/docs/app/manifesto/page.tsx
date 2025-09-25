@@ -99,7 +99,7 @@ export default function ManifestoPage() {
             </ul>
           </section> */}
           
-          <div className="flex justify-center my-[8px]">
+          {/* <div className="flex justify-center my-[8px]">
             <Image
               src="/features.png"
               alt="Motia Features - APIs, Background Jobs, Queues, Workflows, AI Agents, Streaming, Observability, State, Deployment, and Scaling"
@@ -107,7 +107,7 @@ export default function ManifestoPage() {
               height={500}
               className="max-w-full h-auto"
             />
-          </div>
+          </div> */}
 
           <section className={normalText}>
             <p>
