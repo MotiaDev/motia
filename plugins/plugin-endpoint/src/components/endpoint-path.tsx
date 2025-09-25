@@ -21,7 +21,7 @@ export const EndpointPath: FC<EndpointPathProps> = ({ method, path }) => {
 
       if (part.startsWith(':')) {
         return [
-          <div className="bg-[#2862FE]/20 text-[#2862FE] rounded-sm px-1 py-0.5 text-sm font-mono font-bold">
+          <div className="bg-[#2862FE]/20 text-[#2862FE] rounded-sm px-1 py-0.5 text-sm font-mono font-bold font-medium">
             {part}
           </div>,
           separator,

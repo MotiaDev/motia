@@ -4,7 +4,6 @@ import { FC, useEffect, useMemo } from 'react'
 
 type JsonEditorProps = {
   value: string
-  height?: number | string
   schema?: Record<string, unknown>
   onChange?: (value: string) => void
   onValidate?: (isValid: boolean) => void
@@ -14,7 +13,6 @@ type JsonEditorProps = {
 
 export const JsonEditor: FC<JsonEditorProps> = ({
   value,
-  height = 300,
   schema,
   onChange,
   onValidate,
@@ -79,7 +77,6 @@ export const JsonEditor: FC<JsonEditorProps> = ({
   return (
     <Editor
       data-testid="json-editor"
-      height={height}
       language={language}
       value={value}
       theme={editorTheme}

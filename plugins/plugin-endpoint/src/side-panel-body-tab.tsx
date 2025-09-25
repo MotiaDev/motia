@@ -1,4 +1,4 @@
-import { FC, memo, useCallback, useEffect, useRef } from 'react'
+import { FC, memo, useCallback, useEffect, useRef, useState } from 'react'
 import { JsonEditor } from './components/json-editor'
 import { getBodySelector, useEndpointConfiguration } from './hooks/use-endpoint-configuration'
 import { convertJsonSchemaToJson } from './hooks/utils'
@@ -28,13 +28,7 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
 
   return (
     <div className="h-full" ref={containerRef}>
-      <JsonEditor
-        value={body}
-        schema={schema}
-        onChange={handleBodyChange}
-        onValidate={setBodyIsValid}
-        height={containerRef.current?.clientHeight}
-      />
+      <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={setBodyIsValid} />
     </div>
   )
 })
