@@ -59,7 +59,7 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
   }, [queryParams, addParam])
 
   return (
-    <div className="h-full grid grid-rows-[auto_1fr]">
+    <div className="h-full grid grid-rows-[auto_auto_1fr]">
       <div className="grid px-4 border-b h-10 items-center grid-cols-[auto_1fr]">
         <Button size="sm" onClick={addParam}>
           <Plus className="h-3 w-3" />
