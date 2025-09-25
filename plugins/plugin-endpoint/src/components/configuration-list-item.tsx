@@ -41,7 +41,10 @@ export const ConfigurationListItem: FC<ConfigurationListItemProps> = memo(
 
     return (
       <div
-        className={cn('flex items-center py-2 px-4 bg-muted/30 rounded-lg gap-2', isActive && 'bg-card')}
+        className={cn(
+          'grid grid-cols-[auto_1fr_auto] items-center py-2 px-4 bg-muted/30 rounded-lg gap-2',
+          isActive && 'bg-card',
+        )}
         onMouseOver={onMouseOver}
         onMouseLeave={onMouseLeave}
       >
@@ -52,7 +55,7 @@ export const ConfigurationListItem: FC<ConfigurationListItemProps> = memo(
         >
           <Check className="h-3 w-3" />
         </Checkbox>
-        <div className="flex-1 grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Input
             readOnly={required}
             disabled={!value.active}

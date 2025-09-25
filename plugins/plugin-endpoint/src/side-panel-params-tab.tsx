@@ -59,19 +59,32 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
   }, [queryParams, addParam])
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex px-4 border-b h-10 items-center">
+    <div className="h-full grid grid-rows-[auto_1fr]">
+      <div className="grid px-4 border-b h-10 items-center grid-cols-[auto_1fr]">
         <Button size="sm" onClick={addParam}>
-          <Plus className="h-3 w-3 mr-1" />
+          <Plus className="h-3 w-3" />
           Add
         </Button>
       </div>
       <EndpointPathPreview path={path} />
 
-      <div className="flex flex-col flex-1">
+      <div className="grid grid-rows-[auto_1fr]">
+        <div className="p-2 border-b border-border">
+          <div className="text-sm font-medium mb-2">Query</div>
+          {Object.entries(queryParams).map(([key, param]) => (
+            <ConfigurationListItem
+              key={key}
+              value={param}
+              id={key}
+              onUpdate={updateParam}
+              onRemove={removeQueryParams}
+            />
+          ))}
+        </div>
+
         {pathParamsConfig.length > 0 && (
-          <div className="mt-4 border-b p-2">
-            <div className="text-sm font-medium pl-4">Path</div>
+          <div className="p-2">
+            <div className="text-sm font-medium">Path</div>
             {pathParamsConfig.map((pathName) => (
               <ConfigurationListItem
                 key={pathName.name}
@@ -83,18 +96,6 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
             ))}
           </div>
         )}
-        <div className="p-2 flex-1">
-          <div className="text-sm font-medium pl-4">Query</div>
-          {Object.entries(queryParams).map(([key, param]) => (
-            <ConfigurationListItem
-              key={key}
-              value={param}
-              id={key}
-              onUpdate={updateParam}
-              onRemove={removeQueryParams}
-            />
-          ))}
-        </div>
       </div>
     </div>
   )

@@ -27,22 +27,22 @@ export const SidePanelHeadersTab = () => {
   )
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex px-4 border-b h-10 items-center">
+    <div className="h-full max-h-full grid grid-rows-[auto_1fr]">
+      <div className="grid px-4 border-b h-10 items-center grid-cols-[auto_1fr]">
         <Button size="sm" onClick={addHeader}>
-          <Plus className="h-3 w-3 mr-1" />
+          <Plus className="h-3 w-3" />
           Add
         </Button>
       </div>
 
-      <div className="p-2 h-full">
+      <div className="p-2">
         {Object.entries(headers).map(([key, header]) => (
           <ConfigurationListItem key={key} value={header} id={key} onUpdate={updateHeader} onRemove={removeHeaders} />
         ))}
 
         {Object.entries(headers).length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full">
-            <div className="text-sm text-muted-foreground">There are no headers in this endpoint</div>
+          <div className="grid grid-cols-[1fr_auto] items-center h-full">
+            <div className="text-sm text-muted-foreground text-center">There are no headers in this endpoint</div>
           </div>
         )}
       </div>

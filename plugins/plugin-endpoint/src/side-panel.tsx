@@ -32,17 +32,17 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
   const paramsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
 
   return (
-    <div className="grid grid-rows-[auto_1fr] h-full bg-background w-full border-l border-border">
-      <div className="grid grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 border-b  bg-card">
+    <div className="grid grid-cols-1 overflow-auto min-w-0 grid-rows-[auto_1fr] border-l border-border">
+      <div className="grid grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 border-b bg-card">
         <div className="grid grid-rows-[auto_auto] gap-2">
           <EndpointPath method={endpoint.method} path={endpoint.path} />
           <p className="text-sm text-muted-foreground">{endpoint.description || 'Retrieves a list of all versions'}</p>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
+        <Button variant="icon" size="icon" onClick={onClose}>
           <X />
         </Button>
       </div>
-      <div className={cn('grid grid-cols-2', !hasResponse && 'grid-cols-1')}>
+      <div className={cn('grid grid-cols-[minmax(350px,1fr)_minmax(auto,1fr)]', !hasResponse && 'grid-cols-1')}>
         <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as ActiveTab)}>
           <div className="grid grid-cols-[1fr_auto] items-center h-10 border-b px-5 bg-card">
             <TabsList>

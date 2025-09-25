@@ -20,10 +20,12 @@ export const EndpointsPage = () => {
 
   return (
     <div
-      className="grid h-full max-h-full"
-      style={{ gridTemplateColumns: selectedEndpoint ? 'minmax(300px, 1fr) minmax(600px, 1fr)' : '1fr' }}
+      className={cn(
+        'grid h-full max-h-full',
+        selectedEndpoint ? 'grid-cols-[minmax(auto,1fr)_minmax(600px,1fr)]' : 'grid-cols-1',
+      )}
     >
-      <div className="grid grid-cols-1 auto-rows-max overflow-y-auto min-w-0">
+      <div className="grid grid-cols-1 auto-rows-max overflow-auto min-w-0">
         {endpoints.map((endpoint: ApiEndpoint) => (
           <div
             data-testid={`endpoint-${endpoint.method}-${endpoint.path}`}
