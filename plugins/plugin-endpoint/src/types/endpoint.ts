@@ -9,4 +9,5 @@ export type ApiEndpoint = {
   queryParams?: QueryParam[]
   responseSchema?: Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
   bodySchema?: Record<string, Record<string, any>> // eslint-disable-line @typescript-eslint/no-explicit-any
+  flows?: string[]
 }

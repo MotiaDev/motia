@@ -17,6 +17,7 @@ type ApiEndpoint = {
   queryParams?: QueryParam[]
   responseSchema?: JsonSchema
   bodySchema?: JsonSchema
+  flows?: string[]
 }
 
 const mapEndpoint = (step: Step<ApiRouteConfig>): ApiEndpoint => {
@@ -28,6 +29,7 @@ const mapEndpoint = (step: Step<ApiRouteConfig>): ApiEndpoint => {
     queryParams: step.config.queryParams,
     responseSchema: step.config.responseSchema as never as JsonSchema,
     bodySchema: step.config.bodySchema as never as JsonSchema,
+    flows: step.config.flows,
   }
 }
 
