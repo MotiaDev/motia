@@ -1,6 +1,6 @@
 import { Button } from '@motiadev/ui'
 import { Plus } from 'lucide-react'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ConfigurationListItem } from './components/configuration-list-item'
 import { EndpointPathPreview } from './components/endpoint-path-preview'
@@ -52,12 +52,6 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
     [pathParams, setPathParams],
   )
 
-  useEffect(() => {
-    if (Object.keys(queryParams).length === 0) {
-      addParam()
-    }
-  }, [queryParams, addParam])
-
   return (
     <div className="h-full grid grid-rows-[auto_auto_1fr]">
       <div className="grid px-4 border-b h-10 items-center grid-cols-[auto_1fr]">
@@ -68,9 +62,9 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
       </div>
       <EndpointPathPreview path={path} />
 
-      <div className="grid grid-rows-[auto_1fr]">
+      <div className="grid grid-rows-[1fr_1fr]">
         <div className="p-2 border-b border-border">
-          <div className="text-sm font-medium mb-2">Query</div>
+          <div className="text-sm font-medium">Query</div>
           {Object.entries(queryParams).map(([key, param]) => (
             <ConfigurationListItem
               key={key}
@@ -80,6 +74,14 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
               onRemove={removeQueryParams}
             />
           ))}
+
+          {Object.entries(queryParams).length === 0 && (
+            <div className="grid grid-cols-1 items-center h-full">
+              <div className="text-sm text-muted-foreground text-center">
+                There are no query params in this endpoint
+              </div>
+            </div>
+          )}
         </div>
 
         {pathParamsConfig.length > 0 && (

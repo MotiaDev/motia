@@ -41,7 +41,7 @@ export const SidePanelHeadersTab = () => {
         ))}
 
         {Object.entries(headers).length === 0 && (
-          <div className="grid grid-cols-[1fr_auto] items-center h-full">
+          <div className="grid grid-cols-1 items-center h-full">
             <div className="text-sm text-muted-foreground text-center">There are no headers in this endpoint</div>
           </div>
         )}
