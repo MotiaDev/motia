@@ -9,7 +9,8 @@ import { ApiEndpoint } from './types/endpoint'
 
 export const EndpointsPage = () => {
   const { endpoints, groupedEndpoints } = useGetEndpoints()
-  const { selectedEndpointId, setSelectedEndpointId } = useEndpointConfiguration()
+  const { selectedEndpointId, setSelectedEndpointId, toggleFlowGroupStatus, flowGroupStatus } =
+    useEndpointConfiguration()
   const selectedEndpoint = useMemo(
     () => endpoints.find((endpoint: ApiEndpoint) => endpoint.id === selectedEndpointId),
     [endpoints, selectedEndpointId],
@@ -19,15 +20,10 @@ export const EndpointsPage = () => {
     setSelectedEndpointId('')
   }, [setSelectedEndpointId])
 
-  const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({})
-  const toggleGroup = useCallback((flow: string) => {
-    setClosedGroups((prev) => ({ ...prev, [flow]: !prev[flow] }))
-  }, [])
-
   const [search, setSearch] = useState('')
 
   const filteredEndpoints = useMemo(() => {
-    return Object.entries(groupedEndpoints).filter(([flow, endpoints]) => {
+    return Object.entries(groupedEndpoints).filter(([_, endpoints]) => {
       return endpoints.some(
         (endpoint) =>
           endpoint.method?.toLowerCase().includes(search.toLowerCase()) ||
@@ -48,7 +44,7 @@ export const EndpointsPage = () => {
         <div className="grid grid-cols-1 auto-rows-max overflow-auto min-w-0">
           {filteredEndpoints.map(([flow, endpoints]) => {
             const isSelected = endpoints.some((endpoint) => endpoint.id === selectedEndpointId)
-            const isOpen = !closedGroups[flow] || isSelected || search !== ''
+            const isOpen = !flowGroupStatus[flow] || isSelected || search !== ''
             return (
               <FlowGroup
                 key={flow}
@@ -56,7 +52,7 @@ export const EndpointsPage = () => {
                 endpoints={endpoints as ApiEndpoint[]}
                 isOpen={isOpen}
                 isSelected={isSelected}
-                onToggle={toggleGroup}
+                onToggle={toggleFlowGroupStatus}
                 onClearSelection={() => setSelectedEndpointId('')}
                 selectedEndpointId={selectedEndpointId}
                 onSelectEndpoint={setSelectedEndpointId}

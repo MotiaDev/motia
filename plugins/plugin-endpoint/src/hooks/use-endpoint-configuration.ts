@@ -37,6 +37,7 @@ type Actions = {
   setPathParams: (pathParams: Params) => void
   removePathParams: (key: string) => void
   setBodyIsValid: (bodyIsValid: boolean) => void
+  toggleFlowGroupStatus: (flow: string) => void
 }
 
 type State = {
@@ -47,6 +48,7 @@ type State = {
   response: Record<string, ResponseData | undefined>
   queryParams: Record<string, Params>
   pathParams: Record<string, Params>
+  flowGroupStatus: Record<string, boolean>
 }
 
 export type UseEndpointConfiguration = State & Actions
@@ -109,6 +111,9 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
       response: {},
       queryParams: {},
       pathParams: {},
+      flowGroupStatus: {},
+      toggleFlowGroupStatus: (flow: string) =>
+        set((state) => ({ flowGroupStatus: { ...state.flowGroupStatus, [flow]: !state.flowGroupStatus[flow] } })),
       setSelectedEndpointId: (selectedEndpointId: string) => set({ selectedEndpointId }),
       setQueryParams: (queryParams: Params) =>
         set((state) => ({ queryParams: { ...state.queryParams, [state.selectedEndpointId]: queryParams } })),
