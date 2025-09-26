@@ -1,5 +1,5 @@
 ---
-title: Defining Steps
+title: Steps
 description: One primitive to build anything. Powerful, reusable, multi-language, composable, and auto-discovered.
 ---
 
@@ -14,7 +14,7 @@ Steps are Motia's core primitive that unifies every backend concern into a singl
 **That's simple and powerful.** You can compose them together. Learn the basic things about how Steps work, and Motia will auto-discover any file with `.step.ts`, `.step.js`, and `_step.py` - it will register it and connect the whole thing together.
 
 
-## Config Properties & Handler Elements
+## Config Properties
 
 | Property | Type | Description |
 | -------- | ---- | ----------- |
@@ -24,7 +24,11 @@ Steps are Motia's core primitive that unifies every backend concern into a singl
 | `subscribes` | `string[]` | Array of event topics this step listens to (Event steps only) |
 | `emits` | `string[]` | Array of event topics this step can emit to trigger other steps |
 | `flows` | `string[]` | Array of flow names this step belongs to for organization and visualization |
-| `handler` | `function` | Function that processes data and performs business logic |
+
+## Handler Elements
+
+| Element | Type | Description |
+| ------- | ---- | ----------- |
 | `emit` | `function` | Function to trigger other steps by emitting events with data |
 | `logger` | `object` | Structured logging with context for debugging and observability |
 | `state` | `object` | Persistent key-value storage shared across steps and workflows |
@@ -279,21 +283,12 @@ How your step receives and accesses input data.
 <Tab value='TypeScript'>
 
 ```typescript
-// API Step: Receive data from URL request
-export const handler: Handlers['ApiStep'] = async (req, { logger }) => {
-  const { name, email } = req.body;        // ← Data from URL request  
-  const userId = req.pathParams.id;        // ← Path parameters
-  const filter = req.queryParams.filter;   // ← Query parameters
-};
-
-// Event Step: Receive data from events
-export const handler: Handlers['EventStep'] = async (input, { logger }) => {
-  const { userId, email, name } = input;   // ← Data from emitted event
-};
-
-// Cron Step: No input data (schedule-triggered)
-export const handler: Handlers['CronStep'] = async ({ logger }) => {
-  // No input data - runs on schedule
+// Event Step: Subscribe to events
+export const config: EventConfig = {
+  type: 'event',
+  name: 'EventStep',
+  subscribes: ['message.sent'],            // ← Subscribe to events
+  // input schema defines what data to expect
 };
 ```
 
@@ -301,44 +296,25 @@ export const handler: Handlers['CronStep'] = async ({ logger }) => {
 <Tab value='Python'>
 
 ```python
-# API Step: Receive data from URL request
-async def handler(req, context):
-    name = req.get("body", {}).get("name")         # ← Data from URL request
-    email = req.get("body", {}).get("email")       # ← Data from URL request
-    user_id = req.get("pathParams", {}).get("id")  # ← Path parameters
-    filter_val = req.get("queryParams", {}).get("filter") # ← Query parameters
-
-# Event Step: Receive data from events  
-async def handler(input_data, context):
-    user_id = input_data.get("userId")     # ← Data from emitted event
-    email = input_data.get("email")        # ← Data from emitted event
-    name = input_data.get("name")          # ← Data from emitted event
-
-# Cron Step: No input data (schedule-triggered)
-async def handler(context):
-    # No input data - runs on schedule
-    pass
+# Event Step: Subscribe to events
+config = {
+    "type": "event",
+    "name": "EventStep",
+    "subscribes": ["message.sent"],        # ← Subscribe to events
+    # input schema defines what data to expect
+}
 ```
 
 </Tab>
 <Tab value='JavaScript'>
 
 ```javascript
-// API Step: Receive data from URL request
-const handler = async (req, { logger }) => {
-  const { name, email } = req.body;        // ← Data from URL request  
-  const userId = req.pathParams.id;        // ← Path parameters
-  const filter = req.queryParams.filter;   // ← Query parameters
-};
-
-// Event Step: Receive data from events
-const handler = async (input, { logger }) => {
-  const { userId, email, name } = input;   // ← Data from emitted event
-};
-
-// Cron Step: No input data (schedule-triggered)
-const handler = async ({ logger }) => {
-  // No input data - runs on schedule
+// Event Step: Subscribe to events
+const config = {
+  type: 'event',
+  name: 'EventStep',
+  subscribes: ['message.sent'],            // ← Subscribe to events
+  // input schema defines what data to expect
 };
 ```
 
