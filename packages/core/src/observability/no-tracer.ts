@@ -5,6 +5,7 @@ export class NoTracer implements Tracer {
   stateOperation() {}
   emitOperation() {}
   streamOperation() {}
+  clear() {}
   child() {
     return this
   }

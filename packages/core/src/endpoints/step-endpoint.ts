@@ -1,7 +1,7 @@
-import { LockedData } from './locked-data'
 import { Express } from 'express'
 import fs from 'fs/promises'
-import { generateStepId } from './helper/flows-helper'
+import { generateStepId } from '../helper/flows-helper'
+import { LockedData } from '../locked-data'
 
 const getFeatures = async (filePath: string) => {
   const stat = await fs.stat(filePath + '-features.json').catch(() => null)

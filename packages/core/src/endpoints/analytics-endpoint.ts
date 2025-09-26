@@ -1,8 +1,8 @@
 import { Express } from 'express'
-import { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled } from './analytics/utils'
+import { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled } from '../analytics/utils'
 
 export const analyticsEndpoint = (app: Express, baseDir: string) => {
-  app.get('/motia/analytics/user', (req, res) => {
+  app.get('/motia/analytics/user', (_req, res) => {
     const analyticsEnabled = isAnalyticsEnabled()
 
     if (!analyticsEnabled) {
@@ -23,9 +23,7 @@ export const analyticsEndpoint = (app: Express, baseDir: string) => {
     })
   })
 
-  app.get('/motia/analytics/status', (req, res) => {
-    res.json({
-      analyticsEnabled: isAnalyticsEnabled(),
-    })
+  app.get('/motia/analytics/status', (_req, res) => {
+    res.json({ analyticsEnabled: isAnalyticsEnabled() })
   })
 }

@@ -98,39 +98,6 @@
     }
   },
   {
-    "id": "parallel-merge",
-    "config": {
-      "steps/parallelMergeState/stepC.step.py": {
-        "x": 101,
-        "y": 349
-      },
-      "steps/parallelMergeState/stepB.step.py": {
-        "x": 102,
-        "y": 203
-      },
-      "steps/parallelMergeState/startParallelMerge.step.ts": {
-        "x": -339,
-        "y": 158
-      },
-      "steps/parallelMergeState/noopStartButton.step.ts": {
-        "x": -607,
-        "y": 186
-      },
-      "steps/parallelMergeState/joinComplete.step.ts": {
-        "x": 728,
-        "y": 202
-      },
-      "steps/parallelMergeState/stepA.step.ts": {
-        "x": 101,
-        "y": 58
-      },
-      "steps/parallelMergeState/joinStep.step.ts": {
-        "x": 366,
-        "y": 201
-      }
-    }
-  },
-  {
     "id": "test-state",
     "config": {
       "steps/testState/testStateCheck.step.ts": {
@@ -171,6 +138,39 @@
         "y": 14,
         "sourceHandlePosition": "right",
         "targetHandlePosition": "left"
+      }
+    }
+  },
+  {
+    "id": "parallel-merge",
+    "config": {
+      "steps/parallelMergeState/stepA.step.ts": {
+        "x": 101,
+        "y": 58
+      },
+      "steps/parallelMergeState/startParallelMerge.step.ts": {
+        "x": -339,
+        "y": 158
+      },
+      "steps/parallelMergeState/noopStartButton.step.ts": {
+        "x": -607,
+        "y": 186
+      },
+      "steps/parallelMergeState/joinStep.step.ts": {
+        "x": 366,
+        "y": 201
+      },
+      "steps/parallelMergeState/joinComplete.step.ts": {
+        "x": 728,
+        "y": 202
+      },
+      "steps/parallelMergeState/stepC_step.py": {
+        "x": 105,
+        "y": 336
+      },
+      "steps/parallelMergeState/stepB_step.py": {
+        "x": 104,
+        "y": 201
       }
     }
   }

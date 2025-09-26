@@ -2,7 +2,7 @@ import { isApiStep } from '../guards'
 import { LockedData } from '../locked-data'
 import { ApiRouteConfig, ApiRouteMethod, Step } from '../types'
 import { JsonSchema } from '../types/schema.types'
-import { StreamAdapter } from './adapters/stream-adapter'
+import { StreamAdapter } from '../streams/adapters/stream-adapter'
 
 type QueryParam = {
   name: string

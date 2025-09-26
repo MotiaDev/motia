@@ -30,7 +30,7 @@ describe('callStepFile', () => {
       printer,
       lockedData: new LockedData(baseDir, 'memory', printer),
       loggerFactory: { create: () => logger },
-      tracerFactory: { createTracer: () => tracer },
+      tracerFactory: { createTracer: () => tracer, clear: () => Promise.resolve() },
     }
 
     jest.spyOn(eventManager, 'emit').mockImplementation(() => Promise.resolve())

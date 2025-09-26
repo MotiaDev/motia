@@ -1,7 +1,6 @@
 import { createEventManager, createServer, createStateAdapter } from '@motiadev/core'
 import path from 'path'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
-import { stateEndpoints } from './dev/state-endpoints'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
 import { workbenchBase } from './constants'
@@ -32,7 +31,6 @@ export const start = async (port: number, hostname: string, disableVerbose: bool
   const motiaServer = createServer(lockedData, eventManager, state, config)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
-    stateEndpoints(motiaServer, state)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { applyMiddleware } = require('@motiadev/workbench/dist/middleware')
     await applyMiddleware(motiaServer.app, port, workbenchBase)
