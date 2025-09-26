@@ -1,6 +1,8 @@
-import { FC, memo, useCallback, useEffect, useRef, useState } from 'react'
+import { CircleX } from 'lucide-react'
+import { FC, memo, useCallback, useEffect, useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { JsonEditor } from './components/json-editor'
-import { getBodySelector, useEndpointConfiguration } from './hooks/use-endpoint-configuration'
+import { getBodyIsValidSelector, getBodySelector, useEndpointConfiguration } from './hooks/use-endpoint-configuration'
 import { convertJsonSchemaToJson } from './hooks/utils'
 
 type SidePanelBodyTabProps = {
@@ -9,6 +11,7 @@ type SidePanelBodyTabProps = {
 
 export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => {
   const { setBody, setBodyIsValid } = useEndpointConfiguration()
+  const bodyIsValid = useEndpointConfiguration(useShallow(getBodyIsValidSelector))
   const body = useEndpointConfiguration(getBodySelector)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -27,8 +30,14 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
   )
 
   return (
-    <div className="h-full" ref={containerRef}>
+    <div className="h-full relative" ref={containerRef}>
       <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={setBodyIsValid} />
+      {!bodyIsValid && (
+        <div className="sticky bottom-0 border-t border-border p-3 text-sm dark:text-yellow-500 text-yellow-700 flex items-center gap-1 font-medium">
+          <CircleX className="w-4 h-4" />
+          The body payload is invalid
+        </div>
+      )}
     </div>
   )
 })

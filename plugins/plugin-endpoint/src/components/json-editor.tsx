@@ -71,7 +71,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
       },
     })
 
-    monaco?.editor.setTheme(editorTheme)
+    monaco.editor.setTheme(editorTheme)
   }, [monaco, schema, editorTheme])
 
   return (
@@ -91,6 +91,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
         readOnly,
         scrollBeyondLastLine: false,
         minimap: { enabled: false },
+        overviewRulerLanes: 0,
       }}
     />
   )
