@@ -18,13 +18,16 @@ Steps need to be created in the `steps` folder, it can be in subfolders.
 
 Defining an API Step is done by two elements. Configuration and Handler.
 
-### Zod Usage
+### Schema Definition
 
-Motia relies on Zod to define body and response schemas. In Python and other languages, it uses JSON Schema.
+- **TypeScript/JavaScript**: Motia uses Zod schemas for automatic validation of request/response data
+- **Python**: Motia uses JSON Schema format. You can optionally use Pydantic models to generate JSON Schemas and handle manual validation in your handlers
 
 ### Configuration
 
-You need to export a config constant via `export const config` that is a `ApiRouteConfig` type.
+**TypeScript/JavaScript**: You need to export a config constant via `export const config` that is a `ApiRouteConfig` type.
+
+**Python**: You need to define a `config` dictionary with the same properties as the TypeScript `ApiRouteConfig`.
 
 ```typescript
 export type Emit = string | { 
@@ -189,13 +192,24 @@ export type ApiRouteHandler<
 
 ### Handler definition
 
+**TypeScript/JavaScript:**
 ```typescript
 export const handler: Handlers['CreateResource'] = async (req, { emit, logger, state, streams }) => {
   // Implementation
 }
 ```
 
-### Example
+**Python:**
+```python
+async def handler(req, context):
+    # req: dictionary containing pathParams, queryParams, body, headers
+    # context: object containing emit, logger, state, streams, trace_id
+    pass
+```
+
+### Examples
+
+#### TypeScript Example
 
 ```typescript
 import { ApiRouteConfig, Handlers } from 'motia';
@@ -314,4 +328,98 @@ export const handler: Handlers['CreateResource'] = async (req, { emit, logger })
     };
   }
 };
+```
+
+#### Python Example
+
+```python
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any
+
+class ResourceData(BaseModel):
+    title: str = Field(..., min_length=1, description="Title cannot be empty")
+    description: Optional[str] = None
+    category: str = Field(..., min_length=1, description="Category is required")
+    metadata: Optional[Dict[str, Any]] = None
+
+class ResourceResponse(BaseModel):
+    id: str
+    title: str
+    category: str
+    status: str
+
+class ErrorResponse(BaseModel):
+    error: str
+
+config = {
+    "type": "api",
+    "name": "CreateResource",
+    "path": "/resources",
+    "method": "POST",
+    "emits": ["send-email"],
+    "flows": ["resource-management"],
+    "bodySchema": ResourceData.model_json_schema(),
+    "responseSchema": {
+        201: ResourceResponse.model_json_schema(),
+        400: ErrorResponse.model_json_schema()
+    }
+}
+
+async def handler(req, context):
+    try:
+        body = req.get("body", {})
+        
+        # Optional: Validate input manually using Pydantic (Motia doesn't do this automatically)
+        resource_data = ResourceData(**body)
+        
+        context.logger.info("Attempting to create resource", {
+            "title": resource_data.title, 
+            "category": resource_data.category
+        })
+        
+        # Process the resource creation
+        result = await service.create_resource({
+            "title": resource_data.title,
+            "description": resource_data.description,
+            "category": resource_data.category,
+            "metadata": resource_data.metadata
+        })
+
+        # Emit event to trigger other steps
+        await context.emit({
+            "topic": "send-email",
+            "data": {
+                "resource": result,
+                "user_id": "example-user"
+            }
+        })
+        
+        context.logger.info("Resource created successfully", {
+            "resource_id": result.get("id"),
+            "title": result.get("title"),
+            "category": result.get("category")
+        })
+
+        return {
+            "status": 201,
+            "body": {
+                "id": result.get("id"),
+                "title": result.get("title"),
+                "category": result.get("category"),
+                "status": "active"
+            }
+        }
+        
+    except ValidationError as e:
+        context.logger.error("Resource creation failed - Pydantic validation error", {"error": str(e)})
+        return {
+            "status": 400,
+            "body": {"error": "Validation failed"}
+        }
+    except Exception as e:
+        context.logger.error("Resource creation failed", {"error": str(e)})
+        return {
+            "status": 500,
+            "body": {"error": "Creation failed"}
+        }
 ```

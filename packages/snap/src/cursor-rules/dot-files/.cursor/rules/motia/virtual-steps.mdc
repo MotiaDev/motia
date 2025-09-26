@@ -22,6 +22,8 @@ Steps need to be created in the `steps` folder, it can be in subfolders.
 
 ### Configuration
 
+#### TypeScript Example
+
 ```typescript
 import { NoopConfig } from 'motia'
 
@@ -60,6 +62,21 @@ export const config: NoopConfig = {
 // NOOP steps don't need handlers - they're purely for Workbench workflow connections
 ```
 
+#### Python Example
+
+```python
+config = {
+    "type": "noop",
+    "name": "manual-trigger",
+    "description": "Manual trigger point for workflow",
+    "virtualEmits": ["workflow.start"],
+    "virtualSubscribes": ["manual.trigger"],
+    "flows": ["my-workflow"]
+}
+
+# NOOP steps don't need handlers - they're purely for Workbench workflow connections
+```
+
 ### Common Use Cases
 
 #### Workflow Starter
@@ -67,6 +84,7 @@ export const config: NoopConfig = {
 This NOOP step will create a flow node in Workbench, then as a UI Step, we will override it
 to show a button.
 
+**TypeScript:**
 ```typescript
 export const config: NoopConfig = {
   type: 'noop',
@@ -75,6 +93,18 @@ export const config: NoopConfig = {
   virtualEmits: ['process.begin'],
   virtualSubscribes: [],
   flows: ['main-flow']
+}
+```
+
+**Python:**
+```python
+config = {
+    "type": "noop",
+    "name": "flow-starter",
+    "description": "Start point for the workflow",
+    "virtualEmits": ["process.begin"],
+    "virtualSubscribes": [],
+    "flows": ["main-flow"]
 }
 ```
 
@@ -94,6 +124,7 @@ graph LR
 
 Without this NOOP Step, the steps A->C and A->D would all appear disconnected in Workbench.
 
+**TypeScript:**
 ```typescript
 export const config: NoopConfig = {
   type: 'noop',
@@ -102,6 +133,18 @@ export const config: NoopConfig = {
   virtualEmits: ['approved'],
   virtualSubscribes: ['pending.approval'],
   flows: ['approval-flow']
+}
+```
+
+**Python:**
+```python
+config = {
+    "type": "noop",
+    "name": "approval-gate",
+    "description": "Manual approval required",
+    "virtualEmits": ["approved"],
+    "virtualSubscribes": ["pending.approval"],
+    "flows": ["approval-flow"]
 }
 ```
 
@@ -116,6 +159,7 @@ In `Approve Article` Step, it must have a `virtualSubscribes: ['pending.approval
 It's also possible to connect two Steps without NOOP just by connecting them directly.
 It's also possible to use labels in connections.
 
+**TypeScript Examples:**
 ```typescript
 export const config: ApiRouteConfig = {
   type: 'api',
@@ -127,9 +171,7 @@ export const config: ApiRouteConfig = {
   emits: [],
   flows: ['article']
 }
-```
 
-```typescript
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'ApproveArticle',
@@ -140,9 +182,7 @@ export const config: ApiRouteConfig = {
   emits: [],
   flows: ['article']
 }
-```
 
-```typescript
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'RejectArticle',
@@ -152,6 +192,45 @@ export const config: ApiRouteConfig = {
   virtualSubscribes: ['approval.required'],
   emits: [],
   flows: ['article']
+}
+```
+
+**Python Examples:**
+```python
+# create_article_step.py
+config = {
+    "type": "api",
+    "name": "CreateArticle",
+    "path": "/articles",
+    "method": "POST",
+    "description": "Creates an article",
+    "virtualEmits": [{"topic": "approval.required", "label": "Requires approval"}],
+    "emits": [],
+    "flows": ["article"]
+}
+
+# approve_article_step.py
+config = {
+    "type": "api",
+    "name": "ApproveArticle",
+    "path": "/articles/:id/approve",
+    "method": "POST",
+    "description": "Approves an article",
+    "virtualSubscribes": ["approval.required"],
+    "emits": [],
+    "flows": ["article"]
+}
+
+# reject_article_step.py
+config = {
+    "type": "api",
+    "name": "RejectArticle",
+    "path": "/articles/:id/reject",
+    "method": "POST",
+    "description": "Rejects an article",
+    "virtualSubscribes": ["approval.required"],
+    "emits": [],
+    "flows": ["article"]
 }
 ```
 

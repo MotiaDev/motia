@@ -18,7 +18,7 @@ It's called Streams.
 
 Creating a Stream means defining a data schema that will be stored and served to the clients who are subscribing.
 
-In this example—we're creating a Stream for chat messages in a channel.
+### TypeScript Example
 
 ```typescript
 // steps/streams/chat-messages.stream.ts
@@ -54,6 +54,48 @@ export const config: StreamConfig = {
    * have this storage type default
    */
   baseConfig: { storageType: 'default' },
+}
+```
+
+### Python Examples
+
+#### With Pydantic (Optional)
+
+```python
+# steps/streams/chat_messages_stream.py
+from pydantic import BaseModel
+
+class ChatMessage(BaseModel):
+    id: str
+    user_id: str
+    message: str
+    timestamp: str
+
+config = {
+    "name": "chatMessage",
+    "schema": ChatMessage.model_json_schema(),
+    "baseConfig": {"storageType": "default"}
+}
+```
+
+#### Without Pydantic (Pure JSON Schema)
+
+```python
+# steps/streams/chat_messages_stream.py
+
+config = {
+    "name": "chatMessage",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "user_id": {"type": "string"},
+            "message": {"type": "string"},
+            "timestamp": {"type": "string"}
+        },
+        "required": ["id", "user_id", "message", "timestamp"]
+    },
+    "baseConfig": {"storageType": "default"}
 }
 ```
 
@@ -169,7 +211,7 @@ export type StateStreamEvent<TData> = {
 
 ## Using in handlers
 
-In the chat message example, we can send an event to the subscribers like:
+### TypeScript Example
 
 ```typescript
 import { ApiRouteConfig, Handlers } from 'motia'
@@ -229,3 +271,110 @@ export const handler = async (req, { streams }) => {
    */
   return { status: 201, body: message }
 }
+```
+
+### Python Examples
+
+#### With Pydantic (Optional)
+
+```python
+import uuid
+from datetime import datetime
+from pydantic import BaseModel
+
+class ChatMessageRequest(BaseModel):
+    channel_id: str
+    message: str
+
+class ChatMessageResponse(BaseModel):
+    id: str
+    user_id: str
+    message: str
+    timestamp: str
+
+config = {
+    "type": "api",
+    "name": "CreateChatMessage",
+    "method": "POST",
+    "path": "/chat-messages",
+    "bodySchema": ChatMessageRequest.model_json_schema(),
+    "emits": [],
+    "responseSchema": {
+        201: ChatMessageResponse.model_json_schema()
+    }
+}
+
+async def handler(req, context):
+    body = req.get("body", {})
+    
+    # Optional: Validate with Pydantic
+    request_data = ChatMessageRequest(**body)
+    
+    channel_id = request_data.channel_id
+    message_text = request_data.message
+
+    message_id = str(uuid.uuid4())
+    user_id = "example-user-id"
+
+    # Creates a message in the stream
+    chat_message = await context.streams.chatMessage.set(channel_id, message_id, {
+        "id": message_id,
+        "user_id": user_id,
+        "message": message_text,
+        "timestamp": datetime.now().isoformat()
+    })
+
+    return {"status": 201, "body": chat_message}
+```
+
+#### Without Pydantic (Pure JSON Schema)
+
+```python
+import uuid
+from datetime import datetime
+
+config = {
+    "type": "api",
+    "name": "CreateChatMessage",
+    "method": "POST",
+    "path": "/chat-messages",
+    "bodySchema": {
+        "type": "object",
+        "properties": {
+            "channel_id": {"type": "string"},
+            "message": {"type": "string"}
+        },
+        "required": ["channel_id", "message"]
+    },
+    "emits": [],
+    "responseSchema": {
+        201: {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "user_id": {"type": "string"},
+                "message": {"type": "string"},
+                "timestamp": {"type": "string"}
+            }
+        }
+    }
+}
+
+async def handler(req, context):
+    body = req.get("body", {})
+    channel_id = body.get("channel_id")
+    message_text = body.get("message")
+
+    message_id = str(uuid.uuid4())
+    user_id = "example-user-id"
+
+    # Creates a message in the stream
+    chat_message = await context.streams.chatMessage.set(channel_id, message_id, {
+        "id": message_id,
+        "user_id": user_id,
+        "message": message_text,
+        "timestamp": datetime.now().isoformat()
+    })
+
+    return {"status": 201, "body": chat_message}
+```

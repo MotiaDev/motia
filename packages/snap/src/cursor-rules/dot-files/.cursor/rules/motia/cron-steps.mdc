@@ -26,7 +26,9 @@ Defining a CRON Step is done by two elements. Configuration and Handler.
 
 ### Configuration
 
-You need to export a config constant via `export const config` that is a `CronConfig` type.
+**TypeScript/JavaScript**: You need to export a config constant via `export const config` that is a `CronConfig` type.
+
+**Python**: You need to define a `config` dictionary with the same properties as the TypeScript `CronConfig`.
 
 ```typescript
 export type Emit = string | { 
@@ -98,6 +100,7 @@ export type CronConfig = {
 
 The handler is a function that is exported via `export const handler` that is a `CronHandler` type.
 
+**TypeScript/JavaScript:**
 ```typescript
 /**
  * CRON handler accepts only one argument, the FlowContext.
@@ -107,6 +110,13 @@ The handler is a function that is exported via `export const handler` that is a 
 export const handler: Handlers['CronJobEvery5Minutes'] = async ({ logger, emit, traceId, state, streams }) => {
   logger.info('CRON Job Every 5 Minutes started')
 }
+```
+
+**Python:**
+```python
+async def handler(context):
+    # context: object containing emit, logger, state, streams, trace_id
+    context.logger.info("CRON Job Every 5 Minutes started")
 ```
 
 ### Examples of Cron expressions
@@ -127,7 +137,9 @@ export const handler: Handlers['CronJobEvery5Minutes'] = async ({ logger, emit, 
 - Collecting metrics from third-party services
 - Reconciling data from different sources
 
-## Example
+## Examples
+
+### TypeScript Example
 
 ```typescript
 export const config: CronConfig = {
@@ -138,7 +150,22 @@ export const config: CronConfig = {
   flows: ['example-flow']
 };
 
-export const handler: Handlers['CronJobEvery5Minutes'] = async (_, { logger }) => {
+export const handler: Handlers['CronJobEvery5Minutes'] = async ({ logger }) => {
   logger.info('Cron job started')
 }
+```
+
+### Python Example
+
+```python
+config = {
+    "type": "cron",
+    "name": "CronJobEvery5Minutes",
+    "cron": "*/5 * * * *",  # Run every 5 minutes
+    "emits": [],  # No emits in this example
+    "flows": ["example-flow"]
+}
+
+async def handler(context):
+    context.logger.info("Cron job started")
 ```

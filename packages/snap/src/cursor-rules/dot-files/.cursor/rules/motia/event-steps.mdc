@@ -28,13 +28,16 @@ Steps need to be created in the `steps` folder, it can be in subfolders.
 
 Defining an API Step is done by two elements. Configuration and Handler.
 
-### Zod Usage
+### Schema Definition
 
-Motia relies on Zod to define body and response schemas. In Python and other languages, it uses JSON Schema.
+- **TypeScript/JavaScript**: Motia uses Zod schemas for automatic validation of input data
+- **Python**: Motia uses JSON Schema format. You can optionally use Pydantic models to generate JSON Schemas and handle manual validation in your handlers
 
 ### Configuration
 
-You need to export a config constant via `export const config` that is a `EventConfig` type.
+**TypeScript/JavaScript**: You need to export a config constant via `export const config` that is a `EventConfig` type.
+
+**Python**: You need to define a `config` dictionary with the same properties as the TypeScript `EventConfig`.
 
 ```typescript
 export type Emit = string | { 
@@ -119,17 +122,28 @@ The handler is a function that is exported via `export const handler` that is a 
 
 ### Handler definition
 
+**TypeScript/JavaScript:**
 ```typescript
 /**
  * Input is inferred from the Event Step config['input']
  * Context is the FlowContext
  */
-export const handler: Handlers['CreateResource'] = async (input, { emit, logger, state, streams }) => {
+export const handler: Handlers['SendEmail'] = async (input, { emit, logger, state, streams }) => {
   // Implementation
 }
 ```
 
-### Example
+**Python:**
+```python
+async def handler(input_data, context):
+    # input_data: dictionary with the event data (matches the input schema)
+    # context: object containing emit, logger, state, streams, trace_id
+    pass
+```
+
+### Examples
+
+#### TypeScript Example
 
 ```typescript
 import { EventConfig, Handlers } from 'motia';
@@ -152,6 +166,53 @@ export const config: EventConfig = {
 };
 
 export const handler: Handlers['SendEmail'] = async (input, { emit, logger }) => {
-  logger.info('Email sent successfully', { email, templateId, templateData });
+  const { email, templateId, templateData } = input;
+  
+  // Process email sending logic here
+  await emailService.send({
+    to: email,
+    templateId,
+    data: templateData
+  });
+  
+  logger.info('Email sent successfully', { email, templateId });
 };
+```
+
+#### Python Example
+
+```python
+from pydantic import BaseModel
+from typing import Dict, Any
+
+class EmailData(BaseModel):
+    email: str
+    template_id: str
+    template_data: Dict[str, Any]
+
+config = {
+    "type": "event",
+    "name": "SendEmail",
+    "description": "Sends email notification to the user",
+    "subscribes": ["send-email"],
+    "emits": [],
+    "input": EmailData.model_json_schema(),
+    "flows": ["resource-management"]
+}
+
+async def handler(input_data, context):
+    # Optional: Validate input manually using Pydantic (Motia doesn't do this automatically)
+    email_data = EmailData(**input_data)
+    
+    # Process email sending logic here
+    await email_service.send({
+        "to": email_data.email,
+        "template_id": email_data.template_id,
+        "data": email_data.template_data
+    })
+    
+    context.logger.info("Email sent successfully", {
+        "email": email_data.email,
+        "template_id": email_data.template_id
+    })
 ```
