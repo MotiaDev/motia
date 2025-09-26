@@ -19,9 +19,9 @@ export const EndpointsPage = () => {
     setSelectedEndpointId('')
   }, [setSelectedEndpointId])
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({})
   const toggleGroup = useCallback((flow: string) => {
-    setOpenGroups((prev) => ({ ...prev, [flow]: !prev[flow] }))
+    setClosedGroups((prev) => ({ ...prev, [flow]: !prev[flow] }))
   }, [])
 
   const [search, setSearch] = useState('')
@@ -43,25 +43,27 @@ export const EndpointsPage = () => {
         selectedEndpoint ? 'grid-cols-[minmax(auto,1fr)_minmax(600px,1fr)]' : 'grid-cols-1',
       )}
     >
-      <div className="grid grid-cols-1 auto-rows-max overflow-auto min-w-0">
+      <div className="grid grid-rows-[auto_1fr] h-full overflow-auto min-w-0">
         <EndpointsSearch value={search} onChange={setSearch} onClear={() => setSearch('')} />
-        {filteredEndpoints.map(([flow, endpoints]) => {
-          const isSelected = endpoints.some((endpoint) => endpoint.id === selectedEndpointId)
-          const isOpen = openGroups[flow] || isSelected || search !== ''
-          return (
-            <FlowGroup
-              key={flow}
-              flow={flow}
-              endpoints={endpoints as ApiEndpoint[]}
-              isOpen={isOpen}
-              isSelected={isSelected}
-              onToggle={toggleGroup}
-              onClearSelection={() => setSelectedEndpointId('')}
-              selectedEndpointId={selectedEndpointId}
-              onSelectEndpoint={setSelectedEndpointId}
-            />
-          )
-        })}
+        <div className="grid grid-cols-1 auto-rows-max overflow-auto min-w-0">
+          {filteredEndpoints.map(([flow, endpoints]) => {
+            const isSelected = endpoints.some((endpoint) => endpoint.id === selectedEndpointId)
+            const isOpen = !closedGroups[flow] || isSelected || search !== ''
+            return (
+              <FlowGroup
+                key={flow}
+                flow={flow}
+                endpoints={endpoints as ApiEndpoint[]}
+                isOpen={isOpen}
+                isSelected={isSelected}
+                onToggle={toggleGroup}
+                onClearSelection={() => setSelectedEndpointId('')}
+                selectedEndpointId={selectedEndpointId}
+                onSelectEndpoint={setSelectedEndpointId}
+              />
+            )
+          })}
+        </div>
       </div>
 
       {selectedEndpoint && <SidePanel endpoint={selectedEndpoint} onClose={onClose} />}
