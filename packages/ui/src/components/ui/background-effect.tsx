@@ -23,7 +23,7 @@ export const BackgroundEffect: React.FC<BackgroundEffectProps> = ({ patternType 
     >
       <div
         style={style}
-        className="relative -z-10 aspect-1155/678 bg-linear-to-br from-white/60 to-[#050505] opacity-20 pointer-events-none"
+        className="relative -z-10 aspect-1155/678 bg-linear-to-br from-white/60 to-[#050505] opacity-10 pointer-events-none"
       ></div>
     </div>
   )

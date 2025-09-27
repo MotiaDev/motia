@@ -62,7 +62,7 @@ const createEdgesForEmits = (
     const { topic, label, conditional } = processEmit(emit)
 
     targetSteps.forEach((targetStep) => {
-      if (targetStep.subscribes?.includes(topic)) {
+      if (targetStep.subscribes?.includes(topic) || targetStep.virtualSubscribes?.includes(topic)) {
         edges.push(createEdge(sourceStep.id, targetStep.id, topic, label, variant, conditional))
       }
     })
@@ -74,13 +74,19 @@ const createEdgesForEmits = (
 const createBaseStepResponse = (
   step: Step,
   id: string,
-): Pick<FlowStepResponse, 'name' | 'description' | 'nodeComponentPath' | 'language' | 'id' | 'filePath'> => ({
+): Pick<
+  FlowStepResponse,
+  'name' | 'description' | 'nodeComponentPath' | 'language' | 'id' | 'filePath' | 'virtualEmits' | 'virtualSubscribes'
+> => ({
   id,
   name: step.config.name,
   description: step.config.description,
   nodeComponentPath: getNodeComponentPath(step.filePath),
   filePath: getRelativePath(step.filePath),
   language: getStepLanguage(step.filePath),
+
+  virtualEmits: step.config.virtualEmits ?? undefined,
+  virtualSubscribes: step.config.virtualSubscribes ?? undefined,
 })
 
 const createApiStepResponse = (step: Step, id: string): FlowStepResponse => {
@@ -92,7 +98,6 @@ const createApiStepResponse = (step: Step, id: string): FlowStepResponse => {
     ...createBaseStepResponse(step, id),
     type: 'api',
     emits: step.config.emits,
-    virtualEmits: step.config.virtualEmits ?? [],
     subscribes: step.config.virtualSubscribes ?? undefined,
     action: 'webhook',
     webhookUrl: `${step.config.method} ${step.config.path}`,
@@ -109,7 +114,6 @@ const createEventStepResponse = (step: Step, id: string): FlowStepResponse => {
     ...createBaseStepResponse(step, id),
     type: 'event',
     emits: step.config.emits,
-    virtualEmits: step.config.virtualEmits ?? [],
     subscribes: step.config.subscribes,
   }
 }
@@ -123,7 +127,6 @@ const createNoopStepResponse = (step: Step, id: string): FlowStepResponse => {
     ...createBaseStepResponse(step, id),
     type: 'noop',
     emits: [],
-    virtualEmits: step.config.virtualEmits,
     subscribes: step.config.virtualSubscribes,
   }
 }
@@ -167,6 +170,7 @@ const createEdgesForStep = (sourceStep: FlowStepResponse, allSteps: FlowStepResp
 
 export const generateFlow = (flowId: string, flowSteps: Step[]): FlowResponse => {
   const steps = flowSteps.map(createStepResponse)
+
   const edges = steps.flatMap((step) => createEdgesForStep(step, steps))
 
   return { id: flowId, name: flowId, steps, edges }

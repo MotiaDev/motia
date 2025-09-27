@@ -183,14 +183,14 @@ export class Watcher {
     const isUiNode = /\.(tsx|jsx)$/.test(path)
     const isDeprecatedPythonStep = /\.step\.py$/.test(path)
 
-    return /[._]step\.[^.]+$/.test(path) && !isUiNode && !isDeprecatedPythonStep
+    return /[._]step\.((ts)|(js)|(rb)|(py))$/.test(path) && !isUiNode && !isDeprecatedPythonStep
   }
 
   private isStreamFile(path: string): boolean {
     const isUiNode = /\.(tsx|jsx)$/.test(path)
     const isDeprecatedPythonStream = /\.stream\.py$/.test(path)
 
-    return /[._]stream\.[^.]+$/.test(path) && !isUiNode && !isDeprecatedPythonStream
+    return /[._]stream\.((ts)|(js)|(rb)|(py))$/.test(path) && !isUiNode && !isDeprecatedPythonStream
   }
 
   async stop(): Promise<void> {

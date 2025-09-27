@@ -5,7 +5,7 @@ import { useMotiaStream } from './use-motia-stream'
 export type StreamItemArgs = {
   streamName: string
   groupId: string
-  id: string
+  id?: string
 }
 
 /**

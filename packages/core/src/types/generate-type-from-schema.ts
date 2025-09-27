@@ -1,9 +1,18 @@
-import { JsonSchema } from './schema.types'
+import { isAnyOf, JsonSchema } from './schema.types'
 
 export const generateTypeFromSchema = (schema: JsonSchema): string => {
+  if (!schema) {
+    return 'unknown'
+  }
+
+  if (isAnyOf(schema)) {
+    const types = schema.anyOf.map(generateTypeFromSchema)
+    return types.join(' | ')
+  }
+
   if (schema.type === 'array') {
     const itemType = schema.items ? generateTypeFromSchema(schema.items) : 'unknown'
-    return `${itemType}[]`
+    return `Array<${itemType}>`
   }
 
   if (schema.type === 'object' && schema.properties) {
@@ -22,6 +31,10 @@ export const generateTypeFromSchema = (schema: JsonSchema): string => {
     return schema.enum && schema.enum.length > 0 // must have at least one enum value
       ? schema.enum.map((value) => `'${value}'`).join(' | ')
       : 'string'
+  }
+
+  if (typeof schema === 'object' && schema !== null && 'not' in schema) {
+    return 'undefined'
   }
 
   switch (schema.type) {

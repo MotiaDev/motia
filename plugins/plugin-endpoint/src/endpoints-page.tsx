@@ -1,22 +1,40 @@
 import { cn } from '@motiadev/ui'
-import { useCallback, useMemo } from 'react'
-import { EndpointPath } from './components/endpoint-path'
-import { SidePanel } from './side-panel'
+import { useCallback, useMemo, useState } from 'react'
+import { EndpointsSearch } from './components/endpoints-search'
+import { FlowGroup } from './components/flow-group'
 import { useEndpointConfiguration } from './hooks/use-endpoint-configuration'
 import { useGetEndpoints } from './hooks/use-get-endpoints'
+import { SidePanel } from './side-panel'
 import { ApiEndpoint } from './types/endpoint'
 
 export const EndpointsPage = () => {
-  const endpoints = useGetEndpoints()
+  const { endpoints, groupedEndpoints } = useGetEndpoints()
   const { selectedEndpointId, setSelectedEndpointId } = useEndpointConfiguration()
   const selectedEndpoint = useMemo(
-    () => selectedEndpointId && endpoints.find((endpoint: ApiEndpoint) => endpoint.id === selectedEndpointId),
+    () => endpoints.find((endpoint: ApiEndpoint) => endpoint.id === selectedEndpointId),
     [endpoints, selectedEndpointId],
   )
 
   const onClose = useCallback(() => {
     setSelectedEndpointId('')
   }, [setSelectedEndpointId])
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  const toggleGroup = useCallback((flow: string) => {
+    setOpenGroups((prev) => ({ ...prev, [flow]: !prev[flow] }))
+  }, [])
+
+  const [search, setSearch] = useState('')
+
+  const filteredEndpoints = useMemo(() => {
+    return Object.entries(groupedEndpoints).filter(([flow, endpoints]) => {
+      return endpoints.some(
+        (endpoint) =>
+          endpoint.method?.toLowerCase().includes(search.toLowerCase()) ||
+          endpoint.path?.toLowerCase().includes(search.toLowerCase()),
+      )
+    })
+  }, [groupedEndpoints, search])
 
   return (
     <div
@@ -26,22 +44,24 @@ export const EndpointsPage = () => {
       )}
     >
       <div className="grid grid-cols-1 auto-rows-max overflow-auto min-w-0">
-        {endpoints.map((endpoint: ApiEndpoint) => (
-          <div
-            data-testid={`endpoint-${endpoint.method}-${endpoint.path}`}
-            key={`${endpoint.method} ${endpoint.path}`}
-            className={cn(
-              selectedEndpoint === endpoint && 'bg-muted-foreground/10',
-              'cursor-pointer select-none hover:bg-muted-foreground/10',
-            )}
-            onClick={() => setSelectedEndpointId(endpoint.id)}
-          >
-            <div className="flex flex-row gap-2 items-center p-2">
-              <EndpointPath method={endpoint.method} path={endpoint.path} />
-              <span className="text-md text-muted-foreground truncate">{endpoint.description}</span>
-            </div>
-          </div>
-        ))}
+        <EndpointsSearch value={search} onChange={setSearch} onClear={() => setSearch('')} />
+        {filteredEndpoints.map(([flow, endpoints]) => {
+          const isSelected = endpoints.some((endpoint) => endpoint.id === selectedEndpointId)
+          const isOpen = openGroups[flow] || isSelected || search !== ''
+          return (
+            <FlowGroup
+              key={flow}
+              flow={flow}
+              endpoints={endpoints as ApiEndpoint[]}
+              isOpen={isOpen}
+              isSelected={isSelected}
+              onToggle={toggleGroup}
+              onClearSelection={() => setSelectedEndpointId('')}
+              selectedEndpointId={selectedEndpointId}
+              onSelectEndpoint={setSelectedEndpointId}
+            />
+          )
+        })}
       </div>
 
       {selectedEndpoint && <SidePanel endpoint={selectedEndpoint} onClose={onClose} />}

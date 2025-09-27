@@ -1,8 +1,7 @@
-import { MotiaServer, StateAdapter } from '@motiadev/core'
+import { Express } from 'express'
+import { StateAdapter } from '../state/state-adapter'
 
-export const stateEndpoints = (server: MotiaServer, stateAdapter: StateAdapter) => {
-  const { app } = server
-
+export const stateEndpoints = (app: Express, stateAdapter: StateAdapter) => {
   app.get('/__motia/state', async (req, res) => {
     try {
       const groupId = req.query.groupId as string | undefined
@@ -21,6 +20,20 @@ export const stateEndpoints = (server: MotiaServer, stateAdapter: StateAdapter) 
       const { key, groupId, value } = req.body
       await stateAdapter.set(groupId, key, value)
       res.json({ key, groupId, value })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  })
+
+  app.post('/__motia/state/delete', async (req, res) => {
+    try {
+      for (const id of req.body.ids) {
+        const [groupId, key] = id.split(':')
+        await stateAdapter.delete(groupId, key)
+      }
+
+      res.status(204).send()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       res.status(500).json({ error: error.message })

@@ -37,6 +37,7 @@ export type EventConfig = {
   subscribes: string[]
   emits: Emit[]
   virtualEmits?: Emit[]
+  virtualSubscribes?: string[]
   input: ZodInput
   flows?: string[]
   /**
@@ -114,6 +115,7 @@ export type CronConfig = {
   description?: string
   cron: string
   virtualEmits?: Emit[]
+  virtualSubscribes?: string[]
   emits: Emit[]
   flows?: string[]
   /**
