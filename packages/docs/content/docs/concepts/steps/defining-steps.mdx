@@ -1,25 +1,25 @@
 ---
 title: Steps
-description: One primitive to build anything. Powerful, reusable, multi-language, composable, and auto-discovered.
+description: One primitive to build any backend. Powerful, reusable, multi-language, composable, and auto-discovered.
 ---
 
 # Steps
 
-## One STEP to build anything you want.
+## One Step to build any backend.
 
 **Powerful. Reusable. Multi-Language. Composable. Auto-Discovered.**
 
 Steps are Motia's core primitive that unifies every backend concern into a single, elegant abstraction. Each Step has one clear responsibility and can be chained together and reused across projects.
 
-**That's simple and powerful.** You can compose them together. Learn the basic things about how Steps work, and Motia will auto-discover any file with `.step.ts`, `.step.js`, and `_step.py` - it will register it and connect the whole thing together.
+You can compose them together. Learn the basic things about how Steps work, and Motia will auto-discover any file with `.step.ts`, `.step.js`, and `_step.py` - it will register it and connect the whole thing together.
 
 
 ## Config Properties
 
 | Property | Type | Description |
 | -------- | ---- | ----------- |
-| `type` | `'api'  'event' 'cron' 'noop'` | The step type - determines how the step is triggered |
 | `name` | `string` | Unique identifier for the step used in handler typing |
+| `type` | `'api'  'event' 'cron' 'noop'` | The step type - determines how the step is triggered |
 | `description` | `string` | Human-readable documentation for the step |
 | `subscribes` | `string[]` | Array of event topics this step listens to (Event steps only) |
 | `emits` | `string[]` | Array of event topics this step can emit to trigger other steps |
