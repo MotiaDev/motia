@@ -2,13 +2,13 @@ import { Button } from '@motiadev/ui'
 import { Plus } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { ConfigurationListItem } from './components/configuration-list-item'
-import { EndpointPathPreview } from './components/endpoint-path-preview'
+import { ConfigurationListItem } from '../components/configuration-list-item'
+import { EndpointPathPreview } from '../components/endpoint-path-preview'
 import {
   getPathParamsSelector,
   getQueryParamsSelector,
   useEndpointConfiguration,
-} from './hooks/use-endpoint-configuration'
+} from '../hooks/use-endpoint-configuration'
 
 type SidePanelParamsTabProps = {
   path: string

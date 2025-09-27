@@ -1,9 +1,9 @@
 import { CircleX } from 'lucide-react'
 import { FC, memo, useCallback, useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { JsonEditor } from './components/json-editor'
-import { getBodyIsValidSelector, getBodySelector, useEndpointConfiguration } from './hooks/use-endpoint-configuration'
-import { convertJsonSchemaToJson } from './hooks/utils'
+import { JsonEditor } from '../components/json-editor'
+import { getBodyIsValidSelector, getBodySelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
+import { convertJsonSchemaToJson } from '../hooks/utils'
 
 type SidePanelBodyTabProps = {
   schema: Record<string, any> | undefined

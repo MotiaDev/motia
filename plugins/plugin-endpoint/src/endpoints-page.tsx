@@ -4,7 +4,7 @@ import { EndpointsSearch } from './components/endpoints-search'
 import { FlowGroup } from './components/flow-group'
 import { useEndpointConfiguration } from './hooks/use-endpoint-configuration'
 import { useGetEndpoints } from './hooks/use-get-endpoints'
-import { SidePanel } from './side-panel'
+import { SidePanel } from './play/side-panel'
 import { ApiEndpoint } from './types/endpoint'
 
 export const EndpointsPage = () => {

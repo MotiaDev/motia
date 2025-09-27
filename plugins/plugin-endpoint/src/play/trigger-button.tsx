@@ -7,8 +7,8 @@ import {
   getBodySelector,
   getHeadersSelector,
   useEndpointConfiguration,
-} from './hooks/use-endpoint-configuration'
-import { usePathUrl } from './hooks/use-path-url'
+} from '../hooks/use-endpoint-configuration'
+import { usePathUrl } from '../hooks/use-path-url'
 
 type TriggerButtonProps = {
   method: string
@@ -38,13 +38,14 @@ export const TriggerButton = memo(({ method, path }: TriggerButtonProps) => {
           {} as Record<string, string>,
         )
 
+      const startTime = Date.now()
       const response = await fetch(pathUrl, {
         method: method,
         headers: _headers,
         body: ['GET', 'DELETE', 'HEAD', 'OPTIONS'].includes(method) ? null : body,
       })
 
-      setResponse(response)
+      setResponse(response, startTime)
     } catch (error) {
       console.error('Error triggering endpoint:', error)
     } finally {
