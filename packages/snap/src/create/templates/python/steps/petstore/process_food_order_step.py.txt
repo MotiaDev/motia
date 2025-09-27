@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from .services.pet_store import pet_store_service
+from src.services.pet_store import pet_store_service
 
 class InputSchema(BaseModel):
     id: str

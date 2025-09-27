@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
-from .services.pet_store import pet_store_service
-from .services.types import Pet
+from src.services.pet_store import pet_store_service
+from src.services.types import Pet
 
 class PetRequest(BaseModel):
     name: str
