@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto'
 import { globSync } from 'glob'
 import path from 'path'
 import { CompilationError } from './utils/errors/compilation.error'
+import { activatePythonVenv } from './utils/activate-python-env'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
@@ -30,6 +31,12 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   const stepFiles = getStepFiles(projectDir)
   const streamFiles = getStreamFiles(projectDir)
   const deprecatedSteps = globSync('**/*.step.py', { absolute: true, cwd: path.join(projectDir, 'steps') })
+
+  const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'));
+
+  if (hasPythonFiles) {
+    activatePythonVenv({ baseDir: projectDir });
+  }
 
   for (const filePath of stepFiles) {
     try {
