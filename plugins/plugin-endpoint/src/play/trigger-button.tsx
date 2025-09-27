@@ -19,7 +19,6 @@ export const TriggerButton = memo(({ method, path }: TriggerButtonProps) => {
   const { setResponse } = useEndpointConfiguration()
   const headers = useEndpointConfiguration(useShallow(getHeadersSelector))
   const body = useEndpointConfiguration(useShallow(getBodySelector))
-  const bodyIsValid = useEndpointConfiguration(useShallow(getBodyIsValidSelector))
   const pathUrl = usePathUrl(path)
 
   const [isLoading, setIsLoading] = useState(false)
@@ -54,13 +53,7 @@ export const TriggerButton = memo(({ method, path }: TriggerButtonProps) => {
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={onClick}
-      disabled={isLoading || !bodyIsValid}
-      data-testid="endpoint-play-button"
-    >
+    <Button variant="ghost" size="icon" onClick={onClick} disabled={isLoading} data-testid="endpoint-play-button">
       {isLoading ? <Loader2 className="animate-spin" /> : <Play className="h-4 w-4" />}
     </Button>
   )
