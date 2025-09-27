@@ -43,7 +43,7 @@ export const SidePanelResponse = memo(() => {
 
       <div className="sticky bottom-0 border-b border-border p-3 text-sm flex items-center gap-1 font-medium">
         <div className="flex flex-row items-center flex-1 gap-3">
-          <ResponseCode response={response} />
+          <ResponseCode statusCode={response.statusCode} />
           {!!response.executionTime && (
             <div className="text-muted-foreground bg-muted-foreground/10 px-2 py-1 rounded-sm">
               {response.executionTime}ms
