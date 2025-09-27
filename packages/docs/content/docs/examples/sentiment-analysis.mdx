@@ -1,10 +1,11 @@
 ---
-title: 'Dynamic Workflows: Building a Sentiment Analyzer with Motia'
+title: 'Sentiment Analysis'
+description: 'Dynamic Workflows: Building a Sentiment Analyzer with Motia'
 ---
 
-<div className="my-8">![motia workbench for sentiment analysis](./../img/sentimental-analysis.png)</div>
-
 In modern application development, workflows are rarely linear. Whether you're building a simple "prompt => response" system or a complex, multi-stage data processing pipeline, you often need your application to make decisions and route data dynamically. This is where the power of event-driven architecture shines, and where the Motia framework provides a clear path forward.
+
+<div className="my-8">![motia workbench for sentiment analysis](./../img/sentimental-analysis.png)</div>
 
 This guide explores how to build a dynamic sentiment analysis application that uses an LLM to determine how to proceed. We'll cover:
 

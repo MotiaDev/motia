@@ -1,5 +1,6 @@
 ---
-title: 'Real-Time Uptime Monitoring: Building a Resilient Website Monitor with Motia'
+title: 'Uptime Monitor'
+description: 'Real-Time Uptime Monitoring: Building a Resilient Website Monitor with Motia'
 ---
 
 In today's modern era, website uptime is critical for business success. Whether you're monitoring a personal blog or enterprise applications, you need a reliable system that can detect outages, send alerts, and provide visibility into your site's health. Traditional monitoring solutions often involve complex infrastructure and vendor lock-in, but there's a better way.
