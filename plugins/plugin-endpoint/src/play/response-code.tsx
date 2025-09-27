@@ -1,5 +1,4 @@
 import { FC } from 'react'
-import { ResponseData } from '../hooks/use-endpoint-configuration'
 import { getStatusMessage } from './reponse-code/utils'
 import { cn, useThemeStore } from '@motiadev/ui'
 

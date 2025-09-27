@@ -1,5 +1,5 @@
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import { X, XCircle } from 'lucide-react'
+import { X } from 'lucide-react'
 import { memo, useState } from 'react'
 import ReactJson from 'react18-json-view'
 import { getResponseSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'

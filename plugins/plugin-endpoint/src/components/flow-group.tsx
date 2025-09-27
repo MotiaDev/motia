@@ -1,4 +1,4 @@
-import { cn, useThemeStore } from '@motiadev/ui'
+import { cn } from '@motiadev/ui'
 import { ChevronDown } from 'lucide-react'
 import { FC } from 'react'
 import { ApiEndpoint } from '../types/endpoint'
@@ -25,8 +25,6 @@ export const FlowGroup: FC<FlowGroupProps> = ({
   selectedEndpointId,
   onSelectEndpoint,
 }: FlowGroupProps) => {
-  const theme = useThemeStore((state) => state.theme)
-
   return (
     <div className="pt-2">
       <button
