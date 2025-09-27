@@ -8,7 +8,7 @@ export type Generator = (rootDir: string, context: CliContext) => Promise<void>
 export const generateTemplateSteps = (templateFolder: string): Generator => {
   return async (rootDir: string, context: CliContext): Promise<void> => {
     const templatePath = path.join(__dirname, templateFolder)
-    const files = globSync('**/*', { absolute: false, cwd: templatePath })
+    const files = globSync('**/*', { absolute: false, cwd: templatePath, dot: true })
 
     try {
       for (const fileName of files) {
@@ -24,7 +24,7 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
         }
 
         if (statSync(filePath).isDirectory()) {
-          const folderPath = path.basename(filePath)
+          const folderPath = filePath.replace(templatePath, '')
           mkdirSync(path.join(rootDir, folderPath), { recursive: true })
           continue
         }

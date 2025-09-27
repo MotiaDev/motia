@@ -56,6 +56,7 @@ jobs:
         run: |
           pnpm publish -r --filter @motiadev/core --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/ui --no-git-checks --tag pre-release
+          pnpm publish -r --filter @motiadev/plugin-endpoint --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/workbench --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/stream-client --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/stream-client-browser --no-git-checks --tag pre-release

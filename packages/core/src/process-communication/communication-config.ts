@@ -17,5 +17,12 @@ export function createCommunicationConfig(command: string): CommunicationConfig 
         : ['inherit', 'inherit', 'inherit', 'ipc'], // IPC: include IPC channel
   }
 
+  if (command === 'python') {
+    spawnOptions.env = {
+      ...process.env,
+      PYTHONPATH: process.cwd(),
+    }
+  }
+
   return { type, spawnOptions }
 }
