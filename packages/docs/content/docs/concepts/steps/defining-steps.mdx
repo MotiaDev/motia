@@ -44,8 +44,8 @@ Steps are Motia's core primitive that unifies every backend concern into a singl
 import { ApiRouteConfig, Handlers } from 'motia';
 
 export const config: ApiRouteConfig = {
-  type: 'api',        // How it triggers
   name: 'MyStep',     // Step identifier  
+  type: 'api',        // How it triggers
   path: '/endpoint',  // URL path
   method: 'POST',     // POST method
   emits: ['done'],    // Events it sends
@@ -63,8 +63,8 @@ export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, st
 
 ```python title="steps/my_step.py"
 config = {
-    "type": "api",        # How it triggers
     "name": "MyStep",     # Step identifier
+    "type": "api",        # How it triggers
     "path": "/endpoint",  # URL path
     "method": "POST",     # POST method
     "emits": ["done"],    # Events it sends
@@ -81,9 +81,9 @@ async def handler(req, context):
 
 ```javascript title="steps/my-step.step.js"
 const config = {
-  type: 'api',        // How it triggers
   name: 'MyStep',     // Step identifier  
-  path: '/endpoint',  // URL path
+  type: 'api',        // How it triggers
+  path: '/endpoint',  //  path
   method: 'POST',     // POST method
   emits: ['done'],    // Events it sends
   flows: ['my-flow']  // Flow it belongs to
@@ -111,10 +111,10 @@ module.exports = { config, handler };
 
 ```typescript
 export const config: ApiRouteConfig = {
-  type: 'api',           // ← URL endpoint
   name: 'SendMessage',
-  path: '/messages',     // ← URL path
-  method: 'POST',        // ← URL method
+  type: 'api',           // ← How it triggers
+  path: '/messages',     // ←  path
+  method: 'POST',        // ←  method
   emits: ['message.sent'],
   flows: ['messaging']
 };
@@ -125,10 +125,10 @@ export const config: ApiRouteConfig = {
 
 ```python
 config = {
-    "type": "api",           # ← URL endpoint
     "name": "SendMessage",
-    "path": "/messages",     # ← URL path
-    "method": "POST",        # ← URL method
+    "type": "api",           # ← How it triggers
+    "path": "/messages",     # ←  path
+    "method": "POST",        # ←  method
     "emits": ["message.sent"],
     "flows": ["messaging"]
 }
@@ -139,10 +139,10 @@ config = {
 
 ```javascript
 const config = {
-  type: 'api',           // ← URL endpoint
   name: 'SendMessage',
-  path: '/messages',     // ← URL path
-  method: 'POST',        // ← URL method
+  type: 'api',           // ← How it triggers
+  path: '/messages',     // ←  path
+  method: 'POST',        // ←  method
   emits: ['message.sent'],
   flows: ['messaging']
 };
@@ -158,8 +158,8 @@ const config = {
 
 ```typescript
 export const config: EventConfig = {
-  type: 'event',                // ← Event-driven
   name: 'ProcessMessage',
+  type: 'event',                // ← Event-driven
   subscribes: ['message.sent'], // ← Listen to events
   emits: ['message.processed'],
   flows: ['messaging']
@@ -171,8 +171,8 @@ export const config: EventConfig = {
 
 ```python
 config = {
-    "type": "event",                # ← Event-driven
     "name": "ProcessMessage",
+    "type": "event",                # ← Event-driven
     "subscribes": ["message.sent"], # ← Listen to events
     "emits": ["message.processed"],
     "flows": ["messaging"]
@@ -184,8 +184,8 @@ config = {
 
 ```javascript
 const config = {
-  type: 'event',                // ← Event-driven
   name: 'ProcessMessage',
+  type: 'event',                // ← Event-driven
   subscribes: ['message.sent'], // ← Listen to events
   emits: ['message.processed'],
   flows: ['messaging']
@@ -202,8 +202,8 @@ const config = {
 
 ```typescript
 export const config: CronConfig = {
-  type: 'cron',                 // ← Time-based
   name: 'DailySummary',
+  type: 'cron',                 // ← Time-based
   cron: '0 9 * * *',            // ← Schedule
   emits: ['summary.generated'],
   flows: ['messaging']
@@ -215,8 +215,8 @@ export const config: CronConfig = {
 
 ```python
 config = {
-    "type": "cron",                 # ← Time-based
     "name": "DailySummary",
+    "type": "cron",                 # ← Time-based
     "cron": "0 9 * * *",            # ← Schedule
     "emits": ["summary.generated"],
     "flows": ["messaging"]
@@ -228,8 +228,8 @@ config = {
 
 ```javascript
 const config = {
-  type: 'cron',                 // ← Time-based
   name: 'DailySummary',
+  type: 'cron',                 // ← Time-based
   cron: '0 9 * * *',            // ← Schedule
   emits: ['summary.generated'],
   flows: ['messaging']
@@ -285,8 +285,8 @@ How your step receives and accesses input data.
 ```typescript
 // Event Step: Subscribe to events
 export const config: EventConfig = {
-  type: 'event',
   name: 'EventStep',
+  type: 'event',
   subscribes: ['message.sent'],            // ← Subscribe to events
   // input schema defines what data to expect
 };
@@ -298,8 +298,8 @@ export const config: EventConfig = {
 ```python
 # Event Step: Subscribe to events
 config = {
-    "type": "event",
     "name": "EventStep",
+    "type": "event",
     "subscribes": ["message.sent"],        # ← Subscribe to events
     # input schema defines what data to expect
 }
@@ -311,8 +311,8 @@ config = {
 ```javascript
 // Event Step: Subscribe to events
 const config = {
-  type: 'event',
   name: 'EventStep',
+  type: 'event',
   subscribes: ['message.sent'],            // ← Subscribe to events
   // input schema defines what data to expect
 };
