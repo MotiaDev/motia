@@ -77,13 +77,7 @@ test.describe('CLI Validation', () => {
 
     expect(existsSync(openapiPath)).toBeTruthy()
 
-    const openapiJson = JSON.parse(readFileSync(openapiPath, 'utf8'))
-
-    expect(openapiJson.openapi).toBe('3.0.0')
-    expect(openapiJson.info.title).toBe('motia-e2e-test-project')
-    expect(openapiJson.paths).toBeDefined()
-
-    expect(JSON.stringify(openapiJson, null, 2)).toMatchSnapshot('openapi.json')
+    expect(readFileSync(openapiPath, 'utf8')).toMatchSnapshot('openapi.json')
   })
 
   test('should build project successfully', async () => {
