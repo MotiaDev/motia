@@ -80,7 +80,7 @@ test.describe('CLI Validation', () => {
     const openapiJson = JSON.parse(readFileSync(openapiPath, 'utf8'))
 
     expect(openapiJson.openapi).toBe('3.0.0')
-    expect(openapiJson.info.title).toBe('Motia Project API')
+    expect(openapiJson.info.title).toBe('motia-e2e-test-project')
     expect(openapiJson.paths).toBeDefined()
 
     expect(JSON.stringify(openapiJson, null, 2)).toMatchSnapshot('openapi.json')
