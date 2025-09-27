@@ -2,8 +2,9 @@ import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
 import { X } from 'lucide-react'
 import { memo, useState } from 'react'
 import ReactJson from 'react18-json-view'
-import { getResponseSelector, useEndpointConfiguration } from './hooks/use-endpoint-configuration'
-import { useStateStream } from './hooks/use-state-stream'
+import { getResponseSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
+import { useStateStream } from '../hooks/use-state-stream'
+import { ResponseCode } from './response-code'
 
 type ActiveTab = 'preview' | 'headers'
 
@@ -13,10 +14,7 @@ export const SidePanelResponse = memo(() => {
 
   const { data } = useStateStream(response?.body)
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview')
-
-  const onClose = () => {
-    setResponse(undefined)
-  }
+  const onClose = () => setResponse(undefined)
 
   if (!response) {
     return null
@@ -41,6 +39,17 @@ export const SidePanelResponse = memo(() => {
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
+      </div>
+
+      <div className="sticky bottom-0 border-b border-border p-3 text-sm flex items-center gap-1 font-medium">
+        <div className="flex flex-row items-center flex-1 gap-3">
+          <ResponseCode statusCode={response.statusCode} />
+          {!!response.executionTime && (
+            <div className="text-muted-foreground bg-muted-foreground/10 px-2 py-1 rounded-sm">
+              {response.executionTime}ms
+            </div>
+          )}
+        </div>
       </div>
 
       <TabsContent value="preview">

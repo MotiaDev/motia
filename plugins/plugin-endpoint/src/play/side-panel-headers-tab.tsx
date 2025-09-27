@@ -2,8 +2,8 @@ import { Button } from '@motiadev/ui'
 import { Plus } from 'lucide-react'
 import { useCallback } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { ConfigurationListItem } from './components/configuration-list-item'
-import { getHeadersSelector, useEndpointConfiguration } from './hooks/use-endpoint-configuration'
+import { ConfigurationListItem } from '../components/configuration-list-item'
+import { getHeadersSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
 
 export const SidePanelHeadersTab = () => {
   const { setHeaders, removeHeaders } = useEndpointConfiguration()

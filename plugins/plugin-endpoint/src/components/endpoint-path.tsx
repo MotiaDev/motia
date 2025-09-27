@@ -34,7 +34,7 @@ export const EndpointPath: FC<EndpointPathProps> = ({ method, path }) => {
   return (
     <div className="grid grid-cols-[auto_1fr] gap-2 items-center">
       <EndpointBadge variant={method as ApiRouteMethod}>{method}</EndpointBadge>
-      <span className="font-mono font-bold whitespace-nowrap flex flex-row gap-2 items-center ">
+      <span className="font-mono font-bold whitespace-nowrap flex flex-row gap-2 items-center truncate">
         <PathSeparator />
         {pathView}
       </span>

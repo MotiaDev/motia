@@ -7,8 +7,8 @@ import {
   getBodySelector,
   getHeadersSelector,
   useEndpointConfiguration,
-} from './hooks/use-endpoint-configuration'
-import { usePathUrl } from './hooks/use-path-url'
+} from '../hooks/use-endpoint-configuration'
+import { usePathUrl } from '../hooks/use-path-url'
 
 type TriggerButtonProps = {
   method: string
@@ -19,7 +19,6 @@ export const TriggerButton = memo(({ method, path }: TriggerButtonProps) => {
   const { setResponse } = useEndpointConfiguration()
   const headers = useEndpointConfiguration(useShallow(getHeadersSelector))
   const body = useEndpointConfiguration(useShallow(getBodySelector))
-  const bodyIsValid = useEndpointConfiguration(useShallow(getBodyIsValidSelector))
   const pathUrl = usePathUrl(path)
 
   const [isLoading, setIsLoading] = useState(false)
@@ -38,13 +37,14 @@ export const TriggerButton = memo(({ method, path }: TriggerButtonProps) => {
           {} as Record<string, string>,
         )
 
+      const startTime = Date.now()
       const response = await fetch(pathUrl, {
         method: method,
         headers: _headers,
         body: ['GET', 'DELETE', 'HEAD', 'OPTIONS'].includes(method) ? null : body,
       })
 
-      setResponse(response)
+      setResponse(response, startTime)
     } catch (error) {
       console.error('Error triggering endpoint:', error)
     } finally {
@@ -53,13 +53,7 @@ export const TriggerButton = memo(({ method, path }: TriggerButtonProps) => {
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={onClick}
-      disabled={isLoading || !bodyIsValid}
-      data-testid="endpoint-play-button"
-    >
+    <Button variant="ghost" size="icon" onClick={onClick} disabled={isLoading} data-testid="endpoint-play-button">
       {isLoading ? <Loader2 className="animate-spin" /> : <Play className="h-4 w-4" />}
     </Button>
   )

@@ -1,21 +1,22 @@
-import { Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger, BackgroundEffect } from '@motiadev/ui'
-import { X } from 'lucide-react'
+import { BackgroundEffect, Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
+import { Book, X } from 'lucide-react'
 import { FC, memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { EndpointPath } from './components/endpoint-path'
+import { EndpointPath } from '../components/endpoint-path'
 import {
   getHeadersSelector,
   getQueryParamsSelector,
   getResponseSelector,
   UseEndpointConfiguration,
   useEndpointConfiguration,
-} from './hooks/use-endpoint-configuration'
+} from '../hooks/use-endpoint-configuration'
+import { SpecSidePanel } from '../spec/spec-side-panel'
+import { ApiEndpoint } from '../types/endpoint'
 import { SidePanelBodyTab } from './side-panel-body-tab'
 import { SidePanelHeadersTab } from './side-panel-headers-tab'
 import { SidePanelParamsTab } from './side-panel-params-tab'
 import { SidePanelResponse } from './side-panel-response'
 import { TriggerButton } from './trigger-button'
-import { ApiEndpoint } from './types/endpoint'
 
 type EndpointSidePanelProps = { endpoint: ApiEndpoint; onClose: () => void }
 
@@ -27,6 +28,7 @@ const paramsCountSelector = (state: UseEndpointConfiguration) => Object.keys(get
 
 export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('body')
+  const [isSpecOpen, setIsSpecOpen] = useState(false)
   const headersCount = useEndpointConfiguration(useShallow(headersCountSelector))
   const hasResponse = useEndpointConfiguration(useShallow(hasResponseSelector))
   const paramsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
@@ -34,10 +36,15 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
   return (
     <div className="isolate grid grid-cols-1 overflow-y-auto min-w-0 grid-rows-[auto_1fr] border-l border-border">
       <BackgroundEffect />
-      <div className="grid grid-cols-[1fr_auto] items-start gap-4 px-5 py-4 border-b bg-card w-full">
+      <div className="grid grid-cols-[1fr_1fr_auto] items-start gap-4 px-5 py-4 border-b bg-card w-full">
         <div className="grid grid-rows-2 gap-2">
           <EndpointPath method={endpoint.method} path={endpoint.path} />
-          <p className="text-sm text-muted-foreground">{endpoint.description || 'Retrieves a list of all versions'}</p>
+          {endpoint.description && <p className="text-sm text-muted-foreground">{endpoint.description}</p>}
+        </div>
+        <div className="flex items-end justify-end">
+          <Button variant="icon" size="icon" onClick={() => setIsSpecOpen(!isSpecOpen)}>
+            <Book />
+          </Button>
         </div>
         <Button variant="icon" size="icon" onClick={onClose}>
           <X />
@@ -79,6 +86,8 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
         </Tabs>
         <SidePanelResponse />
       </div>
+
+      {isSpecOpen && <SpecSidePanel endpoint={endpoint} onClose={() => setIsSpecOpen(false)} />}
     </div>
   )
 })
