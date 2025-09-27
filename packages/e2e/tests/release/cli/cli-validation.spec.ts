@@ -60,6 +60,26 @@ test.describe('CLI Validation', () => {
     }
   })
 
+
+  test('should generate openapi.json with correct content', async () => {
+    const openapiPath = path.join(testProjectPath, 'openapi.json')
+
+    try {
+      console.log(`Running 'npx motia generate openapi' in ${testProjectPath}`);
+      execSync('npx motia generate openapi', {
+        cwd: testProjectPath,
+        stdio: 'inherit',
+      })
+    } catch (error) {
+      console.error('Error generating openapi.json:', error)
+      expect(error).toBeNull()
+    }
+
+    expect(existsSync(openapiPath)).toBeTruthy()
+
+    expect(readFileSync(openapiPath, 'utf8')).toMatchSnapshot('openapi.json')
+  })
+
   test('should build project successfully', async () => {
     try {
       execSync('npm run build', {
