@@ -132,8 +132,15 @@ Options:
 Generate OpenAPI spec for your project.
 
 ```bash
-npx motia generate openapi
+npx motia generate openapi [options]
 ```
+
+Options:
+
+- `-t, --title <tile of the document>`: Title for the OpenAPI document. Defaults to project name from package.json.
+- `-v, --version <version of the document>`: Version of the OpenAPI document. Defaults to 1.0.0.
+- `-o, --output <output file name / path>`: The file name and path relative to root to create the openapi file. Defaults to `openapi.json` at the root.
+
 ### `state`
 
 Manage application state.
