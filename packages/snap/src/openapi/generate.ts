@@ -17,8 +17,8 @@ export async function generateOpenApi(projectDir: string, title?: string, versio
             const packageJsonPath = path.join(projectDir, 'package.json');
             const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 
-            title = packageJson.name;
-            version = packageJson.version;
+            if (!title) title = packageJson.name;
+            if (!version) version = packageJson.version;
         } catch (error) {
             console.warn(`Could not read package.json in ${projectDir} to determine project name. Using default.`);
         }
