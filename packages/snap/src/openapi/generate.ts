@@ -7,7 +7,7 @@ import { generateLockedData } from '../generate-locked-data';
 import { processSchema } from './process-schema';
 import { isHttpMethod } from './utils';
 
-export async function generateOpenApi(projectDir: string, title?: string, version?: string, outputFile: string = 'openapi.json') {
+export async function generateOpenApi(projectDir: string, title?: string, version?: string, outputFile = 'openapi.json') {
     const lockedData: LockedData = await generateLockedData(projectDir);
     const apiSteps = lockedData.apiSteps();
 
