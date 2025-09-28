@@ -168,7 +168,7 @@ generate
   .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
   .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
   .action(async (options) => {
-    const { generateOpenApi } = require('./generate-openapi')
+    const { generateOpenApi } = require('./openapi/generate')
     await generateOpenApi(process.cwd(), options.title, options.version, options.output)
     process.exit(0)
   })
