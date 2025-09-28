@@ -1,8 +1,8 @@
-
 import { LockedData } from '@motiadev/core';
 import * as fs from 'fs';
 import { OpenAPIV3 } from 'openapi-types';
 import * as path from 'path';
+
 import { generateLockedData } from '../generate-locked-data';
 import { processSchema } from './process-schema';
 import { isHttpMethod } from './utils';
@@ -64,16 +64,16 @@ export async function generateOpenApi(projectDir: string, title?: string, versio
         }
 
         if (step.config.bodySchema) {
-            const bodySchema = { ...step.config.bodySchema } as any;
+            const bodySchema = step.config.bodySchema as unknown as Record<string, unknown>;
 
             delete bodySchema.$schema;
 
-            processSchema(bodySchema, openApi);
+            const processedSchema = processSchema(bodySchema, openApi);
 
             operation.requestBody = {
                 content: {
                     'application/json': {
-                        schema: bodySchema,
+                        schema: processedSchema,
                     },
                 },
             };
@@ -81,17 +81,17 @@ export async function generateOpenApi(projectDir: string, title?: string, versio
 
         if (step.config.responseSchema) {
             for (const [statusCode, responseSchema] of Object.entries(step.config.responseSchema)) {
-                const resSchema = { ...responseSchema } as any;
+                const resSchema = responseSchema as unknown as Record<string, unknown>;
 
                 delete resSchema.$schema;
 
-                processSchema(resSchema, openApi);
+                const processedSchema = processSchema(resSchema, openApi);
 
                 operation.responses[statusCode] = {
                     description: `Response for status code ${statusCode}`,
                     content: {
                         'application/json': {
-                            schema: resSchema,
+                            schema: processedSchema,
                         },
                     },
                 };

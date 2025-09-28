@@ -1,8 +1,8 @@
 import { OpenAPIV3 } from "openapi-types";
 
-export function processSchema(schema: any, openApi: OpenAPIV3.Document) {
+export function processSchema(schema: Record<string, unknown>, openApi: OpenAPIV3.Document) {
     if (!schema || typeof schema !== 'object') {
-        return;
+        return schema as OpenAPIV3.SchemaObject;
     }
 
     if (schema.$defs) {
@@ -11,13 +11,13 @@ export function processSchema(schema: any, openApi: OpenAPIV3.Document) {
         }
 
         if (!openApi.components.schemas) {
-            openApi.components.schemas = {};
+            openApi.components.schemas = {} as Record<string, OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject>;
         }
 
         // copy all definitions to components/schemas for compatibility
         for (const defName in schema.$defs) {
             if (schema.$defs.hasOwnProperty(defName)) {
-                (openApi.components.schemas as any)[defName] = schema.$defs[defName];
+                (openApi.components.schemas as Record<string, OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject>)[defName] = (schema.$defs as Record<string, OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject>)[defName];
             }
         }
 
@@ -25,7 +25,7 @@ export function processSchema(schema: any, openApi: OpenAPIV3.Document) {
     }
 
     if (Array.isArray(schema.anyOf)) {
-        const nullIndex = schema.anyOf.findIndex((item: any) => item && item.type === 'null');
+        const nullIndex = schema.anyOf.findIndex((item: { type?: string }) => item && item.type === 'null');
 
         if (nullIndex !== -1) {
             schema.anyOf.splice(nullIndex, 1);
@@ -54,8 +54,11 @@ export function processSchema(schema: any, openApi: OpenAPIV3.Document) {
                 schema[key] = schema[key].replace('#/$defs/', '#/components/schemas/');
 
             } else if (typeof schema[key] === 'object') {
-                processSchema(schema[key], openApi);
+                const result = processSchema(schema[key] as Record<string, unknown>, openApi);
+                schema[key] = result;
             }
         }
     }
+
+    return schema as OpenAPIV3.SchemaObject;
 }
