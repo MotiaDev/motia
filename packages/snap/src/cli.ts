@@ -164,11 +164,12 @@ generate
 generate
   .command('openapi')
   .description('Generate OpenAPI spec for your project')
-  .option('-t, --title <title>', 'Title for the OpenAPI document')
-  .option('-v, --version <version>', 'Version for the OpenAPI document', '1.0.0')
+  .option('-t, --title <title>', 'Title for the OpenAPI document. Defaults to project name')
+  .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
+  .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
   .action(async (options) => {
     const { generateOpenApi } = require('./generate-openapi')
-    await generateOpenApi(process.cwd(), options.title, options.version)
+    await generateOpenApi(process.cwd(), options.title, options.version, options.output)
     process.exit(0)
   })
 

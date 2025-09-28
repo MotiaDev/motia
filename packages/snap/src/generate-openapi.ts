@@ -5,7 +5,7 @@ import { OpenAPIV3 } from 'openapi-types';
 import * as path from 'path';
 import { generateLockedData } from './generate-locked-data';
 
-export async function generateOpenApi(projectDir: string, title?: string, version?: string) {
+export async function generateOpenApi(projectDir: string, title?: string, version?: string, outputFile: string = 'openapi.json') {
   const lockedData: LockedData = await generateLockedData(projectDir);
   const apiSteps = lockedData.apiSteps();
 
@@ -104,9 +104,9 @@ export async function generateOpenApi(projectDir: string, title?: string, versio
   }
 
   const openApiJson = JSON.stringify(openApi, null, 2);
-  fs.writeFileSync(path.join(projectDir, 'openapi.json'), openApiJson);
+  fs.writeFileSync(path.join(projectDir, outputFile), openApiJson);
 
-  console.log('✅ OpenAPI specification generated successfully at openapi.json');
+  console.log(`✅ OpenAPI specification generated successfully at ${outputFile}`);
 }
 
 
