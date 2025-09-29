@@ -12,7 +12,6 @@ export const ResponseCode: FC<ResponseCodeProps> = ({ statusCode }) => {
   const isWarning = statusCode >= 400 && statusCode < 500
   const isError = statusCode >= 500
 
-  console.log({ isSuccess, isWarning, isError })
   return (
     <div
       className={cn(
