@@ -35,7 +35,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
 
   return (
     <div
-      className="isolate grid grid-cols-1 overflow-hidden min-w-0 grid-rows-[auto_1fr] border-l border-border"
+      className="isolate grid grid-cols-1 overflow-y-auto min-w-0 grid-rows-[auto_1fr] border-l border-border"
       data-testid="endpoint-details-panel"
     >
       <BackgroundEffect />

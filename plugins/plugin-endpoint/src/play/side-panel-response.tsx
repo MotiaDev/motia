@@ -52,9 +52,7 @@ export const SidePanelResponse = memo(() => {
       </div>
 
       <TabsContent value="preview">
-        <div data-testid="endpoint-response-container" className="h-full overflow-auto">
-          <ReactJson src={data as object} />
-        </div>
+        <ReactJson src={data as object} />
       </TabsContent>
 
       <TabsContent value="headers">
