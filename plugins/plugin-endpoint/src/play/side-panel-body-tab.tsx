@@ -33,7 +33,10 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
     <div className="h-full relative" ref={containerRef}>
       <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={setBodyIsValid} />
       {!bodyIsValid && (
-        <div className="sticky bottom-0 border-t border-border p-3 text-sm dark:text-yellow-500 text-yellow-700 flex items-center gap-1 font-medium">
+        <div
+          className="sticky bottom-0 border-t border-border p-3 text-sm dark:text-yellow-500 text-yellow-700 flex items-center gap-1 font-medium"
+          data-testid="endpoint-body-tab-invalid"
+        >
           <CircleX className="w-4 h-4" />
           The body payload is invalid
         </div>

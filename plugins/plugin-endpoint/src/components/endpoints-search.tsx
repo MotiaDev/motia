@@ -1,4 +1,4 @@
-import { Input } from '@motiadev/ui'
+import { cn, Input } from '@motiadev/ui'
 import { Search, X } from 'lucide-react'
 
 type EndpointsSearchProps = {
@@ -20,7 +20,13 @@ export const EndpointsSearch = ({ value, onChange, onClear }: EndpointsSearchPro
           placeholder="Search by Method or Path"
         />
         <X
-          className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground"
+          className={cn(
+            'cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground',
+            {
+              visible: value !== '',
+              invisible: value === '',
+            },
+          )}
           onClick={onClear}
         />
       </div>

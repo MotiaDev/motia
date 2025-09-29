@@ -4,7 +4,7 @@ import { useStreamGroup } from '@motiadev/stream-client-react'
 import { TracesGroups } from '@/components/observability/traces-groups'
 import { useGlobalStore } from '../../stores/use-global-store'
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Input } from '@motiadev/ui'
+import { Button, cn, Input } from '@motiadev/ui'
 import { Search, Trash, X } from 'lucide-react'
 
 export const TracesPage = () => {
@@ -49,7 +49,13 @@ export const TracesPage = () => {
           />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
           <X
-            className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground"
+            className={cn(
+              'cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground',
+              {
+                visible: search !== '',
+                invisible: search === '',
+              },
+            )}
             onClick={() => setSearch('')}
           />
         </div>

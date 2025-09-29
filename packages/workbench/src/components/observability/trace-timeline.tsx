@@ -37,7 +37,7 @@ export const TraceTimeline: React.FC<Props> = memo(({ groupId }) => {
       <div className="flex flex-col flex-1 overflow-x-auto h-full relative">
         <div className="flex flex-col items-center min-w-full sticky top-0" style={{ width: `${zoom * 1000}px` }}>
           <div className="flex flex-1 w-full sticky top-0 bg-background z-10">
-            <div className="w-full min-h-[37px] h-[37px] min-w-[200px] max-w-[200px] flex items-center justify-center gap-2 sticky left-0 top-0 bg-card">
+            <div className="w-full min-h-[37px] h-[37px] min-w-[200px] max-w-[200px] flex items-center justify-center gap-2 sticky left-0 top-0 bg-card backdrop-blur-[4px] backdrop-filter">
               <Button variant="icon" size="sm" className="px-2" onClick={zoomMinus}>
                 <Minus className="w-4 h-4 cursor-pointer" />
               </Button>

@@ -1,5 +1,5 @@
+@import '@motiadev/ui/globals.css';
 @import 'tailwindcss';
-@custom-variant dark (&:is(.dark *));
 
 .json-view {
   background-color: transparent !important;
