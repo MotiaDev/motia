@@ -13,6 +13,7 @@ type EndpointItemProps = {
 export const EndpointItem: FC<EndpointItemProps> = ({ endpoint, isSelected, isLast, onSelect }) => (
   <div
     data-testid={`endpoint-${endpoint.method}-${endpoint.path}`}
+    onClick={() => onSelect(endpoint.id)}
     className={cn(
       'grid grid-cols-[auto_1fr] items-center justify-center px-[17px] select-none hover:bg-muted-foreground/10 cursor-pointer',
       isSelected && 'bg-muted-foreground/10',
@@ -34,7 +35,7 @@ export const EndpointItem: FC<EndpointItemProps> = ({ endpoint, isSelected, isLa
       </svg>
     )}
 
-    <div onClick={() => onSelect(endpoint.id)}>
+    <div>
       <div className="grid grid-cols-[auto_1fr] items-center gap-3 px-2">
         <EndpointPath method={endpoint.method} path={endpoint.path} />
         <span className="text-sm text-muted-foreground truncate">{endpoint.description}</span>
