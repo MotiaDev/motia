@@ -13,7 +13,6 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
   const { setBody, setBodyIsValid } = useEndpointConfiguration()
   const bodyIsValid = useEndpointConfiguration(useShallow(getBodyIsValidSelector))
   const body = useEndpointConfiguration(getBodySelector)
-  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (schema) {
@@ -30,7 +29,7 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
   )
 
   return (
-    <div className="h-full relative" ref={containerRef}>
+    <div className="grid grid-rows-[1fr_auto] h-full">
       <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={setBodyIsValid} />
       {!bodyIsValid && (
         <div
