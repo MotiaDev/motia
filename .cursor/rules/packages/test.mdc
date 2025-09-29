@@ -1,0 +1,882 @@
+---
+description: Development guidelines for @motiadev/test package focusing on testing utilities and patterns
+globs: packages/test/**/*.ts,packages/test/**/*.js,packages/test/**/*.test.ts,packages/test/**/*.test.js,packages/test/**/*.spec.ts,packages/test/**/*.spec.js
+alwaysApply: false
+---
+
+# Test Package Development Guide
+
+## Overview
+
+The `@motiadev/test` package provides comprehensive testing utilities for Motia workflows, enabling developers to mock, test, and simulate Motia components in isolation. It offers tools for testing event-driven workflows, API endpoints, state management, and complete application flows.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - @motiadev/core (for foundational testing utilities)
+  - motia (for integration testing)
+  - Testing libraries (Jest, Supertest, etc.)
+  - Node.js built-in modules
+  - Mock and utility libraries
+- **Prohibited imports**: 
+  - @motiadev/workbench, @motiadev/ui (UI-specific packages)
+  - Browser-specific APIs
+  - Production-only dependencies
+
+### Package Responsibility
+The test package provides:
+- Mock implementations of Motia core components
+- Testing utilities for event-driven workflows
+- API endpoint testing tools
+- State management testing helpers
+- Integration testing framework
+- Performance testing utilities
+- Test data generation and fixtures
+
+## Architecture Patterns
+
+### Core Principles
+1. **Isolation**: Test components in isolation with proper mocking
+2. **Event-Driven Testing**: Provide tools for testing event flows
+3. **Mock Everything**: Comprehensive mocking of Motia infrastructure
+4. **Integration Support**: Support both unit and integration testing
+5. **Developer Experience**: Make testing Motia applications easy and intuitive
+
+### Mock Infrastructure Pattern
+
+#### Mock Flow Context
+```typescript
+import { FlowContext, InternalStateManager, Logger } from '@motiadev/core'
+
+export interface MockFlowContext {
+  logger: jest.Mocked<Logger>
+  emit: jest.MockedFunction<(event: any) => Promise<void>>
+  traceId: string
+  state: jest.Mocked<InternalStateManager>
+  streams: Record<string, any>
+}
+
+export const createMockFlowContext = (options?: {
+  traceId?: string
+  logger?: jest.Mocked<Logger>
+  state?: Partial<jest.Mocked<InternalStateManager>>
+  streams?: Record<string, any>
+}): MockFlowContext => {
+  const mockLogger: jest.Mocked<Logger> = {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    child: jest.fn().mockReturnThis(),
+  } as any
+
+  const mockState: jest.Mocked<InternalStateManager> = {
+    get: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
+    getGroup: jest.fn(),
+    clear: jest.fn(),
+    ...options?.state,
+  }
+
+  return {
+    logger: options?.logger || mockLogger,
+    emit: jest.fn(),
+    traceId: options?.traceId || `test-trace-${Date.now()}`,
+    state: mockState,
+    streams: options?.streams || {},
+  }
+}
+
+// Mock context factory with pre-configured behaviors
+export const createMockContextWithData = (
+  initialState: Record<string, Record<string, any>> = {}
+): MockFlowContext => {
+  const context = createMockFlowContext()
+
+  // Configure state mock to return predefined data
+  context.state.get.mockImplementation(async (groupId: string, key: string) => {
+    return initialState[groupId]?.[key] || null
+  })
+
+  context.state.getGroup.mockImplementation(async (groupId: string) => {
+    const group = initialState[groupId]
+    return group ? Object.values(group) : []
+  })
+
+  context.state.set.mockImplementation(async (groupId: string, key: string, value: any) => {
+    if (!initialState[groupId]) {
+      initialState[groupId] = {}
+    }
+    initialState[groupId][key] = value
+    return value
+  })
+
+  return context
+}
+```
+
+#### Mock Event Manager
+```typescript
+import { Event, EventManager, Handler, SubscribeConfig } from '@motiadev/core'
+
+export interface TestEventManager extends EventManager {
+  waitEvents(): Promise<void>
+  getHandlers(topic: string): Handler[]
+  clearHandlers(): void
+  getEmittedEvents(): Event[]
+}
+
+export const createTestEventManager = (): TestEventManager => {
+  const handlers: Record<string, Handler[]> = {}
+  const emittedEvents: Event[] = []
+  const pendingEvents: Array<Promise<unknown>> = []
+
+  const emit = async <TData>(event: Event<TData>) => {
+    emittedEvents.push(event)
+    const eventHandlers = handlers[event.topic] ?? []
+    
+    const promises = eventHandlers.map(async (handler) => {
+      try {
+        await handler(event)
+      } catch (error) {
+        console.error(`Error in test event handler for ${event.topic}:`, error)
+        throw error
+      }
+    })
+
+    pendingEvents.push(...promises)
+    return Promise.all(promises)
+  }
+
+  const subscribe = <TData>(config: SubscribeConfig<TData>) => {
+    const { event, handler } = config
+
+    if (!handlers[event]) {
+      handlers[event] = []
+    }
+
+    handlers[event].push(handler as Handler)
+  }
+
+  const unsubscribe = (config: { event: string; filePath: string }) => {
+    if (handlers[config.event]) {
+      handlers[config.event] = handlers[config.event].filter(
+        h => h.filePath !== config.filePath
+      )
+    }
+  }
+
+  const waitEvents = async (): Promise<void> => {
+    let eventsToAwait = [...pendingEvents]
+
+    while (eventsToAwait.length > 0) {
+      pendingEvents.splice(0, eventsToAwait.length)
+      await Promise.allSettled(eventsToAwait)
+      eventsToAwait = [...pendingEvents]
+    }
+  }
+
+  const getHandlers = (topic: string): Handler[] => {
+    return handlers[topic] || []
+  }
+
+  const clearHandlers = (): void => {
+    Object.keys(handlers).forEach(key => delete handlers[key])
+    emittedEvents.length = 0
+    pendingEvents.length = 0
+  }
+
+  const getEmittedEvents = (): Event[] => {
+    return [...emittedEvents]
+  }
+
+  return {
+    emit,
+    subscribe,
+    unsubscribe,
+    waitEvents,
+    getHandlers,
+    clearHandlers,
+    getEmittedEvents,
+  }
+}
+```
+
+### Integration Testing Framework
+
+#### Motia Tester Implementation
+```typescript
+import { createServer, createStateAdapter } from '@motiadev/core'
+import { generateLockedData } from 'motia'
+import request, { Test } from 'supertest'
+import { Express } from 'express'
+
+export interface MotiaTester {
+  // HTTP testing
+  request(): request.SuperTest<Test>
+  get(path: string, options?: RequestOptions): Promise<request.Response>
+  post(path: string, options?: RequestOptions): Promise<request.Response>
+  put(path: string, options?: RequestOptions): Promise<request.Response>
+  delete(path: string, options?: RequestOptions): Promise<request.Response>
+  
+  // Event testing
+  emit(event: Event): Promise<void>
+  watch<TData>(topic: string): Promise<EventWatcher<TData>>
+  waitForEvents(): Promise<void>
+  
+  // State testing
+  getState(groupId: string, key: string): Promise<any>
+  setState(groupId: string, key: string, value: any): Promise<void>
+  clearState(): Promise<void>
+  
+  // Utilities
+  sleep(ms: number): Promise<void>
+  close(): Promise<void>
+  
+  // Test context
+  logger: MockLogger
+  context: TestContext
+}
+
+export const createMotiaTester = async (options?: {
+  projectRoot?: string
+  verbose?: boolean
+  stateAdapter?: 'memory' | 'file'
+}): Promise<MotiaTester> => {
+  const projectRoot = options?.projectRoot || process.cwd()
+  const isVerbose = options?.verbose || false
+  
+  // Initialize test infrastructure
+  const eventManager = createTestEventManager()
+  const stateAdapter = createStateAdapter({ 
+    adapter: options?.stateAdapter || 'memory' 
+  })
+  const mockLogger = createMockLogger()
+  
+  // Generate locked data from project
+  const lockedData = await generateLockedData(projectRoot, 'memory', 'disabled')
+  
+  // Create test server
+  const { server, close } = createServer(lockedData, eventManager, stateAdapter, {
+    isVerbose,
+    port: 0, // Use random available port
+  })
+
+  const testContext: TestContext = {
+    projectRoot,
+    eventManager,
+    stateAdapter,
+    server,
+    startTime: Date.now(),
+  }
+
+  return {
+    // HTTP testing methods
+    request: () => request(server),
+    
+    get: async (path, options) => {
+      const response = await request(server).get(path)
+      if (options?.body) {
+        response.send(options.body)
+      }
+      return response
+    },
+    
+    post: async (path, options) => {
+      let req = request(server).post(path)
+      if (options?.body) {
+        req = req.send(options.body)
+      }
+      return req
+    },
+    
+    put: async (path, options) => {
+      let req = request(server).put(path)
+      if (options?.body) {
+        req = req.send(options.body)
+      }
+      return req
+    },
+    
+    delete: async (path, options) => {
+      return request(server).delete(path)
+    },
+
+    // Event testing methods
+    emit: async (event) => {
+      await eventManager.emit(event)
+    },
+    
+    watch: async <TData>(topic: string) => {
+      return createEventWatcher<TData>(eventManager, topic)
+    },
+    
+    waitForEvents: async () => {
+      await eventManager.waitEvents()
+    },
+
+    // State testing methods
+    getState: async (groupId, key) => {
+      return stateAdapter.get(groupId, key)
+    },
+    
+    setState: async (groupId, key, value) => {
+      return stateAdapter.set(groupId, key, value)
+    },
+    
+    clearState: async () => {
+      await stateAdapter.clear('test')
+    },
+
+    // Utility methods
+    sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+    
+    close: async () => {
+      await close()
+    },
+
+    // Test context
+    logger: mockLogger,
+    context: testContext,
+  }
+}
+```
+
+#### Event Watcher Implementation
+```typescript
+export interface EventWatcher<TData = any> {
+  getCapturedEvents(): CapturedEvent<TData>[]
+  getLastCapturedEvent(): CapturedEvent<TData> | undefined
+  getCapturedEvent(index: number): CapturedEvent<TData> | undefined
+  waitForEvent(timeout?: number): Promise<CapturedEvent<TData>>
+  waitForEvents(count: number, timeout?: number): Promise<CapturedEvent<TData>[]>
+  clear(): void
+  close(): void
+}
+
+export const createEventWatcher = <TData>(
+  eventManager: TestEventManager,
+  topic: string
+): EventWatcher<TData> => {
+  const capturedEvents: CapturedEvent<TData>[] = []
+  let isActive = true
+
+  // Subscribe to events
+  eventManager.subscribe({
+    event: topic,
+    filePath: '$test-watcher',
+    handlerName: '$test-watcher',
+    handler: async (event: Event<TData>) => {
+      if (isActive) {
+        const { logger, tracer, ...capturedEvent } = event
+        capturedEvents.push(capturedEvent as CapturedEvent<TData>)
+      }
+    },
+  })
+
+  return {
+    getCapturedEvents: () => [...capturedEvents],
+    
+    getLastCapturedEvent: () => {
+      return capturedEvents[capturedEvents.length - 1]
+    },
+    
+    getCapturedEvent: (index) => {
+      return capturedEvents[index]
+    },
+    
+    waitForEvent: (timeout = 5000) => {
+      return new Promise((resolve, reject) => {
+        if (capturedEvents.length > 0) {
+          resolve(capturedEvents[capturedEvents.length - 1])
+          return
+        }
+
+        const timer = setTimeout(() => {
+          reject(new Error(`Timeout waiting for event: ${topic}`))
+        }, timeout)
+
+        const checkForEvent = () => {
+          if (capturedEvents.length > 0) {
+            clearTimeout(timer)
+            resolve(capturedEvents[capturedEvents.length - 1])
+          } else {
+            setTimeout(checkForEvent, 10)
+          }
+        }
+
+        checkForEvent()
+      })
+    },
+    
+    waitForEvents: (count, timeout = 5000) => {
+      return new Promise((resolve, reject) => {
+        if (capturedEvents.length >= count) {
+          resolve(capturedEvents.slice(-count))
+          return
+        }
+
+        const timer = setTimeout(() => {
+          reject(new Error(`Timeout waiting for ${count} events on topic: ${topic}`))
+        }, timeout)
+
+        const checkForEvents = () => {
+          if (capturedEvents.length >= count) {
+            clearTimeout(timer)
+            resolve(capturedEvents.slice(-count))
+          } else {
+            setTimeout(checkForEvents, 10)
+          }
+        }
+
+        checkForEvents()
+      })
+    },
+    
+    clear: () => {
+      capturedEvents.length = 0
+    },
+    
+    close: () => {
+      isActive = false
+      eventManager.unsubscribe({ event: topic, filePath: '$test-watcher' })
+    },
+  }
+}
+```
+
+## Testing Patterns and Utilities
+
+### Step Testing Patterns
+```typescript
+// Unit testing for step handlers
+export const testStepHandler = async <TInput, TOutput>(
+  handler: StepHandler<TInput, TOutput>,
+  input: TInput,
+  contextOptions?: Partial<MockFlowContext>
+): Promise<{
+  result: TOutput
+  context: MockFlowContext
+  emittedEvents: any[]
+  logMessages: LogMessage[]
+}> => {
+  const context = createMockFlowContext(contextOptions)
+  const emittedEvents: any[] = []
+  
+  // Capture emitted events
+  context.emit.mockImplementation(async (event) => {
+    emittedEvents.push(event)
+  })
+
+  // Execute handler
+  const result = await handler(input, context)
+
+  // Extract log messages
+  const logMessages = extractLogMessages(context.logger)
+
+  return {
+    result,
+    context,
+    emittedEvents,
+    logMessages,
+  }
+}
+
+// Integration testing for complete flows
+export const testCompleteFlow = async (
+  flowName: string,
+  triggerData: any,
+  expectations: FlowExpectations
+): Promise<FlowTestResult> => {
+  const tester = await createMotiaTester()
+  
+  try {
+    // Set up event watchers
+    const watchers = await Promise.all(
+      expectations.expectedEvents.map(topic => tester.watch(topic))
+    )
+
+    // Trigger the flow
+    let response: request.Response
+    
+    if (expectations.triggerType === 'api') {
+      response = await tester.post(expectations.triggerPath, { body: triggerData })
+    } else if (expectations.triggerType === 'event') {
+      await tester.emit({
+        topic: expectations.triggerPath,
+        data: triggerData,
+        traceId: `test-${Date.now()}`,
+        logger: tester.logger,
+        tracer: {} as any,
+      })
+    }
+
+    // Wait for all events to be processed
+    await tester.waitForEvents()
+
+    // Collect results
+    const capturedEvents = watchers.map(watcher => watcher.getCapturedEvents())
+    
+    return {
+      success: true,
+      response,
+      capturedEvents,
+      executionTime: Date.now() - startTime,
+    }
+    
+  } finally {
+    await tester.close()
+  }
+}
+```
+
+### Mock Data Generation
+```typescript
+// Test data factory patterns
+export class TestDataFactory {
+  private static counter = 0
+
+  static createUser(overrides?: Partial<User>): User {
+    return {
+      id: `user-${++this.counter}`,
+      name: `Test User ${this.counter}`,
+      email: `user${this.counter}@test.com`,
+      createdAt: new Date().toISOString(),
+      ...overrides,
+    }
+  }
+
+  static createOrder(overrides?: Partial<Order>): Order {
+    return {
+      id: `order-${++this.counter}`,
+      customerId: `customer-${this.counter}`,
+      items: [
+        {
+          id: `item-${this.counter}`,
+          name: `Test Item ${this.counter}`,
+          price: 10.99,
+          quantity: 1,
+        }
+      ],
+      status: 'pending',
+      total: 10.99,
+      createdAt: new Date().toISOString(),
+      ...overrides,
+    }
+  }
+
+  static createEvent<TData>(
+    topic: string,
+    data: TData,
+    overrides?: Partial<Event<TData>>
+  ): Event<TData> {
+    return {
+      topic,
+      data,
+      traceId: `trace-${++this.counter}`,
+      logger: createMockLogger(),
+      tracer: {} as any,
+      ...overrides,
+    }
+  }
+
+  // Generate test datasets
+  static createDataset<T>(
+    factory: () => T,
+    count: number
+  ): T[] {
+    return Array.from({ length: count }, factory)
+  }
+
+  // Reset counter for consistent test data
+  static reset(): void {
+    this.counter = 0
+  }
+}
+
+// Fixture management
+export class TestFixtures {
+  private fixtures: Map<string, any> = new Map()
+
+  load<T>(name: string): T {
+    if (!this.fixtures.has(name)) {
+      throw new Error(`Fixture not found: ${name}`)
+    }
+    return this.fixtures.get(name)
+  }
+
+  register<T>(name: string, data: T): void {
+    this.fixtures.set(name, data)
+  }
+
+  loadFromFile<T>(name: string, filePath: string): T {
+    const content = fs.readFileSync(filePath, 'utf8')
+    const data = JSON.parse(content)
+    this.register(name, data)
+    return data
+  }
+
+  clear(): void {
+    this.fixtures.clear()
+  }
+}
+```
+
+### Performance Testing Utilities
+```typescript
+// Performance testing framework
+export class PerformanceTester {
+  private metrics: PerformanceMetric[] = []
+
+  async measureStepPerformance<TInput, TOutput>(
+    stepHandler: StepHandler<TInput, TOutput>,
+    input: TInput,
+    iterations = 100
+  ): Promise<PerformanceReport> {
+    const results: PerformanceResult[] = []
+
+    for (let i = 0; i < iterations; i++) {
+      const context = createMockFlowContext({
+        traceId: `perf-test-${i}`,
+      })
+
+      const startTime = performance.now()
+      const startMemory = process.memoryUsage()
+
+      try {
+        await stepHandler(input, context)
+        
+        const endTime = performance.now()
+        const endMemory = process.memoryUsage()
+
+        results.push({
+          iteration: i,
+          duration: endTime - startTime,
+          memoryDelta: {
+            heapUsed: endMemory.heapUsed - startMemory.heapUsed,
+            heapTotal: endMemory.heapTotal - startMemory.heapTotal,
+            rss: endMemory.rss - startMemory.rss,
+          },
+          success: true,
+        })
+      } catch (error) {
+        results.push({
+          iteration: i,
+          duration: performance.now() - startTime,
+          error: error.message,
+          success: false,
+        })
+      }
+    }
+
+    return this.analyzeResults(results)
+  }
+
+  private analyzeResults(results: PerformanceResult[]): PerformanceReport {
+    const successfulResults = results.filter(r => r.success)
+    const durations = successfulResults.map(r => r.duration)
+    
+    return {
+      totalIterations: results.length,
+      successfulIterations: successfulResults.length,
+      failureRate: (results.length - successfulResults.length) / results.length,
+      
+      performance: {
+        min: Math.min(...durations),
+        max: Math.max(...durations),
+        average: durations.reduce((a, b) => a + b, 0) / durations.length,
+        median: this.calculateMedian(durations),
+        p95: this.calculatePercentile(durations, 95),
+        p99: this.calculatePercentile(durations, 99),
+      },
+      
+      memory: {
+        averageHeapDelta: successfulResults.reduce(
+          (sum, r) => sum + r.memoryDelta.heapUsed, 0
+        ) / successfulResults.length,
+      },
+      
+      errors: results.filter(r => !r.success).map(r => r.error),
+    }
+  }
+
+  private calculateMedian(values: number[]): number {
+    const sorted = [...values].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid]
+  }
+
+  private calculatePercentile(values: number[], percentile: number): number {
+    const sorted = [...values].sort((a, b) => a - b)
+    const index = Math.ceil((percentile / 100) * sorted.length) - 1
+    return sorted[index]
+  }
+}
+```
+
+### Test Utilities and Helpers
+
+#### Assertion Helpers
+```typescript
+// Custom matchers for Motia testing
+export const motiaMatchers = {
+  toHaveEmittedEvent: (
+    emittedEvents: any[],
+    expectedTopic: string,
+    expectedData?: any
+  ) => {
+    const matchingEvent = emittedEvents.find(event => event.topic === expectedTopic)
+    
+    if (!matchingEvent) {
+      return {
+        pass: false,
+        message: () => `Expected event with topic "${expectedTopic}" to be emitted`,
+      }
+    }
+
+    if (expectedData && !deepEqual(matchingEvent.data, expectedData)) {
+      return {
+        pass: false,
+        message: () => `Expected event data to match ${JSON.stringify(expectedData)}`,
+      }
+    }
+
+    return {
+      pass: true,
+      message: () => `Event "${expectedTopic}" was emitted correctly`,
+    }
+  },
+
+  toHaveLoggedMessage: (
+    logger: MockLogger,
+    level: 'info' | 'warn' | 'error' | 'debug',
+    message: string
+  ) => {
+    const calls = logger[level].mock.calls
+    const hasMessage = calls.some(call => call[0].includes(message))
+
+    return {
+      pass: hasMessage,
+      message: () => hasMessage
+        ? `Expected "${message}" not to be logged at ${level} level`
+        : `Expected "${message}" to be logged at ${level} level`,
+    }
+  },
+
+  toHaveStateValue: async (
+    stateAdapter: InternalStateManager,
+    groupId: string,
+    key: string,
+    expectedValue: any
+  ) => {
+    const actualValue = await stateAdapter.get(groupId, key)
+    const matches = deepEqual(actualValue, expectedValue)
+
+    return {
+      pass: matches,
+      message: () => matches
+        ? `Expected state[${groupId}][${key}] not to equal ${JSON.stringify(expectedValue)}`
+        : `Expected state[${groupId}][${key}] to equal ${JSON.stringify(expectedValue)}, but got ${JSON.stringify(actualValue)}`,
+    }
+  },
+}
+
+// Test setup helpers
+export const setupMotiaTest = (options?: {
+  mockLogger?: boolean
+  mockState?: boolean
+  mockEvents?: boolean
+}) => {
+  beforeEach(() => {
+    if (options?.mockLogger !== false) {
+      setupLoggerMock()
+    }
+    
+    TestDataFactory.reset()
+  })
+
+  afterEach(() => {
+    jest.clearAllMocks()
+  })
+}
+
+// Async test helpers
+export const waitFor = async (
+  condition: () => boolean | Promise<boolean>,
+  timeout = 5000,
+  interval = 100
+): Promise<void> => {
+  const startTime = Date.now()
+  
+  while (Date.now() - startTime < timeout) {
+    if (await condition()) {
+      return
+    }
+    await new Promise(resolve => setTimeout(resolve, interval))
+  }
+  
+  throw new Error(`Condition not met within ${timeout}ms`)
+}
+
+export const eventually = async <T>(
+  fn: () => T | Promise<T>,
+  timeout = 5000
+): Promise<T> => {
+  const startTime = Date.now()
+  let lastError: Error
+
+  while (Date.now() - startTime < timeout) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+  }
+
+  throw lastError || new Error('Eventually condition failed')
+}
+```
+
+## Testing Best Practices
+
+### Testing Strategy
+- Unit tests for individual utilities and helpers
+- Integration tests for complete testing workflows
+- Performance tests for testing framework overhead
+- Mock validation for ensuring proper test isolation
+
+### Test Organization
+```
+packages/test/src/
+├── __tests__/               # Test files
+├── mocks/                   # Mock implementations
+├── fixtures/                # Test data fixtures
+├── helpers/                 # Testing helper utilities
+└── types/                   # Testing type definitions
+```
+
+### Coverage Recommendations
+- Aim for 95%+ test coverage on testing utilities
+- 100% coverage on mock implementations
+- Focus on edge cases and error scenarios
+- Test performance under load
+
+## Integration Guidelines
+
+### Package Integration
+- Provides testing utilities for all other Motia packages
+- Integrates with Jest, Vitest, and other testing frameworks
+- Supports both unit and integration testing patterns
+- Maintains compatibility with Motia's event-driven architecture
+
+### Best Practices
+1. **Mock Isolation**: Ensure tests don't affect each other
+2. **Realistic Mocks**: Create mocks that behave like real components
+3. **Performance Awareness**: Keep testing utilities lightweight
+4. **Clear APIs**: Provide intuitive testing interfaces
+5. **Comprehensive Coverage**: Test both success and failure scenarios

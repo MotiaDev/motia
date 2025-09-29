@@ -1,0 +1,1021 @@
+---
+description: Development guidelines for @motiadev/stream-client-react package focusing on React integration patterns for real-time communication
+globs: packages/stream-client-react/**/*.tsx,packages/stream-client-react/**/*.ts,packages/stream-client-react/**/*.jsx,packages/stream-client-react/**/*.js
+alwaysApply: false
+---
+
+# Stream Client React Package Development Guide
+
+## Overview
+
+The `@motiadev/stream-client-react` package provides React-specific utilities and hooks for integrating Motia's real-time streaming capabilities into React applications. It enables idiomatic React patterns for subscribing to stream items, groups, and handling real-time events with proper lifecycle management.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - @motiadev/stream-client-browser (browser streaming functionality)
+  - @motiadev/core (for foundational utilities only)
+  - React and React ecosystem packages
+  - Standard JavaScript/TypeScript libraries
+- **Prohibited imports**: 
+  - @motiadev/stream-client-node (Node.js specific implementation)
+  - Node.js specific modules
+  - @motiadev/workbench (should be imported by workbench instead)
+  - motia (snap package - CLI specific)
+
+### Package Responsibility
+The stream client React package provides:
+- React hooks for stream subscriptions
+- Context provider for stream management
+- React-specific lifecycle integration
+- Component-based subscription patterns
+- React Suspense integration
+- Performance optimizations for React rendering
+- TypeScript integration with React patterns
+
+## Architecture Patterns
+
+### Core Principles
+1. **React Idiomatic**: Follow React best practices and patterns
+2. **Hook-Based**: Provide functionality through custom hooks
+3. **Context Integration**: Use React Context for stream management
+4. **Lifecycle Aware**: Proper cleanup and subscription management
+5. **Performance Optimized**: Minimize re-renders and optimize updates
+
+### Context and Provider Pattern
+
+#### Stream Context Implementation
+```typescript
+import React, { createContext } from 'react'
+import { Stream } from '@motiadev/stream-client-browser'
+
+interface MotiaStreamContextType {
+  stream: Stream | null
+  isConnected: boolean
+  connectionError?: Error
+  reconnect: () => void
+}
+
+export const MotiaStreamContext = createContext<MotiaStreamContextType>({
+  stream: null,
+  isConnected: false,
+  reconnect: () => {},
+})
+
+// Context hook with error handling
+export const useMotiaStream = (): MotiaStreamContextType => {
+  const context = useContext(MotiaStreamContext)
+
+  if (!context) {
+    throw new Error('useMotiaStream must be used within a MotiaStreamProvider')
+  }
+
+  return context
+}
+```
+
+#### Enhanced Provider Implementation
+```typescript
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { Stream } from '@motiadev/stream-client-browser'
+import { MotiaStreamContext } from './motia-stream-context'
+
+interface MotiaStreamProviderProps {
+  address: string
+  children: React.ReactNode
+  options?: {
+    reconnectOnMount?: boolean
+    autoReconnect?: boolean
+    maxReconnectAttempts?: number
+    onConnectionChange?: (connected: boolean) => void
+    onError?: (error: Error) => void
+  }
+}
+
+export const MotiaStreamProvider: React.FC<MotiaStreamProviderProps> = ({
+  children,
+  address,
+  options = {}
+}) => {
+  const [stream, setStream] = useState<Stream | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
+  const [connectionError, setConnectionError] = useState<Error | undefined>()
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
+
+  // Initialize stream
+  useEffect(() => {
+    const streamInstance = new Stream(address)
+    
+    // Connection event handlers
+    streamInstance.onConnected(() => {
+      setIsConnected(true)
+      setConnectionError(undefined)
+      setReconnectAttempts(0)
+      options.onConnectionChange?.(true)
+    })
+
+    streamInstance.onDisconnected(() => {
+      setIsConnected(false)
+      options.onConnectionChange?.(false)
+      
+      // Auto-reconnect if enabled
+      if (options.autoReconnect !== false && 
+          reconnectAttempts < (options.maxReconnectAttempts || 5)) {
+        setTimeout(() => {
+          setReconnectAttempts(prev => prev + 1)
+          streamInstance.reconnect()
+        }, Math.min(1000 * Math.pow(2, reconnectAttempts), 30000))
+      }
+    })
+
+    streamInstance.onError((error) => {
+      setConnectionError(error)
+      options.onError?.(error)
+    })
+
+    setStream(streamInstance)
+
+    return () => {
+      streamInstance.close()
+      setStream(null)
+      setIsConnected(false)
+    }
+  }, [address])
+
+  // Manual reconnect function
+  const reconnect = useCallback(() => {
+    if (stream) {
+      setReconnectAttempts(0)
+      setConnectionError(undefined)
+      stream.reconnect()
+    }
+  }, [stream])
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    stream,
+    isConnected,
+    connectionError,
+    reconnect,
+  }), [stream, isConnected, connectionError, reconnect])
+
+  return (
+    <MotiaStreamContext.Provider value={contextValue}>
+      {children}
+    </MotiaStreamContext.Provider>
+  )
+}
+```
+
+### React Hooks Patterns
+
+#### Stream Item Hook
+```typescript
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useMotiaStream } from './use-motia-stream'
+import { StreamItemSubscription } from '@motiadev/stream-client-browser'
+
+export interface UseStreamItemOptions {
+  streamName: string
+  groupId: string
+  id: string
+  enabled?: boolean
+  suspense?: boolean
+  onError?: (error: Error) => void
+  onData?: (data: any) => void
+}
+
+export function useStreamItem<TData extends { id: string }>(
+  options: UseStreamItemOptions
+) {
+  const { stream, isConnected } = useMotiaStream()
+  const [data, setData] = useState<TData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const subscriptionRef = useRef<StreamItemSubscription<TData> | null>(null)
+
+  // Memoize subscription key to prevent unnecessary re-subscriptions
+  const subscriptionKey = useMemo(() => 
+    `${options.streamName}:${options.groupId}:${options.id}`,
+    [options.streamName, options.groupId, options.id]
+  )
+
+  const handleData = useCallback((newData: TData | null) => {
+    setData(newData)
+    setLoading(false)
+    setError(null)
+    options.onData?.(newData)
+  }, [options.onData])
+
+  const handleError = useCallback((err: Error) => {
+    setError(err)
+    setLoading(false)
+    options.onError?.(err)
+  }, [options.onError])
+
+  useEffect(() => {
+    if (!stream || !isConnected || options.enabled === false) {
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const subscription = stream.subscribeToItem<TData>(
+        options.streamName,
+        options.groupId,
+        options.id
+      )
+
+      subscription.onChange(handleData)
+      subscription.onError(handleError)
+
+      subscriptionRef.current = subscription
+
+      return () => {
+        subscription.close()
+        subscriptionRef.current = null
+      }
+    } catch (err) {
+      handleError(err instanceof Error ? err : new Error('Subscription failed'))
+    }
+  }, [stream, isConnected, subscriptionKey, options.enabled, handleData, handleError])
+
+  // Suspense integration
+  if (options.suspense && loading && !data && !error) {
+    throw new Promise((resolve) => {
+      const unsubscribe = subscriptionRef.current?.onChange((data) => {
+        if (data !== null) {
+          unsubscribe?.()
+          resolve(data)
+        }
+      })
+    })
+  }
+
+  return {
+    data,
+    loading,
+    error,
+    subscription: subscriptionRef.current,
+    refetch: useCallback(() => {
+      subscriptionRef.current?.refresh?.()
+    }, []),
+  }
+}
+```
+
+#### Stream Group Hook
+```typescript
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useMotiaStream } from './use-motia-stream'
+import { StreamGroupSubscription } from '@motiadev/stream-client-browser'
+
+export interface UseStreamGroupOptions<TData extends { id: string }> {
+  streamName: string
+  groupId: string
+  sortKey?: keyof TData
+  filter?: (item: TData) => boolean
+  enabled?: boolean
+  suspense?: boolean
+  onError?: (error: Error) => void
+  onData?: (data: TData[]) => void
+}
+
+export function useStreamGroup<TData extends { id: string }>(
+  options: UseStreamGroupOptions<TData>
+) {
+  const { stream, isConnected } = useMotiaStream()
+  const [data, setData] = useState<TData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const subscriptionRef = useRef<StreamGroupSubscription<TData> | null>(null)
+
+  // Memoize processed data to prevent unnecessary re-renders
+  const processedData = useMemo(() => {
+    let result = data
+
+    // Apply filter if provided
+    if (options.filter) {
+      result = result.filter(options.filter)
+    }
+
+    // Apply sorting if provided
+    if (options.sortKey) {
+      result = [...result].sort((a, b) => {
+        const aVal = a[options.sortKey!]
+        const bVal = b[options.sortKey!]
+        
+        if (aVal < bVal) return -1
+        if (aVal > bVal) return 1
+        return 0
+      })
+    }
+
+    return result
+  }, [data, options.filter, options.sortKey])
+
+  const handleData = useCallback((newData: TData[]) => {
+    setData(newData)
+    setLoading(false)
+    setError(null)
+    options.onData?.(newData)
+  }, [options.onData])
+
+  const handleError = useCallback((err: Error) => {
+    setError(err)
+    setLoading(false)
+    options.onError?.(err)
+  }, [options.onError])
+
+  useEffect(() => {
+    if (!stream || !isConnected || options.enabled === false) {
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const subscription = stream.subscribeToGroup<TData>(
+        options.streamName,
+        options.groupId
+      )
+
+      subscription.onChange(handleData)
+      subscription.onError(handleError)
+
+      subscriptionRef.current = subscription
+
+      return () => {
+        subscription.close()
+        subscriptionRef.current = null
+      }
+    } catch (err) {
+      handleError(err instanceof Error ? err : new Error('Group subscription failed'))
+    }
+  }, [stream, isConnected, options.streamName, options.groupId, options.enabled, handleData, handleError])
+
+  // Convenience methods
+  const findById = useCallback((id: string) => {
+    return processedData.find(item => item.id === id)
+  }, [processedData])
+
+  const getCount = useCallback(() => {
+    return processedData.length
+  }, [processedData])
+
+  // Suspense integration
+  if (options.suspense && loading && data.length === 0 && !error) {
+    throw new Promise((resolve) => {
+      const unsubscribe = subscriptionRef.current?.onChange((data) => {
+        if (data.length > 0) {
+          unsubscribe?.()
+          resolve(data)
+        }
+      })
+    })
+  }
+
+  return {
+    data: processedData,
+    loading,
+    error,
+    subscription: subscriptionRef.current,
+    findById,
+    getCount,
+    isEmpty: processedData.length === 0,
+  }
+}
+```
+
+#### Event Handler Hook
+```typescript
+import { useEffect, useCallback } from 'react'
+import { StreamSubscription } from '@motiadev/stream-client-browser'
+
+export interface UseStreamEventHandlerOptions<TEventData> {
+  subscription: StreamSubscription | null
+  eventType: string
+  onEvent: (data: TEventData) => void
+  enabled?: boolean
+}
+
+export function useStreamEventHandler<TEventData>(
+  options: UseStreamEventHandlerOptions<TEventData>,
+  dependencies: React.DependencyList = []
+) {
+  const { subscription, eventType, onEvent, enabled = true } = options
+
+  // Memoize event handler to prevent unnecessary subscriptions
+  const memoizedHandler = useCallback(onEvent, dependencies)
+
+  useEffect(() => {
+    if (!subscription || !enabled) {
+      return
+    }
+
+    subscription.on(eventType, memoizedHandler)
+
+    return () => {
+      subscription.off(eventType, memoizedHandler)
+    }
+  }, [subscription, eventType, memoizedHandler, enabled])
+}
+
+// Convenience hook for multiple event handlers
+export function useStreamEventHandlers<TEventData>(
+  subscription: StreamSubscription | null,
+  handlers: Record<string, (data: TEventData) => void>,
+  dependencies: React.DependencyList = []
+) {
+  const memoizedHandlers = useMemo(() => handlers, dependencies)
+
+  useEffect(() => {
+    if (!subscription) {
+      return
+    }
+
+    // Register all handlers
+    Object.entries(memoizedHandlers).forEach(([eventType, handler]) => {
+      subscription.on(eventType, handler)
+    })
+
+    return () => {
+      // Cleanup all handlers
+      Object.entries(memoizedHandlers).forEach(([eventType, handler]) => {
+        subscription.off(eventType, handler)
+      })
+    }
+  }, [subscription, memoizedHandlers])
+}
+```
+
+## React-Specific Patterns
+
+### Component Integration Patterns
+```typescript
+// Higher-order component for stream integration
+export function withStreamData<TProps, TData extends { id: string }>(
+  WrappedComponent: React.ComponentType<TProps & { streamData: TData | null }>,
+  streamConfig: {
+    streamName: string
+    getGroupId: (props: TProps) => string
+    getId: (props: TProps) => string
+  }
+) {
+  return function StreamDataWrapper(props: TProps) {
+    const { data } = useStreamItem<TData>({
+      streamName: streamConfig.streamName,
+      groupId: streamConfig.getGroupId(props),
+      id: streamConfig.getId(props),
+    })
+
+    return <WrappedComponent {...props} streamData={data} />
+  }
+}
+
+// Render prop pattern for stream data
+export interface StreamDataRenderProps<TData> {
+  data: TData | null
+  loading: boolean
+  error: Error | null
+  connected: boolean
+}
+
+export const StreamData: React.FC<{
+  streamName: string
+  groupId: string
+  id: string
+  children: (props: StreamDataRenderProps<any>) => React.ReactNode
+}> = ({ streamName, groupId, id, children }) => {
+  const { isConnected } = useMotiaStream()
+  const { data, loading, error } = useStreamItem({ streamName, groupId, id })
+
+  return (
+    <>
+      {children({
+        data,
+        loading,
+        error,
+        connected: isConnected,
+      })}
+    </>
+  )
+}
+```
+
+### Performance Optimization Hooks
+```typescript
+// Optimized stream hook with debouncing
+export function useStreamItemDebounced<TData extends { id: string }>(
+  options: UseStreamItemOptions,
+  debounceMs = 100
+) {
+  const [debouncedData, setDebouncedData] = useState<TData | null>(null)
+  const { data, loading, error, subscription } = useStreamItem<TData>(options)
+
+  // Debounce data updates
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedData(data)
+    }, debounceMs)
+
+    return () => clearTimeout(timer)
+  }, [data, debounceMs])
+
+  return {
+    data: debouncedData,
+    loading,
+    error,
+    subscription,
+    immediateData: data, // Access to non-debounced data if needed
+  }
+}
+
+// Memoized stream group hook
+export function useStreamGroupMemo<TData extends { id: string }>(
+  options: UseStreamGroupOptions<TData>,
+  compareFn?: (a: TData[], b: TData[]) => boolean
+) {
+  const { data, loading, error, subscription } = useStreamGroup<TData>(options)
+
+  // Memoize data with custom comparison
+  const memoizedData = useMemo(() => data, [
+    data.length,
+    ...(compareFn ? [compareFn(data, data)] : data.map(item => item.id))
+  ])
+
+  return {
+    data: memoizedData,
+    loading,
+    error,
+    subscription,
+  }
+}
+
+// Virtual scrolling integration
+export function useStreamGroupVirtual<TData extends { id: string }>(
+  options: UseStreamGroupOptions<TData>,
+  virtualOptions: {
+    itemHeight: number
+    containerHeight: number
+    overscan?: number
+  }
+) {
+  const { data, loading, error } = useStreamGroup<TData>(options)
+  const [scrollTop, setScrollTop] = useState(0)
+
+  const visibleRange = useMemo(() => {
+    const startIndex = Math.floor(scrollTop / virtualOptions.itemHeight)
+    const endIndex = Math.min(
+      startIndex + Math.ceil(virtualOptions.containerHeight / virtualOptions.itemHeight) + (virtualOptions.overscan || 5),
+      data.length
+    )
+
+    return { startIndex, endIndex }
+  }, [scrollTop, virtualOptions, data.length])
+
+  const visibleItems = useMemo(() => {
+    return data.slice(visibleRange.startIndex, visibleRange.endIndex)
+  }, [data, visibleRange])
+
+  return {
+    data,
+    visibleItems,
+    visibleRange,
+    loading,
+    error,
+    totalHeight: data.length * virtualOptions.itemHeight,
+    onScroll: setScrollTop,
+  }
+}
+```
+
+### Suspense Integration
+```typescript
+// Suspense-compatible stream hooks
+export function useStreamItemSuspense<TData extends { id: string }>(
+  options: UseStreamItemOptions
+): TData {
+  const { data, loading, error } = useStreamItem<TData>({
+    ...options,
+    suspense: true,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  if (loading || data === null) {
+    throw new Promise((resolve, reject) => {
+      // This promise will be resolved by the useStreamItem hook
+      // when data is available or an error occurs
+    })
+  }
+
+  return data
+}
+
+// Error boundary for stream errors
+export class StreamErrorBoundary extends React.Component<
+  React.PropsWithChildren<{
+    fallback?: React.ComponentType<{ error: Error; retry: () => void }>
+    onError?: (error: Error) => void
+  }>,
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: any) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Stream error caught by boundary:', error, errorInfo)
+    this.props.onError?.(error)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      const FallbackComponent = this.props.fallback || DefaultStreamErrorFallback
+      
+      return (
+        <FallbackComponent
+          error={this.state.error!}
+          retry={() => this.setState({ hasError: false, error: undefined })}
+        />
+      )
+    }
+
+    return this.props.children
+  }
+}
+
+const DefaultStreamErrorFallback: React.FC<{
+  error: Error
+  retry: () => void
+}> = ({ error, retry }) => (
+  <div className="p-4 border border-red-200 rounded bg-red-50 text-red-800">
+    <h3 className="font-semibold mb-2">Stream Error</h3>
+    <p className="text-sm mb-3">{error.message}</p>
+    <button 
+      onClick={retry}
+      className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+    >
+      Retry
+    </button>
+  </div>
+)
+```
+
+### Component Patterns
+```typescript
+// Real-time data display component
+export const StreamDataDisplay: React.FC<{
+  streamName: string
+  groupId: string
+  id: string
+  renderData: (data: any) => React.ReactNode
+  renderLoading?: () => React.ReactNode
+  renderError?: (error: Error) => React.ReactNode
+}> = ({ 
+  streamName, 
+  groupId, 
+  id, 
+  renderData, 
+  renderLoading, 
+  renderError 
+}) => {
+  const { data, loading, error } = useStreamItem({
+    streamName,
+    groupId,
+    id,
+  })
+
+  if (error) {
+    return renderError?.(error) || <div>Error: {error.message}</div>
+  }
+
+  if (loading) {
+    return renderLoading?.() || <div>Loading...</div>
+  }
+
+  return <>{renderData(data)}</>
+}
+
+// Real-time list component
+export const StreamList: React.FC<{
+  streamName: string
+  groupId: string
+  renderItem: (item: any, index: number) => React.ReactNode
+  renderEmpty?: () => React.ReactNode
+  renderLoading?: () => React.ReactNode
+  sortKey?: string
+  filter?: (item: any) => boolean
+}> = ({ 
+  streamName, 
+  groupId, 
+  renderItem, 
+  renderEmpty, 
+  renderLoading,
+  sortKey,
+  filter 
+}) => {
+  const { data, loading, error } = useStreamGroup({
+    streamName,
+    groupId,
+    sortKey,
+    filter,
+  })
+
+  if (error) {
+    return <div>Error loading list: {error.message}</div>
+  }
+
+  if (loading) {
+    return renderLoading?.() || <div>Loading list...</div>
+  }
+
+  if (data.length === 0) {
+    return renderEmpty?.() || <div>No items found</div>
+  }
+
+  return (
+    <div>
+      {data.map((item, index) => (
+        <React.Fragment key={item.id}>
+          {renderItem(item, index)}
+        </React.Fragment>
+      ))}
+    </div>
+  )
+}
+```
+
+## Testing Best Practices
+
+### React Testing Patterns
+```typescript
+import { render, screen, waitFor } from '@testing-library/react'
+import { renderHook } from '@testing-library/react-hooks'
+import { MotiaStreamProvider } from '../motia-stream-provider'
+import { useStreamItem } from '../use-stream-item'
+
+// Test wrapper with stream provider
+const createStreamWrapper = (address = 'ws://test-server') => {
+  return ({ children }: { children: React.ReactNode }) => (
+    <MotiaStreamProvider address={address}>
+      {children}
+    </MotiaStreamProvider>
+  )
+}
+
+describe('useStreamItem', () => {
+  it('should subscribe to stream item', async () => {
+    const { result } = renderHook(
+      () => useStreamItem({
+        streamName: 'test-stream',
+        groupId: 'group1',
+        id: 'item1',
+      }),
+      { wrapper: createStreamWrapper() }
+    )
+
+    expect(result.current.loading).toBe(true)
+    expect(result.current.data).toBe(null)
+
+    // Wait for connection and data
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+  })
+
+  it('should handle subscription errors', async () => {
+    const onError = jest.fn()
+    
+    const { result } = renderHook(
+      () => useStreamItem({
+        streamName: 'invalid-stream',
+        groupId: 'group1',
+        id: 'item1',
+        onError,
+      }),
+      { wrapper: createStreamWrapper() }
+    )
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy()
+      expect(onError).toHaveBeenCalled()
+    })
+  })
+})
+
+// Component testing with streams
+describe('StreamDataDisplay', () => {
+  it('should render data when available', async () => {
+    render(
+      <MotiaStreamProvider address="ws://test-server">
+        <StreamDataDisplay
+          streamName="users"
+          groupId="group1"
+          id="user1"
+          renderData={(data) => <div>{data?.name}</div>}
+        />
+      </MotiaStreamProvider>
+    )
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
+
+    // Wait for data to load
+    await waitFor(() => {
+      expect(screen.getByText('Test User')).toBeInTheDocument()
+    })
+  })
+})
+```
+
+### Storybook Integration
+```typescript
+// Storybook stories for stream components
+import type { Meta, StoryObj } from '@storybook/react'
+import { StreamDataDisplay } from './stream-data-display'
+import { MotiaStreamProvider } from '../motia-stream-provider'
+
+const meta: Meta<typeof StreamDataDisplay> = {
+  title: 'Stream/StreamDataDisplay',
+  component: StreamDataDisplay,
+  decorators: [
+    (Story) => (
+      <MotiaStreamProvider address="ws://storybook-mock-server">
+        <Story />
+      </MotiaStreamProvider>
+    ),
+  ],
+  parameters: {
+    docs: {
+      description: {
+        component: 'A component that displays real-time stream data with loading and error states.',
+      },
+    },
+  },
+}
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Default: Story = {
+  args: {
+    streamName: 'users',
+    groupId: 'group1',
+    id: 'user1',
+    renderData: (data) => (
+      <div className="p-4 border rounded">
+        <h3>{data?.name}</h3>
+        <p>{data?.email}</p>
+      </div>
+    ),
+  },
+}
+
+export const WithCustomLoading: Story = {
+  args: {
+    streamName: 'users',
+    groupId: 'group1',
+    id: 'user1',
+    renderData: (data) => <div>{data?.name}</div>,
+    renderLoading: () => (
+      <div className="animate-pulse p-4 border rounded">
+        <div className="h-4 bg-gray-200 rounded mb-2"></div>
+        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+      </div>
+    ),
+  },
+}
+```
+
+## Advanced React Patterns
+
+### Custom Hook Composition
+```typescript
+// Composed hook for common stream patterns
+export function useStreamResource<TData extends { id: string }>(
+  resourceType: 'item' | 'group',
+  config: {
+    streamName: string
+    groupId: string
+    id?: string
+    enabled?: boolean
+    refetchInterval?: number
+  }
+) {
+  const { stream, isConnected } = useMotiaStream()
+  
+  // Use appropriate hook based on resource type
+  const itemResult = useStreamItem<TData>({
+    streamName: config.streamName,
+    groupId: config.groupId,
+    id: config.id!,
+    enabled: resourceType === 'item' && config.enabled && !!config.id,
+  })
+
+  const groupResult = useStreamGroup<TData>({
+    streamName: config.streamName,
+    groupId: config.groupId,
+    enabled: resourceType === 'group' && config.enabled,
+  })
+
+  // Auto-refetch on interval
+  useEffect(() => {
+    if (config.refetchInterval && isConnected) {
+      const interval = setInterval(() => {
+        if (resourceType === 'item') {
+          itemResult.refetch?.()
+        } else {
+          groupResult.refetch?.()
+        }
+      }, config.refetchInterval)
+
+      return () => clearInterval(interval)
+    }
+  }, [config.refetchInterval, isConnected, resourceType])
+
+  return resourceType === 'item' ? itemResult : groupResult
+}
+
+// Stream-aware form hook
+export function useStreamForm<TData extends { id: string }>(
+  streamName: string,
+  groupId: string,
+  id: string,
+  onSubmit: (data: TData) => Promise<void>
+) {
+  const { data } = useStreamItem<TData>({ streamName, groupId, id })
+  const [formData, setFormData] = useState<Partial<TData>>({})
+  const [submitting, setSubmitting] = useState(false)
+
+  // Sync form data with stream data
+  useEffect(() => {
+    if (data) {
+      setFormData(data)
+    }
+  }, [data])
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+
+    try {
+      await onSubmit(formData as TData)
+    } catch (error) {
+      console.error('Form submission error:', error)
+    } finally {
+      setSubmitting(false)
+    }
+  }, [formData, onSubmit])
+
+  const updateField = useCallback(<K extends keyof TData>(
+    field: K,
+    value: TData[K]
+  ) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }, [])
+
+  return {
+    formData,
+    submitting,
+    handleSubmit,
+    updateField,
+    isDirty: JSON.stringify(formData) !== JSON.stringify(data),
+  }
+}
+```
+
+## Integration Guidelines
+
+### Package Integration
+- Builds on @motiadev/stream-client-browser for React applications
+- Provides React-idiomatic patterns for real-time data
+- Integrates with React ecosystem (Suspense, Error Boundaries)
+- Supports modern React patterns (hooks, context, concurrent features)
+
+### Performance Best Practices
+1. **Minimize Re-renders**: Use proper dependency arrays and memoization
+2. **Cleanup Subscriptions**: Always clean up in useEffect return functions
+3. **Batch Updates**: Use React's automatic batching for multiple state updates
+4. **Optimize Selectors**: Use specific selectors to prevent unnecessary updates
+5. **Virtual Scrolling**: Implement virtual scrolling for large data sets
+
+### React Integration Best Practices
+1. **Hook Composition**: Build complex functionality by composing simple hooks
+2. **Context Usage**: Use context for stream management, not for frequently changing data
+3. **Error Handling**: Use Error Boundaries for stream-related errors
+4. **Suspense Support**: Provide Suspense integration for better UX
+5. **TypeScript Integration**: Leverage React's TypeScript support for better DX

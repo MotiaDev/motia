@@ -1,0 +1,1971 @@
+---
+description: Development guidelines for @motiadev/workbench package focusing on React patterns and flow visualization standards
+globs: packages/workbench/**/*.tsx,packages/workbench/**/*.ts,packages/workbench/**/*.jsx,packages/workbench/**/*.js,packages/workbench/**/*.css
+alwaysApply: false
+---
+
+# Workbench Package Development Guide
+
+## Overview
+
+The `@motiadev/workbench` package provides a web-based interface for building, visualizing, and managing Motia workflows. It serves as the primary development environment for Motia applications, offering flow visualization, real-time monitoring, state management, and debugging capabilities.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - @motiadev/core (for foundational utilities)
+  - @motiadev/ui (for design system components)
+  - @motiadev/stream-client-react (for real-time data)
+  - @motiadev/plugin-endpoint (for plugin system)
+  - React and React ecosystem packages
+  - @xyflow/react (for flow visualization)
+  - Zustand (for state management)
+  - Radix UI primitives
+  - Tailwind CSS utilities
+- **Prohibited imports**: 
+  - motia (snap package - CLI specific)
+  - Node.js specific modules
+  - Backend-specific packages
+
+### Package Responsibility
+The workbench package provides:
+- Interactive flow visualization and editing
+- Real-time log monitoring and debugging
+- State inspection and management interfaces
+- API endpoint testing capabilities
+- Custom node component system
+- Development workflow management
+- Plugin integration system
+
+## Architecture Patterns
+
+### Core Principles
+1. **Component-Based Architecture**: Build UI using reusable React components
+2. **State Management with Zustand**: Centralized state management with persistence
+3. **Flow Visualization**: Interactive diagrams using @xyflow/react
+4. **Real-time Updates**: Live data streaming and updates
+5. **Plugin Architecture**: Extensible system for custom functionality
+
+### Flow Visualization Architecture
+
+#### Node System Pattern
+```tsx
+import React, { PropsWithChildren } from 'react'
+import { BaseNode } from './base-node/base-node'
+import { NodeProps } from '@xyflow/react'
+
+// Base node props interface
+export interface BaseNodeProps {
+  id: string
+  name: string
+  type: 'event' | 'api' | 'noop' | 'cron'
+  description?: string
+  subscribes?: string[]
+  emits?: string[]
+  virtualEmits?: string[]
+  language?: string
+  filePath?: string
+}
+
+// Node component pattern
+export const EventNode: React.FC<PropsWithChildren<NodeProps<BaseNodeProps>>> = ({ 
+  data, 
+  children 
+}) => {
+  return (
+    <BaseNode
+      data={data}
+      variant="event"
+      title={data.name}
+      subtitle={data.description}
+      language={data.language}
+      disableSourceHandle={!data.emits?.length && !data.virtualEmits?.length}
+      disableTargetHandle={!data.subscribes?.length}
+    >
+      {children}
+    </BaseNode>
+  )
+}
+```
+
+#### Custom Node Components
+```tsx
+// Custom node component following workbench patterns
+import React from 'react'
+import { BaseNode } from '@motiadev/workbench'
+import { NodeProps } from '@xyflow/react'
+
+interface CustomNodeData {
+  id: string
+  name: string
+  customProperty: string
+}
+
+export const CustomNode: React.FC<NodeProps<CustomNodeData>> = ({ data }) => {
+  return (
+    <BaseNode
+      data={data}
+      variant="event"
+      title={data.name}
+      subtitle={`Custom: ${data.customProperty}`}
+    >
+      <div className="flex flex-col gap-2">
+        <div className="text-sm text-muted-foreground">
+          Custom node content
+        </div>
+        <div className="bg-accent/20 p-2 rounded">
+          {data.customProperty}
+        </div>
+      </div>
+    </BaseNode>
+  )
+}
+
+// Export as Node for workbench auto-discovery
+export { CustomNode as Node }
+```
+
+#### Flow State Management
+```tsx
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { Node, Edge } from '@xyflow/react'
+
+interface FlowState {
+  nodes: Node[]
+  edges: Edge[]
+  selectedFlowId?: string
+  setNodes: (nodes: Node[]) => void
+  setEdges: (edges: Edge[]) => void
+  selectFlow: (flowId: string) => void
+  updateNodePosition: (nodeId: string, position: { x: number; y: number }) => void
+}
+
+export const useFlowStore = create(
+  persist<FlowState>(
+    (set, get) => ({
+      nodes: [],
+      edges: [],
+      setNodes: (nodes) => set({ nodes }),
+      setEdges: (edges) => set({ edges }),
+      selectFlow: (flowId) => set({ selectedFlowId: flowId }),
+      updateNodePosition: (nodeId, position) => {
+        const { nodes } = get()
+        const updatedNodes = nodes.map(node =>
+          node.id === nodeId ? { ...node, position } : node
+        )
+        set({ nodes: updatedNodes })
+      },
+    }),
+    {
+      name: 'motia-flow-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)
+```
+
+### Zustand State Management Guidelines
+
+The workbench uses Zustand for centralized state management, providing a lightweight and performant solution for managing application state, user preferences, and real-time data.
+
+#### Core Zustand Principles for Workbench
+
+1. **Single Responsibility**: Each store manages a specific domain
+2. **Immutable Updates**: Always use immutable state updates
+3. **Selector Optimization**: Use fine-grained selectors to prevent unnecessary re-renders
+4. **Persistence**: Use persist middleware for user preferences and settings
+5. **Subscription Management**: Use subscribeWithSelector for complex state reactions
+
+#### Store Architecture Pattern
+```tsx
+import { create } from 'zustand'
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware'
+import { immer } from 'zustand/middleware/immer'
+
+// Define state interface with clear separation
+interface WorkbenchState {
+  // UI State
+  ui: {
+    activeTab: string
+    sidebarOpen: boolean
+    panelSizes: Record<string, number>
+    selectedNodeId?: string
+    draggedItem?: DraggedItem
+  }
+  
+  // Data State
+  data: {
+    flows: Flow[]
+    currentFlow?: Flow
+    logs: LogEntry[]
+    traces: TraceData[]
+    states: StateEntry[]
+  }
+  
+  // Loading States
+  loading: {
+    flows: boolean
+    logs: boolean
+    traces: boolean
+  }
+  
+  // Error States
+  errors: {
+    flows?: string
+    logs?: string
+    traces?: string
+  }
+  
+  // Actions (grouped by domain)
+  ui: {
+    setActiveTab: (tab: string) => void
+    toggleSidebar: () => void
+    updatePanelSize: (panelId: string, size: number) => void
+    selectNode: (nodeId?: string) => void
+    setDraggedItem: (item?: DraggedItem) => void
+  }
+  
+  data: {
+    setFlows: (flows: Flow[]) => void
+    setCurrentFlow: (flow?: Flow) => void
+    addLog: (log: LogEntry) => void
+    clearLogs: () => void
+    addTrace: (trace: TraceData) => void
+    updateState: (stateEntry: StateEntry) => void
+  }
+  
+  loading: {
+    setFlowsLoading: (loading: boolean) => void
+    setLogsLoading: (loading: boolean) => void
+    setTracesLoading: (loading: boolean) => void
+  }
+  
+  errors: {
+    setFlowsError: (error?: string) => void
+    setLogsError: (error?: string) => void
+    setTracesError: (error?: string) => void
+    clearErrors: () => void
+  }
+}
+
+// Store implementation with middleware composition
+export const useWorkbenchStore = create<WorkbenchState>()(
+  subscribeWithSelector(
+    immer((set, get) => ({
+      // Initial state
+      ui: {
+        activeTab: 'flow',
+        sidebarOpen: true,
+        panelSizes: {},
+        selectedNodeId: undefined,
+        draggedItem: undefined,
+      },
+      
+      data: {
+        flows: [],
+        currentFlow: undefined,
+        logs: [],
+        traces: [],
+        states: [],
+      },
+      
+      loading: {
+        flows: false,
+        logs: false,
+        traces: false,
+      },
+      
+      errors: {
+        flows: undefined,
+        logs: undefined,
+        traces: undefined,
+      },
+      
+      // UI Actions
+      ui: {
+        setActiveTab: (tab) => set((state) => {
+          state.ui.activeTab = tab
+        }),
+        
+        toggleSidebar: () => set((state) => {
+          state.ui.sidebarOpen = !state.ui.sidebarOpen
+        }),
+        
+        updatePanelSize: (panelId, size) => set((state) => {
+          state.ui.panelSizes[panelId] = size
+        }),
+        
+        selectNode: (nodeId) => set((state) => {
+          state.ui.selectedNodeId = nodeId
+        }),
+        
+        setDraggedItem: (item) => set((state) => {
+          state.ui.draggedItem = item
+        }),
+      },
+      
+      // Data Actions
+      data: {
+        setFlows: (flows) => set((state) => {
+          state.data.flows = flows
+          // Auto-select first flow if none selected
+          if (!state.data.currentFlow && flows.length > 0) {
+            state.data.currentFlow = flows[0]
+          }
+        }),
+        
+        setCurrentFlow: (flow) => set((state) => {
+          state.data.currentFlow = flow
+          // Clear node selection when flow changes
+          state.ui.selectedNodeId = undefined
+        }),
+        
+        addLog: (log) => set((state) => {
+          state.data.logs.push(log)
+          // Keep only last 1000 logs for performance
+          if (state.data.logs.length > 1000) {
+            state.data.logs = state.data.logs.slice(-1000)
+          }
+        }),
+        
+        clearLogs: () => set((state) => {
+          state.data.logs = []
+        }),
+        
+        addTrace: (trace) => set((state) => {
+          state.data.traces.push(trace)
+          // Keep only last 500 traces
+          if (state.data.traces.length > 500) {
+            state.data.traces = state.data.traces.slice(-500)
+          }
+        }),
+        
+        updateState: (stateEntry) => set((state) => {
+          const existingIndex = state.data.states.findIndex(
+            s => s.groupId === stateEntry.groupId && s.key === stateEntry.key
+          )
+          
+          if (existingIndex >= 0) {
+            state.data.states[existingIndex] = stateEntry
+          } else {
+            state.data.states.push(stateEntry)
+          }
+        }),
+      },
+      
+      // Loading Actions
+      loading: {
+        setFlowsLoading: (loading) => set((state) => {
+          state.loading.flows = loading
+        }),
+        
+        setLogsLoading: (loading) => set((state) => {
+          state.loading.logs = loading
+        }),
+        
+        setTracesLoading: (loading) => set((state) => {
+          state.loading.traces = loading
+        }),
+      },
+      
+      // Error Actions
+      errors: {
+        setFlowsError: (error) => set((state) => {
+          state.errors.flows = error
+        }),
+        
+        setLogsError: (error) => set((state) => {
+          state.errors.logs = error
+        }),
+        
+        setTracesError: (error) => set((state) => {
+          state.errors.traces = error
+        }),
+        
+        clearErrors: () => set((state) => {
+          state.errors = {}
+        }),
+      },
+    }))
+  )
+)
+```
+
+#### Persistent State Management
+```tsx
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+
+// User preferences that should persist across sessions
+interface UserPreferences {
+  // UI Preferences
+  theme: 'light' | 'dark' | 'system'
+  flowLayout: 'horizontal' | 'vertical'
+  compactMode: boolean
+  showMinimap: boolean
+  
+  // Editor Preferences
+  editorTheme: 'vs-dark' | 'vs-light'
+  fontSize: number
+  wordWrap: boolean
+  
+  // Log Preferences
+  logLevel: 'debug' | 'info' | 'warn' | 'error'
+  logFormat: 'json' | 'text'
+  maxLogEntries: number
+  
+  // Panel Preferences
+  defaultPanelSizes: Record<string, number>
+  collapsedPanels: string[]
+  
+  // Flow Preferences
+  autoLayout: boolean
+  snapToGrid: boolean
+  gridSize: number
+  
+  // Actions
+  setTheme: (theme: 'light' | 'dark' | 'system') => void
+  setFlowLayout: (layout: 'horizontal' | 'vertical') => void
+  toggleCompactMode: () => void
+  toggleMinimap: () => void
+  setEditorTheme: (theme: 'vs-dark' | 'vs-light') => void
+  setFontSize: (size: number) => void
+  toggleWordWrap: () => void
+  setLogLevel: (level: 'debug' | 'info' | 'warn' | 'error') => void
+  setLogFormat: (format: 'json' | 'text') => void
+  setMaxLogEntries: (max: number) => void
+  updateDefaultPanelSize: (panelId: string, size: number) => void
+  togglePanelCollapsed: (panelId: string) => void
+  toggleAutoLayout: () => void
+  toggleSnapToGrid: () => void
+  setGridSize: (size: number) => void
+  resetToDefaults: () => void
+}
+
+const defaultPreferences = {
+  theme: 'dark' as const,
+  flowLayout: 'horizontal' as const,
+  compactMode: false,
+  showMinimap: true,
+  editorTheme: 'vs-dark' as const,
+  fontSize: 14,
+  wordWrap: true,
+  logLevel: 'info' as const,
+  logFormat: 'text' as const,
+  maxLogEntries: 1000,
+  defaultPanelSizes: {
+    'flow-panel': 70,
+    'logs-panel': 30,
+    'sidebar': 250,
+  },
+  collapsedPanels: [],
+  autoLayout: true,
+  snapToGrid: false,
+  gridSize: 20,
+}
+
+export const usePreferencesStore = create<UserPreferences>()(
+  persist(
+    (set, get) => ({
+      ...defaultPreferences,
+      
+      setTheme: (theme) => set({ theme }),
+      setFlowLayout: (flowLayout) => set({ flowLayout }),
+      toggleCompactMode: () => set((state) => ({ compactMode: !state.compactMode })),
+      toggleMinimap: () => set((state) => ({ showMinimap: !state.showMinimap })),
+      
+      setEditorTheme: (editorTheme) => set({ editorTheme }),
+      setFontSize: (fontSize) => set({ fontSize: Math.max(10, Math.min(24, fontSize)) }),
+      toggleWordWrap: () => set((state) => ({ wordWrap: !state.wordWrap })),
+      
+      setLogLevel: (logLevel) => set({ logLevel }),
+      setLogFormat: (logFormat) => set({ logFormat }),
+      setMaxLogEntries: (maxLogEntries) => set({ 
+        maxLogEntries: Math.max(100, Math.min(10000, maxLogEntries)) 
+      }),
+      
+      updateDefaultPanelSize: (panelId, size) => set((state) => ({
+        defaultPanelSizes: { ...state.defaultPanelSizes, [panelId]: size }
+      })),
+      
+      togglePanelCollapsed: (panelId) => set((state) => {
+        const collapsed = state.collapsedPanels.includes(panelId)
+        return {
+          collapsedPanels: collapsed
+            ? state.collapsedPanels.filter(id => id !== panelId)
+            : [...state.collapsedPanels, panelId]
+        }
+      }),
+      
+      toggleAutoLayout: () => set((state) => ({ autoLayout: !state.autoLayout })),
+      toggleSnapToGrid: () => set((state) => ({ snapToGrid: !state.snapToGrid })),
+      setGridSize: (gridSize) => set({ gridSize: Math.max(5, Math.min(50, gridSize)) }),
+      
+      resetToDefaults: () => set(defaultPreferences),
+    }),
+    {
+      name: 'motia-workbench-preferences',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        // Only persist certain fields
+        theme: state.theme,
+        flowLayout: state.flowLayout,
+        compactMode: state.compactMode,
+        showMinimap: state.showMinimap,
+        editorTheme: state.editorTheme,
+        fontSize: state.fontSize,
+        wordWrap: state.wordWrap,
+        logLevel: state.logLevel,
+        logFormat: state.logFormat,
+        maxLogEntries: state.maxLogEntries,
+        defaultPanelSizes: state.defaultPanelSizes,
+        collapsedPanels: state.collapsedPanels,
+        autoLayout: state.autoLayout,
+        snapToGrid: state.snapToGrid,
+        gridSize: state.gridSize,
+      }),
+    }
+  )
+)
+```
+
+#### Selector Hooks for Performance
+```tsx
+// Create optimized selector hooks to prevent unnecessary re-renders
+export const useWorkbenchSelectors = () => {
+  // UI Selectors
+  const activeTab = useWorkbenchStore((state) => state.ui.activeTab)
+  const sidebarOpen = useWorkbenchStore((state) => state.ui.sidebarOpen)
+  const selectedNodeId = useWorkbenchStore((state) => state.ui.selectedNodeId)
+  const panelSizes = useWorkbenchStore((state) => state.ui.panelSizes)
+  
+  // Data Selectors
+  const flows = useWorkbenchStore((state) => state.data.flows)
+  const currentFlow = useWorkbenchStore((state) => state.data.currentFlow)
+  const logs = useWorkbenchStore((state) => state.data.logs)
+  const traces = useWorkbenchStore((state) => state.data.traces)
+  const states = useWorkbenchStore((state) => state.data.states)
+  
+  // Loading Selectors
+  const isLoading = useWorkbenchStore((state) => 
+    state.loading.flows || state.loading.logs || state.loading.traces
+  )
+  const flowsLoading = useWorkbenchStore((state) => state.loading.flows)
+  const logsLoading = useWorkbenchStore((state) => state.loading.logs)
+  const tracesLoading = useWorkbenchStore((state) => state.loading.traces)
+  
+  // Error Selectors
+  const hasErrors = useWorkbenchStore((state) => 
+    Boolean(state.errors.flows || state.errors.logs || state.errors.traces)
+  )
+  const errors = useWorkbenchStore((state) => state.errors)
+  
+  return {
+    // UI
+    activeTab,
+    sidebarOpen,
+    selectedNodeId,
+    panelSizes,
+    
+    // Data
+    flows,
+    currentFlow,
+    logs,
+    traces,
+    states,
+    
+    // Loading
+    isLoading,
+    flowsLoading,
+    logsLoading,
+    tracesLoading,
+    
+    // Errors
+    hasErrors,
+    errors,
+  }
+}
+
+// Computed selectors with memoization
+export const useWorkbenchComputed = () => {
+  const currentFlow = useWorkbenchStore((state) => state.data.currentFlow)
+  const selectedNodeId = useWorkbenchStore((state) => state.ui.selectedNodeId)
+  const logs = useWorkbenchStore((state) => state.data.logs)
+  const logLevel = usePreferencesStore((state) => state.logLevel)
+  
+  // Memoized computed values
+  const selectedNode = useMemo(() => 
+    currentFlow?.steps.find(step => step.id === selectedNodeId),
+    [currentFlow, selectedNodeId]
+  )
+  
+  const filteredLogs = useMemo(() => {
+    const levelPriority = { debug: 0, info: 1, warn: 2, error: 3 }
+    const minPriority = levelPriority[logLevel]
+    
+    return logs.filter(log => levelPriority[log.level] >= minPriority)
+  }, [logs, logLevel])
+  
+  const flowStatistics = useMemo(() => {
+    if (!currentFlow) return null
+    
+    return {
+      totalSteps: currentFlow.steps.length,
+      eventSteps: currentFlow.steps.filter(s => s.type === 'event').length,
+      apiSteps: currentFlow.steps.filter(s => s.type === 'api').length,
+      cronSteps: currentFlow.steps.filter(s => s.type === 'cron').length,
+      languages: [...new Set(currentFlow.steps.map(s => s.language).filter(Boolean))],
+    }
+  }, [currentFlow])
+  
+  return {
+    selectedNode,
+    filteredLogs,
+    flowStatistics,
+  }
+}
+```
+
+#### Store Composition and Modularity
+```tsx
+// Create focused stores for specific domains
+interface FlowStoreState {
+  flows: Flow[]
+  currentFlowId?: string
+  nodePositions: Record<string, { x: number; y: number }>
+  
+  setFlows: (flows: Flow[]) => void
+  setCurrentFlow: (flowId?: string) => void
+  updateNodePosition: (nodeId: string, position: { x: number; y: number }) => void
+  resetNodePositions: () => void
+}
+
+export const useFlowStore = create<FlowStoreState>()(
+  persist(
+    (set, get) => ({
+      flows: [],
+      currentFlowId: undefined,
+      nodePositions: {},
+      
+      setFlows: (flows) => set({ flows }),
+      setCurrentFlow: (flowId) => set({ currentFlowId: flowId }),
+      updateNodePosition: (nodeId, position) => set((state) => ({
+        nodePositions: { ...state.nodePositions, [nodeId]: position }
+      })),
+      resetNodePositions: () => set({ nodePositions: {} }),
+    }),
+    {
+      name: 'motia-flow-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)
+
+// Logs store for real-time log management
+interface LogsStoreState {
+  logs: LogEntry[]
+  filters: LogFilters
+  
+  addLog: (log: LogEntry) => void
+  addLogs: (logs: LogEntry[]) => void
+  clearLogs: () => void
+  setFilters: (filters: LogFilters) => void
+}
+
+export const useLogsStore = create<LogsStoreState>((set, get) => ({
+  logs: [],
+  filters: {
+    level: 'info',
+    search: '',
+    timeRange: '1h',
+  },
+  
+  addLog: (log) => set((state) => ({
+    logs: [...state.logs, log].slice(-1000) // Keep last 1000 logs
+  })),
+  
+  addLogs: (newLogs) => set((state) => ({
+    logs: [...state.logs, ...newLogs].slice(-1000)
+  })),
+  
+  clearLogs: () => set({ logs: [] }),
+  setFilters: (filters) => set({ filters }),
+}))
+```
+
+#### Store Integration with React Components
+```tsx
+// Component using multiple stores with proper selectors
+export const FlowWorkspace: React.FC = () => {
+  // Use specific selectors to prevent unnecessary re-renders
+  const currentFlow = useWorkbenchStore((state) => state.data.currentFlow)
+  const selectedNodeId = useWorkbenchStore((state) => state.ui.selectedNodeId)
+  const { selectNode } = useWorkbenchStore((state) => state.ui)
+  
+  // Preferences
+  const { flowLayout, autoLayout } = usePreferencesStore((state) => ({
+    flowLayout: state.flowLayout,
+    autoLayout: state.autoLayout,
+  }))
+  
+  // Computed values
+  const { selectedNode } = useWorkbenchComputed()
+  
+  const handleNodeSelect = useCallback((nodeId: string) => {
+    selectNode(nodeId)
+  }, [selectNode])
+  
+  return (
+    <div className={`flow-workspace ${flowLayout}`}>
+      <FlowCanvas
+        flow={currentFlow}
+        selectedNodeId={selectedNodeId}
+        onNodeSelect={handleNodeSelect}
+        autoLayout={autoLayout}
+      />
+      {selectedNode && (
+        <NodeInspector node={selectedNode} />
+      )}
+    </div>
+  )
+}
+```
+
+#### State Synchronization Patterns
+```tsx
+// Synchronize store state with external data sources
+export const useStoreSync = () => {
+  const { setFlows, setCurrentFlow } = useWorkbenchStore((state) => state.data)
+  const { setFlowsLoading, setFlowsError } = useWorkbenchStore((state) => state.loading)
+  
+  // Sync flows from API
+  const syncFlows = useCallback(async () => {
+    setFlowsLoading(true)
+    setFlowsError(undefined)
+    
+    try {
+      const response = await fetch('/__motia/flows')
+      const flows = await response.json()
+      setFlows(flows)
+      
+      // Auto-select first flow if none selected
+      const currentFlowId = useWorkbenchStore.getState().data.currentFlow?.id
+      if (!currentFlowId && flows.length > 0) {
+        setCurrentFlow(flows[0])
+      }
+    } catch (error) {
+      setFlowsError(error.message)
+    } finally {
+      setFlowsLoading(false)
+    }
+  }, [setFlows, setCurrentFlow, setFlowsLoading, setFlowsError])
+  
+  // Auto-sync on mount and periodically
+  useEffect(() => {
+    syncFlows()
+    const interval = setInterval(syncFlows, 30000) // Sync every 30 seconds
+    return () => clearInterval(interval)
+  }, [syncFlows])
+  
+  return { syncFlows }
+}
+```
+
+#### Testing Zustand Stores
+```tsx
+import { renderHook, act } from '@testing-library/react'
+import { useWorkbenchStore } from '../stores/use-workbench-store'
+
+describe('useWorkbenchStore', () => {
+  beforeEach(() => {
+    // Reset store before each test
+    useWorkbenchStore.setState({
+      ui: { activeTab: 'flow', sidebarOpen: true, panelSizes: {}, selectedNodeId: undefined },
+      data: { flows: [], currentFlow: undefined, logs: [], traces: [], states: [] },
+      loading: { flows: false, logs: false, traces: false },
+      errors: {},
+    })
+  })
+
+  it('should update active tab correctly', () => {
+    const { result } = renderHook(() => useWorkbenchStore())
+
+    act(() => {
+      result.current.ui.setActiveTab('logs')
+    })
+
+    expect(result.current.ui.activeTab).toBe('logs')
+  })
+
+  it('should manage logs with size limit', () => {
+    const { result } = renderHook(() => useWorkbenchStore())
+
+    // Add logs beyond limit
+    act(() => {
+      for (let i = 0; i < 1100; i++) {
+        result.current.data.addLog({
+          id: `log-${i}`,
+          level: 'info',
+          message: `Log message ${i}`,
+          timestamp: new Date().toISOString(),
+        })
+      }
+    })
+
+    // Should keep only last 1000 logs
+    expect(result.current.data.logs).toHaveLength(1000)
+    expect(result.current.data.logs[0].id).toBe('log-100')
+    expect(result.current.data.logs[999].id).toBe('log-1099')
+  })
+})
+```
+
+## Real-time Data Integration
+
+### Stream Client Integration
+```tsx
+import { useStreamSubscription } from '@motiadev/stream-client-react'
+import { useAppStore } from '../stores/use-app-store'
+
+// Real-time logs subscription
+export const useLogStream = () => {
+  const addLog = useAppStore((state) => state.addLog)
+  
+  useStreamSubscription({
+    stream: 'logs',
+    onMessage: (log) => {
+      addLog({
+        id: log.id,
+        timestamp: log.timestamp,
+        level: log.level,
+        message: log.message,
+        metadata: log.metadata,
+      })
+    },
+    onError: (error) => {
+      console.error('Log stream error:', error)
+    },
+  })
+}
+
+// Real-time flow state subscription
+export const useFlowStateStream = (flowId: string) => {
+  const updateFlowState = useFlowStore((state) => state.updateFlowState)
+  
+  useStreamSubscription({
+    stream: `flow-state-${flowId}`,
+    onMessage: (stateUpdate) => {
+      updateFlowState(stateUpdate)
+    },
+  })
+}
+```
+
+### Live Data Hooks
+```tsx
+import { useEffect, useState } from 'react'
+import { useStreamSubscription } from '@motiadev/stream-client-react'
+
+// Generic live data hook
+export const useLiveData = <T>(endpoint: string, initialData: T) => {
+  const [data, setData] = useState<T>(initialData)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  // Initial fetch
+  useEffect(() => {
+    fetch(endpoint)
+      .then(res => res.json())
+      .then(data => {
+        setData(data)
+        setLoading(false)
+      })
+      .catch(err => {
+        setError(err)
+        setLoading(false)
+      })
+  }, [endpoint])
+
+  // Real-time updates
+  useStreamSubscription({
+    stream: endpoint.replace('/', '-'),
+    onMessage: (update) => {
+      setData(update)
+    },
+    onError: (err) => {
+      setError(err)
+    },
+  })
+
+  return { data, loading, error }
+}
+```
+
+## Component Architecture
+
+### Layout Components
+```tsx
+import React, { PropsWithChildren } from 'react'
+import { Panel, Separator } from '@motiadev/ui'
+import { useAppStore } from '../stores/use-app-store'
+
+// Main layout component
+export const WorkbenchLayout: React.FC<PropsWithChildren> = ({ children }) => {
+  const sidebarOpen = useAppStore((state) => state.sidebarOpen)
+  const toggleSidebar = useAppStore((state) => state.toggleSidebar)
+
+  return (
+    <div className="h-screen grid grid-cols-[auto_1fr] bg-background text-foreground">
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <div className="w-64 border-r border-border">
+          <WorkbenchSidebar />
+        </div>
+      )}
+      
+      {/* Main content */}
+      <main className="flex-1 overflow-hidden">
+        {children}
+      </main>
+    </div>
+  )
+}
+
+// Panel-based layout
+export const PanelLayout: React.FC<{
+  topContent: React.ReactNode
+  bottomContent: React.ReactNode
+  defaultSizes?: [number, number]
+}> = ({ topContent, bottomContent, defaultSizes = [70, 30] }) => {
+  return (
+    <div className="h-full flex flex-col">
+      <div style={{ height: `${defaultSizes[0]}%` }} className="overflow-hidden">
+        {topContent}
+      </div>
+      <Separator />
+      <div style={{ height: `${defaultSizes[1]}%` }} className="overflow-hidden">
+        {bottomContent}
+      </div>
+    </div>
+  )
+}
+```
+
+### Interactive Components
+```tsx
+import React, { useState, useCallback } from 'react'
+import { Button, Input, Select } from '@motiadev/ui'
+
+// Log filter component
+export const LogFilter: React.FC<{
+  onFilterChange: (filter: LogFilter) => void
+}> = ({ onFilterChange }) => {
+  const [level, setLevel] = useState<string>('all')
+  const [search, setSearch] = useState<string>('')
+  const [timeRange, setTimeRange] = useState<string>('1h')
+
+  const handleFilterChange = useCallback(() => {
+    onFilterChange({
+      level: level === 'all' ? undefined : level,
+      search: search || undefined,
+      timeRange,
+    })
+  }, [level, search, timeRange, onFilterChange])
+
+  return (
+    <div className="flex gap-2 p-2 border-b border-border">
+      <Select value={level} onValueChange={setLevel}>
+        <option value="all">All Levels</option>
+        <option value="debug">Debug</option>
+        <option value="info">Info</option>
+        <option value="warn">Warning</option>
+        <option value="error">Error</option>
+      </Select>
+      
+      <Input
+        placeholder="Search logs..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="flex-1"
+      />
+      
+      <Select value={timeRange} onValueChange={setTimeRange}>
+        <option value="5m">Last 5 minutes</option>
+        <option value="1h">Last hour</option>
+        <option value="24h">Last 24 hours</option>
+        <option value="all">All time</option>
+      </Select>
+      
+      <Button onClick={handleFilterChange} size="sm">
+        Apply Filter
+      </Button>
+    </div>
+  )
+}
+```
+
+## File Structure Guidelines
+
+### Directory Organization
+```
+packages/workbench/src/
+├── components/
+│   ├── flow/                     # Flow visualization components
+│   │   ├── nodes/               # Node components
+│   │   ├── hooks/               # Flow-specific hooks
+│   │   └── flow-view.tsx        # Main flow component
+│   ├── logs/                    # Log monitoring components
+│   ├── states/                  # State management UI
+│   ├── observability/           # Tracing and monitoring
+│   └── ui/                      # Workbench-specific UI components
+├── stores/                      # Zustand stores
+├── hooks/                       # Shared hooks
+├── publicComponents/            # Public API components
+│   ├── base-node/              # Base node system
+│   ├── event-node.tsx          # Node implementations
+│   └── node-props.tsx          # Node type definitions
+├── types/                       # TypeScript definitions
+└── lib/                        # Utilities and helpers
+```
+
+### Naming Conventions
+- **Components**: Use PascalCase (`FlowView`, `LogMonitor`)
+- **Files**: Use kebab-case (`flow-view.tsx`, `log-monitor.tsx`)
+- **Stores**: Use camelCase with `use` prefix (`useFlowStore`)
+- **Hooks**: Use camelCase with `use` prefix (`useLogStream`)
+- **Types**: Use PascalCase (`FlowNode`, `LogEntry`)
+
+### Export Patterns
+```tsx
+// Public API exports (index.ts)
+export { EventNode, ApiNode, CronNode, NoopNode } from './publicComponents'
+export { BaseNode, BaseHandle } from './publicComponents/base-node'
+export type { EventNodeProps, ApiNodeProps, BaseNodeProps } from './publicComponents/node-props'
+
+// Component exports
+export { FlowView } from './components/flow/flow-view'
+export { LogMonitor } from './components/logs/log-monitor'
+
+// Store exports
+export { useFlowStore } from './stores/use-flow-store'
+export { useAppStore } from './stores/use-app-store'
+```
+
+## Testing Best Practices
+
+### Component Testing
+```tsx
+import { render, screen, fireEvent } from '@testing-library/react'
+import { EventNode } from '../event-node'
+import { ReactFlowProvider } from '@xyflow/react'
+
+// Test wrapper for flow components
+const FlowTestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <ReactFlowProvider>
+    <div style={{ width: '100vw', height: '100vh' }}>
+      {children}
+    </div>
+  </ReactFlowProvider>
+)
+
+describe('EventNode', () => {
+  const mockData = {
+    id: 'test-node',
+    name: 'Test Event',
+    type: 'event' as const,
+    description: 'Test description',
+    subscribes: ['test.event'],
+    emits: ['test.output'],
+    language: 'typescript',
+  }
+
+  it('renders node with correct title', () => {
+    render(
+      <FlowTestWrapper>
+        <EventNode data={mockData} />
+      </FlowTestWrapper>
+    )
+    
+    expect(screen.getByText('Test Event')).toBeInTheDocument()
+    expect(screen.getByText('Test description')).toBeInTheDocument()
+  })
+
+  it('shows handles when node has connections', () => {
+    render(
+      <FlowTestWrapper>
+        <EventNode data={mockData} />
+      </FlowTestWrapper>
+    )
+    
+    // Should have both source and target handles
+    expect(screen.getByTestId('source-handle')).toBeInTheDocument()
+    expect(screen.getByTestId('target-handle')).toBeInTheDocument()
+  })
+})
+```
+
+### Store Testing
+```tsx
+import { renderHook, act } from '@testing-library/react'
+import { useFlowStore } from '../use-flow-store'
+
+describe('useFlowStore', () => {
+  beforeEach(() => {
+    // Reset store before each test
+    useFlowStore.getState().reset?.()
+  })
+
+  it('should select flow correctly', () => {
+    const { result } = renderHook(() => useFlowStore())
+
+    act(() => {
+      result.current.selectFlow('test-flow-id')
+    })
+
+    expect(result.current.selectedFlowId).toBe('test-flow-id')
+  })
+
+  it('should update node positions', () => {
+    const { result } = renderHook(() => useFlowStore())
+    const testNode = { id: 'node-1', position: { x: 0, y: 0 } }
+
+    act(() => {
+      result.current.setNodes([testNode])
+      result.current.updateNodePosition('node-1', { x: 100, y: 200 })
+    })
+
+    const updatedNode = result.current.nodes.find(n => n.id === 'node-1')
+    expect(updatedNode?.position).toEqual({ x: 100, y: 200 })
+  })
+})
+```
+
+## Performance Considerations
+
+### Flow Visualization Optimization
+```tsx
+import { memo, useMemo, useCallback } from 'react'
+import { Node, Edge } from '@xyflow/react'
+
+// Memoized node component
+export const OptimizedEventNode = memo<NodeProps<BaseNodeProps>>(({ data }) => {
+  // Memoize expensive calculations
+  const nodeStyle = useMemo(() => ({
+    backgroundColor: data.type === 'event' ? '#e3f2fd' : '#f3e5f5',
+    borderColor: data.type === 'event' ? '#1976d2' : '#7b1fa2',
+  }), [data.type])
+
+  // Memoize event handlers
+  const handleClick = useCallback(() => {
+    // Handle node click
+  }, [data.id])
+
+  return (
+    <div style={nodeStyle} onClick={handleClick}>
+      {/* Node content */}
+    </div>
+  )
+})
+
+// Optimize large flow rendering
+export const useOptimizedFlow = (nodes: Node[], edges: Edge[]) => {
+  // Memoize node types
+  const nodeTypes = useMemo(() => ({
+    event: OptimizedEventNode,
+    api: OptimizedApiNode,
+    cron: OptimizedCronNode,
+  }), [])
+
+  // Virtualization for large flows
+  const visibleNodes = useMemo(() => {
+    // Implement viewport culling for performance
+    return nodes.filter(node => isNodeVisible(node))
+  }, [nodes])
+
+  return { nodeTypes, visibleNodes }
+}
+```
+
+### Bundle Optimization
+```tsx
+// Lazy load heavy components
+import { lazy, Suspense } from 'react'
+
+const MonacoEditor = lazy(() => import('@monaco-editor/react'))
+const LogViewer = lazy(() => import('./components/logs/log-viewer'))
+
+export const CodeEditor: React.FC = () => (
+  <Suspense fallback={<div>Loading editor...</div>}>
+    <MonacoEditor />
+  </Suspense>
+)
+```
+
+## Examples
+
+### Good Patterns
+
+#### Custom Node Implementation
+```tsx
+// ✅ Good: Following workbench node patterns
+import React from 'react'
+import { BaseNode, BaseNodeProps } from '@motiadev/workbench'
+
+interface DatabaseNodeData extends BaseNodeProps {
+  connectionString: string
+  query: string
+}
+
+export const DatabaseNode: React.FC<{ data: DatabaseNodeData }> = ({ data }) => {
+  return (
+    <BaseNode
+      data={data}
+      variant="api"
+      title={data.name}
+      subtitle={`Database: ${data.connectionString.split('@')[1]}`}
+    >
+      <div className="space-y-2">
+        <div className="text-xs font-mono bg-muted p-2 rounded">
+          {data.query}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Connection: {data.connectionString.split('@')[0]}@***
+        </div>
+      </div>
+    </BaseNode>
+  )
+}
+```
+
+#### State Management Integration
+```tsx
+// ✅ Good: Proper store integration with selectors
+export const FlowToolbar: React.FC = () => {
+  const selectedFlowId = useFlowStore((state) => state.selectedFlowId)
+  const flows = useFlowStore((state) => state.flows)
+  const selectFlow = useFlowStore((state) => state.selectFlow)
+  
+  return (
+    <div className="flex items-center gap-2 p-2 border-b">
+      <Select value={selectedFlowId} onValueChange={selectFlow}>
+        {flows.map(flow => (
+          <option key={flow.id} value={flow.id}>
+            {flow.name}
+          </option>
+        ))}
+      </Select>
+    </div>
+  )
+}
+```
+
+### Anti-Patterns to Avoid
+
+#### Avoid Direct DOM Manipulation
+```tsx
+// ❌ Bad: Direct DOM manipulation in React
+export const BadFlowComponent = () => {
+  useEffect(() => {
+    const element = document.getElementById('flow-container')
+    element.style.transform = 'scale(0.8)'
+  }, [])
+
+  return <div id="flow-container">Flow content</div>
+}
+
+// ✅ Good: Use React state and refs
+export const GoodFlowComponent = () => {
+  const [scale, setScale] = useState(1)
+  
+  return (
+    <div 
+      style={{ transform: `scale(${scale})` }}
+      className="transition-transform"
+    >
+      Flow content
+    </div>
+  )
+}
+```
+
+#### Avoid Props Drilling
+```tsx
+// ❌ Bad: Props drilling through many components
+export const FlowContainer = ({ theme, user, settings }) => (
+  <FlowView theme={theme} user={user} settings={settings} />
+)
+
+// ✅ Good: Use stores for shared state
+export const FlowContainer = () => {
+  // Components access stores directly
+  return <FlowView />
+}
+```
+
+## Integration Guidelines
+
+### Package Integration
+- Import UI components from @motiadev/ui for consistency
+- Use @motiadev/stream-client-react for real-time data
+- Follow @motiadev/core patterns for event handling
+- Maintain separation between workbench UI and business logic
+
+### Plugin System
+```tsx
+// Plugin interface
+export interface WorkbenchPlugin {
+  id: string
+  name: string
+  version: string
+  components?: {
+    nodes?: Record<string, React.ComponentType>
+    panels?: Record<string, React.ComponentType>
+    tools?: Record<string, React.ComponentType>
+  }
+  hooks?: Record<string, () => any>
+}
+
+// Plugin registration
+export const registerPlugin = (plugin: WorkbenchPlugin) => {
+  // Register plugin components and hooks
+}
+```
+
+## Tailwind CSS and Design System Guidelines
+
+The workbench follows the Motia design system built on Tailwind CSS, ensuring consistency with the @motiadev/ui package while providing workbench-specific styling patterns for flow visualization and development tools.
+
+### CSS Architecture
+
+#### Import Structure
+```css
+/* Main CSS file structure (src/index.css) */
+@import '@motiadev/plugin-endpoint/styles.css';
+@import '@motiadev/ui/styles.css';
+@import '@motiadev/ui/globals.css';
+
+@import 'tw-animate-css';
+@config "../tailwind.config.js";
+
+/* Custom workbench animations */
+@keyframes flowDash {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -20; }
+}
+
+/* Workbench-specific styles */
+.edge-animated {
+  stroke-dasharray: 5;
+  stroke-linecap: round;
+  animation: flowDash 1s linear infinite;
+}
+```
+
+#### CSS Variables Integration
+```tsx
+// ✅ Good: Use design system CSS variables
+<div className="bg-background text-foreground border-border">
+  <div className="bg-card text-card-foreground">
+    Card content
+  </div>
+</div>
+
+// ✅ Good: Semantic color usage
+<div className="bg-muted text-muted-foreground">
+  Muted content
+</div>
+
+// ✅ Good: State-based styling
+<div className={cn(
+  'p-4 rounded-lg transition-colors',
+  isSelected ? 'bg-accent text-accent-foreground' : 'bg-card text-card-foreground'
+)}>
+  Interactive element
+</div>
+```
+
+### Workbench-Specific Design Patterns
+
+#### Flow Visualization Styling
+```tsx
+// Node styling patterns
+export const NodeContainer: React.FC<NodeContainerProps> = ({ 
+  variant, 
+  selected, 
+  className, 
+  children 
+}) => {
+  return (
+    <div
+      className={cn(
+        // Base node styles
+        'rounded-lg border transition-all duration-200',
+        'bg-card text-card-foreground shadow-sm',
+        'max-w-[350px] min-w-[200px]',
+        
+        // Variant-specific styles
+        {
+          'border-blue-500 bg-blue-50 dark:bg-blue-950': variant === 'event',
+          'border-green-500 bg-green-50 dark:bg-green-950': variant === 'api',
+          'border-orange-500 bg-orange-50 dark:bg-orange-950': variant === 'cron',
+          'border-gray-500 bg-gray-50 dark:bg-gray-950': variant === 'noop',
+        },
+        
+        // Selection state
+        {
+          'ring-2 ring-ring ring-offset-2 ring-offset-background': selected,
+          'hover:shadow-md': !selected,
+        },
+        
+        className
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+// Edge styling patterns
+export const FlowEdge: React.FC<EdgeProps> = ({ style, ...props }) => {
+  return (
+    <BaseEdge
+      style={{
+        ...style,
+        stroke: 'hsl(var(--muted-foreground))',
+        strokeWidth: 2,
+      }}
+      className="transition-all duration-200 hover:stroke-accent"
+      {...props}
+    />
+  )
+}
+```
+
+#### Layout and Panel Patterns
+```tsx
+// Layout grid patterns
+export const WorkbenchLayout: React.FC = () => {
+  return (
+    <div className="h-screen grid grid-rows-[auto_1fr] grid-cols-[auto_1fr_auto] bg-background text-foreground">
+      {/* Header */}
+      <header className="col-span-3 border-b border-border bg-card">
+        <WorkbenchHeader />
+      </header>
+      
+      {/* Sidebar */}
+      <aside className="border-r border-border bg-muted/30">
+        <WorkbenchSidebar />
+      </aside>
+      
+      {/* Main content */}
+      <main className="overflow-hidden">
+        <WorkbenchContent />
+      </main>
+      
+      {/* Right panel */}
+      <aside className="border-l border-border bg-muted/30">
+        <InspectorPanel />
+      </aside>
+    </div>
+  )
+}
+
+// Responsive panel patterns
+export const ResponsivePanel: React.FC<PanelProps> = ({ 
+  title, 
+  children, 
+  collapsible = true,
+  defaultCollapsed = false 
+}) => {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed)
+  
+  return (
+    <div className="flex flex-col h-full border border-border rounded-lg bg-card">
+      <div className="flex items-center justify-between p-3 border-b border-border">
+        <h3 className="font-semibold text-sm">{title}</h3>
+        {collapsible && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className="h-6 w-6 p-0"
+          >
+            <ChevronDown className={cn(
+              'h-4 w-4 transition-transform',
+              collapsed && 'rotate-180'
+            )} />
+          </Button>
+        )}
+      </div>
+      
+      {!collapsed && (
+        <div className="flex-1 overflow-auto p-3">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+#### Interactive Element Patterns
+```tsx
+// Log entry styling patterns
+export const LogEntry: React.FC<LogEntryProps> = ({ log, selected }) => {
+  const levelColors = {
+    debug: 'text-blue-600 dark:text-blue-400',
+    info: 'text-green-600 dark:text-green-400',
+    warn: 'text-yellow-600 dark:text-yellow-400',
+    error: 'text-red-600 dark:text-red-400',
+  }
+  
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-3 p-3 text-sm transition-colors cursor-pointer',
+        'hover:bg-muted/50 border-b border-border/50',
+        selected && 'bg-accent/20 border-accent/50'
+      )}
+    >
+      <div className={cn('w-2 h-2 rounded-full mt-2', levelColors[log.level])} />
+      <div className="flex-1 min-w-0">
+        <div className="font-mono text-xs text-muted-foreground mb-1">
+          {formatTimestamp(log.timestamp)} • {log.traceId}
+        </div>
+        <div className="break-words">{log.message}</div>
+        {log.metadata && (
+          <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-auto">
+            {JSON.stringify(log.metadata, null, 2)}
+          </pre>
+        )}
+      </div>
+    </div>
+  )
+}
+```
+
+### Design System Integration
+
+#### Color System Usage
+```tsx
+// ✅ Good: Use semantic color tokens
+<div className="bg-background text-foreground">
+  <div className="bg-card text-card-foreground border border-border">
+    <div className="bg-muted text-muted-foreground">
+      Muted content
+    </div>
+    <div className="bg-accent text-accent-foreground">
+      Accent content
+    </div>
+  </div>
+</div>
+
+// ✅ Good: State-based color usage
+<div className={cn(
+  'p-2 rounded',
+  error ? 'bg-destructive text-destructive-foreground' : 'bg-card text-card-foreground',
+  success && 'bg-green-500 text-white'
+)}>
+  Status message
+</div>
+
+// ❌ Bad: Hardcoded colors
+<div className="bg-gray-800 text-white border-gray-600">
+  Content
+</div>
+```
+
+#### Spacing and Layout
+```tsx
+// ✅ Good: Consistent spacing using design system scale
+<div className="p-4 m-2 gap-3">
+  <div className="space-y-4">
+    <div className="mb-6">Section</div>
+  </div>
+</div>
+
+// ✅ Good: Grid layouts for workbench panels
+<div className="grid grid-cols-[250px_1fr_300px] h-screen">
+  <aside>Sidebar</aside>
+  <main>Main content</main>
+  <aside>Inspector</aside>
+</div>
+
+// ✅ Good: Flexbox for component layouts
+<div className="flex items-center justify-between p-3">
+  <h2 className="font-semibold">Title</h2>
+  <Button size="sm">Action</Button>
+</div>
+```
+
+#### Typography Patterns
+```tsx
+// Workbench typography hierarchy
+export const TypographyExamples = () => (
+  <div className="space-y-4">
+    {/* Page titles */}
+    <h1 className="text-2xl font-bold text-foreground">
+      Workbench Title
+    </h1>
+    
+    {/* Section headers */}
+    <h2 className="text-lg font-semibold text-foreground">
+      Section Header
+    </h2>
+    
+    {/* Subsection headers */}
+    <h3 className="text-base font-medium text-foreground">
+      Subsection
+    </h3>
+    
+    {/* Body text */}
+    <p className="text-sm text-muted-foreground">
+      Body text content
+    </p>
+    
+    {/* Code/monospace */}
+    <code className="font-mono text-xs bg-muted px-2 py-1 rounded">
+      code snippet
+    </code>
+    
+    {/* Labels */}
+    <label className="text-xs font-medium text-foreground uppercase tracking-wide">
+      Form Label
+    </label>
+  </div>
+)
+```
+
+### Flow-Specific Design Patterns
+
+#### Node Visual Hierarchy
+```tsx
+// Node type visual differentiation
+const nodeVariants = {
+  event: {
+    container: 'border-blue-500 bg-blue-50 dark:bg-blue-950/20',
+    header: 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100',
+    icon: 'text-blue-600 dark:text-blue-400',
+  },
+  api: {
+    container: 'border-green-500 bg-green-50 dark:bg-green-950/20',
+    header: 'bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100',
+    icon: 'text-green-600 dark:text-green-400',
+  },
+  cron: {
+    container: 'border-orange-500 bg-orange-50 dark:bg-orange-950/20',
+    header: 'bg-orange-100 dark:bg-orange-900/30 text-orange-900 dark:text-orange-100',
+    icon: 'text-orange-600 dark:text-orange-400',
+  },
+  noop: {
+    container: 'border-gray-500 bg-gray-50 dark:bg-gray-950/20',
+    header: 'bg-gray-100 dark:bg-gray-900/30 text-gray-900 dark:text-gray-100',
+    icon: 'text-gray-600 dark:text-gray-400',
+  },
+}
+
+export const TypedNode: React.FC<TypedNodeProps> = ({ type, children }) => {
+  const variant = nodeVariants[type]
+  
+  return (
+    <div className={cn('rounded-lg border', variant.container)}>
+      <div className={cn('p-2 border-b border-border/50', variant.header)}>
+        <NodeIcon type={type} className={variant.icon} />
+      </div>
+      <div className="p-3">
+        {children}
+      </div>
+    </div>
+  )
+}
+```
+
+#### Animation and Transitions
+```tsx
+// Flow animation patterns
+export const AnimatedFlowElements = () => (
+  <>
+    {/* Animated edges for active flows */}
+    <style jsx>{`
+      .edge-animated {
+        stroke-dasharray: 5;
+        stroke-linecap: round;
+        animation: flowDash 1s linear infinite;
+      }
+      
+      @keyframes flowDash {
+        0% { stroke-dashoffset: 0; }
+        100% { stroke-dashoffset: -20; }
+      }
+    `}</style>
+    
+    {/* Node hover animations */}
+    <div className="transition-all duration-200 hover:scale-105 hover:shadow-lg">
+      Node content
+    </div>
+    
+    {/* Panel slide animations */}
+    <div className="transform transition-transform duration-300 ease-in-out translate-x-0 data-[state=closed]:translate-x-full">
+      Panel content
+    </div>
+  </>
+)
+
+// Loading states with animations
+export const LoadingStates = () => (
+  <div className="space-y-4">
+    {/* Skeleton loading */}
+    <div className="animate-pulse space-y-2">
+      <div className="h-4 bg-muted rounded w-3/4"></div>
+      <div className="h-4 bg-muted rounded w-1/2"></div>
+    </div>
+    
+    {/* Spinner loading */}
+    <div className="flex items-center justify-center p-8">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+    </div>
+    
+    {/* Pulse loading for real-time data */}
+    <div className="animate-pulse bg-accent/20 p-3 rounded">
+      Real-time data loading...
+    </div>
+  </div>
+)
+```
+
+### Responsive Design Patterns
+
+#### Breakpoint Usage
+```tsx
+// Responsive workbench layout
+export const ResponsiveWorkbench: React.FC = () => {
+  return (
+    <div className="h-screen">
+      {/* Desktop layout */}
+      <div className="hidden lg:grid lg:grid-cols-[250px_1fr_300px]">
+        <Sidebar />
+        <MainContent />
+        <Inspector />
+      </div>
+      
+      {/* Tablet layout */}
+      <div className="hidden md:grid md:grid-rows-[auto_1fr] lg:hidden">
+        <TabletHeader />
+        <div className="grid grid-cols-[200px_1fr]">
+          <Sidebar />
+          <MainContent />
+        </div>
+      </div>
+      
+      {/* Mobile layout */}
+      <div className="md:hidden">
+        <MobileWorkbench />
+      </div>
+    </div>
+  )
+}
+
+// Responsive panels
+export const ResponsivePanel: React.FC = () => {
+  return (
+    <div className="w-full">
+      {/* Full panel on large screens */}
+      <div className="hidden lg:block">
+        <FullPanel />
+      </div>
+      
+      {/* Collapsed panel on medium screens */}
+      <div className="hidden md:block lg:hidden">
+        <CollapsedPanel />
+      </div>
+      
+      {/* Modal panel on small screens */}
+      <div className="md:hidden">
+        <MobileModal />
+      </div>
+    </div>
+  )
+}
+```
+
+#### Mobile-First Approach
+```tsx
+// ✅ Good: Mobile-first responsive design
+<div className="w-full p-2 sm:p-4 md:p-6 lg:p-8">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {items.map(item => (
+      <div key={item.id} className="min-h-[200px] md:min-h-[250px]">
+        {item.content}
+      </div>
+    ))}
+  </div>
+</div>
+
+// ✅ Good: Responsive text sizing
+<h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">
+  Responsive Heading
+</h1>
+```
+
+### Theme and Dark Mode Integration
+
+#### Theme-Aware Components
+```tsx
+// Theme-responsive styling
+export const ThemedComponent: React.FC = () => {
+  const theme = useThemeStore((state) => state.theme)
+  
+  return (
+    <div className={cn(
+      'p-4 rounded-lg transition-colors',
+      // Light theme
+      'bg-white text-gray-900 border-gray-200',
+      // Dark theme
+      'dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700',
+      // System theme adaptation
+      'supports-[color-scheme]:bg-[color-scheme(light)] supports-[color-scheme]:dark:bg-[color-scheme(dark)]'
+    )}>
+      Theme-aware content
+    </div>
+  )
+}
+
+// Flow visualization theme integration
+export const ThemedFlowCanvas: React.FC = () => {
+  return (
+    <div className="h-full w-full">
+      <ReactFlow
+        className="bg-background"
+        style={{
+          backgroundColor: 'hsl(var(--background))',
+        }}
+      >
+        <Background 
+          variant={BackgroundVariant.Dots} 
+          gap={50} 
+          size={2} 
+          className="bg-canvas-background opacity-50 dark:opacity-30" 
+        />
+        <Controls className="bg-card border border-border" />
+        <MiniMap 
+          className="bg-card border border-border"
+          nodeColor="hsl(var(--muted))"
+          maskColor="hsl(var(--background) / 0.8)"
+        />
+      </ReactFlow>
+    </div>
+  )
+}
+```
+
+### Utility Class Patterns
+
+#### Common Workbench Utilities
+```tsx
+// Utility class combinations for workbench
+const workbenchUtils = {
+  // Panel containers
+  panel: 'bg-card border border-border rounded-lg overflow-hidden',
+  panelHeader: 'p-3 border-b border-border bg-muted/30',
+  panelContent: 'p-3 overflow-auto',
+  
+  // Interactive elements
+  interactive: 'transition-colors duration-200 hover:bg-muted/50 cursor-pointer',
+  selected: 'bg-accent/20 border-accent/50',
+  disabled: 'opacity-50 pointer-events-none',
+  
+  // Layout helpers
+  fullHeight: 'h-screen overflow-hidden',
+  scrollable: 'overflow-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent',
+  centered: 'flex items-center justify-center',
+  
+  // Text utilities
+  code: 'font-mono text-xs bg-muted px-2 py-1 rounded',
+  label: 'text-xs font-medium text-muted-foreground uppercase tracking-wide',
+  error: 'text-destructive',
+  success: 'text-green-600 dark:text-green-400',
+}
+
+// Usage in components
+export const WorkbenchPanel: React.FC = ({ title, children }) => (
+  <div className={workbenchUtils.panel}>
+    <div className={workbenchUtils.panelHeader}>
+      <h3 className="font-semibold">{title}</h3>
+    </div>
+    <div className={workbenchUtils.panelContent}>
+      {children}
+    </div>
+  </div>
+)
+```
+
+### Performance and Optimization
+
+#### CSS-in-JS Alternatives
+```tsx
+// ✅ Good: Use Tailwind classes instead of CSS-in-JS for performance
+export const OptimizedComponent: React.FC = () => (
+  <div className="bg-card p-4 rounded-lg shadow-sm">
+    Content
+  </div>
+)
+
+// ❌ Bad: Inline styles that can't be optimized
+export const UnoptimizedComponent: React.FC = () => (
+  <div style={{ 
+    backgroundColor: 'hsl(var(--card))', 
+    padding: '1rem', 
+    borderRadius: '0.5rem' 
+  }}>
+    Content
+  </div>
+)
+```
+
+#### Bundle Size Optimization
+```tsx
+// ✅ Good: Use Tailwind's purge functionality
+// tailwind.config.js
+module.exports = {
+  content: [
+    './src/**/*.{ts,tsx,js,jsx}',
+    './steps/**/*.{tsx,jsx}', // Include custom step UI
+  ],
+  // This ensures unused styles are purged
+}
+
+// ✅ Good: Conditional class loading
+const getNodeClasses = (type: string, selected: boolean) => cn(
+  'base-node-classes',
+  {
+    'event-classes': type === 'event',
+    'api-classes': type === 'api',
+    'selected-classes': selected,
+  }
+)
+```
+
+### Best Practices
+
+#### Design System Consistency
+1. **Use @motiadev/ui components**: Always prefer UI package components over custom implementations
+2. **Follow color semantics**: Use semantic color tokens (background, foreground, muted, accent)
+3. **Maintain spacing consistency**: Use design system spacing scale (p-2, p-4, gap-3, etc.)
+4. **Responsive by default**: Design mobile-first with progressive enhancement
+5. **Theme compatibility**: Ensure all custom styles work in both light and dark modes
+
+#### Performance Guidelines
+1. **Minimize custom CSS**: Prefer Tailwind utilities over custom CSS
+2. **Use CSS variables**: Leverage design system CSS variables for theming
+3. **Optimize animations**: Use transform and opacity for smooth animations
+4. **Purge unused styles**: Configure Tailwind to remove unused CSS
+5. **Bundle size awareness**: Monitor CSS bundle size and optimize accordingly
+
+#### Accessibility Considerations
+1. **Color contrast**: Ensure sufficient contrast ratios for all text
+2. **Focus indicators**: Provide clear focus indicators for interactive elements
+3. **Screen reader support**: Use semantic HTML and ARIA attributes
+4. **Keyboard navigation**: Support keyboard navigation for all interactive elements
+5. **Motion preferences**: Respect user's motion preferences with CSS media queries

@@ -1,0 +1,1088 @@
+---
+description: Development guidelines for @motiadev/stream-client-browser package focusing on browser-specific real-time communication patterns
+globs: packages/stream-client-browser/**/*.ts,packages/stream-client-browser/**/*.js
+alwaysApply: false
+---
+
+# Stream Client Browser Package Development Guide
+
+## Overview
+
+The `@motiadev/stream-client-browser` package provides browser-specific implementation of the Motia stream client, enabling real-time data streaming in web browser environments. It extends the base `@motiadev/stream-client` with native WebSocket API support and browser-specific optimizations.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - @motiadev/stream-client (base streaming functionality)
+  - @motiadev/core (for foundational utilities only)
+  - Browser-native APIs (WebSocket, localStorage, sessionStorage, etc.)
+  - Third-party browser-compatible libraries
+  - Standard JavaScript/TypeScript libraries
+- **Prohibited imports**: 
+  - Node.js specific modules (ws, http, fs, path, etc.)
+  - @motiadev/workbench, @motiadev/ui (should use React-specific package instead)
+  - motia (snap package - CLI specific)
+  - Server-side only libraries
+
+### Package Responsibility
+The stream client browser package provides:
+- Browser WebSocket adapter implementation
+- Client-side streaming capabilities
+- Integration with browser lifecycle events
+- Local storage for connection state persistence
+- Browser-specific performance optimizations
+- Offline/online state handling
+- Tab visibility and focus management
+
+## Architecture Patterns
+
+### Core Principles
+1. **Browser Native**: Use native browser WebSocket API and DOM events
+2. **Performance Optimized**: Optimize for browser performance and memory usage
+3. **Offline Resilience**: Handle network connectivity changes gracefully
+4. **Tab Management**: Manage connections across browser tabs efficiently
+5. **User Experience**: Provide smooth real-time updates without blocking UI
+
+### Browser WebSocket Adapter Implementation
+
+#### Socket Adapter Pattern
+```typescript
+import { SocketAdapter } from '@motiadev/stream-client'
+
+export class BrowserStreamSocketAdapter implements SocketAdapter {
+  private ws: WebSocket
+  private messageHandlers: Set<(message: string) => void> = new Set()
+  private openHandlers: Set<() => void> = new Set()
+  private closeHandlers: Set<() => void> = new Set()
+  private errorHandlers: Set<(error: Error) => void> = new Set()
+
+  constructor(
+    private address: string, 
+    private options?: {
+      protocols?: string | string[]
+      binaryType?: 'blob' | 'arraybuffer'
+    }
+  ) {
+    this.createConnection()
+  }
+
+  private createConnection(): void {
+    this.ws = new WebSocket(this.address, this.options?.protocols)
+    
+    if (this.options?.binaryType) {
+      this.ws.binaryType = this.options.binaryType
+    }
+    
+    this.setupEventHandlers()
+  }
+
+  private setupEventHandlers(): void {
+    this.ws.addEventListener('open', () => {
+      this.openHandlers.forEach(handler => {
+        try {
+          handler()
+        } catch (error) {
+          console.error('Error in open handler:', error)
+        }
+      })
+    })
+
+    this.ws.addEventListener('message', (event: MessageEvent) => {
+      const message = typeof event.data === 'string' 
+        ? event.data 
+        : event.data.toString()
+        
+      this.messageHandlers.forEach(handler => {
+        try {
+          handler(message)
+        } catch (error) {
+          console.error('Error in message handler:', error)
+        }
+      })
+    })
+
+    this.ws.addEventListener('close', (event: CloseEvent) => {
+      console.log(`WebSocket closed: ${event.code} ${event.reason}`)
+      this.closeHandlers.forEach(handler => {
+        try {
+          handler()
+        } catch (error) {
+          console.error('Error in close handler:', error)
+        }
+      })
+    })
+
+    this.ws.addEventListener('error', (event: Event) => {
+      const error = new Error('WebSocket error occurred')
+      console.error('WebSocket error:', event)
+      this.errorHandlers.forEach(handler => {
+        try {
+          handler(error)
+        } catch (error) {
+          console.error('Error in error handler:', error)
+        }
+      })
+    })
+  }
+
+  connect(): void {
+    if (this.ws.readyState === WebSocket.CLOSED) {
+      this.createConnection()
+    }
+  }
+
+  send(message: string): void {
+    if (this.isOpen()) {
+      this.ws.send(message)
+    } else {
+      throw new Error('WebSocket is not open')
+    }
+  }
+
+  close(): void {
+    if (this.ws) {
+      this.ws.close()
+      this.clearEventHandlers()
+    }
+  }
+
+  isOpen(): boolean {
+    return this.ws.readyState === WebSocket.OPEN
+  }
+
+  // Event handler registration
+  onMessage(callback: (message: string) => void): void {
+    this.messageHandlers.add(callback)
+  }
+
+  onOpen(callback: () => void): void {
+    this.openHandlers.add(callback)
+  }
+
+  onClose(callback: () => void): void {
+    this.closeHandlers.add(callback)
+  }
+
+  onError(callback: (error: Error) => void): void {
+    this.errorHandlers.add(callback)
+  }
+
+  private clearEventHandlers(): void {
+    this.messageHandlers.clear()
+    this.openHandlers.clear()
+    this.closeHandlers.clear()
+    this.errorHandlers.clear()
+  }
+}
+```
+
+#### Enhanced Browser Stream Client
+```typescript
+import { Stream as BaseStream } from '@motiadev/stream-client'
+import { BrowserStreamSocketAdapter } from './stream-adapter'
+
+export class Stream extends BaseStream {
+  private visibilityHandler?: () => void
+  private onlineHandler?: () => void
+  private offlineHandler?: () => void
+
+  constructor(
+    address: string, 
+    options?: {
+      reconnectOnVisibilityChange?: boolean
+      reconnectOnOnline?: boolean
+      persistConnection?: boolean
+      protocols?: string | string[]
+    }
+  ) {
+    super(() => new BrowserStreamSocketAdapter(address, {
+      protocols: options?.protocols
+    }))
+
+    if (options?.reconnectOnVisibilityChange !== false) {
+      this.setupVisibilityHandling()
+    }
+
+    if (options?.reconnectOnOnline !== false) {
+      this.setupOnlineHandling()
+    }
+
+    if (options?.persistConnection) {
+      this.setupConnectionPersistence()
+    }
+  }
+
+  private setupVisibilityHandling(): void {
+    this.visibilityHandler = () => {
+      if (document.visibilityState === 'visible' && !this.isConnected()) {
+        console.log('Tab became visible, reconnecting stream...')
+        this.reconnect()
+      }
+    }
+
+    document.addEventListener('visibilitychange', this.visibilityHandler)
+  }
+
+  private setupOnlineHandling(): void {
+    this.onlineHandler = () => {
+      console.log('Browser came online, reconnecting stream...')
+      this.reconnect()
+    }
+
+    this.offlineHandler = () => {
+      console.log('Browser went offline, stream will reconnect when online')
+    }
+
+    window.addEventListener('online', this.onlineHandler)
+    window.addEventListener('offline', this.offlineHandler)
+  }
+
+  private setupConnectionPersistence(): void {
+    // Save connection state to localStorage
+    this.onConnected(() => {
+      localStorage.setItem('motia-stream-connected', 'true')
+      localStorage.setItem('motia-stream-address', this.address)
+    })
+
+    this.onDisconnected(() => {
+      localStorage.setItem('motia-stream-connected', 'false')
+    })
+
+    // Restore connection on page load
+    window.addEventListener('load', () => {
+      const wasConnected = localStorage.getItem('motia-stream-connected') === 'true'
+      const savedAddress = localStorage.getItem('motia-stream-address')
+      
+      if (wasConnected && savedAddress === this.address) {
+        this.reconnect()
+      }
+    })
+  }
+
+  // Browser-specific convenience methods
+  isTabVisible(): boolean {
+    return document.visibilityState === 'visible'
+  }
+
+  isOnline(): boolean {
+    return navigator.onLine
+  }
+
+  waitForOnline(): Promise<void> {
+    if (this.isOnline()) {
+      return Promise.resolve()
+    }
+
+    return new Promise((resolve) => {
+      const handler = () => {
+        window.removeEventListener('online', handler)
+        resolve()
+      }
+      window.addEventListener('online', handler)
+    })
+  }
+
+  close(): void {
+    // Clean up browser event listeners
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler)
+    }
+    
+    if (this.onlineHandler) {
+      window.removeEventListener('online', this.onlineHandler)
+    }
+    
+    if (this.offlineHandler) {
+      window.removeEventListener('offline', this.offlineHandler)
+    }
+
+    super.close()
+  }
+}
+```
+
+## Browser-Specific Patterns
+
+### Tab and Window Management
+```typescript
+// Multi-tab coordination
+export class BrowserTabCoordinator {
+  private broadcastChannel?: BroadcastChannel
+  private tabId: string
+  private isLeader = false
+
+  constructor(private streamAddress: string) {
+    this.tabId = this.generateTabId()
+    
+    if ('BroadcastChannel' in window) {
+      this.setupBroadcastChannel()
+    }
+    
+    this.setupLeaderElection()
+  }
+
+  private setupBroadcastChannel(): void {
+    this.broadcastChannel = new BroadcastChannel('motia-stream-coordination')
+    
+    this.broadcastChannel.addEventListener('message', (event) => {
+      const { type, data } = event.data
+      
+      switch (type) {
+        case 'ping':
+          this.broadcastChannel?.postMessage({
+            type: 'pong',
+            data: { tabId: this.tabId, timestamp: Date.now() }
+          })
+          break
+          
+        case 'leader-election':
+          this.handleLeaderElection(data)
+          break
+          
+        case 'stream-event':
+          this.handleCrossTabStreamEvent(data)
+          break
+      }
+    })
+  }
+
+  private setupLeaderElection(): void {
+    // Simple leader election based on tab creation time
+    const tabCreationTime = Date.now()
+    localStorage.setItem(`motia-tab-${this.tabId}`, tabCreationTime.toString())
+    
+    setTimeout(() => {
+      this.electLeader()
+    }, 1000)
+  }
+
+  private electLeader(): void {
+    const allTabs = Object.keys(localStorage)
+      .filter(key => key.startsWith('motia-tab-'))
+      .map(key => ({
+        id: key.replace('motia-tab-', ''),
+        creationTime: parseInt(localStorage.getItem(key) || '0')
+      }))
+      .sort((a, b) => a.creationTime - b.creationTime)
+
+    this.isLeader = allTabs[0]?.id === this.tabId
+
+    if (this.isLeader) {
+      console.log('This tab is now the stream leader')
+      this.broadcastChannel?.postMessage({
+        type: 'leader-elected',
+        data: { leaderId: this.tabId }
+      })
+    }
+  }
+
+  private generateTabId(): string {
+    return `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }
+
+  isTabLeader(): boolean {
+    return this.isLeader
+  }
+
+  broadcastStreamEvent(event: any): void {
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage({
+        type: 'stream-event',
+        data: event
+      })
+    }
+  }
+
+  cleanup(): void {
+    localStorage.removeItem(`motia-tab-${this.tabId}`)
+    this.broadcastChannel?.close()
+  }
+}
+```
+
+### Local Storage Integration
+```typescript
+// Browser storage for stream state persistence
+export class BrowserStreamStorage {
+  private storageKey: string
+
+  constructor(streamAddress: string) {
+    this.storageKey = `motia-stream-${this.hashAddress(streamAddress)}`
+  }
+
+  // Save subscription state
+  saveSubscriptionState(subscriptions: SubscriptionState[]): void {
+    try {
+      const state = {
+        subscriptions,
+        timestamp: Date.now(),
+        version: '1.0.0'
+      }
+      
+      localStorage.setItem(this.storageKey, JSON.stringify(state))
+    } catch (error) {
+      console.warn('Failed to save subscription state:', error)
+    }
+  }
+
+  // Restore subscription state
+  loadSubscriptionState(): SubscriptionState[] {
+    try {
+      const stored = localStorage.getItem(this.storageKey)
+      if (!stored) return []
+
+      const state = JSON.parse(stored)
+      
+      // Check if state is too old (1 hour)
+      if (Date.now() - state.timestamp > 60 * 60 * 1000) {
+        this.clearSubscriptionState()
+        return []
+      }
+
+      return state.subscriptions || []
+    } catch (error) {
+      console.warn('Failed to load subscription state:', error)
+      return []
+    }
+  }
+
+  clearSubscriptionState(): void {
+    localStorage.removeItem(this.storageKey)
+  }
+
+  // Connection preferences
+  saveConnectionPreferences(preferences: ConnectionPreferences): void {
+    try {
+      localStorage.setItem(
+        `${this.storageKey}-preferences`, 
+        JSON.stringify(preferences)
+      )
+    } catch (error) {
+      console.warn('Failed to save connection preferences:', error)
+    }
+  }
+
+  loadConnectionPreferences(): ConnectionPreferences {
+    try {
+      const stored = localStorage.getItem(`${this.storageKey}-preferences`)
+      return stored ? JSON.parse(stored) : this.getDefaultPreferences()
+    } catch (error) {
+      console.warn('Failed to load connection preferences:', error)
+      return this.getDefaultPreferences()
+    }
+  }
+
+  private getDefaultPreferences(): ConnectionPreferences {
+    return {
+      reconnectInterval: 5000,
+      maxReconnectAttempts: 10,
+      heartbeatInterval: 30000,
+      enableCompression: true,
+    }
+  }
+
+  private hashAddress(address: string): string {
+    // Simple hash function for storage key
+    let hash = 0
+    for (let i = 0; i < address.length; i++) {
+      const char = address.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36)
+  }
+}
+```
+
+### Performance Optimization
+
+#### Browser-Specific Optimizations
+```typescript
+// RequestIdleCallback integration for performance
+export class BrowserPerformanceOptimizer {
+  private pendingUpdates: Map<string, any> = new Map()
+  private updateScheduled = false
+
+  constructor(private onBatchUpdate: (updates: Map<string, any>) => void) {}
+
+  scheduleUpdate(key: string, data: any): void {
+    this.pendingUpdates.set(key, data)
+    
+    if (!this.updateScheduled) {
+      this.updateScheduled = true
+      this.scheduleIdleCallback()
+    }
+  }
+
+  private scheduleIdleCallback(): void {
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        this.processPendingUpdates()
+      }, { timeout: 100 })
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(() => {
+        this.processPendingUpdates()
+      }, 16) // ~60fps
+    }
+  }
+
+  private processPendingUpdates(): void {
+    if (this.pendingUpdates.size > 0) {
+      const updates = new Map(this.pendingUpdates)
+      this.pendingUpdates.clear()
+      this.updateScheduled = false
+      
+      this.onBatchUpdate(updates)
+    }
+  }
+
+  flush(): void {
+    if (this.pendingUpdates.size > 0) {
+      this.processPendingUpdates()
+    }
+  }
+}
+
+// Intersection Observer for efficient rendering
+export class VisibilityOptimizedSubscription {
+  private observer?: IntersectionObserver
+  private isVisible = true
+
+  constructor(
+    private element: Element,
+    private subscription: StreamSubscription
+  ) {
+    this.setupVisibilityObserver()
+  }
+
+  private setupVisibilityObserver(): void {
+    if ('IntersectionObserver' in window) {
+      this.observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0]
+          this.isVisible = entry.isIntersecting
+          
+          if (this.isVisible) {
+            this.subscription.resume()
+          } else {
+            this.subscription.pause()
+          }
+        },
+        { threshold: 0.1 }
+      )
+
+      this.observer.observe(this.element)
+    }
+  }
+
+  destroy(): void {
+    if (this.observer) {
+      this.observer.disconnect()
+    }
+  }
+
+  getVisibilityState(): boolean {
+    return this.isVisible
+  }
+}
+```
+
+### Browser Lifecycle Integration
+
+#### Page Lifecycle Management
+```typescript
+// Page lifecycle aware stream management
+export class BrowserLifecycleManager {
+  private stream: Stream
+  private subscriptions: Set<StreamSubscription> = new Set()
+  private pausedOnBackground = false
+
+  constructor(stream: Stream) {
+    this.stream = stream
+    this.setupLifecycleHandlers()
+  }
+
+  private setupLifecycleHandlers(): void {
+    // Page visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.handlePageHidden()
+      } else {
+        this.handlePageVisible()
+      }
+    })
+
+    // Page unload
+    window.addEventListener('beforeunload', () => {
+      this.handlePageUnload()
+    })
+
+    // Network status changes
+    window.addEventListener('online', () => {
+      this.handleOnline()
+    })
+
+    window.addEventListener('offline', () => {
+      this.handleOffline()
+    })
+
+    // Focus/blur events
+    window.addEventListener('focus', () => {
+      this.handleWindowFocus()
+    })
+
+    window.addEventListener('blur', () => {
+      this.handleWindowBlur()
+    })
+  }
+
+  private handlePageHidden(): void {
+    console.log('Page hidden, pausing non-critical subscriptions')
+    
+    // Pause non-critical subscriptions to save bandwidth
+    this.subscriptions.forEach(subscription => {
+      if (subscription.priority !== 'critical') {
+        subscription.pause()
+        this.pausedOnBackground = true
+      }
+    })
+  }
+
+  private handlePageVisible(): void {
+    console.log('Page visible, resuming subscriptions')
+    
+    if (this.pausedOnBackground) {
+      this.subscriptions.forEach(subscription => {
+        subscription.resume()
+      })
+      this.pausedOnBackground = false
+    }
+
+    // Reconnect if connection was lost
+    if (!this.stream.isConnected()) {
+      this.stream.reconnect()
+    }
+  }
+
+  private handlePageUnload(): void {
+    console.log('Page unloading, closing stream connections')
+    this.stream.close()
+  }
+
+  private handleOnline(): void {
+    console.log('Browser came online, reconnecting stream')
+    this.stream.reconnect()
+  }
+
+  private handleOffline(): void {
+    console.log('Browser went offline, stream will reconnect when online')
+  }
+
+  private handleWindowFocus(): void {
+    // Resume real-time updates when window gains focus
+    this.subscriptions.forEach(subscription => {
+      subscription.setUpdateFrequency('normal')
+    })
+  }
+
+  private handleWindowBlur(): void {
+    // Reduce update frequency when window loses focus
+    this.subscriptions.forEach(subscription => {
+      if (subscription.priority !== 'critical') {
+        subscription.setUpdateFrequency('reduced')
+      }
+    })
+  }
+
+  addSubscription(subscription: StreamSubscription): void {
+    this.subscriptions.add(subscription)
+  }
+
+  removeSubscription(subscription: StreamSubscription): void {
+    this.subscriptions.delete(subscription)
+  }
+}
+```
+
+### Error Handling and User Experience
+
+#### Browser Error Management
+```typescript
+// Browser-specific error handling
+export class BrowserStreamErrorHandler {
+  private errorNotifications: Map<string, Date> = new Map()
+  private notificationCooldown = 30000 // 30 seconds
+
+  handleConnectionError(error: Error, streamAddress: string): void {
+    console.error('Stream connection error:', error)
+
+    // Show user-friendly notification (with cooldown)
+    const errorKey = `connection-${streamAddress}`
+    const lastNotification = this.errorNotifications.get(errorKey)
+    
+    if (!lastNotification || Date.now() - lastNotification.getTime() > this.notificationCooldown) {
+      this.showUserNotification('Connection lost. Attempting to reconnect...', 'warning')
+      this.errorNotifications.set(errorKey, new Date())
+    }
+
+    // Report to analytics if available
+    if ('gtag' in window) {
+      (window as any).gtag('event', 'stream_connection_error', {
+        error_message: error.message,
+        stream_address: streamAddress,
+      })
+    }
+  }
+
+  handleReconnectionSuccess(streamAddress: string): void {
+    console.log('Stream reconnected successfully')
+    
+    this.showUserNotification('Connection restored', 'success')
+    
+    // Clear error state
+    this.errorNotifications.delete(`connection-${streamAddress}`)
+  }
+
+  handleSubscriptionError(error: Error, subscription: SubscriptionInfo): void {
+    console.error('Subscription error:', error, subscription)
+
+    // Show specific error for subscription failures
+    this.showUserNotification(
+      `Failed to subscribe to ${subscription.streamName}`, 
+      'error'
+    )
+  }
+
+  private showUserNotification(
+    message: string, 
+    type: 'info' | 'warning' | 'error' | 'success'
+  ): void {
+    // Use Notification API if available and permitted
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Motia Stream', {
+        body: message,
+        icon: '/motia-icon.png',
+        tag: 'motia-stream-notification'
+      })
+    }
+
+    // Emit custom event for UI components to handle
+    window.dispatchEvent(new CustomEvent('motia-stream-notification', {
+      detail: { message, type, timestamp: Date.now() }
+    }))
+  }
+
+  // Request notification permission
+  async requestNotificationPermission(): Promise<boolean> {
+    if (!('Notification' in window)) {
+      return false
+    }
+
+    if (Notification.permission === 'granted') {
+      return true
+    }
+
+    if (Notification.permission === 'denied') {
+      return false
+    }
+
+    const permission = await Notification.requestPermission()
+    return permission === 'granted'
+  }
+}
+```
+
+### Service Worker Integration
+```typescript
+// Service Worker integration for background sync
+export class ServiceWorkerStreamSync {
+  private registration?: ServiceWorkerRegistration
+
+  async initialize(): Promise<void> {
+    if ('serviceWorker' in navigator) {
+      try {
+        this.registration = await navigator.serviceWorker.register('/sw-stream.js')
+        console.log('Stream Service Worker registered')
+        
+        this.setupMessageHandling()
+      } catch (error) {
+        console.warn('Service Worker registration failed:', error)
+      }
+    }
+  }
+
+  private setupMessageHandling(): void {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      const { type, data } = event.data
+      
+      switch (type) {
+        case 'stream-sync-result':
+          this.handleSyncResult(data)
+          break
+          
+        case 'stream-background-update':
+          this.handleBackgroundUpdate(data)
+          break
+      }
+    })
+  }
+
+  // Queue updates for background sync
+  queueBackgroundSync(updates: StreamUpdate[]): void {
+    if (this.registration?.active) {
+      this.registration.active.postMessage({
+        type: 'queue-stream-updates',
+        data: updates
+      })
+    }
+  }
+
+  // Handle sync results
+  private handleSyncResult(data: SyncResult): void {
+    if (data.success) {
+      console.log('Background stream sync completed')
+    } else {
+      console.error('Background stream sync failed:', data.error)
+    }
+  }
+
+  private handleBackgroundUpdate(data: StreamUpdate): void {
+    // Apply updates received while page was in background
+    window.dispatchEvent(new CustomEvent('motia-background-stream-update', {
+      detail: data
+    }))
+  }
+}
+```
+
+## Testing Best Practices
+
+### Browser Testing Patterns
+```typescript
+// Browser environment testing setup
+import { Stream } from '../stream'
+
+// Mock WebSocket for testing
+class MockWebSocket extends EventTarget implements WebSocket {
+  readonly CONNECTING = WebSocket.CONNECTING
+  readonly OPEN = WebSocket.OPEN
+  readonly CLOSING = WebSocket.CLOSING
+  readonly CLOSED = WebSocket.CLOSED
+
+  readyState = WebSocket.CONNECTING
+  url: string
+  protocol = ''
+  extensions = ''
+  binaryType: BinaryType = 'blob'
+  bufferedAmount = 0
+
+  constructor(url: string) {
+    super()
+    this.url = url
+    
+    // Simulate connection after short delay
+    setTimeout(() => {
+      this.readyState = WebSocket.OPEN
+      this.dispatchEvent(new Event('open'))
+    }, 10)
+  }
+
+  send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+    if (this.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not open')
+    }
+    
+    // Echo back for testing
+    setTimeout(() => {
+      this.dispatchEvent(new MessageEvent('message', { data }))
+    }, 5)
+  }
+
+  close(code?: number, reason?: string): void {
+    this.readyState = WebSocket.CLOSING
+    setTimeout(() => {
+      this.readyState = WebSocket.CLOSED
+      this.dispatchEvent(new CloseEvent('close', { code, reason }))
+    }, 10)
+  }
+
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject | null): void {
+    super.addEventListener(type, listener)
+  }
+
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null): void {
+    super.removeEventListener(type, listener)
+  }
+}
+
+describe('BrowserStreamClient', () => {
+  beforeEach(() => {
+    // Mock WebSocket globally
+    global.WebSocket = MockWebSocket as any
+    
+    // Mock browser APIs
+    Object.defineProperty(document, 'visibilityState', {
+      writable: true,
+      value: 'visible'
+    })
+    
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      value: true
+    })
+  })
+
+  it('should handle visibility changes', async () => {
+    const stream = new Stream('ws://test-server')
+    
+    let reconnectCalled = false
+    const originalReconnect = stream.reconnect
+    stream.reconnect = () => {
+      reconnectCalled = true
+      return originalReconnect.call(stream)
+    }
+
+    // Simulate tab becoming hidden then visible
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden' })
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    Object.defineProperty(document, 'visibilityState', { value: 'visible' })
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    // Should attempt reconnection when tab becomes visible
+    expect(reconnectCalled).toBe(true)
+    
+    stream.close()
+  })
+
+  it('should handle online/offline events', async () => {
+    const stream = new Stream('ws://test-server')
+    
+    let reconnectCalled = false
+    stream.reconnect = () => {
+      reconnectCalled = true
+      return Promise.resolve()
+    }
+
+    // Simulate going offline then online
+    Object.defineProperty(navigator, 'onLine', { value: false })
+    window.dispatchEvent(new Event('offline'))
+
+    Object.defineProperty(navigator, 'onLine', { value: true })
+    window.dispatchEvent(new Event('online'))
+
+    expect(reconnectCalled).toBe(true)
+    
+    stream.close()
+  })
+})
+```
+
+### Performance Testing
+```typescript
+// Browser performance testing
+describe('BrowserStreamPerformance', () => {
+  it('should handle rapid updates without blocking UI', async () => {
+    const stream = new Stream('ws://test-server')
+    const subscription = stream.subscribeToGroup<TestData>('perf-test', 'group1')
+    
+    let updateCount = 0
+    let uiBlocked = false
+    
+    subscription.onChange(() => {
+      updateCount++
+    })
+
+    // Monitor main thread blocking
+    const startTime = performance.now()
+    let lastFrameTime = startTime
+    
+    const frameMonitor = () => {
+      const now = performance.now()
+      const frameDuration = now - lastFrameTime
+      
+      if (frameDuration > 16.67) { // More than 60fps threshold
+        uiBlocked = true
+      }
+      
+      lastFrameTime = now
+      
+      if (now - startTime < 5000) { // Monitor for 5 seconds
+        requestAnimationFrame(frameMonitor)
+      }
+    }
+    
+    requestAnimationFrame(frameMonitor)
+
+    // Send rapid updates
+    for (let i = 0; i < 1000; i++) {
+      // Simulate server updates
+      setTimeout(() => {
+        subscription.simulateUpdate({
+          type: 'create',
+          data: { id: `item-${i}`, value: i }
+        })
+      }, i)
+    }
+
+    // Wait for all updates
+    await new Promise(resolve => setTimeout(resolve, 6000))
+
+    expect(updateCount).toBe(1000)
+    expect(uiBlocked).toBe(false) // Should not block UI thread
+    
+    subscription.close()
+    stream.close()
+  })
+})
+```
+
+## Integration Guidelines
+
+### Package Integration
+- Extends @motiadev/stream-client with browser WebSocket implementation
+- Provides client-side streaming for web applications
+- Integrates with browser lifecycle and performance APIs
+- Supports modern browser features (Service Workers, Intersection Observer)
+
+### Bundle Optimization
+```typescript
+// Tree-shaking friendly exports
+export { Stream } from './stream'
+export { BrowserStreamSocketAdapter } from './stream-adapter'
+export type { 
+  BrowserStreamOptions,
+  ConnectionPreferences,
+  SubscriptionState 
+} from './types'
+
+// Conditional feature loading
+export const createStreamWithFeatures = async (
+  address: string,
+  features: BrowserStreamFeatures
+): Promise<Stream> => {
+  const stream = new Stream(address)
+
+  if (features.serviceWorker) {
+    const { ServiceWorkerStreamSync } = await import('./service-worker-sync')
+    const swSync = new ServiceWorkerStreamSync()
+    await swSync.initialize()
+  }
+
+  if (features.tabCoordination) {
+    const { BrowserTabCoordinator } = await import('./tab-coordinator')
+    const coordinator = new BrowserTabCoordinator(address)
+  }
+
+  return stream
+}
+```
+
+### Best Practices
+1. **Browser Compatibility**: Support modern browsers with graceful degradation
+2. **Performance Awareness**: Use browser performance APIs to optimize updates
+3. **User Experience**: Handle network issues gracefully with user feedback
+4. **Memory Management**: Clean up event listeners and subscriptions properly
+5. **Offline Support**: Provide meaningful offline experiences when possible

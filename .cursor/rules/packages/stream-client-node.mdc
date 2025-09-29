@@ -1,0 +1,864 @@
+---
+description: Development guidelines for @motiadev/stream-client-node package focusing on Node.js specific real-time communication patterns
+globs: packages/stream-client-node/**/*.ts,packages/stream-client-node/**/*.js
+alwaysApply: false
+---
+
+# Stream Client Node Package Development Guide
+
+## Overview
+
+The `@motiadev/stream-client-node` package provides Node.js specific implementation of the Motia stream client, enabling real-time data streaming in server-side environments. It extends the base `@motiadev/stream-client` with Node.js WebSocket support and server-specific optimizations.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - @motiadev/stream-client (base streaming functionality)
+  - @motiadev/core (for foundational utilities only)
+  - Node.js built-in modules (ws, http, https, url, etc.)
+  - Third-party Node.js compatible libraries
+  - Standard JavaScript/TypeScript libraries
+- **Prohibited imports**: 
+  - Browser-specific APIs (DOM, window, localStorage)
+  - @motiadev/workbench, @motiadev/ui (UI-specific packages)
+  - React or other frontend framework libraries
+  - motia (snap package - CLI specific)
+
+### Package Responsibility
+The stream client node package provides:
+- Node.js WebSocket adapter implementation
+- Server-side streaming capabilities
+- Integration with Node.js event system
+- Performance optimizations for server environments
+- Connection pooling and resource management
+- Server-specific error handling and logging
+
+## Architecture Patterns
+
+### Core Principles
+1. **Node.js Native**: Leverage Node.js specific APIs and patterns
+2. **Performance Optimized**: Optimize for server-side performance and memory usage
+3. **Event Loop Friendly**: Non-blocking operations and proper async handling
+4. **Resource Management**: Proper cleanup and connection management
+5. **Scalability**: Support for high-concurrency server environments
+
+### Node.js WebSocket Adapter Implementation
+
+#### Socket Adapter Pattern
+```typescript
+import { WebSocket, MessageEvent } from 'ws'
+import { SocketAdapter } from '@motiadev/stream-client'
+
+export class NodeStreamSocketAdapter implements SocketAdapter {
+  private ws: WebSocket
+  private messageHandlers: Set<(message: string) => void> = new Set()
+  private openHandlers: Set<() => void> = new Set()
+  private closeHandlers: Set<() => void> = new Set()
+  private errorHandlers: Set<(error: Error) => void> = new Set()
+
+  constructor(private address: string, private options?: WebSocket.ClientOptions) {
+    this.createConnection()
+  }
+
+  private createConnection(): void {
+    this.ws = new WebSocket(this.address, this.options)
+    this.setupEventHandlers()
+  }
+
+  private setupEventHandlers(): void {
+    this.ws.on('open', () => {
+      this.openHandlers.forEach(handler => {
+        try {
+          handler()
+        } catch (error) {
+          console.error('Error in open handler:', error)
+        }
+      })
+    })
+
+    this.ws.on('message', (data: Buffer) => {
+      const message = data.toString('utf8')
+      this.messageHandlers.forEach(handler => {
+        try {
+          handler(message)
+        } catch (error) {
+          console.error('Error in message handler:', error)
+        }
+      })
+    })
+
+    this.ws.on('close', (code: number, reason: Buffer) => {
+      console.log(`WebSocket closed: ${code} ${reason.toString()}`)
+      this.closeHandlers.forEach(handler => {
+        try {
+          handler()
+        } catch (error) {
+          console.error('Error in close handler:', error)
+        }
+      })
+    })
+
+    this.ws.on('error', (error: Error) => {
+      console.error('WebSocket error:', error)
+      this.errorHandlers.forEach(handler => {
+        try {
+          handler(error)
+        } catch (error) {
+          console.error('Error in error handler:', error)
+        }
+      })
+    })
+  }
+
+  connect(): void {
+    if (this.ws.readyState === WebSocket.CLOSED) {
+      this.createConnection()
+    }
+  }
+
+  send(message: string): void {
+    if (this.isOpen()) {
+      this.ws.send(message)
+    } else {
+      throw new Error('WebSocket is not open')
+    }
+  }
+
+  close(): void {
+    if (this.ws) {
+      this.ws.close()
+      this.ws.removeAllListeners()
+    }
+  }
+
+  isOpen(): boolean {
+    return this.ws.readyState === WebSocket.OPEN
+  }
+
+  onMessage(callback: (message: string) => void): void {
+    this.messageHandlers.add(callback)
+  }
+
+  onOpen(callback: () => void): void {
+    this.openHandlers.add(callback)
+  }
+
+  onClose(callback: () => void): void {
+    this.closeHandlers.add(callback)
+  }
+
+  onError(callback: (error: Error) => void): void {
+    this.errorHandlers.add(callback)
+  }
+}
+```
+
+#### Stream Client Implementation
+```typescript
+import { Stream as BaseStream } from '@motiadev/stream-client'
+import { NodeStreamSocketAdapter } from './stream-adapter'
+
+export class Stream extends BaseStream {
+  constructor(
+    address: string, 
+    options?: {
+      reconnectInterval?: number
+      maxReconnectAttempts?: number
+      connectionTimeout?: number
+      headers?: Record<string, string>
+    }
+  ) {
+    super(() => new NodeStreamSocketAdapter(address, {
+      headers: options?.headers,
+      handshakeTimeout: options?.connectionTimeout || 10000,
+    }))
+  }
+
+  // Node.js specific convenience methods
+  static async createWithHealthCheck(
+    address: string,
+    healthCheckEndpoint?: string
+  ): Promise<Stream> {
+    if (healthCheckEndpoint) {
+      await this.checkHealth(healthCheckEndpoint)
+    }
+    
+    return new Stream(address)
+  }
+
+  private static async checkHealth(endpoint: string): Promise<void> {
+    const { default: fetch } = await import('node-fetch')
+    
+    try {
+      const response = await fetch(endpoint)
+      if (!response.ok) {
+        throw new Error(`Health check failed: ${response.status}`)
+      }
+    } catch (error) {
+      throw new Error(`Health check failed: ${error.message}`)
+    }
+  }
+}
+```
+
+## Node.js Specific Patterns
+
+### Server Integration
+```typescript
+import { EventEmitter } from 'events'
+import { Stream } from '@motiadev/stream-client-node'
+
+// Server-side stream manager
+export class ServerStreamManager extends EventEmitter {
+  private streams: Map<string, Stream> = new Map()
+  private connectionPool: Map<string, Stream> = new Map()
+
+  async createStream(
+    id: string, 
+    address: string, 
+    options?: StreamOptions
+  ): Promise<Stream> {
+    // Check connection pool first
+    const pooledStream = this.connectionPool.get(address)
+    if (pooledStream && pooledStream.isConnected()) {
+      this.streams.set(id, pooledStream)
+      return pooledStream
+    }
+
+    // Create new stream
+    const stream = new Stream(address, options)
+    
+    // Wait for connection
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Connection timeout'))
+      }, options?.connectionTimeout || 10000)
+
+      stream.onConnected(() => {
+        clearTimeout(timeout)
+        resolve()
+      })
+
+      stream.onError((error) => {
+        clearTimeout(timeout)
+        reject(error)
+      })
+    })
+
+    this.streams.set(id, stream)
+    this.connectionPool.set(address, stream)
+    
+    // Handle disconnection
+    stream.onDisconnected(() => {
+      this.connectionPool.delete(address)
+      this.emit('stream-disconnected', { id, address })
+    })
+
+    this.emit('stream-connected', { id, address })
+    return stream
+  }
+
+  getStream(id: string): Stream | undefined {
+    return this.streams.get(id)
+  }
+
+  async closeStream(id: string): Promise<void> {
+    const stream = this.streams.get(id)
+    if (stream) {
+      stream.close()
+      this.streams.delete(id)
+      this.emit('stream-closed', { id })
+    }
+  }
+
+  async closeAll(): Promise<void> {
+    const closePromises = Array.from(this.streams.entries()).map(
+      async ([id, stream]) => {
+        stream.close()
+        this.emit('stream-closed', { id })
+      }
+    )
+
+    await Promise.all(closePromises)
+    this.streams.clear()
+    this.connectionPool.clear()
+  }
+
+  // Health monitoring
+  getHealthStatus(): {
+    totalStreams: number
+    connectedStreams: number
+    pooledConnections: number
+  } {
+    const connectedStreams = Array.from(this.streams.values())
+      .filter(stream => stream.isConnected()).length
+
+    return {
+      totalStreams: this.streams.size,
+      connectedStreams,
+      pooledConnections: this.connectionPool.size,
+    }
+  }
+}
+```
+
+### Process Integration
+```typescript
+import { Stream } from '@motiadev/stream-client-node'
+
+// Graceful shutdown handling
+export class ProcessAwareStreamClient {
+  private streams: Set<Stream> = new Set()
+  private shutdownHandlers: Set<() => Promise<void>> = new Set()
+
+  constructor() {
+    this.setupProcessHandlers()
+  }
+
+  private setupProcessHandlers(): void {
+    // Handle graceful shutdown
+    process.on('SIGTERM', () => this.gracefulShutdown('SIGTERM'))
+    process.on('SIGINT', () => this.gracefulShutdown('SIGINT'))
+    
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error) => {
+      console.error('Uncaught exception in stream client:', error)
+      this.gracefulShutdown('uncaughtException')
+    })
+
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled rejection in stream client:', reason)
+      this.gracefulShutdown('unhandledRejection')
+    })
+  }
+
+  createStream(address: string, options?: StreamOptions): Stream {
+    const stream = new Stream(address, options)
+    this.streams.add(stream)
+
+    // Auto-remove on close
+    stream.onClose(() => {
+      this.streams.delete(stream)
+    })
+
+    return stream
+  }
+
+  addShutdownHandler(handler: () => Promise<void>): void {
+    this.shutdownHandlers.add(handler)
+  }
+
+  private async gracefulShutdown(signal: string): Promise<void> {
+    console.log(`Received ${signal}, shutting down gracefully...`)
+
+    try {
+      // Run custom shutdown handlers
+      await Promise.all(
+        Array.from(this.shutdownHandlers).map(handler => handler())
+      )
+
+      // Close all streams
+      const closePromises = Array.from(this.streams).map(stream => {
+        return new Promise<void>((resolve) => {
+          stream.onClose(() => resolve())
+          stream.close()
+          
+          // Force close after timeout
+          setTimeout(() => resolve(), 5000)
+        })
+      })
+
+      await Promise.all(closePromises)
+      console.log('All streams closed successfully')
+
+    } catch (error) {
+      console.error('Error during graceful shutdown:', error)
+    } finally {
+      process.exit(0)
+    }
+  }
+}
+```
+
+### Performance Optimization
+
+#### Connection Pooling
+```typescript
+// Connection pool for efficient resource usage
+export class NodeStreamConnectionPool {
+  private pools: Map<string, Stream[]> = new Map()
+  private activeConnections: Map<string, Stream> = new Map()
+  private maxPoolSize = 10
+  private connectionTimeout = 30000
+
+  async getConnection(address: string): Promise<Stream> {
+    // Check for existing active connection
+    const existing = this.activeConnections.get(address)
+    if (existing && existing.isConnected()) {
+      return existing
+    }
+
+    // Get from pool
+    const pool = this.pools.get(address) || []
+    const available = pool.find(stream => stream.isConnected())
+    
+    if (available) {
+      this.activeConnections.set(address, available)
+      return available
+    }
+
+    // Create new connection
+    const stream = new Stream(address, {
+      connectionTimeout: this.connectionTimeout
+    })
+
+    await this.waitForConnection(stream)
+    
+    this.activeConnections.set(address, stream)
+    this.addToPool(address, stream)
+
+    return stream
+  }
+
+  private async waitForConnection(stream: Stream): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Connection timeout'))
+      }, this.connectionTimeout)
+
+      stream.onConnected(() => {
+        clearTimeout(timeout)
+        resolve()
+      })
+
+      stream.onError((error) => {
+        clearTimeout(timeout)
+        reject(error)
+      })
+    })
+  }
+
+  private addToPool(address: string, stream: Stream): void {
+    if (!this.pools.has(address)) {
+      this.pools.set(address, [])
+    }
+
+    const pool = this.pools.get(address)!
+    
+    // Remove disconnected streams
+    const connectedStreams = pool.filter(s => s.isConnected())
+    
+    // Add new stream if pool not full
+    if (connectedStreams.length < this.maxPoolSize) {
+      connectedStreams.push(stream)
+    } else {
+      // Close oldest connection
+      const oldest = connectedStreams.shift()
+      oldest?.close()
+      connectedStreams.push(stream)
+    }
+
+    this.pools.set(address, connectedStreams)
+  }
+
+  releaseConnection(address: string): void {
+    this.activeConnections.delete(address)
+  }
+
+  closePool(address: string): void {
+    const pool = this.pools.get(address) || []
+    pool.forEach(stream => stream.close())
+    this.pools.delete(address)
+    this.activeConnections.delete(address)
+  }
+
+  closeAllPools(): void {
+    this.pools.forEach((pool) => {
+      pool.forEach(stream => stream.close())
+    })
+    this.pools.clear()
+    this.activeConnections.clear()
+  }
+}
+```
+
+### Memory Management
+```typescript
+// Memory-efficient subscription management
+export class NodeStreamSubscriptionManager {
+  private subscriptions: Map<string, WeakRef<StreamSubscription>> = new Map()
+  private cleanupInterval: NodeJS.Timeout
+
+  constructor(private cleanupIntervalMs = 60000) {
+    this.startCleanupProcess()
+  }
+
+  addSubscription(key: string, subscription: StreamSubscription): void {
+    this.subscriptions.set(key, new WeakRef(subscription))
+  }
+
+  getSubscription(key: string): StreamSubscription | undefined {
+    const ref = this.subscriptions.get(key)
+    if (!ref) return undefined
+
+    const subscription = ref.deref()
+    if (!subscription) {
+      // Subscription was garbage collected
+      this.subscriptions.delete(key)
+      return undefined
+    }
+
+    return subscription
+  }
+
+  private startCleanupProcess(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupGarbageCollectedSubscriptions()
+    }, this.cleanupIntervalMs)
+  }
+
+  private cleanupGarbageCollectedSubscriptions(): void {
+    const keysToDelete: string[] = []
+
+    for (const [key, ref] of this.subscriptions) {
+      if (!ref.deref()) {
+        keysToDelete.push(key)
+      }
+    }
+
+    keysToDelete.forEach(key => {
+      this.subscriptions.delete(key)
+    })
+
+    if (keysToDelete.length > 0) {
+      console.log(`Cleaned up ${keysToDelete.length} garbage collected subscriptions`)
+    }
+  }
+
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval)
+    }
+    this.subscriptions.clear()
+  }
+}
+```
+
+## Error Handling and Logging
+
+### Node.js Error Patterns
+```typescript
+import { EventEmitter } from 'events'
+
+export class NodeStreamErrorHandler extends EventEmitter {
+  private errorCounts: Map<string, number> = new Map()
+  private lastErrors: Map<string, Date> = new Map()
+
+  handleError(error: Error, context: {
+    streamName?: string
+    groupId?: string
+    operation?: string
+  }): void {
+    const errorKey = `${error.name}:${context.streamName || 'unknown'}`
+    
+    // Track error frequency
+    const count = this.errorCounts.get(errorKey) || 0
+    this.errorCounts.set(errorKey, count + 1)
+    this.lastErrors.set(errorKey, new Date())
+
+    // Log with structured data
+    console.error('Stream error occurred:', {
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      },
+      context,
+      count: count + 1,
+      timestamp: new Date().toISOString(),
+    })
+
+    // Emit for external handling
+    this.emit('error', error, context)
+
+    // Handle specific error types
+    if (error.name === 'ECONNREFUSED') {
+      this.emit('connection-refused', error, context)
+    } else if (error.name === 'ETIMEDOUT') {
+      this.emit('connection-timeout', error, context)
+    } else if (error.message.includes('WebSocket')) {
+      this.emit('websocket-error', error, context)
+    }
+  }
+
+  getErrorStatistics(): {
+    totalErrors: number
+    errorsByType: Record<string, number>
+    recentErrors: Array<{ type: string; count: number; lastOccurred: Date }>
+  } {
+    const totalErrors = Array.from(this.errorCounts.values())
+      .reduce((sum, count) => sum + count, 0)
+
+    const errorsByType = Object.fromEntries(this.errorCounts)
+
+    const recentErrors = Array.from(this.errorCounts.entries())
+      .map(([type, count]) => ({
+        type,
+        count,
+        lastOccurred: this.lastErrors.get(type)!
+      }))
+      .sort((a, b) => b.lastOccurred.getTime() - a.lastOccurred.getTime())
+
+    return { totalErrors, errorsByType, recentErrors }
+  }
+}
+```
+
+### Structured Logging
+```typescript
+// Node.js structured logging for streams
+export interface StreamLogContext {
+  streamName?: string
+  groupId?: string
+  itemId?: string
+  subscriptionId?: string
+  operation?: string
+  duration?: number
+}
+
+export class NodeStreamLogger {
+  constructor(private namespace = 'motia:stream-client-node') {}
+
+  info(message: string, context?: StreamLogContext): void {
+    this.log('info', message, context)
+  }
+
+  warn(message: string, context?: StreamLogContext): void {
+    this.log('warn', message, context)
+  }
+
+  error(message: string, error?: Error, context?: StreamLogContext): void {
+    this.log('error', message, {
+      ...context,
+      error: error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : undefined,
+    })
+  }
+
+  debug(message: string, context?: StreamLogContext): void {
+    if (process.env.NODE_ENV === 'development') {
+      this.log('debug', message, context)
+    }
+  }
+
+  private log(level: string, message: string, context?: any): void {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      namespace: this.namespace,
+      message,
+      ...context,
+    }
+
+    // Use console for now, can be replaced with proper logging library
+    console.log(JSON.stringify(logEntry))
+  }
+
+  // Performance logging
+  timeOperation<T>(
+    operation: string,
+    fn: () => Promise<T>,
+    context?: StreamLogContext
+  ): Promise<T> {
+    const startTime = Date.now()
+    
+    return fn().then(
+      (result) => {
+        const duration = Date.now() - startTime
+        this.info(`Operation completed: ${operation}`, {
+          ...context,
+          duration,
+          operation,
+        })
+        return result
+      },
+      (error) => {
+        const duration = Date.now() - startTime
+        this.error(`Operation failed: ${operation}`, error, {
+          ...context,
+          duration,
+          operation,
+        })
+        throw error
+      }
+    )
+  }
+}
+```
+
+## Testing Best Practices
+
+### Node.js Testing Patterns
+```typescript
+import { Stream } from '../stream'
+import { NodeStreamSocketAdapter } from '../stream-adapter'
+import { WebSocket, WebSocketServer } from 'ws'
+
+describe('NodeStreamClient', () => {
+  let server: WebSocketServer
+  let serverPort: number
+
+  beforeAll(async () => {
+    // Start test WebSocket server
+    server = new WebSocketServer({ port: 0 })
+    serverPort = (server.address() as any).port
+
+    server.on('connection', (ws) => {
+      ws.on('message', (message) => {
+        // Echo back for testing
+        ws.send(message)
+      })
+    })
+  })
+
+  afterAll(async () => {
+    server.close()
+  })
+
+  it('should connect to WebSocket server', async () => {
+    const stream = new Stream(`ws://localhost:${serverPort}`)
+    
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000)
+      
+      stream.onConnected(() => {
+        clearTimeout(timeout)
+        resolve()
+      })
+      
+      stream.onError((error) => {
+        clearTimeout(timeout)
+        reject(error)
+      })
+    })
+
+    expect(stream.isConnected()).toBe(true)
+    stream.close()
+  })
+
+  it('should handle subscription lifecycle', async () => {
+    const stream = new Stream(`ws://localhost:${serverPort}`)
+    
+    // Wait for connection
+    await new Promise<void>((resolve) => {
+      stream.onConnected(() => resolve())
+    })
+
+    const subscription = stream.subscribeToItem<TestData>('test-stream', 'group1', 'item1')
+    
+    const stateChanges: (TestData | null)[] = []
+    const unsubscribe = subscription.onChange((state) => {
+      stateChanges.push(state)
+    })
+
+    // Simulate server message
+    server.clients.forEach(client => {
+      client.send(JSON.stringify({
+        streamName: 'test-stream',
+        groupId: 'group1',
+        id: 'item1',
+        timestamp: Date.now(),
+        event: {
+          type: 'sync',
+          data: { id: 'item1', name: 'Test Item' }
+        }
+      }))
+    })
+
+    // Wait for message processing
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    expect(stateChanges).toHaveLength(1)
+    expect(stateChanges[0]).toEqual({ id: 'item1', name: 'Test Item' })
+
+    unsubscribe()
+    subscription.close()
+    stream.close()
+  })
+})
+```
+
+### Performance Testing
+```typescript
+// Performance benchmarks for Node.js streams
+describe('StreamPerformance', () => {
+  it('should handle high-frequency updates', async () => {
+    const stream = new Stream(`ws://localhost:${serverPort}`)
+    await waitForConnection(stream)
+
+    const subscription = stream.subscribeToGroup<TestData>('perf-test', 'group1')
+    
+    let updateCount = 0
+    subscription.onChange(() => {
+      updateCount++
+    })
+
+    // Send 1000 updates rapidly
+    const startTime = Date.now()
+    
+    for (let i = 0; i < 1000; i++) {
+      server.clients.forEach(client => {
+        client.send(JSON.stringify({
+          streamName: 'perf-test',
+          groupId: 'group1',
+          timestamp: Date.now(),
+          event: {
+            type: 'create',
+            data: { id: `item-${i}`, value: i }
+          }
+        }))
+      })
+    }
+
+    // Wait for all updates to process
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    const duration = Date.now() - startTime
+    const updatesPerSecond = (updateCount / duration) * 1000
+
+    console.log(`Processed ${updateCount} updates in ${duration}ms (${updatesPerSecond.toFixed(2)} updates/sec)`)
+    
+    expect(updateCount).toBe(1000)
+    expect(updatesPerSecond).toBeGreaterThan(100) // Minimum performance threshold
+
+    subscription.close()
+    stream.close()
+  })
+})
+```
+
+## Integration Guidelines
+
+### Package Integration
+- Extends @motiadev/stream-client with Node.js specific implementations
+- Provides server-side streaming capabilities for Motia applications
+- Integrates with Node.js event system and process lifecycle
+- Supports clustering and multi-process environments
+
+### Dependency Management
+- Keep Node.js dependencies minimal and well-maintained
+- Use peer dependencies for optional integrations
+- Ensure compatibility with different Node.js versions
+- Avoid dependencies with native bindings when possible
+
+### Best Practices
+1. **Resource Cleanup**: Always clean up connections and subscriptions
+2. **Error Handling**: Implement comprehensive error handling for network issues
+3. **Performance Monitoring**: Track connection health and performance metrics
+4. **Graceful Shutdown**: Handle process signals for clean shutdown
+5. **Memory Management**: Use WeakRef and cleanup timers to prevent memory leaks

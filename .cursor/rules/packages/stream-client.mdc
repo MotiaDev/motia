@@ -1,0 +1,972 @@
+---
+description: Development guidelines for @motiadev/stream-client package focusing on real-time communication patterns and cross-platform foundations
+globs: packages/stream-client/**/*.ts,packages/stream-client/**/*.js
+alwaysApply: false
+---
+
+# Stream Client Package Development Guide
+
+## Overview
+
+The `@motiadev/stream-client` package provides the foundational real-time communication infrastructure for the Motia ecosystem. It serves as the base layer for platform-specific implementations (browser, Node.js, React), offering core streaming patterns, WebSocket abstractions, and event management for real-time data synchronization.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - @motiadev/core (for foundational utilities only)
+  - Standard JavaScript/TypeScript libraries
+  - UUID generation utilities
+  - WebSocket-related libraries
+  - Third-party utilities (minimal and justified)
+- **Prohibited imports**: 
+  - @motiadev/workbench, @motiadev/ui (UI-specific packages)
+  - motia (snap package - CLI specific)
+  - Platform-specific modules (Node.js fs, DOM APIs)
+  - React or other framework-specific libraries
+
+### Package Responsibility
+The stream client package provides:
+- Core streaming abstractions and interfaces
+- WebSocket adapter pattern for cross-platform support
+- Real-time data synchronization patterns
+- Event-driven subscription management
+- Stream lifecycle management
+- Error handling and reconnection strategies
+- Foundation for platform-specific implementations
+
+## Architecture Patterns
+
+### Core Principles
+1. **Platform Agnostic**: Provide abstractions that work across all JavaScript environments
+2. **Adapter Pattern**: Use adapters for platform-specific WebSocket implementations
+3. **Event-Driven**: All communication follows event-driven patterns
+4. **Type Safety**: Full TypeScript support with generic type patterns
+5. **Subscription Management**: Efficient subscription and unsubscription handling
+
+### Stream Architecture Pattern
+
+#### Core Stream Interface
+```typescript
+import { SocketAdapter, SocketAdapterFactory } from './socket-adapter'
+import { StreamSubscription } from './stream-subscription'
+
+export class Stream {
+  private ws: SocketAdapter
+  private listeners: { [channelId: string]: Set<StreamSubscription> } = {}
+
+  constructor(private adapterFactory: SocketAdapterFactory) {
+    this.ws = this.createSocket()
+  }
+
+  createSocket(): SocketAdapter {
+    this.ws = this.adapterFactory()
+    this.ws.onMessage((message) => this.messageListener(message))
+    this.ws.onOpen(() => this.onSocketOpen())
+    this.ws.onClose(() => this.onSocketClose())
+    return this.ws
+  }
+
+  // Subscribe to item changes
+  subscribeToItem<TData extends { id: string }>(
+    streamName: string,
+    groupId: string,
+    id: string
+  ): StreamItemSubscription<TData> {
+    const subscription = new StreamItemSubscription<TData>({
+      streamName,
+      groupId,
+      id,
+      subscriptionId: uuidv4(),
+    })
+
+    this.addSubscription(subscription)
+    return subscription
+  }
+
+  // Subscribe to group changes
+  subscribeToGroup<TData extends { id: string }>(
+    streamName: string,
+    groupId: string
+  ): StreamGroupSubscription<TData> {
+    const subscription = new StreamGroupSubscription<TData>({
+      streamName,
+      groupId,
+      subscriptionId: uuidv4(),
+    })
+
+    this.addSubscription(subscription)
+    return subscription
+  }
+
+  private addSubscription(subscription: StreamSubscription): void {
+    const channelId = this.getChannelId(subscription.sub)
+    
+    if (!this.listeners[channelId]) {
+      this.listeners[channelId] = new Set()
+    }
+    
+    this.listeners[channelId].add(subscription)
+    
+    if (this.ws.isOpen()) {
+      this.joinChannel(subscription.sub)
+    }
+  }
+}
+```
+
+#### Socket Adapter Interface
+```typescript
+// Cross-platform WebSocket adapter interface
+export interface SocketAdapter {
+  connect(): void
+  close(): void
+  send(message: string): void
+  isOpen(): boolean
+  
+  onMessage(callback: (message: string) => void): void
+  onOpen(callback: () => void): void
+  onClose(callback: () => void): void
+  onError(callback: (error: Error) => void): void
+}
+
+// Factory pattern for platform-specific implementations
+export type SocketAdapterFactory = () => SocketAdapter
+
+// Base implementation guidelines
+export abstract class BaseSocketAdapter implements SocketAdapter {
+  protected messageHandlers: Set<(message: string) => void> = new Set()
+  protected openHandlers: Set<() => void> = new Set()
+  protected closeHandlers: Set<() => void> = new Set()
+  protected errorHandlers: Set<(error: Error) => void> = new Set()
+
+  abstract connect(): void
+  abstract close(): void
+  abstract send(message: string): void
+  abstract isOpen(): boolean
+
+  onMessage(callback: (message: string) => void): void {
+    this.messageHandlers.add(callback)
+  }
+
+  onOpen(callback: () => void): void {
+    this.openHandlers.add(callback)
+  }
+
+  onClose(callback: () => void): void {
+    this.closeHandlers.add(callback)
+  }
+
+  onError(callback: (error: Error) => void): void {
+    this.errorHandlers.add(callback)
+  }
+
+  protected triggerMessage(message: string): void {
+    this.messageHandlers.forEach(handler => {
+      try {
+        handler(message)
+      } catch (error) {
+        console.error('Error in message handler:', error)
+      }
+    })
+  }
+
+  protected triggerOpen(): void {
+    this.openHandlers.forEach(handler => {
+      try {
+        handler()
+      } catch (error) {
+        console.error('Error in open handler:', error)
+      }
+    })
+  }
+
+  protected triggerClose(): void {
+    this.closeHandlers.forEach(handler => {
+      try {
+        handler()
+      } catch (error) {
+        console.error('Error in close handler:', error)
+      }
+    })
+  }
+
+  protected triggerError(error: Error): void {
+    this.errorHandlers.forEach(handler => {
+      try {
+        handler(error)
+      } catch (error) {
+        console.error('Error in error handler:', error)
+      }
+    })
+  }
+}
+```
+
+### Subscription Management Patterns
+
+#### Stream Subscription Base Class
+```typescript
+import { JoinMessage } from './stream.types'
+
+export type Listener<TData> = (state: TData | null) => void
+export type CustomEventListener<TData> = (event: TData) => void
+
+export abstract class StreamSubscription<TData = unknown, TEventData = unknown> {
+  private customEventListeners: Map<string, CustomEventListener[]> = new Map()
+  private closeListeners: Set<() => void> = new Set()
+  private onChangeListeners: Set<Listener<TData>> = new Set()
+  private state: TData
+
+  readonly sub: JoinMessage
+
+  constructor(sub: JoinMessage, state: TData) {
+    this.sub = sub
+    this.state = state
+  }
+
+  // Abstract method for handling incoming messages
+  abstract listener(message: TEventData): void
+
+  // State management
+  protected setState(newState: TData): void {
+    this.state = newState
+    this.notifyListeners()
+  }
+
+  getState(): TData {
+    return this.state
+  }
+
+  // Event subscription
+  on<T>(eventType: string, listener: CustomEventListener<T>): void {
+    if (!this.customEventListeners.has(eventType)) {
+      this.customEventListeners.set(eventType, [])
+    }
+    this.customEventListeners.get(eventType)!.push(listener)
+  }
+
+  off<T>(eventType: string, listener: CustomEventListener<T>): void {
+    const listeners = this.customEventListeners.get(eventType)
+    if (listeners) {
+      const index = listeners.indexOf(listener)
+      if (index > -1) {
+        listeners.splice(index, 1)
+      }
+    }
+  }
+
+  // Change subscription
+  onChange(listener: Listener<TData>): () => void {
+    this.onChangeListeners.add(listener)
+    
+    // Return unsubscribe function
+    return () => {
+      this.onChangeListeners.delete(listener)
+    }
+  }
+
+  // Lifecycle management
+  onClose(listener: () => void): void {
+    this.closeListeners.add(listener)
+  }
+
+  close(): void {
+    this.closeListeners.forEach(listener => listener())
+    this.customEventListeners.clear()
+    this.onChangeListeners.clear()
+    this.closeListeners.clear()
+  }
+
+  protected onEventReceived(event: CustomEvent): void {
+    const listeners = this.customEventListeners.get(event.type) || []
+    listeners.forEach(listener => {
+      try {
+        listener(event.data)
+      } catch (error) {
+        console.error(`Error in custom event listener for ${event.type}:`, error)
+      }
+    })
+  }
+
+  private notifyListeners(): void {
+    this.onChangeListeners.forEach(listener => {
+      try {
+        listener(this.state)
+      } catch (error) {
+        console.error('Error in change listener:', error)
+      }
+    })
+  }
+}
+```
+
+#### Item Subscription Pattern
+```typescript
+import { StreamSubscription } from './stream-subscription'
+import { ItemEventMessage, JoinMessage } from './stream.types'
+
+export class StreamItemSubscription<TData extends { id: string }> extends StreamSubscription<
+  TData | null,
+  ItemEventMessage<TData>
+> {
+  private lastEventTimestamp = 0
+
+  constructor(sub: JoinMessage) {
+    super(sub, null)
+  }
+
+  listener(message: ItemEventMessage<TData>): void {
+    // Prevent processing old events
+    if (message.timestamp <= this.lastEventTimestamp) {
+      return
+    }
+
+    this.lastEventTimestamp = message.timestamp
+
+    // Handle different event types
+    switch (message.event.type) {
+      case 'sync':
+      case 'create':
+      case 'update':
+        this.setState(message.event.data)
+        break
+      
+      case 'delete':
+        this.setState(null)
+        break
+      
+      case 'event':
+        this.onEventReceived(message.event.event)
+        break
+      
+      default:
+        console.warn('Unknown event type:', message.event)
+    }
+  }
+
+  // Convenience methods for item operations
+  isDeleted(): boolean {
+    return this.getState() === null
+  }
+
+  waitForData(timeout = 5000): Promise<TData> {
+    return new Promise((resolve, reject) => {
+      const currentState = this.getState()
+      if (currentState !== null) {
+        resolve(currentState)
+        return
+      }
+
+      const timer = setTimeout(() => {
+        unsubscribe()
+        reject(new Error('Timeout waiting for data'))
+      }, timeout)
+
+      const unsubscribe = this.onChange((state) => {
+        if (state !== null) {
+          clearTimeout(timer)
+          unsubscribe()
+          resolve(state)
+        }
+      })
+    })
+  }
+}
+```
+
+#### Group Subscription Pattern
+```typescript
+import { StreamSubscription } from './stream-subscription'
+import { GroupEventMessage, JoinMessage } from './stream.types'
+
+export class StreamGroupSubscription<TData extends { id: string }> extends StreamSubscription<
+  TData[],
+  GroupEventMessage<TData>
+> {
+  private lastEventTimestamp = 0
+
+  constructor(sub: JoinMessage) {
+    super(sub, [])
+  }
+
+  listener(message: GroupEventMessage<TData>): void {
+    // Prevent processing old events
+    if (message.timestamp <= this.lastEventTimestamp) {
+      return
+    }
+
+    this.lastEventTimestamp = message.timestamp
+
+    const currentState = this.getState()
+
+    switch (message.event.type) {
+      case 'sync':
+        this.setState(message.event.data)
+        break
+      
+      case 'create':
+        this.setState([...currentState, message.event.data])
+        break
+      
+      case 'update':
+        this.setState(
+          currentState.map(item =>
+            item.id === message.event.data.id ? message.event.data : item
+          )
+        )
+        break
+      
+      case 'delete':
+        this.setState(
+          currentState.filter(item => item.id !== message.event.data.id)
+        )
+        break
+      
+      case 'event':
+        this.onEventReceived(message.event.event)
+        break
+      
+      default:
+        console.warn('Unknown event type:', message.event)
+    }
+  }
+
+  // Convenience methods for group operations
+  findById(id: string): TData | undefined {
+    return this.getState().find(item => item.id === id)
+  }
+
+  filter(predicate: (item: TData) => boolean): TData[] {
+    return this.getState().filter(predicate)
+  }
+
+  sort(compareFn?: (a: TData, b: TData) => number): TData[] {
+    return [...this.getState()].sort(compareFn)
+  }
+
+  getCount(): number {
+    return this.getState().length
+  }
+
+  isEmpty(): boolean {
+    return this.getState().length === 0
+  }
+}
+```
+
+## Error Handling and Reconnection
+
+### Connection Management
+```typescript
+export interface ConnectionConfig {
+  url: string
+  reconnectInterval?: number
+  maxReconnectAttempts?: number
+  heartbeatInterval?: number
+  connectionTimeout?: number
+}
+
+export class ConnectionManager {
+  private reconnectAttempts = 0
+  private reconnectTimer?: NodeJS.Timeout
+  private heartbeatTimer?: NodeJS.Timeout
+  private connected = false
+
+  constructor(
+    private config: ConnectionConfig,
+    private adapter: SocketAdapter
+  ) {
+    this.setupConnectionHandlers()
+  }
+
+  private setupConnectionHandlers(): void {
+    this.adapter.onOpen(() => {
+      this.connected = true
+      this.reconnectAttempts = 0
+      this.startHeartbeat()
+      console.log('Stream connection established')
+    })
+
+    this.adapter.onClose(() => {
+      this.connected = false
+      this.stopHeartbeat()
+      this.scheduleReconnect()
+      console.log('Stream connection closed')
+    })
+
+    this.adapter.onError((error) => {
+      console.error('Stream connection error:', error)
+      if (this.connected) {
+        this.scheduleReconnect()
+      }
+    })
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= (this.config.maxReconnectAttempts || 10)) {
+      console.error('Max reconnection attempts reached')
+      return
+    }
+
+    const delay = Math.min(
+      1000 * Math.pow(2, this.reconnectAttempts),
+      this.config.reconnectInterval || 30000
+    )
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectAttempts++
+      console.log(`Attempting to reconnect (${this.reconnectAttempts})...`)
+      this.adapter.connect()
+    }, delay)
+  }
+
+  private startHeartbeat(): void {
+    if (this.config.heartbeatInterval) {
+      this.heartbeatTimer = setInterval(() => {
+        if (this.connected) {
+          this.adapter.send(JSON.stringify({ type: 'ping' }))
+        }
+      }, this.config.heartbeatInterval)
+    }
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer)
+      this.heartbeatTimer = undefined
+    }
+  }
+
+  connect(): void {
+    this.adapter.connect()
+  }
+
+  disconnect(): void {
+    this.connected = false
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+    }
+    this.stopHeartbeat()
+    this.adapter.close()
+  }
+
+  isConnected(): boolean {
+    return this.connected && this.adapter.isOpen()
+  }
+}
+```
+
+### Error Handling Patterns
+```typescript
+// Stream-specific error types
+export class StreamError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public streamName?: string,
+    public groupId?: string
+  ) {
+    super(message)
+    this.name = 'StreamError'
+  }
+}
+
+export class ConnectionError extends StreamError {
+  constructor(message: string, public url?: string) {
+    super(message, 'CONNECTION_ERROR')
+    this.name = 'ConnectionError'
+  }
+}
+
+export class SubscriptionError extends StreamError {
+  constructor(message: string, streamName?: string, groupId?: string) {
+    super(message, 'SUBSCRIPTION_ERROR', streamName, groupId)
+    this.name = 'SubscriptionError'
+  }
+}
+
+// Error handling in subscriptions
+export const createResilientSubscription = <TData extends { id: string }>(
+  stream: Stream,
+  config: SubscriptionConfig
+): StreamItemSubscription<TData> => {
+  const subscription = stream.subscribeToItem<TData>(
+    config.streamName,
+    config.groupId,
+    config.id
+  )
+
+  // Handle subscription errors
+  subscription.onError = (error: Error) => {
+    console.error('Subscription error:', error)
+    
+    if (error instanceof ConnectionError) {
+      // Handle connection errors
+      console.log('Attempting to reconnect...')
+      setTimeout(() => {
+        stream.createSocket()
+      }, 1000)
+    } else if (error instanceof SubscriptionError) {
+      // Handle subscription-specific errors
+      console.log('Resubscribing...')
+      setTimeout(() => {
+        // Recreate subscription
+      }, 2000)
+    }
+  }
+
+  return subscription
+}
+```
+
+## Type System Patterns
+
+### Generic Type Definitions
+```typescript
+// Base message types
+export type BaseMessage = {
+  streamName: string
+  groupId: string
+  id?: string
+  timestamp: number
+}
+
+export type JoinMessage = Omit<BaseMessage, 'timestamp'> & { 
+  subscriptionId: string 
+}
+
+// Event type system
+export type StreamEvent<TData extends { id: string }> =
+  | { type: 'create'; data: TData }
+  | { type: 'update'; data: TData }
+  | { type: 'delete'; data: TData }
+  | { type: 'event'; event: CustomEvent }
+
+export type ItemStreamEvent<TData extends { id: string }> = 
+  StreamEvent<TData> | { type: 'sync'; data: TData }
+
+export type GroupStreamEvent<TData extends { id: string }> = 
+  StreamEvent<TData> | { type: 'sync'; data: TData[] }
+
+// Message type wrappers
+export type ItemEventMessage<TData extends { id: string }> = 
+  BaseMessage & { event: ItemStreamEvent<TData> }
+
+export type GroupEventMessage<TData extends { id: string }> = 
+  BaseMessage & { event: GroupStreamEvent<TData> }
+
+// Listener types
+export type Listener<TData> = (state: TData | null) => void
+export type CustomEventListener<TData> = (event: TData) => void
+export type ErrorListener = (error: Error) => void
+```
+
+### Type Guards and Validation
+```typescript
+// Type guards for runtime validation
+export const isBaseMessage = (obj: any): obj is BaseMessage => {
+  return (
+    typeof obj === 'object' &&
+    typeof obj.streamName === 'string' &&
+    typeof obj.groupId === 'string' &&
+    typeof obj.timestamp === 'number'
+  )
+}
+
+export const isStreamEvent = <TData extends { id: string }>(
+  obj: any
+): obj is StreamEvent<TData> => {
+  return (
+    typeof obj === 'object' &&
+    ['create', 'update', 'delete', 'event'].includes(obj.type) &&
+    (obj.type === 'event' || (obj.data && typeof obj.data.id === 'string'))
+  )
+}
+
+// Message validation
+export const validateMessage = (message: string): BaseMessage => {
+  try {
+    const parsed = JSON.parse(message)
+    
+    if (!isBaseMessage(parsed)) {
+      throw new StreamError('Invalid message format', 'INVALID_MESSAGE')
+    }
+    
+    return parsed
+  } catch (error) {
+    if (error instanceof StreamError) {
+      throw error
+    }
+    throw new StreamError('Failed to parse message', 'PARSE_ERROR')
+  }
+}
+```
+
+## Testing Best Practices
+
+### Testing Strategy
+- Unit tests for subscription management
+- Integration tests for WebSocket communication
+- Mock adapters for testing without real connections
+- Performance tests for large data sets
+- Error scenario testing
+
+### Mock Adapter Implementation
+```typescript
+// Mock socket adapter for testing
+export class MockSocketAdapter implements SocketAdapter {
+  private _isOpen = false
+  private messageHandlers: Set<(message: string) => void> = new Set()
+  private openHandlers: Set<() => void> = new Set()
+  private closeHandlers: Set<() => void> = new Set()
+  private errorHandlers: Set<(error: Error) => void> = new Set()
+  
+  // Queue for simulating async message delivery
+  private messageQueue: string[] = []
+
+  connect(): void {
+    setTimeout(() => {
+      this._isOpen = true
+      this.openHandlers.forEach(handler => handler())
+    }, 10)
+  }
+
+  close(): void {
+    this._isOpen = false
+    this.closeHandlers.forEach(handler => handler())
+  }
+
+  send(message: string): void {
+    if (!this._isOpen) {
+      throw new Error('Socket not connected')
+    }
+    // In real implementation, this would send to server
+    console.log('Mock send:', message)
+  }
+
+  isOpen(): boolean {
+    return this._isOpen
+  }
+
+  // Test utilities
+  simulateMessage(message: string): void {
+    if (this._isOpen) {
+      this.messageHandlers.forEach(handler => handler(message))
+    }
+  }
+
+  simulateError(error: Error): void {
+    this.errorHandlers.forEach(handler => handler(error))
+  }
+
+  simulateClose(): void {
+    this._isOpen = false
+    this.closeHandlers.forEach(handler => handler())
+  }
+
+  // Event handler registration
+  onMessage(callback: (message: string) => void): void {
+    this.messageHandlers.add(callback)
+  }
+
+  onOpen(callback: () => void): void {
+    this.openHandlers.add(callback)
+  }
+
+  onClose(callback: () => void): void {
+    this.closeHandlers.add(callback)
+  }
+
+  onError(callback: (error: Error) => void): void {
+    this.errorHandlers.add(callback)
+  }
+}
+```
+
+### Testing Patterns
+```typescript
+import { Stream } from '../stream'
+import { MockSocketAdapter } from './mock-socket-adapter'
+
+describe('Stream', () => {
+  let mockAdapter: MockSocketAdapter
+  let stream: Stream
+
+  beforeEach(() => {
+    mockAdapter = new MockSocketAdapter()
+    stream = new Stream(() => mockAdapter)
+  })
+
+  afterEach(() => {
+    stream.close()
+  })
+
+  it('should handle item subscription correctly', async () => {
+    const subscription = stream.subscribeToItem<TestData>('test-stream', 'group1', 'item1')
+    
+    const stateChanges: (TestData | null)[] = []
+    subscription.onChange((state) => {
+      stateChanges.push(state)
+    })
+
+    // Simulate connection
+    mockAdapter.connect()
+    await new Promise(resolve => setTimeout(resolve, 20))
+
+    // Simulate data sync
+    mockAdapter.simulateMessage(JSON.stringify({
+      streamName: 'test-stream',
+      groupId: 'group1',
+      id: 'item1',
+      timestamp: Date.now(),
+      event: {
+        type: 'sync',
+        data: { id: 'item1', name: 'Test Item' }
+      }
+    }))
+
+    expect(stateChanges).toHaveLength(1)
+    expect(stateChanges[0]).toEqual({ id: 'item1', name: 'Test Item' })
+  })
+
+  it('should handle connection errors gracefully', async () => {
+    const subscription = stream.subscribeToItem<TestData>('test-stream', 'group1', 'item1')
+    
+    let errorReceived: Error | null = null
+    subscription.onError = (error) => {
+      errorReceived = error
+    }
+
+    // Simulate connection error
+    mockAdapter.simulateError(new ConnectionError('Connection failed'))
+
+    expect(errorReceived).toBeInstanceOf(ConnectionError)
+  })
+})
+```
+
+## Performance Considerations
+
+### Optimization Guidelines
+1. **Message Batching**: Batch multiple messages when possible
+2. **Event Deduplication**: Prevent duplicate event processing
+3. **Memory Management**: Clean up subscriptions and listeners
+4. **Connection Pooling**: Reuse connections across subscriptions
+5. **Lazy Loading**: Only connect when subscriptions are active
+
+### Memory Management
+```typescript
+// Proper cleanup patterns
+export class StreamManager {
+  private subscriptions: Map<string, StreamSubscription> = new Map()
+  private cleanupTimer?: NodeJS.Timeout
+
+  addSubscription(key: string, subscription: StreamSubscription): void {
+    // Clean up existing subscription
+    const existing = this.subscriptions.get(key)
+    if (existing) {
+      existing.close()
+    }
+
+    this.subscriptions.set(key, subscription)
+    
+    // Auto-cleanup inactive subscriptions
+    this.scheduleCleanup()
+  }
+
+  removeSubscription(key: string): void {
+    const subscription = this.subscriptions.get(key)
+    if (subscription) {
+      subscription.close()
+      this.subscriptions.delete(key)
+    }
+  }
+
+  private scheduleCleanup(): void {
+    if (this.cleanupTimer) {
+      clearTimeout(this.cleanupTimer)
+    }
+
+    this.cleanupTimer = setTimeout(() => {
+      this.cleanupInactiveSubscriptions()
+    }, 60000) // Cleanup every minute
+  }
+
+  private cleanupInactiveSubscriptions(): void {
+    const now = Date.now()
+    const inactiveThreshold = 5 * 60 * 1000 // 5 minutes
+
+    for (const [key, subscription] of this.subscriptions) {
+      if (now - subscription.lastActivity > inactiveThreshold) {
+        console.log(`Cleaning up inactive subscription: ${key}`)
+        subscription.close()
+        this.subscriptions.delete(key)
+      }
+    }
+  }
+
+  closeAll(): void {
+    this.subscriptions.forEach(subscription => subscription.close())
+    this.subscriptions.clear()
+    
+    if (this.cleanupTimer) {
+      clearTimeout(this.cleanupTimer)
+    }
+  }
+}
+```
+
+## Integration Guidelines
+
+### Package Integration
+- Provide stable APIs for platform-specific implementations
+- Use dependency injection for platform-specific adapters
+- Maintain backward compatibility across versions
+- Document breaking changes clearly
+
+### Platform-Specific Adapter Guidelines
+```typescript
+// Guidelines for implementing platform-specific adapters
+
+// 1. Extend BaseSocketAdapter
+export class PlatformSocketAdapter extends BaseSocketAdapter {
+  private socket: PlatformWebSocket
+
+  connect(): void {
+    this.socket = new PlatformWebSocket(this.url)
+    
+    this.socket.onopen = () => this.triggerOpen()
+    this.socket.onclose = () => this.triggerClose()
+    this.socket.onerror = (error) => this.triggerError(new Error('WebSocket error'))
+    this.socket.onmessage = (event) => this.triggerMessage(event.data)
+  }
+
+  send(message: string): void {
+    if (this.isOpen()) {
+      this.socket.send(message)
+    } else {
+      throw new ConnectionError('Socket not connected')
+    }
+  }
+
+  close(): void {
+    if (this.socket) {
+      this.socket.close()
+    }
+  }
+
+  isOpen(): boolean {
+    return this.socket?.readyState === WebSocket.OPEN
+  }
+}
+
+// 2. Provide factory function
+export const createPlatformAdapter = (url: string): SocketAdapterFactory => {
+  return () => new PlatformSocketAdapter(url)
+}
+
+// 3. Export for platform-specific packages
+export { Stream } from '@motiadev/stream-client'
+export { createPlatformAdapter } from './platform-adapter'
+```
