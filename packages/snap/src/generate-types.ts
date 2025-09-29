@@ -10,7 +10,7 @@ export const generateTypes = async (projectDir: string) => {
   const lockedData = new LockedData(projectDir, 'memory', new Printer(projectDir))
 
   for (const filePath of files) {
-    const config = await getStepConfig(filePath)
+    const config = await getStepConfig(filePath, projectDir)
 
     if (config) {
       lockedData.createStep({ filePath, version, config }, { disableTypeCreation: true })
@@ -18,7 +18,7 @@ export const generateTypes = async (projectDir: string) => {
   }
 
   for (const filePath of streamsFiles) {
-    const config = await getStreamConfig(filePath)
+    const config = await getStreamConfig(filePath, projectDir)
 
     if (config) {
       lockedData.createStream({ filePath, config }, { disableTypeCreation: true })

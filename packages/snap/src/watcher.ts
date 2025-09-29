@@ -62,7 +62,7 @@ export class Watcher {
       return
     }
 
-    const config = await getStepConfig(path).catch((err) => console.error(err))
+    const config = await getStepConfig(path, this.dir).catch((err) => console.error(err))
 
     if (!config) {
       return
@@ -75,7 +75,7 @@ export class Watcher {
   }
 
   private async onStepFileChange(path: string): Promise<void> {
-    const config = await getStepConfig(path).catch((err) => {
+    const config = await getStepConfig(path, this.dir).catch((err) => {
       console.error(err)
     })
 
