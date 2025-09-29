@@ -1,39 +1,195 @@
 ---
-title: Steps
+title: What is a Step?
 description: One primitive to build any backend. Powerful, reusable, multi-language, composable, and auto-discovered.
 ---
 
-# Steps
+# What is a Step?
 
 ## One Step to build any backend.
 
 **Powerful. Reusable. Multi-Language. Composable. Auto-Discovered.**
 
-Steps are Motia's core primitive that unifies every backend concern into a single, elegant abstraction. Each Step has one clear responsibility and can be chained together and reused across projects.
+Steps are Motia's core primitive that unifies configuration and logic, allowing you to define when it runs, how it runs, where it runs, and what it does, all within a single abstraction.
 
-You can compose them together. Learn the basic things about how Steps work, and Motia will auto-discover any file with `.step.ts`, `.step.js`, and `_step.py` - it will register it and connect the whole thing together.
+Learn the basic things about how Steps work, and Motia will auto-discover, register, and connect any file with `.step.ts`, `.step.js`, and `_step.py`.  By composing Steps, you can build entire backends in any pattern and runtime.
 
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript title="steps/my-step.step.ts"
+import { ApiRouteConfig, Handlers } from 'motia';
+
+export const config: ApiRouteConfig = {
+  name: 'MyStep',     // Step identifier  
+  type: 'api',        // How it triggers
+  path: '/endpoint',  // URL path
+  method: 'POST',     // POST method
+  emits: ['done'],    // Events it sends
+  flows: ['my-flow']  // Flow it belongs to
+};
+
+export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams }) => {
+  // Your business logic here
+  return { status: 200, body: { success: true } };
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/my_step.py"
+config = {
+    "name": "MyStep",     # Step identifier
+    "type": "api",        # How it triggers
+    "path": "/endpoint",  # URL path
+    "method": "POST",     # POST method
+    "emits": ["done"],    # Events it sends
+    "flows": ["my-flow"]  # Flow it belongs to
+}
+
+async def handler(req, context):
+    # Your business logic here
+    return {"status": 200, "body": {"success": True}}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript title="steps/my-step.step.js"
+const config = {
+  name: 'MyStep',     // Step identifier  
+  type: 'api',        // How it triggers
+  path: '/endpoint',  //  path
+  method: 'POST',     // POST method
+  emits: ['done'],    // Events it sends
+  flows: ['my-flow']  // Flow it belongs to
+};
+
+const handler = async (req, { emit, logger, state, streams }) => {
+  // Your business logic here
+  return { status: 200, body: { success: true } };
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
 
 ## Config Properties
+
+### Common Properties (All Step Types)
 
 | Property | Type | Description |
 | -------- | ---- | ----------- |
 | `name` | `string` | Unique identifier for the step used in handler typing |
-| `type` | `'api'  'event' 'cron' 'noop'` | The step type - determines how the step is triggered |
+| `type` | `'api' \| 'event' \| 'cron' \| 'noop'` | The trigger type - determines how and when the step executes |
 | `description` | `string` | Human-readable documentation for the step |
-| `subscribes` | `string[]` | Array of event topics this step listens to (Event steps only) |
 | `emits` | `string[]` | Array of event topics this step can emit to trigger other steps |
 | `flows` | `string[]` | Array of flow names this step belongs to for organization and visualization |
 
-## Handler Elements
+### API Trigger Step Properties
+
+Additional properties when `type: 'api'`. [See API Trigger examples below](#api-trigger---http-requests).
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `path` | `string` | URL endpoint path (e.g., `/messages`, `/users/:id`) |
+| `method` | `'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH'` | HTTP method for the endpoint |
+| `bodySchema` | `ZodSchema \| JSONSchema` | Validation schema for request body |
+| `responseSchema` | `{ [status]: ZodSchema }` | Response schemas by HTTP status code |
+| `queryParams` | `string[]` | Array of allowed query parameter names |
+| `virtualSubscribes` | `string[]` | Virtual event subscriptions for API routing |
+
+### Event Trigger Step Properties
+
+Additional properties when `type: 'event'`. [See Event Trigger examples below](#event-trigger---event-driven).
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `subscribes` | `string[]` | Array of event topics this step listens to |
+| `input` | `ZodSchema \| JSONSchema` | Validation schema for incoming event data |
+
+### Cron Trigger Step Properties
+
+Additional properties when `type: 'cron'`. [See Cron Trigger examples below](#cron-trigger---time-based).
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `cron` | `string` | Cron expression for scheduling (e.g., `'0 9 * * *'` for daily at 9 AM) |
+
+## Handler Definition
+
+The handler is the core function where your business logic resides. The function signature varies based on the trigger type:
+
+### Handler Signatures by Trigger Type
+
+<Tabs items={['API Triggers', 'Event Triggers', 'Cron Triggers']}>
+<Tab value='API Triggers'>
+
+**API Triggers** receive HTTP request data as the first parameter:
+
+```typescript
+export const handler: Handlers['StepName'] = async (req, ctx) => {
+  // req contains: body, query, params, headers, method, path
+  // ctx contains: emit, logger, state, streams, traceId
+}
+```
+
+</Tab>
+<Tab value='Event Triggers'>
+
+**Event Triggers** receive event input data as the first parameter:
+
+```typescript
+export const handler: Handlers['StepName'] = async (input, ctx) => {
+  // input contains the event data matching the input schema
+  // ctx contains: emit, logger, state, streams, traceId
+}
+```
+
+</Tab>
+<Tab value='Cron Triggers'>
+
+**Cron Triggers** only receive the context object (no input parameter):
+
+```typescript
+export const handler: Handlers['StepName'] = async (ctx) => {
+  // ctx contains: emit, logger, state, streams, traceId
+}
+```
+
+</Tab>
+</Tabs>
+
+### Context Object (`ctx`) Elements
+
+All handlers receive a context object containing these essential elements:
 
 | Element | Type | Description |
 | ------- | ---- | ----------- |
 | `emit` | `function` | Function to trigger other steps by emitting events with data |
-| `logger` | `object` | Structured logging with context for debugging and observability |
-| `state` | `object` | Persistent key-value storage shared across steps and workflows |
-| `streams` | `object` | Real-time objects and events that push updates to subscribed clients |
-| `traceId` | `string` | Unique identifier for request tracing and flow isolation |
+| `logger` | `object` | Structured logging with context (`ctx.logger.info()`, `ctx.logger.error()`) |
+| `state` | `object` | Persistent key-value storage shared across steps (`ctx.state.set()`, `ctx.state.get()`) |
+| `streams` | `object` | Real-time data streams for live updates (`ctx.streams.streamName.set()`) |
+| `traceId` | `string` | Unique identifier for request tracing and workflow isolation |
+
+### Request Object (`req`) - API Triggers Only
+
+For API triggers, the first parameter contains HTTP request information:
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `body` | `object` | Parsed request body (validated against `bodySchema`) |
+| `query` | `object` | URL query parameters as key-value pairs |
+| `params` | `object` | URL path parameters (e.g., `/users/:id` → `{id: "123"}`) |
+| `headers` | `object` | HTTP request headers |
+| `method` | `string` | HTTP method (`GET`, `POST`, etc.) |
+| `path` | `string` | Request URL path |
+
+### Input Data (`input`) - Event Triggers Only
+
+For event triggers, the first parameter contains the event data that was emitted by other steps, validated against the `input` schema if defined.
 
 ## Step is Simple, but powerful. Let's see an example.
 
@@ -101,10 +257,10 @@ module.exports = { config, handler };
 </Tabs>
 
 <Callout type="info">
-### You can simply change the type to 'api', 'event', or 'cron' to create different types of steps.
+### You can simply change the type to 'api', 'event', or 'cron' to create different trigger types for your steps.
 </Callout>
 
-## API Step - Change Type to 'api'
+## API Trigger Step
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
@@ -151,7 +307,7 @@ const config = {
 </Tab>
 </Tabs>
 
-## Event Step - Change Type to 'event'
+## Event Trigger Step
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
@@ -195,7 +351,7 @@ const config = {
 </Tab>
 </Tabs>
 
-## Cron Step - Change Type to 'cron'
+## Cron Trigger Step
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
@@ -283,7 +439,6 @@ How your step receives and accesses input data.
 <Tab value='TypeScript'>
 
 ```typescript
-// Event Step: Subscribe to events
 export const config: EventConfig = {
   name: 'EventStep',
   type: 'event',
@@ -296,7 +451,6 @@ export const config: EventConfig = {
 <Tab value='Python'>
 
 ```python
-# Event Step: Subscribe to events
 config = {
     "name": "EventStep",
     "type": "event",
@@ -309,7 +463,6 @@ config = {
 <Tab value='JavaScript'>
 
 ```javascript
-// Event Step: Subscribe to events
 const config = {
   name: 'EventStep',
   type: 'event',
@@ -329,7 +482,7 @@ Optionally trigger other Steps by emitting events with data.
 
 ```typescript
 await emit({
-  topic: 'user.created',        // Must be in config.emits
+  topic: 'user.created',       
   data: { userId: '123', email: 'user@example.com' }
 });
 ```
@@ -338,10 +491,10 @@ await emit({
 <Tab value='Python'>
 
 ```python
-    await context.emit({
-    "topic": "user.created",      # Must be in config["emits"]
+await context.emit({
+    "topic": "user.created",     
     "data": {"userId": "123", "email": "user@example.com"}
-    })
+})
 ```
 
 </Tab>
@@ -349,7 +502,7 @@ await emit({
 
 ```javascript
 await emit({
-  topic: 'user.created',        // Must be in config.emits
+  topic: 'user.created',        
   data: { userId: '123', email: 'user@example.com' }
 });
 ```
