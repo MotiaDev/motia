@@ -74,6 +74,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       args: [...args, runner, step.filePath, jsonData],
       logger,
       context: 'StepExecution',
+      projectRoot: motia.lockedData.baseDir,
     })
 
     trackEvent('step_execution_started', {

@@ -10,6 +10,7 @@ export interface ProcessManagerOptions {
   args: string[]
   logger: Logger
   context?: string
+  projectRoot?: string
 }
 
 export class ProcessManager {
@@ -20,10 +21,10 @@ export class ProcessManager {
   constructor(private options: ProcessManagerOptions) {}
 
   async spawn(): Promise<ChildProcess> {
-    const { command, args, logger, context = 'Process' } = this.options
+    const { command, args, logger, context = 'Process', projectRoot } = this.options
 
     // Get communication configuration
-    const commConfig = createCommunicationConfig(command)
+    const commConfig = createCommunicationConfig(command, projectRoot)
     this.communicationType = commConfig.type
 
     logger.debug(`[${context}] Spawning process`, {

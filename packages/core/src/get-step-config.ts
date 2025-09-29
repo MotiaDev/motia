@@ -34,7 +34,7 @@ const getLanguageBasedRunner = (
   throw Error(`Unsupported file extension ${stepFilePath}`)
 }
 
-const getConfig = <T>(file: string): Promise<T | null> => {
+const getConfig = <T>(file: string, projectRoot?: string): Promise<T | null> => {
   const { runner, command, args } = getLanguageBasedRunner(file)
 
   return new Promise((resolve, reject) => {
@@ -45,6 +45,7 @@ const getConfig = <T>(file: string): Promise<T | null> => {
       args: [...args, runner, file],
       logger: globalLogger,
       context: 'Config',
+      projectRoot,
     })
 
     processManager
@@ -86,10 +87,10 @@ const getConfig = <T>(file: string): Promise<T | null> => {
   })
 }
 
-export const getStepConfig = (file: string): Promise<StepConfig | null> => {
-  return getConfig<StepConfig>(file)
+export const getStepConfig = (file: string, projectRoot?: string): Promise<StepConfig | null> => {
+  return getConfig<StepConfig>(file, projectRoot)
 }
 
-export const getStreamConfig = (file: string): Promise<StreamConfig | null> => {
-  return getConfig<StreamConfig>(file)
+export const getStreamConfig = (file: string, projectRoot?: string): Promise<StreamConfig | null> => {
+  return getConfig<StreamConfig>(file, projectRoot)
 }

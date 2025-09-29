@@ -33,7 +33,7 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
 
   for (const filePath of stepFiles) {
     try {
-      const config = await getStepConfig(filePath)
+      const config = await getStepConfig(filePath, projectDir)
 
       if (!config) {
         console.warn(`No config found in step ${filePath}, step skipped`)
