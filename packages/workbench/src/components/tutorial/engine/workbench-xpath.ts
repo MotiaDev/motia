@@ -11,9 +11,16 @@ export const workbenchXPath = {
   },
 
   endpoints: {
+    endpointsList: '//div[@data-testid="endpoints-list"]',
     endpoint: (method: string, path: string) => `//div[@data-testid="endpoint-${method}-${path}"]`,
-    callPanel: '//div[@data-testid="endpoint-body-panel__call"]',
-    callTab: '//button[@data-testid="endpoint-call-tab"]',
+    callPanel: '//div[@data-testid="endpoint-details-panel"]',
+    specButton: '//button[@data-testid="endpoint-spec-button"]',
+
+    bodyTab: '//button[@data-testid="endpoint-body-tab"]',
+    headersTab: '//button[@data-testid="endpoint-headers-tab"]',
+    paramsTab: '//button[@data-testid="endpoint-params-tab"]',
+
+    callTab: '//button[@data-testid="endpoint-body-tab"]', // deprecated
     response: '//div[@data-testid="endpoint-response-container"]',
     playButton: '//button[@data-testid="endpoint-play-button"]',
   },

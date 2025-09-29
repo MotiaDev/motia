@@ -31,7 +31,7 @@ export const LogsPage = () => {
 
   return (
     <>
-      <div className="grid grid-rows-[auto_1fr] h-full">
+      <div className="grid grid-rows-[auto_1fr] h-full" data-testid="logs-container">
         <div className="flex p-2 border-b gap-2" data-testid="logs-search-container">
           <div className="flex-1 relative">
             <Input

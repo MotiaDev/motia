@@ -33,7 +33,10 @@ export const EndpointsPage = () => {
   }, [groupedEndpoints, search])
 
   return (
-    <div className={cn('grid h-full max-h-full', selectedEndpoint ? 'grid-cols-[300px_1fr] ' : 'grid-cols-1')}>
+    <div
+      className={cn('grid h-full max-h-full', selectedEndpoint ? 'grid-cols-[300px_1fr] ' : 'grid-cols-1')}
+      data-testid="endpoints-list"
+    >
       <div className="grid grid-rows-[auto_1fr] h-full overflow-auto min-w-0">
         <EndpointsSearch value={search} onChange={setSearch} onClear={() => setSearch('')} />
         <div className="grid grid-cols-1 auto-rows-max overflow-auto min-w-0">

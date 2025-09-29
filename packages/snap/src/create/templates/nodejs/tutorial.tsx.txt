@@ -371,25 +371,35 @@ export const steps: TutorialStep[] = [
     before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
   },
   {
-    elementXpath: workbenchXPath.endpoints.endpoint('POST', '/basic-tutorial'),
+    elementXpath: workbenchXPath.endpoints.endpointsList,
     title: 'Endpoints Tool',
     description: () => (
       <p>
         This section will display all of the endpoints declared in your API Steps. It will list the HTTP method, the URL
         path, and the description declared in the Step configuration.
-        <br />
-        <br />
-        💡 Clicking on an endpoint from the list will open the endpoint overview which provides documentation on how to
-        use the endpoint and a tool to test the endpoint.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.links.endpoints }],
   },
   {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'API Endpoint Docs',
+    elementXpath: workbenchXPath.endpoints.endpoint('POST', '/basic-tutorial'),
+    title: 'Endpoints Tool',
     description: () => (
       <p>
+        Clicking on an endpoint from the list will open the endpoint overview which provides documentation on how to use
+        the endpoint and a tool to test the endpoint.
+      </p>
+    ),
+  },
+  {
+    elementXpath: workbenchXPath.endpoints.callPanel,
+    title: 'API Endpoint Playground',
+    description: () => (
+      <p>
+        Once you click on an endpoint from the list, you will be able to test it by providing a request payload and
+        clicking on the <b>Play</b> button.
+        <br />
+        <br />
         This section will provide an overview of your API endpoint.
         <br />
         <br />
@@ -398,6 +408,25 @@ export const steps: TutorialStep[] = [
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.endpoints.endpoint('POST', '/basic-tutorial') }],
+  },
+  {
+    elementXpath: workbenchXPath.endpoints.specButton,
+    title: 'API Endpoint Specification',
+    description: () => (
+      <p>
+        Clicking on this button will open the specification of your API endpoint. Like response and request schemas.
+      </p>
+    ),
+  },
+  {
+    elementXpath: workbenchXPath.sidebarContainer,
+    title: 'API Endpoint Specification',
+    description: () => (
+      <p>
+        This is what you see when clicking on the <b>Details</b> button.
+      </p>
+    ),
+    before: [{ type: 'click', selector: workbenchXPath.endpoints.specButton }],
   },
   {
     elementXpath: workbenchXPath.endpoints.callPanel,
@@ -428,7 +457,10 @@ export const steps: TutorialStep[] = [
         </pre>
       </p>
     ),
-    before: [{ type: 'click', selector: workbenchXPath.endpoints.callTab }],
+    before: [
+      { type: 'click', selector: workbenchXPath.closePanelButton },
+      { type: 'click', selector: workbenchXPath.endpoints.bodyTab },
+    ],
   },
   {
     elementXpath: workbenchXPath.endpoints.playButton,

@@ -49,7 +49,7 @@ export const useTutorialEngine = () => {
       // Run any before actions
       if (step.before) {
         for (const action of step.before) {
-          const monaco = (window as any).monaco;
+          const monaco = (window as any).monaco
           if (action.type === 'click') {
             const element = await waitForElementByXPath(action.selector, action.optional)
 

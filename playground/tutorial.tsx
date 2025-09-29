@@ -154,7 +154,7 @@ export const steps: TutorialStep[] = [
         <br />
         Handlers are essential for the execution of your Step. For API Steps, the handler will receive the request
         object as the first argument, followed by a second argument that provides access to the <b>logger</b>,{' '}
-        <b>event emitter</b>, <b>state manager</b>, and <b>trace id</b>.
+        <b>event emitter</b>, <b>state manager</b>, and <b>trace id</b>.<br />
         <br />
         <br />
         💡 We will cover these in depth further down the tutorial.
@@ -190,8 +190,8 @@ export const steps: TutorialStep[] = [
         <br />
         <br />
         <br />
-        You simply need to return an object that complies with one of the <b>responseSchema</b> definitions
-        declared in your Step configuration.
+        You simply need to return an object that complies with one of the <b>responseSchema</b> definitions declared in
+        your Step configuration.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.feature('http-response') }],
@@ -212,8 +212,8 @@ export const steps: TutorialStep[] = [
         For this we will look at the <b>Event</b> Step.
         <br />
         <br />
-        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
-        anatomy of an Event Step by taking a look at the code visualization tool.
+        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the anatomy of
+        an Event Step by taking a look at the code visualization tool.
         <br />
         <br />
         💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
@@ -229,15 +229,12 @@ export const steps: TutorialStep[] = [
       <p>
         Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
         specific task.
-        <br />
-        <br />
+        <br /> <br />
         For this we will look at the <b>Event</b> Step.
-        <br />
-        <br />
-        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
-        anatomy of an Event Step by taking a look at the code visualization tool.
-        <br />
-        <br />
+        <br /> <br />
+        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the anatomy of
+        an Event Step by taking a look at the code visualization tool.
+        <br /> <br />
         💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
       </p>
     ),
@@ -251,10 +248,10 @@ export const steps: TutorialStep[] = [
     title: 'Event Step Input',
     description: () => (
       <p>
-        <b> Event Steps</b>, like other Step types, are composed of a configuration and a handler.
+        <b>Event</b> Steps, like other Steps types, are composed of a configuration and a handler.
         <br />
         <br />
-        <b>Event Steps</b> have a specific attribute from their config, the <b>input</b> attribute, which declares the
+        <b>Event</b> Steps have a specific attribute from their config, the <b>input</b> attribute, which declares the
         data structure provided by the topic it is subscribed to.
         <br />
         <br />
@@ -307,12 +304,12 @@ export const steps: TutorialStep[] = [
     link: 'https://www.motia.dev/docs/concepts/steps/cron',
     description: () => (
       <p>
-        Let's do a recap of what you've learned. Thus far, you've become familiar with two Step types: <b>API</b>{' '}
-        and <b>Event</b> Steps.
+        Let's do a recap of what you've learned, thus far you've become familiar with two Step types <b>API</b> and{' '}
+        <b>Event</b> Steps.
         <br />
         <br />
         You've also started to learn how to navigate around Workbench. Let's wrap up Motia's Step types with the last
-        one: the <b>CRON</b> Step. Let's take a deeper look at its definition.
+        one the <b>CRON</b> Step. Let's take a deeper look at its definition.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
@@ -363,7 +360,7 @@ export const steps: TutorialStep[] = [
     title: 'Endpoints',
     description: () => (
       <p>
-        Now that we've looked at Motia's Step types, let's trigger the API Step from the <b>endpoints</b> section in
+        Now that we've looked at Motia primitives, let's trigger the API Step from the <b>endpoints</b> section in
         Workbench.
         <br />
         <br />
@@ -374,25 +371,35 @@ export const steps: TutorialStep[] = [
     before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
   },
   {
-    elementXpath: workbenchXPath.endpoints.endpoint('POST', '/basic-tutorial'),
+    elementXpath: workbenchXPath.endpoints.endpointsList,
     title: 'Endpoints Tool',
     description: () => (
       <p>
         This section will display all of the endpoints declared in your API Steps. It will list the HTTP method, the URL
         path, and the description declared in the Step configuration.
-        <br />
-        <br />
-        💡 Clicking on an endpoint from the list will open the endpoint overview which provides documentation on how to
-        use the endpoint and a tool to test the endpoint.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.links.endpoints }],
   },
   {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'API Endpoint Docs',
+    elementXpath: workbenchXPath.endpoints.endpoint('POST', '/basic-tutorial'),
+    title: 'Endpoints Tool',
     description: () => (
       <p>
+        Clicking on an endpoint from the list will open the endpoint overview which provides documentation on how to use
+        the endpoint and a tool to test the endpoint.
+      </p>
+    ),
+  },
+  {
+    elementXpath: workbenchXPath.endpoints.callPanel,
+    title: 'API Endpoint Playground',
+    description: () => (
+      <p>
+        Once you click on an endpoint from the list, you will be able to test it by providing a request payload and
+        clicking on the <b>Play</b> button.
+        <br />
+        <br />
         This section will provide an overview of your API endpoint.
         <br />
         <br />
@@ -401,6 +408,25 @@ export const steps: TutorialStep[] = [
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.endpoints.endpoint('POST', '/basic-tutorial') }],
+  },
+  {
+    elementXpath: workbenchXPath.endpoints.specButton,
+    title: 'API Endpoint Specification',
+    description: () => (
+      <p>
+        Clicking on this button will open the specification of your API endpoint. Like response and request schemas.
+      </p>
+    ),
+  },
+  {
+    elementXpath: workbenchXPath.sidebarContainer,
+    title: 'API Endpoint Specification',
+    description: () => (
+      <p>
+        This is what you see when clicking on the <b>Details</b> button.
+      </p>
+    ),
+    before: [{ type: 'click', selector: workbenchXPath.endpoints.specButton }],
   },
   {
     elementXpath: workbenchXPath.endpoints.callPanel,
@@ -431,7 +457,10 @@ export const steps: TutorialStep[] = [
         </pre>
       </p>
     ),
-    before: [{ type: 'click', selector: workbenchXPath.endpoints.callTab }],
+    before: [
+      { type: 'click', selector: workbenchXPath.closePanelButton },
+      { type: 'click', selector: workbenchXPath.endpoints.bodyTab },
+    ],
   },
   {
     elementXpath: workbenchXPath.endpoints.playButton,

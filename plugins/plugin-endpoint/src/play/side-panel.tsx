@@ -34,7 +34,10 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
   const paramsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
 
   return (
-    <div className="isolate grid grid-cols-1 overflow-y-auto min-w-0 grid-rows-[auto_1fr] border-l border-border">
+    <div
+      className="isolate grid grid-cols-1 overflow-hidden min-w-0 grid-rows-[auto_1fr] border-l border-border"
+      data-testid="endpoint-details-panel"
+    >
       <BackgroundEffect />
       <div className="grid grid-cols-[1fr_1fr_auto] items-start gap-4 px-5 py-4 border-b bg-card w-full">
         <div className="grid grid-rows-2 gap-2">
@@ -42,7 +45,12 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           {endpoint.description && <p className="text-sm text-muted-foreground">{endpoint.description}</p>}
         </div>
         <div className="flex items-end justify-end">
-          <Button variant="icon" size="icon" onClick={() => setIsSpecOpen(!isSpecOpen)}>
+          <Button
+            variant="icon"
+            size="icon"
+            onClick={() => setIsSpecOpen(!isSpecOpen)}
+            data-testid="endpoint-spec-button"
+          >
             <Book />
           </Button>
         </div>
@@ -54,16 +62,24 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
         <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as ActiveTab)}>
           <div className="grid grid-cols-[1fr_auto] items-center h-10 border-b px-5 bg-card">
             <TabsList>
-              <TabsTrigger value="params" className="grid grid-cols-[auto_auto] gap-2 items-center cursor-pointer">
+              <TabsTrigger
+                value="params"
+                className="grid grid-cols-[auto_auto] gap-2 items-center cursor-pointer"
+                data-testid="endpoint-params-tab"
+              >
                 Params
                 <Badge variant="outline" className="h-4 px-1.5 text-xs">
                   {paramsCount}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="body" className="cursor-pointer">
+              <TabsTrigger value="body" className="cursor-pointer" data-testid="endpoint-body-tab">
                 Body
               </TabsTrigger>
-              <TabsTrigger value="headers" className="grid grid-cols-[auto_auto] gap-2 items-center cursor-pointer">
+              <TabsTrigger
+                value="headers"
+                className="grid grid-cols-[auto_auto] gap-2 items-center cursor-pointer"
+                data-testid="endpoint-headers-tab"
+              >
                 Headers
                 <Badge variant="outline" className="h-4 px-1.5 text-xs">
                   {headersCount}

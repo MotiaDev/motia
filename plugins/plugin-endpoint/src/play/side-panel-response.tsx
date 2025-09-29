@@ -25,7 +25,6 @@ export const SidePanelResponse = memo(() => {
       value={activeTab}
       onValueChange={(value: string) => setActiveTab(value as ActiveTab)}
       className="border-l border-border"
-      data-testid="endpoint-response-container"
     >
       <div className="grid grid-cols-[1fr_auto] items-center h-10 border-b px-5 bg-card">
         <TabsList>
@@ -53,7 +52,9 @@ export const SidePanelResponse = memo(() => {
       </div>
 
       <TabsContent value="preview">
-        <ReactJson src={data as object} />
+        <div data-testid="endpoint-response-container" className="h-full overflow-auto">
+          <ReactJson src={data as object} />
+        </div>
       </TabsContent>
 
       <TabsContent value="headers">
