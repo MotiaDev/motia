@@ -45,7 +45,8 @@ def _deref_from_defs(ref: str, defs: dict | None):
         return copy.deepcopy(defs[key])
     else:
         return None
-    
+
+# TODO : review
 def _get_ts_type(s: str) -> str:
     if s == "string":
         return "string"

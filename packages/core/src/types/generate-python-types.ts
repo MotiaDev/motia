@@ -27,6 +27,14 @@ const generateApiRequest = (
   const api_req_root_name = "_" + handlerName + "_ApiRequest_type_root";
   let generated = "";
 
+  if(requestBodySchema === 'Record<string, unknown>'){
+    generated +=
+      `${handlerName}_ApiRequest_type: TypeAlias = ApiRequest[Dict[str, Any]]` + "\n\n";
+    
+    exportedSymbols.push(`${handlerName}_ApiRequest_type`);
+    return generated;
+  }
+
   try {
 
     generated +=
@@ -49,6 +57,15 @@ const generateApiResponse = (
   handlerName: string,
   exportedSymbols: string[]
 ) => {
+
+  if(responseSchema === 'unknown'){
+    const generated =
+      `${handlerName}_ApiResponse_Type: TypeAlias = Any`+ "\n\n";
+
+    exportedSymbols.push(`${handlerName}_ApiResponse_Type`);
+    return generated;
+  }
+
   try {
     let depth = 0,
       current = "",
@@ -107,6 +124,7 @@ const generateFlowContext = (
   name: string,
   exportedSymbols: string[]
 ) => {
+
   try {
     name = name + "_FlowContext";
 
@@ -191,6 +209,14 @@ const generateInput = (
   exportedSymbols: string[]
 ) => {
   const rootName = safeRootName(name + "_Input_Type");
+
+  if(schema == 'never'){
+
+    const result = 
+      `${rootName}: TypeAlias = Never \n\n`
+    exportedSymbols.push(rootName)
+    return result
+  }
 
   try {
     const result = schema_to_typeddict(schema, rootName) + "\n";

@@ -1,19 +1,21 @@
 // Generates Python TypedDict code from a concise schema language.
 
-import { unknown } from "zod";
-
 // ---------------- AST ----------------
-
-export type TypeNode = Base | MappingType | ArrayT | Obj | UnknownT;
 
 export interface Base {
   node: "Base";
-  kind: string; // "string" | "number" | "int" | "boolean" | "emptyobj" (unused)
+  kind: string;
 }
+
+export interface UnknownT {
+  node: "Unknown";
+}
+
+export type TypeNode = Base | MappingType | ArrayT | Obj | UnknownT;
 
 export interface MappingType {
   node: "MappingType";
-  value: TypeNode; // Record<string, Value>
+  value: TypeNode;
 }
 
 export interface ArrayT {
@@ -30,10 +32,6 @@ export interface Field {
 export interface Obj {
   node: "Obj";
   fields: ReadonlyArray<Field>;
-}
-
-export interface UnknownT {
-  node: "Unknown";
 }
 
 // ---------------- Tokenizer ----------------
@@ -88,6 +86,8 @@ export function tokenize(src: string): Tok[] {
       i = j; 
       continue;
     }else{
+
+      // Scope for improvement
       // catch-all: consume until whitespace or a stop char
       const STOP = new Set(["{","}","[","]",":",";",",","<",">","?"]);
       let j = i;
@@ -146,6 +146,8 @@ class Parser {
   }
 
   private parse_object(): Obj {
+
+    // Scope for change - What about Record<> Type ??
     this.want("LBRACE");
     const fields: Field[] = [];
     while (this.peek() && this.peek()!.kind !== "RBRACE") {
@@ -226,7 +228,7 @@ export function parse_schema(src: string): Obj {
   return root;
 }
 
-// ---------------- Shape signatures & naming ----------------
+// ---------------- RENDERING THE TYPES ----------------
 
 const PYTHON_KEYWORDS = new Set([
   "False","None","True","and","as","assert","async","await","break","class","continue","def","del","elif","else","except","finally","for","from","global","if","import","in","is","lambda","nonlocal","not","or","pass","raise","return","try","while","with","yield"
@@ -338,7 +340,9 @@ export function py_type(t: TypeNode, name_of: Map<string, string>): string {
     if (t.kind === "number") return "float";
     if (t.kind === "int") return "int";
     if (t.kind === "boolean") return "bool";
-    if (t.kind === "emptyobj") return "Mapping[str, object]"; // (unused here)
+
+    // Check this
+    if (t.kind === "emptyobj") return "Mapping[str, object]";
     return "Any";
 
     // throw new Error(`Unknown base ${t.kind}`);
@@ -375,7 +379,7 @@ export function render_typeddicts(root: Obj, rootName: string = "Root"): string 
 
   // map signatures to names for type resolution
   const name_of = new Map<string, string>();
-  for (const cls of classes) {
+  for (const cls of classes) {  
     const sig = type_signature({ node: "Obj", fields: cls.fields });
     name_of.set(JSON.stringify(sig), cls.name);
   }
@@ -385,13 +389,19 @@ export function render_typeddicts(root: Obj, rootName: string = "Root"): string 
 
   const field_type_str = (t: TypeNode): string => {
     const s = py_type(t, name_of);
-    if (s.includes("Mapping[")) needed.add("Mapping");
+    if (s.includes("Mapping["))
+      needed.add("Mapping");
     // list[...] needs no extra import in Python 3.9+
     return s;
   };
 
   const opt_wrap = (s: string, optional: boolean): string => {
-    if (optional) { needed.add("NotRequired"); return `NotRequired[${s}]`; }
+
+    if (optional) { 
+      needed.add("NotRequired"); 
+      return `NotRequired[${s}]`; 
+    }
+
     return s;
   };
 
