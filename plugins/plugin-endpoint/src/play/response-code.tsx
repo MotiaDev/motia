@@ -1,6 +1,6 @@
+import { cn } from '@motiadev/ui'
 import { FC } from 'react'
 import { getStatusMessage } from './reponse-code/utils'
-import { cn, useThemeStore } from '@motiadev/ui'
 
 type ResponseCodeProps = {
   statusCode: number
