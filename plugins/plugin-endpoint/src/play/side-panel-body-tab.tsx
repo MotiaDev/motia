@@ -1,5 +1,6 @@
+import { cn } from '@motiadev/ui'
 import { CircleX } from 'lucide-react'
-import { FC, memo, useCallback, useEffect, useRef } from 'react'
+import { FC, memo, useCallback, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { JsonEditor } from '../components/json-editor'
 import { getBodyIsValidSelector, getBodySelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
@@ -29,7 +30,7 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
   )
 
   return (
-    <div className="grid grid-rows-[1fr_auto] h-full">
+    <div className={cn('grid grid-rows-[1fr_auto] h-full', bodyIsValid && 'grid-rows-[1fr]')}>
       <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={setBodyIsValid} />
       {!bodyIsValid && (
         <div
