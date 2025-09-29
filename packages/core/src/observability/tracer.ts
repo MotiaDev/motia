@@ -19,6 +19,10 @@ export class BaseTracerFactory implements TracerFactory {
     private readonly traceGroupStream: MotiaStream<TraceGroup>,
   ) {}
 
+  private async getAllGroups() {
+    return await this.traceGroupStream.getGroup('default')
+  }
+
   private async deleteGroup(group: TraceGroup) {
     const traces = await this.traceStream.getGroup(group.id)
 
@@ -26,6 +30,14 @@ export class BaseTracerFactory implements TracerFactory {
       await this.traceStream.delete(group.id, trace.id)
     }
     await this.traceGroupStream.delete('default', group.id)
+  }
+
+  async clear() {
+    const groups = await this.getAllGroups()
+
+    for (const group of groups) {
+      await this.deleteGroup(group)
+    }
   }
 
   async createTracer(traceId: string, step: Step, logger: Logger) {
@@ -43,7 +55,7 @@ export class BaseTracerFactory implements TracerFactory {
       startTime: Date.now(),
     }
 
-    const groups = await this.traceGroupStream.getGroup('default')
+    const groups = await this.getAllGroups()
 
     if (groups.length >= MAX_TRACE_GROUPS) {
       const groupsToDelete = groups

@@ -3,6 +3,7 @@ import { MotiaApplicationPage } from './MotiaApplicationPage'
 
 export class EndpointPage extends MotiaApplicationPage {
   readonly firstEndpointItem: Locator
+  readonly firstEndpointFlowGroup: Locator
   readonly editor: Locator
   readonly playButton: Locator
   readonly responseContainer: Locator
@@ -10,6 +11,7 @@ export class EndpointPage extends MotiaApplicationPage {
   constructor(page: Page) {
     super(page)
     this.firstEndpointItem = page.getByTestId('endpoint-POST-/basic-tutorial')
+    this.firstEndpointFlowGroup = page.getByTestId('flow-group-basic-tutorial')
     this.editor = page.locator('.monaco-editor')
     this.playButton = page.getByTestId('endpoint-play-button')
     this.responseContainer = page.getByTestId('endpoint-response-container')

@@ -3,36 +3,31 @@ import cors from 'cors'
 import express, { Express, Request, Response } from 'express'
 import http from 'http'
 import { Server as WsServer } from 'ws'
-import { analyticsEndpoint } from './analytics-endpoint'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
 import { CronManager, setupCronHandlers } from './cron-handler'
-import { flowsConfigEndpoint } from './flows-config-endpoint'
-import { flowsEndpoint } from './flows-endpoint'
+import { analyticsEndpoint } from './endpoints/analytics-endpoint'
+import { apiEndpoints } from './endpoints/api-endpoints'
+import { flowsConfigEndpoint } from './endpoints/flows-config-endpoint'
+import { flowsEndpoint } from './endpoints/flows-endpoint'
+import { stateEndpoints } from './endpoints/state-endpoints'
+import { stepEndpoint } from './endpoints/step-endpoint'
+import { traceEndpoint } from './endpoints/trace-endpoint'
 import { generateTraceId } from './generate-trace-id'
 import { isApiStep } from './guards'
 import { LockedData } from './locked-data'
+import { globalLogger } from './logger'
 import { BaseLoggerFactory } from './logger-factory'
 import { Motia } from './motia'
 import { createTracerFactory } from './observability/tracer'
+import { Printer } from './printer'
 import { createSocketServer } from './socket-server'
+import { StateAdapter } from './state/state-adapter'
 import { createStepHandlers, MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
-import { apiEndpoints } from './streams/api-endpoints'
 import { Log, LogsStream } from './streams/logs-stream'
-import {
-  ApiRequest,
-  ApiResponse,
-  ApiRouteConfig,
-  ApiRouteMethod,
-  EventManager,
-  InternalStateManager,
-  Step,
-} from './types'
+import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EventManager, Step } from './types'
 import { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
-import { globalLogger } from './logger'
-import { Printer } from './printer'
-import { stepEndpoint } from './step-endpoint'
 
 export type MotiaServer = {
   app: Express
@@ -53,7 +48,7 @@ type MotiaServerConfig = {
 export const createServer = (
   lockedData: LockedData,
   eventManager: EventManager,
-  state: InternalStateManager,
+  state: StateAdapter,
   config: MotiaServerConfig,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
@@ -258,11 +253,13 @@ export const createServer = (
   app.use(cors())
   app.use(router)
 
+  stateEndpoints(app, state)
   apiEndpoints(lockedData)
   flowsEndpoint(lockedData)
   flowsConfigEndpoint(app, process.cwd(), lockedData)
   analyticsEndpoint(app, process.cwd())
   stepEndpoint(app, lockedData)
+  traceEndpoint(app, tracerFactory)
 
   server.on('error', (error) => {
     console.error('Server error:', error)

@@ -38,7 +38,7 @@ export interface PanelProps {
 
 const panelVariants = {
   default: 'bg-transparent border border-border',
-  outlined: 'bg-transparent border-2 border-border',
+  outlined: 'bg-transparent border border-border',
   filled: 'bg-muted border border-transparent',
   ghost: 'bg-transparent border-transparent shadow-none',
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 export interface StateItem {
   groupId: string
@@ -7,10 +7,16 @@ export interface StateItem {
   value: string | number | boolean | object | unknown[] | null
 }
 
-export const useGetStateItems = (): StateItem[] => {
+type Output = {
+  items: StateItem[]
+  deleteItems: (ids: string[]) => void
+  refetch: () => void
+}
+
+export const useGetStateItems = (): Output => {
   const [items, setItems] = useState<StateItem[]>([])
 
-  useEffect(() => {
+  const refetch = useCallback(() => {
     fetch('/__motia/state')
       .then(async (res) => {
         if (res.ok) {
@@ -23,5 +29,15 @@ export const useGetStateItems = (): StateItem[] => {
       .catch((err) => console.error(err))
   }, [])
 
-  return items
+  const deleteItems = (ids: string[]) => {
+    fetch('/__motia/state/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    }).then(() => refetch())
+  }
+
+  useEffect(refetch, [refetch])
+
+  return { items, deleteItems, refetch }
 }

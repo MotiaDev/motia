@@ -4,7 +4,7 @@ import { FlowConfigResponse } from '@/types/flow'
 export const useSaveWorkflowConfig = () => {
   return useCallback(async (body: FlowConfigResponse) => {
     try {
-      const response = await fetch(`/flows/${body.id}/config`, {
+      const response = await fetch(`/__motia/flows/${body.id}/config`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

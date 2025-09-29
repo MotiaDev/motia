@@ -2,11 +2,11 @@ import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { formatTimestamp } from '@/lib/utils'
 import { useGlobalStore } from '@/stores/use-global-store'
 import { useLogsStore } from '@/stores/use-logs-store'
+import { Button, cn, Input } from '@motiadev/ui'
+import { Search, Trash, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { LogDetail } from './log-detail'
 import { LogLevelDot } from './log-level-dot'
-import { Button, cn, Input } from '@motiadev/ui'
-import { CircleX, Trash } from 'lucide-react'
 
 export const LogsPage = () => {
   const logs = useLogsStore((state) => state.logs)
@@ -30,22 +30,24 @@ export const LogsPage = () => {
   }, [logs, search])
 
   return (
-    <div className="h-full flex flex-row" data-testid="logs-container">
-      <div className="flex-1 overflow-y-auto overflow-x-auto">
-        <div className="flex p-2 border-b gap-4" data-testid="logs-search-container">
+    <>
+      <div className="grid grid-rows-[auto_1fr] h-full">
+        <div className="flex p-2 border-b gap-2" data-testid="logs-search-container">
           <div className="flex-1 relative">
             <Input
               variant="shade"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pr-10 font-medium"
+              className="px-9 font-medium"
+              placeholder="Search"
             />
-            <CircleX
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+            <X
               className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground"
               onClick={() => setSearch('')}
             />
           </div>
-          <Button variant="outline" onClick={resetLogs}>
+          <Button variant="default" onClick={resetLogs} className="h-[34px]">
             <Trash /> Clear
           </Button>
         </div>
@@ -90,8 +92,7 @@ export const LogsPage = () => {
           </TableBody>
         </Table>
       </div>
-
       <LogDetail log={selectedLog} onClose={() => selectLogId(undefined)} />
-    </div>
+    </>
   )
 }

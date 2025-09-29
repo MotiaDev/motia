@@ -15,6 +15,7 @@ test.describe('Workbench - Endpoint Call JSON Validation', () => {
     await helpers.skipTutorial()
     await workbench.open()
     await workbench.navigateToEndpoints()
+    await endpoint.firstEndpointFlowGroup.click()
     await endpoint.firstEndpointItem.click()
   })
 

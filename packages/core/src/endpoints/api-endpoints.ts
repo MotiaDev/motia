@@ -2,7 +2,7 @@ import { isApiStep } from '../guards'
 import { LockedData } from '../locked-data'
 import { ApiRouteConfig, ApiRouteMethod, Step } from '../types'
 import { JsonSchema } from '../types/schema.types'
-import { StreamAdapter } from './adapters/stream-adapter'
+import { StreamAdapter } from '../streams/adapters/stream-adapter'
 
 type QueryParam = {
   name: string
@@ -17,6 +17,7 @@ type ApiEndpoint = {
   queryParams?: QueryParam[]
   responseSchema?: JsonSchema
   bodySchema?: JsonSchema
+  flows?: string[]
 }
 
 const mapEndpoint = (step: Step<ApiRouteConfig>): ApiEndpoint => {
@@ -28,6 +29,7 @@ const mapEndpoint = (step: Step<ApiRouteConfig>): ApiEndpoint => {
     queryParams: step.config.queryParams,
     responseSchema: step.config.responseSchema as never as JsonSchema,
     bodySchema: step.config.bodySchema as never as JsonSchema,
+    flows: step.config.flows,
   }
 }
 

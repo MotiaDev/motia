@@ -11,7 +11,6 @@ import path from 'path'
 import { flush } from '@amplitude/analytics-node'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { createDevWatchers } from './dev-watchers'
-import { stateEndpoints } from './dev/state-endpoints'
 import { deployEndpoints } from './cloud/endpoints'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
@@ -75,7 +74,6 @@ export const dev = async (
 
   watcher.init()
 
-  stateEndpoints(motiaServer, state)
   deployEndpoints(motiaServer, lockedData)
 
   motiaServer.app.get('/__motia', (_, res) => {
