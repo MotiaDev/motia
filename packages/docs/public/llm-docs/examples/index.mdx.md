@@ -2,28 +2,78 @@
 title: Examples
 ---
 
-We have curated a few examples to help you get started with Motia.
+We have curated examples to help you learn Motia, organized by complexity from basic concepts to production-ready implementations.
+
+## 📚 Basic Examples
+Start here to learn core Motia concepts with straightforward implementations.
 
 <Cards>
   <Card
-    title="Multi-Language Data Processing"
-    href="/docs/examples/multi-language-data-processing"
-    description="A real-world example of a multi-language data processing flow"
-  />
-  <Card
     title="Sentiment Analysis"
     href="/docs/examples/sentiment-analysis"
-    description="Sometimes you don't just want a simple “prompt => response.” Instead, you want the LLM to decide how to proceed A real-world example of a sentiment analysis flow"
+    description="Learn dynamic workflows with LLM-driven decision making and event routing"
   />
   <Card
-    title="RAG with Docling and Weaviate"
-    href="/docs/examples/rag-docling-weaviate"
-    description="A real-world example of a RAG flow using Docling and Weaviate"
+    title="Multi-Language Processing"
+    href="/docs/examples/multi-language-data-processing"
+    description="Combine TypeScript, Python, and JavaScript in unified data pipelines"
   />
+</Cards>
+
+## 🔧 Intermediate Examples
+Build more complex workflows with integrations and advanced patterns.
+
+<Cards>
+  <Card
+    title="AI Content Moderation"
+    href="/docs/examples/ai-content-moderation"
+    description="Human-in-the-loop content moderation with AI analysis and Slack integration"
+  />
+  <Card
+    title="RAG PDF Analyzer"
+    href="/docs/examples/rag-docling-weaviate"
+    description="Intelligent document processing with Docling and Weaviate vector database"
+  />
+  <Card
+    title="Trello Automation"
+    href="/docs/examples/trello-automation"
+    description="Automated card progression system with AI-powered summaries and notifications"
+  />
+</Cards>
+
+## 🏭 Production Examples
+Enterprise-ready implementations handling real traffic at scale.
+
+<Cards>
   <Card
     title="Uptime Monitor"
     href="/docs/examples/uptime-discord-monitor"
-    description="A real-world example of a uptime monitor flow"
+    description="Complete monitoring system with smart alerting and Discord integration"
+  />
+  <Card
+    title="GitHub Stars Counter"
+    href="/docs/examples/github-stars-counter"
+    description="Real-time stars counter with secure webhooks and live streaming"
+  />
+  <Card
+    title="GitHub Integration"
+    href="/docs/examples/github-integration-workflow"
+    description="Automated issue and PR management with AI-powered classification and routing"
+  />
+  <Card
+    title="Gmail Automation"
+    href="/docs/examples/gmail-automation"
+    description="Smart email classification, auto-responses, and AI-powered filtering with OAuth2"
+  />
+  <Card
+    title="Finance Agent"
+    href="/docs/examples/finance-agent"
+    description="Event-driven financial analysis with web search and real-time market data"
+  />
+  <Card
+    title="AI Research Agent"
+    href="/docs/examples/ai-deep-research-agent"
+    description="Comprehensive web research assistant with iterative depth and parallel processing"
   />
 </Cards>
 
