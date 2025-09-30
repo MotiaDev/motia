@@ -1,6 +1,6 @@
 {
   "title": "Product Showcase",
-  "defaultOpen": true,
+  "defaultOpen": false,
   "pages": [
     "chessarena-ai"
   ]

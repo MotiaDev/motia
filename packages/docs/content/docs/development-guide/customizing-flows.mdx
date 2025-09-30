@@ -1,0 +1,498 @@
+---
+title: Customizing Flows
+description: Create custom visualizations and represent external processes in your Motia workflows
+---
+
+# Customizing Flows
+
+Motia Workbench allows you to customize how your Steps appear in the flow visualization tool. This helps you create intuitive, context-aware visual components that clearly communicate your flow's behavior and external dependencies.
+
+## UI Steps
+
+UI Steps provide a way to create custom visual representations of your workflow Steps in the Workbench flow visualization tool.
+
+### Overview
+
+To create a custom UI for a Step, create a `.tsx` or `.jsx` file next to your Step file with the same base name:
+
+<Tabs items={['tsx', 'jsx']}>
+  <Tab value="tsx">
+    ``` 
+    steps/ 
+    └── myStep/ 
+      ├── myStep.step.ts      # Step definition
+      └── myStep.step.tsx     # Visual override
+    ```
+  </Tab>
+  <Tab value="jsx">
+    ```
+    steps/
+    └── myStep/
+      ├── myStep.step.js      # Step definition
+      └── myStep.step.jsx     # Visual override
+    ```
+  </Tab>
+</Tabs>
+
+### Basic Usage
+
+Let's override an EventNode while keeping the same look. We'll add an image and show the description.
+
+![Custom Event Node](./../img/custom-event-node.png)
+
+<Tabs items={['TypeScript', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```tsx
+    // myStep.step.tsx
+
+    import { EventNode, EventNodeProps } from 'motia/workbench'
+    import React from 'react'
+
+    export const Node: React.FC<EventNodeProps> = (props) => {
+      return (
+        <EventNode {...props}>
+          <div className="flex flex-row items-start gap-2">
+            <div className="text-sm text-gray-400 font-mono">{props.data.description}</div>
+            <img
+              style={{ width: '64px', height: '64px' }}
+              src="https://www.motia.dev/icon.png"
+            />
+          </div>
+        </EventNode>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```jsx
+    // myStep.step.jsx
+
+    import { EventNode } from 'motia/workbench'
+    import React from 'react'
+
+    export const Node = (props) => {
+      return (
+        <EventNode {...props}>
+          <div className="flex flex-row items-start gap-2">
+            <div className="text-sm text-gray-400 font-mono">{props.data.description}</div>
+            <img
+              style={{ width: '64px', height: '64px' }}
+              src="https://www.motia.dev/icon.png"
+            />
+          </div>
+        </EventNode>
+      )
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Available Components
+
+Motia Workbench provides out-of-the-box components for different Step types:
+
+| Component   | Props Type     | Description                                                                    |
+| ----------- | -------------- | ------------------------------------------------------------------------------ |
+| EventNode   | EventNodeProps | Base component for Event Steps, with built-in styling and connection points    |
+| ApiNode     | ApiNodeProps   | Component for API Steps, includes request/response visualization capabilities  |
+| CronNode    | CronNodeProps  | Base component for Cron Steps, displays timing information                     |
+| NoopNode    | NoopNodeProps  | Base component for NoopNodes with a different color to comply workbench legend |
+
+### Complete Customization
+
+You can fully customize your node to look completely different. Here's an example of a custom ideator agent node:
+
+![Custom Ideator Agent Node](./../img/custom-ideator-agent-node.png)
+
+```tsx
+import { BaseHandle, EventNodeProps, Position } from 'motia/workbench'
+import React from 'react'
+
+export const Node: React.FC<EventNodeProps> = (props) => {
+  return (
+    <div className="w-80 bg-black text-white rounded-xl p-4">
+      <div className="group relative">
+        <BaseHandle type="target" position={Position.Top} variant="event" />
+
+        <div className="flex items-center space-x-3">
+          <img className="w-8 h-8" src="https://cdn-icons-png.flaticon.com/512/12222/12222588.png" />
+          <div className="text-lg font-semibold">{props.data.name}</div>
+        </div>
+
+        <div className="mt-2 text-sm font-medium text-gray-300">{props.data.description}</div>
+
+        <div className="mt-3 flex flex-col gap-2 border border-gray-800 border-solid p-2 rounded-md w-full">
+          <div className="flex items-center text-xs text-gray-400 space-x-2">Input</div>
+          <div className="flex flex-col gap-2 whitespace-pre-wrap font-mono">
+            <div className="flex items-center gap-2">
+              <div className="">contentIdea:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">contentType:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-2 border border-gray-800 border-solid p-2 rounded-md w-full">
+          <div className="flex items-center text-xs text-gray-400 space-x-2">Output</div>
+          <div className="flex flex-col gap-2 whitespace-pre-wrap font-mono">
+            <div className="flex items-center gap-2">
+              <div className="">topic:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">subtopics:</div>
+              <div className="text-orange-500">string[]</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">keywords:</div>
+              <div className="text-orange-500">string[]</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">tone:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="">audience:</div>
+              <div className="text-orange-500">string</div>
+            </div>
+          </div>
+        </div>
+
+        <BaseHandle type="source" position={Position.Bottom} variant="event" />
+      </div>
+    </div>
+  )
+}
+```
+
+#### Important Notes
+
+- You will need to add `<BaseHandle>` to your node, otherwise it won't show the connectors.
+- If your node has padding, make sure to add a group inside your node with class `group relative` so the handles can be correctly positioned.
+
+<Callout type="info">Feel free to create your own custom components and reuse across multiple nodes.</Callout>
+
+### Styling Guidelines
+
+| Guideline                           | Description                                                   |
+| ----------------------------------- | ------------------------------------------------------------- |
+| Use Tailwind's utility classes only | Stick to Tailwind CSS utilities for consistent styling        |
+| Avoid arbitrary values              | Use predefined scales from the design system                  |
+| Keep components responsive          | Ensure UI elements adapt well to different screen sizes       |
+| Follow Motia's design system        | Maintain consistency with Motia's established design patterns |
+
+---
+
+## NOOP Steps
+
+NOOP (No Operation) Steps are a powerful feature that serve multiple purposes:
+
+1. Modeling external processes, webhooks and integrations
+2. Representing human-in-the-loop activities
+3. Creating custom visualizations in the workbench
+4. Testing flows during development
+
+### File Structure
+
+NOOP Steps require two files with the same base name:
+- `stepName.step.ts` - Contains the step configuration
+- `stepName.step.tsx` - Contains the UI component (optional)
+
+#### Step Configuration File
+
+<Tabs items={['TypeScript', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript
+    // myStep.step.ts
+    import { NoopConfig } from 'motia'
+
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'My NOOP Step',
+      description: 'Description of what this step simulates',
+      virtualEmits: ['event.one', 'event.two'],
+      virtualSubscribes: [], // Required even if empty
+      flows: ['my-flow'],
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    // myStep.step.js
+    const config = {
+      type: 'noop',
+      name: 'My NOOP Step',
+      description: 'Description of what this step simulates',
+      virtualEmits: ['event.one', 'event.two'],
+      virtualSubscribes: [], // Required even if empty
+      flows: ['my-flow'],
+    }
+
+    module.exports = { config }
+    ```
+  </Tab>
+</Tabs>
+
+#### UI Component File
+
+<Tabs items={['TypeScript', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript
+    // myStep.step.tsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function MyStep() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium">My Step UI</div>
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    // myStep.step.jsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function MyStep() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium">My Step UI</div>
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Example: Webhook Testing
+
+Here's a complete example of a NOOP Step that simulates webhook events:
+
+<Tabs items={['TypeScript', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript
+    // test-webhook.step.ts
+    import { NoopConfig } from 'motia'
+
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Webhook Simulator',
+      description: 'Simulates incoming webhook events',
+      virtualEmits: ['webhook.received'],
+      virtualSubscribes: [],
+      flows: ['webhook-flow'],
+    }
+    ```
+
+    ```typescript
+    // test-webhook.step.tsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function WebhookSimulator() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium mb-2">Webhook Simulator</div>
+          <button 
+            onClick={() => {
+              fetch('/api/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'test' }),
+              })
+            }}
+            className="px-3 py-1 bg-blue-600 rounded text-sm"
+          >
+            Trigger Webhook
+          </button>
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    // test-webhook.step.js
+    const config = {
+      type: 'noop',
+      name: 'Webhook Simulator',
+      description: 'Simulates incoming webhook events',
+      virtualEmits: ['webhook.received'],
+      virtualSubscribes: [],
+      flows: ['webhook-flow'],
+    }
+
+    module.exports = { config }
+    ```
+
+    ```javascript
+    // test-webhook.step.jsx
+    import React from 'react'
+    import { BaseHandle, Position } from 'motia/workbench'
+
+    export default function WebhookSimulator() {
+      return (
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-600 text-white">
+          <div className="text-sm font-medium mb-2">Webhook Simulator</div>
+          <button 
+            onClick={() => {
+              fetch('/api/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'test' }),
+              })
+            }}
+            className="px-3 py-1 bg-blue-600 rounded text-sm"
+          >
+            Trigger Webhook
+          </button>
+          <BaseHandle type="source" position={Position.Bottom} />
+        </div>
+      )
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Representing External Processes
+
+NOOP Steps represent parts of your workflow that happen outside your system. Common examples include:
+
+#### Webhook Callbacks
+
+<Tabs  items={['TypeScript', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Wait for Stripe Webhook',
+      description: 'Waits for payment confirmation',
+      virtualSubscribes: ['payment.initiated'],
+      virtualEmits: ['/api/stripe/webhook'],
+      flows: ['payment'],
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'Wait for Stripe Webhook',
+      description: 'Waits for payment confirmation',
+      virtualSubscribes: ['payment.initiated'],
+      virtualEmits: ['/api/stripe/webhook'],
+      flows: ['payment'],
+    }
+    ```
+  </Tab>
+</Tabs>
+
+#### Human Approvals
+
+<Tabs  items={['TypeScript', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'Manager Review',
+      description: 'Manager reviews request',
+      virtualSubscribes: ['approval.requested'],
+      virtualEmits: ['/api/approvals/submit'],
+      flows: ['approval'],
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'Manager Review',
+      description: 'Manager reviews request',
+      virtualSubscribes: ['approval.requested'],
+      virtualEmits: ['/api/approvals/submit'],
+      flows: ['approval'],
+    }
+    ```
+  </Tab>
+</Tabs>
+
+#### External System Integration
+
+<Tabs  items={['TypeScript', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript
+    export const config: NoopConfig = {
+      type: 'noop',
+      name: 'GitHub Webhook',
+      description: 'Waiting for repository events',
+      virtualSubscribes: ['repository.watched'],
+      virtualEmits: ['/api/github/webhook'],
+      flows: ['repo-automation'],
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const config = {
+      type: 'noop',
+      name: 'GitHub Webhook',
+      description: 'Waiting for repository events',
+      virtualSubscribes: ['repository.watched'],
+      virtualEmits: ['/api/github/webhook'],
+      flows: ['repo-automation'],
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Best Practices
+
+### UI Steps
+
+| Practice             | Description                                 |
+| -------------------- | ------------------------------------------- |
+| Use base components  | Use `EventNode` and `ApiNode` when possible |
+| Keep it simple       | Maintain simple and clear visualizations    |
+| Optimize performance | Minimize state and computations             |
+| Documentation        | Document custom components and patterns     |
+| Style sharing        | Share common styles through utility classes |
+
+### NOOP Steps
+
+| Category | Guidelines |
+|----------|------------|
+| **File Organization** | • Keep configuration and UI code in separate files<br/>• Use `.step.ts` for configuration<br/>• Use `.step.tsx` for UI components |
+| **UI Components** | • Use functional React components<br/>• Include proper TypeScript types<br/>• Follow Tailwind's utility classes<br/>• Keep components minimal and focused<br/>• Design clear visual connection points<br/>• Always include BaseHandle components for flow connections |
+| **Configuration** | • Always include `virtualSubscribes` (even if empty)<br/>• Use descriptive names for virtual events<br/>• Include clear descriptions<br/>• Use descriptive, action-oriented names |
+| **External Process Modeling** | • Document expected timeframes and SLAs<br/>• Define all possible outcomes and edge cases<br/>• Use exact API route matching |
+| **Testing** | • Create isolated test flows<br/>• Use realistic test data<br/>• Handle errors gracefully<br/>• Implement clear status indicators<br/>• Label test steps explicitly<br/>• Provide visual feedback for actions |
+
+## Component Reference
+
+### Core Imports
+
+| Import | Purpose |
+|--------|---------|
+| `BaseHandle` | A React component that renders connection points for nodes in the workflow. Used to define where edges (connections) can start or end on a node. |
+| `EventNodeProps` | (TypeScript only) Interface defining the properties passed to node components, including node data, selected state, and connection information. |
+| `Position` | (TypeScript only) Enum that specifies the possible positions for handles on a node (Top, Right, Bottom, Left). Used to control where connection points appear. |
+
+### Handle Placement
+
+| Handle Type | Position | 
+|------------|----------|
+| Input Handles | Position.Top |
+| Output Handles | Position.Bottom |
+| Flow Direction | Top to bottom |

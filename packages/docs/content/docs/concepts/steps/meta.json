@@ -1,5 +1,8 @@
 {
   "title": "Steps",
-  "defaultOpen": false,
-  "pages": ["defining-steps", "event", "api", "cron"]
+  "defaultOpen": true,
+  "pages": [
+    "defining-steps",
+    "triggers"
+  ]
 }

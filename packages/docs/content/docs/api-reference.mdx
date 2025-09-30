@@ -1,0 +1,547 @@
+---
+title: API Reference
+description: Complete API reference for Motia framework - types, interfaces, and utilities
+---
+
+# API Reference
+
+Complete reference documentation for Motia's TypeScript/JavaScript and Python APIs.
+
+## Core Types
+
+### Step Configuration Types
+
+<Tabs items={['TypeScript', 'Python']}>
+<Tab value='TypeScript'>
+
+#### ApiRouteConfig
+
+Configuration for API Steps (HTTP endpoints).
+
+```typescript
+interface ApiRouteConfig {
+  type: 'api'
+  name: string
+  description?: string
+  path: string
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
+  emits: Emit[]
+  virtualEmits?: Emit[]
+  virtualSubscribes?: string[]
+  flows?: string[]
+  middleware?: ApiMiddleware[]
+  bodySchema?: ZodInput
+  responseSchema?: Record<number, ZodInput>
+  queryParams?: QueryParam[]
+  includeFiles?: string[]
+}
+```
+
+#### EventConfig
+
+Configuration for Event Steps (background tasks).
+
+```typescript
+interface EventConfig {
+  type: 'event'
+  name: string
+  description?: string
+  subscribes: string[]
+  emits: Emit[]
+  virtualEmits?: Emit[]
+  input: ZodInput
+  flows?: string[]
+  includeFiles?: string[]
+}
+```
+
+#### CronConfig
+
+Configuration for Cron Steps (scheduled tasks).
+
+```typescript
+interface CronConfig {
+  type: 'cron'
+  name: string
+  description?: string
+  cron: string
+  emits: Emit[]
+  virtualEmits?: Emit[]
+  flows?: string[]
+  includeFiles?: string[]
+}
+```
+
+#### NoopConfig
+
+Configuration for NOOP Steps (visual connectors).
+
+```typescript
+interface NoopConfig {
+  type: 'noop'
+  name: string
+  description?: string
+  virtualEmits: Emit[]
+  virtualSubscribes: string[]
+  flows?: string[]
+}
+```
+
+</Tab>
+<Tab value='Python'>
+
+#### API Step Config
+
+```python
+config = {
+    "type": "api",
+    "name": str,
+    "description": str,  # Optional
+    "path": str,
+    "method": str,  # GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+    "emits": list[str],
+    "virtualEmits": list[str],  # Optional
+    "virtualSubscribes": list[str],  # Optional
+    "flows": list[str],  # Optional
+    "middleware": list,  # Optional
+    "bodySchema": dict,  # JSON Schema or Pydantic model schema
+    "responseSchema": dict,  # Dict of status code to schema
+    "queryParams": list[dict],  # Optional
+    "includeFiles": list[str]  # Optional
+}
+```
+
+#### Event Step Config
+
+```python
+config = {
+    "type": "event",
+    "name": str,
+    "description": str,  # Optional
+    "subscribes": list[str],
+    "emits": list[str],
+    "virtualEmits": list[str],  # Optional
+    "input": dict,  # JSON Schema or Pydantic model schema
+    "flows": list[str],  # Optional
+    "includeFiles": list[str]  # Optional
+}
+```
+
+#### Cron Step Config
+
+```python
+config = {
+    "type": "cron",
+    "name": str,
+    "description": str,  # Optional
+    "cron": str,  # Cron expression
+    "emits": list[str],
+    "virtualEmits": list[str],  # Optional
+    "flows": list[str],  # Optional
+    "includeFiles": list[str]  # Optional
+}
+```
+
+#### NOOP Step Config
+
+```python
+config = {
+    "type": "noop",
+    "name": str,
+    "description": str,  # Optional
+    "virtualEmits": list[str],
+    "virtualSubscribes": list[str],
+    "flows": list[str]  # Optional
+}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Context API
+
+The context object available in all Step handlers.
+
+<Tabs items={['TypeScript', 'Python']}>
+<Tab value='TypeScript'>
+
+### FlowContext
+
+```typescript
+interface FlowContext<TEmitData = never> {
+  // Event emission
+  emit: (event: EmitEvent<TEmitData>) => Promise<void>
+  
+  // Structured logging
+  logger: Logger
+  
+  // State management
+  state: StateManager
+  
+  // Real-time streams
+  streams: StreamsManager
+  
+  // Request tracing
+  traceId: string
+}
+```
+
+### Logger
+
+```typescript
+interface Logger {
+  info(message: string, metadata?: Record<string, any>): void
+  error(message: string, metadata?: Record<string, any>): void
+  warn(message: string, metadata?: Record<string, any>): void
+  debug(message: string, metadata?: Record<string, any>): void
+}
+```
+
+### StateManager
+
+```typescript
+interface StateManager {
+  get<T>(groupId: string, key: string): Promise<T | null>
+  set<T>(groupId: string, key: string, value: T): Promise<T>
+  delete<T>(groupId: string, key: string): Promise<T | null>
+  getGroup<T>(groupId: string): Promise<T[]>
+  clear(groupId: string): Promise<void>
+}
+```
+
+### StreamsManager
+
+```typescript
+interface MotiaStream<TData> {
+  get(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
+  set(groupId: string, id: string, data: TData): Promise<BaseStreamItem<TData>>
+  delete(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
+  getGroup(groupId: string): Promise<BaseStreamItem<TData>[]>
+  send<T>(channel: StateStreamEventChannel, event: StateStreamEvent<T>): Promise<void>
+}
+```
+
+</Tab>
+<Tab value='Python'>
+
+### Context
+
+```python
+class Context:
+    # Event emission
+    async def emit(self, event: dict) -> None
+    
+    # Structured logging
+    logger: Logger
+    
+    # State management
+    state: StateManager
+    
+    # Real-time streams
+    streams: StreamsManager
+    
+    # Request tracing
+    trace_id: str
+```
+
+### Logger
+
+```python
+class Logger:
+    def info(self, message: str, metadata: dict = None) -> None
+    def error(self, message: str, metadata: dict = None) -> None
+    def warn(self, message: str, metadata: dict = None) -> None
+    def debug(self, message: str, metadata: dict = None) -> None
+```
+
+### StateManager
+
+```python
+class StateManager:
+    async def get(self, group_id: str, key: str) -> Any | None
+    async def set(self, group_id: str, key: str, value: Any) -> Any
+    async def delete(self, group_id: str, key: str) -> Any | None
+    async def get_group(self, group_id: str) -> list[Any]
+    async def clear(self, group_id: str) -> None
+```
+
+### StreamsManager
+
+```python
+class MotiaStream:
+    async def get(self, group_id: str, id: str) -> dict | None
+    async def set(self, group_id: str, id: str, data: dict) -> dict
+    async def delete(self, group_id: str, id: str) -> dict | None
+    async def get_group(self, group_id: str) -> list[dict]
+    async def send(self, channel: dict, event: dict) -> None
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Handler Types
+
+<Tabs items={['TypeScript', 'Python']}>
+<Tab value='TypeScript'>
+
+### API Handler
+
+```typescript
+type ApiRouteHandler<
+  TRequestBody = unknown,
+  TResponseBody extends ApiResponse<number, unknown> = ApiResponse<number, unknown>,
+  TEmitData = never
+> = (
+  req: ApiRequest<TRequestBody>,
+  ctx: FlowContext<TEmitData>
+) => Promise<TResponseBody>
+```
+
+### Event Handler
+
+```typescript
+type EventHandler<
+  TInput = unknown,
+  TEmitData = never
+> = (
+  input: TInput,
+  ctx: FlowContext<TEmitData>
+) => Promise<void>
+```
+
+### Cron Handler
+
+```typescript
+type CronHandler<TEmitData = never> = (
+  ctx: FlowContext<TEmitData>
+) => Promise<void>
+```
+
+### Middleware
+
+```typescript
+type ApiMiddleware = (
+  req: ApiRequest,
+  ctx: FlowContext,
+  next: () => Promise<ApiResponse>
+) => Promise<ApiResponse>
+```
+
+</Tab>
+<Tab value='Python'>
+
+### API Handler
+
+```python
+async def handler(
+    req: dict,  # Contains: body, headers, pathParams, queryParams
+    context: Context
+) -> dict  # Returns: {"status": int, "body": dict, "headers": dict (optional)}
+```
+
+### Event Handler
+
+```python
+async def handler(
+    input_data: dict,  # Data from the emitted event
+    context: Context
+) -> None
+```
+
+### Cron Handler
+
+```python
+async def handler(
+    context: Context
+) -> None
+```
+
+### Middleware
+
+```python
+async def middleware(
+    req: dict,
+    context: Context,
+    next_fn: Callable
+) -> dict  # Returns: {"status": int, "body": dict, "headers": dict (optional)}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Request & Response Types
+
+<Tabs items={['TypeScript', 'Python']}>
+<Tab value='TypeScript'>
+
+### ApiRequest
+
+```typescript
+interface ApiRequest<TBody = unknown> {
+  pathParams: Record<string, string>
+  queryParams: Record<string, string | string[]>
+  body: TBody
+  headers: Record<string, string | string[]>
+}
+```
+
+### ApiResponse
+
+```typescript
+interface ApiResponse<TStatus extends number = number, TBody = unknown> {
+  status: TStatus
+  body: TBody
+  headers?: Record<string, string | string[]>
+}
+```
+
+### EmitEvent
+
+```typescript
+interface EmitEvent<TData = unknown> {
+  topic: string
+  data: TData
+}
+```
+
+</Tab>
+<Tab value='Python'>
+
+### Request
+
+```python
+req = {
+    "pathParams": dict[str, str],
+    "queryParams": dict[str, str | list[str]],
+    "body": dict | list,
+    "headers": dict[str, str | list[str]]
+}
+```
+
+### Response
+
+```python
+response = {
+    "status": int,
+    "body": dict | list,
+    "headers": dict[str, str | list[str]]  # Optional
+}
+```
+
+### Emit Event
+
+```python
+event = {
+    "topic": str,
+    "data": dict | list
+}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Stream Configuration
+
+<Tabs items={['TypeScript', 'Python']}>
+<Tab value='TypeScript'>
+
+### StreamConfig
+
+```typescript
+interface StreamConfig {
+  name: string
+  schema: ZodInput
+  baseConfig: {
+    storageType: 'default'
+  }
+}
+```
+
+</Tab>
+<Tab value='Python'>
+
+### Stream Config
+
+```python
+config = {
+    "name": str,
+    "schema": dict,  # JSON Schema or Pydantic model schema
+    "baseConfig": {
+        "storageType": "default"
+    }
+}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Utility Types
+
+<Tabs items={['TypeScript']}>
+<Tab value='TypeScript'>
+
+### Emit
+
+```typescript
+type Emit = string | {
+  topic: string
+  label?: string
+  conditional?: boolean
+}
+```
+
+### QueryParam
+
+```typescript
+interface QueryParam {
+  name: string
+  description: string
+}
+```
+
+### StreamItem
+
+```typescript
+interface BaseStreamItem<TData> {
+  groupId: string
+  id: string
+  data: TData
+  createdAt: string
+  updatedAt: string
+}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## What's Next?
+
+<Cards>
+  <Card href="/docs/concepts/steps/defining-steps" title="📝 Defining Steps">
+    Learn how to use these types in your Steps
+  </Card>
+  
+  <Card href="/docs/development-guide/state-management" title="🔄 State Management">
+    Deep dive into the State API
+  </Card>
+  
+  <Card href="/docs/development-guide/streams" title="📡 Streams">
+    Learn about real-time streaming
+  </Card>
+  
+  <Card href="/docs/examples" title="💡 Examples">
+    See these APIs in action
+  </Card>
+</Cards>

@@ -1,6 +1,6 @@
 {
   "title": "Examples",
-  "defaultOpen": true,
+  "defaultOpen": false,
   "pages": [
     "sentiment-analysis",
     "multi-language-data-processing",
