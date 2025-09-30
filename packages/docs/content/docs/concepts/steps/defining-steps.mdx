@@ -259,32 +259,94 @@ Every handler gets the same context object:
 
 ---
 
-## Core Fucntionality
+## Core Functionality
 
 ### State – Persistent Data
 
 Key-value storage shared across Steps and workflows.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
 
 ```ts
 await state.set(traceId, 'preferences', { theme: 'dark' });
 const prefs = await state.get(traceId, 'preferences');
 ```
 
+</Tab>
+<Tab value='Python'>
+
+```python
+await context.state.set(context.trace_id, "preferences", {"theme": "dark"})
+prefs = await context.state.get(context.trace_id, "preferences")
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+await state.set(traceId, 'preferences', { theme: 'dark' });
+const prefs = await state.get(traceId, 'preferences');
+```
+
+</Tab>
+</Tabs>
+
 ### Logging – Structured & Contextual
 
 For debugging, monitoring, and observability.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
 
 ```ts
 logger.info('Processing user', { userId: '123' });
 ```
 
+</Tab>
+<Tab value='Python'>
+
+```python
+context.logger.info("Processing user", {"userId": "123"})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+logger.info('Processing user', { userId: '123' });
+```
+
+</Tab>
+</Tabs>
+
 ### Streams – Real-Time Data
 
 Push updates directly to connected clients.
 
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
 ```ts
 await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
 ```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+await context.streams.chat.set("room-123", "msg-456", {"text": "Hello!"})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
+```
+
+</Tab>
+</Tabs>
 
 ---
 
