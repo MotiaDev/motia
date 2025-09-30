@@ -9,42 +9,37 @@ import { getStepDirectoryPaths, getStepDirectoryConfig } from './config/step-dir
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
-export const getStepFiles = (projectDir: string): string[] => {
+/**
+ * Generic function to find files matching specific patterns in configured step directories
+ */
+const findFilesInStepDirectories = (
+  projectDir: string, 
+  fileType: 'step' | 'stream'
+): string[] => {
   const stepDirectoryPaths = getStepDirectoryPaths(projectDir)
   const config = getStepDirectoryConfig()
   
-  const allStepFiles: string[] = []
+  const allFiles: string[] = []
   
   for (const stepDir of stepDirectoryPaths) {
     const patterns = config.recursive 
-      ? ['**/*.step.{ts,js,rb}', '**/*_step.{ts,js,py,rb}']
-      : ['*.step.{ts,js,rb}', '*_step.{ts,js,py,rb}']
+      ? [`**/*.${fileType}.{ts,js,rb}`, `**/*_${fileType}.{ts,js,py,rb}`]
+      : [`*.${fileType}.{ts,js,rb}`, `*_${fileType}.{ts,js,py,rb}`]
     
     for (const pattern of patterns) {
-      allStepFiles.push(...globSync(pattern, { absolute: true, cwd: stepDir }))
+      allFiles.push(...globSync(pattern, { absolute: true, cwd: stepDir }))
     }
   }
   
-  return allStepFiles
+  return allFiles
+}
+
+export const getStepFiles = (projectDir: string): string[] => {
+  return findFilesInStepDirectories(projectDir, 'step')
 }
 
 export const getStreamFiles = (projectDir: string): string[] => {
-  const stepDirectoryPaths = getStepDirectoryPaths(projectDir)
-  const config = getStepDirectoryConfig()
-  
-  const allStreamFiles: string[] = []
-  
-  for (const stepDir of stepDirectoryPaths) {
-    const patterns = config.recursive 
-      ? ['**/*.stream.{ts,js,rb}', '**/*_stream.{ts,js,py,rb}']
-      : ['*.stream.{ts,js,rb}', '*_stream.{ts,js,py,rb}']
-    
-    for (const pattern of patterns) {
-      allStreamFiles.push(...globSync(pattern, { absolute: true, cwd: stepDir }))
-    }
-  }
-  
-  return allStreamFiles
+  return findFilesInStepDirectories(projectDir, 'stream')
 }
 
 // Helper function to recursively collect flow data
