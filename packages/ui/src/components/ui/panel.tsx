@@ -98,7 +98,7 @@ export const Panel: FC<PanelProps> = ({
             ))}
           </TabsList>
         )}
-        <div className={cn('flex flex-col gap-2 p-4', contentClassName)}>
+        <div className={cn('flex flex-col gap-2 p-4 h-full', contentClassName)}>
           {details?.map((detail, index) => <PanelDetailItem key={index} {...detail} />)}
 
           {hasTabs &&
