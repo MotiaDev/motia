@@ -263,8 +263,8 @@ export const createServer = (
   stateEndpoints(app, state)
   apiEndpoints(lockedData)
   flowsEndpoint(lockedData)
-  flowsConfigEndpoint(app, lockedData)
-  analyticsEndpoint(app, lockedData)
+  flowsConfigEndpoint(app, process.cwd(), lockedData)
+  analyticsEndpoint(app, process.cwd())
   stepEndpoint(app, lockedData)
   traceEndpoint(app, tracerFactory)
 
