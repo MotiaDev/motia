@@ -47,13 +47,142 @@
 
 ## 🎯 What is Motia?
 
-**Motia solves backend fragmentation.** 
+Backend development today is fragmented.
 
-Modern software engineering is disjointed – APIs live in one framework, background jobs in another, queues have their own tooling, and AI agents are springing up in yet more isolated runtimes. **This fragmentation demands a unified system.**
+APIs live in one framework, background jobs in another, queues and schedulers elsewhere, and now AI agents and streaming systems have their own runtimes. Add observability and state management on top, and you're stitching together half a dozen tools before writing your first feature.
 
-Motia unifies `APIs, background jobs, queueing, streaming, states, workflows, AI agents, observability, scaling, and deployment` into a **single coherent system** with shared observability and developer experience. Similar to how React simplified frontend development, where everything is a component, **Motia simplifies backend development, where everything is a Step**.
+**Motia unifies all of these concerns around one core primitive: the Step.**
 
-Write **JavaScript, TypeScript, Python, and more** in the same workflow. **What used to take 5 frameworks to build now comes out of the box with Motia.**
+Just as React made frontend development simple by introducing components, Motia redefines backend development with Steps.
+
+Every backend pattern, API endpoints, background jobs, queues, workflows, AI agents, streaming, observability, and state, is expressed with the same primitive.
+
+To read more about this, check out our **[manifesto](https://motia.dev/manifesto)**.
+
+---
+
+## The Core Primitive: the Step
+
+A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files and connects them automatically.
+
+Here's a simple example of two Steps working together: an API Step that emits an event, and an Event Step that processes it.
+
+<details open>
+<summary><b>TypeScript</b></summary>
+
+```ts
+// steps/send-message.step.ts
+export const config = {
+  name: 'SendMessage',
+  type: 'api',
+  path: '/messages',
+  method: 'POST',
+  emits: ['message.sent']
+};
+
+export const handler = async (req, { emit }) => {
+  await emit({
+    topic: 'message.sent',
+    data: { text: req.body.text }
+  });
+  return { status: 200, body: { ok: true } };
+};
+```
+
+```ts
+// steps/process-message.step.ts
+export const config = {
+  name: 'ProcessMessage',
+  type: 'event',
+  subscribes: ['message.sent']
+};
+
+export const handler = async (input, { logger }) => {
+  logger.info('Processing message', input);
+};
+```
+
+</details close>
+
+<details>
+<summary><b>Python</b></summary>
+
+```python
+# send_message_step.py
+config = {
+    "name": "SendMessage",
+    "type": "api",
+    "path": "/messages",
+    "method": "POST",
+    "emits": ["message.sent"]
+}
+
+async def handler(req, context):
+    await context.emit({
+        "topic": "message.sent",
+        "data": {"text": req.body["text"]}
+    })
+    return {"status": 200, "body": {"ok": True}}
+```
+
+```python
+# process_message_step.py
+config = {
+    "name": "ProcessMessage",
+    "type": "event",
+    "subscribes": ["message.sent"]
+}
+
+async def handler(input, context):
+    context.logger.info("Processing message", input)
+```
+
+</details close>
+
+<details>
+<summary><b>JavaScript</b></summary>
+
+```js
+// steps/send-message.step.js
+const config = {
+  name: 'SendMessage',
+  type: 'api',
+  path: '/messages',
+  method: 'POST',
+  emits: ['message.sent']
+};
+
+const handler = async (req, { emit }) => {
+  await emit({
+    topic: 'message.sent',
+    data: { text: req.body.text }
+  });
+  return { status: 200, body: { ok: true } };
+};
+
+module.exports = { config, handler };
+```
+
+```js
+// steps/process-message.step.js
+const config = {
+  name: 'ProcessMessage',
+  type: 'event',
+  subscribes: ['message.sent']
+};
+
+const handler = async (input, { logger }) => {
+  logger.info('Processing message', input);
+};
+
+module.exports = { config, handler };
+```
+
+</details>
+
+👉 With just two files, you've built an **API endpoint**, a **queue**, and a **worker**. No extra frameworks required.
+
+**[Learn more about Steps →](https://motia.dev/docs/concepts/steps/defining-steps)**
 
 [![Motia combines APIs, background queues, and AI agents into one system](assets/github-readme-banner.gif)](https://motia.dev)
 
