@@ -256,7 +256,7 @@ export const createServer = (
     res.header('Access-Control-Max-Age', '600')
     res.header('Access-Control-Allow-Credentials', 'true')
     res.header('Access-Control-Allow-Private-Network', 'true')
-    res.status(200).end()
+    res.status(204).end()
   })
   app.use((_req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*')
