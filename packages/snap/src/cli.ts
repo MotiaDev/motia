@@ -168,8 +168,13 @@ generate
   .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
   .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
   .action(async (options) => {
+    const { generateLockedData } = require('./generate-locked-data')
     const { generateOpenApi } = require('./openapi/generate')
-    await generateOpenApi(process.cwd(), options.title, options.version, options.output)
+
+    const lockedData = await generateLockedData(process.cwd())
+    const apiSteps = lockedData.apiSteps()
+
+    generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)
     process.exit(0)
   })
 

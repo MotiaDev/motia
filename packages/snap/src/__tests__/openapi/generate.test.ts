@@ -1,4 +1,4 @@
-import { LockedData, Step, ZodInput } from '@motiadev/core';
+import { ApiRouteConfig, Step, ZodInput } from '@motiadev/core';
 import * as fs from 'fs';
 import { OpenAPIV3 } from 'openapi-types';
 import * as path from 'path';
@@ -10,10 +10,6 @@ jest.mock('fs', () => ({
   writeFileSync: jest.fn(),
 }));
 
-jest.mock('../../generate-locked-data', () => ({
-  generateLockedData: jest.fn(),
-}));
-
 describe('generateOpenApi', () => {
   const mockProjectDir = '/mock/project';
   const mockOutputFile = 'mock-project-openapi.json';
@@ -23,7 +19,7 @@ describe('generateOpenApi', () => {
     (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify({ name: 'test-project', version: '1.0.0' }));
   });
 
-  const MOCK_API_STEP: Step = {
+  const MOCK_API_STEP: Step<ApiRouteConfig> = {
     filePath: '/mock/project/steps/test.ts',
     version: '1.0.0',
     config: {
@@ -35,14 +31,10 @@ describe('generateOpenApi', () => {
     },
   };
 
-  it('should generate a basic OpenAPI spec with default info', async () => {
-    const mockLockedData = {
-      apiSteps: () => [MOCK_API_STEP],
-    } as unknown as LockedData;
+  it('should generate a basic OpenAPI spec with default info', () => {
+    const apiSteps = [MOCK_API_STEP];
 
-    (require('../../generate-locked-data').generateLockedData as jest.Mock).mockResolvedValue(mockLockedData);
-
-    await generateOpenApi(mockProjectDir, undefined, undefined, mockOutputFile);
+    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile);
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -71,7 +63,7 @@ describe('generateOpenApi', () => {
     );
   });
 
-  it('should handle bodySchema and responseSchema correctly', async () => {
+  it('should handle bodySchema and responseSchema correctly', () => {
     const mockBodySchema: OpenAPIV3.SchemaObject = {
       type: 'object',
       properties: {
@@ -88,7 +80,7 @@ describe('generateOpenApi', () => {
       },
     };
 
-    const mockApiStep: Step = {
+    const mockApiStep: Step<ApiRouteConfig> = {
       ...MOCK_API_STEP,
       config: {
         ...MOCK_API_STEP.config,
@@ -102,13 +94,9 @@ describe('generateOpenApi', () => {
       },
     };
 
-    const mockLockedData = {
-      apiSteps: () => [mockApiStep],
-    } as unknown as LockedData;
+    const apiSteps = [mockApiStep];
 
-    (require('../../generate-locked-data').generateLockedData as jest.Mock).mockResolvedValue(mockLockedData);
-
-    await generateOpenApi(mockProjectDir, undefined, undefined, mockOutputFile);
+    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile);
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -153,16 +141,11 @@ describe('generateOpenApi', () => {
   });
 
 
-  it('should use provided title', async () => {
-    const mockLockedData = {
-      apiSteps: () => [MOCK_API_STEP],
-    } as unknown as LockedData;
-
-    (require('../../generate-locked-data').generateLockedData as jest.Mock).mockResolvedValue(mockLockedData);
-
+  it('should use provided title', () => {
+    const apiSteps = [MOCK_API_STEP];
     const customTitle = 'Custom API';
 
-    await generateOpenApi(mockProjectDir, customTitle);
+    generateOpenApi(mockProjectDir, apiSteps, customTitle);
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -191,17 +174,11 @@ describe('generateOpenApi', () => {
     );
   });
 
-  it('should use provided version', async () => {
-
-    const mockLockedData = {
-      apiSteps: () => [MOCK_API_STEP],
-    } as unknown as LockedData;
-
-    (require('../../generate-locked-data').generateLockedData as jest.Mock).mockResolvedValue(mockLockedData);
-
+  it('should use provided version', () => {
+    const apiSteps = [MOCK_API_STEP];
     const customVersion = '2.0.0';
 
-    await generateOpenApi(mockProjectDir, undefined, customVersion, mockOutputFile);
+    generateOpenApi(mockProjectDir, apiSteps, undefined, customVersion, mockOutputFile);
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -230,7 +207,7 @@ describe('generateOpenApi', () => {
     );
   });
 
-  it('should handle complex bodySchema with anyOf, nullable, and $ref', async () => {
+  it('should handle complex bodySchema with anyOf, nullable, and $ref', () => {
 
     const mockUserSchema = {
       type: 'object',
@@ -260,7 +237,7 @@ describe('generateOpenApi', () => {
       },
     };
 
-    const mockApiStep: Step = {
+    const mockApiStep: Step<ApiRouteConfig> = {
       ...MOCK_API_STEP,
       filePath: '/mock/project/steps/complex.ts',
       config: {
@@ -274,13 +251,9 @@ describe('generateOpenApi', () => {
       },
     };
 
-    const mockLockedData = {
-      apiSteps: () => [mockApiStep],
-    } as unknown as LockedData;
+    const apiSteps = [mockApiStep];
 
-    (require('../../generate-locked-data').generateLockedData as jest.Mock).mockResolvedValue(mockLockedData);
-
-    await generateOpenApi(mockProjectDir, undefined, undefined, mockOutputFile);
+    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile);
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',

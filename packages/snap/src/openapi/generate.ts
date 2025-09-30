@@ -1,15 +1,12 @@
+import { ApiRouteConfig, Step } from '@motiadev/core';
 import * as fs from 'fs';
 import { OpenAPIV3 } from 'openapi-types';
 import * as path from 'path';
 
-import { generateLockedData } from '../generate-locked-data';
 import { processSchema } from './process-schema';
 import { isHttpMethod } from './utils';
 
-export async function generateOpenApi(projectDir: string, title?: string, version?: string, outputFile = 'openapi.json') {
-    const lockedData = await generateLockedData(projectDir);
-    const apiSteps = lockedData.apiSteps();
-
+export function generateOpenApi(projectDir: string, apiSteps: Step<ApiRouteConfig>[], title?: string, version?: string, outputFile = 'openapi.json') {
     // read package.json to get project name for default title & version
     if (!title || !version) {
         try {
