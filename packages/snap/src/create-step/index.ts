@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import colors from 'colors'
+import inquirer from 'inquirer'
 import { generateTemplate } from './teamplateUtils'
 import { generateOverride } from './templates/ui/overrides'
 import { getStepAnswers } from './getAnswers'
@@ -8,10 +9,29 @@ import { getFileExtension } from './utils'
 
 export async function createStep(options: { stepFilePath?: string }) {
   try {
+    const { getStepDirectories } = require('../utils/get-step-directories')
+    const stepDirs = getStepDirectories({ projectDir: process.cwd() })
+    
+    let baseStepDir: string
+    
+    if (stepDirs.length > 1) {
+      const relDirs = stepDirs.map(dir => path.relative(process.cwd(), dir))
+      const dirChoice = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'directory',
+          message: 'Select directory to create the step in:',
+          choices: relDirs.map(dir => ({ name: dir, value: dir })),
+        },
+      ])
+      baseStepDir = path.join(process.cwd(), dirChoice.directory)
+    } else {
+      baseStepDir = stepDirs[0]
+    }
+    
     const answers = await getStepAnswers()
 
-    // Create steps directory if it doesn't exist
-    const stepDir = path.join(process.cwd(), 'steps', options?.stepFilePath || '')
+    const stepDir = path.join(baseStepDir, options?.stepFilePath || '')
     if (!fs.existsSync(stepDir)) {
       fs.mkdirSync(stepDir, { recursive: true })
     }

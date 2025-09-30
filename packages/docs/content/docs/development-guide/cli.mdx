@@ -31,7 +31,17 @@ Options:
 Build your project, generating zip files for each step and creating a configuration file.
 
 ```bash
-npx motia build
+npx motia build [options]
+```
+
+Options:
+
+- `-s, --step-dirs <dirs>`: Comma-separated list of directories to search for steps (overrides MOTIA_STEP_DIRS environment variable).
+
+Example:
+
+```bash
+npx motia build --step-dirs "api-steps,worker-steps"
 ```
 
 This command:
@@ -84,6 +94,35 @@ Options:
 - `-p, --port <port>`: The port to run the server on (default: 3000).
 - `-H, --host [host]`: The host address for the server (default: localhost).
 - `-d, --debug`: Enable debug logging.
+- `--step-dirs <directories>`: Comma-separated list of directories to search for steps (overrides MOTIA_STEP_DIRS environment variable).
+
+Example:
+
+```bash
+npx motia dev --step-dirs "api-steps,worker-steps"
+```
+
+### `start`
+
+Start a server to run your Motia project in production mode.
+
+```bash
+npx motia start [options]
+```
+
+Options:
+
+- `-p, --port <port>`: The port to run the server on (default: 3000).
+- `-H, --host [host]`: The host address for the server (default: localhost).
+- `-v, --disable-verbose`: Disable verbose logging.
+- `-d, --debug`: Enable debug logging.
+- `-s, --step-dirs <dirs>`: Comma-separated list of directories to search for steps (overrides MOTIA_STEP_DIRS environment variable).
+
+Example:
+
+```bash
+npx motia start --step-dirs "api-steps,worker-steps"
+```
 
 ### `get-config`
 
@@ -186,6 +225,95 @@ Options:
 - `--port <number>`: Port number (default: 3000).
 - `--project-name <project name>` (required): The name of your project.
 - `--skip-build`: Skip building the Docker image and used the last built image.
+
+## Step Directory Configuration
+
+Motia provides flexible options for configuring where your step files are located. By default, Motia searches for steps in the `steps/` directory, but you can customize this behavior using environment variables or CLI options.
+
+### Using the `MOTIA_STEP_DIRS` Environment Variable
+
+Set the `MOTIA_STEP_DIRS` environment variable to specify custom directories for step discovery.
+
+**Format:** Comma-separated list of directory paths
+
+**Default:** `steps`
+
+**Example - Single directory:**
+```bash
+export MOTIA_STEP_DIRS=src
+npx motia dev
+```
+
+**Example - Multiple directories:**
+```bash
+export MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+npx motia dev
+```
+
+**Example - In `.env` file:**
+```bash title=".env"
+MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+```
+
+**Example - In `package.json` scripts:**
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "MOTIA_STEP_DIRS=src npx motia dev",
+    "dev:multi": "MOTIA_STEP_DIRS=api,workers npx motia dev",
+    "build": "MOTIA_STEP_DIRS=src npx motia build"
+  }
+}
+```
+
+### Configuration Precedence
+
+Motia follows this precedence order when determining which directories to search:
+
+1. **CLI option** (`--step-dirs` or `-s`) - Highest priority
+2. **Environment variable** (`MOTIA_STEP_DIRS`) - Medium priority  
+3. **Default** (`steps`) - Lowest priority
+
+Example showing CLI override:
+```bash
+# Environment variable says "src", but CLI option overrides it
+export MOTIA_STEP_DIRS=src
+npx motia dev --step-dirs "api-steps,worker-steps"
+# Result: Motia will search in "api-steps" and "worker-steps", NOT "src"
+```
+
+### Practical Examples
+
+**Monorepo structure:**
+```bash
+npx motia dev --step-dirs "packages/api/steps,packages/workers/steps"
+```
+
+**Feature-based organization:**
+```bash
+MOTIA_STEP_DIRS=features/auth/steps,features/payments/steps,features/notifications/steps
+```
+
+**Environment separation:**
+```bash
+npx motia dev --step-dirs "src/api-steps,src/background-steps"
+```
+
+### Troubleshooting
+
+**Directory not found error:**
+
+If you see an error like `Directory 'my-steps' does not exist`, ensure:
+- The directory path is correct and exists in your project
+- The path is relative to your project root
+- You have the necessary file permissions
+
+**Steps not being discovered:**
+
+If your steps aren't being found:
+- Verify files follow the naming pattern (`.step.ts`, `.step.py`, `.step.js`)
+- Check that files are in the configured directories
+- Ensure your `config` and `handler` exports are correct
 
 ## Next Steps
 

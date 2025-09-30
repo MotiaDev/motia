@@ -13,9 +13,13 @@ const hasPythonSteps = (stepFiles: string[]) => {
   return stepFiles.some((file) => file.endsWith('.py'))
 }
 
-export const build = async (listener: BuildListener): Promise<Builder> => {
+export const build = async (listener: BuildListener, stepDirsParam?: string): Promise<Builder> => {
   const builder = new Builder(projectDir, listener)
-  const stepFiles = getStepFiles(projectDir)
+  
+  const { getStepDirectories } = require('../../utils/get-step-directories')
+  const stepDirs = getStepDirectories({ projectDir, cliParam: stepDirsParam })
+  
+  const stepFiles = getStepFiles(projectDir, stepDirs)
 
   if (stepFiles.length === 0) {
     throw new Error('Project contains no steps, please add some steps before building')
@@ -33,7 +37,7 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
     builder.registerBuilder('python', new PythonBuilder(builder, listener))
   }
 
-  const invalidSteps = await collectFlows(projectDir, lockedData).catch((err) => {
+  const invalidSteps = await collectFlows(projectDir, lockedData, stepDirs).catch((err) => {
     const errorMessage = err.filePath ? `Build error in ${err.filePath}` : 'Build error'
 
     const finalMessage = `${errorMessage}\nPlease check the logs above for details`

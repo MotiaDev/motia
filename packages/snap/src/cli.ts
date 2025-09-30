@@ -85,6 +85,7 @@ program
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
   .option('-m, --mermaid', 'Enable mermaid diagram generation')
+  .option('-s, --step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "src,steps")')
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')
@@ -94,7 +95,7 @@ program
     const port = arg.port ? parseInt(arg.port) : defaultPort
     const host = arg.host ? arg.host : defaultHost
     const { dev } = require('./dev')
-    await dev(port, host, arg.disableVerbose, arg.mermaid)
+    await dev(port, host, arg.disableVerbose, arg.mermaid, arg.stepDirs)
   })
 
 program
@@ -104,6 +105,7 @@ program
   .option('-H, --host [host]', 'The host address for the server', `${defaultHost}`)
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
+  .option('-s, --step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "src,steps")')
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')
@@ -113,7 +115,7 @@ program
     const port = arg.port ? parseInt(arg.port) : defaultPort
     const host = arg.host ? arg.host : defaultHost
     const { start } = require('./start')
-    await start(port, host, arg.disableVerbose)
+    await start(port, host, arg.disableVerbose, arg.stepDirs)
   })
 
 program

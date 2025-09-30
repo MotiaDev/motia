@@ -18,9 +18,10 @@ export const createDevWatchers = (
   server: MotiaServer,
   eventHandler: MotiaEventManager,
   cronManager: CronManager,
+  stepDirs?: string[],
 ) => {
-  const stepDir = path.join(process.cwd(), 'steps')
-  const watcher = new Watcher(stepDir, lockedData)
+  const dirs = stepDirs || [path.join(process.cwd(), 'steps')]
+  const watcher = new Watcher(dirs, lockedData, process.cwd())
 
   watcher.onStreamChange((oldStream: Stream, stream: Stream) => {
     trackEvent('stream_updated', {

@@ -11,11 +11,14 @@ require('ts-node').register({
   compilerOptions: { module: 'commonjs' },
 })
 
-export const start = async (port: number, hostname: string, disableVerbose: boolean): Promise<void> => {
+export const start = async (port: number, hostname: string, disableVerbose: boolean, stepDirsParam?: string): Promise<void> => {
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
 
-  const stepFiles = getStepFiles(baseDir)
+  const { getStepDirectories } = require('./utils/get-step-directories')
+  const stepDirs = getStepDirectories({ projectDir: baseDir, cliParam: stepDirsParam })
+
+  const stepFiles = getStepFiles(baseDir, stepDirs)
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
   if (hasPythonFiles) {
@@ -24,7 +27,7 @@ export const start = async (port: number, hostname: string, disableVerbose: bool
   }
 
   const dotMotia = path.join(baseDir, '.motia')
-  const lockedData = await generateLockedData(baseDir)
+  const lockedData = await generateLockedData(baseDir, 'file', 'default', stepDirs)
   const eventManager = createEventManager()
   const state = createStateAdapter({ adapter: 'default', filePath: dotMotia })
   const config = { isVerbose, isDev: false, version }

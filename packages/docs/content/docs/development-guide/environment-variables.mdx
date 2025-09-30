@@ -43,6 +43,60 @@ OPENAI_API_KEY=your-api-key-here
 DATABASE_URL=postgresql://user:password@localhost:5432/myapp
 ```
 
+## Motia Configuration Variables
+
+Motia uses environment variables for framework configuration. These control how Motia behaves and discovers your steps.
+
+### `MOTIA_STEP_DIRS`
+
+Configure custom directories for step discovery.
+
+**Type:** String (comma-separated paths)
+
+**Default:** `steps`
+
+**Description:** Specifies which directories Motia should search for step files. By default, Motia looks in the `steps/` directory, but you can configure any directory structure that fits your project.
+
+**Single directory example:**
+
+```bash title=".env"
+MOTIA_STEP_DIRS=src
+```
+
+**Multiple directories example:**
+
+```bash title=".env"
+MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+```
+
+**In `package.json` scripts:**
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "MOTIA_STEP_DIRS=src npx motia dev",
+    "dev:multi": "MOTIA_STEP_DIRS=api,workers npx motia dev"
+  }
+}
+```
+
+<Callout type="info">
+**CLI Override:** You can override `MOTIA_STEP_DIRS` using the `--step-dirs` CLI option:
+
+```bash
+npx motia dev --step-dirs "api-steps,worker-steps"
+```
+
+The CLI option takes precedence over the environment variable.
+</Callout>
+
+**Common use cases:**
+- **Monorepo projects:** `MOTIA_STEP_DIRS=packages/api/steps,packages/workers/steps`
+- **Team separation:** `MOTIA_STEP_DIRS=team-auth-steps,team-payments-steps`
+- **Layer separation:** `MOTIA_STEP_DIRS=src/api-steps,src/background-steps`
+
+Learn more in the [Project Structure documentation](/docs/project-structure#configuring-step-directories).
+
 ## Using Environment Variables in Steps
 
 ### TypeScript/JavaScript

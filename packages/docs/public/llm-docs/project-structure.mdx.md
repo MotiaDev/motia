@@ -12,7 +12,7 @@ Understanding how to organize your Motia project is crucial for building maintai
 Here's what a typical Motia project looks like:
 
 <Folder name="my-motia-project" defaultOpen>
-  <Folder name="steps" defaultOpen>
+  <Folder name="steps (default)" defaultOpen>
     <File name="01-api-gateway.step.ts" />
     <File name="02-data-processor.step.py" />  
     <File name="03-send-notification.step.js" />
@@ -43,6 +43,8 @@ Here's what a typical Motia project looks like:
 
 <Callout type="info">
 The `steps/` directory is the heart of your Motia application - this is where all your workflow logic lives. Motia automatically discovers and registers any file following the naming pattern.
+
+**Note:** The `steps/` directory is the default location, but you can customize this to use any directory name(s) you prefer. See the [Configuring Step Directories](#configuring-step-directories) section below for details.
 </Callout>
 
 <Callout>
@@ -52,6 +54,89 @@ The `steps/` directory is the heart of your Motia application - this is where al
 - You can freely nest steps in subfolders under `steps/` (e.g., `steps/aaa/a1.step.ts`, `steps/bbb/ccc/c1.step.py`).
 - Discovery is recursive inside `steps/`, so deeper folder structures for large apps are supported.
 </Callout>
+
+## Configuring Step Directories
+
+By default, Motia searches for step files in the `steps/` directory at your project root. However, you can customize this to use any directory structure that fits your project's needs.
+
+<Callout type="info">
+**Backward Compatibility:** Existing projects using the `steps/` directory will continue to work without any changes. The default behavior remains unchanged.
+</Callout>
+
+### Using Environment Variables
+
+Configure custom step directories using the `MOTIA_STEP_DIRS` environment variable:
+
+```bash
+# Single custom directory
+export MOTIA_STEP_DIRS=src
+npx motia dev
+
+# Multiple directories
+export MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+npx motia dev
+```
+
+You can also set this in your `.env` file:
+
+```bash title=".env"
+MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+```
+
+### Using CLI Options
+
+Override the environment variable with the `--step-dirs` CLI option:
+
+```bash
+# Single directory
+npx motia dev --step-dirs "src"
+
+# Multiple directories
+npx motia dev --step-dirs "api-steps,worker-steps"
+
+# Works with build and start commands too
+npx motia build --step-dirs "src"
+npx motia start --step-dirs "api-steps,worker-steps"
+```
+
+### Single Custom Directory Example
+
+<Folder name="my-motia-project" defaultOpen>
+  <Folder name="src" defaultOpen>
+    <File name="api-gateway.step.ts" />
+    <File name="data-processor.step.py" />
+    <File name="notification.step.js" />
+  </Folder>
+  <File name="package.json" />
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=src
+```
+
+### Multiple Directories Example
+
+<Folder name="my-motia-project" defaultOpen>
+  <Folder name="api-steps" defaultOpen>
+    <File name="users.step.ts" />
+    <File name="products.step.ts" />
+  </Folder>
+  <Folder name="worker-steps" defaultOpen>
+    <File name="process-orders.step.py" />
+    <File name="send-emails.step.js" />
+  </Folder>
+  <Folder name="cron-steps" defaultOpen>
+    <File name="daily-report.step.ts" />
+    <File name="cleanup.step.py" />
+  </Folder>
+  <File name="package.json" />
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+```
 
 ## Automatic Step Discovery
 
@@ -63,16 +148,17 @@ Motia will automatically discover and register **any file** that follows the `.s
 
 ### Discovery Rules
 
-Motia scans your `steps/` directory and automatically registers files as steps based on these rules:
+Motia scans your configured step directories (default: `steps/`) and automatically registers files as steps based on these rules:
 
 1. **File must contain `.step.` or `_step.` in the filename** (e.g., `my-task.step.ts`, `my_task_step.py`)
 2. **File must export a `config` object** defining the step configuration
 3. **File must export a `handler` function** containing the step logic
 4. **File extension determines the runtime** (`.ts` = TypeScript, `.py` = Python, `.js` = JavaScript)
+5. **Discovery works across all configured directories** - if you've set multiple directories via `MOTIA_STEP_DIRS` or `--step-dirs`, Motia will search all of them
 
 When you run `motia dev`, Motia will:
-- Scan the `steps/` directory recursively
-- Find all files matching `*.step.*`
+- Scan all configured step directories recursively
+- Find all files matching `*.step.*` in each directory
 - Parse their `config` exports to understand step types and connections
 - Register them in the workflow engine
 - Make them available in the Workbench
@@ -108,7 +194,7 @@ The `.step.` part in the filename is **required** - this is how Motia identifies
 
 ## Step Organization Patterns
 
-<Tabs items={["Sequential", "Feature-Based", "Language-Specific"]}>
+<Tabs items={["Sequential", "Feature-Based", "Language-Specific", "Multiple Directories"]}>
 <Tab value="Sequential">
 
 ### Sequential Flow Organization
@@ -189,6 +275,109 @@ Group by programming language for team specialization:
 - Consistent tooling and patterns
 - Easy onboarding for language experts
 - Shared libraries and utilities
+
+</Tab>
+<Tab value="Multiple Directories">
+
+### Multiple Directories Organization
+Separate steps across multiple root-level directories for advanced organizational needs:
+
+#### Monorepo Pattern
+
+Ideal for large-scale applications with multiple packages:
+
+<Folder name="my-monorepo" defaultOpen>
+  <Folder name="packages" defaultOpen>
+    <Folder name="api" defaultOpen>
+      <Folder name="steps" defaultOpen>
+        <File name="users.step.ts" />
+        <File name="products.step.ts" />
+      </Folder>
+    </Folder>
+    <Folder name="workers" defaultOpen>
+      <Folder name="steps" defaultOpen>
+        <File name="process-orders.step.py" />
+        <File name="send-emails.step.js" />
+      </Folder>
+    </Folder>
+  </Folder>
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=packages/api/steps,packages/workers/steps
+```
+
+**Benefits:**
+- Clear package boundaries
+- Independent versioning and deployment
+- Shared code and utilities per package
+- Scalable for large teams
+
+#### Team Separation Pattern
+
+Organize by team ownership for collaborative development:
+
+<Folder name="my-project" defaultOpen>
+  <Folder name="team-auth-steps" defaultOpen>
+    <File name="login.step.ts" />
+    <File name="register.step.ts" />
+    <File name="verify-email.step.py" />
+  </Folder>
+  <Folder name="team-payments-steps" defaultOpen>
+    <File name="process-payment.step.ts" />
+    <File name="refund.step.js" />
+    <File name="webhooks.step.py" />
+  </Folder>
+  <Folder name="team-notifications-steps" defaultOpen>
+    <File name="email.step.js" />
+    <File name="sms.step.py" />
+    <File name="push.step.ts" />
+  </Folder>
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=team-auth-steps,team-payments-steps,team-notifications-steps
+```
+
+**Benefits:**
+- Clear team ownership
+- Reduced merge conflicts
+- Team-specific workflows
+- Easier code reviews
+
+#### Environment/Layer Separation Pattern
+
+Separate by architectural layers or deployment environments:
+
+<Folder name="my-project" defaultOpen>
+  <Folder name="src" defaultOpen>
+    <Folder name="api-steps" defaultOpen>
+      <File name="rest-endpoints.step.ts" />
+      <File name="graphql.step.ts" />
+    </Folder>
+    <Folder name="background-steps" defaultOpen>
+      <File name="data-processing.step.py" />
+      <File name="report-generation.step.js" />
+    </Folder>
+    <Folder name="cron-steps" defaultOpen>
+      <File name="daily-cleanup.step.ts" />
+      <File name="weekly-reports.step.py" />
+    </Folder>
+  </Folder>
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=src/api-steps,src/background-steps,src/cron-steps
+```
+
+**Benefits:**
+- Clear architectural separation
+- Easier to understand system layout
+- Independent scaling strategies
+- Better deployment control
 
 </Tab>
 </Tabs>
@@ -476,11 +665,13 @@ export const handler = async (input, ctx) => {
 </Tab>
 <Tab value="Location Issues">
 
-**File outside steps/ directory**
+**File outside configured directories**
+
+Steps must be in your configured step directories. By default, this is the `steps/` directory, but if you've customized it using `MOTIA_STEP_DIRS` or `--step-dirs`, steps must be in those directories.
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
-❌ **Won't be discovered:**
+❌ **Won't be discovered (default config):**
 <Folder name="project-root" defaultOpen>
   <Folder name="src">
     <File name="user-handler.step.ts" />
@@ -491,10 +682,46 @@ export const handler = async (input, ctx) => {
 </Folder>
 </div>
 <div>
-✅ **Will be discovered:**
+✅ **Will be discovered (default config):**
 <Folder name="project-root" defaultOpen>
   <Folder name="steps" defaultOpen>
     <File name="user-handler.step.ts" />
+    <File name="processor.step.py" />
+  </Folder>
+</Folder>
+</div>
+</div>
+
+**Example with custom directories:**
+
+If you've configured `MOTIA_STEP_DIRS=api-steps,worker-steps`:
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+❌ **Won't be discovered:**
+<Folder name="project-root" defaultOpen>
+  <Folder name="steps">
+    <File name="user-handler.step.ts" />
+  </Folder>
+  <Folder name="lib">
+    <File name="processor.step.py" />
+  </Folder>
+</Folder>
+
+Error message:
+```
+Warning: Step file found outside configured directories
+File: steps/user-handler.step.ts
+Configured directories: api-steps, worker-steps
+```
+</div>
+<div>
+✅ **Will be discovered:**
+<Folder name="project-root" defaultOpen>
+  <Folder name="api-steps" defaultOpen>
+    <File name="user-handler.step.ts" />
+  </Folder>
+  <Folder name="worker-steps" defaultOpen>
     <File name="processor.step.py" />
   </Folder>
 </Folder>
