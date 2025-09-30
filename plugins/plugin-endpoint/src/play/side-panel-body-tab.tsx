@@ -1,4 +1,3 @@
-import { cn } from '@motiadev/ui'
 import { CircleX } from 'lucide-react'
 import { FC, memo, useCallback, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -30,11 +29,11 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
   )
 
   return (
-    <div className={cn('grid grid-rows-[1fr_auto] h-full', bodyIsValid && 'grid-rows-[1fr]')}>
+    <div className="max-h-full h-full relative">
       <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={setBodyIsValid} />
       {!bodyIsValid && (
         <div
-          className="border-t border-border p-3 text-sm dark:text-yellow-500 text-yellow-700 flex items-center gap-1 font-medium"
+          className="absolute bottom-0 left-0 right-0 border-t border-border p-3 text-sm dark:text-yellow-500 text-yellow-700 flex items-center gap-1 font-medium"
           data-testid="endpoint-body-tab-invalid"
         >
           <CircleX className="w-4 h-4" />
