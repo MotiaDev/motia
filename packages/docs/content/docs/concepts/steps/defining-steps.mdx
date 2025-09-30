@@ -94,7 +94,9 @@ This is the core of how you build backends with Motia.
 <Tab value='TypeScript'>
 
 ```ts title="steps/send-message.step.ts"
-export const config = {
+import { ApiRouteConfig, Handlers } from 'motia';
+
+export const config: ApiRouteConfig = {
   name: 'SendMessage',
   type: 'api',
   path: '/messages',
@@ -102,7 +104,7 @@ export const config = {
   emits: ['message.sent']
 };
 
-export const handler = async (req, { emit }) => {
+export const handler: Handlers['SendMessage'] = async (req, { emit }) => {
   await emit({
     topic: 'message.sent',
     data: { text: req.body.text }
@@ -112,13 +114,15 @@ export const handler = async (req, { emit }) => {
 ```
 
 ```ts title="steps/process-message.step.ts"
-export const config = {
+import { EventConfig, Handlers } from 'motia';
+
+export const config: EventConfig = {
   name: 'ProcessMessage',
   type: 'event',
   subscribes: ['message.sent']
 };
 
-export const handler = async (input, { logger }) => {
+export const handler: Handlers['ProcessMessage'] = async (input, { logger }) => {
   logger.info('Processing message', input);
 };
 ```
