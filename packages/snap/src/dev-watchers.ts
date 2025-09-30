@@ -14,47 +14,6 @@ import path from 'path'
 import { Watcher } from './watcher'
 import { getStepDirectoryPaths } from './config/step-directories'
 
-// Multi-watcher wrapper class
-class MultiWatcher {
-  private watchers: Watcher[] = []
-
-  constructor(watchers: Watcher[]) {
-    this.watchers = watchers
-  }
-
-  onStreamChange(handler: (oldStream: Stream, stream: Stream) => void) {
-    this.watchers.forEach(watcher => watcher.onStreamChange(handler))
-  }
-
-  onStreamCreate(handler: (stream: Stream) => void) {
-    this.watchers.forEach(watcher => watcher.onStreamCreate(handler))
-  }
-
-  onStreamDelete(handler: (stream: Stream) => void) {
-    this.watchers.forEach(watcher => watcher.onStreamDelete(handler))
-  }
-
-  onStepChange(handler: (oldStep: Step, newStep: Step) => void) {
-    this.watchers.forEach(watcher => watcher.onStepChange(handler))
-  }
-
-  onStepCreate(handler: (step: Step) => void) {
-    this.watchers.forEach(watcher => watcher.onStepCreate(handler))
-  }
-
-  onStepDelete(handler: (step: Step) => void) {
-    this.watchers.forEach(watcher => watcher.onStepDelete(handler))
-  }
-
-  init() {
-    this.watchers.forEach(watcher => watcher.init())
-  }
-
-  async stop(): Promise<void> {
-    await Promise.all(this.watchers.map(watcher => watcher.stop()))
-  }
-}
-
 export const createDevWatchers = (
   lockedData: LockedData,
   server: MotiaServer,
@@ -63,81 +22,83 @@ export const createDevWatchers = (
 ) => {
   const stepDirectoryPaths = getStepDirectoryPaths(process.cwd())
   const watchers = stepDirectoryPaths.map(stepDir => new Watcher(stepDir, lockedData, process.cwd()))
-  const multiWatcher = new MultiWatcher(watchers)
 
-  multiWatcher.onStreamChange((oldStream: Stream, stream: Stream) => {
-    trackEvent('stream_updated', {
-      streamName: stream.config.name,
-      type: stream.config.baseConfig.storageType,
-    })
-
-    return lockedData.updateStream(oldStream, stream)
-  })
-
-  multiWatcher.onStreamCreate((stream: Stream) => {
-    trackEvent('stream_created', {
-      streamName: stream.config.name,
-      type: stream.config.baseConfig.storageType,
-    })
-
-    return lockedData.createStream(stream)
-  })
-
-  multiWatcher.onStreamDelete((stream: Stream) => {
-    trackEvent('stream_deleted', {
-      streamName: stream.config.name,
-      type: stream.config.baseConfig.storageType,
-    })
-
-    return lockedData.deleteStream(stream)
-  })
-
-  multiWatcher.onStepChange((oldStep: Step, newStep: Step) => {
-    if (isApiStep(oldStep)) server.removeRoute(oldStep)
-    if (isCronStep(oldStep)) cronManager.removeCronJob(oldStep)
-    if (isEventStep(oldStep)) eventHandler.removeHandler(oldStep)
-
-    const isUpdated = lockedData.updateStep(oldStep, newStep)
-
-    if (isUpdated) {
-      trackEvent('step_updated', {
-        stepName: newStep.config.name,
-        type: newStep.config.type,
+  // Set up event handlers for all watchers
+  watchers.forEach(watcher => {
+    watcher.onStreamChange((oldStream: Stream, stream: Stream) => {
+      trackEvent('stream_updated', {
+        streamName: stream.config.name,
+        type: stream.config.baseConfig.storageType,
       })
+      return lockedData.updateStream(oldStream, stream)
+    })
 
-      if (isCronStep(newStep)) cronManager.createCronJob(newStep)
-      if (isEventStep(newStep)) eventHandler.createHandler(newStep)
-      if (isApiStep(newStep)) server.addRoute(newStep)
-    }
-  })
+    watcher.onStreamCreate((stream: Stream) => {
+      trackEvent('stream_created', {
+        streamName: stream.config.name,
+        type: stream.config.baseConfig.storageType,
+      })
+      return lockedData.createStream(stream)
+    })
 
-  multiWatcher.onStepCreate((step: Step) => {
-    const isCreated = lockedData.createStep(step)
+    watcher.onStreamDelete((stream: Stream) => {
+      trackEvent('stream_deleted', {
+        streamName: stream.config.name,
+        type: stream.config.baseConfig.storageType,
+      })
+      return lockedData.deleteStream(stream)
+    })
 
-    if (isCreated) {
-      trackEvent('step_created', {
+    watcher.onStepChange((oldStep: Step, newStep: Step) => {
+      if (isApiStep(oldStep)) server.removeRoute(oldStep)
+      if (isCronStep(oldStep)) cronManager.removeCronJob(oldStep)
+      if (isEventStep(oldStep)) eventHandler.removeHandler(oldStep)
+
+      const isUpdated = lockedData.updateStep(oldStep, newStep)
+
+      if (isUpdated) {
+        trackEvent('step_updated', {
+          stepName: newStep.config.name,
+          type: newStep.config.type,
+        })
+
+        if (isCronStep(newStep)) cronManager.createCronJob(newStep)
+        if (isEventStep(newStep)) eventHandler.createHandler(newStep)
+        if (isApiStep(newStep)) server.addRoute(newStep)
+      }
+    })
+
+    watcher.onStepCreate((step: Step) => {
+      const isCreated = lockedData.createStep(step)
+
+      if (isCreated) {
+        trackEvent('step_created', {
+          stepName: step.config.name,
+          type: step.config.type,
+        })
+
+        if (isApiStep(step)) server.addRoute(step)
+        if (isEventStep(step)) eventHandler.createHandler(step)
+        if (isCronStep(step)) cronManager.createCronJob(step)
+      }
+    })
+
+    watcher.onStepDelete((step: Step) => {
+      trackEvent('step_deleted', {
         stepName: step.config.name,
         type: step.config.type,
       })
 
-      if (isApiStep(step)) server.addRoute(step)
-      if (isEventStep(step)) eventHandler.createHandler(step)
-      if (isCronStep(step)) cronManager.createCronJob(step)
-    }
-  })
+      if (isApiStep(step)) server.removeRoute(step)
+      if (isEventStep(step)) eventHandler.removeHandler(step)
+      if (isCronStep(step)) cronManager.removeCronJob(step)
 
-  multiWatcher.onStepDelete((step: Step) => {
-    trackEvent('step_deleted', {
-      stepName: step.config.name,
-      type: step.config.type,
+      lockedData.deleteStep(step)
     })
-
-    if (isApiStep(step)) server.removeRoute(step)
-    if (isEventStep(step)) eventHandler.removeHandler(step)
-    if (isCronStep(step)) cronManager.removeCronJob(step)
-
-    lockedData.deleteStep(step)
   })
 
-  return multiWatcher
+  return {
+    init: () => watchers.forEach(watcher => watcher.init()),
+    stop: async () => Promise.all(watchers.map(watcher => watcher.stop()))
+  }
 }
