@@ -1,5 +1,4 @@
 import bodyParser from 'body-parser'
-import cors from 'cors'
 import express, { Express, Request, Response } from 'express'
 import http from 'http'
 import { Server as WsServer } from 'ws'
@@ -250,14 +249,22 @@ export const createServer = (
 
   allSteps.filter(isApiStep).forEach(addRoute)
 
-  app.use(cors())
+  app.options('*', (_req, res) => {
+    res.header('Access-Control-Allow-Origin', '*')
+    res.header('Access-Control-Allow-Methods', '*')
+    res.header('Access-Control-Allow-Headers', '*')
+    res.header('Access-Control-Max-Age', '600')
+    res.header('Access-Control-Allow-Credentials', 'true')
+    res.header('Access-Control-Allow-Private-Network', 'true')
+    res.status(200).end()
+  })
   app.use(router)
 
   stateEndpoints(app, state)
   apiEndpoints(lockedData)
   flowsEndpoint(lockedData)
-  flowsConfigEndpoint(app, process.cwd(), lockedData)
-  analyticsEndpoint(app, process.cwd())
+  flowsConfigEndpoint(app, lockedData)
+  analyticsEndpoint(app, lockedData)
   stepEndpoint(app, lockedData)
   traceEndpoint(app, tracerFactory)
 
