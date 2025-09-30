@@ -104,7 +104,7 @@ export const handler = async (input, { logger }) => {
 
 </details>
 
-<details>
+<details close>
 <summary><b>Python</b></summary>
 
 ```python
