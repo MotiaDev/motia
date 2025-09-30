@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { program } from 'commander'
 import './cloud'
-import { version } from './version'
 import { handler } from './cloud/config-utils'
+import { version } from './version'
 
 const defaultPort = 3000
 const defaultHost = '0.0.0.0'
@@ -159,6 +159,23 @@ generate
     await createStep({
       stepFilePath: arg.dir,
     })
+  })
+
+generate
+  .command('openapi')
+  .description('Generate OpenAPI spec for your project')
+  .option('-t, --title <title>', 'Title for the OpenAPI document. Defaults to project name')
+  .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
+  .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
+  .action(async (options) => {
+    const { generateLockedData } = require('./generate-locked-data')
+    const { generateOpenApi } = require('./openapi/generate')
+
+    const lockedData = await generateLockedData(process.cwd())
+    const apiSteps = lockedData.apiSteps()
+
+    generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)
+    process.exit(0)
   })
 
 const docker = program.command('docker').description('Motia docker commands')
