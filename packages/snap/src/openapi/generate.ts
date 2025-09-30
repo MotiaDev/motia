@@ -1,4 +1,3 @@
-import { LockedData } from '@motiadev/core';
 import * as fs from 'fs';
 import { OpenAPIV3 } from 'openapi-types';
 import * as path from 'path';
@@ -8,7 +7,7 @@ import { processSchema } from './process-schema';
 import { isHttpMethod } from './utils';
 
 export async function generateOpenApi(projectDir: string, title?: string, version?: string, outputFile = 'openapi.json') {
-    const lockedData: LockedData = await generateLockedData(projectDir);
+    const lockedData = await generateLockedData(projectDir);
     const apiSteps = lockedData.apiSteps();
 
     // read package.json to get project name for default title & version
