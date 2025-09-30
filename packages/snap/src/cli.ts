@@ -85,10 +85,20 @@ program
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
   .option('-m, --mermaid', 'Enable mermaid diagram generation')
+  .option('--step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "steps,src")')
+  .option('--no-recursive', 'Disable recursive scanning of step directories')
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')
       process.env.LOG_LEVEL = 'debug'
+    }
+
+    // Set step directory configuration from CLI options
+    if (arg.stepDirs) {
+      process.env.MOTIA_STEP_DIRS = arg.stepDirs
+    }
+    if (arg.recursive === false) {
+      process.env.MOTIA_STEP_RECURSIVE = 'false'
     }
 
     const port = arg.port ? parseInt(arg.port) : defaultPort
@@ -104,10 +114,20 @@ program
   .option('-H, --host [host]', 'The host address for the server', `${defaultHost}`)
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
+  .option('--step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "steps,src")')
+  .option('--no-recursive', 'Disable recursive scanning of step directories')
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')
       process.env.LOG_LEVEL = 'debug'
+    }
+
+    // Set step directory configuration from CLI options
+    if (arg.stepDirs) {
+      process.env.MOTIA_STEP_DIRS = arg.stepDirs
+    }
+    if (arg.recursive === false) {
+      process.env.MOTIA_STEP_RECURSIVE = 'false'
     }
 
     const port = arg.port ? parseInt(arg.port) : defaultPort

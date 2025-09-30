@@ -3,12 +3,20 @@ import { globSync } from 'glob'
 import { readRequirements } from '../read-requirements'
 import { extractPythonData } from '../extract-python-data'
 import { PythonError, PythonImportNotFoundError } from '../python-errors'
+import { getStepDirectoryPaths } from '../../../../../../config/step-directories'
 
 describe('extractPythonData', () => {
   test('extracts python data correctly', () => {
     const rootDir = path.join(__dirname, './examples/example-1')
     const requirements = readRequirements(path.join(rootDir, 'requirements.txt'))
-    const steps = globSync('**/*_step.py', { absolute: false, cwd: path.join(rootDir, 'steps') })
+    
+    // Use the configured step directories instead of hardcoded 'steps'
+    const stepDirectoryPaths = getStepDirectoryPaths(rootDir)
+    const steps: string[] = []
+    
+    for (const stepDir of stepDirectoryPaths) {
+      steps.push(...globSync('**/*_step.py', { absolute: false, cwd: stepDir }))
+    }
 
     for (const file of steps) {
       const result = extractPythonData(rootDir, `/steps/${file}`, requirements)
