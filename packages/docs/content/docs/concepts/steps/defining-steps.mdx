@@ -83,23 +83,6 @@ Motia will auto-discover this file and wire it into your backend.
 
 ---
 
-## Step Naming & Discovery
-
-Motia automatically discovers Steps by scanning your project for files that follow these naming conventions:
-
-- `*.step.ts` or `*.step.js` → TypeScript / JavaScript Steps  
-- `*_step.py` → Python Steps  
-
-Each Step file must export both a `config` and a `handler`.  
-
-The `name` field in the `config` is the **unique identifier** for your Step inside Motia.  
-It’s how your Step is typed, referenced in handlers, and connected in flows.  
-
-👉 **Filenames are for auto-discovery, `name` is for identity.**  
-You can rename a file, but the `name` property in `config` is what other Steps and flows use.
-
----
-
 ## Steps Work Together: Emit + Subscribe
 
 Steps aren’t isolated. They communicate by **emitting** and **subscribing** to events.  
