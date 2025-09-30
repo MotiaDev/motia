@@ -3,8 +3,6 @@ title: What is a Step?
 description: One primitive to build any backend. Simple, composable, and multi-language.
 ---
 
-# What is a Step?
-
 ## One Primitive for Any Backend
 
 A **Step** is the core primitive in Motia. Instead of juggling separate frameworks for APIs, background jobs, queues, or workflows, you define everything in one place:   **how it runs, when it runs, where it runs, and what it does.**
@@ -200,16 +198,15 @@ module.exports = { config, handler };
 👉 With just two files, you have an **API endpoint** that triggers an **event-driven workflow**.  
 
 ---
-
-## Step Types
+## Triggers
 
 Every Step has a `type` that defines **how it triggers**. Change the type, and the same pattern works for different use cases.
 
 | Type     | When it runs                 | Example use case |
 |----------|------------------------------|------------------|
-| `api`    | On an HTTP request           | REST endpoints, webhooks |
-| `event`  | When an event is emitted     | Event-driven workflows |
-| `cron`   | On a schedule                | Nightly jobs, reminders |
+| [`api`](/docs/concepts/steps/api)    | On an HTTP request           | REST endpoints, webhooks |
+| [`event`](/docs/concepts/steps/event)  | When an event is emitted     | Event-driven workflows |
+| [`cron`](/docs/concepts/steps/cron)   | On a schedule                | Nightly jobs, reminders |
 
 ---
 

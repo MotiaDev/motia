@@ -102,7 +102,7 @@ export const handler = async (input, { logger }) => {
 };
 ```
 
-</details close>
+</details>
 
 <details>
 <summary><b>Python</b></summary>
