@@ -1,0 +1,531 @@
+---
+title: Steps
+description: One primitive to build anything. Powerful, reusable, multi-language, composable, and auto-discovered.
+---
+
+# Steps
+
+## One STEP to build anything you want.
+
+**Powerful. Reusable. Multi-Language. Composable. Auto-Discovered.**
+
+Steps are Motia's core primitive that unifies every backend concern into a single, elegant abstraction. Each Step has one clear responsibility and can be chained together and reused across projects.
+
+**That's simple and powerful.** You can compose them together. Learn the basic things about how Steps work, and Motia will auto-discover any file with `.step.ts`, `.step.js`, and `_step.py` - it will register it and connect the whole thing together.
+
+
+## Config Properties
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `type` | `'api'  'event' 'cron' 'noop'` | The step type - determines how the step is triggered |
+| `name` | `string` | Unique identifier for the step used in handler typing |
+| `description` | `string` | Human-readable documentation for the step |
+| `subscribes` | `string[]` | Array of event topics this step listens to (Event steps only) |
+| `emits` | `string[]` | Array of event topics this step can emit to trigger other steps |
+| `flows` | `string[]` | Array of flow names this step belongs to for organization and visualization |
+
+## Handler Elements
+
+| Element | Type | Description |
+| ------- | ---- | ----------- |
+| `emit` | `function` | Function to trigger other steps by emitting events with data |
+| `logger` | `object` | Structured logging with context for debugging and observability |
+| `state` | `object` | Persistent key-value storage shared across steps and workflows |
+| `streams` | `object` | Real-time objects and events that push updates to subscribed clients |
+| `traceId` | `string` | Unique identifier for request tracing and flow isolation |
+
+## Step is Simple, but powerful. Let's see an example.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript title="steps/my-step.step.ts"
+import { ApiRouteConfig, Handlers } from 'motia';
+
+export const config: ApiRouteConfig = {
+  type: 'api',        // How it triggers
+  name: 'MyStep',     // Step identifier  
+  path: '/endpoint',  // URL path
+  method: 'POST',     // POST method
+  emits: ['done'],    // Events it sends
+  flows: ['my-flow']  // Flow it belongs to
+};
+
+export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams }) => {
+  // Your business logic here
+  return { status: 200, body: { success: true } };
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/my_step.py"
+config = {
+    "type": "api",        # How it triggers
+    "name": "MyStep",     # Step identifier
+    "path": "/endpoint",  # URL path
+    "method": "POST",     # POST method
+    "emits": ["done"],    # Events it sends
+    "flows": ["my-flow"]  # Flow it belongs to
+}
+
+async def handler(req, context):
+    # Your business logic here
+    return {"status": 200, "body": {"success": True}}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript title="steps/my-step.step.js"
+const config = {
+  type: 'api',        // How it triggers
+  name: 'MyStep',     // Step identifier  
+  path: '/endpoint',  // URL path
+  method: 'POST',     // POST method
+  emits: ['done'],    // Events it sends
+  flows: ['my-flow']  // Flow it belongs to
+};
+
+const handler = async (req, { emit, logger, state, streams }) => {
+  // Your business logic here
+  return { status: 200, body: { success: true } };
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
+
+<Callout type="info">
+### You can simply change the type to 'api', 'event', or 'cron' to create different types of steps.
+</Callout>
+
+## API Step - Change Type to 'api'
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+export const config: ApiRouteConfig = {
+  type: 'api',           // ← URL endpoint
+  name: 'SendMessage',
+  path: '/messages',     // ← URL path
+  method: 'POST',        // ← URL method
+  emits: ['message.sent'],
+  flows: ['messaging']
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+config = {
+    "type": "api",           # ← URL endpoint
+    "name": "SendMessage",
+    "path": "/messages",     # ← URL path
+    "method": "POST",        # ← URL method
+    "emits": ["message.sent"],
+    "flows": ["messaging"]
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+const config = {
+  type: 'api',           // ← URL endpoint
+  name: 'SendMessage',
+  path: '/messages',     // ← URL path
+  method: 'POST',        // ← URL method
+  emits: ['message.sent'],
+  flows: ['messaging']
+};
+```
+
+</Tab>
+</Tabs>
+
+## Event Step - Change Type to 'event'
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+export const config: EventConfig = {
+  type: 'event',                // ← Event-driven
+  name: 'ProcessMessage',
+  subscribes: ['message.sent'], // ← Listen to events
+  emits: ['message.processed'],
+  flows: ['messaging']
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+config = {
+    "type": "event",                # ← Event-driven
+    "name": "ProcessMessage",
+    "subscribes": ["message.sent"], # ← Listen to events
+    "emits": ["message.processed"],
+    "flows": ["messaging"]
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+const config = {
+  type: 'event',                // ← Event-driven
+  name: 'ProcessMessage',
+  subscribes: ['message.sent'], // ← Listen to events
+  emits: ['message.processed'],
+  flows: ['messaging']
+};
+```
+
+</Tab>
+</Tabs>
+
+## Cron Step - Change Type to 'cron'
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+export const config: CronConfig = {
+  type: 'cron',                 // ← Time-based
+  name: 'DailySummary',
+  cron: '0 9 * * *',            // ← Schedule
+  emits: ['summary.generated'],
+  flows: ['messaging']
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+config = {
+    "type": "cron",                 # ← Time-based
+    "name": "DailySummary",
+    "cron": "0 9 * * *",            # ← Schedule
+    "emits": ["summary.generated"],
+    "flows": ["messaging"]
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+const config = {
+  type: 'cron',                 // ← Time-based
+  name: 'DailySummary',
+  cron: '0 9 * * *',            // ← Schedule
+  emits: ['summary.generated'],
+  flows: ['messaging']
+};
+```
+
+</Tab>
+</Tabs>
+
+**Same pattern, different triggers.** The handler always gets `{ emit, logger, state, streams, traceId }`.
+
+## **Handler** - How It Performs Logic
+The core function that processes data and performs your business logic.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams, traceId }) => {
+  // write your business logic here
+  return { status: 200, body: { success: true, result } };
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+async def handler(req, context):
+    # write your business logic here
+    return {"status": 200, "body": {"success": True, "result": {}}}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+const handler = async (req, { emit, logger, state, streams, traceId }) => {
+  // write your business logic here
+  return { status: 200, body: { success: true, result } };
+};
+```
+
+</Tab>
+</Tabs>
+
+## **subscribe** - Receive Input Data
+How your step receives and accesses input data.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+// Event Step: Subscribe to events
+export const config: EventConfig = {
+  type: 'event',
+  name: 'EventStep',
+  subscribes: ['message.sent'],            // ← Subscribe to events
+  // input schema defines what data to expect
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+# Event Step: Subscribe to events
+config = {
+    "type": "event",
+    "name": "EventStep",
+    "subscribes": ["message.sent"],        # ← Subscribe to events
+    # input schema defines what data to expect
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+// Event Step: Subscribe to events
+const config = {
+  type: 'event',
+  name: 'EventStep',
+  subscribes: ['message.sent'],            // ← Subscribe to events
+  // input schema defines what data to expect
+};
+```
+
+</Tab>
+</Tabs>
+
+## **emit** - Trigger Other Steps
+Optionally trigger other Steps by emitting events with data.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+await emit({
+  topic: 'user.created',        // Must be in config.emits
+  data: { userId: '123', email: 'user@example.com' }
+});
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+    await context.emit({
+    "topic": "user.created",      # Must be in config["emits"]
+    "data": {"userId": "123", "email": "user@example.com"}
+    })
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+await emit({
+  topic: 'user.created',        // Must be in config.emits
+  data: { userId: '123', email: 'user@example.com' }
+});
+```
+
+</Tab>
+</Tabs>
+
+## **logger** - Structured Logging  
+Structured logging with context for debugging, monitoring, and observability across all Steps.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+logger.info('Processing started', { userId: '123' });
+logger.error('Process failed', { error: error.message });
+logger.warn('High usage detected', { requests: 1000 });
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+context.logger.info('Processing started', {"userId": "123"})
+context.logger.error('Process failed', {"error": str(error)})
+context.logger.warn('High usage detected', {"requests": 1000})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+logger.info('Processing started', { userId: '123' });
+logger.error('Process failed', { error: error.message });
+logger.warn('High usage detected', { requests: 1000 });
+```
+
+</Tab>
+</Tabs>
+
+## **state** - Share Data Between Steps
+Persistent key-value storage shared across Steps and workflows for data persistence.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+// Store data
+await state.set(traceId, 'user-preferences', { theme: 'dark', lang: 'en' });
+
+// Retrieve data  
+const preferences = await state.get(traceId, 'user-preferences');
+
+// Get all data in a group
+const allUserData = await state.getGroup(traceId);
+
+// Clear all data for this workflow
+await state.clear(traceId);
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+# Store data
+await context.state.set(context.trace_id, 'user-preferences', {"theme": "dark", "lang": "en"})
+
+# Retrieve data
+preferences = await context.state.get(context.trace_id, 'user-preferences')
+
+# Get all data in a group
+all_user_data = await context.state.get_group(context.trace_id)
+
+# Clear all data for this workflow
+await context.state.clear(context.trace_id)
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+// Store data
+await state.set(traceId, 'user-preferences', { theme: 'dark', lang: 'en' });
+
+// Retrieve data  
+const preferences = await state.get(traceId, 'user-preferences');
+
+// Get all data in a group
+const allUserData = await state.getGroup(traceId);
+
+// Clear all data for this workflow
+await state.clear(traceId);
+```
+
+</Tab>
+</Tabs>
+
+## **streams** - Real-time Objects and Events Broadcasting
+Real-time objects and events that automatically push updates to subscribed clients.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+// Set/update real-time data for clients
+await streams.chatMessages.set('room-123', 'msg-456', {
+  text: 'Hello!',
+  userId: '123',
+  timestamp: new Date()
+});
+
+// Get a specific item
+const message = await streams.chatMessages.get('room-123', 'msg-456');
+
+// Get all items in a group
+const allMessages = await streams.chatMessages.getGroup('room-123');
+
+// Delete an item
+await streams.chatMessages.delete('room-123', 'msg-456');
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+# Set/update real-time data for clients
+await context.streams.chat_messages.set('room-123', 'msg-456', {
+    "text": "Hello!",
+    "userId": "123",
+    "timestamp": datetime.now().isoformat()
+})
+
+# Get a specific item
+message = await context.streams.chat_messages.get('room-123', 'msg-456')
+
+# Get all items in a group
+all_messages = await context.streams.chat_messages.get_group('room-123')
+
+# Delete an item
+await context.streams.chat_messages.delete('room-123', 'msg-456')
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+// Set/update real-time data for clients
+await streams.chatMessages.set('room-123', 'msg-456', {
+  text: 'Hello!',
+  userId: '123',
+  timestamp: new Date()
+});
+
+// Get a specific item
+const message = await streams.chatMessages.get('room-123', 'msg-456');
+
+// Get all items in a group
+const allMessages = await streams.chatMessages.getGroup('room-123');
+
+// Delete an item
+await streams.chatMessages.delete('room-123', 'msg-456');
+```
+
+</Tab>
+</Tabs>
+
+## What's Next?
+
+Now that you understand how simple steps are, let's build something:
+
+  <div className="p-4 border rounded-lg">
+    <h3 className="text-lg font-semibold mb-2">🏗️ Quick Tutorial</h3>
+    <p className="text-sm text-gray-600 mb-3">Build your first app with a complete step-by-step guide.</p>
+    <a href="/docs/getting-started/build-your-first-app" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+      Start Tutorial →
+    </a>
+  </div>
+
+Remember: **Steps are just files.** Export a `config` and `handler`, and you're done! 🎉
