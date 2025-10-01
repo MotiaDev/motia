@@ -39,8 +39,9 @@ export interface Obj {
   fields: ReadonlyArray<Field>;
 }
 
-// ---------------- Tokenizer ----------------
-
+/**
+ * Tokenize
+ */
 type TokKind =
   | "SQUARE_BRACKETS"
   | "LBRACE"
@@ -52,9 +53,10 @@ type TokKind =
   | "LESS_THAN"
   | "GREATER_THAN"
   | "IDENT"
-  | "KW"
+  | "KEY_WORD"
   | "PIPE"
   | "STRING_LITERAL"
+  | "Array"
   | "UNKNOWN";
 
 export interface Tok {
@@ -89,7 +91,7 @@ export function tokenize(src: string): Tok[] {
       let j = i + 1;
       while (j < s.length && /[A-Za-z0-9_]/.test(s[j]!)) j++;
       const word = s.slice(i, j);
-      const kind: TokKind = KWDS.has(word) ? "KW" : "IDENT";
+      const kind: TokKind = KWDS.has(word) ? "KEY_WORD" : "IDENT";
       out.push({ kind, value: word, pos: i });
       i = j; 
       continue;
@@ -122,30 +124,14 @@ export function tokenize(src: string): Tok[] {
       out.push({ kind: "STRING_LITERAL", value: buf, pos: i })
       i = j
       continue
-    }else{
-
-      // Scope for improvement
-      // catch-all: consume until whitespace or a stop char
-      const STOP = new Set(["{","}","[","]",":",";",",","<",">","?"]);
-      let j = i;
-      while (
-        j < s.length &&
-        !(s[j] === "[" && s[j+1] === "]") && // stop before []
-        !STOP.has(s[j]!)
-      ) {
-        j++;
-      }
-      if (j === i) j++;
-      const text = s.slice(i, j);
-      out.push({ kind: "UNKNOWN", value: text, pos: i });
-      i = j;
-      continue;
     }
   }
   return out;
 }
 
-// ---------------- Parser ----------------
+/** 
+ * Parser
+*/
 
 class Parser {
   private toks: Tok[];
@@ -178,13 +164,12 @@ class Parser {
     return null;
   }
 
-  parse_schema(): Obj { 
+  parse_root_schema(): Obj { 
     return this.parse_object(); 
   }
 
   private parse_object(): Obj {
 
-    // Scope for change - What about Record<> Type ??
     this.want("LBRACE");
     const fields: Field[] = [];
     while (this.peek() && this.peek()!.kind !== "RBRACE") {
@@ -195,22 +180,12 @@ class Parser {
     return { node: "Obj", fields };
   }
 
-  // Parse the field name
   private parse_field(): Field {
     const name_tok = this.want("IDENT");
     const optional = !!this.accept("QUESTION_MARK");
     this.want("COLON");
-    const typ = this.parse_type();
+    const typ = this.parse_primary();
     return { name: name_tok.value, typ, optional };
-  }
-
-  // Parse the field type
-  private parse_type(): TypeNode {
-    let t = this.parse_primary();
-    while (this.accept("SQUARE_BRACKETS")) {
-      t = { node: "Array", item: t };
-    }
-    return t;
   }
 
   private parse_primary(): TypeNode {
@@ -232,7 +207,6 @@ class Parser {
       return {node: "Enum", options: options}
     }
 
-    // Object or '{}'
     if (t.kind === "LBRACE") {
       if (this.peek(1) && this.peek(1)!.kind === "RBRACE") {
         this.want("LBRACE"); this.want("RBRACE");
@@ -241,22 +215,29 @@ class Parser {
       return this.parse_object();
     }
 
-    // Record<string, T>
+    if(t.kind === "IDENT" && t.value === "Array"){
+        this.want("IDENT")
+        this.want("LESS_THAN")
+        const val = this.parse_primary()
+        this.want("GREATER_THAN")
+        return {node: "Array", item: val}
+    }
+
     if (t.kind === "IDENT" && t.value === "Record") {
-      this.want("IDENT"); // Record
-      this.want("LESS_THAN");    // <
-      const k = this.want("KW"); // expect 'string'
+      this.want("IDENT");
+      this.want("LESS_THAN");
+      const k = this.want("KEY_WORD");
       if (k.value !== "string")
         throw new SyntaxError(`Only Record<string, ...> supported at pos ${k.pos}`);
       this.want("COMMA");
-      const val = this.parse_type();
+      const val = this.parse_primary();
       this.want("GREATER_THAN");
       return { node: "MappingType", value: val };
     }
 
     // Base Case -> Base keywords
-    if (t.kind === "KW") {
-      const v = this.want("KW").value;
+    if (t.kind === "KEY_WORD") {
+      const v = this.want("KEY_WORD").value;
       return { node: "Base", kind: v };
     }
 
@@ -272,7 +253,7 @@ class Parser {
 export function parse_schema(src: string): Obj {
   const toks = tokenize(src);
   const p = new Parser(toks, src);
-  const root = p.parse_schema();
+  const root = p.parse_root_schema();
   if (p["peek"]() !== null) {
     const t = (p as any)["peek"]();
     throw new SyntaxError(`Unexpected trailing tokens at pos ${t && t.pos}`);
@@ -280,8 +261,9 @@ export function parse_schema(src: string): Obj {
   return root;
 }
 
-// ---------------- RENDERING THE TYPES ----------------
-
+/**
+ * Rendering the TypedDicts
+ */
 const PYTHON_KEYWORDS = new Set([
   "False","None","True","and","as","assert","async","await","break","class","continue","def","del","elif","else","except","finally","for","from","global","if","import","in","is","lambda","nonlocal","not","or","pass","raise","return","try","while","with","yield"
 ]);
@@ -398,8 +380,9 @@ export function collect_objects(root: Obj, root_hint = "Root"): TDClass[] {
   return out;
 }
 
-// ---------------- Type mapping for codegen ----------------
-
+/**
+ * Type mapping for codegen
+*/
 export function py_type(t: TypeNode, name_of: Map<string, string>): string {
   if (t.node === "Base") {
     if (t.kind === "string") return "str";
@@ -407,11 +390,8 @@ export function py_type(t: TypeNode, name_of: Map<string, string>): string {
     if (t.kind === "int") return "int";
     if (t.kind === "boolean") return "bool";
 
-    // Check this
     if (t.kind === "emptyobj") return "Mapping[str, object]";
     return "Any";
-
-    // throw new Error(`Unknown base ${t.kind}`);
   }
   if (t.node === "Array") {
     const inner = py_type(t.item, name_of);
@@ -442,8 +422,9 @@ export function py_type(t: TypeNode, name_of: Map<string, string>): string {
   throw new TypeError(`Unknown TypeNode ${(t as any).node}`);
 }
 
-// ---------------- Codegen ----------------
-
+/**
+ * Render The TypedDicts
+ */
 export function render_typeddicts(root: Obj, rootName: string = "Root"): string {
   const root_name = rootName ?? "Root";
   const classes = collect_objects(root, root_name);
@@ -462,7 +443,6 @@ export function render_typeddicts(root: Obj, rootName: string = "Root"): string 
     const s = py_type(t, name_of);
     if (s.includes("Mapping["))
       needed.add("Mapping");
-    // list[...] needs no extra import in Python 3.9+
     return s;
   };
 
@@ -509,9 +489,3 @@ export function schema_to_typeddict(src: string, rootName: string = 'Root'): str
   const root = parse_schema(src);
   return render_typeddicts(root, rootName);
 }
-
-// -------------- Convenience constructors (mirroring Python dataclass init) --------------
-export const BaseT = (kind: string): Base => ({ node: "Base", kind });
-export const ArrayOf = (item: TypeNode): ArrayT => ({ node: "Array", item });
-export const MappingOf = (value: TypeNode): MappingType => ({ node: "MappingType", value });
-export const ObjOf = (fields: ReadonlyArray<Field>): Obj => ({ node: "Obj", fields });
