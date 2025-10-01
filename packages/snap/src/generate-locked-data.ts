@@ -8,28 +8,47 @@ import { CompilationError } from './utils/errors/compilation.error'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
-export const getStepFiles = (projectDir: string): string[] => {
-  const stepsDir = path.join(projectDir, 'steps')
-  return [
-    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
-    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
-  ]
+export const getStepFiles = (projectDir: string, stepDirs?: string[]): string[] => {
+  const dirs = stepDirs || [path.join(projectDir, 'steps')]
+  
+  const allStepFiles: string[] = []
+  
+  for (const dir of dirs) {
+    allStepFiles.push(
+      ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: dir }),
+      ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: dir }),
+    )
+  }
+  
+  return allStepFiles
 }
 
-export const getStreamFiles = (projectDir: string): string[] => {
-  const stepsDir = path.join(projectDir, 'steps')
-  return [
-    ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
-    ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
-  ]
+export const getStreamFiles = (projectDir: string, stepDirs?: string[]): string[] => {
+  const dirs = stepDirs || [path.join(projectDir, 'steps')]
+  
+  const allStreamFiles: string[] = []
+  
+  for (const dir of dirs) {
+    allStreamFiles.push(
+      ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: dir }),
+      ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: dir }),
+    )
+  }
+  
+  return allStreamFiles
 }
 
 // Helper function to recursively collect flow data
-export const collectFlows = async (projectDir: string, lockedData: LockedData): Promise<Step[]> => {
+export const collectFlows = async (projectDir: string, lockedData: LockedData, stepDirs?: string[]): Promise<Step[]> => {
   const invalidSteps: Step[] = []
-  const stepFiles = getStepFiles(projectDir)
-  const streamFiles = getStreamFiles(projectDir)
-  const deprecatedSteps = globSync('**/*.step.py', { absolute: true, cwd: path.join(projectDir, 'steps') })
+  const stepFiles = getStepFiles(projectDir, stepDirs)
+  const streamFiles = getStreamFiles(projectDir, stepDirs)
+  
+  const dirs = stepDirs || [path.join(projectDir, 'steps')]
+  const deprecatedSteps: string[] = []
+  for (const dir of dirs) {
+    deprecatedSteps.push(...globSync('**/*.step.py', { absolute: true, cwd: dir }))
+  }
 
   for (const filePath of stepFiles) {
     try {
@@ -97,16 +116,13 @@ export const generateLockedData = async (
   projectDir: string,
   streamAdapter: 'file' | 'memory' = 'file',
   printerType: 'disabled' | 'default' = 'default',
+  stepDirs?: string[],
 ): Promise<LockedData> => {
   try {
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
-    /*
-     * NOTE: right now for performance and simplicity let's enforce a folder,
-     * but we might want to remove this and scan the entire current directory
-     */
     const lockedData = new LockedData(projectDir, streamAdapter, printer)
 
-    await collectFlows(projectDir, lockedData)
+    await collectFlows(projectDir, lockedData, stepDirs)
     lockedData.saveTypes()
 
     return lockedData

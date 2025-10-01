@@ -7,10 +7,11 @@ import { buildValidation } from '../build/build-validation'
 program
   .command('build')
   .description('Build the project')
+  .option('-s, --step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "src,steps")')
   .action(
-    handler(async (_: unknown, context: CliContext) => {
+    handler(async (arg: { stepDirs?: string }, context: CliContext) => {
       const listener = new CliListener(context)
-      const builder = await build(listener)
+      const builder = await build(listener, arg.stepDirs)
       const isValid = buildValidation(builder, listener)
 
       if (!isValid) {

@@ -8,12 +8,12 @@ description: Motia is an all-in-one framework for modern backend systems. Out of
 Today, backend engineers and software architects face several recurring problems. Motia was created to simplify these common backend engineering challenges in a flexible and elegant way to provide world class developer experience while ensuring robust, event-driven infrastructure.
 
 - Unified vs. Fragmented backend
-  - Working with multiple Languages
+    - Working with multiple Languages
 - Scalability
 - Observability
 - Fault tolerance
 - Building and shipping
-  - Rollbacks and deployment strategies
+    - Rollbacks and deployment strategies
 - Real-time data streaming
 
 ## How Motia simplifies all of this?
@@ -22,10 +22,10 @@ Similar to how React simplified frontend development where everything is a compo
 
 - Steps represent a distinct entry point
 - Steps can have different triggers
-  - API Call _(Triggered by an HTTP request)_
-  - Event _(Triggered by an event from another Step)_
-  - CRON Job _(Triggered by a cron schedule)_
-  - More will come soon (Check the [Roadmap](https://github.com/orgs/MotiaDev/projects/2?pane=issue&itemId=121129696&issue=MotiaDev%7Cmotia%7C477))
+    - API Call _(Triggered by an HTTP request)_
+    - Event _(Triggered by an event from another Step)_
+    - CRON Job _(Triggered by a cron schedule)_
+    - More will come soon (Check the [Roadmap](https://github.com/orgs/MotiaDev/projects/2?pane=issue&itemId=121129696&issue=MotiaDev%7Cmotia%7C477))
 - Steps are composable and can be chained together
 
 ![Motia](./img/what-is-motia/motia.gif)
@@ -93,12 +93,12 @@ Motia abstracts these concerns by providing:
 
 ![Deployments](./img/what-is-motia/deployments.png)
 
-_The image above shows several Steps being build to a single Motia deployable that are ultimately deployed to a cloud provider of your choice. 
+_The image above shows several Steps being build to a single Motia deployable that are ultimately deployed to a cloud provider of your choice.
 Currently we're supporting AWS and Kubernetes, more Cloud providers coming soon. Check our [roadmap](https://github.com/orgs/MotiaDev/projects/2/views/4?filterQuery=title%3A+BYOC) for more details._
 
 ### Rollbacks and deployment strategies
 
-Deploying cloud-native, fault-tolerant applications often involves modifying queue systems and other infrastructure components. 
+Deploying cloud-native, fault-tolerant applications often involves modifying queue systems and other infrastructure components.
 These changes can introduce incompatibilities and lead to runtime failures.
 
 Motia Cloud solves this with **Atomic Deployments**, which:
@@ -109,7 +109,7 @@ Motia Cloud solves this with **Atomic Deployments**, which:
 
 ## Real-time data streaming
 
-Handling real-time data is one of the most common—and complex—challenges in backend development. It's necessary when building event-driven applications, 
+Handling real-time data is one of the most common—and complex—challenges in backend development. It's necessary when building event-driven applications,
 and it typically requires setting up and maintaining a significant amount of infrastructure.
 
 Motia provides what we call _Streams_: Developers define the structure of the data—any changes to these objects are streamed to all subscribed clients in real-time.

@@ -20,10 +20,11 @@ cloudCli
   .option('-e, --env-file <path>', 'Path to environment file')
   .option('-d, --version-description <description>', 'The description of the version')
   .option('-c, --ci', 'CI mode', process.env.CI)
+  .option('--step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "src,steps")')
   .action(
     handler(async (arg, context) => {
       const listener = new CliListener(context)
-      const builder = await build(listener)
+      const builder = await build(listener, arg.stepDirs)
       const isValid = buildValidation(builder, listener)
 
       if (!isValid) {

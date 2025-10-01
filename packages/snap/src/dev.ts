@@ -30,13 +30,17 @@ export const dev = async (
   hostname: string,
   disableVerbose: boolean,
   enableMermaid: boolean,
+  stepDirsParam?: string,
 ): Promise<void> => {
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
 
   identifyUser()
 
-  const stepFiles = getStepFiles(baseDir)
+  const { getStepDirectories } = require('./utils/get-step-directories')
+  const stepDirs = getStepDirectories({ projectDir: baseDir, cliParam: stepDirsParam })
+
+  const stepFiles = getStepFiles(baseDir, stepDirs)
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
   trackEvent('dev_server_started', {
@@ -53,7 +57,7 @@ export const dev = async (
     trackEvent('python_environment_activated')
   }
 
-  const lockedData = await generateLockedData(baseDir)
+  const lockedData = await generateLockedData(baseDir, 'file', 'default', stepDirs)
 
   const eventManager = createEventManager()
   const state = createStateAdapter({
@@ -63,7 +67,7 @@ export const dev = async (
 
   const config = { isVerbose }
   const motiaServer = createServer(lockedData, eventManager, state, config)
-  const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
+  const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager, stepDirs)
 
   // Initialize mermaid generator
   if (enableMermaid) {

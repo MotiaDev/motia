@@ -510,7 +510,7 @@ await emit({
 </Tab>
 </Tabs>
 
-## **logger** - Structured Logging  
+## **logger** - Structured Logging
 Structured logging with context for debugging, monitoring, and observability across all Steps.
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>

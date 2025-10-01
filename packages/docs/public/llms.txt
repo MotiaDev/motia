@@ -944,7 +944,17 @@ Options:
 Build your project, generating zip files for each step and creating a configuration file.
 
 ```bash
-npx motia build
+npx motia build [options]
+```
+
+Options:
+
+- `-s, --step-dirs <dirs>`: Comma-separated list of directories to search for steps (overrides MOTIA_STEP_DIRS environment variable).
+
+Example:
+
+```bash
+npx motia build --step-dirs "api-steps,worker-steps"
 ```
 
 This command:
@@ -997,6 +1007,35 @@ Options:
 - `-p, --port <port>`: The port to run the server on (default: 3000).
 - `-H, --host [host]`: The host address for the server (default: localhost).
 - `-d, --debug`: Enable debug logging.
+- `--step-dirs <directories>`: Comma-separated list of directories to search for steps (overrides MOTIA_STEP_DIRS environment variable).
+
+Example:
+
+```bash
+npx motia dev --step-dirs "api-steps,worker-steps"
+```
+
+### `start`
+
+Start a server to run your Motia project in production mode.
+
+```bash
+npx motia start [options]
+```
+
+Options:
+
+- `-p, --port <port>`: The port to run the server on (default: 3000).
+- `-H, --host [host]`: The host address for the server (default: localhost).
+- `-v, --disable-verbose`: Disable verbose logging.
+- `-d, --debug`: Enable debug logging.
+- `-s, --step-dirs <dirs>`: Comma-separated list of directories to search for steps (overrides MOTIA_STEP_DIRS environment variable).
+
+Example:
+
+```bash
+npx motia start --step-dirs "api-steps,worker-steps"
+```
 
 ### `get-config`
 
@@ -1099,6 +1138,95 @@ Options:
 - `--port <number>`: Port number (default: 3000).
 - `--project-name <project name>` (required): The name of your project.
 - `--skip-build`: Skip building the Docker image and used the last built image.
+
+## Step Directory Configuration
+
+Motia provides flexible options for configuring where your step files are located. By default, Motia searches for steps in the `steps/` directory, but you can customize this behavior using environment variables or CLI options.
+
+### Using the `MOTIA_STEP_DIRS` Environment Variable
+
+Set the `MOTIA_STEP_DIRS` environment variable to specify custom directories for step discovery.
+
+**Format:** Comma-separated list of directory paths
+
+**Default:** `steps`
+
+**Example - Single directory:**
+```bash
+export MOTIA_STEP_DIRS=src
+npx motia dev
+```
+
+**Example - Multiple directories:**
+```bash
+export MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+npx motia dev
+```
+
+**Example - In `.env` file:**
+```bash title=".env"
+MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+```
+
+**Example - In `package.json` scripts:**
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "MOTIA_STEP_DIRS=src npx motia dev",
+    "dev:multi": "MOTIA_STEP_DIRS=api,workers npx motia dev",
+    "build": "MOTIA_STEP_DIRS=src npx motia build"
+  }
+}
+```
+
+### Configuration Precedence
+
+Motia follows this precedence order when determining which directories to search:
+
+1. **CLI option** (`--step-dirs` or `-s`) - Highest priority
+2. **Environment variable** (`MOTIA_STEP_DIRS`) - Medium priority  
+3. **Default** (`steps`) - Lowest priority
+
+Example showing CLI override:
+```bash
+# Environment variable says "src", but CLI option overrides it
+export MOTIA_STEP_DIRS=src
+npx motia dev --step-dirs "api-steps,worker-steps"
+# Result: Motia will search in "api-steps" and "worker-steps", NOT "src"
+```
+
+### Practical Examples
+
+**Monorepo structure:**
+```bash
+npx motia dev --step-dirs "packages/api/steps,packages/workers/steps"
+```
+
+**Feature-based organization:**
+```bash
+MOTIA_STEP_DIRS=features/auth/steps,features/payments/steps,features/notifications/steps
+```
+
+**Environment separation:**
+```bash
+npx motia dev --step-dirs "src/api-steps,src/background-steps"
+```
+
+### Troubleshooting
+
+**Directory not found error:**
+
+If you see an error like `Directory 'my-steps' does not exist`, ensure:
+- The directory path is correct and exists in your project
+- The path is relative to your project root
+- You have the necessary file permissions
+
+**Steps not being discovered:**
+
+If your steps aren't being found:
+- Verify files follow the naming pattern (`.step.ts`, `.step.py`, `.step.js`)
+- Check that files are in the configured directories
+- Ensure your `config` and `handler` exports are correct
 
 ## Next Steps
 
@@ -1782,6 +1910,60 @@ Make sure you never commit your `.env` file:
 OPENAI_API_KEY=your-api-key-here
 DATABASE_URL=postgresql://user:password@localhost:5432/myapp
 ```
+
+## Motia Configuration Variables
+
+Motia uses environment variables for framework configuration. These control how Motia behaves and discovers your steps.
+
+### `MOTIA_STEP_DIRS`
+
+Configure custom directories for step discovery.
+
+**Type:** String (comma-separated paths)
+
+**Default:** `steps`
+
+**Description:** Specifies which directories Motia should search for step files. By default, Motia looks in the `steps/` directory, but you can configure any directory structure that fits your project.
+
+**Single directory example:**
+
+```bash title=".env"
+MOTIA_STEP_DIRS=src
+```
+
+**Multiple directories example:**
+
+```bash title=".env"
+MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+```
+
+**In `package.json` scripts:**
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "MOTIA_STEP_DIRS=src npx motia dev",
+    "dev:multi": "MOTIA_STEP_DIRS=api,workers npx motia dev"
+  }
+}
+```
+
+<Callout type="info">
+**CLI Override:** You can override `MOTIA_STEP_DIRS` using the `--step-dirs` CLI option:
+
+```bash
+npx motia dev --step-dirs "api-steps,worker-steps"
+```
+
+The CLI option takes precedence over the environment variable.
+</Callout>
+
+**Common use cases:**
+- **Monorepo projects:** `MOTIA_STEP_DIRS=packages/api/steps,packages/workers/steps`
+- **Team separation:** `MOTIA_STEP_DIRS=team-auth-steps,team-payments-steps`
+- **Layer separation:** `MOTIA_STEP_DIRS=src/api-steps,src/background-steps`
+
+Learn more in the [Project Structure documentation](/docs/project-structure#configuring-step-directories).
 
 ## Using Environment Variables in Steps
 
@@ -3250,12 +3432,12 @@ state:
 | Concurrent Access | - Memory/File: Limited concurrent flow support\n- Redis: Use atomic operations and implement retry logic                                                                                         |
 
 
--   [API Step](/docs/concepts/steps/api): Documentation for API Step.
+-   [API Trigger](/docs/concepts/steps/api): Documentation for API Trigger.
 ---
-title: API Step
+title: API Trigger
 ---
 
-An **API step** is exposed as an HTTP endpoint that acts as an entry point into your sequence of steps, or **flow**. It allows external systems or clients to trigger and interact with your flows through a REST API interface. Like any Motia Step, an API Step can be configured to emit events or wait for events to occur.
+An **API Trigger** is exposed as an HTTP endpoint that acts as an entry point into your sequence of steps, or **flow**. It allows external systems or clients to trigger and interact with your flows through a REST API interface. Like any Motia Step, an API Trigger can be configured to emit events or wait for events to occur.
 
 ## Config
 
@@ -3751,12 +3933,12 @@ const rateLimiterMiddleware: ApiMiddleware = (() => {
 </Tabs>
 
 
--   [Cron Step](/docs/concepts/steps/cron): Documentation for Cron Step.
+-   [Cron Trigger](/docs/concepts/steps/cron): Documentation for Cron Trigger.
 ---
-title: Cron Step
+title: Cron Trigger
 ---
 
-The **Cron Step** allows you to schedule your steps to run at specified intervals. It is a powerful tool for automating your business logic.
+The **Cron Trigger** allows you to schedule your steps to run at specified intervals. It is a powerful tool for automating your business logic.
 
 ## Config
 
@@ -3842,74 +4024,74 @@ The following examples showcase how to configure an **CRON Step**
 -   [defining-steps](/docs/concepts/steps/defining-steps): Documentation for defining-steps.
 ---
 title: What is a Step?
-description: One primitive to build any backend. Powerful, reusable, multi-language, composable, and auto-discovered.
+description: One primitive to build any backend. Simple, composable, and multi-language.
 ---
 
-# What is a Step?
+## One Primitive for Any Backend
 
-## One Step to build any backend.
+A **Step** is the core primitive in Motia. Instead of juggling separate frameworks for APIs, background jobs, queues, or workflows, you define everything in one place:   **how it runs, when it runs, where it runs, and what it does.**
 
-**Powerful. Reusable. Multi-Language. Composable. Auto-Discovered.**
+Every Step file contains two parts:
 
-Steps are Motia's core primitive that unifies configuration and logic, allowing you to define when it runs, how it runs, where it runs, and what it does, all within a single abstraction.
+- **Config** → defines when and how the Step runs, and gives it a unique `name`  
+- **Handler** → the function that executes your business logic  
 
-Learn the basic things about how Steps work, and Motia will auto-discover, register, and connect any file with `.step.ts`, `.step.js`, and `_step.py`.  By composing Steps, you can build entire backends in any pattern and runtime.
+Motia automatically discovers any file ending in `.step.ts`, `.step.js`, or `_step.py`.  
+The filename tells Motia to load it, and the `name` in the `config` uniquely identifies the Step inside your system.
+
+---
+
+## The Simplest Example
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
-```typescript title="steps/my-step.step.ts"
+```ts title="steps/hello.step.ts"
 import { ApiRouteConfig, Handlers } from 'motia';
 
 export const config: ApiRouteConfig = {
-  name: 'MyStep',     // Step identifier  
-  type: 'api',        // How it triggers
-  path: '/endpoint',  // URL path
-  method: 'POST',     // POST method
-  emits: ['done'],    // Events it sends
-  flows: ['my-flow']  // Flow it belongs to
+  name: 'HelloStep',
+  type: 'api',
+  path: '/hello',
+  method: 'GET'
 };
 
-export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams }) => {
-  // Your business logic here
-  return { status: 200, body: { success: true } };
+export const handler: Handlers['HelloStep'] = async (req, { logger }) => {
+  logger.info('Hello endpoint called');
+  return { status: 200, body: { message: 'Hello world!' } };
 };
 ```
 
 </Tab>
 <Tab value='Python'>
 
-```python title="steps/my_step.py"
+```python title="steps/hello_step.py"
 config = {
-    "name": "MyStep",     # Step identifier
-    "type": "api",        # How it triggers
-    "path": "/endpoint",  # URL path
-    "method": "POST",     # POST method
-    "emits": ["done"],    # Events it sends
-    "flows": ["my-flow"]  # Flow it belongs to
+    "name": "HelloStep",
+    "type": "api",
+    "path": "/hello",
+    "method": "GET"
 }
 
-async def handler(req, context):
-    # Your business logic here
-    return {"status": 200, "body": {"success": True}}
+async def handler(req, ctx):
+    ctx.logger.info("Hello endpoint called")
+    return {"status": 200, "body": {"message": "Hello world!"}}
 ```
 
 </Tab>
 <Tab value='JavaScript'>
 
-```javascript title="steps/my-step.step.js"
+```js title="steps/hello.step.js"
 const config = {
-  name: 'MyStep',     // Step identifier  
-  type: 'api',        // How it triggers
-  path: '/endpoint',  //  path
-  method: 'POST',     // POST method
-  emits: ['done'],    // Events it sends
-  flows: ['my-flow']  // Flow it belongs to
+  name: 'HelloStep',
+  type: 'api',
+  path: '/hello',
+  method: 'GET'
 };
 
-const handler = async (req, { emit, logger, state, streams }) => {
-  // Your business logic here
-  return { status: 200, body: { success: true } };
+const handler = async (req, { logger }) => {
+  logger.info('Hello endpoint called');
+  return { status: 200, body: { message: 'Hello world!' } };
 };
 
 module.exports = { config, handler };
@@ -3918,620 +4100,296 @@ module.exports = { config, handler };
 </Tab>
 </Tabs>
 
-## Config Properties
+👉 That’s all you need to make a running API endpoint.  
+Motia will auto-discover this file and wire it into your backend.
 
-### Common Properties (All Step Types)
+---
 
-| Property | Type | Description |
-| -------- | ---- | ----------- |
-| `name` | `string` | Unique identifier for the step used in handler typing |
-| `type` | `'api' \| 'event' \| 'cron' \| 'noop'` | The trigger type - determines how and when the step executes |
-| `description` | `string` | Human-readable documentation for the step |
-| `emits` | `string[]` | Array of event topics this step can emit to trigger other steps |
-| `flows` | `string[]` | Array of flow names this step belongs to for organization and visualization |
+## Steps Work Together: Emit + Subscribe
 
-### API Trigger Step Properties
+Steps aren’t isolated. They communicate by **emitting** and **subscribing** to events.  
+This is the core of how you build backends with Motia.
 
-Additional properties when `type: 'api'`. [See API Trigger examples below](#api-trigger---http-requests).
-
-| Property | Type | Description |
-| -------- | ---- | ----------- |
-| `path` | `string` | URL endpoint path (e.g., `/messages`, `/users/:id`) |
-| `method` | `'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH'` | HTTP method for the endpoint |
-| `bodySchema` | `ZodSchema \| JSONSchema` | Validation schema for request body |
-| `responseSchema` | `{ [status]: ZodSchema }` | Response schemas by HTTP status code |
-| `queryParams` | `string[]` | Array of allowed query parameter names |
-| `virtualSubscribes` | `string[]` | Virtual event subscriptions for API routing |
-
-### Event Trigger Step Properties
-
-Additional properties when `type: 'event'`. [See Event Trigger examples below](#event-trigger---event-driven).
-
-| Property | Type | Description |
-| -------- | ---- | ----------- |
-| `subscribes` | `string[]` | Array of event topics this step listens to |
-| `input` | `ZodSchema \| JSONSchema` | Validation schema for incoming event data |
-
-### Cron Trigger Step Properties
-
-Additional properties when `type: 'cron'`. [See Cron Trigger examples below](#cron-trigger---time-based).
-
-| Property | Type | Description |
-| -------- | ---- | ----------- |
-| `cron` | `string` | Cron expression for scheduling (e.g., `'0 9 * * *'` for daily at 9 AM) |
-
-## Handler Definition
-
-The handler is the core function where your business logic resides. The function signature varies based on the trigger type:
-
-### Handler Signatures by Trigger Type
-
-<Tabs items={['API Triggers', 'Event Triggers', 'Cron Triggers']}>
-<Tab value='API Triggers'>
-
-**API Triggers** receive HTTP request data as the first parameter:
-
-```typescript
-export const handler: Handlers['StepName'] = async (req, ctx) => {
-  // req contains: body, query, params, headers, method, path
-  // ctx contains: emit, logger, state, streams, traceId
-}
-```
-
-</Tab>
-<Tab value='Event Triggers'>
-
-**Event Triggers** receive event input data as the first parameter:
-
-```typescript
-export const handler: Handlers['StepName'] = async (input, ctx) => {
-  // input contains the event data matching the input schema
-  // ctx contains: emit, logger, state, streams, traceId
-}
-```
-
-</Tab>
-<Tab value='Cron Triggers'>
-
-**Cron Triggers** only receive the context object (no input parameter):
-
-```typescript
-export const handler: Handlers['StepName'] = async (ctx) => {
-  // ctx contains: emit, logger, state, streams, traceId
-}
-```
-
-</Tab>
-</Tabs>
-
-### Context Object (`ctx`) Elements
-
-All handlers receive a context object containing these essential elements:
-
-| Element | Type | Description |
-| ------- | ---- | ----------- |
-| `emit` | `function` | Function to trigger other steps by emitting events with data |
-| `logger` | `object` | Structured logging with context (`ctx.logger.info()`, `ctx.logger.error()`) |
-| `state` | `object` | Persistent key-value storage shared across steps (`ctx.state.set()`, `ctx.state.get()`) |
-| `streams` | `object` | Real-time data streams for live updates (`ctx.streams.streamName.set()`) |
-| `traceId` | `string` | Unique identifier for request tracing and workflow isolation |
-
-### Request Object (`req`) - API Triggers Only
-
-For API triggers, the first parameter contains HTTP request information:
-
-| Property | Type | Description |
-| -------- | ---- | ----------- |
-| `body` | `object` | Parsed request body (validated against `bodySchema`) |
-| `query` | `object` | URL query parameters as key-value pairs |
-| `params` | `object` | URL path parameters (e.g., `/users/:id` → `{id: "123"}`) |
-| `headers` | `object` | HTTP request headers |
-| `method` | `string` | HTTP method (`GET`, `POST`, etc.) |
-| `path` | `string` | Request URL path |
-
-### Input Data (`input`) - Event Triggers Only
-
-For event triggers, the first parameter contains the event data that was emitted by other steps, validated against the `input` schema if defined.
-
-## Step is Simple, but powerful. Let's see an example.
+### Example Flow: API Step → Event Step
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
-```typescript title="steps/my-step.step.ts"
+```ts title="steps/send-message.step.ts"
 import { ApiRouteConfig, Handlers } from 'motia';
 
-export const config: ApiRouteConfig = {
-  name: 'MyStep',     // Step identifier  
-  type: 'api',        // How it triggers
-  path: '/endpoint',  // URL path
-  method: 'POST',     // POST method
-  emits: ['done'],    // Events it sends
-  flows: ['my-flow']  // Flow it belongs to
-};
-
-export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams }) => {
-  // Your business logic here
-  return { status: 200, body: { success: true } };
-};
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python title="steps/my_step.py"
-config = {
-    "name": "MyStep",     # Step identifier
-    "type": "api",        # How it triggers
-    "path": "/endpoint",  # URL path
-    "method": "POST",     # POST method
-    "emits": ["done"],    # Events it sends
-    "flows": ["my-flow"]  # Flow it belongs to
-}
-
-async def handler(req, context):
-    # Your business logic here
-    return {"status": 200, "body": {"success": True}}
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript title="steps/my-step.step.js"
-const config = {
-  name: 'MyStep',     // Step identifier  
-  type: 'api',        // How it triggers
-  path: '/endpoint',  //  path
-  method: 'POST',     // POST method
-  emits: ['done'],    // Events it sends
-  flows: ['my-flow']  // Flow it belongs to
-};
-
-const handler = async (req, { emit, logger, state, streams }) => {
-  // Your business logic here
-  return { status: 200, body: { success: true } };
-};
-
-module.exports = { config, handler };
-```
-
-</Tab>
-</Tabs>
-
-<Callout type="info">
-### You can simply change the type to 'api', 'event', or 'cron' to create different trigger types for your steps.
-</Callout>
-
-## API Trigger Step
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
 export const config: ApiRouteConfig = {
   name: 'SendMessage',
-  type: 'api',           // ← How it triggers
-  path: '/messages',     // ←  path
-  method: 'POST',        // ←  method
-  emits: ['message.sent'],
-  flows: ['messaging']
+  type: 'api',
+  path: '/messages',
+  method: 'POST',
+  emits: ['message.sent']
+};
+
+export const handler: Handlers['SendMessage'] = async (req, { emit }) => {
+  await emit({
+    topic: 'message.sent',
+    data: { text: req.body.text }
+  });
+  return { status: 200, body: { ok: true } };
 };
 ```
 
+```ts title="steps/process-message.step.ts"
+import { EventConfig, Handlers } from 'motia';
+
+export const config: EventConfig = {
+  name: 'ProcessMessage',
+  type: 'event',
+  subscribes: ['message.sent']
+};
+
+export const handler: Handlers['ProcessMessage'] = async (input, { logger }) => {
+  logger.info('Processing message', input);
+};
+```
 </Tab>
+
 <Tab value='Python'>
 
-```python
+```python title="send_message_step.py"
 config = {
     "name": "SendMessage",
-    "type": "api",           # ← How it triggers
-    "path": "/messages",     # ←  path
-    "method": "POST",        # ←  method
-    "emits": ["message.sent"],
-    "flows": ["messaging"]
+    "type": "api",
+    "path": "/messages",
+    "method": "POST",
+    "emits": ["message.sent"]
 }
+
+async def handler(req, ctx):
+    await ctx.emit({
+        "topic": "message.sent",
+        "data": {"text": req.body["text"]}
+    })
+    return {"status": 200, "body": {"ok": True}}
 ```
 
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-const config = {
-  name: 'SendMessage',
-  type: 'api',           // ← How it triggers
-  path: '/messages',     // ←  path
-  method: 'POST',        // ←  method
-  emits: ['message.sent'],
-  flows: ['messaging']
-};
-```
-
-</Tab>
-</Tabs>
-
-## Event Trigger Step
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-export const config: EventConfig = {
-  name: 'ProcessMessage',
-  type: 'event',                // ← Event-driven
-  subscribes: ['message.sent'], // ← Listen to events
-  emits: ['message.processed'],
-  flows: ['messaging']
-};
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python
+```python title="process_message_step.py"
 config = {
     "name": "ProcessMessage",
-    "type": "event",                # ← Event-driven
-    "subscribes": ["message.sent"], # ← Listen to events
-    "emits": ["message.processed"],
-    "flows": ["messaging"]
+    "type": "event",
+    "subscribes": ["message.sent"]
 }
-```
 
+async def handler(input, ctx):
+    ctx.logger.info("Processing message", input)
+```
 </Tab>
+
 <Tab value='JavaScript'>
 
-```javascript
+```js title="steps/send-message.step.js"
+const config = {
+  name: 'SendMessage',
+  type: 'api',
+  path: '/messages',
+  method: 'POST',
+  emits: ['message.sent']
+};
+
+const handler = async (req, { emit }) => {
+  await emit({
+    topic: 'message.sent',
+    data: { text: req.body.text }
+  });
+  return { status: 200, body: { ok: true } };
+};
+
+module.exports = { config, handler };
+```
+
+```js title="steps/process-message.step.js"
 const config = {
   name: 'ProcessMessage',
-  type: 'event',                // ← Event-driven
-  subscribes: ['message.sent'], // ← Listen to events
-  emits: ['message.processed'],
-  flows: ['messaging']
-};
-```
-
-</Tab>
-</Tabs>
-
-## Cron Trigger Step
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-export const config: CronConfig = {
-  name: 'DailySummary',
-  type: 'cron',                 // ← Time-based
-  cron: '0 9 * * *',            // ← Schedule
-  emits: ['summary.generated'],
-  flows: ['messaging']
-};
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python
-config = {
-    "name": "DailySummary",
-    "type": "cron",                 # ← Time-based
-    "cron": "0 9 * * *",            # ← Schedule
-    "emits": ["summary.generated"],
-    "flows": ["messaging"]
-}
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-const config = {
-  name: 'DailySummary',
-  type: 'cron',                 // ← Time-based
-  cron: '0 9 * * *',            // ← Schedule
-  emits: ['summary.generated'],
-  flows: ['messaging']
-};
-```
-
-</Tab>
-</Tabs>
-
-**Same pattern, different triggers.** The handler always gets `{ emit, logger, state, streams, traceId }`.
-
-## **Handler** - How It Performs Logic
-The core function that processes data and performs your business logic.
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams, traceId }) => {
-  // write your business logic here
-  return { status: 200, body: { success: true, result } };
-};
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python
-async def handler(req, context):
-    # write your business logic here
-    return {"status": 200, "body": {"success": True, "result": {}}}
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-const handler = async (req, { emit, logger, state, streams, traceId }) => {
-  // write your business logic here
-  return { status: 200, body: { success: true, result } };
-};
-```
-
-</Tab>
-</Tabs>
-
-## **subscribe** - Receive Input Data
-How your step receives and accesses input data.
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-export const config: EventConfig = {
-  name: 'EventStep',
   type: 'event',
-  subscribes: ['message.sent'],            // ← Subscribe to events
-  // input schema defines what data to expect
+  subscribes: ['message.sent']
 };
-```
 
-</Tab>
-<Tab value='Python'>
-
-```python
-config = {
-    "name": "EventStep",
-    "type": "event",
-    "subscribes": ["message.sent"],        # ← Subscribe to events
-    # input schema defines what data to expect
-}
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-const config = {
-  name: 'EventStep',
-  type: 'event',
-  subscribes: ['message.sent'],            // ← Subscribe to events
-  // input schema defines what data to expect
+const handler = async (input, { logger }) => {
+  logger.info('Processing message', input);
 };
-```
 
+module.exports = { config, handler };
+```
 </Tab>
 </Tabs>
 
-## **emit** - Trigger Other Steps
-Optionally trigger other Steps by emitting events with data.
+👉 With just two files, you have an **API endpoint** that triggers an **event-driven workflow**.  
 
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-await emit({
-  topic: 'user.created',       
-  data: { userId: '123', email: 'user@example.com' }
-});
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python
-await context.emit({
-    "topic": "user.created",     
-    "data": {"userId": "123", "email": "user@example.com"}
-})
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-await emit({
-  topic: 'user.created',        
-  data: { userId: '123', email: 'user@example.com' }
-});
-```
-
-</Tab>
-</Tabs>
-
-## **logger** - Structured Logging  
-Structured logging with context for debugging, monitoring, and observability across all Steps.
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-logger.info('Processing started', { userId: '123' });
-logger.error('Process failed', { error: error.message });
-logger.warn('High usage detected', { requests: 1000 });
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python
-context.logger.info('Processing started', {"userId": "123"})
-context.logger.error('Process failed', {"error": str(error)})
-context.logger.warn('High usage detected', {"requests": 1000})
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-logger.info('Processing started', { userId: '123' });
-logger.error('Process failed', { error: error.message });
-logger.warn('High usage detected', { requests: 1000 });
-```
-
-</Tab>
-</Tabs>
-
-## **state** - Share Data Between Steps
-Persistent key-value storage shared across Steps and workflows for data persistence.
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-// Store data
-await state.set(traceId, 'user-preferences', { theme: 'dark', lang: 'en' });
-
-// Retrieve data  
-const preferences = await state.get(traceId, 'user-preferences');
-
-// Get all data in a group
-const allUserData = await state.getGroup(traceId);
-
-// Clear all data for this workflow
-await state.clear(traceId);
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python
-# Store data
-await context.state.set(context.trace_id, 'user-preferences', {"theme": "dark", "lang": "en"})
-
-# Retrieve data
-preferences = await context.state.get(context.trace_id, 'user-preferences')
-
-# Get all data in a group
-all_user_data = await context.state.get_group(context.trace_id)
-
-# Clear all data for this workflow
-await context.state.clear(context.trace_id)
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-// Store data
-await state.set(traceId, 'user-preferences', { theme: 'dark', lang: 'en' });
-
-// Retrieve data  
-const preferences = await state.get(traceId, 'user-preferences');
-
-// Get all data in a group
-const allUserData = await state.getGroup(traceId);
-
-// Clear all data for this workflow
-await state.clear(traceId);
-```
-
-</Tab>
-</Tabs>
-
-## **streams** - Real-time Objects and Events Broadcasting
-Real-time objects and events that automatically push updates to subscribed clients.
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-// Set/update real-time data for clients
-await streams.chatMessages.set('room-123', 'msg-456', {
-  text: 'Hello!',
-  userId: '123',
-  timestamp: new Date()
-});
-
-// Get a specific item
-const message = await streams.chatMessages.get('room-123', 'msg-456');
-
-// Get all items in a group
-const allMessages = await streams.chatMessages.getGroup('room-123');
-
-// Delete an item
-await streams.chatMessages.delete('room-123', 'msg-456');
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python
-# Set/update real-time data for clients
-await context.streams.chat_messages.set('room-123', 'msg-456', {
-    "text": "Hello!",
-    "userId": "123",
-    "timestamp": datetime.now().isoformat()
-})
-
-# Get a specific item
-message = await context.streams.chat_messages.get('room-123', 'msg-456')
-
-# Get all items in a group
-all_messages = await context.streams.chat_messages.get_group('room-123')
-
-# Delete an item
-await context.streams.chat_messages.delete('room-123', 'msg-456')
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-// Set/update real-time data for clients
-await streams.chatMessages.set('room-123', 'msg-456', {
-  text: 'Hello!',
-  userId: '123',
-  timestamp: new Date()
-});
-
-// Get a specific item
-const message = await streams.chatMessages.get('room-123', 'msg-456');
-
-// Get all items in a group
-const allMessages = await streams.chatMessages.getGroup('room-123');
-
-// Delete an item
-await streams.chatMessages.delete('room-123', 'msg-456');
-```
-
-</Tab>
-</Tabs>
-
-## What's Next?
-
-Now that you understand how simple steps are, let's build something:
-
-  <div className="p-4 border rounded-lg">
-    <h3 className="text-lg font-semibold mb-2">🏗️ Quick Tutorial</h3>
-    <p className="text-sm text-gray-600 mb-3">Build your first app with a complete step-by-step guide.</p>
-    <a href="/docs/getting-started/build-your-first-app" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-      Start Tutorial →
-    </a>
-  </div>
-
-Remember: **Steps are just files.** Export a `config` and `handler`, and you're done! 🎉
-
-
--   [Event Step](/docs/concepts/steps/event): Documentation for Event Step.
 ---
-title: Event Step
+## Triggers
+
+Every Step has a `type` that defines **how it triggers**. Change the type, and the same pattern works for different use cases.
+
+| Type     | When it runs                 | Example use case |
+|----------|------------------------------|------------------|
+| [`api`](/docs/concepts/steps/api)    | On an HTTP request           | REST endpoints, webhooks |
+| [`event`](/docs/concepts/steps/event)  | When an event is emitted     | Event-driven workflows |
+| [`cron`](/docs/concepts/steps/cron)   | On a schedule                | Nightly jobs, reminders |
+
 ---
 
-The **Event Step** lets you define custom logic in response to subscribed events and at the same time trigger other steps by emitting new events. It enables communication between different parts of your flow.
+## Anatomy of a Step
+
+Each Step file has two parts:
+
+1. **Config** – declarative metadata about the Step  
+2. **Handler** – the function that runs when the Step triggers
+
+### Config Properties
+
+Common to all Steps:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name`   | `string` | Unique identifier |
+| `type`   | `'api' \| 'event' \| 'cron' \| Trigger type |
+| `description` | `string` | Human-readable notes (optional) |
+| `emits`  | `string[]` | Events this Step can emit |
+| `subscribes` | `string[]` | Events this Step listens to |
+| `flows`  | `string[]` | Flows this Step belongs to |
+
+Additional properties depend on type (`api`, `event`, `cron`).
+
+---
+
+### Handler Function
+
+The **handler** is where your business logic goes. Its signature depends on the Step type:
+
+- **API Step** → `(req, ctx)`  
+- **Event Step** → `(input, ctx)`  
+- **Cron Step** → `(ctx)`  
+
+#### Context (`ctx`)
+
+Every handler gets the same context object:
+
+| Element | Description |
+|---------|-------------|
+| `emit` | Trigger other Steps by emitting events |
+| `logger` | Structured logging (`info`, `warn`, `error`) |
+| `state` | Persistent key-value storage |
+| `streams` | Real-time data channels for clients |
+| `traceId` | Unique ID for tracing requests & workflows |
+
+---
+
+## Core Functionality
+
+### State – Persistent Data
+
+Key-value storage shared across Steps and workflows.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts
+await state.set(traceId, 'preferences', { theme: 'dark' });
+const prefs = await state.get(traceId, 'preferences');
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+await context.state.set(context.trace_id, "preferences", {"theme": "dark"})
+prefs = await context.state.get(context.trace_id, "preferences")
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+await state.set(traceId, 'preferences', { theme: 'dark' });
+const prefs = await state.get(traceId, 'preferences');
+```
+
+</Tab>
+</Tabs>
+
+### Logging – Structured & Contextual
+
+For debugging, monitoring, and observability.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts
+logger.info('Processing user', { userId: '123' });
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+context.logger.info("Processing user", {"userId": "123"})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+logger.info('Processing user', { userId: '123' });
+```
+
+</Tab>
+</Tabs>
+
+### Streams – Real-Time Data
+
+Push updates directly to connected clients.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts
+await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+await context.streams.chat.set("room-123", "msg-456", {"text": "Hello!"})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Remember
+
+- **Steps are just files.** Export a `config` and `handler`.  
+- Motia auto-discovers and connects them.  
+- Combine Steps with **emit + subscribe** to build APIs, workflows, background jobs, or entire systems.  
+
+---
+
+## What’s Next?
+
+👉 [Build your first app →](/docs/getting-started/build-your-first-app)
+
+
+-   [Event Trigger](/docs/concepts/steps/event): Documentation for Event Trigger.
+---
+title: Event Trigger
+---
+
+The **Event Trigger** lets you define custom logic in response to subscribed events and at the same time trigger other steps by emitting new events. It enables communication between different parts of your flow.
 
 ## Config
 
@@ -15664,7 +15522,7 @@ The event-driven architecture makes all of these extensions straightforward to i
 Ready to build monitoring infrastructure that scales with your business? Start building with Motia today!
 
 
--   [index](/docs/getting-started/build-your-first-app): Documentation for index.
+-   [build-your-first-app](/docs/getting-started/build-your-first-app): Documentation for build-your-first-app.
 ---
 title: Build Your First Motia App
 description: Build your first multi-language Motia app in minutes. This guide walks you through creating, running, and understanding a Motia app using JavaScript, TypeScript, and Python.
@@ -16150,6 +16008,10 @@ The `create` command uses `npm` by default. If you chose a different package man
 
 This command starts the Motia runtime and the Workbench, a powerful UI for developing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
 
+<Callout type="info">
+**Step Directory:** By default, Motia looks for steps in the `steps/` directory. You can customize this to use any directory structure - see [Project Structure](/docs/project-structure#configuring-step-directories) for details.
+</Callout>
+
 </Step>
 
 <Step>
@@ -16183,41 +16045,143 @@ Congratulations! You've successfully created, run, and observed your first Motia
 -   [index](/docs/): Documentation for index.
 ---
 title: Welcome to Motia
-description: Motia is an all-in-one framework for modern backend systems. Out of the box support for API endpoints, background jobs, scheduled tasks and agentic workflow orchestration through a unified runtime. Thanks to its event driven architecture you can run tasks in parallel, stream data to clients, or allow for seamless orchestration of flows. What used to take 5 frameworks to build now comes out of the box with Motia.
+description: "Motia is an all-in-one backend framework where everything is built from one primitive: the Step. APIs, background jobs, queues, workflows, AI agents, streaming, observability, and state—all unified in a single runtime."
 ---
 
-## Why use Motia
+# Welcome to Motia
 
-Today, backend engineers and software architects face several recurring problems. Motia was created to simplify these common backend engineering challenges in a flexible and elegant way to provide world class developer experience while ensuring robust, event-driven infrastructure.
+## Why Motia?
 
-- Unified vs. Fragmented backend
-  - Working with multiple Languages
-- Scalability
-- Observability
-- Fault tolerance
-- Building and shipping
-  - Rollbacks and deployment strategies
-- Real-time data streaming
+Backend development today is fragmented.  
 
-## How Motia simplifies all of this?
+APIs live in one framework, background jobs in another, queues and schedulers elsewhere, and now AI agents and streaming systems have their own runtimes. Add observability and state management on top, and you’re stitching together half a dozen tools before writing your first feature.
 
-Similar to how React simplified frontend development where everything is a component, Motia simplifies backend development where everything is a Step. In Motia, every backend pattern becomes a group of compensable steps with unified state, events and observability. In this way, engineers only have to learn a few concepts about how a Motia Step works, and they get an enterprise-grade event-driven system out of the box.
+**Motia unifies all of these concerns around one core primitive: the Step.**
 
-- Steps represent a distinct entry point
-- Steps can have different triggers
-  - API Call _(Triggered by an HTTP request)_
-  - Event _(Triggered by an event from another Step)_
-  - CRON Job _(Triggered by a cron schedule)_
-  - More will come soon (Check the [Roadmap](https://github.com/orgs/MotiaDev/projects/2?pane=issue&itemId=121129696&issue=MotiaDev%7Cmotia%7C477))
-- Steps are composable and can be chained together
+Just as React made frontend development simple by introducing components, Motia redefines backend development with Steps.  
 
-![Motia](./img/what-is-motia/motia.gif)
-
-## Unified vs. Fragmented backend
-
-Modern software engineering is splintered. APIs live in one framework, background jobs in another, queues have their own tooling, and AI agents are springing up in yet more isolated runtimes. Motia exists to unify all of these concerns API endpoints, automations & workflows, background tasks, queues, and AI agents into a single, coherent system with shared observability and developer experience.
+Every backend pattern, API endpoints, background jobs, queues, workflows, AI agents, streaming, observability, and state, is expressed with the same primitive.
 
 To read more about this, check out our [manifesto](/manifesto).
+
+---
+## The Core Primitive: the Step
+
+At the heart of Motia is a single primitive: the **Step**.  
+Every backend pattern—APIs, background jobs, queues, workflows, AI agents, streaming, observability, and state—is expressed with this one concept.
+
+A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files and connects them automatically.
+
+Here’s a simple example of two Steps working together: an API Step that emits an event, and an Event Step that processes it.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts title="steps/send-message.step.ts"
+export const config = {
+  name: 'SendMessage',
+  type: 'api',
+  path: '/messages',
+  method: 'POST',
+  emits: ['message.sent']
+};
+
+export const handler = async (req, { emit }) => {
+  await emit({
+    topic: 'message.sent',
+    data: { text: req.body.text }
+  });
+  return { status: 200, body: { ok: true } };
+};
+```
+
+```ts title="steps/process-message.step.ts"
+export const config = {
+  name: 'ProcessMessage',
+  type: 'event',
+  subscribes: ['message.sent']
+};
+
+export const handler = async (input, { logger }) => {
+  logger.info('Processing message', input);
+};
+```
+</Tab>
+
+<Tab value='Python'>
+
+```python title="send_message_step.py"
+config = {
+    "name": "SendMessage",
+    "type": "api",
+    "path": "/messages",
+    "method": "POST",
+    "emits": ["message.sent"]
+}
+
+async def handler(req, ctx):
+    await ctx.emit({
+        "topic": "message.sent",
+        "data": {"text": req.body["text"]}
+    })
+    return {"status": 200, "body": {"ok": True}}
+```
+
+```python title="process_message_step.py"
+config = {
+    "name": "ProcessMessage",
+    "type": "event",
+    "subscribes": ["message.sent"]
+}
+
+async def handler(input, ctx):
+    ctx.logger.info("Processing message", input)
+```
+</Tab>
+
+<Tab value='JavaScript'>
+
+```js title="steps/send-message.step.js"
+const config = {
+  name: 'SendMessage',
+  type: 'api',
+  path: '/messages',
+  method: 'POST',
+  emits: ['message.sent']
+};
+
+const handler = async (req, { emit }) => {
+  await emit({
+    topic: 'message.sent',
+    data: { text: req.body.text }
+  });
+  return { status: 200, body: { ok: true } };
+};
+
+module.exports = { config, handler };
+```
+
+```js title="steps/process-message.step.js"
+const config = {
+  name: 'ProcessMessage',
+  type: 'event',
+  subscribes: ['message.sent']
+};
+
+const handler = async (input, { logger }) => {
+  logger.info('Processing message', input);
+};
+
+module.exports = { config, handler };
+```
+</Tab>
+</Tabs>
+
+👉 With just two files, you’ve built an **API endpoint**, a **queue**, and a **worker**. No extra frameworks required.
+
+Learn more about Steps here: [What is a Step?](/docs/concepts/steps/defining-steps).
+
+---
 
 ### Working with multiple Languages
 
@@ -17295,7 +17259,7 @@ Understanding how to organize your Motia project is crucial for building maintai
 Here's what a typical Motia project looks like:
 
 <Folder name="my-motia-project" defaultOpen>
-  <Folder name="steps" defaultOpen>
+  <Folder name="steps (default)" defaultOpen>
     <File name="01-api-gateway.step.ts" />
     <File name="02-data-processor.step.py" />  
     <File name="03-send-notification.step.js" />
@@ -17326,6 +17290,8 @@ Here's what a typical Motia project looks like:
 
 <Callout type="info">
 The `steps/` directory is the heart of your Motia application - this is where all your workflow logic lives. Motia automatically discovers and registers any file following the naming pattern.
+
+**Note:** The `steps/` directory is the default location, but you can customize this to use any directory name(s) you prefer. See the [Configuring Step Directories](#configuring-step-directories) section below for details.
 </Callout>
 
 <Callout>
@@ -17335,6 +17301,89 @@ The `steps/` directory is the heart of your Motia application - this is where al
 - You can freely nest steps in subfolders under `steps/` (e.g., `steps/aaa/a1.step.ts`, `steps/bbb/ccc/c1.step.py`).
 - Discovery is recursive inside `steps/`, so deeper folder structures for large apps are supported.
 </Callout>
+
+## Configuring Step Directories
+
+By default, Motia searches for step files in the `steps/` directory at your project root. However, you can customize this to use any directory structure that fits your project's needs.
+
+<Callout type="info">
+**Backward Compatibility:** Existing projects using the `steps/` directory will continue to work without any changes. The default behavior remains unchanged.
+</Callout>
+
+### Using Environment Variables
+
+Configure custom step directories using the `MOTIA_STEP_DIRS` environment variable:
+
+```bash
+# Single custom directory
+export MOTIA_STEP_DIRS=src
+npx motia dev
+
+# Multiple directories
+export MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+npx motia dev
+```
+
+You can also set this in your `.env` file:
+
+```bash title=".env"
+MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+```
+
+### Using CLI Options
+
+Override the environment variable with the `--step-dirs` CLI option:
+
+```bash
+# Single directory
+npx motia dev --step-dirs "src"
+
+# Multiple directories
+npx motia dev --step-dirs "api-steps,worker-steps"
+
+# Works with build and start commands too
+npx motia build --step-dirs "src"
+npx motia start --step-dirs "api-steps,worker-steps"
+```
+
+### Single Custom Directory Example
+
+<Folder name="my-motia-project" defaultOpen>
+  <Folder name="src" defaultOpen>
+    <File name="api-gateway.step.ts" />
+    <File name="data-processor.step.py" />
+    <File name="notification.step.js" />
+  </Folder>
+  <File name="package.json" />
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=src
+```
+
+### Multiple Directories Example
+
+<Folder name="my-motia-project" defaultOpen>
+  <Folder name="api-steps" defaultOpen>
+    <File name="users.step.ts" />
+    <File name="products.step.ts" />
+  </Folder>
+  <Folder name="worker-steps" defaultOpen>
+    <File name="process-orders.step.py" />
+    <File name="send-emails.step.js" />
+  </Folder>
+  <Folder name="cron-steps" defaultOpen>
+    <File name="daily-report.step.ts" />
+    <File name="cleanup.step.py" />
+  </Folder>
+  <File name="package.json" />
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=api-steps,worker-steps,cron-steps
+```
 
 ## Automatic Step Discovery
 
@@ -17346,16 +17395,17 @@ Motia will automatically discover and register **any file** that follows the `.s
 
 ### Discovery Rules
 
-Motia scans your `steps/` directory and automatically registers files as steps based on these rules:
+Motia scans your configured step directories (default: `steps/`) and automatically registers files as steps based on these rules:
 
 1. **File must contain `.step.` or `_step.` in the filename** (e.g., `my-task.step.ts`, `my_task_step.py`)
 2. **File must export a `config` object** defining the step configuration
 3. **File must export a `handler` function** containing the step logic
 4. **File extension determines the runtime** (`.ts` = TypeScript, `.py` = Python, `.js` = JavaScript)
+5. **Discovery works across all configured directories** - if you've set multiple directories via `MOTIA_STEP_DIRS` or `--step-dirs`, Motia will search all of them
 
 When you run `motia dev`, Motia will:
-- Scan the `steps/` directory recursively
-- Find all files matching `*.step.*`
+- Scan all configured step directories recursively
+- Find all files matching `*.step.*` in each directory
 - Parse their `config` exports to understand step types and connections
 - Register them in the workflow engine
 - Make them available in the Workbench
@@ -17391,7 +17441,7 @@ The `.step.` part in the filename is **required** - this is how Motia identifies
 
 ## Step Organization Patterns
 
-<Tabs items={["Sequential", "Feature-Based", "Language-Specific"]}>
+<Tabs items={["Sequential", "Feature-Based", "Language-Specific", "Multiple Directories"]}>
 <Tab value="Sequential">
 
 ### Sequential Flow Organization
@@ -17472,6 +17522,109 @@ Group by programming language for team specialization:
 - Consistent tooling and patterns
 - Easy onboarding for language experts
 - Shared libraries and utilities
+
+</Tab>
+<Tab value="Multiple Directories">
+
+### Multiple Directories Organization
+Separate steps across multiple root-level directories for advanced organizational needs:
+
+#### Monorepo Pattern
+
+Ideal for large-scale applications with multiple packages:
+
+<Folder name="my-monorepo" defaultOpen>
+  <Folder name="packages" defaultOpen>
+    <Folder name="api" defaultOpen>
+      <Folder name="steps" defaultOpen>
+        <File name="users.step.ts" />
+        <File name="products.step.ts" />
+      </Folder>
+    </Folder>
+    <Folder name="workers" defaultOpen>
+      <Folder name="steps" defaultOpen>
+        <File name="process-orders.step.py" />
+        <File name="send-emails.step.js" />
+      </Folder>
+    </Folder>
+  </Folder>
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=packages/api/steps,packages/workers/steps
+```
+
+**Benefits:**
+- Clear package boundaries
+- Independent versioning and deployment
+- Shared code and utilities per package
+- Scalable for large teams
+
+#### Team Separation Pattern
+
+Organize by team ownership for collaborative development:
+
+<Folder name="my-project" defaultOpen>
+  <Folder name="team-auth-steps" defaultOpen>
+    <File name="login.step.ts" />
+    <File name="register.step.ts" />
+    <File name="verify-email.step.py" />
+  </Folder>
+  <Folder name="team-payments-steps" defaultOpen>
+    <File name="process-payment.step.ts" />
+    <File name="refund.step.js" />
+    <File name="webhooks.step.py" />
+  </Folder>
+  <Folder name="team-notifications-steps" defaultOpen>
+    <File name="email.step.js" />
+    <File name="sms.step.py" />
+    <File name="push.step.ts" />
+  </Folder>
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=team-auth-steps,team-payments-steps,team-notifications-steps
+```
+
+**Benefits:**
+- Clear team ownership
+- Reduced merge conflicts
+- Team-specific workflows
+- Easier code reviews
+
+#### Environment/Layer Separation Pattern
+
+Separate by architectural layers or deployment environments:
+
+<Folder name="my-project" defaultOpen>
+  <Folder name="src" defaultOpen>
+    <Folder name="api-steps" defaultOpen>
+      <File name="rest-endpoints.step.ts" />
+      <File name="graphql.step.ts" />
+    </Folder>
+    <Folder name="background-steps" defaultOpen>
+      <File name="data-processing.step.py" />
+      <File name="report-generation.step.js" />
+    </Folder>
+    <Folder name="cron-steps" defaultOpen>
+      <File name="daily-cleanup.step.ts" />
+      <File name="weekly-reports.step.py" />
+    </Folder>
+  </Folder>
+  <File name=".env" />
+</Folder>
+
+```bash title=".env"
+MOTIA_STEP_DIRS=src/api-steps,src/background-steps,src/cron-steps
+```
+
+**Benefits:**
+- Clear architectural separation
+- Easier to understand system layout
+- Independent scaling strategies
+- Better deployment control
 
 </Tab>
 </Tabs>
@@ -17759,11 +17912,13 @@ export const handler = async (input, ctx) => {
 </Tab>
 <Tab value="Location Issues">
 
-**File outside steps/ directory**
+**File outside configured directories**
+
+Steps must be in your configured step directories. By default, this is the `steps/` directory, but if you've customized it using `MOTIA_STEP_DIRS` or `--step-dirs`, steps must be in those directories.
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
-❌ **Won't be discovered:**
+❌ **Won't be discovered (default config):**
 <Folder name="project-root" defaultOpen>
   <Folder name="src">
     <File name="user-handler.step.ts" />
@@ -17774,10 +17929,46 @@ export const handler = async (input, ctx) => {
 </Folder>
 </div>
 <div>
-✅ **Will be discovered:**
+✅ **Will be discovered (default config):**
 <Folder name="project-root" defaultOpen>
   <Folder name="steps" defaultOpen>
     <File name="user-handler.step.ts" />
+    <File name="processor.step.py" />
+  </Folder>
+</Folder>
+</div>
+</div>
+
+**Example with custom directories:**
+
+If you've configured `MOTIA_STEP_DIRS=api-steps,worker-steps`:
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+❌ **Won't be discovered:**
+<Folder name="project-root" defaultOpen>
+  <Folder name="steps">
+    <File name="user-handler.step.ts" />
+  </Folder>
+  <Folder name="lib">
+    <File name="processor.step.py" />
+  </Folder>
+</Folder>
+
+Error message:
+```
+Warning: Step file found outside configured directories
+File: steps/user-handler.step.ts
+Configured directories: api-steps, worker-steps
+```
+</div>
+<div>
+✅ **Will be discovered:**
+<Folder name="project-root" defaultOpen>
+  <Folder name="api-steps" defaultOpen>
+    <File name="user-handler.step.ts" />
+  </Folder>
+  <Folder name="worker-steps" defaultOpen>
     <File name="processor.step.py" />
   </Folder>
 </Folder>

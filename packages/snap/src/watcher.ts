@@ -19,11 +19,15 @@ export class Watcher {
   private streamChangeHandler?: StreamChangeHandler
   private streamCreateHandler?: StreamCreateHandler
   private streamDeleteHandler?: StreamDeleteHandler
+  private projectDir: string
 
   constructor(
-    private readonly dir: string,
+    private readonly dirs: string[],
     private lockedData: LockedData,
-  ) {}
+    projectDir?: string,
+  ) {
+    this.projectDir = projectDir || process.cwd()
+  }
 
   onStepChange(handler: StepChangeHandler) {
     this.stepChangeHandler = handler
@@ -62,7 +66,7 @@ export class Watcher {
       return
     }
 
-    const config = await getStepConfig(path, this.dir).catch((err) => console.error(err))
+    const config = await getStepConfig(path, this.projectDir).catch((err) => console.error(err))
 
     if (!config) {
       return
@@ -75,7 +79,7 @@ export class Watcher {
   }
 
   private async onStepFileChange(path: string): Promise<void> {
-    const config = await getStepConfig(path, this.dir).catch((err) => {
+    const config = await getStepConfig(path, this.projectDir).catch((err) => {
       console.error(err)
     })
 
@@ -173,7 +177,7 @@ export class Watcher {
 
   init() {
     this.watcher = chokidar
-      .watch(this.dir, { persistent: true, ignoreInitial: true })
+      .watch(this.dirs, { persistent: true, ignoreInitial: true })
       .on('add', (path) => this.onFileAdd(path))
       .on('change', (path) => this.onFileChange(path))
       .on('unlink', (path) => this.onFileDelete(path))
