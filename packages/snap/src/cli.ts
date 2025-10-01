@@ -72,9 +72,10 @@ program
   .command('install')
   .description('Sets up Python virtual environment and install dependencies')
   .option('-v, --verbose', 'Enable verbose logging')
+  .option('-p, --python <python_version>', 'Specify the python version to use, only supported >3.12')
   .action(async (options) => {
     const { install } = require('./install')
-    await install({ isVerbose: options.verbose })
+    await install({ isVerbose: options.verbose, pythonVersion: options.python })
   })
 
 program

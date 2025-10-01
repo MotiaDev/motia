@@ -20,7 +20,7 @@ export const pythonInstall = async ({
   pythonVersion = '3.13',
 }: PythonInstallConfig): Promise<void> => {
   const venvPath = path.join(baseDir, 'python_modules')
-  console.log('📦 Installing Python dependencies...', venvPath)
+  console.log(`📦 Installing Python(${pythonVersion}) dependencies...`, venvPath)
 
   const coreRequirementsPath = path.join(baseDir, 'node_modules', 'motia', 'dist', 'requirements-core.txt')
   const snapRequirementsPath = path.join(baseDir, 'node_modules', 'motia', 'dist', 'requirements-snap.txt')
