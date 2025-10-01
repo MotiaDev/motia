@@ -62,7 +62,10 @@ export const pythonInstall = async ({
         if (isVerbose) {
           console.log('📄 Using requirements from:', requirement)
         }
-        await executeCommand(`pip install -r "${requirement}" --only-binary=:all:`, baseDir)
+        await executeCommand(
+          `pip install -r "${requirement}" ${skipPythonPlatform ? '' : '--only-binary=:all:'}`,
+          baseDir,
+        )
       }
     }
   } catch (error) {
