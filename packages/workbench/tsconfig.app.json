@@ -25,8 +25,8 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "types": ["jest", "@testing-library/jest-dom"]
   },
-  "include": ["src", "index.tsx"],
-  "exclude": ["**/*.test.tsx","**/*.test.ts"]
+  "include": ["src", "index.tsx"]
 }
