@@ -56,7 +56,7 @@ complexity about what imports the file can have that may turn the arbitrary func
 
 ## More complexity to the Infrastructure
 
-This proposal adds tons of complexity to the infrastructure, which lots of questions that need to be answered:
+This proposal adds tons of complexity to the infrastructure, with lots of questions that need to be answered:
 
 - How to scale state condition checkers?
 - What if a single Step has 2 different triggers, like API and Event, what will be the input? How to we ensure the types are created?
