@@ -23,6 +23,9 @@ export const config: EventConfig = {
 
   infrastructure: {
     handler: {
+      ram: 2048, // ram in MB for the handler
+      cpu: 2, // cpu in vCPU for the handler
+      machineType: 'gpu', // GPU, CPU or Memory optimized
       timeout: 30, // timeout in seconds for the handler
     },
     queue: {
