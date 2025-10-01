@@ -10,6 +10,7 @@ import { ensureUvInstalled } from './utils/ensure-uv'
 interface InstallConfig {
   isVerbose?: boolean
   pythonVersion?: string
+  skipPythonPlatform?: boolean
 }
 
 type PythonInstallConfig = InstallConfig & { baseDir: string }
@@ -18,6 +19,7 @@ export const pythonInstall = async ({
   baseDir,
   isVerbose = false,
   pythonVersion = '3.13',
+  skipPythonPlatform = false,
 }: PythonInstallConfig): Promise<void> => {
   const venvPath = path.join(baseDir, 'python_modules')
   console.log(`📦 Installing Python(${pythonVersion}) dependencies...`, venvPath)
@@ -48,7 +50,7 @@ export const pythonInstall = async ({
     await ensureUvInstalled()
     console.log('✅ UV is available')
 
-    installLambdaPythonPackages({ isVerbose, requirementsList })
+    installLambdaPythonPackages({ isVerbose, requirementsList, skipPythonPlatform })
 
     // Install requirements
     console.log('📥 Installing Python dependencies...')
@@ -70,12 +72,16 @@ export const pythonInstall = async ({
   }
 }
 
-export const install = async ({ isVerbose = false, pythonVersion = '3.13' }: InstallConfig): Promise<void> => {
+export const install = async ({
+  isVerbose = false,
+  pythonVersion = '3.13',
+  skipPythonPlatform,
+}: InstallConfig): Promise<void> => {
   const baseDir = process.cwd()
 
   const steps = getStepFiles(baseDir)
   if (steps.some((file) => file.endsWith('.py'))) {
-    await pythonInstall({ baseDir, isVerbose, pythonVersion })
+    await pythonInstall({ baseDir, isVerbose, pythonVersion, skipPythonPlatform })
   }
 
   console.info('✅ Installation completed successfully!')

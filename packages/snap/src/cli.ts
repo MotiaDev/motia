@@ -73,9 +73,10 @@ program
   .description('Sets up Python virtual environment and install dependencies')
   .option('-v, --verbose', 'Enable verbose logging')
   .option('-p, --python <python_version>', 'Specify the python version to use, only supported >3.12')
+  .option('-d, --docker', 'Indicate if the install is for a motia docker install')
   .action(async (options) => {
     const { install } = require('./install')
-    await install({ isVerbose: options.verbose, pythonVersion: options.python })
+    await install({ isVerbose: options.verbose, pythonVersion: options.python, skipPythonPlatform: !!options.docker })
   })
 
 program
