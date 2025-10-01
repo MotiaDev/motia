@@ -11,7 +11,12 @@ export interface UnknownT {
   node: "Unknown";
 }
 
-export type TypeNode = Base | MappingType | ArrayT | Obj | UnknownT;
+export interface EnumT {
+  node: 'Enum',
+  options: string[]
+}
+
+export type TypeNode = Base | MappingType | ArrayT | Obj | EnumT | UnknownT;
 
 export interface MappingType {
   node: "MappingType";
@@ -37,17 +42,19 @@ export interface Obj {
 // ---------------- Tokenizer ----------------
 
 type TokKind =
-  | "SQBRACKETS"
+  | "SQUARE_BRACKETS"
   | "LBRACE"
   | "RBRACE"
   | "COLON"
   | "SEMI"
-  | "Q"
+  | "QUESTION_MARK"
   | "COMMA"
-  | "LT"
-  | "GT"
+  | "LESS_THAN"
+  | "GREATER_THAN"
   | "IDENT"
   | "KW"
+  | "PIPE"
+  | "STRING_LITERAL"
   | "UNKNOWN";
 
 export interface Tok {
@@ -66,16 +73,17 @@ export function tokenize(src: string): Tok[] {
     const c = s[i]!;
     if (/\s/.test(c)) { i++; continue; }
     if (c === "[" && i + 1 < s.length && s[i + 1] === "]") {
-      out.push({ kind: "SQBRACKETS", value: "[]", pos: i }); i += 2; continue;
+      out.push({ kind: "SQUARE_BRACKETS", value: "[]", pos: i }); i += 2; continue;
     }
     if (c === "{") { out.push({ kind: "LBRACE", value: c, pos: i }); i++; continue; }
     if (c === "}") { out.push({ kind: "RBRACE", value: c, pos: i }); i++; continue; }
     if (c === ":") { out.push({ kind: "COLON", value: c, pos: i }); i++; continue; }
     if (c === ";") { out.push({ kind: "SEMI", value: c, pos: i }); i++; continue; }
-    if (c === "?") { out.push({ kind: "Q", value: c, pos: i }); i++; continue; }
+    if (c === "?") { out.push({ kind: "QUESTION_MARK", value: c, pos: i }); i++; continue; }
     if (c === ",") { out.push({ kind: "COMMA", value: c, pos: i }); i++; continue; }
-    if (c === "<") { out.push({ kind: "LT", value: c, pos: i }); i++; continue; }
-    if (c === ">") { out.push({ kind: "GT", value: c, pos: i }); i++; continue; }
+    if (c === "<") { out.push({ kind: "LESS_THAN", value: c, pos: i }); i++; continue; }
+    if (c === ">") { out.push({ kind: "GREATER_THAN", value: c, pos: i }); i++; continue; }
+    if (c === '|') { out.push({kind: "PIPE", value: c, pos: i}); i++; continue; }
 
     if (/[A-Za-z_]/.test(c)) {
       let j = i + 1;
@@ -85,6 +93,35 @@ export function tokenize(src: string): Tok[] {
       out.push({ kind, value: word, pos: i });
       i = j; 
       continue;
+    }else if(c === "'" || c === '"'){
+      const quote = c
+      let j = i + 1
+      let buf = ""
+      while(j < s.length){
+        const ch = s[j]
+        
+        if(ch === "\\" && j + 1 < s.length){
+          buf += s[j + 1]
+          j += 2
+          continue
+        }
+
+        if(ch === quote){
+          j++
+          break
+        }
+
+        buf += ch
+        j++
+      }
+
+      if (j > s.length) {
+        throw new SyntaxError(`Unterminated string starting at ${i}`)
+      }
+
+      out.push({ kind: "STRING_LITERAL", value: buf, pos: i })
+      i = j
+      continue
     }else{
 
       // Scope for improvement
@@ -161,7 +198,7 @@ class Parser {
   // Parse the field name
   private parse_field(): Field {
     const name_tok = this.want("IDENT");
-    const optional = !!this.accept("Q");
+    const optional = !!this.accept("QUESTION_MARK");
     this.want("COLON");
     const typ = this.parse_type();
     return { name: name_tok.value, typ, optional };
@@ -170,7 +207,7 @@ class Parser {
   // Parse the field type
   private parse_type(): TypeNode {
     let t = this.parse_primary();
-    while (this.accept("SQBRACKETS")) {
+    while (this.accept("SQUARE_BRACKETS")) {
       t = { node: "Array", item: t };
     }
     return t;
@@ -179,6 +216,21 @@ class Parser {
   private parse_primary(): TypeNode {
     const t = this.peek();
     if (!t) throw new SyntaxError("Unexpected EOF while parsing Type");
+
+    if(t.kind === 'STRING_LITERAL'){
+
+      const options: string[] = []
+      options.push(this.want("STRING_LITERAL").value)
+      while(this.accept("PIPE")){
+
+        if(this.peek()?.kind !== 'STRING_LITERAL')
+          throw new SyntaxError(`Exprected String Literal at position: ${this.peek()?.pos ?? "EOF"}`)
+
+        options.push(this.want("STRING_LITERAL").value)
+      }
+
+      return {node: "Enum", options: options}
+    }
 
     // Object or '{}'
     if (t.kind === "LBRACE") {
@@ -192,13 +244,13 @@ class Parser {
     // Record<string, T>
     if (t.kind === "IDENT" && t.value === "Record") {
       this.want("IDENT"); // Record
-      this.want("LT");    // <
+      this.want("LESS_THAN");    // <
       const k = this.want("KW"); // expect 'string'
       if (k.value !== "string")
         throw new SyntaxError(`Only Record<string, ...> supported at pos ${k.pos}`);
       this.want("COMMA");
       const val = this.parse_type();
-      this.want("GT");
+      this.want("GREATER_THAN");
       return { node: "MappingType", value: val };
     }
 
@@ -244,19 +296,33 @@ export type Sig =
   | ["array", Sig]
   | ["obj", ReadonlyArray<[string, boolean, Sig]>]
   | ["mapping", Sig]
+  | ["enum", string[]]
   | ["unknown"];
 
 export function type_signature(t: TypeNode): Sig {
-  if (t.node === "Base") return ["base", t.kind];
-  if (t.node === "Array") return ["array", type_signature(t.item)];
+  if (t.node === "Base") 
+    return ["base", t.kind];
+  
+  if (t.node === "Array")
+    return ["array", type_signature(t.item)];
+  
   if (t.node === "Obj") {
     const items = [...t.fields]
       .map(f => [f.name, f.optional, type_signature(f.typ)] as [string, boolean, Sig])
       .sort((a, b) => a[0].localeCompare(b[0]));
     return ["obj", items];
   }
-  if (t.node === "MappingType") return ["mapping", type_signature(t.value)];
-  if(t.node == "Unknown") return ["unknown"]
+  
+  if (t.node === "MappingType")
+    return ["mapping", type_signature(t.value)];
+  
+  if(t.node == "Unknown")
+    return ["unknown"]
+
+  if (t.node === "Enum") {
+    const opts = [...t.options].sort();
+    return ["enum", opts];
+  }
   throw new TypeError(`Unknown TypeNode: ${(t as any) && (t as any).node}`);
 }
 
@@ -362,6 +428,11 @@ export function py_type(t: TypeNode, name_of: Map<string, string>): string {
   if (t.node === "MappingType") {
     const inner = py_type(t.value, name_of);
     return `Mapping[str, ${inner}]`;
+  }
+
+  if(t.node === "Enum"){
+    const opts = t.options.map(o => JSON.stringify(o)).join(", ");
+    return `Literal[${opts}]`;
   }
 
   if (t.node === "Unknown") {
