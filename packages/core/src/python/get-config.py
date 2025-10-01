@@ -3,6 +3,7 @@ import json
 import importlib.util
 import os
 import platform
+from pathlib import Path
 
 def sendMessage(text):
     'sends a Node IPC message to parent proccess'
@@ -35,7 +36,10 @@ async def run_python_module(file_path: str) -> None:
             raise ImportError(f"Could not load module from {file_path}")
             
         module = importlib.util.module_from_spec(spec)
-        module.__package__ = os.path.basename(module_dir)
+        flows_dir = Path(file_path).parents[1]
+        rel_parts = Path(file_path).relative_to(flows_dir).with_suffix("").parts
+        module_name = flows_dir.name + "." + ".".join(rel_parts)
+        module.__package__ = module_name.rsplit(".", 1)[0]
         spec.loader.exec_module(module)
 
         if not hasattr(module, 'config'):
