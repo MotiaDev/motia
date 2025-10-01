@@ -3,51 +3,156 @@ title: Triggers
 description: Understanding how Steps are triggered - API, Event, and Cron
 ---
 
-Every Trigger has a `Step type` that defines **how it triggers**. The same handler pattern works across all trigger types, only the trigger mechanism changes.
+## How Steps Are Triggered
+
+Every Step has a `type` that defines **when it runs**. Change the type, and your handler works the same way, only the trigger changes.
+
+| Type | Triggers when... | Use for |
+|------|------------------|---------|
+| `api` | An HTTP request arrives | REST endpoints, webhooks |
+| `event` | An event is emitted | Background tasks, workflows |
+| `cron` | A schedule fires | Periodic jobs, cleanups |
+
+---
+
+Let's learn each Step types one-by-one in details, just select tabs below to switch between triggers.
 
 <Tabs items={['API', 'Event', 'Cron']}>
 <Tab value='API'>
 
 ## API Trigger
 
-An **API Trigger** exposes an HTTP endpoint that acts as an entry point into your flows. It allows external systems or clients to trigger and interact with your workflows through a REST API interface.
+API Triggers expose HTTP endpoints. When a request hits the path, your handler runs.
 
-### Configuration
+### The Simplest API Trigger
 
-The following properties are specific to API Steps:
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    ```typescript
+    import { ApiRouteConfig, Handlers } from 'motia'
 
-<DescriptionTable
-  type={{
-    path: {
-      description: 'The HTTP path for the API endpoint',
-      type: 'string',
-    },
-    method: {
-      description: 'The HTTP method for the API endpoint (GET, POST, PUT, DELETE, etc.)',
-      type: 'string',
-    },
-    bodySchema: {
-      description:
-        'Schema for validating the request body. For TypeScript/JavaScript steps, it uses zod schemas. For Python steps, it uses Pydantic models.',
-      type: 'object',
-    },
-    responseSchema: {
-      description:
-        'Mostly used for documentation, the expected output of an API endpoint. For TypeScript/JavaScript steps, it uses zod schemas. For Python steps, it uses Pydantic models or Dict Json Schema.',
-      type: 'object',
-    },
-    queryParams: {
-      description: 'Mostly for documentation, the expected query params',
-      type: 'array',
-    },
-    middleware: {
-      description: 'Optional middleware functions to run before the handler',
-      type: 'array',
-    },
-  }}
-/>
+    export const config: ApiRouteConfig = {
+      type: 'api',
+      name: 'GetUser',
+      path: '/users/:id',
+      method: 'GET'
+    }
 
-### Basic Example
+    export const handler: Handlers['GetUser'] = async (req, { logger }) => {
+      const userId = req.pathParams.id
+      logger.info('Getting user', { userId })
+
+      return {
+        status: 200,
+        body: { id: userId, name: 'John Doe' }
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const config = {
+      type: 'api',
+      name: 'GetUser',
+      path: '/users/:id',
+      method: 'GET'
+    }
+
+    const handler = async (req, { logger }) => {
+      const userId = req.pathParams.id
+      logger.info('Getting user', { userId })
+
+      return {
+        status: 200,
+        body: { id: userId, name: 'John Doe' }
+      }
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    config = {
+        "type": "api",
+        "name": "GetUser",
+        "path": "/users/:id",
+        "method": "GET"
+    }
+
+    async def handler(req, context):
+        user_id = req.get("pathParams", {}).get("id")
+        context.logger.info("Getting user", {"userId": user_id})
+
+        return {
+            "status": 200,
+            "body": {"id": user_id, "name": "John Doe"}
+        }
+    ```
+  </Tab>
+</Tabs>
+
+👉 That's it! You now have a `GET /users/:id` endpoint.
+
+---
+
+### API Handler Signature
+
+Your handler receives two arguments:
+
+```typescript
+handler(req, ctx)
+```
+
+**`req`** contains the HTTP request:
+
+| Property | Description |
+|----------|-------------|
+| `body` | Request body (parsed JSON) |
+| `headers` | HTTP headers |
+| `pathParams` | URL parameters (e.g., `:id` → `{ id: '123' }`) |
+| `queryParams` | Query string parameters |
+
+**`ctx`** is the same [context object](#context) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
+
+**Return value** must include:
+
+| Property | Description |
+|----------|-------------|
+| `status` | HTTP status code (200, 404, 500, etc.) |
+| `body` | Response body (will be JSON-serialized) |
+| `headers` | Optional response headers |
+
+---
+
+### Config Options
+
+All API Steps require these:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `type` | `'api'` | Marks this as an API Step |
+| `name` | `string` | Unique identifier |
+| `path` | `string` | URL path (supports `:params`) |
+| `method` | `string` | HTTP method (GET, POST, PUT, DELETE, etc.) |
+
+Optional properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `description` | `string` | Human-readable notes |
+| `emits` | `string[]` | Events this Step can emit |
+| `flows` | `string[]` | Flows this Step belongs to |
+| `bodySchema` | `ZodSchema \| PydanticModel` | Validate request body |
+| `responseSchema` | `ZodSchema \| PydanticModel` | Document response shape |
+| `queryParams` | `Array<{ name, description }>` | Document query params |
+| `middleware` | `ApiMiddleware[]` | Pre-handler functions |
+
+---
+
+### Validating Input
+
+Use schemas to validate request bodies automatically.
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -57,30 +162,22 @@ The following properties are specific to API Steps:
 
     export const config: ApiRouteConfig = {
       type: 'api',
-      name: 'GetMessage',
-      description: 'Retrieves a generated message from OpenAI based on the Trace ID',
-      path: '/openai/:traceId',
-      method: 'GET',
-      emits: ['call-openai'],
-      flows: ['openai'],
-      responseSchema: {
-        200: z.object({ message: z.string({ description: 'The message from OpenAI' }) }),
-        400: z.object({ message: z.string({ description: 'The error message' }) })
-      },
-      queryParams: [
-        {
-          name: 'includeProps',
-          description: 'Whether to include the properties of the message',
-        },
-      ],
+      name: 'CreateUser',
+      path: '/users',
+      method: 'POST',
+      bodySchema: z.object({
+        name: z.string(),
+        email: z.string().email()
+      })
     }
 
-    export const handler: Handlers['GetMessage'] = async (req, { logger }) => {
-      logger.info('[Call OpenAI] Received callOpenAi event', req)
+    export const handler: Handlers['CreateUser'] = async (req, { logger }) => {
+      // req.body is validated and typed!
+      logger.info('Creating user', req.body)
 
       return {
-        status: 200,
-        body: { message: 'OpenAI response sent' },
+        status: 201,
+        body: { id: '123', ...req.body }
       }
     }
     ```
@@ -89,127 +186,90 @@ The following properties are specific to API Steps:
     ```javascript
     const { z } = require('zod')
 
-    export const config = {
+    const config = {
       type: 'api',
-      name: 'GetMessage',
-      description: 'Retrieves a generated message from OpenAI',
-      path: '/openai/:traceId',
-      method: 'GET',
-      emits: ['call-openai'],
-      flows: ['openai'],
-      responseSchema: {
-        200: z.object({ message: z.string({ description: 'The message from OpenAI' }) }),
-        400: z.object({ message: z.string({ description: 'The error message' }) })
-      },
-      queryParams: [
-        {
-          name: 'includeProps',
-          description: 'Whether to include the properties of the message',
-        },
-      ],
+      name: 'CreateUser',
+      path: '/users',
+      method: 'POST',
+      bodySchema: z.object({
+        name: z.string(),
+        email: z.string().email()
+      })
     }
 
-    export const handler = async (req, { logger }) => {
-      logger.info('[Call OpenAI] Received callOpenAi event', req)
+    const handler = async (req, { logger }) => {
+      // req.body is validated!
+      logger.info('Creating user', req.body)
 
       return {
-        status: 200,
-        body: { message: 'OpenAI response sent' },
+        status: 201,
+        body: { id: '123', ...req.body }
       }
     }
+
+    module.exports = { config, handler }
     ```
   </Tab>
   <Tab value="Python">
     ```python
-    from pydantic import BaseModel
+    from pydantic import BaseModel, EmailStr
     
-    class RequestBody(BaseModel):
-        message: str
+    class CreateUserBody(BaseModel):
+        name: str
+        email: EmailStr
 
     config = {
       "type": "api",
-      "name": "GetMessage",
-      "description": "Retrieves a generated message from OpenAI",
-      "path": "/openai/:traceId",
-      "method": "GET",
-      "emits": ["call-openai"],
-      "flows": ["openai"],
-      "responseSchema": {
-        "200": RequestBody.model_json_schema()
-      },
-      "queryParams": [
-        {
-          "name": "includeProps",
-          "description": "Whether to include the properties of the message",
-        },
-      ],
+        "name": "CreateUser",
+        "path": "/users",
+        "method": "POST",
+        "bodySchema": CreateUserBody
     }
 
     async def handler(req, context):
-      context.logger.info("[Call OpenAI] Received callOpenAi event", {"body": req.get("body")})
+        # req.body is validated!
+        context.logger.info("Creating user", req.get("body"))
 
       return {
-        "status": 200,
-        "body": { "message": "OpenAI response sent" },
+            "status": 201,
+            "body": {"id": "123", **req.get("body", {})}
       }
     ```
   </Tab>
 </Tabs>
 
+👉 Invalid requests return 400 automatically with validation errors.
+
+---
+
 ### Using Middleware
 
-API Steps support middleware functions that run before the handler. Middleware can perform tasks such as:
+Middleware runs **before** your handler. Use it for authentication, logging, rate limiting, etc.
 
-- Authentication and authorization
-- Request logging
-- Rate limiting
-- CORS handling
-- Request validation
-- Response transformation
-
-#### Middleware Function Signature
+**Signature:**
 
 ```typescript
-type ApiMiddleware = (req: ApiRequest, ctx: FlowContext, next: () => Promise<ApiResponse>) => Promise<ApiResponse>
+middleware(req, ctx, next)
 ```
 
-Middleware functions receive:
-- `req`: The API request object with body, headers, pathParams, and queryParams
-- `ctx`: The flow context with logger, state, emit, and traceId
-- `next`: A function to call the next middleware or handler in the chain
+- `req` → The incoming request  
+- `ctx` → Same context as handler  
+- `next()` → Call to continue to the next middleware or handler  
 
-#### Example Middleware
+👉 If you don't call `next()`, the request stops and never reaches your handler.
+
+**Example:**
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
     import { ApiMiddleware, ApiRouteConfig, Handlers } from 'motia'
 
-    // Authentication middleware
     const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
-      const authHeader = req.headers.authorization
-
-      if (!authHeader) {
-        return {
-          status: 401,
-          body: { error: 'Unauthorized' },
-        }
+      if (!req.headers.authorization) {
+        return { status: 401, body: { error: 'Unauthorized' } }
       }
-
-      return next()
-    }
-
-    // Logging middleware
-    const loggingMiddleware: ApiMiddleware = async (req, ctx, next) => {
-      ctx.logger.info('Request received', { path: req.pathParams })
-      const start = Date.now()
-
-      const response = await next()
-
-      const duration = Date.now() - start
-      ctx.logger.info('Request completed', { duration, status: response.status })
-
-      return response
+      return next() // Continue to handler
     }
 
     export const config: ApiRouteConfig = {
@@ -217,110 +277,63 @@ Middleware functions receive:
       name: 'ProtectedEndpoint',
       path: '/api/protected',
       method: 'POST',
-      emits: ['USER_ACTION'],
-      middleware: [loggingMiddleware, authMiddleware],
+      middleware: [authMiddleware]
     }
 
     export const handler: Handlers['ProtectedEndpoint'] = async (req, ctx) => {
-      return {
-        status: 200,
-        body: { message: 'Protected data accessed successfully' },
-      }
+      // Only runs if middleware calls next()
+      return { status: 200, body: { message: 'Success!' } }
     }
     ```
   </Tab>
   <Tab value="JavaScript">
     ```javascript
-    // Authentication middleware
     const authMiddleware = async (req, ctx, next) => {
-      const authHeader = req.headers.authorization
-
-      if (!authHeader) {
-        return {
-          status: 401,
-          body: { error: 'Unauthorized' },
-        }
+      if (!req.headers.authorization) {
+        return { status: 401, body: { error: 'Unauthorized' } }
       }
-
-      return next()
+      return next() // Continue to handler
     }
 
-    // Logging middleware
-    const loggingMiddleware = async (req, ctx, next) => {
-      ctx.logger.info('Request received', { path: req.pathParams })
-      const start = Date.now()
-
-      const response = await next()
-
-      const duration = Date.now() - start
-      ctx.logger.info('Request completed', { duration, status: response.status })
-
-      return response
-    }
-
-    exports.config = {
+    const config = {
       type: 'api',
       name: 'ProtectedEndpoint',
       path: '/api/protected',
       method: 'POST',
-      emits: ['USER_ACTION'],
-      middleware: [loggingMiddleware, authMiddleware],
+      middleware: [authMiddleware]
     }
 
-    exports.handler = async (req, ctx) => {
-      return {
-        status: 200,
-        body: { message: 'Protected data accessed successfully' },
-      }
+    const handler = async (req, ctx) => {
+      // Only runs if middleware calls next()
+      return { status: 200, body: { message: 'Success!' } }
     }
+
+    module.exports = { config, handler }
     ```
   </Tab>
   <Tab value="Python">
     ```python
-    from typing import Any, Dict, Callable
-
-    # Authentication middleware
-    async def auth_middleware(data: Dict[str, Any], ctx: Any, next_fn: Callable):
-        auth_header = data['headers'].get('authorization')
-
-        if not auth_header:
-            return {
-                'status': 401,
-                'body': {'error': 'Unauthorized'}
-            }
-
-        return await next_fn()
-
-    # Logging middleware
-    async def logging_middleware(data: Dict[str, Any], ctx: Any, next_fn: Callable):
-        import time
-        ctx.logger.info('Request received', {'path': data.get('pathParams')})
-        start = time.time()
-
-        response = await next_fn()
-
-        duration = time.time() - start
-        ctx.logger.info('Request completed', {'duration': duration, 'status': response.get('status')})
-
-        return response
+    async def auth_middleware(req, context, next_fn):
+        if not req.get("headers", {}).get("authorization"):
+            return {"status": 401, "body": {"error": "Unauthorized"}}
+        return await next_fn()  # Continue to handler
 
     config = {
-        'type': 'api',
-        'name': 'ProtectedEndpoint',
-        'path': '/api/protected',
-        'method': 'POST',
-        'emits': ['USER_ACTION'],
-        'middleware': [logging_middleware, auth_middleware]
+        "type": "api",
+        "name": "ProtectedEndpoint",
+        "path": "/api/protected",
+        "method": "POST",
+        "middleware": [auth_middleware]
     }
 
     async def handler(req, context):
-        return {
-            'status': 200,
-            'body': {'message': 'Protected data accessed successfully'}
-        }
+        # Only runs if middleware calls next()
+        return {"status": 200, "body": {"message": "Success!"}}
     ```
   </Tab>
 </Tabs>
+
+👉 Middleware runs in order: first in the list runs first.
 
 </Tab>
 
@@ -328,27 +341,100 @@ Middleware functions receive:
 
 ## Event Trigger
 
-The **Event Trigger** lets you define custom logic in response to subscribed events and trigger other Steps by emitting new events. This enables event-driven communication between different parts of your flow.
+Event Triggers run when an event is emitted. Perfect for background tasks, async workflows, and decoupling logic.
 
-### Configuration
+### The Simplest Event Trigger
 
-The following properties are specific to Event Steps:
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    ```typescript
+    import { EventConfig, Handlers } from 'motia'
 
-<DescriptionTable
-  type={{
-    subscribes: {
-      description: 'Array of event topics this step listens to',
-      type: 'string[]',
-    },
-    input: {
-      description:
-        'Schema for input validation. For TypeScript/JavaScript steps, it uses zod schemas. For Python steps, it uses Pydantic models.',
-      type: 'object',
-    },
-  }}
-/>
+    export const config: EventConfig = {
+      type: 'event',
+      name: 'ProcessMessage',
+      subscribes: ['message.sent']
+    }
 
-### Basic Example
+    export const handler: Handlers['ProcessMessage'] = async (input, { logger }) => {
+      logger.info('Processing message:', input)
+      // Do async work here
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const config = {
+      type: 'event',
+      name: 'ProcessMessage',
+      subscribes: ['message.sent']
+    }
+
+    const handler = async (input, { logger }) => {
+      logger.info('Processing message:', input)
+      // Do async work here
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    config = {
+        "type": "event",
+        "name": "ProcessMessage",
+        "subscribes": ["message.sent"]
+    }
+
+    async def handler(input, context):
+        context.logger.info("Processing message:", {"input": input})
+        # Do async work here
+    ```
+  </Tab>
+</Tabs>
+
+👉 This Step runs whenever someone emits `message.sent`.
+
+---
+
+### Event Handler Signature
+
+Your handler receives two arguments:
+
+```typescript
+handler(input, ctx)
+```
+
+**`input`** is the data from the emitted event.
+
+**`ctx`** is the same [context object](#context) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
+
+---
+
+### Config Options
+
+All Event Steps require these:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `type` | `'event'` | Marks this as an Event Step |
+| `name` | `string` | Unique identifier |
+| `subscribes` | `string[]` | Event topics to listen to |
+
+Optional properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `description` | `string` | Human-readable notes |
+| `emits` | `string[]` | Events this Step can emit |
+| `flows` | `string[]` | Flows this Step belongs to |
+| `input` | `ZodSchema \| PydanticModel` | Validate input data |
+
+---
+
+### Validating Input
+
+Just like API Steps, you can validate event data with schemas.
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -358,48 +444,113 @@ The following properties are specific to Event Steps:
 
     export const config: EventConfig = {
       type: 'event',
-      name: 'ProcessMessage',
-      description: 'Processes incoming messages',
-      subscribes: ['message.sent'],
-      emits: ['message.processed'],
-      input: z.object({ message: z.string() }),
-      flows: ['messaging'],
+      name: 'ProcessOrder',
+      subscribes: ['order.created'],
+      input: z.object({
+        orderId: z.string(),
+        amount: z.number()
+      })
     }
 
-    export const handler: Handlers['ProcessMessage'] = async (input, { emit, logger }) => {
-      logger.info('Processing message:', input.message)
+    export const handler: Handlers['ProcessOrder'] = async (input, { logger }) => {
+      // input is validated and typed!
+      logger.info('Processing order', { orderId: input.orderId })
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const { z } = require('zod')
+
+    const config = {
+      type: 'event',
+      name: 'ProcessOrder',
+      subscribes: ['order.created'],
+      input: z.object({
+        orderId: z.string(),
+        amount: z.number()
+      })
+    }
+
+    const handler = async (input, { logger }) => {
+      // input is validated!
+      logger.info('Processing order', { orderId: input.orderId })
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    from pydantic import BaseModel
+
+    class OrderInput(BaseModel):
+        orderId: str
+        amount: float
+
+    config = {
+        "type": "event",
+        "name": "ProcessOrder",
+        "subscribes": ["order.created"],
+        "input": OrderInput
+    }
+
+    async def handler(input, context):
+        # input is validated!
+        context.logger.info("Processing order", {"orderId": input.get("orderId")})
+    ```
+  </Tab>
+</Tabs>
+
+👉 Invalid events are logged as errors and don't trigger your handler.
+
+---
+
+### Chaining Events
+
+Event Triggers can emit new events to trigger other Steps.
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    ```typescript
+    import { EventConfig, Handlers } from 'motia'
+
+    export const config: EventConfig = {
+      type: 'event',
+      name: 'ProcessOrder',
+      subscribes: ['order.created'],
+      emits: ['order.processed']
+    }
+
+    export const handler: Handlers['ProcessOrder'] = async (input, { emit, logger }) => {
+      logger.info('Processing order...')
+
+      // Do some work...
 
       await emit({
-        topic: 'message.processed',
-        data: {
-          result: `Processed: ${input.message}`
-        }
+        topic: 'order.processed',
+        data: { orderId: input.orderId, status: 'completed' }
       })
     }
     ```
   </Tab>
   <Tab value="JavaScript">
     ```javascript
-    const z = require('zod')
-
     const config = {
       type: 'event',
-      name: 'ProcessMessage',
-      description: 'Processes incoming messages',
-      subscribes: ['message.sent'],
-      emits: ['message.processed'],
-      input: z.object({ message: z.string() }),
-      flows: ['messaging'],
+      name: 'ProcessOrder',
+      subscribes: ['order.created'],
+      emits: ['order.processed']
     }
 
     const handler = async (input, { emit, logger }) => {
-      logger.info('Processing message:', input.message)
+      logger.info('Processing order...')
+
+      // Do some work...
 
       await emit({
-        topic: 'message.processed',
-        data: {
-          result: `Processed: ${input.message}`
-        }
+        topic: 'order.processed',
+        data: { orderId: input.orderId, status: 'completed' }
       })
     }
 
@@ -410,45 +561,25 @@ The following properties are specific to Event Steps:
     ```python
     config = {
       "type": "event",
-      "name": "ProcessMessage",
-      "description": "Processes incoming messages",
-      "subscribes": ["message.sent"], 
-      "emits": ["message.processed"],
-      "input": {
-        "type": "object",
-        "properties": { "message": {"type": "string"} },
-      },
-      "flows": ["messaging"]
+        "name": "ProcessOrder",
+        "subscribes": ["order.created"],
+        "emits": ["order.processed"]
     }
 
     async def handler(input, context):
-      context.logger.info("Processing message:", { "input": input })
+        context.logger.info("Processing order...")
+
+        # Do some work...
 
       await context.emit({
-        "topic": "message.processed",
-        "data": {
-          "result": f"Processed: {input.get('message', '')}"
-        }
+            "topic": "order.processed",
+            "data": {"orderId": input.get("orderId"), "status": "completed"}
       })
     ```
   </Tab>
 </Tabs>
 
-### Event Flow Example
-
-Event Steps are ideal for building event-driven workflows:
-
-```
-API Step          Event Step         Event Step
-┌──────────┐     ┌──────────────┐   ┌──────────────┐
-│ POST     │ --> │ Validate     │-->│ Send Email   │
-│ /signup  │     │ User         │   │              │
-└──────────┘     └──────────────┘   └──────────────┘
-  emits:           subscribes:        subscribes:
-  'user.created'   'user.created'     'user.validated'
-                   emits:
-                   'user.validated'
-```
+👉 This creates a workflow: `order.created` → `ProcessOrder` → `order.processed`.
 
 </Tab>
 
@@ -456,22 +587,9 @@ API Step          Event Step         Event Step
 
 ## Cron Trigger
 
-The **Cron Trigger** allows you to schedule your Steps to run at specified intervals using cron expressions.
+Cron Triggers run on a schedule. Perfect for periodic tasks like cleanup jobs, reports, or health checks.
 
-### Configuration
-
-The following properties are specific to Cron Steps:
-
-<DescriptionTable
-  type={{
-    cron: {
-      description: 'The cron schedule expression for your step',
-      type: 'string',
-    },
-  }}
-/>
-
-### Basic Example
+### The Simplest Cron Trigger
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -479,21 +597,14 @@ The following properties are specific to Cron Steps:
     import { CronConfig, Handlers } from 'motia'
 
     export const config: CronConfig = {
-      type: 'cron' as const,
-      name: 'PeriodicJob',
-      description: 'Runs every hour and emits a timestamp',
-      cron: '0 * * * *', // run every hour at minute 0
-      emits: ['cron-ticked'],
-      flows: ['cron-example'],
+      type: 'cron',
+      name: 'DailyCleanup',
+      cron: '0 0 * * *' // Every day at midnight
     }
 
-    export const handler: Handlers['PeriodicJob'] = async ({ emit, logger }) => {
-      logger.info('Cron job executing')
-      
-      await emit({
-        topic: 'cron-ticked',
-        data: { message: 'Cron job executed', timestamp: new Date() },
-      })
+    export const handler: Handlers['DailyCleanup'] = async ({ logger }) => {
+      logger.info('Running daily cleanup')
+      // Do cleanup work here
     }
     ```
   </Tab>
@@ -501,20 +612,13 @@ The following properties are specific to Cron Steps:
     ```javascript
     const config = {
       type: 'cron',
-      name: 'PeriodicJob',
-      description: 'Runs every hour and emits a timestamp',
-      cron: '0 * * * *', // run every hour at minute 0
-      emits: ['cron-ticked'],
-      flows: ['cron-example'],
+      name: 'DailyCleanup',
+      cron: '0 0 * * *' // Every day at midnight
     }
 
-    const handler = async ({ emit, logger }) => {
-      logger.info('Cron job executing')
-      
-      await emit({
-        topic: 'cron-ticked',
-        data: { message: 'Cron job executed', timestamp: new Date() },
-      })
+    const handler = async ({ logger }) => {
+      logger.info('Running daily cleanup')
+      // Do cleanup work here
     }
 
     module.exports = { config, handler }
@@ -522,71 +626,95 @@ The following properties are specific to Cron Steps:
   </Tab>
   <Tab value="Python">
     ```python
-    from datetime import datetime
-
     config = {
         "type": "cron",
-        "name": "PeriodicJob",
-        "description": "Runs every hour and emits a timestamp",
-        "cron": "0 * * * *",
-        "emits": ["cron-ticked"],
-        "flows": ["cron-example"]
+        "name": "DailyCleanup",
+        "cron": "0 0 * * *"  # Every day at midnight
     }
   
     async def handler(context):
-        context.logger.info('Cron job executing')
-        
-        await context.emit({
-            "topic": "cron-ticked",
-            "data": { 
-                "message": "Cron job executed",
-                "timestamp": datetime.now().isoformat()
-            },
-        })
+        context.logger.info("Running daily cleanup")
+        # Do cleanup work here
     ```
   </Tab>
 </Tabs>
+
+👉 This Step runs automatically every day at midnight.
+
+---
+
+### Cron Handler Signature
+
+Your handler receives one argument:
+
+```typescript
+handler(ctx)
+```
+
+**`ctx`** is the same [context object](#context) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
+
+---
+
+### Config Options
+
+All Cron Triggers require these:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `type` | `'cron'` | Marks this as a Cron Step |
+| `name` | `string` | Unique identifier |
+| `cron` | `string` | Cron expression for schedule |
+
+Optional properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `description` | `string` | Human-readable notes |
+| `emits` | `string[]` | Events this Step can emit |
+| `flows` | `string[]` | Flows this Step belongs to |
+
+---
 
 ### Cron Expression Examples
 
 | Expression | Description |
 |------------|-------------|
 | `* * * * *` | Every minute |
-| `0 * * * *` | Every hour at minute 0 |
+| `0 * * * *` | Every hour |
 | `0 0 * * *` | Every day at midnight |
 | `0 9 * * 1` | Every Monday at 9 AM |
-| `0 0 1 * *` | First day of every month at midnight |
+| `0 0 1 * *` | First day of every month |
 | `*/15 * * * *` | Every 15 minutes |
 
-### Use Cases
-
-Cron Steps are perfect for:
-- Daily/weekly reports
-- Data cleanup tasks
-- Periodic sync operations
-- Scheduled notifications
-- Batch processing jobs
-- Health checks and monitoring
+👉 Use [crontab.guru](https://crontab.guru) to test and understand cron expressions.
 
 </Tab>
 </Tabs>
 
-## Choosing the Right Trigger
+---
 
-| Trigger | When to Use | Example |
-|---------|-------------|---------|
-| **API** | External requests, webhooks, user actions | REST endpoints, webhook receivers |
-| **Event** | Background processing, async workflows | Email sending, data processing, notifications |
-| **Cron** | Scheduled tasks, periodic jobs | Daily reports, cleanup tasks, sync operations |
+## Context – Available in All Handlers
+
+Every handler (API Trigger, Event Trigger, or Cron Trigger) receives a `ctx` object with these tools:
+
+| Property | Description | Example |
+|----------|-------------|---------|
+| `logger` | Structured logging | `logger.info('User created', { userId })` |
+| `emit` | Trigger other Steps | `await emit({ topic: 'user.created', data })` |
+| `state` | Persistent key-value storage | `await state.set(traceId, 'key', value)` |
+| `streams` | Real-time data channels | `await streams.chat.set('room', 'msg', data)` |
+| `traceId` | Unique ID for this execution | Used for tracking workflows |
+
+---
 
 ## Common Patterns
 
-### API → Event Chain
+### API Trigger → Event Trigger (Async Processing)
 
-API receives request, emits event for async processing:
+API endpoint triggers background work:
 
 ```typescript
-// API Step
+// API Step - returns immediately
 export const config = {
   type: 'api',
   path: '/orders',
@@ -594,33 +722,69 @@ export const config = {
   emits: ['order.created']
 }
 
-// Event Step (async processing)
+// Event Step - processes in background
 export const config = {
   type: 'event',
-  subscribes: ['order.created'],
-  emits: ['order.processed']
+  subscribes: ['order.created']
 }
 ```
 
-### Cron → Event Chain
+👉 Use this pattern when you want fast API responses and heavy work done asynchronously.
 
-Scheduled task triggers event-driven workflow:
+---
+
+### Cron Trigger → Event Trigger (Scheduled Workflows)
+
+Scheduled task kicks off a workflow:
 
 ```typescript
-// Cron Step
+// Cron Step - runs daily
 export const config = {
   type: 'cron',
-  cron: '0 0 * * *', // Daily at midnight
+  cron: '0 0 * * *',
   emits: ['daily.report.requested']
 }
 
-// Event Step
+// Event Step - generates report
 export const config = {
   type: 'event',
-  subscribes: ['daily.report.requested'],
-  emits: ['daily.report.generated']
+  subscribes: ['daily.report.requested']
 }
 ```
+
+👉 Use this pattern for recurring tasks like reports, cleanups, or syncs.
+
+---
+
+### Event Chain (Multi-Event Workflows)
+
+Events trigger other events to create complex workflows:
+
+```typescript
+// Step 1: Validate order
+export const config = {
+  type: 'event',
+  subscribes: ['order.created'],
+  emits: ['order.validated']
+}
+
+// Step 2: Process payment
+export const config = {
+  type: 'event',
+  subscribes: ['order.validated'],
+  emits: ['payment.processed']
+}
+
+// Step 3: Send confirmation
+export const config = {
+  type: 'event',
+  subscribes: ['payment.processed']
+}
+```
+
+👉 Use this pattern to break complex logic into manageable, testable pieces.
+
+---
 
 ## What's Next?
 
