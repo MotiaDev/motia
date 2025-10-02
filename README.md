@@ -15,7 +15,7 @@
   <strong>🔥 The Unified Backend Framework That Eliminates Runtime Fragmentation 🔥</strong>
 </p>
 <p align="center">
-  <em>APIs, background jobs, workflows, and AI agents in one system. JavaScript, TypeScript, Python, and more in one codebase.</em>
+  <em>APIs, background jobs, queueing, streaming, states, workflows, AI agents, observability, scaling, and deployment all in one system. JavaScript, TypeScript, Python, and more in single primitive</em>
 </p>
 
 <p align="center">
