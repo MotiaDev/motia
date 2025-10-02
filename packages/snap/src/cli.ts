@@ -85,7 +85,7 @@ program
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
   .option('-m, --mermaid', 'Enable mermaid diagram generation')
-  .option('-s, --step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "src,steps")')
+  .option('-s, --step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "src,steps")', process.env.MOTIA_STEP_DIRS)
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')
@@ -105,7 +105,7 @@ program
   .option('-H, --host [host]', 'The host address for the server', `${defaultHost}`)
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
-  .option('-s, --step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "src,steps")')
+  .option('-s, --step-dirs <dirs>', 'Comma-separated list of directories to scan for steps (e.g., "src,steps")', process.env.MOTIA_STEP_DIRS)
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')

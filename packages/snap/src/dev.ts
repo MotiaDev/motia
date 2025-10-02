@@ -16,6 +16,7 @@ import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
 import { workbenchBase, isTutorialDisabled } from './constants'
+import { getStepDirectories } from './utils/get-step-directories'
 
 process.env.VITE_CJS_IGNORE_WARNING = 'true'
 
@@ -37,7 +38,6 @@ export const dev = async (
 
   identifyUser()
 
-  const { getStepDirectories } = require('./utils/get-step-directories')
   const stepDirs = getStepDirectories({ projectDir: baseDir, cliParam: stepDirsParam })
 
   const stepFiles = getStepFiles(baseDir, stepDirs)
@@ -57,7 +57,10 @@ export const dev = async (
     trackEvent('python_environment_activated')
   }
 
-  const lockedData = await generateLockedData(baseDir, 'file', 'default', stepDirs)
+  const lockedData = await generateLockedData({
+    projectDir: baseDir,
+    stepDirs,
+  })
 
   const eventManager = createEventManager()
   const state = createStateAdapter({

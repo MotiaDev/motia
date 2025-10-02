@@ -39,14 +39,13 @@ export const getStreamFiles = (projectDir: string, stepDirs?: string[]): string[
 }
 
 // Helper function to recursively collect flow data
-export const collectFlows = async (projectDir: string, lockedData: LockedData, stepDirs?: string[]): Promise<Step[]> => {
+export const collectFlows = async (projectDir: string, lockedData: LockedData, stepDirs: string[]): Promise<Step[]> => {
   const invalidSteps: Step[] = []
   const stepFiles = getStepFiles(projectDir, stepDirs)
   const streamFiles = getStreamFiles(projectDir, stepDirs)
   
-  const dirs = stepDirs || [path.join(projectDir, 'steps')]
   const deprecatedSteps: string[] = []
-  for (const dir of dirs) {
+  for (const dir of stepDirs) {
     deprecatedSteps.push(...globSync('**/*.step.py', { absolute: true, cwd: dir }))
   }
 
@@ -112,12 +111,19 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData, s
   return invalidSteps
 }
 
-export const generateLockedData = async (
-  projectDir: string,
-  streamAdapter: 'file' | 'memory' = 'file',
-  printerType: 'disabled' | 'default' = 'default',
-  stepDirs?: string[],
-): Promise<LockedData> => {
+export type GenerateLockedDataParams = {
+  projectDir: string
+  streamAdapter?: 'file' | 'memory'
+  printerType?: 'disabled' | 'default'
+  stepDirs: string[]
+}
+
+export const generateLockedData = async ({
+  projectDir,
+  streamAdapter = 'file',
+  printerType = 'default',
+  stepDirs,
+}: GenerateLockedDataParams): Promise<LockedData> => {
   try {
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
     const lockedData = new LockedData(projectDir, streamAdapter, printer)

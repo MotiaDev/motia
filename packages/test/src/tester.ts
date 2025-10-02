@@ -10,7 +10,12 @@ export const createMotiaTester = (): MotiaTester => {
   const logger = new Logger()
 
   const promise = (async () => {
-    const lockedData = await generateLockedData(path.join(process.cwd()), 'memory', 'disabled')
+    const lockedData = await generateLockedData({
+      projectDir: path.join(process.cwd()),
+      streamAdapter: 'memory',
+      printerType: 'disabled',
+      stepDirs: [path.join(process.cwd(), 'steps')],
+    })
     const state = createStateAdapter({ adapter: 'memory' })
     const { server, socketServer, close } = createServer(lockedData, eventManager, state, { isVerbose: false })
 

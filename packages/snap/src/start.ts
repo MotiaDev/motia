@@ -27,7 +27,10 @@ export const start = async (port: number, hostname: string, disableVerbose: bool
   }
 
   const dotMotia = path.join(baseDir, '.motia')
-  const lockedData = await generateLockedData(baseDir, 'file', 'default', stepDirs)
+  const lockedData = await generateLockedData({
+    projectDir: baseDir,
+    stepDirs,
+  })
   const eventManager = createEventManager()
   const state = createStateAdapter({ adapter: 'default', filePath: dotMotia })
   const config = { isVerbose, isDev: false, version }
