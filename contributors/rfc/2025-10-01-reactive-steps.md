@@ -16,54 +16,90 @@ developers can define what type of triggers they want to use, in a single Step t
 routes calling the same step, typically used when they're moving the API to a new endpoint but don't want to
 have breaking changes.
 
-This enabled new types of triggers, like State changes or even adding conditions to trigger the Step only
-when the condition criteria is met.
+This enables new types of triggers, like State changes or even adding conditions to trigger the Step only
+when the condition criteria is met or Point-in-time triggers.
 
-We'll also remove the `type` property from the StepConfig, and instead use the `triggers` property to define the triggers.
+We'll remove the `type` property from the StepConfig, and instead use the `trigger` property to define the trigger.
 
 Here's an example:
 
+## Event Step
+
 ```typescript
-import { StepConfig, triggers } from 'motia'
+import { StepConfig } from 'motia'
 import { z } from 'zod'
 
 export const config: StepConfig = {
   name: 'OpenAI Model',
   description: 'Executes on a player move when AI Model is OpenAI',
-  triggers: [
-    triggers.topic('player-move', {
-      input: z.object({
-        gameId: z.string({ description: 'The ID of the game' }),
-        fenBefore: z.string({ description: 'The FEN of the game before the move' }),
-        ai: z.object({
-          model: z.string({ description: 'The model of the AI' }),
-        }),
+
+  trigger: {
+    type: 'event',
+    subscribes: ['player-move'],
+    input: z.object({
+      gameId: z.string({ description: 'The ID of the game' }),
+      fenBefore: z.string({ description: 'The FEN of the game before the move' }),
+      ai: z.object({
+        model: z.string({ description: 'The model of the AI' }),
       }),
-      condition: input.get('ai.model').eq('open-ai'),
     }),
-    triggers.stateUpdate(state.get('ai.model').eq('open-ai')),
-  ],
+    condition: input.get('ai.model').eq('open-ai'),
+  },
 
   flows: ['chess'],
-  emits: ['test'],
+  emits: ['topic'],
 }
 ```
 
-## Conditions
+## API Step
 
-Conditions are a configuration, we don't want to have condition execution to be an arbitrary function because it adds
-complexity about what imports the file can have that may turn the arbitrary function heavyweight.
+```typescript
+import { StepConfig } from 'motia'
+import { z } from 'zod'
 
-## More complexity to the Infrastructure
+export const config: StepConfig = {
+  name: 'ApiTrigger',
+  description: 'basic-tutorial api trigger',
+  trigger: {
+    type: 'api',
+    method: 'POST',
+    path: '/basic-tutorial',
+    bodySchema: z.object({
+      pet: z.object({
+        name: z.string(),
+        photoUrl: z.string(),
+      }),
+      foodOrder: z
+        .object({
+          id: z.string(),
+          quantity: z.number(),
+        })
+        .optional(),
+    }),
+    responseSchema: {
+      200: petSchema,
+    },
+  },
 
-This proposal adds tons of complexity to the infrastructure, with lots of questions that need to be answered:
+  flows: ['chess'],
+  emits: ['topic'],
+}
+```
 
-- How to scale state condition checkers?
-- What if a single Step has 2 different triggers, like API and Event, what will be the input? How to we ensure the types are created?
-- How to implement the condition checkers in Self-host deployment in a sacalable way?
-- How to implement adapters for these triggers?
+## Cron Step
 
-## Concerns to the development experience
+```typescript
+import { StepConfig } from 'motia'
 
-Since Steps won't be connected directly because they can be triggered based on conditions in State changes and so,
-it will become much harder to understand the flow of the application and side-effects can happen.
+export const config: StepConfig = {
+  name: 'CronTrigger',
+  description: 'basic-tutorial cron trigger',
+  trigger: {
+    type: 'cron',
+    cron: '* * * * *',
+  },
+
+  flows: ['chess'],
+  emits: ['topic'],
+}
+```
