@@ -44,6 +44,7 @@ const generateApiRequest = (
     generated +=
       `${handlerName}_ApiRequest_type: TypeAlias = ApiRequest[${api_req_root_name}]` + "\n\n";
   } catch (error) {
+    console.log(`[ERROR]: ${error}`)
     generated +=
       `${handlerName}_ApiRequest_type: TypeAlias = ApiRequest[Dict[str, Any]]` + "\n\n";
   }

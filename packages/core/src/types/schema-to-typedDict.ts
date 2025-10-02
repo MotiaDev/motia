@@ -16,7 +16,7 @@ export interface EnumT {
   options: string[]
 }
 
-export type TypeNode = Base | MappingType | ArrayT | Obj | EnumT | UnknownT;
+export type TypeNode = Base | MappingType | ArrayT | Obj | EnumT | UnionT | UnknownT;
 
 export interface MappingType {
   node: "MappingType";
@@ -37,6 +37,11 @@ export interface Field {
 export interface Obj {
   node: "Obj";
   fields: ReadonlyArray<Field>;
+}
+
+export interface UnionT {
+  node: "Union";
+  members: ReadonlyArray<TypeNode>;
 }
 
 /**
@@ -74,9 +79,6 @@ export function tokenize(src: string): Tok[] {
   while (i < s.length) {
     const c = s[i]!;
     if (/\s/.test(c)) { i++; continue; }
-    if (c === "[" && i + 1 < s.length && s[i + 1] === "]") {
-      out.push({ kind: "SQUARE_BRACKETS", value: "[]", pos: i }); i += 2; continue;
-    }
     if (c === "{") { out.push({ kind: "LBRACE", value: c, pos: i }); i++; continue; }
     if (c === "}") { out.push({ kind: "RBRACE", value: c, pos: i }); i++; continue; }
     if (c === ":") { out.push({ kind: "COLON", value: c, pos: i }); i++; continue; }
@@ -184,11 +186,35 @@ class Parser {
     const name_tok = this.want("IDENT");
     const optional = !!this.accept("QUESTION_MARK");
     this.want("COLON");
-    const typ = this.parse_primary();
+    const typ = this.parse_type();
     return { name: name_tok.value, typ, optional };
   }
 
-  private parse_primary(): TypeNode {
+private parse_type(): TypeNode {
+  const members: TypeNode[] = [this.parse_atomic()];
+
+  while (this.accept("PIPE")) {
+    members.push(this.parse_atomic());
+  }
+
+  if (members.length === 1) return members[0];
+
+  // Collapse nested unions
+  const flat: TypeNode[] = [];
+  for (const m of members) {
+    if (m.node === "Union") flat.push(...m.members);
+    else flat.push(m);
+  }
+
+  // If all are string enums → make single Enum
+  if (flat.every(m => m.node === "Enum" && m.options.length === 1)) {
+    return { node: "Enum", options: flat.map(e => (e as EnumT).options[0]) };
+  }
+
+  return { node: "Union", members: flat };
+}
+
+  private parse_atomic(): TypeNode {
     const t = this.peek();
     if (!t) throw new SyntaxError("Unexpected EOF while parsing Type");
 
@@ -218,7 +244,7 @@ class Parser {
     if(t.kind === "IDENT" && t.value === "Array"){
         this.want("IDENT")
         this.want("LESS_THAN")
-        const val = this.parse_primary()
+        const val = this.parse_atomic()
         this.want("GREATER_THAN")
         return {node: "Array", item: val}
     }
@@ -230,7 +256,7 @@ class Parser {
       if (k.value !== "string")
         throw new SyntaxError(`Only Record<string, ...> supported at pos ${k.pos}`);
       this.want("COMMA");
-      const val = this.parse_primary();
+      const val = this.parse_atomic();
       this.want("GREATER_THAN");
       return { node: "MappingType", value: val };
     }
@@ -279,6 +305,7 @@ export type Sig =
   | ["obj", ReadonlyArray<[string, boolean, Sig]>]
   | ["mapping", Sig]
   | ["enum", string[]]
+  | ["union", Sig[]]
   | ["unknown"];
 
 export function type_signature(t: TypeNode): Sig {
@@ -305,6 +332,13 @@ export function type_signature(t: TypeNode): Sig {
     const opts = [...t.options].sort();
     return ["enum", opts];
   }
+
+  if (t.node === "Union") {
+    const parts = t.members.map(type_signature);
+    const sorted = parts.map(p => JSON.stringify(p)).sort().map(s => JSON.parse(s));
+    return ["union", sorted];
+  }
+
   throw new TypeError(`Unknown TypeNode: ${(t as any) && (t as any).node}`);
 }
 
@@ -373,6 +407,11 @@ export function collect_objects(root: Obj, root_hint = "Root"): TDClass[] {
       
       visit(t.value, path);
 
+    } else if (t.node === "Union") {
+      
+       for (const m of t.members){
+         visit(m, path);
+       }
     }
   };
 
@@ -413,6 +452,11 @@ export function py_type(t: TypeNode, name_of: Map<string, string>): string {
   if(t.node === "Enum"){
     const opts = t.options.map(o => JSON.stringify(o)).join(", ");
     return `Literal[${opts}]`;
+  }
+
+  if (t.node === "Union") {
+    const parts = t.members.map(m => py_type(m, name_of));
+    return parts.join(" | ");  // PEP 604 syntax
   }
 
   if (t.node === "Unknown") {
