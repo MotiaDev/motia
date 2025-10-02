@@ -226,136 +226,6 @@ Write each Step in the best language for the job. All Steps share the same runti
 | **JavaScript** | Quick automation, integrations | Email sending, API calls |
 | **Python** | AI/ML, data processing | LLM calls, data analysis |
 
-### Sharing State Across Languages
-
-All Steps access the same `state`, `streams`, and `logger` - regardless of language:
-
-```typescript
-// TypeScript Step stores data
-await state.set('orders', orderId, orderData)
-```
-
-```python
-# Python Step reads the same data
-order = await context.state.get('orders', order_id)
-```
-
-**No language barriers.** Use TypeScript for APIs, Python for AI, JavaScript for automation - all in one backend.
-
----
-
-## Core Components
-
-### Steps
-
-The fundamental primitive. Every backend pattern is a Step:
-
-- **API Steps** → HTTP endpoints (`type: 'api'`)
-- **Event Steps** → Background tasks (`type: 'event'`)
-- **Cron Steps** → Scheduled jobs (`type: 'cron'`)
-- **NOOP Steps** → Visual connectors (`type: 'noop'`)
-
-[Learn about Steps →](/docs/concepts/steps/steps)
-
-### Triggers
-
-How Steps start execution:
-
-- **HTTP Requests** → API Steps respond to HTTP
-- **Events** → Event Steps respond to emitted events
-- **Schedule** → Cron Steps run on a schedule
-
-[Learn about Triggers →](/docs/concepts/steps/triggers)
-
-### Context (`ctx`)
-
-Every handler receives a context object with:
-
-| Property | Description |
-|----------|-------------|
-| `emit` | Trigger other Steps by emitting events |
-| `logger` | Structured logging (info, warn, error, debug) |
-| `state` | Persistent key-value storage across Steps |
-| `streams` | Real-time data channels to clients |
-| `traceId` | Unique ID for request tracing |
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```typescript
-export const handler: Handlers['MyStep'] = async (req, ctx) => {
-  // Logging
-  ctx.logger.info('Processing', { userId: req.body.userId })
-  
-  // State
-  await ctx.state.set(ctx.traceId, 'user-data', userData)
-  const data = await ctx.state.get(ctx.traceId, 'user-data')
-  
-  // Streams (real-time)
-  await ctx.streams.notifications.set('user-123', 'notif-1', {
-    message: 'Welcome!'
-  })
-  
-  // Emit events
-  await ctx.emit({
-    topic: 'user.created',
-    data: { userId: '123' }
-  })
-}
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python
-async def handler(req, context):
-    # Logging
-    context.logger.info('Processing', {"user_id": req.body.get("userId")})
-    
-    # State
-    await context.state.set(context.trace_id, 'user-data', user_data)
-    data = await context.state.get(context.trace_id, 'user-data')
-    
-    # Streams (real-time)
-    await context.streams.notifications.set('user-123', 'notif-1', {
-        "message": "Welcome!"
-    })
-    
-    # Emit events
-    await context.emit({
-        "topic": "user.created",
-        "data": {"userId": "123"}
-    })
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```javascript
-const handler = async (req, ctx) => {
-  // Logging
-  ctx.logger.info('Processing', { userId: req.body.userId })
-  
-  // State
-  await ctx.state.set(ctx.traceId, 'user-data', userData)
-  const data = await ctx.state.get(ctx.traceId, 'user-data')
-  
-  // Streams (real-time)
-  await ctx.streams.notifications.set('user-123', 'notif-1', {
-    message: 'Welcome!'
-  })
-  
-  // Emit events
-  await ctx.emit({
-    topic: 'user.created',
-    data: { userId: '123' }
-  })
-}
-```
-
-</Tab>
-</Tabs>
-
 ### State Management
 
 Persistent key-value storage shared across all Steps and languages.
@@ -371,11 +241,6 @@ const user = await state.get('users', 'user-123')
 const allUsers = await state.getGroup('users')
 ```
 
-**Use Cases:**
-- Cache API responses
-- Share data between Steps
-- Store workflow state
-
 [Learn about State →](/docs/development-guide/state-management)
 
 ### Real-Time Streams
@@ -383,7 +248,7 @@ const allUsers = await state.getGroup('users')
 Push real-time updates to connected clients (browsers, mobile apps).
 
 ```typescript
-// Define stream schema
+// hello-world.stream.ts
 export const config: StreamConfig = {
   name: 'notifications',
   schema: z.object({
@@ -392,7 +257,7 @@ export const config: StreamConfig = {
   })
 }
 
-// Update from any Step
+// hello-world.stream.ts
 await streams.notifications.set('user-123', 'notif-1', {
   message: 'Order confirmed!',
   timestamp: new Date().toISOString()
@@ -413,32 +278,6 @@ Visual development tool for building and debugging flows:
 - **State Inspector** - View state in real-time
 
 [Learn about Workbench →](/docs/concepts/workbench)
-
----
-
-## Key Principles
-
-### 1. One Primitive, Infinite Possibilities
-
-Everything is a Step. Change `type` to switch between API, background job, or scheduled task. The pattern stays the same.
-
-### 2. Event-Driven by Default
-
-Steps emit and subscribe to events. This creates naturally scalable, resilient architectures.
-
-### 3. Auto-Discovery
-
-Just create a file with `.step.ts`, `.step.js`, or `_step.py`. Motia finds it and wires it up.
-
-### 4. Multi-Language Runtime
-
-Use TypeScript for APIs, Python for AI, JavaScript for automation - all sharing the same state and events.
-
-### 5. Built-in Observability
-
-Logs, traces, state, and flow visualization work out of the box. No configuration needed.
-
----
 
 ## What's Next?
 

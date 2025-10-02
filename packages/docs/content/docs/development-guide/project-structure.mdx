@@ -13,10 +13,10 @@ Here's what a typical Motia project looks like:
 
 <Folder name="my-motia-project" defaultOpen>
   <Folder name="steps" defaultOpen>
-    <File name="01-api-gateway.step.ts" />
-    <File name="02-data-processor.step.py" />  
-    <File name="03-send-notification.step.js" />
-    <File name="custom-ui.step.tsx" />
+    <File name="api-gateway.step.ts" />
+    <File name="data-processor_step.py" />  
+    <File name="send-notification.step.js" />
+    <File name="send-notification.tsx" />
   </Folder>
   <File name="package.json" />
   <File name="requirements.txt" />
@@ -31,9 +31,9 @@ Here's what a typical Motia project looks like:
 | File | Purpose | Type | Auto-Generated |
 |------|---------|------|----------------|
 | `01-api-gateway.step.ts` | TypeScript API endpoint | User Code | - |
-| `02-data-processor.step.py` | Python data processing | User Code | - |
+| `02-data-processor_step.py` | Python data processing | User Code | - |
 | `03-send-notification.step.js` | JavaScript automation | User Code | - |
-| `custom-ui.step.tsx` | Optional UI component | User Code | - |
+| `send-notification.tsx` | Optional [UI override component](/docs/development-guide/customizing-flows) | User Code | - |
 | `package.json` | Node.js dependencies (if using JS/TS) | Config | - |
 | `requirements.txt` | Python dependencies (if using Python) | Config | - |
 | `tsconfig.json` | TypeScript config (if using TypeScript) | Config | - |
@@ -49,7 +49,7 @@ The `steps/` directory is the heart of your Motia application - this is where al
 <strong>Location and nesting rules</strong>
 
 - The `steps/` directory must live at the <em>project root</em> (e.g., `my-motia-project/steps`).
-- You can freely nest steps in subfolders under `steps/` (e.g., `steps/aaa/a1.step.ts`, `steps/bbb/ccc/c1.step.py`).
+- You can freely nest steps in subfolders under `steps/` (e.g., `steps/aaa/a1.step.ts`, `steps/bbb/ccc/c1_step.py`).
 - Discovery is recursive inside `steps/`, so deeper folder structures for large apps are supported.
 </Callout>
 
@@ -94,17 +94,17 @@ The `.step.` part in the filename is **required** - this is how Motia identifies
 | Language | Extension | Example Step File | Runtime |
 |----------|-----------|-------------------|---------|
 | **TypeScript** | `.ts` | `user-registration.step.ts` | Node.js with TypeScript |
-| **Python** | `.py` | `data-analysis.step.py` | Python interpreter |
+| **Python** | `.py` | `data-analysis_step.py` | Python interpreter |
 | **JavaScript** | `.js` | `send-notification.step.js` | Node.js |
 
 ### Naming Examples by Step Type
 
 | Step Type | TypeScript | Python | JavaScript |
 |-----------|------------|---------|-----------|
-| **API Endpoint** | `01-auth-api.step.ts` | `01-auth-api.step.py` or `auth_api_step.py` | `01-auth-api.step.js` |
-| **Event Handler** | `process-order.step.ts` | `process-order.step.py` or `process_order_step.py` | `process-order.step.js` |
-| **Cron Job** | `daily-report.step.ts` | `daily-report.step.py` or `daily_report_step.py` | `daily-report.step.js` |
-| **Data Processing** | `transform-data.step.ts` | `ml-analysis.step.py` or `ml_analysis_step.py` | `data-cleanup.step.js` |
+| **API Endpoint** | `01-auth-api.step.ts` | `01-auth-api_step.py` or `auth_api_step.py` | `01-auth-api.step.js` |
+| **Event Handler** | `process-order.step.ts` | `process-order_step.py` or `process_order_step.py` | `process-order.step.js` |
+| **Cron Job** | `daily-report.step.ts` | `daily-report_step.py` or `daily_report_step.py` | `daily-report.step.js` |
+| **Data Processing** | `transform-data.step.ts` | `ml-analysis_step.py` or `ml_analysis_step.py` | `data-cleanup.step.js` |
 
 ## Step Organization Patterns
 
@@ -116,19 +116,19 @@ Perfect for linear workflows where order matters:
 
 <Folder name="steps" defaultOpen>
   <File name="01-api-start.step.ts" />
-  <File name="02-validate-data.step.py" />
+  <File name="02-validate-data_step.py" />
   <File name="03-process-payment.step.js" />
   <File name="04-send-confirmation.step.ts" />
-  <File name="05-cleanup.step.py" />
+  <File name="05-cleanup_step.py" />
 </Folder>
 
 | Step | Language | Purpose |
 |------|----------|---------|
 | `01-api-start.step.ts` | TypeScript | API endpoint |
-| `02-validate-data.step.py` | Python | Data validation |
+| `02-validate-data_step.py` | Python | Data validation |
 | `03-process-payment.step.js` | JavaScript | Payment processing |
 | `04-send-confirmation.step.ts` | TypeScript | Email service |
-| `05-cleanup.step.py` | Python | Cleanup tasks |
+| `05-cleanup_step.py` | Python | Cleanup tasks |
 
 </Tab>
 <Tab value="Feature-Based">
@@ -139,16 +139,16 @@ Organize by business domains for complex applications:
 <Folder name="steps" defaultOpen>
   <Folder name="authentication" defaultOpen>
     <File name="login.step.ts" />
-    <File name="verify-token.step.py" />
+    <File name="verify-token_step.py" />
     <File name="logout.step.js" />
   </Folder>
   <Folder name="payment" defaultOpen>
     <File name="process-payment.step.ts" />
-    <File name="fraud-detection.step.py" />
+    <File name="fraud-detection_step.py" />
     <File name="webhook.step.js" />
   </Folder>
   <Folder name="notification" defaultOpen>
-    <File name="email.step.py" />
+    <File name="email_step.py" />
     <File name="sms.step.js" />
     <File name="push.step.ts" />
   </Folder>
@@ -173,9 +173,9 @@ Group by programming language for team specialization:
     <File name="data-validation.step.ts" />
   </Folder>
   <Folder name="python" defaultOpen>
-    <File name="ml-processing.step.py" />
-    <File name="data-analysis.step.py" />
-    <File name="image-processing.step.py" />
+    <File name="ml-processing_step.py" />
+    <File name="data-analysis_step.py" />
+    <File name="image-processing_step.py" />
   </Folder>
   <Folder name="javascript" defaultOpen>
     <File name="automation.step.js" />
@@ -289,7 +289,7 @@ export const handler: Handlers['user-api'] = async (req, { emit }) => {
 
 ### Example 2: Python Event Step
 
-```python title="steps/data-processor.step.py"
+```python title="steps/data-processor_step.py"
 # Motia discovers this file because:
 # 1. Filename contains '.step.'  
 # 2. Exports 'config' dict
@@ -366,56 +366,6 @@ Some files in your Motia project are automatically generated:
 - `types.d.ts` - TypeScript generates this for type definitions
 - `motia-workbench.json` - Motia manages visual node positions in the Workbench
 
-## Multi-Language Project Example
-
-Here's a real-world example showing how the three languages work together:
-
-<Folder name="ecommerce-platform" defaultOpen>
-  <Folder name="steps" defaultOpen>
-    <Folder name="api" defaultOpen>
-      <File name="product-catalog.step.ts" />
-      <File name="user-auth.step.ts" />
-      <File name="order-management.step.ts" />
-    </Folder>
-    <Folder name="processing" defaultOpen>
-      <File name="inventory-sync.step.py" />
-      <File name="recommendation.step.py" />
-      <File name="fraud-detection.step.py" />
-    </Folder>
-    <Folder name="automation" defaultOpen>
-      <File name="email-campaigns.step.js" />
-      <File name="order-fulfillment.step.js" />
-      <File name="customer-support.step.js" />
-    </Folder>
-    <Folder name="integrations" defaultOpen>
-      <File name="payment-webhook.step.ts" />
-      <File name="warehouse-sync.step.py" />
-      <File name="social-media.step.js" />
-    </Folder>
-  </Folder>
-  <File name="package.json" />
-  <File name="requirements.txt" />
-  <File name="tsconfig.json" />
-  <File name="config.yml" />
-</Folder>
-
-### Architecture Breakdown
-
-| Layer | Language | Purpose | Examples |
-|-------|----------|---------|----------|
-| **API Layer** | TypeScript | Fast API responses, type safety | Product catalog, user auth, order management |
-| **Processing Layer** | Python | Data processing, ML, analytics | Inventory sync, recommendations, fraud detection |
-| **Automation Layer** | JavaScript | Business automation, workflows | Email campaigns, fulfillment, customer support |
-| **Integration Layer** | Multi-language | External system connections | Payment webhooks, ERP sync, social media |
-
-## Language Strengths & When to Use
-
-| Language | Best For | Common Step Types | Example Use Cases |
-|----------|----------|-------------------|------------------|
-| **TypeScript** | API endpoints, type safety, web integrations | API, Event, UI | REST APIs, webhooks, data validation |
-| **Python** | Data science, ML, automation, integrations | Event, Cron | Data analysis, AI models, file processing |
-| **JavaScript** | Automation, integrations, general scripting | Event, Cron | Email automation, webhooks, social media |
-
 ## Discovery Troubleshooting
 
 If Motia isn't discovering your steps:
@@ -425,7 +375,7 @@ If Motia isn't discovering your steps:
 <Tabs items={["Filename Issues", "Export Issues", "Location Issues"]}>
 <Tab value="Filename Issues">
 
-**Missing `.step.` in filename**
+**Missing `.step.` (or `_step` for Python) in filename**
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
@@ -440,7 +390,7 @@ If Motia isn't discovering your steps:
 ✅ **Will be discovered:**
 <Folder name="steps" defaultOpen>
   <File name="user-handler.step.ts" />
-  <File name="data-processor.step.py" />
+  <File name="data-processor_step.py" />
   <File name="webhook.step.js" />
 </Folder>
 </div>
@@ -486,7 +436,7 @@ export const handler = async (input, ctx) => {
     <File name="user-handler.step.ts" />
   </Folder>
   <Folder name="lib">
-    <File name="processor.step.py" />
+    <File name="processor_step.py" />
   </Folder>
 </Folder>
 </div>
@@ -495,7 +445,7 @@ export const handler = async (input, ctx) => {
 <Folder name="project-root" defaultOpen>
   <Folder name="steps" defaultOpen>
     <File name="user-handler.step.ts" />
-    <File name="processor.step.py" />
+    <File name="processor_step.py" />
   </Folder>
 </Folder>
 </div>
@@ -512,10 +462,11 @@ Check if your steps are discovered:
 # Run Motia in development mode
 motia dev
 
-# Look for discovery logs:
-# ✅ Discovered step: user-api (TypeScript)
-# ✅ Discovered step: data-processor (Python)  
-# ✅ Discovered step: send-notifications (JavaScript)
+# Look step creation in your console console:
+➜ [CREATED] Step (Cron) steps/petstore/state-audit-cron.step.ts created
+➜ [CREATED] Step (Event) steps/petstore/process-food-order.step.ts created
+➜ [CREATED] Step (Event) steps/petstore/notification.step.ts created
+➜ [CREATED] Step (API) steps/petstore/api.step.ts created
 ```
 
 ## Next Steps

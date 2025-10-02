@@ -2,6 +2,7 @@
   "title": "Development Guide",
   "defaultOpen": false,
   "pages": [
+    "project-structure",
     "state-management",
     "streams",
     "observability",
