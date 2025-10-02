@@ -1,6 +1,6 @@
 ---
 title: Welcome to Motia
-description: "Motia is an all-in-one backend framework where everything is built from one primitive: the Step. APIs, background jobs, queues, workflows, AI agents, streaming, observability, and state—all unified in a single runtime."
+description: "Motia is a multi-language, event-driven runtime manager built on a core primitive: the Step. It feels like a backend framework, but powers distributed backends for APIs, background jobs, queues, workflows, agents, streaming, state, and observability, all unified in one system."
 ---
 
 # Welcome to Motia
@@ -23,9 +23,8 @@ To read more about this, check out our [manifesto](/manifesto).
 ## The Core Primitive: the Step
 
 At the heart of Motia is a single primitive: the **Step**.  
-Every backend pattern, APIs, background jobs, queues, workflows, AI agents, streaming, observability, and state, is expressed with this one concept.
 
-A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files and connects them automatically.
+A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files (from `/src` or `/steps`) and connects them automatically.
 
 Here’s a simple example of two Steps working together: an API Step that emits an event, and an Event Step that processes it.
 
