@@ -8,7 +8,7 @@ import { Stream } from './types-stream'
 const stepTag = colors.bold(colors.magenta('Step'))
 const flowTag = colors.bold(colors.blue('Flow'))
 const streamTag = colors.bold(colors.green('Stream'))
-const created = colors.green('➜ [CREATED]')
+const registered = colors.green('➜ [REGISTERED]')
 const building = colors.yellow('⚡ [BUILDING]')
 const built = colors.green('✓ [BUILT]')
 const updated = colors.yellow('➜ [UPDATED]')
@@ -22,7 +22,7 @@ export class Printer {
 
   stepTag = stepTag
   flowTag = flowTag
-  created = created
+  registered = registered
   building = building
   built = built
   updated = updated
@@ -35,7 +35,7 @@ export class Printer {
   }
 
   printStepCreated(step: Step) {
-    console.log(`${created} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} created`)
+    console.log(`${registered} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} registered`)
   }
 
   printStepUpdated(step: Step) {
@@ -47,7 +47,7 @@ export class Printer {
   }
 
   printFlowCreated(flowName: string) {
-    console.log(`${created} ${flowTag} ${colors.bold(colors.cyan(flowName))} created`)
+    console.log(`${registered} ${flowTag} ${colors.bold(colors.cyan(flowName))} registered`)
   }
 
   printFlowUpdated(flowName: string) {
@@ -59,7 +59,7 @@ export class Printer {
   }
 
   printStreamCreated(stream: Stream) {
-    console.log(`${created} ${streamTag} ${this.getStreamPath(stream)} created`)
+    console.log(`${registered} ${streamTag} ${this.getStreamPath(stream)} registered`)
   }
 
   printStreamUpdated(stream: Stream) {
