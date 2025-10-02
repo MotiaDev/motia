@@ -39,7 +39,7 @@
 <p align="center">
   <a href="https://www.motia.dev/manifesto">💡 Motia Manifesto</a> •
   <a href="https://www.motia.dev/docs/getting-started/quick-start">🚀 Quick Start</a> •
-  <a href="https://www.motia.dev/docs/concepts/steps/defining-steps">📋 Defining Steps</a> •
+  <a href="https://www.motia.dev/docs/concepts/steps/steps">📋 Defining Steps</a> •
   <a href="https://www.motia.dev/docs">📚 Docs</a>
 </p>
 
@@ -182,7 +182,7 @@ module.exports = { config, handler };
 
 👉 With just two files, you've built an **API endpoint**, a **queue**, and a **worker**. No extra frameworks required.
 
-**[Learn more about Steps →](https://motia.dev/docs/concepts/steps/defining-steps)**
+**[Learn more about Steps →](https://motia.dev/docs/concepts/steps/steps)**
 
 [![Motia combines APIs, background queues, and AI agents into one system](assets/github-readme-banner.gif)](https://motia.dev)
 

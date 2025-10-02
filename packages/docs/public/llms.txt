@@ -2859,7 +2859,7 @@ State data is stored as key-value pairs, namespaced under a scope string. When u
 }
 ```
 
-> **Info:** You can access the `state` manager within any step through the `ctx` (context) argument, which is automatically injected into your [step handler](/docs/concepts/steps/defining-steps#handler). While **`traceId` from `ctx.traceId` is the recommended scope for flow isolation**, remember that **you can use any string as the scope** parameter in `state` methods for more advanced state management scenarios.
+> **Info:** You can access the `state` manager within any step through the `ctx` (context) argument, which is automatically injected into your [step handler](/docs/concepts/steps/steps#handler). While **`traceId` from `ctx.traceId` is the recommended scope for flow isolation**, remember that **you can use any string as the scope** parameter in `state` methods for more advanced state management scenarios.
 
 ## Using State in Steps
 
@@ -3259,7 +3259,7 @@ An **API step** is exposed as an HTTP endpoint that acts as an entry point into 
 
 ## Config
 
-The following properties are specific to the API Step, in addition to the [common step config](/docs/concepts/steps/defining-steps#config).
+The following properties are specific to the API Step, in addition to the [common step config](/docs/concepts/steps/steps#config).
 
 <DescriptionTable
   type={{
@@ -3760,7 +3760,7 @@ The **Cron Step** allows you to schedule your steps to run at specified interval
 
 ## Config
 
-The following properties are specific to the Cron Step, in addition to the [common step config](/docs/concepts/steps/defining-steps#config).
+The following properties are specific to the Cron Step, in addition to the [common step config](/docs/concepts/steps/steps#config).
 
 <DescriptionTable
   type={{
@@ -3839,7 +3839,7 @@ The following examples showcase how to configure an **CRON Step**
 </Tabs>
 
 
--   [defining-steps](/docs/concepts/steps/defining-steps): Documentation for defining-steps.
+-   [steps](/docs/concepts/steps/steps): Documentation for steps.
 ---
 title: What is a Step?
 description: One primitive to build any backend. Powerful, reusable, multi-language, composable, and auto-discovered.
@@ -4535,7 +4535,7 @@ The **Event Step** lets you define custom logic in response to subscribed events
 
 ## Config
 
-The following properties are specific to the Event Step, in addition to the [common step config](/docs/concepts/steps/defining-steps#config).
+The following properties are specific to the Event Step, in addition to the [common step config](/docs/concepts/steps/steps#config).
 
 <DescriptionTable
   type={{
@@ -17806,7 +17806,7 @@ motia dev
 Now that you understand how Motia discovers and organizes steps:
 
 - Learn about [Core Concepts](/docs/concepts) to understand how steps work together
-- Explore [Defining Steps](/docs/concepts/steps/defining-steps) for detailed step creation
+- Explore [Defining Steps](/docs/concepts/steps/steps) for detailed step creation
 - Check out [API Steps](/docs/concepts/steps/api) for creating HTTP endpoints
 - Dive into [Event Steps](/docs/concepts/steps/event) for workflow orchestration
 
