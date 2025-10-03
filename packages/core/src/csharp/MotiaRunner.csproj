@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="9.0.*" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.12.*" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.*" />
   </ItemGroup>
 </Project>
 

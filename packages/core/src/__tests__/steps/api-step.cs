@@ -13,20 +13,18 @@ public static class ApiStepConfig
     };
 }
 
-// Handler implementation (will be implemented with C# runner)
+// Handler implementation
 public static class ApiStepHandler
 {
-    public static async Task<object> Handler(object req, object ctx)
+    public static async Task<object> Handler(object req, dynamic ctx)
     {
-        // This will be called by the C# runner
-        // For now, this is just a placeholder to establish the pattern
-        
-        // await ctx.Emit(new { topic = "TEST_EVENT", data = new { test = "data" } });
+        // Emit an event
+        await ctx.Emit(new { topic = "TEST_EVENT", data = new { test = "data" } });
         
         return new
         {
             status = 200,
-            body = new { traceId = "test-trace-id" }
+            body = new { traceId = ctx.TraceId }
         };
     }
 }

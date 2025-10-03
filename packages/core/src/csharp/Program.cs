@@ -34,9 +34,11 @@ class Program
                 .AddReferences(
                     typeof(object).Assembly, 
                     typeof(Console).Assembly,
-                    typeof(JsonSerializer).Assembly
+                    typeof(JsonSerializer).Assembly,
+                    typeof(Microsoft.CSharp.RuntimeBinder.RuntimeBinderException).Assembly,
+                    typeof(System.Dynamic.DynamicObject).Assembly
                 )
-                .AddImports("System", "System.Threading.Tasks", "System.Collections.Generic", "System.Text.Json");
+                .AddImports("System", "System.Threading.Tasks", "System.Collections.Generic", "System.Text.Json", "System.Dynamic");
 
             var script = await CSharpScript.RunAsync(stepCode, scriptOptions);
 
@@ -97,13 +99,62 @@ class Program
                 return 1;
             }
 
-            // For MVP: Return a simple success response
-            // In full implementation, this would call the actual handler
-            MotiaRpc.SendRequest("result", new
+            // Create RPC send function that returns Task
+            Func<string, object?, Task> rpcSendTask = async (method, args) =>
             {
-                status = 200,
-                body = new { traceId = inputData.TraceId }
-            });
+                MotiaRpc.SendRequest(method, args);
+                await Task.CompletedTask;
+            };
+
+            // Create RPC send function that returns Task<object?>
+            Func<string, object?, Task<object?>> rpcSendWithResult = async (method, args) =>
+            {
+                MotiaRpc.SendRequest(method, args);
+                // For MVP, return null - in full implementation would wait for response
+                await Task.CompletedTask;
+                return null;
+            };
+
+            // Create context for the handler
+            var context = new MotiaContext(
+                inputData.TraceId,
+                inputData.Flows,
+                rpcSendTask,
+                rpcSendWithResult
+            );
+
+            // Wrap context in dynamic wrapper for script access
+            dynamic dynamicContext = new DynamicMotiaContext(context);
+
+            // Get the handler method using script continuation (has access to step file classes)
+            var handlerMethod = await script.ContinueWithAsync<System.Reflection.MethodInfo>(
+                "typeof(ApiStepHandler).GetMethod(\"Handler\")"
+            );
+            
+            if (handlerMethod.ReturnValue == null)
+            {
+                throw new Exception("Handler method not found in step file");
+            }
+            
+            // Invoke the handler directly with reflection, passing the dynamic context
+            var handlerInvokeResult = handlerMethod.ReturnValue.Invoke(null, new object?[] { null, dynamicContext });
+            var handlerResult = new { ReturnValue = handlerInvokeResult };
+
+            // Await the result if it's a Task
+            object? result = null;
+            if (handlerResult.ReturnValue is Task task)
+            {
+                await task;
+                var resultProperty = task.GetType().GetProperty("Result");
+                result = resultProperty?.GetValue(task);
+            }
+            else
+            {
+                result = handlerResult.ReturnValue;
+            }
+
+            // Send result back to Node.js
+            MotiaRpc.SendRequest("result", result);
 
             await Task.Delay(10); // Small delay for IPC
             
@@ -123,6 +174,12 @@ class Program
             return 1;
         }
     }
+}
+
+// Globals class for passing objects to script
+public class ScriptGlobals
+{
+    public dynamic? dynamicContext { get; set; }
 }
 
 public class InputData
