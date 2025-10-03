@@ -6,7 +6,7 @@ The **Event Step** lets you define custom logic in response to subscribed events
 
 ## Config
 
-The following properties are specific to the Event Step, in addition to the [common step config](/docs/concepts/steps/defining-steps#config).
+The following properties are specific to the Event Step, in addition to the [common step config](/docs/concepts/steps/steps#config).
 
 <DescriptionTable
   type={{

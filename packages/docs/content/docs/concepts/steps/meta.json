@@ -2,7 +2,7 @@
   "title": "Steps",
   "defaultOpen": true,
   "pages": [
-    "defining-steps",
+    "steps",
     "triggers"
   ]
 }

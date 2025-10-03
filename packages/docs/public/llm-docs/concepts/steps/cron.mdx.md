@@ -6,7 +6,7 @@ The **Cron Step** allows you to schedule your steps to run at specified interval
 
 ## Config
 
-The following properties are specific to the Cron Step, in addition to the [common step config](/docs/concepts/steps/defining-steps#config).
+The following properties are specific to the Cron Step, in addition to the [common step config](/docs/concepts/steps/steps#config).
 
 <DescriptionTable
   type={{
