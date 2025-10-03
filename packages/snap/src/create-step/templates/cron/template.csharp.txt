@@ -1,0 +1,28 @@
+using System.Text.Json;
+
+public static class {{STEP_NAME}}Config
+{
+    public static object Config = new
+    {
+        type = "cron",
+        name = "{{STEP_NAME}}",
+        description = "{{DESCRIPTION}}",
+        cron = "{{SCHEDULE}}",  // Cron expression (e.g., "* * * * *" for every minute)
+        emits = {{EMITS}},
+        flows = {{FLOWS}}
+    };
+}
+
+public static class {{STEP_NAME}}Handler
+{
+    public static async Task<object> Handler(object data, dynamic ctx)
+    {
+        ctx.Logger.Info("Running {{STEP_NAME}}");
+
+        // Add your scheduled task logic here
+        
+        await Task.CompletedTask;
+        return new { success = true, executedAt = DateTime.UtcNow };
+    }
+}
+

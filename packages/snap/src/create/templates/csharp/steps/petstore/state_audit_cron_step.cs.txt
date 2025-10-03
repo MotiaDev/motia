@@ -1,0 +1,33 @@
+using System.Text.Json;
+
+public static class StateAuditCronConfig
+{
+    public static object Config = new
+    {
+        type = "cron",
+        name = "StateAuditCron",
+        description = "Audit state every minute",
+        flows = new[] { "basic-tutorial" },
+        cron = "* * * * *",  // Every minute
+        emits = new string[] { }
+    };
+}
+
+public static class StateAuditCronHandler
+{
+    public static async Task<object> Handler(object data, dynamic ctx)
+    {
+        ctx.Logger.Info("Step 04 – Running state audit");
+
+        // In a real application, you would:
+        // 1. Get all relevant state keys
+        // 2. Check for expired or invalid state
+        // 3. Clean up as needed
+        
+        ctx.Logger.Info("State audit completed");
+
+        await Task.CompletedTask;
+        return new { success = true, auditedAt = DateTime.UtcNow };
+    }
+}
+

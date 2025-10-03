@@ -1,0 +1,50 @@
+using System.Text.Json;
+
+public static class ProcessFoodOrderConfig
+{
+    public static object Config = new
+    {
+        type = "event",
+        name = "ProcessFoodOrder",
+        description = "Process food order and store in state",
+        flows = new[] { "basic-tutorial" },
+        subscribes = new[] { "process-food-order" },
+        emits = new[] { "notification" }
+    };
+}
+
+public static class ProcessFoodOrderHandler
+{
+    public static async Task<object> Handler(object data, dynamic ctx)
+    {
+        ctx.Logger.Info("Step 02 – Processing food order", new { data });
+
+        // Parse the event data
+        var dataJson = JsonSerializer.Serialize(data);
+        var orderData = JsonSerializer.Deserialize<Dictionary<string, object>>(dataJson);
+
+        var orderId = orderData?.ContainsKey("id") == true ? orderData["id"]?.ToString() : null;
+        var email = orderData?.ContainsKey("email") == true ? orderData["email"]?.ToString() : null;
+
+        if (orderId != null)
+        {
+            // Store order in state
+            await ctx.State.Set($"order:{orderId}", data);
+            ctx.Logger.Info("Order stored in state", new { orderId });
+        }
+
+        // Emit notification event
+        await ctx.Emit(new
+        {
+            topic = "notification",
+            data = new
+            {
+                email,
+                message = $"Your food order {orderId} has been processed successfully!"
+            }
+        });
+
+        return new { success = true };
+    }
+}
+

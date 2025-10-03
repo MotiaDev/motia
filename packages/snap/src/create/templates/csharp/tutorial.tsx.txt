@@ -1,0 +1,133 @@
+import { workbenchXPath, TutorialStep } from '@motiadev/workbench'
+
+export const steps: TutorialStep[] = [
+  {
+    title: 'Welcome to Motia with C#',
+    image: {
+      height: 200,
+      src: 'https://github.com/MotiaDev/motia/raw/main/packages/docs/public/github-readme-banner.png',
+    },
+    description: () => (
+      <p>
+        Motia is an all-in-one framework for modern backend systems. Out of the box support for API endpoints,
+        background jobs, scheduled tasks and agentic workflow orchestration through a unified runtime.
+        <br />
+        <br />
+        This template showcases <b>C# Steps</b>, allowing you to write backend logic using C# and .NET 9.
+        <br />
+        <br />
+        Let's explore how to use Motia with C#!
+      </p>
+    ),
+  },
+
+  {
+    elementXpath: workbenchXPath.flows.node('apitrigger'),
+    title: 'API Step in C#',
+    link: 'https://www.motia.dev/docs/concepts/steps/api',
+    description: () => (
+      <p>
+        This API Step is written in <b>C#</b>! It exposes an HTTP endpoint just like TypeScript or Python steps.
+        <br />
+        <br />
+        C# steps use static classes for configuration and handlers, providing strong typing and performance.
+      </p>
+    ),
+    before: [
+      { type: 'click', selector: workbenchXPath.links.flows },
+      { type: 'click', selector: workbenchXPath.flows.dropdownFlow('basic-tutorial') },
+    ],
+  },
+
+  {
+    elementXpath: workbenchXPath.sidebarContainer,
+    title: 'C# Step Structure',
+    description: () => (
+      <p>
+        C# steps consist of two static classes: one for <b>Config</b> and one for <b>Handler</b>.
+        <br />
+        <br />
+        The config uses an anonymous object to define step properties like type, name, path, and method.
+        <br />
+        <br />
+        The handler is an async method that receives the request and context (dynamic) as parameters.
+      </p>
+    ),
+    before: [
+      { type: 'click', selector: workbenchXPath.flows.previewButton('apitrigger') },
+      { type: 'click', selector: workbenchXPath.flows.feature('step-configuration') },
+    ],
+  },
+
+  {
+    elementXpath: workbenchXPath.flows.node('processfoodorder'),
+    title: 'Event Step in C#',
+    link: 'https://www.motia.dev/docs/concepts/steps/event',
+    description: () => (
+      <p>
+        <b>Event</b> Steps in C# work the same way - they subscribe to topics and process events.
+        <br />
+        <br />
+        The handler receives the event data as the first parameter and context as the second.
+      </p>
+    ),
+    before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
+  },
+
+  {
+    elementXpath: workbenchXPath.flows.node('stateauditjob'),
+    title: 'Cron Step in C#',
+    link: 'https://www.motia.dev/docs/concepts/steps/cron',
+    description: () => (
+      <p>
+        <b>Cron</b> Steps in C# allow you to run scheduled tasks using cron expressions.
+        <br />
+        <br />
+        Perfect for periodic maintenance, audits, or background processing.
+      </p>
+    ),
+    before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
+  },
+
+  {
+    elementXpath: workbenchXPath.links.endpoints,
+    title: 'Testing Your C# API',
+    description: () => (
+      <p>
+        Let's test your C# API endpoint from the <b>endpoints</b> section.
+        <br />
+        <br />
+        C# steps integrate seamlessly with the Workbench testing tools!
+      </p>
+    ),
+    before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
+  },
+
+  {
+    title: 'Next Steps',
+    link: 'https://www.motia.dev/docs/languages/csharp',
+    description: () => (
+      <p>
+        Congratulations on setting up your C# Motia project!
+        <br />
+        <br />
+        C# steps provide strong typing, excellent performance, and full .NET ecosystem access.
+        <br />
+        <br />
+        Check out the{' '}
+        <a href="https://www.motia.dev/docs/languages/csharp" target="_blank">
+          C# documentation
+        </a>{' '}
+        to learn more about advanced features like dependency injection, NuGet packages, and more.
+        <br />
+        <br />
+        Join our{' '}
+        <a href="https://discord.com/invite/nJFfsH5d6v" target="_blank">
+          Discord community
+        </a>{' '}
+        to share what you're building!
+      </p>
+    ),
+  },
+]
+

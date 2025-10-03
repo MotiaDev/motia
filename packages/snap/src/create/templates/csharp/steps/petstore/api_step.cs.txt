@@ -1,0 +1,88 @@
+using System.Text.Json;
+
+public static class ApiStepConfig
+{
+    public static object Config = new
+    {
+        type = "api",
+        name = "ApiTrigger",
+        description = "basic-tutorial api trigger",
+        flows = new[] { "basic-tutorial" },
+        method = "POST",
+        path = "/basic-tutorial",
+        emits = new[] { "process-food-order" }
+    };
+}
+
+public static class ApiStepHandler
+{
+    public static async Task<object> Handler(object req, dynamic ctx)
+    {
+        var reqDict = req as Dictionary<string, object>;
+        object? bodyObj = null;
+        
+        if (reqDict != null && reqDict.TryGetValue("body", out bodyObj))
+        {
+            ctx.Logger.Info("Step 01 – Processing API Step", new { body = bodyObj });
+        }
+
+        // Parse request body
+        var bodyJson = JsonSerializer.Serialize(bodyObj);
+        var body = JsonSerializer.Deserialize<Dictionary<string, object>>(bodyJson);
+        
+        // Get pet and food order data
+        var petData = body?.ContainsKey("pet") == true ? body["pet"] : null;
+        var foodOrderData = body?.ContainsKey("foodOrder") == true ? body["foodOrder"] : null;
+
+        // Create pet record (simplified - in a real app, this would call a service)
+        var newPetRecord = new Dictionary<string, object>
+        {
+            { "id", Guid.NewGuid().ToString() },
+            { "name", GetNestedValue(petData, "name") ?? "Unknown" },
+            { "photoUrl", GetNestedValue(petData, "photoUrl") ?? "" },
+            { "createdAt", DateTime.UtcNow.ToString("o") }
+        };
+
+        // If there's a food order, emit an event
+        if (foodOrderData != null)
+        {
+            await ctx.Emit(new
+            {
+                topic = "process-food-order",
+                data = new
+                {
+                    id = GetNestedValue(foodOrderData, "id") ?? "",
+                    quantity = GetNestedValue(foodOrderData, "quantity") ?? 0,
+                    email = "test@test.com",
+                    petId = newPetRecord["id"]
+                }
+            });
+        }
+
+        return new
+        {
+            status = 200,
+            body = new Dictionary<string, object>(newPetRecord)
+            {
+                { "traceId", ctx.TraceId }
+            }
+        };
+    }
+
+    private static object? GetNestedValue(object? obj, string key)
+    {
+        if (obj is Dictionary<string, object> dict && dict.ContainsKey(key))
+        {
+            return dict[key];
+        }
+        if (obj is JsonElement element && element.ValueKind == JsonValueKind.Object)
+        {
+            if (element.TryGetProperty(key, out var value))
+            {
+                return value;
+            }
+        }
+        return null;
+    }
+}
+

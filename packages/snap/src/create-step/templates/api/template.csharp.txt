@@ -1,0 +1,39 @@
+using System.Text.Json;
+
+public static class {{STEP_NAME}}Config
+{
+    public static object Config = new
+    {
+        type = "api",
+        name = "{{STEP_NAME}}",
+        description = "{{DESCRIPTION}}",
+        path = "{{PATH}}",
+        method = "{{METHOD}}",
+        emits = {{EMITS}},
+        flows = {{FLOWS}}
+    };
+}
+
+public static class {{STEP_NAME}}Handler
+{
+    public static async Task<object> Handler(object req, dynamic ctx)
+    {
+        // Parse request
+        var reqDict = req as Dictionary<string, object>;
+        object? bodyObj = null;
+        
+        if (reqDict != null && reqDict.TryGetValue("body", out bodyObj))
+        {
+            ctx.Logger.Info("Processing {{STEP_NAME}}", new { body = bodyObj });
+        }
+
+        // Add your handler logic here
+        
+        return new
+        {
+            status = 200,
+            body = new { message = "Success" }
+        };
+    }
+}
+

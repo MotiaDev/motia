@@ -64,15 +64,30 @@ class Program
     {
         try
         {
-            // Search for any class with a Config property by trying common naming patterns
-            var configNames = new[] { 
-                "ApiStepConfig", "TestEventConfig", "TestedEventConfig", 
-                "ApiEndpointConfig", "EventStepConfig", "CronStepConfig"
-            };
+            // Get all types from the script compilation
+            var compilation = script.Script.GetCompilation();
+            var configClassNames = new List<string>();
+            
+            // Search for classes with "Config" in their name
+            foreach (var syntaxTree in compilation.SyntaxTrees)
+            {
+                var root = await syntaxTree.GetRootAsync();
+                var classDeclarations = root.DescendantNodes()
+                    .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>();
+                
+                foreach (var classDecl in classDeclarations)
+                {
+                    if (classDecl.Identifier.Text.Contains("Config"))
+                    {
+                        configClassNames.Add(classDecl.Identifier.Text);
+                    }
+                }
+            }
             
             object? configValue = null;
             
-            foreach (var className in configNames)
+            // Try each found class name
+            foreach (var className in configClassNames)
             {
                 try
                 {
@@ -149,15 +164,30 @@ class Program
             // Wrap context in dynamic wrapper for script access
             dynamic dynamicContext = new DynamicMotiaContext(context);
 
-            // Search for handler class by trying common naming patterns
-            var handlerNames = new[] { 
-                "ApiStepHandler", "TestEventHandler", "TestedEventHandler", 
-                "ApiEndpointHandler", "EventStepHandler", "CronStepHandler"
-            };
+            // Get all types from the script compilation to find Handler classes
+            var compilation = script.Script.GetCompilation();
+            var handlerClassNames = new List<string>();
+            
+            // Search for classes with "Handler" in their name
+            foreach (var syntaxTree in compilation.SyntaxTrees)
+            {
+                var root = await syntaxTree.GetRootAsync();
+                var classDeclarations = root.DescendantNodes()
+                    .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>();
+                
+                foreach (var classDecl in classDeclarations)
+                {
+                    if (classDecl.Identifier.Text.Contains("Handler"))
+                    {
+                        handlerClassNames.Add(classDecl.Identifier.Text);
+                    }
+                }
+            }
             
             System.Reflection.MethodInfo? handlerMethodInfo = null;
             
-            foreach (var className in handlerNames)
+            // Try each found handler class name
+            foreach (var className in handlerClassNames)
             {
                 try
                 {
