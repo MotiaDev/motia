@@ -8,7 +8,8 @@ export interface CommunicationConfig {
 }
 
 export function createCommunicationConfig(command: string, projectRoot?: string): CommunicationConfig {
-  const type = command === 'python' && process.platform === 'win32' ? 'rpc' : 'ipc'
+  // Use RPC (stdout) for Python on Windows and dotnet (C#) since they don't support Node.js IPC
+  const type = (command === 'python' && process.platform === 'win32') || command === 'dotnet' ? 'rpc' : 'ipc'
 
   const spawnOptions: SpawnOptions = {
     stdio:

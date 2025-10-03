@@ -23,8 +23,8 @@ const getLanguageBasedRunner = (
     const rubyRunner = path.join(__dirname, 'ruby', 'get-config.rb')
     return { runner: rubyRunner, command: 'ruby', args: [] }
   } else if (isCSharp) {
-    const csharpRunner = path.join(__dirname, 'csharp', 'get-config.js')
-    return { runner: csharpRunner, command: 'node', args: [] }
+    const csharpRunner = path.join(__dirname, 'csharp', 'bin', 'Release', 'net9.0', 'MotiaRunner.dll')
+    return { runner: csharpRunner, command: 'dotnet', args: [] }
   } else if (isNode) {
     if (process.env._MOTIA_TEST_MODE === 'true') {
       const nodeRunner = path.join(__dirname, 'node', 'get-config.ts')
