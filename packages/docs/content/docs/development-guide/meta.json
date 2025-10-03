@@ -6,6 +6,7 @@
     "streams",
     "observability",
     "customizing-flows",
+    "middleware",
     "testing",
     "environment-variables",
     "cli"
