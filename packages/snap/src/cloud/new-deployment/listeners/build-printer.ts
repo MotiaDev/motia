@@ -26,6 +26,8 @@ export class BuildPrinter {
       return colors.bold(colors.green('Node'))
     } else if (language === 'ruby') {
       return colors.bold(colors.red('Ruby'))
+    } else if (language === 'csharp') {
+      return colors.bold(colors.magenta('C#'))
     }
 
     return colors.bold(colors.gray('Unknown'))
@@ -38,6 +40,8 @@ export class BuildPrinter {
       return this.getLanguage('node')
     } else if (step.filePath.endsWith('.rb')) {
       return this.getLanguage('ruby')
+    } else if (step.filePath.endsWith('.cs')) {
+      return this.getLanguage('csharp')
     }
 
     return this.getLanguage('unknown')

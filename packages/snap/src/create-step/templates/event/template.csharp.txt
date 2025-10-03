@@ -1,0 +1,32 @@
+using System.Text.Json;
+
+public static class {{STEP_NAME}}Config
+{
+    public static object Config = new
+    {
+        type = "event",
+        name = "{{STEP_NAME}}",
+        description = "{{DESCRIPTION}}",
+        subscribes = {{SUBSCRIBES}},
+        emits = {{EMITS}},
+        flows = {{FLOWS}}
+    };
+}
+
+public static class {{STEP_NAME}}Handler
+{
+    public static async Task<object> Handler(object data, dynamic ctx)
+    {
+        ctx.Logger.Info("Processing {{STEP_NAME}}", new { data });
+
+        // Parse event data
+        var dataJson = JsonSerializer.Serialize(data);
+        var eventData = JsonSerializer.Deserialize<Dictionary<string, object>>(dataJson);
+
+        // Add your handler logic here
+        
+        await Task.CompletedTask;
+        return new { success = true };
+    }
+}
+

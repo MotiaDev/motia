@@ -1,0 +1,13 @@
+public static class {{STEP_NAME}}Config
+{
+    public static object Config = new
+    {
+        type = "noop",
+        name = "{{STEP_NAME}}",
+        description = "{{DESCRIPTION}}",
+        flows = {{FLOWS}}
+    };
+}
+
+// Noop steps don't have handlers - they're used for UI visualization only
+

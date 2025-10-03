@@ -36,6 +36,13 @@ test.describe('CLI Validation', () => {
         'state_audit_job_step.py-features.json',
         'notification_step.py',
       ]
+    } else if (testTemplate === 'csharp') {
+      expectedSteps = [
+        'api_step.cs',
+        'process_food_order_step.cs',
+        'notification_step.cs',
+        'state_audit_cron_step.cs',
+      ]
     } else {
       expectedSteps = [
         'api.step.ts',

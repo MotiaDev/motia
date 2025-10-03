@@ -13,21 +13,25 @@
     "test:e2e:trace": "playwright test --trace=on",
     "test:pr": "cross-env MOTIA_ANALYTICS_DISABLED=true playwright test --config=playwright.config.pr.ts",
     "test:pr:python": "cross-env MOTIA_TEST_TEMPLATE=python MOTIA_ANALYTICS_DISABLED=true playwright test --config=playwright.config.pr.ts",
+    "test:pr:csharp": "cross-env MOTIA_TEST_TEMPLATE=csharp MOTIA_ANALYTICS_DISABLED=true playwright test --config=playwright.config.pr.ts",
     "test:release": "cross-env MOTIA_ANALYTICS_DISABLED=true playwright test --config=playwright.config.release.ts",
     "test:release:python": "cross-env MOTIA_TEST_TEMPLATE=python MOTIA_ANALYTICS_DISABLED=true playwright test --config=playwright.config.release.ts",
+    "test:release:csharp": "cross-env MOTIA_TEST_TEMPLATE=csharp MOTIA_ANALYTICS_DISABLED=true playwright test --config=playwright.config.release.ts",
     "test:release:headed": "playwright test --config=playwright.config.release.ts --headed",
     "test:cli": "playwright test tests/release/cli",
     "test:workbench": "playwright test tests/workbench",
     "test:smoke": "playwright test tests/smoke.spec.ts",
     "install": "playwright install",
     "install:deps": "playwright install-deps",
-    "clean": "rm -rf test-results playwright-report motia-e2e-test-project"
+    "clean": "rm -rf test-results playwright-report motia-e2e-test-project",
+    "validate:release": "tsx scripts/validate-release.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.48.2"
   },
   "devDependencies": {
     "@types/node": "^22.15.18",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "tsx": "^4.20.6"
   }
 }

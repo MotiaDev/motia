@@ -32,6 +32,9 @@ declare module 'motia' {
     'Tested Event': EventHandler<never, never>
     'Test Event': EventHandler<never, { topic: 'tested'; data: never }>
     'Test API Endpoint': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'test'; data: never }>
+    'Tested Event CSharp': EventHandler<never, never>
+    'Test Event CSharp': EventHandler<never, { topic: 'tested.csharp'; data: never }>
+    'Test API Endpoint CSharp': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'test.csharp'; data: never }>
     'stepC': EventHandler<never, { topic: 'pms.stepC.done'; data: { msg: string; timestamp: number } }>
     'stepB': EventHandler<never, { topic: 'pms.stepB.done'; data: { msg: string; timestamp: number } }>
     'CallOpenAiPython': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>

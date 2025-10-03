@@ -232,6 +232,33 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     await pythonInstall({ baseDir: rootDir })
   }
 
+  if (template === 'csharp') {
+    // Check for .NET SDK
+    try {
+      const { execSync } = require('child_process')
+      const dotnetVersion = execSync('dotnet --version', { encoding: 'utf-8' }).trim()
+      context.log('dotnet-detected', (message) =>
+        message.tag('success').append('.NET SDK detected').append(dotnetVersion, 'gray'),
+      )
+
+      if (!dotnetVersion.startsWith('9.')) {
+        context.log('dotnet-version-warning', (message) =>
+          message
+            .tag('warning')
+            .append('.NET 9 is recommended for C# steps. You have version')
+            .append(dotnetVersion, 'gray'),
+        )
+      }
+    } catch (error) {
+      context.log('dotnet-not-found', (message) =>
+        message
+          .tag('failed')
+          .append('.NET SDK not found! Please install .NET 9 SDK from')
+          .append('https://dotnet.microsoft.com/download/dotnet/9.0', 'cyan'),
+      )
+    }
+  }
+
   await generateTypes(rootDir)
   await wrapUp(context, packageManager)
 
