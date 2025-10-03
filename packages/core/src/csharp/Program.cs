@@ -52,9 +52,40 @@ class Program
                 return await HandleCallHandler(script, jsonData);
             }
         }
+        catch (CompilationErrorException ex)
+        {
+            Console.Error.WriteLine($"C# Compilation Error in step file '{args[0]}':");
+            Console.Error.WriteLine(ex.Message);
+            if (ex.Diagnostics != null)
+            {
+                foreach (var diagnostic in ex.Diagnostics)
+                {
+                    Console.Error.WriteLine($"  {diagnostic}");
+                }
+            }
+            return 1;
+        }
+        catch (FileNotFoundException ex)
+        {
+            Console.Error.WriteLine($"Step file not found: {ex.FileName}");
+            return 1;
+        }
+        catch (JsonException ex)
+        {
+            Console.Error.WriteLine($"Invalid JSON data provided to step handler:");
+            Console.Error.WriteLine($"  {ex.Message}");
+            return 1;
+        }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error: {ex.Message}");
+            Console.Error.WriteLine($"Unexpected error executing C# step:");
+            Console.Error.WriteLine($"  Type: {ex.GetType().Name}");
+            Console.Error.WriteLine($"  Message: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.Error.WriteLine($"  Inner Exception: {ex.InnerException.Message}");
+            }
+            Console.Error.WriteLine($"  Stack Trace:");
             Console.Error.WriteLine(ex.StackTrace);
             return 1;
         }
@@ -107,7 +138,10 @@ class Program
             
             if (configValue == null)
             {
-                Console.Error.WriteLine("Config not found in step file");
+                Console.Error.WriteLine("Error: Config property not found in C# step file.");
+                Console.Error.WriteLine("Expected a static class with a 'Config' property.");
+                Console.Error.WriteLine($"Classes searched: {string.Join(", ", configClassNames)}");
+                Console.Error.WriteLine("Example: public static class MyStepConfig {{ public static object Config = new {{ ... }}; }}");
                 return 1;
             }
 
@@ -120,7 +154,12 @@ class Program
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error getting config: {ex.Message}");
+            Console.Error.WriteLine($"Error extracting config from C# step:");
+            Console.Error.WriteLine($"  {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.Error.WriteLine($"  Inner exception: {ex.InnerException.Message}");
+            }
             return 1;
         }
     }
@@ -133,7 +172,8 @@ class Program
             var inputData = JsonSerializer.Deserialize<InputData>(jsonData);
             if (inputData == null)
             {
-                Console.Error.WriteLine("Failed to parse input data");
+                Console.Error.WriteLine("Error: Failed to parse input data from Node.js");
+                Console.Error.WriteLine("Expected JSON format: { data, flows, traceId, contextInFirstArg, streams }");
                 return 1;
             }
 
@@ -207,7 +247,11 @@ class Program
             
             if (handlerMethodInfo == null)
             {
-                throw new Exception("Handler method not found in step file");
+                var message = "Error: Handler method not found in C# step file.\n" +
+                             "Expected a static class with a 'Handler' method.\n" +
+                             $"Classes searched: {string.Join(", ", handlerClassNames)}\n" +
+                             "Example: public static class MyStepHandler { public static async Task<object> Handler(object input, dynamic ctx) { ... } }";
+                throw new Exception(message);
             }
             
             // Invoke the handler directly with reflection, passing input data and the dynamic context
@@ -238,11 +282,16 @@ class Program
         }
         catch (Exception ex)
         {
+            Console.Error.WriteLine($"Error executing C# step handler:");
+            Console.Error.WriteLine($"  {ex.Message}");
+            
             var error = new
             {
                 message = ex.Message,
+                type = ex.GetType().Name,
                 code = (string?)null,
-                stack = ex.StackTrace
+                stack = ex.StackTrace,
+                innerException = ex.InnerException?.Message
             };
             MotiaRpc.SendRequest("close", error);
             return 1;

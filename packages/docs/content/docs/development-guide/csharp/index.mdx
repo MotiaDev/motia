@@ -1,0 +1,421 @@
+---
+title: C# Steps Guide
+description: Learn how to write Motia steps in C# using .NET 9
+---
+
+# C# Steps Guide
+
+<Callout type="info">
+C# support is currently in **Beta**. All core features work, but there may be edge cases. Please report any issues on [GitHub](https://github.com/MotiaDev/motia/issues).
+</Callout>
+
+Motia supports writing steps in **C# (.NET 9)**, enabling you to leverage the .NET ecosystem within your Motia workflows.
+
+## Prerequisites
+
+Before writing C# steps, ensure you have:
+
+- **.NET 9 SDK** installed ([Download here](https://dotnet.microsoft.com/download/dotnet/9.0))
+- **Motia CLI** installed (`npm install -g motia`)
+
+Verify your .NET installation:
+
+```bash
+dotnet --version
+# Should show 9.0.x or higher
+```
+
+## Quick Start
+
+Create a new C# project:
+
+```bash
+motia create my-csharp-app -t csharp
+cd my-csharp-app
+motia dev
+```
+
+This creates a project with example C# steps demonstrating all step types.
+
+## Step File Structure
+
+C# steps follow the same pattern as other languages: a **config** and a **handler**.
+
+### Basic API Step
+
+```csharp
+// steps/hello.step.cs
+using System.Text.Json;
+
+public static class HelloStepConfig
+{
+    public static object Config = new
+    {
+        type = "api",
+        name = "Hello",
+        path = "/hello",
+        method = "GET",
+        emits = new[] { "greeting.sent" }
+    };
+}
+
+public static class HelloStepHandler
+{
+    public static async Task<object> Handler(object req, dynamic ctx)
+    {
+        ctx.Logger.Info("Processing hello request");
+        
+        await ctx.Emit(new {
+            topic = "greeting.sent",
+            data = new { message = "Hello from C#!" }
+        });
+        
+        return new
+        {
+            status = 200,
+            body = new { message = "Hello from C#!" }
+        };
+    }
+}
+```
+
+## Step Types
+
+### API Steps
+
+Handle HTTP requests:
+
+```csharp
+public static class ApiStepConfig
+{
+    public static object Config = new
+    {
+        type = "api",
+        name = "CreateUser",
+        path = "/users",
+        method = "POST",
+        emits = new[] { "user.created" }
+    };
+}
+
+public static class ApiStepHandler
+{
+    public static async Task<object> Handler(object req, dynamic ctx)
+    {
+        // Access request data
+        var requestData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+            JsonSerializer.Serialize(req)
+        );
+        
+        // Emit event
+        await ctx.Emit(new {
+            topic = "user.created",
+            data = new { userId = "123", name = "John" }
+        });
+        
+        // Return response
+        return new
+        {
+            status = 201,
+            body = new { success = true, userId = "123" }
+        };
+    }
+}
+```
+
+### Event Steps
+
+Subscribe to and process events:
+
+```csharp
+public static class EventStepConfig
+{
+    public static object Config = new
+    {
+        type = "event",
+        name = "ProcessUser",
+        subscribes = new[] { "user.created" },
+        emits = new[] { "email.send" }
+    };
+}
+
+public static class EventStepHandler
+{
+    public static async Task<object> Handler(object input, dynamic ctx)
+    {
+        ctx.Logger.Info("Processing user creation event", input);
+        
+        // Process the event
+        await ctx.Emit(new {
+            topic = "email.send",
+            data = new { email = "user@example.com", template = "welcome" }
+        });
+        
+        return new { success = true };
+    }
+}
+```
+
+### Cron Steps
+
+Schedule recurring tasks:
+
+```csharp
+public static class CronStepConfig
+{
+    public static object Config = new
+    {
+        type = "cron",
+        name = "DailyReport",
+        cron = "0 9 * * *", // Every day at 9 AM
+        emits = new[] { "report.generated" }
+    };
+}
+
+public static class CronStepHandler
+{
+    public static async Task Handler(dynamic ctx)
+    {
+        ctx.Logger.Info("Generating daily report");
+        
+        await ctx.Emit(new {
+            topic = "report.generated",
+            data = new { date = DateTime.UtcNow, type = "daily" }
+        });
+    }
+}
+```
+
+### Noop Steps
+
+Virtual steps for visualization:
+
+```csharp
+public static class NoopStepConfig
+{
+    public static object Config = new
+    {
+        type = "noop",
+        name = "DataProcessingGroup",
+        description = "Groups data processing steps in Workbench"
+    };
+}
+```
+
+## Context API
+
+The `ctx` parameter provides access to Motia's runtime features:
+
+### Emit Events
+
+```csharp
+await ctx.Emit(new {
+    topic = "order.placed",
+    data = new { orderId = "123", total = 99.99 }
+});
+```
+
+### Logging
+
+```csharp
+ctx.Logger.Info("User logged in", new { userId = "123" });
+ctx.Logger.Debug("Debug information");
+ctx.Logger.Warn("Warning message");
+ctx.Logger.Error("Error occurred", new { error = "details" });
+```
+
+### State Management
+
+```csharp
+// Set state
+await ctx.State.Set("userId", "123");
+
+// Get state (returns null in current beta)
+var userId = await ctx.State.Get<string>("userId");
+
+// Delete state
+await ctx.State.Delete("userId");
+
+// Clear all state for this trace
+await ctx.State.Clear();
+```
+
+<Callout type="warning">
+**Known Limitation**: `State.Get()` currently returns `null` in the beta release. State setting works correctly. Full bidirectional RPC support is coming in the next release.
+</Callout>
+
+### Trace ID
+
+Access the current trace ID for correlation:
+
+```csharp
+var traceId = ctx.TraceId;
+ctx.Logger.Info($"Processing trace {traceId}");
+```
+
+### Flows
+
+Access the current flow context:
+
+```csharp
+var flows = ctx.Flows; // string[]
+```
+
+## Working with JSON
+
+C# steps use `System.Text.Json` for JSON handling:
+
+```csharp
+using System.Text.Json;
+
+// Deserialize request data
+var data = JsonSerializer.Deserialize<MyModel>(
+    JsonSerializer.Serialize(req)
+);
+
+// Create strongly-typed response
+public class MyResponse {
+    public string Message { get; set; }
+    public int Count { get; set; }
+}
+
+return new {
+    status = 200,
+    body = new MyResponse { Message = "Success", Count = 42 }
+};
+```
+
+## Error Handling
+
+Errors are automatically caught and logged:
+
+```csharp
+public static async Task<object> Handler(object req, dynamic ctx)
+{
+    try
+    {
+        // Your logic here
+        return new { status = 200, body = new { ok = true } };
+    }
+    catch (Exception ex)
+    {
+        ctx.Logger.Error("Operation failed", new { error = ex.Message });
+        
+        return new {
+            status = 500,
+            body = new { error = ex.Message }
+        };
+    }
+}
+```
+
+## Performance Considerations
+
+C# steps use **Roslyn scripting** for dynamic compilation:
+
+- **Compilation overhead**: ~500-1000ms per execution
+- **Process spawn**: Each execution spawns a new `dotnet` process
+- **Best for**: Business logic, data processing, integrations
+- **Future optimizations**: Process pooling and pre-compilation planned
+
+## Testing
+
+Test C# steps using Motia's testing utilities:
+
+```typescript
+// integration-tests/myCSharp.spec.ts
+import { createMotiaTester } from '@motiadev/test'
+
+describe('myCSharp', () => {
+  let server: ReturnType<typeof createMotiaTester>
+  
+  beforeEach(async () => (server = createMotiaTester()))
+  afterEach(async () => server.close())
+  
+  it('should execute C# steps', async () => {
+    const response = await server.post('/test', {
+      body: { data: 'test' }
+    })
+    
+    expect(response.status).toBe(200)
+  })
+})
+```
+
+## Best Practices
+
+1. **Keep steps focused**: One responsibility per step
+2. **Use strong typing**: Define models for request/response data
+3. **Log important events**: Use `ctx.Logger` for debugging
+4. **Handle errors gracefully**: Catch exceptions and return appropriate responses
+5. **Test thoroughly**: Write integration tests for critical flows
+
+## Example: Multi-language Workflow
+
+C# steps work seamlessly with steps in other languages:
+
+```csharp
+// C# API receives request
+public static async Task<object> Handler(object req, dynamic ctx)
+{
+    await ctx.Emit(new {
+        topic = "data.received",
+        data = new { source = "csharp", timestamp = DateTime.UtcNow }
+    });
+    
+    return new { status = 200, body = new { ok = true } };
+}
+```
+
+```python
+# Python step processes the data
+config = {
+    "type": "event",
+    "subscribes": ["data.received"],
+    "emits": ["data.processed"]
+}
+
+async def handler(input, ctx):
+    # Process data from C#
+    ctx.logger.info("Processing C# data", input)
+    await ctx.emit({
+        "topic": "data.processed",
+        "data": {"status": "processed"}
+    })
+```
+
+## Troubleshooting
+
+### .NET SDK Not Found
+
+```bash
+# Install .NET 9 SDK
+brew install dotnet@9  # macOS
+# or visit https://dotnet.microsoft.com/download
+```
+
+### Compilation Errors
+
+Check the error message in the Motia logs:
+
+```bash
+motia dev --debug
+```
+
+C# compilation errors show line numbers and detailed diagnostics.
+
+### Step Not Discovered
+
+Ensure your file ends with `.step.cs` and contains both a Config class and Handler class.
+
+## Next Steps
+
+- [State Management](/docs/development-guide/state-management)
+- [Testing](/docs/development-guide/testing)
+- [Deployment](/docs/deployment-guide/getting-started)
+- [Examples](/docs/examples)
+
+## Feedback
+
+C# support is in beta. Please report issues or suggestions on [GitHub](https://github.com/MotiaDev/motia/issues).
+
