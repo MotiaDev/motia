@@ -113,7 +113,7 @@ handler(req, ctx)
 | `pathParams` | URL parameters (e.g., `:id` → `{ id: '123' }`) |
 | `queryParams` | Query string parameters |
 
-**`ctx`** is the same [context object](#context) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
+**`ctx`** is the same [context object](##context--available-in-all-handlers) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
 
 **Return value** must include:
 
@@ -240,8 +240,6 @@ Use schemas to validate request bodies automatically.
 
 👉 Invalid requests return 400 automatically with validation errors.
 
----
-
 API Triggers support middleware for cross-cutting concerns like authentication, logging, and rate limiting.
 
 👉 Learn more about creating and using middleware in the [Middleware guide](/docs/development-guide/middleware).
@@ -318,7 +316,7 @@ handler(input, ctx)
 
 **`input`** is the data from the emitted event.
 
-**`ctx`** is the same [context object](#context) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
+**`ctx`** is the same [context object](##context--available-in-all-handlers) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
 
 ---
 
