@@ -4,6 +4,7 @@ import fs from 'fs'
 import { collectFlows, getStepFiles } from '../../generate-locked-data'
 import { BuildError, BuildErrorType } from '../../utils/errors/build.error'
 import { Builder, StepsConfigFile } from '../build/builder'
+import { CSharpBuilder } from '../build/builders/csharp'
 import { NodeBuilder } from '../build/builders/node'
 import { PythonBuilder } from '../build/builders/python'
 import { distDir, projectDir, stepsConfigPath } from './constants'
@@ -11,6 +12,10 @@ import { BuildListener } from './listeners/listener.types'
 
 const hasPythonSteps = (stepFiles: string[]) => {
   return stepFiles.some((file) => file.endsWith('.py'))
+}
+
+const hasCSharpSteps = (stepFiles: string[]) => {
+  return stepFiles.some((file) => file.endsWith('.cs'))
 }
 
 export const build = async (listener: BuildListener): Promise<Builder> => {
@@ -31,6 +36,10 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
 
   if (hasPythonSteps(stepFiles)) {
     builder.registerBuilder('python', new PythonBuilder(builder, listener))
+  }
+
+  if (hasCSharpSteps(stepFiles)) {
+    builder.registerBuilder('csharp', new CSharpBuilder(builder, listener))
   }
 
   const invalidSteps = await collectFlows(projectDir, lockedData).catch((err) => {
