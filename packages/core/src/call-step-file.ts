@@ -27,6 +27,7 @@ const getLanguageBasedRunner = (
 } => {
   const isPython = stepFilePath.endsWith('.py')
   const isRuby = stepFilePath.endsWith('.rb')
+  const isCSharp = stepFilePath.endsWith('.cs')
   const isNode = stepFilePath.endsWith('.js') || stepFilePath.endsWith('.ts')
 
   if (isPython) {
@@ -35,6 +36,9 @@ const getLanguageBasedRunner = (
   } else if (isRuby) {
     const rubyRunner = path.join(__dirname, 'ruby', 'ruby-runner.rb')
     return { runner: rubyRunner, command: 'ruby', args: [] }
+  } else if (isCSharp) {
+    const csharpRunner = path.join(__dirname, 'csharp', 'csharp-runner.js')
+    return { runner: csharpRunner, command: 'node', args: [] }
   } else if (isNode) {
     if (process.env._MOTIA_TEST_MODE === 'true') {
       const nodeRunner = path.join(__dirname, 'node', 'node-runner.ts')
