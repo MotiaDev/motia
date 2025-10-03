@@ -40,8 +40,8 @@ If you don't call `next()`, the request stops. The handler never runs.
     }
 
     export const config = {
-      type: 'api',
       name: 'ProtectedEndpoint',
+      type: 'api',
       path: '/protected',
       method: 'GET',
       middleware: [authMiddleware]
@@ -62,8 +62,8 @@ If you don't call `next()`, the request stops. The handler never runs.
     }
 
     const config = {
-      type: 'api',
       name: 'ProtectedEndpoint',
+      type: 'api',
       path: '/protected',
       method: 'GET',
       middleware: [authMiddleware]
@@ -84,8 +84,8 @@ If you don't call `next()`, the request stops. The handler never runs.
         return await next_fn()
 
     config = {
-        "type": "api",
         "name": "ProtectedEndpoint",
+        "type": "api",
         "path": "/protected",
         "method": "GET",
         "middleware": [auth_middleware]
@@ -105,8 +105,8 @@ Middleware runs in the order you list them:
 
 ```typescript
 export const config = {
-  type: 'api',
   name: 'MyEndpoint',
+  type: 'api',
   path: '/endpoint',
   method: 'POST',
   middleware: [
@@ -250,8 +250,8 @@ Import and use across steps:
 import { coreMiddleware } from '../middlewares/core.middleware'
 
 export const config = {
-  type: 'api',
   name: 'GetUser',
+  type: 'api',
   path: '/users/:id',
   method: 'GET',
   middleware: [coreMiddleware]

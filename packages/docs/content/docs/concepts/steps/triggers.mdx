@@ -32,8 +32,8 @@ API Triggers expose HTTP endpoints. When a request hits the path, your handler r
     import { ApiRouteConfig, Handlers } from 'motia'
 
     export const config: ApiRouteConfig = {
-      type: 'api',
       name: 'GetUser',
+      type: 'api',
       path: '/users/:id',
       method: 'GET'
     }
@@ -52,8 +52,8 @@ API Triggers expose HTTP endpoints. When a request hits the path, your handler r
   <Tab value="JavaScript">
     ```javascript
     const config = {
-      type: 'api',
       name: 'GetUser',
+      type: 'api',
       path: '/users/:id',
       method: 'GET'
     }
@@ -74,8 +74,8 @@ API Triggers expose HTTP endpoints. When a request hits the path, your handler r
   <Tab value="Python">
     ```python
     config = {
-        "type": "api",
         "name": "GetUser",
+        "type": "api",
         "path": "/users/:id",
         "method": "GET"
     }
@@ -131,8 +131,8 @@ All API Triggers require these:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `type` | `'api'` | Marks this as an API Step |
 | `name` | `string` | Unique identifier |
+| `type` | `'api'` | Marks this as an API Step |
 | `path` | `string` | URL path (supports `:params`) |
 | `method` | `string` | HTTP method (GET, POST, PUT, DELETE, etc.) |
 
@@ -161,8 +161,8 @@ Use schemas to validate request bodies automatically.
     import { z } from 'zod'
 
     export const config: ApiRouteConfig = {
-      type: 'api',
       name: 'CreateUser',
+      type: 'api',
       path: '/users',
       method: 'POST',
       bodySchema: z.object({
@@ -187,8 +187,8 @@ Use schemas to validate request bodies automatically.
     const { z } = require('zod')
 
     const config = {
-      type: 'api',
       name: 'CreateUser',
+      type: 'api',
       path: '/users',
       method: 'POST',
       bodySchema: z.object({
@@ -219,8 +219,8 @@ Use schemas to validate request bodies automatically.
         email: EmailStr
 
     config = {
-      "type": "api",
         "name": "CreateUser",
+        "type": "api",
         "path": "/users",
         "method": "POST",
         "bodySchema": CreateUserBody
@@ -262,8 +262,8 @@ Event Triggers run when an event is emitted. Perfect for background tasks, async
     import { EventConfig, Handlers } from 'motia'
 
     export const config: EventConfig = {
-      type: 'event',
       name: 'ProcessMessage',
+      type: 'event',
       subscribes: ['message.sent']
     }
 
@@ -276,8 +276,8 @@ Event Triggers run when an event is emitted. Perfect for background tasks, async
   <Tab value="JavaScript">
     ```javascript
     const config = {
-      type: 'event',
       name: 'ProcessMessage',
+      type: 'event',
       subscribes: ['message.sent']
     }
 
@@ -292,8 +292,8 @@ Event Triggers run when an event is emitted. Perfect for background tasks, async
   <Tab value="Python">
     ```python
     config = {
-        "type": "event",
         "name": "ProcessMessage",
+        "type": "event",
         "subscribes": ["message.sent"]
     }
 
@@ -328,8 +328,8 @@ All Event Triggers require these:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `type` | `'event'` | Marks this as an Event Step |
 | `name` | `string` | Unique identifier |
+| `type` | `'event'` | Marks this as an Event Step |
 | `subscribes` | `string[]` | Event topics to listen to |
 
 Optional properties:
@@ -354,8 +354,8 @@ Just like API Triggers, you can validate event data with schemas.
     import { z } from 'zod'
 
     export const config: EventConfig = {
-      type: 'event',
       name: 'ProcessOrder',
+      type: 'event',
       subscribes: ['order.created'],
       input: z.object({
         orderId: z.string(),
@@ -374,8 +374,8 @@ Just like API Triggers, you can validate event data with schemas.
     const { z } = require('zod')
 
     const config = {
-      type: 'event',
       name: 'ProcessOrder',
+      type: 'event',
       subscribes: ['order.created'],
       input: z.object({
         orderId: z.string(),
@@ -400,8 +400,8 @@ Just like API Triggers, you can validate event data with schemas.
         amount: float
 
     config = {
-        "type": "event",
         "name": "ProcessOrder",
+        "type": "event",
         "subscribes": ["order.created"],
         "input": OrderInput
     }
@@ -427,8 +427,8 @@ Event Triggers can emit new events to trigger other Steps.
     import { EventConfig, Handlers } from 'motia'
 
     export const config: EventConfig = {
-      type: 'event',
       name: 'ProcessOrder',
+      type: 'event',
       subscribes: ['order.created'],
       emits: ['order.processed']
     }
@@ -448,8 +448,8 @@ Event Triggers can emit new events to trigger other Steps.
   <Tab value="JavaScript">
     ```javascript
     const config = {
-      type: 'event',
       name: 'ProcessOrder',
+      type: 'event',
       subscribes: ['order.created'],
       emits: ['order.processed']
     }
@@ -471,8 +471,8 @@ Event Triggers can emit new events to trigger other Steps.
   <Tab value="Python">
     ```python
     config = {
-      "type": "event",
         "name": "ProcessOrder",
+        "type": "event",
         "subscribes": ["order.created"],
         "emits": ["order.processed"]
     }
@@ -508,8 +508,8 @@ Cron Triggers run on a schedule. Perfect for periodic tasks like cleanup jobs, r
     import { CronConfig, Handlers } from 'motia'
 
     export const config: CronConfig = {
-      type: 'cron',
       name: 'DailyCleanup',
+      type: 'cron',
       cron: '0 0 * * *' // Every day at midnight
     }
 
@@ -522,8 +522,8 @@ Cron Triggers run on a schedule. Perfect for periodic tasks like cleanup jobs, r
   <Tab value="JavaScript">
     ```javascript
     const config = {
-      type: 'cron',
       name: 'DailyCleanup',
+      type: 'cron',
       cron: '0 0 * * *' // Every day at midnight
     }
 
@@ -538,8 +538,8 @@ Cron Triggers run on a schedule. Perfect for periodic tasks like cleanup jobs, r
   <Tab value="Python">
     ```python
     config = {
-        "type": "cron",
         "name": "DailyCleanup",
+        "type": "cron",
         "cron": "0 0 * * *"  # Every day at midnight
     }
   
@@ -572,8 +572,8 @@ All Cron Triggers require these:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `type` | `'cron'` | Marks this as a Cron Step |
 | `name` | `string` | Unique identifier |
+| `type` | `'cron'` | Marks this as a Cron Step |
 | `cron` | `string` | Cron expression for schedule |
 
 Optional properties:
@@ -627,6 +627,7 @@ API endpoint triggers background work:
 ```typescript
 // API Step - returns immediately
 export const config = {
+  name: 'CreateOrder',
   type: 'api',
   path: '/orders',
   method: 'POST',
@@ -635,6 +636,7 @@ export const config = {
 
 // Event Step - processes in background
 export const config = {
+  name: 'ProcessOrder',
   type: 'event',
   subscribes: ['order.created']
 }
@@ -651,6 +653,7 @@ Scheduled task kicks off a workflow:
 ```typescript
 // Cron Step - runs daily
 export const config = {
+  name: 'DailyReportCron',
   type: 'cron',
   cron: '0 0 * * *',
   emits: ['daily.report.requested']
@@ -658,6 +661,7 @@ export const config = {
 
 // Event Step - generates report
 export const config = {
+  name: 'GenerateReport',
   type: 'event',
   subscribes: ['daily.report.requested']
 }
@@ -674,6 +678,7 @@ Events trigger other events to create complex workflows:
 ```typescript
 // Step 1: Validate order
 export const config = {
+  name: 'ValidateOrder',
   type: 'event',
   subscribes: ['order.created'],
   emits: ['order.validated']
@@ -681,6 +686,7 @@ export const config = {
 
 // Step 2: Process payment
 export const config = {
+  name: 'ProcessPayment',
   type: 'event',
   subscribes: ['order.validated'],
   emits: ['payment.processed']
@@ -688,6 +694,7 @@ export const config = {
 
 // Step 3: Send confirmation
 export const config = {
+  name: 'SendConfirmation',
   type: 'event',
   subscribes: ['payment.processed']
 }
