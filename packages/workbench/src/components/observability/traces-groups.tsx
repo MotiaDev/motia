@@ -1,4 +1,5 @@
 import { TraceGroup } from '@/types/observability'
+import { formatDuration } from '@/lib/utils'
 import { cn } from '@motiadev/ui'
 import { formatDistanceToNow } from 'date-fns'
 import React, { memo } from 'react'
@@ -11,12 +12,6 @@ interface Props {
 }
 
 export const TracesGroups: React.FC<Props> = memo(({ groups, selectedGroupId, onGroupSelect }) => {
-  const formatDuration = (duration?: number) => {
-    if (!duration) return 'N/A'
-    if (duration < 1000) return `${duration}ms`
-    return `${(duration / 1000).toFixed(1)}s`
-  }
-
   return (
     <div className="overflow-auto">
       {groups.length > 0 && (

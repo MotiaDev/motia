@@ -1,5 +1,6 @@
 import { useGlobalStore } from '@/stores/use-global-store'
 import { Trace, TraceGroup } from '@/types/observability'
+import { formatDuration } from '@/lib/utils'
 import { useStreamGroup, useStreamItem } from '@motiadev/stream-client-react'
 import { Button } from '@motiadev/ui'
 import { Minus, Plus } from 'lucide-react'
@@ -47,11 +48,11 @@ export const TraceTimeline: React.FC<Props> = memo(({ groupId }) => {
               </Button>
             </div>
             <div className="flex justify-between font-mono p-2 w-full text-xs text-muted-foreground bg-card">
-              <span>0ms</span>
-              <span>{Math.floor((endTime - group.startTime) * 0.25)}ms</span>
-              <span>{Math.floor((endTime - group.startTime) * 0.5)}ms</span>
-              <span>{Math.floor((endTime - group.startTime) * 0.75)}ms</span>
-              <span>{Math.floor(endTime - group.startTime)}ms</span>
+              <span>{formatDuration(0)}</span>
+              <span>{formatDuration(Math.floor((endTime - group.startTime) * 0.25))}</span>
+              <span>{formatDuration(Math.floor((endTime - group.startTime) * 0.5))}</span>
+              <span>{formatDuration(Math.floor((endTime - group.startTime) * 0.75))}</span>
+              <span>{formatDuration(Math.floor(endTime - group.startTime))}</span>
               <div className="absolute bottom-[-4px] w-full flex justify-between">
                 <span className="w-[1px] h-full bg-blue-500"></span>
                 <span className="w-[1px] h-full bg-blue-500"></span>

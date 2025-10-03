@@ -35,7 +35,7 @@ export const TraceItemDetail: React.FC<Props> = memo(({ trace, onClose }) => {
               <div className="flex items-center gap-2">
                 <EventIcon event={event} />
                 <span className="text-sm font-mono text-muted-foreground">
-                  +{Math.floor(event.timestamp - trace.startTime)}ms
+                  +{formatDuration(Math.floor(event.timestamp - trace.startTime))}
                 </span>
                 <TraceEvent event={event} />
               </div>
