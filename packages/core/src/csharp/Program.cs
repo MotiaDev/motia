@@ -177,6 +177,15 @@ class Program
                 return 1;
             }
 
+            // Start background thread to read RPC responses from stdin
+            var responseReaderCts = new CancellationTokenSource();
+            var responseReaderThread = new Thread(() => ReadRpcResponses(responseReaderCts.Token))
+            {
+                IsBackground = true,
+                Name = "RPC Response Reader"
+            };
+            responseReaderThread.Start();
+
             // Create RPC send function that returns Task
             Func<string, object?, Task> rpcSendTask = async (method, args) =>
             {
@@ -184,13 +193,10 @@ class Program
                 await Task.CompletedTask;
             };
 
-            // Create RPC send function that returns Task<object?>
+            // Create RPC send function that returns Task<object?> (NOW WITH BIDIRECTIONAL SUPPORT!)
             Func<string, object?, Task<object?>> rpcSendWithResult = async (method, args) =>
             {
-                MotiaRpc.SendRequest(method, args);
-                // For MVP, return null - in full implementation would wait for response
-                await Task.CompletedTask;
-                return null;
+                return await MotiaRpc.SendRequestAndWaitAsync(method, args);
             };
 
             // Create context for the handler
@@ -295,6 +301,65 @@ class Program
             };
             MotiaRpc.SendRequest("close", error);
             return 1;
+        }
+    }
+
+    /// <summary>
+    /// Read RPC responses from stdin in a background thread
+    /// </summary>
+    static void ReadRpcResponses(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var line = Console.ReadLine();
+                if (line == null) break; // EOF
+
+                try
+                {
+                    // Parse the response
+                    var response = JsonSerializer.Deserialize<JsonElement>(line);
+                    
+                    // Check if it's an RPC response
+                    if (response.TryGetProperty("type", out var typeProperty) &&
+                        typeProperty.GetString() == "rpc_response")
+                    {
+                        string? id = null;
+                        object? result = null;
+                        string? error = null;
+
+                        if (response.TryGetProperty("id", out var idProp))
+                        {
+                            id = idProp.GetString();
+                        }
+
+                        if (response.TryGetProperty("result", out var resultProp) && resultProp.ValueKind != JsonValueKind.Undefined)
+                        {
+                            result = resultProp;
+                        }
+
+                        if (response.TryGetProperty("error", out var errorProp) && errorProp.ValueKind != JsonValueKind.Undefined)
+                        {
+                            error = errorProp.GetString();
+                        }
+
+                        MotiaRpc.HandleResponse(id, result, error);
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    Console.Error.WriteLine($"Failed to parse RPC response: {ex.Message}");
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error handling RPC response: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"RPC response reader thread error: {ex.Message}");
         }
     }
 }

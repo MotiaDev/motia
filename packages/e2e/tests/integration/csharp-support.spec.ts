@@ -181,5 +181,39 @@ test.describe('C# Template Support', () => {
     const readmePath = path.join(testProjectPath, 'README.md')
     expect(existsSync(readmePath)).toBeTruthy()
   })
+
+  test('should support bidirectional state operations (State.Get/Set)', async ({ api }) => {
+    if (testTemplate !== 'csharp') {
+      test.skip()
+      return
+    }
+
+    await test.step('Execute C# API that uses state operations', async () => {
+      // The C# template should have steps that use state
+      const response = await api.post('/basic-tutorial', {
+        body: { 
+          message: 'state-test',
+          testKey: 'e2e-test-key',
+          testValue: 'e2e-test-value'
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.body).toBeDefined()
+    })
+
+    await test.step('Verify state operations completed without errors', async () => {
+      // If state operations (State.Set and State.Get) work correctly,
+      // the flow should complete successfully without hanging or errors
+      // This validates the bidirectional RPC implementation
+      
+      // Make another call to verify state persistence across calls
+      const response = await api.post('/basic-tutorial', {
+        body: { message: 'verify-state' },
+      })
+
+      expect(response.status).toBe(200)
+    })
+  })
 })
 

@@ -230,8 +230,8 @@ ctx.Logger.Error("Error occurred", new { error = "details" });
 // Set state
 await ctx.State.Set("userId", "123");
 
-// Get state (returns null in current beta)
-var userId = await ctx.State.Get<string>("userId");
+// Get state (fully functional with bidirectional RPC)
+var userId = await ctx.State.Get<string>("userId"); // Returns "123"
 
 // Delete state
 await ctx.State.Delete("userId");
@@ -240,8 +240,8 @@ await ctx.State.Delete("userId");
 await ctx.State.Clear();
 ```
 
-<Callout type="warning">
-**Known Limitation**: `State.Get()` currently returns `null` in the beta release. State setting works correctly. Full bidirectional RPC support is coming in the next release.
+<Callout type="success">
+**Full State Management**: Both `State.Set()` and `State.Get()` are fully functional with bidirectional RPC support. C# steps can now participate in stateful workflows across all languages.
 </Callout>
 
 ### Trace ID

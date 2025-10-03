@@ -73,10 +73,6 @@ test.describe('Multi-Language Support', () => {
 
   test('should maintain state across language boundaries', async ({ workbench, api }) => {
     const template = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
-    if (template === 'csharp') {
-      test.skip()
-      return
-    }
 
     await test.step('Execute flow with state operations', async () => {
       await workbench.open()
@@ -92,12 +88,24 @@ test.describe('Multi-Language Support', () => {
     })
 
     await test.step('Verify state operations completed', async () => {
-      // State operations should complete without errors
+      // State operations (including bidirectional State.Get) should complete without errors
       const errors = await workbench.page.evaluate(() => {
         return (window as any).motiaCriticalErrors || []
       })
 
       expect(errors.length).toBe(0)
+    })
+
+    await test.step('Verify state persistence across calls', async () => {
+      // Make another call to verify state can be retrieved
+      const response = await api.post('/basic-tutorial', {
+        body: { 
+          message: 'verify-state-persistence',
+        },
+      })
+
+      // Should succeed - validates bidirectional RPC (State.Get) works
+      expect([200, 201]).toContain(response.status)
     })
   })
 

@@ -44,7 +44,10 @@ export class RpcStdinProcessor implements RpcProcessorInterface {
         error: error ? String(error) : undefined,
       }
       const messageStr = JSON.stringify(responseMessage)
+      console.error(`[Node.js Debug] Sending RPC response to C#: ${messageStr}`)
       this.child.stdin.write(messageStr + '\n')
+    } else {
+      console.error(`[Node.js Debug] Cannot send response - id:${id}, closed:${this.isClosed}, stdin:${!!this.child.stdin}, killed:${this.child.killed}`)
     }
   }
 

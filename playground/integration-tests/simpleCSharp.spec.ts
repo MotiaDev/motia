@@ -24,12 +24,12 @@ describe('simpleCSharp', () => {
     expect(testedEvent.getCapturedEvents()).toHaveLength(1)
 
     // Checking the last captured event
-    // Note: State.Get returns null in MVP implementation, so enriched will be "no"
+    // State.Get now works with bidirectional RPC - enriched should be "yes"
     expect(testedEvent.getLastCapturedEvent()).toEqual({
       traceId: expect.any(String),
       topic: 'tested.csharp',
       flows: ['simple-csharp'],
-      data: { message: 'hello world', enriched: 'no' },
+      data: { message: 'hello world', enriched: 'yes' }, // ✅ Now "yes" with working State.Get()
     })
   })
 })

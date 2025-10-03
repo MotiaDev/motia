@@ -98,6 +98,24 @@ describe('Server', () => {
       expect(response.status).toBe(200)
       expect(response.body.traceId).toBeDefined()
     })
+
+    it('should retrieve state set by c# steps (State.Get())', async () => {
+      const mockApiStep: Step<ApiRouteConfig> = createApiStep(
+        { emits: [], path: '/test-state', method: 'POST' },
+        path.join(baseDir, 'api-step-state.cs'),
+      )
+
+      server.addRoute(mockApiStep)
+
+      const response = await request(server.app)
+        .post('/test-state')
+        .send({ key: 'testKey', value: 'testValue' })
+
+      expect(response.status).toBe(200)
+      expect(response.body.setValue).toBe('testValue')
+      expect(response.body.retrievedValue).toBe('testValue')
+      expect(response.body.traceId).toBeDefined()
+    })
   })
 
   describe('Router', () => {

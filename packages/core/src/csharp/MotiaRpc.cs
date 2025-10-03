@@ -50,6 +50,10 @@ public static class MotiaRpc
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    private static int _nextRequestId = 0;
+    private static readonly object _lock = new object();
+    private static readonly Dictionary<string, TaskCompletionSource<object?>> _pendingRequests = new();
+
     /// <summary>
     /// Send an RPC request to the parent Node.js process
     /// </summary>
@@ -68,6 +72,66 @@ public static class MotiaRpc
         // Node.js IPC expects newline-delimited JSON
         Console.WriteLine(json);
         Console.Out.Flush();
+    }
+
+    /// <summary>
+    /// Send an RPC request and wait for a response
+    /// </summary>
+    public static async Task<object?> SendRequestAndWaitAsync(string method, object? args = null)
+    {
+        string id;
+        TaskCompletionSource<object?> tcs;
+
+        lock (_lock)
+        {
+            id = (_nextRequestId++).ToString();
+            tcs = new TaskCompletionSource<object?>();
+            _pendingRequests[id] = tcs;
+        }
+
+        SendRequest(method, args, id);
+
+        // Wait for response (with timeout)
+        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
+        var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+
+        if (completedTask == timeoutTask)
+        {
+            lock (_lock)
+            {
+                _pendingRequests.Remove(id);
+            }
+            throw new TimeoutException($"RPC request '{method}' timed out after 30 seconds");
+        }
+
+        return await tcs.Task;
+    }
+
+    /// <summary>
+    /// Handle a response from the parent Node.js process
+    /// </summary>
+    public static void HandleResponse(string? id, object? result, string? error)
+    {
+        if (id == null) return;
+
+        TaskCompletionSource<object?>? tcs;
+        lock (_lock)
+        {
+            if (!_pendingRequests.TryGetValue(id, out tcs))
+            {
+                return;
+            }
+            _pendingRequests.Remove(id);
+        }
+
+        if (error != null)
+        {
+            tcs.SetException(new Exception($"RPC Error: {error}"));
+        }
+        else
+        {
+            tcs.SetResult(result);
+        }
     }
 
     /// <summary>
