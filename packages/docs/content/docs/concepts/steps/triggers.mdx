@@ -5,7 +5,7 @@ description: Understanding how Steps are triggered - API, Event, and Cron
 
 ## How Steps Are Triggered
 
-Every Step has a `type` that defines **when it runs**. Change the type, and your handler works the same way, only the trigger changes.
+Every Step has a `type` that defines when it runs:
 
 | Type | Triggers when... | Use for |
 |------|------------------|---------|
@@ -15,16 +15,14 @@ Every Step has a `type` that defines **when it runs**. Change the type, and your
 
 ---
 
-Let's learn each Step types one-by-one in details, just select tabs below to switch between triggers.
-
 <Tabs items={['API', 'Event', 'Cron']}>
 <Tab value='API'>
 
 ## API Trigger
 
-API Triggers expose HTTP endpoints. When a request hits the path, your handler runs.
+API Trigger expose HTTP endpoints. When a request hits the path, your handler runs.
 
-### The Simplest API Trigger
+### Basic Example
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -96,47 +94,45 @@ API Triggers expose HTTP endpoints. When a request hits the path, your handler r
 
 ---
 
-### API Handler Signature
-
-Your handler receives two arguments:
+### Handler Signature
 
 ```typescript
 handler(req, ctx)
 ```
 
-**`req`** contains the HTTP request:
+**`req`** - The HTTP request:
 
 | Property | Description |
 |----------|-------------|
 | `body` | Request body (parsed JSON) |
 | `headers` | HTTP headers |
-| `pathParams` | URL parameters (e.g., `:id` → `{ id: '123' }`) |
+| `pathParams` | URL parameters (`:id` → `{ id: '123' }`) |
 | `queryParams` | Query string parameters |
 
-**`ctx`** is the same [context object](##context--available-in-all-handlers) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
+**`ctx`** - [Context object](#context) with `logger`, `emit`, `state`, `streams`, `traceId`.
 
-**Return value** must include:
+**Return** - Must include:
 
 | Property | Description |
 |----------|-------------|
 | `status` | HTTP status code (200, 404, 500, etc.) |
-| `body` | Response body (will be JSON-serialized) |
+| `body` | Response body (JSON) |
 | `headers` | Optional response headers |
 
 ---
 
-### Config Options
+### Config
 
-All API Triggers require these:
+Required:
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `name` | `string` | Unique identifier |
 | `type` | `'api'` | Marks this as an API Step |
 | `path` | `string` | URL path (supports `:params`) |
-| `method` | `string` | HTTP method (GET, POST, PUT, DELETE, etc.) |
+| `method` | `string` | HTTP method (GET, POST, PUT, DELETE) |
 
-Optional properties:
+Optional:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -145,104 +141,7 @@ Optional properties:
 | `flows` | `string[]` | Flows this Step belongs to |
 | `bodySchema` | `ZodSchema \| PydanticModel` | Validate request body |
 | `responseSchema` | `ZodSchema \| PydanticModel` | Document response shape |
-| `queryParams` | `Array<{ name, description }>` | Document query params |
 | `middleware` | `ApiMiddleware[]` | Pre-handler functions |
-
----
-
-### Validating Input
-
-Use schemas to validate request bodies automatically.
-
-<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
-  <Tab value="TypeScript">
-    ```typescript
-    import { ApiRouteConfig, Handlers } from 'motia'
-    import { z } from 'zod'
-
-    export const config: ApiRouteConfig = {
-      name: 'CreateUser',
-      type: 'api',
-      path: '/users',
-      method: 'POST',
-      bodySchema: z.object({
-        name: z.string(),
-        email: z.string().email()
-      })
-    }
-
-    export const handler: Handlers['CreateUser'] = async (req, { logger }) => {
-      // req.body is validated and typed!
-      logger.info('Creating user', req.body)
-
-      return {
-        status: 201,
-        body: { id: '123', ...req.body }
-      }
-    }
-    ```
-  </Tab>
-  <Tab value="JavaScript">
-    ```javascript
-    const { z } = require('zod')
-
-    const config = {
-      name: 'CreateUser',
-      type: 'api',
-      path: '/users',
-      method: 'POST',
-      bodySchema: z.object({
-        name: z.string(),
-        email: z.string().email()
-      })
-    }
-
-    const handler = async (req, { logger }) => {
-      // req.body is validated!
-      logger.info('Creating user', req.body)
-
-      return {
-        status: 201,
-        body: { id: '123', ...req.body }
-      }
-    }
-
-    module.exports = { config, handler }
-    ```
-  </Tab>
-  <Tab value="Python">
-    ```python
-    from pydantic import BaseModel, EmailStr
-    
-    class CreateUserBody(BaseModel):
-        name: str
-        email: EmailStr
-
-    config = {
-        "name": "CreateUser",
-        "type": "api",
-        "path": "/users",
-        "method": "POST",
-        "bodySchema": CreateUserBody
-    }
-
-    async def handler(req, context):
-        # req.body is validated!
-        context.logger.info("Creating user", req.get("body"))
-
-      return {
-            "status": 201,
-            "body": {"id": "123", **req.get("body", {})}
-      }
-    ```
-  </Tab>
-</Tabs>
-
-👉 Invalid requests return 400 automatically with validation errors.
-
-API Triggers support middleware for cross-cutting concerns like authentication, logging, and rate limiting.
-
-👉 Learn more about creating and using middleware in the [Middleware guide](/docs/development-guide/middleware).
 
 </Tab>
 
@@ -250,9 +149,9 @@ API Triggers support middleware for cross-cutting concerns like authentication, 
 
 ## Event Trigger
 
-Event Triggers run when an event is emitted. Perfect for background tasks, async workflows, and decoupling logic.
+Event Trigger run when an event is emitted. Use for background tasks and async workflows.
 
-### The Simplest Event Trigger
+### Basic Example
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -306,23 +205,21 @@ Event Triggers run when an event is emitted. Perfect for background tasks, async
 
 ---
 
-### Event Handler Signature
-
-Your handler receives two arguments:
+### Handler Signature
 
 ```typescript
 handler(input, ctx)
 ```
 
-**`input`** is the data from the emitted event.
+**`input`** - Data from the emitted event.
 
-**`ctx`** is the same [context object](##context--available-in-all-handlers) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
+**`ctx`** - [Context object](#context) with `logger`, `emit`, `state`, `streams`, `traceId`.
 
 ---
 
-### Config Options
+### Config
 
-All Event Triggers require these:
+Required:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -330,7 +227,7 @@ All Event Triggers require these:
 | `type` | `'event'` | Marks this as an Event Step |
 | `subscribes` | `string[]` | Event topics to listen to |
 
-Optional properties:
+Optional:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -339,166 +236,15 @@ Optional properties:
 | `flows` | `string[]` | Flows this Step belongs to |
 | `input` | `ZodSchema \| PydanticModel` | Validate input data |
 
----
-
-### Validating Input
-
-Just like API Triggers, you can validate event data with schemas.
-
-<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
-  <Tab value="TypeScript">
-    ```typescript
-    import { EventConfig, Handlers } from 'motia'
-    import { z } from 'zod'
-
-    export const config: EventConfig = {
-      name: 'ProcessOrder',
-      type: 'event',
-      subscribes: ['order.created'],
-      input: z.object({
-        orderId: z.string(),
-        amount: z.number()
-      })
-    }
-
-    export const handler: Handlers['ProcessOrder'] = async (input, { logger }) => {
-      // input is validated and typed!
-      logger.info('Processing order', { orderId: input.orderId })
-    }
-    ```
-  </Tab>
-  <Tab value="JavaScript">
-    ```javascript
-    const { z } = require('zod')
-
-    const config = {
-      name: 'ProcessOrder',
-      type: 'event',
-      subscribes: ['order.created'],
-      input: z.object({
-        orderId: z.string(),
-        amount: z.number()
-      })
-    }
-
-    const handler = async (input, { logger }) => {
-      // input is validated!
-      logger.info('Processing order', { orderId: input.orderId })
-    }
-
-    module.exports = { config, handler }
-    ```
-  </Tab>
-  <Tab value="Python">
-    ```python
-    from pydantic import BaseModel
-
-    class OrderInput(BaseModel):
-        orderId: str
-        amount: float
-
-    config = {
-        "name": "ProcessOrder",
-        "type": "event",
-        "subscribes": ["order.created"],
-        "input": OrderInput
-    }
-
-    async def handler(input, context):
-        # input is validated!
-        context.logger.info("Processing order", {"orderId": input.get("orderId")})
-    ```
-  </Tab>
-</Tabs>
-
-👉 Invalid events are logged as errors and don't trigger your handler.
-
----
-
-### Chaining Events
-
-Event Triggers can emit new events to trigger other Steps.
-
-<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
-  <Tab value="TypeScript">
-    ```typescript
-    import { EventConfig, Handlers } from 'motia'
-
-    export const config: EventConfig = {
-      name: 'ProcessOrder',
-      type: 'event',
-      subscribes: ['order.created'],
-      emits: ['order.processed']
-    }
-
-    export const handler: Handlers['ProcessOrder'] = async (input, { emit, logger }) => {
-      logger.info('Processing order...')
-
-      // Do some work...
-
-      await emit({
-        topic: 'order.processed',
-        data: { orderId: input.orderId, status: 'completed' }
-      })
-    }
-    ```
-  </Tab>
-  <Tab value="JavaScript">
-    ```javascript
-    const config = {
-      name: 'ProcessOrder',
-      type: 'event',
-      subscribes: ['order.created'],
-      emits: ['order.processed']
-    }
-
-    const handler = async (input, { emit, logger }) => {
-      logger.info('Processing order...')
-
-      // Do some work...
-
-      await emit({
-        topic: 'order.processed',
-        data: { orderId: input.orderId, status: 'completed' }
-      })
-    }
-
-    module.exports = { config, handler }
-    ```
-  </Tab>
-  <Tab value="Python">
-    ```python
-    config = {
-        "name": "ProcessOrder",
-        "type": "event",
-        "subscribes": ["order.created"],
-        "emits": ["order.processed"]
-    }
-
-    async def handler(input, context):
-        context.logger.info("Processing order...")
-
-        # Do some work...
-
-      await context.emit({
-            "topic": "order.processed",
-            "data": {"orderId": input.get("orderId"), "status": "completed"}
-      })
-    ```
-  </Tab>
-</Tabs>
-
-👉 This creates a workflow: `order.created` → `ProcessOrder` → `order.processed`.
-
 </Tab>
 
 <Tab value='Cron'>
 
 ## Cron Trigger
 
-Cron Triggers run on a schedule. Perfect for periodic tasks like cleanup jobs, reports, or health checks.
+Cron Trigger run on a schedule. Use for periodic tasks like cleanup jobs or reports.
 
-### The Simplest Cron Trigger
+### Basic Example
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -552,21 +298,19 @@ Cron Triggers run on a schedule. Perfect for periodic tasks like cleanup jobs, r
 
 ---
 
-### Cron Handler Signature
-
-Your handler receives one argument:
+### Handler Signature
 
 ```typescript
 handler(ctx)
 ```
 
-**`ctx`** is the same [context object](#context) all Steps get: `logger`, `emit`, `state`, `streams`, `traceId`.
+**`ctx`** - [Context object](#context) with `logger`, `emit`, `state`, `streams`, `traceId`.
 
 ---
 
-### Config Options
+### Config
 
-All Cron Triggers require these:
+Required:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -574,7 +318,7 @@ All Cron Triggers require these:
 | `type` | `'cron'` | Marks this as a Cron Step |
 | `cron` | `string` | Cron expression for schedule |
 
-Optional properties:
+Optional:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -584,7 +328,7 @@ Optional properties:
 
 ---
 
-### Cron Expression Examples
+### Cron Expressions
 
 | Expression | Description |
 |------------|-------------|
@@ -602,9 +346,9 @@ Optional properties:
 
 ---
 
-## Context – Available in All Handlers
+## Context
 
-Every handler (API Trigger, Event Trigger, or Cron Trigger) receives a `ctx` object with these tools:
+Every handler receives a `ctx` object with these tools:
 
 | Property | Description | Example |
 |----------|-------------|---------|
@@ -613,92 +357,6 @@ Every handler (API Trigger, Event Trigger, or Cron Trigger) receives a `ctx` obj
 | `state` | Persistent key-value storage | `await state.set(traceId, 'key', value)` |
 | `streams` | Real-time data channels | `await streams.chat.set('room', 'msg', data)` |
 | `traceId` | Unique ID for this execution | Used for tracking workflows |
-
----
-
-## Common Patterns
-
-### API Trigger → Event Trigger (Async Processing)
-
-API endpoint triggers background work:
-
-```typescript
-// API Step - returns immediately
-export const config = {
-  name: 'CreateOrder',
-  type: 'api',
-  path: '/orders',
-  method: 'POST',
-  emits: ['order.created']
-}
-
-// Event Step - processes in background
-export const config = {
-  name: 'ProcessOrder',
-  type: 'event',
-  subscribes: ['order.created']
-}
-```
-
-👉 Use this pattern when you want fast API responses and heavy work done asynchronously.
-
----
-
-### Cron Trigger → Event Trigger (Scheduled Workflows)
-
-Scheduled task kicks off a workflow:
-
-```typescript
-// Cron Step - runs daily
-export const config = {
-  name: 'DailyReportCron',
-  type: 'cron',
-  cron: '0 0 * * *',
-  emits: ['daily.report.requested']
-}
-
-// Event Step - generates report
-export const config = {
-  name: 'GenerateReport',
-  type: 'event',
-  subscribes: ['daily.report.requested']
-}
-```
-
-👉 Use this pattern for recurring tasks like reports, cleanups, or syncs.
-
----
-
-### Event Chain (Multi-Event Workflows)
-
-Events trigger other events to create complex workflows:
-
-```typescript
-// Step 1: Validate order
-export const config = {
-  name: 'ValidateOrder',
-  type: 'event',
-  subscribes: ['order.created'],
-  emits: ['order.validated']
-}
-
-// Step 2: Process payment
-export const config = {
-  name: 'ProcessPayment',
-  type: 'event',
-  subscribes: ['order.validated'],
-  emits: ['payment.processed']
-}
-
-// Step 3: Send confirmation
-export const config = {
-  name: 'SendConfirmation',
-  type: 'event',
-  subscribes: ['payment.processed']
-}
-```
-
-👉 Use this pattern to break complex logic into manageable, testable pieces.
 
 ---
 
