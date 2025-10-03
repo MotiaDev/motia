@@ -45,4 +45,17 @@ describe('Get Config', () => {
     expect(apiStep.path).toEqual('/test')
     expect(apiStep.method).toEqual('POST')
   })
+
+  it('should get the config from a c# file', async () => {
+    const baseDir = __dirname
+    const mockApiStep = await getStepConfig(path.join(baseDir, 'steps', 'api-step.cs'))
+
+    expect(mockApiStep).toBeDefined()
+    expect(mockApiStep?.type).toEqual('api')
+
+    const apiStep = mockApiStep as ApiRouteConfig
+
+    expect(apiStep.path).toEqual('/test')
+    expect(apiStep.method).toEqual('POST')
+  })
 })

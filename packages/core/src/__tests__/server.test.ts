@@ -85,6 +85,19 @@ describe('Server', () => {
       expect(response.status).toBe(200)
       expect(response.body.traceId).toBeDefined()
     })
+
+    it('should run c# API steps', async () => {
+      const mockApiStep: Step<ApiRouteConfig> = createApiStep(
+        { emits: ['TEST_EVENT'], path: '/test', method: 'POST' },
+        path.join(baseDir, 'api-step.cs'),
+      )
+
+      server.addRoute(mockApiStep)
+
+      const response = await request(server.app).post('/test')
+      expect(response.status).toBe(200)
+      expect(response.body.traceId).toBeDefined()
+    })
   })
 
   describe('Router', () => {
