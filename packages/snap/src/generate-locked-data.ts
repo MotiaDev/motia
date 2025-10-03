@@ -11,8 +11,8 @@ const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 export const getStepFiles = (projectDir: string): string[] => {
   const stepsDir = path.join(projectDir, 'steps')
   return [
-    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
-    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
+    ...globSync('**/*.step.{ts,js,rb,cs}', { absolute: true, cwd: stepsDir }),
+    ...globSync('**/*_step.{ts,js,py,rb,cs}', { absolute: true, cwd: stepsDir }),
   ]
 }
 

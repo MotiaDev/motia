@@ -64,17 +64,40 @@ class Program
     {
         try
         {
-            // Try to find the Config static property in the script globals
-            var config = await script.ContinueWithAsync<object>("ApiStepConfig.Config");
+            // Search for any class with a Config property by trying common naming patterns
+            var configNames = new[] { 
+                "ApiStepConfig", "TestEventConfig", "TestedEventConfig", 
+                "ApiEndpointConfig", "EventStepConfig", "CronStepConfig"
+            };
             
-            if (config.ReturnValue == null)
+            object? configValue = null;
+            
+            foreach (var className in configNames)
+            {
+                try
+                {
+                    var result = await script.ContinueWithAsync<object>($"{className}.Config");
+                    if (result.ReturnValue != null)
+                    {
+                        configValue = result.ReturnValue;
+                        break;
+                    }
+                }
+                catch
+                {
+                    // Try next class name
+                    continue;
+                }
+            }
+            
+            if (configValue == null)
             {
                 Console.Error.WriteLine("Config not found in step file");
                 return 1;
             }
 
             // Serialize and send config via IPC (process.send format)
-            var configJson = JsonSerializer.Serialize(config.ReturnValue);
+            var configJson = JsonSerializer.Serialize(configValue);
             Console.WriteLine(configJson);
             Console.Out.Flush();
 
@@ -126,18 +149,39 @@ class Program
             // Wrap context in dynamic wrapper for script access
             dynamic dynamicContext = new DynamicMotiaContext(context);
 
-            // Get the handler method using script continuation (has access to step file classes)
-            var handlerMethod = await script.ContinueWithAsync<System.Reflection.MethodInfo>(
-                "typeof(ApiStepHandler).GetMethod(\"Handler\")"
-            );
+            // Search for handler class by trying common naming patterns
+            var handlerNames = new[] { 
+                "ApiStepHandler", "TestEventHandler", "TestedEventHandler", 
+                "ApiEndpointHandler", "EventStepHandler", "CronStepHandler"
+            };
             
-            if (handlerMethod.ReturnValue == null)
+            System.Reflection.MethodInfo? handlerMethodInfo = null;
+            
+            foreach (var className in handlerNames)
+            {
+                try
+                {
+                    var methodResult = await script.ContinueWithAsync<System.Reflection.MethodInfo>($"typeof({className}).GetMethod(\"Handler\")");
+                    if (methodResult.ReturnValue != null)
+                    {
+                        handlerMethodInfo = methodResult.ReturnValue;
+                        break;
+                    }
+                }
+                catch
+                {
+                    // Try next class name
+                    continue;
+                }
+            }
+            
+            if (handlerMethodInfo == null)
             {
                 throw new Exception("Handler method not found in step file");
             }
             
-            // Invoke the handler directly with reflection, passing the dynamic context
-            var handlerInvokeResult = handlerMethod.ReturnValue.Invoke(null, new object?[] { null, dynamicContext });
+            // Invoke the handler directly with reflection, passing input data and the dynamic context
+            var handlerInvokeResult = handlerMethodInfo.Invoke(null, new object?[] { inputData.Data, dynamicContext });
             var handlerResult = new { ReturnValue = handlerInvokeResult };
 
             // Await the result if it's a Task
