@@ -23,6 +23,7 @@ export class Watcher {
   constructor(
     private readonly dir: string,
     private lockedData: LockedData,
+    private readonly projectRoot: string,
   ) {}
 
   onStepChange(handler: StepChangeHandler) {
@@ -62,7 +63,7 @@ export class Watcher {
       return
     }
 
-    const config = await getStepConfig(path, this.dir).catch((err) => console.error(err))
+    const config = await getStepConfig(path, this.projectRoot).catch((err) => console.error(err))
 
     if (!config) {
       return
@@ -75,7 +76,7 @@ export class Watcher {
   }
 
   private async onStepFileChange(path: string): Promise<void> {
-    const config = await getStepConfig(path, this.dir).catch((err) => {
+    const config = await getStepConfig(path, this.projectRoot).catch((err) => {
       console.error(err)
     })
 

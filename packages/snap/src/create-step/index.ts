@@ -5,13 +5,18 @@ import { generateTemplate } from './teamplateUtils'
 import { generateOverride } from './templates/ui/overrides'
 import { getStepAnswers } from './getAnswers'
 import { getFileExtension } from './utils'
+import { getStepDirectoryConfig } from '../config/step-directories'
 
 export async function createStep(options: { stepFilePath?: string }) {
   try {
     const answers = await getStepAnswers()
 
-    // Create steps directory if it doesn't exist
-    const stepDir = path.join(process.cwd(), 'steps', options?.stepFilePath || '')
+    // Get the configured step directories
+    const config = getStepDirectoryConfig()
+    const primaryStepDir = config.directories[0] || 'steps' // Use first configured directory as primary
+    
+    // Create step directory if it doesn't exist
+    const stepDir = path.join(process.cwd(), primaryStepDir, options?.stepFilePath || '')
     if (!fs.existsSync(stepDir)) {
       fs.mkdirSync(stepDir, { recursive: true })
     }

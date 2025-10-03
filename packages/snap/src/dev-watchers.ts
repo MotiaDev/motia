@@ -12,6 +12,7 @@ import {
 import type { Stream } from '@motiadev/core/dist/src/types-stream'
 import path from 'path'
 import { Watcher } from './watcher'
+import { getStepDirectoryPaths } from './config/step-directories'
 
 export const createDevWatchers = (
   lockedData: LockedData,
@@ -19,82 +20,85 @@ export const createDevWatchers = (
   eventHandler: MotiaEventManager,
   cronManager: CronManager,
 ) => {
-  const stepDir = path.join(process.cwd(), 'steps')
-  const watcher = new Watcher(stepDir, lockedData)
+  const stepDirectoryPaths = getStepDirectoryPaths(process.cwd())
+  const watchers = stepDirectoryPaths.map(stepDir => new Watcher(stepDir, lockedData, process.cwd()))
 
-  watcher.onStreamChange((oldStream: Stream, stream: Stream) => {
-    trackEvent('stream_updated', {
-      streamName: stream.config.name,
-      type: stream.config.baseConfig.storageType,
-    })
-
-    return lockedData.updateStream(oldStream, stream)
-  })
-
-  watcher.onStreamCreate((stream: Stream) => {
-    trackEvent('stream_created', {
-      streamName: stream.config.name,
-      type: stream.config.baseConfig.storageType,
-    })
-
-    return lockedData.createStream(stream)
-  })
-
-  watcher.onStreamDelete((stream: Stream) => {
-    trackEvent('stream_deleted', {
-      streamName: stream.config.name,
-      type: stream.config.baseConfig.storageType,
-    })
-
-    return lockedData.deleteStream(stream)
-  })
-
-  watcher.onStepChange((oldStep: Step, newStep: Step) => {
-    if (isApiStep(oldStep)) server.removeRoute(oldStep)
-    if (isCronStep(oldStep)) cronManager.removeCronJob(oldStep)
-    if (isEventStep(oldStep)) eventHandler.removeHandler(oldStep)
-
-    const isUpdated = lockedData.updateStep(oldStep, newStep)
-
-    if (isUpdated) {
-      trackEvent('step_updated', {
-        stepName: newStep.config.name,
-        type: newStep.config.type,
+  // Set up event handlers for all watchers
+  watchers.forEach(watcher => {
+    watcher.onStreamChange((oldStream: Stream, stream: Stream) => {
+      trackEvent('stream_updated', {
+        streamName: stream.config.name,
+        type: stream.config.baseConfig.storageType,
       })
+      return lockedData.updateStream(oldStream, stream)
+    })
 
-      if (isCronStep(newStep)) cronManager.createCronJob(newStep)
-      if (isEventStep(newStep)) eventHandler.createHandler(newStep)
-      if (isApiStep(newStep)) server.addRoute(newStep)
-    }
-  })
+    watcher.onStreamCreate((stream: Stream) => {
+      trackEvent('stream_created', {
+        streamName: stream.config.name,
+        type: stream.config.baseConfig.storageType,
+      })
+      return lockedData.createStream(stream)
+    })
 
-  watcher.onStepCreate((step: Step) => {
-    const isCreated = lockedData.createStep(step)
+    watcher.onStreamDelete((stream: Stream) => {
+      trackEvent('stream_deleted', {
+        streamName: stream.config.name,
+        type: stream.config.baseConfig.storageType,
+      })
+      return lockedData.deleteStream(stream)
+    })
 
-    if (isCreated) {
-      trackEvent('step_created', {
+    watcher.onStepChange((oldStep: Step, newStep: Step) => {
+      if (isApiStep(oldStep)) server.removeRoute(oldStep)
+      if (isCronStep(oldStep)) cronManager.removeCronJob(oldStep)
+      if (isEventStep(oldStep)) eventHandler.removeHandler(oldStep)
+
+      const isUpdated = lockedData.updateStep(oldStep, newStep)
+
+      if (isUpdated) {
+        trackEvent('step_updated', {
+          stepName: newStep.config.name,
+          type: newStep.config.type,
+        })
+
+        if (isCronStep(newStep)) cronManager.createCronJob(newStep)
+        if (isEventStep(newStep)) eventHandler.createHandler(newStep)
+        if (isApiStep(newStep)) server.addRoute(newStep)
+      }
+    })
+
+    watcher.onStepCreate((step: Step) => {
+      const isCreated = lockedData.createStep(step)
+
+      if (isCreated) {
+        trackEvent('step_created', {
+          stepName: step.config.name,
+          type: step.config.type,
+        })
+
+        if (isApiStep(step)) server.addRoute(step)
+        if (isEventStep(step)) eventHandler.createHandler(step)
+        if (isCronStep(step)) cronManager.createCronJob(step)
+      }
+    })
+
+    watcher.onStepDelete((step: Step) => {
+      trackEvent('step_deleted', {
         stepName: step.config.name,
         type: step.config.type,
       })
 
-      if (isApiStep(step)) server.addRoute(step)
-      if (isEventStep(step)) eventHandler.createHandler(step)
-      if (isCronStep(step)) cronManager.createCronJob(step)
-    }
-  })
+      if (isApiStep(step)) server.removeRoute(step)
+      if (isEventStep(step)) eventHandler.removeHandler(step)
+      if (isCronStep(step)) cronManager.removeCronJob(step)
 
-  watcher.onStepDelete((step: Step) => {
-    trackEvent('step_deleted', {
-      stepName: step.config.name,
-      type: step.config.type,
+      lockedData.deleteStep(step)
     })
-
-    if (isApiStep(step)) server.removeRoute(step)
-    if (isEventStep(step)) eventHandler.removeHandler(step)
-    if (isCronStep(step)) cronManager.removeCronJob(step)
-
-    lockedData.deleteStep(step)
   })
 
-  return watcher
+  return {
+    init: () => watchers.forEach(watcher => watcher.init()),
+    stop: async () => Promise.all(watchers.map(watcher => watcher.stop()))
+  }
 }

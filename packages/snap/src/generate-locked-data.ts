@@ -5,23 +5,41 @@ import { randomUUID } from 'crypto'
 import { globSync } from 'glob'
 import path from 'path'
 import { CompilationError } from './utils/errors/compilation.error'
+import { getStepDirectoryPaths, getStepDirectoryConfig } from './config/step-directories'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
+/**
+ * Generic function to find files matching specific patterns in configured step directories
+ */
+const findFilesInStepDirectories = (
+  projectDir: string, 
+  fileType: 'step' | 'stream'
+): string[] => {
+  const stepDirectoryPaths = getStepDirectoryPaths(projectDir)
+  const config = getStepDirectoryConfig()
+  
+  const allFiles: string[] = []
+  
+  for (const stepDir of stepDirectoryPaths) {
+    const patterns = config.recursive 
+      ? [`**/*.${fileType}.{ts,js,rb}`, `**/*_${fileType}.{ts,js,py,rb}`]
+      : [`*.${fileType}.{ts,js,rb}`, `*_${fileType}.{ts,js,py,rb}`]
+    
+    for (const pattern of patterns) {
+      allFiles.push(...globSync(pattern, { absolute: true, cwd: stepDir }))
+    }
+  }
+  
+  return allFiles
+}
+
 export const getStepFiles = (projectDir: string): string[] => {
-  const stepsDir = path.join(projectDir, 'steps')
-  return [
-    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
-    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
-  ]
+  return findFilesInStepDirectories(projectDir, 'step')
 }
 
 export const getStreamFiles = (projectDir: string): string[] => {
-  const stepsDir = path.join(projectDir, 'steps')
-  return [
-    ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
-    ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
-  ]
+  return findFilesInStepDirectories(projectDir, 'stream')
 }
 
 // Helper function to recursively collect flow data
@@ -29,7 +47,12 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   const invalidSteps: Step[] = []
   const stepFiles = getStepFiles(projectDir)
   const streamFiles = getStreamFiles(projectDir)
-  const deprecatedSteps = globSync('**/*.step.py', { absolute: true, cwd: path.join(projectDir, 'steps') })
+  const stepDirectoryPaths = getStepDirectoryPaths(projectDir)
+  const deprecatedSteps: string[] = []
+  
+  for (const stepDir of stepDirectoryPaths) {
+    deprecatedSteps.push(...globSync('**/*.step.py', { absolute: true, cwd: stepDir }))
+  }
 
   for (const filePath of stepFiles) {
     try {
