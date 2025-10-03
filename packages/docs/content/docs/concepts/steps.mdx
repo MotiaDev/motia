@@ -201,19 +201,22 @@ module.exports = { config, handler };
 
 ## Triggers
 
-Every Step has a `type` that defines **how it triggers**. Change the type, and the same pattern works for different use cases.
+Every Step has a `type` that defines **how it triggers**:
 
-| Type     | When it runs                 | Example use case |
-|----------|------------------------------|------------------|
-| `api`    | On an HTTP request           | REST endpoints, webhooks |
-| `event`  | When an event is emitted     | Event-driven workflows |
-| `cron`   | On a schedule                | Nightly jobs, reminders |
+| Type | When it runs | Use case |
+|------|--------------|----------|
+| `api` | HTTP request | REST APIs, webhooks |
+| `event` | Event emitted | Background jobs, workflows |
+| `cron` | Schedule | Cleanup, reports, reminders |
 
----
+<Tabs items={['API', 'Event', 'Cron']}>
+  <Tab value="API">
 
 ### API Trigger
 
-Exposes HTTP endpoints. When a request hits the path, your handler runs.
+Runs when an HTTP request hits the path.
+
+**Example:**
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -230,11 +233,7 @@ Exposes HTTP endpoints. When a request hits the path, your handler runs.
     export const handler: Handlers['GetUser'] = async (req, { logger }) => {
       const userId = req.pathParams.id
       logger.info('Getting user', { userId })
-
-      return {
-        status: 200,
-        body: { id: userId, name: 'John Doe' }
-      }
+      return { status: 200, body: { id: userId, name: 'John' } }
     }
     ```
   </Tab>
@@ -250,11 +249,7 @@ Exposes HTTP endpoints. When a request hits the path, your handler runs.
     const handler = async (req, { logger }) => {
       const userId = req.pathParams.id
       logger.info('Getting user', { userId })
-
-      return {
-        status: 200,
-        body: { id: userId, name: 'John Doe' }
-      }
+      return { status: 200, body: { id: userId, name: 'John' } }
     }
 
     module.exports = { config, handler }
@@ -269,40 +264,39 @@ Exposes HTTP endpoints. When a request hits the path, your handler runs.
         "method": "GET"
     }
 
-    async def handler(req, context):
+    async def handler(req, ctx):
         user_id = req.get("pathParams", {}).get("id")
-        context.logger.info("Getting user", {"userId": user_id})
-
-        return {
-            "status": 200,
-            "body": {"id": user_id, "name": "John Doe"}
-        }
+        ctx.logger.info("Getting user", {"userId": user_id})
+        return {"status": 200, "body": {"id": user_id, "name": "John"}}
     ```
   </Tab>
 </Tabs>
 
-**Handler:** `handler(req, ctx)`
-
-- **`req`** - HTTP request with `body`, `headers`, `pathParams`, `queryParams`
-- **`ctx`** - Context object (see below)
-- **Returns** - `{ status, body, headers? }`
-
 **Config:**
 
-| Property | Required | Description |
-|----------|----------|-------------|
-| `name` | Yes | Unique identifier |
-| `type` | Yes | Set to `'api'` |
-| `path` | Yes | URL path (supports `:params`) |
-| `method` | Yes | HTTP method (GET, POST, PUT, DELETE) |
-| `bodySchema` | No | Validate request body (Zod/Pydantic) |
-| `middleware` | No | Pre-handler functions |
+| Property | Description |
+|----------|-------------|
+| `name` | Unique identifier |
+| `type` | Set to `'api'` |
+| `path` | URL path (supports `:params`) |
+| `method` | GET, POST, PUT, DELETE |
+| `bodySchema` | Validate request body |
 
----
+**Handler:** `handler(req, ctx)`
+
+- `req` - Request with `body`, `headers`, `pathParams`, `queryParams`
+- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+- Returns `{ status, body, headers? }`
+
+</Tab>
+
+  <Tab value="Event">
 
 ### Event Trigger
 
-Runs when an event is emitted. Use for background tasks and async workflows.
+Runs when an event is emitted. Use for background tasks.
+
+**Example:**
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -312,12 +306,13 @@ Runs when an event is emitted. Use for background tasks and async workflows.
     export const config: EventConfig = {
       name: 'ProcessMessage',
       type: 'event',
-      subscribes: ['message.sent']
+      subscribes: ['message.sent'],
+      emits: ['message.processed']
     }
 
-    export const handler: Handlers['ProcessMessage'] = async (input, { logger }) => {
+    export const handler: Handlers['ProcessMessage'] = async (input, { logger, emit }) => {
       logger.info('Processing message:', input)
-      // Do async work here
+      await emit({ topic: 'message.processed', data: input })
     }
     ```
   </Tab>
@@ -326,12 +321,13 @@ Runs when an event is emitted. Use for background tasks and async workflows.
     const config = {
       name: 'ProcessMessage',
       type: 'event',
-      subscribes: ['message.sent']
+      subscribes: ['message.sent'],
+      emits: ['message.processed']
     }
 
-    const handler = async (input, { logger }) => {
+    const handler = async (input, { logger, emit }) => {
       logger.info('Processing message:', input)
-      // Do async work here
+      await emit({ topic: 'message.processed', data: input })
     }
 
     module.exports = { config, handler }
@@ -342,35 +338,41 @@ Runs when an event is emitted. Use for background tasks and async workflows.
     config = {
         "name": "ProcessMessage",
         "type": "event",
-        "subscribes": ["message.sent"]
+        "subscribes": ["message.sent"],
+        "emits": ["message.processed"]
     }
 
-    async def handler(input, context):
-        context.logger.info("Processing message:", {"input": input})
-        # Do async work here
+    async def handler(input, ctx):
+        ctx.logger.info("Processing message:", {"input": input})
+        await ctx.emit({"topic": "message.processed", "data": input})
     ```
   </Tab>
 </Tabs>
 
-**Handler:** `handler(input, ctx)`
-
-- **`input`** - Data from the emitted event
-- **`ctx`** - Context object (see below)
-
 **Config:**
 
-| Property | Required | Description |
-|----------|----------|-------------|
-| `name` | Yes | Unique identifier |
-| `type` | Yes | Set to `'event'` |
-| `subscribes` | Yes | Event topics to listen to |
-| `input` | No | Validate input data (Zod/Pydantic) |
+| Property | Description |
+|----------|-------------|
+| `name` | Unique identifier |
+| `type` | Set to `'event'` |
+| `subscribes` | Event topics to listen to |
+| `emits` | Event topics to emit |
+| `input` | Validate input data |
 
----
+**Handler:** `handler(input, ctx)`
+
+- `input` - Data from the emitted event
+- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+
+</Tab>
+
+  <Tab value="Cron">
 
 ### Cron Trigger
 
-Runs on a schedule. Use for periodic tasks like cleanup jobs or reports.
+Runs on a schedule. Use for periodic tasks.
+
+**Example:**
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
@@ -380,12 +382,11 @@ Runs on a schedule. Use for periodic tasks like cleanup jobs or reports.
     export const config: CronConfig = {
       name: 'DailyCleanup',
       type: 'cron',
-      cron: '0 0 * * *' // Every day at midnight
+      cron: '0 0 * * *'
     }
 
     export const handler: Handlers['DailyCleanup'] = async ({ logger }) => {
       logger.info('Running daily cleanup')
-      // Do cleanup work here
     }
     ```
   </Tab>
@@ -394,12 +395,11 @@ Runs on a schedule. Use for periodic tasks like cleanup jobs or reports.
     const config = {
       name: 'DailyCleanup',
       type: 'cron',
-      cron: '0 0 * * *' // Every day at midnight
+      cron: '0 0 * * *'
     }
 
     const handler = async ({ logger }) => {
       logger.info('Running daily cleanup')
-      // Do cleanup work here
     }
 
     module.exports = { config, handler }
@@ -410,39 +410,40 @@ Runs on a schedule. Use for periodic tasks like cleanup jobs or reports.
     config = {
         "name": "DailyCleanup",
         "type": "cron",
-        "cron": "0 0 * * *"  # Every day at midnight
+        "cron": "0 0 * * *"
     }
   
-    async def handler(context):
-        context.logger.info("Running daily cleanup")
-        # Do cleanup work here
+    async def handler(ctx):
+        ctx.logger.info("Running daily cleanup")
     ```
   </Tab>
 </Tabs>
 
-**Handler:** `handler(ctx)`
-
-- **`ctx`** - Context object (see below)
-
 **Config:**
 
-| Property | Required | Description |
-|----------|----------|-------------|
-| `name` | Yes | Unique identifier |
-| `type` | Yes | Set to `'cron'` |
-| `cron` | Yes | Cron expression (e.g., `'0 0 * * *'`) |
+| Property | Description |
+|----------|-------------|
+| `name` | Unique identifier |
+| `type` | Set to `'cron'` |
+| `cron` | Cron expression |
 
-Common cron expressions:
+**Handler:** `handler(ctx)`
 
-| Expression | Runs... |
-|------------|---------|
+- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+
+**Common schedules:**
+
+| Expression | Runs |
+|------------|------|
 | `* * * * *` | Every minute |
 | `0 * * * *` | Every hour |
-| `0 0 * * *` | Every day at midnight |
-| `0 9 * * 1` | Every Monday at 9 AM |
-| `*/15 * * * *` | Every 15 minutes |
+| `0 0 * * *` | Daily at midnight |
+| `0 9 * * 1` | Monday at 9 AM |
 
-👉 Use [crontab.guru](https://crontab.guru) to build cron expressions.
+👉 Use [crontab.guru](https://crontab.guru) to build expressions.
+
+</Tab>
+</Tabs>
 
 ---
 
