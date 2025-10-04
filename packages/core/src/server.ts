@@ -190,7 +190,15 @@ export const createServer = (
         }
 
         res.status(result.status)
-        res.json(result.body)
+
+        // Handle different body types
+        if (Buffer.isBuffer(result.body)) {
+          res.send(result.body)
+        } else if (typeof result.body === 'string') {
+          res.send(result.body)
+        } else {
+          res.json(result.body)
+        }
       } catch (error) {
         trackEvent('api_call_error', {
           stepName,
