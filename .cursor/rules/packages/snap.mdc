@@ -1,0 +1,991 @@
+---
+description: Development guidelines for motia (snap) package focusing on CLI orchestration patterns and project management
+globs: packages/snap/**/*.ts,packages/snap/**/*.js,packages/snap/src/create/templates/**/*
+alwaysApply: false
+---
+
+# Snap Package Development Guide
+
+## Overview
+
+The `motia` (snap) package serves as the CLI orchestrator for the entire Motia framework, providing command-line tools for project creation, development, building, and deployment. It integrates all other Motia packages and provides the primary developer interface for managing Motia applications.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - All @motiadev/* packages (orchestrator role)
+  - Node.js built-in modules
+  - CLI-specific libraries (commander, inquirer, etc.)
+  - Build tools and utilities
+  - Third-party Node.js libraries
+- **Prohibited imports**: 
+  - Browser-specific APIs (DOM, window, localStorage)
+  - React components (except for template generation)
+  - Frontend-specific libraries
+
+### Package Responsibility
+The snap package provides:
+- CLI commands and orchestration
+- Project creation and templating
+- Development server management
+- Build and deployment pipelines
+- File watching and hot reloading
+- Integration between all Motia packages
+- Developer experience tools
+- Cloud deployment management
+
+## Architecture Patterns
+
+### Core Principles
+1. **CLI-First Design**: Provide intuitive command-line interfaces
+2. **Orchestration Layer**: Coordinate between all Motia packages
+3. **Developer Experience**: Focus on smooth developer workflows
+4. **Template System**: Provide flexible project templating
+5. **Build Pipeline**: Efficient building and deployment processes
+
+### CLI Architecture Pattern
+
+#### Command Structure
+```typescript
+import { program } from 'commander'
+import { CliContext, createCliContext } from './config-utils'
+
+// Base CLI setup
+export const setupCLI = () => {
+  program
+    .name('motia')
+    .description('A Modern Unified Backend Framework')
+    .version(version)
+
+  // Development commands
+  program
+    .command('dev')
+    .description('Start development server')
+    .option('-p, --port <port>', 'Port to run on', '3000')
+    .option('-H, --hostname <hostname>', 'Hostname to bind to', 'localhost')
+    .option('--disable-verbose', 'Disable verbose logging')
+    .option('--enable-mermaid', 'Enable mermaid diagram generation')
+    .action(async (options) => {
+      const context = createCliContext()
+      await runDevServer(options, context)
+    })
+
+  // Project creation commands
+  program
+    .command('create <project-name>')
+    .description('Create a new Motia project')
+    .option('-t, --template <template>', 'Project template', 'typescript')
+    .option('-y, --yes', 'Skip interactive prompts')
+    .action(async (projectName, options) => {
+      const context = createCliContext()
+      await createProject(projectName, options, context)
+    })
+
+  // Build commands
+  program
+    .command('build')
+    .description('Build project for production')
+    .option('-o, --output <dir>', 'Output directory', 'dist')
+    .option('--target <target>', 'Build target', 'serverless')
+    .action(async (options) => {
+      const context = createCliContext()
+      await buildProject(options, context)
+    })
+
+  // Cloud commands
+  const cloudCmd = program
+    .command('cloud')
+    .description('Cloud deployment commands')
+
+  cloudCmd
+    .command('deploy')
+    .description('Deploy to Motia Cloud')
+    .option('-e, --env <environment>', 'Environment to deploy to', 'production')
+    .action(async (options) => {
+      const context = createCliContext()
+      await deployToCloud(options, context)
+    })
+
+  return program
+}
+```
+
+#### CLI Context Pattern
+```typescript
+import { Logger } from '@motiadev/core'
+import { EventEmitter } from 'events'
+
+export interface CliContext {
+  logger: Logger
+  analytics: AnalyticsClient
+  projectRoot: string
+  configPath: string
+  
+  // Logging methods
+  log: (type: string, formatter: (message: LogMessage) => LogMessage) => void
+  info: (message: string) => void
+  warn: (message: string) => void
+  error: (message: string) => void
+  success: (message: string) => void
+  
+  // Progress tracking
+  startProgress: (message: string) => ProgressTracker
+  updateProgress: (tracker: ProgressTracker, message: string) => void
+  completeProgress: (tracker: ProgressTracker, message: string) => void
+  
+  // File operations
+  readConfig: () => Promise<MotiaConfig>
+  writeConfig: (config: MotiaConfig) => Promise<void>
+  ensureDirectory: (dir: string) => void
+  
+  // Analytics
+  track: (event: string, properties?: Record<string, any>) => void
+}
+
+export const createCliContext = (): CliContext => {
+  const projectRoot = process.cwd()
+  const configPath = path.join(projectRoot, 'motia-workbench.json')
+  const logger = createLogger('motia-cli')
+
+  return {
+    logger,
+    analytics: createAnalyticsClient(),
+    projectRoot,
+    configPath,
+    
+    log: (type, formatter) => {
+      const message = formatter(new LogMessage())
+      logger[message.level](message.content)
+    },
+    
+    info: (message) => logger.info(message),
+    warn: (message) => logger.warn(message),
+    error: (message) => logger.error(message),
+    success: (message) => logger.info(`✅ ${message}`),
+    
+    startProgress: (message) => new ProgressTracker(message),
+    updateProgress: (tracker, message) => tracker.update(message),
+    completeProgress: (tracker, message) => tracker.complete(message),
+    
+    readConfig: async () => {
+      const configContent = await fs.promises.readFile(configPath, 'utf8')
+      return JSON.parse(configContent)
+    },
+    
+    writeConfig: async (config) => {
+      await fs.promises.writeFile(configPath, JSON.stringify(config, null, 2))
+    },
+    
+    ensureDirectory: (dir) => {
+      fs.mkdirSync(dir, { recursive: true })
+    },
+    
+    track: (event, properties) => {
+      trackEvent(event, properties)
+    },
+  }
+}
+```
+
+### Project Creation and Templating
+
+#### Template System Architecture
+```typescript
+import { CliContext } from '../config-utils'
+
+export interface ProjectTemplate {
+  name: string
+  description: string
+  language: 'typescript' | 'python' | 'mixed'
+  files: TemplateFile[]
+  postInstallSteps: PostInstallStep[]
+  dependencies: TemplateDependencies
+}
+
+export interface TemplateFile {
+  source: string
+  destination: string
+  transform?: (content: string, variables: TemplateVariables) => string
+  condition?: (variables: TemplateVariables) => boolean
+}
+
+export interface PostInstallStep {
+  name: string
+  command: string
+  condition?: (variables: TemplateVariables) => boolean
+  workingDirectory?: string
+}
+
+// Project creation orchestrator
+export const createProject = async (
+  projectName: string,
+  options: CreateProjectOptions,
+  context: CliContext
+): Promise<void> => {
+  context.info(`Creating new Motia project: ${projectName}`)
+  
+  const projectDir = path.join(process.cwd(), projectName)
+  context.ensureDirectory(projectDir)
+
+  // Get template
+  const template = await selectTemplate(options.template, context)
+  
+  // Gather template variables
+  const variables = await gatherTemplateVariables(template, options, context)
+  
+  // Create project structure
+  await createProjectStructure(projectDir, template, variables, context)
+  
+  // Install dependencies
+  await installDependencies(projectDir, template, context)
+  
+  // Run post-install steps
+  await runPostInstallSteps(projectDir, template, variables, context)
+  
+  // Initialize development environment
+  await initializeDevEnvironment(projectDir, context)
+  
+  context.success(`Project ${projectName} created successfully!`)
+  context.info(`Next steps:`)
+  context.info(`  cd ${projectName}`)
+  context.info(`  motia dev`)
+}
+
+// Template processing
+export const processTemplate = (
+  content: string,
+  variables: TemplateVariables
+): string => {
+  let processed = content
+
+  // Replace template variables
+  Object.entries(variables).forEach(([key, value]) => {
+    const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g')
+    processed = processed.replace(regex, String(value))
+  })
+
+  // Handle conditional blocks
+  processed = processConditionalBlocks(processed, variables)
+  
+  return processed
+}
+
+const processConditionalBlocks = (
+  content: string,
+  variables: TemplateVariables
+): string => {
+  const conditionalRegex = /{{#if\s+(\w+)}}([\s\S]*?){{\/if}}/g
+  
+  return content.replace(conditionalRegex, (match, condition, block) => {
+    return variables[condition] ? block : ''
+  })
+}
+```
+
+#### Step Generation System
+```typescript
+// Step creation orchestrator
+export const createStep = async (
+  stepType: 'api' | 'event' | 'cron' | 'noop',
+  options: CreateStepOptions,
+  context: CliContext
+): Promise<void> => {
+  context.info(`Creating new ${stepType} step`)
+
+  // Get step template
+  const template = getStepTemplate(stepType, options.language)
+  
+  // Gather step configuration
+  const stepConfig = await gatherStepConfiguration(stepType, options, context)
+  
+  // Generate step files
+  const stepFiles = generateStepFiles(template, stepConfig, context)
+  
+  // Create step directory structure
+  await createStepStructure(stepFiles, context)
+  
+  // Update project configuration
+  await updateProjectConfig(stepConfig, context)
+  
+  // Generate types
+  await generateTypes(context.projectRoot)
+  
+  context.success(`${stepType} step created: ${stepConfig.name}`)
+}
+
+// Step template processing
+interface StepTemplate {
+  handlerTemplate: string
+  configTemplate: string
+  testTemplate?: string
+  uiTemplate?: string
+}
+
+const generateStepFiles = (
+  template: StepTemplate,
+  config: StepConfiguration,
+  context: CliContext
+): GeneratedFile[] => {
+  const files: GeneratedFile[] = []
+
+  // Generate handler file
+  files.push({
+    path: path.join('steps', config.flow, `${config.name}.step.${config.language}`),
+    content: processTemplate(template.handlerTemplate, {
+      stepName: config.name,
+      stepType: config.type,
+      description: config.description,
+      ...config.variables,
+    }),
+  })
+
+  // Generate test file if template exists
+  if (template.testTemplate) {
+    files.push({
+      path: path.join('steps', config.flow, `${config.name}.step.test.${config.language}`),
+      content: processTemplate(template.testTemplate, config.variables),
+    })
+  }
+
+  // Generate UI override if requested
+  if (config.generateUI && template.uiTemplate) {
+    files.push({
+      path: path.join('steps', config.flow, `${config.name}.step.tsx`),
+      content: processTemplate(template.uiTemplate, config.variables),
+    })
+  }
+
+  return files
+}
+```
+
+### Development Server Orchestration
+
+#### Dev Server Pattern
+```typescript
+import { createServer, createEventManager, createStateAdapter } from '@motiadev/core'
+import { createDevWatchers } from './dev-watchers'
+import { workbenchBase } from './constants'
+
+export const runDevServer = async (
+  options: DevServerOptions,
+  context: CliContext
+): Promise<void> => {
+  context.info('Starting Motia development server...')
+
+  // Initialize core components
+  const eventManager = createEventManager()
+  const stateAdapter = createStateAdapter({ adapter: 'default' })
+  
+  // Generate locked data from project files
+  const lockedData = await generateLockedData(context.projectRoot)
+  
+  // Create server with all integrations
+  const server = createServer(lockedData, eventManager, stateAdapter, {
+    port: options.port,
+    hostname: options.hostname,
+    isVerbose: !options.disableVerbose,
+    enableMermaid: options.enableMermaid,
+  })
+
+  // Setup file watchers for hot reloading
+  const watchers = createDevWatchers(context.projectRoot, {
+    onStepChange: async (filePath) => {
+      context.info(`Step changed: ${filePath}`)
+      await reloadStep(filePath, server, context)
+    },
+    onConfigChange: async () => {
+      context.info('Configuration changed, restarting server...')
+      await restartServer(server, options, context)
+    },
+  })
+
+  // Setup workbench integration
+  if (workbenchBase) {
+    await setupWorkbench(server, context)
+  }
+
+  // Handle graceful shutdown
+  process.on('SIGINT', async () => {
+    context.info('Shutting down development server...')
+    await gracefulShutdown(server, watchers, context)
+  })
+
+  context.success(`Development server running on http://${options.hostname}:${options.port}`)
+  
+  if (workbenchBase) {
+    context.info(`Workbench available at http://${options.hostname}:${options.port}/workbench`)
+  }
+}
+
+// Hot reloading orchestration
+const reloadStep = async (
+  filePath: string,
+  server: MotiaServer,
+  context: CliContext
+): Promise<void> => {
+  try {
+    // Regenerate locked data
+    const lockedData = await generateLockedData(context.projectRoot)
+    
+    // Update server configuration
+    await updateServerConfig(server, lockedData)
+    
+    // Regenerate types
+    await generateTypes(context.projectRoot)
+    
+    context.info(`Step reloaded: ${path.basename(filePath)}`)
+  } catch (error) {
+    context.error(`Failed to reload step: ${error.message}`)
+  }
+}
+```
+
+### Build System Orchestration
+
+#### Build Pipeline Pattern
+```typescript
+import { BuildConfig, BuildTarget } from './types'
+
+export class BuildOrchestrator {
+  constructor(
+    private context: CliContext,
+    private config: BuildConfig
+  ) {}
+
+  async build(): Promise<BuildResult> {
+    const startTime = Date.now()
+    
+    try {
+      // Validate project
+      await this.validateProject()
+      
+      // Clean build directory
+      await this.cleanBuildDirectory()
+      
+      // Build steps
+      const buildSteps = [
+        () => this.generateTypes(),
+        () => this.buildSteps(),
+        () => this.processAssets(),
+        () => this.generateManifest(),
+        () => this.optimizeBuild(),
+      ]
+
+      for (const step of buildSteps) {
+        await step()
+      }
+
+      const duration = Date.now() - startTime
+      
+      this.context.success(`Build completed in ${duration}ms`)
+      
+      return {
+        success: true,
+        duration,
+        outputPath: this.config.outputDir,
+        artifacts: await this.listArtifacts(),
+      }
+      
+    } catch (error) {
+      this.context.error(`Build failed: ${error.message}`)
+      
+      return {
+        success: false,
+        error: error.message,
+        duration: Date.now() - startTime,
+      }
+    }
+  }
+
+  private async validateProject(): Promise<void> {
+    const progress = this.context.startProgress('Validating project...')
+    
+    // Check required files
+    const requiredFiles = ['motia-workbench.json', 'package.json']
+    for (const file of requiredFiles) {
+      if (!fs.existsSync(path.join(this.context.projectRoot, file))) {
+        throw new Error(`Required file missing: ${file}`)
+      }
+    }
+
+    // Validate step files
+    const stepFiles = await getStepFiles(this.context.projectRoot)
+    if (stepFiles.length === 0) {
+      throw new Error('No step files found')
+    }
+
+    // Validate dependencies
+    await this.validateDependencies()
+    
+    this.context.completeProgress(progress, 'Project validation complete')
+  }
+
+  private async buildSteps(): Promise<void> {
+    const progress = this.context.startProgress('Building steps...')
+    
+    const stepFiles = await getStepFiles(this.context.projectRoot)
+    const builders = this.createBuilders()
+
+    for (const stepFile of stepFiles) {
+      const builder = builders[stepFile.language]
+      if (!builder) {
+        throw new Error(`No builder found for language: ${stepFile.language}`)
+      }
+
+      await builder.build(stepFile, this.config)
+    }
+    
+    this.context.completeProgress(progress, `Built ${stepFiles.length} steps`)
+  }
+
+  private createBuilders(): Record<string, StepBuilder> {
+    return {
+      typescript: new TypeScriptStepBuilder(this.context),
+      javascript: new JavaScriptStepBuilder(this.context),
+      python: new PythonStepBuilder(this.context),
+      ruby: new RubyStepBuilder(this.context),
+    }
+  }
+}
+```
+
+### File Watching and Hot Reloading
+
+#### Watcher System Pattern
+```typescript
+import chokidar from 'chokidar'
+import { EventEmitter } from 'events'
+
+export interface WatcherOptions {
+  onStepChange: (filePath: string) => Promise<void>
+  onConfigChange: () => Promise<void>
+  onAssetChange: (filePath: string) => Promise<void>
+  debounceMs?: number
+}
+
+export class DevFileWatcher extends EventEmitter {
+  private watchers: chokidar.FSWatcher[] = []
+  private debounceTimers: Map<string, NodeJS.Timeout> = new Map()
+
+  constructor(
+    private projectRoot: string,
+    private options: WatcherOptions
+  ) {
+    super()
+    this.setupWatchers()
+  }
+
+  private setupWatchers(): void {
+    // Watch step files
+    const stepWatcher = chokidar.watch(
+      path.join(this.projectRoot, 'steps/**/*.{ts,js,py,rb}'),
+      { ignoreInitial: true }
+    )
+
+    stepWatcher.on('change', (filePath) => {
+      this.debounceHandler('step-change', filePath, () => {
+        this.options.onStepChange(filePath)
+      })
+    })
+
+    // Watch configuration files
+    const configWatcher = chokidar.watch([
+      path.join(this.projectRoot, 'motia-workbench.json'),
+      path.join(this.projectRoot, 'package.json'),
+    ], { ignoreInitial: true })
+
+    configWatcher.on('change', () => {
+      this.debounceHandler('config-change', 'config', () => {
+        this.options.onConfigChange()
+      })
+    })
+
+    // Watch asset files
+    const assetWatcher = chokidar.watch(
+      path.join(this.projectRoot, 'assets/**/*'),
+      { ignoreInitial: true }
+    )
+
+    assetWatcher.on('change', (filePath) => {
+      this.debounceHandler('asset-change', filePath, () => {
+        this.options.onAssetChange(filePath)
+      })
+    })
+
+    this.watchers = [stepWatcher, configWatcher, assetWatcher]
+  }
+
+  private debounceHandler(
+    type: string,
+    key: string,
+    handler: () => Promise<void>
+  ): void {
+    const debounceKey = `${type}-${key}`
+    
+    // Clear existing timer
+    const existingTimer = this.debounceTimers.get(debounceKey)
+    if (existingTimer) {
+      clearTimeout(existingTimer)
+    }
+
+    // Set new timer
+    const timer = setTimeout(async () => {
+      try {
+        await handler()
+        this.emit('change-processed', { type, key })
+      } catch (error) {
+        this.emit('change-error', { type, key, error })
+      } finally {
+        this.debounceTimers.delete(debounceKey)
+      }
+    }, this.options.debounceMs || 300)
+
+    this.debounceTimers.set(debounceKey, timer)
+  }
+
+  close(): void {
+    this.watchers.forEach(watcher => watcher.close())
+    this.debounceTimers.forEach(timer => clearTimeout(timer))
+    this.debounceTimers.clear()
+  }
+}
+```
+
+### Cloud Deployment Orchestration
+
+#### Deployment Pipeline Pattern
+```typescript
+import { DeploymentConfig, DeploymentResult } from './types'
+
+export class CloudDeploymentOrchestrator {
+  constructor(
+    private context: CliContext,
+    private config: DeploymentConfig
+  ) {}
+
+  async deploy(): Promise<DeploymentResult> {
+    const deploymentId = this.generateDeploymentId()
+    
+    try {
+      this.context.info(`Starting deployment: ${deploymentId}`)
+      
+      // Deployment pipeline
+      const pipeline = [
+        () => this.validateDeployment(),
+        () => this.buildForProduction(),
+        () => this.uploadArtifacts(),
+        () => this.createDeployment(),
+        () => this.waitForDeployment(),
+        () => this.verifyDeployment(),
+      ]
+
+      for (const step of pipeline) {
+        await step()
+      }
+
+      this.context.success(`Deployment completed: ${deploymentId}`)
+      
+      return {
+        success: true,
+        deploymentId,
+        url: this.config.deploymentUrl,
+        duration: Date.now() - startTime,
+      }
+      
+    } catch (error) {
+      this.context.error(`Deployment failed: ${error.message}`)
+      
+      // Cleanup failed deployment
+      await this.cleanupFailedDeployment(deploymentId)
+      
+      return {
+        success: false,
+        deploymentId,
+        error: error.message,
+      }
+    }
+  }
+
+  private async buildForProduction(): Promise<void> {
+    const progress = this.context.startProgress('Building for production...')
+    
+    const buildOrchestrator = new BuildOrchestrator(this.context, {
+      target: 'serverless',
+      optimize: true,
+      outputDir: path.join(this.context.projectRoot, '.motia', 'build'),
+    })
+
+    const result = await buildOrchestrator.build()
+    
+    if (!result.success) {
+      throw new Error(`Build failed: ${result.error}`)
+    }
+    
+    this.context.completeProgress(progress, 'Production build complete')
+  }
+
+  private async uploadArtifacts(): Promise<void> {
+    const progress = this.context.startProgress('Uploading artifacts...')
+    
+    const artifactUploader = new ArtifactUploader(this.context, this.config)
+    
+    await artifactUploader.upload({
+      onProgress: (uploaded, total) => {
+        this.context.updateProgress(progress, `Uploading... ${uploaded}/${total}`)
+      }
+    })
+    
+    this.context.completeProgress(progress, 'Artifacts uploaded')
+  }
+}
+```
+
+## File Structure Guidelines
+
+### Directory Organization
+```
+packages/snap/src/
+├── cloud/                     # Cloud deployment functionality
+│   ├── cli/                  # Cloud CLI commands
+│   ├── build/                # Cloud build system
+│   └── new-deployment/       # Deployment orchestration
+├── create/                   # Project creation
+│   ├── templates/           # Project templates
+│   └── interactive.ts       # Interactive prompts
+├── create-step/             # Step generation
+│   └── templates/           # Step templates
+├── dev/                     # Development server
+├── docker/                  # Docker integration
+├── utils/                   # Shared utilities
+└── cursor-rules/           # Cursor IDE rules
+```
+
+### Naming Conventions
+- **Commands**: Use kebab-case (`create-step`, `dev-server`)
+- **Files**: Use kebab-case (`build-orchestrator.ts`)
+- **Classes**: Use PascalCase (`BuildOrchestrator`, `DeploymentManager`)
+- **Functions**: Use camelCase (`createProject`, `deployToCloud`)
+- **Constants**: Use UPPER_SNAKE_CASE (`BUILD_TIMEOUT`, `MAX_RETRIES`)
+
+## Testing Best Practices
+
+### CLI Testing Strategy
+```typescript
+import { execSync } from 'child_process'
+import { tmpdir } from 'os'
+import { join } from 'path'
+
+describe('Motia CLI', () => {
+  let testDir: string
+
+  beforeEach(() => {
+    testDir = join(tmpdir(), `motia-test-${Date.now()}`)
+    fs.mkdirSync(testDir, { recursive: true })
+  })
+
+  afterEach(() => {
+    fs.rmSync(testDir, { recursive: true, force: true })
+  })
+
+  it('should create new project', () => {
+    const result = execSync(
+      `node ${cliPath} create test-project --template typescript --yes`,
+      { 
+        cwd: testDir,
+        encoding: 'utf8',
+        timeout: 30000,
+      }
+    )
+
+    expect(result).toContain('Project test-project created successfully')
+    expect(fs.existsSync(join(testDir, 'test-project', 'package.json'))).toBe(true)
+    expect(fs.existsSync(join(testDir, 'test-project', 'motia-workbench.json'))).toBe(true)
+  })
+
+  it('should generate step files', () => {
+    // First create a project
+    execSync(`node ${cliPath} create test-project --yes`, { cwd: testDir })
+    
+    const projectDir = join(testDir, 'test-project')
+    
+    // Generate a step
+    const result = execSync(
+      `node ${cliPath} create-step api --name test-api --yes`,
+      { 
+        cwd: projectDir,
+        encoding: 'utf8',
+      }
+    )
+
+    expect(result).toContain('api step created: test-api')
+    expect(fs.existsSync(join(projectDir, 'steps', 'test-api.step.ts'))).toBe(true)
+  })
+})
+
+// Integration testing with real server
+describe('Dev Server Integration', () => {
+  it('should start development server', async () => {
+    const port = await getAvailablePort()
+    
+    const serverProcess = spawn('node', [cliPath, 'dev', '--port', port.toString()], {
+      cwd: testProjectDir,
+      stdio: 'pipe',
+    })
+
+    // Wait for server to start
+    await waitForServer(`http://localhost:${port}`)
+    
+    // Test API endpoints
+    const response = await fetch(`http://localhost:${port}/api/health`)
+    expect(response.ok).toBe(true)
+    
+    // Cleanup
+    serverProcess.kill()
+  })
+})
+```
+
+### Template Testing
+```typescript
+// Template validation testing
+describe('Template System', () => {
+  it('should process template variables correctly', () => {
+    const template = 'Hello {{name}}, your project is {{projectType}}'
+    const variables = { name: 'Developer', projectType: 'API' }
+    
+    const result = processTemplate(template, variables)
+    
+    expect(result).toBe('Hello Developer, your project is API')
+  })
+
+  it('should handle conditional blocks', () => {
+    const template = `
+      Basic content
+      {{#if includeTests}}
+      Test content
+      {{/if}}
+    `
+    
+    const withTests = processTemplate(template, { includeTests: true })
+    const withoutTests = processTemplate(template, { includeTests: false })
+    
+    expect(withTests).toContain('Test content')
+    expect(withoutTests).not.toContain('Test content')
+  })
+
+  it('should validate all project templates', async () => {
+    const templates = await getAvailableTemplates()
+    
+    for (const template of templates) {
+      const tempDir = await createTempDirectory()
+      
+      try {
+        await createProjectFromTemplate(template, tempDir, {
+          projectName: 'test-project',
+          skipInstall: true,
+        })
+        
+        // Validate generated files
+        expect(fs.existsSync(join(tempDir, 'package.json'))).toBe(true)
+        expect(fs.existsSync(join(tempDir, 'motia-workbench.json'))).toBe(true)
+        
+        // Validate package.json structure
+        const packageJson = JSON.parse(
+          fs.readFileSync(join(tempDir, 'package.json'), 'utf8')
+        )
+        expect(packageJson.dependencies).toHaveProperty('motia')
+        
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  })
+})
+```
+
+## Performance Considerations
+
+### CLI Performance Optimization
+```typescript
+// Lazy loading for CLI commands
+export const setupLazyCLI = () => {
+  program
+    .command('dev')
+    .description('Start development server')
+    .action(async (...args) => {
+      const { runDevServer } = await import('./dev')
+      return runDevServer(...args)
+    })
+
+  program
+    .command('build')
+    .description('Build project')
+    .action(async (...args) => {
+      const { buildProject } = await import('./build')
+      return buildProject(...args)
+    })
+
+  program
+    .command('deploy')
+    .description('Deploy to cloud')
+    .action(async (...args) => {
+      const { deployToCloud } = await import('./cloud/deploy')
+      return deployToCloud(...args)
+    })
+}
+
+// Parallel processing for build operations
+export const parallelBuildSteps = async (
+  stepFiles: StepFile[],
+  builders: Record<string, StepBuilder>
+): Promise<BuildResult[]> => {
+  const buildPromises = stepFiles.map(async (stepFile) => {
+    const builder = builders[stepFile.language]
+    return builder.build(stepFile)
+  })
+
+  return Promise.all(buildPromises)
+}
+```
+
+## Integration Guidelines
+
+### Package Integration
+- Orchestrates all @motiadev/* packages
+- Provides unified CLI interface for the entire ecosystem
+- Manages project lifecycle from creation to deployment
+- Integrates development tools and build systems
+
+### Dependency Management
+```typescript
+// Dynamic dependency management
+export const ensureDependencies = async (
+  projectDir: string,
+  dependencies: string[],
+  context: CliContext
+): Promise<void> => {
+  const packageManager = detectPackageManager(projectDir)
+  
+  const installCommand = {
+    npm: 'npm install',
+    yarn: 'yarn add',
+    pnpm: 'pnpm add',
+  }[packageManager]
+
+  for (const dep of dependencies) {
+    if (!isDependencyInstalled(projectDir, dep)) {
+      context.info(`Installing missing dependency: ${dep}`)
+      await executeCommand(`${installCommand} ${dep}`, { cwd: projectDir })
+    }
+  }
+}
+```
+
+### Best Practices
+1. **Command Separation**: Keep commands focused and composable
+2. **Error Handling**: Provide clear error messages and recovery suggestions
+3. **Progress Feedback**: Show progress for long-running operations
+4. **Graceful Shutdown**: Handle process signals properly
+5. **Resource Cleanup**: Clean up temporary files and processes

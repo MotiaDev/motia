@@ -1,0 +1,1565 @@
+---
+description: Development guidelines for @motiadev/core package focusing on event-driven architecture and foundational patterns
+globs: packages/core/**/*.ts,packages/core/**/*.js,packages/core/**/*.py,packages/core/**/*.rb
+alwaysApply: false
+---
+
+# Core Package Development Guide
+
+## Overview
+
+The `@motiadev/core` package provides the foundational functionality for the Motia framework, implementing event-driven architecture, multi-language support, state management, and core infrastructure components. This package serves as the base layer that all other packages depend on.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - Standard Node.js modules (`fs`, `http`, `path`, etc.)
+  - Third-party npm packages (as defined in package.json dependencies)
+  - Internal core package modules (relative imports within `packages/core/src/`)
+- **Prohibited imports**: 
+  - All other `@motiadev/*` packages (workbench, ui, stream-client-*, snap, etc.)
+  - Any imports from `packages/` directory outside of `packages/core/`
+  - Workspace dependencies using `workspace:*` protocol to other Motia packages
+
+### Domain Boundary Enforcement
+
+#### Validation Rules
+1. **Import Statement Analysis**: All import statements must be validated
+2. **No Cross-Package Dependencies**: Core cannot depend on any other Motia package
+3. **Dependency Injection**: If core needs functionality from other packages, use dependency injection patterns
+4. **Interface Definitions**: Define interfaces that other packages can implement
+
+#### Prohibited Import Patterns
+```typescript
+// ❌ FORBIDDEN: Direct imports from other Motia packages
+import { WorkbenchComponent } from '@motiadev/workbench'
+import { StreamClient } from '@motiadev/stream-client'
+import { UIComponent } from '@motiadev/ui'
+import { SnapCommand } from 'motia'
+
+// ❌ FORBIDDEN: Workspace relative imports to other packages
+import { something } from '../workbench/src/component'
+import { helper } from '../../ui/src/utils'
+```
+
+#### Allowed Import Patterns
+```typescript
+// ✅ ALLOWED: Standard Node.js modules
+import { readFile } from 'fs/promises'
+import { createServer } from 'http'
+import { join } from 'path'
+
+// ✅ ALLOWED: Third-party dependencies
+import express from 'express'
+import { z } from 'zod'
+import cors from 'cors'
+
+// ✅ ALLOWED: Internal core package imports
+import { EventManager } from './types'
+import { createStateAdapter } from './state/create-state-adapter'
+import { Logger } from './logger'
+```
+
+#### Dependency Injection Pattern
+When core needs to work with external functionality, use dependency injection:
+
+```typescript
+// ✅ GOOD: Accept dependencies as parameters
+export function createServer(
+  lockedData: LockedData,
+  eventManager: EventManager,
+  stateAdapter: StateAdapter,
+  config: ServerConfig
+) {
+  // Core functionality that works with injected dependencies
+}
+
+// ✅ GOOD: Define interfaces for external implementations
+export interface StreamAdapter {
+  emit(event: StreamEvent): Promise<void>
+  subscribe(handler: StreamHandler): void
+}
+
+// Let other packages implement the interface
+export function setupStreaming(adapter: StreamAdapter) {
+  // Core streaming logic using the adapter
+}
+```
+
+### Package Responsibility
+The core package provides fundamental building blocks including:
+- Event management system (pub/sub architecture)
+- State management with multiple adapter support
+- Multi-language runtime support (TypeScript, Python, Ruby)
+- HTTP server infrastructure
+- Logging and observability
+- Step execution framework
+- Cron job scheduling
+
+### Architectural Isolation
+Core package must remain architecturally isolated to:
+1. **Prevent Circular Dependencies**: Avoid circular imports between packages
+2. **Ensure Stability**: Core changes don't break due to other package changes
+3. **Enable Independent Testing**: Core can be tested without other packages
+4. **Support Modularity**: Other packages can be added/removed without affecting core
+5. **Maintain Single Responsibility**: Core focuses only on foundational concerns
+
+## Architecture Patterns
+
+### Core Principles
+1. **Event-Driven Architecture**: All communication follows pub/sub patterns through the EventManager
+2. **Language Agnostic**: Support TypeScript, Python, and Ruby with consistent APIs
+3. **Adapter Pattern**: Use adapters for state management and streams to allow different implementations
+4. **Factory Pattern**: Create instances through factory functions for consistent initialization
+5. **RPC Communication**: Multi-language support through RPC interfaces
+
+### Event-Driven Architecture Patterns
+
+#### Event Manager Implementation
+```typescript
+import { createEventManager } from '@motiadev/core'
+
+const eventManager = createEventManager()
+
+// Subscribe to events
+eventManager.subscribe({
+  event: 'user.created',
+  handlerName: 'sendWelcomeEmail',
+  filePath: '/path/to/handler.ts',
+  handler: async (event) => {
+    // Handle the event
+  },
+})
+
+// Emit events
+eventManager.emit({
+  topic: 'user.created',
+  data: { userId: '123' },
+  traceId: 'trace-123',
+  logger: logger,
+})
+```
+
+#### Step Handler Pattern
+```typescript
+import { createStepHandlers } from '@motiadev/core'
+
+const stepHandlers = createStepHandlers(motia)
+// Automatically subscribes to events based on step configurations
+```
+
+### State Management Patterns
+
+#### Adapter Pattern for State
+```typescript
+import { createStateAdapter } from '@motiadev/core'
+
+// File-based state adapter (default)
+const fileState = createStateAdapter({
+  adapter: 'default',
+  filePath: './state.json'
+})
+
+// Memory-based state adapter
+const memoryState = createStateAdapter({
+  adapter: 'memory'
+})
+
+// Usage in handlers
+await state.set('orders', 'order-123', orderData)
+const order = await state.get('orders', 'order-123')
+const allOrders = await state.getGroup('orders')
+```
+
+#### State Interface Implementation
+All state adapters must implement the `StateAdapter` interface:
+```typescript
+interface StateAdapter extends InternalStateManager {
+  clear(traceId: string): Promise<void>
+  cleanup(): Promise<void>
+  keys(traceId: string): Promise<string[]>
+  traceIds(): Promise<string[]>
+  items(input: StateItemsInput): Promise<StateItem[]>
+}
+```
+
+## Service and Repository Patterns
+
+The core package should provide foundational patterns for implementing Domain-Driven Design (DDD) principles in Motia applications. While core doesn't implement business logic directly, it provides the infrastructure for services and repositories.
+
+### Service Layer Pattern
+
+Services contain business logic and orchestrate operations between different domain entities. In the context of core, services should be designed to work with the event system and state management.
+
+#### Service Structure Guidelines
+```typescript
+// Core service interface pattern
+export interface ServiceContext {
+  state: InternalStateManager
+  logger: Logger
+  eventManager: EventManager
+  traceId: string
+}
+
+// Base service pattern
+export abstract class BaseService {
+  constructor(protected context: ServiceContext) {}
+  
+  protected async logOperation(operation: string, data?: any) {
+    this.context.logger.info(`Service operation: ${operation}`, data)
+  }
+  
+  protected async emitEvent(topic: string, data: any) {
+    await this.context.eventManager.emit({
+      topic,
+      data,
+      traceId: this.context.traceId,
+      logger: this.context.logger,
+      tracer: {} as Tracer // Provided by implementation
+    })
+  }
+}
+```
+
+#### Service Implementation Pattern
+```typescript
+// Example service following core patterns
+export class OrderService extends BaseService {
+  async createOrder(orderData: CreateOrderInput): Promise<Order> {
+    await this.logOperation('createOrder', { orderId: orderData.id })
+    
+    // Business logic
+    const order = {
+      ...orderData,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    }
+    
+    // Persist using state management
+    await this.context.state.set('orders', order.id, order)
+    
+    // Emit domain event
+    await this.emitEvent('order.created', order)
+    
+    return order
+  }
+  
+  async processOrder(orderId: string): Promise<void> {
+    const order = await this.context.state.get<Order>('orders', orderId)
+    if (!order) {
+      throw new Error(`Order ${orderId} not found`)
+    }
+    
+    // Business logic for processing
+    order.status = 'processing'
+    await this.context.state.set('orders', orderId, order)
+    
+    await this.emitEvent('order.processing', { orderId })
+  }
+}
+```
+
+### Repository Layer Pattern
+
+Repositories handle data access and persistence logic. In core, repositories should abstract over different storage mechanisms using the adapter pattern.
+
+#### Repository Interface Pattern
+```typescript
+// Generic repository interface
+export interface Repository<T, K = string> {
+  findById(id: K): Promise<T | null>
+  findAll(): Promise<T[]>
+  save(entity: T): Promise<T>
+  delete(id: K): Promise<boolean>
+  exists(id: K): Promise<boolean>
+}
+
+// State-based repository implementation
+export abstract class StateRepository<T, K = string> implements Repository<T, K> {
+  constructor(
+    protected state: InternalStateManager,
+    protected groupId: string
+  ) {}
+  
+  async findById(id: K): Promise<T | null> {
+    return await this.state.get<T>(this.groupId, String(id))
+  }
+  
+  async findAll(): Promise<T[]> {
+    return await this.state.getGroup<T>(this.groupId)
+  }
+  
+  async save(entity: T & { id: K }): Promise<T> {
+    await this.state.set(this.groupId, String(entity.id), entity)
+    return entity
+  }
+  
+  async delete(id: K): Promise<boolean> {
+    const deleted = await this.state.delete(this.groupId, String(id))
+    return deleted !== null
+  }
+  
+  async exists(id: K): Promise<boolean> {
+    const entity = await this.findById(id)
+    return entity !== null
+  }
+}
+```
+
+#### Repository Implementation Example
+```typescript
+// Concrete repository implementation
+export interface Order {
+  id: string
+  customerId: string
+  status: 'pending' | 'processing' | 'completed' | 'cancelled'
+  items: OrderItem[]
+  total: number
+  createdAt: string
+}
+
+export class OrderRepository extends StateRepository<Order> {
+  constructor(state: InternalStateManager) {
+    super(state, 'orders')
+  }
+  
+  // Domain-specific query methods
+  async findByCustomerId(customerId: string): Promise<Order[]> {
+    const allOrders = await this.findAll()
+    return allOrders.filter(order => order.customerId === customerId)
+  }
+  
+  async findByStatus(status: Order['status']): Promise<Order[]> {
+    const allOrders = await this.findAll()
+    return allOrders.filter(order => order.status === status)
+  }
+  
+  async updateStatus(orderId: string, status: Order['status']): Promise<Order | null> {
+    const order = await this.findById(orderId)
+    if (!order) return null
+    
+    order.status = status
+    return await this.save(order)
+  }
+}
+```
+
+### Service-Repository Integration
+
+#### Dependency Injection Pattern
+```typescript
+// Service factory pattern
+export interface ServiceDependencies {
+  state: InternalStateManager
+  logger: Logger
+  eventManager: EventManager
+  traceId: string
+}
+
+export function createOrderService(deps: ServiceDependencies) {
+  const orderRepository = new OrderRepository(deps.state)
+  
+  return {
+    async createOrder(data: CreateOrderInput): Promise<Order> {
+      const service = new OrderService(deps)
+      return await service.createOrder(data)
+    },
+    
+    async getOrder(orderId: string): Promise<Order | null> {
+      return await orderRepository.findById(orderId)
+    },
+    
+    async getOrdersByCustomer(customerId: string): Promise<Order[]> {
+      return await orderRepository.findByCustomerId(customerId)
+    }
+  }
+}
+```
+
+#### Usage in Step Handlers
+```typescript
+// Using services in step handlers
+export const handler: EventHandler<CreateOrderInput, OrderEvents> = async (input, ctx) => {
+  const orderService = createOrderService({
+    state: ctx.state,
+    logger: ctx.logger,
+    eventManager: eventManager, // Injected dependency
+    traceId: ctx.traceId
+  })
+  
+  try {
+    const order = await orderService.createOrder(input)
+    ctx.logger.info('Order created successfully', { orderId: order.id })
+  } catch (error) {
+    ctx.logger.error('Failed to create order', { error: error.message })
+    throw error
+  }
+}
+```
+
+### Best Practices for Core Package
+
+#### Service Guidelines
+1. **Single Responsibility**: Each service should handle one domain area
+2. **Dependency Injection**: Accept dependencies through constructor or factory
+3. **Event Integration**: Use EventManager for domain events
+4. **State Management**: Leverage core's state management for persistence
+5. **Error Handling**: Proper logging and error propagation
+6. **Async/Await**: Use modern async patterns consistently
+
+#### Repository Guidelines
+1. **Abstract Data Access**: Hide implementation details behind interfaces
+2. **Generic Patterns**: Use generic types for reusability
+3. **State Integration**: Build on core's state management infrastructure
+4. **Query Methods**: Provide domain-specific query methods
+5. **Transaction Support**: Consider transaction patterns for complex operations
+
+#### Integration with Core Infrastructure
+1. **Logger Integration**: Always use the provided logger for traceability
+2. **Event System**: Emit domain events through EventManager
+3. **State Management**: Use InternalStateManager for data persistence
+4. **Error Propagation**: Let errors bubble up with proper context
+5. **Type Safety**: Leverage TypeScript for compile-time safety
+
+## Middleware Implementation Standards
+
+The core package provides the foundational middleware system that enables cross-cutting concerns like authentication, logging, error handling, and request/response transformation. Middleware follows a composition pattern and supports both TypeScript/JavaScript and Python implementations.
+
+### Middleware Architecture
+
+#### Core Middleware Interface
+```typescript
+// TypeScript/JavaScript middleware signature
+export type ApiMiddleware<TBody = unknown, TEmitData = never, TResult = unknown> = (
+  req: ApiRequest<TBody>,
+  ctx: FlowContext<TEmitData>,
+  next: () => Promise<ApiResponse<number, TResult>>
+) => Promise<ApiResponse<number, TResult>>
+```
+
+#### Middleware Composition Pattern
+```typescript
+// Core middleware composition implementation
+export const composeMiddleware = (...middlewares: ApiMiddleware[]) => {
+  return async (req: ApiRequest, ctx: FlowContext, handler: () => Promise<ApiResponse>): Promise<ApiResponse> => {
+    const composedHandler = middlewares.reduceRight<() => Promise<ApiResponse>>(
+      (nextHandler, middleware) => () => middleware(req, ctx, nextHandler),
+      handler,
+    )
+    return composedHandler()
+  }
+}
+```
+
+### Middleware Implementation Patterns
+
+#### Error Handling Middleware
+```typescript
+// Core error handling middleware pattern
+import { ApiMiddleware } from '@motiadev/core'
+import { ZodError } from 'zod'
+
+export const coreErrorMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  const { logger } = ctx
+
+  try {
+    return await next()
+  } catch (error: any) {
+    // Handle validation errors
+    if (error instanceof ZodError) {
+      logger.warn('Validation error', {
+        errors: error.errors,
+        path: req.pathParams,
+        traceId: ctx.traceId
+      })
+
+      return {
+        status: 400,
+        body: {
+          error: 'Validation failed',
+          details: error.errors
+        }
+      }
+    }
+
+    // Handle application errors
+    if (error instanceof Error) {
+      logger.error('Application error', {
+        message: error.message,
+        stack: error.stack,
+        traceId: ctx.traceId
+      })
+    } else {
+      logger.error('Unknown error', { error, traceId: ctx.traceId })
+    }
+
+    return {
+      status: 500,
+      body: { error: 'Internal Server Error' }
+    }
+  }
+}
+```
+
+#### Request/Response Transformation Middleware
+```typescript
+// Request enrichment middleware
+export const requestEnrichmentMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  // Add request timestamp
+  req.body = {
+    ...req.body,
+    requestTimestamp: new Date().toISOString(),
+    traceId: ctx.traceId
+  }
+
+  const response = await next()
+
+  // Add response headers
+  return {
+    ...response,
+    headers: {
+      ...response.headers,
+      'X-Trace-ID': ctx.traceId,
+      'X-Response-Time': new Date().toISOString()
+    }
+  }
+}
+```
+
+#### Authentication Middleware
+```typescript
+// Authentication middleware pattern
+export const authenticationMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  const authHeader = req.headers.authorization
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    ctx.logger.warn('Missing or invalid authorization header', { traceId: ctx.traceId })
+    return {
+      status: 401,
+      body: { error: 'Authentication required' }
+    }
+  }
+
+  const token = authHeader.substring(7)
+  
+  try {
+    // Validate token (implementation depends on auth system)
+    const user = await validateToken(token)
+    
+    // Enrich context with user information
+    ;(ctx as any).user = user
+    
+    return await next()
+  } catch (error) {
+    ctx.logger.warn('Token validation failed', { error: error.message, traceId: ctx.traceId })
+    return {
+      status: 401,
+      body: { error: 'Invalid token' }
+    }
+  }
+}
+```
+
+### Multi-Language Middleware Support
+
+#### Python Middleware Implementation
+```python
+# Python middleware signature and composition
+from typing import Any, Callable, Dict
+from motia_context import Context
+
+async def error_handling_middleware(req: Dict[str, Any], context: Context, next_fn: Callable) -> Dict[str, Any]:
+    """Core error handling middleware for Python"""
+    try:
+        return await next_fn()
+    except ValidationError as error:
+        context.logger.warn('Validation error', {
+            'errors': error.errors(),
+            'trace_id': context.trace_id
+        })
+        
+        return {
+            'status': 400,
+            'body': {
+                'error': 'Validation failed',
+                'details': error.errors()
+            }
+        }
+    except Exception as error:
+        context.logger.error('Application error', {
+            'error': str(error),
+            'trace_id': context.trace_id
+        })
+        
+        return {
+            'status': 500,
+            'body': {'error': 'Internal Server Error'}
+        }
+
+# Python middleware composition
+def compose_middleware(*middlewares):
+    """Compose multiple middleware functions into a single middleware"""
+    def compose_two(f: Callable, g: Callable) -> Callable:
+        async def composed(data: Any, context: Context, next_fn: Callable):
+            async def wrapped_next(d=data):
+                return await g(d, context, next_fn)
+            return await f(data, context, wrapped_next)
+        return composed
+
+    if not middlewares:
+        return lambda data, context, next_fn: next_fn()
+    
+    return reduce(compose_two, middlewares)
+```
+
+### Middleware Configuration and Usage
+
+#### Step Configuration with Middleware
+```typescript
+// TypeScript step configuration
+import { ApiRouteConfig } from '@motiadev/core'
+import { coreErrorMiddleware } from '../middlewares/core-error.middleware'
+import { authenticationMiddleware } from '../middlewares/auth.middleware'
+
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'CreateOrder',
+  description: 'Create a new order',
+  path: '/orders',
+  method: 'POST',
+  middleware: [
+    coreErrorMiddleware,
+    authenticationMiddleware
+  ],
+  input: z.object({
+    customerId: z.string(),
+    items: z.array(orderItemSchema)
+  }),
+  emits: ['order.created'],
+  flows: ['order-processing']
+}
+```
+
+```python
+# Python step configuration
+from middlewares.error_handling import error_handling_middleware
+from middlewares.auth import authentication_middleware
+
+config = {
+    "type": "api",
+    "name": "CreateOrder",
+    "description": "Create a new order",
+    "path": "/orders",
+    "method": "POST",
+    "middleware": [
+        error_handling_middleware,
+        authentication_middleware
+    ],
+    "emits": ["order.created"],
+    "flows": ["order-processing"]
+}
+```
+
+### Middleware Best Practices
+
+#### Design Principles
+1. **Single Responsibility**: Each middleware should handle one cross-cutting concern
+2. **Composability**: Middleware should be easily composable and reusable
+3. **Order Independence**: Avoid dependencies between middleware when possible
+4. **Error Propagation**: Handle errors gracefully and provide meaningful responses
+5. **Performance**: Minimize overhead and avoid blocking operations
+
+#### Implementation Guidelines
+```typescript
+// ✅ Good: Focused middleware with clear responsibility
+export const loggingMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  const startTime = Date.now()
+  
+  ctx.logger.info('Request started', {
+    method: req.method,
+    path: req.path,
+    traceId: ctx.traceId
+  })
+  
+  const response = await next()
+  
+  ctx.logger.info('Request completed', {
+    status: response.status,
+    duration: Date.now() - startTime,
+    traceId: ctx.traceId
+  })
+  
+  return response
+}
+
+// ❌ Bad: Middleware doing too many things
+export const badMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  // Authentication
+  const token = req.headers.authorization
+  if (!token) return { status: 401, body: { error: 'Unauthorized' } }
+  
+  // Logging
+  console.log('Request received')
+  
+  // Validation
+  if (!req.body.id) return { status: 400, body: { error: 'Missing ID' } }
+  
+  // Rate limiting
+  if (await isRateLimited(req)) return { status: 429, body: { error: 'Rate limited' } }
+  
+  return await next()
+}
+```
+
+#### Error Handling Standards
+```typescript
+// Consistent error response format
+interface ErrorResponse {
+  error: string
+  code?: string
+  details?: any
+  traceId?: string
+}
+
+// Standard error middleware pattern
+export const standardErrorMiddleware: ApiMiddleware = async (req, ctx, next) => {
+  try {
+    return await next()
+  } catch (error) {
+    const errorResponse: ErrorResponse = {
+      error: 'Internal Server Error',
+      traceId: ctx.traceId
+    }
+
+    if (error instanceof ValidationError) {
+      errorResponse.error = 'Validation Error'
+      errorResponse.code = 'VALIDATION_FAILED'
+      errorResponse.details = error.errors
+      return { status: 400, body: errorResponse }
+    }
+
+    if (error instanceof AuthenticationError) {
+      errorResponse.error = 'Authentication Failed'
+      errorResponse.code = 'AUTH_FAILED'
+      return { status: 401, body: errorResponse }
+    }
+
+    // Log unexpected errors
+    ctx.logger.error('Unexpected error in middleware', {
+      error: error.message,
+      stack: error.stack,
+      traceId: ctx.traceId
+    })
+
+    return { status: 500, body: errorResponse }
+  }
+}
+```
+
+### Testing Middleware
+
+#### Unit Testing Pattern
+```typescript
+// Middleware testing pattern
+describe('coreErrorMiddleware', () => {
+  it('should handle validation errors', async () => {
+    const mockReq = { body: {}, headers: {}, pathParams: {}, queryParams: {} }
+    const mockCtx = { 
+      logger: { warn: jest.fn(), error: jest.fn() },
+      traceId: 'test-trace'
+    }
+    const mockNext = jest.fn().mockRejectedValue(new ZodError([]))
+
+    const result = await coreErrorMiddleware(mockReq, mockCtx, mockNext)
+
+    expect(result.status).toBe(400)
+    expect(result.body.error).toBe('Validation failed')
+    expect(mockCtx.logger.warn).toHaveBeenCalled()
+  })
+
+  it('should handle unexpected errors', async () => {
+    const mockReq = { body: {}, headers: {}, pathParams: {}, queryParams: {} }
+    const mockCtx = { 
+      logger: { warn: jest.fn(), error: jest.fn() },
+      traceId: 'test-trace'
+    }
+    const mockNext = jest.fn().mockRejectedValue(new Error('Unexpected error'))
+
+    const result = await coreErrorMiddleware(mockReq, mockCtx, mockNext)
+
+    expect(result.status).toBe(500)
+    expect(result.body.error).toBe('Internal Server Error')
+    expect(mockCtx.logger.error).toHaveBeenCalled()
+  })
+})
+```
+
+### Core Package Middleware Infrastructure
+
+#### Middleware Registration System
+```typescript
+// Core middleware registry pattern
+export class MiddlewareRegistry {
+  private middlewares: Map<string, ApiMiddleware> = new Map()
+
+  register(name: string, middleware: ApiMiddleware): void {
+    this.middlewares.set(name, middleware)
+  }
+
+  get(name: string): ApiMiddleware | undefined {
+    return this.middlewares.get(name)
+  }
+
+  compose(names: string[]): ApiMiddleware {
+    const middlewares = names
+      .map(name => this.get(name))
+      .filter((mw): mw is ApiMiddleware => mw !== undefined)
+    
+    return composeMiddleware(...middlewares)
+  }
+}
+
+// Global registry instance
+export const middlewareRegistry = new MiddlewareRegistry()
+
+// Register core middlewares
+middlewareRegistry.register('error', coreErrorMiddleware)
+middlewareRegistry.register('logging', loggingMiddleware)
+middlewareRegistry.register('auth', authenticationMiddleware)
+```
+
+## Multi-Language Support Guidelines
+
+The core package provides comprehensive multi-language support for TypeScript/JavaScript, Python, and Ruby. Each language maintains API consistency while following language-specific conventions and best practices.
+
+### TypeScript/JavaScript Patterns
+
+#### Core Principles
+- Use factory functions for creating core instances
+- Implement proper TypeScript types for all public APIs
+- Use async/await for all asynchronous operations
+- Follow functional programming patterns where possible
+- Leverage TypeScript's type system for compile-time safety
+
+#### Handler Implementation
+```typescript
+import { EventHandler, FlowContext } from '@motiadev/core'
+import { z } from 'zod'
+
+// Input validation schema
+const CreateOrderInput = z.object({
+  customerId: z.string(),
+  items: z.array(z.object({
+    productId: z.string(),
+    quantity: z.number().positive()
+  }))
+})
+
+type CreateOrderInput = z.infer<typeof CreateOrderInput>
+
+// Event handler with proper typing
+export const handler: EventHandler<CreateOrderInput, OrderEvents> = async (input, ctx) => {
+  // Validate input
+  const validatedInput = CreateOrderInput.parse(input)
+  
+  // Use context services
+  ctx.logger.info('Creating order', { customerId: validatedInput.customerId })
+  
+  // State management
+  const order = {
+    id: generateId(),
+    ...validatedInput,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  }
+  
+  await ctx.state.set('orders', order.id, order)
+  
+  // Emit events
+  await ctx.emit({
+    topic: 'order.created',
+    data: order
+  })
+  
+  ctx.logger.info('Order created successfully', { orderId: order.id })
+}
+
+// Configuration with proper typing
+export const config: EventConfig = {
+  type: 'event',
+  name: 'CreateOrder',
+  description: 'Creates a new order',
+  subscribes: ['order.create'],
+  emits: ['order.created'],
+  input: CreateOrderInput,
+  flows: ['order-processing']
+}
+```
+
+#### Error Handling Patterns
+```typescript
+// Custom error classes
+export class OrderError extends Error {
+  constructor(message: string, public code: string, public orderId?: string) {
+    super(message)
+    this.name = 'OrderError'
+  }
+}
+
+// Error handling in handlers
+export const handler: EventHandler<OrderInput, OrderEvents> = async (input, ctx) => {
+  try {
+    // Business logic
+    const result = await processOrder(input)
+    return result
+  } catch (error) {
+    if (error instanceof OrderError) {
+      ctx.logger.warn('Order processing failed', {
+        code: error.code,
+        orderId: error.orderId,
+        message: error.message
+      })
+      throw error
+    }
+    
+    ctx.logger.error('Unexpected error in order processing', {
+      error: error.message,
+      stack: error.stack
+    })
+    throw new OrderError('Order processing failed', 'PROCESSING_ERROR')
+  }
+}
+```
+
+### Python Integration
+
+#### Core Principles
+- Follow PEP 8 style guidelines
+- Use type hints for better code documentation
+- Implement proper async/await patterns
+- Use dataclasses or Pydantic models for data validation
+- Follow Python naming conventions (snake_case)
+
+#### Handler Implementation
+```python
+from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from motia_context import Context
+import asyncio
+import uuid
+from datetime import datetime
+
+# Data models with validation
+@dataclass
+class OrderItem:
+    product_id: str
+    quantity: int
+    
+    def __post_init__(self):
+        if self.quantity <= 0:
+            raise ValueError("Quantity must be positive")
+
+@dataclass
+class CreateOrderInput:
+    customer_id: str
+    items: List[OrderItem]
+    
+    def __post_init__(self):
+        if not self.items:
+            raise ValueError("Order must have at least one item")
+
+# Handler implementation
+async def handler(input_data: Dict[str, Any], context: Context) -> None:
+    """Create a new order handler"""
+    try:
+        # Parse and validate input
+        items = [OrderItem(**item) for item in input_data.get("items", [])]
+        order_input = CreateOrderInput(
+            customer_id=input_data["customer_id"],
+            items=items
+        )
+        
+        # Log operation start
+        context.logger.info("Creating order", {
+            "customer_id": order_input.customer_id,
+            "item_count": len(order_input.items)
+        })
+        
+        # Create order
+        order = {
+            "id": str(uuid.uuid4()),
+            "customer_id": order_input.customer_id,
+            "items": [{"product_id": item.product_id, "quantity": item.quantity} 
+                     for item in order_input.items],
+            "status": "pending",
+            "created_at": datetime.now().isoformat()
+        }
+        
+        # Store in state
+        await context.state.set("orders", order["id"], order)
+        
+        # Emit event
+        await context.emit({
+            "topic": "order.created",
+            "data": order
+        })
+        
+        context.logger.info("Order created successfully", {"order_id": order["id"]})
+        
+    except ValueError as error:
+        context.logger.warn("Validation error", {"error": str(error)})
+        raise
+    except Exception as error:
+        context.logger.error("Unexpected error in order creation", {
+            "error": str(error),
+            "type": type(error).__name__
+        })
+        raise
+
+# Configuration
+config = {
+    "type": "event",
+    "name": "CreateOrder",
+    "description": "Creates a new order",
+    "subscribes": ["order.create"],
+    "emits": ["order.created"],
+    "flows": ["order-processing"]
+}
+```
+
+#### Python Context Usage
+```python
+from motia_context import Context
+from motia_rpc import RpcSender
+from typing import Any, Optional
+
+class Context:
+    """Python context providing access to Motia services"""
+    
+    def __init__(self, trace_id: str, flows: List[str], rpc: RpcSender, streams):
+        self.trace_id = trace_id
+        self.flows = flows
+        self.rpc = rpc
+        self.state = RpcStateManager(rpc)
+        self.streams = streams
+        self.logger = Logger(trace_id, flows, rpc)
+    
+    async def emit(self, event: Dict[str, Any]) -> Optional[Any]:
+        """Emit an event through the event system"""
+        return await self.rpc.send('emit', event)
+
+# Usage in handlers
+async def handler(input_data: Dict[str, Any], context: Context) -> None:
+    # State operations
+    await context.state.set("group", "key", {"data": "value"})
+    data = await context.state.get("group", "key")
+    
+    # Logging
+    context.logger.info("Processing data", {"trace_id": context.trace_id})
+    
+    # Event emission
+    await context.emit({
+        "topic": "data.processed",
+        "data": {"result": "success"}
+    })
+```
+
+### Ruby Integration
+
+#### Core Principles
+- Follow Ruby style conventions (snake_case, proper indentation)
+- Use Ruby idioms and patterns
+- Implement proper error handling with rescue blocks
+- Use symbols for keys where appropriate
+- Follow Ruby naming conventions
+
+#### Handler Implementation
+```ruby
+require 'json'
+require 'securerandom'
+require 'time'
+
+# Ruby handler implementation
+def handler(input_data, context)
+  begin
+    # Validate input
+    raise ArgumentError, "customer_id is required" unless input_data['customer_id']
+    raise ArgumentError, "items are required" unless input_data['items']&.any?
+    
+    # Log operation start
+    context.logger.info('Creating order', {
+      customer_id: input_data['customer_id'],
+      item_count: input_data['items'].length
+    })
+    
+    # Create order
+    order = {
+      id: SecureRandom.uuid,
+      customer_id: input_data['customer_id'],
+      items: input_data['items'],
+      status: 'pending',
+      created_at: Time.now.iso8601
+    }
+    
+    # Store in state
+    context.state.set('orders', order[:id], order)
+    
+    # Emit event
+    context.emit({
+      topic: 'order.created',
+      data: order
+    })
+    
+    context.logger.info('Order created successfully', { order_id: order[:id] })
+    
+  rescue ArgumentError => e
+    context.logger.warn('Validation error', { error: e.message })
+    raise
+  rescue StandardError => e
+    context.logger.error('Unexpected error in order creation', {
+      error: e.message,
+      backtrace: e.backtrace.first(5)
+    })
+    raise
+  end
+end
+
+# Configuration
+CONFIG = {
+  type: 'event',
+  name: 'CreateOrder',
+  description: 'Creates a new order',
+  subscribes: ['order.create'],
+  emits: ['order.created'],
+  flows: ['order-processing']
+}.freeze
+```
+
+#### Ruby Context Usage
+```ruby
+class RpcStateManager
+  def initialize(rpc)
+    @rpc = rpc
+  end
+
+  def get(group_id, key)
+    @rpc.send('state.get', { group_id: group_id, key: key })
+  end
+
+  def set(group_id, key, value)
+    @rpc.send('state.set', { group_id: group_id, key: key, value: value })
+  end
+
+  def delete(group_id, key)
+    @rpc.send('state.delete', { group_id: group_id, key: key })
+  end
+
+  def get_group(group_id)
+    @rpc.send('state.getGroup', { group_id: group_id })
+  end
+
+  def clear(group_id)
+    @rpc.send('state.clear', { group_id: group_id })
+  end
+end
+
+# Usage in handlers
+def handler(input_data, context)
+  # State operations
+  context.state.set('group', 'key', { data: 'value' })
+  data = context.state.get('group', 'key')
+  
+  # Logging
+  context.logger.info('Processing data', { trace_id: context.trace_id })
+  
+  # Event emission
+  context.emit({
+    topic: 'data.processed',
+    data: { result: 'success' }
+  })
+end
+```
+
+### Cross-Language Consistency
+
+#### API Design Principles
+1. **Consistent Method Names**: Use the same method names across languages (adjusted for conventions)
+2. **Parameter Consistency**: Maintain the same parameter order and types
+3. **Error Handling**: Similar error handling patterns across languages
+4. **Logging Format**: Consistent log message structure
+5. **Event Structure**: Identical event payload formats
+
+#### Data Serialization
+```typescript
+// TypeScript
+interface OrderEvent {
+  topic: string
+  data: {
+    orderId: string
+    customerId: string
+    status: string
+  }
+}
+```
+
+```python
+# Python
+from typing import Dict, Any
+
+def create_order_event(order_id: str, customer_id: str, status: str) -> Dict[str, Any]:
+    return {
+        "topic": "order.created",
+        "data": {
+            "order_id": order_id,
+            "customer_id": customer_id,
+            "status": status
+        }
+    }
+```
+
+```ruby
+# Ruby
+def create_order_event(order_id, customer_id, status)
+  {
+    topic: 'order.created',
+    data: {
+      order_id: order_id,
+      customer_id: customer_id,
+      status: status
+    }
+  }
+end
+```
+
+### RPC Communication Patterns
+
+#### TypeScript/JavaScript RPC
+```typescript
+import { RpcSender } from '@motiadev/core'
+
+export class RpcSender {
+  async send(method: string, args: any): Promise<any> {
+    // Implementation for Node.js process communication
+    return new Promise((resolve, reject) => {
+      // RPC implementation
+    })
+  }
+  
+  sendNoWait(method: string, args: any): void {
+    // Fire-and-forget RPC call
+  }
+}
+```
+
+#### Python RPC
+```python
+from typing import Any, Optional
+import asyncio
+
+class RpcSender:
+    """Python RPC communication interface"""
+    
+    async def send(self, method: str, args: Any) -> Any:
+        """Send RPC request and wait for response"""
+        # Implementation for Python process communication
+        pass
+    
+    def send_no_wait(self, method: str, args: Any) -> None:
+        """Send RPC request without waiting for response"""
+        # Fire-and-forget implementation
+        pass
+```
+
+#### Ruby RPC
+```ruby
+class RpcSender
+  # Ruby RPC communication interface
+  
+  def send(method, args)
+    # Send RPC request and wait for response
+    # Implementation for Ruby process communication
+  end
+  
+  def send_no_wait(method, args)
+    # Send RPC request without waiting for response
+    # Fire-and-forget implementation
+  end
+end
+```
+
+### Testing Across Languages
+
+#### Language-Specific Testing Patterns
+```typescript
+// TypeScript testing
+describe('OrderHandler', () => {
+  it('should create order successfully', async () => {
+    const mockContext = createMockContext()
+    const input = { customerId: '123', items: [{ productId: 'p1', quantity: 1 }] }
+    
+    await handler(input, mockContext)
+    
+    expect(mockContext.state.set).toHaveBeenCalledWith('orders', expect.any(String), expect.objectContaining({
+      customerId: '123',
+      status: 'pending'
+    }))
+  })
+})
+```
+
+```python
+# Python testing
+import pytest
+from unittest.mock import AsyncMock, Mock
+
+@pytest.mark.asyncio
+async def test_order_handler_success():
+    """Test successful order creation"""
+    mock_context = Mock()
+    mock_context.state.set = AsyncMock()
+    mock_context.emit = AsyncMock()
+    mock_context.logger = Mock()
+    
+    input_data = {
+        "customer_id": "123",
+        "items": [{"product_id": "p1", "quantity": 1}]
+    }
+    
+    await handler(input_data, mock_context)
+    
+    mock_context.state.set.assert_called_once()
+    mock_context.emit.assert_called_once()
+```
+
+```ruby
+# Ruby testing
+require 'rspec'
+
+RSpec.describe 'OrderHandler' do
+  it 'creates order successfully' do
+    mock_context = double('context')
+    allow(mock_context).to receive_message_chain(:state, :set)
+    allow(mock_context).to receive(:emit)
+    allow(mock_context).to receive_message_chain(:logger, :info)
+    
+    input_data = {
+      'customer_id' => '123',
+      'items' => [{ 'product_id' => 'p1', 'quantity' => 1 }]
+    }
+    
+    expect { handler(input_data, mock_context) }.not_to raise_error
+    expect(mock_context.state).to have_received(:set)
+    expect(mock_context).to have_received(:emit)
+  end
+end
+```
+
+## File Structure Guidelines
+
+### Core Directory Organization
+```
+packages/core/src/
+├── analytics/          # Analytics and tracking utilities
+├── config/            # Configuration management
+├── node/              # Node.js specific implementations
+├── observability/     # Tracing and monitoring
+├── python/           # Python runtime support
+├── ruby/             # Ruby runtime support
+├── state/            # State management adapters
+├── streams/          # Stream management
+├── types/            # Type definitions and utilities
+└── __tests__/        # Test files
+```
+
+### Naming Conventions
+- **Files**: Use kebab-case for TypeScript files (`event-manager.ts`)
+- **Classes**: Use PascalCase (`EventManager`, `StateAdapter`)
+- **Functions**: Use camelCase (`createEventManager`, `setupCronHandlers`)
+- **Constants**: Use UPPER_SNAKE_CASE (`DEFAULT_PORT`, `MAX_RETRIES`)
+- **Interfaces**: Use PascalCase with descriptive names (`InternalStateManager`)
+
+## Testing Best Practices
+
+### Testing Strategy
+- Unit tests for all core functionality
+- Integration tests for multi-language communication
+- Mock external dependencies (file system, network)
+- Test error handling and edge cases
+
+### Test Organization
+```
+src/__tests__/
+├── fixtures/          # Test data and mocks
+├── types/            # Type-related tests
+├── utils/            # Test utilities
+└── *.test.ts         # Unit tests alongside source
+```
+
+### Coverage Recommendations
+- Aim for 90%+ test coverage on core functionality
+- 100% coverage on public APIs
+- Focus on critical paths: event handling, state management, RPC communication
+
+## Performance Considerations
+
+### Optimization Guidelines
+- Use lazy initialization for expensive operations
+- Implement connection pooling for external resources
+- Cache frequently accessed data appropriately
+- Use streaming for large data transfers
+- Minimize memory allocation in hot paths
+
+### Common Pitfalls
+- Avoid blocking the event loop in Node.js
+- Don't hold references to large objects unnecessarily
+- Be careful with recursive event emissions
+- Monitor memory usage in long-running processes
+
+## Security Guidelines
+
+### Security Considerations
+- Validate all inputs from external sources
+- Sanitize data before logging to prevent log injection
+- Use secure defaults for configuration options
+- Implement proper error handling without exposing internals
+
+### Best Practices
+- Never log sensitive data (passwords, tokens, PII)
+- Validate step configurations before execution
+- Use type checking to prevent runtime errors
+- Implement rate limiting where appropriate
+
+## Examples
+
+### Good Patterns
+
+#### Factory Function Usage
+```typescript
+// ✅ Good: Use factory functions for consistent initialization
+const eventManager = createEventManager()
+const stateAdapter = createStateAdapter(config)
+const server = createServer(lockedData, eventManager, stateAdapter, config)
+```
+
+#### Proper Error Handling
+```typescript
+// ✅ Good: Comprehensive error handling
+try {
+  await callStepFile({ step, data, traceId, tracer, logger }, motia)
+} catch (error: any) {
+  const message = typeof error === 'string' ? error : error.message
+  logger.error(message, { step: step.config.name, traceId })
+  throw error
+}
+```
+
+#### Type-Safe Event Handling
+```typescript
+// ✅ Good: Proper typing for events
+type UserCreatedEvent = {
+  topic: 'user.created'
+  data: { userId: string; email: string }
+  traceId: string
+}
+
+const handler: Handler<UserCreatedEvent['data']> = async (event) => {
+  // Type-safe access to event data
+  console.log(event.data.userId)
+}
+```
+
+### Anti-Patterns to Avoid
+
+#### Direct Module Dependencies
+```typescript
+// ❌ Bad: Core package importing from other Motia packages
+import { WorkbenchComponent } from '@motiadev/workbench' // FORBIDDEN
+
+// ✅ Good: Core package is self-contained
+import { EventManager } from './types'
+```
+
+#### Blocking Operations
+```typescript
+// ❌ Bad: Synchronous operations in async context
+const data = fs.readFileSync('./config.json')
+
+// ✅ Good: Use async operations
+const data = await fs.promises.readFile('./config.json')
+```
+
+#### Unhandled Promise Rejections
+```typescript
+// ❌ Bad: Fire-and-forget promises
+eventManager.emit(event) // Missing await
+
+// ✅ Good: Proper async handling
+await eventManager.emit(event)
+```
+
+## Integration Guidelines
+
+### Package Integration
+Since core is the foundational package:
+- Other packages import from core, never the reverse
+- Provide stable APIs that other packages can depend on
+- Use semantic versioning for breaking changes
+- Document all public APIs thoroughly
+
+### Domain Boundary Validation
+To ensure domain boundaries are maintained:
+
+#### Code Review Checklist
+- [ ] No imports from other `@motiadev/*` packages
+- [ ] No relative imports outside of `packages/core/`
+- [ ] All external dependencies are in package.json
+- [ ] Interfaces are used for external integrations
+- [ ] Dependency injection is used when needed
+
+#### Automated Validation
+Consider implementing linting rules to automatically detect boundary violations:
+
+```javascript
+// Example ESLint rule configuration
+{
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          "@motiadev/workbench*",
+          "@motiadev/ui*", 
+          "@motiadev/stream-client*",
+          "motia",
+          "../workbench/*",
+          "../../ui/*",
+          "../snap/*"
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Testing Boundary Compliance
+```typescript
+// Example test to validate no cross-package imports
+describe('Domain Boundary Compliance', () => {
+  it('should not import from other Motia packages', () => {
+    const sourceFiles = glob.sync('packages/core/src/**/*.ts')
+    sourceFiles.forEach(file => {
+      const content = fs.readFileSync(file, 'utf8')
+      expect(content).not.toMatch(/@motiadev\/(workbench|ui|stream-client)/)
+      expect(content).not.toMatch(/from ['"]motia['"]/)
+    })
+  })
+})
+```
+
+### Dependency Management
+- Keep external dependencies minimal and well-justified
+- Use peer dependencies for optional integrations
+- Regularly audit and update dependencies
+- Avoid dependencies with large dependency trees
+- Never add `workspace:*` dependencies to other Motia packages

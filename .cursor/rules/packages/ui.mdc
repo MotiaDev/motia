@@ -1,0 +1,614 @@
+---
+description: Development guidelines for @motiadev/ui package focusing on reusable component patterns and design system consistency
+globs: packages/ui/**/*.tsx,packages/ui/**/*.ts,packages/ui/**/*.jsx,packages/ui/**/*.js,packages/ui/**/*.css
+alwaysApply: false
+---
+
+# UI Package Development Guide
+
+## Overview
+
+The `@motiadev/ui` package provides a modern React UI components library built with shadcn/ui, designed for the Motia ecosystem. It serves as the design system foundation, offering reusable, accessible, and themeable components that maintain consistency across all Motia applications.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - @motiadev/core (for foundational utilities only)
+  - React and React DOM
+  - Radix UI primitives
+  - Class Variance Authority (CVA)
+  - Tailwind CSS utilities
+  - Lucide React icons
+  - Third-party UI libraries (clsx, tailwind-merge)
+- **Prohibited imports**: 
+  - @motiadev/workbench, @motiadev/stream-client-*, motia (snap package)
+  - Any business logic or domain-specific packages
+  - Node.js specific modules
+
+### Package Responsibility
+The UI package provides:
+- Reusable React components following design system principles
+- Consistent theming and styling infrastructure
+- Accessibility-compliant components built on Radix UI
+- Storybook documentation and testing
+- TypeScript definitions for all components
+- CSS variable-based theming system
+
+## Architecture Patterns
+
+### Core Principles
+1. **Component Composition**: Build complex components from simple, reusable primitives
+2. **Variant-Based Design**: Use CVA for consistent variant management
+3. **Accessibility First**: All components must be ARIA compliant
+4. **Theme Consistency**: Use CSS variables for consistent theming
+5. **TypeScript Safety**: Full type safety with proper prop interfaces
+
+### Component Architecture Pattern
+
+#### Base Component Structure
+```tsx
+import { forwardRef } from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '../../lib/utils'
+
+// Define variants using CVA
+const componentVariants = cva(
+  // Base classes
+  'base-classes-here',
+  {
+    variants: {
+      variant: {
+        default: 'default-variant-classes',
+        secondary: 'secondary-variant-classes',
+      },
+      size: {
+        sm: 'small-size-classes',
+        md: 'medium-size-classes',
+        lg: 'large-size-classes',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'md',
+    },
+  }
+)
+
+// Component props interface
+export interface ComponentProps 
+  extends React.HTMLAttributes<HTMLDivElement>, 
+         VariantProps<typeof componentVariants> {
+  // Additional props specific to this component
+  asChild?: boolean
+}
+
+// Component implementation with forwardRef
+export const Component = forwardRef<HTMLDivElement, ComponentProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : 'div'
+    return (
+      <Comp
+        className={cn(componentVariants({ variant, size }), className)}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Component.displayName = 'Component'
+```
+
+#### Real Component Example
+```tsx
+import { Slot } from '@radix-ui/react-slot'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { ButtonHTMLAttributes, forwardRef } from 'react'
+import { cn } from '../../lib/utils'
+
+const buttonVariants = cva(
+  'inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  {
+    variants: {
+      variant: {
+        default: 'bg-input text-foreground hover:bg-border active:bg-card',
+        accent: 'bg-accent text-accent-foreground hover:bg-accent/90 active:bg-accent/80',
+        destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:opacity-90 active:opacity-80',
+        outline: 'border border-border bg-transparent hover:bg-muted hover:text-muted-foreground text-foreground',
+        ghost: 'hover:bg-muted-foreground/20 text-foreground',
+        link: 'text-primary underline-offset-4 hover:underline text-primary-foreground',
+      },
+      size: {
+        sm: 'h-6 px-3 text-xs [&_svg]:size-3',
+        default: 'h-9 px-4 text-sm [&_svg]:size-4',
+        lg: 'h-11 px-6 text-base [&_svg]:size-5',
+        icon: 'h-4 w-4 [&_svg]:size-4',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  }
+)
+
+export interface ButtonProps 
+  extends ButtonHTMLAttributes<HTMLButtonElement>, 
+         VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+}
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : 'button'
+    return (
+      <Comp 
+        className={cn(buttonVariants({ variant, size }), className)} 
+        ref={ref} 
+        {...props} 
+      />
+    )
+  }
+)
+Button.displayName = 'Button'
+```
+
+## Design System Guidelines
+
+### CSS Variables and Theming
+All components must use CSS variables for theming consistency:
+
+```css
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --primary: 240 9% 15%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 240 5% 64.9%;
+}
+```
+
+### Tailwind CSS Integration
+```tsx
+// ✅ Good: Use semantic color classes
+<div className="bg-background text-foreground border-border">
+
+// ✅ Good: Use design system spacing
+<div className="p-4 m-2 gap-3">
+
+// ❌ Bad: Use arbitrary values without justification
+<div className="bg-[#ff0000] p-[13px]">
+
+// ✅ Good: Use arbitrary values for specific design needs
+<div className="bg-gradient-to-r from-primary to-accent">
+```
+
+### Component Variants with CVA
+```tsx
+// ✅ Good: Comprehensive variant system
+const alertVariants = cva(
+  'relative w-full rounded-lg border px-4 py-3 text-sm',
+  {
+    variants: {
+      variant: {
+        default: 'bg-background text-foreground',
+        destructive: 'border-destructive/50 text-destructive dark:border-destructive',
+        warning: 'border-warning/50 text-warning dark:border-warning',
+        success: 'border-success/50 text-success dark:border-success',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+    },
+  }
+)
+
+// ❌ Bad: Inline conditional classes
+const getAlertClasses = (variant: string) => {
+  if (variant === 'destructive') return 'bg-red-100 text-red-800'
+  if (variant === 'warning') return 'bg-yellow-100 text-yellow-800'
+  return 'bg-gray-100 text-gray-800'
+}
+```
+
+## File Structure Guidelines
+
+### Directory Organization
+```
+packages/ui/src/
+├── components/
+│   └── ui/                    # UI components
+│       ├── button.tsx         # Component implementation
+│       ├── button.stories.tsx # Storybook stories
+│       └── index.ts           # Component exports
+├── lib/
+│   └── utils.ts              # Utility functions
+├── styles/
+│   └── globals.css           # Global styles and CSS variables
+└── index.ts                  # Main package exports
+```
+
+### Naming Conventions
+- **Components**: Use PascalCase (`Button`, `DropdownMenu`)
+- **Files**: Use kebab-case (`button.tsx`, `dropdown-menu.tsx`)
+- **Props Interfaces**: Use ComponentNameProps pattern (`ButtonProps`)
+- **Variants**: Use descriptive names (`variant`, `size`, `color`)
+- **CSS Classes**: Follow Tailwind conventions
+
+### Export Patterns
+```tsx
+// Component file (button.tsx)
+export interface ButtonProps { /* ... */ }
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(/* ... */)
+
+// Main index.ts
+export { Button, type ButtonProps } from './components/ui/button'
+export { Card, CardHeader, CardContent, type CardProps } from './components/ui/card'
+
+// Component-specific index.ts (optional for complex components)
+export { Button, type ButtonProps } from './button'
+export { ButtonGroup, type ButtonGroupProps } from './button-group'
+```
+
+## Accessibility Guidelines
+
+### ARIA Compliance
+All components must follow ARIA guidelines:
+
+```tsx
+// ✅ Good: Proper ARIA attributes
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ children, disabled, ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        disabled={disabled}
+        aria-disabled={disabled}
+        {...props}
+      >
+        {children}
+      </button>
+    )
+  }
+)
+
+// ✅ Good: Complex component with proper ARIA
+export const Dialog = ({ open, onOpenChange, children, ...props }) => {
+  return (
+    <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
+      <RadixDialog.Portal>
+        <RadixDialog.Overlay className="dialog-overlay" />
+        <RadixDialog.Content
+          className="dialog-content"
+          aria-describedby="dialog-description"
+          {...props}
+        >
+          {children}
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
+  )
+}
+```
+
+### Keyboard Navigation
+```tsx
+// ✅ Good: Keyboard navigation support
+export const Dropdown = () => {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    switch (event.key) {
+      case 'Escape':
+        closeDropdown()
+        break
+      case 'ArrowDown':
+        focusNextItem()
+        break
+      case 'ArrowUp':
+        focusPreviousItem()
+        break
+    }
+  }
+
+  return (
+    <div onKeyDown={handleKeyDown} role="menu">
+      {/* Dropdown content */}
+    </div>
+  )
+}
+```
+
+## Storybook Integration
+
+### Story Structure
+```tsx
+import type { Meta, StoryObj } from '@storybook/react'
+import { Button } from './button'
+
+const meta: Meta<typeof Button> = {
+  title: 'UI/Button',
+  component: Button,
+  parameters: {
+    layout: 'centered',
+    docs: {
+      description: {
+        component: 'A button component that triggers an action or event.',
+      },
+    },
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    variant: {
+      control: { type: 'select' },
+      options: ['default', 'accent', 'destructive', 'outline', 'ghost', 'link'],
+      description: 'The visual style of the button.',
+    },
+    size: {
+      control: { type: 'select' },
+      options: ['sm', 'default', 'lg', 'icon'],
+      description: 'The size of the button.',
+    },
+  },
+}
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+// Primary story
+export const Default: Story = {
+  args: {
+    children: 'Button',
+  },
+}
+
+// Variant stories
+export const Variants: Story = {
+  render: () => (
+    <div className="flex gap-2">
+      <Button variant="default">Default</Button>
+      <Button variant="accent">Accent</Button>
+      <Button variant="destructive">Destructive</Button>
+      <Button variant="outline">Outline</Button>
+      <Button variant="ghost">Ghost</Button>
+      <Button variant="link">Link</Button>
+    </div>
+  ),
+}
+
+// Size stories
+export const Sizes: Story = {
+  render: () => (
+    <div className="flex items-center gap-2">
+      <Button size="sm">Small</Button>
+      <Button size="default">Default</Button>
+      <Button size="lg">Large</Button>
+    </div>
+  ),
+}
+```
+
+### Documentation Best Practices
+```tsx
+// ✅ Good: Comprehensive story with documentation
+export const WithIcon: Story = {
+  args: {
+    children: (
+      <>
+        <Plus className="w-4 h-4" />
+        Add Item
+      </>
+    ),
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: 'Buttons can include icons alongside text for better visual communication.',
+      },
+    },
+  },
+}
+
+// ✅ Good: Interactive story
+export const Interactive: Story = {
+  render: () => {
+    const [count, setCount] = useState(0)
+    return (
+      <Button onClick={() => setCount(count + 1)}>
+        Clicked {count} times
+      </Button>
+    )
+  },
+}
+```
+
+## Testing Best Practices
+
+### Component Testing Strategy
+- Unit tests for component logic and props
+- Visual regression tests through Storybook
+- Accessibility tests using @storybook/addon-a11y
+- Integration tests for complex component interactions
+
+### Testing Patterns
+```tsx
+// Component test example
+import { render, screen, fireEvent } from '@testing-library/react'
+import { Button } from './button'
+
+describe('Button', () => {
+  it('renders with correct text', () => {
+    render(<Button>Click me</Button>)
+    expect(screen.getByRole('button', { name: 'Click me' })).toBeInTheDocument()
+  })
+
+  it('handles click events', () => {
+    const handleClick = jest.fn()
+    render(<Button onClick={handleClick}>Click me</Button>)
+    
+    fireEvent.click(screen.getByRole('button'))
+    expect(handleClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('applies variant classes correctly', () => {
+    render(<Button variant="destructive">Delete</Button>)
+    const button = screen.getByRole('button')
+    expect(button).toHaveClass('bg-destructive')
+  })
+
+  it('forwards ref correctly', () => {
+    const ref = React.createRef<HTMLButtonElement>()
+    render(<Button ref={ref}>Button</Button>)
+    expect(ref.current).toBeInstanceOf(HTMLButtonElement)
+  })
+})
+```
+
+## Performance Considerations
+
+### Optimization Guidelines
+1. **Tree Shaking**: Export components individually for optimal bundling
+2. **Lazy Loading**: Use React.lazy for large components when appropriate
+3. **Memoization**: Use React.memo for components with expensive renders
+4. **Bundle Size**: Keep dependencies minimal and justified
+5. **CSS Optimization**: Use Tailwind's purge functionality
+
+### Bundle Optimization
+```tsx
+// ✅ Good: Individual exports for tree shaking
+export { Button } from './components/ui/button'
+export { Card } from './components/ui/card'
+
+// ❌ Bad: Barrel exports that prevent tree shaking
+export * from './components/ui'
+
+// ✅ Good: Conditional imports
+const HeavyComponent = React.lazy(() => import('./heavy-component'))
+
+// ✅ Good: Memoized component
+export const ExpensiveComponent = React.memo(({ data }) => {
+  const processedData = useMemo(() => processData(data), [data])
+  return <div>{processedData}</div>
+})
+```
+
+## Examples
+
+### Good Patterns
+
+#### Compound Component Pattern
+```tsx
+// ✅ Good: Compound component for complex UI
+export const Card = ({ className, ...props }) => (
+  <div className={cn('rounded-lg border bg-card text-card-foreground shadow-sm', className)} {...props} />
+)
+
+export const CardHeader = ({ className, ...props }) => (
+  <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />
+)
+
+export const CardTitle = ({ className, ...props }) => (
+  <h3 className={cn('text-2xl font-semibold leading-none tracking-tight', className)} {...props} />
+)
+
+export const CardContent = ({ className, ...props }) => (
+  <div className={cn('p-6 pt-0', className)} {...props} />
+)
+
+// Usage
+<Card>
+  <CardHeader>
+    <CardTitle>Card Title</CardTitle>
+  </CardHeader>
+  <CardContent>
+    Card content goes here.
+  </CardContent>
+</Card>
+```
+
+#### Polymorphic Component Pattern
+```tsx
+// ✅ Good: Polymorphic component with proper typing
+type PolymorphicProps<C extends React.ElementType> = {
+  as?: C
+  children: React.ReactNode
+} & React.ComponentPropsWithoutRef<C>
+
+export function Text<C extends React.ElementType = 'span'>({
+  as,
+  children,
+  className,
+  ...props
+}: PolymorphicProps<C>) {
+  const Component = as || 'span'
+  return (
+    <Component className={cn('text-foreground', className)} {...props}>
+      {children}
+    </Component>
+  )
+}
+
+// Usage
+<Text as="h1" className="text-2xl font-bold">Heading</Text>
+<Text as="p">Paragraph text</Text>
+```
+
+### Anti-Patterns to Avoid
+
+#### Avoid Inline Styles
+```tsx
+// ❌ Bad: Inline styles
+<button style={{ backgroundColor: 'red', padding: '8px' }}>
+  Button
+</button>
+
+// ✅ Good: Use CSS classes
+<button className="bg-destructive px-2 py-1">
+  Button
+</button>
+```
+
+#### Avoid Prop Drilling
+```tsx
+// ❌ Bad: Prop drilling
+export const ComplexComponent = ({ theme, size, variant, disabled, loading }) => {
+  return (
+    <div>
+      <ChildComponent theme={theme} size={size} variant={variant} disabled={disabled} loading={loading} />
+    </div>
+  )
+}
+
+// ✅ Good: Use context or compound components
+const ComponentContext = createContext()
+
+export const ComplexComponent = ({ children, ...props }) => {
+  return (
+    <ComponentContext.Provider value={props}>
+      <div>{children}</div>
+    </ComponentContext.Provider>
+  )
+}
+```
+
+## Integration Guidelines
+
+### Package Integration
+- Components should be framework-agnostic within React ecosystem
+- Provide clear TypeScript definitions for all props
+- Support both controlled and uncontrolled patterns where applicable
+- Follow React best practices for ref forwarding and event handling
+
+### Dependency Management
+- Keep peer dependencies minimal (React, React DOM)
+- Use Radix UI for complex interactive components
+- Leverage Tailwind CSS for styling consistency
+- Avoid heavy dependencies that increase bundle size

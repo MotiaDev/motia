@@ -1,0 +1,1199 @@
+---
+description: Development guidelines for @motiadev/docs package focusing on documentation standards and content organization
+globs: packages/docs/**/*.tsx,packages/docs/**/*.ts,packages/docs/**/*.jsx,packages/docs/**/*.js,packages/docs/**/*.mdx,packages/docs/**/*.md,packages/docs/**/*.css
+alwaysApply: false
+---
+
+# Docs Package Development Guide
+
+## Overview
+
+The `@motiadev/docs` package provides the official documentation website for the Motia framework, built with Next.js and Fumadocs. It serves as the primary source of truth for Motia's APIs, guides, examples, and best practices, featuring interactive code examples, AI-ready documentation, and comprehensive developer resources.
+
+## Domain Boundaries
+
+### Import Restrictions
+- **Allowed imports**: 
+  - @motiadev/core (for foundational utilities)
+  - @motiadev/ui (for design system components)
+  - @motiadev/stream-client-react (for real-time features)
+  - Next.js and React ecosystem packages
+  - Documentation-specific libraries (Fumadocs, MDX, etc.)
+  - UI libraries (Framer Motion, Lucide React, etc.)
+- **Prohibited imports**: 
+  - motia (snap package - CLI specific)
+  - @motiadev/workbench (separate application)
+  - Node.js server-specific modules in client components
+  - Backend-only packages
+
+### Package Responsibility
+The docs package provides:
+- Comprehensive framework documentation
+- Interactive code examples and tutorials
+- API reference documentation
+- AI-ready documentation formats
+- Community resources and guides
+- Visual examples and showcases
+- Search and navigation functionality
+
+## Architecture Patterns
+
+### Core Principles
+1. **Content-First**: Prioritize clear, comprehensive content
+2. **Interactive Examples**: Provide working code examples
+3. **AI-Ready**: Structure content for AI consumption
+4. **Performance Optimized**: Fast loading and navigation
+5. **Accessibility**: Ensure documentation is accessible to all users
+
+### Documentation Architecture
+
+#### Content Structure Pattern
+```typescript
+// Content organization following Fumadocs patterns
+export interface DocumentationStructure {
+  // Hierarchical content organization
+  sections: {
+    'getting-started': {
+      title: 'Getting Started'
+      description: 'Quick start guides and installation'
+      pages: DocPage[]
+    }
+    'concepts': {
+      title: 'Core Concepts'
+      description: 'Understanding Motia fundamentals'
+      pages: DocPage[]
+    }
+    'examples': {
+      title: 'Examples'
+      description: 'Real-world examples and use cases'
+      pages: DocPage[]
+    }
+    'api-reference': {
+      title: 'API Reference'
+      description: 'Complete API documentation'
+      pages: DocPage[]
+    }
+  }
+}
+
+// Page metadata structure
+export interface DocPage {
+  title: string
+  description: string
+  slug: string
+  filePath: string
+  lastModified: Date
+  tags: string[]
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
+  estimatedReadTime: number
+}
+
+// MDX frontmatter schema
+export interface MDXFrontmatter {
+  title: string
+  description: string
+  tags?: string[]
+  difficulty?: 'beginner' | 'intermediate' | 'advanced'
+  lastUpdated?: string
+  relatedPages?: string[]
+  codeExamples?: boolean
+  aiOptimized?: boolean
+}
+```
+
+#### Content Management System
+```typescript
+import { readdir, readFile, stat } from 'fs/promises'
+import { join, extname } from 'path'
+import matter from 'gray-matter'
+
+export class DocumentationManager {
+  constructor(private contentDir: string) {}
+
+  async getAllPages(): Promise<DocPage[]> {
+    const pages: DocPage[] = []
+    await this.scanDirectory(this.contentDir, pages)
+    return pages.sort((a, b) => a.title.localeCompare(b.title))
+  }
+
+  private async scanDirectory(dir: string, pages: DocPage[]): Promise<void> {
+    const entries = await readdir(dir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name)
+
+      if (entry.isDirectory()) {
+        await this.scanDirectory(fullPath, pages)
+      } else if (this.isDocumentFile(entry.name)) {
+        const page = await this.parseDocumentFile(fullPath)
+        if (page) {
+          pages.push(page)
+        }
+      }
+    }
+  }
+
+  private isDocumentFile(filename: string): boolean {
+    const ext = extname(filename)
+    return ['.md', '.mdx'].includes(ext)
+  }
+
+  private async parseDocumentFile(filePath: string): Promise<DocPage | null> {
+    try {
+      const content = await readFile(filePath, 'utf8')
+      const { data: frontmatter, content: body } = matter(content)
+      const stats = await stat(filePath)
+
+      return {
+        title: frontmatter.title || this.extractTitleFromPath(filePath),
+        description: frontmatter.description || '',
+        slug: this.generateSlug(filePath),
+        filePath,
+        lastModified: stats.mtime,
+        tags: frontmatter.tags || [],
+        difficulty: frontmatter.difficulty || 'beginner',
+        estimatedReadTime: this.calculateReadTime(body),
+      }
+    } catch (error) {
+      console.warn(`Failed to parse document: ${filePath}`, error)
+      return null
+    }
+  }
+
+  private extractTitleFromPath(filePath: string): string {
+    const basename = path.basename(filePath, path.extname(filePath))
+    return basename
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
+  private generateSlug(filePath: string): string {
+    return filePath
+      .replace(this.contentDir, '')
+      .replace(/\.(md|mdx)$/, '')
+      .replace(/^\//, '')
+      .replace(/\//g, '/')
+  }
+
+  private calculateReadTime(content: string): number {
+    const wordsPerMinute = 200
+    const words = content.split(/\s+/).length
+    return Math.ceil(words / wordsPerMinute)
+  }
+}
+```
+
+### MDX Component System
+
+#### Interactive Code Components
+```tsx
+import React, { useState } from 'react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
+// Interactive code example component
+export const CodeExample: React.FC<{
+  title: string
+  description?: string
+  code: string
+  language: string
+  runnable?: boolean
+  filename?: string
+  highlightLines?: number[]
+}> = ({ 
+  title, 
+  description, 
+  code, 
+  language, 
+  runnable = false, 
+  filename,
+  highlightLines = []
+}) => {
+  const [copied, setCopied] = useState(false)
+
+  const copyToClipboard = async () => {
+    await navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="my-6 border border-border rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 bg-muted">
+        <div>
+          <h4 className="font-semibold text-sm">{title}</h4>
+          {filename && (
+            <p className="text-xs text-muted-foreground font-mono">{filename}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {runnable && (
+            <button className="px-2 py-1 text-xs bg-accent text-accent-foreground rounded">
+              Run Example
+            </button>
+          )}
+          <button
+            onClick={copyToClipboard}
+            className="px-2 py-1 text-xs bg-background border border-border rounded hover:bg-muted"
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      </div>
+
+      {/* Description */}
+      {description && (
+        <div className="px-4 py-2 text-sm text-muted-foreground border-b border-border">
+          {description}
+        </div>
+      )}
+
+      {/* Code */}
+      <div className="relative">
+        <SyntaxHighlighter
+          language={language}
+          style={vscDarkPlus}
+          customStyle={{
+            margin: 0,
+            padding: '1rem',
+            background: 'transparent',
+          }}
+          wrapLines
+          lineProps={(lineNumber) => ({
+            style: {
+              backgroundColor: highlightLines.includes(lineNumber)
+                ? 'rgba(255, 255, 0, 0.1)'
+                : 'transparent',
+            },
+          })}
+        >
+          {code}
+        </SyntaxHighlighter>
+      </div>
+    </div>
+  )
+}
+
+// Multi-language code tabs
+export const CodeTabs: React.FC<{
+  examples: Array<{
+    language: string
+    label: string
+    code: string
+    filename?: string
+  }>
+}> = ({ examples }) => {
+  const [activeTab, setActiveTab] = useState(0)
+
+  return (
+    <div className="my-6">
+      {/* Tab headers */}
+      <div className="flex border-b border-border">
+        {examples.map((example, index) => (
+          <button
+            key={index}
+            onClick={() => setActiveTab(index)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === index
+                ? 'border-accent text-accent-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {example.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="border border-t-0 border-border rounded-b-lg">
+        <CodeExample
+          title={examples[activeTab].label}
+          code={examples[activeTab].code}
+          language={examples[activeTab].language}
+          filename={examples[activeTab].filename}
+        />
+      </div>
+    </div>
+  )
+}
+```
+
+#### Documentation Components
+```tsx
+// Callout component for important information
+export const Callout: React.FC<{
+  type: 'info' | 'warning' | 'error' | 'success' | 'tip'
+  title?: string
+  children: React.ReactNode
+}> = ({ type, title, children }) => {
+  const styles = {
+    info: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100',
+    warning: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-100',
+    error: 'border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100',
+    success: 'border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100',
+    tip: 'border-purple-200 bg-purple-50 text-purple-900 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-100',
+  }
+
+  const icons = {
+    info: '💡',
+    warning: '⚠️',
+    error: '❌',
+    success: '✅',
+    tip: '💡',
+  }
+
+  return (
+    <div className={`my-4 p-4 border rounded-lg ${styles[type]}`}>
+      <div className="flex items-start gap-3">
+        <span className="text-lg">{icons[type]}</span>
+        <div className="flex-1">
+          {title && (
+            <h4 className="font-semibold mb-2">{title}</h4>
+          )}
+          <div className="prose prose-sm max-w-none">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// API documentation component
+export const APIReference: React.FC<{
+  endpoint: string
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  description: string
+  parameters?: APIParameter[]
+  responses?: APIResponse[]
+  examples?: APIExample[]
+}> = ({ endpoint, method, description, parameters, responses, examples }) => {
+  return (
+    <div className="my-6 border border-border rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="bg-muted px-4 py-3">
+        <div className="flex items-center gap-3">
+          <span className={`px-2 py-1 text-xs font-mono rounded ${
+            method === 'GET' ? 'bg-blue-100 text-blue-800' :
+            method === 'POST' ? 'bg-green-100 text-green-800' :
+            method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
+            'bg-red-100 text-red-800'
+          }`}>
+            {method}
+          </span>
+          <code className="font-mono text-sm">{endpoint}</code>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      </div>
+
+      {/* Parameters */}
+      {parameters && parameters.length > 0 && (
+        <div className="px-4 py-3 border-b border-border">
+          <h4 className="font-semibold mb-3">Parameters</h4>
+          <div className="space-y-2">
+            {parameters.map((param, index) => (
+              <div key={index} className="grid grid-cols-[1fr_auto_2fr] gap-4 text-sm">
+                <code className="font-mono">{param.name}</code>
+                <span className={`px-2 py-0.5 text-xs rounded ${
+                  param.required ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {param.required ? 'required' : 'optional'}
+                </span>
+                <span className="text-muted-foreground">{param.description}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Examples */}
+      {examples && examples.length > 0 && (
+        <div className="px-4 py-3">
+          <h4 className="font-semibold mb-3">Examples</h4>
+          {examples.map((example, index) => (
+            <CodeExample
+              key={index}
+              title={example.title}
+              description={example.description}
+              code={example.code}
+              language="typescript"
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+### Content Management Patterns
+
+#### MDX Processing Pipeline
+```typescript
+import { compile } from '@mdx-js/mdx'
+import { remark } from 'remark'
+import remarkGfm from 'remark-gfm'
+import remarkToc from 'remark-toc'
+
+export class MDXProcessor {
+  async processFile(filePath: string): Promise<ProcessedMDXFile> {
+    const content = await fs.promises.readFile(filePath, 'utf8')
+    const { data: frontmatter, content: body } = matter(content)
+
+    // Process MDX content
+    const processedContent = await this.processMDXContent(body)
+    
+    // Extract metadata
+    const metadata = await this.extractMetadata(body, frontmatter)
+    
+    // Generate table of contents
+    const toc = await this.generateTableOfContents(body)
+    
+    // Extract code examples
+    const codeExamples = this.extractCodeExamples(body)
+
+    return {
+      frontmatter,
+      content: processedContent,
+      metadata,
+      toc,
+      codeExamples,
+      filePath,
+    }
+  }
+
+  private async processMDXContent(content: string): Promise<string> {
+    const result = await remark()
+      .use(remarkGfm) // GitHub Flavored Markdown
+      .use(remarkToc, { tight: true }) // Table of contents
+      .process(content)
+
+    return result.toString()
+  }
+
+  private async extractMetadata(
+    content: string, 
+    frontmatter: any
+  ): Promise<DocumentMetadata> {
+    const wordCount = content.split(/\s+/).length
+    const readingTime = Math.ceil(wordCount / 200) // 200 words per minute
+
+    // Extract headings for navigation
+    const headings = this.extractHeadings(content)
+    
+    // Extract code blocks
+    const codeBlocks = this.extractCodeBlocks(content)
+
+    return {
+      wordCount,
+      readingTime,
+      headings,
+      codeBlocks,
+      lastModified: frontmatter.lastUpdated || new Date().toISOString(),
+      tags: frontmatter.tags || [],
+      difficulty: frontmatter.difficulty || 'beginner',
+    }
+  }
+
+  private extractHeadings(content: string): Heading[] {
+    const headingRegex = /^(#{1,6})\s+(.+)$/gm
+    const headings: Heading[] = []
+    let match
+
+    while ((match = headingRegex.exec(content)) !== null) {
+      const level = match[1].length
+      const text = match[2].trim()
+      const id = this.generateHeadingId(text)
+
+      headings.push({
+        level,
+        text,
+        id,
+        children: [],
+      })
+    }
+
+    return this.buildHeadingHierarchy(headings)
+  }
+
+  private extractCodeBlocks(content: string): CodeBlock[] {
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
+    const blocks: CodeBlock[] = []
+    let match
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const language = match[1] || 'text'
+      const code = match[2].trim()
+
+      blocks.push({
+        language,
+        code,
+        filename: this.extractFilename(code),
+        isRunnable: this.isRunnableExample(language, code),
+      })
+    }
+
+    return blocks
+  }
+}
+```
+
+#### AI-Ready Documentation Generation
+```typescript
+// Generate AI-optimized documentation
+export class AIDocumentationGenerator {
+  async generateLLMDocs(contentDir: string, outputDir: string): Promise<void> {
+    const processor = new MDXProcessor()
+    const allPages = await this.getAllDocumentationFiles(contentDir)
+
+    // Generate comprehensive context for AI
+    let llmContext = this.generateSystemContext()
+    
+    for (const page of allPages) {
+      const processed = await processor.processFile(page.filePath)
+      const aiOptimizedContent = this.optimizeForAI(processed)
+      
+      // Write AI-optimized version
+      const outputPath = join(outputDir, `${page.slug}.md`)
+      await fs.promises.writeFile(outputPath, aiOptimizedContent)
+      
+      // Add to comprehensive context
+      llmContext += this.generatePageContext(processed)
+    }
+
+    // Write comprehensive context file
+    await fs.promises.writeFile(
+      join(outputDir, 'llms.txt'),
+      llmContext
+    )
+  }
+
+  private generateSystemContext(): string {
+    return `<system_context>
+You are an advanced assistant specialized in generating Motia workflows code. You have deep knowledge of Motia's framework, APIs, and best practices.
+</system_context>
+
+<behavior_guidelines>
+- Respond in a friendly and concise manner
+- Focus exclusively on Motia workflows solutions
+- Provide complete, self-contained solutions
+- Default to current best practices
+- Ask clarifying questions when requirements are ambiguous
+</behavior_guidelines>
+
+<code_standards>
+- Generate code in TypeScript by default unless JavaScript, Python, or Ruby is specifically requested
+- Use ES modules format for TS/JS exclusively
+- Keep all code in a single file unless otherwise specified
+- Minimize external dependencies
+- Follow Motia workflows security best practices
+- Never bake in secrets into the code
+- Include proper error handling and logging
+- Add appropriate TypeScript types and interfaces where applicable
+- Include comments explaining complex logic
+</code_standards>
+
+<output_format>
+- Use markdown code blocks to separate code from explanations
+- Provide separate blocks for:
+  1. Main step code (api.step.ts/event.step.ts/cron.step.ts)
+  2. Configuration (the config variable)
+  3. Example usage (if applicable)
+- Always output complete files, never partial updates or diffs
+- Format code consistently using standard conventions
+</output_format>
+
+`
+  }
+
+  private optimizeForAI(processed: ProcessedMDXFile): string {
+    let content = `---
+title: ${processed.frontmatter.title}
+description: ${processed.frontmatter.description}
+---
+
+# ${processed.frontmatter.title}
+
+${processed.frontmatter.description}
+
+`
+
+    // Add code examples in AI-friendly format
+    processed.codeExamples.forEach(example => {
+      content += `
+## ${example.title || 'Code Example'}
+
+\`\`\`${example.language}
+${example.code}
+\`\`\`
+
+`
+    })
+
+    // Add key concepts
+    if (processed.metadata.headings.length > 0) {
+      content += '\n## Key Concepts\n\n'
+      processed.metadata.headings.forEach(heading => {
+        content += `- ${heading.text}\n`
+      })
+    }
+
+    return content
+  }
+}
+```
+
+### Content Standards and Guidelines
+
+#### Writing Standards
+```typescript
+// Content validation rules
+export interface ContentStandards {
+  // Structure requirements
+  structure: {
+    requireFrontmatter: boolean
+    requireDescription: boolean
+    requireCodeExamples: boolean
+    maxHeadingDepth: number
+    minWordCount: number
+  }
+  
+  // Style guidelines
+  style: {
+    useActiveVoice: boolean
+    avoidJargon: boolean
+    includeExamples: boolean
+    maxSentenceLength: number
+  }
+  
+  // Technical requirements
+  technical: {
+    validateCodeSyntax: boolean
+    requireWorkingExamples: boolean
+    includeErrorHandling: boolean
+    followNamingConventions: boolean
+  }
+}
+
+export const validateContent = async (
+  filePath: string,
+  standards: ContentStandards
+): Promise<ValidationResult> => {
+  const content = await fs.promises.readFile(filePath, 'utf8')
+  const { data: frontmatter, content: body } = matter(content)
+  
+  const issues: ValidationIssue[] = []
+
+  // Validate structure
+  if (standards.structure.requireFrontmatter && !frontmatter.title) {
+    issues.push({
+      type: 'error',
+      message: 'Missing required frontmatter title',
+      line: 1,
+    })
+  }
+
+  if (standards.structure.requireDescription && !frontmatter.description) {
+    issues.push({
+      type: 'error',
+      message: 'Missing required frontmatter description',
+      line: 1,
+    })
+  }
+
+  // Validate word count
+  const wordCount = body.split(/\s+/).length
+  if (wordCount < standards.structure.minWordCount) {
+    issues.push({
+      type: 'warning',
+      message: `Content too short: ${wordCount} words (minimum: ${standards.structure.minWordCount})`,
+    })
+  }
+
+  // Validate code examples
+  if (standards.structure.requireCodeExamples) {
+    const codeBlocks = extractCodeBlocks(body)
+    if (codeBlocks.length === 0) {
+      issues.push({
+        type: 'warning',
+        message: 'No code examples found',
+      })
+    }
+  }
+
+  return {
+    valid: issues.filter(i => i.type === 'error').length === 0,
+    issues,
+    metadata: {
+      wordCount,
+      codeBlockCount: extractCodeBlocks(body).length,
+      headingCount: extractHeadings(body).length,
+    },
+  }
+}
+```
+
+#### Documentation Templates
+```typescript
+// Template system for consistent documentation
+export const createDocumentationTemplate = (
+  type: 'concept' | 'tutorial' | 'reference' | 'example'
+): DocumentTemplate => {
+  const baseTemplate = {
+    frontmatter: {
+      title: '',
+      description: '',
+      tags: [],
+      difficulty: 'beginner' as const,
+      lastUpdated: new Date().toISOString(),
+    },
+    sections: [],
+  }
+
+  switch (type) {
+    case 'concept':
+      return {
+        ...baseTemplate,
+        sections: [
+          { title: 'Overview', required: true },
+          { title: 'Key Concepts', required: true },
+          { title: 'How It Works', required: true },
+          { title: 'Best Practices', required: false },
+          { title: 'Related Topics', required: false },
+        ],
+      }
+
+    case 'tutorial':
+      return {
+        ...baseTemplate,
+        frontmatter: {
+          ...baseTemplate.frontmatter,
+          estimatedTime: '10 minutes',
+          prerequisites: [],
+        },
+        sections: [
+          { title: 'What You\'ll Build', required: true },
+          { title: 'Prerequisites', required: true },
+          { title: 'Step-by-Step Guide', required: true },
+          { title: 'Testing Your Implementation', required: true },
+          { title: 'Next Steps', required: false },
+        ],
+      }
+
+    case 'reference':
+      return {
+        ...baseTemplate,
+        sections: [
+          { title: 'API Overview', required: true },
+          { title: 'Parameters', required: true },
+          { title: 'Return Values', required: true },
+          { title: 'Examples', required: true },
+          { title: 'Error Handling', required: false },
+        ],
+      }
+
+    case 'example':
+      return {
+        ...baseTemplate,
+        frontmatter: {
+          ...baseTemplate.frontmatter,
+          useCase: '',
+          complexity: 'simple' as const,
+        },
+        sections: [
+          { title: 'Use Case', required: true },
+          { title: 'Implementation', required: true },
+          { title: 'Code Explanation', required: true },
+          { title: 'Running the Example', required: true },
+          { title: 'Variations', required: false },
+        ],
+      }
+
+    default:
+      return baseTemplate
+  }
+}
+```
+
+## File Structure Guidelines
+
+### Directory Organization
+```
+packages/docs/
+├── content/
+│   └── docs/                    # Documentation content
+│       ├── getting-started/     # Quick start guides
+│       ├── concepts/           # Core concepts
+│       ├── examples/           # Code examples
+│       ├── api-reference/      # API documentation
+│       └── guides/             # How-to guides
+├── components/                 # React components
+│   ├── ui/                    # UI components
+│   └── docs/                  # Documentation-specific components
+├── app/                       # Next.js app directory
+├── public/                    # Static assets
+│   ├── images/               # Documentation images
+│   ├── llm-docs/            # AI-optimized documentation
+│   └── llms.txt             # AI context file
+└── scripts/                  # Build and processing scripts
+```
+
+### Naming Conventions
+- **Content Files**: Use kebab-case (`getting-started.mdx`, `api-reference.mdx`)
+- **Components**: Use PascalCase (`CodeExample`, `APIReference`)
+- **Images**: Use descriptive names (`motia-architecture.png`, `flow-diagram.svg`)
+- **Slugs**: Use kebab-case for URLs (`/docs/getting-started/quick-start`)
+
+## Testing Best Practices
+
+### Documentation Testing
+```typescript
+// Test documentation content validity
+describe('Documentation Content', () => {
+  it('should have valid frontmatter for all pages', async () => {
+    const contentDir = path.join(__dirname, '../content/docs')
+    const allPages = await getAllDocumentationFiles(contentDir)
+
+    for (const page of allPages) {
+      const content = await fs.promises.readFile(page.filePath, 'utf8')
+      const { data: frontmatter } = matter(content)
+
+      expect(frontmatter.title).toBeDefined()
+      expect(frontmatter.description).toBeDefined()
+      expect(frontmatter.title.length).toBeGreaterThan(0)
+      expect(frontmatter.description.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('should have working code examples', async () => {
+    const contentDir = path.join(__dirname, '../content/docs')
+    const allPages = await getAllDocumentationFiles(contentDir)
+
+    for (const page of allPages) {
+      const content = await fs.promises.readFile(page.filePath, 'utf8')
+      const codeBlocks = extractCodeBlocks(content)
+
+      for (const block of codeBlocks) {
+        if (block.isRunnable) {
+          // Validate syntax
+          expect(() => validateCodeSyntax(block.code, block.language)).not.toThrow()
+          
+          // Test execution if it's a complete example
+          if (block.isComplete) {
+            await expect(testCodeExample(block)).resolves.toBeTruthy()
+          }
+        }
+      }
+    }
+  })
+
+  it('should have consistent internal links', async () => {
+    const contentDir = path.join(__dirname, '../content/docs')
+    const allPages = await getAllDocumentationFiles(contentDir)
+    const allSlugs = allPages.map(p => p.slug)
+
+    for (const page of allPages) {
+      const content = await fs.promises.readFile(page.filePath, 'utf8')
+      const internalLinks = extractInternalLinks(content)
+
+      for (const link of internalLinks) {
+        expect(allSlugs).toContain(link.slug)
+      }
+    }
+  })
+})
+
+// Test documentation components
+describe('Documentation Components', () => {
+  it('should render code examples correctly', () => {
+    render(
+      <CodeExample
+        title="Test Example"
+        code="console.log('Hello, World!')"
+        language="typescript"
+      />
+    )
+
+    expect(screen.getByText('Test Example')).toBeInTheDocument()
+    expect(screen.getByText("console.log('Hello, World!')")).toBeInTheDocument()
+  })
+
+  it('should handle code copying', async () => {
+    const mockWriteText = jest.fn()
+    Object.assign(navigator, {
+      clipboard: { writeText: mockWriteText }
+    })
+
+    render(
+      <CodeExample
+        title="Copy Test"
+        code="const test = 'copy me'"
+        language="typescript"
+      />
+    )
+
+    const copyButton = screen.getByText('Copy')
+    fireEvent.click(copyButton)
+
+    expect(mockWriteText).toHaveBeenCalledWith("const test = 'copy me'")
+  })
+})
+```
+
+### Performance Testing
+```typescript
+// Documentation site performance testing
+describe('Documentation Performance', () => {
+  it('should load pages quickly', async () => {
+    const startTime = Date.now()
+    
+    const response = await fetch('http://localhost:3000/docs/getting-started')
+    const content = await response.text()
+    
+    const loadTime = Date.now() - startTime
+    
+    expect(response.ok).toBe(true)
+    expect(loadTime).toBeLessThan(2000) // Should load in under 2 seconds
+    expect(content).toContain('Getting Started')
+  })
+
+  it('should have optimized images', async () => {
+    const imageDir = path.join(__dirname, '../public/images')
+    const images = await getAllImages(imageDir)
+
+    for (const image of images) {
+      const stats = await fs.promises.stat(image.path)
+      const sizeInKB = stats.size / 1024
+
+      // Images should be reasonably sized
+      expect(sizeInKB).toBeLessThan(500) // Max 500KB per image
+      
+      // Check for WebP format for better compression
+      if (image.extension === '.png' || image.extension === '.jpg') {
+        const webpVersion = image.path.replace(image.extension, '.webp')
+        const hasWebPVersion = fs.existsSync(webpVersion)
+        
+        if (!hasWebPVersion) {
+          console.warn(`Consider creating WebP version of ${image.path}`)
+        }
+      }
+    }
+  })
+})
+```
+
+## Content Guidelines
+
+### Writing Standards
+1. **Clear and Concise**: Write in plain language, avoid jargon
+2. **Action-Oriented**: Use active voice and imperative mood
+3. **Example-Driven**: Include working code examples
+4. **Progressive Disclosure**: Start simple, add complexity gradually
+5. **Consistent Terminology**: Use consistent terms throughout
+
+### Code Example Standards
+```typescript
+// Good code example structure
+export const GoodCodeExample = () => (
+  <CodeTabs examples={[
+    {
+      language: 'typescript',
+      label: 'TypeScript',
+      filename: 'user-api.step.ts',
+      code: `import { z } from 'zod'
+import { ApiRouteConfig, ApiHandler } from 'motia'
+
+// Input validation schema
+const CreateUserInput = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+})
+
+// Handler implementation
+export const handler: ApiHandler<typeof CreateUserInput> = async (input, ctx) => {
+  ctx.logger.info('Creating user', { email: input.email })
+  
+  // Business logic
+  const user = {
+    id: generateId(),
+    ...input,
+    createdAt: new Date().toISOString(),
+  }
+  
+  // Store in state
+  await ctx.state.set('users', user.id, user)
+  
+  // Emit event
+  await ctx.emit({
+    topic: 'user.created',
+    data: user,
+  })
+  
+  return { user }
+}
+
+// Configuration
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'CreateUser',
+  description: 'Create a new user account',
+  path: '/users',
+  method: 'POST',
+  input: CreateUserInput,
+  emits: ['user.created'],
+  flows: ['user-management'],
+}`
+    },
+    {
+      language: 'python',
+      label: 'Python',
+      filename: 'user_api_step.py',
+      code: `from pydantic import BaseModel, EmailStr
+from typing import Dict, Any
+import uuid
+from datetime import datetime
+
+# Input validation model
+class CreateUserInput(BaseModel):
+    name: str
+    email: EmailStr
+
+# Handler implementation
+async def handler(input_data: Dict[str, Any], context) -> Dict[str, Any]:
+    # Validate input
+    user_input = CreateUserInput(**input_data)
+    
+    context.logger.info("Creating user", {"email": user_input.email})
+    
+    # Business logic
+    user = {
+        "id": str(uuid.uuid4()),
+        "name": user_input.name,
+        "email": user_input.email,
+        "created_at": datetime.now().isoformat(),
+    }
+    
+    # Store in state
+    await context.state.set("users", user["id"], user)
+    
+    # Emit event
+    await context.emit({
+        "topic": "user.created",
+        "data": user,
+    })
+    
+    return {"user": user}
+
+# Configuration
+config = {
+    "type": "api",
+    "name": "CreateUser",
+    "description": "Create a new user account",
+    "path": "/users",
+    "method": "POST",
+    "emits": ["user.created"],
+    "flows": ["user-management"],
+}`
+    }
+  ]} />
+)
+```
+
+### Accessibility Standards
+```tsx
+// Accessible documentation components
+export const AccessibleDocumentation: React.FC = () => {
+  return (
+    <article 
+      role="main"
+      aria-labelledby="main-heading"
+      className="prose prose-gray max-w-none dark:prose-invert"
+    >
+      <h1 id="main-heading" className="sr-only">
+        Documentation Content
+      </h1>
+      
+      {/* Skip navigation */}
+      <a 
+        href="#main-content" 
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-accent text-accent-foreground p-2 rounded"
+      >
+        Skip to main content
+      </a>
+      
+      {/* Main content with proper heading hierarchy */}
+      <div id="main-content">
+        <h2>Section Title</h2>
+        <p>Content with proper contrast ratios and readable fonts.</p>
+        
+        {/* Code examples with proper labeling */}
+        <div role="region" aria-labelledby="code-example-heading">
+          <h3 id="code-example-heading">Code Example</h3>
+          <CodeExample
+            title="API Step Example"
+            code="// Example code"
+            language="typescript"
+            aria-label="TypeScript code example for creating an API step"
+          />
+        </div>
+      </div>
+    </article>
+  )
+}
+```
+
+## Integration Guidelines
+
+### Package Integration
+- Uses @motiadev/ui for consistent design system
+- Integrates @motiadev/stream-client-react for real-time features
+- Builds on @motiadev/core foundations for examples
+- Maintains separation from implementation packages
+
+### SEO and Discoverability
+```typescript
+// SEO optimization for documentation
+export const generateSEOMetadata = (page: DocPage): Metadata => {
+  return {
+    title: `${page.title} | Motia Documentation`,
+    description: page.description,
+    keywords: [
+      'motia',
+      'backend framework',
+      'workflow automation',
+      ...page.tags,
+    ],
+    openGraph: {
+      title: page.title,
+      description: page.description,
+      type: 'article',
+      url: `https://motia.dev/docs/${page.slug}`,
+      images: [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'Motia Documentation',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: page.title,
+      description: page.description,
+      images: ['/og-image.png'],
+    },
+  }
+}
+```
+
+### Best Practices
+1. **Content Organization**: Use clear hierarchy and logical grouping
+2. **Code Quality**: Ensure all code examples are tested and working
+3. **Visual Design**: Maintain consistency with Motia design system
+4. **Performance**: Optimize images and loading times
+5. **Accessibility**: Follow WCAG guidelines for inclusive documentation
+6. **AI Optimization**: Structure content for AI consumption and assistance
+7. **Version Management**: Keep documentation in sync with framework versions
