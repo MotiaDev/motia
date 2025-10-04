@@ -198,58 +198,263 @@ module.exports = { config, handler };
 👉 With just two files, you have an **API endpoint** that triggers an **event-driven workflow**.  
 
 ---
+
 ## Triggers
 
-Every Step has a `type` that defines **how it triggers**. Change the type, and the same pattern works for different use cases.
+Every Step has a `type` that defines **how it triggers**:
 
-| Type     | When it runs                 | Example use case |
-|----------|------------------------------|------------------|
-| [`api`](/docs/concepts/steps/api)    | On an HTTP request           | REST endpoints, webhooks |
-| [`event`](/docs/concepts/steps/event)  | When an event is emitted     | Event-driven workflows |
-| [`cron`](/docs/concepts/steps/cron)   | On a schedule                | Nightly jobs, reminders |
+| Type | When it runs | Use case |
+|------|--------------|----------|
+| `api` | HTTP request | REST APIs, webhooks |
+| `event` | Event emitted | Background jobs, workflows |
+| `cron` | Schedule | Cleanup, reports, reminders |
+
+<Tabs items={['API', 'Event', 'Cron']}>
+  <Tab value="API">
+
+### API Trigger
+
+Runs when an HTTP request hits the path.
+
+**Example:**
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    ```typescript
+    import { ApiRouteConfig, Handlers } from 'motia'
+
+    export const config: ApiRouteConfig = {
+      name: 'GetUser',
+      type: 'api',
+      path: '/users/:id',
+      method: 'GET'
+    }
+
+    export const handler: Handlers['GetUser'] = async (req, { logger }) => {
+      const userId = req.pathParams.id
+      logger.info('Getting user', { userId })
+      return { status: 200, body: { id: userId, name: 'John' } }
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const config = {
+      name: 'GetUser',
+      type: 'api',
+      path: '/users/:id',
+      method: 'GET'
+    }
+
+    const handler = async (req, { logger }) => {
+      const userId = req.pathParams.id
+      logger.info('Getting user', { userId })
+      return { status: 200, body: { id: userId, name: 'John' } }
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    config = {
+        "name": "GetUser",
+        "type": "api",
+        "path": "/users/:id",
+        "method": "GET"
+    }
+
+    async def handler(req, ctx):
+        user_id = req.get("pathParams", {}).get("id")
+        ctx.logger.info("Getting user", {"userId": user_id})
+        return {"status": 200, "body": {"id": user_id, "name": "John"}}
+    ```
+  </Tab>
+</Tabs>
+
+**Config:**
+
+| Property | Description |
+|----------|-------------|
+| `name` | Unique identifier |
+| `type` | Set to `'api'` |
+| `path` | URL path (supports `:params`) |
+| `method` | GET, POST, PUT, DELETE |
+| `bodySchema` | Validate request body |
+
+**Handler:** `handler(req, ctx)`
+
+- `req` - Request with `body`, `headers`, `pathParams`, `queryParams`
+- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+- Returns `{ status, body, headers? }`
+
+</Tab>
+
+  <Tab value="Event">
+
+### Event Trigger
+
+Runs when an event is emitted. Use for background tasks.
+
+**Example:**
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    ```typescript
+    import { EventConfig, Handlers } from 'motia'
+
+    export const config: EventConfig = {
+      name: 'ProcessMessage',
+      type: 'event',
+      subscribes: ['message.sent'],
+      emits: ['message.processed']
+    }
+
+    export const handler: Handlers['ProcessMessage'] = async (input, { logger, emit }) => {
+      logger.info('Processing message:', input)
+      await emit({ topic: 'message.processed', data: input })
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const config = {
+      name: 'ProcessMessage',
+      type: 'event',
+      subscribes: ['message.sent'],
+      emits: ['message.processed']
+    }
+
+    const handler = async (input, { logger, emit }) => {
+      logger.info('Processing message:', input)
+      await emit({ topic: 'message.processed', data: input })
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    config = {
+        "name": "ProcessMessage",
+        "type": "event",
+        "subscribes": ["message.sent"],
+        "emits": ["message.processed"]
+    }
+
+    async def handler(input, ctx):
+        ctx.logger.info("Processing message:", {"input": input})
+        await ctx.emit({"topic": "message.processed", "data": input})
+    ```
+  </Tab>
+</Tabs>
+
+**Config:**
+
+| Property | Description |
+|----------|-------------|
+| `name` | Unique identifier |
+| `type` | Set to `'event'` |
+| `subscribes` | Event topics to listen to |
+| `emits` | Event topics to emit |
+| `input` | Validate input data |
+
+**Handler:** `handler(input, ctx)`
+
+- `input` - Data from the emitted event
+- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+
+</Tab>
+
+  <Tab value="Cron">
+
+### Cron Trigger
+
+Runs on a schedule. Use for periodic tasks.
+
+**Example:**
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    ```typescript
+    import { CronConfig, Handlers } from 'motia'
+
+    export const config: CronConfig = {
+      name: 'DailyCleanup',
+      type: 'cron',
+      cron: '0 0 * * *'
+    }
+
+    export const handler: Handlers['DailyCleanup'] = async ({ logger }) => {
+      logger.info('Running daily cleanup')
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript
+    const config = {
+      name: 'DailyCleanup',
+      type: 'cron',
+      cron: '0 0 * * *'
+    }
+
+    const handler = async ({ logger }) => {
+      logger.info('Running daily cleanup')
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python
+    config = {
+        "name": "DailyCleanup",
+        "type": "cron",
+        "cron": "0 0 * * *"
+    }
+  
+    async def handler(ctx):
+        ctx.logger.info("Running daily cleanup")
+    ```
+  </Tab>
+</Tabs>
+
+**Config:**
+
+| Property | Description |
+|----------|-------------|
+| `name` | Unique identifier |
+| `type` | Set to `'cron'` |
+| `cron` | Cron expression |
+
+**Handler:** `handler(ctx)`
+
+- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+
+**Common schedules:**
+
+| Expression | Runs |
+|------------|------|
+| `* * * * *` | Every minute |
+| `0 * * * *` | Every hour |
+| `0 0 * * *` | Daily at midnight |
+| `0 9 * * 1` | Monday at 9 AM |
+
+👉 Use [crontab.guru](https://crontab.guru) to build expressions.
+
+</Tab>
+</Tabs>
 
 ---
 
-## Anatomy of a Step
+## Context Object
 
-Each Step file has two parts:
+Every handler receives a `ctx` object with these tools:
 
-1. **Config** – declarative metadata about the Step  
-2. **Handler** – the function that runs when the Step triggers
-
-### Config Properties
-
-Common to all Steps:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `name`   | `string` | Unique identifier |
-| `type`   | `'api' \| 'event' \| 'cron' \| Trigger type |
-| `description` | `string` | Human-readable notes (optional) |
-| `emits`  | `string[]` | Events this Step can emit |
-| `subscribes` | `string[]` | Events this Step listens to |
-| `flows`  | `string[]` | Flows this Step belongs to |
-
-Additional properties depend on type (`api`, `event`, `cron`).
-
----
-
-### Handler Function
-
-The **handler** is where your business logic goes. Its signature depends on the Step type:
-
-- **API Step** → `(req, ctx)`  
-- **Event Step** → `(input, ctx)`  
-- **Cron Step** → `(ctx)`  
-
-#### Context (`ctx`)
-
-Every handler gets the same context object:
-
-| Element | Description |
-|---------|-------------|
-| `emit` | Trigger other Steps by emitting events |
+| Property | Description |
+|----------|-------------|
 | `logger` | Structured logging (`info`, `warn`, `error`) |
+| `emit` | Trigger other Steps by emitting events |
 | `state` | Persistent key-value storage |
 | `streams` | Real-time data channels for clients |
 | `traceId` | Unique ID for tracing requests & workflows |
@@ -357,4 +562,4 @@ await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
 
 ## What’s Next?
 
-👉 [Build your first app →](/docs/getting-started/build-your-first-app)
+👉 [Build your first app →](/docs/getting-started/build-your-first-motia-app)
