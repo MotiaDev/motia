@@ -14,7 +14,7 @@ export type InternalStateManager = {
   clear(groupId: string): Promise<void>
 }
 
-export type EmitData = { topic: ''; data: unknown }
+export type EmitData = { topic: ''; data: unknown; messageGroupId?: string }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -32,6 +32,25 @@ export type EventHandler<TInput, TEmitData> = (input: TInput, ctx: FlowContext<T
 
 export type Emit = string | { topic: string; label?: string; conditional?: boolean }
 
+export type HandlerConfig = {
+  ram: number
+  cpu?: number
+  timeout: number
+}
+
+export type QueueConfig = {
+  type: 'fifo' | 'standard'
+  messageGroupId?: string | null
+  maxRetries: number
+  visibilityTimeout: number
+  delaySeconds: number
+}
+
+export type InfrastructureConfig = {
+  handler?: Partial<HandlerConfig>
+  queue?: Partial<QueueConfig>
+}
+
 export type EventConfig = {
   type: 'event'
   name: string
@@ -47,6 +66,7 @@ export type EventConfig = {
    * Needs to be relative to the step file.
    */
   includeFiles?: string[]
+  infrastructure?: Partial<InfrastructureConfig>
 }
 
 export type NoopConfig = {
@@ -147,6 +167,7 @@ export type Event<TData = unknown> = {
   flows?: string[]
   logger: Logger
   tracer: Tracer
+  messageGroupId?: string
 }
 
 export type Handler<TData = unknown> = (event: Event<TData>) => Promise<void>

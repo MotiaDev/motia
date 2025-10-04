@@ -5,6 +5,7 @@ import type { TracerFactory } from './observability'
 import type { Printer } from './printer'
 import type { StateAdapter } from './state/state-adapter'
 import type { EventManager, InternalStateManager, ApiRouteConfig, ApiRouteHandler, ApiResponse } from './types'
+import { QueueManager } from './queue-manager'
 
 export type Motia = {
   loggerFactory: LoggerFactory
@@ -13,6 +14,7 @@ export type Motia = {
   lockedData: LockedData
   printer: Printer
   tracerFactory: TracerFactory
+  queueManager: QueueManager
 
   app: Express
   stateAdapter: StateAdapter

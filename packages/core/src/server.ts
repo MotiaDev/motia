@@ -18,6 +18,7 @@ import { BaseLoggerFactory } from './logger-factory'
 import type { Motia } from './motia'
 import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
+import { QueueManager } from './queue-manager'
 import { createSocketServer } from './socket-server'
 import type { StateAdapter } from './state/state-adapter'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
@@ -48,6 +49,7 @@ export const createServer = (
   eventManager: EventManager,
   state: StateAdapter,
   config: MotiaServerConfig,
+  queueManager?: QueueManager,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
   const app = express()
@@ -152,6 +154,7 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
+  const queueMgr = queueManager || new QueueManager()
   const motia: Motia = {
     loggerFactory,
     eventManager,
@@ -161,10 +164,11 @@ export const createServer = (
     tracerFactory,
     app,
     stateAdapter: state,
+    queueManager: queueMgr,
   }
 
   const cronManager = setupCronHandlers(motia)
-  const motiaEventManager = createStepHandlers(motia)
+  const motiaEventManager = createStepHandlers(motia, queueMgr)
 
   const asyncHandler = (step: Step<ApiRouteConfig>) => {
     return async (req: Request, res: Response) => {

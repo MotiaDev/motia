@@ -6,7 +6,8 @@ import {
   createServer,
   createStateAdapter,
   getProjectIdentifier,
-  type MotiaPlugin,
+  MotiaPlugin,
+  QueueManager,
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
@@ -60,14 +61,15 @@ export const dev = async (
 
   const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
 
-  const eventManager = createEventManager()
+  const queueManager = new QueueManager()
+  const eventManager = createEventManager(queueManager)
   const state = createStateAdapter({
     adapter: 'default',
     filePath: path.join(baseDir, motiaFileStoragePath),
   })
 
   const config = { isVerbose }
-  const motiaServer = createServer(lockedData, eventManager, state, config)
+  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await generatePlugins(motiaServer)
 
