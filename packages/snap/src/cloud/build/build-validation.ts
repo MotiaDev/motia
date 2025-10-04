@@ -3,6 +3,7 @@ import { Builder } from './builder'
 import colors from 'colors'
 import * as cron from 'node-cron'
 import path from 'path'
+import { validateInfrastructureConfig } from '@motiadev/core/dist/src/step-validator'
 
 export const buildValidation = (builder: Builder, listener: BuildListener) => {
   const { errors, warnings } = validateStepsConfig(builder)
@@ -101,6 +102,44 @@ export const validateStepsConfig = (builder: Builder) => {
         ].join('\n'),
         step,
       })
+    }
+
+    const config = step.config as any
+    if (config.infrastructure) {
+      if (step.config.type !== 'event' && config.infrastructure.queue) {
+        warnings.push({
+          relativePath,
+          message: [
+            'Queue configuration is only applicable to Event steps and will be ignored',
+            `  ${colors.yellow('➜')} Queue config found in ${colors.magenta(step.config.type)} step`,
+          ].join('\n'),
+          step,
+        })
+      }
+
+      let inputSchema: any
+      if (step.config.type === 'event' && config.input && typeof config.input === 'object' && '_def' in config.input) {
+        inputSchema = config.input
+      }
+
+      const validationResult = validateInfrastructureConfig(
+        config.infrastructure,
+        step.config.name,
+        inputSchema
+      )
+
+      if (!validationResult.success && validationResult.errors) {
+        for (const error of validationResult.errors) {
+          errors.push({
+            relativePath,
+            message: [
+              `Infrastructure configuration error in step ${colors.magenta(step.config.name)}:`,
+              `  ${colors.red('➜')} ${error.path}: ${colors.red(error.message)}`,
+            ].join('\n'),
+            step,
+          })
+        }
+      }
     }
   }
 
