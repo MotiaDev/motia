@@ -16,11 +16,11 @@
     "clean": "rm -rf node_modules pnpm-lock.yaml dist .turbo .next"
   },
   "devDependencies": {
+    "@eslint/js": "^9.28.0",
     "@types/node": "^22.15.18",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
     "eslint": "^9.26.0",
-    "@eslint/js": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-jest": "^28.11.0",
     "eslint-plugin-prettier": "^5.4.0",
@@ -45,7 +45,8 @@
     "node": "20.11.1"
   },
   "dependencies": {
-    "axios": "^1.9.0"
+    "axios": "^1.9.0",
+    "motia": "link:packages/snap"
   },
   "version": "0.0.7"
 }

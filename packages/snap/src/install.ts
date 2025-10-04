@@ -10,6 +10,7 @@ import { ensureUvInstalled } from './utils/ensure-uv'
 interface InstallConfig {
   isVerbose?: boolean
   pythonVersion?: string
+  skipPythonPlatform?: boolean
 }
 
 type PythonInstallConfig = InstallConfig & { baseDir: string }
@@ -18,9 +19,10 @@ export const pythonInstall = async ({
   baseDir,
   isVerbose = false,
   pythonVersion = '3.13',
+  skipPythonPlatform = false,
 }: PythonInstallConfig): Promise<void> => {
   const venvPath = path.join(baseDir, 'python_modules')
-  console.log('📦 Installing Python dependencies...', venvPath)
+  console.log(`📦 Installing Python(${pythonVersion}) dependencies...`, venvPath)
 
   const coreRequirementsPath = path.join(baseDir, 'node_modules', 'motia', 'dist', 'requirements-core.txt')
   const snapRequirementsPath = path.join(baseDir, 'node_modules', 'motia', 'dist', 'requirements-snap.txt')
@@ -48,7 +50,7 @@ export const pythonInstall = async ({
     await ensureUvInstalled()
     console.log('✅ UV is available')
 
-    installLambdaPythonPackages({ isVerbose, requirementsList })
+    installLambdaPythonPackages({ isVerbose, requirementsList, skipPythonPlatform })
 
     // Install requirements
     console.log('📥 Installing Python dependencies...')
@@ -60,7 +62,10 @@ export const pythonInstall = async ({
         if (isVerbose) {
           console.log('📄 Using requirements from:', requirement)
         }
-        await executeCommand(`pip install -r "${requirement}" --only-binary=:all:`, baseDir)
+        await executeCommand(
+          `pip install -r "${requirement}" ${skipPythonPlatform ? '' : '--only-binary=:all:'}`,
+          baseDir,
+        )
       }
     }
   } catch (error) {
@@ -70,12 +75,16 @@ export const pythonInstall = async ({
   }
 }
 
-export const install = async ({ isVerbose = false, pythonVersion = '3.13' }: InstallConfig): Promise<void> => {
+export const install = async ({
+  isVerbose = false,
+  pythonVersion = '3.13',
+  skipPythonPlatform,
+}: InstallConfig): Promise<void> => {
   const baseDir = process.cwd()
 
   const steps = getStepFiles(baseDir)
   if (steps.some((file) => file.endsWith('.py'))) {
-    await pythonInstall({ baseDir, isVerbose, pythonVersion })
+    await pythonInstall({ baseDir, isVerbose, pythonVersion, skipPythonPlatform })
   }
 
   console.info('✅ Installation completed successfully!')

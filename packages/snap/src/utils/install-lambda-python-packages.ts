@@ -5,9 +5,14 @@ import { internalLogger } from './internal-logger'
 interface VenvConfig {
   requirementsList: string[]
   isVerbose?: boolean
+  skipPythonPlatform?: boolean
 }
 
-export const installLambdaPythonPackages = ({ isVerbose = false, requirementsList }: VenvConfig): void => {
+export const installLambdaPythonPackages = ({
+  isVerbose = false,
+  requirementsList,
+  skipPythonPlatform = false,
+}: VenvConfig): void => {
   const sitePackagesPath = `${process.env.PYTHON_SITE_PACKAGES}-lambda`
 
   for (const requirement of requirementsList) {
@@ -20,7 +25,7 @@ export const installLambdaPythonPackages = ({ isVerbose = false, requirementsLis
 
     try {
       // Install packages to lambda site-packages with platform specification
-      const command = `pip install -r "${requirement}" --target "${sitePackagesPath}" --platform manylinux2014_x86_64 --only-binary=:all: --upgrade --upgrade-strategy only-if-needed`
+      const command = `pip install -r "${requirement}" --target "${sitePackagesPath}" ${!skipPythonPlatform ? '--platform manylinux2014_x86_64 --only-binary=:all: ' : ''}--upgrade --upgrade-strategy only-if-needed`
 
       if (isVerbose) {
         console.log('📦 Installing Python packages with platform specification...')
