@@ -80,7 +80,10 @@ export const config: StepConfig = {
     }),
   },
   
-  emits: ['health.alert', 'health.ok'],
+  emits: [
+    { topic: 'health.alert', label: 'Health alert triggered' },
+    { topic: 'health.ok', label: 'System healthy' },
+  ],
   flows: ['multi-trigger-demo'],
   
   virtualSubscribes: [
@@ -96,8 +99,9 @@ export const config: StepConfig = {
   ],
 }
 
-export const handler: Handlers['HealthMonitor'] = async (req, { state, logger, emit }) => {
-  const input = req.body
+export const handler: Handlers['HealthMonitor'] = async (inputOrReq, { state, logger, emit }) => {
+  // Extract input from either direct input or API request body
+  const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
   const timestamp = new Date().toISOString()
   const alerts: Array<{
     metric: string
@@ -153,7 +157,6 @@ export const handler: Handlers['HealthMonitor'] = async (req, { state, logger, e
     
     // Emit events based on status
     if (alerts.length > 0) {
-      // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
       await emit({
         topic: 'health.alert',
         data: {
@@ -165,7 +168,6 @@ export const handler: Handlers['HealthMonitor'] = async (req, { state, logger, e
       
       logger.warn('Health alerts detected', { alertCount: alerts.length })
     } else {
-      // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
       await emit({
         topic: 'health.ok',
         data: {

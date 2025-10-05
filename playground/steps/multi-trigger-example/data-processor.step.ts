@@ -37,7 +37,10 @@ export const config: StepConfig = {
     metadata: z.record(z.any()).optional(),
   }),
   
-  emits: ['data.processed', 'data.error'],
+  emits: [
+    { topic: 'data.processed', label: 'Data processed successfully' },
+    { topic: 'data.error', label: 'Data processing error' },
+  ],
   flows: ['multi-trigger-demo'],
   
   virtualEmits: [
@@ -46,7 +49,10 @@ export const config: StepConfig = {
   ],
 }
 
-export const handler: Handlers['DataProcessor'] = async (input, { state, logger, emit }) => {
+export const handler: Handlers['DataProcessor'] = async (inputOrReq, { state, logger, emit }) => {
+  // Extract input from either direct input or API request body
+  const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
+  
   try {
     logger.info('Processing data', { 
       dataId: input.dataId, 
@@ -69,7 +75,6 @@ export const handler: Handlers['DataProcessor'] = async (input, { state, logger,
     await state.set('data', 'processing.counter', counter + 1)
     
     // Emit success event
-    // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
     await emit({
       topic: 'data.processed',
       data: processingResult,
@@ -82,7 +87,6 @@ export const handler: Handlers['DataProcessor'] = async (input, { state, logger,
       error: String(error),
     })
     
-    // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
     await emit({
       topic: 'data.error',
       data: {

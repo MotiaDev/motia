@@ -17,7 +17,7 @@ export const generateTypesString = (handlers: HandlersMap, streams: StreamsMap):
  * 
  * Consider adding this file to .prettierignore and eslint ignore.
  */
-import { EventHandler, ApiRouteHandler, ApiResponse, MotiaStream, CronHandler } from 'motia'
+import { EventHandler, ApiRouteHandler, ApiResponse, MotiaStream, CronHandler, MultiTriggerHandler } from 'motia'
 
 declare module 'motia' {
   interface FlowContextStateStreams {
@@ -99,11 +99,29 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
   for (const step of steps) {
     const emits = step.config.emits ? generateEmitData(step.config.emits, step) : 'never'
 
-    // Determine the primary handler type based on triggers
-    if (hasEventTrigger(step)) {
+    // Check if step has multiple triggers (either different types or multiple of same type)
+    const hasMultipleTriggers = step.config.triggers.length > 1
+    const triggerTypes = new Set(step.config.triggers.map((t) => t.type))
+    const hasMultipleTriggerTypes = triggerTypes.size > 1
+
+    if (hasMultipleTriggers || hasMultipleTriggerTypes) {
+      // Multi-trigger step: use flexible MultiTriggerHandler
+      const input =
+        step.config.input || step.config.bodySchema
+          ? generateTypeFromSchema((step.config.input || step.config.bodySchema) as never as JsonSchema)
+          : 'any'
+
+      // MultiTriggerHandler only needs input generic, emit type is always flexible
+      handlers[step.config.name] = {
+        type: 'MultiTriggerHandler',
+        generics: [input],
+      }
+    } else if (hasEventTrigger(step)) {
+      // Single event trigger
       const input = step.config.input ? generateTypeFromSchema(step.config.input as never as JsonSchema) : 'never'
       handlers[step.config.name] = { type: 'EventHandler', generics: [input, emits] }
     } else if (hasApiTrigger(step)) {
+      // Single API trigger
       const input = step.config.bodySchema
         ? generateTypeFromSchema(step.config.bodySchema as never as JsonSchema)
         : 'Record<string, unknown>'
@@ -112,6 +130,7 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
         : 'unknown'
       handlers[step.config.name] = { type: 'ApiRouteHandler', generics: [input, result, emits] }
     } else if (hasCronTrigger(step)) {
+      // Single cron trigger
       handlers[step.config.name] = { type: 'CronHandler', generics: [emits] }
     }
     // Note: Steps with no triggers (noop/dev steps) don't generate handlers

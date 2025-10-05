@@ -53,7 +53,10 @@ export const config: StepConfig = {
   }),
   
   
-  emits: ['notification.sent', 'notification.failed'],
+  emits: [
+    { topic: 'notification.sent', label: 'Notification sent successfully' },
+    { topic: 'notification.failed', label: 'Notification failed to send' },
+  ],
   flows: ['multi-trigger-demo'],
   
   virtualEmits: [
@@ -63,7 +66,10 @@ export const config: StepConfig = {
   ],
 }
 
-export const handler: Handlers['NotificationSender'] = async (input, { state, logger, emit }) => {
+export const handler: Handlers['NotificationSender'] = async (inputOrReq, { state, logger, emit }) => {
+  // Extract input from either direct input or API request body
+  const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
+  
   const notificationId = `notif_${Date.now()}`
   const sentAt = new Date().toISOString()
   
@@ -98,7 +104,6 @@ export const handler: Handlers['NotificationSender'] = async (input, { state, lo
     await state.set('notifications', 'stats', stats)
     
     // Emit success event
-    // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
     await emit({
       topic: 'notification.sent',
       data: notification,
@@ -108,7 +113,6 @@ export const handler: Handlers['NotificationSender'] = async (input, { state, lo
   } catch (error: unknown) {
     logger.error('Notification send failed', { error: String(error) })
     
-    // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
     await emit({
       topic: 'notification.failed',
       data: {

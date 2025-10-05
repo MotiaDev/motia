@@ -62,7 +62,10 @@ export const config: StepConfig = {
     500: z.object({ error: z.string() }),
   },
   
-  emits: ['cache.cleaned', 'cache.optimized'],
+  emits: [
+    { topic: 'cache.cleaned', label: 'Cache cleaned' },
+    { topic: 'cache.optimized', label: 'Cache optimized' },
+  ],
   flows: ['multi-trigger-demo'],
   
   virtualEmits: [
@@ -71,8 +74,9 @@ export const config: StepConfig = {
   ],
 }
 
-export const handler: Handlers['CacheManager'] = async (req, { state, logger, emit }) => {
-  const input = req.body
+export const handler: Handlers['CacheManager'] = async (inputOrReq, { state, logger, emit }) => {
+  // Extract input from either direct input or API request body
+  const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
   try {
     const timestamp = new Date().toISOString()
     
@@ -133,7 +137,6 @@ export const handler: Handlers['CacheManager'] = async (req, { state, logger, em
     
     // Emit appropriate event
     const eventTopic = input.operation === 'optimize' ? 'cache.optimized' : 'cache.cleaned'
-    // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
     await emit({
       topic: eventTopic,
       data: {

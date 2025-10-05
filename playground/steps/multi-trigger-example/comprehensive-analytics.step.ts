@@ -60,7 +60,10 @@ export const config: StepConfig = {
   }),
   
   
-  emits: ['analytics.completed', 'analytics.alert'],
+  emits: [
+    { topic: 'analytics.completed', label: 'Analytics calculation completed' },
+    { topic: 'analytics.alert', label: 'Analytics alert triggered' },
+  ],
   flows: ['multi-trigger-demo'],
   
   virtualEmits: [
@@ -69,7 +72,10 @@ export const config: StepConfig = {
   ],
 }
 
-export const handler: Handlers['ComprehensiveAnalytics'] = async (input, { state, logger, emit, traceId }) => {
+export const handler: Handlers['ComprehensiveAnalytics'] = async (inputOrReq, { state, logger, emit, traceId }) => {
+  // Extract input from either direct input or API request body
+  const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
+  
   const analyticsId = `analytics_${Date.now()}`
   const timestamp = new Date().toISOString()
   
@@ -121,7 +127,6 @@ export const handler: Handlers['ComprehensiveAnalytics'] = async (input, { state
     await state.set('global', 'analytics.metrics', newMetrics)
     
     // Emit completion event
-    // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
     await emit({
       topic: 'analytics.completed',
       data: {
@@ -134,7 +139,6 @@ export const handler: Handlers['ComprehensiveAnalytics'] = async (input, { state
     
     // Check for alerts
     if (newMetrics.totalActivities > 1000 && newMetrics.totalActivities % 1000 === 0) {
-      // @ts-expect-error - Multi-trigger steps have emit type issues that will be fixed later
       await emit({
         topic: 'analytics.alert',
         data: {

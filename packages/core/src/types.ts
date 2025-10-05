@@ -155,6 +155,17 @@ export type ApiRouteHandler<
 export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Promise<void>
 
 /**
+ * Handler type for steps with multiple trigger types.
+ * Accepts input from any trigger type and can emit events.
+ * Supports both direct input (Event/Cron/State triggers) and ApiRequest (API triggers).
+ * Uses flexible emit typing to support any event emission without strict type constraints.
+ */
+export type MultiTriggerHandler<TInput = any, TEmitData = any> = (
+  input: TInput | ApiRequest<TInput>,
+  ctx: FlowContext<{ topic: string; data: any }>,
+) => Promise<void | ApiResponse<number, any>>
+
+/**
  * @deprecated Use `Handlers` instead.
  */
 export type StepHandler<T> = T extends StepConfig

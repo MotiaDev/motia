@@ -4,7 +4,7 @@
  * 
  * Consider adding this file to .prettierignore and eslint ignore.
  */
-import { EventHandler, ApiRouteHandler, ApiResponse, MotiaStream, CronHandler } from 'motia'
+import { EventHandler, ApiRouteHandler, ApiResponse, MotiaStream, CronHandler, MultiTriggerHandler } from 'motia'
 
 declare module 'motia' {
   interface FlowContextStateStreams {
@@ -19,15 +19,15 @@ declare module 'motia' {
     'SetUserStatus': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; userId: string; status: string }>, never>
     'stepA': EventHandler<{}, { topic: 'pms.stepA.done'; data: { msg: string; timestamp: number } }>
     'Parallel Merge': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'pms.start'; data: {} }>
-    'join-step': EventHandler<{ msg: string; timestamp: number }, { topic: 'pms.join.complete'; data: { stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string } }>
+    'join-step': MultiTriggerHandler<{ msg: string; timestamp: number }>
     'JoinComplete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
     'CallOpenAi': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
     'OpenAiApi': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
-    'NotificationSender': EventHandler<{ userId?: string; message?: string; type?: 'email' | 'sms' | 'push'; priority?: 'low' | 'medium' | 'high' }, never>
-    'HealthMonitor': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { status: string; alerts: { metric: string; value: number; threshold: number; severity: string }[]; timestamp: string }>, never>
-    'DataProcessor': EventHandler<{ dataId: string; eventType: string; data: Record<string, unknown>; metadata?: Record<string, unknown> }, never>
-    'ComprehensiveAnalytics': EventHandler<{ userId?: string; activityType?: string; timestamp?: string; forceRecalculation?: boolean }, never>
-    'CacheManager': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; operation: string; itemsRemoved: number; cacheSize: number; timestamp: string }> | ApiResponse<500, { error: string }>, never>
+    'NotificationSender': MultiTriggerHandler<{ userId?: string; message?: string; type?: 'email' | 'sms' | 'push'; priority?: 'low' | 'medium' | 'high' }>
+    'HealthMonitor': MultiTriggerHandler<{ key?: string; value?: unknown; metric?: string }>
+    'DataProcessor': MultiTriggerHandler<{ dataId: string; eventType: string; data: Record<string, unknown>; metadata?: Record<string, unknown> }>
+    'ComprehensiveAnalytics': MultiTriggerHandler<{ userId?: string; activityType?: string; timestamp?: string; forceRecalculation?: boolean }>
+    'CacheManager': MultiTriggerHandler<{ operation?: 'clear' | 'optimize' | 'cleanup'; force?: boolean }>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
     'UserRegistration': ApiRouteHandler<Record<string, unknown>, ApiResponse<201, { message: string; userId: string; email: string; tier: string }> | ApiResponse<400, { error: string }>, never>
