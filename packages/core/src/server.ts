@@ -192,9 +192,7 @@ export const createServer = (
         res.status(result.status)
 
         // Handle different body types
-        if (Buffer.isBuffer(result.body)) {
-          res.send(result.body)
-        } else if (typeof result.body === 'string') {
+        if (Buffer.isBuffer(result.body) || typeof result.body === 'string') {
           res.send(result.body)
         } else {
           res.json(result.body)
