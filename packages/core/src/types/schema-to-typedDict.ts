@@ -1,34 +1,22 @@
-// Generates Python TypedDict code from a concise schema language.
-// ================================================================
-// Behavior preserved: no change in parsing, typing, naming, or output.
-// ================================================================
+interface Base { node: "Base"; kind: string; }
+interface UnknownT { node: "Unknown"; }
+interface EnumT { node: "Enum"; options: string[]; }
+interface MappingType { node: "MappingType"; value: TypeNode; }
+interface ArrayT { node: "Array"; item: TypeNode; }
+interface Field { name: string; typ: TypeNode; optional: boolean; }
+interface Obj { node: "Obj"; fields: ReadonlyArray<Field>; name?: string; }
 
-// === AST TYPES ===================================================
+interface UnionT { node: "Union"; members: ReadonlyArray<TypeNode>; }
+type TypeNode = Base | MappingType | ArrayT | Obj | EnumT | UnionT | UnknownT;
 
-export interface Base { node: "Base"; kind: string; }
-export interface UnknownT { node: "Unknown"; }
-export interface EnumT { node: "Enum"; options: string[]; }
-export interface MappingType { node: "MappingType"; value: TypeNode; }
-export interface ArrayT { node: "Array"; item: TypeNode; }
-export interface Field { name: string; typ: TypeNode; optional: boolean; }
-
-/**
- * We annotate Obj nodes with a name during collection.
- * This replaces the previous TDClass wrapper without changing behavior.
- */
-export interface Obj { node: "Obj"; fields: ReadonlyArray<Field>; name?: string; }
-
-export interface UnionT { node: "Union"; members: ReadonlyArray<TypeNode>; }
-export type TypeNode = Base | MappingType | ArrayT | Obj | EnumT | UnionT | UnknownT;
-
-// === TOKENIZER ===================================================
+// === TOKENIZER =====================================================
 
 type TokKind =
   | "LBRACE" | "RBRACE" | "COLON" | "SEMI" | "QUESTION_MARK" | "COMMA"
   | "LESS_THAN" | "GREATER_THAN" | "IDENT" | "KEY_WORD" | "PIPE"
   | "STRING_LITERAL" | "UNKNOWN";
 
-export interface Tok { kind: TokKind; value: string; pos: number; }
+interface Tok { kind: TokKind; value: string; pos: number; }
 
 const KWDS = new Set(["string", "number", "int", "boolean"]);
 const SINGLE: Record<string, TokKind> = {
@@ -39,10 +27,9 @@ const SINGLE: Record<string, TokKind> = {
 const isAlpha = (c: string) => /[A-Za-z_]/.test(c);
 const isAlnum = (c: string) => /[A-Za-z0-9_]/.test(c);
 
-export function tokenize(src: string): Tok[] {
+function tokenize(src: string): Tok[] {
   const out: Tok[] = [];
-  let i = 0;
-  while (i < src.length) {
+  for (let i = 0; i < src.length; ) {
     const c = src[i]!;
     if (/\s/.test(c)) { i++; continue; }
 
@@ -58,25 +45,25 @@ export function tokenize(src: string): Tok[] {
     }
 
     if (c === "'" || c === '"') {
-      const quote = c; let j = i + 1, buf = "";
+      const quote = c;
+      let j = i + 1, buf = "";
       while (j < src.length) {
         const ch = src[j]!;
         if (ch === "\\" && j + 1 < src.length) { buf += src[j + 1]!; j += 2; continue; }
         if (ch === quote) { j++; break; }
         buf += ch; j++;
       }
-      if (j > src.length) throw new SyntaxError(`Unterminated string starting at ${i}`);
+
       out.push({ kind: "STRING_LITERAL", value: buf, pos: i });
       i = j; continue;
     }
 
-    // Preserve current semantics: unknown chars become UNKNOWN tokens.
     out.push({ kind: "UNKNOWN", value: c, pos: i++ });
   }
   return out;
 }
 
-// === PARSER ======================================================
+// === PARSER ========================================================
 
 class Parser {
   private i = 0;
@@ -86,7 +73,6 @@ class Parser {
     const j = this.i + k;
     return j >= 0 && j < this.toks.length ? this.toks[j]! : null;
   }
-
   private want(kind: TokKind): Tok {
     const t = this.peek();
     if (!t || t.kind !== kind) {
@@ -96,19 +82,18 @@ class Parser {
     }
     this.i++; return t;
   }
-
   private accept(kind: TokKind): Tok | null {
     const t = this.peek();
     if (t && t.kind === kind) { this.i++; return t; }
     return null;
   }
+  public eof(): boolean { return this.i >= this.toks.length; }
+  public pos(): number | "EOF" { return this.peek()?.pos ?? "EOF"; }
 
-  parse_root_schema(): Obj { return this.parse_object(); }
-
-  private parse_object(): Obj {
+  parse_object(): Obj {
     this.want("LBRACE");
     const fields: Field[] = [];
-    while (this.peek() && this.peek()!.kind !== "RBRACE") {
+    for (let t = this.peek(); t && t.kind !== "RBRACE"; t = this.peek()) {
       fields.push(this.parse_field());
       while (this.accept("SEMI") || this.accept("COMMA")) {}
     }
@@ -128,13 +113,12 @@ class Parser {
     while (this.accept("PIPE")) members.push(this.parse_atomic());
     if (members.length === 1) return members[0];
 
-    const flat: TypeNode[] = [];
-    for (const m of members) (m.node === "Union") ? flat.push(...m.members) : flat.push(m);
-
-    if (flat.every(m => m.node === "Enum" && (m as EnumT).options.length === 1))
-      return { node: "Enum", options: flat.map(e => (e as EnumT).options[0]!) };
-
-    return { node: "Union", members: flat };
+    // Flatten nested unions and detect union of single-literal enums.
+    const flat = members.flatMap(m => (m.node === "Union" ? (m as UnionT).members : [m]));
+    const isSingleLiteralEnum = flat.every(m => m.node === "Enum" && (m as EnumT).options.length === 1);
+    return isSingleLiteralEnum
+      ? { node: "Enum", options: flat.map(e => (e as EnumT).options[0]!) }
+      : { node: "Union", members: flat };
   }
 
   private parse_atomic(): TypeNode {
@@ -152,14 +136,8 @@ class Parser {
       return { node: "Enum", options };
     }
 
-    // { ... } or {}
-    if (t.kind === "LBRACE") {
-      if (this.peek(1)?.kind === "RBRACE") {
-        this.want("LBRACE"); this.want("RBRACE");
-        return { node: "Obj", fields: [] };
-      }
-      return this.parse_object();
-    }
+    // { ... }
+    if (t.kind === "LBRACE") return this.parse_object();
 
     // Array<T>
     if (t.kind === "IDENT" && t.value === "Array") {
@@ -189,17 +167,14 @@ class Parser {
   }
 }
 
-export function parse_schema(src: string): Obj {
+function parse_schema(src: string): Obj {
   const p = new Parser(tokenize(src), src);
-  const root = p.parse_root_schema();
-  if ((p as any)["peek"]()) {
-    const t = (p as any)["peek"]();
-    throw new SyntaxError(`Unexpected trailing tokens at pos ${t && t.pos}`);
-  }
+  const root = p.parse_object();
+  if (!p.eof()) throw new SyntaxError(`Unexpected trailing tokens at pos ${p.pos()}`);
   return root;
 }
 
-// === HELPERS =====================================================
+// === HELPERS ======================================================
 
 const PYTHON_KEYWORDS = new Set([
   "False","None","True","and","as","assert","async","await","break","class",
@@ -208,12 +183,12 @@ const PYTHON_KEYWORDS = new Set([
   "try","while","with","yield"
 ]);
 
-export const valid_identifier = (n: string) =>
+const valid_identifier = (n: string) =>
   /^[A-Za-z_]\w*$/.test(n) && !PYTHON_KEYWORDS.has(n);
 
-// === TYPE SIGNATURE ==============================================
+// === TYPE SIGNATURE ===============================================
 
-export type Sig =
+type Sig =
   | ["base", string]
   | ["array", Sig]
   | ["obj", ReadonlyArray<[string, boolean, Sig]>]
@@ -222,7 +197,7 @@ export type Sig =
   | ["union", Sig[]]
   | ["unknown"];
 
-export function type_signature(t: TypeNode): Sig {
+function type_signature(t: TypeNode): Sig {
   switch (t.node) {
     case "Base": return ["base", t.kind];
     case "Array": return ["array", type_signature(t.item)];
@@ -234,16 +209,18 @@ export function type_signature(t: TypeNode): Sig {
         .map(f => [f.name, f.optional, type_signature(f.typ)] as [string, boolean, Sig])
         .sort((a, b) => a[0].localeCompare(b[0]));
       return ["obj", items];
-    }
-    case "Union": {
+    }case "Union": {
       const parts = t.members.map(type_signature);
-      const sorted = parts.map(p => JSON.stringify(p)).sort().map(s => JSON.parse(s));
+      const sorted = parts
+        .map((p) => JSON.stringify(p))
+        .sort()
+        .map((s) => JSON.parse(s) as Sig);
       return ["union", sorted];
     }
   }
 }
 
-// === OBJECT COLLECTION (names on Obj) ============================
+// === OBJECT COLLECTION ============================================
 
 function uniquify(base: string, used: Set<string>): string {
   if (!used.has(base)) { used.add(base); return base; }
@@ -251,82 +228,82 @@ function uniquify(base: string, used: Set<string>): string {
   const name = `${base}${k}`; used.add(name); return name;
 }
 
-function name_for_obj(obj: Obj, path: string[], map: Map<string, string>, used: Set<string>): string {
+function name_for_obj(obj: Obj, path: string[], nameMap: Map<string, string>, used: Set<string>): string {
   const sig = JSON.stringify(type_signature(obj));
-  const found = map.get(sig);
+  const found = nameMap.get(sig);
   if (found) return found;
+
   let raw = path.filter(Boolean).join("_") || "Root";
   if (!valid_identifier(raw)) raw = "Type";
+
   const name = uniquify(raw, used);
-  map.set(sig, name);
+  nameMap.set(sig, name);
   return name;
 }
 
 /**
- * Walk the tree, assign stable names to Obj nodes, and
- * return the ordered list of unique named objects plus the signature→name map.
+ * Walks the tree, assigns stable names to Obj nodes,
+ * returns ordered list of unique objects (bottom-up).
  */
-export function collect_objects(root: Obj, root_hint = "Root") {
-  const nameMap = new Map<string, string>(), used = new Set<string>();
-  const orderedObjs: Obj[] = [];           // unique, in stable order
-  const seenNames = new Set<string>();     // dedupe by assigned class name
+function collect_objects(root: Obj, root_hint = "Root") {
+  const nameMap = new Map<string, string>();
+  const used = new Set<string>();
+  const orderedObjs: Obj[] = [];
+  const seenNames = new Set<string>();
 
   const visit = (t: TypeNode, path: string[]) => {
-    if (t.node === "Obj") {
-      if (!t.fields.length) return;
+    switch (t.node) {
+      case "Obj": {
+        if (!t.fields.length) return;
 
-      // Assign/lookup a stable name by structural signature.
-      const name = name_for_obj(t, path, nameMap, used);
-      t.name = name; // annotate Obj directly
+        const name = name_for_obj(t, path, nameMap, used);
+        t.name = name;
 
-      if (!seenNames.has(name)) {
-        // Visit children first to keep the existing bottom-up order.
-        for (const f of t.fields) visit(f.typ, path.concat(f.name));
-        seenNames.add(name);
-        orderedObjs.push(t);
+        if (!seenNames.has(name)) {
+          // visit children first for bottom-up ordering
+          for (const f of t.fields) visit(f.typ, path.concat(f.name));
+          seenNames.add(name);
+          orderedObjs.push(t);
+        }
+        break;
       }
-    } else if (t.node === "Array") {
-      visit(t.item, path);
-    } else if (t.node === "MappingType") {
-      visit(t.value, path);
-    } else if (t.node === "Union") {
-      t.members.forEach(m => visit(m, path));
+      case "Array": visit(t.item, path); break;
+      case "MappingType": visit(t.value, path); break;
+      case "Union": t.members.forEach(m => visit(m, path)); break;
+      default: break;
     }
   };
 
   visit(root, [root_hint]);
-  return { objs: orderedObjs, name_of: nameMap };
+  return { objs: orderedObjs };
 }
 
-// === PYTHON TYPE MAPPING =========================================
+// === PYTHON TYPE MAPPING ==========================================
 
-export function py_type(t: TypeNode, name_of: Map<string, string>): string {
+function py_type(t: TypeNode): string {
   switch (t.node) {
     case "Base":
       return t.kind === "string" ? "str"
         : t.kind === "number" ? "float"
         : t.kind === "int" ? "int"
         : t.kind === "boolean" ? "bool"
-        : t.kind === "emptyobj" ? "Mapping[str, object]" : "Any";
-    case "Array": return `list[${py_type(t.item, name_of)}]`;
-    case "Obj": {
+        : "Any";
+    case "Array": return `list[${py_type(t.item)}]`;
+    case "Obj":
       if (!t.fields.length) return "Mapping[str, object]";
-      const key = JSON.stringify(type_signature(t));
-      const name = name_of.get(key);
-      if (!name) throw new Error("Unresolved object name for signature");
-      return name;
-    }
-    case "MappingType": return `Mapping[str, ${py_type(t.value, name_of)}]`;
+      if (!t.name) throw new Error("Invariant violated: Obj.name not set. Run collect_objects first.");
+      return t.name;
+    case "MappingType": return `Mapping[str, ${py_type(t.value)}]`;
     case "Enum": return `Literal[${t.options.map(o => JSON.stringify(o)).join(", ")}]`;
-    case "Union": return t.members.map(m => py_type(m, name_of)).join(" | ");
+    case "Union": return t.members.map(py_type).join(" | ");
     case "Unknown": return "Any";
   }
 }
 
-// === RENDERER ====================================================
+// === RENDERER =====================================================
 
-export function render_typeddicts(root: Obj, rootName = "Root"): string {
-  const { objs, name_of } = collect_objects(root, rootName);
+function render_typeddicts(root: Obj, rootName = "Root"): string {
+  const { objs } = collect_objects(root, rootName);
   const opt = (s: string, o: boolean) => (o ? `NotRequired[${s}]` : s);
   const lines: string[] = [];
 
@@ -337,18 +314,14 @@ export function render_typeddicts(root: Obj, rootName = "Root"): string {
     const all_valid = fields.every(f => valid_identifier(f.name));
     if (all_valid) {
       lines.push(`class ${clsName}(TypedDict):`);
-      if (!fields.length) {
-        lines.push("    pass");
-      } else {
-        for (const f of fields) {
-          lines.push(`    ${f.name}: ${opt(py_type(f.typ, name_of), f.optional)}`);
-        }
+      for (const f of fields) {
+        lines.push(`    ${f.name}: ${opt(py_type(f.typ), f.optional)}`);
       }
     } else {
       lines.push(`${clsName} = TypedDict("${clsName}", {`);
       fields.forEach((f, i) => {
         const comma = i < fields.length - 1 ? "," : "";
-        lines.push(`    ${JSON.stringify(f.name)}: ${opt(py_type(f.typ, name_of), f.optional)}${comma}`);
+        lines.push(`    ${JSON.stringify(f.name)}: ${opt(py_type(f.typ), f.optional)}${comma}`);
       });
       lines.push("})");
     }
@@ -358,8 +331,9 @@ export function render_typeddicts(root: Obj, rootName = "Root"): string {
   return lines.join("\n");
 }
 
-// === ENTRY POINT =================================================
+// === ENTRY POINT ==================================================
 
 export function schema_to_typeddict(src: string, rootName = "Root"): string {
-  return render_typeddicts(parse_schema(src), rootName);
+  const root: TypeNode = parse_schema(src);
+  return render_typeddicts(root, rootName);
 }
