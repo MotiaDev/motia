@@ -256,5 +256,30 @@
         "y": 1246
       }
     }
+  },
+  {
+    "id": "multi-trigger-demo",
+    "config": {
+      "steps/multi-trigger-example/notification-sender.step.ts": {
+        "x": -457,
+        "y": 51
+      },
+      "steps/multi-trigger-example/health-monitor.step.ts": {
+        "x": -451,
+        "y": 300
+      },
+      "steps/multi-trigger-example/data-processor.step.ts": {
+        "x": 44,
+        "y": 325
+      },
+      "steps/multi-trigger-example/comprehensive-analytics.step.ts": {
+        "x": -453,
+        "y": 547
+      },
+      "steps/multi-trigger-example/cache-manager.step.ts": {
+        "x": -454,
+        "y": 792
+      }
+    }
   }
 ]

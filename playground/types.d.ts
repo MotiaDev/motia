@@ -23,6 +23,11 @@ declare module 'motia' {
     'JoinComplete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
     'CallOpenAi': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
     'OpenAiApi': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
+    'NotificationSender': EventHandler<{ userId?: string; message?: string; type?: 'email' | 'sms' | 'push'; priority?: 'low' | 'medium' | 'high' }, never>
+    'HealthMonitor': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { status: string; alerts: { metric: string; value: number; threshold: number; severity: string }[]; timestamp: string }>, never>
+    'DataProcessor': EventHandler<{ dataId: string; eventType: string; data: Record<string, unknown>; metadata?: Record<string, unknown> }, never>
+    'ComprehensiveAnalytics': EventHandler<{ userId?: string; activityType?: string; timestamp?: string; forceRecalculation?: boolean }, never>
+    'CacheManager': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; operation: string; itemsRemoved: number; cacheSize: number; timestamp: string }> | ApiResponse<500, { error: string }>, never>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
     'UserRegistration': ApiRouteHandler<Record<string, unknown>, ApiResponse<201, { message: string; userId: string; email: string; tier: string }> | ApiResponse<400, { error: string }>, never>
