@@ -66,30 +66,40 @@ def _clean_schema(schema: dict, inherited_defs: dict | None = None) -> dict:
         return {}
 
     local_defs = schema.get("$defs")
-    
     if isinstance(local_defs, dict):
         defs = {**(inherited_defs or {}), **local_defs}
     else:
         defs = inherited_defs
 
+    out = {}
+
+    # 🔹 If $ref found, deref and merge
     if "$ref" in schema:
         target = _deref_from_defs(schema["$ref"], defs)
         if target is not None:
-            return _clean_schema(target, defs)
+            # Merge dereferenced schema first
+            out.update(_clean_schema(target, defs))
 
-    out = {}
-    
+    # 🔹 Copy basic fields
     if "title" in schema:
         out["title"] = schema["title"]
-    
+
     if "type" in schema:
         out["type"] = _get_ts_type(schema["type"])
-    
+
+    if "enum" in schema:
+        out["enum"] = schema["enum"]
+
     if "required" in schema:
         out["required"] = schema["required"]
 
     if "items" in schema:
         out["items"] = _clean_schema(schema["items"], defs)
+
+    # 🔹 Handle anyOf/oneOf/allOf recursively
+    for keyword in ("anyOf", "oneOf", "allOf"):
+        if keyword in schema and isinstance(schema[keyword], list):
+            out[keyword] = [_clean_schema(s, defs) for s in schema[keyword]]
 
     if schema.get("type") == "object":
         props = schema.get("properties")
@@ -121,6 +131,7 @@ def clean_payload_response_schema(payload: dict) -> dict:
         for status, schema in payload["responseSchema"].items():
             if isinstance(schema, dict):
                 cleaned_responses[status] = _clean_schema(schema)
+        payload["responseSchema"] = cleaned_responses
     return payload
 
 @contextmanager
@@ -185,10 +196,11 @@ async def run_python_module(file_path: str) -> None:
             if 'middleware' in module.config:
                 del module.config['middleware']
             payload = module.config
+            print("[DEBUG] ", module.config)
             payload = clean_payload_body_schema(payload)
             payload = clean_payload_input_schema(payload)
             payload = clean_payload_response_schema(payload)
-
+            print("DEBUG", payload)
         if missing:
             print(f"⚠ Missing motia types during config load: {sorted(missing)}", file=sys.stderr)
 

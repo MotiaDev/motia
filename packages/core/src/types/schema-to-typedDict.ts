@@ -120,20 +120,14 @@ class Parser {
       ? { node: "Enum", options: flat.map(e => (e as EnumT).options[0]!) }
       : { node: "Union", members: flat };
   }
-
   private parse_atomic(): TypeNode {
     const t = this.peek();
     if (!t) throw new SyntaxError("Unexpected EOF while parsing Type");
 
-    // 'a' | 'b' | 'c'
+    // single string literal as an atomic enum; let parse_type() handle unions
     if (t.kind === "STRING_LITERAL") {
-      const options: string[] = [this.want("STRING_LITERAL").value];
-      while (this.accept("PIPE")) {
-        if (this.peek()?.kind !== "STRING_LITERAL")
-          throw new SyntaxError(`Exprected String Literal at position: ${this.peek()?.pos ?? "EOF"}`);
-        options.push(this.want("STRING_LITERAL").value);
-      }
-      return { node: "Enum", options };
+      const value = this.want("STRING_LITERAL").value;
+      return { node: "Enum", options: [value] };
     }
 
     // { ... }
@@ -142,7 +136,7 @@ class Parser {
     // Array<T>
     if (t.kind === "IDENT" && t.value === "Array") {
       this.want("IDENT"); this.want("LESS_THAN");
-      const val = this.parse_atomic();
+      const val = this.parse_type();
       this.want("GREATER_THAN");
       return { node: "Array", item: val };
     }
@@ -154,7 +148,7 @@ class Parser {
       if (k.value !== "string")
         throw new SyntaxError(`Only Record<string, ...> supported at pos ${k.pos}`);
       this.want("COMMA");
-      const val = this.parse_atomic();
+      const val = this.parse_type();
       this.want("GREATER_THAN");
       return { node: "MappingType", value: val };
     }
@@ -209,6 +203,7 @@ function type_signature(t: TypeNode): Sig {
         .map(f => [f.name, f.optional, type_signature(f.typ)] as [string, boolean, Sig])
         .sort((a, b) => a[0].localeCompare(b[0]));
       return ["obj", items];
+      
     }case "Union": {
       const parts = t.members.map(type_signature);
       const sorted = parts

@@ -1,320 +1,414 @@
-import fs from "node:fs";
-import path from "node:path";
+// Refactored for clarity, maintainability, and consistency
+// - Removed unused imports
+// - Consolidated string building via arrays and join()
+// - Introduced small, single-purpose helpers with strong typing
+// - Consistent naming, error handling, and docs
+// - Reduced duplicated logic for top-level splitting
+// - Functions return { code, exports } to centralize symbol tracking
+
 import { schema_to_typeddict } from "./schema-to-typedDict";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { string } from "zod";
+
+// ===== Types ======================================================
 
 type HandlersMap = Record<string, { type: string; generics: string[] }>
+
 type StreamsMap = Record<string, string>
 
+interface GenResult {
+  code: string;
+  exports: string[];
+}
+
+// ===== Helpers ====================================================
+
+/** Ensures the provided root name is valid for Python by collapsing leading underscores to a single underscore. */
 function safeRootName(name: string): string {
-  return name.replace(/^_+/, "_"); // collapse leading underscores
+  return name.replace(/^_+/, "_");
 }
 
-function generateHandlerName(name: string): string {
-  return (
-    name
-      .trim()
-      .replace(/\s+/g, "_") + "_Handler"
-  );
+/** Produces a stable handler name from a user-facing label. */
+function toHandlerName(name: string): string {
+  return name.trim().replace(/\s+/g, "_") + "_Handler";
 }
 
-const generateApiRequest = (
-  requestBodySchema: string,
-  handlerName: string,
-  exportedSymbols: string[]
-) => {
-  const api_req_root_name = "_" + handlerName + "_ApiRequest_type_root";
-  let generated = "";
+/**
+ * Splits a string on top-level pipes `|`, while respecting nesting delimited by
+ * the provided open/close characters (e.g., angle brackets for generics or braces for objects).
+ */
+function splitOnTopLevelPipes(
+  input: string,
+  open: string,
+  close: string
+): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = "";
 
-  if(requestBodySchema === 'Record<string, unknown>'){
-    generated +=
-      `${handlerName}_ApiRequest_type: TypeAlias = ApiRequest[Dict[str, Any]]` + "\n\n";
-    
-    exportedSymbols.push(`${handlerName}_ApiRequest_type`);
-    return generated;
-  }
+  for (const ch of input) {
+    if (ch === open) depth++;
+    else if (ch === close) depth--;
 
-  try {
-
-    generated +=
-      schema_to_typeddict(requestBodySchema, safeRootName(api_req_root_name)).trimEnd() +
-      "\n\n";
-
-    generated +=
-      `${handlerName}_ApiRequest_type: TypeAlias = ApiRequest[${api_req_root_name}]` + "\n\n";
-  } catch (error) {
-    console.log(`[ERROR]: ${error}`)
-    generated +=
-      `${handlerName}_ApiRequest_type: TypeAlias = ApiRequest[Dict[str, Any]]` + "\n\n";
-  }
-
-  exportedSymbols.push(`${handlerName}_ApiRequest_type`);
-  return generated;
-};
-
-const generateApiResponse = (
-  responseSchema: string,
-  handlerName: string,
-  exportedSymbols: string[]
-) => {
-
-  if(responseSchema === 'unknown'){
-    const generated =
-      `${handlerName}_ApiResponse_Type: TypeAlias = Any`+ "\n\n";
-
-    exportedSymbols.push(`${handlerName}_ApiResponse_Type`);
-    return generated;
-  }
-
-  try {
-    let depth = 0,
-      current = "",
-      parts: string[] = [];
-    for (let char of responseSchema) {
-      if (char === "<") depth++;
-      if (char === ">") depth--;
-      if (char === "|" && depth === 0) {
-        parts.push(current.trim());
-        current = "";
-        continue;
-      }
-      current += char;
+    if (ch === "|" && depth === 0) {
+      parts.push(current.trim());
+      current = "";
+      continue;
     }
-    if (current) parts.push(current.trim());
+    current += ch;
+  }
 
-    const responses = parts
-      .map((part) => {
-        const match = part.match(/^ApiResponse<(\d+),\s*(.*)>$/s);
-        if (!match) return null;
-        const [, status, schema] = match;
-        return { status: Number(status), schema: schema.trim() };
-      })
-      .filter(Boolean) as { status: number; schema: string }[];
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
 
-    let generated = ``;
-    let combinedApiResponseTypes = "";
+/** Small utility to append and return a symbol in one step. */
+function exportSymbol(exportsArr: string[], sym: string): string {
+  exportsArr.push(sym);
+  return sym;
+}
+
+/** Minimal one-line banner for Python output. */
+function handlerBanner(name: string, type: string): string {
+  return `# ----- ${type}: ${name} -----`;
+}
+
+/** Section banner for non-handler areas like Streams. */
+function sectionBanner(title: string): string {
+  return `# ===== ${title} =====`;
+}
+
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function logTypegenError(context: string, err: unknown, details?: Record<string, unknown>) {
+  const base = `[TYPEGEN] ${context}: ${errMsg(err)}`;
+  try {
+    if (details) console.error(base, details);
+    else console.error(base);
+  } catch {
+    // no-op logging fallback
+  }
+}
+
+/** Emit schema_to_typeddict or a minimal fallback, logging on error. */
+function emitTypeddictOrFallback(
+  schema: string,
+  rootName: string,
+  context: string,
+  fallbackShape: "empty_typed_dict" | "alias_dict_any" = "empty_typed_dict"
+): string {
+  try {
+    return schema_to_typeddict(schema, rootName).trimEnd();
+  } catch (err) {
+    logTypegenError(context, err, { rootName, schemaSnippet: schema.slice(0, 200) });
+    if (fallbackShape === "alias_dict_any") {
+      return `${rootName}: TypeAlias = Dict[str, Any]`;
+    }
+    return `class ${rootName}(TypedDict):\n    pass`;
+  }
+}
+
+// ===== Codegen: ApiRequest =======================================
+
+function generateApiRequest(
+  requestBodySchema: string,
+  handlerName: string
+): GenResult {
+  const code: string[] = [];
+  const exports: string[] = [];
+
+  const apiReqRoot = safeRootName("_" + handlerName + "_ApiRequest_type_root");
+  const alias = `${handlerName}_ApiRequest_type`;
+
+  try {
+    if (requestBodySchema === "Record<string, unknown>") {
+      code.push(`${alias}: TypeAlias = ApiRequest[Dict[str, Any]]`, "");
+      exportSymbol(exports, alias);
+      return { code: code.join("\n"), exports };
+    }
+
+    code.push(emitTypeddictOrFallback(requestBodySchema, apiReqRoot, `ApiRequest:${handlerName}`).trimEnd(), "");
+    code.push(`${alias}: TypeAlias = ApiRequest[${apiReqRoot}]`, "");
+  } catch (err) {
+    // Fallback to the most permissive form on failure
+    logTypegenError(`ApiRequest:${handlerName}`, err, { schemaSnippet: requestBodySchema.slice(0, 200) });
+    code.push(`${alias}: TypeAlias = ApiRequest[Dict[str, Any]]`, "");
+  }
+
+  exportSymbol(exports, alias);
+  return { code: code.join("\n"), exports };
+}
+
+// ===== Codegen: ApiResponse ======================================
+
+interface ParsedResponse {
+  status: number;
+  schema: string;
+}
+
+function parseApiResponses(schema: string): ParsedResponse[] {
+  // Split top-level by `|` using angle-bracket depth for generics
+  const parts = splitOnTopLevelPipes(schema, "<", ">");
+
+  const out: ParsedResponse[] = [];
+  for (const part of parts) {
+    const match = part.match(/^\s*ApiResponse<\s*(\d+)\s*,\s*([\s\S]*)>\s*$/);
+    if (!match) continue;
+    const status = Number(match[1]);
+    const body = match[2].trim();
+    out.push({ status, schema: body });
+  }
+  return out;
+}
+
+function generateApiResponse(
+  responseSchema: string,
+  handlerName: string
+): GenResult {
+  const code: string[] = [];
+  const exports: string[] = [];
+  const alias = `${handlerName}_ApiResponse_Type`;
+
+  try {
+    if (responseSchema === "unknown") {
+      code.push(`${alias}: TypeAlias = Any`, "");
+      exportSymbol(exports, alias);
+      return { code: code.join("\n"), exports };
+    }
+
+    const responses = parseApiResponses(responseSchema);
+    const unionParts: string[] = [];
 
     for (const { status, schema } of responses) {
-      const api_res_root_name = "_" + handlerName + `_ApiResponse_${status}_type_root`;
-
-      generated += schema_to_typeddict(schema, api_res_root_name).trimEnd() + "\n\n";
-
-      combinedApiResponseTypes +=
-        combinedApiResponseTypes === ""
-          ? `ApiResponse[Literal[${status}], ${api_res_root_name}]`
-          : ` | ApiResponse[Literal[${status}], ${api_res_root_name}]`;
+      const root = "_" + handlerName + `_ApiResponse_${status}_type_root`;
+      code.push(emitTypeddictOrFallback(schema, root, `ApiResponse:${handlerName}:${status}`).trimEnd(), "");
+      unionParts.push(`ApiResponse[Literal[${status}], ${root}]`);
     }
 
-    generated +=
-      `${handlerName}_ApiResponse_Type: TypeAlias = ${
-        combinedApiResponseTypes === "" ? "Any" : combinedApiResponseTypes
-      }` + "\n\n";
+    code.push(
+      `${alias}: TypeAlias = ${unionParts.length ? unionParts.join(" | ") : "Any"}`,
+      ""
+    );
+  } catch (err) {
+    logTypegenError(`ApiResponse:${handlerName}`, err, { schemaSnippet: responseSchema.slice(0, 200) });
+    code.push(`${alias}: TypeAlias = Any`, "");
+  }
 
-    exportedSymbols.push(`${handlerName}_ApiResponse_Type`);
-    return generated;
-  } catch (error) {
-    throw new Error(
-      `Failed to generate API Response for ${handlerName}: ${(error as Error).message}`
+  exportSymbol(exports, alias);
+  return { code: code.join("\n"), exports };
+}
+
+// ===== Codegen: FlowContext ======================================
+
+interface TopicData {
+  topic: string; // Display topic (unmodified literal for Python Literal[])
+  topicId: string; // Topic normalized for class naming
+  dataSchema: string;
+}
+
+function extractTopicDataVariants(unionSchema: string): TopicData[] {
+  // Split top-level by `|` but respect object braces
+  const chunks = splitOnTopLevelPipes(unionSchema, "{", "}");
+  const result: TopicData[] = [];
+
+  for (const chunk of chunks) {
+    const topicMatch = chunk.match(/topic:\s*'([^']+)'/);
+    const topic = topicMatch ? topicMatch[1] : "";
+    const topicId = topic.replace(/\s+/g, "_");
+
+    const dataMatch = chunk.match(/data:\s*(\{[\s\S]*\})\s*}/);
+    const dataSchema = dataMatch ? dataMatch[1] : "{}";
+
+    result.push({ topic, topicId, dataSchema });
+  }
+
+  return result;
+}
+
+function generateFlowContext(
+  emitDataSchema: string,
+  name: string
+): GenResult {
+  const code: string[] = [];
+  const exports: string[] = [];
+
+  const baseName = `${name}_FlowContext`;
+  const alias = `${baseName}Type`;
+
+  try {
+    if (emitDataSchema === "never") {
+      code.push(
+        `class ${baseName}_Full_Context(FlowContext[Never], Protocol):`,
+        `    streams: AllStreams`,
+        "",
+        `${alias}: TypeAlias = ${baseName}_Full_Context`,
+        ""
+      );
+      exportSymbol(exports, alias);
+      return { code: code.join("\n"), exports };
+    }
+
+    const variants = extractTopicDataVariants(emitDataSchema);
+    const mainNames: string[] = [];
+
+    for (const { topic, topicId, dataSchema } of variants) {
+      const dataRoot = `_${baseName}_${topicId}`;
+      const mainName = `${baseName}_${topicId}Main`;
+
+      code.push(emitTypeddictOrFallback(dataSchema, dataRoot, `FlowContext:${name}:${topic}`).trimEnd(), "");
+      code.push(
+        `class ${mainName}(TypedDict):`,
+        `    topic: Literal['${topic}']`,
+        `    data: ${dataRoot}`,
+        ""
+      );
+      mainNames.push(mainName);
+    }
+
+    const union = mainNames.join(" | ");
+    code.push(
+      `class ${baseName}_Full_Context(FlowContext[${union}], Protocol):`,
+      `    streams: AllStreams`,
+      "",
+      `${alias}: TypeAlias = ${baseName}_Full_Context`,
+      ""
+    );
+  } catch (err) {
+    logTypegenError(`FlowContext:${name}`, err, { schemaSnippet: emitDataSchema.slice(0, 200) });
+    code.push(
+      `class ${baseName}_Full_Context(FlowContext[Any], Protocol):`,
+      `    streams: AllStreams`,
+      "",
+      `${alias}: TypeAlias = ${baseName}_Full_Context`,
+      ""
     );
   }
-};
 
-const generateFlowContext = (
-  emitDataSchema: string,
-  name: string,
-  exportedSymbols: string[]
-) => {
+  exportSymbol(exports, alias);
+  return { code: code.join("\n"), exports };
+}
 
-  try {
-    name = name + "_FlowContext";
+// ===== Codegen: Input ============================================
 
-    if (emitDataSchema === "never") {
-      let generated = "";
-      generated +=
-        `class ${name}_Full_Context(FlowContext[Never], Protocol):\n          streams: AllStreams` +
-        "\n\n";
-      generated += `${name}Type: TypeAlias = ${name}_Full_Context` + "\n\n";
+function generateInput(schema: string, name: string): GenResult {
+  const code: string[] = [];
+  const exports: string[] = [];
 
-      exportedSymbols.push(`${name}Type`);
-      return generated;
-    }
-
-    function splitEmitSchemas(schema: string): string[] {
-      let parts: string[] = [];
-      let current = "";
-      let depth = 0;
-
-      for (const ch of schema) {
-        if (ch === "{") {
-          depth++;
-          current += ch;
-        } else if (ch === "}") {
-          depth--;
-          current += ch;
-        } else if (ch === "|" && depth === 0) {
-          // split point
-          parts.push(current.trim());
-          current = "";
-        } else {
-          current += ch;
-        }
-      }
-
-      if (current.trim()) {
-        parts.push(current.trim());
-      }
-
-      return parts;
-    }
-
-    const emitDataSchemaArray  = splitEmitSchemas(emitDataSchema);
-    let flowcontextnames = [];
-    let generated = ''
-
-    for(const chunk of emitDataSchemaArray){
-      const topicMatch = chunk.match(/topic:\s*'([^']+)'/);
-      const topic = topicMatch ? topicMatch[1].replace(/\s+/g, "_") : "";
-      
-      const schemaMatch = chunk.match(/data:\s*(\{.*\})\s*}/s);
-      const schema = schemaMatch ? schemaMatch[1] : "";
-      
-      const schemaClassName = "_" + name + "_" + topic;
-      const mainClassName = `${name}_${topic}Main`;
-      
-      generated += '\n' + schema_to_typeddict(schema, schemaClassName).trimEnd() + "\n\n";
-
-      generated += `class ${mainClassName}(TypedDict):\n        topic: Literal['${topicMatch ? topicMatch[1] : ""}']\n        data: ${
-        schemaClassName
-      }\n\n`;
-
-      flowcontextnames.push(mainClassName)
-    }
-
-    generated +=
-      `class ${name}_Full_Context(FlowContext[${flowcontextnames.join(" | ")}], Protocol):\n       streams: AllStreams` +
-      "\n\n";
-
-    generated += `${name}Type: TypeAlias = ${name}_Full_Context` + "\n\n";
-
-    exportedSymbols.push(`${name}Type`);
-    return generated;
-  } catch (error) {
-    throw new Error(`Failed to generate FlowContext for ${name}: ${(error as Error).message}`);
-  }
-};
-
-const generateInput = (
-  schema: string,
-  name: string,
-  exportedSymbols: string[]
-) => {
   const rootName = safeRootName(name + "_Input_Type");
 
-  if(schema == 'never'){
-
-    const result = 
-      `${rootName}: TypeAlias = Never \n\n`
-    exportedSymbols.push(rootName)
-    return result
+  if (schema === "never") {
+    code.push(`${rootName}: TypeAlias = Never`, "");
+    exportSymbol(exports, rootName);
+    return { code: code.join("\n"), exports };
   }
 
   try {
-    const result = schema_to_typeddict(schema, rootName) + "\n";
-    exportedSymbols.push(rootName);
-    return result;
-  } catch (error) {
-    throw new Error(`Failed to generate Input type for ${name}: ${(error as Error).message}`);
+    code.push(emitTypeddictOrFallback(schema, rootName, `Input:${name}`, "alias_dict_any"), "");
+  } catch (err) {
+    logTypegenError(`Input:${name}`, err, { schemaSnippet: schema.slice(0, 200) });
+    code.push(`${rootName}: TypeAlias = Any`, "");
   }
-};
+
+  exportSymbol(exports, rootName);
+  return { code: code.join("\n"), exports };
+}
+
+// ===== Public API =================================================
 
 export function generatePythonTypesString(
   handlers: HandlersMap,
   streams: StreamsMap
 ): { internal: string; exports: string[] } {
-  let generated = "";
-  const exportedSymbols: string[] = [];
+  const code: string[] = [];
+  const exports: string[] = [];
 
-  generated += "\n\n" + "#-----------------Generate Types for MotiaStream---" + "\n\n";
+  // Header
+  const header = `from typing import Any, TypeAlias, TypedDict, Literal, Protocol, Never, Union, Optional, Callable, Iterable, Iterator, Sequence, Mapping, Dict, List, Tuple, Set, FrozenSet, Generator, AsyncGenerator, Awaitable, Coroutine, TypeVar, Generic, overload, cast, Final, ClassVar, Concatenate, ParamSpec\nfrom motia.core import ApiRequest, ApiResponse, FlowContext,  MotiaStream, FlowContextStateStreams \n`;
 
-  let combinedStreamTypes = "";
+  code.push(header, "");
 
-  for (let key in streams) {
-    const streamName = key;
-    const streamSchema = streams[key];
-    const stream_schema_root_payload_name = "_" + streamName + "Payload";
-    const stream_schema_root_item_name = "_" + streamName + "Item";
+  // Streams
+  code.push(sectionBanner("Streams"), "");
 
-    generated +=
-      schema_to_typeddict(streamSchema, "_" + streamName + "Payload") +
-      "\n";
+  const streamClassNames: string[] = [];
 
-    generated +=
-      `class ${stream_schema_root_item_name}(${stream_schema_root_payload_name}):\n         id: str` +
-      "\n\n";
+  Object.entries(streams).forEach(([streamName, streamSchema]) => {
+    const payloadRoot = "_" + streamName + "Payload";
+    const itemRoot = "_" + streamName + "Item";
 
-    generated +=
-      `class _${streamName}Stream(TypedDict):\n         ${streamName}: MotiaStream[${stream_schema_root_payload_name}, ${stream_schema_root_item_name}]` +
-      "\n\n";
+    code.push(emitTypeddictOrFallback(streamSchema, payloadRoot, `Stream:${streamName}`).trimEnd(), "");
 
-    combinedStreamTypes += (combinedStreamTypes ? ", " : "") + `_${streamName}Stream`;
+    code.push(`class ${itemRoot}(${payloadRoot}):`, `    id: str`, "");
+
+    const streamTypeddict = `_${streamName}Stream`;
+    code.push(
+      `class ${streamTypeddict}(TypedDict):`,
+      `    ${streamName}: MotiaStream[${payloadRoot}, ${itemRoot}]`,
+      ""
+    );
+
+    streamClassNames.push(streamTypeddict);
+  });
+
+  const allStreamsBases = ["FlowContextStateStreams", ...streamClassNames].join(", ");
+  code.push(`class AllStreams(${allStreamsBases}, total=False):`, "    pass", "");
+
+  // Event Handlers
+  // Per-handler banners emitted below for each EventHandler
+
+  for (const [key, def] of Object.entries(handlers)) {
+    if (def.type !== "EventHandler") continue;
+
+    const handlerName = toHandlerName(key);
+    code.push(handlerBanner(handlerName, "EventHandler"), "");
+    const [inputSchema, flowContextSchema] = def.generics;
+
+    const inputRes = generateInput(inputSchema, handlerName);
+    code.push(inputRes.code);
+    exports.push(...inputRes.exports);
+
+    const ctxRes = generateFlowContext(flowContextSchema, handlerName);
+    code.push(ctxRes.code, "");
+    exports.push(...ctxRes.exports);
   }
 
-  let baseClasses = "FlowContextStateStreams";
-  if (combinedStreamTypes) {
-    baseClasses += ", " + combinedStreamTypes;
+  // API Route Handlers
+  // Per-handler banners emitted below for each ApiRouteHandler
+
+  for (const [key, def] of Object.entries(handlers)) {
+    if (def.type !== "ApiRouteHandler") continue;
+
+    const handlerName = toHandlerName(key);
+    code.push(handlerBanner(handlerName, "ApiRouteHandler"), "");
+    const [requestBodySchema, apiResponseSchema, flowContextSchema] = def.generics;
+
+    const reqRes = generateApiRequest(requestBodySchema, handlerName);
+    code.push(reqRes.code);
+    exports.push(...reqRes.exports);
+
+    const resRes = generateApiResponse(apiResponseSchema, handlerName);
+    code.push(resRes.code);
+    exports.push(...resRes.exports);
+
+    const ctxRes = generateFlowContext(flowContextSchema, handlerName);
+    code.push(ctxRes.code);
+    exports.push(...ctxRes.exports);
   }
-  generated +=
-    `class AllStreams(${baseClasses}, total=False):\n    pass`;
 
-  generated += "\n" + "#-----------------Generate Types for for EventHandlers---" + "\n";
+  // Cron Handlers
+  // Per-handler banners emitted below for each CronHandler
 
-  const eventHandlers = Object.entries(handlers).filter(
-    ([_, v]) => v.type === "EventHandler"
-  );
+  for (const [key, def] of Object.entries(handlers)) {
+    if (def.type !== "CronHandler") continue;
 
-  eventHandlers.forEach(([key, val]) => {
-    const inputSchema = val.generics[0];
-    const flowContextschema = val.generics[1];
-    const handlerName = generateHandlerName(key);
+    const handlerName = toHandlerName(key);
+    code.push(handlerBanner(handlerName, "CronHandler"), "");
+    const [flowContextSchema] = def.generics;
 
-    generated += generateInput(inputSchema, handlerName, exportedSymbols);
-    generated += generateFlowContext(flowContextschema, handlerName, exportedSymbols) + "\n";
-  });
+    const ctxRes = generateFlowContext(flowContextSchema, handlerName);
+    code.push(ctxRes.code);
+    exports.push(...ctxRes.exports);
+  }
 
-  generated += "\n" + "#-----------------Generate Types for for ApiRouteHandlers---" + "\n";
-
-  const apiRouteHandlers = Object.entries(handlers).filter(
-    ([_, v]) => v.type === "ApiRouteHandler"
-  );
-
-  apiRouteHandlers.forEach(([key, val]) => {
-    const handlerName = generateHandlerName(key);
-    const requestBodySchema = val.generics[0];
-    const apiResponseSchema = val.generics[1];
-    const flowContextschema = val.generics[2];
-
-    generated += generateApiRequest(requestBodySchema, handlerName, exportedSymbols);
-    generated += generateApiResponse(apiResponseSchema, handlerName, exportedSymbols);
-    generated += generateFlowContext(flowContextschema, handlerName, exportedSymbols);
-  });
-
-  generated += "\n" + "#-----------------Generate Types for for CronHandlers---" + "\n";
-  const cronHandlers = Object.entries(handlers).filter(
-    ([_, v]) => v.type === "CronHandler"
-  );
-
-  cronHandlers.forEach(([key, val]) => {
-    const handlerName = generateHandlerName(key);
-    const flowContextschema = val.generics[0];
-    generated += generateFlowContext(flowContextschema, handlerName, exportedSymbols);
-  });
-
-  const header = `from typing import Any, TypeAlias, TypedDict, Literal, Protocol, Never, Union, Optional, Callable, Iterable, Iterator, Sequence, Mapping, Dict, List, Tuple, Set, FrozenSet, Generator, AsyncGenerator, Awaitable, Coroutine, TypeVar, Generic, overload, cast, Final, ClassVar, Concatenate, ParamSpec
-from motia.core import ApiRequest, ApiResponse, FlowContext,  MotiaStream, FlowContextStateStreams \n
-`;
-
-  generated = header + generated;
-
-  return { internal: generated, exports: exportedSymbols };
+  return { internal: code.join("\n"), exports };
 }
