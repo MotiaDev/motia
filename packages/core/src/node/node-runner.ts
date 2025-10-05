@@ -1,5 +1,6 @@
 import path from 'path'
-import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
+import fs from 'fs'
+import { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { Logger } from './logger'
 import { composeMiddleware } from './middleware-compose'
 import { RpcSender } from './rpc'
@@ -14,11 +15,29 @@ require('ts-node').register({
   compilerOptions: { module: 'commonjs' },
 })
 
-function parseArgs(arg: string) {
+function parseArgs(arg?: string) {
+  // If there's no arg, keep behavior simple
+  if (!arg) return { data: null }
+
   try {
+    // New big-payload path: if arg is a path to a file, read & parse it
+    if (fs.existsSync(arg) && fs.statSync(arg).isFile()) {
+      const dir = path.dirname(arg)
+      const text = fs.readFileSync(arg, 'utf8')
+
+      // Best-effort cleanup of temp dir (parent also cleans; double-delete is safe)
+      try {
+        fs.rmSync(dir, { recursive: true, force: true })
+      } catch {}
+
+      return JSON.parse(text)
+    }
+
+    // Legacy small-payload path: arg is inline JSON
     return JSON.parse(arg)
   } catch {
-    return arg
+    // Legacy fallback: if arg wasn't valid JSON, pass it as event.data so handler still works
+    return { data: arg }
   }
 }
 
@@ -60,7 +79,7 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
 
     sender.init()
 
-    const middlewares = Array.isArray(module.config.middleware) ? module.config.middleware : []
+    const middlewares = Array.isArray(module.config?.middleware) ? module.config.middleware : []
 
     const composedMiddleware = composeMiddleware(...middlewares)
     const handlerFn = () => {
