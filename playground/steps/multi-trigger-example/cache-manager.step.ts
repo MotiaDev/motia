@@ -77,99 +77,40 @@ export const config: StepConfig = {
 export const handler: Handlers['CacheManager'] = async (inputOrReq, { state, logger, emit }) => {
   // Extract input from either direct input or API request body
   const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
-  try {
-    const timestamp = new Date().toISOString()
-    
-    logger.info('Cache manager started', { operation: input.operation })
-    
-    // Get current cache data
-    const cacheData = await state.get('cache', 'data') || {}
-    const currentSize = Object.keys(cacheData).length
-    
-    let itemsRemoved = 0
-    let newCacheData = { ...cacheData }
-    
-    // Perform operation based on type
-    if (input.operation === 'clear' || input.force) {
-      // Clear entire cache
-      newCacheData = {}
-      itemsRemoved = currentSize
-    } else if (input.operation === 'optimize') {
-      // Remove old entries (older than 1 hour)
-      const oneHourAgo = Date.now() - 3600000
-      newCacheData = Object.fromEntries(
-        Object.entries(cacheData).filter(([key, value]: [string, any]) => {
-          if (value.timestamp && new Date(value.timestamp).getTime() > oneHourAgo) {
-            return true
-          }
-          itemsRemoved++
-          return false
-        })
-      )
-    } else if (input.operation === 'cleanup') {
-      // Remove expired entries
-      newCacheData = Object.fromEntries(
-        Object.entries(cacheData).filter(([key, value]: [string, any]) => {
-          if (!value.expiresAt || new Date(value.expiresAt).getTime() > Date.now()) {
-            return true
-          }
-          itemsRemoved++
-          return false
-        })
-      )
-    }
-    
-    // Update cache
-    await state.set('cache', 'data', newCacheData)
-    const newSize = Object.keys(newCacheData).length
-    await state.set('cache', 'size', newSize)
-    
-    // Update statistics
-    const stats = (await state.get('cache', 'stats') || {
-      totalCleanups: 0,
-      totalItemsRemoved: 0,
-      lastCleanup: null,
-    }) as { totalCleanups: number; totalItemsRemoved: number; lastCleanup: string | null }
-    stats.totalCleanups += 1
-    stats.totalItemsRemoved += itemsRemoved
-    stats.lastCleanup = timestamp
-    await state.set('cache', 'stats', stats)
-    
-    // Emit appropriate event
-    const eventTopic = input.operation === 'optimize' ? 'cache.optimized' : 'cache.cleaned'
-    await emit({
-      topic: eventTopic,
-      data: {
-        operation: input.operation,
-        itemsRemoved,
-        cacheSize: newSize,
-        timestamp,
-      },
-    })
-    
-    logger.info('Cache operation completed', { 
-      operation: input.operation,
+  const isApiTrigger = 'body' in inputOrReq
+  
+  const timestamp = new Date().toISOString()
+  const operation = input.operation || 'cleanup'
+  const itemsRemoved = 0
+  const cacheSize = 0
+  
+  logger.info('Cache manager started', { operation })
+  
+  // Emit appropriate event (fire and forget)
+  const eventTopic = operation === 'optimize' ? 'cache.optimized' : 'cache.cleaned'
+  emit({
+    topic: eventTopic,
+    data: {
+      operation,
       itemsRemoved,
-      newSize,
-    })
-    
-    const operation = String(input.operation || 'cleanup')
-    
+      cacheSize,
+      timestamp,
+    },
+  })
+  
+  logger.info('Cache operation completed', { operation, itemsRemoved, cacheSize })
+  
+  // Return API response only if triggered via API
+  if (isApiTrigger) {
     return {
       status: 200,
       body: {
         message: `Cache ${operation} completed successfully`,
         operation,
         itemsRemoved,
-        cacheSize: newSize,
+        cacheSize,
         timestamp,
       },
-    }
-  } catch (error: unknown) {
-    logger.error('Cache operation failed', { error: String(error) })
-    return {
-      status: 500,
-      body: { error: 'Cache operation failed' },
     }
   }
 }

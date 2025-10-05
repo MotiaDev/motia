@@ -23,9 +23,9 @@ declare module 'motia' {
     'JoinComplete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
     'CallOpenAi': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
     'OpenAiApi': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
-    'NotificationSender': MultiTriggerHandler<{ userId?: string; message?: string; type?: 'email' | 'sms' | 'push'; priority?: 'low' | 'medium' | 'high' }>
+    'NotificationSender': MultiTriggerHandler<{ userId?: string; dataId?: string; message?: string; type?: 'email' | 'sms' | 'push'; priority?: 'low' | 'medium' | 'high'; status?: string }>
     'HealthMonitor': MultiTriggerHandler<{ key?: string; value?: unknown; metric?: string }>
-    'DataProcessor': MultiTriggerHandler<{ dataId: string; eventType: string; data: Record<string, unknown>; metadata?: Record<string, unknown> }>
+    'DataProcessor': MultiTriggerHandler<{ analyticsId?: string; dataId?: string; eventType?: string; triggeredBy?: string; data?: Record<string, unknown>; metadata?: Record<string, unknown> }>
     'ComprehensiveAnalytics': MultiTriggerHandler<{ userId?: string; activityType?: string; timestamp?: string; forceRecalculation?: boolean }>
     'CacheManager': MultiTriggerHandler<{ operation?: 'clear' | 'optimize' | 'cleanup'; force?: boolean }>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>

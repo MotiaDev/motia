@@ -11,17 +11,17 @@ export const config: StepConfig = {
   name: 'DataProcessor',
   description: 'Processes data from multiple event sources',
   
-  // MULTIPLE EVENT TRIGGERS
+  // MULTIPLE EVENT TRIGGERS - processes data from analytics
   triggers: [
+    {
+      type: 'event',
+      topic: 'analytics.completed',
+      description: 'Triggered when analytics completes (flows from ComprehensiveAnalytics)',
+    },
     {
       type: 'event',
       topic: 'data.uploaded',
       description: 'Triggered when new data is uploaded',
-    },
-    {
-      type: 'event',
-      topic: 'data.updated',
-      description: 'Triggered when existing data is updated',
     },
     {
       type: 'event',
@@ -31,9 +31,11 @@ export const config: StepConfig = {
   ],
   
   input: z.object({
-    dataId: z.string(),
-    eventType: z.string(),
-    data: z.record(z.any()),
+    analyticsId: z.string().optional(),
+    dataId: z.string().optional(),
+    eventType: z.string().optional(),
+    triggeredBy: z.string().optional(),
+    data: z.record(z.any()).optional(),
     metadata: z.record(z.any()).optional(),
   }),
   
@@ -53,47 +55,27 @@ export const handler: Handlers['DataProcessor'] = async (inputOrReq, { state, lo
   // Extract input from either direct input or API request body
   const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
   
-  try {
-    logger.info('Processing data', { 
-      dataId: input.dataId, 
-      eventType: input.eventType,
-    })
-    
-    // Process data differently based on event type
-    const processingResult = {
-      dataId: input.dataId,
-      eventType: input.eventType,
-      processedAt: new Date().toISOString(),
-      status: 'completed',
-    }
-    
-    // Store processing result
-    await state.set('data', `processed.${input.dataId}`, processingResult)
-    
-    // Update processing counter
-    const counter = (await state.get('data', 'processing.counter') || 0) as number
-    await state.set('data', 'processing.counter', counter + 1)
-    
-    // Emit success event
-    await emit({
-      topic: 'data.processed',
-      data: processingResult,
-    })
-    
-    logger.info('Data processed successfully', { dataId: input.dataId })
-  } catch (error: unknown) {
-    logger.error('Data processing failed', { 
-      dataId: input.dataId, 
-      error: String(error),
-    })
-    
-    await emit({
-      topic: 'data.error',
-      data: {
-        dataId: input.dataId,
-        error: String(error),
-        timestamp: new Date().toISOString(),
-      },
-    })
+  // Generate dataId based on input source
+  const dataId = input.dataId || input.analyticsId || `data_${Date.now()}`
+  
+  logger.info('Processing data', { 
+    dataId, 
+    source: input.analyticsId ? 'analytics' : 'direct',
+  })
+  
+  // Process data (simplified)
+  const processingResult = {
+    dataId,
+    processedFrom: input.analyticsId ? 'analytics' : 'upload',
+    processedAt: new Date().toISOString(),
+    status: 'completed',
   }
+  
+  // Emit success event (fire and forget) - NotificationSender subscribes to this
+  emit({
+    topic: 'data.processed',
+    data: processingResult,
+  })
+  
+  logger.info('Data processed successfully', { dataId })
 }

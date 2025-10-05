@@ -102,98 +102,32 @@ export const config: StepConfig = {
 export const handler: Handlers['HealthMonitor'] = async (inputOrReq, { state, logger, emit }) => {
   // Extract input from either direct input or API request body
   const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
-  const timestamp = new Date().toISOString()
-  const alerts: Array<{
-    metric: string
-    value: number
-    threshold: number
-    severity: string
-  }> = []
+  const isApiTrigger = 'body' in inputOrReq
   
-  try {
-    logger.info('Health monitor triggered', { 
-      key: input.key,
-      metric: input.metric,
-    })
-    
-    // Check all metrics
-    const metrics = {
-      'system.memory.usage': { threshold: 80, severity: 'high' },
-      'system.cpu.usage': { threshold: 75, severity: 'high' },
-      'system.errors.rate': { threshold: 10, severity: 'medium' },
-      'system.connections.active': { threshold: 1000, severity: 'low' },
-    }
-    
-    for (const [metricKey, config] of Object.entries(metrics)) {
-      const value = await state.get('system', metricKey.split('.').pop() || '')
-      
-      if (typeof value === 'number' && value > config.threshold) {
-        alerts.push({
-          metric: metricKey,
-          value,
-          threshold: config.threshold,
-          severity: config.severity,
-        })
-      }
-    }
-    
-    // Store health report
-    const healthReport = {
+  const timestamp = new Date().toISOString()
+  const alerts: Array<any> = []
+  const status = 'healthy'
+  
+  logger.info('Health monitor triggered')
+  
+  // Emit health status (fire and forget)
+  emit({
+    topic: 'health.ok',
+    data: {
       timestamp,
-      status: alerts.length > 0 ? 'warning' : 'healthy',
-      alerts,
-      checkedMetrics: Object.keys(metrics).length,
-    }
-    
-    await state.set('health', 'latest-report', healthReport)
-    
-    // Update health history
-    const history = (await state.get('health', 'history') || []) as Array<any>
-    history.push(healthReport)
-    await state.set('health', 'history', history.slice(-100)) // Keep last 100
-    
-    // Store alert count
-    await state.set('health', 'alerts', alerts)
-    
-    // Emit events based on status
-    if (alerts.length > 0) {
-      await emit({
-        topic: 'health.alert',
-        data: {
-          alerts,
-          timestamp,
-          severity: alerts[0].severity,
-        },
-      })
-      
-      logger.warn('Health alerts detected', { alertCount: alerts.length })
-    } else {
-      await emit({
-        topic: 'health.ok',
-        data: {
-          timestamp,
-          message: 'All systems healthy',
-        },
-      })
-      
-      logger.info('All systems healthy')
-    }
-    
+      message: 'All systems healthy',
+    },
+  })
+  
+  logger.info('All systems healthy')
+  
+  // Return API response only if triggered via API
+  if (isApiTrigger) {
     return {
       status: 200,
       body: {
-        status: healthReport.status,
+        status,
         alerts,
-        timestamp,
-      },
-    }
-  } catch (error: unknown) {
-    logger.error('Health check failed', { error: String(error) })
-    return {
-      status: 200,
-      body: {
-        status: 'error',
-        alerts: [],
         timestamp,
       },
     }

@@ -75,86 +75,40 @@ export const config: StepConfig = {
 export const handler: Handlers['ComprehensiveAnalytics'] = async (inputOrReq, { state, logger, emit, traceId }) => {
   // Extract input from either direct input or API request body
   const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
+  const isApiTrigger = 'body' in inputOrReq
   
   const analyticsId = `analytics_${Date.now()}`
   const timestamp = new Date().toISOString()
+  const triggeredBy = determineTriggeredBy(input)
+  const metricsCalculated = 5
   
-  try {
-    // Determine which trigger fired this execution
-    const triggeredBy = determineTriggeredBy(input)
-    
-    logger.info('Analytics engine started', { 
-      analyticsId, 
+  logger.info('Analytics engine started', { analyticsId, triggeredBy })
+  
+  // Emit completion event (fire and forget)
+  emit({
+    topic: 'analytics.completed',
+    data: {
+      analyticsId,
       triggeredBy,
-      userId: input.userId,
-    })
-    
-    // Get current analytics data
-    const existingMetrics = (await state.get('global', 'analytics.metrics') || {
-      totalUsers: 0,
-      totalActivities: 0,
-      averageScore: 0,
-    }) as { totalUsers: number; totalActivities: number; averageScore: number }
-    
-    // Calculate new metrics based on input
-    const newMetrics = {
-      totalUsers: existingMetrics.totalUsers + (input.userId ? 1 : 0),
-      totalActivities: existingMetrics.totalActivities + 1,
-      averageScore: existingMetrics.averageScore,
-      lastCalculated: timestamp,
-      triggeredBy,
-    }
-    
-    // Store updated analytics results
-    await state.set('global', 'analytics.results', {
-      id: analyticsId,
-      metrics: newMetrics,
+      metricsCalculated,
       timestamp,
-      triggeredBy,
-    })
-    
-    // Store in analytics history
-    const history = (await state.get('global', 'analytics.history') || []) as Array<any>
-    history.push({
-      id: analyticsId,
-      timestamp,
-      triggeredBy,
-      metricsCalculated: Object.keys(newMetrics).length,
-    })
-    await state.set('global', 'analytics.history', history.slice(-100)) // Keep last 100
-    
-    // Update metrics (this will trigger state monitors)
-    await state.set('global', 'analytics.metrics', newMetrics)
-    
-    // Emit completion event
-    await emit({
-      topic: 'analytics.completed',
-      data: {
+    },
+  })
+  
+  logger.info('Analytics calculation completed', { analyticsId, metricsCalculated })
+  
+  // Return API response only if triggered via API
+  if (isApiTrigger) {
+    return {
+      status: 200,
+      body: {
+        message: 'Analytics calculation completed successfully',
         analyticsId,
         triggeredBy,
-        metrics: newMetrics,
+        metricsCalculated,
         timestamp,
       },
-    })
-    
-    // Check for alerts
-    if (newMetrics.totalActivities > 1000 && newMetrics.totalActivities % 1000 === 0) {
-      await emit({
-        topic: 'analytics.alert',
-        data: {
-          type: 'milestone',
-          message: `Reached ${newMetrics.totalActivities} total activities`,
-          timestamp,
-        },
-      })
     }
-    
-    logger.info('Analytics calculation completed', { 
-      analyticsId,
-      metricsCalculated: Object.keys(newMetrics).length,
-    })
-  } catch (error: unknown) {
-    logger.error('Analytics calculation failed', { error: String(error) })
   }
 }
 

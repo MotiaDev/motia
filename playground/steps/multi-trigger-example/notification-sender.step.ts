@@ -30,8 +30,8 @@ export const config: StepConfig = {
     },
     {
       type: 'event',
-      topic: 'order.completed',
-      description: 'Send order confirmation notification',
+      topic: 'data.processed',
+      description: 'Send notification when data processing completes (flows from DataProcessor)',
     },
     
     // State Trigger - Triggered when notification queue has pending items
@@ -47,9 +47,11 @@ export const config: StepConfig = {
   
   input: z.object({
     userId: z.string().optional(),
+    dataId: z.string().optional(),
     message: z.string().optional(),
     type: z.enum(['email', 'sms', 'push']).optional(),
     priority: z.enum(['low', 'medium', 'high']).optional().default('medium'),
+    status: z.string().optional(),
   }),
   
   
@@ -69,56 +71,44 @@ export const config: StepConfig = {
 export const handler: Handlers['NotificationSender'] = async (inputOrReq, { state, logger, emit }) => {
   // Extract input from either direct input or API request body
   const input = 'body' in inputOrReq ? inputOrReq.body : inputOrReq
+  const isApiTrigger = 'body' in inputOrReq
   
   const notificationId = `notif_${Date.now()}`
   const sentAt = new Date().toISOString()
   
-  try {
-    // Determine notification details
-    const notification = {
+  // Determine notification source
+  const source = input.dataId ? 'data_processed' : (input.userId ? 'direct' : 'system')
+  const message = input.message || (input.dataId ? `Data ${input.dataId} processed successfully` : 'System notification')
+  
+  logger.info('Sending notification', { 
+    notificationId, 
+    source,
+    type: input.type || 'email',
+  })
+  
+  // Emit success event (fire and forget)
+  emit({
+    topic: 'notification.sent',
+    data: {
       id: notificationId,
-      userId: input.userId || 'system',
-      message: input.message || 'Default notification message',
+      source,
+      message,
       type: input.type || 'email',
-      priority: input.priority || 'medium',
       sentAt,
-      status: 'sent',
-    }
-    
-    logger.info('Sending notification', { 
-      notificationId, 
-      userId: notification.userId,
-      type: notification.type,
-    })
-    
-    // Store notification record
-    await state.set('notifications', notificationId, notification)
-    
-    // Update notification stats
-    const stats = (await state.get('notifications', 'stats') || {
-      total: 0,
-      byType: {},
-    }) as { total: number; byType: Record<string, number> }
-    stats.total += 1
-    stats.byType[notification.type] = (stats.byType[notification.type] || 0) + 1
-    await state.set('notifications', 'stats', stats)
-    
-    // Emit success event
-    await emit({
-      topic: 'notification.sent',
-      data: notification,
-    })
-    
-    logger.info('Notification sent successfully', { notificationId })
-  } catch (error: unknown) {
-    logger.error('Notification send failed', { error: String(error) })
-    
-    await emit({
-      topic: 'notification.failed',
-      data: {
-        error: String(error),
-        timestamp: new Date().toISOString(),
+    },
+  })
+  
+  logger.info('Notification sent successfully', { notificationId, source })
+  
+  // Return API response only if triggered via API
+  if (isApiTrigger) {
+    return {
+      status: 200,
+      body: {
+        message: 'Notification sent successfully',
+        notificationId,
+        sentAt,
       },
-    })
+    }
   }
 }
