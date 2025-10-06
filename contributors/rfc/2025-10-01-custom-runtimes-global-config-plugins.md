@@ -86,7 +86,8 @@ First thing I want to propose, is to rename `LockedData` to `Motia`, which is th
 - List of all: Flows, Steps, Streams
 - Add watchers to new Steps that are created, deleted or updated
 
-Returns a list of all the components to add to the Workbench in the topBar, sidebar, bottomBar
+Returns a list of all the components to add to the Workbench. It's possible to override the defaults
+of each plugin, like: Label, Placement, and adding props.
 
 ### Creating a new plugin
 
@@ -125,16 +126,48 @@ export const llmChatPlugin = (args: { openAiApiKey?: string }): MotiaPluginBuild
     })
 
     return {
+      /**
+       * The Dirname of the plugin, it's important for Motia Framework to know
+       * where to find the steps and the workbench components.
+       */
       dirname: __dirname,
+      /**
+       * The steps to load for the plugin.
+       */
       steps: ['steps/*.step.ts'],
+
+      /**
+       * The workbench components to load for the plugin.
+       */
       workbench: {
-        topBar: [
-          {
-            packageName: '@community/motia-plugin-llm-chat',
-            componentName: 'LLMChat',
-            label: 'Chat with AI',
-          },
-        ],
+        {
+          packageName: '@community/motia-plugin-llm-chat',
+
+          // optional fields
+
+          /**
+           * will ultimately convert to import { LLMChat } from '@community/motia-plugin-llm-chat'
+           */
+          componentName: 'LLMChat',
+
+          /**
+           * The label to display in the workbench
+           */
+          label: 'Chat with AI',
+
+          /**
+           * The placement of the component in the workbench
+           */
+          placement: 'bottom',
+
+          /**
+           * The props to pass to the component
+           */
+          props: {
+            // example of a prop
+            disableOpenAi: true,
+          }
+        },
       },
     }
   }
