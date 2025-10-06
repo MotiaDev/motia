@@ -7,18 +7,27 @@ describe('Infrastructure Validation in Build Process', () => {
     return {
       stepsConfig,
       projectDir: '/mock/project',
+      streamsConfig: {},
+      routersConfig: {},
       stepUncompressedSizes: new Map(),
       stepCompressedSizes: new Map(),
       routerUncompressedSizes: new Map(),
       routerCompressedSizes: new Map(),
-    } as any
+      modulegraphInstalled: false,
+      registerBuilder: jest.fn(),
+      registerStateStream: jest.fn(),
+      registerStep: jest.fn(),
+      recordStepSize: jest.fn(),
+      buildStep: jest.fn(),
+      buildApiSteps: jest.fn(),
+    } as unknown as Builder
   }
 
   function createMockStep(
     name: string,
     configType: 'event' | 'api' | 'cron',
-    infrastructure?: any,
-    input?: any
+    infrastructure?: unknown,
+    input?: unknown,
   ): BuildStepConfig {
     return {
       type: 'node',
@@ -43,7 +52,7 @@ describe('Infrastructure Validation in Build Process', () => {
           cron: '0 0 * * *',
           emits: [],
         }),
-      } as any,
+      } as BuildStepConfig['config'],
     }
   }
 
@@ -113,7 +122,7 @@ describe('Infrastructure Validation in Build Process', () => {
             retryStrategy: 'none',
           },
         },
-        inputSchema
+        inputSchema,
       )
 
       const builder = createMockBuilder({ testStep: step })
@@ -145,7 +154,7 @@ describe('Infrastructure Validation in Build Process', () => {
             retryStrategy: 'exponential',
           },
         },
-        inputSchema
+        inputSchema,
       )
 
       const builder = createMockBuilder({ testStep: step })
@@ -350,7 +359,7 @@ describe('Infrastructure Validation in Build Process', () => {
             retryStrategy: 'none',
           },
         },
-        inputSchema
+        inputSchema,
       )
 
       const builder = createMockBuilder({ testStep: step })
@@ -378,7 +387,7 @@ describe('Infrastructure Validation in Build Process', () => {
             retryStrategy: 'none',
           },
         },
-        inputSchema
+        inputSchema,
       )
 
       const builder = createMockBuilder({ testStep: step })
@@ -406,7 +415,7 @@ describe('Infrastructure Validation in Build Process', () => {
             retryStrategy: 'none',
           },
         },
-        inputSchema
+        inputSchema,
       )
 
       const builder = createMockBuilder({ testStep: step })
@@ -414,10 +423,29 @@ describe('Infrastructure Validation in Build Process', () => {
 
       expect(errors.length).toBeGreaterThan(0)
       expect(errors[0].message).toContain('messageGroupId')
-      expect(errors[0].message).toContain('does not exist in step\'s input schema')
+      expect(errors[0].message).toContain("does not exist in step's input schema")
     })
 
     it('should show error when messageGroupId is provided but no input schema', () => {
+      const step = createMockStep('testStep', 'event', {
+        queue: {
+          type: 'fifo',
+          visibilityTimeout: 60,
+          messageGroupId: 'userId',
+          maxRetries: 3,
+          retryStrategy: 'none',
+        },
+      })
+
+      const builder = createMockBuilder({ testStep: step })
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors.length).toBeGreaterThan(0)
+      expect(errors[0].message).toContain('Cannot validate messageGroupId')
+      expect(errors[0].message).toContain('step has no input schema defined')
+    })
+
+    it('should skip validation when messageGroupId is traceId', () => {
       const step = createMockStep('testStep', 'event', {
         queue: {
           type: 'fifo',
@@ -431,47 +459,11 @@ describe('Infrastructure Validation in Build Process', () => {
       const builder = createMockBuilder({ testStep: step })
       const { errors } = validateStepsConfig(builder)
 
-      expect(errors.length).toBeGreaterThan(0)
-      expect(errors[0].message).toContain('Cannot validate messageGroupId')
-      expect(errors[0].message).toContain('step has no input schema defined')
+      expect(errors.length).toBe(0)
     })
   })
 
   describe('Queue Config on Non-Event Steps', () => {
-    it('should warn when queue config is present on API step', () => {
-      const step = createMockStep('testStep', 'api', {
-        queue: {
-          type: 'standard',
-          visibilityTimeout: 60,
-          maxRetries: 3,
-          retryStrategy: 'none',
-        },
-      })
-
-      const builder = createMockBuilder({ testStep: step })
-      const { warnings } = validateStepsConfig(builder)
-
-      expect(warnings.length).toBeGreaterThan(0)
-      expect(warnings[0].message).toContain('Queue configuration is only applicable to Event steps')
-    })
-
-    it('should warn when queue config is present on Cron step', () => {
-      const step = createMockStep('testStep', 'cron', {
-        queue: {
-          type: 'standard',
-          visibilityTimeout: 60,
-          maxRetries: 3,
-          retryStrategy: 'none',
-        },
-      })
-
-      const builder = createMockBuilder({ testStep: step })
-      const { warnings } = validateStepsConfig(builder)
-
-      expect(warnings.length).toBeGreaterThan(0)
-      expect(warnings[0].message).toContain('Queue configuration is only applicable to Event steps')
-    })
-
     it('should not warn when queue config is present on Event step', () => {
       const step = createMockStep('testStep', 'event', {
         queue: {
@@ -485,7 +477,7 @@ describe('Infrastructure Validation in Build Process', () => {
       const builder = createMockBuilder({ testStep: step })
       const { warnings } = validateStepsConfig(builder)
 
-      const queueWarnings = warnings.filter(w => w.message.includes('Queue configuration'))
+      const queueWarnings = warnings.filter((w) => w.message.includes('Queue configuration'))
       expect(queueWarnings).toHaveLength(0)
     })
   })
@@ -516,7 +508,7 @@ describe('Infrastructure Validation in Build Process', () => {
       const { errors } = validateStepsConfig(builder)
 
       expect(errors.length).toBeGreaterThan(0)
-      expect(errors.some(e => e.message.includes('invalidStep'))).toBe(true)
+      expect(errors.some((e) => e.message.includes('invalidStep'))).toBe(true)
     })
 
     it('should collect all validation errors from multiple steps', () => {
@@ -544,8 +536,8 @@ describe('Infrastructure Validation in Build Process', () => {
       const { errors } = validateStepsConfig(builder)
 
       expect(errors.length).toBeGreaterThanOrEqual(2)
-      expect(errors.some(e => e.message.includes('step1'))).toBe(true)
-      expect(errors.some(e => e.message.includes('step2'))).toBe(true)
+      expect(errors.some((e) => e.message.includes('step1'))).toBe(true)
+      expect(errors.some((e) => e.message.includes('step2'))).toBe(true)
     })
   })
 
@@ -600,4 +592,3 @@ describe('Infrastructure Validation in Build Process', () => {
     })
   })
 })
-

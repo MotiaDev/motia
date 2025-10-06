@@ -7,7 +7,7 @@ import {
   queueSchema,
   infrastructureSchema,
   createInfrastructureSchema,
-} from '../step-validator'
+} from '../infrastructure-validator'
 
 describe('Infrastructure Config Validation', () => {
   describe('AWS_LAMBDA_LIMITS constants', () => {
@@ -155,7 +155,7 @@ describe('Infrastructure Config Validation', () => {
 
     it('should accept valid machineType values', () => {
       const validTypes = ['cpu', 'memory', 'gpu'] as const
-      
+
       for (const machineType of validTypes) {
         const config = {
           ram: 1024,
@@ -280,7 +280,7 @@ describe('Infrastructure Config Validation', () => {
 
     it('should accept valid retryStrategy values', () => {
       const validStrategies = ['none', 'exponential', 'jitter'] as const
-      
+
       for (const retryStrategy of validStrategies) {
         const config = {
           type: 'standard' as const,
@@ -403,7 +403,9 @@ describe('Infrastructure Config Validation', () => {
         },
       }
 
-      expect(() => infrastructureSchema.parse(invalidConfig)).toThrow('Visibility timeout (30s) must be greater than handler timeout (30s)')
+      expect(() => infrastructureSchema.parse(invalidConfig)).toThrow(
+        'Visibility timeout (30s) must be greater than handler timeout (30s)',
+      )
     })
 
     it('should accept when visibilityTimeout > handler.timeout', () => {
@@ -469,12 +471,13 @@ describe('Infrastructure Config Validation', () => {
         },
       }
 
-      expect(() => infrastructureSchema.parse(invalidConfig)).toThrow()
-      
       try {
         infrastructureSchema.parse(invalidConfig)
-      } catch (error: any) {
-        expect(error.errors[0].message).toBe('messageGroupId is required when queue type is "fifo"')
+        fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).toBeInstanceOf(z.ZodError)
+        const zodError = error as z.ZodError
+        expect(zodError.errors[0].message).toContain('messageGroupId is required when queue type is "fifo"')
       }
     })
 
@@ -547,12 +550,13 @@ describe('Infrastructure Config Validation', () => {
         },
       }
 
-      expect(() => schema.parse(invalidConfig)).toThrow()
-      
       try {
         schema.parse(invalidConfig)
-      } catch (error: any) {
-        expect(error.errors[0].message).toContain('messageGroupId "user.id" must be a simple field path')
+        fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).toBeInstanceOf(z.ZodError)
+        const zodError = error as z.ZodError
+        expect(zodError.errors[0].message).toContain('messageGroupId "user.id" must be a simple field path')
       }
     })
 
@@ -573,12 +577,13 @@ describe('Infrastructure Config Validation', () => {
         },
       }
 
-      expect(() => schema.parse(invalidConfig)).toThrow()
-      
       try {
         schema.parse(invalidConfig)
-      } catch (error: any) {
-        expect(error.errors[0].message).toContain('messageGroupId "items[0]" must be a simple field path')
+        fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).toBeInstanceOf(z.ZodError)
+        const zodError = error as z.ZodError
+        expect(zodError.errors[0].message).toContain('messageGroupId "items[0]" must be a simple field path')
       }
     })
 
@@ -599,12 +604,13 @@ describe('Infrastructure Config Validation', () => {
         },
       }
 
-      expect(() => schema.parse(invalidConfig)).toThrow()
-      
       try {
         schema.parse(invalidConfig)
-      } catch (error: any) {
-        expect(error.errors[0].message).toContain('messageGroupId "userId" does not exist in step\'s input schema')
+        fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).toBeInstanceOf(z.ZodError)
+        const zodError = error as z.ZodError
+        expect(zodError.errors[0].message).toContain('messageGroupId "userId" does not exist in step\'s input schema')
       }
     })
 
@@ -615,19 +621,36 @@ describe('Infrastructure Config Validation', () => {
         queue: {
           type: 'fifo' as const,
           visibilityTimeout: 60,
+          messageGroupId: 'userId',
+          maxRetries: 3,
+          retryStrategy: 'none' as const,
+        },
+      }
+
+      try {
+        schema.parse(invalidConfig)
+        fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).toBeInstanceOf(z.ZodError)
+        const zodError = error as z.ZodError
+        expect(zodError.errors[0].message).toContain('Cannot validate messageGroupId "userId" - step has no input schema defined')
+      }
+    })
+
+    it('should skip validation when messageGroupId is traceId', () => {
+      const schema = createInfrastructureSchema()
+
+      const validConfig = {
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 60,
           messageGroupId: 'traceId',
           maxRetries: 3,
           retryStrategy: 'none' as const,
         },
       }
 
-      expect(() => schema.parse(invalidConfig)).toThrow()
-      
-      try {
-        schema.parse(invalidConfig)
-      } catch (error: any) {
-        expect(error.errors[0].message).toContain('Cannot validate messageGroupId "traceId" - step has no input schema defined')
-      }
+      expect(() => schema.parse(validConfig)).not.toThrow()
     })
 
     it('should skip validation when messageGroupId is not provided', () => {

@@ -34,7 +34,7 @@ describe('Infrastructure Config Serialization', () => {
             retryStrategy: 'exponential',
           },
         },
-      } as any,
+      } as BuildStepConfig['config'],
     }
   }
 
@@ -49,7 +49,8 @@ describe('Infrastructure Config Serialization', () => {
         description: 'Legacy step without infrastructure',
         subscribes: ['test.event'],
         emits: [],
-      } as any,
+        input: {} as any,
+      } as BuildStepConfig['config'],
     }
   }
 
@@ -64,6 +65,7 @@ describe('Infrastructure Config Serialization', () => {
         description: 'Step with partial infrastructure',
         subscribes: ['test.event'],
         emits: [],
+        input: {} as any,
         infrastructure: {
           handler: {
             ram: 4096,
@@ -71,7 +73,7 @@ describe('Infrastructure Config Serialization', () => {
             machineType: 'memory',
           },
         },
-      } as any,
+      } as BuildStepConfig['config'],
     }
   }
 
@@ -79,7 +81,7 @@ describe('Infrastructure Config Serialization', () => {
     it('should serialize step with infrastructure config correctly', () => {
       const step = createMockStepWithInfrastructure()
       const stepsConfig = { testStep: step }
-      
+
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
         streams: {},
@@ -98,7 +100,7 @@ describe('Infrastructure Config Serialization', () => {
     it('should serialize handler configuration correctly', () => {
       const step = createMockStepWithInfrastructure()
       const stepsConfig = { testStep: step }
-      
+
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
         streams: {},
@@ -118,7 +120,7 @@ describe('Infrastructure Config Serialization', () => {
     it('should serialize queue configuration correctly', () => {
       const step = createMockStepWithInfrastructure()
       const stepsConfig = { testStep: step }
-      
+
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
         streams: {},
@@ -139,7 +141,7 @@ describe('Infrastructure Config Serialization', () => {
     it('should serialize partial infrastructure config correctly', () => {
       const step = createMockStepWithPartialInfrastructure()
       const stepsConfig = { partialStep: step }
-      
+
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
         streams: {},
@@ -152,7 +154,7 @@ describe('Infrastructure Config Serialization', () => {
       expect(parsed.steps.partialStep.config.infrastructure).toBeDefined()
       expect(parsed.steps.partialStep.config.infrastructure.handler).toBeDefined()
       expect(parsed.steps.partialStep.config.infrastructure.queue).toBeUndefined()
-      
+
       const handler = parsed.steps.partialStep.config.infrastructure.handler
       expect(handler.ram).toBe(4096)
       expect(handler.timeout).toBe(60)
@@ -164,7 +166,7 @@ describe('Infrastructure Config Serialization', () => {
     it('should serialize step without infrastructure config correctly', () => {
       const step = createMockStepWithoutInfrastructure()
       const stepsConfig = { legacyStep: step }
-      
+
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
         streams: {},
@@ -183,12 +185,12 @@ describe('Infrastructure Config Serialization', () => {
     it('should handle mixed steps (with and without infrastructure)', () => {
       const stepWithInfra = createMockStepWithInfrastructure()
       const stepWithoutInfra = createMockStepWithoutInfrastructure()
-      
+
       const stepsConfig = {
         testStep: stepWithInfra,
         legacyStep: stepWithoutInfra,
       }
-      
+
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
         streams: {},
@@ -205,7 +207,7 @@ describe('Infrastructure Config Serialization', () => {
     it('should maintain all existing step properties when infrastructure is added', () => {
       const step = createMockStepWithInfrastructure()
       const stepsConfig = { testStep: step }
-      
+
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
         streams: {},
@@ -235,9 +237,9 @@ describe('Infrastructure Config Serialization', () => {
           path: '/test',
           method: 'GET',
           emits: [],
-        } as any,
+        } as BuildStepConfig['config'],
       }
-      
+
       const stepsConfig = { apiStep }
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
@@ -265,9 +267,9 @@ describe('Infrastructure Config Serialization', () => {
           description: 'Cron step without infrastructure',
           cron: '0 0 * * *',
           emits: [],
-        } as any,
+        } as BuildStepConfig['config'],
       }
-      
+
       const stepsConfig = { cronStep }
       const stepsFile: StepsConfigFile = {
         steps: stepsConfig,
@@ -320,13 +322,13 @@ describe('Infrastructure Config Serialization', () => {
       const parsed: StepsConfigFile = JSON.parse(jsonString)
 
       expect(parsed.steps.testStep).toBeDefined()
-      
-      const config = parsed.steps.testStep.config as any
+
+      const config = parsed.steps.testStep.config as Record<string, unknown>
       expect(config.infrastructure).toBeDefined()
-      
-      const infra = config.infrastructure
-      expect(infra.handler.ram).toBe(2048)
-      expect(infra.queue.type).toBe('standard')
+
+      const infra = config.infrastructure as Record<string, Record<string, unknown>>
+      expect((infra.handler as Record<string, unknown>).ram).toBe(2048)
+      expect((infra.queue as Record<string, unknown>).type).toBe('standard')
     })
 
     it('should deserialize step without infrastructure config correctly', () => {
@@ -351,29 +353,30 @@ describe('Infrastructure Config Serialization', () => {
       const parsed: StepsConfigFile = JSON.parse(jsonString)
 
       expect(parsed.steps.legacyStep).toBeDefined()
-      expect((parsed.steps.legacyStep.config as any).infrastructure).toBeUndefined()
+      expect((parsed.steps.legacyStep.config as Record<string, unknown>).infrastructure).toBeUndefined()
     })
   })
 
   describe('Type Safety', () => {
     it('should maintain type safety with infrastructure config', () => {
       const step = createMockStepWithInfrastructure()
-      
-      const config = step.config as any
+
+      const config = step.config as Record<string, unknown>
       expect(config.infrastructure).toBeDefined()
       expect(typeof config.infrastructure).toBe('object')
-      expect(typeof config.infrastructure.handler).toBe('object')
-      expect(typeof config.infrastructure.queue).toBe('object')
+      const infra = config.infrastructure as Record<string, unknown>
+      expect(typeof infra.handler).toBe('object')
+      expect(typeof infra.queue).toBe('object')
     })
 
     it('should handle undefined infrastructure gracefully', () => {
       const step = createMockStepWithoutInfrastructure()
-      
-      const config = step.config as any
+
+      const config = step.config as Record<string, unknown>
       expect(config.infrastructure).toBeUndefined()
-      
+
       expect(() => {
-        const infra = config.infrastructure
+        const infra = config.infrastructure as Record<string, unknown> | undefined
         if (infra) {
           console.log(infra.handler)
         }
@@ -381,4 +384,3 @@ describe('Infrastructure Config Serialization', () => {
     })
   })
 })
-
