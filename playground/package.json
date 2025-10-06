@@ -16,11 +16,12 @@
     "lint:tsx": "eslint --config ../eslint.config.tsx.js"
   },
   "dependencies": {
-    "@motiadev/ui": "workspace:*",
     "@motiadev/core": "workspace:*",
+    "@motiadev/ui": "workspace:*",
     "@motiadev/workbench": "workspace:*",
-    "motia": "workspace:*",
+    "antd": "^5.27.4",
     "deep-equal": "^2.2.3",
+    "motia": "workspace:*",
     "openai": "^4.78.1",
     "zod": "^3.24.1"
   },

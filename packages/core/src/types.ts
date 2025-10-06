@@ -2,6 +2,8 @@ import { z, ZodAny, ZodArray, ZodObject } from 'zod'
 import { Logger } from './logger'
 import { Tracer } from './observability'
 
+export * from './types/app-config-types'
+
 export type ZodInput = ZodObject<any> | ZodArray<any> // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export type InternalStateManager = {

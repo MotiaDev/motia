@@ -1,8 +1,9 @@
+import react from '@vitejs/plugin-react'
 import type { Express, NextFunction, Request, Response } from 'express'
 import fs from 'fs'
 import path from 'path'
 import { createServer as createViteServer } from 'vite'
-import react from '@vitejs/plugin-react'
+import motiaPluginsPlugin, { type WorkbenchPlugin } from './vite-plugin-motia-plugins'
 
 const processCwdPlugin = () => {
   return {
@@ -38,7 +39,14 @@ const reoPlugin = () => {
   }
 }
 
-export const applyMiddleware = async (app: Express, port: number, workbenchBase: string = '') => {
+export type ApplyMiddlewareParams = {
+  app: Express
+  port: number
+  workbenchBase: string
+  plugins: WorkbenchPlugin[]
+}
+
+export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: ApplyMiddlewareParams) => {
   const vite = await createViteServer({
     appType: 'spa',
     root: __dirname,
@@ -61,9 +69,10 @@ export const applyMiddleware = async (app: Express, port: number, workbenchBase:
       alias: {
         '@': path.resolve(__dirname, './src'),
         '@/assets': path.resolve(__dirname, './src/assets'),
+        // antd: path.join(process.cwd(), './node_modules/antd'),
       },
     },
-    plugins: [react(), processCwdPlugin(), reoPlugin()],
+    plugins: [react(), processCwdPlugin(), reoPlugin(), motiaPluginsPlugin(plugins)],
     assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico', '**/*.webp', '**/*.avif'],
   })
 

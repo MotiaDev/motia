@@ -15,8 +15,6 @@ declare module 'motia' {
   interface Handlers {
     'TestStateCheck': EventHandler<{ key: string; expected?: unknown }, never>
     'TestStateApiTrigger': ApiRouteHandler<{}, unknown, { topic: 'test-state-python'; data: unknown }>
-    'Download PDF': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, unknown>, never>
-    'Download HTML': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, unknown>, never>
     'stepA': EventHandler<{}, { topic: 'pms.stepA.done'; data: { msg: string; timestamp: number } }>
     'Parallel Merge': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'pms.start'; data: {} }>
     'join-step': EventHandler<{ msg: string; timestamp: number }, { topic: 'pms.join.complete'; data: { stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string } }>
@@ -42,5 +40,7 @@ declare module 'motia' {
     'PythonProcessFoodOrder': EventHandler<{ id: string; email: string; quantity: unknown; pet_id: unknown }, { topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
     'PythonNotification': EventHandler<{ template_id: string; email: string; template_data: Record<string, unknown> }, never>
     'PythonApiTrigger': ApiRouteHandler<{ pet: unknown; food_order?: unknown | unknown }, ApiResponse<200, { id: unknown; name: string; photoUrl: string }>, { topic: 'python-process-food-order'; data: { id: string; email: string; quantity: unknown; pet_id: unknown } }>
+    'Download PDF': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, unknown>, never>
+    'Download HTML': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, unknown>, never>
   }
 }

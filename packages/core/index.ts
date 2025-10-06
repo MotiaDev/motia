@@ -15,3 +15,4 @@ export { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled, trackEvent
 export { Motia } from './src/motia'
 export { NoPrinter, Printer } from './src/printer'
 export { NoTracer } from './src/observability/no-tracer'
+export { config } from './src/config'

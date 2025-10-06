@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.1",
+    "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "@motiadev/plugin-endpoint": "workspace:*",

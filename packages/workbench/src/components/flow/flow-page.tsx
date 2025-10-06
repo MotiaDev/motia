@@ -2,6 +2,7 @@ import { useFlowStore } from '@/stores/use-flow-store'
 import { FlowConfigResponse, FlowResponse } from '@/types/flow'
 import { useStreamItem } from '@motiadev/stream-client-react'
 import { FlowView } from './flow-view'
+import { ReactFlowProvider } from '@xyflow/react'
 
 export const FlowPage = () => {
   const selectedFlowId = useFlowStore((state) => state.selectedFlowId)
@@ -24,5 +25,9 @@ export const FlowPage = () => {
       </div>
     )
 
-  return <FlowView flow={flow} flowConfig={flowConfig!} />
+  return (
+    <ReactFlowProvider>
+      <FlowView flow={flow} flowConfig={flowConfig!} />
+    </ReactFlowProvider>
+  )
 }

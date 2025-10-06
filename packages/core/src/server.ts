@@ -37,6 +37,7 @@ export type MotiaServer = {
   addRoute: (step: Step<ApiRouteConfig>) => void
   cronManager: CronManager
   motiaEventManager: MotiaEventManager
+  motia: Motia
 }
 
 type MotiaServerConfig = {
@@ -293,5 +294,5 @@ export const createServer = (
     socketServer.close()
   }
 
-  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager }
+  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motia }
 }
