@@ -143,8 +143,8 @@ async def handler(context):
 
 ```typescript
 export const config: CronConfig = {
+  name: 'CronJobEvery5Minutes', // should always be the same as Handlers['__']
   type: 'cron',
-  name: 'CronJobEvery5Minutes', // should always be the same as Handlers['__'] 
   cron: '*/5 * * * *',
   emits: [], // No emits in this example
   flows: ['example-flow']
@@ -159,8 +159,8 @@ export const handler: Handlers['CronJobEvery5Minutes'] = async ({ logger }) => {
 
 ```python
 config = {
-    "type": "cron",
     "name": "CronJobEvery5Minutes",
+    "type": "cron",
     "cron": "*/5 * * * *",  # Run every 5 minutes
     "emits": [],  # No emits in this example
     "flows": ["example-flow"]

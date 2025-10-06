@@ -7,39 +7,56 @@ import { Callout } from 'fumadocs-ui/components/callout';
 
 ## Quick Setup
 
-When you create a new Motia project, the Cursor Rules are automatically included:
+When you create a new Motia project, the AI development guides are automatically included:
 
 ```bash
-# Create new Motia project with Cursor Rules included
 npx motia@latest create 
 cd <your-project>
 ```
 
-The Cursor rules will be automatically placed in `.cursor/rules/` directory in your project.
+Your project now has AI development guides in `.cursor/rules/` that work with all major AI coding tools.
 
 ## What's Included
 
-The Cursor Rules include patterns for:
-- **API Steps**: Creating HTTP endpoints
-- **Event Steps**: Background task processing
-- **Cron Steps**: Scheduled tasks
-- **State Management**: Managing state across steps
-- **Middleware**: Request/response processing
-- **Real-time Streaming**: WebSocket and SSE patterns
-- **Virtual Steps**: Visual flow connections in Workbench
+Complete guides with **TypeScript, JavaScript, and Python** examples for:
+- API Steps, Event Steps, Cron Steps
+- State Management, Middleware, Real-time Streaming
+- Virtual Steps, UI Steps
+- Architecture & Error Handling
 
-## Using the Guides
+## Supported AI Tools
 
-If you're using Cursor IDE, the rules are automatically detected and used by the AI assistant. Simply start coding and the AI will follow Motia's patterns.
+### Works Out of the Box
 
-<Callout type="info">
-You can view the AI guides source code at [github.com/MotiaDev/motia/tree/main/packages/snap/src/cursor-rules/dot-files/.cursor](https://github.com/MotiaDev/motia/tree/main/packages/snap/src/cursor-rules/dot-files/.cursor)
-</Callout>
+- **Cursor IDE** - Reads `.cursor/rules/` directly
+- **Claude Code** - Uses pre-configured subagents in `.claude/agents/`
+- **OpenCode, Codex** - Via `AGENTS.md`
+- **Aider, Jules, Factory, Amp, GitHub Copilot, Gemini CLI** - Via [AGENTS.md](https://agents.md/) standard
 
-## Other AI Coding Tools
+### Coming Soon
 
-<Callout type="warning">
-We're currently working on guides for other AI coding tools like Codex, GitHub Copilot, OpenCode, Claude Code, Windsurf, and others. These will be added shortly.
-</Callout>
+- **Windsurf, Cline**
 
-For now, Cursor IDE users will get the best AI-assisted development experience with Motia.
+## Usage
+
+Just start coding - your AI tool will automatically read the guides and follow Motia patterns.
+
+**For Claude Code:** Use `/agents` to see available subagents, or invoke them directly:
+```
+Use the motia-api-developer subagent to create a user registration endpoint
+```
+
+## Update Guides
+
+```bash
+npx motia rules pull          # Update to latest
+npx motia rules pull --force  # Overwrite existing
+```
+
+## Best Practices
+
+1. Commit `.cursor/`, `AGENTS.md`, and config files to Git
+2. Run `npx motia rules pull` after upgrading Motia
+3. Customize guides for project-specific needs
+
+View source: [/cursor-rules](https://github.com/MotiaDev/motia/tree/main/packages/snap/src/cursor-rules/dot-files)

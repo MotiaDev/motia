@@ -219,8 +219,8 @@ import { z } from 'zod'
 import { chatMessageSchema } from './streams/chat-messages.stream'
 
 export const config: ApiRouteConfig = {
-  type: 'api',
   name: 'CreateChatMessage',
+  type: 'api',
   method: 'POST',
   path: '/chat-messages',
   bodySchema: z.object({
@@ -293,8 +293,8 @@ class ChatMessageResponse(BaseModel):
     timestamp: str
 
 config = {
-    "type": "api",
     "name": "CreateChatMessage",
+    "type": "api",
     "method": "POST",
     "path": "/chat-messages",
     "bodySchema": ChatMessageRequest.model_json_schema(),
@@ -334,8 +334,8 @@ import uuid
 from datetime import datetime
 
 config = {
-    "type": "api",
     "name": "CreateChatMessage",
+    "type": "api",
     "method": "POST",
     "path": "/chat-messages",
     "bodySchema": {

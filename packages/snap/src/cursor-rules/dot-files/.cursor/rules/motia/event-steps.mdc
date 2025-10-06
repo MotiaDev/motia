@@ -156,8 +156,8 @@ const inputSchema = z.object({
 })
 
 export const config: EventConfig = {
-  type: 'event',
   name: 'SendEmail',
+  type: 'event',
   description: 'Sends email notification to the user',
   subscribes: ['send-email'],
   emits: [],
@@ -191,8 +191,8 @@ class EmailData(BaseModel):
     template_data: Dict[str, Any]
 
 config = {
-    "type": "event",
     "name": "SendEmail",
+    "type": "event",
     "description": "Sends email notification to the user",
     "subscribes": ["send-email"],
     "emits": [],
