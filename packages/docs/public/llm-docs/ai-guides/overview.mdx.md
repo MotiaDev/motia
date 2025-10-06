@@ -208,5 +208,5 @@ processing using Motia patterns."
 </Tabs>
 
 <Callout type="success" title="Ready to Get Started?">
-  Check out the [Setup Guide](/docs/ai-guides/setup-guide) for detailed installation instructions and configuration for different AI tools.
+  Check out the [Setup Guide](/docs/ai-development-guide/setup-guide) for detailed installation instructions and configuration for different AI tools.
 </Callout>

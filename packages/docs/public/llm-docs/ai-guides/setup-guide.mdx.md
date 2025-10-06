@@ -270,13 +270,13 @@ After installation, your project should look like this:
     ### Share via Company Drive
     ```bash
     # Create a shared package
-    mkdir motia-ai-guides-v1.0.0
-    cp AGENTS.md motia-ai-guides-v1.0.0/
-    cp CLAUDE.md motia-ai-guides-v1.0.0/
-    cp -r .cursor motia-ai-guides-v1.0.0/
+    mkdir motia-ai-development-guide-v1.0.0
+    cp AGENTS.md motia-ai-development-guide-v1.0.0/
+    cp CLAUDE.md motia-ai-development-guide-v1.0.0/
+    cp -r .cursor motia-ai-development-guide-v1.0.0/
 
     # Create setup script
-    cat > motia-ai-guides-v1.0.0/setup.sh << 'EOF'
+    cat > motia-ai-development-guide-v1.0.0/setup.sh << 'EOF'
     #!/bin/bash
     echo "Setting up Motia AI Development Guides..."
 
@@ -289,7 +289,7 @@ After installation, your project should look like this:
     echo "📖 Open AGENTS.md to get started"
     EOF
 
-    chmod +x motia-ai-guides-v1.0.0/setup.sh
+    chmod +x motia-ai-development-guide-v1.0.0/setup.sh
     ```
   </Tab>
 
@@ -298,7 +298,7 @@ After installation, your project should look like this:
     ```json
     // team-motia-guides/package.json
     {
-      "name": "@yourcompany/motia-ai-guides",
+      "name": "@yourcompany/motia-ai-development-guide",
       "version": "1.0.0",
       "description": "Motia AI Development Guides and Cursor Rules",
       "main": "index.js",

@@ -1,0 +1,45 @@
+---
+title: "AI Development Guide"
+description: "Guide for building Motia applications with AI coding tools"
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+## Quick Setup
+
+When you create a new Motia project, the Cursor Rules are automatically included:
+
+```bash
+# Create new Motia project with Cursor Rules included
+npx motia@latest create 
+cd <your-project>
+```
+
+The Cursor rules will be automatically placed in `.cursor/rules/` directory in your project.
+
+## What's Included
+
+The Cursor Rules include patterns for:
+- **API Steps**: Creating HTTP endpoints
+- **Event Steps**: Background task processing
+- **Cron Steps**: Scheduled tasks
+- **State Management**: Managing state across steps
+- **Middleware**: Request/response processing
+- **Real-time Streaming**: WebSocket and SSE patterns
+- **Virtual Steps**: Visual flow connections in Workbench
+
+## Using the Guides
+
+If you're using Cursor IDE, the rules are automatically detected and used by the AI assistant. Simply start coding and the AI will follow Motia's patterns.
+
+<Callout type="info">
+You can view the AI guides source code at [github.com/MotiaDev/motia/tree/main/packages/snap/src/cursor-rules/dot-files/.cursor](https://github.com/MotiaDev/motia/tree/main/packages/snap/src/cursor-rules/dot-files/.cursor)
+</Callout>
+
+## Other AI Coding Tools
+
+<Callout type="warning">
+We're currently working on guides for other AI coding tools like Codex, GitHub Copilot, OpenCode, Claude Code, Windsurf, and others. These will be added shortly.
+</Callout>
+
+For now, Cursor IDE users will get the best AI-assisted development experience with Motia.
