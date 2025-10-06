@@ -91,256 +91,13 @@ You can follow this guide to learn how to build a REST API with Motia step by st
 
 ---
 
-## Setting Up Data Storage
-
-First, create a simple data store to persist pets.
-
-<Callout type="info">
-View the complete code on GitHub:
-- [TypeScript Store](https://github.com/MotiaDev/build-your-first-app/blob/api-endpoints/steps/typescript/ts-store.ts)
-- [Python Store](https://github.com/MotiaDev/build-your-first-app/blob/api-endpoints/services/pet_store.py)
-- [JavaScript Store](https://github.com/MotiaDev/build-your-first-app/blob/api-endpoints/steps/javascript/js-store.js)
-</Callout>
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-  <Tab value="TypeScript">
-    ```typescript title="steps/typescript/ts-store.ts"
-    import fs from 'node:fs'
-    import path from 'node:path'
-
-    export type Pet = {
-      id: string
-      name: string
-      species: 'dog' | 'cat' | 'bird' | 'other'
-      ageMonths: number
-      status: 'available' | 'pending' | 'adopted'
-      createdAt: number
-      updatedAt: number
-    }
-
-    const DATA_DIR = path.join(process.cwd(), '.data')
-    const FILE = path.join(DATA_DIR, 'pets.json')
-
-    type DbShape = { seq: number; pets: Record<string, Pet> }
-
-    function ensureFile(): void {
-      if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
-      if (!fs.existsSync(FILE)) {
-        fs.writeFileSync(FILE, JSON.stringify({ seq: 1, pets: {} }))
-      }
-    }
-
-    function load(): DbShape {
-      ensureFile()
-      return JSON.parse(fs.readFileSync(FILE, 'utf8'))
-    }
-
-    function save(db: DbShape): void {
-      fs.writeFileSync(FILE, JSON.stringify(db))
-    }
-
-    export const TSStore = {
-      create(input: { name: string; species: Pet['species']; ageMonths: number }): Pet {
-        const db = load()
-        const id = String(db.seq++)
-        const pet: Pet = {
-          id,
-          name: input.name.trim(),
-          species: input.species,
-          ageMonths: Math.max(0, Math.floor(input.ageMonths)),
-          status: 'available',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        }
-        db.pets[id] = pet
-        save(db)
-        return pet
-      },
-
-      list(): Pet[] {
-        const db = load()
-        return Object.values(db.pets).sort((a, b) => b.updatedAt - a.updatedAt)
-      },
-
-      get(id: string): Pet | null {
-        const db = load()
-        return db.pets[id] ?? null
-      },
-
-      update(id: string, patch: Partial<Pet>): Pet | null {
-        const db = load()
-        const pet = db.pets[id]
-        if (!pet) return null
-
-        const updated = { ...pet, ...patch, updatedAt: Date.now() }
-        db.pets[id] = updated
-        save(db)
-        return updated
-      },
-
-      remove(id: string): boolean {
-        const db = load()
-        if (!db.pets[id]) return false
-        delete db.pets[id]
-        save(db)
-        return true
-      },
-    }
-    ```
-  </Tab>
-  <Tab value="Python">
-    ```python title="services/pet_store.py"
-    import json
-    import os
-    import time
-    from typing import Dict, Optional, List
-
-    DATA_DIR = os.path.join(os.getcwd(), '.data')
-    FILE = os.path.join(DATA_DIR, 'pets.json')
-
-    def ensure_file():
-        if not os.path.exists(DATA_DIR):
-            os.makedirs(DATA_DIR, exist_ok=True)
-        if not os.path.exists(FILE):
-            with open(FILE, 'w') as f:
-                json.dump({'seq': 1, 'pets': {}}, f)
-
-    def load():
-        ensure_file()
-        with open(FILE, 'r') as f:
-            return json.load(f)
-
-    def save(db):
-        with open(FILE, 'w') as f:
-            json.dump(db, f)
-
-    def create(name: str, species: str, ageMonths: int):
-        db = load()
-        pid = str(db['seq'])
-        db['seq'] += 1
-        pet = {
-            'id': pid,
-            'name': name.strip(),
-            'species': species,
-            'ageMonths': max(0, int(ageMonths)),
-            'status': 'available',
-            'createdAt': int(time.time() * 1000),
-            'updatedAt': int(time.time() * 1000)
-        }
-        db['pets'][pid] = pet
-        save(db)
-        return pet
-
-    def list_all():
-        db = load()
-        return sorted(db['pets'].values(), key=lambda p: p['updatedAt'], reverse=True)
-
-    def get(pid: str):
-        db = load()
-        return db['pets'].get(pid)
-
-    def update(pid: str, patch: Dict):
-        db = load()
-        pet = db['pets'].get(pid)
-        if not pet:
-            return None
-
-        updated = {**pet, **patch, 'updatedAt': int(time.time() * 1000)}
-        db['pets'][pid] = updated
-        save(db)
-        return updated
-
-    def remove(pid: str):
-        db = load()
-        if pid not in db['pets']:
-            return False
-        del db['pets'][pid]
-        save(db)
-        return True
-    ```
-  </Tab>
-  <Tab value="JavaScript">
-    ```javascript title="steps/javascript/js-store.js"
-    const fs = require('fs')
-    const path = require('path')
-
-    const DATA_DIR = path.join(process.cwd(), '.data')
-    const FILE = path.join(DATA_DIR, 'pets.json')
-
-    function ensureFile() {
-      if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
-      if (!fs.existsSync(FILE)) {
-        fs.writeFileSync(FILE, JSON.stringify({ seq: 1, pets: {} }))
-      }
-    }
-
-    function load() {
-      ensureFile()
-      return JSON.parse(fs.readFileSync(FILE, 'utf8'))
-    }
-
-    function save(db) {
-      fs.writeFileSync(FILE, JSON.stringify(db))
-    }
-
-    function create({ name, species, ageMonths }) {
-      const db = load()
-      const id = String(db.seq++)
-      const pet = {
-        id,
-        name: name.trim(),
-        species,
-        ageMonths: Math.max(0, Math.floor(ageMonths)),
-        status: 'available',
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      }
-      db.pets[id] = pet
-      save(db)
-      return pet
-    }
-
-    function list() {
-      const db = load()
-      return Object.values(db.pets).sort((a, b) => b.updatedAt - a.updatedAt)
-    }
-
-    function get(id) {
-      const db = load()
-      return db.pets[id] || null
-    }
-
-    function update(id, patch) {
-      const db = load()
-      const pet = db.pets[id]
-      if (!pet) return null
-
-      const updated = { ...pet, ...patch, updatedAt: Date.now() }
-      db.pets[id] = updated
-      save(db)
-      return updated
-    }
-
-    function remove(id) {
-      const db = load()
-      if (!db.pets[id]) return false
-      delete db.pets[id]
-      save(db)
-      return true
-    }
-
-    module.exports = { create, list, get, update, remove }
-    ```
-  </Tab>
-</Tabs>
-
-This store uses a JSON file for persistence. In production, you would use a database like PostgreSQL or MongoDB.
-
----
-
 ## Creating Your First Endpoint
 
-## Configuration
+<Callout type="info">
+This tutorial focuses on Motia's capabilities to create complete backend system from APIs to Streaming AI agents step-by-step. Here, we're showcasing writing APIs with Motia Steps - For data persistence, we use a simple JSON file store in the examples. In a real application, you would use a database like PostgreSQL, MongoDB, or any other data store of your choice. The complete store implementation is available in the [GitHub repository](https://github.com/MotiaDev/build-your-first-app/tree/api-endpoints).
+</Callout>
+
+### Configuration
 
 Every API endpoint has two parts:
 
@@ -369,23 +126,26 @@ View on GitHub:
     import { z } from 'zod'
     import { TSStore } from './ts-store'
 
-const createPetSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  species: z.enum(['dog', 'cat', 'bird', 'other']),
-  ageMonths: z.number().int().min(0),
+    const createPetSchema = z.object({
+      name: z.string().min(1, 'Name is required'),
+      species: z.enum(['dog', 'cat', 'bird', 'other']),
+      ageMonths: z.number().int().min(0),
     })
 
-export const config: ApiRouteConfig = {
+    export const config: ApiRouteConfig = {
       name: 'CreatePet',
-  type: 'api',
-  path: '/pets',
-  method: 'POST',
-  bodySchema: createPetSchema,
-  flows: ['PetManagement'],
+      type: 'api',
+      path: '/pets',
+      method: 'POST',
+      bodySchema: createPetSchema,
+      flows: ['PetManagement'],
     }
 
-export const handler: Handlers['CreatePet'] = async (req, { logger }) => {
+    export const handler: Handlers['CreatePet'] = async (req, { logger }) => {
       const data = createPetSchema.parse(req.body)
+      
+      // In a real application, this would be a database call
+      // e.g., await db.pets.create(data)
       const pet = TSStore.create(data)
 
       logger.info('Pet created', { petId: pet.id })
@@ -425,6 +185,8 @@ export const handler: Handlers['CreatePet'] = async (req, { logger }) => {
         except Exception:
             return {"status": 400, "body": {"message": "Invalid ageMonths"}}
 
+        # In a real application, this would be a database call
+        # e.g., pet = await db.pets.create(name, species, age_val)
         pet = pet_store.create(name, species, age_val)
         return {"status": 201, "body": pet}
     ```
@@ -451,6 +213,8 @@ export const handler: Handlers['CreatePet'] = async (req, { logger }) => {
         return { status: 400, body: { message: 'Invalid payload' } }
       }
 
+      // In a real application, this would be a database call
+      // e.g., const pet = await db.pets.create({ name, species: b.species, ageMonths: Number(b.ageMonths) })
       const pet = create({ name, species: b.species, ageMonths: Number(b.ageMonths) })
       return { status: 201, body: pet }
     }
@@ -462,11 +226,22 @@ export const handler: Handlers['CreatePet'] = async (req, { logger }) => {
 
 ## Testing Your API
 
-You can test your endpoint directly in the Workbench, Create Pets using the Create Pet endpoint:
+You can test your endpoints using curl or the Workbench interface.
+
+### Using curl
+
+```bash
+# Create a pet
+curl -X POST http://localhost:3000/pets \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Max", "species": "dog", "ageMonths": 24}'
+```
+
+### Using Workbench
+
+You can also test your endpoint directly in the Workbench, which provides an interactive interface to test your API endpoints with real requests and see the responses in real-time:
 
 ![create-pet](../../img/build-your-first-app/create-api.png)
-
-The Workbench provides an interactive interface to test your API endpoints with real requests and see the responses in real-time.
 
 ---
 ## Adding GET Endpoints
@@ -486,16 +261,19 @@ View on GitHub:
     import { ApiRouteConfig, Handlers } from 'motia'
     import { TSStore } from './ts-store'
 
-export const config: ApiRouteConfig = {
+    export const config: ApiRouteConfig = {
       name: 'GetPets',
-  type: 'api',
-  path: '/pets',
-  method: 'GET',
-  flows: ['PetManagement'],
+      type: 'api',
+      path: '/pets',
+      method: 'GET',
+      flows: ['PetManagement'],
     }
 
-export const handler: Handlers['GetPets'] = async (req, { logger }) => {
+    export const handler: Handlers['GetPets'] = async (req, { logger }) => {
+      // In a real application, this would be a database call
+      // e.g., const pets = await db.pets.findMany()
       const pets = TSStore.list()
+      
       logger.info('Retrieved all pets', { count: pets.length })
       return { status: 200, body: pets }
     }
@@ -517,6 +295,8 @@ export const handler: Handlers['GetPets'] = async (req, { logger }) => {
     }
 
     async def handler(req, ctx=None):
+        # In a real application, this would be a database call
+        # e.g., pets = await db.pets.find_all()
         return {"status": 200, "body": pet_store.list_all()}
     ```
   </Tab>
@@ -533,6 +313,8 @@ export const handler: Handlers['GetPets'] = async (req, { logger }) => {
     }
 
     const handler = async () => {
+      // In a real application, this would be a database call
+      // e.g., const pets = await db.pets.findAll()
       return { status: 200, body: list() }
     }
 
@@ -541,9 +323,16 @@ export const handler: Handlers['GetPets'] = async (req, { logger }) => {
   </Tab>
 </Tabs>
 
-## List All Pets
+### Testing List All Pets
 
-You can test your endpoint directly in the Workbench, List all Pets using the  `List All Pets` endpoint:
+Test with curl:
+
+```bash
+# List all pets
+curl http://localhost:3000/pets
+```
+
+Or use the Workbench interface:
 
 ![create-pet](../../img/build-your-first-app/list-pets.png)
 
@@ -564,18 +353,20 @@ View on GitHub:
     import { ApiRouteConfig, Handlers } from 'motia'
     import { TSStore } from './ts-store'
 
-export const config: ApiRouteConfig = {
+    export const config: ApiRouteConfig = {
       name: 'GetPet',
-  type: 'api',
-  path: '/pets/:id',
-  method: 'GET',
-  flows: ['PetManagement'],
+      type: 'api',
+      path: '/pets/:id',
+      method: 'GET',
+      flows: ['PetManagement'],
     }
 
-export const handler: Handlers['GetPet'] = async (req, { logger }) => {
+    export const handler: Handlers['GetPet'] = async (req, { logger }) => {
+      // In a real application, this would be a database call
+      // e.g., const pet = await db.pets.findById(req.pathParams.id)
       const pet = TSStore.get(req.pathParams.id)
 
-  if (!pet) {
+      if (!pet) {
         logger.warn('Pet not found', { id: req.pathParams.id })
         return { status: 404, body: { message: 'Pet not found' } }
       }
@@ -601,6 +392,8 @@ export const handler: Handlers['GetPet'] = async (req, { logger }) => {
 
     async def handler(req, ctx=None):
         pid = req.get("pathParams", {}).get("id")
+        # In a real application, this would be a database call
+        # e.g., pet = await db.pets.find_by_id(pid)
         pet = pet_store.get(pid)
         return {"status": 200, "body": pet} if pet else {"status": 404, "body": {"message": "Not found"}}
     ```
@@ -618,6 +411,8 @@ export const handler: Handlers['GetPet'] = async (req, { logger }) => {
     }
 
     const handler = async (req) => {
+      // In a real application, this would be a database call
+      // e.g., const pet = await db.pets.findById(req.pathParams.id)
       const pet = get(req.pathParams.id)
       return pet 
         ? { status: 200, body: pet } 
@@ -635,7 +430,16 @@ export const handler: Handlers['GetPet'] = async (req, { logger }) => {
 
 The `:id` in the path creates a path parameter accessible via `req.pathParams.id`.
 
-You can test your endpoint directly in the Workbench, Get Single Pet using the `Get Single Pet` endpoint:
+### Testing Get Single Pet
+
+Test with curl:
+
+```bash
+# Get specific pet (replace 1 with an actual pet ID)
+curl http://localhost:3000/pets/1
+```
+
+Or use the Workbench interface:
 
 ![create-pet](../../img/build-your-first-app/get-pet-by-id.png)
 
@@ -657,26 +461,29 @@ View on GitHub:
     import { z } from 'zod'
     import { TSStore } from './ts-store'
 
-const updatePetSchema = z.object({
-  name: z.string().min(1).optional(),
+    const updatePetSchema = z.object({
+      name: z.string().min(1).optional(),
       status: z.enum(['available', 'pending', 'adopted']).optional(),
-  ageMonths: z.number().int().min(0).optional(),
+      ageMonths: z.number().int().min(0).optional(),
     })
 
-export const config: ApiRouteConfig = {
+    export const config: ApiRouteConfig = {
       name: 'UpdatePet',
-  type: 'api',
-  path: '/pets/:id',
-  method: 'PUT',
-  bodySchema: updatePetSchema,
-  flows: ['PetManagement'],
+      type: 'api',
+      path: '/pets/:id',
+      method: 'PUT',
+      bodySchema: updatePetSchema,
+      flows: ['PetManagement'],
     }
 
-export const handler: Handlers['UpdatePet'] = async (req, { logger }) => {
+    export const handler: Handlers['UpdatePet'] = async (req, { logger }) => {
       const updates = updatePetSchema.parse(req.body)
+      
+      // In a real application, this would be a database call
+      // e.g., const pet = await db.pets.update(req.pathParams.id, updates)
       const pet = TSStore.update(req.pathParams.id, updates)
 
-  if (!pet) {
+      if (!pet) {
         return { status: 404, body: { message: 'Pet not found' } }
       }
 
@@ -714,6 +521,8 @@ export const handler: Handlers['UpdatePet'] = async (req, { logger }) => {
         if b.get("status") in ["available", "pending", "adopted"]:
             patch["status"] = b["status"]
 
+        # In a real application, this would be a database call
+        # e.g., updated = await db.pets.update(pid, patch)
         updated = pet_store.update(pid, patch)
         return {"status": 200, "body": updated} if updated else {"status": 404, "body": {"message": "Not found"}}
     ```
@@ -739,6 +548,8 @@ export const handler: Handlers['UpdatePet'] = async (req, { logger }) => {
       if (Number.isFinite(b.ageMonths)) patch.ageMonths = Number(b.ageMonths)
       if (['available', 'pending', 'adopted'].includes(b.status)) patch.status = b.status
 
+      // In a real application, this would be a database call
+      // e.g., const updated = await db.pets.update(req.pathParams.id, patch)
       const updated = update(req.pathParams.id, patch)
       return updated 
         ? { status: 200, body: updated } 
@@ -750,7 +561,18 @@ export const handler: Handlers['UpdatePet'] = async (req, { logger }) => {
   </Tab>
 </Tabs>
 
-You can test your endpoint directly in the Workbench, Update Pet using the `Update Pet` endpoint:
+### Testing Update Pet
+
+Test with curl:
+
+```bash
+# Update a pet (replace 1 with an actual pet ID)
+curl -X PUT http://localhost:3000/pets/1 \
+  -H "Content-Type: application/json" \
+  -d '{"status": "adopted"}'
+```
+
+Or use the Workbench interface:
 
 ![create-pet](../../img/build-your-first-app/update-pet.png)
 
@@ -771,18 +593,20 @@ View on GitHub:
     import { ApiRouteConfig, Handlers } from 'motia'
     import { TSStore } from './ts-store'
 
-export const config: ApiRouteConfig = {
+    export const config: ApiRouteConfig = {
       name: 'DeletePet',
-  type: 'api',
-  path: '/pets/:id',
-  method: 'DELETE',
-  flows: ['PetManagement'],
+      type: 'api',
+      path: '/pets/:id',
+      method: 'DELETE',
+      flows: ['PetManagement'],
     }
 
-export const handler: Handlers['DeletePet'] = async (req, { logger }) => {
+    export const handler: Handlers['DeletePet'] = async (req, { logger }) => {
+      // In a real application, this would be a database call
+      // e.g., const deleted = await db.pets.delete(req.pathParams.id)
       const deleted = TSStore.remove(req.pathParams.id)
 
-  if (!deleted) {
+      if (!deleted) {
         return { status: 404, body: { message: 'Pet not found' } }
       }
 
@@ -808,6 +632,8 @@ export const handler: Handlers['DeletePet'] = async (req, { logger }) => {
 
     async def handler(req, ctx=None):
         pid = req.get("pathParams", {}).get("id")
+        # In a real application, this would be a database call
+        # e.g., ok = await db.pets.delete(pid)
         ok = pet_store.remove(pid)
         return {"status": 204, "body": {}} if ok else {"status": 404, "body": {"message": "Not found"}}
     ```
@@ -825,6 +651,8 @@ export const handler: Handlers['DeletePet'] = async (req, { logger }) => {
     }
 
     const handler = async (req) => {
+      // In a real application, this would be a database call
+      // e.g., const ok = await db.pets.delete(req.pathParams.id)
       const ok = remove(req.pathParams.id)
       return ok 
         ? { status: 204, body: {} } 
@@ -838,9 +666,20 @@ export const handler: Handlers['DeletePet'] = async (req, { logger }) => {
 
 DELETE endpoints return `204 No Content` on success.
 
-You can test your endpoint directly in the Workbench, Delete Pet using the `Delete Pet` endpoint:
+### Testing Delete Pet
+
+Test with curl:
+
+```bash
+# Delete a pet (replace 1 with an actual pet ID)
+curl -X DELETE http://localhost:3000/pets/1
+```
+
+Or use the Workbench interface:
 
 ![create-pet](../../img/build-your-first-app/delete-pet.png)
+
+---
 
 As you can see in this example, Motia handles routing, validation, and error handling automatically. With just a few lines of code, you've built a complete REST API with:
 - **Automatic routing** based on your step configuration
