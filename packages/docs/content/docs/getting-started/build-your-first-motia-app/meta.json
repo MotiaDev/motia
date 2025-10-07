@@ -2,7 +2,8 @@
   "title": "Build Your First Motia App",
   "defaultOpen": true,
   "pages": [
-    "api-endpoints"
+    "api-endpoints",
+    "background-jobs"
   ]
 }
 
