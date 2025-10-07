@@ -1,23 +1,23 @@
-import { ApiRouteConfig, Step, ZodInput } from '@motiadev/core';
-import * as fs from 'fs';
-import { OpenAPIV3 } from 'openapi-types';
-import * as path from 'path';
+import { ApiRouteConfig, Step, ZodInput } from '@motiadev/core'
+import * as fs from 'fs'
+import { OpenAPIV3 } from 'openapi-types'
+import * as path from 'path'
 
-import { generateOpenApi } from '../../openapi/generate';
+import { generateOpenApi } from '../../openapi/generate'
 
 jest.mock('fs', () => ({
   readFileSync: jest.fn(),
   writeFileSync: jest.fn(),
-}));
+}))
 
 describe('generateOpenApi', () => {
-  const mockProjectDir = '/mock/project';
-  const mockOutputFile = 'mock-project-openapi.json';
+  const mockProjectDir = '/mock/project'
+  const mockOutputFile = 'mock-project-openapi.json'
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify({ name: 'test-project', version: '1.0.0' }));
-  });
+    jest.clearAllMocks()
+    ;(fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify({ name: 'test-project', version: '1.0.0' }))
+  })
 
   const MOCK_API_STEP: Step<ApiRouteConfig> = {
     filePath: '/mock/project/steps/test.ts',
@@ -29,12 +29,12 @@ describe('generateOpenApi', () => {
       method: 'GET',
       emits: [],
     },
-  };
+  }
 
   it('should generate a basic OpenAPI spec with default info', () => {
-    const apiSteps = [MOCK_API_STEP];
+    const apiSteps = [MOCK_API_STEP]
 
-    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile);
+    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile)
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -55,13 +55,13 @@ describe('generateOpenApi', () => {
       components: {
         schemas: {},
       },
-    };
+    }
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       path.join(mockProjectDir, mockOutputFile),
-      JSON.stringify(expectedOpenApi, null, 2)
-    );
-  });
+      JSON.stringify(expectedOpenApi, null, 2),
+    )
+  })
 
   it('should handle bodySchema and responseSchema correctly', () => {
     const mockBodySchema: OpenAPIV3.SchemaObject = {
@@ -69,7 +69,7 @@ describe('generateOpenApi', () => {
       properties: {
         id: { type: 'string' },
       },
-    };
+    }
 
     const mockResponseSchema: Record<number, OpenAPIV3.SchemaObject> = {
       200: {
@@ -78,13 +78,13 @@ describe('generateOpenApi', () => {
           message: { type: 'string' },
         },
       },
-    };
+    }
 
     const mockApiStep: Step<ApiRouteConfig> = {
       ...MOCK_API_STEP,
       config: {
         ...MOCK_API_STEP.config,
-        type: "api",
+        type: 'api',
         name: 'testApiWithSchemas',
         path: '/test-schemas',
         method: 'POST',
@@ -92,11 +92,11 @@ describe('generateOpenApi', () => {
         responseSchema: mockResponseSchema as unknown as Record<number, ZodInput>,
         emits: [],
       },
-    };
+    }
 
-    const apiSteps = [mockApiStep];
+    const apiSteps = [mockApiStep]
 
-    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile);
+    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile)
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -132,20 +132,19 @@ describe('generateOpenApi', () => {
       components: {
         schemas: {},
       },
-    };
+    }
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       path.join(mockProjectDir, mockOutputFile),
-      JSON.stringify(expectedOpenApi, null, 2)
-    );
-  });
-
+      JSON.stringify(expectedOpenApi, null, 2),
+    )
+  })
 
   it('should use provided title', () => {
-    const apiSteps = [MOCK_API_STEP];
-    const customTitle = 'Custom API';
+    const apiSteps = [MOCK_API_STEP]
+    const customTitle = 'Custom API'
 
-    generateOpenApi(mockProjectDir, apiSteps, customTitle);
+    generateOpenApi(mockProjectDir, apiSteps, customTitle)
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -166,19 +165,19 @@ describe('generateOpenApi', () => {
       components: {
         schemas: {},
       },
-    };
+    }
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
-      path.join(mockProjectDir, "openapi.json"),
-      JSON.stringify(expectedOpenApi, null, 2)
-    );
-  });
+      path.join(mockProjectDir, 'openapi.json'),
+      JSON.stringify(expectedOpenApi, null, 2),
+    )
+  })
 
   it('should use provided version', () => {
-    const apiSteps = [MOCK_API_STEP];
-    const customVersion = '2.0.0';
+    const apiSteps = [MOCK_API_STEP]
+    const customVersion = '2.0.0'
 
-    generateOpenApi(mockProjectDir, apiSteps, undefined, customVersion, mockOutputFile);
+    generateOpenApi(mockProjectDir, apiSteps, undefined, customVersion, mockOutputFile)
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -199,16 +198,15 @@ describe('generateOpenApi', () => {
       components: {
         schemas: {},
       },
-    };
+    }
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       path.join(mockProjectDir, mockOutputFile),
-      JSON.stringify(expectedOpenApi, null, 2)
-    );
-  });
+      JSON.stringify(expectedOpenApi, null, 2),
+    )
+  })
 
   it('should handle complex bodySchema with anyOf, nullable, and $ref', () => {
-
     const mockUserSchema = {
       type: 'object',
       properties: {
@@ -216,18 +214,14 @@ describe('generateOpenApi', () => {
         email: { type: 'string', format: 'email' },
       },
       required: ['name', 'email'],
-    };
+    }
 
     const mockComplexBodySchema = {
       type: 'object',
       properties: {
         id: { type: 'string' },
         status: {
-          anyOf: [
-            { type: 'string', enum: ['active', 'inactive'] },
-            { type: 'number', enum: [0, 1] },
-            { type: 'null' },
-          ],
+          anyOf: [{ type: 'string', enum: ['active', 'inactive'] }, { type: 'number', enum: [0, 1] }, { type: 'null' }],
         },
         user: { $ref: '#/components/schemas/User' },
       },
@@ -235,7 +229,7 @@ describe('generateOpenApi', () => {
       $defs: {
         User: mockUserSchema,
       },
-    };
+    }
 
     const mockApiStep: Step<ApiRouteConfig> = {
       ...MOCK_API_STEP,
@@ -249,11 +243,11 @@ describe('generateOpenApi', () => {
         emits: [],
         bodySchema: mockComplexBodySchema as unknown as ZodInput,
       },
-    };
+    }
 
-    const apiSteps = [mockApiStep];
+    const apiSteps = [mockApiStep]
 
-    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile);
+    generateOpenApi(mockProjectDir, apiSteps, undefined, undefined, mockOutputFile)
 
     const expectedOpenApi: OpenAPIV3.Document = {
       openapi: '3.0.0',
@@ -296,11 +290,11 @@ describe('generateOpenApi', () => {
           User: mockUserSchema as OpenAPIV3.SchemaObject,
         },
       },
-    };
+    }
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       path.join(mockProjectDir, mockOutputFile),
-      JSON.stringify(expectedOpenApi, null, 2)
-    );
-  });
-});
+      JSON.stringify(expectedOpenApi, null, 2),
+    )
+  })
+})

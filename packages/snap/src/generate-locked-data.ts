@@ -32,10 +32,10 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   const streamFiles = getStreamFiles(projectDir)
   const deprecatedSteps = globSync('**/*.step.py', { absolute: true, cwd: path.join(projectDir, 'steps') })
 
-  const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'));
+  const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
   if (hasPythonFiles) {
-    activatePythonVenv({ baseDir: projectDir });
+    activatePythonVenv({ baseDir: projectDir })
   }
 
   for (const filePath of stepFiles) {
