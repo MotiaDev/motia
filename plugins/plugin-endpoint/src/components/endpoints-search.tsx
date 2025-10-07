@@ -1,5 +1,5 @@
-import { Input } from '@motiadev/ui'
-import { CircleX, Search } from 'lucide-react'
+import { cn, Input } from '@motiadev/ui'
+import { Search, X } from 'lucide-react'
 
 type EndpointsSearchProps = {
   value: string
@@ -16,10 +16,17 @@ export const EndpointsSearch = ({ value, onChange, onClear }: EndpointsSearchPro
           variant="shade"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="pl-8 pr-10 font-medium"
+          className="px-9 font-medium"
+          placeholder="Search by Method or Path"
         />
-        <CircleX
-          className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground"
+        <X
+          className={cn(
+            'cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground',
+            {
+              visible: value !== '',
+              invisible: value === '',
+            },
+          )}
           onClick={onClear}
         />
       </div>

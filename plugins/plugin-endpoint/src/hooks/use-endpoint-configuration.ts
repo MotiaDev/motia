@@ -21,13 +21,15 @@ const defaultHeaders: Headers = {
   ACCEPT: { name: 'Accept', value: 'application/json', active: true },
 }
 
-type ResponseData = {
+export type ResponseData = {
   headers: Record<string, string>
   body: Record<string, any>
+  statusCode: number
+  executionTime: number
 }
 
 type Actions = {
-  setResponse: (response: Response | undefined) => void
+  setResponse: (response: Response | undefined, startTime?: number) => void
   setHeaders: (headers: Headers) => void
   removeHeaders: (key: string) => void
   setBody: (body: string) => void
@@ -37,6 +39,7 @@ type Actions = {
   setPathParams: (pathParams: Params) => void
   removePathParams: (key: string) => void
   setBodyIsValid: (bodyIsValid: boolean) => void
+  toggleFlowGroupStatus: (flow: string) => void
 }
 
 type State = {
@@ -47,6 +50,7 @@ type State = {
   response: Record<string, ResponseData | undefined>
   queryParams: Record<string, Params>
   pathParams: Record<string, Params>
+  flowGroupStatus: Record<string, boolean>
 }
 
 export type UseEndpointConfiguration = State & Actions
@@ -109,6 +113,9 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
       response: {},
       queryParams: {},
       pathParams: {},
+      flowGroupStatus: {},
+      toggleFlowGroupStatus: (flow: string) =>
+        set((state) => ({ flowGroupStatus: { ...state.flowGroupStatus, [flow]: !state.flowGroupStatus[flow] } })),
       setSelectedEndpointId: (selectedEndpointId: string) => set({ selectedEndpointId }),
       setQueryParams: (queryParams: Params) =>
         set((state) => ({ queryParams: { ...state.queryParams, [state.selectedEndpointId]: queryParams } })),
@@ -138,7 +145,7 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
         }),
       setHeaders: (headers: Headers) =>
         set((state) => ({ headers: { ...state.headers, [state.selectedEndpointId]: headers } })),
-      setResponse: async (response: Response | undefined) => {
+      setResponse: async (response: Response | undefined, startTime: number) => {
         if (!response) {
           set((state) => ({
             response: {
@@ -158,6 +165,8 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
           response: {
             ...state.response,
             [state.selectedEndpointId]: {
+              executionTime: Date.now() - startTime,
+              statusCode: response?.status,
               headers: response?.headers ? Object.fromEntries(response.headers.entries()) : {},
               body: body,
             },

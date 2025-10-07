@@ -1,360 +1,684 @@
 ---
-title: Defining Steps
-description: Learn how to create powerful, type-safe steps in TypeScript, Python, and JavaScript with automatic validation and observability.
+title: What is a Step?
+description: One primitive to build any backend. Powerful, reusable, multi-language, composable, and auto-discovered.
 ---
 
-# Defining Steps
+# What is a Step?
 
-Steps are the core building blocks of Motia - isolated, composable functions that handle specific pieces of business logic. Each step is **automatically discovered**, **type-safe**, and **observable** across multiple programming languages.
+## One Step to build any backend.
 
-## The Motia Step Pattern
+**Powerful. Reusable. Multi-Language. Composable. Auto-Discovered.**
 
-Every step follows a simple, consistent pattern:
+Steps are Motia's core primitive that unifies configuration and logic, allowing you to define when it runs, how it runs, where it runs, and what it does, all within a single abstraction.
 
-1. **📁 File Naming**: `*.step.*` or `*_step.*` (e.g., `user-api.step.ts`, `process-data.step.py`, `data_processor_step.py`)
-2. **⚙️ Configuration**: Export a `config` object defining step behavior
-3. **🔧 Handler**: Export a `handler` function containing business logic
-4. **🤖 Auto-Discovery**: Motia automatically finds and registers your steps
+Learn the basic things about how Steps work, and Motia will auto-discover, register, and connect any file with `.step.ts`, `.step.js`, and `_step.py`.  By composing Steps, you can build entire backends in any pattern and runtime.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript title="steps/my-step.step.ts"
+import { ApiRouteConfig, Handlers } from 'motia';
+
+export const config: ApiRouteConfig = {
+  name: 'MyStep',     // Step identifier  
+  type: 'api',        // How it triggers
+  path: '/endpoint',  // URL path
+  method: 'POST',     // POST method
+  emits: ['done'],    // Events it sends
+  flows: ['my-flow']  // Flow it belongs to
+};
+
+export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams }) => {
+  // Your business logic here
+  return { status: 200, body: { success: true } };
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/my_step.py"
+config = {
+    "name": "MyStep",     # Step identifier
+    "type": "api",        # How it triggers
+    "path": "/endpoint",  # URL path
+    "method": "POST",     # POST method
+    "emits": ["done"],    # Events it sends
+    "flows": ["my-flow"]  # Flow it belongs to
+}
+
+async def handler(req, context):
+    # Your business logic here
+    return {"status": 200, "body": {"success": True}}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript title="steps/my-step.step.js"
+const config = {
+  name: 'MyStep',     // Step identifier  
+  type: 'api',        // How it triggers
+  path: '/endpoint',  //  path
+  method: 'POST',     // POST method
+  emits: ['done'],    // Events it sends
+  flows: ['my-flow']  // Flow it belongs to
+};
+
+const handler = async (req, { emit, logger, state, streams }) => {
+  // Your business logic here
+  return { status: 200, body: { success: true } };
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
+
+## Config Properties
+
+### Common Properties (All Step Types)
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `name` | `string` | Unique identifier for the step used in handler typing |
+| `type` | `'api' \| 'event' \| 'cron' \| 'noop'` | The trigger type - determines how and when the step executes |
+| `description` | `string` | Human-readable documentation for the step |
+| `emits` | `string[]` | Array of event topics this step can emit to trigger other steps |
+| `flows` | `string[]` | Array of flow names this step belongs to for organization and visualization |
+
+### API Trigger Step Properties
+
+Additional properties when `type: 'api'`. [See API Trigger examples below](#api-trigger---http-requests).
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `path` | `string` | URL endpoint path (e.g., `/messages`, `/users/:id`) |
+| `method` | `'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH'` | HTTP method for the endpoint |
+| `bodySchema` | `ZodSchema \| JSONSchema` | Validation schema for request body |
+| `responseSchema` | `{ [status]: ZodSchema }` | Response schemas by HTTP status code |
+| `queryParams` | `string[]` | Array of allowed query parameter names |
+| `virtualSubscribes` | `string[]` | Virtual event subscriptions for API routing |
+
+### Event Trigger Step Properties
+
+Additional properties when `type: 'event'`. [See Event Trigger examples below](#event-trigger---event-driven).
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `subscribes` | `string[]` | Array of event topics this step listens to |
+| `input` | `ZodSchema \| JSONSchema` | Validation schema for incoming event data |
+
+### Cron Trigger Step Properties
+
+Additional properties when `type: 'cron'`. [See Cron Trigger examples below](#cron-trigger---time-based).
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `cron` | `string` | Cron expression for scheduling (e.g., `'0 9 * * *'` for daily at 9 AM) |
+
+## Handler Definition
+
+The handler is the core function where your business logic resides. The function signature varies based on the trigger type:
+
+### Handler Signatures by Trigger Type
+
+<Tabs items={['API Triggers', 'Event Triggers', 'Cron Triggers']}>
+<Tab value='API Triggers'>
+
+**API Triggers** receive HTTP request data as the first parameter:
+
+```typescript
+export const handler: Handlers['StepName'] = async (req, ctx) => {
+  // req contains: body, query, params, headers, method, path
+  // ctx contains: emit, logger, state, streams, traceId
+}
+```
+
+</Tab>
+<Tab value='Event Triggers'>
+
+**Event Triggers** receive event input data as the first parameter:
+
+```typescript
+export const handler: Handlers['StepName'] = async (input, ctx) => {
+  // input contains the event data matching the input schema
+  // ctx contains: emit, logger, state, streams, traceId
+}
+```
+
+</Tab>
+<Tab value='Cron Triggers'>
+
+**Cron Triggers** only receive the context object (no input parameter):
+
+```typescript
+export const handler: Handlers['StepName'] = async (ctx) => {
+  // ctx contains: emit, logger, state, streams, traceId
+}
+```
+
+</Tab>
+</Tabs>
+
+### Context Object (`ctx`) Elements
+
+All handlers receive a context object containing these essential elements:
+
+| Element | Type | Description |
+| ------- | ---- | ----------- |
+| `emit` | `function` | Function to trigger other steps by emitting events with data |
+| `logger` | `object` | Structured logging with context (`ctx.logger.info()`, `ctx.logger.error()`) |
+| `state` | `object` | Persistent key-value storage shared across steps (`ctx.state.set()`, `ctx.state.get()`) |
+| `streams` | `object` | Real-time data streams for live updates (`ctx.streams.streamName.set()`) |
+| `traceId` | `string` | Unique identifier for request tracing and workflow isolation |
+
+### Request Object (`req`) - API Triggers Only
+
+For API triggers, the first parameter contains HTTP request information:
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `body` | `object` | Parsed request body (validated against `bodySchema`) |
+| `query` | `object` | URL query parameters as key-value pairs |
+| `params` | `object` | URL path parameters (e.g., `/users/:id` → `{id: "123"}`) |
+| `headers` | `object` | HTTP request headers |
+| `method` | `string` | HTTP method (`GET`, `POST`, etc.) |
+| `path` | `string` | Request URL path |
+
+### Input Data (`input`) - Event Triggers Only
+
+For event triggers, the first parameter contains the event data that was emitted by other steps, validated against the `input` schema if defined.
+
+## Step is Simple, but powerful. Let's see an example.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript title="steps/my-step.step.ts"
+import { ApiRouteConfig, Handlers } from 'motia';
+
+export const config: ApiRouteConfig = {
+  name: 'MyStep',     // Step identifier  
+  type: 'api',        // How it triggers
+  path: '/endpoint',  // URL path
+  method: 'POST',     // POST method
+  emits: ['done'],    // Events it sends
+  flows: ['my-flow']  // Flow it belongs to
+};
+
+export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams }) => {
+  // Your business logic here
+  return { status: 200, body: { success: true } };
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/my_step.py"
+config = {
+    "name": "MyStep",     # Step identifier
+    "type": "api",        # How it triggers
+    "path": "/endpoint",  # URL path
+    "method": "POST",     # POST method
+    "emits": ["done"],    # Events it sends
+    "flows": ["my-flow"]  # Flow it belongs to
+}
+
+async def handler(req, context):
+    # Your business logic here
+    return {"status": 200, "body": {"success": True}}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript title="steps/my-step.step.js"
+const config = {
+  name: 'MyStep',     // Step identifier  
+  type: 'api',        // How it triggers
+  path: '/endpoint',  //  path
+  method: 'POST',     // POST method
+  emits: ['done'],    // Events it sends
+  flows: ['my-flow']  // Flow it belongs to
+};
+
+const handler = async (req, { emit, logger, state, streams }) => {
+  // Your business logic here
+  return { status: 200, body: { success: true } };
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
 
 <Callout type="info">
-**🌍 Multi-Language Support**
-
-Write each step in the best language for the job - **TypeScript** for APIs, **Python** for data processing, **JavaScript** for quick scripts. Motia handles type safety and communication automatically.
+### You can simply change the type to 'api', 'event', or 'cron' to create different trigger types for your steps.
 </Callout>
 
-## Step Capabilities
+## API Trigger Step
 
-### **Event-Driven Architecture**
-- **Subscribe** to events from other steps
-- **Emit** events to trigger subsequent steps
-- **Chain** steps together into powerful workflows
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
 
-### **Type Safety Across Languages**
-- **Auto-generated** TypeScript definitions
-- **Schema validation** with Zod, Pydantic, JSDoc
-- **Runtime validation** for data consistency
-
-### **Built-in Observability**
-- **Distributed tracing** across all steps
-- **Centralized logging** with step context
-- **Visual debugging** in Motia Workbench
-
-## Step Configuration
-
-Each step exports a `config` object that tells Motia how to handle the step. The configuration varies by step type but shares common properties:
-
-### Universal Config Properties
-
-| Property | Type | Description | Required |
-|----------|------|-------------|----------|
-| `type` | `'api' \| 'event' \| 'cron' \| 'noop'` | The step type | ✅ |
-| `name` | `string` | Unique identifier for the step | ✅ |
-| `description` | `string` | Documentation for the step | - |
-| `subscribes` | `string[]` | Topics this step listens to | - |
-| `emits` | `string[]` | Topics this step can emit | - |
-| `flows` | `string[]` | Flow identifiers this step belongs to | - |
-
-### Type-Specific Properties
-
-Each step type has additional properties:
-
-- **[API Steps](/docs/concepts/steps/api)**: `path`, `method`, `bodySchema`, `responseSchema`
-- **[Event Steps](/docs/concepts/steps/event)**: Event-specific configuration
-- **[Cron Steps](/docs/concepts/steps/cron)**: `schedule`, cron expressions
-
-## Configuration Examples
-
-<Tabs items={["TypeScript API", "Python Event", "JavaScript Cron"]}>
-<Tab value="TypeScript API">
-
-```typescript title="user-api.step.ts"
-import { z } from 'zod'
-
-export const config = {
-  type: 'api',
-  name: 'user-api',
-  path: '/users/:id',
-  method: 'GET',
-  description: 'Fetch user by ID',
-  
-  // Schema validation
-  bodySchema: z.object({
-    userId: z.string().uuid()
-  }),
-  
-  responseSchema: {
-    200: z.object({
-      user: z.object({
-        id: z.string(),
-        name: z.string(),
-        email: z.string().email()
-      })
-    })
-  },
-  
-  emits: ['user.fetched'],
-  flows: ['user-management']
-} as const
+```typescript
+export const config: ApiRouteConfig = {
+  name: 'SendMessage',
+  type: 'api',           // ← How it triggers
+  path: '/messages',     // ←  path
+  method: 'POST',        // ←  method
+  emits: ['message.sent'],
+  flows: ['messaging']
+};
 ```
 
 </Tab>
-<Tab value="Python Event">
+<Tab value='Python'>
 
-```python title="process-data.step.py"
-from pydantic import BaseModel
-
-class UserData(BaseModel):
-    id: str
-    name: str
-    email: str
-
+```python
 config = {
-    'type': 'event',
-    'name': 'process-data',
-    'description': 'Process user data with Python',
-    
-    'subscribes': ['user.fetched'],
-    'emits': ['data.processed'],
-    'flows': ['user-management'],
-    
-    # Pydantic validation
-    'input_schema': UserData
+    "name": "SendMessage",
+    "type": "api",           # ← How it triggers
+    "path": "/messages",     # ←  path
+    "method": "POST",        # ←  method
+    "emits": ["message.sent"],
+    "flows": ["messaging"]
 }
 ```
 
 </Tab>
-<Tab value="JavaScript Cron">
+<Tab value='JavaScript'>
 
-```javascript title="daily-cleanup.step.js"
-export const config = {
-  type: 'cron',
-  name: 'daily-cleanup',
-  description: 'Daily cleanup task',
-  
-  schedule: '0 2 * * *', // Daily at 2 AM
-  
-  emits: ['cleanup.completed'],
-  flows: ['maintenance']
-}
+```javascript
+const config = {
+  name: 'SendMessage',
+  type: 'api',           // ← How it triggers
+  path: '/messages',     // ←  path
+  method: 'POST',        // ←  method
+  emits: ['message.sent'],
+  flows: ['messaging']
+};
 ```
 
 </Tab>
 </Tabs>
 
-## Step Handlers
+## Event Trigger Step
 
-The `handler` function contains your step's business logic. Motia automatically calls the handler with validated input data and a context object containing powerful utilities.
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
 
-### Handler Signature
+```typescript
+export const config: EventConfig = {
+  name: 'ProcessMessage',
+  type: 'event',                // ← Event-driven
+  subscribes: ['message.sent'], // ← Listen to events
+  emits: ['message.processed'],
+  flows: ['messaging']
+};
+```
 
-Every handler receives two parameters:
+</Tab>
+<Tab value='Python'>
 
-1. **Input Data** - Validated data from the triggering event (API request, subscription, etc.)
-2. **Context Object** - Tools for interacting with the Motia runtime
-
-### Context Object Features
-
-| Tool | Description | Usage |
-|------|-------------|-------|
-| `emit` | Send events to other steps | `await emit({ topic, data })` |
-| `logger` | Centralized logging with trace context | `logger.info('Processing user', { userId })` |
-| `state` | Persistent data storage across steps | `await state.set(traceId, key, value)` |
-| `traceId` | Unique identifier for request tracing | Flow isolation and debugging |
-| `utils` | Helper utilities (dates, crypto, etc.) | Various utility functions |
-
-## Handler Examples with Type Safety
-
-<Tabs items={["TypeScript Handler", "Python Handler", "JavaScript Handler"]}>
-<Tab value="TypeScript Handler">
-
-```typescript title="user-api.step.ts"
-import { Handlers } from 'motia'
-import { z } from 'zod'
-
-// Config with schema validation (from previous example)
-export const config = { /* ... */ }
-
-// 🎉 Handler gets full type safety from config!
-export const handler: Handlers['user-api'] = async (req, { emit, logger, state, traceId }) => {
-  logger.info('Processing user request', { userId: req.params.id })
-  
-  // req.body is automatically typed from bodySchema
-  const { userId } = req.body
-  
-  // Simulate user fetch
-  const user = await getUserById(userId)
-  
-  // Store in state for other steps
-  await state.set(traceId, 'current-user', user)
-  
-  // Emit event to trigger other steps
-  await emit({
-    topic: 'user.fetched', // ✅ Type-checked against config.emits
-    data: { user, timestamp: new Date() }
-  })
-  
-  // Return response matching responseSchema
-  return {
-    status: 200,
-    body: { user } // ✅ Validated against responseSchema
-  }
-}
-
-async function getUserById(id: string) {
-  // Database query or API call
-  return { id, name: 'John Doe', email: 'john@example.com' }
+```python
+config = {
+    "name": "ProcessMessage",
+    "type": "event",                # ← Event-driven
+    "subscribes": ["message.sent"], # ← Listen to events
+    "emits": ["message.processed"],
+    "flows": ["messaging"]
 }
 ```
 
 </Tab>
-<Tab value="Python Handler">
+<Tab value='JavaScript'>
 
-```python title="process-data.step.py"
-from pydantic import BaseModel
-import asyncio
-
-# Config with Pydantic validation (from previous example)
-config = { # ... }
-
-async def handler(input_data, ctx):
-    """
-    🎉 Input is fully typed and validated via Pydantic!
-    """
-    ctx.logger.info("Processing user data", {
-        "user_id": input_data.user['id'],
-        "trace_id": ctx.trace_id
-    })
-    
-    # Access validated data
-    user = input_data.user
-    
-    # Python-specific processing (ML, data science, etc.)
-    processed_data = {
-        'user_id': user['id'],
-        'processed_name': user['name'].upper(),
-        'email_domain': user['email'].split('@')[1],
-        'processed_at': ctx.utils.dates.now().isoformat()
-    }
-    
-    # Store in shared state
-    await ctx.state.set(ctx.trace_id, 'processed-user', processed_data)
-    
-    # Emit to next step
-    await ctx.emit({
-        'topic': 'data.processed',  # ✅ Validated against config
-        'data': processed_data
-    })
-    
-    ctx.logger.info("Data processing complete", {
-        "processed_user_id": processed_data['user_id']
-    })
-    
-    return processed_data
-```
-
-</Tab>
-<Tab value="JavaScript Handler">
-
-```javascript title="send-notifications.step.js"
-/**
- * @typedef {Object} ProcessedUser
- * @property {string} user_id
- * @property {string} processed_name
- * @property {string} email_domain
- * @property {string} processed_at
- */
-
-// Config (from previous example)
-export const config = { /* ... */ }
-
-/**
- * 🎉 Handler with JSDoc types for IntelliSense
- * @param {ProcessedUser} input - Processed user data
- * @param {import('motia').FlowContext} ctx - Motia context
- */
-export const handler = async (input, { emit, logger, state, traceId }) => {
-  logger.info('Sending notifications', { userId: input.user_id })
-  
-  // Get original user data from state
-  const originalUser = await state.get(traceId, 'current-user')
-  
-  // Send notifications (email, SMS, push, etc.)
-  const notifications = await Promise.all([
-    sendEmail(originalUser.email, 'Welcome!'),
-    sendPushNotification(input.user_id, 'Account processed'),
-    // Add more notification channels
-  ])
-  
-  const notificationSummary = {
-    userId: input.user_id,
-    sentAt: new Date().toISOString(),
-    channels: notifications.map(n => n.channel),
-    count: notifications.length
-  }
-  
-  // Final emit
-  await emit({
-    topic: 'notifications.sent', // ✅ Validated against config
-    data: notificationSummary
-  })
-  
-  logger.info('All notifications sent', notificationSummary)
-  
-  // Clean up state
-  await state.clear(traceId)
-  
-  return notificationSummary
-}
-
-async function sendEmail(email, subject) {
-  // Email service integration
-  return { channel: 'email', success: true }
-}
-
-async function sendPushNotification(userId, message) {
-  // Push notification service
-  return { channel: 'push', success: true }
-}
+```javascript
+const config = {
+  name: 'ProcessMessage',
+  type: 'event',                // ← Event-driven
+  subscribes: ['message.sent'], // ← Listen to events
+  emits: ['message.processed'],
+  flows: ['messaging']
+};
 ```
 
 </Tab>
 </Tabs>
 
-## Type Safety Benefits
+## Cron Trigger Step
 
-### Automatic Type Generation
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
 
-Motia automatically generates TypeScript definitions based on your step configurations:
+```typescript
+export const config: CronConfig = {
+  name: 'DailySummary',
+  type: 'cron',                 // ← Time-based
+  cron: '0 9 * * *',            // ← Schedule
+  emits: ['summary.generated'],
+  flows: ['messaging']
+};
+```
 
-```typescript title="types.d.ts (Auto-generated)"
-declare module 'motia' {
-  interface Handlers {
-    'user-api': ApiRouteHandler<
-      { userId: string }, // From bodySchema
-      ApiResponse<200, { user: User }> // From responseSchema
-    >
-    'process-data': EventHandler<
-      { user: User }, // From subscribes topic
-      { topic: 'data.processed'; data: ProcessedUser } // From emits
-    >
-  }
+</Tab>
+<Tab value='Python'>
+
+```python
+config = {
+    "name": "DailySummary",
+    "type": "cron",                 # ← Time-based
+    "cron": "0 9 * * *",            # ← Schedule
+    "emits": ["summary.generated"],
+    "flows": ["messaging"]
 }
 ```
 
-### Cross-Language Validation
+</Tab>
+<Tab value='JavaScript'>
 
-Even in multi-language workflows, Motia ensures data consistency:
+```javascript
+const config = {
+  name: 'DailySummary',
+  type: 'cron',                 // ← Time-based
+  cron: '0 9 * * *',            // ← Schedule
+  emits: ['summary.generated'],
+  flows: ['messaging']
+};
+```
 
-1. **TypeScript API** validates input with Zod schemas
-2. **Python step** receives validated data via Pydantic models
-3. **JavaScript step** gets type hints via JSDoc annotations
+</Tab>
+</Tabs>
 
-<Callout type="default">
-**🚀 Ready to Build?**
+**Same pattern, different triggers.** The handler always gets `{ emit, logger, state, streams, traceId }`.
 
-Check out **[API Endpoints](/docs/getting-started/build-your-first-app/creating-your-first-rest-api)** to see a complete REST API tutorial in action, or explore specific step types:
+## **Handler** - How It Performs Logic
+The core function that processes data and performs your business logic.
 
-- **[API Steps](/docs/concepts/steps/api)** - HTTP endpoints with validation
-- **[Event Steps](/docs/concepts/steps/event)** - Async event processing
-- **[Cron Steps](/docs/concepts/steps/cron)** - Scheduled tasks
-</Callout>
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams, traceId }) => {
+  // write your business logic here
+  return { status: 200, body: { success: true, result } };
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+async def handler(req, context):
+    # write your business logic here
+    return {"status": 200, "body": {"success": True, "result": {}}}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+const handler = async (req, { emit, logger, state, streams, traceId }) => {
+  // write your business logic here
+  return { status: 200, body: { success: true, result } };
+};
+```
+
+</Tab>
+</Tabs>
+
+## **subscribe** - Receive Input Data
+How your step receives and accesses input data.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+export const config: EventConfig = {
+  name: 'EventStep',
+  type: 'event',
+  subscribes: ['message.sent'],            // ← Subscribe to events
+  // input schema defines what data to expect
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+config = {
+    "name": "EventStep",
+    "type": "event",
+    "subscribes": ["message.sent"],        # ← Subscribe to events
+    # input schema defines what data to expect
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+const config = {
+  name: 'EventStep',
+  type: 'event',
+  subscribes: ['message.sent'],            // ← Subscribe to events
+  // input schema defines what data to expect
+};
+```
+
+</Tab>
+</Tabs>
+
+## **emit** - Trigger Other Steps
+Optionally trigger other Steps by emitting events with data.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+await emit({
+  topic: 'user.created',       
+  data: { userId: '123', email: 'user@example.com' }
+});
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+await context.emit({
+    "topic": "user.created",     
+    "data": {"userId": "123", "email": "user@example.com"}
+})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+await emit({
+  topic: 'user.created',        
+  data: { userId: '123', email: 'user@example.com' }
+});
+```
+
+</Tab>
+</Tabs>
+
+## **logger** - Structured Logging  
+Structured logging with context for debugging, monitoring, and observability across all Steps.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+logger.info('Processing started', { userId: '123' });
+logger.error('Process failed', { error: error.message });
+logger.warn('High usage detected', { requests: 1000 });
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+context.logger.info('Processing started', {"userId": "123"})
+context.logger.error('Process failed', {"error": str(error)})
+context.logger.warn('High usage detected', {"requests": 1000})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+logger.info('Processing started', { userId: '123' });
+logger.error('Process failed', { error: error.message });
+logger.warn('High usage detected', { requests: 1000 });
+```
+
+</Tab>
+</Tabs>
+
+## **state** - Share Data Between Steps
+Persistent key-value storage shared across Steps and workflows for data persistence.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+// Store data
+await state.set(traceId, 'user-preferences', { theme: 'dark', lang: 'en' });
+
+// Retrieve data  
+const preferences = await state.get(traceId, 'user-preferences');
+
+// Get all data in a group
+const allUserData = await state.getGroup(traceId);
+
+// Clear all data for this workflow
+await state.clear(traceId);
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+# Store data
+await context.state.set(context.trace_id, 'user-preferences', {"theme": "dark", "lang": "en"})
+
+# Retrieve data
+preferences = await context.state.get(context.trace_id, 'user-preferences')
+
+# Get all data in a group
+all_user_data = await context.state.get_group(context.trace_id)
+
+# Clear all data for this workflow
+await context.state.clear(context.trace_id)
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+// Store data
+await state.set(traceId, 'user-preferences', { theme: 'dark', lang: 'en' });
+
+// Retrieve data  
+const preferences = await state.get(traceId, 'user-preferences');
+
+// Get all data in a group
+const allUserData = await state.getGroup(traceId);
+
+// Clear all data for this workflow
+await state.clear(traceId);
+```
+
+</Tab>
+</Tabs>
+
+## **streams** - Real-time Objects and Events Broadcasting
+Real-time objects and events that automatically push updates to subscribed clients.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+// Set/update real-time data for clients
+await streams.chatMessages.set('room-123', 'msg-456', {
+  text: 'Hello!',
+  userId: '123',
+  timestamp: new Date()
+});
+
+// Get a specific item
+const message = await streams.chatMessages.get('room-123', 'msg-456');
+
+// Get all items in a group
+const allMessages = await streams.chatMessages.getGroup('room-123');
+
+// Delete an item
+await streams.chatMessages.delete('room-123', 'msg-456');
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+# Set/update real-time data for clients
+await context.streams.chat_messages.set('room-123', 'msg-456', {
+    "text": "Hello!",
+    "userId": "123",
+    "timestamp": datetime.now().isoformat()
+})
+
+# Get a specific item
+message = await context.streams.chat_messages.get('room-123', 'msg-456')
+
+# Get all items in a group
+all_messages = await context.streams.chat_messages.get_group('room-123')
+
+# Delete an item
+await context.streams.chat_messages.delete('room-123', 'msg-456')
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+// Set/update real-time data for clients
+await streams.chatMessages.set('room-123', 'msg-456', {
+  text: 'Hello!',
+  userId: '123',
+  timestamp: new Date()
+});
+
+// Get a specific item
+const message = await streams.chatMessages.get('room-123', 'msg-456');
+
+// Get all items in a group
+const allMessages = await streams.chatMessages.getGroup('room-123');
+
+// Delete an item
+await streams.chatMessages.delete('room-123', 'msg-456');
+```
+
+</Tab>
+</Tabs>
+
+## What's Next?
+
+Now that you understand how simple steps are, let's build something:
+
+  <div className="p-4 border rounded-lg">
+    <h3 className="text-lg font-semibold mb-2">🏗️ Quick Tutorial</h3>
+    <p className="text-sm text-gray-600 mb-3">Build your first app with a complete step-by-step guide.</p>
+    <a href="/docs/getting-started/build-your-first-app" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+      Start Tutorial →
+    </a>
+  </div>
+
+Remember: **Steps are just files.** Export a `config` and `handler`, and you're done! 🎉

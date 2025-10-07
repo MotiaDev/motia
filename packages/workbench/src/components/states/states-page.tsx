@@ -70,7 +70,7 @@ export const StatesPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="px-9 font-medium"
-              placeholder="Search"
+              placeholder="Search by Group ID or Key"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
             <X

@@ -49,7 +49,7 @@ export const App: FC = () => {
 
   if (viewMode === 'project') {
     return (
-      <div className="grid grid-rows-[auto_1fr] grid-cols-[1fr_auto] bg-background text-foreground h-screen ">
+      <div className="grid grid-rows-1 grid-cols-[1fr_auto] bg-background text-foreground h-screen">
         <main className="m-2 overflow-hidden" role="main">
           <Panel
             tabs={[

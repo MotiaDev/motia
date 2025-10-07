@@ -1,13 +1,14 @@
 {
   "name": "@motiadev/workbench",
   "description": "A web-based interface for building and managing Motia workflows.",
-  "version": "0.7.2-beta.134",
+  "version": "0.8.2-beta.139",
   "main": "dist/index.js",
   "scripts": {
     "lint": "pnpm run lint:ts && pnpm run lint:tsx",
     "lint:ts": "eslint",
     "lint:tsx": "eslint --config ../../eslint.config.tsx.js",
     "build": "rm -rf dist && tsc --build && sh post-build.sh",
+    "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {

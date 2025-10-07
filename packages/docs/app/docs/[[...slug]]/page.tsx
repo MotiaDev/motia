@@ -76,6 +76,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
             a: createRelativeLink(source, page),
           })}
         />
+        <div className="mt-8">
         <Banner>
           Need help? See our&nbsp;
           <Link href="/docs/community-resources" aria-label="Visit Community">
@@ -83,6 +84,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
           </Link>
           &nbsp;for questions, examples, and discussions.
         </Banner>
+        </div>
       </DocsBody>
     </DocsPage>
   )

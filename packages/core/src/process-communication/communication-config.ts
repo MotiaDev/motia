@@ -7,7 +7,7 @@ export interface CommunicationConfig {
   spawnOptions: SpawnOptions
 }
 
-export function createCommunicationConfig(command: string): CommunicationConfig {
+export function createCommunicationConfig(command: string, projectRoot?: string): CommunicationConfig {
   const type = command === 'python' && process.platform === 'win32' ? 'rpc' : 'ipc'
 
   const spawnOptions: SpawnOptions = {
@@ -15,6 +15,13 @@ export function createCommunicationConfig(command: string): CommunicationConfig 
       type === 'rpc'
         ? ['pipe', 'pipe', 'inherit'] // RPC: capture stdout
         : ['inherit', 'inherit', 'inherit', 'ipc'], // IPC: include IPC channel
+  }
+
+  if (command === 'python') {
+    spawnOptions.env = {
+      ...process.env,
+      PYTHONPATH: projectRoot || process.cwd(),
+    }
   }
 
   return { type, spawnOptions }

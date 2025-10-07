@@ -1,13 +1,17 @@
 {
   "title": "Examples",
-  "defaultOpen": true,
+  "defaultOpen": false,
   "pages": [
-    "multi-language-data-processing",
     "sentiment-analysis",
-    "rag-docling-weaviate",
-    "uptime-discord-monitor",
+    "multi-language-data-processing",
     "ai-content-moderation",
+    "rag-docling-weaviate",
+    "trello-automation",
+    "uptime-discord-monitor",
     "github-stars-counter",
-    "chessarena-ai"
+    "github-integration-workflow",
+    "gmail-automation",
+    "finance-agent",
+    "ai-deep-research-agent"
   ]
 }

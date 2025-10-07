@@ -1,0 +1,15 @@
+{
+  "title": "Development Guide",
+  "defaultOpen": false,
+  "pages": [
+    "project-structure",
+    "state-management",
+    "streams",
+    "observability",
+    "customizing-flows",
+    "middleware",
+    "testing",
+    "environment-variables",
+    "cli"
+  ]
+}

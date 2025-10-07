@@ -86,6 +86,7 @@ export const dev = async (
 
     res //
       .header('Access-Control-Allow-Origin', '*')
+      .header('Access-Control-Allow-Private-Network', 'true')
       .status(200)
       .json(meta)
   })

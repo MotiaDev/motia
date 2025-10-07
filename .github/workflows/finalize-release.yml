@@ -93,6 +93,8 @@ jobs:
   create-github-release:
     needs: [prepare, promote-to-latest]
     runs-on: ubuntu-latest
+    outputs:
+      release_url: ${{ steps.create_release.outputs.release_url }}
     steps:
       - name: Generate token
         id: generate_token
@@ -265,6 +267,7 @@ jobs:
           rm -rf /tmp/changelog
 
       - name: Create GitHub Release
+        id: create_release
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.generate_token.outputs.token }}
@@ -283,31 +286,18 @@ jobs:
             });
 
             console.log('Release created:', release.data.html_url);
-            
-            // Store release URL for Slack notification
-            const fs = require('fs');
-            fs.writeFileSync('release_url.txt', release.data.html_url);
+            core.setOutput('release_url', release.data.html_url);
 
   send-slack-notification:
     needs: [prepare, create-github-release]
     runs-on: ubuntu-latest
     if: success()
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Read release notes and URL
+      - name: Prepare Slack payload
         id: release_info
+        env:
+          RELEASE_URL: ${{ needs.create-github-release.outputs.release_url }}
         run: |
-          # Read the release notes (truncate if too long for Slack)
-          RELEASE_NOTES=$(head -c 2500 release_notes.md)
-          if [ ${#RELEASE_NOTES} -eq 2500 ]; then
-            RELEASE_NOTES="${RELEASE_NOTES}..."
-          fi
-          
-          # Read release URL
-          RELEASE_URL=$(cat release_url.txt)
-          
-          # Prepare Slack payload
           cat > slack_payload.json << EOF
           {
             "text": "🚀 New Motia Release: v${{ needs.prepare.outputs.version }}",
@@ -323,7 +313,7 @@ jobs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "*Release Notes:*\n\`\`\`${RELEASE_NOTES}\`\`\`"
+                  "text": "A new version of Motia has been released! Check out the full release notes for all the details."
                 }
               },
               {

@@ -10,7 +10,7 @@
 
 [💡 Motia Manifesto](https://www.motia.dev/manifesto) •
 [🚀 Quick Start](https://www.motia.dev/docs/getting-started/quick-start) •
-[📋 Defining Steps](https://www.motia.dev/docs/concepts/steps/defining-steps) •
+[📋 Defining Steps](https://www.motia.dev/docs/concepts/steps/steps) •
 [📚 Docs](https://www.motia.dev/docs)
 
 ---

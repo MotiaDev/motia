@@ -1,0 +1,300 @@
+---
+title: Overview
+description: Understanding Motia's core concepts - the primitives, architecture, and structure that power your backend
+---
+
+Motia is an all-in-one backend framework built around a single primitive: the **Step**. This overview introduces the core concepts that make Motia powerful yet simple.
+
+## The Core Primitive: Steps
+
+At the heart of Motia is the **Step** - a unified primitive for every backend pattern. Whether you're building APIs, background jobs, scheduled tasks, or complex workflows, you use the same pattern.
+
+**One file. Two exports. That's it.**
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript title="steps/my-step.step.ts"
+import { ApiRouteConfig, Handlers } from 'motia'
+
+// 1. Config - defines when and how the step runs
+export const config: ApiRouteConfig = {
+  type: 'api',         // How it triggers (api, event, cron)
+  name: 'MyStep',      // Unique identifier
+  path: '/endpoint',   // API path
+  method: 'POST',      // HTTP method
+  emits: ['task.done'], // Events it emits
+  flows: ['my-flow']   // Flow grouping
+}
+
+// 2. Handler - the business logic
+export const handler: Handlers['MyStep'] = async (req, { emit, logger, state, streams }) => {
+  logger.info('Processing request')
+  
+  // Emit event to trigger other steps
+  await emit({
+    topic: 'task.done',
+    data: { result: 'success' }
+  })
+  
+  return { status: 200, body: { success: true } }
+}
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/my_step.py"
+# 1. Config - defines when and how the step runs
+config = {
+    "type": "api",          # How it triggers (api, event, cron)
+    "name": "MyStep",       # Unique identifier
+    "path": "/endpoint",    # API path
+    "method": "POST",       # HTTP method
+    "emits": ["task.done"], # Events it emits
+    "flows": ["my-flow"]    # Flow grouping
+}
+
+# 2. Handler - the business logic
+async def handler(req, context):
+    context.logger.info("Processing request")
+    
+    # Emit event to trigger other steps
+    await context.emit({
+        "topic": "task.done",
+        "data": {"result": "success"}
+    })
+    
+    return {"status": 200, "body": {"success": True}}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript title="steps/my-step.step.js"
+// 1. Config - defines when and how the step runs
+const config = {
+  type: 'api',          // How it triggers (api, event, cron)
+  name: 'MyStep',       // Unique identifier
+  path: '/endpoint',    // API path
+  method: 'POST',       // HTTP method
+  emits: ['task.done'], // Events it emits
+  flows: ['my-flow']    // Flow grouping
+}
+
+// 2. Handler - the business logic
+const handler = async (req, { emit, logger, state, streams }) => {
+  logger.info('Processing request')
+  
+  // Emit event to trigger other steps
+  await emit({
+    topic: 'task.done',
+    data: { result: 'success' }
+  })
+  
+  return { status: 200, body: { success: true } }
+}
+
+module.exports = { config, handler }
+```
+
+</Tab>
+</Tabs>
+
+**That's a complete Step.** Motia auto-discovers it, wires it up, and makes it available in your backend.
+
+[Learn about Steps →](/docs/concepts/steps)
+
+---
+
+## Event-Driven Architecture
+
+Motia uses an **event-driven architecture** where Steps communicate through events instead of direct calls. This creates loosely coupled, scalable systems.
+
+### How Events Work
+
+**Steps don't call each other directly.** They:
+1. **Emit events** when something happens
+2. **Subscribe to events** they care about
+3. **Process independently** with built-in retry and fault tolerance
+
+### Why Event-Driven?
+
+| Benefit | Description |
+|---------|-------------|
+| **Loose Coupling** | Steps don't depend on each other's implementation |
+| **Scalability** | Each Step scales independently based on load |
+| **Resilience** | Event Steps retry automatically on failure |
+| **Observability** | Trace events through your entire flow |
+
+---
+
+## Project Structure & Auto-Discovery
+
+Motia automatically discovers Steps - no manual registration required.
+
+### Basic Structure
+
+<Files>
+<Folder name="my-project" defaultOpen>
+  <Folder name="steps" defaultOpen>
+    <Folder name="api">
+      <File name="create-user.step.ts" />
+      <File name="get-user.step.ts" />
+    </Folder>
+    <Folder name="events">
+      <File name="send-email.step.ts" />
+      <File name="process-data_step.py" />
+    </Folder>
+    <Folder name="cron">
+      <File name="daily-report.step.ts" />
+    </Folder>
+    <Folder name="streams">
+      <File name="notifications.stream.ts" />
+    </Folder>
+  </Folder>
+  <File name="config.yml" />
+  <File name=".env" />
+  <File name="package.json" />
+  <File name="requirements.txt" />
+  <File name="tsconfig.json" />
+</Folder>
+</Files>
+
+<Callout type="info">
+The `steps/` directory is the heart of your Motia application. All your workflow logic lives here, and Motia automatically discovers any file following the naming pattern.
+</Callout>
+
+### Auto-Discovery Rules
+
+Motia scans the `steps/` directory and automatically registers files that:
+
+1. ✅ **Match naming pattern:**
+   - TypeScript: `.step.ts`
+   - JavaScript: `.step.js`
+   - Python: `_step.py` (note: underscore before `step`)
+
+2. ✅ **Export a `config` object** with Step configuration
+
+3. ✅ **Export a `handler` function** with business logic
+
+**No imports. No registration. Just create the file and Motia finds it.**
+
+### Multi-Language Example
+
+Here's a real project using all three languages together:
+
+<Files>
+<Folder name="ecommerce-app" defaultOpen>
+  <Folder name="steps" defaultOpen>
+    <Folder name="api">
+      <File name="product-catalog.step.ts" />
+      <File name="checkout.step.ts" />
+    </Folder>
+    <Folder name="processing">
+      <File name="fraud-detection_step.py" />
+      <File name="recommendation_step.py" />
+    </Folder>
+    <Folder name="automation">
+      <File name="email-campaigns.step.js" />
+      <File name="order-fulfillment.step.js" />
+    </Folder>
+  </Folder>
+  <File name="package.json" />
+  <File name="requirements.txt" />
+  <File name=".env" />
+</Folder>
+</Files>
+
+| Layer | Language | Purpose |
+|-------|----------|---------|
+| **API** | TypeScript | Fast API responses, type safety |
+| **Processing** | Python | AI/ML, fraud detection, recommendations |
+| **Automation** | JavaScript | Email automation, business workflows |
+
+---
+
+## Multi-Language Support
+
+Write each Step in the best language for the job. All Steps share the same runtime and state.
+
+### Supported Languages
+
+| Language | Best For | Example Use Cases |
+|----------|----------|-------------------|
+| **TypeScript** | APIs, type safety, web integrations | REST endpoints, webhooks |
+| **JavaScript** | Quick automation, integrations | Email sending, API calls |
+| **Python** | AI/ML, data processing | LLM calls, data analysis |
+
+### State Management
+
+Persistent key-value storage shared across all Steps and languages.
+
+```typescript
+// Store data
+await state.set('users', 'user-123', { name: 'John', email: 'john@example.com' })
+
+// Retrieve data
+const user = await state.get('users', 'user-123')
+
+// Get all in a group
+const allUsers = await state.getGroup('users')
+```
+
+[Learn about State →](/docs/development-guide/state-management)
+
+### Real-Time Streams
+
+Push real-time updates to connected clients (browsers, mobile apps).
+
+```typescript
+// hello-world.stream.ts
+export const config: StreamConfig = {
+  name: 'notifications',
+  schema: z.object({
+    message: z.string(),
+    timestamp: z.string()
+  })
+}
+
+// hello-world.stream.ts
+await streams.notifications.set('user-123', 'notif-1', {
+  message: 'Order confirmed!',
+  timestamp: new Date().toISOString()
+})
+```
+
+Clients automatically receive updates in real-time.
+
+[Learn about Streams →](/docs/development-guide/streams)
+
+### Workbench
+
+Visual development tool for building and debugging flows:
+
+- **Flow Visualization** - See your Steps connected as a graph
+- **Real-Time Testing** - Test API endpoints directly in the UI
+- **Live Logs** - Monitor execution with structured logs
+- **State Inspector** - View state in real-time
+
+[Learn about Workbench →](/docs/concepts/workbench)
+
+## What's Next?
+
+<Cards>
+  <Card href="/docs/concepts/steps" title="📦 Steps">
+    Learn how to define Steps and build workflows
+  </Card>
+  
+  <Card href="/docs/concepts/steps#triggers" title="🎯 Triggers">
+    Understand API, Event, and Cron triggers
+  </Card>
+  
+  <Card href="/docs/project-structure" title="📁 Project Structure">
+    Organize your Motia project effectively
+  </Card>
+  
+  <Card href="/docs/getting-started/quick-start" title="🚀 Quick Start">
+    Build your first Motia app in minutes
+  </Card>
+</Cards>

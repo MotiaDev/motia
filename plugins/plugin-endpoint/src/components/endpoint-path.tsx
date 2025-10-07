@@ -17,24 +17,28 @@ export const EndpointPath: FC<EndpointPathProps> = ({ method, path }) => {
     const partsLength = parts.length - 1
     return parts.flatMap((part, index) => {
       const isLast = index === partsLength
-      const separator = isLast ? undefined : <PathSeparator />
+      const key = `part-${part}-${index}`
+      const separator = isLast ? undefined : <PathSeparator key={`separator-${key}`} />
 
       if (part.startsWith(':')) {
         return [
-          <div className="bg-[#2862FE]/20 text-[#2862FE] rounded-sm px-1 py-0.5 text-sm font-mono font-bold font-medium">
+          <div
+            key={key}
+            className="bg-[#2862FE]/20 text-[#2862FE] rounded-sm px-1 py-0.5 text-sm font-mono font-bold font-medium"
+          >
             {part}
           </div>,
           separator,
         ]
       }
-      return [part, separator]
+      return [<div key={key}>{part}</div>, separator]
     })
   }, [path])
 
   return (
     <div className="grid grid-cols-[auto_1fr] gap-2 items-center">
       <EndpointBadge variant={method as ApiRouteMethod}>{method}</EndpointBadge>
-      <span className="font-mono font-bold whitespace-nowrap flex flex-row gap-2 items-center ">
+      <span className="font-mono font-bold whitespace-nowrap flex flex-row gap-2 items-center truncate">
         <PathSeparator />
         {pathView}
       </span>

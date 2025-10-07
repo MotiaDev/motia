@@ -4,13 +4,15 @@
     "index",
     "getting-started",
     "concepts",
-    "project-structure",
-    "ai-guides",
-    "workbench",
-    "real-world-use-cases",
+    "product-showcase",
     "examples",
+    "development-guide",
+    "deployment-guide",
+    "ai-development-guide",
     "video-showcase",
     "contribution",
-    "community-resources"
+    "community-resources",
+    "api-reference"
+
   ]
 }

@@ -1,6 +1,6 @@
 import { useThemeStore } from '@motiadev/ui'
 import { Editor, useMonaco } from '@monaco-editor/react'
-import { FC, useEffect, useMemo } from 'react'
+import { FC, useEffect, useMemo, useRef, useState } from 'react'
 
 type JsonEditorProps = {
   value: string
@@ -22,22 +22,11 @@ export const JsonEditor: FC<JsonEditorProps> = ({
   const monaco = useMonaco()
   const theme = useThemeStore((state: { theme: string }) => state.theme)
   const editorTheme = useMemo(() => (theme === 'dark' ? 'transparent-dark' : 'transparent-light'), [theme])
+  const [editor, setEditor] = useState<any>(null)
+  const resizeAnimationFrameRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!monaco) return
-
-    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({ isolatedModules: true })
-    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-      schemas: schema
-        ? [
-            {
-              uri: window.location.href,
-              fileMatch: ['*'],
-              schema,
-            },
-          ]
-        : [],
-    })
 
     monaco.editor.defineTheme('transparent-light', {
       base: 'vs',
@@ -54,7 +43,6 @@ export const JsonEditor: FC<JsonEditorProps> = ({
         'editorWidget.border': '#00000000',
       },
     })
-
     monaco.editor.defineTheme('transparent-dark', {
       base: 'vs-dark',
       inherit: true,
@@ -70,9 +58,59 @@ export const JsonEditor: FC<JsonEditorProps> = ({
         'editorWidget.border': '#00000000',
       },
     })
+  }, [monaco])
 
-    monaco?.editor.setTheme(editorTheme)
-  }, [monaco, schema, editorTheme])
+  useEffect(() => {
+    if (!monaco) return
+    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({ isolatedModules: true })
+    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+      schemas: schema
+        ? [
+            {
+              uri: window.location.href,
+              fileMatch: ['*'],
+              schema,
+            },
+          ]
+        : [],
+    })
+  }, [monaco, schema])
+
+  useEffect(() => {
+    if (!monaco) return
+    monaco.editor.setTheme(editorTheme)
+  }, [monaco, editorTheme])
+
+  useEffect(() => {
+    if (!editor) return
+
+    const container = editor.getContainerDomNode().parentElement?.parentElement
+    if (!container) return
+
+    const handleResize = () => {
+      if (resizeAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(resizeAnimationFrameRef.current)
+      }
+
+      resizeAnimationFrameRef.current = requestAnimationFrame(() => {
+        const { width, height } = container.getBoundingClientRect()
+        editor.layout({ width, height })
+        resizeAnimationFrameRef.current = null
+      })
+    }
+
+    handleResize()
+
+    const resizeObserver = new ResizeObserver(handleResize)
+    resizeObserver.observe(container)
+
+    return () => {
+      resizeObserver.disconnect()
+      if (resizeAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(resizeAnimationFrameRef.current)
+      }
+    }
+  }, [editor])
 
   return (
     <Editor
@@ -80,6 +118,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
       language={language}
       value={value}
       theme={editorTheme}
+      onMount={setEditor}
       onChange={(value: string | undefined) => {
         if (!value) {
           onValidate?.(false)
@@ -88,9 +127,11 @@ export const JsonEditor: FC<JsonEditorProps> = ({
       }}
       onValidate={(markers: any[]) => onValidate?.(markers.length === 0)}
       options={{
+        automaticLayout: false,
         readOnly,
         scrollBeyondLastLine: false,
         minimap: { enabled: false },
+        overviewRulerLanes: 0,
       }}
     />
   )

@@ -2,22 +2,22 @@
   {
     "id": "basic-tutorial",
     "config": {
-      "steps/state_audit_cron_step.py": {
+      "steps/petstore/state_audit_cron_step.py": {
         "x": -38,
         "y": 683,
         "sourceHandlePosition": "right"
       },
-      "steps/process_food_order_step.py": {
+      "steps/petstore/process_food_order_step.py": {
         "x": 384,
         "y": 476,
         "targetHandlePosition": "left"
       },
-      "steps/notification_step.py": {
+      "steps/petstore/notification_step.py": {
         "x": 601,
         "y": 724,
         "targetHandlePosition": "left"
       },
-      "steps/api_step.py": {
+      "steps/petstore/api_step.py": {
         "x": 15,
         "y": 461,
         "sourceHandlePosition": "right"

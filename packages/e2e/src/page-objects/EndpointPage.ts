@@ -7,6 +7,7 @@ export class EndpointPage extends MotiaApplicationPage {
   readonly editor: Locator
   readonly playButton: Locator
   readonly responseContainer: Locator
+  readonly bodyTabInvalid: Locator
 
   constructor(page: Page) {
     super(page)
@@ -15,6 +16,7 @@ export class EndpointPage extends MotiaApplicationPage {
     this.editor = page.locator('.monaco-editor')
     this.playButton = page.getByTestId('endpoint-play-button')
     this.responseContainer = page.getByTestId('endpoint-response-container')
+    this.bodyTabInvalid = page.getByTestId('endpoint-body-tab-invalid')
   }
 
   async setValueInBodyEditor(value: string) {
