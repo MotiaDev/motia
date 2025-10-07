@@ -75,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-2025, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         template: [nodejs, python]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
@@ -128,7 +128,7 @@ jobs:
             ~/.cache/ms-playwright
             ~/AppData/Local/ms-playwright
             ~/Library/Caches/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-${{ hashFiles('**/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-
             playwright-${{ runner.os }}-
@@ -182,6 +182,7 @@ jobs:
           echo "MOTIA_VERSION=${{ needs.prepare.outputs.version }}" >> $env:GITHUB_ENV
           echo "MOTIA_API_URL=http://localhost:3000" >> $env:GITHUB_ENV
           echo "MOTIA_TEST_TEMPLATE=${{ matrix.template }}" >> $env:GITHUB_ENV
+          echo "MOTIA_WINDOWS_FAST_MODE=true" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Run Release E2E tests with retry

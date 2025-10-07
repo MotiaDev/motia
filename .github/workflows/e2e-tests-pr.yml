@@ -187,65 +187,26 @@ jobs:
     needs: e2e-pr-tests
     runs-on: ubuntu-latest
     if: always()
+    outputs:
+      result: ${{ steps.check_result.outputs.result }}
+      run_id: ${{ github.run_id }}
+      pr_number: ${{ github.event.pull_request.number }}
     steps:
       - name: Check all test results
+        id: check_result
         run: |
           echo "📊 Checking results from all test jobs..."
           
-          # Get the results from the matrix jobs
           RESULTS='${{ toJSON(needs.e2e-pr-tests.result) }}'
           echo "Matrix job result: $RESULTS"
           
           if [ "$RESULTS" == '"success"' ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
             echo "✅ All PR E2E tests passed successfully"
             echo "### PR E2E Tests: PASSED ✅" >> $GITHUB_STEP_SUMMARY
           else
+            echo "result=failure" >> $GITHUB_OUTPUT
             echo "❌ One or more PR E2E tests failed"
             echo "### PR E2E Tests: FAILED ❌" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
-
-      - name: Comment PR status
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const result = '${{ needs.e2e-pr-tests.result }}' === 'success';
-            const emoji = result ? '✅' : '❌';
-            const status = result ? 'passed' : 'failed';
-            
-            const comment = `### E2E Test Results ${emoji}
-            
-            All tests have completed. Tests ${status}.
-            
-            Matrix: 2 OS (Ubuntu, macOS) × 2 Templates (Node.js, Python) = 4 jobs
-            
-            [View detailed test results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
-            
-            // Find and update or create comment
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('E2E Test Results')
-            );
-            
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: comment,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: comment,
-              });
-            }

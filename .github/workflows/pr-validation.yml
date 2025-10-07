@@ -1,7 +1,7 @@
 name: PR Validation
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited, synchronize, reopened]
 
 permissions:
@@ -39,8 +39,6 @@ jobs:
   check-pr-size:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
       - name: Check PR Size
         uses: actions/github-script@v7
         with:
