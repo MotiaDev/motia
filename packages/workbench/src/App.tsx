@@ -14,10 +14,10 @@ import { AppTab, setAppTabs, TabLocation } from './stores/use-app-tabs-store'
 import { SystemViewMode } from './system-view-mode'
 
 const TAB_IDS = {
-  FLOW: 'Flow',
-  TRACING: 'Tracing',
-  LOGS: 'Logs',
-  STATES: 'States',
+  FLOW: 'flow',
+  TRACING: 'tracing',
+  LOGS: 'logs',
+  STATES: 'states',
 } as const
 
 const registerDefaultTabs = (): void => {
