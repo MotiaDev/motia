@@ -45,6 +45,7 @@ export type QueueConfig = {
   maxRetries: number
   retryStrategy: 'none' | 'exponential' | 'jitter'
   visibilityTimeout: number
+  delay: number
 }
 
 export type InfrastructureConfig = {
