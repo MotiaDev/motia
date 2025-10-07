@@ -5,6 +5,7 @@ on:
     types: [opened, edited, synchronize, reopened]
 
 permissions:
+  issues: write
   pull-requests: write
   statuses: write
 
