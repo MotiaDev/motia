@@ -1,5 +1,6 @@
 import { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
 import { queueManager } from './queue-manager'
+import { DEFAULT_QUEUE_CONFIG } from './infrastructure-validator/defaults'
 
 type EventHandler = {
   filePath: string
@@ -21,11 +22,23 @@ export const createEventManager = (): EventManager => {
     }
 
     handlers[event].push({ filePath, handler: handler as Handler })
+
+    queueManager.subscribe(event, handler as Handler, DEFAULT_QUEUE_CONFIG, filePath)
   }
 
   const unsubscribe = (config: UnsubscribeConfig) => {
     const { filePath, event } = config
-    handlers[event] = handlers[event]?.filter((handler) => handler.filePath !== filePath)
+    const eventHandlers = handlers[event]
+    if (!eventHandlers) {
+      return
+    }
+
+    const handlerToRemove = eventHandlers.find((h) => h.filePath === filePath)
+    if (handlerToRemove) {
+      queueManager.unsubscribe(event, handlerToRemove.handler)
+    }
+
+    handlers[event] = eventHandlers.filter((handler) => handler.filePath !== filePath)
   }
 
   return { emit, subscribe, unsubscribe }

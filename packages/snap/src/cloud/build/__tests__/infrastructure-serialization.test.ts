@@ -24,14 +24,12 @@ describe('Infrastructure Config Serialization', () => {
             ram: 2048,
             timeout: 30,
             cpu: 1,
-            machineType: 'cpu',
           },
           queue: {
             type: 'fifo',
             visibilityTimeout: 31,
             messageGroupId: 'traceId',
             maxRetries: 5,
-            retryStrategy: 'exponential',
           },
         },
       } as BuildStepConfig['config'],
@@ -70,7 +68,6 @@ describe('Infrastructure Config Serialization', () => {
           handler: {
             ram: 4096,
             timeout: 60,
-            machineType: 'memory',
           },
         },
       } as BuildStepConfig['config'],
@@ -114,7 +111,6 @@ describe('Infrastructure Config Serialization', () => {
       expect(handler.ram).toBe(2048)
       expect(handler.timeout).toBe(30)
       expect(handler.cpu).toBe(1)
-      expect(handler.machineType).toBe('cpu')
     })
 
     it('should serialize queue configuration correctly', () => {
@@ -135,7 +131,6 @@ describe('Infrastructure Config Serialization', () => {
       expect(queue.visibilityTimeout).toBe(31)
       expect(queue.messageGroupId).toBe('traceId')
       expect(queue.maxRetries).toBe(5)
-      expect(queue.retryStrategy).toBe('exponential')
     })
 
     it('should serialize partial infrastructure config correctly', () => {
@@ -158,7 +153,6 @@ describe('Infrastructure Config Serialization', () => {
       const handler = parsed.steps.partialStep.config.infrastructure.handler
       expect(handler.ram).toBe(4096)
       expect(handler.timeout).toBe(60)
-      expect(handler.machineType).toBe('memory')
     })
   })
 
@@ -303,13 +297,11 @@ describe('Infrastructure Config Serialization', () => {
                 handler: {
                   ram: 2048,
                   timeout: 30,
-                  machineType: 'cpu',
                 },
                 queue: {
                   type: 'standard',
                   visibilityTimeout: 60,
                   maxRetries: 3,
-                  retryStrategy: 'none',
                 },
               },
             },

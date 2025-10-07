@@ -11,3 +11,17 @@ export type InfrastructureValidationResult =
       success: false
       errors?: InfrastructureValidationError[]
     }
+
+export type QueueValidationError = {
+  path: string
+  message: string
+}
+
+export type QueueValidationResult =
+  | {
+      success: true
+    }
+  | {
+      success: false
+      errors?: QueueValidationError[]
+    }

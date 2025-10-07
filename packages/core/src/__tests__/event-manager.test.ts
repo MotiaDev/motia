@@ -1,12 +1,21 @@
 import { createEventManager } from '../event-manager'
 import { createEvent } from './fixtures/event-fixtures'
+import { queueManager } from '../queue-manager'
 
 describe('EventManager', () => {
+  beforeEach(() => {
+    queueManager.reset()
+  })
+
+  afterEach(() => {
+    queueManager.reset()
+  })
+
   it('should handle subscription, emission and unsubscription of events', async () => {
     const eventManager = createEventManager()
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
-    const mockHandler = jest.fn()
+    const mockHandler = jest.fn().mockResolvedValue(undefined)
 
     eventManager.subscribe({
       event: 'TEST_EVENT',
@@ -16,6 +25,7 @@ describe('EventManager', () => {
     })
 
     await eventManager.emit(testEvent)
+    await new Promise((resolve) => setImmediate(resolve))
 
     expect(mockHandler).toHaveBeenCalledWith(testEvent)
     expect(mockHandler).toHaveBeenCalledTimes(1)
@@ -23,6 +33,7 @@ describe('EventManager', () => {
     eventManager.unsubscribe({ event: 'TEST_EVENT', filePath: 'test.ts' })
 
     await eventManager.emit(testEvent)
+    await new Promise((resolve) => setImmediate(resolve))
 
     expect(mockHandler).toHaveBeenCalledTimes(1)
   })
@@ -31,8 +42,8 @@ describe('EventManager', () => {
     const eventManager = createEventManager()
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
-    const mockHandler1 = jest.fn()
-    const mockHandler2 = jest.fn()
+    const mockHandler1 = jest.fn().mockResolvedValue(undefined)
+    const mockHandler2 = jest.fn().mockResolvedValue(undefined)
 
     eventManager.subscribe({
       event: 'TEST_EVENT',
@@ -49,6 +60,7 @@ describe('EventManager', () => {
     })
 
     await eventManager.emit(testEvent)
+    await new Promise((resolve) => setImmediate(resolve))
 
     expect(mockHandler1).toHaveBeenCalledWith(testEvent)
     expect(mockHandler2).toHaveBeenCalledWith(testEvent)

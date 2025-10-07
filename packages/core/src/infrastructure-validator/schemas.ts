@@ -62,7 +62,6 @@ export const handlerBaseSchema = z.object({
     .min(AWS_LAMBDA_LIMITS.MIN_TIMEOUT_SECONDS, `Timeout must be at least ${AWS_LAMBDA_LIMITS.MIN_TIMEOUT_SECONDS}s`)
     .max(AWS_LAMBDA_LIMITS.MAX_TIMEOUT_SECONDS, `Timeout cannot exceed ${AWS_LAMBDA_LIMITS.MAX_TIMEOUT_SECONDS}s`),
   cpu: z.number().optional(),
-  machineType: z.enum(['cpu', 'memory', 'gpu']),
 })
 
 export const handlerSchema = handlerBaseSchema.partial().superRefine((handler, ctx) => {
@@ -87,11 +86,10 @@ export const queueSchema = z.object({
   visibilityTimeout: z.number(),
   messageGroupId: z.string().nullable().optional(),
   maxRetries: z.number().min(0, 'maxRetries cannot be negative'),
-  retryStrategy: z.enum(['none', 'exponential', 'jitter']),
-  delay: z
+  delaySeconds: z
     .number()
-    .min(0, 'delay cannot be negative')
-    .max(900, 'delay cannot exceed 900 seconds (15 minutes)')
+    .min(0, 'delaySeconds cannot be negative')
+    .max(900, 'delaySeconds cannot exceed 900 seconds (15 minutes)')
     .optional(),
 })
 
@@ -120,64 +118,77 @@ export const infrastructureSchema = z
     }
   })
 
-export const createInfrastructureSchema = (inputSchema?: ZodInput) => {
-  return infrastructureSchema.superRefine((config, ctx) => {
-    const messageGroupId = config.queue?.messageGroupId
+function validateMessageGroupId(
+  messageGroupId: string | null | undefined,
+  inputSchema: ZodInput | undefined,
+  ctx: z.RefinementCtx,
+  pathPrefix: string[] = ['queue', 'messageGroupId'],
+): void {
+  if (!messageGroupId || messageGroupId === 'traceId') {
+    return
+  }
 
-    if (!messageGroupId || messageGroupId === 'traceId') {
-      return
-    }
+  if (!inputSchema) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: pathPrefix,
+      message: `Cannot validate messageGroupId "${messageGroupId}" - step has no input schema defined`,
+    })
+    return
+  }
 
-    if (!inputSchema) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['queue', 'messageGroupId'],
-        message: `Cannot validate messageGroupId "${messageGroupId}" - step has no input schema defined`,
-      })
-      return
-    }
+  if (messageGroupId.includes('.') || messageGroupId.includes('[')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: pathPrefix,
+      message: `messageGroupId "${messageGroupId}" must be a simple field path. Nested paths and template expressions are not supported`,
+    })
+    return
+  }
 
-    if (messageGroupId.includes('.') || messageGroupId.includes('[')) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['queue', 'messageGroupId'],
-        message: `messageGroupId "${messageGroupId}" must be a simple field path. Nested paths and template expressions are not supported`,
-      })
-      return
-    }
-
-    try {
-      if (inputSchema instanceof z.ZodObject) {
-        const shape = inputSchema.shape
-        if (!shape || !(messageGroupId in shape)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['queue', 'messageGroupId'],
-            message: `messageGroupId "${messageGroupId}" does not exist in step's input schema`,
-          })
-        }
-      } else if (typeof inputSchema === 'object' && inputSchema !== null && 'properties' in inputSchema) {
-        const properties = (inputSchema as any).properties
-        if (!properties || typeof properties !== 'object' || !(messageGroupId in properties)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['queue', 'messageGroupId'],
-            message: `messageGroupId "${messageGroupId}" does not exist in step's input schema`,
-          })
-        }
-      } else {
+  try {
+    if (inputSchema instanceof z.ZodObject) {
+      const shape = inputSchema.shape
+      if (!shape || !(messageGroupId in shape)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ['queue', 'messageGroupId'],
-          message: `Failed to validate messageGroupId "${messageGroupId}" against input schema: inputSchema is not a valid schema object`,
+          path: pathPrefix,
+          message: `messageGroupId "${messageGroupId}" does not exist in step's input schema`,
         })
       }
-    } catch (error) {
+    } else if (typeof inputSchema === 'object' && inputSchema !== null && 'properties' in inputSchema) {
+      const properties = (inputSchema as any).properties
+      if (!properties || typeof properties !== 'object' || !(messageGroupId in properties)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: pathPrefix,
+          message: `messageGroupId "${messageGroupId}" does not exist in step's input schema`,
+        })
+      }
+    } else {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['queue', 'messageGroupId'],
-        message: `Failed to validate messageGroupId "${messageGroupId}" against input schema: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        path: pathPrefix,
+        message: `Failed to validate messageGroupId "${messageGroupId}" against input schema: inputSchema is not a valid schema object`,
       })
     }
+  } catch (error) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: pathPrefix,
+      message: `Failed to validate messageGroupId "${messageGroupId}" against input schema: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    })
+  }
+}
+
+export const createInfrastructureSchema = (inputSchema?: ZodInput) => {
+  return infrastructureSchema.superRefine((config, ctx) => {
+    validateMessageGroupId(config.queue?.messageGroupId, inputSchema, ctx, ['queue', 'messageGroupId'])
+  })
+}
+
+export const createQueueSchema = (inputSchema?: ZodInput) => {
+  return queueSchema.superRefine((config, ctx) => {
+    validateMessageGroupId(config.messageGroupId, inputSchema, ctx, ['messageGroupId'])
   })
 }

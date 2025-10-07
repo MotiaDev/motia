@@ -107,7 +107,6 @@ describe('Infrastructure Config Validation', () => {
         ram: 2048,
         timeout: 30,
         cpu: 1,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(validConfig)).not.toThrow()
@@ -117,7 +116,6 @@ describe('Infrastructure Config Validation', () => {
       const invalidConfig = {
         ram: 64,
         timeout: 30,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(invalidConfig)).toThrow('RAM must be at least 128 MB')
@@ -127,7 +125,6 @@ describe('Infrastructure Config Validation', () => {
       const invalidConfig = {
         ram: 20000,
         timeout: 30,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(invalidConfig)).toThrow('RAM cannot exceed 10240 MB')
@@ -137,7 +134,6 @@ describe('Infrastructure Config Validation', () => {
       const invalidConfig = {
         ram: 1024,
         timeout: 0,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(invalidConfig)).toThrow('Timeout must be at least 1s')
@@ -147,40 +143,15 @@ describe('Infrastructure Config Validation', () => {
       const invalidConfig = {
         ram: 1024,
         timeout: 1000,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(invalidConfig)).toThrow('Timeout cannot exceed 900s')
-    })
-
-    it('should accept valid machineType values', () => {
-      const validTypes = ['cpu', 'memory', 'gpu'] as const
-
-      for (const machineType of validTypes) {
-        const config = {
-          ram: 1024,
-          timeout: 30,
-          machineType,
-        }
-        expect(() => handlerSchema.parse(config)).not.toThrow()
-      }
-    })
-
-    it('should reject invalid machineType', () => {
-      const invalidConfig = {
-        ram: 1024,
-        timeout: 30,
-        machineType: 'invalid',
-      }
-
-      expect(() => handlerSchema.parse(invalidConfig)).toThrow()
     })
 
     it('should accept optional cpu field', () => {
       const configWithoutCpu = {
         ram: 1024,
         timeout: 30,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(configWithoutCpu)).not.toThrow()
@@ -193,7 +164,6 @@ describe('Infrastructure Config Validation', () => {
         ram: 2048,
         timeout: 30,
         cpu: 1,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(validConfig)).not.toThrow()
@@ -204,7 +174,6 @@ describe('Infrastructure Config Validation', () => {
         ram: 2048,
         timeout: 30,
         cpu: 1.09,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(validConfig)).not.toThrow()
@@ -215,7 +184,6 @@ describe('Infrastructure Config Validation', () => {
         ram: 2048,
         timeout: 30,
         cpu: 3,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(invalidConfig)).toThrow('CPU (3 vCPU) is not proportional to RAM (2048 MB)')
@@ -225,7 +193,6 @@ describe('Infrastructure Config Validation', () => {
       const configWithoutCpu = {
         ram: 2048,
         timeout: 30,
-        machineType: 'cpu' as const,
       }
 
       expect(() => handlerSchema.parse(configWithoutCpu)).not.toThrow()
@@ -239,7 +206,6 @@ describe('Infrastructure Config Validation', () => {
         visibilityTimeout: 60,
         messageGroupId: 'traceId',
         maxRetries: 5,
-        retryStrategy: 'exponential' as const,
       }
 
       expect(() => queueSchema.parse(validConfig)).not.toThrow()
@@ -250,7 +216,6 @@ describe('Infrastructure Config Validation', () => {
         type: 'standard' as const,
         visibilityTimeout: 60,
         maxRetries: 3,
-        retryStrategy: 'none' as const,
       }
 
       expect(() => queueSchema.parse(validConfig)).not.toThrow()
@@ -261,7 +226,6 @@ describe('Infrastructure Config Validation', () => {
         type: 'invalid',
         visibilityTimeout: 60,
         maxRetries: 3,
-        retryStrategy: 'none',
       }
 
       expect(() => queueSchema.parse(invalidConfig)).toThrow()
@@ -272,35 +236,9 @@ describe('Infrastructure Config Validation', () => {
         type: 'standard' as const,
         visibilityTimeout: 60,
         maxRetries: -1,
-        retryStrategy: 'none' as const,
       }
 
       expect(() => queueSchema.parse(invalidConfig)).toThrow('maxRetries cannot be negative')
-    })
-
-    it('should accept valid retryStrategy values', () => {
-      const validStrategies = ['none', 'exponential', 'jitter'] as const
-
-      for (const retryStrategy of validStrategies) {
-        const config = {
-          type: 'standard' as const,
-          visibilityTimeout: 60,
-          maxRetries: 3,
-          retryStrategy,
-        }
-        expect(() => queueSchema.parse(config)).not.toThrow()
-      }
-    })
-
-    it('should reject invalid retryStrategy', () => {
-      const invalidConfig = {
-        type: 'standard',
-        visibilityTimeout: 60,
-        maxRetries: 3,
-        retryStrategy: 'invalid',
-      }
-
-      expect(() => queueSchema.parse(invalidConfig)).toThrow()
     })
 
     it('should accept nullable messageGroupId', () => {
@@ -309,7 +247,6 @@ describe('Infrastructure Config Validation', () => {
         visibilityTimeout: 60,
         messageGroupId: null,
         maxRetries: 3,
-        retryStrategy: 'none' as const,
       }
 
       expect(() => queueSchema.parse(validConfig)).not.toThrow()
@@ -322,13 +259,11 @@ describe('Infrastructure Config Validation', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu' as const,
         },
         queue: {
           type: 'standard' as const,
           visibilityTimeout: 60,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -341,7 +276,6 @@ describe('Infrastructure Config Validation', () => {
           type: 'standard' as const,
           visibilityTimeout: 60,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -353,7 +287,6 @@ describe('Infrastructure Config Validation', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu' as const,
         },
       }
 
@@ -393,13 +326,11 @@ describe('Infrastructure Config Validation', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu' as const,
         },
         queue: {
           type: 'standard' as const,
           visibilityTimeout: 30,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -413,13 +344,11 @@ describe('Infrastructure Config Validation', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu' as const,
         },
         queue: {
           type: 'standard' as const,
           visibilityTimeout: 31,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -435,7 +364,6 @@ describe('Infrastructure Config Validation', () => {
           type: 'standard' as const,
           visibilityTimeout: 30,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -447,12 +375,10 @@ describe('Infrastructure Config Validation', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu' as const,
         },
         queue: {
           type: 'standard' as const,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -467,7 +393,6 @@ describe('Infrastructure Config Validation', () => {
           type: 'fifo' as const,
           visibilityTimeout: 60,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -488,7 +413,6 @@ describe('Infrastructure Config Validation', () => {
           visibilityTimeout: 60,
           messageGroupId: 'traceId',
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -501,7 +425,6 @@ describe('Infrastructure Config Validation', () => {
           type: 'standard' as const,
           visibilityTimeout: 60,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -524,7 +447,6 @@ describe('Infrastructure Config Validation', () => {
           visibilityTimeout: 60,
           messageGroupId: 'traceId',
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -546,7 +468,6 @@ describe('Infrastructure Config Validation', () => {
           visibilityTimeout: 60,
           messageGroupId: 'user.id',
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -573,7 +494,6 @@ describe('Infrastructure Config Validation', () => {
           visibilityTimeout: 60,
           messageGroupId: 'items[0]',
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -600,7 +520,6 @@ describe('Infrastructure Config Validation', () => {
           visibilityTimeout: 60,
           messageGroupId: 'userId',
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -623,7 +542,6 @@ describe('Infrastructure Config Validation', () => {
           visibilityTimeout: 60,
           messageGroupId: 'userId',
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -633,7 +551,9 @@ describe('Infrastructure Config Validation', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(z.ZodError)
         const zodError = error as z.ZodError
-        expect(zodError.errors[0].message).toContain('Cannot validate messageGroupId "userId" - step has no input schema defined')
+        expect(zodError.errors[0].message).toContain(
+          'Cannot validate messageGroupId "userId" - step has no input schema defined',
+        )
       }
     })
 
@@ -646,7 +566,6 @@ describe('Infrastructure Config Validation', () => {
           visibilityTimeout: 60,
           messageGroupId: 'traceId',
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -665,7 +584,6 @@ describe('Infrastructure Config Validation', () => {
           type: 'standard' as const,
           visibilityTimeout: 60,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
@@ -685,11 +603,382 @@ describe('Infrastructure Config Validation', () => {
           visibilityTimeout: 60,
           messageGroupId: null,
           maxRetries: 3,
-          retryStrategy: 'none' as const,
         },
       }
 
       expect(() => schema.parse(validConfig)).not.toThrow()
+    })
+  })
+
+  describe('Handler Schema Edge Cases', () => {
+    it('should accept RAM at exact minimum boundary', () => {
+      const config = {
+        ram: 128,
+        timeout: 30,
+      }
+
+      expect(() => handlerSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept RAM at exact maximum boundary', () => {
+      const config = {
+        ram: 10240,
+        timeout: 30,
+      }
+
+      expect(() => handlerSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept timeout at exact minimum boundary', () => {
+      const config = {
+        ram: 1024,
+        timeout: 1,
+      }
+
+      expect(() => handlerSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept timeout at exact maximum boundary', () => {
+      const config = {
+        ram: 1024,
+        timeout: 900,
+      }
+
+      expect(() => handlerSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept CPU within tolerance of proportional value', () => {
+      const config = {
+        ram: 2048,
+        timeout: 30,
+        cpu: 1.09,
+      }
+
+      expect(() => handlerSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept CPU below proportional value within tolerance', () => {
+      const config = {
+        ram: 2048,
+        timeout: 30,
+        cpu: 0.91,
+      }
+
+      expect(() => handlerSchema.parse(config)).not.toThrow()
+    })
+
+    it('should reject CPU outside tolerance of proportional value', () => {
+      const config = {
+        ram: 2048,
+        timeout: 30,
+        cpu: 1.11,
+      }
+
+      expect(() => handlerSchema.parse(config)).toThrow()
+    })
+
+    it('should handle fractional RAM values', () => {
+      const config = {
+        ram: 1536.5,
+        timeout: 30,
+      }
+
+      expect(() => handlerSchema.parse(config)).not.toThrow()
+    })
+
+    it('should handle fractional timeout values', () => {
+      const config = {
+        ram: 1024,
+        timeout: 30.5,
+      }
+
+      expect(() => handlerSchema.parse(config)).not.toThrow()
+    })
+  })
+
+  describe('Queue Schema Edge Cases', () => {
+    it('should accept delaySeconds at minimum boundary', () => {
+      const config = {
+        type: 'standard' as const,
+        visibilityTimeout: 60,
+        maxRetries: 3,
+        delaySeconds: 0,
+      }
+
+      expect(() => queueSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept delaySeconds at maximum boundary', () => {
+      const config = {
+        type: 'standard' as const,
+        visibilityTimeout: 60,
+        maxRetries: 3,
+        delaySeconds: 900,
+      }
+
+      expect(() => queueSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept maxRetries = 0', () => {
+      const config = {
+        type: 'standard' as const,
+        visibilityTimeout: 60,
+        maxRetries: 0,
+        delaySeconds: 0,
+      }
+
+      expect(() => queueSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept messageGroupId with special characters', () => {
+      const config = {
+        type: 'fifo' as const,
+        visibilityTimeout: 60,
+        messageGroupId: 'user_id-123',
+        maxRetries: 3,
+      }
+
+      expect(() => queueSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept very long messageGroupId', () => {
+      const config = {
+        type: 'fifo' as const,
+        visibilityTimeout: 60,
+        messageGroupId: 'a'.repeat(1000),
+        maxRetries: 3,
+      }
+
+      expect(() => queueSchema.parse(config)).not.toThrow()
+    })
+
+    it('should reject delaySeconds slightly below 0', () => {
+      const config = {
+        type: 'standard' as const,
+        visibilityTimeout: 60,
+        maxRetries: 3,
+        delaySeconds: -0.1,
+      }
+
+      expect(() => queueSchema.parse(config)).toThrow()
+    })
+
+    it('should reject delaySeconds slightly above 900', () => {
+      const config = {
+        type: 'standard' as const,
+        visibilityTimeout: 60,
+        maxRetries: 3,
+        delaySeconds: 900.1,
+      }
+
+      expect(() => queueSchema.parse(config)).toThrow()
+    })
+
+    it('should handle missing optional delaySeconds', () => {
+      const config = {
+        type: 'standard' as const,
+        visibilityTimeout: 60,
+        maxRetries: 3,
+      }
+
+      expect(() => queueSchema.parse(config)).not.toThrow()
+    })
+  })
+
+  describe('createInfrastructureSchema with Complex Input Schemas', () => {
+    it('should validate messageGroupId against nested object schema', () => {
+      const inputSchema = z.object({
+        user: z.object({
+          id: z.string(),
+          name: z.string(),
+        }),
+        traceId: z.string(),
+      })
+
+      const schema = createInfrastructureSchema(inputSchema)
+
+      const validConfig = {
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 60,
+          messageGroupId: 'traceId',
+          maxRetries: 3,
+        },
+      }
+
+      expect(() => schema.parse(validConfig)).not.toThrow()
+    })
+
+    it('should validate messageGroupId against schema with arrays', () => {
+      const inputSchema = z.object({
+        userId: z.string(),
+        tags: z.array(z.string()),
+      })
+
+      const schema = createInfrastructureSchema(inputSchema)
+
+      const validConfig = {
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 60,
+          messageGroupId: 'userId',
+          maxRetries: 3,
+        },
+      }
+
+      expect(() => schema.parse(validConfig)).not.toThrow()
+    })
+
+    it('should handle input schema with optional fields', () => {
+      const inputSchema = z.object({
+        userId: z.string().optional(),
+        traceId: z.string(),
+      })
+
+      const schema = createInfrastructureSchema(inputSchema)
+
+      const validConfig = {
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 60,
+          messageGroupId: 'userId',
+          maxRetries: 3,
+        },
+      }
+
+      expect(() => schema.parse(validConfig)).not.toThrow()
+    })
+
+    it('should handle input schema with union types', () => {
+      const inputSchema = z.object({
+        id: z.union([z.string(), z.number()]),
+      })
+
+      const schema = createInfrastructureSchema(inputSchema)
+
+      const validConfig = {
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 60,
+          messageGroupId: 'id',
+          maxRetries: 3,
+        },
+      }
+
+      expect(() => schema.parse(validConfig)).not.toThrow()
+    })
+
+    it('should handle array input schema', () => {
+      const inputSchema = z.array(z.object({ id: z.string() }))
+
+      const schema = createInfrastructureSchema(inputSchema)
+
+      const validConfig = {
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 60,
+          messageGroupId: 'traceId',
+          maxRetries: 3,
+        },
+      }
+
+      expect(() => schema.parse(validConfig)).not.toThrow()
+    })
+
+    it('should handle empty object input schema', () => {
+      const inputSchema = z.object({})
+
+      const schema = createInfrastructureSchema(inputSchema)
+
+      const invalidConfig = {
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 60,
+          messageGroupId: 'userId',
+          maxRetries: 3,
+        },
+      }
+
+      expect(() => schema.parse(invalidConfig)).toThrow()
+    })
+  })
+
+  describe('Infrastructure Schema Combined Validations', () => {
+    it('should validate all fields together in complete config', () => {
+      const inputSchema = z.object({
+        traceId: z.string(),
+      })
+
+      const schema = createInfrastructureSchema(inputSchema)
+
+      const validConfig = {
+        handler: {
+          ram: 2048,
+          timeout: 30,
+          cpu: 1,
+        },
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 31,
+          messageGroupId: 'traceId',
+          maxRetries: 5,
+          delaySeconds: 10,
+        },
+      }
+
+      expect(() => schema.parse(validConfig)).not.toThrow()
+    })
+
+    it('should reject config with multiple validation errors', () => {
+      const inputSchema = z.object({
+        traceId: z.string(),
+      })
+
+      const schema = createInfrastructureSchema(inputSchema)
+
+      const invalidConfig = {
+        handler: {
+          ram: 64,
+          timeout: 1000,
+          cpu: 10,
+        },
+        queue: {
+          type: 'fifo' as const,
+          visibilityTimeout: 30,
+          messageGroupId: 'userId',
+          maxRetries: -1,
+          delaySeconds: 1000,
+        },
+      }
+
+      try {
+        schema.parse(invalidConfig)
+        fail('Should have thrown validation error')
+      } catch (error) {
+        expect(error).toBeInstanceOf(z.ZodError)
+        const zodError = error as z.ZodError
+        expect(zodError.errors.length).toBeGreaterThan(1)
+      }
+    })
+
+    it('should accept minimal valid config', () => {
+      const config = {
+        handler: {
+          ram: 128,
+        },
+      }
+
+      expect(() => infrastructureSchema.parse(config)).not.toThrow()
+    })
+
+    it('should accept config with only queue type specified', () => {
+      const config = {
+        queue: {
+          type: 'standard' as const,
+        },
+      }
+
+      expect(() => infrastructureSchema.parse(config)).not.toThrow()
     })
   })
 })

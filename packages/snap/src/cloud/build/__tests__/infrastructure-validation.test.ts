@@ -62,7 +62,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -78,7 +77,6 @@ describe('Infrastructure Validation in Build Process', () => {
           ram: 2048,
           timeout: 30,
           cpu: 1,
-          machineType: 'cpu',
         },
       })
 
@@ -94,7 +92,6 @@ describe('Infrastructure Validation in Build Process', () => {
           type: 'standard',
           visibilityTimeout: 60,
           maxRetries: 3,
-          retryStrategy: 'exponential',
         },
       })
 
@@ -119,7 +116,6 @@ describe('Infrastructure Validation in Build Process', () => {
             visibilityTimeout: 60,
             messageGroupId: 'traceId',
             maxRetries: 3,
-            retryStrategy: 'none',
           },
         },
         inputSchema,
@@ -144,14 +140,12 @@ describe('Infrastructure Validation in Build Process', () => {
             ram: 2048,
             timeout: 30,
             cpu: 1,
-            machineType: 'cpu',
           },
           queue: {
             type: 'fifo',
             visibilityTimeout: 31,
             messageGroupId: 'traceId',
             maxRetries: 5,
-            retryStrategy: 'exponential',
           },
         },
         inputSchema,
@@ -179,7 +173,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 64,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -195,7 +188,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 20000,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -211,7 +203,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 1024,
           timeout: 0,
-          machineType: 'cpu',
         },
       })
 
@@ -227,7 +218,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 1024,
           timeout: 1000,
-          machineType: 'cpu',
         },
       })
 
@@ -244,7 +234,6 @@ describe('Infrastructure Validation in Build Process', () => {
           ram: 2048,
           timeout: 30,
           cpu: 3,
-          machineType: 'cpu',
         },
       })
 
@@ -264,7 +253,6 @@ describe('Infrastructure Validation in Build Process', () => {
           type: 'standard',
           visibilityTimeout: 60,
           maxRetries: -1,
-          retryStrategy: 'none',
         },
       })
 
@@ -281,7 +269,6 @@ describe('Infrastructure Validation in Build Process', () => {
           type: 'fifo',
           visibilityTimeout: 60,
           maxRetries: 3,
-          retryStrategy: 'none',
         },
       })
 
@@ -299,13 +286,11 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu',
         },
         queue: {
           type: 'standard',
           visibilityTimeout: 30,
           maxRetries: 3,
-          retryStrategy: 'none',
         },
       })
 
@@ -322,13 +307,11 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu',
         },
         queue: {
           type: 'standard',
           visibilityTimeout: 31,
           maxRetries: 3,
-          retryStrategy: 'none',
         },
       })
 
@@ -356,7 +339,6 @@ describe('Infrastructure Validation in Build Process', () => {
             visibilityTimeout: 60,
             messageGroupId: 'user.id',
             maxRetries: 3,
-            retryStrategy: 'none',
           },
         },
         inputSchema,
@@ -384,7 +366,6 @@ describe('Infrastructure Validation in Build Process', () => {
             visibilityTimeout: 60,
             messageGroupId: 'items[0]',
             maxRetries: 3,
-            retryStrategy: 'none',
           },
         },
         inputSchema,
@@ -412,7 +393,6 @@ describe('Infrastructure Validation in Build Process', () => {
             visibilityTimeout: 60,
             messageGroupId: 'userId',
             maxRetries: 3,
-            retryStrategy: 'none',
           },
         },
         inputSchema,
@@ -433,7 +413,6 @@ describe('Infrastructure Validation in Build Process', () => {
           visibilityTimeout: 60,
           messageGroupId: 'userId',
           maxRetries: 3,
-          retryStrategy: 'none',
         },
       })
 
@@ -452,7 +431,6 @@ describe('Infrastructure Validation in Build Process', () => {
           visibilityTimeout: 60,
           messageGroupId: 'traceId',
           maxRetries: 3,
-          retryStrategy: 'none',
         },
       })
 
@@ -470,7 +448,6 @@ describe('Infrastructure Validation in Build Process', () => {
           type: 'standard',
           visibilityTimeout: 60,
           maxRetries: 3,
-          retryStrategy: 'none',
         },
       })
 
@@ -488,7 +465,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 2048,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -496,7 +472,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 64,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -516,7 +491,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 64,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -524,7 +498,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 2048,
           timeout: 1000,
-          machineType: 'cpu',
         },
       })
 
@@ -547,7 +520,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 64,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -563,7 +535,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 64,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -579,7 +550,6 @@ describe('Infrastructure Validation in Build Process', () => {
         handler: {
           ram: 64,
           timeout: 30,
-          machineType: 'cpu',
         },
       })
 
@@ -589,6 +559,289 @@ describe('Infrastructure Validation in Build Process', () => {
       expect(errors.length).toBeGreaterThan(0)
       expect(errors[0].message).toContain('handler.ram')
       expect(errors[0].message).toContain('RAM must be at least 128 MB')
+    })
+  })
+
+  describe('Build Validation Edge Cases', () => {
+    it('should validate multiple steps with same infrastructure config', () => {
+      const infrastructure = {
+        handler: {
+          ram: 2048,
+          timeout: 30,
+        },
+        queue: {
+          type: 'standard',
+          maxRetries: 3,
+          visibilityTimeout: 60,
+        },
+      }
+
+      const step1 = createMockStep('step1', 'event', infrastructure)
+      const step2 = createMockStep('step2', 'event', infrastructure)
+      const step3 = createMockStep('step3', 'event', infrastructure)
+
+      const builder = createMockBuilder({
+        step1,
+        step2,
+        step3,
+      })
+
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors).toHaveLength(0)
+    })
+
+    it('should validate steps with partial infrastructure configs', () => {
+      const step1 = createMockStep('step1', 'event', {
+        handler: {
+          ram: 2048,
+          timeout: 30,
+        },
+      })
+
+      const step2 = createMockStep('step2', 'event', {
+        queue: {
+          type: 'standard',
+          maxRetries: 3,
+          visibilityTimeout: 60,
+        },
+      })
+
+      const builder = createMockBuilder({
+        step1,
+        step2,
+      })
+
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors).toHaveLength(0)
+    })
+
+    it('should ignore infrastructure config on API steps', () => {
+      const apiStep = createMockStep('apiStep', 'api', {
+        handler: {
+          ram: 2048,
+          timeout: 30,
+        },
+      })
+
+      const builder = createMockBuilder({ apiStep })
+      const { errors, warnings } = validateStepsConfig(builder)
+
+      expect(errors).toHaveLength(0)
+      expect(warnings).toHaveLength(0)
+    })
+
+    it('should ignore infrastructure config on Cron steps', () => {
+      const cronStep = createMockStep('cronStep', 'cron', {
+        handler: {
+          ram: 2048,
+          timeout: 30,
+        },
+      })
+
+      const builder = createMockBuilder({ cronStep })
+      const { errors, warnings } = validateStepsConfig(builder)
+
+      expect(errors).toHaveLength(0)
+      expect(warnings).toHaveLength(0)
+    })
+
+    it('should aggregate errors from multiple invalid steps', () => {
+      const step1 = createMockStep('step1', 'event', {
+        handler: {
+          ram: 64,
+          timeout: 30,
+        },
+      })
+
+      const step2 = createMockStep('step2', 'event', {
+        handler: {
+          ram: 2048,
+          timeout: 1000,
+        },
+      })
+
+      const step3 = createMockStep('step3', 'event', {
+        queue: {
+          type: 'standard',
+          maxRetries: -1,
+          visibilityTimeout: 60,
+        },
+      })
+
+      const builder = createMockBuilder({
+        step1,
+        step2,
+        step3,
+      })
+
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors.length).toBeGreaterThanOrEqual(3)
+      expect(errors.some((e) => e.message.includes('step1'))).toBe(true)
+      expect(errors.some((e) => e.message.includes('step2'))).toBe(true)
+      expect(errors.some((e) => e.message.includes('step3'))).toBe(true)
+    })
+
+    it('should include step name in error messages', () => {
+      const step = createMockStep('myCustomStep', 'event', {
+        handler: {
+          ram: 64,
+          timeout: 30,
+        },
+      })
+
+      const builder = createMockBuilder({ myCustomStep: step })
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors.length).toBeGreaterThan(0)
+      expect(errors[0].message).toContain('myCustomStep')
+    })
+
+    it('should include relative file path in errors', () => {
+      const step = createMockStep('testStep', 'event', {
+        handler: {
+          ram: 64,
+          timeout: 30,
+        },
+      })
+
+      const builder = createMockBuilder({ testStep: step })
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors.length).toBeGreaterThan(0)
+      expect(errors[0].relativePath).toContain('steps/testStep.step.ts')
+    })
+
+    it('should validate event steps while ignoring non-event steps', () => {
+      const validEventStep = createMockStep('validEvent', 'event', {
+        handler: {
+          ram: 2048,
+          timeout: 30,
+        },
+      })
+
+      const invalidEventStep = createMockStep('invalidEvent', 'event', {
+        handler: {
+          ram: 64,
+          timeout: 30,
+        },
+      })
+
+      const apiStep = createMockStep('apiStep', 'api', {
+        handler: {
+          ram: 64,
+          timeout: 30,
+        },
+      })
+
+      const cronStep = createMockStep('cronStep', 'cron', {
+        handler: {
+          ram: 64,
+          timeout: 30,
+        },
+      })
+
+      const builder = createMockBuilder({
+        validEventStep,
+        invalidEventStep,
+        apiStep,
+        cronStep,
+      })
+
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors.length).toBeGreaterThan(0)
+      expect(errors.every((e) => e.message.includes('invalidEvent'))).toBe(true)
+      expect(errors.some((e) => e.message.includes('apiStep'))).toBe(false)
+      expect(errors.some((e) => e.message.includes('cronStep'))).toBe(false)
+    })
+
+    it('should handle empty infrastructure object gracefully', () => {
+      const step = createMockStep('emptyInfraStep', 'event', {})
+
+      const builder = createMockBuilder({ emptyInfraStep: step })
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors).toHaveLength(0)
+    })
+
+    it('should validate steps with only handler config', () => {
+      const step = createMockStep('handlerOnlyStep', 'event', {
+        handler: {
+          ram: 2048,
+          timeout: 30,
+        },
+      })
+
+      const builder = createMockBuilder({ handlerOnlyStep: step })
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors).toHaveLength(0)
+    })
+
+    it('should validate steps with only queue config', () => {
+      const step = createMockStep('queueOnlyStep', 'event', {
+        queue: {
+          type: 'standard',
+          maxRetries: 3,
+          visibilityTimeout: 60,
+        },
+      })
+
+      const builder = createMockBuilder({ queueOnlyStep: step })
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors).toHaveLength(0)
+    })
+
+    it('should format error messages consistently', () => {
+      const step = createMockStep('testStep', 'event', {
+        handler: {
+          ram: 64,
+          timeout: 30,
+        },
+      })
+
+      const builder = createMockBuilder({ testStep: step })
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors.length).toBeGreaterThan(0)
+      expect(errors[0].message).toContain('Infrastructure configuration error')
+      expect(errors[0].message).toContain('testStep')
+      expect(errors[0].message).toContain('➜')
+    })
+
+    it('should handle multiple validation errors for single step', () => {
+      const inputSchema = z.object({
+        traceId: z.string(),
+      })
+
+      const step = createMockStep(
+        'multiErrorStep',
+        'event',
+        {
+          handler: {
+            ram: 64,
+            timeout: 1000,
+            cpu: 10,
+          },
+          queue: {
+            type: 'fifo',
+            visibilityTimeout: 30,
+            messageGroupId: 'userId',
+            maxRetries: -1,
+          },
+        },
+        inputSchema,
+      )
+
+      const builder = createMockBuilder({ multiErrorStep: step })
+      const { errors } = validateStepsConfig(builder)
+
+      expect(errors.length).toBeGreaterThan(1)
+      expect(errors.every((e) => e.message.includes('multiErrorStep'))).toBe(true)
     })
   })
 })

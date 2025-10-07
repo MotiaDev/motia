@@ -9,24 +9,15 @@ type QueuedMessage<TData = unknown> = {
   visibleAt: number
   messageGroupId?: string
   queueConfig: QueueConfig
+  subscriptionId: string
+  internalSubscriptionId: string
 }
 
 type QueueSubscription = {
   handler: Handler
   queueConfig: QueueConfig
-}
-
-function calculateRetryDelay(attempt: number, strategy: QueueConfig['retryStrategy']): number {
-  const baseDelay = 1000
-
-  switch (strategy) {
-    case 'none':
-      return 0
-    case 'exponential':
-      return baseDelay * Math.pow(2, attempt)
-    case 'jitter':
-      return baseDelay * Math.pow(2, attempt) + Math.random() * baseDelay
-  }
+  subscriptionId: string
+  internalSubscriptionId: string
 }
 
 function extractMessageGroupId(event: Event, messageGroupId: string | null | undefined): string | undefined {
@@ -79,7 +70,10 @@ class QueueManager {
 
   private processMessage(topic: string, message: QueuedMessage, lockKey?: string): void {
     const handlers = this.subscriptions[topic] || []
-    const handler = handlers.find((s) => s.queueConfig === message.queueConfig)
+    const handler =
+      handlers.find((s) => s.internalSubscriptionId === message.internalSubscriptionId) ||
+      handlers.find((s) => s.subscriptionId === message.subscriptionId) ||
+      handlers[0]
 
     if (!handler) {
       this.removeMessageFromQueue(topic, message.id)
@@ -89,7 +83,7 @@ class QueueManager {
       return
     }
 
-    const visibilityTimeoutMs = message.queueConfig.visibilityTimeout * 1000
+    const visibilityTimeoutMs = handler.queueConfig.visibilityTimeout * 1000
     message.visibleAt = Date.now() + visibilityTimeoutMs
 
     handler.handler(message.event)
@@ -103,7 +97,7 @@ class QueueManager {
       .catch((error) => {
         message.attempts++
 
-        if (message.attempts >= message.queueConfig.maxRetries) {
+        if (message.attempts >= handler.queueConfig.maxRetries) {
           globalLogger.error('[Queue DLQ] Message moved to dead-letter queue after max retries', {
             topic,
             messageId: message.id,
@@ -117,11 +111,7 @@ class QueueManager {
             this.lockedGroups.delete(lockKey)
           }
         } else {
-          const retryDelay = calculateRetryDelay(message.attempts, message.queueConfig.retryStrategy)
-          const newVisibilityTimeout = Math.max(retryDelay, visibilityTimeoutMs)
-
-          message.visibleAt = Date.now() + newVisibilityTimeout
-
+          message.visibleAt = Date.now() + handler.queueConfig.visibilityTimeout * 1000
           if (lockKey) {
             this.lockedGroups.delete(lockKey)
           }
@@ -162,10 +152,14 @@ class QueueManager {
   async enqueue<TData>(topic: string, event: Event<TData>): Promise<void> {
     const handlers = this.subscriptions[topic] || []
 
+    if (handlers.length === 0) {
+      return
+    }
+
     for (const subscription of handlers) {
       const messageGroupId = extractMessageGroupId(event, subscription.queueConfig.messageGroupId)
 
-      const delayMs = subscription.queueConfig.delay * 1000
+      const delayMs = subscription.queueConfig.delaySeconds * 1000
       const visibleAt = Date.now() + delayMs
 
       const queuedMessage: QueuedMessage<TData> = {
@@ -175,6 +169,8 @@ class QueueManager {
         visibleAt,
         messageGroupId,
         queueConfig: subscription.queueConfig,
+        subscriptionId: subscription.subscriptionId,
+        internalSubscriptionId: subscription.internalSubscriptionId,
       }
 
 
@@ -190,12 +186,17 @@ class QueueManager {
     setImmediate(() => this.processQueue(topic))
   }
 
-  subscribe(topic: string, handler: Handler, queueConfig: QueueConfig): void {
+  subscribe(topic: string, handler: Handler, queueConfig: QueueConfig, subscriptionId: string): void {
     if (!this.subscriptions[topic]) {
       this.subscriptions[topic] = []
     }
 
-    this.subscriptions[topic].push({ handler, queueConfig })
+    const internalSubscriptionId = randomUUID()
+    this.subscriptions[topic].push({ handler, queueConfig, subscriptionId, internalSubscriptionId })
+
+    if (this.queues[topic] && this.queues[topic].length > 0) {
+      this.startQueueProcessor(topic)
+    }
   }
 
   unsubscribe(topic: string, handler: Handler): void {
@@ -213,6 +214,14 @@ class QueueManager {
         delete this.processingTimers[topic]
       }
     }
+  }
+
+  reset(): void {
+    Object.values(this.processingTimers).forEach((timer) => clearInterval(timer))
+    this.queues = {}
+    this.subscriptions = {}
+    this.lockedGroups = new Set()
+    this.processingTimers = {}
   }
 }
 

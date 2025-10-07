@@ -18,7 +18,7 @@ export type EmitData = { topic: ''; data: unknown }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface FlowContextStateStreams {}
+export interface FlowContextStateStreams { }
 
 export interface FlowContext<TEmitData = never> {
   emit: Emitter<TEmitData>
@@ -35,7 +35,6 @@ export type Emit = string | { topic: string; label?: string; conditional?: boole
 export type HandlerConfig = {
   ram: number
   cpu?: number
-  machineType: 'cpu' | 'memory' | 'gpu'
   timeout: number
 }
 
@@ -43,9 +42,8 @@ export type QueueConfig = {
   type: 'fifo' | 'standard'
   messageGroupId?: string | null
   maxRetries: number
-  retryStrategy: 'none' | 'exponential' | 'jitter'
   visibilityTimeout: number
-  delay: number
+  delaySeconds: number
 }
 
 export type InfrastructureConfig = {
@@ -157,10 +155,10 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
 export type StepHandler<T> = T extends EventConfig
   ? EventHandler<z.infer<T['input']>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
   : T extends ApiRouteConfig
-    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-    : T extends CronConfig
-      ? CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-      : never
+  ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  : T extends CronConfig
+  ? CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  : never
 
 export type Event<TData = unknown> = {
   topic: string
@@ -202,4 +200,4 @@ export type Flow = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface Handlers {}
+export interface Handlers { }
