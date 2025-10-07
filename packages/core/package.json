@@ -30,7 +30,6 @@
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",
-    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/jest": "^29.5.14",
     "@types/node-cron": "^3.0.11",

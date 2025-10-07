@@ -20,25 +20,27 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
-    "tailwind-merge": "^3.3.1",
     "clsx": "^2.1.1",
-    "@monaco-editor/react": "^4.7.0",
-    "lucide-react": "^0.544.0",
-    "react18-json-view": "^0.2.9",
     "json-schema": "^0.4.0",
+    "lucide-react": "^0.544.0",
+    "react-syntax-highlighter": "^15.6.1",
+    "react18-json-view": "^0.2.9",
+    "tailwind-merge": "^3.3.1",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@types/json-schema": "^7.0.15",
-    "react": "^19.1.1",
-    "@types/react": "^19.1.13",
-    "typescript": "^5.9.2",
-    "@types/node": "^24.5.2",
     "@tailwindcss/postcss": "^4.1.13",
-    "tailwindcss": "^4.1.13",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^24.5.2",
+    "@types/react": "^19.1.13",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "postcss": "^8.5.6",
-    "postcss-cli": "^11.0.1"
+    "postcss-cli": "^11.0.1",
+    "react": "^19.1.1",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2"
   }
 }

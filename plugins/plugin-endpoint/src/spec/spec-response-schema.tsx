@@ -6,7 +6,7 @@ import { convertJsonSchemaToJson } from '../hooks/utils'
 export type EndpointResponseItem = {
   responseCode: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  bodySchema: Record<string, Record<string, any>>
+  bodySchema: Record<string, any>
 }
 
 type EndpointResponseProps = {
@@ -16,16 +16,21 @@ type EndpointResponseProps = {
 const EndpointResponseSchemaItem: FC<EndpointResponseItem> = ({ responseCode, bodySchema }) => {
   const theme = useThemeStore((store: { theme: string }) => store.theme)
   const schema = useMemo(() => convertJsonSchemaToJson(bodySchema), [bodySchema])
+  const description = typeof bodySchema.description === 'string' ? bodySchema.description : ''
 
   return (
     <TabsContent value={responseCode} key={responseCode} className="border-t">
       <div className="text-xs font-mono rounded-lg whitespace-pre-wrap">
-        <ReactJson
-          src={schema}
-          dark={theme === 'dark'}
-          enableClipboard={false}
-          style={{ backgroundColor: 'transparent' }}
-        />
+        {schema ? (
+          <ReactJson
+            src={schema}
+            dark={theme === 'dark'}
+            enableClipboard={false}
+            style={{ backgroundColor: 'transparent' }}
+          />
+        ) : (
+          <div className="text-xs font-mono rounded-lg whitespace-pre-wrap p-4">{description}</div>
+        )}
       </div>
     </TabsContent>
   )

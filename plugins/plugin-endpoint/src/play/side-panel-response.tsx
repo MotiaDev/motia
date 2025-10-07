@@ -1,18 +1,17 @@
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
 import { X } from 'lucide-react'
 import { memo, useState } from 'react'
-import ReactJson from 'react18-json-view'
 import { getResponseSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
 import { useStateStream } from '../hooks/use-state-stream'
 import { ResponseCode } from './response-code'
+import { ResponseContent } from './response-content'
 
 type ActiveTab = 'preview' | 'headers'
 
 export const SidePanelResponse = memo(() => {
   const { setResponse } = useEndpointConfiguration()
   const response = useEndpointConfiguration(getResponseSelector)
-
-  const { data } = useStateStream(response?.body)
+  const { data } = useStateStream(response?.body instanceof Blob ? undefined : response?.body)
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview')
   const onClose = () => setResponse(undefined)
 
@@ -53,7 +52,11 @@ export const SidePanelResponse = memo(() => {
       </div>
 
       <TabsContent value="preview">
-        <ReactJson src={data as object} />
+        <ResponseContent
+          code={data}
+          blob={response?.body instanceof Blob ? response.body : undefined}
+          contentType={response.headers['content-type']}
+        />
       </TabsContent>
 
       <TabsContent value="headers">
