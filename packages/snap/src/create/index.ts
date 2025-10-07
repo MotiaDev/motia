@@ -1,13 +1,13 @@
-import path from 'path'
 import fs from 'fs'
-import { executeCommand } from '../utils/execute-command'
-import { pythonInstall } from '../install'
-import { generateTypes } from '../generate-types'
-import { version } from '../version'
+import path from 'path'
 import { CliContext } from '../cloud/config-utils'
-import { setupTemplate } from './setup-template'
-import { checkIfFileExists, checkIfDirectoryExists } from './utils'
+import { generateTypes } from '../generate-types'
+import { pythonInstall } from '../install'
+import { executeCommand } from '../utils/execute-command'
+import { version } from '../version'
 import { pullRules } from './pull-rules'
+import { setupTemplate } from './setup-template'
+import { checkIfDirectoryExists, checkIfFileExists } from './utils'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
@@ -125,8 +125,9 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   }
 
   if (!checkIfFileExists(rootDir, 'package.json')) {
+    const finalProjectName = isCurrentDir ? path.basename(rootDir) : projectName
     const packageJsonContent = {
-      name: projectName,
+      name: finalProjectName,
       description: '',
       scripts: {
         postinstall: 'motia install',
