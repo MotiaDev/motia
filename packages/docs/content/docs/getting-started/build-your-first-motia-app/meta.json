@@ -3,7 +3,8 @@
   "defaultOpen": true,
   "pages": [
     "api-endpoints",
-    "background-jobs"
+    "background-jobs",
+    "workflows"
   ]
 }
 
