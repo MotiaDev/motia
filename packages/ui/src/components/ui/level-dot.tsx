@@ -14,6 +14,6 @@ const badgeVariants = cva('text-xs font-medium tracking-wide rounded-full h-[6px
   },
 })
 
-export const LogLevelDot: React.FC<{ level: string }> = ({ level }) => {
+export const LevelDot: React.FC<{ level: string }> = ({ level }) => {
   return <div className={badgeVariants({ variant: level as VariantProps<typeof badgeVariants>['variant'] })} />
 }

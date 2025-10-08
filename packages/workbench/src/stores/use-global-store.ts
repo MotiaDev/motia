@@ -10,8 +10,6 @@ type UseGlobalStore = {
   selectTraceId: (traceId?: string) => void
   selectedStateId?: string
   selectStateId: (stateId?: string) => void
-  selectedLogId?: string
-  selectLogId: (logId?: string) => void
 }
 
 const select = (id: string | undefined, name: keyof UseGlobalStore) => (state: UseGlobalStore) => {
@@ -29,8 +27,6 @@ export const useGlobalStore = create(
       selectTraceId: (traceId) => set(select(traceId, 'selectedTraceId')),
       selectedStateId: undefined,
       selectStateId: (stateId) => set(select(stateId, 'selectedStateId')),
-      selectedLogId: undefined,
-      selectLogId: (logId) => set(select(logId, 'selectedLogId')),
     }),
     {
       name: 'motia-global-storage',

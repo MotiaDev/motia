@@ -39,3 +39,5 @@ export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './comp
 export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select'
 export { type ThemeState, type Theme, useThemeStore } from './stores/use-theme-store'
 export { BackgroundEffect } from './components/ui/background-effect'
+export { LevelDot } from './components/ui/level-dot'
+export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table'
