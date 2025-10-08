@@ -38,8 +38,8 @@ class ApiEndpointsStream extends StreamAdapter<ApiEndpoint> {
     super()
   }
 
-  async get(id: string): Promise<ApiEndpoint | null> {
-    const endpoint = this.lockedData.apiSteps().find((step) => step.config.path === id)
+  async get(_groupId: string, id: string): Promise<ApiEndpoint | null> {
+    const endpoint = this.lockedData.apiSteps().find((step) => step.filePath === id)
     return endpoint ? mapEndpoint(endpoint) : null
   }
 

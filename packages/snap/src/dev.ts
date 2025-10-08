@@ -1,21 +1,23 @@
 // packages/snap/src/dev.ts
+import { flush } from '@amplitude/analytics-node'
 import {
   createEventManager,
   createMermaidGenerator,
   createServer,
   createStateAdapter,
   getProjectIdentifier,
+  MotiaPlugin,
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
-import { flush } from '@amplitude/analytics-node'
-import { generateLockedData, getStepFiles } from './generate-locked-data'
-import { createDevWatchers } from './dev-watchers'
 import { deployEndpoints } from './cloud/endpoints'
+import { isTutorialDisabled, workbenchBase } from './constants'
+import { createDevWatchers } from './dev-watchers'
+import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
-import { workbenchBase, isTutorialDisabled } from './constants'
+import { generatePlugins } from './generate-plugins'
 
 process.env.VITE_CJS_IGNORE_WARNING = 'true'
 
@@ -64,6 +66,7 @@ export const dev = async (
   const config = { isVerbose }
   const motiaServer = createServer(lockedData, eventManager, state, config)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
+  const plugins: MotiaPlugin[] = await generatePlugins(motiaServer.motia)
 
   // Initialize mermaid generator
   if (enableMermaid) {
@@ -107,7 +110,12 @@ export const dev = async (
       require('@motiadev/workbench/middleware')
     : // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('@motiadev/workbench/dist/middleware')
-  await applyMiddleware(motiaServer.app, port, workbenchBase)
+  await applyMiddleware({
+    app: motiaServer.app,
+    port,
+    workbenchBase,
+    plugins: plugins.flatMap((item) => item.workbench),
+  })
 
   motiaServer.server.listen(port, hostname)
   console.log('🚀 Server ready and listening on port', port)

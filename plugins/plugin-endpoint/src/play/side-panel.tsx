@@ -20,14 +20,16 @@ import { TriggerButton } from './trigger-button'
 
 type EndpointSidePanelProps = { endpoint: ApiEndpoint; onClose: () => void }
 
-type ActiveTab = 'body' | 'headers'
+type ActiveTab = 'body' | 'headers' | 'params'
 
 const headersCountSelector = (state: UseEndpointConfiguration) => Object.keys(getHeadersSelector(state)).length
 const hasResponseSelector = (state: UseEndpointConfiguration) => getResponseSelector(state) !== undefined
 const paramsCountSelector = (state: UseEndpointConfiguration) => Object.keys(getQueryParamsSelector(state)).length
 
 export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }) => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('body')
+  const isGetOrDelete = endpoint.method === 'GET' || endpoint.method === 'DELETE'
+
+  const [activeTab, setActiveTab] = useState<ActiveTab>(isGetOrDelete ? 'params' : 'body')
   const [isSpecOpen, setIsSpecOpen] = useState(false)
   const headersCount = useEndpointConfiguration(useShallow(headersCountSelector))
   const hasResponse = useEndpointConfiguration(useShallow(hasResponseSelector))

@@ -136,7 +136,13 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
 
         processManager.handler<TData, void>('result', async (input) => {
-          result = input
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const anyInput: any = { ...input }
+
+          if (anyInput.body && anyInput.body.type === 'Buffer') {
+            anyInput.body = Buffer.from(anyInput.body.data)
+          }
+          result = anyInput
         })
 
         processManager.handler<Event, unknown>('emit', async (input) => {

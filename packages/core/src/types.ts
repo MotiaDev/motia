@@ -1,6 +1,8 @@
-import { z, ZodArray, ZodObject } from 'zod'
+import { z, ZodAny, ZodArray, ZodObject } from 'zod'
 import { Logger } from './logger'
 import { Tracer } from './observability'
+
+export * from './types/app-config-types'
 
 export type ZodInput = ZodObject<any> | ZodArray<any> // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -81,7 +83,7 @@ export interface ApiRouteConfig {
   flows?: string[]
   middleware?: ApiMiddleware<any, any, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
   bodySchema?: ZodInput
-  responseSchema?: Record<number, ZodInput>
+  responseSchema?: Record<number, ZodInput | ZodAny>
   queryParams?: QueryParam[]
   /**
    * Files to include in the step bundle.

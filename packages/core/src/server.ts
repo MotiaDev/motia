@@ -37,6 +37,7 @@ export type MotiaServer = {
   addRoute: (step: Step<ApiRouteConfig>) => void
   cronManager: CronManager
   motiaEventManager: MotiaEventManager
+  motia: Motia
 }
 
 type MotiaServerConfig = {
@@ -190,7 +191,13 @@ export const createServer = (
         }
 
         res.status(result.status)
-        res.json(result.body)
+
+        // Handle different body types
+        if (Buffer.isBuffer(result.body) || typeof result.body === 'string') {
+          res.send(result.body)
+        } else {
+          res.json(result.body)
+        }
       } catch (error) {
         trackEvent('api_call_error', {
           stepName,
@@ -287,5 +294,5 @@ export const createServer = (
     socketServer.close()
   }
 
-  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager }
+  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motia }
 }

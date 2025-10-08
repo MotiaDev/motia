@@ -40,5 +40,7 @@ declare module 'motia' {
     'PythonProcessFoodOrder': EventHandler<{ id: string; email: string; quantity: unknown; pet_id: unknown }, { topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
     'PythonNotification': EventHandler<{ template_id: string; email: string; template_data: Record<string, unknown> }, never>
     'PythonApiTrigger': ApiRouteHandler<{ pet: unknown; food_order?: unknown | unknown }, ApiResponse<200, { id: unknown; name: string; photoUrl: string }>, { topic: 'python-process-food-order'; data: { id: string; email: string; quantity: unknown; pet_id: unknown } }>
+    'Download PDF': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, unknown>, never>
+    'Download HTML': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, unknown>, never>
   }
 }

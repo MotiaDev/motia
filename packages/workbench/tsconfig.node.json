@@ -20,5 +20,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["middleware.ts"]
+  "include": ["middleware.ts", "vite-plugin-motia-plugins.ts"]
 }

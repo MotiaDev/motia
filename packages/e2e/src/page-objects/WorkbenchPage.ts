@@ -21,7 +21,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
     this.sidebarContainer = page.getByTestId('sidebar')
     this.logsLink = page.getByTestId('logs-link')
     this.statesLink = page.getByTestId('states-link')
-    this.tracesLink = page.getByTestId('traces-link')
+    this.tracesLink = page.getByTestId('tracing-link')
     this.endpointsLink = page.getByTestId('endpoints-link')
     this.flowsDropdownTrigger = page.getByTestId('flows-dropdown-trigger')
     this.flowsLink = page.locator('.flows-dropdown .flow-link')
