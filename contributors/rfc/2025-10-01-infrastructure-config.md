@@ -37,8 +37,8 @@ export const config: EventConfig = {
        */
       messageGroupId: 'traceId', // required for fifo
       maxRetries: 5, // max number of retries for a single message before moved to a dead letter queue
-      retryStrategy: 'exponential', // exponential backoff
       visibilityTimeout: 31, // needs to be higher than the handler timeout
+      delaySeconds: 10, // delay in seconds for the message to be processed
     },
   },
 }
@@ -71,35 +71,3 @@ Queue types can be either:
 - standard
 
 When FIFO, it's required to provide a messageGroupId which should be a key to the input data. So all messages with the same messageGroupId will be processed in order.
-
-## Retry Strategy
-
-Retry strategy can be either:
-
-- none
-- exponential
-- jitter
-
-Default is none, which means the message will be back to the queue after the visibility timeout.
-
-### Exponential Backoff
-
-When Exponential is used, the backoff will be: visibilityTimeout _ 2^tryCount.
-In the example of 31 seconds exponential backoff, the backoff will be: 31 _ 2^5 = 992 seconds.
-
-- 1st retry: 31 seconds after the first try
-- 2nd retry: 124 seconds after the 1st retry
-- 3rd retry: 248 seconds after the 2nd retry
-- 4th retry: 496 seconds after the 3rd retry
-- 5th retry: 992 seconds after the 4th retry
-
-### Jitter Backoff
-
-When Jitter is used, the backoff will be: visibilityTimeout _ (1 + random(0, 0.5))
-In the example of 31 seconds jitter backoff, the backoff will be: 31 _ (1 + random(0, 0.5))
-
-- 1st retry: 31 seconds after the first try
-- 2nd retry: 46.5 seconds after the 1st retry
-- 3rd retry: 62 seconds after the 2nd retry
-- 4th retry: 77.5 seconds after the 3rd retry
-- 5th retry: 93 seconds after the 4th retry
