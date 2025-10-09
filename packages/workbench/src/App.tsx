@@ -1,8 +1,6 @@
 import { FC, useMemo } from 'react'
 import { FlowPage } from './components/flow/flow-page'
 import { FlowTabMenuItem } from './components/flow/flow-tab-menu-item'
-import { LogsPage } from './components/logs/logs-page'
-import { LogsTabLabel } from './components/logs/logs-tab-label'
 import { TracingTabLabel } from './components/observability/trace-tab-label'
 import { TracesPage } from './components/observability/traces-page'
 import { StatesTabLabel } from './components/states/state-tab-label'
@@ -34,11 +32,6 @@ const registerDefaultTabs = (): void => {
       id: TAB_IDS.TRACING,
       tabLabel: TracingTabLabel,
       content: TracesPage,
-    },
-    {
-      id: TAB_IDS.LOGS,
-      tabLabel: LogsTabLabel,
-      content: LogsPage,
     },
     {
       id: TAB_IDS.STATES,

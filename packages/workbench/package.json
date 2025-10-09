@@ -17,6 +17,7 @@
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "@motiadev/plugin-endpoint": "workspace:*",
+    "@motiadev/plugin-logs": "workspace:*",
     "@radix-ui/react-collapsible": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.13",
     "@radix-ui/react-dropdown-menu": "^2.1.15",

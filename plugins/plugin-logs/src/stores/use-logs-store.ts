@@ -1,22 +1,17 @@
 import { create } from 'zustand'
-
-export type Log = {
-  level: string
-  time: number
-  msg: string
-  traceId: string
-  flows: string[]
-  [key: string]: any
-}
+import { Log } from '../types/log'
 
 export type LogsState = {
   logs: Log[]
+  selectedLogId?: string
   addLog: (log: Log) => void
   resetLogs: () => void
+  selectLogId: (logId?: string) => void
 }
 
 export const useLogsStore = create<LogsState>()((set) => ({
   logs: [],
+  selectedLogId: undefined,
   addLog: (log) =>
     set((state) => ({
       logs: [log, ...state.logs],
@@ -24,4 +19,5 @@ export const useLogsStore = create<LogsState>()((set) => ({
   resetLogs: () => {
     set({ logs: [] })
   },
+  selectLogId: (logId) => set({ selectedLogId: logId }),
 }))

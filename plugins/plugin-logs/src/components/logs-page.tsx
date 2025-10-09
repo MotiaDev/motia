@@ -1,18 +1,15 @@
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
-import { formatTimestamp } from '@/lib/utils'
-import { useGlobalStore } from '@/stores/use-global-store'
-import { useLogsStore } from '@/stores/use-logs-store'
-import { Button, cn, Input } from '@motiadev/ui'
+import { Button, cn, Input, LevelDot, Table, TableBody, TableCell, TableRow } from '@motiadev/ui'
 import { Search, Trash, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useLogsStore } from '../stores/use-logs-store'
+import { formatTimestamp } from '../utils/format-timestamp'
 import { LogDetail } from './log-detail'
-import { LogLevelDot } from './log-level-dot'
 
 export const LogsPage = () => {
   const logs = useLogsStore((state) => state.logs)
   const resetLogs = useLogsStore((state) => state.resetLogs)
-  const selectedLogId = useGlobalStore((state) => state.selectedLogId)
-  const selectLogId = useGlobalStore((state) => state.selectLogId)
+  const selectedLogId = useLogsStore((state) => state.selectedLogId)
+  const selectLogId = useLogsStore((state) => state.selectLogId)
   const selectedLog = useMemo(
     () => (selectedLogId ? logs.find((log) => log.id === selectedLogId) : undefined),
     [logs, selectedLogId],
@@ -67,7 +64,7 @@ export const LogsPage = () => {
                   data-testid={`time-${index}`}
                   className="whitespace-nowrap flex items-center gap-2 text-muted-foreground"
                 >
-                  <LogLevelDot level={log.level} />
+                  <LevelDot level={log.level} />
                   {formatTimestamp(log.time)}
                 </TableCell>
                 <TableCell

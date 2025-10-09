@@ -1,12 +1,11 @@
-import { formatTimestamp } from '@/lib/utils'
+import { LevelDot, Sidebar } from '@motiadev/ui'
+import { X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import ReactJson from 'react18-json-view'
 import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
-import { Log } from '@/stores/use-logs-store'
-import { LogLevelDot } from './log-level-dot'
-import { Sidebar } from '@motiadev/ui'
-import { X } from 'lucide-react'
+import { Log } from '../types/log'
+import { formatTimestamp } from '../utils/format-timestamp'
 
 type Props = {
   log?: Log
@@ -50,7 +49,7 @@ export const LogDetail: React.FC<Props> = ({ log, onClose }) => {
           label: 'Level',
           value: (
             <div className="flex items-center gap-2">
-              <LogLevelDot level={log.level} />
+              <LevelDot level={log.level} />
               <div className="capitalize">{log.level}</div>
             </div>
           ),

@@ -9,6 +9,13 @@ const defaultPlugins: MotiaPlugin[] = [
       },
     ],
   },
+  {
+    workbench: [
+      {
+        packageName: '@motiadev/plugin-logs',
+      },
+    ],
+  },
 ]
 
 export const generatePlugins = async (motia: Motia): Promise<MotiaPlugin[]> => {

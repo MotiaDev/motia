@@ -1,0 +1,39 @@
+{
+  "name": "@motiadev/plugin-logs",
+  "version": "0.8.2-beta.139",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run build:css && tsc",
+    "build:css": "postcss src/styles.css -o dist/styles.css",
+    "dev": "npm run build:css && npm run dev:parallel",
+    "dev:parallel": "npm run dev:css & tsc --watch",
+    "dev:css": "postcss src/styles.css -o dist/styles.css --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@motiadev/stream-client-browser": "workspace:*",
+    "@motiadev/ui": "workspace:*",
+    "lucide-react": "^0.545.0",
+    "react18-json-view": "^0.2.9",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.14",
+    "@types/node": "^24.7.0",
+    "@types/react": "^19.2.2",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "react": "^19.2.0",
+    "tailwindcss": "^4.1.14",
+    "typescript": "^5.9.3"
+  }
+}
