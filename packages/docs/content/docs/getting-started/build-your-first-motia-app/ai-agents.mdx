@@ -105,21 +105,18 @@ You can follow this guide to learn how to build AI agents with Motia step by ste
 
 ## Understanding AI Agents
 
-AI agents transform your workflows from simple automation into intelligent systems that make decisions. Instead of hardcoding every rule, you let AI analyze context and choose the right action.
+You've built APIs, background jobs, and workflows that orchestrate your pet shelter. But what about decisions that aren't black and white? Should this pet's symptoms require treatment? Is this profile ready for the adoption page?
 
-There are two types of AI agents in this system:
+That's where AI agents come in. They're smart assistants that make judgment calls based on context - the kind of decisions that would normally need a human to review every single case.
 
-**Content Generation Agents** - They enrich your data automatically without making workflow decisions. Think of them as helpful assistants that fill in details.
+In our pet shelter, we use two flavors:
+- **Content generators** write engaging pet profiles automatically
+- **Decision makers** evaluate health symptoms and choose whether treatment is needed
+- **Data reviewers** assess if adoption information is complete
 
-**Decision-Making Agents** - These agents evaluate situations and choose which path the workflow should take. They're like smart routers that understand context.
+The difference from traditional code? Instead of writing hundreds of if-else rules for every possible symptom combination, you describe what matters to the AI. It reads the context and makes an informed call.
 
-In our pet shelter, AI helps with:
-- Writing engaging pet profiles for potential adopters
-- Assessing health conditions from symptoms
-- Determining if pets have complete adoption data
-- Making judgment calls that would normally require staff review
-
-The key difference from traditional code? Instead of writing complex if-else logic, you describe what you want the AI to consider, and it makes informed decisions based on that context.
+When a pet arrives with "coughing, lethargy, loss of appetite" - the AI evaluates these symptoms together and decides if treatment is needed. No hardcoded rules. Just intelligent analysis of the situation.
 
 ---
 
@@ -1635,5 +1632,5 @@ Here are some ideas to extend your AI agents:
 - Create agent chains (one agent's output feeds into another)
 - Build streaming AI agents that process long-running tasks
 
-Explore more examples in the [Motia Examples Repository](https://github.com/MotiaDev/motia-examples) or dive deeper into [AI integration patterns](https://www.motia.dev/docs/concepts/ai-agents).
+Explore more examples in the [Motia Examples Repository](https://github.com/MotiaDev/motia-examples).
 
