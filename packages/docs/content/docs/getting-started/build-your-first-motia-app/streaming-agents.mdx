@@ -1,0 +1,1168 @@
+---
+title: Real-Time Streaming
+description: Learn how to add real-time streaming updates to your Motia workflows
+---
+
+## What You'll Build
+
+A pet management system with real-time streaming that provides live updates to clients:
+
+- **Stream Configuration** - Define stream schemas for type-safe updates
+- **API with Streaming** - APIs that initialize streams and return immediately
+- **Background Job Streaming** - Jobs that push real-time progress updates
+- **AI Agent Streaming** - AI enrichment with live progress updates
+- **Multi-Step Streaming** - Multiple steps updating the same stream
+
+![workbench](../../img/build-your-first-app/streaming-workbench.png)
+---
+
+## Getting Started
+
+Clone the example repository:
+
+```bash
+git clone https://github.com/MotiaDev/build-your-first-app.git
+cd build-your-first-app
+git checkout stream-ai-agents
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Set up your OpenAI API key in `.env`:
+
+```bash
+OPENAI_API_KEY=your_api_key_here
+```
+
+Start the Workbench:
+
+```bash
+npm run dev
+```
+
+Your Workbench will be available at `http://localhost:3000`.
+
+---
+
+## Project Structure
+
+<Folder name="my-pet-api" defaultOpen>
+  <Folder name="steps" defaultOpen>
+    <Folder name="typescript">
+      <File name="create-pet.step.ts" />
+      <File name="pet-creation.stream.ts" />
+      <File name="set-next-feeding-reminder.job.step.ts" />
+      <File name="ai-profile-enrichment.step.ts" />
+      <File name="health-review-agent.step.ts" />
+      <File name="pet-lifecycle-orchestrator.step.ts" />
+      <File name="ts-store.ts" />
+    </Folder>
+    <Folder name="javascript">
+      <File name="create-pet.step.js" />
+      <File name="pet-creation.stream.js" />
+      <File name="set-next-feeding-reminder.job.step.js" />
+      <File name="ai-profile-enrichment.step.js" />
+      <File name="health-review-agent.step.js" />
+      <File name="pet-lifecycle-orchestrator.step.js" />
+      <File name="js-store.js" />
+    </Folder>
+    <Folder name="python">
+      <File name="create_pet_step.py" />
+      <File name="pet_creation.stream.py" />
+      <File name="set_next_feeding_reminder.job_step.py" />
+      <File name="ai_profile_enrichment_step.py" />
+      <File name="health_review_agent_step.py" />
+      <File name="pet_lifecycle_orchestrator_step.py" />
+    </Folder>
+  </Folder>
+  <Folder name="services">
+    <File name="pet_store.py" />
+    <File name="types.py" />
+  </Folder>
+  <File name=".env" />
+  <File name="package.json" />
+  <File name="requirements.txt" />
+  <File name="types.d.ts" />
+</Folder>
+
+<Callout type="info">
+Files like `features.json` and `tutorial.tsx` are only for the interactive tutorial and are not part of Motia's project structure.
+</Callout>
+
+All code examples in this guide are available in the [build-your-first-app](https://github.com/MotiaDev/build-your-first-app/tree/main) repository.
+
+You can follow this guide to learn how to build real-time streaming with Motia step by step, or you can clone the repository and dive into our Interactive Tutorial to learn by doing directly in the Workbench.
+
+![interactive-tutorial](../../img/build-your-first-app/interactive-tutorial-streaming.png)
+
+---
+
+## Understanding Real-Time Streaming
+
+You've built APIs that return immediately, background jobs that process asynchronously, workflows that orchestrate complex logic, and AI agents that make intelligent decisions. But how do you give users real-time feedback while all this async processing happens in the background?
+
+That's where **streaming** comes in. Motia provides streams as part of the context in any step handler - you can use them anywhere in your code. Streams use Server-Sent Events (SSE) to push live updates directly to clients as your workflow progresses.
+
+In our pet shelter example:
+- The API initializes a stream and returns immediately with a stream ID
+- Background jobs push updates as they process (quarantine entry, health checks)
+- AI agents stream enrichment progress (bio generation, breed analysis)
+- Clients get live feedback throughout the entire workflow
+
+The power is in the simplicity - `streams` is available in your handler's context, just like `emit`, `logger`, and `state`. Any step can update any stream, creating a unified real-time experience without complex orchestration.
+
+---
+
+## Creating Your First Stream
+
+### Step 1: Define the Stream Configuration
+
+First, define a stream configuration file. This makes the stream available in the `context.streams` object for all your step handlers.
+
+<Callout type="info">
+View on GitHub:
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/typescript/pet-creation.stream.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/python/pet_creation.stream.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/javascript/pet-creation.stream.js)
+</Callout>
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript title="steps/typescript/pet-creation.stream.ts"
+    import { StreamConfig } from 'motia'
+    import { z } from 'zod'
+
+    export const config: StreamConfig = {
+      /**
+       * This will be available as context.streams.petCreation in the FlowContext
+       */
+      name: 'petCreation',
+      
+      /**
+       * Schema defines the structure of stream updates
+       */
+      schema: z.object({ 
+        message: z.string()
+      }),
+
+      /**
+       * Use default storage for the stream
+       */
+      baseConfig: {
+        storageType: 'default',
+      },
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python title="steps/python/pet_creation.stream.py"
+    config = {
+        "name": "petCreation",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string"}
+            },
+            "required": ["message"]
+        },
+        "baseConfig": {
+            "storageType": "default"
+        }
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript title="steps/javascript/pet-creation.stream.js"
+    const { z } = require('zod')
+
+    const config = {
+      name: 'petCreation',
+      
+      schema: z.object({ 
+        message: z.string()
+      }),
+
+      baseConfig: {
+        storageType: 'default',
+      },
+    }
+
+    module.exports = { config }
+    ```
+  </Tab>
+</Tabs>
+
+### How Stream Configuration Works
+
+Stream configuration is simple:
+
+- **name** - Identifier for accessing the stream (e.g., `context.streams.petCreation`)
+- **schema** - Zod schema defining what data can be pushed to the stream
+- **baseConfig** - Storage settings (default uses in-memory storage)
+
+Once you create this configuration file, the stream is automatically available as `streams.petCreation` in the context of any step handler. It's just like `emit`, `logger`, or `state` - part of the tools available in your handler.
+
+---
+
+## Step 2: Initialize Streams from APIs
+
+Now let's update the pet creation API to initialize a stream and return it immediately to the client.
+
+<Callout type="info">
+View on GitHub:
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/typescript/create-pet.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/python/create_pet_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/javascript/create-pet.step.js)
+</Callout>
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript title="steps/typescript/create-pet.step.ts"
+    import { ApiRouteConfig, Handlers } from 'motia'
+    import { z } from 'zod'
+    import { TSStore } from './ts-store'
+
+    const createPetSchema = z.object({
+      name: z.string().min(1, 'Name is required').trim(),
+      species: z.enum(['dog', 'cat', 'bird', 'other']),
+      ageMonths: z.number().int().min(0),
+      weightKg: z.number().positive().optional(),
+      symptoms: z.array(z.string()).optional()
+    })
+
+    export const config: ApiRouteConfig = {
+      type: 'api',
+      name: 'TsCreatePet',
+      path: '/ts/pets',
+      method: 'POST',
+      emits: ['ts.pet.created', 'ts.feeding.reminder.enqueued'],
+      flows: ['TsPetManagement']
+    }
+
+    export const handler: Handlers['TsCreatePet'] = async (req, { emit, logger, streams, traceId }) => {
+      try {
+        const validatedData = createPetSchema.parse(req.body)
+        
+        const pet = TSStore.create({
+          name: validatedData.name,
+          species: validatedData.species,
+          ageMonths: validatedData.ageMonths,
+          weightKg: validatedData.weightKg,
+          symptoms: validatedData.symptoms
+        })
+
+        logger.info('🐾 Pet created', { petId: pet.id, name: pet.name, species: pet.species })
+
+        // Initialize stream and return the result
+        const result = await streams.petCreation.set(traceId, 'message', { 
+          message: `Pet ${pet.name} (ID: ${pet.id}) created successfully - Species: ${pet.species}, Age: ${pet.ageMonths} months, Status: ${pet.status}` 
+        })
+
+        // Emit events to trigger background workflows
+        if (emit) {
+          await emit({
+            topic: 'ts.pet.created',
+            data: { petId: pet.id, event: 'pet.created', name: pet.name, species: validatedData.species, traceId }
+          })
+
+          await emit({
+            topic: 'ts.feeding.reminder.enqueued',
+            data: { petId: pet.id, enqueuedAt: Date.now(), traceId }
+          })
+        }
+
+        return { 
+          status: 201, 
+          body: result 
+        }
+
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return {
+            status: 400,
+            body: {
+              message: 'Validation error',
+              errors: error.errors
+            }
+          }
+        }
+
+        return {
+          status: 500,
+          body: { message: 'Internal server error' }
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python title="steps/python/create_pet_step.py"
+    import sys
+    import os
+    import time
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    from services import pet_store
+
+    config = {
+        "type": "api",
+        "name": "PyCreatePet",
+        "path": "/py/pets",
+        "method": "POST",
+        "emits": ["py.pet.created", "py.feeding.reminder.enqueued"],
+        "flows": ["PyPetManagement"]
+    }
+
+    async def handler(req, ctx=None):
+        logger = getattr(ctx, 'logger', None) if ctx else None
+        emit = getattr(ctx, 'emit', None) if ctx else None
+        streams = getattr(ctx, 'streams', None) if ctx else None
+        trace_id = getattr(ctx, 'traceId', None) if ctx else None
+        
+        b = req.get("body") or {}
+        name = b.get("name")
+        species = b.get("species")
+        age = b.get("ageMonths")
+        symptoms = b.get("symptoms", [])
+
+        # Validation
+        if not isinstance(name, str) or not name.strip():
+            return {"status": 400, "body": {"message": "Invalid name"}}
+        if species not in ["dog", "cat", "bird", "other"]:
+            return {"status": 400, "body": {"message": "Invalid species"}}
+        try:
+            age_val = int(age)
+        except Exception:
+            return {"status": 400, "body": {"message": "Invalid ageMonths"}}
+
+        # Create pet
+        pet = pet_store.create(name, species, age_val)
+        
+        if logger:
+            logger.info("🐾 Pet created", {"petId": pet["id"], "name": name, "species": species})
+
+        # Initialize stream
+        result = await streams.petCreation.set(trace_id, 'message', { 
+            "message": f"Pet {name} (ID: {pet['id']}) created successfully - Species: {species}, Age: {age_val} months, Status: {pet['status']}"
+        })
+
+        # Emit events to trigger background workflows
+        if emit:
+            await emit({
+                "topic": "py.pet.created",
+                "data": {"petId": pet["id"], "event": "pet.created", "name": name, "species": species, "traceId": trace_id}
+            })
+
+            await emit({
+                "topic": "py.feeding.reminder.enqueued",
+                "data": {"petId": pet["id"], "enqueuedAt": int(time.time() * 1000), "traceId": trace_id}
+            })
+
+        return {"status": 201, "body": result}
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript title="steps/javascript/create-pet.step.js"
+    const { create } = require('./js-store')
+
+    const config = {
+      type: 'api',
+      name: 'JsCreatePet',
+      path: '/js/pets',
+      method: 'POST',
+      emits: ['js.pet.created', 'js.feeding.reminder.enqueued'],
+      flows: ['JsPetManagement']
+    }
+
+    const handler = async (req, { emit, logger, streams, traceId }) => {
+      const b = req.body || {}
+      const name = typeof b.name === 'string' && b.name.trim()
+      const speciesOk = ['dog', 'cat', 'bird', 'other'].includes(b.species)
+      const ageOk = Number.isFinite(b.ageMonths)
+
+      if (!name || !speciesOk || !ageOk) {
+        return { status: 400, body: { message: 'Invalid payload' } }
+      }
+
+      const pet = create({ 
+        name, 
+        species: b.species, 
+        ageMonths: Number(b.ageMonths),
+        symptoms: b.symptoms || []
+      })
+
+      if (logger) {
+        logger.info('🐾 Pet created', { petId: pet.id, name: pet.name })
+      }
+
+      // Initialize stream
+      const result = await streams.petCreation.set(traceId, 'message', {
+        message: `Pet ${name} (ID: ${pet.id}) created successfully - Species: ${b.species}, Status: new`
+      })
+
+      // Emit events
+      if (emit) {
+        await emit({
+          topic: 'js.pet.created',
+          data: { petId: pet.id, name, species: b.species, traceId }
+        })
+
+        await emit({
+          topic: 'js.feeding.reminder.enqueued',
+          data: { petId: pet.id, enqueuedAt: Date.now(), traceId }
+        })
+      }
+
+      return { status: 201, body: result }
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+</Tabs>
+
+### How API Stream Initialization Works
+
+The key changes from a regular API:
+
+1. **Access streams from context** - `streams` is available in the FlowContext
+2. **Create initial stream message** - `await streams.petCreation.set(traceId, 'message', data)`
+3. **Return the stream result** - Contains stream ID and initial message
+4. **Background jobs update the same stream** - Using the same traceId
+
+The API returns immediately with a stream ID. Clients can connect to this stream via SSE to receive real-time updates as background jobs process.
+
+---
+
+## Step 3: Stream Updates from Background Jobs
+
+Now let's update the feeding reminder job to push real-time updates to the stream as it processes.
+
+<Callout type="info">
+View on GitHub:
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/typescript/set-next-feeding-reminder.job.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/python/set_next_feeding_reminder.job_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/javascript/set-next-feeding-reminder.job.step.js)
+</Callout>
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript title="steps/typescript/set-next-feeding-reminder.job.step.ts"
+    import { TSStore } from './ts-store'
+
+    export const config = {
+      type: 'event',
+      name: 'TsSetNextFeedingReminder',
+      description: 'Background job that sets feeding reminders with stream updates',
+      subscribes: ['ts.feeding.reminder.enqueued'],
+      emits: ['ts.feeding.reminder.completed'],
+      flows: ['TsPetManagement']
+    }
+
+    export const handler = async (input: any, context?: any) => {
+      const { emit, logger, streams, traceId } = context || {}
+      const { petId, enqueuedAt } = input
+
+      if (logger) {
+        logger.info('📋 Setting next feeding reminder', { petId, enqueuedAt })
+      }
+
+      try {
+        // Calculate next feeding time (2 hours from now)
+        const nextFeedingAt = Date.now() + (2 * 60 * 60 * 1000)
+        
+        // Update pet with feeding schedule
+        const updates = {
+          notes: 'Welcome to our shelter! Initial health screening scheduled.',
+          nextFeedingAt: nextFeedingAt,
+          status: 'in_quarantine'
+        }
+
+        const updatedPet = TSStore.update(petId, updates)
+        
+        if (!updatedPet) {
+          if (logger) {
+            logger.error('❌ Failed to set feeding reminder - pet not found', { petId })
+          }
+          return
+        }
+
+        if (logger) {
+          logger.info('✅ Feeding reminder set', { 
+            petId, 
+            nextFeedingAt: new Date(nextFeedingAt).toISOString()
+          })
+        }
+
+        // Push real-time stream updates
+        if (streams?.petCreation && traceId) {
+          await streams.petCreation.set(traceId, 'message', { 
+            message: `Pet ${updatedPet.name} entered quarantine period` 
+          })
+
+          // Check symptoms and stream appropriate updates
+          if (!updatedPet.symptoms || updatedPet.symptoms.length === 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            await streams.petCreation.set(traceId, 'message', { 
+              message: `Health check passed for ${updatedPet.name} - no symptoms found` 
+            })
+
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            await streams.petCreation.set(traceId, 'message', { 
+              message: `${updatedPet.name} is healthy and ready for adoption! ✅` 
+            })
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            await streams.petCreation.set(traceId, 'message', { 
+              message: `Health check failed for ${updatedPet.name} - symptoms detected: ${updatedPet.symptoms.join(', ')}` 
+            })
+
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            await streams.petCreation.set(traceId, 'message', { 
+              message: `${updatedPet.name} needs medical treatment ❌` 
+            })
+          }
+        }
+
+        if (emit) {
+          await emit({
+            topic: 'ts.feeding.reminder.completed',
+            data: { 
+              petId, 
+              completedAt: Date.now(),
+              processingTimeMs: Date.now() - enqueuedAt
+            }
+          })
+        }
+
+      } catch (error: any) {
+        if (logger) {
+          logger.error('❌ Feeding reminder job error', { petId, error: error.message })
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python title="steps/python/set_next_feeding_reminder.job_step.py"
+    import sys
+    import os
+    import time
+    import asyncio
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    from services import pet_store
+
+    config = {
+        "type": "event",
+        "name": "PySetNextFeedingReminder",
+        "description": "Background job that sets feeding reminders with stream updates",
+        "subscribes": ["py.feeding.reminder.enqueued"],
+        "emits": ["py.feeding.reminder.completed"],
+        "flows": ["PyPetManagement"]
+    }
+
+    async def handler(input_data, ctx=None):
+        logger = getattr(ctx, 'logger', None) if ctx else None
+        emit = getattr(ctx, 'emit', None) if ctx else None
+        streams = getattr(ctx, 'streams', None) if ctx else None
+        trace_id = getattr(ctx, 'trace_id', None) if ctx else None
+        
+        pet_id = input_data.get("petId")
+        enqueued_at = input_data.get("enqueuedAt")
+
+        if logger:
+            logger.info("📋 Setting next feeding reminder", {"petId": pet_id})
+
+        try:
+            # Calculate next feeding time
+            next_feeding_at = int(time.time() * 1000) + (2 * 60 * 60 * 1000)
+            
+            # Update pet
+            updates = {
+                "notes": "Welcome to our shelter! Initial health screening scheduled.",
+                "nextFeedingAt": next_feeding_at,
+                "status": "in_quarantine"
+            }
+
+            updated_pet = pet_store.update(pet_id, updates)
+            
+            if not updated_pet:
+                if logger:
+                    logger.error("❌ Pet not found", {"petId": pet_id})
+                return
+
+            if logger:
+                logger.info("✅ Feeding reminder set", {"petId": pet_id})
+
+            # Push stream updates
+            if streams and hasattr(streams, 'petCreation') and trace_id:
+                await streams.petCreation.set(trace_id, 'message', {
+                    "message": f"Pet {updated_pet['name']} entered quarantine period"
+                })
+
+                # Check symptoms
+                symptoms = updated_pet.get("symptoms", [])
+                if not symptoms:
+                    await asyncio.sleep(1)
+                    await streams.petCreation.set(trace_id, 'message', {
+                        "message": f"Health check passed for {updated_pet['name']} - no symptoms found"
+                    })
+
+                    await asyncio.sleep(1)
+                    await streams.petCreation.set(trace_id, 'message', {
+                        "message": f"{updated_pet['name']} is healthy and ready for adoption! ✅"
+                    })
+                else:
+                    await asyncio.sleep(1)
+                    await streams.petCreation.set(trace_id, 'message', {
+                        "message": f"Health check failed for {updated_pet['name']} - symptoms: {', '.join(symptoms)}"
+                    })
+
+                    await asyncio.sleep(1)
+                    await streams.petCreation.set(trace_id, 'message', {
+                        "message": f"{updated_pet['name']} needs medical treatment ❌"
+                    })
+
+            if emit:
+                await emit({
+                    "topic": "py.feeding.reminder.completed",
+                    "data": {
+                        "petId": pet_id,
+                        "completedAt": int(time.time() * 1000),
+                        "processingTimeMs": int(time.time() * 1000) - enqueued_at
+                    }
+                })
+
+        except Exception as error:
+            if logger:
+                logger.error("❌ Job error", {"petId": pet_id, "error": str(error)})
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript title="steps/javascript/set-next-feeding-reminder.job.step.js"
+    const { update } = require('./js-store')
+
+    const config = {
+      type: 'event',
+      name: 'JsSetNextFeedingReminder',
+      description: 'Background job that sets feeding reminders with stream updates',
+      subscribes: ['js.feeding.reminder.enqueued'],
+      emits: ['js.feeding.reminder.completed'],
+      flows: ['JsPetManagement']
+    }
+
+    const handler = async (input, { emit, logger, streams, traceId }) => {
+      const { petId, enqueuedAt } = input
+
+      if (logger) {
+        logger.info('📋 Setting next feeding reminder', { petId })
+      }
+
+      try {
+        // Calculate next feeding time
+        const nextFeedingAt = Date.now() + (2 * 60 * 60 * 1000)
+        
+        const updates = {
+          notes: 'Welcome to our shelter! Initial health screening scheduled.',
+          nextFeedingAt,
+          status: 'in_quarantine'
+        }
+
+        const updatedPet = update(petId, updates)
+        
+        if (!updatedPet) {
+          if (logger) {
+            logger.error('❌ Pet not found', { petId })
+          }
+          return
+        }
+
+        if (logger) {
+          logger.info('✅ Feeding reminder set', { petId })
+        }
+
+        // Push stream updates
+        if (streams?.petCreation && traceId) {
+          await streams.petCreation.set(traceId, 'message', {
+            message: `Pet ${updatedPet.name} entered quarantine period`
+          })
+
+          const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+          if (!updatedPet.symptoms || updatedPet.symptoms.length === 0) {
+            await delay(1000)
+            await streams.petCreation.set(traceId, 'message', {
+              message: `Health check passed for ${updatedPet.name} - no symptoms found`
+            })
+
+            await delay(1000)
+            await streams.petCreation.set(traceId, 'message', {
+              message: `${updatedPet.name} is healthy and ready for adoption! ✅`
+            })
+          } else {
+            await delay(1000)
+            await streams.petCreation.set(traceId, 'message', {
+              message: `Health check failed for ${updatedPet.name} - symptoms: ${updatedPet.symptoms.join(', ')}`
+            })
+
+            await delay(1000)
+            await streams.petCreation.set(traceId, 'message', {
+              message: `${updatedPet.name} needs medical treatment ❌`
+            })
+          }
+        }
+
+        if (emit) {
+          await emit({
+            topic: 'js.feeding.reminder.completed',
+            data: {
+              petId,
+              completedAt: Date.now(),
+              processingTimeMs: Date.now() - enqueuedAt
+            }
+          })
+        }
+
+      } catch (error) {
+        if (logger) {
+          logger.error('❌ Job error', { petId, error: error.message })
+        }
+      }
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+</Tabs>
+
+### How Background Job Streaming Works
+
+Background jobs can push multiple updates to a stream:
+
+- **Access the stream** - `streams.petCreation` is available in context
+- **Push updates** - `await streams.petCreation.set(traceId, 'message', data)`
+- **Use the same traceId** - Links updates to the original API request
+- **Send multiple updates** - Each `set()` call sends immediately to connected clients
+
+The background job processes asynchronously, pushing updates at each stage. Clients connected to the stream receive these updates in real-time via SSE.
+
+---
+
+## Step 4: AI Agent Streaming
+
+AI agents can also stream progress updates as they generate content. This provides live feedback during potentially long-running AI operations.
+
+<Callout type="info">
+View on GitHub:
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/typescript/ai-profile-enrichment.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/python/ai_profile_enrichment_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/javascript/ai-profile-enrichment.step.js)
+</Callout>
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+  <Tab value="TypeScript">
+    ```typescript title="steps/typescript/ai-profile-enrichment.step.ts"
+    import { TSStore } from './ts-store'
+
+    export const config = {
+      type: 'event',
+      name: 'TsAiProfileEnrichment',
+      description: 'AI agent that enriches profiles with streaming updates',
+      subscribes: ['ts.pet.created'],
+      emits: [],
+      flows: ['TsPetManagement']
+    }
+
+    export const handler = async (input: any, context?: any) => {
+      const { logger, streams, traceId } = context || {}
+      const { petId, name, species } = input
+
+      if (logger) {
+        logger.info('🤖 AI Profile Enrichment started', { petId })
+      }
+
+      // Stream start notification
+      if (streams?.petCreation && traceId) {
+        await streams.petCreation.set(traceId, 'message', {
+          message: `Starting AI profile enrichment for ${name}...`
+        })
+      }
+
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey) {
+        if (logger) {
+          logger.warn('⚠️ OpenAI API key not found', { petId })
+        }
+        return
+      }
+
+      try {
+        const pet = TSStore.get(petId)
+        if (!pet) return
+
+        // Stream progress updates as we generate different fields
+        const fields = ['bio', 'breedGuess', 'temperamentTags', 'adopterHints']
+        
+        for (const field of fields) {
+          if (streams?.petCreation && traceId) {
+            await streams.petCreation.set(traceId, 'message', {
+              message: `Generating ${field} for ${name}...`
+            })
+          }
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+
+        // Call OpenAI (simplified for example)
+        const prompt = `Generate a pet profile for ${name}, a ${species}.`
+        
+        // ... OpenAI API call here ...
+        
+        const aiProfile = {
+          bio: `Meet ${name}, a wonderful ${species}!`,
+          breedGuess: 'Mixed breed',
+          temperamentTags: ['friendly', 'playful'],
+          adopterHints: 'Great for families!'
+        }
+
+        // Update pet with enriched data
+        TSStore.update(petId, aiProfile)
+
+        // Stream completion
+        if (streams?.petCreation && traceId) {
+          await streams.petCreation.set(traceId, 'message', {
+            message: `✅ AI profile enrichment completed for ${name}!`
+          })
+        }
+
+        if (logger) {
+          logger.info('✅ AI Profile Enrichment completed', { petId })
+        }
+
+      } catch (error: any) {
+        if (logger) {
+          logger.error('❌ AI enrichment error', { petId, error: error.message })
+        }
+        
+        if (streams?.petCreation && traceId) {
+          await streams.petCreation.set(traceId, 'message', {
+            message: `❌ AI enrichment failed for ${name}, using fallback profile`
+          })
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    ```python title="steps/python/ai_profile_enrichment_step.py"
+    import sys
+    import os
+    import asyncio
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    from services import pet_store
+
+    config = {
+        "type": "event",
+        "name": "PyAiProfileEnrichment",
+        "description": "AI agent that enriches profiles with streaming updates",
+        "subscribes": ["py.pet.created"],
+        "emits": [],
+        "flows": ["PyPetManagement"]
+    }
+
+    async def handler(input_data, ctx=None):
+        logger = getattr(ctx, 'logger', None) if ctx else None
+        streams = getattr(ctx, 'streams', None) if ctx else None
+        trace_id = getattr(ctx, 'trace_id', None) if ctx else None
+        
+        pet_id = input_data.get("petId")
+        name = input_data.get("name")
+        species = input_data.get("species")
+
+        if logger:
+            logger.info("🤖 AI Profile Enrichment started", {"petId": pet_id})
+
+        # Stream start notification
+        if streams and hasattr(streams, 'petCreation') and trace_id:
+            await streams.petCreation.set(trace_id, 'message', {
+                "message": f"Starting AI profile enrichment for {name}..."
+            })
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            if logger:
+                logger.warn("⚠️ OpenAI API key not found", {"petId": pet_id})
+            return
+
+        try:
+            pet = pet_store.get(pet_id)
+            if not pet:
+                return
+
+            # Stream progress updates
+            fields = ['bio', 'breedGuess', 'temperamentTags', 'adopterHints']
+            
+            for field in fields:
+                if streams and hasattr(streams, 'petCreation') and trace_id:
+                    await streams.petCreation.set(trace_id, 'message', {
+                        "message": f"Generating {field} for {name}..."
+                    })
+                await asyncio.sleep(0.5)
+
+            # AI generation (simplified)
+            ai_profile = {
+                "bio": f"Meet {name}, a wonderful {species}!",
+                "breedGuess": "Mixed breed",
+                "temperamentTags": ["friendly", "playful"],
+                "adopterHints": "Great for families!"
+            }
+
+            pet_store.update(pet_id, ai_profile)
+
+            # Stream completion
+            if streams and hasattr(streams, 'petCreation') and trace_id:
+                await streams.petCreation.set(trace_id, 'message', {
+                    "message": f"✅ AI profile enrichment completed for {name}!"
+                })
+
+            if logger:
+                logger.info("✅ AI Profile Enrichment completed", {"petId": pet_id})
+
+        except Exception as error:
+            if logger:
+                logger.error("❌ AI enrichment error", {"petId": pet_id, "error": str(error)})
+            
+            if streams and hasattr(streams, 'petCreation') and trace_id:
+                await streams.petCreation.set(trace_id, 'message', {
+                    "message": f"❌ AI enrichment failed for {name}, using fallback"
+                })
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    ```javascript title="steps/javascript/ai-profile-enrichment.step.js"
+    const { get, update } = require('./js-store')
+
+    const config = {
+      type: 'event',
+      name: 'JsAiProfileEnrichment',
+      description: 'AI agent that enriches profiles with streaming updates',
+      subscribes: ['js.pet.created'],
+      emits: [],
+      flows: ['JsPetManagement']
+    }
+
+    const handler = async (input, { logger, streams, traceId }) => {
+      const { petId, name, species } = input
+
+      if (logger) {
+        logger.info('🤖 AI Profile Enrichment started', { petId })
+      }
+
+      // Stream start
+      if (streams?.petCreation && traceId) {
+        await streams.petCreation.set(traceId, 'message', {
+          message: `Starting AI profile enrichment for ${name}...`
+        })
+      }
+
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey) {
+        if (logger) {
+          logger.warn('⚠️ OpenAI API key not found', { petId })
+        }
+        return
+      }
+
+      try {
+        const pet = get(petId)
+        if (!pet) return
+
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+        const fields = ['bio', 'breedGuess', 'temperamentTags', 'adopterHints']
+        
+        for (const field of fields) {
+          if (streams?.petCreation && traceId) {
+            await streams.petCreation.set(traceId, 'message', {
+              message: `Generating ${field} for ${name}...`
+            })
+          }
+          await delay(500)
+        }
+
+        // AI generation (simplified)
+        const aiProfile = {
+          bio: `Meet ${name}, a wonderful ${species}!`,
+          breedGuess: 'Mixed breed',
+          temperamentTags: ['friendly', 'playful'],
+          adopterHints: 'Great for families!'
+        }
+
+        update(petId, aiProfile)
+
+        // Stream completion
+        if (streams?.petCreation && traceId) {
+          await streams.petCreation.set(traceId, 'message', {
+            message: `✅ AI profile enrichment completed for ${name}!`
+          })
+        }
+
+        if (logger) {
+          logger.info('✅ AI Profile Enrichment completed', { petId })
+        }
+
+      } catch (error) {
+        if (logger) {
+          logger.error('❌ AI enrichment error', { petId, error: error.message })
+        }
+        
+        if (streams?.petCreation && traceId) {
+          await streams.petCreation.set(traceId, 'message', {
+            message: `❌ AI enrichment failed for ${name}, using fallback`
+          })
+        }
+      }
+    }
+
+    module.exports = { config, handler }
+    ```
+  </Tab>
+</Tabs>
+
+### How AI Agent Streaming Works
+
+AI agents stream progress as they work:
+
+1. **Stream start notification** - Let users know AI processing has begun
+2. **Progress updates** - Stream each stage of generation (bio, breed, temperament, etc.)
+3. **Stream completion** - Notify when AI processing is done
+4. **Error streaming** - Stream errors gracefully with fallback messages
+
+This transforms a potentially slow AI operation into an engaging real-time experience.
+
+---
+
+## Testing Streaming in Action
+
+The best way to test streams is through **Workbench**.
+
+### Test 1: Create a Pet with Streaming
+
+Open Workbench and navigate to the Endpoints section, then test the Pet Creation endpoint:
+
+<Callout type="tip">
+**Prefer using curl?**
+
+```bash
+curl -X POST http://localhost:3000/ts/pets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Max",
+    "species": "dog",
+    "ageMonths": 24,
+    "symptoms": ["coughing"]
+  }'
+```
+</Callout>
+
+You'll get an immediate response with the stream result. The API returns right away while background jobs process asynchronously.
+
+### Monitor Stream Updates in Workbench
+
+After creating a pet, check the Tracing view in Workbench:
+
+1. Automatically switched to the **Tracing** tab so you can see the stream updates in real-time
+2. Click on the most recent trace
+3. Watch the timeline as steps execute
+4. See stream updates appear in real-time in the timeline
+
+![stream-tracing](../../img/build-your-first-app/stream-tracing.png)
+
+You'll observe:
+- Pet creation completes immediately
+- Feeding reminder job streams quarantine updates
+- AI enrichment streams progress updates
+- All updates visible in the trace timeline
+
+### Test 2: Create Pet with Symptoms
+
+Test the conditional streaming logic by creating a pet with symptoms:
+
+```bash
+curl -X POST http://localhost:3000/ts/pets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Luna",
+    "species": "cat",
+    "ageMonths": 18,
+    "symptoms": ["sneezing", "watery eyes"]
+  }'
+```
+
+![stream-updates](../../img/build-your-first-app/streams-symptoms-output.png)
+
+Watch the logs to see different stream messages based on the symptoms detected.
+
+### Test 4: Create Pet Without Symptoms
+
+Compare the streaming behavior with a healthy pet:
+
+```bash
+curl -X POST http://localhost:3000/ts/pets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Buddy",
+    "species": "dog",
+    "ageMonths": 12
+  }'
+```
+
+The stream will show health check passed messages instead of treatment needed messages.
+
+![stream-updates](../../img/build-your-first-app/streams-healthy-output.png)
+
+### Observing Stream Updates
+
+Watch the Workbench console logs to see the real-time stream updates as they're pushed:
+
+```
+🐾 Pet created { petId: '1', name: 'Max', species: 'dog', status: 'new' }
+📋 Setting next feeding reminder { petId: '1' }
+🤖 AI Profile Enrichment started { petId: '1', name: 'Max' }
+✅ Next feeding reminder set { petId: '1' }
+✅ AI Profile Enrichment completed { petId: '1' }
+```
+
+Each emoji-prefixed log corresponds to a stream update being pushed to connected clients.
+
+---
+
+🎉 **Congratulations!** You've built a complete real-time streaming system with Motia. Your pet management system now provides live feedback to users while complex workflows execute in the background.
+
+---
+
+## What's Next?
+
+You've now mastered the complete Motia stack:
+
+- **API Endpoints** - Build RESTful APIs with validation
+- **Background Jobs** - Process async tasks efficiently  
+- **Workflows** - Orchestrate complex business logic
+- **AI Agents** - Make intelligent decisions with AI
+- **Real-Time Streaming** - Provide live updates using streams in any step handler
+
+This is the **complete progression** from simple APIs to intelligent, real-time systems!
+
+**Key Takeaway:** Streams are just another tool in your step handler's context - use them wherever you need real-time updates!
+
+Here are some ideas to extend your streaming implementation:
+
+- **Add stream analytics** - Track how many clients are connected, message delivery rates
+- **Implement stream persistence** - Use Redis adapter for stream storage across restarts
+- **Create stream multiplexing** - Multiple streams per workflow for different update types
+- **Build progress bars** - Use structured progress data (0-100%) instead of just messages
+- **Add stream authentication** - Ensure only authorized clients can access streams
+
+Explore more examples in the [Motia Examples Repository](https://github.com/MotiaDev/motia-examples).
+
