@@ -5,6 +5,7 @@
     "api-endpoints",
     "background-jobs",
     "workflows",
+    "ai-agents",
     "streaming-agents"
   ]
 }

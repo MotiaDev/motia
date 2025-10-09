@@ -771,12 +771,12 @@ Some transitions should trigger follow-up actions automatically:
     ```typescript
     async function processAutomaticProgression(
       petId: string, 
-      currentStatus: string, 
+      currentStatus: Pet["status"], 
       emit: any, 
       logger: any
     ) {
       // Define which statuses automatically progress
-      const automaticProgressions: Record<string, { to: string, description: string }> = {
+      const automaticProgressions: Partial<Record<Pet["status"], { to: Pet["status"], description: string }>> = {
         'healthy': { 
           to: 'available', 
           description: 'Automatic progression - pet ready for adoption' 
