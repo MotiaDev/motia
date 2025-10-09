@@ -4,7 +4,8 @@
   "pages": [
     "api-endpoints",
     "background-jobs",
-    "workflows"
+    "workflows",
+    "ai-agents"
   ]
 }
 
