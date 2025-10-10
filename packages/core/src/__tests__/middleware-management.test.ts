@@ -42,10 +42,10 @@ describe('Middleware Management', () => {
       activeSteps: [],
       eventSteps: () => [],
       cronSteps: () => [],
-      onStep: () => {},
-      applyStreamWrapper: () => {},
+      onStep: () => { },
+      applyStreamWrapper: () => { },
       createStream: () => () => new MemoryStreamAdapter(),
-      on: () => {},
+      on: () => { },
     } as unknown as LockedData
 
     const eventManager = createEventManager()

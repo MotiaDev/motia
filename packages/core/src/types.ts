@@ -18,7 +18,7 @@ export type EmitData = { topic: ''; data: unknown }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface FlowContextStateStreams {}
+export interface FlowContextStateStreams { }
 
 export interface FlowContext<TEmitData = never> {
   emit: Emitter<TEmitData>
@@ -31,6 +31,25 @@ export interface FlowContext<TEmitData = never> {
 export type EventHandler<TInput, TEmitData> = (input: TInput, ctx: FlowContext<TEmitData>) => Promise<void>
 
 export type Emit = string | { topic: string; label?: string; conditional?: boolean }
+
+export type HandlerConfig = {
+  ram: number
+  cpu?: number
+  timeout: number
+}
+
+export type QueueConfig = {
+  type: 'fifo' | 'standard'
+  messageGroupId?: string | null
+  maxRetries: number
+  visibilityTimeout: number
+  delaySeconds: number
+}
+
+export type InfrastructureConfig = {
+  handler?: Partial<HandlerConfig>
+  queue?: Partial<QueueConfig>
+}
 
 export type EventConfig = {
   type: 'event'
@@ -47,6 +66,7 @@ export type EventConfig = {
    * Needs to be relative to the step file.
    */
   includeFiles?: string[]
+  infrastructure?: Partial<InfrastructureConfig>
 }
 
 export type NoopConfig = {
@@ -135,10 +155,10 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
 export type StepHandler<T> = T extends EventConfig
   ? EventHandler<z.infer<T['input']>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
   : T extends ApiRouteConfig
-    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-    : T extends CronConfig
-      ? CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
-      : never
+  ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  : T extends CronConfig
+  ? CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  : never
 
 export type Event<TData = unknown> = {
   topic: string
@@ -180,4 +200,4 @@ export type Flow = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface Handlers {}
+export interface Handlers { }

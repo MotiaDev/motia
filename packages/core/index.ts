@@ -2,6 +2,7 @@ export * from './src/types'
 export { createServer, MotiaServer } from './src/server'
 export { createStepHandlers, MotiaEventManager } from './src/step-handlers'
 export { createEventManager } from './src/event-manager'
+export { queueManager } from './src/queue-manager'
 export { Logger } from './src/logger'
 export { createStateAdapter } from './src/state/create-state-adapter'
 export { setupCronHandlers, CronManager } from './src/cron-handler'
@@ -16,3 +17,8 @@ export { Motia } from './src/motia'
 export { NoPrinter, Printer } from './src/printer'
 export { NoTracer } from './src/observability/no-tracer'
 export { config } from './src/config'
+export {
+  validateInfrastructureConfig,
+  type InfrastructureValidationError,
+  type InfrastructureValidationResult,
+} from './src/infrastructure-validator'
