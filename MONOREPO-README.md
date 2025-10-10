@@ -32,7 +32,7 @@ Motia.js strives to be:
 │   └── other-packages/         # Placeholder for future packages
 ├── playground/                 # Sandbox environment for testing
 │   ├── src/                    # Source code for testing and examples
-│   │   ├── flows/          # Flow implementations
+│   │   ├── flows/              # Flow implementations
 │   │   ├── traffic/            # Traffic definitions (inbound/outbound)
 │   │   ├── ui/                 # Custom UI components
 │   │   └── index.js            # Playground entry point
@@ -61,18 +61,18 @@ Motia.js strives to be:
    cd motia-monorepo
    ```
 
-2. Install dependencies:
-
-   ```bash
-   pnpm install
-   ```
-
-3. Install Motia CLI globally:
+2. Install Motia CLI globally:
 
    ```bash
    npm install -g motia
    ```
 
+3. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+   
 4. Set up environment variables:
    - Copy the example `.env` file:
      ```bash
@@ -93,6 +93,8 @@ This command starts the following services:
 - **MotiaCore**: The flow orchestrator.
 - **MotiaServer**: Provides HTTP endpoints for triggering flows.
 - **Playground UI**: A React-based visualization tool for flows.
+
+The app runs locally at **[http://localhost:3000](http://localhost:3000)**.
 
 ## How to Contribute
 
@@ -129,6 +131,8 @@ This command starts the following services:
 - Follow the existing code style (Prettier and ESLint are configured).
 - Write unit tests for new features and components.
 - Keep commits focused and descriptive.
+
+📘 **For detailed contribution guidelines, setup steps, and best practices, see the [CONTRIBUTING.md](https://github.com/MotiaDev/motia/blob/main/CONTRIBUTING.md) file.**
 
 ## Roadmap
 

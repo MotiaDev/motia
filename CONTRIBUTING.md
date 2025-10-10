@@ -7,6 +7,59 @@ description: Guide for developers who want to contribute to Motia
 
 Thank you for your interest in contributing to Motia! We welcome contributions from the community to help make Motia better. Here are some ways you can contribute:
 
+## Local Setup
+
+Before contributing, you’ll need to set up the project locally.
+
+### Prerequisites
+
+- **Node.js** (v16+ recommended)
+- **Python** (LTS recommended)
+- **pnpm** (for managing the monorepo)
+
+### Steps
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/MotiaDev/motia.git
+   cd motia
+   ```
+
+2. Install the Motia CLI globally:
+
+   ```bash
+   npm install -g motia
+   ```
+
+3. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+4. Set up environment variables:
+   - Copy the example `.env` file:
+     ```bash
+     cp playground/.env.example playground/.env
+     ```
+   - Update the `.env` file with your credentials and API keys.
+
+5. Start the development environment:
+   - Run this command at the root of the project 
+   ```bash
+   pnpm dev:workbench
+   ```
+
+   This will start:
+   - **MotiaCore** (flow orchestrator)
+   - **MotiaServer** (HTTP endpoints)
+   - **Playground UI** (flow visualization)
+
+   The app runs locally at **[http://localhost:3000](http://localhost:3000)**.
+
+---
+
 ## Reporting Issues
 
 If you encounter any bugs, have feature requests, or want to discuss improvements, please [open an issue](https://github.com/MotiaDev/motia/issues) on our GitHub repository. When reporting bugs, please provide detailed information about your environment and steps to reproduce the issue.
@@ -36,4 +89,4 @@ If you have built something interesting with Motia or have a real-world use case
 
 Help spread the word about Motia by sharing it with your friends, colleagues, and the developer community. You can also star our [GitHub repository](https://github.com/MotiaDev/motia), follow us on [Twitter](https://twitter.com/motiadev), and join our [Discord community](https://discord.gg/nJFfsH5d6v) to stay updated with the latest news and engage with other Motia developers.
 
-We appreciate all forms of contributions and look forward to collaborating with you to make Motia even better! 
+We appreciate all forms of contributions and look forward to collaborating with you to make Motia even better!
