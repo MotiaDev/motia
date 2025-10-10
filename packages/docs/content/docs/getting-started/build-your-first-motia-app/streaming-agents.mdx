@@ -10,7 +10,7 @@ A pet management system with real-time streaming that provides live updates to c
 - **Stream Configuration** - Define stream schemas for type-safe updates
 - **API with Streaming** - APIs that initialize streams and return immediately
 - **Background Job Streaming** - Jobs that push real-time progress updates
-- **AI Agent Streaming** - AI enrichment with live progress updates
+- **Agentic Step Streaming** - AI enrichment with live progress updates
 - **Multi-Step Streaming** - Multiple steps updating the same stream
 
 ![workbench](../../img/build-your-first-app/streaming-workbench.png)
@@ -103,14 +103,14 @@ You can follow this guide to learn how to build real-time streaming with Motia s
 
 ## Understanding Real-Time Streaming
 
-You've built APIs that return immediately, background jobs that process asynchronously, workflows that orchestrate complex logic, and AI agents that make intelligent decisions. But how do you give users real-time feedback while all this async processing happens in the background?
+You've built APIs that return immediately, background jobs that process asynchronously, workflows that orchestrate complex logic, and agentic workflows that make intelligent decisions. But how do you give users real-time feedback while all this async processing happens in the background?
 
 That's where **streaming** comes in. Motia provides streams as part of the context in any step handler - you can use them anywhere in your code. Streams use Server-Sent Events (SSE) to push live updates directly to clients as your workflow progresses.
 
 In our pet shelter example:
 - The API initializes a stream and returns immediately with a stream ID
 - Background jobs push updates as they process (quarantine entry, health checks)
-- AI agents stream enrichment progress (bio generation, breed analysis)
+- Agentic steps stream enrichment progress (bio generation, breed analysis)
 - Clients get live feedback throughout the entire workflow
 
 The power is in the simplicity - `streams` is available in your handler's context, just like `emit`, `logger`, and `state`. Any step can update any stream, creating a unified real-time experience without complex orchestration.
@@ -790,9 +790,9 @@ The background job processes asynchronously, pushing updates at each stage. Clie
 
 ---
 
-## Step 4: AI Agent Streaming (TypeScript Only)
+## Step 4: Agentic Step Streaming (TypeScript Only)
 
-AI agents can also stream progress updates as they generate content. This provides live feedback during potentially long-running AI operations.
+Agentic steps can also stream progress updates as they generate content. This provides live feedback during potentially long-running AI operations.
 
 <Callout type="info">
 **TypeScript Implementation Only:** Streaming AI enrichment is currently implemented in TypeScript only. The pattern shown here can be applied to Python and JavaScript implementations.
@@ -811,7 +811,7 @@ View on GitHub:
     export const config = {
       type: 'event',
       name: 'TsAiProfileEnrichment',
-      description: 'AI agent that enriches pet profiles using OpenAI',
+      description: 'Agentic step that enriches pet profiles using OpenAI',
       subscribes: ['ts.pet.created'],
       emits: [],
       flows: ['TsPetManagement']
@@ -969,9 +969,9 @@ Keep it positive, realistic, and adoption-focused.`;
   </Tab>
 </Tabs>
 
-### How AI Agent Streaming Works
+### How Agentic Step Streaming Works
 
-AI agents stream progress as they work:
+Agentic steps stream progress as they work:
 
 1. **Stream start notification** - Let users know AI processing has begun
 2. **Progress updates** - Stream each stage of generation (bio, breed, temperament, etc.)
@@ -1084,7 +1084,7 @@ You've now mastered the complete Motia stack:
 - **API Endpoints** - Build RESTful APIs with validation
 - **Background Jobs** - Process async tasks efficiently  
 - **Workflows** - Orchestrate complex business logic
-- **AI Agents** - Make intelligent decisions with AI
+- **Agentic Workflows** - Make intelligent decisions with AI
 - **Real-Time Streaming** - Provide live updates using streams in any step handler
 
 This is the **complete progression** from simple APIs to intelligent, real-time systems!
