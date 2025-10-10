@@ -1,15 +1,15 @@
 ---
-title: AI Agents
-description: Learn how to build intelligent AI agents that make decisions and automate workflows with Motia
+title: Agentic Workflows
+description: Learn how to build intelligent agentic workflows that make decisions and automate workflows with Motia
 ---
 
 ## What You'll Build
 
-An intelligent pet management system with AI agents that automate decisions and enrich data:
+An intelligent pet management system with agentic workflows that automate decisions and enrich data:
 
 - **AI Profile Enrichment** - Automatically generates detailed pet profiles using AI
-- **AI Health Review Agent** - Makes intelligent health decisions based on symptoms
-- **AI Adoption Review Agent** - Assesses adoption readiness and data completeness
+- **Health Review Agentic Step** - Makes intelligent health decisions based on symptoms
+- **Adoption Review Agentic Step** - Assesses adoption readiness and data completeness
 - **Orchestrator Integration** - AI decisions that drive real workflow changes
 
 ![workbench](../../img/build-your-first-app/ai-agents-workbench.png)
@@ -38,7 +38,7 @@ OPENAI_API_KEY=your_api_key_here
 ```
 
 <Callout type="warning">
-**Important!** This tutorial requires an OpenAI API key. Get yours at [platform.openai.com/api-keys](https://platform.openai.com/api-keys). Without it, the AI agents won't work.
+**Important!** This tutorial requires an OpenAI API key. Get yours at [platform.openai.com/api-keys](https://platform.openai.com/api-keys). Without it, the agentic workflows won't work.
 </Callout>
 
 Start the Workbench:
@@ -97,17 +97,17 @@ Files like `features.json` and `tutorial.tsx` are only for the interactive tutor
 
 All code examples in this guide are available in the [build-your-first-app](https://github.com/MotiaDev/build-your-first-app/tree/ai-agents) repository.
 
-You can follow this guide to learn how to build AI agents with Motia step by step, or you can clone the repository and dive into our Interactive Tutorial to learn by doing directly in the Workbench.
+You can follow this guide to learn how to build agentic workflows with Motia step by step, or you can clone the repository and dive into our Interactive Tutorial to learn by doing directly in the Workbench.
 
 ![interactive-tutorial](../../img/build-your-first-app/interactive-tutorial-ai.png)
 
 ---
 
-## Understanding AI Agents
+## Understanding Agentic Workflows
 
 You've built APIs, background jobs, and workflows that orchestrate your pet shelter. But what about decisions that aren't black and white? Should this pet's symptoms require treatment? Is this profile ready for the adoption page?
 
-That's where AI agents come in. They're smart assistants that make judgment calls based on context - the kind of decisions that would normally need a human to review every single case.
+That's where agentic workflows come in. They're smart assistants that make judgment calls based on context - the kind of decisions that would normally need a human to review every single case.
 
 In our pet shelter, we use two flavors:
 - **Content generators** write engaging pet profiles automatically
@@ -120,13 +120,13 @@ When a pet arrives with "coughing, lethargy, loss of appetite" - the AI evaluate
 
 ---
 
-## Creating Your First AI Agent
+## Creating Your First Agentic Step
 
-Let's start with a content generation agent that automatically enriches pet profiles when they're created.
+Let's start with a content generation agentic step that automatically enriches pet profiles when they're created.
 
 ### Step 1: Set Up Pet Creation to Emit Events
 
-First, update your pet creation endpoint to emit events that will trigger the AI agent.
+First, update your pet creation endpoint to emit events that will trigger the agentic step.
 
 <Callout type="info">
 View on GitHub:
@@ -314,13 +314,13 @@ View on GitHub:
   </Tab>
 </Tabs>
 
-The API endpoint now emits an event after creating a pet. The response returns immediately while the AI agent processes asynchronously in the background.
+The API endpoint now emits an event after creating a pet. The response returns immediately while the agentic step processes asynchronously in the background.
 
 ---
 
-### Step 2: Create the AI Profile Enrichment Agent
+### Step 2: Create the AI Profile Enrichment Agentic Step
 
-Now let's create the AI agent that listens for new pets and enriches their profiles with AI-generated content.
+Now let's create the agentic step that listens for new pets and enriches their profiles with AI-generated content.
 
 <Callout type="info">
 View on GitHub:
@@ -339,7 +339,7 @@ View on GitHub:
     export const config = {
       type: 'event',
       name: 'TsAiProfileEnrichment',
-      description: 'AI agent that enriches pet profiles using OpenAI',
+      description: 'Agentic step that enriches pet profiles using OpenAI',
       subscribes: ['ts.pet.created'],
       emits: [],
       flows: ['TsPetManagement']
@@ -471,7 +471,7 @@ Keep it positive, realistic, and adoption-focused.`;
     config = {
         "type": "event",
         "name": "PyAiProfileEnrichment",
-        "description": "AI agent that enriches pet profiles using OpenAI",
+        "description": "Agentic step that enriches pet profiles using OpenAI",
         "subscribes": ["py.pet.created"],
         "emits": [],
         "flows": ["PyPetManagement"]
@@ -613,7 +613,7 @@ Keep it positive, realistic, and adoption-focused."""
     exports.config = {
       type: 'event',
       name: 'JsAiProfileEnrichment',
-      description: 'AI agent that enriches pet profiles using OpenAI',
+      description: 'Agentic step that enriches pet profiles using OpenAI',
       subscribes: ['js.pet.created'],
       emits: [],
       flows: ['JsPetManagement']
@@ -735,9 +735,9 @@ Keep it positive, realistic, and adoption-focused.`
   </Tab>
 </Tabs>
 
-### How This AI Agent Works
+### How This Agentic Step Works
 
-This is a **content generation agent** - it enriches data without making workflow decisions:
+This is a **content generation agentic step** - it enriches data without making workflow decisions:
 
 - **Subscribes** to `pet.created` events
 - **Calls OpenAI** with a carefully crafted prompt
@@ -749,9 +749,9 @@ The key is the prompt engineering - we tell the AI exactly what fields we need a
 
 ---
 
-## Testing Your AI Agent
+## Testing Your Agentic Step
 
-The best way to test your AI agent is through **Workbench**. It lets you create pets, watch the AI enrichment happen in real-time, and see all the logs in one place.
+The best way to test your agentic step is through **Workbench**. It lets you create pets, watch the AI enrichment happen in real-time, and see all the logs in one place.
 
 ### Create a Pet
 
@@ -767,7 +767,7 @@ curl -X POST http://localhost:3000/ts/pets \
 ```
 </Callout>
 
-Check the logs in Workbench to see the AI agent in action:
+Check the logs in Workbench to see the agentic step in action:
 
 ![ai-enrichment-logs](../../img/build-your-first-app/ai-enrichment-logs.png)
 
@@ -794,13 +794,13 @@ You'll get back something like:
 
 ---
 
-## Building a Decision-Making AI Agent
+## Building a Decision-Making Agentic Step
 
-Now let's create an AI agent that doesn't just generate content - it makes decisions that control the workflow. This is called **agentic routing**.
+Now let's create an agentic step that doesn't just generate content - it makes decisions that control the workflow. This is called **agentic routing**.
 
-### The Health Review Agent
+### The Health Review Agentic Step
 
-This agent analyzes pet symptoms and decides if treatment is needed. Instead of you writing complex if-else logic, the AI evaluates the context and chooses the appropriate action.
+This agentic step analyzes pet symptoms and decides if treatment is needed. Instead of you writing complex if-else logic, the AI evaluates the context and chooses the appropriate action.
 
 <Callout type="info">
 View on GitHub:
@@ -1339,9 +1339,9 @@ View on GitHub:
   </Tab>
 </Tabs>
 
-### How Decision-Making Agents Work
+### How Decision-Making Agentic Steps Work
 
-This agent is fundamentally different from the enrichment agent:
+This agentic step is fundamentally different from the enrichment agentic step:
 
 1. **It's an API Step** - Staff trigger it explicitly when they need a decision
 2. **It defines an emits registry** - Lists all possible actions the AI can choose from (in `agent-decision-framework.ts/js`)
@@ -1353,9 +1353,9 @@ The framework functions (`buildAgentContext`, `callAgentDecision`, `getAgentArti
 
 ---
 
-## Testing the Health Review Agent
+## Testing the Health Review Agentic Step
 
-The best way to test decision-making agents is through **Workbench**. You can create pets, trigger the health review, and watch the AI make decisions in real-time.
+The best way to test decision-making agentic steps is through **Workbench**. You can create pets, trigger the health review, and watch the AI make decisions in real-time.
 
 ### Create a Pet
 
@@ -1430,11 +1430,11 @@ The pet's status has automatically changed based on the AI's decision!
 
 ---
 
-## Connecting AI Agents to the Orchestrator
+## Connecting Agentic Steps to the Orchestrator
 
-The real power comes when your AI agents integrate with a workflow orchestrator. The orchestrator subscribes to the events emitted by AI agents and handles the actual state transitions.
+The real power comes when your agentic steps integrate with a workflow orchestrator. The orchestrator subscribes to the events emitted by agentic steps and handles the actual state transitions.
 
-The orchestrator configuration shows it subscribes to AI agent events:
+The orchestrator configuration shows it subscribes to agentic step events:
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
@@ -1446,10 +1446,10 @@ The orchestrator configuration shows it subscribes to AI agent events:
       subscribes: [
         'ts.feeding.reminder.completed',
         'ts.pet.status.update.requested',
-        'ts.health.treatment_required',       // From Health Review Agent
-        'ts.health.no_treatment_needed',      // From Health Review Agent
-        'ts.adoption.needs_data',             // From Adoption Review Agent
-        'ts.adoption.ready'                   // From Adoption Review Agent
+        'ts.health.treatment_required',       // From Health Review Agentic Step
+        'ts.health.no_treatment_needed',      // From Health Review Agentic Step
+        'ts.adoption.needs_data',             // From Adoption Review Agentic Step
+        'ts.adoption.ready'                   // From Adoption Review Agentic Step
       ],
       emits: [
         'ts.treatment.required',
@@ -1459,11 +1459,11 @@ The orchestrator configuration shows it subscribes to AI agent events:
       flows: ['TsPetManagement']
     }
 
-    // The orchestrator has transition rules that handle AI agent events
+    // The orchestrator has transition rules that handle agentic step events
     const TRANSITION_RULES: TransitionRule[] = [
       // ... other rules ...
       
-      // Agent-driven health transitions
+      // Agentic step-driven health transitions
       {
         from: ["healthy", "in_quarantine"],
         to: "ill",
@@ -1476,7 +1476,7 @@ The orchestrator configuration shows it subscribes to AI agent events:
         event: "health.no_treatment_needed",
         description: "Agent assessment - pet remains healthy"
       },
-      // Agent-driven adoption transitions
+      // Agentic step-driven adoption transitions
       {
         from: ["healthy"],
         to: "healthy",
@@ -1503,10 +1503,10 @@ The orchestrator configuration shows it subscribes to AI agent events:
         "subscribes": [
             "py.feeding.reminder.completed",
             "py.pet.status.update.requested",
-            "py.health.treatment_required",       # From Health Review Agent
-            "py.health.no_treatment_needed",      # From Health Review Agent
-            "py.adoption.needs_data",             # From Adoption Review Agent
-            "py.adoption.ready"                   # From Adoption Review Agent
+            "py.health.treatment_required",       # From Health Review Agentic Step
+            "py.health.no_treatment_needed",      # From Health Review Agentic Step
+            "py.adoption.needs_data",             # From Adoption Review Agentic Step
+            "py.adoption.ready"                   # From Adoption Review Agentic Step
         ],
         "emits": [
             "py.treatment.required",
@@ -1516,11 +1516,11 @@ The orchestrator configuration shows it subscribes to AI agent events:
         "flows": ["PyPetManagement"]
     }
 
-    # Transition rules that handle AI agent events
+    # Transition rules that handle agentic step events
     TRANSITION_RULES = [
         # ... other rules ...
         
-        # Agent-driven health transitions
+        # Agentic step-driven health transitions
         {
             'from': ['healthy', 'in_quarantine'],
             'to': 'ill',
@@ -1533,7 +1533,7 @@ The orchestrator configuration shows it subscribes to AI agent events:
             'event': 'health.no_treatment_needed',
             'description': 'Agent assessment - pet remains healthy'
         },
-        # Agent-driven adoption transitions
+        # Agentic step-driven adoption transitions
         {
             'from': ['healthy'],
             'to': 'healthy',
@@ -1560,10 +1560,10 @@ The orchestrator configuration shows it subscribes to AI agent events:
       subscribes: [
         'js.feeding.reminder.completed',
         'js.pet.status.update.requested',
-        'js.health.treatment_required',       // From Health Review Agent
-        'js.health.no_treatment_needed',      // From Health Review Agent
-        'js.adoption.needs_data',             // From Adoption Review Agent
-        'js.adoption.ready'                   // From Adoption Review Agent
+        'js.health.treatment_required',       // From Health Review Agentic Step
+        'js.health.no_treatment_needed',      // From Health Review Agentic Step
+        'js.adoption.needs_data',             // From Adoption Review Agentic Step
+        'js.adoption.ready'                   // From Adoption Review Agentic Step
       ],
       emits: [
         'js.treatment.required',
@@ -1573,11 +1573,11 @@ The orchestrator configuration shows it subscribes to AI agent events:
       flows: ['JsPetManagement']
     }
 
-    // Transition rules that handle AI agent events
+    // Transition rules that handle agentic step events
     const TRANSITION_RULES = [
       // ... other rules ...
       
-      // Agent-driven health transitions
+      // Agentic step-driven health transitions
       {
         from: ["healthy", "in_quarantine"],
         to: "ill",
@@ -1590,7 +1590,7 @@ The orchestrator configuration shows it subscribes to AI agent events:
         event: "health.no_treatment_needed",
         description: "Agent assessment - pet remains healthy"
       },
-      // Agent-driven adoption transitions
+      // Agentic step-driven adoption transitions
       {
         from: ["healthy"],
         to: "healthy",
@@ -1612,36 +1612,28 @@ The orchestrator configuration shows it subscribes to AI agent events:
 
 ---
 
-🎉 **Congratulations!** You've built intelligent AI agents that make decisions and drive workflows. Your pet shelter now has automated intelligence that would have taken hundreds of lines of complex logic to implement manually.
+🎉 **Congratulations!** You've built intelligent agentic workflows that make decisions and drive workflows. Your pet shelter now has automated intelligence that would have taken hundreds of lines of complex logic to implement manually.
 
 ---
 
 ## What's Next?
 
-Your pet shelter now has intelligent AI agents making decisions! But how do you give users real-time feedback while all this AI processing happens in the background?
+Your pet shelter now has intelligent agentic workflows making decisions! But how do you give users real-time feedback while all this AI processing happens in the background?
 
 In the final guide, we'll add **Real-Time Streaming** to provide live updates as your workflows execute:
 
 - **Stream Configuration** - Define stream schemas for type-safe updates
 - **API with Streaming** - Initialize streams and return immediately to clients
 - **Background Job Streaming** - Push real-time progress updates as jobs process
-- **AI Agent Streaming** - Stream AI enrichment progress in real-time
+- **Agentic Step Streaming** - Stream AI enrichment progress in real-time
 - **Multi-Step Streaming** - Multiple steps updating the same stream
 
 Let's complete your system by adding real-time streaming capabilities!
 
-<Cards>
-  <Card href="/docs/getting-started/build-your-first-motia-app/streaming" title="Next: Real-Time Streaming">
-    Add live updates using streams in your handlers
-  </Card>
-  <Card href="/docs/concepts/ai-agents" title="AI Agents Deep Dive">
-    Learn more about building intelligent agents with Motia
-  </Card>
-</Cards>
 
 **Want to explore more?**
 
-Here are some ideas to extend your AI agents:
+Here are some ideas to extend your agentic workflows:
 
 - Add more decision points (medical severity levels, adoption compatibility scores)
 - Implement confidence thresholds (only auto-apply high-confidence decisions)
