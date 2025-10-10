@@ -332,7 +332,9 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="steps/typescript/ai-profile-enrichment.step.ts"
-    import { TSStore, PetProfile } from './ts-store'
+    // steps/typescript/ai-profile-enrichment.step.ts
+    import { EventConfig, Handlers } from 'motia';
+    import { TSStore, PetProfile } from './ts-store';
 
     export const config = {
       type: 'event',
@@ -341,20 +343,19 @@ View on GitHub:
       subscribes: ['ts.pet.created'],
       emits: [],
       flows: ['TsPetManagement']
-    }
+    };
 
-    export const handler = async (input: any, context?: any) => {
-      const { emit, logger } = context || {}
-      const { petId, name, species } = input
+    export const handler: Handlers['TsAiProfileEnrichment'] = async (input, { logger }) => {
+      const { petId, name, species } = input;
 
       if (logger) {
-        logger.info('🤖 AI Profile Enrichment started', { petId, name, species })
+        logger.info('🤖 AI Profile Enrichment started', { petId, name, species });
       }
 
       try {
-      const apiKey = process.env.OPENAI_API_KEY
-      if (!apiKey) {
-          throw new Error('OPENAI_API_KEY environment variable is not set')
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+          throw new Error('OPENAI_API_KEY environment variable is not set');
         }
 
         const prompt = `Generate a pet profile for adoption purposes. Pet details:
@@ -367,7 +368,7 @@ Please provide a JSON response with these fields:
 - temperamentTags: An array of 3-5 personality traits (e.g., "friendly", "energetic", "calm")
 - adopterHints: Practical advice for potential adopters (family type, living situation, care needs)
 
-Keep it positive, realistic, and adoption-focused.`
+Keep it positive, realistic, and adoption-focused.`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -390,51 +391,51 @@ Keep it positive, realistic, and adoption-focused.`
             max_tokens: 500,
             temperature: 0.7,
           }),
-        })
+        });
 
         if (!response.ok) {
-          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`)
+          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
         }
 
-        const data = await response.json()
-        const aiResponse = data.choices[0]?.message?.content
+        const data = await response.json();
+        const aiResponse = data.choices[0]?.message?.content;
 
         if (!aiResponse) {
-          throw new Error('No response from OpenAI API')
+          throw new Error('No response from OpenAI API');
         }
 
-        let profile: PetProfile
+        let profile: PetProfile;
         try {
-          profile = JSON.parse(aiResponse)
+          profile = JSON.parse(aiResponse);
         } catch (parseError) {
           profile = {
             bio: `${name} is a wonderful ${species} looking for a loving home. This pet has a unique personality and would make a great companion.`,
             breedGuess: species === 'dog' ? 'Mixed Breed' : species === 'cat' ? 'Domestic Shorthair' : 'Mixed Breed',
             temperamentTags: ['friendly', 'loving', 'loyal'],
             adopterHints: `${name} would do well in a caring home with patience and love.`
-          }
+          };
           
           if (logger) {
-            logger.warn('⚠️ AI response parsing failed, using fallback profile', { petId })
+            logger.warn('⚠️ AI response parsing failed, using fallback profile', { petId, parseError: parseError instanceof Error ? parseError.message : String(parseError) });
           }
         }
 
-        const updatedPet = TSStore.updateProfile(petId, profile)
+        const updatedPet = TSStore.updateProfile(petId, profile);
         
         if (!updatedPet) {
-          throw new Error(`Pet not found: ${petId}`)
+          throw new Error(`Pet not found: ${petId}`);
         }
 
         if (logger) {
           logger.info('✅ AI Profile Enrichment completed', { 
-            petId,
+            petId, 
             profile: {
               bio: profile.bio.substring(0, 50) + '...',
               breedGuess: profile.breedGuess,
               temperamentTags: profile.temperamentTags,
               adopterHints: profile.adopterHints.substring(0, 50) + '...'
             }
-          })
+          });
         }
 
       } catch (error: any) {
@@ -442,7 +443,7 @@ Keep it positive, realistic, and adoption-focused.`
           logger.error('❌ AI Profile Enrichment failed', { 
             petId, 
             error: error.message 
-          })
+          });
         }
 
         const fallbackProfile: PetProfile = {
@@ -450,11 +451,11 @@ Keep it positive, realistic, and adoption-focused.`
           breedGuess: species === 'dog' ? 'Mixed Breed' : species === 'cat' ? 'Domestic Shorthair' : 'Mixed Breed',
           temperamentTags: ['friendly', 'adaptable'],
           adopterHints: `${name} is looking for a patient and loving family.`
-        }
+        };
 
-        TSStore.updateProfile(petId, fallbackProfile)
+        TSStore.updateProfile(petId, fallbackProfile);
       }
-    }
+    };
     ```
   </Tab>
   <Tab value="Python">
@@ -811,34 +812,35 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="steps/typescript/health-review-agent.step.ts"
-    import { TSStore } from './ts-store'
+    // steps/typescript/health-review-agent.step.ts
+    import { ApiRouteConfig, Handlers } from 'motia';
+    import { TSStore } from './ts-store';
     import { 
       HEALTH_REVIEW_EMITS, 
       buildAgentContext, 
       callAgentDecision,
       getAgentArtifacts
-    } from './agent-decision-framework'
+    } from './agent-decision-framework';
 
-    export const config = {
+    export const config: ApiRouteConfig = {
       type: 'api',
       name: 'TsHealthReviewAgent',
       path: '/ts/pets/:id/health-review',
       method: 'POST',
       emits: ['ts.health.treatment_required', 'ts.health.no_treatment_needed'],
       flows: ['TsPetManagement']
-    }
+    };
 
-    export const handler = async (req: any, context?: any) => {
-      const { emit, logger } = context || {}
-      const petId = req.pathParams?.id
+    export const handler: Handlers['TsHealthReviewAgent'] = async (req, { emit, logger }) => {
+      const petId = req.pathParams?.id;
 
       if (!petId) {
-        return { status: 400, body: { message: 'Pet ID is required' } }
+        return { status: 400, body: { message: 'Pet ID is required' } };
       }
 
-        const pet = TSStore.get(petId)
-        if (!pet) {
-        return { status: 404, body: { message: 'Pet not found' } }
+      const pet = TSStore.get(petId);
+      if (!pet) {
+        return { status: 404, body: { message: 'Pet not found' } };
       }
 
       if (logger) {
@@ -846,20 +848,20 @@ View on GitHub:
           petId, 
           currentStatus: pet.status,
           symptoms: pet.symptoms || []
-        })
+        });
       }
 
       if (!['healthy', 'in_quarantine', 'available'].includes(pet.status)) {
-          return {
-            status: 400,
-            body: { 
+        return {
+          status: 400,
+          body: {
             message: 'Health review can only be performed on healthy, quarantined, or available pets',
-              currentStatus: pet.status
-            }
+            currentStatus: pet.status
           }
-        }
+        };
+      }
 
-      const agentContext = buildAgentContext(pet)
+      const agentContext = buildAgentContext(pet);
 
       const recentArtifacts = getAgentArtifacts(petId)
         .filter(a => 
@@ -867,22 +869,22 @@ View on GitHub:
           a.success && 
           a.inputs.currentStatus === pet.status &&
           (Date.now() - a.timestamp) < 60000
-        )
+        );
 
       if (recentArtifacts.length > 0) {
-        const recent = recentArtifacts[recentArtifacts.length - 1]
-          if (logger) {
+        const recent = recentArtifacts[recentArtifacts.length - 1];
+        if (logger) {
           logger.info('🔄 Idempotent health review - returning cached decision', {
-              petId, 
+            petId,
             chosenEmit: recent.parsedDecision.chosenEmit,
             timestamp: recent.timestamp
-            })
-          }
+          });
+        }
 
-          return {
-            status: 200,
-            body: {
-              message: 'Health review completed (cached)',
+        return {
+          status: 200,
+          body: {
+            message: 'Health review completed (cached)',
             petId,
             agentDecision: recent.parsedDecision,
             artifact: {
@@ -890,42 +892,58 @@ View on GitHub:
               success: recent.success
             }
           }
-        }
+        };
       }
 
       try {
+        if (logger) {
+          logger.info('🔍 Starting agent decision call', { petId, agentContext });
+        }
+        
         const artifact = await callAgentDecision(
           'health-review',
           agentContext,
           HEALTH_REVIEW_EMITS,
           logger
-        )
-
-        if (!artifact.success) {
-          return {
-            status: 500,
-            body: { 
-              message: 'Agent decision failed',
-              error: artifact.error,
-              petId
-            }
-          }
+        );
+        
+        if (logger) {
+          logger.info('✅ Agent decision call completed', { petId, success: artifact.success });
         }
 
-        const chosenEmitDef = HEALTH_REVIEW_EMITS.find(e => e.id === artifact.parsedDecision.chosenEmit)
+        if (!artifact.success) {
+          if (logger) {
+            logger.warn('⚠️ Agent decision failed, but returning error response', {
+              petId,
+              error: artifact.error
+            });
+          }
+          
+          return {
+            status: 500,
+            body: {
+              message: 'Agent decision failed',
+              error: artifact.error,
+              petId,
+              suggestion: 'Check OpenAI API key and try again'
+            }
+          };
+        }
+
+        const chosenEmitDef = HEALTH_REVIEW_EMITS.find(e => e.id === artifact.parsedDecision.chosenEmit);
         if (!chosenEmitDef) {
           return {
             status: 500,
-            body: { 
+            body: {
               message: 'Invalid emit chosen by agent',
               chosenEmit: artifact.parsedDecision.chosenEmit
             }
-          }
+          };
         }
 
         if (emit) {
-          await emit({
-            topic: chosenEmitDef.topic,
+          (emit as any)({
+            topic: chosenEmitDef.topic as 'ts.health.treatment_required' | 'ts.health.no_treatment_needed',
             data: {
               petId,
               event: chosenEmitDef.id.replace('emit.', ''),
@@ -933,15 +951,15 @@ View on GitHub:
               timestamp: artifact.timestamp,
               context: agentContext
             }
-          })
+          });
 
-        if (logger) {
+          if (logger) {
             logger.info('✅ Health review emit fired', {
-            petId,
+              petId,
               chosenEmit: artifact.parsedDecision.chosenEmit,
               topic: chosenEmitDef.topic,
               rationale: artifact.parsedDecision.rationale
-          })
+            });
           }
         }
 
@@ -958,26 +976,26 @@ View on GitHub:
               availableEmits: artifact.availableEmits.map(e => e.id)
             }
           }
-        }
+        };
 
       } catch (error: any) {
         if (logger) {
           logger.error('❌ Health review agent error', {
-            petId, 
-            error: error.message 
-          })
+            petId,
+            error: error.message
+          });
         }
 
         return {
           status: 500,
-          body: { 
-            message: 'Health review failed', 
+          body: {
+            message: 'Health review failed',
             error: error.message,
             petId
           }
-        }
+        };
       }
-    }
+    };
     ```
   </Tab>
   <Tab value="Python">
@@ -1591,77 +1609,6 @@ The orchestrator configuration shows it subscribes to AI agent events:
     ```
   </Tab>
 </Tabs>
-
----
-
-## Best Practices for AI Agents
-
-### 1. Always Validate API Keys
-
-Check for the OpenAI API key early and fail gracefully:
-
-```typescript
-const apiKey = process.env.OPENAI_API_KEY
-if (!apiKey) {
-  throw new Error('OPENAI_API_KEY environment variable is not set')
-}
-```
-
-### 2. Use Clear Prompts
-
-Be specific about what you want from the AI. See the actual prompts in `agent-decision-framework.ts/js`.
-
-### 3. Implement Fallbacks
-
-Always have a plan B if the AI fails (see `ai-profile-enrichment.step.ts` for fallback profile example).
-
-### 4. Use Idempotency Checking
-
-Prevent duplicate AI calls by checking recent artifacts:
-
-```typescript
-const recentArtifacts = getAgentArtifacts(petId)
-  .filter(a => 
-    a.agentType === 'health-review' && 
-    a.success && 
-    a.inputs.currentStatus === pet.status &&
-    (Date.now() - a.timestamp) < 60000 // Within last minute
-  )
-
-if (recentArtifacts.length > 0) {
-  return recentArtifacts[recentArtifacts.length - 1]
-}
-```
-
-### 5. Log AI Decisions
-
-Always log what the AI decided and why:
-
-```typescript
-logger.info('✅ Health review emit fired', {
-  petId,
-  chosenEmit: artifact.parsedDecision.chosenEmit,
-  topic: chosenEmitDef.topic,
-  rationale: artifact.parsedDecision.rationale
-})
-```
-
-### 6. Validate AI Responses
-
-Never trust AI output blindly - validate the chosen emit exists in your registry:
-
-```typescript
-const chosenEmitDef = HEALTH_REVIEW_EMITS.find(e => e.id === artifact.parsedDecision.chosenEmit)
-if (!chosenEmitDef) {
-  return {
-    status: 500,
-    body: {
-      message: 'Invalid emit chosen by agent',
-      chosenEmit: artifact.parsedDecision.chosenEmit
-    }
-  }
-}
-```
 
 ---
 

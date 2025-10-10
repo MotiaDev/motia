@@ -116,6 +116,8 @@ This mix of automatic progressions and human decision points is what makes workf
 
 ## Creating the Workflow
 
+The workflow orchestrator is a single Event Step that manages all pet lifecycle transitions. Here's the complete implementation:
+
 <Callout type="info">
 View on GitHub:
 - [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/workflow-orchestration/steps/typescript/pet-lifecycle-orchestrator.step.ts)
@@ -123,21 +125,22 @@ View on GitHub:
 - [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/workflow-orchestration/steps/javascript/pet-lifecycle-orchestrator.step.js)
 </Callout>
 
-### Step 1: Define Your Transition Rules
-
-First, map out all the valid transitions in your system. Each rule specifies:
-- Which statuses can transition
-- Where they transition to
-- What event triggers the transition
-- A description for logging
-
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="steps/typescript/pet-lifecycle-orchestrator.step.ts"
+    // steps/typescript/pet-lifecycle-orchestrator.step.ts
+    import { EventConfig, Handlers } from 'motia';
+    import { TSStore, Pet } from './ts-store';
+
+    type LifecycleEvent = 
+      | 'pet.created'
+      | 'feeding.reminder.completed'
+      | 'status.update.requested';
+
     type TransitionRule = {
-      from: string[];
-      to: string;
-      event: string;
+      from: Pet["status"][];
+      to: Pet["status"];
+      event: LifecycleEvent;
       description: string;
     };
 
@@ -155,16 +158,16 @@ First, map out all the valid transitions in your system. Each rule specifies:
         description: "Staff health check - pet cleared from quarantine"
       },
       {
-        from: ["healthy"],
-        to: "available",
-        event: "status.update.requested",
-        description: "Staff decision - pet ready for adoption"
-      },
-      {
         from: ["healthy", "in_quarantine", "available"],
         to: "ill",
         event: "status.update.requested",
         description: "Staff assessment - pet identified as ill"
+      },
+      {
+        from: ["healthy"],
+        to: "available",
+        event: "status.update.requested",
+        description: "Staff decision - pet ready for adoption"
       },
       {
         from: ["ill"],
@@ -203,217 +206,25 @@ First, map out all the valid transitions in your system. Each rule specifies:
         description: "Adoption application rejected/cancelled"
       }
     ];
-    ```
-  </Tab>
-  <Tab value="Python">
-    ```python title="steps/python/pet_lifecycle_orchestrator_step.py"
-    TRANSITION_RULES = [
-        {
-            "from": ["new"],
-            "to": "in_quarantine",
-            "event": "feeding.reminder.completed",
-            "description": "Pet moved to quarantine after feeding setup"
-        },
-        {
-            "from": ["in_quarantine"],
-            "to": "healthy",
-            "event": "status.update.requested",
-            "description": "Staff health check - pet cleared from quarantine"
-        },
-        {
-            "from": ["healthy"],
-            "to": "available",
-            "event": "status.update.requested",
-            "description": "Staff decision - pet ready for adoption"
-        },
-        {
-            "from": ["healthy", "in_quarantine", "available"],
-            "to": "ill",
-            "event": "status.update.requested",
-            "description": "Staff assessment - pet identified as ill"
-        },
-        {
-            "from": ["ill"],
-            "to": "under_treatment",
-            "event": "status.update.requested",
-            "description": "Staff decision - treatment started"
-        },
-        {
-            "from": ["under_treatment"],
-            "to": "recovered",
-            "event": "status.update.requested",
-            "description": "Staff assessment - treatment completed"
-        },
-        {
-            "from": ["recovered"],
-            "to": "healthy",
-            "event": "status.update.requested",
-            "description": "Staff clearance - pet fully recovered"
-        },
-        {
-            "from": ["available"],
-            "to": "pending",
-            "event": "status.update.requested",
-            "description": "Adoption application received"
-        },
-        {
-            "from": ["pending"],
-            "to": "adopted",
-            "event": "status.update.requested",
-            "description": "Adoption completed"
-        },
-        {
-            "from": ["pending"],
-            "to": "available",
-            "event": "status.update.requested",
-            "description": "Adoption application rejected/cancelled"
-        }
-    ]
-    ```
-  </Tab>
-  <Tab value="JavaScript">
-    ```javascript title="steps/javascript/pet-lifecycle-orchestrator.step.js"
-    const TRANSITION_RULES = [
-      {
-        from: ["new"],
-        to: "in_quarantine",
-        event: "feeding.reminder.completed",
-        description: "Pet moved to quarantine after feeding setup"
-      },
-      {
-        from: ["in_quarantine"],
-        to: "healthy",
-        event: "status.update.requested",
-        description: "Staff health check - pet cleared from quarantine"
-      },
-      {
-        from: ["healthy"],
-        to: "available",
-        event: "status.update.requested",
-        description: "Staff decision - pet ready for adoption"
-      },
-      {
-        from: ["healthy", "in_quarantine", "available"],
-        to: "ill",
-        event: "status.update.requested",
-        description: "Staff assessment - pet identified as ill"
-      },
-      {
-        from: ["ill"],
-        to: "under_treatment",
-        event: "status.update.requested",
-        description: "Staff decision - treatment started"
-      },
-      {
-        from: ["under_treatment"],
-        to: "recovered",
-        event: "status.update.requested",
-        description: "Staff assessment - treatment completed"
-      },
-      {
-        from: ["recovered"],
-        to: "healthy",
-        event: "status.update.requested",
-        description: "Staff clearance - pet fully recovered"
-      },
-      {
-        from: ["available"],
-        to: "pending",
-        event: "status.update.requested",
-        description: "Adoption application received"
-      },
-      {
-        from: ["pending"],
-        to: "adopted",
-        event: "status.update.requested",
-        description: "Adoption completed"
-      },
-      {
-        from: ["pending"],
-        to: "available",
-        event: "status.update.requested",
-        description: "Adoption application rejected/cancelled"
-      }
-    ];
-    ```
-  </Tab>
-</Tabs>
 
-### Step 2: Configure the Event Step
-
-The orchestrator is an Event Step that listens for lifecycle events:
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-  <Tab value="TypeScript">
-    ```typescript
     export const config = {
       type: 'event',
       name: 'TsPetLifecycleOrchestrator',
       description: 'Pet lifecycle state management with staff interaction points',
-      subscribes: [
-        'ts.pet.created',
-        'ts.feeding.reminder.completed',
-        'ts.pet.status.update.requested'
-      ],
+      subscribes: ['ts.pet.created', 'ts.feeding.reminder.completed', 'ts.pet.status.update.requested'],
       emits: [],
       flows: ['TsPetManagement']
     };
-    ```
-  </Tab>
-  <Tab value="Python">
-    ```python
-    config = {
-        "type": "event",
-        "name": "PyPetLifecycleOrchestrator",
-        "description": "Pet lifecycle state management with staff interaction points",
-        "subscribes": [
-            "py.pet.created",
-            "py.feeding.reminder.completed",
-            "py.pet.status.update.requested"
-        ],
-        "emits": [],
-        "flows": ["PyPetManagement"]
-    }
-    ```
-  </Tab>
-  <Tab value="JavaScript">
-    ```javascript
-    const config = {
-      type: 'event',
-      name: 'JsPetLifecycleOrchestrator',
-      description: 'Pet lifecycle state management with staff interaction points',
-      subscribes: [
-        'js.pet.created',
-        'js.feeding.reminder.completed',
-        'js.pet.status.update.requested'
-      ],
-      emits: [],
-      flows: ['JsPetManagement']
-    };
-    ```
-  </Tab>
-</Tabs>
 
-### Step 3: Implement the Orchestration Logic
-
-Now for the handler that processes transitions:
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-  <Tab value="TypeScript">
-    ```typescript
-    export const handler = async (input: any, context?: any) => {
-      const { emit, logger } = context || {};
+    export const handler: Handlers['TsPetLifecycleOrchestrator'] = async (input, { emit, logger }) => {
       const { petId, event: eventType, requestedStatus, automatic } = input;
 
       if (logger) {
-        const logMessage = automatic 
-          ? '🤖 Automatic progression' 
-          : '🔄 Lifecycle orchestrator processing';
+        const logMessage = automatic ? '🤖 Automatic progression' : '🔄 Lifecycle orchestrator processing';
         logger.info(logMessage, { petId, eventType, requestedStatus, automatic });
       }
 
       try {
-        // Get the pet from the store
         const pet = TSStore.get(petId);
         if (!pet) {
           if (logger) {
@@ -422,7 +233,7 @@ Now for the handler that processes transitions:
           return;
         }
 
-        // Find the right transition rule
+        // For status update requests, find the rule based on requested status
         let rule;
         if (eventType === 'status.update.requested' && requestedStatus) {
           rule = TRANSITION_RULES.find(r => 
@@ -431,12 +242,12 @@ Now for the handler that processes transitions:
             r.to === requestedStatus
           );
         } else {
+          // For other events (like feeding.reminder.completed)
           rule = TRANSITION_RULES.find(r => 
             r.event === eventType && r.from.includes(pet.status)
           );
         }
 
-        // Reject if no valid rule found
         if (!rule) {
           const reason = eventType === 'status.update.requested' 
             ? `Invalid transition: cannot change from ${pet.status} to ${requestedStatus}`
@@ -451,10 +262,12 @@ Now for the handler that processes transitions:
               reason
             });
           }
+          
+          // Transition rejected - no event emission needed
           return;
         }
 
-        // Check for idempotency (already in target status)
+        // Check for idempotency
         if (pet.status === rule.to) {
           if (logger) {
             logger.info('✅ Already in target status', { 
@@ -472,11 +285,7 @@ Now for the handler that processes transitions:
         
         if (!updatedPet) {
           if (logger) {
-            logger.error('❌ Failed to update pet status', { 
-              petId, 
-              oldStatus, 
-              newStatus: rule.to 
-            });
+            logger.error('❌ Failed to update pet status', { petId, oldStatus, newStatus: rule.to });
           }
           return;
         }
@@ -492,23 +301,174 @@ Now for the handler that processes transitions:
           });
         }
 
-        // Check for automatic progressions
+        // Transition completed successfully
+        if (logger) {
+          logger.info('✅ Pet status transition completed', { 
+            petId, 
+            oldStatus, 
+            newStatus: rule.to, 
+            eventType, 
+            description: rule.description 
+          });
+        }
+
+        // Check for automatic progressions after successful transition
         await processAutomaticProgression(petId, rule.to, emit, logger);
 
       } catch (error: any) {
         if (logger) {
-          logger.error('❌ Lifecycle orchestrator error', { 
-            petId, 
-            eventType, 
-            error: error.message 
-          });
+          logger.error('❌ Lifecycle orchestrator error', { petId, eventType, error: error.message });
         }
       }
     };
+
+    async function processAutomaticProgression(petId: string, currentStatus: Pet["status"], emit: any, logger: any) {
+      // Define automatic progressions
+      const automaticProgressions: Partial<Record<Pet["status"], { to: Pet["status"], description: string }>> = {
+        'healthy': { to: 'available', description: 'Automatic progression - pet ready for adoption' },
+        'ill': { to: 'under_treatment', description: 'Automatic progression - treatment started' },
+        'recovered': { to: 'healthy', description: 'Automatic progression - recovery complete' }
+      };
+
+      const progression = automaticProgressions[currentStatus];
+      if (progression) {
+        if (logger) {
+          logger.info('🤖 Processing automatic progression', { 
+            petId, 
+            currentStatus, 
+            nextStatus: progression.to 
+          });
+        }
+
+        // Find the transition rule for automatic progression
+        const rule = TRANSITION_RULES.find(r => 
+          r.event === 'status.update.requested' && 
+          r.from.includes(currentStatus) && 
+          r.to === progression.to
+        );
+
+        if (rule) {
+          // Apply the automatic transition immediately
+          const oldStatus = currentStatus;
+          const updatedPet = TSStore.updateStatus(petId, rule.to);
+          
+          if (updatedPet) {
+            if (logger) {
+              logger.info('✅ Automatic progression completed', {
+                petId,
+                oldStatus,
+                newStatus: rule.to,
+                description: progression.description,
+                timestamp: Date.now()
+              });
+            }
+
+            // Automatic progression completed successfully
+            if (logger) {
+              logger.info('✅ Automatic progression completed', { 
+                petId, 
+                oldStatus, 
+                newStatus: rule.to, 
+                description: progression.description 
+              });
+            }
+
+            // Check for further automatic progressions (for chaining like recovered → healthy → available)
+            await processAutomaticProgression(petId, rule.to, emit, logger);
+          } else if (logger) {
+            logger.error('❌ Failed to apply automatic progression', { petId, oldStatus, newStatus: rule.to });
+          }
+        } else if (logger) {
+          logger.warn('⚠️ No transition rule found for automatic progression', { 
+            petId, 
+            currentStatus, 
+            targetStatus: progression.to 
+          });
+        }
+      }
+    }
     ```
   </Tab>
   <Tab value="Python">
-    ```python
+    ```python title="steps/python/pet_lifecycle_orchestrator_step.py"
+    # steps/python/pet_lifecycle_orchestrator.step.py
+
+    TRANSITION_RULES = [
+        {
+            'from': ['new'],
+            'to': 'in_quarantine',
+            'event': 'feeding.reminder.completed',
+            'description': 'Pet moved to quarantine after feeding setup'
+        },
+        {
+            'from': ['in_quarantine'],
+            'to': 'healthy',
+            'event': 'status.update.requested',
+            'description': 'Staff health check - pet cleared from quarantine'
+        },
+        {
+            'from': ['healthy', 'in_quarantine', 'available'],
+            'to': 'ill',
+            'event': 'status.update.requested',
+            'description': 'Staff assessment - pet identified as ill'
+        },
+        {
+            'from': ['healthy'],
+            'to': 'available',
+            'event': 'status.update.requested',
+            'description': 'Staff decision - pet ready for adoption'
+        },
+        {
+            'from': ['ill'],
+            'to': 'under_treatment',
+            'event': 'status.update.requested',
+            'description': 'Staff decision - treatment started'
+        },
+        {
+            'from': ['under_treatment'],
+            'to': 'recovered',
+            'event': 'status.update.requested',
+            'description': 'Staff assessment - treatment completed'
+        },
+        {
+            'from': ['recovered'],
+            'to': 'healthy',
+            'event': 'status.update.requested',
+            'description': 'Staff clearance - pet fully recovered'
+        },
+        {
+            'from': ['available'],
+            'to': 'pending',
+            'event': 'status.update.requested',
+            'description': 'Adoption application received'
+        },
+        {
+            'from': ['pending'],
+            'to': 'adopted',
+            'event': 'status.update.requested',
+            'description': 'Adoption completed'
+        },
+        {
+            'from': ['pending'],
+            'to': 'available',
+            'event': 'status.update.requested',
+            'description': 'Adoption application rejected/cancelled'
+        }
+    ]
+
+    config = {
+        "type": "event",
+        "name": "PyPetLifecycleOrchestrator",
+        "description": "Pet lifecycle state management with staff interaction points",
+        "subscribes": [
+            "py.pet.created", 
+            "py.feeding.reminder.completed",
+            "py.pet.status.update.requested"
+        ],
+        "emits": [],
+        "flows": ["PyPetManagement"]
+    }
+
     async def handler(input_data, ctx=None):
         logger = getattr(ctx, 'logger', None) if ctx else None
         emit = getattr(ctx, 'emit', None) if ctx else None
@@ -534,14 +494,13 @@ Now for the handler that processes transitions:
             logger.info(log_message, {'petId': pet_id, 'eventType': event_type, 'requestedStatus': requested_status, 'automatic': automatic})
 
         try:
-            # Get the pet from the store
             pet = pet_store.get(pet_id)
             if not pet:
                 if logger:
                     logger.error('❌ Pet not found for lifecycle transition', {'petId': pet_id, 'eventType': event_type})
                 return
 
-            # Find the right transition rule
+            # For status update requests, find the rule based on requested status
             rule = None
             if event_type == 'status.update.requested' and requested_status:
                 for r in TRANSITION_RULES:
@@ -551,17 +510,17 @@ Now for the handler that processes transitions:
                         rule = r
                         break
             else:
+                # For other events (like feeding.reminder.completed)
                 for r in TRANSITION_RULES:
                     if r['event'] == event_type and pet['status'] in r['from']:
                         rule = r
                         break
 
-            # Reject if no valid rule found
             if not rule:
                 reason = (f"Invalid transition: cannot change from {pet['status']} to {requested_status}" 
                          if event_type == 'status.update.requested' 
                          else f"No transition rule found for {event_type} from {pet['status']}")
-                
+                    
                 if logger:
                     logger.warn('⚠️ Transition rejected', {
                         'petId': pet_id,
@@ -633,10 +592,136 @@ Now for the handler that processes transitions:
         except Exception as error:
             if logger:
                 logger.error('❌ Lifecycle orchestrator error', {'petId': pet_id, 'eventType': event_type, 'error': str(error)})
+
+    async def check_automatic_progressions(pet_id, current_status, emit, logger):
+        # Define automatic progressions
+        automatic_progressions = {
+            'healthy': {'to': 'available', 'description': 'Automatic progression - pet ready for adoption'},
+            'ill': {'to': 'under_treatment', 'description': 'Automatic progression - treatment started'},
+            'recovered': {'to': 'healthy', 'description': 'Automatic progression - recovery complete'}
+        }
+
+        progression = automatic_progressions.get(current_status)
+        if progression:
+            if logger:
+                logger.info('🤖 Orchestrator triggering automatic progression', {
+                    'petId': pet_id,
+                    'currentStatus': current_status,
+                    'nextStatus': progression['to']
+                })
+
+            # Emit automatic progression event with delay
+            import asyncio
+            async def delayed_emit():
+                await asyncio.sleep(1.5)  # Slightly longer delay to ensure current transition completes
+                # Get fresh pet status to ensure we have the latest state
+                try:
+                    import sys
+                    import os
+                    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+                    from services import pet_store
+                    fresh_pet = pet_store.get(pet_id)
+                    if fresh_pet and fresh_pet['status'] == current_status:
+                        await emit({
+                            'topic': 'py.pet.status.update.requested',
+                            'data': {
+                                'petId': pet_id,
+                                'event': 'status.update.requested',
+                                'requestedStatus': progression['to'],
+                                'currentStatus': fresh_pet['status'],
+                                'automatic': True
+                            }
+                        })
+                    elif logger:
+                        logger.warn('⚠️ Automatic progression skipped - pet status changed', {
+                            'petId': pet_id,
+                            'expectedStatus': current_status,
+                            'actualStatus': fresh_pet['status'] if fresh_pet else None
+                        })
+                except Exception as e:
+                    if logger:
+                        logger.error('❌ Automatic progression error', {'petId': pet_id, 'error': str(e)})
+            
+            asyncio.create_task(delayed_emit())
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript
+    ```javascript title="steps/javascript/pet-lifecycle-orchestrator.step.js"
+    // steps/javascript/pet-lifecycle-orchestrator.step.js
+    const { get, updateStatus } = require('./js-store');
+
+    const TRANSITION_RULES = [
+      {
+        from: ['new'],
+        to: 'in_quarantine',
+        event: 'feeding.reminder.completed',
+        description: 'Pet moved to quarantine after feeding setup'
+      },
+      {
+        from: ['in_quarantine'],
+        to: 'healthy',
+        event: 'status.update.requested',
+        description: 'Staff health check - pet cleared from quarantine'
+      },
+      {
+        from: ['healthy', 'in_quarantine', 'available'],
+        to: 'ill',
+        event: 'status.update.requested',
+        description: 'Staff assessment - pet identified as ill'
+      },
+      {
+        from: ['healthy'],
+        to: 'available',
+        event: 'status.update.requested',
+        description: 'Staff decision - pet ready for adoption'
+      },
+      {
+        from: ['ill'],
+        to: 'under_treatment',
+        event: 'status.update.requested',
+        description: 'Staff decision - treatment started'
+      },
+      {
+        from: ['under_treatment'],
+        to: 'recovered',
+        event: 'status.update.requested',
+        description: 'Staff assessment - treatment completed'
+      },
+      {
+        from: ['recovered'],
+        to: 'healthy',
+        event: 'status.update.requested',
+        description: 'Staff clearance - pet fully recovered'
+      },
+      {
+        from: ['available'],
+        to: 'pending',
+        event: 'status.update.requested',
+        description: 'Adoption application received'
+      },
+      {
+        from: ['pending'],
+        to: 'adopted',
+        event: 'status.update.requested',
+        description: 'Adoption completed'
+      },
+      {
+        from: ['pending'],
+        to: 'available',
+        event: 'status.update.requested',
+        description: 'Adoption application rejected/cancelled'
+      }
+    ];
+
+    exports.config = {
+      type: 'event',
+      name: 'JsPetLifecycleOrchestrator',
+      description: 'Pet lifecycle state management with staff interaction points',
+      subscribes: ['js.pet.created', 'js.feeding.reminder.completed', 'js.pet.status.update.requested'],
+      emits: [],
+      flows: ['JsPetManagement']
+    };
+
     exports.handler = async (input, context) => {
       const { emit, logger } = context || {};
       const { petId, event: eventType, requestedStatus, automatic } = input;
@@ -758,147 +843,7 @@ Now for the handler that processes transitions:
         }
       }
     };
-    ```
-  </Tab>
-</Tabs>
 
-### Step 4: Add Automatic Progressions
-
-Some transitions should trigger follow-up actions automatically:
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-  <Tab value="TypeScript">
-    ```typescript
-    async function processAutomaticProgression(
-      petId: string, 
-      currentStatus: Pet["status"], 
-      emit: any, 
-      logger: any
-    ) {
-      // Define which statuses automatically progress
-      const automaticProgressions: Partial<Record<Pet["status"], { to: Pet["status"], description: string }>> = {
-        'healthy': { 
-          to: 'available', 
-          description: 'Automatic progression - pet ready for adoption' 
-        },
-        'ill': { 
-          to: 'under_treatment', 
-          description: 'Automatic progression - treatment started' 
-        },
-        'recovered': { 
-          to: 'healthy', 
-          description: 'Automatic progression - recovery complete' 
-        }
-      };
-
-      const progression = automaticProgressions[currentStatus];
-      if (progression) {
-        if (logger) {
-          logger.info('🤖 Processing automatic progression', { 
-            petId, 
-            currentStatus, 
-            nextStatus: progression.to 
-          });
-        }
-
-        // Find the transition rule
-        const rule = TRANSITION_RULES.find(r => 
-          r.event === 'status.update.requested' && 
-          r.from.includes(currentStatus) && 
-          r.to === progression.to
-        );
-
-        if (rule) {
-          // Apply the automatic transition
-          const oldStatus = currentStatus;
-          const updatedPet = TSStore.updateStatus(petId, rule.to);
-          
-          if (updatedPet) {
-            if (logger) {
-              logger.info('✅ Automatic progression completed', {
-                petId,
-                oldStatus,
-                newStatus: rule.to,
-                description: progression.description,
-                timestamp: Date.now()
-              });
-            }
-
-            // Check for further automatic progressions (chaining)
-            await processAutomaticProgression(petId, rule.to, emit, logger);
-          } else if (logger) {
-            logger.error('❌ Failed to apply automatic progression', { 
-              petId, 
-              oldStatus, 
-              newStatus: rule.to 
-            });
-          }
-        } else if (logger) {
-          logger.warn('⚠️ No transition rule found for automatic progression', { 
-            petId, 
-            currentStatus, 
-            targetStatus: progression.to 
-          });
-        }
-      }
-    }
-    ```
-  </Tab>
-  <Tab value="Python">
-    ```python title="steps/python/pet_lifecycle_orchestrator_step.py"
-    async def check_automatic_progressions(pet_id, current_status, emit, logger):
-        # Define automatic progressions
-        automatic_progressions = {
-            'healthy': {'to': 'available', 'description': 'Automatic progression - pet ready for adoption'},
-            'ill': {'to': 'under_treatment', 'description': 'Automatic progression - treatment started'},
-            'recovered': {'to': 'healthy', 'description': 'Automatic progression - recovery complete'}
-        }
-
-        progression = automatic_progressions.get(current_status)
-        if progression:
-            if logger:
-                logger.info('🤖 Orchestrator triggering automatic progression', {
-                    'petId': pet_id,
-                    'currentStatus': current_status,
-                    'nextStatus': progression['to']
-                })
-
-            # Emit automatic progression event with delay
-            import asyncio
-            async def delayed_emit():
-                await asyncio.sleep(1.5)  # Slightly longer delay to ensure current transition completes
-                # Get fresh pet status to ensure we have the latest state
-                try:
-                    import sys
-                    import os
-                    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-                    from services import pet_store
-                    fresh_pet = pet_store.get(pet_id)
-                    if fresh_pet and fresh_pet['status'] == current_status:
-                        await emit({
-                            'topic': 'py.pet.status.update.requested',
-                            'data': {
-                                'petId': pet_id,
-                                'event': 'status.update.requested',
-                                'requestedStatus': progression['to'],
-                                'currentStatus': fresh_pet['status'],
-                                'automatic': True
-                            }
-                        })
-                    elif logger:
-                        logger.warn('⚠️ Automatic progression skipped - pet status changed', {
-                            'petId': pet_id,
-                            'expectedStatus': current_status,
-                            'actualStatus': fresh_pet['status'] if fresh_pet else None
-                        })
-                except Exception as e:
-                    if logger:
-                        logger.error('❌ Automatic progression error', {'petId': pet_id, 'error': str(e)})
-            
-            asyncio.create_task(delayed_emit())
-    ```
-  </Tab>  <Tab value="JavaScript">
-    ```javascript title="steps/javascript/pet-lifecycle-orchestrator.step.js"
     async function processAutomaticProgression(petId, currentStatus, emit, logger) {
       // Define automatic progressions
       const automaticProgressions = {
@@ -969,9 +914,26 @@ Some transitions should trigger follow-up actions automatically:
         }
       }
     }
+
+    module.exports = { config, handler };
     ```
   </Tab>
 </Tabs>
+
+### How the Orchestrator Works
+
+The orchestrator has three main responsibilities:
+
+1. **Validate Transitions** - Ensures pets can only move to valid next statuses
+2. **Apply Transitions** - Updates the pet's status in the store
+3. **Trigger Automatic Progressions** - Some statuses automatically progress to the next stage
+
+**Key Points:**
+
+- `emits: []` - The orchestrator doesn't declare emits because it only manages state internally
+- JavaScript/Python emit events for workflow tracking (optional pattern)
+- TypeScript focuses purely on state management
+- All languages validate transitions using the same `TRANSITION_RULES`
 
 ---
 
@@ -1134,14 +1096,22 @@ The logs tell the story of each pet's journey through your shelter.
 
 ## What's Next?
 
-Your pet shelter now has a complete backend system:
-- API endpoints for CRUD operations
-- Background jobs for async processing
-- Workflow orchestration for complex business logic
+Your pet shelter now has a complete backend system with workflow orchestration! But what about decisions that aren't black and white? Should this pet's symptoms require treatment?
 
-Here are some ideas to extend your orchestrator:
+In the next guide, we'll add **AI Agents** that make intelligent decisions within your workflows:
 
-- Add more status transitions (like quarantine extensions)
-- Implement role-based permissions (only vets can mark pets as healthy)
-- Add time-based transitions (auto-move to available after X days)
-- Create analytics on transition patterns
+- **AI Health Review Agent** - Analyzes symptoms and decides if treatment is needed
+- **AI Adoption Review Agent** - Assesses if pets are ready for adoption
+- **AI Profile Enrichment** - Automatically generates engaging pet profiles
+- **Agentic Decision Making** - AI that chooses which workflow path to take
+
+Let's continue building by adding intelligent decision-making to your workflows.
+
+<Cards>
+  <Card href="/docs/getting-started/build-your-first-motia-app/ai-agents" title="Next: AI Agents">
+    Add intelligent decision-making with OpenAI
+  </Card>
+  <Card href="/docs/concepts/steps/event" title="Event Steps Reference">
+    Learn more about Event Steps and orchestration patterns
+  </Card>
+</Cards>
