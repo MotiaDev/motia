@@ -372,36 +372,12 @@ const handler = async ({ state, logger }) => {
 
 ---
 
-## Storage Options
-
-### File Storage (Default)
+### File Storage configuration (Default)
 
 No setup needed. State goes to `.motia/motia.state.json`.
 
 ```yaml title="config.yml"
 # Default - no config needed
-```
-
-### Memory Storage
-
-Fast but lost on restart. Good for development.
-
-```yaml title="config.yml"
-state:
-  adapter: memory
-```
-
-### Redis Storage
-
-Persistent and scalable. Best for production.
-
-```yaml title="config.yml"
-state:
-  adapter: redis
-  host: localhost
-  port: 6379
-  password: optional
-  ttl: 3600  # Auto-expire after 1 hour (optional)
 ```
 
 ---
