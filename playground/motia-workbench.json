@@ -172,5 +172,22 @@
         "y": 272
       }
     }
+  },
+  {
+    "id": "test-state",
+    "config": {
+      "steps\\testState\\testStateCheck.step.ts": {
+        "x": 489,
+        "y": 34
+      },
+      "steps\\testState\\testState.api.step.ts": {
+        "x": 0,
+        "y": 0
+      },
+      "steps\\testState\\test_state_step.py": {
+        "x": 234,
+        "y": 60
+      }
+    }
   }
 ]

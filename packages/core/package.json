@@ -4,16 +4,16 @@
   "main": "dist/index.js",
   "version": "0.8.2-beta.139",
   "scripts": {
-    "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
-    "move:python": "mkdir -p dist/src/python && cp src/python/*.py dist/src/python",
-    "move:rb": "mkdir -p dist/src/ruby && cp src/ruby/*.rb dist/src/ruby",
-    "move:steps": "cp src/steps/*.ts dist/src/steps",
-    "build": "rm -rf dist && tsc && npm run move:python && npm run move:rb && npm run move:steps",
-    "lint": "eslint --config ../../eslint.config.js",
-    "watch": "tsc --watch",
-    "test": "jest",
-    "clean": "rm -rf python_modules dist"
-  },
+  "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
+  "move:python": "cpy src/python/*.py dist/src/python --parents",
+  "move:rb": "cpy src/ruby/*.rb dist/src/ruby --parents",
+  "move:steps": "cpy src/steps/*.ts dist/src/steps --parents",
+  "build": "rimraf dist && tsc && npm run move:python && npm run move:rb && npm run move:steps",
+  "lint": "eslint --config ../../eslint.config.js",
+  "watch": "tsc --watch",
+  "test": "jest",
+  "clean": "rimraf python_modules dist"
+},
   "dependencies": {
     "@amplitude/analytics-node": "^1.3.8",
     "body-parser": "^1.20.3",
