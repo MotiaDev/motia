@@ -27,7 +27,10 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.1.0",
-    "prettier": "^3.5.3"
+    "postcss": "^8.5.3",
+    "postcss-cli": "^11.0.1",
+    "prettier": "^3.5.3",
+    "rimraf": "^6.0.1"
   },
   "resolutions": {
     "autoprefixer": "^10.4.20",
