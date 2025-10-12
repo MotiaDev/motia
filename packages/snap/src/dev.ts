@@ -8,7 +8,9 @@ import {
   getProjectIdentifier,
   MotiaPlugin,
   trackEvent,
+  StorageService,
 } from '@motiadev/core'
+import fs from 'fs'
 import path from 'path'
 import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
@@ -35,6 +37,12 @@ export const dev = async (
 ): Promise<void> => {
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
+
+  const configPath = path.join(baseDir, 'motia.config.ts')
+  let configFromFile = { storage: undefined }
+  if (fs.existsSync(configPath)) {
+    configFromFile = (await import(configPath)).default
+  }
 
   identifyUser()
 
@@ -64,7 +72,13 @@ export const dev = async (
   })
 
   const config = { isVerbose }
-  const motiaServer = createServer(lockedData, eventManager, state, config)
+  let storageService
+  try {
+    storageService = StorageService.getInstance(configFromFile.storage, lockedData)
+  } catch (e) {
+    // ignore
+  }
+  const motiaServer = createServer(lockedData, eventManager, state, config, storageService)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await generatePlugins(motiaServer.motia)
 
