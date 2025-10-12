@@ -32,6 +32,7 @@ export const dev = async (
   hostname: string,
   disableVerbose: boolean,
   enableMermaid: boolean,
+  motiaFileStorageDir?: string,
 ): Promise<void> => {
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
@@ -55,12 +56,14 @@ export const dev = async (
     trackEvent('python_environment_activated')
   }
 
-  const lockedData = await generateLockedData(baseDir)
+  const motiaFileStoragePath = motiaFileStorageDir || '.motia'
+
+  const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
 
   const eventManager = createEventManager()
   const state = createStateAdapter({
     adapter: 'default',
-    filePath: path.join(baseDir, '.motia'),
+    filePath: path.join(baseDir, motiaFileStoragePath),
   })
 
   const config = { isVerbose }
