@@ -9,6 +9,7 @@ import { analyticsEndpoint } from './endpoints/analytics-endpoint'
 import { apiEndpoints } from './endpoints/api-endpoints'
 import { flowsConfigEndpoint } from './endpoints/flows-config-endpoint'
 import { flowsEndpoint } from './endpoints/flows-endpoint'
+import { s3WebhookEndpoint } from './endpoints/s3-webhook-endpoint'
 import { stateEndpoints } from './endpoints/state-endpoints'
 import { stepEndpoint } from './endpoints/step-endpoint'
 import { traceEndpoint } from './endpoints/trace-endpoint'
@@ -20,6 +21,7 @@ import { BaseLoggerFactory } from './logger-factory'
 import { Motia } from './motia'
 import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
+import { StorageService } from './services/storage-service'
 import { createSocketServer } from './socket-server'
 import { StateAdapter } from './state/state-adapter'
 import { createStepHandlers, MotiaEventManager } from './step-handlers'
@@ -50,6 +52,7 @@ export const createServer = (
   eventManager: EventManager,
   state: StateAdapter,
   config: MotiaServerConfig,
+  storageService?: StorageService,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
   const app = express()
@@ -154,7 +157,15 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  const motia: Motia = { loggerFactory, eventManager, state, lockedData, printer, tracerFactory }
+  const motia: Motia = {
+    loggerFactory,
+    eventManager,
+    state,
+    lockedData,
+    printer,
+    tracerFactory,
+    storage: storageService,
+  }
 
   const cronManager = setupCronHandlers(motia)
   const motiaEventManager = createStepHandlers(motia)
@@ -284,6 +295,9 @@ export const createServer = (
   analyticsEndpoint(app, process.cwd())
   stepEndpoint(app, lockedData)
   traceEndpoint(app, tracerFactory)
+  if (motia.storage) {
+    s3WebhookEndpoint(app, motia)
+  }
 
   server.on('error', (error) => {
     console.error('Server error:', error)
@@ -292,6 +306,7 @@ export const createServer = (
   const close = async (): Promise<void> => {
     cronManager.close()
     socketServer.close()
+    storageService?.close()
   }
 
   return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motia }

@@ -23,7 +23,12 @@ export type MotiaPlugin = {
 
 export type MotiaPluginBuilder = (motia: Motia) => MotiaPlugin
 
+export type StorageConfig = {
+  provider: 's3'
+}
+
 export type Config = {
   runtimes?: Runtime[]
   plugins?: MotiaPluginBuilder[]
+  storage?: StorageConfig
 }

@@ -10,6 +10,7 @@ import { StreamFactory } from './streams/stream-factory'
 import { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
 import { Stream } from './types-stream'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
+import { OnUploadMetadata } from './types/storage-types'
 
 type FlowEvent = 'flow-created' | 'flow-removed' | 'flow-updated'
 type StepEvent = 'step-created' | 'step-removed' | 'step-updated'
@@ -27,6 +28,8 @@ export class LockedData {
   private stepHandlers: Record<StepEvent, ((step: Step) => void)[]>
   private streamHandlers: Record<StreamEvent, ((stream: Stream) => void)[]>
   private streams: Record<string, Stream>
+  private onUploadMetadataStream: StreamFactory<OnUploadMetadata>
+  private _onUploadMetadataStreamAdapter: StreamAdapter<OnUploadMetadata>
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private streamWrapper?: StreamWrapper<any>
@@ -60,6 +63,13 @@ export class LockedData {
     }
 
     this.streams = {}
+
+    this._onUploadMetadataStreamAdapter = this.createStreamAdapter<OnUploadMetadata>('__motia.onUploadMetadata')
+    this.onUploadMetadataStream = () => this._onUploadMetadataStreamAdapter
+  }
+
+  public getOnUploadMetadataStream(): StreamFactory<OnUploadMetadata> {
+    return this.onUploadMetadataStream
   }
 
   applyStreamWrapper<TData>(streamWrapper: StreamWrapper<TData>): void {
