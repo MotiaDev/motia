@@ -27,6 +27,7 @@ import { systemSteps } from './steps'
 import { Log, LogsStream } from './streams/logs-stream'
 import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EventManager, Step } from './types'
 import { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
+import { createFileUploadHandler } from './multer-middleware'
 
 export type MotiaServer = {
   app: Express
@@ -155,6 +156,11 @@ export const createServer = (
   const tracerFactory = createTracerFactory(lockedData)
   const motia: Motia = { loggerFactory, eventManager, state, lockedData, printer, tracerFactory }
 
+  const apiStepMap = new Map<string, Step<ApiRouteConfig>>();
+  allSteps.filter(isApiStep).forEach(step => {
+  apiStepMap.set(`${step.config.method}:${step.config.path}`, step);
+  });
+
   const cronManager = setupCronHandlers(motia)
   const motiaEventManager = createStepHandlers(motia)
 
@@ -273,6 +279,28 @@ export const createServer = (
     res.header('Access-Control-Allow-Private-Network', 'true')
     next()
   })
+
+  app.use((req, res, next) => {
+
+  if (!req.is('multipart/form-data')) {
+    return next();
+  }
+  
+  const key = `${req.method}:${req.path}`;
+  const step = apiStepMap.get(key);
+
+  if (!step || !step.config.fileUploadSchema) return next();
+
+  const upload = createFileUploadHandler(step.config.fileUploadSchema.destination);
+
+  upload.any()(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+});
+
 
   app.use(router)
 

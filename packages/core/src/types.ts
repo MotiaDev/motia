@@ -56,6 +56,16 @@ export type NoopConfig = {
   flows?: string[]
 }
 
+export interface FileUploadConfig {
+  destination: string;                
+// ---- Future enhancements (planned for upcoming versions) ----
+  // fieldNames?: string[];            // [Future] Accepted field names e.g. ["images", "video"]
+  // maxSizeMB?: number;               // [Future] File size limit in MB
+  // multiple?: boolean;               // [Future] Support for single/multiple file uploads
+  // storageProvider?: 'local' | 's3' | 'r2' | 'supabase';  // [Future] Choose storage backend
+}
+
+
 export type ApiRouteMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
 export type ApiMiddleware<TBody = unknown, TEmitData = never, TResult = unknown> = (
@@ -83,6 +93,7 @@ export interface ApiRouteConfig {
   bodySchema?: ZodInput
   responseSchema?: Record<number, ZodInput>
   queryParams?: QueryParam[]
+  fileUploadSchema?:FileUploadConfig
   /**
    * Files to include in the step bundle.
    * Needs to be relative to the step file.
