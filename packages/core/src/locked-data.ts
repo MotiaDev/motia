@@ -35,6 +35,7 @@ export class LockedData {
     public readonly baseDir: string,
     public readonly streamAdapter: 'file' | 'memory' = 'file',
     private readonly printer: Printer,
+    public readonly motiaFileStoragePath: string = '.motia',
   ) {
     this.flows = {}
     this.activeSteps = []
@@ -350,7 +351,7 @@ export class LockedData {
 
   private createStreamAdapter<TData>(streamName: string): StreamAdapter<TData> {
     if (this.streamAdapter === 'file') {
-      return new FileStreamAdapter(this.baseDir, streamName)
+      return new FileStreamAdapter(this.baseDir, streamName, this.motiaFileStoragePath)
     }
 
     return new MemoryStreamAdapter<TData>()
