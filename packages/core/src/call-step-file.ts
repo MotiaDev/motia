@@ -96,12 +96,17 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       projectRoot: motia.lockedData.baseDir,
     })
 
+    let isCleaning = false
+    let isCleaned = false
+
     const cleanupTemp = async () => {
       if (!tempDir) return
-      try {
-        await fs.promises.rm(tempDir, { recursive: true, force: true })
-      } catch {}
+      const dir = tempDir
       tempDir = undefined
+      try {
+        await fs.promises.rm(dir, { recursive: true, force: true })
+      } catch {}
+      
     }
 
     trackEvent('step_execution_started', {
@@ -116,7 +121,6 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       .then(() => {
         processManager.handler<TraceError | undefined>('close', async (err) => {
           processManager.kill()
-          await cleanupTemp()
 
           if (err) {
             trackEvent('step_execution_error', {
@@ -242,7 +246,6 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
         processManager.onProcessError(async (error) => {
           processManager.close()
-          await cleanupTemp()
           tracer.end({
             message: error.message,
             code: error.code,
