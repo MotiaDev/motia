@@ -96,10 +96,10 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       projectRoot: motia.lockedData.baseDir,
     })
 
-    const cleanupTemp = () => {
+    const cleanupTemp = async () => {
       if (!tempDir) return
       try {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await fs.promises.rm(tempDir, { recursive: true, force: true })
       } catch {}
       tempDir = undefined
     }
@@ -116,7 +116,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       .then(() => {
         processManager.handler<TraceError | undefined>('close', async (err) => {
           processManager.kill()
-          cleanupTemp()
+          await cleanupTemp()
 
           if (err) {
             trackEvent('step_execution_error', {
@@ -225,9 +225,9 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
         processManager.onStderr((data) => logger.error(Buffer.from(data).toString()))
 
-        processManager.onProcessClose((code) => {
+        processManager.onProcessClose(async (code) => {
           processManager.close()
-          cleanupTemp()
+          await cleanupTemp()
 
           if (code !== 0 && code !== null) {
             const error = { message: `Process exited with code ${code}`, code }
@@ -240,9 +240,9 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           }
         })
 
-        processManager.onProcessError((error) => {
+        processManager.onProcessError(async (error) => {
           processManager.close()
-          cleanupTemp()
+          await cleanupTemp()
           tracer.end({
             message: error.message,
             code: error.code,
@@ -263,10 +263,12 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
       })
       .catch((error) => {
-        try {
-          // spawn failed before handlers attached — still clean up
-          if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true })
-        } catch {}
+        // spawn failed before handlers attached — still clean up (async, best-effort)
+        if (tempDir) {
+          const dir = tempDir
+          tempDir = undefined
+          void fs.promises.rm(dir, { recursive: true, force: true }).catch(() => {})
+        }
         tracer.end({
           message: error.message,
           code: error.code,
