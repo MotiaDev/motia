@@ -25,20 +25,29 @@ program
 program
   .command('create')
   .description('Create a new motia project')
-  .option(
-    '-n, --name <project name>',
-    'The name for your project, used to create a directory, use ./ or . to create it under the existing directory',
-  )
+  .argument('[folder]', 'The name for your project (optional)')
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .option('-c, --confirm', 'Confirm the project creation', false)
   .action(
     handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive')
-
+      const inquirer = require('inquirer')
+      let folder = arg.folder
+      if (!folder) {
+        const { projectName } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'projectName',
+            message: 'Enter project folder name:',
+            default: 'my-motia-app',
+          },
+        ])
+        folder = projectName
+      }
       await createInteractive(
         {
-          name: arg.name,
+          name: folder,
           template: arg.template,
           confirm: !!arg.confirm,
         },

@@ -936,7 +936,9 @@ npx motia@latest create [options]
 
 Options:
 
-- `-n, --name <project name>`: The name for your project, used to create a directory. Use `.` or `./` to create it in the current directory.
+- `[folder]` (optional): The name for your project folder. 
+  If not provided, you will be prompted to enter it. 
+  Use `.` or `./` to create it in the current directory.
 
 
 ### `build`
