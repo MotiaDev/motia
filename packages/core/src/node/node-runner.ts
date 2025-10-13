@@ -22,14 +22,7 @@ function parseArgs(arg?: string) {
   try {
     // New big-payload path: if arg is a path to a file, read & parse it
     if (fs.existsSync(arg) && fs.statSync(arg).isFile()) {
-      const dir = path.dirname(arg)
       const text = fs.readFileSync(arg, 'utf8')
-
-      // Best-effort cleanup of temp dir (parent also cleans; double-delete is safe)
-      try {
-        fs.rmSync(dir, { recursive: true, force: true })
-      } catch {}
-
       return JSON.parse(text)
     }
 

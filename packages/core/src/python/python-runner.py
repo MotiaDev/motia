@@ -12,12 +12,18 @@ from motia_rpc_stream_manager import RpcStreamManager
 from motia_dot_dict import DotDict
 
 def parse_args(arg: str) -> Dict:
-    """Parse command line arguments into HandlerArgs"""
+    """Parse command line arguments into HandlerArgs.
+    - If `arg` is a path to a file, read JSON from it.
+    - Else, parse as JSON string.
+    - On failure, return { "data": arg } to preserve legacy behavior.
+    """
     try:
+        if isinstance(arg, str) and os.path.isfile(arg):
+            with open(arg, 'r', encoding='utf-8') as f:
+                return json.loads(f.read())
         return json.loads(arg)
-    except json.JSONDecodeError:
-        print('Error parsing args:', arg)
-        return arg
+    except Exception:
+        return { "data": arg }
 
 async def run_python_module(file_path: str, rpc: RpcSender, args: Dict) -> None:
     """Execute a Python module with the given arguments"""
