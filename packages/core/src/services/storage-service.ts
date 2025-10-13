@@ -38,10 +38,9 @@ export class StorageService {
       const bucket = process.env.STORAGE_BUCKET
 
       if (!region || !accessKeyId || !secretAccessKey || !bucket) {
-        globalLogger.warn(
+        throw new Error(
           'Missing S3 environment variables: STORAGE_REGION, STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY, STORAGE_BUCKET must be set. S3 Storage will not be available.',
         )
-        return undefined
       }
 
       StorageService.instance = new StorageService(new S3StorageProvider(lockedData), lockedData)

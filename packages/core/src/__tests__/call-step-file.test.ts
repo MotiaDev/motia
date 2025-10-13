@@ -50,6 +50,8 @@ describe('callStepFile', () => {
     traceId = randomUUID()
     logger = new Logger()
     tracer = new NoTracer()
+
+    jest.spyOn(StorageService, 'getInstance').mockReset()
   })
 
   afterEach(() => {
@@ -241,6 +243,29 @@ describe('callStepFile', () => {
     const logger = new Logger()
     const tracer = new NoTracer()
 
+    const stepName = 'StorageStepNoStorage'
+
+    const step = createCronStep({ name: stepName }, path.join(stepDir, 'storage-step.ts'))
+
+    const motia: Motia = {
+      eventManager,
+      state,
+      printer,
+      lockedData,
+      loggerFactory: { create: () => logger },
+      tracerFactory: { createTracer: () => tracer, clear: () => Promise.resolve() },
+    }
+
+    await expect(callStepFile({ step, traceId, logger, contextInFirstArg: true, tracer }, motia)).rejects.toThrow(
+      `Storage service is not initialized but step ${stepName} is trying to use it.`,
+    )
+  })
+
+  it('should throw an error if storage env vars are not configured but step tries to use it', async () => {
+    const traceId = randomUUID()
+    const logger = new Logger()
+    const tracer = new NoTracer()
+
     const stepName = 'StorageStepNoEnvironmentVars'
 
     const step = createCronStep({ name: stepName }, path.join(stepDir, 'storage-step.ts'))
@@ -252,6 +277,7 @@ describe('callStepFile', () => {
       lockedData,
       loggerFactory: { create: () => logger },
       tracerFactory: { createTracer: () => tracer, clear: () => Promise.resolve() },
+      storage: StorageService.getInstance({ provider: 's3' }, lockedData),
     }
 
     await expect(callStepFile({ step, traceId, logger, contextInFirstArg: true, tracer }, motia)).rejects.toThrow(
