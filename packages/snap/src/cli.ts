@@ -48,8 +48,8 @@ program
       await createInteractive(
         {
           name: folder,
-          template: arg.template,
-          confirm: !!arg.confirm,
+          template: (context as any).template,
+          confirm: !!(context as any).confirm,
         },
         context,
       )
