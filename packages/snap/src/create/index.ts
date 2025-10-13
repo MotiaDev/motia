@@ -125,7 +125,10 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   }
 
   if (!checkIfFileExists(rootDir, 'package.json')) {
-    const finalProjectName = isCurrentDir ? path.basename(rootDir) : projectName
+    const finalProjectName =
+      !projectName || projectName === '.' || projectName === './' || projectName === '.\\'
+        ? path.basename(process.cwd())
+        : projectName.trim()
     const packageJsonContent = {
       name: finalProjectName,
       description: '',
