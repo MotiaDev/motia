@@ -76,6 +76,9 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
     let argvPayload = jsonData
     let tempDir: string | undefined
     let metaPath: string | undefined
+    // This is for keeping the cleanup idempotent
+    let isCleaned: boolean = false
+    let isCleaning: boolean = false
 
     // If payload is large, write it to a temp file and pass the path instead
     if (jsonBytes >= THRESHOLD_BYTES) {
@@ -96,16 +99,18 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       projectRoot: motia.lockedData.baseDir,
     })
 
-    let isCleaning = false
-    let isCleaned = false
-
     const cleanupTemp = async () => {
-      if (!tempDir) return
+      if (isCleaning || isCleaned || !tempDir) return
       const dir = tempDir
       tempDir = undefined
+      isCleaning = true
+
       try {
         await fs.promises.rm(dir, { recursive: true, force: true })
       } catch {}
+
+      isCleaning = false
+      isCleaned = true
       
     }
 
@@ -270,7 +275,8 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         if (tempDir) {
           const dir = tempDir
           tempDir = undefined
-          void fs.promises.rm(dir, { recursive: true, force: true }).catch(() => {})
+          void fs.promises.rm(dir, { recursive: true, force: true })
+          .catch((err) => {logger.debug(`temp cleanup: ${dir}: ${err.message ?? err}`)})
         }
         tracer.end({
           message: error.message,
