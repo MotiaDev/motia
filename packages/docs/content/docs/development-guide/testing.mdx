@@ -1,97 +1,286 @@
 ---
 title: Testing
-description: Learn how to write and run tests for your Motia components
+description: Test your Motia APIs, events, and workflows with confidence
 ---
 
-# Testing
+You built an API. You added some event handlers. Everything seems to work. But does it?
 
-Testing is an essential part of building reliable and maintainable Motia applications. Motia provides built-in support for writing and running tests to ensure the correctness of your steps, flows, and event handling logic.
+Without tests, you're guessing. With tests, you know.
 
-## Writing Tests for Motia Components
+Motia has `@motiadev/test` built in. It helps you:
+- Test API triggers (hit endpoints, check responses)
+- Test Event triggers (verify events get emitted)
+- Test entire workflows from start to finish
+- Mock contexts for unit tests
 
-Motia uses [Jest](https://jestjs.io/) as its testing framework. You can write tests for your Motia components using Jest's syntax and assertions.
+---
 
-### Step Tests
+## Install
+```bash
+npm install @motiadev/test --save-dev
+```
 
-To test a step, create a test file with the same name as the step file, but with a `.test.ts` or `.test.js` extension. For example, if your step file is named `my-step.step.ts`, create a test file named `my-step.step.test.ts`.
+```bash
+pnpm add @motiadev/test --save-dev
+```
 
-Here's an example of a step test:
+---
 
-```typescript
-// my-step.step.test.ts
-import { createTestContext } from '@motiadev/testing'
-import { handler } from './my-step.step'
+## Test API Triggers
 
-describe('MyStep', () => {
-  it('should emit an event with the correct data', async () => {
-    const { emit, done } = createTestContext()
+Here's an API Step that creates a todo and emits an event:
 
-    await handler({ name: 'John' }, { emit })
+```typescript title="steps/create-todo.step.ts"
+export const config: ApiRouteConfig = {
+  type: 'api',
+  name: 'CreateTodo',
+  path: '/todo',
+  method: 'POST',
+  emits: ['todo.created'],
+  bodySchema: z.object({ description: z.string() })
+}
 
-    expect(emit).toHaveBeenCalledWith({
-      type: 'my-event',
-      data: { greeting: 'Hello, John!' },
+export const handler: Handlers['CreateTodo'] = async (req, { emit }) => {
+  const todo = { id: '123', description: req.body.description }
+  
+  await emit({ topic: 'todo.created', data: todo })
+  
+  return { status: 200, body: todo }
+}
+```
+
+Now let's test it:
+
+```typescript title="steps/create-todo.step.test.ts"
+import { createMotiaTester } from '@motiadev/test'
+import { describe, it, expect, afterAll } from 'vitest'
+
+describe('CreateTodo', () => {
+  const tester = createMotiaTester()
+
+  afterAll(async () => {
+    await tester.close()
+  })
+
+  it('should create a todo and return 200', async () => {
+    const response = await tester.post('/todo', {
+      body: { description: 'Buy milk' }
     })
 
-    done()
+    expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      id: expect.any(String),
+      description: 'Buy milk'
+    })
+  })
+
+  it('should emit todo.created event', async () => {
+    const watcher = await tester.watch('todo.created')
+
+    await tester.post('/todo', {
+      body: { description: 'Buy bread' }
+    })
+
+    await tester.waitEvents()
+
+    const events = watcher.getCapturedEvents()
+    expect(events).toHaveLength(1)
+    expect(events[0].data).toMatchObject({
+      description: 'Buy bread'
+    })
   })
 })
 ```
 
-In this example, we use the `createTestContext` function from `@motiadev/testing` to create a test context with mocked `emit` and `done` functions. We then call the step's `handler` function with test input and the mocked context. Finally, we assert that the `emit` function was called with the expected event type and data.
+**What's happening here:**
+- `createMotiaTester()` → Spins up a test version of your app
+- `tester.post()` → Hits your API like a real client would
+- `tester.watch()` → Captures events that get emitted
+- `tester.waitEvents()` → Waits for all async stuff to finish
+- Then check if everything worked
 
-### Flow Tests
+---
 
-To test a flow, create a test file with the flow name and a `.test.ts` or `.test.js` extension. For example, if your flow is named `my-flow`, create a test file named `my-flow.test.ts`.
+## Test Event Triggers
 
-Here's an example of a flow test:
+Event Steps listen for events and do stuff in the background. Here's how to test them:
 
-```typescript
-// my-flow.test.ts
-import { createTestFlow } from '@motiadev/testing'
-import { handler as stepAHandler } from './step-a.step'
-import { handler as stepBHandler } from './step-b.step'
+```typescript title="steps/process-todo.step.ts"
+export const config: EventConfig = {
+  type: 'event',
+  name: 'ProcessTodo',
+  subscribes: ['todo.created'],
+  emits: ['todo.processed'],
+  input: z.object({ id: z.string(), description: z.string() })
+}
 
-describe('MyFlow', () => {
-  it('should execute steps in the correct order', async () => {
-    const flow = createTestFlow('my-flow')
-      .step('step-a', stepAHandler)
-      .step('step-b', stepBHandler)
+export const handler: Handlers['ProcessTodo'] = async (input, { emit, logger }) => {
+  logger.info('Processing todo', { id: input.id })
+  
+  // Do some processing
+  const processed = { ...input, processed: true }
+  
+  await emit({ topic: 'todo.processed', data: processed })
+}
+```
 
-    const result = await flow.execute({ name: 'Alice' })
+**The Test:**
 
-    expect(result).toEqual({
-      greeting: 'Hello, Alice!',
-      message: 'Welcome to Motia!',
+```typescript title="steps/process-todo.step.test.ts"
+import { createMotiaTester } from '@motiadev/test'
+import { describe, it, expect, afterAll } from 'vitest'
+
+describe('ProcessTodo', () => {
+  const tester = createMotiaTester()
+
+  afterAll(async () => {
+    await tester.close()
+  })
+
+  it('should process todo when todo.created is emitted', async () => {
+    const watcher = await tester.watch('todo.processed')
+
+    // Manually emit the event that triggers the step
+    await tester.emit({
+      topic: 'todo.created',
+      data: { id: '123', description: 'Test todo' },
+      traceId: 'test-trace'
+    })
+
+    await tester.waitEvents()
+
+    const events = watcher.getCapturedEvents()
+    expect(events).toHaveLength(1)
+    expect(events[0].data).toMatchObject({
+      id: '123',
+      description: 'Test todo',
+      processed: true
     })
   })
 })
 ```
 
-In this example, we use the `createTestFlow` function from `@motiadev/testing` to create a test flow with the specified steps. We then execute the flow with test input and assert that the final result matches the expected output.
+👉 Use `tester.emit()` to manually fire events and test Event triggers without hitting APIs.
 
-## Running Tests Locally
+---
 
-To run tests locally, use the following command:
+## Unit Test Handlers
+
+Don't want to spin up the whole app? Test handler functions directly:
+
+```typescript title="steps/calculate-total.step.test.ts"
+import { createMockContext } from '@motiadev/test'
+import { handler } from './calculate-total.step'
+import { describe, it, expect } from 'vitest'
+
+describe('CalculateTotal Handler', () => {
+  it('should calculate total correctly', async () => {
+    const mockContext = createMockContext()
+    
+    const input = { items: [{ price: 10 }, { price: 20 }] }
+    
+    await handler(input, mockContext)
+    
+    expect(mockContext.emit).toHaveBeenCalledWith({
+      topic: 'total.calculated',
+      data: { total: 30 }
+    })
+  })
+
+  it('should log calculation', async () => {
+    const mockContext = createMockContext()
+    
+    await handler({ items: [] }, mockContext)
+    
+    expect(mockContext.logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Calculating total')
+    )
+  })
+})
+```
+
+---
+
+## Run Your Tests
+
+**All tests:**
+
+```bash
+npm test
+```
 
 ```bash
 pnpm test
 ```
 
-This command will run all the test files in your project and display the test results in the terminal.
+**Watch mode** (re-runs when you save files):
 
-You can also run tests in watch mode, which automatically re-runs the tests whenever you make changes to your code:
+```bash
+npm test -- --watch
+```
 
 ```bash
 pnpm test --watch
 ```
 
-## Best Practices
+**Single test file:**
 
-- Write tests for each step and flow to ensure comprehensive coverage.
-- Use meaningful test case descriptions to clarify the purpose of each test.
-- Test edge cases and error scenarios to ensure your components handle them gracefully.
-- Keep your tests focused and independent to make them easier to maintain.
-- Use mocks and stubs to isolate dependencies and improve test reliability.
+```bash
+npm test -- steps/create-todo.step.test.ts
+```
 
-By following these best practices and regularly running tests, you can catch bugs early, maintain code quality, and ensure the reliability of your Motia application. 
+---
+
+## Tester API
+
+### `createMotiaTester()`
+
+Starts a test version of your app.
+
+```typescript
+const tester = createMotiaTester()
+```
+
+**What you can do with it:**
+
+| Method | What it does |
+|--------|-------------|
+| `post(path, options)` | Hit a POST endpoint |
+| `get(path, options)` | Hit a GET endpoint |
+| `emit(event)` | Fire an event manually |
+| `watch(topic)` | Catch events on a topic |
+| `waitEvents()` | Wait for events to finish |
+| `sleep(ms)` | Pause for X milliseconds |
+| `close()` | Shut down the tester |
+
+### `createMockContext()`
+
+Mock a context for testing handlers directly.
+
+```typescript
+const mockContext = createMockContext({
+  logger: customLogger,  // optional
+  emit: customEmit,      // optional
+  traceId: 'custom-id'   // optional
+})
+```
+
+**You get:**
+- `logger` - Mock logger (Jest spy)
+- `emit` - Mock emit (Jest spy)
+- `traceId` - Request trace ID
+- `state` - Mock state manager
+
+---
+
+## Tips
+
+- ✅ **Start simple** - Test basic stuff first, then edge cases
+- ✅ **Test errors** - Make sure your error handling actually works
+- ✅ **Watch events** - Don't assume events fired, check them
+- ✅ **Always wait** - Call `waitEvents()` or events might not finish
+- ✅ **Clean up** - Always `close()` the tester when done
+- ✅ **Keep it isolated** - Each test should work on its own
+- ✅ **Name tests well** - Say what you're checking, not how
+
+---
