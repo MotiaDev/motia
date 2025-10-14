@@ -23,6 +23,7 @@ def parse_args(arg: str) -> Dict:
                 return json.loads(f.read())
         return json.loads(arg)
     except Exception:
+        print('Error parsing args:', arg)
         return { "data": arg }
 
 async def run_python_module(file_path: str, rpc: RpcSender, args: Dict) -> None:
