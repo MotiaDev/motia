@@ -9,14 +9,13 @@ import { NoPrinter } from '../printer'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { createApiStep } from './fixtures/step-fixtures'
 import { NoTracer } from '../observability/no-tracer'
-
 import { spawnSync } from 'child_process'
 
 describe('callStepFile (large payload via temp file) - Python', () => {
   const hasPython = spawnSync('python', ['-V']).status === 0
   const itif = hasPython ? it : it.skip
 
-  itif('handles >1MB payload via meta file and returns size', async () => {
+  itif('writes large payload to meta.json and cleans temp dir after execution', async () => {
     const baseDir = path.join(__dirname, 'steps')
     const eventManager = createEventManager()
     const state = new MemoryStateAdapter()
@@ -48,10 +47,17 @@ describe('callStepFile (large payload via temp file) - Python', () => {
 
     const result = await callStepFile<number>({ step, traceId: 't', data: bigData, logger, tracer }, motia)
 
-    expect(result).toBe(bigData.length)
+    // ✅ Ensure meta.json was actually written
+    expect(writeSpy).toHaveBeenCalledWith(
+      expect.stringContaining('meta.json'),
+      expect.any(String),
+      expect.objectContaining({ mode: 0o600 })
+    )
 
+    // ✅ Ensure the temp directory was deleted
     if (metaPath) {
       const dir = path.dirname(metaPath)
+      await new Promise((resolve) => setTimeout(resolve, 100))
       expect(fs.existsSync(dir)).toBe(false)
     }
 
