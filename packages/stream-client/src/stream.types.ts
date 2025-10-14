@@ -1,3 +1,13 @@
+export interface UploadOptions<TFile = File> {
+  url: string
+  file: TFile
+  onProgress?: (percentage: number) => void
+}
+
+export interface StorageAdapter<TFile = File> {
+  upload(options: UploadOptions<TFile>): Promise<void>
+}
+
 export type BaseMessage = {
   streamName: string
   groupId: string
@@ -22,3 +32,4 @@ export type Message = { type: 'join' | 'leave'; data: JoinMessage }
 
 export type Listener<TData> = (state: TData | null) => void
 export type CustomEventListener<TData> = (event: TData) => void
+

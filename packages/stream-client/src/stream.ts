@@ -1,16 +1,29 @@
 import { v4 as uuidv4 } from 'uuid'
+import { SocketAdapterFactory } from './adapter-factory'
+import { SocketAdapter } from './socket-adapter'
 import { StreamGroupSubscription } from './stream-group'
 import { StreamItemSubscription } from './stream-item'
 import { StreamSubscription } from './stream-subscription'
-import { BaseMessage, ItemEventMessage } from './stream.types'
-import { SocketAdapter } from './socket-adapter'
-import { SocketAdapterFactory } from './adapter-factory'
+import { BaseMessage, ItemEventMessage, StorageAdapter, UploadOptions } from './stream.types'
 
-export class Stream {
+export class Stream<TFile = File> {
   private ws: SocketAdapter
   private listeners: { [channelId: string]: Set<StreamSubscription> } = {}
 
-  constructor(private adapterFactory: SocketAdapterFactory) {
+  public storage = {
+    upload: (options: UploadOptions<TFile>): Promise<void> => {
+      if (!this.storageAdapter) {
+        throw new Error('Storage adapter is not configured')
+      }
+
+      return this.storageAdapter.upload(options)
+    },
+  }
+
+  constructor(
+    private adapterFactory: SocketAdapterFactory,
+    private storageAdapter?: StorageAdapter<TFile>,
+  ) {
     this.ws = this.createSocket()
   }
 
@@ -132,3 +145,4 @@ export class Stream {
       : `${message.streamName}:group:${message.groupId}`
   }
 }
+
