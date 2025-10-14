@@ -379,29 +379,29 @@ importers:
   packages/storage:
     dependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.525.0
+        specifier: ^3.908.0
         version: 3.908.0
       '@aws-sdk/s3-request-presigner':
-        specifier: ^3.525.0
+        specifier: ^3.908.0
         version: 3.908.0
       '@motiadev/core':
         specifier: workspace:*
         version: link:../core
       zod:
-        specifier: ^3.22.4
+        specifier: ^3.24.1
         version: 3.24.4
     devDependencies:
       '@types/jest':
-        specifier: ^29.5.12
+        specifier: ^29.5.14
         version: 29.5.14
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@22.15.18)(ts-node@10.9.2(@swc/core@1.12.5)(@types/node@22.15.18)(typescript@5.8.3))
       rimraf:
-        specifier: ^5.0.5
-        version: 5.0.10
+        specifier: ^6.0.1
+        version: 6.0.1
       ts-jest:
-        specifier: ^29.1.2
+        specifier: ^29.2.5
         version: 29.3.4(@babel/core@7.27.4)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.27.4))(jest@29.7.0(@types/node@22.15.18))(typescript@5.8.3)
       typescript:
         specifier: ^5.7.3
@@ -8472,8 +8472,9 @@ packages:
     deprecated: Rimraf versions prior to v4 are no longer supported
     hasBin: true
 
-  rimraf@5.0.10:
-    resolution: {integrity: sha512-l0OE8wL34P4nJH/H2ffoaniAokM2qSmrtXHmlpvYr5AVVX8msAyW0l8NVJFDxlSK4u3Uh/f41cQheDVdnYijwQ==}
+  rimraf@6.0.1:
+    resolution: {integrity: sha512-9dkvaxAsk/xNXSJzMgFqqMCuFgt2+KsOFek3TMLfo8NCPfWpBmqwyNn5Y+NX56QUYfCtsyhF3ayiboEoUmJk/A==}
+    engines: {node: 20 || >=22}
     hasBin: true
 
   robust-predicates@3.0.2:
@@ -15281,7 +15282,7 @@ snapshots:
       eslint: 9.27.0(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint@9.27.0(jiti@2.6.1)))(eslint@9.27.0(jiti@2.6.1))
-      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.27.0(jiti@2.6.1))
+      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint@9.27.0(jiti@2.6.1)))(eslint@9.27.0(jiti@2.6.1)))(eslint@9.27.0(jiti@2.6.1))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.27.0(jiti@2.6.1))
       eslint-plugin-react: 7.37.5(eslint@9.27.0(jiti@2.6.1))
       eslint-plugin-react-hooks: 5.2.0(eslint@9.27.0(jiti@2.6.1))
@@ -15315,7 +15316,7 @@ snapshots:
       tinyglobby: 0.2.13
       unrs-resolver: 1.7.2
     optionalDependencies:
-      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.27.0(jiti@2.6.1))
+      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint@9.27.0(jiti@2.6.1)))(eslint@9.27.0(jiti@2.6.1)))(eslint@9.27.0(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -15330,7 +15331,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.27.0(jiti@2.6.1)):
+  eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.32.1(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3))(eslint@9.27.0(jiti@2.6.1)))(eslint@9.27.0(jiti@2.6.1)))(eslint@9.27.0(jiti@2.6.1)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.8
@@ -18998,9 +18999,10 @@ snapshots:
     dependencies:
       glob: 7.2.3
 
-  rimraf@5.0.10:
+  rimraf@6.0.1:
     dependencies:
-      glob: 10.4.5
+      glob: 11.0.2
+      package-json-from-dist: 1.0.1
 
   robust-predicates@3.0.2: {}
 
