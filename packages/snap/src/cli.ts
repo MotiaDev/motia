@@ -23,38 +23,25 @@ program
   })
 
 program
-  .command('create')
+  .command('create [folder]')
   .description('Create a new motia project')
-  .argument('[folder]', 'The name for your project (optional)')
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .option('-c, --confirm', 'Confirm the project creation', false)
-  .action(
-    handler(async (arg, context) => {
-      const { createInteractive } = require('./create/interactive')
-      const inquirer = require('inquirer')
-      let folder = arg.folder
-      if (!folder) {
-        const { projectName } = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'projectName',
-            message: 'Enter project folder name:',
-            default: 'my-motia-app',
-          },
-        ])
-        folder = projectName
-      }
+  .action((folder, options) => {
+    const mergedArgs = { ...options, name: folder };
+    return handler(async (arg, context) => {
+      const { createInteractive } = require('./create/interactive');
       await createInteractive(
         {
-          name: folder,
-          template: (context as any).template,
-          confirm: !!(context as any).confirm,
+          name: arg.name,
+          template: arg.template,
+          confirm: !!arg.confirm,
         },
-        context,
-      )
-    }),
-  )
+        context
+      );
+    })(mergedArgs);
+  });
 
 program
   .command('rules')
