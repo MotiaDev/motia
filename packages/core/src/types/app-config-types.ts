@@ -13,6 +13,7 @@ export type WorkbenchPlugin = {
   label?: string
   labelIcon?: string
   position?: 'bottom' | 'top'
+  cssImports?: string[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   props?: Record<string, any>
 }

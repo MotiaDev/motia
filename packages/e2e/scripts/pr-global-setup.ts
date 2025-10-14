@@ -40,6 +40,10 @@ async function globalSetup() {
     if (packageJson.dependencies && packageJson.dependencies['motia']) {
       packageJson.dependencies['motia'] = 'workspace:*'
       packageJson.dependencies['@motiadev/workbench'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/core'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-logs'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-states'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-endpoint'] = 'workspace:*'
     }
 
     // Write updated package.json

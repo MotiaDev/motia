@@ -45,6 +45,10 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     '@types/jest@^29.5.14',
     'jest@^29.7.0',
     'ts-jest@^29.2.5',
+    `@motiadev/core@${version}`,
+    `@motiadev/plugin-logs@${version}`,
+    `@motiadev/plugin-states@${version}`,
+    `@motiadev/plugin-endpoint@${version}`,
   ].join(' ')
 
   try {

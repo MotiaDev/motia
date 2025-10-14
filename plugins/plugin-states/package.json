@@ -1,8 +1,9 @@
 {
-  "name": "@motiadev/plugin-endpoint",
+  "name": "@motiadev/plugin-states",
   "version": "0.8.2-beta.139",
   "type": "module",
   "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
@@ -15,7 +16,7 @@
       "import": "./dist/plugin.js",
       "require": "./dist/plugin.cjs"
     },
-    "./styles.css": "./dist/plugin-endpoint.css"
+    "./styles.css": "./dist/plugin-states.css"
   },
   "files": [
     "dist"
@@ -23,34 +24,28 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
-    "build:css": "postcss src/styles.css -o dist/styles.css",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "clsx": "^2.1.1",
-    "json-schema": "^0.4.0",
     "lucide-react": "^0.545.0",
-    "react-syntax-highlighter": "^15.6.6",
     "react18-json-view": "^0.2.9",
-    "tailwind-merge": "^3.3.1",
     "zustand": "^5.0.8"
   },
   "peerDependencies": {
-    "@motiadev/core": "workspace:*",
-    "@motiadev/stream-client-react": "workspace:*",
-    "@motiadev/ui": "workspace:*"
+    "@motiadev/stream-client-browser": "workspace:*",
+    "@motiadev/ui": "workspace:*",
+    "@motiadev/core": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.14",
-    "@types/json-schema": "^7.0.15",
+    "@types/express": "^5.0.3",
     "@types/node": "^24.7.2",
     "@types/react": "^19.2.2",
-    "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^5.0.4",
     "react": "^19.2.0",
-    "typescript": "^5.9.3",
     "tailwindcss": "^4.1.14",
+    "typescript": "^5.9.3",
     "vite": "^7.1.10",
     "vite-plugin-dts": "^4.5.4"
   }

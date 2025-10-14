@@ -1,7 +1,7 @@
 import { Express } from 'express'
-import { StateAdapter } from '../state/state-adapter'
+import { StateAdapter } from '@motiadev/core'
 
-export const stateEndpoints = (app: Express, stateAdapter: StateAdapter) => {
+export const api = (app: Express, stateAdapter: StateAdapter) => {
   app.get('/__motia/state', async (req, res) => {
     try {
       const groupId = req.query.groupId as string | undefined
