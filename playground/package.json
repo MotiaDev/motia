@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@motiadev/core": "workspace:*",
+    "@motiadev/test": "workspace:*",
     "@motiadev/plugin-logs": "workspace:*",
     "@motiadev/plugin-states": "workspace:*",
     "@motiadev/plugin-endpoint": "workspace:*",
