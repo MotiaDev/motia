@@ -31,18 +31,6 @@ export function getResources(): MCPResource[] {
       mimeType: 'application/json',
     },
     {
-      uri: 'motia://step/{name}',
-      name: 'Step Details',
-      description: 'Get detailed information about a specific step (replace {name} with step name)',
-      mimeType: 'application/json',
-    },
-    {
-      uri: 'motia://flow/{name}',
-      name: 'Flow Details',
-      description: 'Get detailed information about a specific flow (replace {name} with flow name)',
-      mimeType: 'application/json',
-    },
-    {
       uri: 'motia://docs/quick-start',
       name: 'Motia Quick Start Guide',
       description: 'Quick reference for creating Motia steps',
@@ -74,18 +62,6 @@ export async function readResource(uri: string): Promise<ResourceContents> {
 
   if (uri === 'motia://docs/quick-start') {
     return readQuickStartResource()
-  }
-
-  // Handle step details: motia://step/{name}
-  const stepMatch = uri.match(/^motia:\/\/step\/(.+)$/)
-  if (stepMatch) {
-    return readStepDetailsResource(stepMatch[1])
-  }
-
-  // Handle flow details: motia://flow/{name}
-  const flowMatch = uri.match(/^motia:\/\/flow\/(.+)$/)
-  if (flowMatch) {
-    return readFlowDetailsResource(flowMatch[1])
   }
 
   throw new Error(`Resource not found: ${uri}`)
@@ -154,51 +130,6 @@ function readApiEndpointsResource(): ResourceContents {
     uri: 'motia://api-endpoints',
     mimeType: 'application/json',
     text: JSON.stringify(endpoints, null, 2),
-  }
-}
-
-function readStepDetailsResource(name: string): ResourceContents {
-  const step = motiaIntrospection.getStepByName(name)
-
-  if (!step) {
-    throw new Error(`Step not found: ${name}`)
-  }
-
-  const stepData = {
-    name: step.config.name,
-    type: step.config.type,
-    filePath: step.filePath,
-    config: step.config,
-  }
-
-  return {
-    uri: `motia://step/${name}`,
-    mimeType: 'application/json',
-    text: JSON.stringify(stepData, null, 2),
-  }
-}
-
-function readFlowDetailsResource(name: string): ResourceContents {
-  const flow = motiaIntrospection.getFlowByName(name)
-
-  if (!flow) {
-    throw new Error(`Flow not found: ${name}`)
-  }
-
-  const flowData = {
-    name,
-    steps: flow.steps.map((step) => ({
-      name: step.config.name,
-      type: step.config.type,
-      filePath: step.filePath,
-      config: step.config,
-    })),
-  }
-
-  return {
-    uri: `motia://flow/${name}`,
-    mimeType: 'application/json',
-    text: JSON.stringify(flowData, null, 2),
   }
 }
 

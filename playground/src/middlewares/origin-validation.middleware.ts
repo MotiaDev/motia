@@ -19,12 +19,15 @@ export const originValidationMiddleware: ApiMiddleware = async (req, ctx, next) 
 
   // Validate the origin - allow localhost and 127.0.0.1 on any port
   // Only allow http:// for local development
-  if (
-    !origin ||
-    (!origin.startsWith('http://localhost') && !origin.startsWith('http://127.0.0.1'))
-  ) {
-    logger.warn('Origin validation failed', { origin })
-    throw new MCPOriginError(origin)
+  // Also allow requests without Origin header for MCP Inspector compatibility
+  if (origin) {
+    if (!origin.startsWith('http://localhost') && !origin.startsWith('http://127.0.0.1')) {
+      logger.warn('Origin validation failed', { origin })
+      throw new MCPOriginError(origin)
+    }
+  } else {
+    // No origin header - likely from MCP Inspector proxy or similar tools
+    logger.debug('No origin header present - allowing request for MCP Inspector compatibility')
   }
 
   logger.debug('Origin validation passed', { origin })

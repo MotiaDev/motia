@@ -17,7 +17,10 @@ export const handler: Handlers['MCPCallApi'] = async (input, { logger }) => {
     return
   }
 
-  const { path, method, body, queryParams } = input.arguments
+  const path = input.arguments.path as string
+  const method = input.arguments.method as string
+  const body = input.arguments.body
+  const queryParams = input.arguments.queryParams as Record<string, string> | undefined
 
   logger.info('MCP Tool: call_api', { path, method, body, queryParams })
 
@@ -34,13 +37,19 @@ export const handler: Handlers['MCPCallApi'] = async (input, { logger }) => {
     }
 
     // Make the request
-    const response = await fetch(url.toString(), {
+    const fetchOptions: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
-      ...(body && { body: JSON.stringify(body) }),
-    })
+    }
+
+    // Only add body for methods that support it (not GET or HEAD)
+    if (body && method !== 'GET' && method !== 'HEAD') {
+      fetchOptions.body = JSON.stringify(body)
+    }
+
+    const response = await fetch(url.toString(), fetchOptions)
 
     const responseData = await response.json()
 
