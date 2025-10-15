@@ -8,6 +8,8 @@ import { isAllowedToEmit } from './utils'
 import { Logger } from './logger'
 import { Tracer } from './observability'
 import { TraceError } from './observability/types'
+import os from 'os'
+import fs from 'fs'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }
@@ -57,6 +59,8 @@ type CallStepFileOptions = {
   tracer: Tracer
 }
 
+const THRESHOLD_BYTES = 1 * 1024 * 1024 // 1 MB
+
 export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia): Promise<TData | undefined> => {
   const { step, traceId, data, tracer, logger, contextInFirstArg = false } = options
 
@@ -66,16 +70,49 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
     const streamConfig = motia.lockedData.getStreams()
     const streams = Object.keys(streamConfig).map((name) => ({ name }))
     const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
+    const jsonBytes = Buffer.byteLength(jsonData, 'utf8')
+
+    // Default: keep old behavior (argv carries inline JSON)
+    let argvPayload = jsonData
+    let tempDir: string | undefined
+    let metaPath: string | undefined
+    // This is for keeping the cleanup idempotent
+    let isCleaned: boolean = false
+    let isCleaning: boolean = false
+
+    // If payload is large, write it to a temp file and pass the path instead
+    if (jsonBytes >= THRESHOLD_BYTES) {
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'motia-'))
+      metaPath = path.join(tempDir, 'meta.json')
+      fs.writeFileSync(metaPath, jsonData, { mode: 0o600 })
+      argvPayload = metaPath
+    }
+
     const { runner, command, args } = getLanguageBasedRunner(step.filePath)
     let result: TData | undefined
 
     const processManager = new ProcessManager({
       command,
-      args: [...args, runner, step.filePath, jsonData],
+      args: [...args, runner, step.filePath, argvPayload],
       logger,
       context: 'StepExecution',
       projectRoot: motia.lockedData.baseDir,
     })
+
+    const cleanupTemp = async () => {
+      if (isCleaning || isCleaned || !tempDir) return
+      const dir = tempDir
+      tempDir = undefined
+      isCleaning = true
+
+      try {
+        await fs.promises.rm(dir, { recursive: true, force: true })
+      } catch {}
+
+      isCleaning = false
+      isCleaned = true
+      
+    }
 
     trackEvent('step_execution_started', {
       stepName: step.config.name,
@@ -197,8 +234,9 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
         processManager.onStderr((data) => logger.error(Buffer.from(data).toString()))
 
-        processManager.onProcessClose((code) => {
+        processManager.onProcessClose(async (code) => {
           processManager.close()
+          await cleanupTemp()
 
           if (code !== 0 && code !== null) {
             const error = { message: `Process exited with code ${code}`, code }
@@ -211,7 +249,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           }
         })
 
-        processManager.onProcessError((error) => {
+        processManager.onProcessError(async (error) => {
           processManager.close()
           tracer.end({
             message: error.message,
@@ -233,6 +271,13 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
       })
       .catch((error) => {
+        // spawn failed before handlers attached — still clean up (async, best-effort)
+        if (tempDir) {
+          const dir = tempDir
+          tempDir = undefined
+          void fs.promises.rm(dir, { recursive: true, force: true })
+          .catch((err) => {logger.debug(`temp cleanup: ${dir}: ${err.message ?? err}`)})
+        }
         tracer.end({
           message: error.message,
           code: error.code,
