@@ -1,8 +1,8 @@
-import { Motia, MotiaPlugin } from '@motiadev/core'
+import { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 import { api } from './api'
 
-export default function plugin(motia: Motia): MotiaPlugin {
-  api(motia.app, motia.stateAdapter)
+export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
+  api(motia.app, motia.state)
   return {
     workbench: [
       {

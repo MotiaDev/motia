@@ -6,7 +6,6 @@ import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
 import { CronManager, setupCronHandlers } from './cron-handler'
 import { analyticsEndpoint } from './endpoints/analytics-endpoint'
-import { apiEndpoints } from './endpoints/api-endpoints'
 import { flowsConfigEndpoint } from './endpoints/flows-config-endpoint'
 import { flowsEndpoint } from './endpoints/flows-endpoint'
 import { stepEndpoint } from './endpoints/step-endpoint'
@@ -285,7 +284,6 @@ export const createServer = (
 
   app.use(router)
 
-  apiEndpoints(lockedData)
   flowsEndpoint(lockedData)
   flowsConfigEndpoint(app, process.cwd(), lockedData)
   analyticsEndpoint(app, process.cwd())
