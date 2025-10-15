@@ -1,13 +1,14 @@
+import { CreateUploadUrlOptions } from '@motia/storage'
 import path from 'path'
 import { trackEvent } from './analytics/utils'
+import { Logger } from './logger'
 import { Motia } from './motia'
+import { Tracer } from './observability'
+import { TraceError } from './observability/types'
 import { ProcessManager } from './process-communication/process-manager'
 import { Event, Step } from './types'
 import { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 import { isAllowedToEmit } from './utils'
-import { Logger } from './logger'
-import { Tracer } from './observability'
-import { TraceError } from './observability/types'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }
@@ -155,6 +156,18 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
           tracer.emitOperation(input.topic, input.data, true)
           return motia.eventManager.emit({ ...input, traceId, flows, logger, tracer }, step.filePath)
+        })
+
+        processManager.handler<CreateUploadUrlOptions, string>('storage.createUploadUrl', async (input) => {
+          if (!motia.storage) {
+            const err = new Error(
+              `Storage service is not initialized but step ${step.config.name} is trying to use it.`,
+            )
+            reject(err)
+            return Promise.reject(err)
+          }
+
+          return motia.storage.getProvider().createUploadUrl(input)
         })
 
         Object.entries(streamConfig).forEach(([name, streamFactory]) => {

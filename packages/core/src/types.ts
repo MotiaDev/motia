@@ -1,3 +1,4 @@
+import { StorageProvider } from '@motia/storage'
 import { z, ZodAny, ZodArray, ZodObject } from 'zod'
 import { Logger } from './logger'
 import { Tracer } from './observability'
@@ -26,6 +27,7 @@ export interface FlowContext<TEmitData = never> {
   state: InternalStateManager
   logger: Logger
   streams: FlowContextStateStreams
+  storage: StorageProvider
 }
 
 export type EventHandler<TInput, TEmitData> = (input: TInput, ctx: FlowContext<TEmitData>) => Promise<void>
