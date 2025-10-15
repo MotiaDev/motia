@@ -1,8 +1,7 @@
-import { handler as apiTriggerHandler } from '../../steps/petstore/api.step'
+import { handler as apiTriggerHandler } from './api.step'
 import { petStoreService } from '../../src/services/pet-store'
 import { petStoreService as originalPetStoreService } from '../../src/services/pet-store'
 import type { MockFlowContext } from '@motiadev/test'
-import { setupLoggerMock } from '@motiadev/test'
 import { jest } from '@jest/globals'
 
 // Mock the petStoreService

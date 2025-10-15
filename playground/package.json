@@ -28,7 +28,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@motiadev/test": "workspace:*",
     "@types/deep-equal": "^1.0.4",
     "@types/jest": "^29.5.14",
     "@types/react": "^19.0.0",
