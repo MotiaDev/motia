@@ -10,6 +10,7 @@ import './index.css'
 
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {
+  const basePath = workbenchBase
   const root = createRoot(rootElement)
   const address = window.location.origin.replace('http', 'ws')
 
@@ -19,7 +20,7 @@ if (!rootElement.innerHTML) {
         <RootMotia>
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<App />} />
+              <Route path={basePath} element={<App />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </BrowserRouter>
