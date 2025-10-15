@@ -23,25 +23,25 @@ program
   })
 
 program
-  .command('create [project name]')
+  .command('create [name]')
   .description('Create a new motia project')
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .option('-c, --confirm', 'Confirm the project creation', false)
   .action((projectName, options) => {
-    const mergedArgs = { ...options, name: projectName };
+    const mergedArgs = { ...options, name: projectName }
     return handler(async (arg, context) => {
-      const { createInteractive } = require('./create/interactive');
+      const { createInteractive } = require('./create/interactive')
       await createInteractive(
         {
           name: arg.name,
           template: arg.template,
           confirm: !!arg.confirm,
         },
-        context
-      );
-    })(mergedArgs);
-  });
+        context,
+      )
+    })(mergedArgs)
+  })
 
 program
   .command('rules')
