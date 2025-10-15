@@ -23,13 +23,13 @@ program
   })
 
 program
-  .command('create [folder]')
+  .command('create [project name]')
   .description('Create a new motia project')
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .option('-c, --confirm', 'Confirm the project creation', false)
-  .action((folder, options) => {
-    const mergedArgs = { ...options, name: folder };
+  .action((projectName, options) => {
+    const mergedArgs = { ...options, name: projectName };
     return handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive');
       await createInteractive(

@@ -225,7 +225,7 @@ Create a new Motia project in a fresh directory or the current one.
 npx motia create [options]
 
 # options
-  # + # [folder] (optional): Project name/folder; if not provided, you will be prompted. Use . or ./ to use current directory
+  # + # [project name] (optional): Project name/folder; if not provided, you will be prompted. Use . or ./ to use current directory
   # -t, --template <template name>: Template to use; run npx motia templates to view available ones
   # -c, --cursor: Adds .cursor config for Cursor IDE
   # Alternatively, you can use `npx motia create` to use the create command in interactive mode

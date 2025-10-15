@@ -936,7 +936,7 @@ npx motia@latest create [options]
 
 Options:
 
-- `[folder]` (optional): The name for your project folder. 
+- `[project name]` (optional): The name for your project folder. 
   If not provided, you will be prompted to enter it. 
   Use `.` or `./` to create it in the current directory.
 
