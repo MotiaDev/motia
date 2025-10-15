@@ -1,10 +1,11 @@
 import { LevelDot, Sidebar } from '@motiadev/ui'
 import { X } from 'lucide-react'
-import React, { useMemo, useState } from 'react'
+import type React from 'react'
+import { useMemo, useState } from 'react'
 import ReactJson from 'react18-json-view'
 import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
-import { Log } from '../types/log'
+import type { Log } from '../types/log'
 import { formatTimestamp } from '../utils/format-timestamp'
 
 type Props = {

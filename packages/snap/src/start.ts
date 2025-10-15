@@ -1,4 +1,4 @@
-import { createEventManager, createServer, createStateAdapter, MotiaPlugin } from '@motiadev/core'
+import { createEventManager, createServer, createStateAdapter, type MotiaPlugin } from '@motiadev/core'
 import path from 'path'
 import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles } from './generate-locked-data'

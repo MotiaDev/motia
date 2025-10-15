@@ -1,8 +1,8 @@
 import { program } from 'commander'
-import { CliContext, handler } from '../config-utils'
-import { CliListener } from '../new-deployment/listeners/cli-listener'
-import { build } from '../new-deployment/build'
 import { buildValidation } from '../build/build-validation'
+import { type CliContext, handler } from '../config-utils'
+import { build } from '../new-deployment/build'
+import { CliListener } from '../new-deployment/listeners/cli-listener'
 
 program
   .command('build')

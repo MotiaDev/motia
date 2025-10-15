@@ -1,4 +1,4 @@
-import { OpenAPIV3 } from 'openapi-types'
+import type { OpenAPIV3 } from 'openapi-types'
 
 export function processSchema(schema: Record<string, unknown>, openApi: OpenAPIV3.Document) {
   if (!schema || typeof schema !== 'object') {
@@ -16,7 +16,7 @@ export function processSchema(schema: Record<string, unknown>, openApi: OpenAPIV
 
     // copy all definitions to components/schemas for compatibility
     for (const defName in schema.$defs) {
-      if (Object.prototype.hasOwnProperty.call(schema.$defs, defName)) {
+      if (Object.hasOwn(schema.$defs, defName)) {
         ;(openApi.components.schemas as Record<string, OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject>)[defName] = (
           schema.$defs as Record<string, OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject>
         )[defName]
@@ -39,7 +39,7 @@ export function processSchema(schema: Record<string, unknown>, openApi: OpenAPIV
         const remainingSchema = schema.anyOf[0]
 
         for (const key in remainingSchema) {
-          if (Object.prototype.hasOwnProperty.call(remainingSchema, key)) {
+          if (Object.hasOwn(remainingSchema, key)) {
             schema[key] = remainingSchema[key]
           }
         }
@@ -50,7 +50,7 @@ export function processSchema(schema: Record<string, unknown>, openApi: OpenAPIV
   }
 
   for (const key in schema) {
-    if (Object.prototype.hasOwnProperty.call(schema, key)) {
+    if (Object.hasOwn(schema, key)) {
       if (key === '$ref' && typeof schema[key] === 'string' && schema[key].startsWith('#/$defs/')) {
         // convert $ref to OpenAPI components/schemas format
         schema[key] = schema[key].replace('#/$defs/', '#/components/schemas/')

@@ -1,4 +1,4 @@
-import { TutorialStep } from './tutorial-types'
+import type { TutorialStep } from './tutorial-types'
 
 class Tutorial {
   public steps: TutorialStep[] = []

@@ -1,6 +1,6 @@
+import { Badge, Button, cn } from '@motiadev/ui'
+import { AlertCircle, CheckCircle2, Clock, RefreshCw, Server } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Badge, cn } from '@motiadev/ui'
-import { RefreshCw, Server, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface PluginData {
   message: string

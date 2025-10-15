@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
-import { Logger, LogListener } from './logger'
-import { StreamAdapter } from './streams/adapters/stream-adapter'
-import { Log } from './streams/logs-stream'
+import { Logger, type LogListener } from './logger'
+import type { StreamAdapter } from './streams/adapters/stream-adapter'
+import type { Log } from './streams/logs-stream'
 
 type CreateLogger = {
   traceId: string

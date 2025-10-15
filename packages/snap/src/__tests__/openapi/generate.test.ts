@@ -1,6 +1,6 @@
-import { ApiRouteConfig, Step, ZodInput } from '@motiadev/core'
+import type { ApiRouteConfig, Step, ZodInput } from '@motiadev/core'
 import * as fs from 'fs'
-import { OpenAPIV3 } from 'openapi-types'
+import type { OpenAPIV3 } from 'openapi-types'
 import * as path from 'path'
 
 import { generateOpenApi } from '../../openapi/generate'

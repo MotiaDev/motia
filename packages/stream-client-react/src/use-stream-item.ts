@@ -1,4 +1,4 @@
-import { StreamSubscription } from '@motiadev/stream-client-browser'
+import type { StreamSubscription } from '@motiadev/stream-client-browser'
 import { useEffect, useState } from 'react'
 import { useMotiaStream } from './use-motia-stream'
 

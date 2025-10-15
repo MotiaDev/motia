@@ -1,9 +1,7 @@
 {
   "name": "Motia Project",
   "description": "Motia event-driven backend framework project",
-  "rules": [
-    "AGENTS.md"
-  ],
+  "rules": ["AGENTS.md"],
   "context": [
     ".cursor/rules/motia/api-steps.mdc",
     ".cursor/rules/motia/event-steps.mdc",

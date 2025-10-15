@@ -1,10 +1,10 @@
 import type { Express } from 'express'
-import { LockedData } from './locked-data'
-import { LoggerFactory } from './logger-factory'
-import { TracerFactory } from './observability'
-import { Printer } from './printer'
-import { StateAdapter } from './state/state-adapter'
-import { EventManager, InternalStateManager } from './types'
+import type { LockedData } from './locked-data'
+import type { LoggerFactory } from './logger-factory'
+import type { TracerFactory } from './observability'
+import type { Printer } from './printer'
+import type { StateAdapter } from './state/state-adapter'
+import type { EventManager, InternalStateManager } from './types'
 
 export type Motia = {
   loggerFactory: LoggerFactory

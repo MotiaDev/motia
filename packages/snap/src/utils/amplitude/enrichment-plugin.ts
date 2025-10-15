@@ -1,4 +1,4 @@
-import { EnrichmentPlugin, Event } from '@amplitude/analytics-types'
+import type { EnrichmentPlugin, Event } from '@amplitude/analytics-types'
 import os from 'os'
 
 export class MotiaEnrichmentPlugin implements EnrichmentPlugin {

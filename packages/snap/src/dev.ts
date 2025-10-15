@@ -6,7 +6,7 @@ import {
   createServer,
   createStateAdapter,
   getProjectIdentifier,
-  MotiaPlugin,
+  type MotiaPlugin,
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
@@ -14,10 +14,10 @@ import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
 import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
+import { generatePlugins } from './generate-plugins'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
-import { generatePlugins } from './generate-plugins'
 
 process.env.VITE_CJS_IGNORE_WARNING = 'true'
 

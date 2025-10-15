@@ -1,4 +1,4 @@
-import { MotiaPluginContext } from '../motia'
+import type { MotiaPluginContext } from '../motia'
 
 export type WorkbenchPlugin = {
   packageName: string

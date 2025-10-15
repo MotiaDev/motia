@@ -1,8 +1,8 @@
 import fs from 'fs'
 import path from 'path'
-import { Flow, Step } from './types'
 import { isApiStep, isCronStep, isEventStep, isNoopStep } from './guards'
-import { LockedData } from './locked-data'
+import type { LockedData } from './locked-data'
+import type { Flow, Step } from './types'
 
 // Pure function to ensure diagrams directory exists
 const ensureDiagramsDirectory = (diagramsDir: string): void => {

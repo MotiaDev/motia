@@ -1,11 +1,11 @@
-import { LockedData, Step, getStepConfig, getStreamConfig } from '@motiadev/core'
+import { getStepConfig, getStreamConfig, LockedData, type Step } from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import colors from 'colors'
 import { randomUUID } from 'crypto'
 import { globSync } from 'glob'
 import path from 'path'
-import { CompilationError } from './utils/errors/compilation.error'
 import { activatePythonVenv } from './utils/activate-python-env'
+import { CompilationError } from './utils/errors/compilation.error'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 

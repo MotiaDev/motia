@@ -1,4 +1,4 @@
-import { Config, Motia, MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
+import type { Config, Motia, MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 import fs from 'fs'
 import { globSync } from 'glob'
 import path from 'path'

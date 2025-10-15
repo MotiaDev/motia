@@ -1,9 +1,9 @@
+import { getProjectIdentifier, trackEvent } from '@motiadev/core'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as readline from 'readline'
-import { printMotiaDockerIntro } from './utils/print-intro'
 import { identifyUser } from '../utils/analytics'
-import { getProjectIdentifier, trackEvent } from '@motiadev/core'
+import { printMotiaDockerIntro } from './utils/print-intro'
 
 const updatePackageJson = (): void => {
   const packageJsonPath = path.join(process.cwd(), 'package.json')

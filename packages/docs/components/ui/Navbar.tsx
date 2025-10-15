@@ -1,11 +1,11 @@
 'use client'
-import logoFull from '@/public/images/logoFull.png'
-import { DISCORD_HANDLE, GITHUB_LINK } from '@/utils/constants'
 import { MotiaStreamProvider } from '@motiadev/stream-client-react'
 import { AnimatePresence, motion, useScroll } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import logoFull from '@/public/images/logoFull.png'
+import { DISCORD_HANDLE, GITHUB_LINK } from '@/utils/constants'
 import { discordIcon, githubIcon } from '../Icons'
 import ModalCTA, { ModalCTAVariants } from '../ModalCTA'
 import { StarCount } from './StarCount'
@@ -24,17 +24,6 @@ export default function Navbar() {
       setScrolled(y > 100)
     })
   }, [scrollY])
-
-  {
-    /**
-     *
-     *
-     * Hamburger MENU
-     *
-     *
-     *
-     * */
-  }
   const HamburgerMenu: React.FC = () => {
     return (
       <button
@@ -60,17 +49,6 @@ export default function Navbar() {
         </div>
       </button>
     )
-  }
-
-  {
-    /**
-     *
-     *
-     * Main Return Function
-     *
-     *
-     *
-     * */
   }
   return (
     <motion.div

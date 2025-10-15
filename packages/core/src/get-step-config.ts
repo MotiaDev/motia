@@ -1,8 +1,8 @@
 import path from 'path'
-import { StepConfig } from './types'
 import { globalLogger } from './logger'
-import { StreamConfig } from './types-stream'
 import { ProcessManager } from './process-communication/process-manager'
+import type { StepConfig } from './types'
+import type { StreamConfig } from './types-stream'
 
 const getLanguageBasedRunner = (
   stepFilePath = '',

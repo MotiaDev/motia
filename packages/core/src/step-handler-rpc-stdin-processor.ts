@@ -1,6 +1,10 @@
-import { ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import readline from 'readline'
-import { RpcProcessorInterface, RpcHandler, MessageCallback } from './process-communication/rpc-processor-interface'
+import type {
+  MessageCallback,
+  RpcHandler,
+  RpcProcessorInterface,
+} from './process-communication/rpc-processor-interface'
 
 export type RpcMessage = {
   type: 'rpc_request'

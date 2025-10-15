@@ -1,6 +1,6 @@
 import { cn } from '@motiadev/ui'
-import { Trace, TraceGroup } from '@/types/observability'
-import React from 'react'
+import type React from 'react'
+import type { Trace, TraceGroup } from '@/types/observability'
 
 type Props = {
   trace: Trace

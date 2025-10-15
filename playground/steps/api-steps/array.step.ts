@@ -1,4 +1,4 @@
-import { ApiRouteConfig, Handlers } from 'motia'
+import type { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from '../basic-tutorial/services/pet-store'
 import { petSchema } from '../basic-tutorial/services/types'

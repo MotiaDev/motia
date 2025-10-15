@@ -1,6 +1,7 @@
-import { Theme, cn, useThemeStore } from '@motiadev/ui'
+import { cn, type Theme, useThemeStore } from '@motiadev/ui'
 import { Moon, Sun } from 'lucide-react'
-import React, { useEffect } from 'react'
+import type React from 'react'
+import { useEffect } from 'react'
 
 export const ThemeToggle: React.FC = () => {
   const theme = useThemeStore((state) => state.theme)

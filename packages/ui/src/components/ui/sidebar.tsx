@@ -1,8 +1,8 @@
-import { Panel, type PanelProps } from './panel'
-import { createPortal } from 'react-dom'
-import { FC, useEffect, useMemo } from 'react'
-import { useResizable } from 'react-use-resizable'
 import { Equal } from 'lucide-react'
+import { type FC, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { useResizable } from 'react-use-resizable'
+import { Panel, type PanelProps } from './panel'
 
 export const APP_SIDEBAR_CONTAINER_ID = 'app-sidebar-container'
 

@@ -1,4 +1,4 @@
-import { RpcSender } from './rpc'
+import type { RpcSender } from './rpc'
 
 export class Logger {
   constructor(

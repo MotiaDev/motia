@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Log } from '../types/log'
+import type { Log } from '../types/log'
 
 export type LogsState = {
   logs: Log[]

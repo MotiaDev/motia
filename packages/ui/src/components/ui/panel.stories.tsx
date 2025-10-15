@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Panel } from './panel'
+import { Activity, Copy, FileText, PictureInPicture2, Settings, Users, X } from 'lucide-react'
 import { Button } from './button'
-import { PictureInPicture2, X, Copy, Settings, Activity, Users, FileText } from 'lucide-react'
+import { Panel } from './panel'
 
 const meta: Meta<typeof Panel> = {
   title: 'UI/Panel',
@@ -54,8 +54,7 @@ const meta: Meta<typeof Panel> = {
     },
     tabs: {
       control: 'object',
-      description:
-        'Tabs configuration with array of tab objects { label, content, labelComponent?, data-testid? }',
+      description: 'Tabs configuration with array of tab objects { label, content, labelComponent?, data-testid? }',
     },
     contentClassName: {
       control: 'text',
@@ -169,138 +168,138 @@ export const WithTabs: Story = {
     subtitle: 'Comprehensive system monitoring',
     variant: 'default',
     tabs: [
-        {
-          label: 'Overview',
-          content: (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-secondary rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Activity className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-medium">Active Users</span>
-                  </div>
-                  <p className="text-2xl font-bold">2,847</p>
-                  <p className="text-xs text-muted-foreground">+12% from last week</p>
+      {
+        label: 'Overview',
+        content: (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-secondary rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium">Active Users</span>
                 </div>
-                <div className="p-4 bg-secondary rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium">Total Sessions</span>
+                <p className="text-2xl font-bold">2,847</p>
+                <p className="text-xs text-muted-foreground">+12% from last week</p>
+              </div>
+              <div className="p-4 bg-secondary rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-medium">Total Sessions</span>
+                </div>
+                <p className="text-2xl font-bold">15,234</p>
+                <p className="text-xs text-muted-foreground">+8% from last week</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold">Recent Activity</h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 p-2 bg-secondary rounded">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">New user registration</span>
+                  <span className="text-xs text-muted-foreground ml-auto">2 min ago</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 bg-secondary rounded">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm">System backup completed</span>
+                  <span className="text-xs text-muted-foreground ml-auto">5 min ago</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        label: 'Users',
+        content: (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-4 h-4" />
+              <span className="text-sm font-medium">User Management</span>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                <div>
+                  <p className="text-sm font-medium">John Doe</p>
+                  <p className="text-xs text-muted-foreground">john.doe@example.com</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>
+                  <Button size="sm" variant="ghost">
+                    <Settings className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                <div>
+                  <p className="text-sm font-medium">Jane Smith</p>
+                  <p className="text-xs text-muted-foreground">jane.smith@example.com</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Pending</span>
+                  <Button size="sm" variant="ghost">
+                    <Settings className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                <div>
+                  <p className="text-sm font-medium">Mike Johnson</p>
+                  <p className="text-xs text-muted-foreground">mike.johnson@example.com</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>
+                  <Button size="sm" variant="ghost">
+                    <Settings className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        label: 'Settings',
+        content: (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Settings className="w-4 h-4" />
+              <span className="text-sm font-medium">System Configuration</span>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notification Preferences</label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" defaultChecked className="rounded" />
+                    <span className="text-sm">Email notifications</span>
                   </div>
-                  <p className="text-2xl font-bold">15,234</p>
-                  <p className="text-xs text-muted-foreground">+8% from last week</p>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" defaultChecked className="rounded" />
+                    <span className="text-sm">Push notifications</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" className="rounded" />
+                    <span className="text-sm">SMS notifications</span>
+                  </div>
                 </div>
               </div>
               <div className="space-y-2">
-                <h4 className="text-sm font-semibold">Recent Activity</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 p-2 bg-secondary rounded">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm">New user registration</span>
-                    <span className="text-xs text-muted-foreground ml-auto">2 min ago</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 bg-secondary rounded">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-sm">System backup completed</span>
-                    <span className="text-xs text-muted-foreground ml-auto">5 min ago</span>
-                  </div>
-                </div>
+                <label className="text-sm font-medium">Data Retention</label>
+                <select className="w-full p-2 border rounded-md bg-background">
+                  <option>30 days</option>
+                  <option>90 days</option>
+                  <option>1 year</option>
+                  <option>Forever</option>
+                </select>
+              </div>
+              <div className="pt-4">
+                <Button className="w-full">Save Settings</Button>
               </div>
             </div>
-          ),
-        },
-        {
-          label: 'Users',
-          content: (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-4 h-4" />
-                <span className="text-sm font-medium">User Management</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium">John Doe</p>
-                    <p className="text-xs text-muted-foreground">john.doe@example.com</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>
-                    <Button size="sm" variant="ghost">
-                      <Settings className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium">Jane Smith</p>
-                    <p className="text-xs text-muted-foreground">jane.smith@example.com</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Pending</span>
-                    <Button size="sm" variant="ghost">
-                      <Settings className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium">Mike Johnson</p>
-                    <p className="text-xs text-muted-foreground">mike.johnson@example.com</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>
-                    <Button size="sm" variant="ghost">
-                      <Settings className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ),
-        },
-        {
-          label: 'Settings',
-          content: (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Settings className="w-4 h-4" />
-                <span className="text-sm font-medium">System Configuration</span>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Notification Preferences</label>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-sm">Email notifications</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-sm">Push notifications</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">SMS notifications</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Retention</label>
-                  <select className="w-full p-2 border rounded-md bg-background">
-                    <option>30 days</option>
-                    <option>90 days</option>
-                    <option>1 year</option>
-                    <option>Forever</option>
-                  </select>
-                </div>
-                <div className="pt-4">
-                  <Button className="w-full">Save Settings</Button>
-                </div>
-              </div>
-            </div>
-          ),
-        },
-      ],
+          </div>
+        ),
+      },
+    ],
     actions: [
       {
         icon: <Copy />,
@@ -324,77 +323,77 @@ export const SimpleTabs: Story = {
     variant: 'outlined',
     size: 'sm',
     tabs: [
-        {
-          label: 'Description',
-          content: (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                This is a high-quality product designed for modern workflows. It features advanced capabilities and
-                seamless integration with existing systems.
-              </p>
-              <div className="space-y-1">
-                <p className="text-xs font-medium">Key Features:</p>
-                <ul className="text-xs text-muted-foreground space-y-1 ml-4">
-                  <li>• Advanced analytics</li>
-                  <li>• Real-time updates</li>
-                  <li>• Cloud integration</li>
-                  <li>• Mobile responsive</li>
-                </ul>
-              </div>
+      {
+        label: 'Description',
+        content: (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              This is a high-quality product designed for modern workflows. It features advanced capabilities and
+              seamless integration with existing systems.
+            </p>
+            <div className="space-y-1">
+              <p className="text-xs font-medium">Key Features:</p>
+              <ul className="text-xs text-muted-foreground space-y-1 ml-4">
+                <li>• Advanced analytics</li>
+                <li>• Real-time updates</li>
+                <li>• Cloud integration</li>
+                <li>• Mobile responsive</li>
+              </ul>
             </div>
-          ),
-        },
-        {
-          label: 'Specifications',
-          content: (
+          </div>
+        ),
+      },
+      {
+        label: 'Specifications',
+        content: (
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">Version</span>
+              <span className="text-sm text-muted-foreground">2.1.0</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">Size</span>
+              <span className="text-sm text-muted-foreground">4.2 MB</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">Platform</span>
+              <span className="text-sm text-muted-foreground">Web, iOS, Android</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">License</span>
+              <span className="text-sm text-muted-foreground">MIT</span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        label: 'Reviews',
+        content: (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className="text-yellow-400">
+                    ★
+                  </span>
+                ))}
+              </div>
+              <span className="text-sm text-muted-foreground">4.8/5 (127 reviews)</span>
+            </div>
             <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Version</span>
-                <span className="text-sm text-muted-foreground">2.1.0</span>
+              <div className="p-2 bg-secondary rounded">
+                <p className="text-xs font-medium">Sarah M.</p>
+                <p className="text-xs text-muted-foreground">"Excellent product, very intuitive to use!"</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Size</span>
-                <span className="text-sm text-muted-foreground">4.2 MB</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Platform</span>
-                <span className="text-sm text-muted-foreground">Web, iOS, Android</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">License</span>
-                <span className="text-sm text-muted-foreground">MIT</span>
+              <div className="p-2 bg-secondary rounded">
+                <p className="text-xs font-medium">David L.</p>
+                <p className="text-xs text-muted-foreground">"Great value for money, highly recommended."</p>
               </div>
             </div>
-          ),
-        },
-        {
-          label: 'Reviews',
-          content: (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <span key={i} className="text-yellow-400">
-                      ★
-                    </span>
-                  ))}
-                </div>
-                <span className="text-sm text-muted-foreground">4.8/5 (127 reviews)</span>
-              </div>
-              <div className="space-y-2">
-                <div className="p-2 bg-secondary rounded">
-                  <p className="text-xs font-medium">Sarah M.</p>
-                  <p className="text-xs text-muted-foreground">"Excellent product, very intuitive to use!"</p>
-                </div>
-                <div className="p-2 bg-secondary rounded">
-                  <p className="text-xs font-medium">David L.</p>
-                  <p className="text-xs text-muted-foreground">"Great value for money, highly recommended."</p>
-                </div>
-              </div>
-            </div>
-          ),
-        },
-      ],
+          </div>
+        ),
+      },
+    ],
   },
 }
 

@@ -1,4 +1,4 @@
-import { MotiaPlugin, MotiaPluginContext, Step, isApiStep } from '@motiadev/core'
+import { isApiStep, type MotiaPlugin, type MotiaPluginContext, type Step } from '@motiadev/core'
 import { EndpointsStream, mapEndpoint } from './endpoints-stream'
 
 export function plugin({ lockedData }: MotiaPluginContext): MotiaPlugin {

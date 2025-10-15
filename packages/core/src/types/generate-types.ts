@@ -1,11 +1,11 @@
 import { isApiStep, isCronStep, isEventStep } from '../guards'
-import { Printer } from '../printer'
-import { Emit, Step } from '../types'
-import { Stream } from '../types-stream'
+import type { Printer } from '../printer'
+import type { Emit, Step } from '../types'
+import type { Stream } from '../types-stream'
 import { generateTypeFromSchema } from './generate-type-from-schema'
 import { generateTypesFromResponse } from './generate-types-from-response'
 import { mergeSchemas } from './merge-schemas'
-import { JsonSchema } from './schema.types'
+import type { JsonSchema } from './schema.types'
 
 type HandlersMap = Record<string, { type: string; generics: string[] }>
 type StreamsMap = Record<string, string>

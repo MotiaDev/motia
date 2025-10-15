@@ -1,18 +1,19 @@
 'use client'
 import { AnimatePresence, motion } from 'framer-motion'
+import Image from 'next/image'
+import Link from 'next/link'
+
+import type React from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-
-import React, { useEffect, useMemo, useState } from 'react'
-import { AgentData } from '@/lib/fetchAgents'
+import type { AgentData } from '@/lib/fetchAgents'
 import bgWorkflowExplorer from '@/public/images/landing/bgWorkflowExplorer.avif'
-import Image from 'next/image'
-import CollapsibleFolder from './CollapsibleFolder'
 import logoFull from '@/public/images/logoFull.png'
-import { openInNewWindowIcon } from './Icons'
-import Link from 'next/link'
 import { GITHUB_REPO_BASE } from '@/utils/constants'
+import CollapsibleFolder from './CollapsibleFolder'
 import { flowImages, folderMap } from './constants/agentExplorer'
+import { openInNewWindowIcon } from './Icons'
 
 const customStyle = {
   ...atomDark,

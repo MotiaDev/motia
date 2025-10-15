@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { CliContext } from '../cloud/config-utils'
+import type { CliContext } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
 import { executeCommand } from '../utils/execute-command'

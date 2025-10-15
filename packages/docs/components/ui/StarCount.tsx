@@ -1,8 +1,8 @@
+import { useStreamItem } from '@motiadev/stream-client-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Link from 'next/link'
 import { GITHUB_LINK } from '../../utils/constants'
 import { githubIcon, starIcon } from '../Icons'
-import { useStreamItem } from '@motiadev/stream-client-react'
 
 // Single digit reel
 function Reel({ digit }: { digit: number }) {

@@ -1,6 +1,6 @@
-import { Step } from '@motiadev/core'
+import type { Step } from '@motiadev/core'
 import { Printer } from '@motiadev/core/dist/src/printer'
-import { Stream } from '@motiadev/core/dist/src/types-stream'
+import type { Stream } from '@motiadev/core/dist/src/types-stream'
 import colors from 'colors'
 import { CLIOutputManager } from '../../cli-output-manager'
 import { prettyBytes } from '../utils/pretty-bytes'

@@ -1,5 +1,5 @@
 import { FileStreamAdapter } from '../streams/adapters/file-stream-adapter'
-import { BaseStreamItem } from '../types-stream'
+import type { BaseStreamItem } from '../types-stream'
 
 export class TraceStreamAdapter<TData> extends FileStreamAdapter<TData> {
   private state: Record<string, unknown> = {}

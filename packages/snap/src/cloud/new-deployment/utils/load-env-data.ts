@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { CliContext } from '../../config-utils'
+import type { CliContext } from '../../config-utils'
 
 export const loadEnvData = (envFile: string, context: CliContext): Record<string, string> => {
   if (!envFile) {

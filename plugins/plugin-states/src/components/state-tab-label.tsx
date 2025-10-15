@@ -1,5 +1,5 @@
-import { memo } from 'react'
 import { File } from 'lucide-react'
+import { memo } from 'react'
 
 export const StatesTabLabel = memo(() => (
   <>

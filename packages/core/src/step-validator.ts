@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Step } from './types'
+import type { Step } from './types'
 
 const objectSchema = z.object({
   type: z.literal('object'),

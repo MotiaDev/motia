@@ -1,8 +1,9 @@
-import { TraceGroup } from '@/types/observability'
-import { formatDuration } from '@/lib/utils'
 import { cn } from '@motiadev/ui'
 import { formatDistanceToNow } from 'date-fns'
-import React, { memo } from 'react'
+import type React from 'react'
+import { memo } from 'react'
+import { formatDuration } from '@/lib/utils'
+import type { TraceGroup } from '@/types/observability'
 import { TraceStatusBadge } from './trace-status'
 
 interface Props {

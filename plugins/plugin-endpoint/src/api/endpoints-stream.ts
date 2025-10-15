@@ -1,4 +1,12 @@
-import { ApiRouteConfig, ApiRouteMethod, JsonSchema, LockedData, QueryParam, Step, StreamAdapter } from '@motiadev/core'
+import {
+  type ApiRouteConfig,
+  type ApiRouteMethod,
+  type JsonSchema,
+  type LockedData,
+  type QueryParam,
+  type Step,
+  StreamAdapter,
+} from '@motiadev/core'
 
 type ApiEndpoint = {
   id: string

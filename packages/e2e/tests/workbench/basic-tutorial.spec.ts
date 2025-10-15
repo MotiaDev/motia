@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { WorkbenchPage } from '@/src/page-objects'
 
 test.use({ viewport: { width: 1920, height: 1080 } })

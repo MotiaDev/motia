@@ -1,7 +1,7 @@
-import inquirer, { QuestionCollection } from 'inquirer'
 import colors from 'colors'
+import inquirer, { type QuestionCollection } from 'inquirer'
+import type { CliContext } from '../cloud/config-utils'
 import { create } from './index'
-import { CliContext } from '../cloud/config-utils'
 
 interface InteractiveAnswers {
   template: string

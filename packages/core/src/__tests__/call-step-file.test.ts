@@ -1,15 +1,15 @@
 import { randomUUID } from 'crypto'
-import path from 'path'
 import express from 'express'
+import path from 'path'
 import { callStepFile } from '../call-step-file'
 import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
 import { Logger } from '../logger'
-import { Motia } from '../motia'
+import type { Motia } from '../motia'
+import { NoTracer } from '../observability/no-tracer'
 import { NoPrinter } from '../printer'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { createCronStep } from './fixtures/step-fixtures'
-import { NoTracer } from '../observability/no-tracer'
 
 describe('callStepFile', () => {
   beforeAll(() => {

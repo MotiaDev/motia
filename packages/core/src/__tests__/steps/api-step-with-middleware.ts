@@ -1,4 +1,4 @@
-import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteHandler, FlowContext, ApiMiddleware } from '../../types'
+import type { ApiMiddleware, ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteHandler, FlowContext } from '../../types'
 
 const loggerMiddleware: ApiMiddleware = async (req, ctx, next) => {
   ctx.logger.info(`[Middleware] Request with body:`, req.body)

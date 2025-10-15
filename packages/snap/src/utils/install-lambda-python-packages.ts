@@ -1,5 +1,5 @@
-import fs from 'fs'
 import { execSync } from 'child_process'
+import fs from 'fs'
 import { internalLogger } from './internal-logger'
 
 interface VenvConfig {

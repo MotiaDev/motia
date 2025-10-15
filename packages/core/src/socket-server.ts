@@ -1,5 +1,5 @@
-import { WebSocket, Server as WsServer } from 'ws'
-import http from 'http'
+import type http from 'http'
+import { type WebSocket, Server as WsServer } from 'ws'
 
 type BaseMessage = { streamName: string; groupId: string; id?: string }
 type JoinMessage = BaseMessage & { subscriptionId: string }

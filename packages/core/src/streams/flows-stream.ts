@@ -1,7 +1,7 @@
-import { LockedData } from '../locked-data'
-import { StreamAdapter } from './adapters/stream-adapter'
 import { generateFlow } from '../helper/flows-helper'
-import { FlowResponse } from '../types/flows-types'
+import type { LockedData } from '../locked-data'
+import type { FlowResponse } from '../types/flows-types'
+import { StreamAdapter } from './adapters/stream-adapter'
 
 export class FlowsStream extends StreamAdapter<FlowResponse> {
   constructor(private readonly lockedData: LockedData) {

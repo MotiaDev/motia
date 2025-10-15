@@ -1,7 +1,7 @@
 import path from 'path'
 import { LockedData } from '../locked-data'
-import { createApiStep, createCronStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 import { NoPrinter } from '../printer'
+import { createApiStep, createCronStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 
 describe('LockedData', () => {
   describe('step creation', () => {

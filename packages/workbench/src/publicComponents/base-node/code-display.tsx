@@ -1,9 +1,10 @@
 import { useThemeStore } from '@motiadev/ui'
-import { Feature } from '@/types/file'
-import { FeatureCard } from './feature-card'
-import React, { useRef, useState } from 'react'
+import type React from 'react'
+import { useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import type { Feature } from '@/types/file'
+import { FeatureCard } from './feature-card'
 import { LanguageIndicator } from './language-indicator'
 
 type CodeDisplayProps = {

@@ -1,4 +1,4 @@
-import { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
+import type { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 import { api } from './api'
 
 export default function plugin(motia: MotiaPluginContext): MotiaPlugin {

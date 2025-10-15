@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import zodToJsonSchema from 'zod-to-json-schema'
 import { generateTypeFromSchema } from '../../types/generate-type-from-schema'
-import { JsonSchema } from '../../types/schema.types'
+import type { JsonSchema } from '../../types/schema.types'
 
 describe('generateTypeFromSchema', () => {
   it('should generate a type from a schema with z.record', () => {

@@ -1,7 +1,7 @@
-import { promises as fs, statSync, mkdirSync } from 'fs'
-import * as path from 'path'
+import { promises as fs, mkdirSync, statSync } from 'fs'
 import { globSync } from 'glob'
-import { CliContext } from '../../cloud/config-utils'
+import * as path from 'path'
+import type { CliContext } from '../../cloud/config-utils'
 
 export type Generator = (rootDir: string, context: CliContext) => Promise<void>
 

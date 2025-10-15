@@ -1,6 +1,6 @@
 import path from 'path'
-import { resolveDepNames } from '../resolve-dep-names'
 import { PythonError } from '../python-errors'
+import { resolveDepNames } from '../resolve-dep-names'
 
 const sitePackagesDir = path.join(__dirname, 'site-packages')
 

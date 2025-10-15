@@ -1,4 +1,4 @@
-import { StateFilter, StateItem } from '../state-adapter'
+import type { StateFilter, StateItem } from '../state-adapter'
 
 const getNestedValue = (obj: StateItem['value'], path: string): string | undefined => {
   if (!obj || typeof obj !== 'object') return undefined

@@ -1,7 +1,7 @@
-import { ApiRouteConfig, Handlers } from 'motia'
+import { randomUUID } from 'crypto'
+import type { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import { messageSchema } from './00-open-ai-message.stream'
-import { randomUUID } from 'crypto'
 
 const inputSchema = z.object({
   message: z.string({ description: 'The message to send to OpenAI' }),

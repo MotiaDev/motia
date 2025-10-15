@@ -1,5 +1,5 @@
+import type { GroupEventMessage, JoinMessage } from './stream.types'
 import { StreamSubscription } from './stream-subscription'
-import { GroupEventMessage, JoinMessage } from './stream.types'
 
 export class StreamGroupSubscription<TData extends { id: string }> extends StreamSubscription<
   TData[],

@@ -1,6 +1,6 @@
 import { Panel } from '@motiadev/ui'
-import { FC, Fragment } from 'react'
-import { ApiEndpoint } from '../types/endpoint'
+import { type FC, Fragment } from 'react'
+import type { ApiEndpoint } from '../types/endpoint'
 
 type Props = {
   endpoint: ApiEndpoint

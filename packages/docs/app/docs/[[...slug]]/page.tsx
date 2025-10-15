@@ -1,24 +1,24 @@
-import { source } from '@/lib/source'
-import { DocsPage, DocsBody, DocsDescription, DocsTitle } from 'fumadocs-ui/page'
-import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import { createRelativeLink } from 'fumadocs-ui/mdx'
-import { getMDXComponents } from '@/mdx-components'
-import { CodeBlock, Pre } from 'fumadocs-ui/components/codeblock'
-import { Callout } from 'fumadocs-ui/components/callout'
-import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
 import { Banner } from 'fumadocs-ui/components/banner'
-import { DescriptionTable } from '@/components/DescriptionTable'
-import { LLMCopyButton, ViewOptions } from '@/components/ai/page-actions'
-import { Step, Steps } from 'fumadocs-ui/components/steps'
-import { ImageZoom, ImageZoomProps } from 'fumadocs-ui/components/image-zoom'
-import { TypeTable } from 'fumadocs-ui/components/type-table'
+import { Callout } from 'fumadocs-ui/components/callout'
 import { Card, Cards } from 'fumadocs-ui/components/card'
-import { File, Folder, Files } from 'fumadocs-ui/components/files'
+import { CodeBlock, Pre } from 'fumadocs-ui/components/codeblock'
+import { File, Files, Folder } from 'fumadocs-ui/components/files'
+import { ImageZoom, type ImageZoomProps } from 'fumadocs-ui/components/image-zoom'
+import { Step, Steps } from 'fumadocs-ui/components/steps'
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
+import { TypeTable } from 'fumadocs-ui/components/type-table'
+import { createRelativeLink } from 'fumadocs-ui/mdx'
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/page'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { LLMCopyButton, ViewOptions } from '@/components/ai/page-actions'
 import { Breadcrumb } from '@/components/Breadcrumb'
 import { CodeSandbox } from '@/components/CodeSandbox'
-import { TrelloTab } from '@/components/TrelloCodeFetcher'
+import { DescriptionTable } from '@/components/DescriptionTable'
 import { GitHubWorkflowTab } from '@/components/GitHubIntegrationCodeFetcher'
+import { TrelloTab } from '@/components/TrelloCodeFetcher'
+import { source } from '@/lib/source'
+import { getMDXComponents } from '@/mdx-components'
 
 export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
   const params = await props.params
@@ -30,11 +30,11 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
   const docPath = slugSegments.length ? slugSegments.join('/') : 'index'
 
   return (
-    <DocsPage 
-      toc={page.data.toc} 
+    <DocsPage
+      toc={page.data.toc}
       full={page.data.full}
       tableOfContent={{
-        style: 'clerk'
+        style: 'clerk',
       }}
     >
       <DocsTitle>{page.data.title}</DocsTitle>
@@ -50,7 +50,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
         <MDXContent
           components={getMDXComponents({
             // this allows you to link to other pages with relative file paths
-             
+
             pre: ({ ref: _ref, ...props }) => (
               <CodeBlock {...props}>
                 <Pre>{props.children}</Pre>
@@ -77,13 +77,13 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
           })}
         />
         <div className="mt-8">
-        <Banner>
-          Need help? See our&nbsp;
-          <Link href="/docs/community-resources" aria-label="Visit Community">
-            Community Resources
-          </Link>
-          &nbsp;for questions, examples, and discussions.
-        </Banner>
+          <Banner>
+            Need help? See our&nbsp;
+            <Link href="/docs/community-resources" aria-label="Visit Community">
+              Community Resources
+            </Link>
+            &nbsp;for questions, examples, and discussions.
+          </Banner>
         </div>
       </DocsBody>
     </DocsPage>

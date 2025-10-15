@@ -1,7 +1,7 @@
 import { Sidebar } from '@motiadev/ui'
 import { X } from 'lucide-react'
-import React from 'react'
-import { StateItem } from '../types/state'
+import type React from 'react'
+import type { StateItem } from '../types/state'
 import { StateDetails } from './state-details'
 import { StateEditor } from './state-editor'
 

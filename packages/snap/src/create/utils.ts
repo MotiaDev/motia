@@ -1,7 +1,7 @@
-import path from 'path'
 import fs from 'fs'
+import path from 'path'
+import type { CliContext } from '../cloud/config-utils'
 import { executeCommand } from '../utils/execute-command'
-import { CliContext } from '../cloud/config-utils'
 
 export const checkIfFileExists = (dir: string, fileName: string): boolean => {
   return fs.existsSync(path.join(dir, fileName))

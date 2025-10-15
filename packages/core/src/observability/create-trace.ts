@@ -1,6 +1,6 @@
-import { Step } from '../types'
-import { Trace, TraceGroup } from './types'
 import { randomUUID } from 'crypto'
+import type { Step } from '../types'
+import type { Trace, TraceGroup } from './types'
 
 export const createTrace = (traceGroup: TraceGroup, step: Step) => {
   const id = randomUUID()

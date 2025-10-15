@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import {
   getPathParamsSelector,
   getQueryParamsSelector,
-  UseEndpointConfiguration,
+  type UseEndpointConfiguration,
   useEndpointConfiguration,
 } from './use-endpoint-configuration'
-import { useShallow } from 'zustand/react/shallow'
 
 const queryParamsSelector = (state: UseEndpointConfiguration) =>
   Object.values(getQueryParamsSelector(state)).filter(
