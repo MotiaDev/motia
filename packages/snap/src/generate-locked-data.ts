@@ -100,18 +100,20 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   return invalidSteps
 }
 
-export const generateLockedData = async (
-  projectDir: string,
-  streamAdapter: 'file' | 'memory' = 'file',
-  printerType: 'disabled' | 'default' = 'default',
-): Promise<LockedData> => {
+export const generateLockedData = async (config: {
+  projectDir: string
+  streamAdapter?: 'file' | 'memory'
+  printerType?: 'disabled' | 'default'
+  motiaFileStoragePath?: string
+}): Promise<LockedData> => {
   try {
+    const { projectDir, streamAdapter = 'file', printerType = 'default', motiaFileStoragePath = '.motia' } = config
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
     /*
      * NOTE: right now for performance and simplicity let's enforce a folder,
      * but we might want to remove this and scan the entire current directory
      */
-    const lockedData = new LockedData(projectDir, streamAdapter, printer)
+    const lockedData = new LockedData(projectDir, streamAdapter, printer, motiaFileStoragePath)
 
     await collectFlows(projectDir, lockedData)
     lockedData.saveTypes()

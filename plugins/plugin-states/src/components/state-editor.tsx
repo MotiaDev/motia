@@ -1,8 +1,8 @@
 import { Button } from '@motiadev/ui'
 import { AlertCircle, Check, Loader2, Save } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { JsonEditor } from '../ui/json-editor'
-import { StateItem } from './hooks/states-hooks'
+import { JsonEditor } from './json-editor'
+import { StateItem } from '../types/state'
 
 type Props = {
   state: StateItem

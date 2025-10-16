@@ -27,7 +27,7 @@ export const DeployButton = () => {
 
   const onSelfHostedClick = () => {
     analytics.track('deploy_button_self_hosted_clicked')
-    window.open('https://www.motia.dev/docs/concepts/deployment/self-hosted', '_blank')
+    window.open('https://www.motia.dev/docs/deployment-guide/self-hosted', '_blank')
   }
 
   return (

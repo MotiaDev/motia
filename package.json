@@ -16,11 +16,13 @@
     "clean": "node -e \"const fs =require('fs');['node_modules','dist', '.turbo','.next'].forEach(d=>{if(fs.existsSync(d))fs.rmSync(d,{recursive:true,force:true})});fs.unlink('pnpm-lock.yaml', {recursive:true, force:true})\""
   },
   "devDependencies": {
-    "@types/node": "^22.15.18",
+    "@eslint/js": "^9.28.0",
+    "@jest/globals": "^30.2.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.18.10",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
     "eslint": "^9.26.0",
-    "@eslint/js": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-jest": "^28.11.0",
     "eslint-plugin-prettier": "^5.4.0",
@@ -43,9 +45,6 @@
   "packageManager": "pnpm@10.11.0",
   "volta": {
     "node": "20.11.1"
-  },
-  "dependencies": {
-    "axios": "^1.9.0"
   },
   "version": "0.0.7"
 }

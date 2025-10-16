@@ -8,20 +8,21 @@ This package includes TailwindCSS compilation to ensure all Tailwind classes use
 
 ### Build Process
 
-The build process includes two steps:
+The build process uses Vite with integrated CSS compilation:
 
-1. **CSS Compilation**: Compiles `src/styles.css` using PostCSS and TailwindCSS
-2. **TypeScript Compilation**: Compiles TypeScript files to JavaScript
+1. **Vite Build**: Compiles TypeScript, CSS, and generates type declarations
+2. **Output Formats**: Generates both ES modules and CommonJS formats
+3. **Type Declarations**: Automatically generates `.d.ts` files
 
 ### Development
 
-- `pnpm run build` - Build both CSS and TypeScript
-- `pnpm run dev` - Watch mode for both CSS and TypeScript
-- `pnpm run build:css` - Build only CSS
-- `pnpm run dev:css` - Watch mode for CSS only
+- `pnpm run build` - Build all files using Vite
+- `pnpm run dev` - Watch mode for development
+- `pnpm run clean` - Remove the dist directory
 
 ### Configuration Files
 
+- `vite.config.ts` - Vite configuration with TailwindCSS plugin
 - `src/styles.css` - Main CSS entry point with Tailwind imports
 
 ## Features

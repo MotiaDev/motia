@@ -41,7 +41,7 @@ export const EndpointPathPreview: FC<EndpointPathPreviewProps> = ({ path, baseUr
             copied ? 'text-green-400' : 'text-muted-foreground',
           )}
           variant="icon"
-          size="small"
+          size="sm"
           aria-label="Copy URL"
         >
           {copied ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}

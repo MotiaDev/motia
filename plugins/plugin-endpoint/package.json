@@ -5,14 +5,24 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./styles.css": "./dist/styles.css"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "require": "./dist/plugin.cjs"
+    },
+    "./styles.css": "./dist/plugin-endpoint.css"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "npm run build:css && tsc",
+    "build": "vite build",
+    "dev": "vite build --watch",
     "build:css": "postcss src/styles.css -o dist/styles.css",
     "dev": "npm run build:css && npm run dev:parallel",
     "dev:parallel": "npm run dev:css & tsc --watch",
@@ -21,26 +31,30 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "@motiadev/stream-client-react": "workspace:*",
-    "@motiadev/ui": "workspace:*",
     "clsx": "^2.1.1",
     "json-schema": "^0.4.0",
-    "lucide-react": "^0.544.0",
-    "react-syntax-highlighter": "^15.6.1",
+    "lucide-react": "^0.545.0",
+    "react-syntax-highlighter": "^15.6.6",
     "react18-json-view": "^0.2.9",
     "tailwind-merge": "^3.3.1",
     "zustand": "^5.0.8"
   },
+  "peerDependencies": {
+    "@motiadev/core": "workspace:*",
+    "@motiadev/stream-client-react": "workspace:*",
+    "@motiadev/ui": "workspace:*"
+  },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.13",
+    "@tailwindcss/vite": "^4.1.14",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^24.5.2",
-    "@types/react": "^19.1.13",
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "postcss": "^8.5.6",
-    "postcss-cli": "^11.0.1",
-    "react": "^19.1.1",
-    "tailwindcss": "^4.1.13",
-    "typescript": "^5.9.2"
+    "@vitejs/plugin-react": "^5.0.4",
+    "react": "^19.2.0",
+    "typescript": "^5.9.3",
+    "tailwindcss": "^4.1.14",
+    "vite": "^7.1.10",
+    "vite-plugin-dts": "^4.5.4"
   }
 }

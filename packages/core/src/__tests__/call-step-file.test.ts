@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import path from 'path'
+import express from 'express'
 import { callStepFile } from '../call-step-file'
 import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
@@ -31,6 +32,8 @@ describe('callStepFile', () => {
       lockedData: new LockedData(baseDir, 'memory', printer),
       loggerFactory: { create: () => logger },
       tracerFactory: { createTracer: () => tracer, clear: () => Promise.resolve() },
+      app: express(),
+      stateAdapter: state,
     }
 
     jest.spyOn(eventManager, 'emit').mockImplementation(() => Promise.resolve())

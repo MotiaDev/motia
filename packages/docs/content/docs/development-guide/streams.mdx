@@ -1,197 +1,399 @@
 ---
 title: Real-time Streams 
-description: Motia Streams are a way to quickly push updates from your asynchronous workflows to the client without having to implement any sort of polling processes.
+description: Push live updates from your backend to connected clients without polling. Perfect for AI responses, chat apps, and long-running tasks.
 ---
 
-## How it works
+## Why Streams?
 
-You first need to define a stream in your project
+Building modern apps means dealing with long-running tasks - AI responses that stream in word by word, file processing that takes time, or chat messages that need to appear instantly.
 
-### Defining a stream
+Without Streams, you'd need to:
+- Build polling logic on the frontend
+- Set up WebSocket infrastructure manually
+- Manage connection states and reconnection
+- Handle data synchronization yourself
 
-To be able to use Motia Sockets, you need to define a stream
+With Motia Streams, you get all of this out of the box. Just define what data you want to stream, and Motia handles the rest.
 
-Create a file called `open-ai.stream.ts` under `steps/` folder
+## Some Use Cases for Streams
 
-```typescript
+- **AI/LLM responses** → Stream ChatGPT responses as they generate
+- **Chat applications** → Real-time messaging and typing indicators
+- **Long processes** → Video processing, data exports, batch operations
+- **Live dashboards** → Real-time metrics and notifications
+- **Collaborative tools** → Real-time updates across multiple users
+
+---
+
+## Creating a Stream
+
+Streams are just files. Create a `.stream.ts` file in your `steps/` folder and export a config.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript title="steps/chat-messages.stream.ts"
 import { StreamConfig } from 'motia'
 import { z } from 'zod'
 
 export const config: StreamConfig = {
-  /**
-   * This will be converted in the property on the FlowContext:
-   * 
-   * context.streams.openai
-   */
-  name: 'openai',
-  /**
-   * Schema is important to define the type of the stream, the API
-   * generated to interact with this stream will have the structure defined here
-   */  
-  schema: z.object({ message: z.string() }),
-
-  /**
-   * Base config is used to configure the stream
-   */
+  name: 'chatMessage',
+  schema: z.object({
+    id: z.string(),
+    userId: z.string(),
+    message: z.string(),
+    timestamp: z.string()
+  }),
   baseConfig: {
-    /**
-     * There are two storage types: default and custom
-     * Default will use the default storage to store the data.
-     * 
-     * Custom will use a custom storage, you need to implement 
-     * the StateStream class.
-     */
-    storageType: 'default',
-  },
+    storageType: 'default'
+  }
 }
 ```
 
-Once a stream is created, it should be immediately available in FlowContext (make sure to have motia running on the project)
+</Tab>
+<Tab value='Python'>
 
-Then you can simply create records using the streams API in your step
+```python title="steps/chat_messages_stream.py"
+from pydantic import BaseModel
 
-```typescript
+class ChatMessage(BaseModel):
+    id: str
+    user_id: str
+    message: str
+    timestamp: str
+
+config = {
+    "name": "chatMessage",
+    "schema": ChatMessage.model_json_schema(),
+    "baseConfig": {"storageType": "default"}
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript title="steps/chat-messages.stream.js"
+const config = {
+  name: 'chatMessage',
+  schema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      userId: { type: 'string' },
+      message: { type: 'string' },
+      timestamp: { type: 'string' }
+    },
+    required: ['id', 'userId', 'message', 'timestamp']
+  },
+  baseConfig: {
+    storageType: 'default'
+  }
+}
+
+module.exports = { config }
+```
+
+</Tab>
+</Tabs>
+
+👉 That's it. Motia auto-discovers the stream and makes it available as `context.streams.chatMessage` in all your handlers.
+
+---
+
+## Using Streams in Steps
+
+Once you've defined a stream, you can use it in any Step through `context.streams`.
+
+### Stream Methods
+
+Every stream has these methods:
+
+| Method | What it does |
+|--------|-------------|
+| `set(groupId, id, data)` | Create or update an item |
+| `get(groupId, id)` | Get a single item |
+| `delete(groupId, id)` | Remove an item |
+| `getGroup(groupId)` | Get all items in a group |
+| `send(channel, event)` | Send ephemeral events (typing, reactions, etc.) |
+
+**Think of it like this:**
+- `groupId` = Which room/conversation/user
+- `id` = Which specific item in that room
+- `data` = The actual data matching your schema
+
+---
+
+## Real Example: Todo App with Real-Time Sync
+
+Let's build a todo app where all connected clients see updates instantly.
+
+<Callout type="info">
+  This is a real, working example from the [Motia Examples Repository](https://github.com/MotiaDev/motia-examples/tree/main/examples/realtime-todo-app). You can clone it and run it locally!
+</Callout>
+
+**Step 1:** Create the stream definition
+
+```typescript title="steps/todo.stream.ts"
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+const todoSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  createdAt: z.string(),
+  dueDate: z.string().optional(),
+  completedAt: z.string().optional()
+})
+
+export const config: StreamConfig = {
+  name: 'todo',
+  schema: todoSchema,
+  baseConfig: { storageType: 'default' }
+}
+
+export type Todo = z.infer<typeof todoSchema>
+```
+
+**Step 2:** Create an API endpoint that uses streams
+
+```typescript title="steps/create-todo.step.ts"
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
+import { Todo } from './todo.stream'
 
 export const config: ApiRouteConfig = {
   type: 'api',
-  name: 'OpenAiApi',
-  description: 'Call OpenAI',
-  path: '/open-ai',
+  name: 'CreateTodo',
   method: 'POST',
-  emits: ['openai-prompt'],
-  flows: ['open-ai'],
-  bodySchema: z.object({ message: z.string({ description: 'The message to send to OpenAI' }) }),
-  responseSchema: {
-    200: z.object({ message: z.string({ description: 'The message from OpenAI' }) }) 
-  },
-}
-
-export const handler: Handlers['OpenAiApi'] = async (req, { traceId, logger, emit, streams }) => {
-  logger.info('[Call OpenAI] Received callOpenAi event', { message: req.body.message })
-
-  /**
-   * This creates a record with empty message string to be populated in the next step
-   */
-  const result = await streams.openai.set(traceId, 'message', { message: '' })
-
-  await emit({
-    topic: 'openai-prompt',
-    data: { message: req.body.message },
-  })
-
-  return { status: 200, body: result }
-}
-```
-
-The previous step just prepares a message to be created by Open AI via OpenAI SDK stream, which will be populated in the next step
-
-```typescript
-import { EventConfig, Handlers } from 'motia'
-import { OpenAI } from 'openai'
-import { z } from 'zod'
-
-export const config: EventConfig = {
-  type: 'event',
-  name: 'CallOpenAi',
-  description: 'Call OpenAI',
-  subscribes: ['openai-prompt'],
-  emits: [],
-  input: z.object({
-    message: z.string({ description: 'The message to send to OpenAI' }),
+  path: '/todo',
+  bodySchema: z.object({
+    description: z.string(),
+    dueDate: z.string().optional()
   }),
-  flows: ['open-ai'],
+  responseSchema: {
+    200: z.object({
+      id: z.string(),
+      description: z.string(),
+      createdAt: z.string(),
+      dueDate: z.string().optional(),
+      completedAt: z.string().optional()
+    }),
+    400: z.object({ error: z.string() })
+  },
+  emits: []
 }
 
-export const handler: Handlers['CallOpenAi'] = async (input, context) => {
-  const { logger, traceId } = context
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+export const handler: Handlers['CreateTodo'] = async (req, { logger, streams }) => {
+  logger.info('Creating new todo', { body: req.body })
 
-  logger.info('[Call OpenAI] Received callOpenAi event', input)
+  const { description, dueDate } = req.body
+  const todoId = `todo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 
-  const result = await openai.chat.completions.create({
-    messages: [{ role: 'system', content: input.message }],
-    model: 'gpt-4o-mini',
-    stream: true,
-  })
-
-  const messages: string[] = []
-
-  for await (const chunk of result) {
-    messages.push(chunk.choices[0].delta.content ?? '')
-
-    /**
-     * Now we're populating a previously created message with the streamed data from OpenAI
-     */
-    await context.streams.openai.set(traceId, 'message', { 
-      message: messages.join(''),
-    })
+  if (!description) {
+    return { status: 400, body: { error: 'Description is required' } }
   }
 
-  logger.info('[Call OpenAI] OpenAI response', result)
+  const newTodo: Todo = {
+    id: todoId,
+    description,
+    createdAt: new Date().toISOString(),
+    dueDate,
+    completedAt: undefined
+  }
+
+  // Store in the 'inbox' group - all clients watching this group see the update!
+  const todo = await streams.todo.set('inbox', todoId, newTodo)
+
+  logger.info('Todo created successfully', { todoId })
+
+  return { status: 200, body: todo }
 }
 ```
+
+**What happens here:**
+1. Client calls `POST /todo` with a description
+2. Server creates the todo and calls `streams.todo.set('inbox', todoId, newTodo)`
+3. **Instantly**, all clients subscribed to the `inbox` group receive the new todo
+4. No polling, no refresh needed
+
+👉 Every time you call `streams.todo.set()`, connected clients receive the update instantly. No polling needed.
+
+---
 
 ## Testing Streams in Workbench
 
-We know testing real time events is not easy as a backend developer, so we've added a way to test streams in the Workbench.
+Testing real-time features can be tricky. Workbench makes it easy.
 
-Here are the steps to test streams in the Workbench:
+**How to test:**
 
-1. The API Step that provides a stream item should return the object
+1. Make sure your API Step returns the stream object:
 
 ```typescript
-export const handler: Handlers['OpenAiApi'] = async (req, { traceId, logger, emit, streams }) => {
-  logger.info('[Call OpenAI] Received callOpenAi event', { message: req.body.message })
-
-  /**
-   * This creates a record with empty message string to be populated in the next step
-   */
-  const result = await streams.openai.set(traceId, 'message', { message: '' })
-
-  await emit({
-    topic: 'openai-prompt',
-    data: { message: req.body.message },
-  })
-
-  /**
-   * Return the entire object received from the create method
-   */
-  return { status: 200, body: result }
-}
+return { status: 200, body: todo } // result from streams.todo.set()
 ```
 
-2. Navigate to [http://localhost:3000/endpoints](http://localhost:3000/endpoints) in your Workbench
-3. Open up your endpoint and click on the `Test` button
-4. The result will automatically be streamed from the server to the client streaming it's state real-time.
+2. Open [http://localhost:3000/endpoints](http://localhost:3000/endpoints)
+3. Watch the stream update in real-time
 
-![Stream Test in Workbench](./../img/streams-test-workbench.gif)
+![Stream Test in Workbench](./../img/todo-workbench.png)
 
+👉 Workbench automatically detects stream responses and subscribes to them for you.
 
-## Consuming stream on the browser
+---
 
-```
+## Using Streams in Your Frontend
+
+Once you have streams working on the backend, connect them to your React app.
+
+### Install
+
+```bash
 npm install @motiadev/stream-client-react
 ```
 
-Then add the provider to the root of your project
+### Setup Provider
 
-```tsx
-<MotiaStreamProvider address="ws://localhost:3000">
-  ...
-</MotiaStreamProvider>
+Wrap your app with the provider:
+
+```tsx title="App.tsx"
+import { MotiaStreamProvider } from '@motiadev/stream-client-react'
+
+function App() {
+  return (
+    <MotiaStreamProvider address="ws://localhost:3000">
+      {/* Your app */}
+    </MotiaStreamProvider>
+  )
+}
 ```
 
-then on your component or hook, just use
+### Subscribe to Stream Updates
+
+```tsx title="App.tsx"
+import { useStreamGroup } from '@motiadev/stream-client-react'
+import { useTodoEndpoints, type Todo } from './hook/useTodoEndpoints'
+
+function App() {
+  const { createTodo, updateTodo, deleteTodo } = useTodoEndpoints()
+  
+  // Subscribe to all todos in the 'inbox' group
+  const { data: todos } = useStreamGroup<Todo>({ 
+    groupId: 'inbox', 
+    streamName: 'todo' 
+  })
+
+  const handleAddTodo = async (description: string) => {
+    await createTodo(description)
+    // No need to manually update UI - stream does it automatically!
+  }
+
+  return (
+    <div>
+      <h1>Inbox</h1>
+      {todos.map((todo) => (
+        <div key={todo.id}>{todo.description}</div>
+      ))}
+    </div>
+  )
+}
+```
+
+**How it works:**
+1. `useStreamGroup()` subscribes to all items in the `inbox` group
+2. When server calls `streams.todo.set('inbox', todoId, newTodo)`, the `todos` array updates automatically
+3. React re-renders with the new data
+4. Works across all connected clients!
+
+![Todo App in React](./../img/todo-react.png)
+
+👉 Every time you call `createTodo()`, connected clients receive the update instantly. No polling needed.
+
+---
+
+## Ephemeral Events
+
+Sometimes you need to send temporary events that don't need to be stored - like typing indicators, reactions, or online status.
+
+Use `streams.<name>.send()` for this:
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
 
 ```typescript
-const messageId = '' // get the id back from the API call
+// Send typing indicator
+await streams.chatMessage.send(
+  { groupId: channelId }, // No id = broadcasts to all subscribers in group
+  { type: 'typing', data: { userId: 'user-123', isTyping: true } }
+)
 
-// data below will be updated whenever it's updated in the server
-const { data } = useStreamItem({ 
-  streamName: 'openai',
-  groupId: messageId,
-  id: 'message'
-})
+// Send reaction to specific message
+await streams.chatMessage.send(
+  { groupId: channelId, id: messageId }, // With id = only subscribers to this item get it
+  { type: 'reaction', data: { emoji: '👍', userId: 'user-123' } }
+)
 ```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+# Send typing indicator
+await context.streams.chatMessage.send(
+    {"groupId": channel_id},  # No id = broadcasts to all subscribers in group
+    {"type": "typing", "data": {"userId": "user-123", "isTyping": True}}
+)
+
+# Send reaction to specific message
+await context.streams.chatMessage.send(
+    {"groupId": channel_id, "id": message_id},  # With id = only subscribers to this item get it
+    {"type": "reaction", "data": {"emoji": "👍", "userId": "user-123"}}
+)
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+// Send typing indicator
+await streams.chatMessage.send(
+  { groupId: channelId }, // No id = broadcasts to all subscribers in group
+  { type: 'typing', data: { userId: 'user-123', isTyping: true } }
+)
+
+// Send reaction to specific message
+await streams.chatMessage.send(
+  { groupId: channelId, id: messageId }, // With id = only subscribers to this item get it
+  { type: 'reaction', data: { emoji: '👍', userId: 'user-123' } }
+)
+```
+
+</Tab>
+</Tabs>
+
+**Difference from `set()`:**
+- `set()` → Stores data, clients sync to it
+- `send()` → Fire-and-forget events, not stored
+
+---
+
+## Remember
+
+- **Streams = Real-time state** that clients subscribe to
+- **Every `set()` call** pushes updates to connected clients instantly
+- **Use `send()`** for temporary events like typing indicators
+- **Test in Workbench** before building your frontend
+- **No polling needed** - WebSocket connection handles everything
+
+---
+
+## What's Next?
+
+<Cards>
+  <Card href="/docs/development-guide/state-management" title="📦 State Management">
+    Learn about persistent storage across Steps
+  </Card>
+  
+  <Card href="/docs/concepts/steps" title="🔄 Steps">
+    Deep dive into building with Steps
+  </Card>
+</Cards>

@@ -3,76 +3,113 @@ title: Self-Hosted Deployment
 description: Learn how to deploy your Motia project to production using motia-docker
 ---
 
-We provide a docker image that you can use to deploy your Motia project to production. You can use it as a base image and add your own customizations or use it as is.
+Run your Motia app in Docker containers. Same environment everywhere - dev, staging, production.
 
-<Callout type="warn">You will need to use the latest version of the motia package **0.5.2-beta.101 or higher**</Callout>
+<Callout type="warn">You need motia package **0.5.2-beta.101 or higher**</Callout>
 
-## Quick setup
+## Quick Start
+
+<Callout type="info">
+**Important:** Run these commands from your project root (where your `package.json` is).
+</Callout>
 
 <Steps>
 <Step>
-#### Setup your motia project
+#### Navigate to your project
+
+```bash
+cd /path/to/your/motia-project
+```
+
+Make sure you see `package.json` when you run `ls`.
+
+</Step>
+<Step>
+#### Setup Docker files
 
 ```bash
 npx motia@latest docker setup
 ```
 
+This creates `Dockerfile` and `.dockerignore` in your project.
+
 </Step>
 <Step>
-#### Run your motia project inside a container
+#### Build and run
 
 ```bash
-npx motia@latest docker run
+npx motia@latest docker run --project-name my-app
 ```
 
-  </Step>
-  <Step>
-#### You are good to go, your project should be running on localhost under port 3000, for additional options and configuration run
+Replace `my-app` with your project name.
 
+</Step>
+<Step>
+#### Check it works
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+For more options:
 ```bash
 npx motia@latest docker run --help
 ```
 
-  </Step>
+</Step>
 </Steps>
 
-> Reference the [CLI](/docs/concepts/cli#docker) for more information on the docker commands.
+<Callout type="error">
+**Getting `ENOENT: no such file or directory, open package.json`?**
 
-## Using the docker image
+You're not in your project directory. Run `cd /path/to/your/project` first.
+</Callout>
 
-You will need to implement your own Dockerfile where you will use the motia-docker image as a base image. Use the following template as a starting point for your Dockerfile:
+---
 
-```dockerfile
-# NOTE: Some cloud providers will require you to specify the platform to match your target architecture
-# i.e.: AWS Lightsail requires arm64, therefore you update your FROM statement to: FROM --platform=linux/arm64 motiadev/motia:latest
+## Manual Docker Setup
+
+Want more control? Build it yourself.
+
+The `docker setup` command creates a Dockerfile for you, but here's what's in it:
+
+```dockerfile title="Dockerfile"
+# Use Motia's base image (has Node + Python ready)
 FROM motiadev/motia:latest
 
-# Install Dependencies
+# For AWS Lightsail or other ARM platforms, use:
+# FROM --platform=linux/arm64 motiadev/motia:latest
+
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm ci --only=production
 
-# Move application files
+# Copy your app
 COPY . .
 
-# Enable the following lines if you are using python steps!!!
-# Setup python steps dependencies
+# If you have Python steps, uncomment this line:
 # RUN npx motia@latest install
 
-# Expose outside access to the motia project
+# Expose the port
 EXPOSE 3000
 
-# Run your application
+# Start your app
 CMD ["npm", "run", "start"]
 ```
 
-<Callout type="info">
-  Depending on the cloud provider you will use to deploy your Motia project, you will need to adjust the exposed ports
-  and the command to start your application.
-</Callout>
+### Python Steps?
 
-## Create a .dockerignore file
+If you have Python steps, uncomment this line in the Dockerfile:
 
-Create a .dockerignore file in the root of your project to exclude files that are not needed in the docker image. You can use the following template as a starting point for your .dockerignore file:
+```dockerfile
+RUN npx motia@latest install
+```
+
+And make sure you have a `requirements.txt` file in your project.
+
+### .dockerignore
+
+Create a `.dockerignore` file to keep your image small:
 
 ```bash
 # Git
@@ -114,22 +151,67 @@ ehthumbs.db
 Thumbs.db
 ```
 
-## Build your image
+---
+
+## Build and Run Manually
+
+### Build your image
 
 ```bash
-docker build -t <your-image-name> .
+docker build -t my-motia-app .
 ```
 
-## Run your Motia application
-
-Once you've built your image, you can run it using the following command:
+### Run it
 
 ```bash
-docker run -it --rm -p 3000:3000 <your-image-name>
+docker run -it --rm -p 3000:3000 my-motia-app
 ```
 
-## Motia Docker Resources
+Open [http://localhost:3000](http://localhost:3000) - your app should be running!
 
-- [Docker Registry](https://hub.docker.com/r/motiadev/motia)
-- [Github Repo](https://github.com/MotiaDev/motia/packages/docker)
-- [Example Motia project with deployment boilerplate for AWS LightSail and Railway](https://github.com/MotiaDev/motia-examples/tree/main/examples/motia-docker)
+---
+
+## Deploy to Cloud
+
+### AWS Lightsail
+
+Lightsail needs ARM. Update your Dockerfile:
+
+```dockerfile
+FROM --platform=linux/arm64 motiadev/motia:latest
+```
+
+Then build and deploy.
+
+### Railway
+
+Connect your GitHub repo. Railway detects the Dockerfile automatically.
+
+### Fly.io
+
+Create `fly.toml`:
+
+```toml
+app = "my-motia-app"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+```
+
+Deploy: `fly deploy`
+
+### Render
+
+Create a Web Service, point to your repo. Render builds automatically.
+
+---
+
+## Resources
+
+- [Docker Hub](https://hub.docker.com/r/motiadev/motia) - Official Motia image
+- [Example Project](https://github.com/MotiaDev/motia-examples/tree/main/examples/motia-docker) - Full deployment example
+- [CLI Reference](/docs/development-guide/cli#docker) - All docker commands

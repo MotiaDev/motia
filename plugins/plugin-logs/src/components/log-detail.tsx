@@ -60,7 +60,7 @@ export const LogDetail: React.FC<Props> = ({ log, onClose }) => {
         { label: 'Trace ID', value: log.traceId },
       ]}
     >
-      {hasOtherProps && <ReactJson src={otherPropsObject} theme="default" enableClipboard={false} />}
+      {hasOtherProps && <ReactJson src={otherPropsObject} theme="default" enableClipboard />}
     </Sidebar>
   )
 }

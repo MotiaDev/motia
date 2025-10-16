@@ -9,7 +9,6 @@ import { analyticsEndpoint } from './endpoints/analytics-endpoint'
 import { apiEndpoints } from './endpoints/api-endpoints'
 import { flowsConfigEndpoint } from './endpoints/flows-config-endpoint'
 import { flowsEndpoint } from './endpoints/flows-endpoint'
-import { stateEndpoints } from './endpoints/state-endpoints'
 import { stepEndpoint } from './endpoints/step-endpoint'
 import { traceEndpoint } from './endpoints/trace-endpoint'
 import { generateTraceId } from './generate-trace-id'
@@ -154,7 +153,16 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  const motia: Motia = { loggerFactory, eventManager, state, lockedData, printer, tracerFactory }
+  const motia: Motia = {
+    loggerFactory,
+    eventManager,
+    state,
+    lockedData,
+    printer,
+    tracerFactory,
+    app,
+    stateAdapter: state,
+  }
 
   const cronManager = setupCronHandlers(motia)
   const motiaEventManager = createStepHandlers(motia)
@@ -277,7 +285,6 @@ export const createServer = (
 
   app.use(router)
 
-  stateEndpoints(app, state)
   apiEndpoints(lockedData)
   flowsEndpoint(lockedData)
   flowsConfigEndpoint(app, process.cwd(), lockedData)

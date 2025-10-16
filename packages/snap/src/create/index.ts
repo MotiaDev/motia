@@ -7,7 +7,7 @@ import { executeCommand } from '../utils/execute-command'
 import { version } from '../version'
 import { pullRules } from './pull-rules'
 import { setupTemplate } from './setup-template'
-import { checkIfDirectoryExists, checkIfFileExists } from './utils'
+import { checkIfDirectoryExists, checkIfFileExists, setupJest } from './utils'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
@@ -37,7 +37,19 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
   }[packageManager]
 
   const dependencies = [`motia@${version}`, 'zod@3.24.4'].join(' ')
-  const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@18.3.18'].join(' ')
+  const devDependencies = [
+    'ts-node@10.9.2',
+    'typescript@5.7.3',
+    '@types/react@18.3.18',
+    '@jest/globals@^29.7.0',
+    '@types/jest@^29.5.14',
+    'jest@^29.7.0',
+    'ts-jest@^29.2.5',
+    `@motiadev/core@${version}`,
+    `@motiadev/plugin-logs@${version}`,
+    `@motiadev/plugin-states@${version}`,
+    `@motiadev/plugin-endpoint@${version}`,
+  ].join(' ')
 
   try {
     await executeCommand(`${installCommand} ${dependencies}`, rootDir)
@@ -69,6 +81,7 @@ const preparePackageManager = async (rootDir: string, context: CliContext) => {
 
 const installNodeDependencies = async (rootDir: string, context: CliContext) => {
   const packageManager = await preparePackageManager(rootDir, context)
+  await setupJest(packageManager, rootDir, context)
 
   await installRequiredDependencies(packageManager, rootDir, context).catch((error: unknown) => {
     context.log('failed-to-install-dependencies', (message) =>
@@ -125,7 +138,11 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   }
 
   if (!checkIfFileExists(rootDir, 'package.json')) {
-    const finalProjectName = isCurrentDir ? path.basename(rootDir) : projectName
+    const finalProjectName =
+      !projectName || projectName === '.' || projectName === './' || projectName === '.\\'
+        ? path.basename(process.cwd())
+        : projectName.trim()
+
     const packageJsonContent = {
       name: finalProjectName,
       description: '',

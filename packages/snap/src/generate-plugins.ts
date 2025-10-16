@@ -1,31 +1,25 @@
 import { Config, Motia, MotiaPlugin } from '@motiadev/core'
+import fs from 'fs'
 import { globSync } from 'glob'
-
-const defaultPlugins: MotiaPlugin[] = [
-  {
-    workbench: [
-      {
-        packageName: '@motiadev/plugin-endpoint',
-      },
-    ],
-  },
-  {
-    workbench: [
-      {
-        packageName: '@motiadev/plugin-logs',
-      },
-    ],
-  },
-]
+import path from 'path'
 
 export const generatePlugins = async (motia: Motia): Promise<MotiaPlugin[]> => {
-  const configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: motia.lockedData.baseDir })
+  const baseDir = motia.lockedData.baseDir
+  let configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: baseDir })
+
   if (configFiles.length === 0) {
-    return defaultPlugins
+    // Read template and create config file
+    const templatePath = path.join(__dirname, 'create/templates/nodejs/motia.config.ts.txt')
+    const templateContent = fs.readFileSync(templatePath, 'utf-8')
+    const configPath = path.join(baseDir, 'motia.config.ts')
+    fs.writeFileSync(configPath, templateContent)
+    console.log('Created motia.config.ts with default plugins')
+
+    configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: baseDir })
   }
 
   const appConfig: Config = (await import(configFiles[0])).default
   const plugins = appConfig.plugins?.flatMap((item) => item(motia)) || []
 
-  return plugins.length > 0 ? [...defaultPlugins, ...plugins] : defaultPlugins
+  return plugins
 }

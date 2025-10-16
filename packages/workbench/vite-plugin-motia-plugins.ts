@@ -6,6 +6,7 @@ export interface WorkbenchPlugin {
   componentName?: string
   position?: 'top' | 'bottom'
   label?: string
+  cssImports?: string[]
   props?: Record<string, any>
 }
 
@@ -14,21 +15,21 @@ const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
 
 export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
   const packages = Array.from(new Set(plugins.map(({ packageName }) => packageName)))
-  const alias = packages
-    .filter((packageName) => !packageName.includes('@motiadev/'))
-    .reduce(
-      (acc, packageName) => ({
+  const alias = packages.reduce((acc, packageName) => {
+    if (packageName.startsWith('~/')) {
+      return {
         ...acc,
-        [packageName]: path.join(process.cwd(), './node_modules', packageName),
-      }),
-      {},
-    )
-
-  const generatePluginCode = (): string => {
-    if (!packages.length) {
-      return ''
+        [packageName]: path.join(process.cwd(), './', packageName.replace('~/', '')),
+      }
     }
 
+    return {
+      ...acc,
+      [packageName]: path.join(process.cwd(), './node_modules', packageName),
+    }
+  }, {})
+
+  const generatePluginCode = (): string => {
     const imports = packages.map((packageName, index) => `import * as plugin_${index} from '${packageName}'`).join('\n')
 
     const importsMap = packages.map((packageName, index) => `'${packageName}': plugin_${index}`)
@@ -36,7 +37,6 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
     return `
       ${imports}
       const packageMap = {${importsMap}}
-          
       const motiaPlugins = ${JSON.stringify(plugins)}
 
       export const plugins = motiaPlugins.map((plugin) => {
@@ -57,6 +57,19 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
 
   return {
     name: 'vite-plugin-motia-plugins',
+    enforce: 'pre',
+    async transform(code, id) {
+      if (id.replace(/\\/g, '/').endsWith('/workbench/src/index.css')) {
+        const cssImports = plugins
+          .flatMap((item) => item.cssImports)
+          .filter(Boolean)
+          .map((packageName) => `@import '${packageName}';`)
+          .join('\n')
+
+        return `${cssImports}\n${code}`
+      }
+      return null
+    },
     config: () => ({
       resolve: {
         alias,

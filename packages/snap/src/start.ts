@@ -12,7 +12,12 @@ require('ts-node').register({
   compilerOptions: { module: 'commonjs' },
 })
 
-export const start = async (port: number, hostname: string, disableVerbose: boolean): Promise<void> => {
+export const start = async (
+  port: number,
+  hostname: string,
+  disableVerbose: boolean,
+  motiaFileStorageDir?: string,
+): Promise<void> => {
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
 
@@ -24,8 +29,10 @@ export const start = async (port: number, hostname: string, disableVerbose: bool
     activatePythonVenv({ baseDir, isVerbose })
   }
 
-  const dotMotia = path.join(baseDir, '.motia')
-  const lockedData = await generateLockedData(baseDir)
+  const motiaFileStoragePath = motiaFileStorageDir || '.motia'
+
+  const dotMotia = path.join(baseDir, motiaFileStoragePath)
+  const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
   const eventManager = createEventManager()
   const state = createStateAdapter({ adapter: 'default', filePath: dotMotia })
   const config = { isVerbose, isDev: false, version }

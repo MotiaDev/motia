@@ -1,14 +1,15 @@
-import { useGlobalStore } from '@/stores/use-global-store'
 import { Checkbox, Button, cn, Input } from '@motiadev/ui'
 import { RefreshCw, Search, Trash, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
-import { StateItem, useGetStateItems } from './hooks/states-hooks'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@motiadev/ui'
+import { StateItem } from '../types/state'
+import { useGetStateItems } from '../hooks/states-hooks'
+import { useStatesStore } from '../stores/use-states-store'
 import { StateSidebar } from './state-sidebar'
 
 export const StatesPage = () => {
-  const selectedStateId = useGlobalStore((state) => state.selectedStateId)
-  const selectStateId = useGlobalStore((state) => state.selectStateId)
+  const selectedStateId = useStatesStore((state) => state.selectedStateId)
+  const selectStateId = useStatesStore((state) => state.selectStateId)
   const { items, deleteItems, refetch } = useGetStateItems()
   const [search, setSearch] = useState('')
   const filteredItems = useMemo(() => {

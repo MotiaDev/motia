@@ -2,12 +2,7 @@ import { Button } from '@motiadev/ui'
 import { Loader2, Play } from 'lucide-react'
 import { memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import {
-  getBodyIsValidSelector,
-  getBodySelector,
-  getHeadersSelector,
-  useEndpointConfiguration,
-} from '../hooks/use-endpoint-configuration'
+import { getBodySelector, getHeadersSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
 import { usePathUrl } from '../hooks/use-path-url'
 
 type TriggerButtonProps = {

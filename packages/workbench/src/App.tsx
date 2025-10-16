@@ -3,8 +3,6 @@ import { FlowPage } from './components/flow/flow-page'
 import { FlowTabMenuItem } from './components/flow/flow-tab-menu-item'
 import { TracingTabLabel } from './components/observability/trace-tab-label'
 import { TracesPage } from './components/observability/traces-page'
-import { StatesTabLabel } from './components/states/state-tab-label'
-import { StatesPage } from './components/states/states-page'
 import { registerPluginTabs } from './lib/plugins'
 import { getViewModeFromURL, ViewMode } from './lib/utils'
 import { ProjectViewMode } from './project-view-mode'
@@ -15,7 +13,6 @@ const TAB_IDS = {
   FLOW: 'flow',
   TRACING: 'tracing',
   LOGS: 'logs',
-  STATES: 'states',
 } as const
 
 const registerDefaultTabs = (): void => {
@@ -32,11 +29,6 @@ const registerDefaultTabs = (): void => {
       id: TAB_IDS.TRACING,
       tabLabel: TracingTabLabel,
       content: TracesPage,
-    },
-    {
-      id: TAB_IDS.STATES,
-      tabLabel: StatesTabLabel,
-      content: StatesPage,
     },
   ]
 

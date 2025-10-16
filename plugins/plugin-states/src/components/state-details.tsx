@@ -1,6 +1,6 @@
 import React from 'react'
 import JsonView from 'react18-json-view'
-import { StateItem } from './hooks/states-hooks'
+import { StateItem } from '../types/state'
 
 type Props = {
   state: StateItem

@@ -63,8 +63,23 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
       <EndpointPathPreview path={path} />
 
       <div className="grid grid-rows-[1fr_1fr]">
+        {pathParamsConfig.length > 0 && (
+          <div className="p-2">
+            <div className="text-sm font-medium pl-3">Path variables</div>
+            {pathParamsConfig.map((pathName) => (
+              <ConfigurationListItem
+                key={pathName.name}
+                value={{ name: pathName.name, value: pathName.value, active: pathName.active }}
+                id={pathName.name}
+                required={true}
+                onUpdate={updatePathParam}
+              />
+            ))}
+          </div>
+        )}
+
         <div className="p-2 border-b border-border">
-          <div className="text-sm font-medium pl-3">Query</div>
+          <div className="text-sm font-medium pl-3">Query parameters</div>
           {Object.entries(queryParams).map(([key, param]) => (
             <ConfigurationListItem
               key={key}
@@ -83,21 +98,6 @@ export const SidePanelParamsTab = ({ path }: SidePanelParamsTabProps) => {
             </div>
           )}
         </div>
-
-        {pathParamsConfig.length > 0 && (
-          <div className="p-2">
-            <div className="text-sm font-medium pl-3">Path</div>
-            {pathParamsConfig.map((pathName) => (
-              <ConfigurationListItem
-                key={pathName.name}
-                value={{ name: pathName.name, value: pathName.value, active: pathName.active }}
-                id={pathName.name}
-                required={true}
-                onUpdate={updatePathParam}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )
