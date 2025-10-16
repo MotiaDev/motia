@@ -7,7 +7,7 @@
     "lint": "pnpm run lint:ts && pnpm run lint:tsx",
     "lint:ts": "eslint",
     "lint:tsx": "eslint --config ../../eslint.config.tsx.js",
-    "build": "rm -rf dist && tsc --build && sh post-build.sh",
+    "build": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true,force:true})\" && tsc --build && sh post-build.sh",
     "test": "jest",
     "test:watch": "jest --watch"
   },

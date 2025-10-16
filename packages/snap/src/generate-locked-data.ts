@@ -10,7 +10,7 @@ import { activatePythonVenv } from './utils/activate-python-env'
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
 export const getStepFiles = (projectDir: string): string[] => {
-  const stepsDir = path.join(projectDir, 'steps')
+  const stepsDir = path.join(projectDir,'playground', 'steps');
   return [
     ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
     ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
@@ -116,7 +116,7 @@ export const generateLockedData = async (
     await collectFlows(projectDir, lockedData)
     lockedData.saveTypes()
 
-    return lockedData
+    return lockedData;
   } catch (error) {
     console.error(error)
     throw Error('Failed to parse the project, generating locked data step failed')

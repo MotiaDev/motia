@@ -21,7 +21,7 @@
     "test:smoke": "playwright test tests/smoke.spec.ts",
     "install": "playwright install",
     "install:deps": "playwright install-deps",
-    "clean": "rm -rf test-results playwright-report motia-e2e-test-project"
+    "clean": "node -e \"const fs=require('fs');['test-results','playwright-report', 'motia-e2e-test-project'].forEach(d=>{if(fs.existsSync(d))fs.rmSync(d,{recursive:true,force:true})});\""
   },
   "dependencies": {
     "@playwright/test": "^1.48.2"

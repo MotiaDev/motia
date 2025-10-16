@@ -13,7 +13,7 @@
     "test:e2e:ui": "pnpm --filter=@motiadev/e2e test:ui",
     "test:e2e:headed": "pnpm --filter=@motiadev/e2e test:headed",
     "e2e:install": "pnpm --filter=@motiadev/e2e install && pnpm --filter=@motiadev/e2e install:deps",
-    "clean": "rm -rf node_modules pnpm-lock.yaml dist .turbo .next"
+    "clean": "node -e \"const fs =require('fs');['node_modules','dist', '.turbo','.next'].forEach(d=>{if(fs.existsSync(d))fs.rmSync(d,{recursive:true,force:true})});fs.unlink('pnpm-lock.yaml', {recursive:true, force:true})\""
   },
   "devDependencies": {
     "@types/node": "^22.15.18",
