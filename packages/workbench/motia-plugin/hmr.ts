@@ -24,11 +24,7 @@ export function shouldInvalidatePlugins(file: string, plugins: WorkbenchPlugin[]
   }
 
   // Check if it's a plugin configuration file
-  if (
-    normalizedFile.endsWith('motia-workbench.json') ||
-    normalizedFile.endsWith('motia.config.ts') ||
-    normalizedFile.endsWith('motia.config.js')
-  ) {
+  if (normalizedFile.endsWith('motia.config.ts') || normalizedFile.endsWith('motia.config.js')) {
     return true
   }
 
