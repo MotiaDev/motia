@@ -17,7 +17,7 @@ export function processSchema(schema: Record<string, unknown>, openApi: OpenAPIV
     // copy all definitions to components/schemas for compatibility
     for (const defName in schema.$defs) {
       if (Object.prototype.hasOwnProperty.call(schema.$defs, defName)) {
-        ; (openApi.components.schemas as Record<string, OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject>)[defName] = (
+        ;(openApi.components.schemas as Record<string, OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject>)[defName] = (
           schema.$defs as Record<string, OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject>
         )[defName]
       }
