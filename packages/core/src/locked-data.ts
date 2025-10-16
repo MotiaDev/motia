@@ -10,6 +10,7 @@ import { StreamFactory } from './streams/stream-factory'
 import { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
 import { Stream } from './types-stream'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
+import { generatePythonTypesString } from './types/generate-python-types'
 
 type FlowEvent = 'flow-created' | 'flow-removed' | 'flow-updated'
 type StepEvent = 'step-created' | 'step-removed' | 'step-updated'
@@ -70,8 +71,39 @@ export class LockedData {
   saveTypes() {
     const types = generateTypesFromSteps(this.activeSteps, this.printer)
     const streams = generateTypesFromStreams(this.streams)
+
     const typesString = generateTypesString(types, streams)
-    fs.writeFileSync(path.join(this.baseDir, 'types.d.ts'), typesString)
+    const { internal, exports } = generatePythonTypesString(types, streams);
+
+    const motiaDir = path.join(this.baseDir, "motia");
+    if (!fs.existsSync(motiaDir)) {
+      fs.mkdirSync(motiaDir, { recursive: true });
+    }
+
+    fs.writeFileSync(path.join(motiaDir, "_internal.py"), internal);
+
+    const coreSource = path.resolve(__dirname, "../../src/python/motia_core");
+    const coreDest = path.join(motiaDir, "core");
+
+    if (!fs.existsSync(coreDest)) {
+      fs.cpSync(coreSource, coreDest, { recursive: true });
+      console.log("[motia] Core types copied to motia/core/");
+    } else {
+      console.log("[motia] Core types already exist, skipping copy");
+    }
+
+    const reExports = exports.map(
+      (name) => `${name} = _internal.${name}`
+    ).join("\n");
+
+    const allBlock = `\n\n__all__ = [\n${exports.map((e) => `    "${e}",`).join("\n")}\n]`;
+
+    const initContent =
+      `from motia.core import *\nimport motia._internal as _internal\n\n${reExports}${allBlock}\n`;
+
+    fs.writeFileSync(path.join(motiaDir, "__init__.py"), initContent);
+
+    fs.writeFileSync(path.join(this.baseDir, "types.d.ts"), typesString);
   }
 
   on(event: FlowEvent, handler: (flowName: string) => void) {
