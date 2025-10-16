@@ -23,19 +23,40 @@ program
   })
 
 program
-  .command('create')
+  .command('test')
+  .description('Run all tests in your local project')
+  .option('-w, --watch', 'Run tests in watch mode')
+  .action(async (options) => {
+    // CommonJS style
+    const execa = require('execa') // no destructuring
+
+    const projectRoot = process.cwd()
+
+    try {
+      await execa('npx', options.watch ? ['jest', '--watch'] : ['jest'], {
+        stdio: 'inherit',
+        cwd: projectRoot,
+      })
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Error running tests:', err.message)
+      } else {
+        console.error('Unknown error:', err)
+      }
+      process.exit(1)
+    }
+  })
+
+program
+  .command('create [name]')
   .description('Create a new motia project')
-  .option(
-    '-n, --name <project name>',
-    'The name for your project, used to create a directory, use ./ or . to create it under the existing directory',
-  )
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .option('-c, --confirm', 'Confirm the project creation', false)
-  .action(
-    handler(async (arg, context) => {
+  .action((projectName, options) => {
+    const mergedArgs = { ...options, name: projectName }
+    return handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive')
-
       await createInteractive(
         {
           name: arg.name,
@@ -44,8 +65,8 @@ program
         },
         context,
       )
-    }),
-  )
+    })(mergedArgs)
+  })
 
 program
   .command('rules')

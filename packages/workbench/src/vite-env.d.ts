@@ -11,3 +11,6 @@ declare module 'virtual:motia-plugins' {
 
   export const plugins: MotiaPlugin[]
 }
+
+// This is injected by the middleware: check middleware.ts
+declare const workbenchBase: string

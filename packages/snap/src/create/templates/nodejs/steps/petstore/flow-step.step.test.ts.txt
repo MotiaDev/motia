@@ -1,0 +1,122 @@
+import { handler as apiTriggerHandler } from './api.step'
+import { petStoreService } from '../../src/services/pet-store'
+import { petStoreService as originalPetStoreService } from '../../src/services/pet-store'
+import type { MockFlowContext } from '@motiadev/test'
+import { jest } from '@jest/globals'
+
+// Mock the petStoreService
+jest.mock('../../src/services/pet-store', () => ({
+  petStoreService: {
+    createPet: jest.fn(),
+  },
+  petSchema: {},
+}))
+
+const mockedPetStoreService = petStoreService as jest.Mocked<typeof originalPetStoreService>
+
+describe('ApiTrigger Step', () => {
+  let mockContext: MockFlowContext
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+
+    mockContext = {
+      traceId: 'TRACE-123',
+      emit: jest.fn(),
+      state: {
+        set: jest.fn(),
+        get: jest.fn(),
+        delete: jest.fn(),
+      } as any,
+      logger: {
+        info: jest.fn(),
+        debug: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        log: jest.fn(),
+      } as any,
+      streams: {},
+    } as unknown as MockFlowContext
+  })
+
+  it('should create a pet and emit a process-food-order event if foodOrder is provided', async () => {
+    const mockPet = {
+      id: 123,
+      name: 'Jack',
+      photoUrl: 'https://images.dog.ceo/breeds/pug/n02110958_13560.jpg',
+      status: 'available',
+    }
+
+    mockedPetStoreService.createPet.mockResolvedValue(mockPet)
+
+    const req = {
+      body: {
+        pet: {
+          name: 'Jack',
+          photoUrl: 'https://images.dog.ceo/breeds/pug/n02110958_13560.jpg',
+        },
+        foodOrder: {
+          id: 'order-1',
+          quantity: 2,
+        },
+      },
+    }
+
+    const result = await apiTriggerHandler(req as any, mockContext as any)
+
+    // Assert createPet called
+    expect(petStoreService.createPet).toHaveBeenCalledWith(req.body.pet)
+
+    // Assert emit called
+    expect(mockContext.emit).toHaveBeenCalledWith({
+      topic: 'process-food-order',
+      data: expect.objectContaining({
+        id: 'order-1',
+        quantity: 2,
+        email: 'test@test.com',
+        petId: mockPet.id,
+      }),
+    })
+
+    // Assert correct return value
+    expect(result).toEqual({
+      status: 200,
+      body: expect.objectContaining({
+        ...mockPet,
+        traceId: 'TRACE-123',
+      }),
+    })
+
+    // Assert logger called
+    expect(mockContext.logger.info).toHaveBeenCalledWith(
+      'Step 01 – Processing API Step',
+      expect.objectContaining({ body: req.body }),
+    )
+  })
+
+  it('should create a pet and not emit event if foodOrder is missing', async () => {
+    const mockPet = { id: 456, name: 'Max', photoUrl: '', status: 'available' }
+    mockedPetStoreService.createPet.mockResolvedValue(mockPet)
+
+    const req = {
+      body: {
+        pet: {
+          name: 'Max',
+          photoUrl: 'https://images.dog.ceo/breeds/husky/n02110185_1469.jpg',
+        },
+      },
+    }
+
+    const result = await apiTriggerHandler(req as any, mockContext as any)
+
+    expect(petStoreService.createPet).toHaveBeenCalledWith(req.body.pet)
+    expect(mockContext.emit).not.toHaveBeenCalled()
+    expect(result.status).toBe(200)
+    expect(result.body).toEqual(
+      expect.objectContaining({
+        ...mockPet,
+        traceId: 'TRACE-123',
+      }),
+    )
+  })
+})

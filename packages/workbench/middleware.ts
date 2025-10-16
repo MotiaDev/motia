@@ -5,6 +5,15 @@ import path from 'path'
 import { createServer as createViteServer } from 'vite'
 import motiaPluginsPlugin, { type WorkbenchPlugin } from './vite-plugin-motia-plugins'
 
+const workbenchBasePlugin = (workbenchBase: string) => {
+  return {
+    name: 'html-transform',
+    transformIndexHtml: (html: string) => {
+      return html.replace('</head>', `<script>const workbenchBase = ${JSON.stringify(workbenchBase)};</script></head>`)
+    },
+  }
+}
+
 const processCwdPlugin = () => {
   return {
     name: 'html-transform',
@@ -62,6 +71,7 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
           path.join(process.cwd(), './steps'), // steps directory
           path.join(process.cwd(), './tutorial.tsx'), // tutorial file
           path.join(process.cwd(), './node_modules'), // node_modules directory
+          path.join(__dirname, './node_modules'), // node_modules directory
         ],
       },
     },
@@ -69,10 +79,15 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
       alias: {
         '@': path.resolve(__dirname, './src'),
         '@/assets': path.resolve(__dirname, './src/assets'),
-        // antd: path.join(process.cwd(), './node_modules/antd'),
       },
     },
-    plugins: [react(), processCwdPlugin(), reoPlugin(), motiaPluginsPlugin(plugins)],
+    plugins: [
+      react(),
+      processCwdPlugin(),
+      reoPlugin(),
+      motiaPluginsPlugin(plugins),
+      workbenchBasePlugin(workbenchBase),
+    ],
     assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico', '**/*.webp', '**/*.avif'],
   })
 
