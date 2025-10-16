@@ -1,10 +1,10 @@
 import { MotiaStreamProvider } from '@motiadev/stream-client-react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { RootMotia } from './components/root-motia'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { App } from './App'
 import { NotFoundPage } from './components/NotFoundPage'
+import { RootMotia } from './components/root-motia'
 import '@motiadev/ui/globals.css'
 import './index.css'
 

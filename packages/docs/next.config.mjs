@@ -13,7 +13,7 @@ const config = {
         source: '/campaign/subscribe',
         destination: 'https://motia-hub-api.motiahub.com/campaign/subscribe',
       },
-    ];
+    ]
   },
 }
 

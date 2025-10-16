@@ -1,5 +1,5 @@
 import { test as base } from '@playwright/test'
-import { MotiaApplicationPage, WorkbenchPage, LogsPage, ApiHelpers, TracesPage, EndpointPage } from './page-objects'
+import { ApiHelpers, EndpointPage, LogsPage, MotiaApplicationPage, TracesPage, WorkbenchPage } from './page-objects'
 import { TestHelpers } from './test-helpers'
 
 export type MotiaContext = {

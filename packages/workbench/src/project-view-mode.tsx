@@ -1,6 +1,6 @@
-import { AppTabsState, TabLocation, useAppTabsStore } from './stores/use-app-tabs-store'
 import { APP_SIDEBAR_CONTAINER_ID, Panel } from '@motiadev/ui'
 import { useShallow } from 'zustand/react/shallow'
+import { type AppTabsState, TabLocation, useAppTabsStore } from './stores/use-app-tabs-store'
 
 const topTabs = (state: AppTabsState) => state.tabs[TabLocation.TOP]
 

@@ -1,6 +1,6 @@
-import { Step } from '@motiadev/core'
-import { Stream } from '@motiadev/core/dist/src/types-stream'
-import { BuildStepConfig } from '../../build/builder'
+import type { Step } from '@motiadev/core'
+import type { Stream } from '@motiadev/core/dist/src/types-stream'
+import type { BuildStepConfig } from '../../build/builder'
 
 export type ValidationError = {
   relativePath: string

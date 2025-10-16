@@ -1,4 +1,4 @@
-import { CLIOutputManager, Message } from './cli-output-manager'
+import { CLIOutputManager, type Message } from './cli-output-manager'
 
 export class CliContext {
   private readonly output = new CLIOutputManager()

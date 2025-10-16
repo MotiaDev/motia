@@ -1,13 +1,13 @@
 import path from 'path'
 import { trackEvent } from './analytics/utils'
-import { Motia } from './motia'
+import type { Logger } from './logger'
+import type { Motia } from './motia'
+import type { Tracer } from './observability'
+import type { TraceError } from './observability/types'
 import { ProcessManager } from './process-communication/process-manager'
-import { Event, Step } from './types'
-import { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './types-stream'
+import type { Event, Step } from './types'
+import type { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 import { isAllowedToEmit } from './utils'
-import { Logger } from './logger'
-import { Tracer } from './observability'
-import { TraceError } from './observability/types'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }

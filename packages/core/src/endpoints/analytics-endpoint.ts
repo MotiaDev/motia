@@ -1,4 +1,4 @@
-import { Express } from 'express'
+import type { Express } from 'express'
 import { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled } from '../analytics/utils'
 
 export const analyticsEndpoint = (app: Express, baseDir: string) => {

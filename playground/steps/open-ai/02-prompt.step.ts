@@ -1,4 +1,4 @@
-import { EventConfig, Handlers } from 'motia'
+import type { EventConfig, Handlers } from 'motia'
 import { OpenAI } from 'openai'
 import { z } from 'zod'
 

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -31,10 +31,12 @@ export function middleware(request: NextRequest) {
   }
 
   // Add noindex headers for static assets with query parameters
-  if (pathname.startsWith('/_next/') || 
-      pathname.includes('.css') || 
-      pathname.includes('.js') ||
-      pathname.includes('favicon.ico')) {
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.includes('.css') ||
+    pathname.includes('.js') ||
+    pathname.includes('favicon.ico')
+  ) {
     const response = NextResponse.next()
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
     return response

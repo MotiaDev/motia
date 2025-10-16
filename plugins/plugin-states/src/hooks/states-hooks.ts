@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
-import { StateItem } from '../types/state'
+import { useCallback, useEffect, useState } from 'react'
+import type { StateItem } from '../types/state'
 
 type Output = {
   items: StateItem[]
@@ -31,7 +31,9 @@ export const useGetStateItems = (): Output => {
     }).then(() => refetch())
   }
 
-  useEffect(refetch, [refetch])
+  useEffect(() => {
+    refetch()
+  }, [refetch])
 
   return { items, deleteItems, refetch }
 }

@@ -1,5 +1,5 @@
-import { Express } from 'express'
-import { StateAdapter } from '@motiadev/core'
+import type { StateAdapter } from '@motiadev/core'
+import type { Express } from 'express'
 
 export const api = (app: Express, stateAdapter: StateAdapter) => {
   app.get('/__motia/state', async (req, res) => {

@@ -1,7 +1,7 @@
 import { callStepFile } from './call-step-file'
 import { globalLogger } from './logger'
-import { Motia } from './motia'
-import { Event, EventConfig, Step } from './types'
+import type { Motia } from './motia'
+import type { Event, EventConfig, Step } from './types'
 
 export type MotiaEventManager = {
   createHandler: (step: Step<EventConfig>) => void

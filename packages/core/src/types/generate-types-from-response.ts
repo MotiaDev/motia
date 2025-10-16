@@ -1,5 +1,5 @@
 import { generateTypeFromSchema } from './generate-type-from-schema'
-import { JsonSchema } from './schema.types'
+import type { JsonSchema } from './schema.types'
 
 export const generateTypesFromResponse = (record: Record<number, JsonSchema>): string => {
   return Object.entries(record)

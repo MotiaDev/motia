@@ -1,5 +1,5 @@
-import { ZodObject } from 'zod'
-import { StreamFactory } from './streams/stream-factory'
+import type { ZodObject } from 'zod'
+import type { StreamFactory } from './streams/stream-factory'
 
 export interface StreamConfig {
   name: string

@@ -1,5 +1,5 @@
 import { globalLogger } from './logger'
-import { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
+import type { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
 
 type EventHandler = {
   filePath: string

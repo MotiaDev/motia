@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import { StepAnswers } from '../../types'
+import type { StepAnswers } from '../../types'
 
 /**
  * Generates a React component override for the step

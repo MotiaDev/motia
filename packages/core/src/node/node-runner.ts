@@ -1,5 +1,5 @@
 import path from 'path'
-import { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
+import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { Logger } from './logger'
 import { composeMiddleware } from './middleware-compose'
 import { RpcSender } from './rpc'

@@ -23,4 +23,4 @@ export default defineConfig({
     trace: isWindows ? 'off' : 'on-first-retry',
   },
   shard: process.env.CI && process.argv.includes('--shard') ? undefined : config.shard,
-}) 
+})

@@ -1,9 +1,10 @@
-import Footer from '@/components/Footer'
-import Navbar from '@/components/ui/Navbar'
 import Image from 'next/image'
-import bgManifesto from '@/public/images/landing/bgManifestoPage.svg'
-import bgManifestoDeclaration from '@/public/images/landing/bgManifestoDeclaration.svg'
+import Footer from '@/components/Footer'
 import Title from '@/components/Title'
+import Navbar from '@/components/ui/Navbar'
+import bgManifestoDeclaration from '@/public/images/landing/bgManifestoDeclaration.svg'
+import bgManifesto from '@/public/images/landing/bgManifestoPage.svg'
+
 {
   /* eslint-disable react/no-unescaped-entities */
 }
@@ -26,10 +27,15 @@ export default function ManifestoPage() {
         </div>
         <div className="my-[72px] h-[1px] w-full bg-white/20"></div>
         <div className="mx-auto flex w-full max-w-[760px] flex-col gap-[40px]">
-
           <section className={normalText}>
             <p>
-              Backend development has become fragmented across too many tools. Teams build APIs with one framework, run background tasks through dedicated job queues, orchestrate complex workflows with separate engines, deploy AI agents on specialized platforms, manage streaming data with different systems, piece together observability tools, handle state across various databases, juggle multiple deployment pipelines, and configure scaling solutions independently. <span className={gradientText}>We're drowning in complexity</span> while AI introduces even more nondeterminism, retries, and orchestration demands that existing frameworks can't handle cohesively.
+              Backend development has become fragmented across too many tools. Teams build APIs with one framework, run
+              background tasks through dedicated job queues, orchestrate complex workflows with separate engines, deploy
+              AI agents on specialized platforms, manage streaming data with different systems, piece together
+              observability tools, handle state across various databases, juggle multiple deployment pipelines, and
+              configure scaling solutions independently.{' '}
+              <span className={gradientText}>We're drowning in complexity</span> while AI introduces even more
+              nondeterminism, retries, and orchestration demands that existing frameworks can't handle cohesively.
             </p>
           </section>
 
@@ -45,7 +51,13 @@ export default function ManifestoPage() {
 
           <section className={normalText}>
             <p>
-              The future belongs to <span className={gradientTextBlue}>multi-language, natively asynchronous, event-driven backends</span> because they mirror how the world actually works - distributed, concurrent, and reactive. Traditional request-response models can't scale with the complexity of modern applications that need to handle millions of simultaneous connections, process streaming data in real-time, and coordinate AI-driven workflows across multiple services. Event-driven systems provide the foundation for true scalability, resilience, and adaptability that tomorrow's applications demand.
+              The future belongs to{' '}
+              <span className={gradientTextBlue}>multi-language, natively asynchronous, event-driven backends</span>{' '}
+              because they mirror how the world actually works - distributed, concurrent, and reactive. Traditional
+              request-response models can't scale with the complexity of modern applications that need to handle
+              millions of simultaneous connections, process streaming data in real-time, and coordinate AI-driven
+              workflows across multiple services. Event-driven systems provide the foundation for true scalability,
+              resilience, and adaptability that tomorrow's applications demand.
             </p>
           </section>
 
@@ -98,7 +110,7 @@ export default function ManifestoPage() {
               </li>
             </ul>
           </section> */}
-          
+
           <div className="flex justify-center my-[8px]">
             <Image
               src="/features.png"
@@ -111,7 +123,12 @@ export default function ManifestoPage() {
 
           <section className={normalText}>
             <p>
-            Simply combining all these systems into one monolithic framework would still result in overwhelming complexity. The real challenge isn't unification, it's creating a primitive so elegant and developer-friendly that it becomes invisible. A core primitive must have minimal API surface area, intuitive patterns, and the ability to compose complex behaviors from simple building blocks. It should feel like writing regular code, not struggling with infrastructure. This is the difference between a heavy integration and true abstraction.
+              Simply combining all these systems into one monolithic framework would still result in overwhelming
+              complexity. The real challenge isn't unification, it's creating a primitive so elegant and
+              developer-friendly that it becomes invisible. A core primitive must have minimal API surface area,
+              intuitive patterns, and the ability to compose complex behaviors from simple building blocks. It should
+              feel like writing regular code, not struggling with infrastructure. This is the difference between a heavy
+              integration and true abstraction.
             </p>
           </section>
 
@@ -135,8 +152,8 @@ export default function ManifestoPage() {
 
               <ul className="list-inside list-disc space-y-[30px]">
                 <li>
-                  <span className="font-medium text-white">Trigger:</span> How a Step is initiated (via API, event
-                  bus, or scheduled task).
+                  <span className="font-medium text-white">Trigger:</span> How a Step is initiated (via API, event bus,
+                  or scheduled task).
                 </li>
                 <li>
                   <span className="font-medium text-white">Subscribe:</span> How it accepts input data.
@@ -145,12 +162,14 @@ export default function ManifestoPage() {
                   <span className="font-medium text-white">Handler:</span> How it performs logic or an action.
                 </li>
                 <li>
-                  <span className="font-medium text-white">Emit:</span> How it optionally outputs data or triggers other Steps.
+                  <span className="font-medium text-white">Emit:</span> How it optionally outputs data or triggers other
+                  Steps.
                 </li>
               </ul>
 
               <p className="mb-[10px]">
-                With just these four concepts, software engineers can build anything they need in Motia, particularly <span className={gradientTextBlue}>with Steps being language and runtime agnostic.</span>
+                With just these four concepts, software engineers can build anything they need in Motia, particularly{' '}
+                <span className={gradientTextBlue}>with Steps being language and runtime agnostic.</span>
               </p>
 
               <p className="mb-[18px]">
@@ -165,8 +184,17 @@ export default function ManifestoPage() {
               <span className={gradientTextBlue}>The Future of Backend Development</span>
             </p>
             <p className="mt-[16px]">
-              Every team will take this journey toward intelligent backend systems. 
-              It's inevitable - <span className="font-medium text-white">API</span> <span className="text-white/40">→</span> <span className="font-medium text-white">Background Jobs</span> <span className="text-white/40">→</span> <span className="font-medium text-white">Workflows</span> <span className="text-white/40">→</span> <span className="font-medium text-white">AI Agents</span> <span className="text-white/40">→</span> <span className="font-medium bg-gradient-to-r from-[#5AC5FF] to-[#C4E5FF] bg-clip-text text-transparent">Real-time Streaming Intelligence</span>. The question isn't whether you'll build these capabilities, but how painful the transition will be. Motia ensures this evolution happens naturally, without the architectural rewrites that have plagued every major shift in software development.
+              Every team will take this journey toward intelligent backend systems. It's inevitable -{' '}
+              <span className="font-medium text-white">API</span> <span className="text-white/40">→</span>{' '}
+              <span className="font-medium text-white">Background Jobs</span> <span className="text-white/40">→</span>{' '}
+              <span className="font-medium text-white">Workflows</span> <span className="text-white/40">→</span>{' '}
+              <span className="font-medium text-white">AI Agents</span> <span className="text-white/40">→</span>{' '}
+              <span className="font-medium bg-gradient-to-r from-[#5AC5FF] to-[#C4E5FF] bg-clip-text text-transparent">
+                Real-time Streaming Intelligence
+              </span>
+              . The question isn't whether you'll build these capabilities, but how painful the transition will be.
+              Motia ensures this evolution happens naturally, without the architectural rewrites that have plagued every
+              major shift in software development.
             </p>
           </section>
 
@@ -181,23 +209,33 @@ export default function ManifestoPage() {
             />
             <div className="relative flex flex-col gap-[20px]">
               <h2 className={headingText}>Our Value Proposition</h2>
-              
+
               <div className="grid gap-[20px] md:grid-cols-2">
                 <div>
                   <h3 className="text-[18px] font-medium text-white mb-[8px]">Developer Experience</h3>
-                  <p className="text-white/70">Unified tooling, type safety, and hot reload across languages. Write once, debug everywhere.</p>
+                  <p className="text-white/70">
+                    Unified tooling, type safety, and hot reload across languages. Write once, debug everywhere.
+                  </p>
                 </div>
                 <div>
                   <h3 className="text-[18px] font-medium text-white mb-[8px]">Speed & Velocity</h3>
-                  <p className="text-white/70">From prototype to production in minutes. Unified development environment eliminates context switching.</p>
+                  <p className="text-white/70">
+                    From prototype to production in minutes. Unified development environment eliminates context
+                    switching.
+                  </p>
                 </div>
                 <div>
                   <h3 className="text-[18px] font-medium text-white mb-[8px]">Versatility</h3>
-                  <p className="text-white/70">APIs to AI agents in one framework. Polyglot by design with true language interoperability.</p>
+                  <p className="text-white/70">
+                    APIs to AI agents in one framework. Polyglot by design with true language interoperability.
+                  </p>
                 </div>
                 <div>
                   <h3 className="text-[18px] font-medium text-white mb-[8px]">Reliability</h3>
-                  <p className="text-white/70"><span className={gradientTextBlue}>Resilience built in</span> - fault tolerance without operational complexity or manual configuration.</p>
+                  <p className="text-white/70">
+                    <span className={gradientTextBlue}>Resilience built in</span> - fault tolerance without operational
+                    complexity or manual configuration.
+                  </p>
                 </div>
               </div>
             </div>
@@ -205,19 +243,29 @@ export default function ManifestoPage() {
 
           <section className={normalText}>
             <p>
-              Setting up resilient event-driven systems has been incredibly difficult to do correctly. <span className={gradientTextBlue}>Motia builds this foundation for you</span>, providing enterprise-grade observability with complete system visibility through logs visualization, request tracing, state monitoring, and dependency diagrams. Automatic error handling and retry mechanisms replace manual queue infrastructure, letting developers focus on business logic instead of infrastructure complexity.
+              Setting up resilient event-driven systems has been incredibly difficult to do correctly.{' '}
+              <span className={gradientTextBlue}>Motia builds this foundation for you</span>, providing enterprise-grade
+              observability with complete system visibility through logs visualization, request tracing, state
+              monitoring, and dependency diagrams. Automatic error handling and retry mechanisms replace manual queue
+              infrastructure, letting developers focus on business logic instead of infrastructure complexity.
             </p>
           </section>
 
           <section className={normalText}>
             <p>
-              Built on 25 years of knowledge about event-based systems, each Step scales independently, avoiding monolithic bottlenecks. <span className={gradientText}>Atomic deployments and one-click rollbacks</span> create isolated services that share the same data layer while ensuring cloud-provider agnosticism. Real-time streaming requires no configuration - define your data structures and changes automatically stream to subscribed clients.
+              Built on 25 years of knowledge about event-based systems, each Step scales independently, avoiding
+              monolithic bottlenecks. <span className={gradientText}>Atomic deployments and one-click rollbacks</span>{' '}
+              create isolated services that share the same data layer while ensuring cloud-provider agnosticism.
+              Real-time streaming requires no configuration - define your data structures and changes automatically
+              stream to subscribed clients.
             </p>
           </section>
 
           <section className={normalText}>
             <p>
-              <span className={gradientTextBlue}>Motia is built for the future of software development</span> - a unified system designed to evolve with AI-driven complexity while remaining fundamentally simple for developers to use.
+              <span className={gradientTextBlue}>Motia is built for the future of software development</span> - a
+              unified system designed to evolve with AI-driven complexity while remaining fundamentally simple for
+              developers to use.
             </p>
           </section>
         </div>

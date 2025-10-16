@@ -1,10 +1,20 @@
-import { Checkbox, Button, cn, Input } from '@motiadev/ui'
+import {
+  Button,
+  Checkbox,
+  cn,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@motiadev/ui'
 import { RefreshCw, Search, Trash, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@motiadev/ui'
-import { StateItem } from '../types/state'
 import { useGetStateItems } from '../hooks/states-hooks'
 import { useStatesStore } from '../stores/use-states-store'
+import type { StateItem } from '../types/state'
 import { StateSidebar } from './state-sidebar'
 
 export const StatesPage = () => {

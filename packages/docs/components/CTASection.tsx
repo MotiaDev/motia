@@ -1,17 +1,17 @@
 'use client'
+import { Alignment, Fit } from '@rive-app/react-webgl2'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
-import RiveAnimation from './RiveAnimation'
-import motiaPlaque from '@/public/images/landing/motiaPlaque.png'
-import { Alignment, Fit } from '@rive-app/react-webgl2'
-import Title from './Title'
-import SectionAppearAnimation from './SectionAppearAnimation'
 import { useState } from 'react'
-import ModalForm from './Modal'
-import smoke from '@/public/images/landing/smoke.webp'
 import ctaSectionGlow from '@/public/images/landing/ctaSectionGlow.svg'
-import ModalCTA from './ModalCTA'
+import motiaPlaque from '@/public/images/landing/motiaPlaque.png'
+import smoke from '@/public/images/landing/smoke.webp'
 import CopyNPX from './CopyNpx'
+import ModalForm from './Modal'
+import ModalCTA from './ModalCTA'
+import RiveAnimation from './RiveAnimation'
+import SectionAppearAnimation from './SectionAppearAnimation'
+import Title from './Title'
 
 type Ray = {
   delay?: number
@@ -79,7 +79,8 @@ export default function CTASection() {
       <div className="flex w-full flex-col items-center px-[16px] text-center">
         <Title className="max-w-[792px]">Unify APIs, Background Jobs, and Agents in Any Language, One Flow</Title>
         <p className="w-full max-w-[440px] pt-[20px] text-[20px] text-white/60">
-          Write in Python, TypeScript, JavaScript, and more. Deploy with confidence using industry standard test suites, evals, and monitoring.
+          Write in Python, TypeScript, JavaScript, and more. Deploy with confidence using industry standard test suites,
+          evals, and monitoring.
         </p>
       </div>
       {/* CTAs */}

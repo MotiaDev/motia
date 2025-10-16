@@ -1,9 +1,8 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared'
-import GitHubStarButton from '../components/GitHubStarButton'
-import GitHubIcon from '../components/GitHubIcon'
-import DiscordIcon from '../components/DiscordIcon'
-
 import Image from 'next/image'
+import DiscordIcon from '../components/DiscordIcon'
+import GitHubIcon from '../components/GitHubIcon'
+import GitHubStarButton from '../components/GitHubStarButton'
 /**
  * Shared layout configurations
  *

@@ -1,5 +1,5 @@
-@import '@motiadev/ui/globals.css';
-@import 'tailwindcss';
+@import "@motiadev/ui/globals.css";
+@import "tailwindcss";
 
 .json-view {
   background-color: transparent !important;

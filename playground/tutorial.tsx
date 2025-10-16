@@ -1,4 +1,4 @@
-import { workbenchXPath, TutorialStep } from '@motiadev/workbench'
+import { type TutorialStep, workbenchXPath } from '@motiadev/workbench'
 
 export const steps: TutorialStep[] = [
   {
@@ -18,8 +18,7 @@ export const steps: TutorialStep[] = [
         Let's start with <b>Workbench</b>, it is a development tool provided by Motia's ecosystem, from here you'll be
         able to visualize your flows and observe their behavior.
         <br />
-        <br />
-        💡 If you are already familiar with Motia, you can skip this tutorial.
+        <br />💡 If you are already familiar with Motia, you can skip this tutorial.
       </p>
     ),
   },
@@ -156,8 +155,7 @@ export const steps: TutorialStep[] = [
         object as the first argument, followed by a second argument that provides access to the <b>logger</b>,{' '}
         <b>event emitter</b>, <b>state manager</b>, and <b>trace id</b>.<br />
         <br />
-        <br />
-        💡 We will cover these in depth further down the tutorial.
+        <br />💡 We will cover these in depth further down the tutorial.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.feature('handler') }],
@@ -215,8 +213,7 @@ export const steps: TutorialStep[] = [
         <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the anatomy of
         an Event Step by taking a look at the code visualization tool.
         <br />
-        <br />
-        💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
+        <br />💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
@@ -234,8 +231,7 @@ export const steps: TutorialStep[] = [
         <br /> <br />
         <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the anatomy of
         an Event Step by taking a look at the code visualization tool.
-        <br /> <br />
-        💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
+        <br /> <br />💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
       </p>
     ),
     before: [
@@ -274,8 +270,8 @@ export const steps: TutorialStep[] = [
         The handler will seem familiar to other Step handlers, but notice that the first argument holds the data
         provided for the topic or topics your Step subscribes to.
         <br />
-        <br />
-        💡 The first argument will match the structure of your input schema, defined in the <b>Event</b> Step config.
+        <br />💡 The first argument will match the structure of your input schema, defined in the <b>Event</b> Step
+        config.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.feature('handler') }],
@@ -363,8 +359,7 @@ export const steps: TutorialStep[] = [
         Now that we've looked at Motia primitives, let's trigger the API Step from the <b>endpoints</b> section in
         Workbench.
         <br />
-        <br />
-        💡 All of your API Steps declare HTTP endpoints that can be reviewed and tested from the <b>Endpoints</b>{' '}
+        <br />💡 All of your API Steps declare HTTP endpoints that can be reviewed and tested from the <b>Endpoints</b>{' '}
         section in Workbench.
       </p>
     ),
@@ -438,9 +433,8 @@ export const steps: TutorialStep[] = [
         <br />
         You can also test your API endpoints using your terminal through the curl command.
         <br />
-        <br />
-        💡 Thanks to the <b>bodySchema</b> attribute from the API Step config, you are automatically provided with a
-        sample request payload.
+        <br />💡 Thanks to the <b>bodySchema</b> attribute from the API Step config, you are automatically provided with
+        a sample request payload.
         <br />
         <br />
         <pre className="code-preview">
@@ -546,9 +540,8 @@ export const steps: TutorialStep[] = [
         This is the <b>Trace Details View</b>, this will allow you to look deeper into the logs raised during the
         execution of a Step.
         <br />
-        <br />
-        💡 This is a simplified version of the logs, if you wish to look further into a log you will need to use the{' '}
-        <b>Logs Tool</b>.
+        <br />💡 This is a simplified version of the logs, if you wish to look further into a log you will need to use
+        the <b>Logs Tool</b>.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.tracing.timeline(1) }],
@@ -574,8 +567,7 @@ export const steps: TutorialStep[] = [
         Your log results will show their associated <b>Trace ID</b> in the third column, the <b>Trace ID</b> values are
         linked to update your search.
         <br />
-        <br />
-        💡 Clicking a <b>Trace ID</b> will narrow down your search to only show logs from that trace.
+        <br />💡 Clicking a <b>Trace ID</b> will narrow down your search to only show logs from that trace.
       </p>
     ),
   },
@@ -653,29 +645,29 @@ export const steps: TutorialStep[] = [
         <br />
         <br />
         We recommend you give our{' '}
-        <a href="https://www.motia.dev/docs/concepts" target="_blank">
+        <a href="https://www.motia.dev/docs/concepts" target="_blank" rel="noopener">
           core concepts
         </a>{' '}
         a read if you wish to learn further about Motia's fundamentals.
         <br />
         <br />
         Don't forget to join our{' '}
-        <a href="https://discord.com/invite/nJFfsH5d6v" target="_blank">
+        <a href="https://discord.com/invite/nJFfsH5d6v" target="_blank" rel="noopener">
           Discord community
         </a>{' '}
         or tag us in socials to show us what you've built with Motia.
         <br />
         <br />
         We are an open source project, so feel free to raise your{' '}
-        <a href="https://github.com/MotiaDev/motia/issues" target="_blank">
+        <a href="https://github.com/MotiaDev/motia/issues" target="_blank" rel="noopener">
           issues
         </a>{' '}
         or{' '}
-        <a href="https://github.com/MotiaDev/motia/discussions" target="_blank">
+        <a href="https://github.com/MotiaDev/motia/discussions" target="_blank" rel="noopener">
           suggestions
         </a>{' '}
         in our{' '}
-        <a href="https://github.com/MotiaDev/motia" target="_blank">
+        <a href="https://github.com/MotiaDev/motia" target="_blank" rel="noopener">
           Github repo
         </a>
         .

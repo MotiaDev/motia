@@ -1,6 +1,6 @@
-import { z, ZodAny, ZodArray, ZodObject } from 'zod'
-import { Logger } from './logger'
-import { Tracer } from './observability'
+import type { ZodAny, ZodArray, ZodObject, z } from 'zod'
+import type { Logger } from './logger'
+import type { Tracer } from './observability'
 
 export * from './types/app-config-types'
 
@@ -18,7 +18,7 @@ export type EmitData = { topic: ''; data: unknown }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface FlowContextStateStreams {}
+export type FlowContextStateStreams = {}
 
 export interface FlowContext<TEmitData = never> {
   emit: Emitter<TEmitData>
@@ -180,4 +180,4 @@ export type Flow = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface Handlers {}
+export type Handlers = {}

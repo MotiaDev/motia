@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MotiaTutorial } from '../engine/tutorial-engine'
-import { TutorialImage } from '../engine/tutorial-types'
+import type { TutorialImage } from '../engine/tutorial-types'
 import { waitForElementByXPath } from './tutorial-utils'
 
 export const useTutorialEngine = () => {

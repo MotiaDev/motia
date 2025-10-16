@@ -1,6 +1,6 @@
 import { Button, cn } from '@motiadev/ui'
 import { Check, Copy } from 'lucide-react'
-import { FC, useState } from 'react'
+import { type FC, useState } from 'react'
 import { usePathUrl } from '../hooks/use-path-url'
 
 interface EndpointPathPreviewProps {

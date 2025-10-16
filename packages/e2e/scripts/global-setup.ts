@@ -1,4 +1,4 @@
-import { execSync, exec } from 'child_process'
+import { exec, execSync } from 'child_process'
 import { existsSync, rmSync } from 'fs'
 import path from 'path'
 

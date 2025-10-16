@@ -44,9 +44,7 @@ module.exports = {
       },
     ],
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(@motiadev/stream-client-react|@motiadev/stream-client-browser)/)',
-  ],
+  transformIgnorePatterns: ['node_modules/(?!(@motiadev/stream-client-react|@motiadev/stream-client-browser)/)'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testEnvironmentOptions: {
     url: 'http://localhost',

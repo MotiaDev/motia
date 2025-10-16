@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Sidebar, APP_SIDEBAR_CONTAINER_ID } from './sidebar'
-import { Button } from './button'
 import { useState } from 'react'
+import { Button } from './button'
+import { APP_SIDEBAR_CONTAINER_ID, Sidebar } from './sidebar'
 
 const meta: Meta<typeof Sidebar> = {
   title: 'UI/Sidebar',
@@ -63,26 +63,26 @@ export const Default: Story = {
 }
 
 const SidebarWithInitialWidthTemplate: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false)
-  
-    return (
-      <>
-        <Button onClick={() => setIsOpen(true)}>Open Sidebar with 600px initial width</Button>
-        {isOpen && (
-          <Sidebar onClose={() => setIsOpen(false)} initialWidth={600}>
-            <div className="p-4">
-              <h2 className="text-lg font-semibold">Sidebar Content</h2>
-              <p className="mt-2">This sidebar started at 600px width.</p>
-              <Button onClick={() => setIsOpen(false)} className="mt-4">
-                Close
-              </Button>
-            </div>
-          </Sidebar>
-        )}
-      </>
-    )
-  }
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <>
+      <Button onClick={() => setIsOpen(true)}>Open Sidebar with 600px initial width</Button>
+      {isOpen && (
+        <Sidebar onClose={() => setIsOpen(false)} initialWidth={600}>
+          <div className="p-4">
+            <h2 className="text-lg font-semibold">Sidebar Content</h2>
+            <p className="mt-2">This sidebar started at 600px width.</p>
+            <Button onClick={() => setIsOpen(false)} className="mt-4">
+              Close
+            </Button>
+          </div>
+        </Sidebar>
+      )}
+    </>
+  )
+}
 
 export const WithInitialWidth: Story = {
-    render: () => <SidebarWithInitialWidthTemplate />,
+  render: () => <SidebarWithInitialWidthTemplate />,
 }

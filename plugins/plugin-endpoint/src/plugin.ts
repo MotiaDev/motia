@@ -1,16 +1,3 @@
-import { Motia, MotiaPlugin } from '@motiadev/core'
+import { plugin } from './api'
 
-export default function plugin(motia: Motia): MotiaPlugin {
-  return {
-    workbench: [
-      {
-        packageName: '@motiadev/plugin-endpoint',
-        cssImports: ['@motiadev/plugin-endpoint/dist/plugin-endpoint.css'],
-        label: 'Endpoints',
-        position: 'top',
-        componentName: 'EndpointsPage',
-        labelIcon: 'link-2',
-      },
-    ],
-  }
-}
+export default plugin

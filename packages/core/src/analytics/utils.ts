@@ -1,8 +1,8 @@
-import path from 'path'
+import { track } from '@amplitude/analytics-node'
+import crypto from 'crypto'
 import fs from 'fs'
 import os from 'os'
-import crypto from 'crypto'
-import { track } from '@amplitude/analytics-node'
+import path from 'path'
 
 export const getProjectName = (baseDir: string): string => {
   const packageJsonPath = path.join(baseDir, 'package.json')

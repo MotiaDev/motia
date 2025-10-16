@@ -1,4 +1,4 @@
-import { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from '../../types-stream'
+import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from '../../types-stream'
 
 /**
  * Interface for stream management adapters

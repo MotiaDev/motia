@@ -1,7 +1,7 @@
-import colors from 'colors'
 import { Printer } from '@motiadev/core/dist/src/printer'
+import colors from 'colors'
+import type { BuildStepConfig } from '../../build/builder'
 import { CLIOutputManager } from '../../cli-output-manager'
-import { BuildStepConfig } from '../../build/builder'
 import { projectDir } from '../constants'
 
 const uploading = colors.yellow('➜ [UPLOADING]')

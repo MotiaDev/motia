@@ -1,8 +1,8 @@
+import { Alignment, Fit } from '@rive-app/react-webgl2'
 import React from 'react'
+import bgBento4 from '@/public/images/landing/bgBento4.webp'
 import { BentoCard, CardText } from './BentoCard'
 import RiveAnimation from './RiveAnimation'
-import { Alignment, Fit } from '@rive-app/react-webgl2'
-import bgBento4 from '@/public/images/landing/bgBento4.webp'
 
 export default function TestAndDeploy() {
   return (

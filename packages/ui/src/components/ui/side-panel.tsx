@@ -1,7 +1,7 @@
+import { X } from 'lucide-react'
+import type { FC } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from './button'
-import { X } from 'lucide-react'
-import { FC } from 'react'
 
 export interface PanelDetailItem {
   label: string

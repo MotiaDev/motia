@@ -1,11 +1,4 @@
-import { Motia } from '../motia'
-
-export type Runtime = {
-  steps: string
-  streams: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  runtime: any
-}
+import type { MotiaPluginContext } from '../motia'
 
 export type WorkbenchPlugin = {
   packageName: string
@@ -22,9 +15,8 @@ export type MotiaPlugin = {
   workbench: WorkbenchPlugin[]
 }
 
-export type MotiaPluginBuilder = (motia: Motia) => MotiaPlugin
+export type MotiaPluginBuilder = (motia: MotiaPluginContext) => MotiaPlugin
 
 export type Config = {
-  runtimes?: Runtime[]
   plugins?: MotiaPluginBuilder[]
 }

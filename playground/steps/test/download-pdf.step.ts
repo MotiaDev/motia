@@ -1,6 +1,6 @@
 import fs from 'fs/promises'
+import type { ApiRouteConfig, Handlers } from 'motia'
 import path from 'path'
-import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 export const config: ApiRouteConfig = {

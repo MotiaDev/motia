@@ -1,7 +1,7 @@
-import { expect, test } from '@/src/motia-fixtures'
 import { execSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import path from 'path'
+import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('CLI Validation', () => {
   const testProjectPath = process.env.TEST_PROJECT_PATH || ''
@@ -60,12 +60,11 @@ test.describe('CLI Validation', () => {
     }
   })
 
-
   test('should generate openapi.json with correct content', async () => {
     const openapiPath = path.join(testProjectPath, 'openapi.json')
 
     try {
-      console.log(`Running 'npx motia generate openapi' in ${testProjectPath}`);
+      console.log(`Running 'npx motia generate openapi' in ${testProjectPath}`)
       execSync('npx motia generate openapi', {
         cwd: testProjectPath,
         stdio: 'inherit',

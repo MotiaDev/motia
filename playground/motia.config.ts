@@ -1,4 +1,4 @@
-import { config, Motia } from '@motiadev/core'
+import { config, type Motia } from '@motiadev/core'
 
 const statesPlugin = require('@motiadev/plugin-states/plugin')
 const endpointPlugin = require('@motiadev/plugin-endpoint/plugin')

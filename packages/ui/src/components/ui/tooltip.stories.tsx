@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'
+import { Download, Heart, HelpCircle, Info, Settings, Star } from 'lucide-react'
 import { Button } from './button'
-import { Info, HelpCircle, Settings, Star, Heart, Download } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'
 
 const meta: Meta<typeof Tooltip> = {
   title: 'UI/Tooltip',

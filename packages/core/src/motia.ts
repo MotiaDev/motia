@@ -1,10 +1,10 @@
-import { Printer } from './printer'
-import { TracerFactory } from './observability'
-import { EventManager, InternalStateManager } from './types'
-import { LockedData } from './locked-data'
-import { LoggerFactory } from './logger-factory'
 import type { Express } from 'express'
-import { StateAdapter } from './state/state-adapter'
+import type { LockedData } from './locked-data'
+import type { LoggerFactory } from './logger-factory'
+import type { TracerFactory } from './observability'
+import type { Printer } from './printer'
+import type { StateAdapter } from './state/state-adapter'
+import type { EventManager, InternalStateManager } from './types'
 
 export type Motia = {
   loggerFactory: LoggerFactory
@@ -16,4 +16,10 @@ export type Motia = {
 
   app: Express
   stateAdapter: StateAdapter
+}
+
+export type MotiaPluginContext = {
+  app: Express
+  state: StateAdapter
+  lockedData: LockedData
 }

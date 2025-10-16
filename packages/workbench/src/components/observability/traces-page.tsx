@@ -1,11 +1,11 @@
-import { TraceTimeline } from '@/components/observability/trace-timeline'
-import { TraceGroup } from '@/types/observability'
 import { useStreamGroup } from '@motiadev/stream-client-react'
-import { TracesGroups } from '@/components/observability/traces-groups'
-import { useGlobalStore } from '../../stores/use-global-store'
-import { useEffect, useMemo, useState } from 'react'
 import { Button, cn, Input } from '@motiadev/ui'
 import { Search, Trash, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { TraceTimeline } from '@/components/observability/trace-timeline'
+import { TracesGroups } from '@/components/observability/traces-groups'
+import type { TraceGroup } from '@/types/observability'
+import { useGlobalStore } from '../../stores/use-global-store'
 
 export const TracesPage = () => {
   const selectedGroupId = useGlobalStore((state) => state.selectedTraceGroupId)

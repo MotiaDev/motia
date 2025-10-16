@@ -1,4 +1,4 @@
-import { SpawnOptions } from 'child_process'
+import type { SpawnOptions } from 'child_process'
 
 export type CommunicationType = 'rpc' | 'ipc'
 

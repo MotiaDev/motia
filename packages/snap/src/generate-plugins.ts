@@ -1,4 +1,4 @@
-import { Config, Motia, MotiaPlugin } from '@motiadev/core'
+import type { Config, Motia, MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 import fs from 'fs'
 import { globSync } from 'glob'
 import path from 'path'
@@ -18,8 +18,14 @@ export const generatePlugins = async (motia: Motia): Promise<MotiaPlugin[]> => {
     configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: baseDir })
   }
 
+  const context: MotiaPluginContext = {
+    app: motia.app,
+    state: motia.stateAdapter,
+    lockedData: motia.lockedData,
+  }
+
   const appConfig: Config = (await import(configFiles[0])).default
-  const plugins = appConfig.plugins?.flatMap((item) => item(motia)) || []
+  const plugins = appConfig.plugins?.flatMap((item) => item(context)) || []
 
   return plugins
 }

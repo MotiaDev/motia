@@ -1,5 +1,5 @@
-import React from 'react'
-import { IconProps } from './types'
+import type React from 'react'
+import type { IconProps } from './types'
 
 export const TextFlowIcon: React.FC<IconProps> = ({ width = 24, height = 24, className = '' }) => {
   return (

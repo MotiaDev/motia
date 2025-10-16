@@ -1,8 +1,9 @@
-import { Sidebar, Badge } from '@motiadev/ui'
-import { formatDuration } from '@/lib/utils'
-import { Trace } from '@/types/observability'
+import { Badge, Sidebar } from '@motiadev/ui'
 import { X } from 'lucide-react'
-import React, { memo } from 'react'
+import type React from 'react'
+import { memo } from 'react'
+import { formatDuration } from '@/lib/utils'
+import type { Trace } from '@/types/observability'
 import { EventIcon } from '../events/event-icon'
 import { TraceEvent } from '../events/trace-event'
 

@@ -1,7 +1,5 @@
 {
   "title": "Product Showcase",
   "defaultOpen": false,
-  "pages": [
-    "chessarena-ai"
-  ]
+  "pages": ["chessarena-ai"]
 }

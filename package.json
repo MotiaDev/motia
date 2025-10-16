@@ -6,8 +6,11 @@
     "dev": "pnpm run build && pnpm -r --filter=playground dev",
     "dev:workbench": "pnpm run build && pnpm -r --filter=playground dev:workbench",
     "build": "pnpm --filter=!docs run -r build",
-    "lint": "pnpm run -r --no-bail lint",
-    "lint:fix": "pnpm run -r --no-bail lint --fix",
+    "lint": "biome check . && pnpm run -r --no-bail lint:plugins",
+    "lint:fix": "biome check --write . && pnpm run -r --no-bail lint:plugins --fix",
+    "lint:plugins": "pnpm run -r --no-bail lint:plugins",
+    "format": "biome format --write .",
+    "format:check": "biome check .",
     "test": "pnpm -r run test",
     "test:e2e": "pnpm --filter=@motiadev/e2e test",
     "test:e2e:ui": "pnpm --filter=@motiadev/e2e test:ui",
@@ -16,6 +19,7 @@
     "clean": "node -e \"const fs =require('fs');['node_modules','dist', '.turbo','.next'].forEach(d=>{if(fs.existsSync(d))fs.rmSync(d,{recursive:true,force:true})});fs.unlink('pnpm-lock.yaml', {recursive:true, force:true})\""
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.2.6",
     "@eslint/js": "^9.28.0",
     "@jest/globals": "^30.2.0",
     "@types/jest": "^29.5.14",

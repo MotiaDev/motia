@@ -1,5 +1,5 @@
 import path from 'path'
-import { z } from 'zod'
+import type { z } from 'zod'
 import zodToJsonSchema from 'zod-to-json-schema'
 
 // Add ts-node registration before dynamic imports

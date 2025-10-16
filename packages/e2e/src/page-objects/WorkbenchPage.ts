@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
+import type { ApiHelpers } from './ApiHelpers'
 import { MotiaApplicationPage } from './MotiaApplicationPage'
-import { ApiHelpers } from './ApiHelpers'
 
 export class WorkbenchPage extends MotiaApplicationPage {
   readonly sidebarContainer: Locator

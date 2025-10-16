@@ -1,2 +1,2 @@
 export * from '@motiadev/core'
-export { generateLockedData, collectFlows } from './generate-locked-data'
+export { collectFlows, generateLockedData } from './generate-locked-data'

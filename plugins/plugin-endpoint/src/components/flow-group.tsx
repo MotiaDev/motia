@@ -1,7 +1,7 @@
 import { cn } from '@motiadev/ui'
 import { ChevronDown } from 'lucide-react'
-import { FC } from 'react'
-import { ApiEndpoint } from '../types/endpoint'
+import type { FC } from 'react'
+import type { ApiEndpoint } from '../types/endpoint'
 import { EndpointItem } from './endpoint-item'
 
 type FlowGroupProps = {

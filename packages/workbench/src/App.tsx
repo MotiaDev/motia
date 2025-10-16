@@ -1,12 +1,12 @@
-import { FC, useMemo } from 'react'
+import { type FC, useMemo } from 'react'
 import { FlowPage } from './components/flow/flow-page'
 import { FlowTabMenuItem } from './components/flow/flow-tab-menu-item'
 import { TracingTabLabel } from './components/observability/trace-tab-label'
 import { TracesPage } from './components/observability/traces-page'
 import { registerPluginTabs } from './lib/plugins'
-import { getViewModeFromURL, ViewMode } from './lib/utils'
+import { getViewModeFromURL, type ViewMode } from './lib/utils'
 import { ProjectViewMode } from './project-view-mode'
-import { AppTab, setAppTabs, TabLocation } from './stores/use-app-tabs-store'
+import { type AppTab, setAppTabs, TabLocation } from './stores/use-app-tabs-store'
 import { SystemViewMode } from './system-view-mode'
 
 const TAB_IDS = {

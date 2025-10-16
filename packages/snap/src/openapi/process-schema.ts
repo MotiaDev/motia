@@ -1,4 +1,4 @@
-import { OpenAPIV3 } from 'openapi-types'
+import type { OpenAPIV3 } from 'openapi-types'
 
 export function processSchema(schema: Record<string, unknown>, openApi: OpenAPIV3.Document) {
   if (!schema || typeof schema !== 'object') {

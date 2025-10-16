@@ -1,9 +1,9 @@
 import fs from 'fs'
 import path from 'path'
-import { createMermaidGenerator } from '../mermaid-generator'
-import { createApiStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 import { LockedData } from '../locked-data'
+import { createMermaidGenerator } from '../mermaid-generator'
 import { NoPrinter } from '../printer'
+import { createApiStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 
 // Mock fs module
 jest.mock('fs', () => ({

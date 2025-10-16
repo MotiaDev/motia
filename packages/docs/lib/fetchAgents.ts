@@ -1,7 +1,6 @@
 import { AGENT_TABS, fileFolders, folderMap } from '@/components/constants/agentExplorer'
 import { GITHUB_API_BASE } from '@/utils/constants'
 
-
 export type FolderData = {
   [key: string]: {
     name: string
@@ -13,12 +12,11 @@ export type AgentData = {
   [key: string]: FolderData
 }
 
-
 const REVALIDATE_TIME = 60 * 60 * 24 * 7 // Refresh the cache every week
 
 export async function fetchAgents(): Promise<AgentData> {
   const result: AgentData = { steps: {}, services: {} }
-  
+
   for (const agent of AGENT_TABS) {
     for (const folder of fileFolders) {
       try {
@@ -30,19 +28,21 @@ export async function fetchAgents(): Promise<AgentData> {
         })
 
         if (!folderResponse.ok) {
-          console.error(`Failed to fetch ${folderMap[agent]}/${folder}: ${folderResponse.status} ${folderResponse.statusText}`)
+          console.error(
+            `Failed to fetch ${folderMap[agent]}/${folder}: ${folderResponse.status} ${folderResponse.statusText}`,
+          )
           continue
         }
 
         const filesList = await folderResponse.json()
-        
+
         if (filesList.length > 0) {
           // Separate files and directories
           const files = filesList.filter((item: any) => item.type === 'file')
           const directories = filesList.filter((item: any) => item.type === 'dir')
-          
+
           let allFiles: any[] = []
-          
+
           // Process direct files
           if (files.length > 0) {
             const directFiles = await Promise.all(
@@ -53,7 +53,9 @@ export async function fetchAgents(): Promise<AgentData> {
                   })
 
                   if (!fileResponse.ok) {
-                    console.error(`Failed to fetch file ${file.name}: ${fileResponse.status} ${fileResponse.statusText}`)
+                    console.error(
+                      `Failed to fetch file ${file.name}: ${fileResponse.status} ${fileResponse.statusText}`,
+                    )
                     return null
                   }
 
@@ -66,11 +68,11 @@ export async function fetchAgents(): Promise<AgentData> {
                   console.error(`Error fetching file ${file.name}:`, fileError)
                   return null
                 }
-              })
+              }),
             )
-            allFiles = allFiles.concat(directFiles.filter(f => f !== null))
+            allFiles = allFiles.concat(directFiles.filter((f) => f !== null))
           }
-          
+
           // Process subdirectories (for cases like RAG agent with api-steps/event-steps)
           if (directories.length > 0) {
             for (const dir of directories) {
@@ -83,7 +85,9 @@ export async function fetchAgents(): Promise<AgentData> {
                 })
 
                 if (!subDirResponse.ok) {
-                  console.error(`Failed to fetch subdirectory ${dir.name}: ${subDirResponse.status} ${subDirResponse.statusText}`)
+                  console.error(
+                    `Failed to fetch subdirectory ${dir.name}: ${subDirResponse.status} ${subDirResponse.statusText}`,
+                  )
                   continue
                 }
 
@@ -98,7 +102,9 @@ export async function fetchAgents(): Promise<AgentData> {
                         })
 
                         if (!fileResponse.ok) {
-                          console.error(`Failed to fetch file ${file.name}: ${fileResponse.status} ${fileResponse.statusText}`)
+                          console.error(
+                            `Failed to fetch file ${file.name}: ${fileResponse.status} ${fileResponse.statusText}`,
+                          )
                           return null
                         }
 
@@ -111,15 +117,15 @@ export async function fetchAgents(): Promise<AgentData> {
                         console.error(`Error fetching file ${file.name}:`, fileError)
                         return null
                       }
-                    })
+                    }),
                 )
-                allFiles = allFiles.concat(subDirFiles.filter(f => f !== null))
+                allFiles = allFiles.concat(subDirFiles.filter((f) => f !== null))
               } catch (subDirError) {
                 console.error(`Error fetching subdirectory ${dir.name}:`, subDirError)
               }
             }
           }
-          
+
           if (allFiles.length > 0) {
             result[folder][agent] = allFiles
           }
@@ -131,6 +137,3 @@ export async function fetchAgents(): Promise<AgentData> {
   }
   return result
 }
-
-
-

@@ -1,13 +1,13 @@
-import { ApiRouteConfig, Step } from '@motiadev/core'
+import type { ApiRouteConfig, Step } from '@motiadev/core'
 import colors from 'colors'
 import * as esbuild from 'esbuild'
 import fs from 'fs'
 import path from 'path'
-import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
+import { distDir } from '../../../new-deployment/constants'
+import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
+import type { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
-import { distDir } from '../../../new-deployment/constants'
-import { BuildListener } from '../../../new-deployment/listeners/listener.types'
 
 export class NodeBuilder implements StepBuilder {
   constructor(

@@ -156,7 +156,7 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
           return
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let body: any = undefined
+        let body: any
         try {
           const contentType = response?.headers.get('content-type') ?? ''
 

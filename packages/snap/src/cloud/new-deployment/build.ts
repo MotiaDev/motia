@@ -3,11 +3,11 @@ import { NoPrinter } from '@motiadev/core/dist/src/printer'
 import fs from 'fs'
 import { collectFlows, getStepFiles } from '../../generate-locked-data'
 import { BuildError, BuildErrorType } from '../../utils/errors/build.error'
-import { Builder, StepsConfigFile } from '../build/builder'
+import { Builder, type StepsConfigFile } from '../build/builder'
 import { NodeBuilder } from '../build/builders/node'
 import { PythonBuilder } from '../build/builders/python'
 import { distDir, projectDir, stepsConfigPath } from './constants'
-import { BuildListener } from './listeners/listener.types'
+import type { BuildListener } from './listeners/listener.types'
 
 const hasPythonSteps = (stepFiles: string[]) => {
   return stepFiles.some((file) => file.endsWith('.py'))

@@ -1,9 +1,9 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { ChevronsUpDown, Workflow } from 'lucide-react'
-import { useFlowStore } from '@/stores/use-flow-store'
-import { useFetchFlows } from '@/hooks/use-fetch-flows'
 import { useShallow } from 'zustand/react/shallow'
+import { useFetchFlows } from '@/hooks/use-fetch-flows'
 import { analytics } from '@/lib/analytics'
+import { useFlowStore } from '@/stores/use-flow-store'
 
 export const FlowTabMenuItem = () => {
   useFetchFlows()

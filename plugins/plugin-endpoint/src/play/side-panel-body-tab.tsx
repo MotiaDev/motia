@@ -1,5 +1,5 @@
 import { CircleX } from 'lucide-react'
-import { FC, memo, useCallback, useEffect } from 'react'
+import { type FC, memo, useCallback, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { JsonEditor } from '../components/json-editor'
 import { getBodyIsValidSelector, getBodySelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'

@@ -1,16 +1,26 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --default-font-family: 'DM Sans', ui-sans-serif, sans-serif;
-  --font-dm-mono: 'DM Mono', ui-monospace, monospace;
+  --default-font-family: "DM Sans", ui-sans-serif, sans-serif;
+  --font-dm-mono: "DM Mono", ui-monospace, monospace;
 
   line-height: 1.5;
   font-size: 16px;
 
   color-scheme: light dark;
-  font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"), serif;
+  font-family:
+    var(
+      --default-font-family,
+      ui-sans-serif,
+      system-ui,
+      sans-serif,
+      "Apple Color Emoji",
+      "Segoe UI Emoji",
+      "Segoe UI Symbol",
+      "Noto Color Emoji"
+    ), serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -22,7 +32,7 @@
   --font-weight-500: 500;
   --font-weight-600: 600;
   --font-weight-700: 700;
-  
+
   /* Base Color Palette */
   --accent-1000: #2862fe;
   --accent-970: #2862fef7;
@@ -38,7 +48,7 @@
   --accent-100: #2862fe1a;
   --accent-50: #2862fe0d;
   --accent-30: #2862fe08;
-  
+
   --dark-1000: #0a0a0a;
   --dark-970: #0a0a0af7;
   --dark-950: #0a0a0af2;
@@ -53,7 +63,7 @@
   --dark-100: #0a0a0a1a;
   --dark-50: #0a0a0a0d;
   --dark-30: #0a0a0a08;
-  
+
   --light-1000: #ffffff;
   --light-970: #fffffff7;
   --light-950: #fffffff2;
@@ -68,70 +78,70 @@
   --light-100: #ffffff1a;
   --light-50: #ffffff0d;
   --light-30: #ffffff08;
-  
+
   --error: #d61355;
 
-  --canvas-background: #EBEBEB;
-  
+  --canvas-background: #ebebeb;
+
   /* Light Theme Semantic Tokens */
   --background: var(--light-1000);
   --foreground: var(--dark-1000);
-  
+
   --surface-content: var(--dark-30);
   --surface-component: var(--dark-50);
   --surface-light-100: var(--dark-100);
   --surface-light-200: var(--dark-200);
-  
+
   --border: var(--dark-100);
   --border-accent: var(--accent-1000);
-  
+
   --states-hover: var(--dark-30);
   --states-selected: var(--dark-100);
   --states-active: var(--accent-1000);
-  
+
   --text-header: var(--dark-1000);
   --text-body: var(--dark-600);
   --text-placeholder: var(--dark-400);
   --text-accent: var(--accent-1000);
   --text-error: var(--error);
-  
+
   --icon-active: var(--dark-1000);
   --icon-light: var(--dark-600);
   --icon-component: var(--dark-400);
   --icon-accent: var(--accent-1000);
-  
+
   /* Component Tokens */
   --primary: var(--accent-1000);
   --primary-foreground: var(--light-1000);
-  
+
   --secondary: var(--surface-component);
   --secondary-foreground: var(--text-body);
-  
+
   --muted: var(--surface-light-100);
   --muted-foreground: var(--text-body);
-  
+
   --accent: var(--accent-1000);
   --accent-foreground: var(--light-1000);
-  
+
   --destructive: var(--error);
   --destructive-foreground: var(--light-1000);
-  
+
   --card: var(--surface-content);
   --card-foreground: var(--foreground);
-  
+
   --popover: var(--surface-content);
   --popover-foreground: var(--foreground);
-  
+
   --input: var(--states-hover);
   --ring: var(--border-accent);
-  
+
   /* Chart colors */
   --chart-1: var(--accent-1000);
   --chart-2: var(--accent-800);
   --chart-3: var(--accent-600);
   --chart-4: var(--accent-400);
   --chart-5: var(--accent-200);
-  
+
   /* Header tokens */
   --header: var(--background);
   --header-foreground: var(--text-header);
@@ -141,7 +151,7 @@
   --header-accent-foreground: var(--text-body);
   --header-border: var(--border);
   --header-ring: var(--ring);
-  
+
   /* Sidebar tokens */
   --sidebar: var(--background);
   --sidebar-foreground: var(--text-header);
@@ -159,25 +169,25 @@
   /* Dark Theme Semantic Tokens */
   --background: var(--dark-1000);
   --foreground: var(--light-1000);
-  
+
   --surface-content: var(--light-30);
   --surface-component: var(--light-50);
   --surface-light-100: var(--light-100);
   --surface-light-200: var(--light-200);
-  
+
   --border: var(--light-100);
-  
+
   --states-hover: var(--light-30);
   --states-selected: var(--light-100);
-  
+
   --text-header: var(--light-1000);
   --text-body: var(--light-600);
   --text-placeholder: var(--light-400);
-  
+
   --icon-active: var(--light-1000);
   --icon-light: var(--light-600);
   --icon-component: var(--light-400);
-  
+
   --secondary-foreground: var(--light-600);
   --muted-foreground: var(--light-600);
 
@@ -222,7 +232,7 @@
   --font-weight-500: var(--font-weight-500);
   --font-weight-600: var(--font-weight-600);
   --font-weight-700: var(--font-weight-700);
-  
+
   /* Expose color palette */
   --color-accent-1000: var(--accent-1000);
   --color-accent-970: var(--accent-970);
@@ -238,7 +248,7 @@
   --color-accent-100: var(--accent-100);
   --color-accent-50: var(--accent-50);
   --color-accent-30: var(--accent-30);
-  
+
   --color-dark-1000: var(--dark-1000);
   --color-dark-970: var(--dark-970);
   --color-dark-950: var(--dark-950);
@@ -253,7 +263,7 @@
   --color-dark-100: var(--dark-100);
   --color-dark-50: var(--dark-50);
   --color-dark-30: var(--dark-30);
-  
+
   --color-light-1000: var(--light-1000);
   --color-light-970: var(--light-970);
   --color-light-950: var(--light-950);
@@ -268,9 +278,9 @@
   --color-light-100: var(--light-100);
   --color-light-50: var(--light-50);
   --color-light-30: var(--light-30);
-  
+
   --color-error: var(--error);
-  
+
   /* Expose semantic tokens */
   --color-canvas-background: var(--canvas-background);
   --color-background: var(--background);
@@ -288,18 +298,18 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  
+
   --color-header: var(--header);
   --color-header-foreground: var(--header-foreground);
   --color-header-primary: var(--header-primary);
@@ -308,7 +318,7 @@
   --color-header-accent-foreground: var(--header-accent-foreground);
   --color-header-border: var(--header-border);
   --color-header-ring: var(--header-ring);
-  
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

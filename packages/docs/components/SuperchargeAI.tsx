@@ -1,12 +1,12 @@
 'use client'
 import Image from 'next/image'
-import SectionAppearAnimation from './SectionAppearAnimation'
-import Title from './Title'
-import { TextAppearBlur } from './TextAnimations'
-import { superchargeAgentsHeaderGraphic } from './Icons'
-import InfiniteLogoList from './InfiniteLogoList'
 import background from '@/public/images/landing/backgroundLogoSlider.webp'
 import superchargeAgentsIcon from '@/public/images/landing/superChargeAgentsIcon.png'
+import { superchargeAgentsHeaderGraphic } from './Icons'
+import InfiniteLogoList from './InfiniteLogoList'
+import SectionAppearAnimation from './SectionAppearAnimation'
+import { TextAppearBlur } from './TextAnimations'
+import Title from './Title'
 
 export default function SuperchargeAI() {
   return (

@@ -1,11 +1,11 @@
+import type { LockedData, MotiaServer } from '@motiadev/core'
 import { randomUUID } from 'crypto'
-import { LockedData, MotiaServer } from '@motiadev/core'
 import { buildValidation } from './build/build-validation'
-import { StreamingDeploymentListener } from './new-deployment/listeners/streaming-deployment-listener'
 import { build } from './new-deployment/build'
-import { uploadArtifacts } from './new-deployment/upload-artifacts'
-import { DeploymentData, DeploymentStreamManager } from './new-deployment/streams/deployment-stream'
 import { cloudApi } from './new-deployment/cloud-api'
+import { StreamingDeploymentListener } from './new-deployment/listeners/streaming-deployment-listener'
+import { type DeploymentData, DeploymentStreamManager } from './new-deployment/streams/deployment-stream'
+import { uploadArtifacts } from './new-deployment/upload-artifacts'
 
 export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => {
   const { app } = server

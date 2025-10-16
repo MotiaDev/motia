@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
-import { usePlausibleTracking } from '../hooks/usePlausibleTracking'
 import Link from 'next/link'
+import { useEffect } from 'react'
 import ButtonPrimary from '@/components/ButtonPrimary'
 import ButtonSecondary from '@/components/ButtonSecondary'
+import { usePlausibleTracking } from '../hooks/usePlausibleTracking'
 
 export default function NotFound() {
   const { track404Error } = usePlausibleTracking()
@@ -29,7 +29,7 @@ export default function NotFound() {
         <div className="mb-12">
           <h1 className="mb-4 text-3xl font-semibold text-white">Page Not Found</h1>
           <p className="mx-auto max-w-lg text-lg leading-relaxed text-white/70">
-          Sorry, we couldn&apos;t find the page you&apos;re looking for.
+            Sorry, we couldn&apos;t find the page you&apos;re looking for.
           </p>
         </div>
 

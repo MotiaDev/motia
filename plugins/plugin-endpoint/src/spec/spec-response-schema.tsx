@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger, useThemeStore } from '@motiadev/ui'
-import { FC, useMemo } from 'react'
+import { type FC, useMemo } from 'react'
 import ReactJson from 'react18-json-view'
 import { convertJsonSchemaToJson } from '../hooks/utils'
 
