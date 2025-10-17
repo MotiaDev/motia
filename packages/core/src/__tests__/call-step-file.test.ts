@@ -273,7 +273,7 @@ describe('callStepFile', () => {
 
       const infrastructure: InfrastructureConfig = {
         handler: {
-          timeout: 1.5,
+          timeout: 30.5,
         },
       }
 
