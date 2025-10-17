@@ -2,7 +2,8 @@ import type { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 import { api } from './api'
 
 export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
-  api(motia.app, motia.state)
+  api(motia)
+
   return {
     workbench: [
       {

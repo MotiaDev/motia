@@ -37,7 +37,7 @@ export const start = async (
   const state = createStateAdapter({ adapter: 'default', filePath: dotMotia })
   const config = { isVerbose, isDev: false, version }
   const motiaServer = createServer(lockedData, eventManager, state, config)
-  const plugins: MotiaPlugin[] = await generatePlugins(motiaServer.motia)
+  const plugins: MotiaPlugin[] = await generatePlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports

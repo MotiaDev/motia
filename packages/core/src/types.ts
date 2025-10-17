@@ -173,6 +173,10 @@ export type StepConfig = EventConfig | NoopConfig | ApiRouteConfig | CronConfig
 
 export type Step<TConfig extends StepConfig = StepConfig> = { filePath: string; version: string; config: TConfig }
 
+export type PluginStep<TConfig extends StepConfig = ApiRouteConfig> = Step<TConfig> & {
+  handler?: ApiRouteHandler<any, any, any>
+}
+
 export type Flow = {
   name: string
   description?: string

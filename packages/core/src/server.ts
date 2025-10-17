@@ -23,7 +23,7 @@ import type { StateAdapter } from './state/state-adapter'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
 import { type Log, LogsStream } from './streams/logs-stream'
-import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EventManager, Step } from './types'
+import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, EventManager, Step } from './types'
 import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 
 export type MotiaServer = {
@@ -183,7 +183,30 @@ export const createServer = (
       }
 
       try {
-        const result = await callStepFile<ApiResponse>({ data, step, logger, tracer, traceId }, motia)
+        let result: ApiResponse | undefined
+
+        if ('handler' in step && typeof step.handler === 'function') {
+          const context = {
+            traceId,
+            flows,
+            state: state,
+            emit: async (event: EmitData) => {
+              const eventObj = {
+                ...event,
+                traceId,
+                flows,
+                logger,
+                tracer,
+              }
+              await eventManager.emit(eventObj)
+            },
+            logger,
+            streams: lockedData.getStreams(),
+          }
+          result = await step.handler(data, context)
+        } else {
+          result = await callStepFile<ApiResponse>({ data, step, logger, tracer, traceId }, motia)
+        }
 
         trackEvent('api_call_success', { stepName })
 
