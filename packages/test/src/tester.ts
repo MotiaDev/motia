@@ -16,7 +16,13 @@ export const createMotiaTester = (): MotiaTester => {
       printerType: 'disabled',
     })
     const state = createStateAdapter({ adapter: 'memory' })
-    const { server, socketServer, close } = createServer(lockedData, eventManager, state, { isVerbose: false }, eventManager.queueManager)
+    const { server, socketServer, close } = createServer(
+      lockedData,
+      eventManager,
+      state,
+      { isVerbose: false },
+      eventManager.queueManager,
+    )
 
     return { server, socketServer, eventManager, state, close }
   })()

@@ -260,7 +260,6 @@ describe('Infrastructure Validation in Build Process', () => {
       expect(errors.length).toBeGreaterThan(0)
       expect(errors[0].message).toContain('maxRetries cannot be negative')
     })
-
   })
 
   describe('Cross-Field Validation', () => {

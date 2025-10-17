@@ -615,7 +615,6 @@ describe('Infrastructure Config Validation', () => {
 
   describe('Infrastructure Schema Combined Validations', () => {
     it('should validate all fields together in complete config', () => {
-
       const validConfig = {
         handler: {
           ram: 2048,
@@ -655,7 +654,7 @@ describe('Infrastructure Config Validation', () => {
         expect(error).toBeInstanceOf(z.ZodError)
         const zodError = error as z.ZodError
         expect(zodError.errors.length).toBeGreaterThan(0)
-        const errorMessages = zodError.errors.map(e => e.message)
+        const errorMessages = zodError.errors.map((e) => e.message)
         expect(errorMessages).toContain('RAM must be at least 128 MB')
         expect(errorMessages).toContain('Timeout cannot exceed 900s')
         expect(errorMessages).toContain('maxRetries cannot be negative')

@@ -37,9 +37,7 @@ export const validateQueueConfig = (queueConfig: unknown): QueueValidationResult
     }
   }
 }
-export const validateInfrastructureConfig = (
-  infrastructureConfig: unknown,
-): InfrastructureValidationResult => {
+export const validateInfrastructureConfig = (infrastructureConfig: unknown): InfrastructureValidationResult => {
   try {
     infrastructureSchema.parse(infrastructureConfig)
 

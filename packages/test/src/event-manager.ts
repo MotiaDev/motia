@@ -1,5 +1,5 @@
-import { QueueManager, createEventManager as createProductionEventManager } from '@motiadev/core'
 import type { Event, EventManager } from '@motiadev/core'
+import { createEventManager as createProductionEventManager, QueueManager } from '@motiadev/core'
 
 interface TestEventManager extends EventManager {
   waitEvents(): Promise<void>
@@ -18,7 +18,7 @@ export const createEventManager = (): TestEventManager => {
     while (hasWork) {
       await new Promise((resolve) => setTimeout(resolve, 100))
       const metrics = queueManager.getAllMetrics()
-      hasWork = Object.values(metrics).some(m => m.queueDepth > 0 || m.processingCount > 0)
+      hasWork = Object.values(metrics).some((m) => m.queueDepth > 0 || m.processingCount > 0)
     }
 
     await new Promise((resolve) => setTimeout(resolve, 100))
@@ -27,6 +27,6 @@ export const createEventManager = (): TestEventManager => {
   return {
     ...productionEventManager,
     waitEvents,
-    queueManager
+    queueManager,
   }
 }

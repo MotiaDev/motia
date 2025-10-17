@@ -52,7 +52,6 @@ type QueueMetrics = {
   dlqCount: number
 }
 
-
 export class QueueManager {
   private logger: Logger
   private queues: Record<string, QueuedMessage[]> = {}
@@ -225,7 +224,6 @@ export class QueueManager {
     const effectiveMessageGroupId = messageGroupId ?? event.messageGroupId
 
     for (const subscription of handlers) {
-
       const delayMs = subscription.queueConfig.delaySeconds * 1000
       const visibleAt = Date.now() + delayMs
 
@@ -273,10 +271,7 @@ export class QueueManager {
       const now = Date.now()
       let madeVisible = false
       for (const message of this.queues[topic]) {
-        if (
-          message.internalSubscriptionId !== internalSubscriptionId &&
-          message.attempts > 0
-        ) {
+        if (message.internalSubscriptionId !== internalSubscriptionId && message.attempts > 0) {
           message.visibleAt = now
           madeVisible = true
         }

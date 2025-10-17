@@ -316,7 +316,6 @@ describe('Infrastructure Runtime Validations', () => {
       }
     })
 
-
     it('should handle empty infrastructure object', () => {
       const infrastructure = {}
 
