@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { EventEmitter } from 'events'
-import { globalLogger, Logger } from './logger'
-import { Event, QueueConfig, Handler } from './types'
+import { globalLogger, type Logger } from './logger'
+import type { Event, Handler, QueueConfig } from './types'
 
 export class QueueError extends Error {
   constructor(message: string) {

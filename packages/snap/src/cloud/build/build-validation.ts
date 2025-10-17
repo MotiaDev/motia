@@ -1,13 +1,13 @@
-import { BuildListener } from '../new-deployment/listeners/listener.types'
-import { Builder } from './builder'
-import { Validator, ValidationResult } from './validations/types'
-import { duplicateStepNamesValidator } from './validations/duplicate-step-names.validator'
-import { stepBundleSizesValidator } from './validations/step-bundle-sizes.validator'
-import { cronExpressionsValidator } from './validations/cron-expressions.validator'
+import type { BuildListener } from '../new-deployment/listeners/listener.types'
+import type { Builder } from './builder'
 import { apiEndpointsValidator } from './validations/api-endpoints.validator'
-import { stepNameLengthsValidator } from './validations/step-name-lengths.validator'
+import { cronExpressionsValidator } from './validations/cron-expressions.validator'
+import { duplicateStepNamesValidator } from './validations/duplicate-step-names.validator'
 import { infrastructureConfigsValidator } from './validations/infrastructure-configs.validator'
 import { routerBundleSizesValidator } from './validations/router-bundle-sizes.validator'
+import { stepBundleSizesValidator } from './validations/step-bundle-sizes.validator'
+import { stepNameLengthsValidator } from './validations/step-name-lengths.validator'
+import type { ValidationResult, Validator } from './validations/types'
 
 export const buildValidation = (builder: Builder, listener: BuildListener) => {
   const { errors, warnings } = validateStepsConfig(builder)

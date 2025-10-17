@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { Step } from './types'
 import { infrastructureSchema } from './infrastructure-validator/schemas'
+import type { Step } from './types'
 
 const objectSchema = z.object({
   type: z.literal('object'),

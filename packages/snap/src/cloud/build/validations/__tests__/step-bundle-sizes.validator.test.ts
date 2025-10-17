@@ -1,7 +1,6 @@
-import { Builder } from '../../builder'
-import { stepBundleSizesValidator } from '../step-bundle-sizes.validator'
+import type { Builder, BuildStepConfig } from '../../builder'
 import { BUNDLE_SIZE_LIMITS, BYTES_TO_MB } from '../constants'
-import { BuildStepConfig } from '../../builder'
+import { stepBundleSizesValidator } from '../step-bundle-sizes.validator'
 
 describe('stepBundleSizesValidator', () => {
   const createMockBuilder = (

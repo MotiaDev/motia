@@ -1,6 +1,6 @@
+import type { Printer } from '../../printer'
+import type { EventConfig, Step } from '../../types'
 import { generateTypesFromSteps } from '../../types/generate-types'
-import { Printer } from '../../printer'
-import { Step, EventConfig } from '../../types'
 
 describe('generateTypesFromSteps - messageGroupId', () => {
   const mockPrinter: Printer = {

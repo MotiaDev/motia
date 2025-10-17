@@ -1,6 +1,6 @@
-import type { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
-import { QueueManager } from './queue-manager'
 import { DEFAULT_QUEUE_CONFIG } from './infrastructure-validator/defaults'
+import type { QueueManager } from './queue-manager'
+import type { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
 
 type EventHandler = {
   filePath: string

@@ -1,6 +1,5 @@
-import { Builder } from '../../builder'
+import type { Builder, BuildStepConfig } from '../../builder'
 import { duplicateStepNamesValidator } from '../duplicate-step-names.validator'
-import { BuildStepConfig } from '../../builder'
 
 describe('duplicateStepNamesValidator', () => {
   const createMockBuilder = (stepsConfig: Record<string, BuildStepConfig>): Builder => {

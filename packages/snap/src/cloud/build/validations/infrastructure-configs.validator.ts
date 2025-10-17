@@ -1,7 +1,7 @@
-import path from 'path'
+import { type EventConfig, validateInfrastructureConfig } from '@motiadev/core'
 import colors from 'colors'
-import { EventConfig, validateInfrastructureConfig } from '@motiadev/core'
-import { Validator } from './types'
+import path from 'path'
+import type { Validator } from './types'
 
 export const infrastructureConfigsValidator: Validator = (builder) => {
   const errors = []

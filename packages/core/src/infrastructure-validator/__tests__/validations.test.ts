@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { validateQueueConfig, validateInfrastructureConfig } from '../validations'
+import { validateInfrastructureConfig, validateQueueConfig } from '../validations'
 
 describe('Infrastructure Runtime Validations', () => {
   describe('validateQueueConfig', () => {

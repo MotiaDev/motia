@@ -1,5 +1,5 @@
-import { getQueueConfigWithDefaults, DEFAULT_QUEUE_CONFIG } from '../defaults'
-import { InfrastructureConfig } from '../../types'
+import type { InfrastructureConfig } from '../../types'
+import { DEFAULT_QUEUE_CONFIG, getQueueConfigWithDefaults } from '../defaults'
 
 describe('Infrastructure Defaults', () => {
   describe('DEFAULT_QUEUE_CONFIG', () => {

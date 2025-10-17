@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ZodInput } from '../types'
+import type { ZodInput } from '../types'
 
 export const AWS_LAMBDA_LIMITS = {
   MIN_RAM_MB: 128,

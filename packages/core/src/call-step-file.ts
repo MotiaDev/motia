@@ -5,7 +5,7 @@ import type { Motia } from './motia'
 import type { Tracer } from './observability'
 import type { TraceError } from './observability/types'
 import { ProcessManager } from './process-communication/process-manager'
-import type { Event, Step, InfrastructureConfig } from './types'
+import type { Event, InfrastructureConfig, Step } from './types'
 import type { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 import { isAllowedToEmit } from './utils'
 
@@ -154,7 +154,6 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
 
         processManager.handler<TData, void>('result', async (input) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const anyInput: any = { ...input }
 
           if (anyInput.body && anyInput.body.type === 'Buffer') {

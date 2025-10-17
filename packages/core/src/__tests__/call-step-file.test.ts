@@ -6,12 +6,12 @@ import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
 import { Logger } from '../logger'
 import type { Motia } from '../motia'
+import { NoTracer } from '../observability/no-tracer'
 import { NoPrinter } from '../printer'
 import { QueueManager } from '../queue-manager'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
+import type { InfrastructureConfig } from '../types'
 import { createCronStep, createEventStep } from './fixtures/step-fixtures'
-import { NoTracer } from '../observability/no-tracer'
-import { InfrastructureConfig } from '../types'
 
 describe('callStepFile', () => {
   beforeAll(() => {

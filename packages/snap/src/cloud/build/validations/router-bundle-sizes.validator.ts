@@ -1,6 +1,6 @@
 import colors from 'colors'
-import { Validator } from './types'
 import { BUNDLE_SIZE_LIMITS, BYTES_TO_MB } from './constants'
+import type { Validator } from './types'
 
 export const routerBundleSizesValidator: Validator = (builder) => {
   const errors = []

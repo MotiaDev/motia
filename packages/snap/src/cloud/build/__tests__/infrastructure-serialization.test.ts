@@ -1,5 +1,5 @@
-import { BuildStepConfig, StepsConfigFile } from '../builder'
 import { z } from '@motiadev/core/node_modules/zod'
+import type { BuildStepConfig, StepsConfigFile } from '../builder'
 
 describe('Infrastructure Config Serialization', () => {
   function createMockStepWithInfrastructure(): BuildStepConfig {

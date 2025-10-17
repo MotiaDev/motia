@@ -1,7 +1,6 @@
-import { Builder } from '../../builder'
-import { stepNameLengthsValidator } from '../step-name-lengths.validator'
+import type { Builder, BuildStepConfig } from '../../builder'
 import { BUNDLE_SIZE_LIMITS } from '../constants'
-import { BuildStepConfig } from '../../builder'
+import { stepNameLengthsValidator } from '../step-name-lengths.validator'
 
 describe('stepNameLengthsValidator', () => {
   const createMockBuilder = (stepsConfig: Record<string, BuildStepConfig>): Builder => {

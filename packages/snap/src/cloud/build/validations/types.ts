@@ -1,5 +1,5 @@
-import { ValidationError } from '../../new-deployment/listeners/listener.types'
-import { Builder } from '../builder'
+import type { ValidationError } from '../../new-deployment/listeners/listener.types'
+import type { Builder } from '../builder'
 
 export type ValidationResult = {
   errors: ValidationError[]

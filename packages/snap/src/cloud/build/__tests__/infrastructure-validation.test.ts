@@ -1,6 +1,6 @@
-import { validateStepsConfig } from '../build-validation'
-import { Builder, BuildStepConfig } from '../builder'
 import { z } from '@motiadev/core/node_modules/zod'
+import { validateStepsConfig } from '../build-validation'
+import type { Builder, BuildStepConfig } from '../builder'
 
 describe('Infrastructure Validation in Build Process', () => {
   function createMockBuilder(stepsConfig: Record<string, BuildStepConfig>): Builder {

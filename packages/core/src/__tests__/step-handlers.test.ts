@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { createStepHandlers } from '../step-handlers'
-import { Motia } from '../motia'
-import { EventConfig, Step } from '../types'
-import { QueueManager } from '../queue-manager'
-import { globalLogger } from '../logger'
 import * as callStepFileModule from '../call-step-file'
+import { globalLogger } from '../logger'
+import type { Motia } from '../motia'
+import type { QueueManager } from '../queue-manager'
+import { createStepHandlers } from '../step-handlers'
+import type { EventConfig, Step } from '../types'
 
 jest.mock('../logger', () => ({
   globalLogger: {

@@ -1,7 +1,7 @@
-import { QueueManager } from '../queue-manager'
-import { Event, QueueConfig, Handler } from '../types'
 import { Logger } from '../logger'
 import { NoTracer } from '../observability/no-tracer'
+import { QueueManager } from '../queue-manager'
+import { type Event, Handler, type QueueConfig } from '../types'
 
 jest.useFakeTimers({ doNotFake: ['nextTick'] })
 

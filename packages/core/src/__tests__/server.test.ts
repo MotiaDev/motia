@@ -2,13 +2,12 @@ import path from 'path'
 import request from 'supertest'
 import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
-import { QueueManager } from '../queue-manager'
-import type { ApiRouteConfig, Step } from '../types'
-import { ApiRouteConfig, Step } from '../types'
-import { createApiStep } from './fixtures/step-fixtures'
-import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { NoPrinter } from '../printer'
+import { QueueManager } from '../queue-manager'
 import { createServer, type MotiaServer } from '../server'
+import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
+import type { ApiRouteConfig, Step } from '../types'
+import { createApiStep } from './fixtures/step-fixtures'
 
 const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 

@@ -6,7 +6,7 @@ import {
   createServer,
   createStateAdapter,
   getProjectIdentifier,
-  MotiaPlugin,
+  type MotiaPlugin,
   QueueManager,
   trackEvent,
 } from '@motiadev/core'
@@ -22,7 +22,6 @@ import { version } from './version'
 
 process.env.VITE_CJS_IGNORE_WARNING = 'true'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
@@ -111,10 +110,8 @@ export const dev = async (
   })
 
   const { applyMiddleware } = process.env.__MOTIA_DEV_MODE__
-    ? // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('@motiadev/workbench/middleware')
-    : // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('@motiadev/workbench/dist/middleware')
+    ? require('@motiadev/workbench/middleware')
+    : require('@motiadev/workbench/dist/middleware')
   await applyMiddleware({
     app: motiaServer.app,
     port,

@@ -31,7 +31,6 @@ export const isAnalyticsEnabled = (): boolean => {
   return process.env.MOTIA_ANALYTICS_DISABLED !== 'true'
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const trackEvent = (eventName: string, properties: Record<string, any> = {}) => {
   try {
     if (isAnalyticsEnabled()) {

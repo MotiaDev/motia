@@ -107,7 +107,6 @@ describe('Middleware Management', () => {
   })
 
   it('should update middleware when re-adding a route', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const callStepFileModule = require('../call-step-file')
 
     // First, set up normal behavior

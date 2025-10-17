@@ -1,4 +1,4 @@
-import { EventConfig } from '../../types'
+import type { EventConfig } from '../../types'
 
 export const config: EventConfig = {
   type: 'event',

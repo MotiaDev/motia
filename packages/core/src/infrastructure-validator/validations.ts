@@ -1,12 +1,12 @@
 import { z } from 'zod'
+import type { ZodInput } from '../types'
 import { createInfrastructureSchema, createQueueSchema } from './schemas'
-import {
+import type {
   InfrastructureValidationError,
   InfrastructureValidationResult,
   QueueValidationError,
   QueueValidationResult,
 } from './types'
-import { ZodInput } from '../types'
 
 export const validateQueueConfig = (queueConfig: unknown): QueueValidationResult => {
   try {

@@ -1,6 +1,6 @@
-import { Builder, BuildStepConfig } from '../../builder'
-import { routerBundleSizesValidator } from '../router-bundle-sizes.validator'
+import type { Builder, BuildStepConfig } from '../../builder'
 import { BUNDLE_SIZE_LIMITS, BYTES_TO_MB } from '../constants'
+import { routerBundleSizesValidator } from '../router-bundle-sizes.validator'
 
 describe('routerBundleSizesValidator', () => {
   const createMockBuilder = (routerSizes: Map<string, number> = new Map()): Builder => {

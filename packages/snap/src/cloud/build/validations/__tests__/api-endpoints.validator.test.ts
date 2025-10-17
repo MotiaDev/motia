@@ -1,6 +1,5 @@
-import { Builder } from '../../builder'
+import type { Builder, BuildStepConfig } from '../../builder'
 import { apiEndpointsValidator } from '../api-endpoints.validator'
-import { BuildStepConfig } from '../../builder'
 
 describe('apiEndpointsValidator', () => {
   const createMockBuilder = (stepsConfig: Record<string, BuildStepConfig>): Builder => {

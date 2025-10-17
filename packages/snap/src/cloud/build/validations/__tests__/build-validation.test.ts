@@ -1,6 +1,6 @@
-import { Builder, BuildStepConfig } from '../../builder'
+import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
 import { buildValidation, validateStepsConfig } from '../../build-validation'
-import { BuildListener } from '../../../new-deployment/listeners/listener.types'
+import type { Builder, BuildStepConfig } from '../../builder'
 
 describe('buildValidation', () => {
   const createMockBuilder = (): Builder => {

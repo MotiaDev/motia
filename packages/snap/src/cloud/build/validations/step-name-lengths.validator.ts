@@ -1,7 +1,7 @@
-import path from 'path'
 import colors from 'colors'
-import { Validator } from './types'
+import path from 'path'
 import { BUNDLE_SIZE_LIMITS } from './constants'
+import type { Validator } from './types'
 
 export const stepNameLengthsValidator: Validator = (builder) => {
   const errors = []

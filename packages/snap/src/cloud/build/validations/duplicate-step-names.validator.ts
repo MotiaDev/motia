@@ -1,6 +1,6 @@
-import path from 'path'
 import colors from 'colors'
-import { Validator } from './types'
+import path from 'path'
+import type { Validator } from './types'
 
 export const duplicateStepNamesValidator: Validator = (builder) => {
   const errors = []

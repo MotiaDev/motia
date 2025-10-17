@@ -73,7 +73,7 @@ export const createServer = (
 
       if (stream) {
         const result = stream ? await stream().getGroup(groupId) : []
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         return result.map(({ __motia, ...rest }) => rest)
       }
     },
@@ -82,7 +82,7 @@ export const createServer = (
   lockedData.applyStreamWrapper((streamName, stream) => {
     return (): MotiaStream<BaseStreamItem> => {
       const main = stream() as MotiaStream<BaseStreamItem>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const wrapObject = (groupId: string, id: string, object: any) => {
         if (!object) {
           return null
@@ -277,7 +277,6 @@ export const createServer = (
     const { path, method } = step.config
     const routerStack = router.stack
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filteredStack = routerStack.filter((layer: any) => {
       if (layer.route) {
         const match = layer.route.path === path && layer.route.methods[method.toLowerCase()]

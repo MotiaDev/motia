@@ -1,6 +1,6 @@
-import { QueueManager } from '../queue-manager'
-import { Event, QueueConfig } from '../types'
 import { globalLogger } from '../logger'
+import { QueueManager } from '../queue-manager'
+import type { Event, QueueConfig } from '../types'
 
 describe('QueueManager - messageGroupId from emit', () => {
   let queueManager: QueueManager

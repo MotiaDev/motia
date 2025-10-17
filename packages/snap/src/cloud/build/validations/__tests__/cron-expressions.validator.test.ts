@@ -1,6 +1,5 @@
-import { Builder } from '../../builder'
+import type { Builder, BuildStepConfig } from '../../builder'
 import { cronExpressionsValidator } from '../cron-expressions.validator'
-import { BuildStepConfig } from '../../builder'
 
 describe('cronExpressionsValidator', () => {
   const createMockBuilder = (stepsConfig: Record<string, BuildStepConfig>): Builder => {

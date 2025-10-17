@@ -6,7 +6,6 @@ import { generatePlugins } from './generate-plugins'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
@@ -41,7 +40,6 @@ export const start = async (
   const plugins: MotiaPlugin[] = await generatePlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { applyMiddleware } = require('@motiadev/workbench/dist/middleware')
     await applyMiddleware({
       app: motiaServer.app,

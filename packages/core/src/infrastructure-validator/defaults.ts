@@ -1,4 +1,4 @@
-import { InfrastructureConfig, QueueConfig } from '../types'
+import type { InfrastructureConfig, QueueConfig } from '../types'
 
 export const DEFAULT_QUEUE_CONFIG: QueueConfig = {
   type: 'standard',

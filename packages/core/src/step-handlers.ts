@@ -1,10 +1,10 @@
 import { callStepFile } from './call-step-file'
-import { globalLogger } from './logger'
-import type { Motia } from './motia'
-import type { Event, EventConfig, Step } from './types'
 import { getQueueConfigWithDefaults } from './infrastructure-validator/defaults'
 import { validateInfrastructureConfig } from './infrastructure-validator/validations'
-import { QueueManager } from './queue-manager'
+import { globalLogger } from './logger'
+import type { Motia } from './motia'
+import type { QueueManager } from './queue-manager'
+import type { Event, EventConfig, Step } from './types'
 
 export type MotiaEventManager = {
   createHandler: (step: Step<EventConfig>) => void

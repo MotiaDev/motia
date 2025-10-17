@@ -10,7 +10,6 @@ import './index.css'
 
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {
-   
   const basePath = workbenchBase
   const root = createRoot(rootElement)
   const address = window.location.origin.replace('http', 'ws')

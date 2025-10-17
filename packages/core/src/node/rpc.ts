@@ -11,7 +11,6 @@ type RpcResponse = {
 export class RpcSender {
   private readonly pendingRequests: Record<
     string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { resolve: (result: any) => void; reject: (error: any) => void; method: string; args: any }
   > = {}
 

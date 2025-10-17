@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import {
-  AWS_LAMBDA_LIMITS,
   AWS_LAMBDA_CPU_RATIO,
+  AWS_LAMBDA_LIMITS,
+  createInfrastructureSchema,
   getProportionalCpu,
   handlerSchema,
-  queueSchema,
   infrastructureSchema,
-  createInfrastructureSchema,
+  queueSchema,
 } from '../infrastructure-validator'
 
 describe('Infrastructure Config Validation', () => {

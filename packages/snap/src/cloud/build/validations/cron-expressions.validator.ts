@@ -1,7 +1,7 @@
-import path from 'path'
 import colors from 'colors'
 import * as cron from 'node-cron'
-import { Validator } from './types'
+import path from 'path'
+import type { Validator } from './types'
 
 export const cronExpressionsValidator: Validator = (builder) => {
   const errors = []

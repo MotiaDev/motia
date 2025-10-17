@@ -1,6 +1,6 @@
 import { createEventManager } from '../event-manager'
-import { createEvent } from './fixtures/event-fixtures'
 import { QueueManager } from '../queue-manager'
+import { createEvent } from './fixtures/event-fixtures'
 
 describe('EventManager', () => {
   let queueManager: QueueManager
