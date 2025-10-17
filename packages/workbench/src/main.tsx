@@ -10,7 +10,7 @@ import './index.css'
 
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {
-  // eslint-disable-next-line no-undef
+   
   const basePath = workbenchBase
   const root = createRoot(rootElement)
   const address = window.location.origin.replace('http', 'ws')

@@ -1,5 +1,5 @@
-import type { WorkbenchPlugin } from './types'
 import { getUniquePackageNames } from './resolver'
+import type { WorkbenchPlugin } from './types'
 
 /**
  * Generates import statements for all unique plugin packages.

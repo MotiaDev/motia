@@ -1,9 +1,9 @@
 import {
+  generateCssImports,
   generateImports,
   generatePackageMap,
-  generatePluginLogic,
   generatePluginCode,
-  generateCssImports,
+  generatePluginLogic,
   isValidCode,
 } from '../generator'
 import type { WorkbenchPlugin } from '../types'
