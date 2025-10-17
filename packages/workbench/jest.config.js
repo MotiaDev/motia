@@ -5,8 +5,20 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  testMatch: ['<rootDir>/src/**/__tests__/**/*.(ts|tsx|js)', '<rootDir>/src/**/*.(test|spec).(ts|tsx|js)'],
-  collectCoverageFrom: ['src/**/*.(ts|tsx)', '!src/**/*.d.ts', '!src/index.tsx'],
+  testMatch: [
+    '<rootDir>/src/**/__tests__/**/*.(ts|tsx|js)',
+    '<rootDir>/src/**/*.(test|spec).(ts|tsx|js)',
+    '<rootDir>/motia-plugin/**/__tests__/**/*.(ts|tsx|js)',
+    '<rootDir>/motia-plugin/**/*.(test|spec).(ts|tsx|js)',
+    '<rootDir>/__tests__/**/*.(ts|tsx|js)',
+  ],
+  collectCoverageFrom: [
+    'src/**/*.(ts|tsx)',
+    '!src/**/*.d.ts',
+    '!src/index.tsx',
+    'motia-plugin/**/*.(ts|tsx)',
+    '!motia-plugin/**/*.d.ts',
+  ],
   transform: {
     '^.+\\.(ts|tsx)$': [
       'ts-jest',

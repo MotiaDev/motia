@@ -3,7 +3,8 @@ import type { Express, NextFunction, Request, Response } from 'express'
 import fs from 'fs'
 import path from 'path'
 import { createServer as createViteServer } from 'vite'
-import motiaPluginsPlugin, { type WorkbenchPlugin } from './vite-plugin-motia-plugins'
+import motiaPluginsPlugin from './motia-plugin'
+import type { WorkbenchPlugin } from './motia-plugin/types'
 
 const workbenchBasePlugin = (workbenchBase: string) => {
   return {
