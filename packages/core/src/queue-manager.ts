@@ -79,6 +79,7 @@ export class QueueManager {
   private scheduledTimeouts: Map<string, NodeJS.Timeout> = new Map()
   private metrics: Map<string, QueueMetrics> = new Map()
   private topicListeners: Map<string, (t: string) => void> = new Map()
+  private processingMessages: Set<string> = new Set()
 
   constructor(logger?: Logger) {
     this.logger = logger || globalLogger
@@ -108,7 +109,7 @@ export class QueueManager {
     }
 
     const now = Date.now()
-    const visibleMessages = queue.filter((msg) => msg.visibleAt <= now)
+    const visibleMessages = queue.filter((msg) => msg.visibleAt <= now && !this.processingMessages.has(msg.id))
 
     for (const message of visibleMessages) {
       if (message.queueConfig.type === 'fifo' && message.messageGroupId) {
@@ -117,17 +118,17 @@ export class QueueManager {
           continue
         }
 
-        message.visibleAt = now + 60 * 60 * 1000
+        this.processingMessages.add(message.id)
         this.lockedGroups.add(lockKey)
-        this.processMessage(topic, message, lockKey)
+        void this.processMessage(topic, message, lockKey)
       } else {
-        message.visibleAt = now + 60 * 60 * 1000
-        this.processMessage(topic, message)
+        this.processingMessages.add(message.id)
+        void this.processMessage(topic, message)
       }
     }
   }
 
-  private processMessage(topic: string, message: QueuedMessage, lockKey?: string): void {
+  private async processMessage(topic: string, message: QueuedMessage, lockKey?: string): Promise<void> {
     const handlers = this.subscriptions[topic] || []
     const handler =
       handlers.find((s) => s.internalSubscriptionId === message.internalSubscriptionId) ||
@@ -135,6 +136,7 @@ export class QueueManager {
       handlers[0]
 
     if (!handler) {
+      this.processingMessages.delete(message.id)
       this.removeMessageFromQueue(topic, message.id)
       if (lockKey) {
         this.lockedGroups.delete(lockKey)
@@ -142,53 +144,61 @@ export class QueueManager {
       return
     }
 
+    const handlerChanged = message.internalSubscriptionId !== handler.internalSubscriptionId
+    if (handlerChanged && message.attempts > 0) {
+      message.attempts = 0
+      message.internalSubscriptionId = handler.internalSubscriptionId
+      message.subscriptionId = handler.subscriptionId
+      message.visibleAt = Date.now()
+    }
+
     const visibilityTimeoutMs = handler.queueConfig.visibilityTimeout * 1000
     this.updateMetric(topic, 'processingCount', 1)
 
-    handler
-      .handler(message.event)
-      .then(() => {
-        this.updateMetric(topic, 'processingCount', -1)
+    try {
+      await handler.handler(message.event)
+      this.updateMetric(topic, 'processingCount', -1)
+      this.processingMessages.delete(message.id)
+      this.removeMessageFromQueue(topic, message.id)
+
+      if (lockKey) {
+        this.lockedGroups.delete(lockKey)
+      }
+      this.scheduleProcessing(topic, 0)
+    } catch (error) {
+      this.updateMetric(topic, 'processingCount', -1)
+      this.processingMessages.delete(message.id)
+      message.attempts++
+
+      if (message.attempts >= handler.queueConfig.maxRetries) {
+        const maxRetriesError = new MaxRetriesError(
+          `Message failed after ${message.attempts} attempts`,
+          message.attempts,
+        )
+        this.logger.error('[Queue DLQ] Message moved to dead-letter queue after max retries', {
+          topic,
+          messageId: message.id,
+          attempts: message.attempts,
+          originalError: error instanceof Error ? error.message : 'Unknown error',
+          error: maxRetriesError.message,
+        })
+
+        this.updateMetric(topic, 'dlqCount', 1)
         this.removeMessageFromQueue(topic, message.id)
 
         if (lockKey) {
           this.lockedGroups.delete(lockKey)
         }
-        setImmediate(() => this.queueEmitter.emit('process', topic))
-      })
-      .catch((error) => {
-        this.updateMetric(topic, 'processingCount', -1)
-        message.attempts++
-
-        if (message.attempts >= handler.queueConfig.maxRetries) {
-          const maxRetriesError = new MaxRetriesError(
-            `Message failed after ${message.attempts} attempts`,
-            message.attempts,
-          )
-          this.logger.error('[Queue DLQ] Message moved to dead-letter queue after max retries', {
-            topic,
-            messageId: message.id,
-            attempts: message.attempts,
-            originalError: error instanceof Error ? error.message : 'Unknown error',
-            error: maxRetriesError.message,
-          })
-
-          this.updateMetric(topic, 'dlqCount', 1)
-          this.removeMessageFromQueue(topic, message.id)
-
-          if (lockKey) {
-            this.lockedGroups.delete(lockKey)
-          }
-          setImmediate(() => this.queueEmitter.emit('process', topic))
-        } else {
-          this.updateMetric(topic, 'retriesCount', 1)
-          message.visibleAt = Date.now() + handler.queueConfig.visibilityTimeout * 1000
-          if (lockKey) {
-            this.lockedGroups.delete(lockKey)
-          }
-          this.scheduleProcessing(topic, handler.queueConfig.visibilityTimeout * 1000)
+        this.scheduleProcessing(topic, 0)
+      } else {
+        this.updateMetric(topic, 'retriesCount', 1)
+        message.visibleAt = Date.now() + handler.queueConfig.visibilityTimeout * 1000
+        if (lockKey) {
+          this.lockedGroups.delete(lockKey)
         }
-      })
+        this.scheduleProcessing(topic, handler.queueConfig.visibilityTimeout * 1000)
+      }
+    }
   }
 
   private removeMessageFromQueue(topic: string, messageId: string): void {
@@ -252,11 +262,7 @@ export class QueueManager {
       this.queues[topic].push(queuedMessage as QueuedMessage)
       this.updateMetric(topic, 'queueDepth', 1)
 
-      if (delayMs > 0) {
-        this.scheduleProcessing(topic, delayMs)
-      } else {
-        setImmediate(() => this.queueEmitter.emit('process', topic))
-      }
+      this.scheduleProcessing(topic, delayMs)
     }
   }
 
@@ -276,7 +282,17 @@ export class QueueManager {
     this.subscriptions[topic].push({ handler, queueConfig, subscriptionId, internalSubscriptionId })
 
     if (this.queues[topic] && this.queues[topic].length > 0) {
-      setImmediate(() => this.queueEmitter.emit('process', topic))
+      const now = Date.now()
+      for (const message of this.queues[topic]) {
+        if (
+          message.internalSubscriptionId !== internalSubscriptionId &&
+          message.subscriptionId !== subscriptionId &&
+          message.attempts > 0
+        ) {
+          message.visibleAt = now
+        }
+      }
+      this.scheduleProcessing(topic, 0)
     }
   }
 
@@ -316,6 +332,7 @@ export class QueueManager {
     this.queues = {}
     this.subscriptions = {}
     this.lockedGroups = new Set()
+    this.processingMessages = new Set()
     this.metrics.clear()
     this.topicListeners.clear()
   }

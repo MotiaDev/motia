@@ -27,7 +27,7 @@ describe('EventManager', () => {
     })
 
     await eventManager.emit(testEvent)
-    await new Promise((resolve) => setImmediate(resolve))
+    await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(mockHandler).toHaveBeenCalledWith(testEvent)
     expect(mockHandler).toHaveBeenCalledTimes(1)
@@ -35,7 +35,7 @@ describe('EventManager', () => {
     eventManager.unsubscribe({ event: 'TEST_EVENT', filePath: 'test.ts' })
 
     await eventManager.emit(testEvent)
-    await new Promise((resolve) => setImmediate(resolve))
+    await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(mockHandler).toHaveBeenCalledTimes(1)
   })
@@ -62,7 +62,7 @@ describe('EventManager', () => {
     })
 
     await eventManager.emit(testEvent)
-    await new Promise((resolve) => setImmediate(resolve))
+    await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(mockHandler1).toHaveBeenCalledWith(testEvent)
     expect(mockHandler2).toHaveBeenCalledWith(testEvent)

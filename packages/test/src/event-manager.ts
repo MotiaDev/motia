@@ -1,42 +1,32 @@
-import type { Event, EventManager, Handler, SubscribeConfig } from '@motiadev/core'
+import { QueueManager, createEventManager as createProductionEventManager } from '@motiadev/core'
+import type { Event, EventManager } from '@motiadev/core'
 
 interface TestEventManager extends EventManager {
   waitEvents(): Promise<void>
+  queueManager: QueueManager
 }
 
 export const createEventManager = (): TestEventManager => {
-  const handlers: Record<string, Handler[]> = {}
-  const events: Array<Promise<unknown>> = []
+  const queueManager = new QueueManager()
+  const productionEventManager = createProductionEventManager(queueManager)
 
   const waitEvents = async () => {
-    let eventsToAwait = [...events]
+    await new Promise((resolve) => setTimeout(resolve, 200))
 
-    // We need to wait for all events to be resolved because the event manager is async
-    // and we need to ensure that all events have been processed before we can continue
-    while (eventsToAwait.length > 0) {
-      events.splice(0, eventsToAwait.length)
-      await Promise.race([Promise.allSettled(eventsToAwait), new Promise((resolve) => setTimeout(resolve, 2000))])
-      eventsToAwait = [...events]
-    }
-  }
-
-  const emit = async <TData>(event: Event<TData>) => {
-    const eventHandlers = handlers[event.topic] ?? []
-    events.push(...eventHandlers.map((handler) => handler(event)))
-  }
-
-  const subscribe = <TData>(config: SubscribeConfig<TData>) => {
-    const { event, handler } = config
-
-    if (!handlers[event]) {
-      handlers[event] = []
+    // Wait for all queue processing to complete
+    let hasWork = true
+    while (hasWork) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      const metrics = queueManager.getAllMetrics()
+      hasWork = Object.values(metrics).some(m => m.queueDepth > 0 || m.processingCount > 0)
     }
 
-    handlers[event].push(handler as Handler)
+    await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
-  // We don't need to unsubscribe in the test environment
-  const unsubscribe = () => {}
-
-  return { emit, subscribe, waitEvents, unsubscribe }
+  return {
+    ...productionEventManager,
+    waitEvents,
+    queueManager
+  }
 }
