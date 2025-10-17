@@ -104,7 +104,6 @@ describe('Step Handlers Infrastructure', () => {
           type: 'standard',
           maxRetries: 3,
           visibilityTimeout: 900,
-          messageGroupId: null,
           delaySeconds: 0,
         }),
         'test.event',
@@ -130,7 +129,6 @@ describe('Step Handlers Infrastructure', () => {
           type: 'standard',
           maxRetries: 5,
           visibilityTimeout: 120,
-          messageGroupId: null,
           delaySeconds: 0,
         }),
         'test.event',
@@ -143,7 +141,6 @@ describe('Step Handlers Infrastructure', () => {
           type: 'fifo',
           maxRetries: 10,
           visibilityTimeout: 60,
-          messageGroupId: 'traceId',
           delaySeconds: 5,
         },
       })
@@ -159,7 +156,6 @@ describe('Step Handlers Infrastructure', () => {
           type: 'fifo',
           maxRetries: 10,
           visibilityTimeout: 60,
-          messageGroupId: 'traceId',
           delaySeconds: 5,
         },
         'test.event',
@@ -194,7 +190,7 @@ describe('Step Handlers Infrastructure', () => {
       const step = createEventStep('invalidQueueStep', {
         queue: {
           type: 'fifo',
-          maxRetries: 3,
+          maxRetries: -1,
           visibilityTimeout: 60,
         },
       })

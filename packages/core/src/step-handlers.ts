@@ -31,11 +31,10 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
     if (config.infrastructure) {
       globalLogger.debug('[step handler] validating infrastructure config', {
         step: name,
-        hasInputSchema: !!config.input,
         infrastructure: config.infrastructure,
       })
 
-      const validationResult = validateInfrastructureConfig(config.infrastructure, config.input)
+      const validationResult = validateInfrastructureConfig(config.infrastructure)
 
       if (!validationResult.success && validationResult.errors) {
         globalLogger.error('[step handler] Infrastructure configuration validation failed', {

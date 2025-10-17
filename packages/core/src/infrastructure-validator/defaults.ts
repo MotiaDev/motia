@@ -4,7 +4,6 @@ export const DEFAULT_QUEUE_CONFIG: QueueConfig = {
   type: 'standard',
   maxRetries: 3,
   visibilityTimeout: 900,
-  messageGroupId: null,
   delaySeconds: 0,
 }
 

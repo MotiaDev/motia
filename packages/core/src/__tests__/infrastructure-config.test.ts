@@ -2,7 +2,6 @@ import { z } from 'zod'
 import {
   AWS_LAMBDA_CPU_RATIO,
   AWS_LAMBDA_LIMITS,
-  createInfrastructureSchema,
   getProportionalCpu,
   handlerSchema,
   infrastructureSchema,
@@ -386,32 +385,12 @@ describe('Infrastructure Config Validation', () => {
     })
   })
 
-  describe('infrastructureSchema FIFO requires messageGroupId', () => {
-    it('should reject FIFO queue without messageGroupId', () => {
-      const invalidConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          maxRetries: 3,
-        },
-      }
-
-      try {
-        infrastructureSchema.parse(invalidConfig)
-        fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError)
-        const zodError = error as z.ZodError
-        expect(zodError.errors[0].message).toContain('messageGroupId is required when queue type is "fifo"')
-      }
-    })
-
-    it('should accept FIFO queue with messageGroupId', () => {
+  describe('infrastructureSchema FIFO queue configuration', () => {
+    it('should accept FIFO queue configuration', () => {
       const validConfig = {
         queue: {
           type: 'fifo' as const,
           visibilityTimeout: 60,
-          messageGroupId: 'traceId',
           maxRetries: 3,
         },
       }
@@ -429,184 +408,6 @@ describe('Infrastructure Config Validation', () => {
       }
 
       expect(() => infrastructureSchema.parse(validConfig)).not.toThrow()
-    })
-  })
-
-  describe('createInfrastructureSchema messageGroupId validation', () => {
-    it('should accept simple messageGroupId that exists in input schema', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-        userId: z.string(),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const validConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'traceId',
-          maxRetries: 3,
-        },
-      }
-
-      expect(() => schema.parse(validConfig)).not.toThrow()
-    })
-
-    it('should reject messageGroupId with dots (nested path)', () => {
-      const inputSchema = z.object({
-        user: z.object({
-          id: z.string(),
-        }),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const invalidConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'user.id',
-          maxRetries: 3,
-        },
-      }
-
-      try {
-        schema.parse(invalidConfig)
-        fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError)
-        const zodError = error as z.ZodError
-        expect(zodError.errors[0].message).toContain('messageGroupId "user.id" must be a simple field path')
-      }
-    })
-
-    it('should reject messageGroupId with brackets (template expression)', () => {
-      const inputSchema = z.object({
-        items: z.array(z.string()),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const invalidConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'items[0]',
-          maxRetries: 3,
-        },
-      }
-
-      try {
-        schema.parse(invalidConfig)
-        fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError)
-        const zodError = error as z.ZodError
-        expect(zodError.errors[0].message).toContain('messageGroupId "items[0]" must be a simple field path')
-      }
-    })
-
-    it('should reject messageGroupId that does not exist in input schema', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const invalidConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'userId',
-          maxRetries: 3,
-        },
-      }
-
-      try {
-        schema.parse(invalidConfig)
-        fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError)
-        const zodError = error as z.ZodError
-        expect(zodError.errors[0].message).toContain('messageGroupId "userId" does not exist in step\'s input schema')
-      }
-    })
-
-    it('should show error when messageGroupId is provided but no input schema', () => {
-      const schema = createInfrastructureSchema()
-
-      const invalidConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'userId',
-          maxRetries: 3,
-        },
-      }
-
-      try {
-        schema.parse(invalidConfig)
-        fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).toBeInstanceOf(z.ZodError)
-        const zodError = error as z.ZodError
-        expect(zodError.errors[0].message).toContain(
-          'Cannot validate messageGroupId "userId" - step has no input schema defined',
-        )
-      }
-    })
-
-    it('should skip validation when messageGroupId is traceId', () => {
-      const schema = createInfrastructureSchema()
-
-      const validConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'traceId',
-          maxRetries: 3,
-        },
-      }
-
-      expect(() => schema.parse(validConfig)).not.toThrow()
-    })
-
-    it('should skip validation when messageGroupId is not provided', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const validConfig = {
-        queue: {
-          type: 'standard' as const,
-          visibilityTimeout: 60,
-          maxRetries: 3,
-        },
-      }
-
-      expect(() => schema.parse(validConfig)).not.toThrow()
-    })
-
-    it('should skip validation when messageGroupId is null', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const validConfig = {
-        queue: {
-          type: 'standard' as const,
-          visibilityTimeout: 60,
-          messageGroupId: null,
-          maxRetries: 3,
-        },
-      }
-
-      expect(() => schema.parse(validConfig)).not.toThrow()
     })
   })
 
@@ -785,131 +586,35 @@ describe('Infrastructure Config Validation', () => {
     })
   })
 
-  describe('createInfrastructureSchema with Complex Input Schemas', () => {
-    it('should validate messageGroupId against nested object schema', () => {
-      const inputSchema = z.object({
-        user: z.object({
-          id: z.string(),
-          name: z.string(),
-        }),
-        traceId: z.string(),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
+  describe('Infrastructure Schema with FIFO queues', () => {
+    it('should accept FIFO queue with valid configuration', () => {
       const validConfig = {
         queue: {
           type: 'fifo' as const,
           visibilityTimeout: 60,
-          messageGroupId: 'traceId',
           maxRetries: 3,
         },
       }
 
-      expect(() => schema.parse(validConfig)).not.toThrow()
+      expect(() => infrastructureSchema.parse(validConfig)).not.toThrow()
     })
 
-    it('should validate messageGroupId against schema with arrays', () => {
-      const inputSchema = z.object({
-        userId: z.string(),
-        tags: z.array(z.string()),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
+    it('should accept FIFO queue with delay seconds', () => {
       const validConfig = {
         queue: {
           type: 'fifo' as const,
           visibilityTimeout: 60,
-          messageGroupId: 'userId',
           maxRetries: 3,
+          delaySeconds: 10,
         },
       }
 
-      expect(() => schema.parse(validConfig)).not.toThrow()
-    })
-
-    it('should handle input schema with optional fields', () => {
-      const inputSchema = z.object({
-        userId: z.string().optional(),
-        traceId: z.string(),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const validConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'userId',
-          maxRetries: 3,
-        },
-      }
-
-      expect(() => schema.parse(validConfig)).not.toThrow()
-    })
-
-    it('should handle input schema with union types', () => {
-      const inputSchema = z.object({
-        id: z.union([z.string(), z.number()]),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const validConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'id',
-          maxRetries: 3,
-        },
-      }
-
-      expect(() => schema.parse(validConfig)).not.toThrow()
-    })
-
-    it('should handle array input schema', () => {
-      const inputSchema = z.array(z.object({ id: z.string() }))
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const validConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'traceId',
-          maxRetries: 3,
-        },
-      }
-
-      expect(() => schema.parse(validConfig)).not.toThrow()
-    })
-
-    it('should handle empty object input schema', () => {
-      const inputSchema = z.object({})
-
-      const schema = createInfrastructureSchema(inputSchema)
-
-      const invalidConfig = {
-        queue: {
-          type: 'fifo' as const,
-          visibilityTimeout: 60,
-          messageGroupId: 'userId',
-          maxRetries: 3,
-        },
-      }
-
-      expect(() => schema.parse(invalidConfig)).toThrow()
+      expect(() => infrastructureSchema.parse(validConfig)).not.toThrow()
     })
   })
 
   describe('Infrastructure Schema Combined Validations', () => {
     it('should validate all fields together in complete config', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
 
       const validConfig = {
         handler: {
@@ -920,22 +625,15 @@ describe('Infrastructure Config Validation', () => {
         queue: {
           type: 'fifo' as const,
           visibilityTimeout: 31,
-          messageGroupId: 'traceId',
           maxRetries: 5,
           delaySeconds: 10,
         },
       }
 
-      expect(() => schema.parse(validConfig)).not.toThrow()
+      expect(() => infrastructureSchema.parse(validConfig)).not.toThrow()
     })
 
     it('should reject config with multiple validation errors', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-      })
-
-      const schema = createInfrastructureSchema(inputSchema)
-
       const invalidConfig = {
         handler: {
           ram: 64,
@@ -945,19 +643,23 @@ describe('Infrastructure Config Validation', () => {
         queue: {
           type: 'fifo' as const,
           visibilityTimeout: 30,
-          messageGroupId: 'userId',
           maxRetries: -1,
           delaySeconds: 1000,
         },
       }
 
       try {
-        schema.parse(invalidConfig)
+        infrastructureSchema.parse(invalidConfig)
         fail('Should have thrown validation error')
       } catch (error) {
         expect(error).toBeInstanceOf(z.ZodError)
         const zodError = error as z.ZodError
-        expect(zodError.errors.length).toBeGreaterThan(1)
+        expect(zodError.errors.length).toBeGreaterThan(0)
+        const errorMessages = zodError.errors.map(e => e.message)
+        expect(errorMessages).toContain('RAM must be at least 128 MB')
+        expect(errorMessages).toContain('Timeout cannot exceed 900s')
+        expect(errorMessages).toContain('maxRetries cannot be negative')
+        expect(errorMessages).toContain('delaySeconds cannot exceed 900 seconds (15 minutes)')
       }
     })
 

@@ -39,7 +39,6 @@ export type HandlerConfig = {
 
 export type QueueConfig = {
   type: 'fifo' | 'standard'
-  messageGroupId?: string | null
   maxRetries: number
   visibilityTimeout: number
   delaySeconds: number
@@ -154,10 +153,10 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
 export type StepHandler<T> = T extends EventConfig
   ? EventHandler<z.infer<T['input']>, { topic: string; data: any }>
   : T extends ApiRouteConfig
-    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }>
-    : T extends CronConfig
-      ? CronHandler<{ topic: string; data: any }>
-      : never
+  ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }>
+  : T extends CronConfig
+  ? CronHandler<{ topic: string; data: any }>
+  : never
 
 export type Event<TData = unknown> = {
   topic: string

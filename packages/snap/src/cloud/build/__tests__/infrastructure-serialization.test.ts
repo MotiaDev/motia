@@ -28,7 +28,6 @@ describe('Infrastructure Config Serialization', () => {
           queue: {
             type: 'fifo',
             visibilityTimeout: 31,
-            messageGroupId: 'traceId',
             maxRetries: 5,
           },
         },
@@ -129,7 +128,6 @@ describe('Infrastructure Config Serialization', () => {
       const queue = parsed.steps.testStep.config.infrastructure.queue
       expect(queue.type).toBe('fifo')
       expect(queue.visibilityTimeout).toBe(31)
-      expect(queue.messageGroupId).toBe('traceId')
       expect(queue.maxRetries).toBe(5)
     })
 

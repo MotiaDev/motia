@@ -20,10 +20,11 @@ describe('QueueManager', () => {
     queueManager.reset()
   })
 
-  const createMockEvent = (topic: string, data: unknown = {}): Event => ({
+  const createMockEvent = (topic: string, data: unknown = {}, messageGroupId?: string): Event => ({
     topic,
     data,
     traceId: 'test-trace-id',
+    messageGroupId,
     flows: ['test-flow'],
     logger: new Logger(),
     tracer: new NoTracer(),
@@ -34,7 +35,6 @@ describe('QueueManager', () => {
     maxRetries: 3,
     visibilityTimeout: 30,
     delaySeconds: 0,
-    messageGroupId: null,
     ...overrides,
   })
 
@@ -205,13 +205,17 @@ describe('QueueManager', () => {
         return Promise.resolve()
       })
 
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'groupId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 1, groupId: 'group1' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 2, groupId: 'group1' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 3, groupId: 'group1' }))
+      const event1 = createMockEvent('test.topic', { id: 1 }, 'group1')
+      const event2 = createMockEvent('test.topic', { id: 2 }, 'group1')
+      const event3 = createMockEvent('test.topic', { id: 3 }, 'group1')
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
+      await queueManager.enqueue('test.topic', event3)
 
       for (let i = 0; i < 3; i++) {
         jest.advanceTimersByTime(100)
@@ -229,13 +233,20 @@ describe('QueueManager', () => {
         return Promise.resolve()
       })
 
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'groupId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 1, groupId: 'group1' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 2, groupId: 'group2' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 3, groupId: 'group1' }))
+      const event1 = createMockEvent('test.topic', { id: 1, groupId: 'group1' })
+      event1.messageGroupId = 'group1'
+      const event2 = createMockEvent('test.topic', { id: 2, groupId: 'group2' })
+      event2.messageGroupId = 'group2'
+      const event3 = createMockEvent('test.topic', { id: 3, groupId: 'group1' })
+      event3.messageGroupId = 'group1'
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
+      await queueManager.enqueue('test.topic', event3)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()
@@ -256,12 +267,17 @@ describe('QueueManager', () => {
         processing = false
       })
 
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'groupId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 1, groupId: 'group1' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 2, groupId: 'group1' }))
+      const event1 = createMockEvent('test.topic', { id: 1, groupId: 'group1' })
+      event1.messageGroupId = 'group1'
+      const event2 = createMockEvent('test.topic', { id: 2, groupId: 'group1' })
+      event2.messageGroupId = 'group1'
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()
@@ -591,10 +607,13 @@ describe('QueueManager', () => {
 
     it('should apply delaySeconds to FIFO queue messages', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'groupId', delaySeconds: 5 })
+      const queueConfig = createQueueConfig({ type: 'fifo', delaySeconds: 5 })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 1, groupId: 'group1' }))
+
+      const event = createMockEvent('test.topic', { id: 1, groupId: 'group1' })
+      event.messageGroupId = 'group1'
+      await queueManager.enqueue('test.topic', event)
 
       jest.advanceTimersByTime(4900)
       await Promise.resolve()
@@ -623,21 +642,25 @@ describe('QueueManager', () => {
     })
   })
 
-  describe('MessageGroupId Extraction', () => {
-    it('should extract messageGroupId from event.data using field name', async () => {
+  describe('MessageGroupId Handling', () => {
+    it('should process messages with different messageGroupIds in parallel', async () => {
       const processedMessages: string[] = []
       const handler = jest.fn().mockImplementation((event: Event) => {
-        const data = event.data as { userId: string }
-        processedMessages.push(data.userId)
+        processedMessages.push(event.messageGroupId || 'no-group')
         return Promise.resolve()
       })
 
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'userId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { userId: 'user1' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { userId: 'user2' }))
+      const event1 = createMockEvent('test.topic', { userId: 'user1' })
+      event1.messageGroupId = 'user1'
+      const event2 = createMockEvent('test.topic', { userId: 'user2' })
+      event2.messageGroupId = 'user2'
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()
@@ -645,16 +668,16 @@ describe('QueueManager', () => {
       expect(handler).toHaveBeenCalledTimes(2)
     })
 
-    it('should extract traceId when messageGroupId is "traceId"', async () => {
+    it('should process messages with same messageGroupId sequentially', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'traceId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
       const event1 = createMockEvent('test.topic', { data: 'test1' })
-      event1.traceId = 'trace-123'
+      event1.messageGroupId = 'group-123'
       const event2 = createMockEvent('test.topic', { data: 'test2' })
-      event2.traceId = 'trace-123'
+      event2.messageGroupId = 'group-123'
 
       await queueManager.enqueue('test.topic', event1)
       await queueManager.enqueue('test.topic', event2)
@@ -665,9 +688,9 @@ describe('QueueManager', () => {
       expect(handler).toHaveBeenCalledTimes(1)
     })
 
-    it('should return undefined when messageGroupId is null', async () => {
+    it('should handle messages without messageGroupId', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'standard', messageGroupId: null })
+      const queueConfig = createQueueConfig({ type: 'standard' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
@@ -680,9 +703,9 @@ describe('QueueManager', () => {
       expect(handler).toHaveBeenCalledTimes(2)
     })
 
-    it('should handle missing field in event.data gracefully', async () => {
+    it('should handle undefined messageGroupId in FIFO queue', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'missingField' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
@@ -694,14 +717,19 @@ describe('QueueManager', () => {
       expect(handler).toHaveBeenCalledTimes(1)
     })
 
-    it('should convert non-string values to string', async () => {
+    it('should pass through messageGroupId from event', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'orderId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { orderId: 123 }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { orderId: 123 }))
+      const event1 = createMockEvent('test.topic', { orderId: 123 })
+      event1.messageGroupId = 'order-123'
+      const event2 = createMockEvent('test.topic', { orderId: 123 })
+      event2.messageGroupId = 'order-123'
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()
@@ -709,14 +737,17 @@ describe('QueueManager', () => {
       expect(handler).toHaveBeenCalledTimes(1)
     })
 
-    it('should handle event.data being null or undefined', async () => {
+    it('should handle events with null data and messageGroupId', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'userId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', null))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', undefined))
+      const event1 = createMockEvent('test.topic', null, 'null-group')
+      const event2 = createMockEvent('test.topic', undefined, 'undefined-group')
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()
@@ -820,12 +851,17 @@ describe('QueueManager', () => {
 
     it('should not use locking for standard queue with messageGroupId', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'standard', messageGroupId: 'groupId' })
+      const queueConfig = createQueueConfig({ type: 'standard' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 1, groupId: 'group1' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 2, groupId: 'group1' }))
+      const event1 = createMockEvent('test.topic', { id: 1, groupId: 'group1' })
+      event1.messageGroupId = 'group1'
+      const event2 = createMockEvent('test.topic', { id: 2, groupId: 'group1' })
+      event2.messageGroupId = 'group1'
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()
@@ -835,9 +871,9 @@ describe('QueueManager', () => {
   })
 
   describe('FIFO Queue Edge Cases', () => {
-    it('should process message without locking when messageGroupId extraction returns undefined', async () => {
+    it('should process message without locking when messageGroupId is undefined', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'missingField' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
@@ -853,8 +889,7 @@ describe('QueueManager', () => {
     it('should continue processing other groups when one group has errors', async () => {
       let group1Attempts = 0
       const handler = jest.fn().mockImplementation((event: Event) => {
-        const data = event.data as { groupId: string }
-        if (data.groupId === 'group1') {
+        if (event.messageGroupId === 'group1') {
           group1Attempts++
           if (group1Attempts < 2) {
             return Promise.reject(new Error('Group1 error'))
@@ -865,15 +900,19 @@ describe('QueueManager', () => {
 
       const queueConfig = createQueueConfig({
         type: 'fifo',
-        messageGroupId: 'groupId',
         visibilityTimeout: 1,
         maxRetries: 5,
       })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 1, groupId: 'group1' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 2, groupId: 'group2' }))
+      const event1 = createMockEvent('test.topic', { id: 1, groupId: 'group1' })
+      event1.messageGroupId = 'group1'
+      const event2 = createMockEvent('test.topic', { id: 2, groupId: 'group2' })
+      event2.messageGroupId = 'group2'
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()
@@ -883,12 +922,17 @@ describe('QueueManager', () => {
 
     it('should release lock on successful processing', async () => {
       const handler = jest.fn().mockResolvedValue(undefined)
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'groupId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 1, groupId: 'group1' }))
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 2, groupId: 'group1' }))
+      const event1 = createMockEvent('test.topic', { id: 1, groupId: 'group1' })
+      event1.messageGroupId = 'group1'
+      const event2 = createMockEvent('test.topic', { id: 2, groupId: 'group1' })
+      event2.messageGroupId = 'group1'
+
+      await queueManager.enqueue('test.topic', event1)
+      await queueManager.enqueue('test.topic', event2)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()
@@ -911,14 +955,15 @@ describe('QueueManager', () => {
 
       const queueConfig = createQueueConfig({
         type: 'fifo',
-        messageGroupId: 'groupId',
         visibilityTimeout: 1,
         maxRetries: 5,
       })
 
       queueManager.subscribe('test.topic', handler, queueConfig, 'subscription-id')
 
-      await queueManager.enqueue('test.topic', createMockEvent('test.topic', { id: 1, groupId: 'group1' }))
+      const event = createMockEvent('test.topic', { id: 1, groupId: 'group1' })
+      event.messageGroupId = 'group1'
+      await queueManager.enqueue('test.topic', event)
 
       jest.advanceTimersByTime(100)
       await Promise.resolve()

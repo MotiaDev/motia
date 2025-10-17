@@ -52,23 +52,6 @@ type QueueMetrics = {
   dlqCount: number
 }
 
-function extractMessageGroupId(event: Event, messageGroupId: string | null | undefined): string | undefined {
-  if (!messageGroupId) {
-    return undefined
-  }
-
-  if (messageGroupId === 'traceId') {
-    return event.traceId
-  }
-
-  try {
-    const data = event.data as Record<string, unknown>
-    const value = data[messageGroupId]
-    return value !== undefined && value !== null ? String(value) : undefined
-  } catch {
-    return undefined
-  }
-}
 
 export class QueueManager {
   private logger: Logger
@@ -219,27 +202,29 @@ export class QueueManager {
   }
 
   private scheduleProcessing(topic: string, delayMs: number): void {
-    const timeoutKey = `${topic}:${randomUUID()}`
+    const existingTimeout = this.scheduledTimeouts.get(topic)
+    if (existingTimeout) {
+      clearTimeout(existingTimeout)
+    }
+
     const timeout = setTimeout(() => {
       this.queueEmitter.emit('process', topic)
-      this.scheduledTimeouts.delete(timeoutKey)
+      this.scheduledTimeouts.delete(topic)
     }, delayMs)
 
-    this.scheduledTimeouts.set(timeoutKey, timeout)
+    this.scheduledTimeouts.set(topic, timeout)
   }
 
-  async enqueue<TData>(topic: string, event: Event<TData>, explicitMessageGroupId?: string): Promise<void> {
+  async enqueue<TData>(topic: string, event: Event<TData>, messageGroupId?: string): Promise<void> {
     const handlers = this.subscriptions[topic] || []
 
     if (handlers.length === 0) {
       return
     }
 
+    const effectiveMessageGroupId = messageGroupId ?? event.messageGroupId
+
     for (const subscription of handlers) {
-      const messageGroupId =
-        explicitMessageGroupId !== undefined
-          ? explicitMessageGroupId
-          : extractMessageGroupId(event, subscription.queueConfig.messageGroupId)
 
       const delayMs = subscription.queueConfig.delaySeconds * 1000
       const visibleAt = Date.now() + delayMs
@@ -249,7 +234,7 @@ export class QueueManager {
         event,
         attempts: 0,
         visibleAt,
-        messageGroupId,
+        messageGroupId: effectiveMessageGroupId,
         queueConfig: subscription.queueConfig,
         subscriptionId: subscription.subscriptionId,
         internalSubscriptionId: subscription.internalSubscriptionId,
@@ -269,6 +254,9 @@ export class QueueManager {
   subscribe(topic: string, handler: Handler, queueConfig: QueueConfig, subscriptionId: string): void {
     if (!this.subscriptions[topic]) {
       this.subscriptions[topic] = []
+    }
+
+    if (!this.topicListeners.has(topic)) {
       const listener = (t: string) => {
         if (t === topic) {
           this.processQueue(topic)
@@ -283,16 +271,19 @@ export class QueueManager {
 
     if (this.queues[topic] && this.queues[topic].length > 0) {
       const now = Date.now()
+      let madeVisible = false
       for (const message of this.queues[topic]) {
         if (
           message.internalSubscriptionId !== internalSubscriptionId &&
-          message.subscriptionId !== subscriptionId &&
           message.attempts > 0
         ) {
           message.visibleAt = now
+          madeVisible = true
         }
       }
-      this.scheduleProcessing(topic, 0)
+      if (madeVisible) {
+        this.scheduleProcessing(topic, 0)
+      }
     }
   }
 
@@ -305,10 +296,18 @@ export class QueueManager {
 
     if (this.subscriptions[topic].length === 0) {
       delete this.subscriptions[topic]
-      const listener = this.topicListeners.get(topic)
-      if (listener) {
-        this.queueEmitter.off('process', listener)
-        this.topicListeners.delete(topic)
+      const hasQueuedMessages = this.queues[topic] && this.queues[topic].length > 0
+      if (!hasQueuedMessages) {
+        const listener = this.topicListeners.get(topic)
+        if (listener) {
+          this.queueEmitter.off('process', listener)
+          this.topicListeners.delete(topic)
+        }
+        const timeout = this.scheduledTimeouts.get(topic)
+        if (timeout) {
+          clearTimeout(timeout)
+          this.scheduledTimeouts.delete(topic)
+        }
       }
     }
   }

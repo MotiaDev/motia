@@ -1,7 +1,6 @@
 export {
   AWS_LAMBDA_CPU_RATIO,
   AWS_LAMBDA_LIMITS,
-  createInfrastructureSchema,
   getProportionalCpu,
   handlerBaseSchema,
   handlerSchema,

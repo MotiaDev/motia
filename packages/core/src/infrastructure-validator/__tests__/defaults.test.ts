@@ -7,7 +7,6 @@ describe('Infrastructure Defaults', () => {
       expect(DEFAULT_QUEUE_CONFIG.type).toBe('standard')
       expect(DEFAULT_QUEUE_CONFIG.maxRetries).toBe(3)
       expect(DEFAULT_QUEUE_CONFIG.visibilityTimeout).toBe(900)
-      expect(DEFAULT_QUEUE_CONFIG.messageGroupId).toBe(null)
       expect(DEFAULT_QUEUE_CONFIG.delaySeconds).toBe(0)
     })
   })
@@ -78,13 +77,11 @@ describe('Infrastructure Defaults', () => {
       const infrastructure: InfrastructureConfig = {
         queue: {
           type: 'fifo',
-          messageGroupId: 'userId',
         },
       }
       const result = getQueueConfigWithDefaults(infrastructure)
 
       expect(result.type).toBe('fifo')
-      expect(result.messageGroupId).toBe('userId')
       expect(result.maxRetries).toBe(DEFAULT_QUEUE_CONFIG.maxRetries)
       expect(result.visibilityTimeout).toBe(DEFAULT_QUEUE_CONFIG.visibilityTimeout)
       expect(result.delaySeconds).toBe(DEFAULT_QUEUE_CONFIG.delaySeconds)
@@ -114,17 +111,6 @@ describe('Infrastructure Defaults', () => {
 
       expect(result.maxRetries).toBe(0)
       expect(result.delaySeconds).toBe(0)
-    })
-
-    it('should handle null messageGroupId', () => {
-      const infrastructure: InfrastructureConfig = {
-        queue: {
-          messageGroupId: null,
-        },
-      }
-      const result = getQueueConfigWithDefaults(infrastructure)
-
-      expect(result.messageGroupId).toBe(null)
     })
 
     it('should not mutate the input infrastructure object', () => {

@@ -20,13 +20,14 @@ describe('Queue Integration Tests', () => {
     queueManager.reset()
   })
 
-  const createEvent = (topic: string, data: unknown = {}): Event => ({
+  const createEvent = (topic: string, data: unknown = {}, messageGroupId?: string): Event => ({
     topic,
     data,
     traceId: 'test-trace-id',
     flows: ['test-flow'],
     logger: new Logger(),
     tracer: new NoTracer(),
+    messageGroupId,
   })
 
   const createQueueConfig = (overrides?: Partial<QueueConfig>): QueueConfig => ({
@@ -34,7 +35,6 @@ describe('Queue Integration Tests', () => {
     maxRetries: 3,
     visibilityTimeout: 30,
     delaySeconds: 0,
-    messageGroupId: null,
     ...overrides,
   })
 
@@ -147,7 +147,7 @@ describe('Queue Integration Tests', () => {
         return Promise.resolve(undefined)
       })
 
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'groupId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('fifo.topic', handler, queueConfig, 'sub-1')
 
@@ -170,12 +170,12 @@ describe('Queue Integration Tests', () => {
         return Promise.resolve(undefined)
       })
 
-      const queueConfig = createQueueConfig({ type: 'fifo', messageGroupId: 'groupId' })
+      const queueConfig = createQueueConfig({ type: 'fifo' })
 
       queueManager.subscribe('fifo.topic', handler, queueConfig, 'sub-1')
 
-      await queueManager.enqueue('fifo.topic', createEvent('fifo.topic', { groupId: 'A' }))
-      await queueManager.enqueue('fifo.topic', createEvent('fifo.topic', { groupId: 'B' }))
+      await queueManager.enqueue('fifo.topic', createEvent('fifo.topic', { groupId: 'A' }, 'group-A'))
+      await queueManager.enqueue('fifo.topic', createEvent('fifo.topic', { groupId: 'B' }, 'group-B'))
 
       jest.advanceTimersByTime(0)
       await Promise.resolve()

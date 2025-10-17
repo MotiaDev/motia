@@ -16,11 +16,10 @@ describe('Infrastructure Runtime Validations', () => {
       expect(result.success).toBe(true)
     })
 
-    it('should accept valid FIFO queue config with messageGroupId', () => {
+    it('should accept valid FIFO queue config', () => {
       const queueConfig = {
         type: 'fifo',
         visibilityTimeout: 60,
-        messageGroupId: 'traceId',
         maxRetries: 3,
         delaySeconds: 0,
       }
@@ -62,7 +61,7 @@ describe('Infrastructure Runtime Validations', () => {
       }
     })
 
-    it('should accept FIFO queue configuration (messageGroupId validation is at infrastructure level)', () => {
+    it('should accept FIFO queue configuration', () => {
       const queueConfig = {
         type: 'fifo',
         visibilityTimeout: 60,
@@ -317,48 +316,6 @@ describe('Infrastructure Runtime Validations', () => {
       }
     })
 
-    it('should validate messageGroupId against input schema', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-        userId: z.string(),
-      })
-
-      const infrastructure = {
-        queue: {
-          type: 'fifo',
-          visibilityTimeout: 60,
-          messageGroupId: 'userId',
-          maxRetries: 3,
-        },
-      }
-
-      const result = validateInfrastructureConfig(infrastructure, inputSchema)
-
-      expect(result.success).toBe(true)
-    })
-
-    it('should reject messageGroupId not in input schema', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-      })
-
-      const infrastructure = {
-        queue: {
-          type: 'fifo',
-          visibilityTimeout: 60,
-          messageGroupId: 'userId',
-          maxRetries: 3,
-        },
-      }
-
-      const result = validateInfrastructureConfig(infrastructure, inputSchema)
-
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(result.errors).toBeDefined()
-        expect(result.errors![0].message).toContain("does not exist in step's input schema")
-      }
-    })
 
     it('should handle empty infrastructure object', () => {
       const infrastructure = {}

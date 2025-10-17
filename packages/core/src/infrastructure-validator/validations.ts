@@ -1,6 +1,5 @@
 import { z } from 'zod'
-import type { ZodInput } from '../types'
-import { createInfrastructureSchema, createQueueSchema } from './schemas'
+import { infrastructureSchema, queueSchema } from './schemas'
 import type {
   InfrastructureValidationError,
   InfrastructureValidationResult,
@@ -10,7 +9,7 @@ import type {
 
 export const validateQueueConfig = (queueConfig: unknown): QueueValidationResult => {
   try {
-    const schema = createQueueSchema()
+    const schema = queueSchema
     schema.parse(queueConfig)
 
     return { success: true }
@@ -40,11 +39,9 @@ export const validateQueueConfig = (queueConfig: unknown): QueueValidationResult
 }
 export const validateInfrastructureConfig = (
   infrastructureConfig: unknown,
-  inputSchema?: ZodInput,
 ): InfrastructureValidationResult => {
   try {
-    const schema = createInfrastructureSchema(inputSchema)
-    schema.parse(infrastructureConfig)
+    infrastructureSchema.parse(infrastructureConfig)
 
     return { success: true }
   } catch (error) {

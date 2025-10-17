@@ -101,7 +101,7 @@ describe('Infrastructure Validation in Build Process', () => {
       expect(errors).toHaveLength(0)
     })
 
-    it('should accept valid FIFO queue with messageGroupId', () => {
+    it('should accept valid FIFO queue', () => {
       const inputSchema = z.object({
         traceId: z.string(),
         userId: z.string(),
@@ -114,7 +114,6 @@ describe('Infrastructure Validation in Build Process', () => {
           queue: {
             type: 'fifo',
             visibilityTimeout: 60,
-            messageGroupId: 'traceId',
             maxRetries: 3,
           },
         },
@@ -144,7 +143,6 @@ describe('Infrastructure Validation in Build Process', () => {
           queue: {
             type: 'fifo',
             visibilityTimeout: 31,
-            messageGroupId: 'traceId',
             maxRetries: 5,
           },
         },
@@ -263,21 +261,6 @@ describe('Infrastructure Validation in Build Process', () => {
       expect(errors[0].message).toContain('maxRetries cannot be negative')
     })
 
-    it('should reject FIFO queue without messageGroupId', () => {
-      const step = createMockStep('testStep', 'event', {
-        queue: {
-          type: 'fifo',
-          visibilityTimeout: 60,
-          maxRetries: 3,
-        },
-      })
-
-      const builder = createMockBuilder({ testStep: step })
-      const { errors } = validateStepsConfig(builder)
-
-      expect(errors.length).toBeGreaterThan(0)
-      expect(errors[0].message).toContain('messageGroupId is required when queue type is "fifo"')
-    })
   })
 
   describe('Cross-Field Validation', () => {
@@ -319,125 +302,6 @@ describe('Infrastructure Validation in Build Process', () => {
       const { errors } = validateStepsConfig(builder)
 
       expect(errors).toHaveLength(0)
-    })
-  })
-
-  describe('MessageGroupId Validation', () => {
-    it('should reject messageGroupId with dots (nested path)', () => {
-      const inputSchema = z.object({
-        user: z.object({
-          id: z.string(),
-        }),
-      })
-
-      const step = createMockStep(
-        'testStep',
-        'event',
-        {
-          queue: {
-            type: 'fifo',
-            visibilityTimeout: 60,
-            messageGroupId: 'user.id',
-            maxRetries: 3,
-          },
-        },
-        inputSchema,
-      )
-
-      const builder = createMockBuilder({ testStep: step })
-      const { errors } = validateStepsConfig(builder)
-
-      expect(errors.length).toBeGreaterThan(0)
-      expect(errors[0].message).toContain('messageGroupId')
-      expect(errors[0].message).toContain('must be a simple field path')
-    })
-
-    it('should reject messageGroupId with brackets (template expression)', () => {
-      const inputSchema = z.object({
-        items: z.array(z.string()),
-      })
-
-      const step = createMockStep(
-        'testStep',
-        'event',
-        {
-          queue: {
-            type: 'fifo',
-            visibilityTimeout: 60,
-            messageGroupId: 'items[0]',
-            maxRetries: 3,
-          },
-        },
-        inputSchema,
-      )
-
-      const builder = createMockBuilder({ testStep: step })
-      const { errors } = validateStepsConfig(builder)
-
-      expect(errors.length).toBeGreaterThan(0)
-      expect(errors[0].message).toContain('messageGroupId')
-      expect(errors[0].message).toContain('must be a simple field path')
-    })
-
-    it('should reject messageGroupId that does not exist in input schema', () => {
-      const inputSchema = z.object({
-        traceId: z.string(),
-      })
-
-      const step = createMockStep(
-        'testStep',
-        'event',
-        {
-          queue: {
-            type: 'fifo',
-            visibilityTimeout: 60,
-            messageGroupId: 'userId',
-            maxRetries: 3,
-          },
-        },
-        inputSchema,
-      )
-
-      const builder = createMockBuilder({ testStep: step })
-      const { errors } = validateStepsConfig(builder)
-
-      expect(errors.length).toBeGreaterThan(0)
-      expect(errors[0].message).toContain('messageGroupId')
-      expect(errors[0].message).toContain("does not exist in step's input schema")
-    })
-
-    it('should show error when messageGroupId is provided but no input schema', () => {
-      const step = createMockStep('testStep', 'event', {
-        queue: {
-          type: 'fifo',
-          visibilityTimeout: 60,
-          messageGroupId: 'userId',
-          maxRetries: 3,
-        },
-      })
-
-      const builder = createMockBuilder({ testStep: step })
-      const { errors } = validateStepsConfig(builder)
-
-      expect(errors.length).toBeGreaterThan(0)
-      expect(errors[0].message).toContain('Cannot validate messageGroupId')
-      expect(errors[0].message).toContain('step has no input schema defined')
-    })
-
-    it('should skip validation when messageGroupId is traceId', () => {
-      const step = createMockStep('testStep', 'event', {
-        queue: {
-          type: 'fifo',
-          visibilityTimeout: 60,
-          messageGroupId: 'traceId',
-          maxRetries: 3,
-        },
-      })
-
-      const builder = createMockBuilder({ testStep: step })
-      const { errors } = validateStepsConfig(builder)
-
-      expect(errors.length).toBe(0)
     })
   })
 
@@ -830,7 +694,6 @@ describe('Infrastructure Validation in Build Process', () => {
           queue: {
             type: 'fifo',
             visibilityTimeout: 30,
-            messageGroupId: 'userId',
             maxRetries: -1,
           },
         },

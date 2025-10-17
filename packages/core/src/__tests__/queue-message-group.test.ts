@@ -17,7 +17,6 @@ describe('QueueManager - messageGroupId from emit', () => {
     it('should use explicit messageGroupId from emit call for FIFO queue', async () => {
       const fifoConfig: QueueConfig = {
         type: 'fifo',
-        messageGroupId: 'orderId',
         maxRetries: 3,
         visibilityTimeout: 30,
         delaySeconds: 0,
@@ -60,7 +59,6 @@ describe('QueueManager - messageGroupId from emit', () => {
     it('should prioritize explicit messageGroupId over config extraction', async () => {
       const fifoConfig: QueueConfig = {
         type: 'fifo',
-        messageGroupId: 'orderId',
         maxRetries: 3,
         visibilityTimeout: 30,
         delaySeconds: 0,
@@ -97,10 +95,9 @@ describe('QueueManager - messageGroupId from emit', () => {
       expect(capturedMessageGroupId).not.toBe('order-789')
     })
 
-    it('should fall back to config extraction when no explicit messageGroupId provided', async () => {
+    it('should fall back to event.messageGroupId when no explicit messageGroupId provided', async () => {
       const fifoConfig: QueueConfig = {
         type: 'fifo',
-        messageGroupId: 'orderId',
         maxRetries: 3,
         visibilityTimeout: 30,
         delaySeconds: 0,
@@ -124,6 +121,7 @@ describe('QueueManager - messageGroupId from emit', () => {
         flows: [],
         logger: globalLogger,
         tracer: {} as any,
+        messageGroupId: 'order-999',
       })
 
       await new Promise((resolve) => setTimeout(resolve, 50))
@@ -134,7 +132,6 @@ describe('QueueManager - messageGroupId from emit', () => {
     it('should handle explicit messageGroupId with standard queue', async () => {
       const standardConfig: QueueConfig = {
         type: 'standard',
-        messageGroupId: null,
         maxRetries: 3,
         visibilityTimeout: 30,
         delaySeconds: 0,
@@ -175,7 +172,6 @@ describe('QueueManager - messageGroupId from emit', () => {
     it('should process messages with same explicit messageGroupId in order', async () => {
       const fifoConfig: QueueConfig = {
         type: 'fifo',
-        messageGroupId: null,
         maxRetries: 3,
         visibilityTimeout: 30,
         delaySeconds: 0,
@@ -213,7 +209,6 @@ describe('QueueManager - messageGroupId from emit', () => {
     it('should process messages with different explicit messageGroupId in parallel', async () => {
       const fifoConfig: QueueConfig = {
         type: 'fifo',
-        messageGroupId: null,
         maxRetries: 3,
         visibilityTimeout: 30,
         delaySeconds: 0,
@@ -265,7 +260,6 @@ describe('QueueManager - messageGroupId from emit', () => {
     it('should handle empty string as explicit messageGroupId', async () => {
       const fifoConfig: QueueConfig = {
         type: 'fifo',
-        messageGroupId: 'orderId',
         maxRetries: 3,
         visibilityTimeout: 30,
         delaySeconds: 0,
@@ -300,10 +294,9 @@ describe('QueueManager - messageGroupId from emit', () => {
       expect(capturedMessageGroupId).toBe('')
     })
 
-    it('should handle undefined explicit messageGroupId', async () => {
+    it('should handle undefined explicit messageGroupId and fall back to event.messageGroupId', async () => {
       const fifoConfig: QueueConfig = {
         type: 'fifo',
-        messageGroupId: 'orderId',
         maxRetries: 3,
         visibilityTimeout: 30,
         delaySeconds: 0,
@@ -329,6 +322,7 @@ describe('QueueManager - messageGroupId from emit', () => {
           flows: [],
           logger: globalLogger,
           tracer: {} as any,
+          messageGroupId: 'order-456',
         },
         undefined,
       )
