@@ -32,7 +32,6 @@ export const getStepAnswers = async (): Promise<StepAnswers> => {
 
   let answers = { ...basicInfo }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const languageAnswer: any = {
     type: 'list',
     name: 'language',

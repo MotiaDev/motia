@@ -3,7 +3,7 @@ import type { z } from 'zod'
 import zodToJsonSchema from 'zod-to-json-schema'
 
 // Add ts-node registration before dynamic imports
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
@@ -15,7 +15,6 @@ function isZodSchema(value: unknown): value is z.ZodType {
 
 async function getConfig(filePath: string) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const module = require(path.resolve(filePath))
     // Check if the specified function exists in the module
     if (!module.config) {

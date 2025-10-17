@@ -3,11 +3,8 @@ import type { StreamFactory } from './streams/stream-factory'
 
 export interface StreamConfig {
   name: string
-  schema: ZodObject<any> // eslint-disable-line @typescript-eslint/no-explicit-any
-  baseConfig:
-    | { storageType: 'default' }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    | { storageType: 'custom'; factory: () => MotiaStream<any> }
+  schema: ZodObject<any>
+  baseConfig: { storageType: 'default' } | { storageType: 'custom'; factory: () => MotiaStream<any> }
 }
 
 export type StateStreamEventChannel = { groupId: string; id?: string }

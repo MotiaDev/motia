@@ -7,6 +7,7 @@ import {
   createStateAdapter,
   getProjectIdentifier,
   type MotiaPlugin,
+  QueueManager,
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
@@ -21,7 +22,6 @@ import { version } from './version'
 
 process.env.VITE_CJS_IGNORE_WARNING = 'true'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
@@ -60,14 +60,15 @@ export const dev = async (
 
   const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
 
-  const eventManager = createEventManager()
+  const queueManager = new QueueManager()
+  const eventManager = createEventManager(queueManager)
   const state = createStateAdapter({
     adapter: 'default',
     filePath: path.join(baseDir, motiaFileStoragePath),
   })
 
   const config = { isVerbose }
-  const motiaServer = createServer(lockedData, eventManager, state, config)
+  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await generatePlugins(motiaServer)
 
@@ -109,10 +110,8 @@ export const dev = async (
   })
 
   const { applyMiddleware } = process.env.__MOTIA_DEV_MODE__
-    ? // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('@motiadev/workbench/middleware')
-    : // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('@motiadev/workbench/dist/middleware')
+    ? require('@motiadev/workbench/middleware')
+    : require('@motiadev/workbench/dist/middleware')
   await applyMiddleware({
     app: motiaServer.app,
     port,

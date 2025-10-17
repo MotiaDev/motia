@@ -4,7 +4,7 @@ import type { Tracer } from './observability'
 
 export * from './types/app-config-types'
 
-export type ZodInput = ZodObject<any> | ZodArray<any> // eslint-disable-line @typescript-eslint/no-explicit-any
+export type ZodInput = ZodObject<any> | ZodArray<any>
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
@@ -14,10 +14,9 @@ export type InternalStateManager = {
   clear(groupId: string): Promise<void>
 }
 
-export type EmitData = { topic: ''; data: unknown }
+export type EmitData = { topic: ''; data: unknown; messageGroupId?: string }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type FlowContextStateStreams = {}
 
 export interface FlowContext<TEmitData = never> {
@@ -31,6 +30,24 @@ export interface FlowContext<TEmitData = never> {
 export type EventHandler<TInput, TEmitData> = (input: TInput, ctx: FlowContext<TEmitData>) => Promise<void>
 
 export type Emit = string | { topic: string; label?: string; conditional?: boolean }
+
+export type HandlerConfig = {
+  ram: number
+  cpu?: number
+  timeout: number
+}
+
+export type QueueConfig = {
+  type: 'fifo' | 'standard'
+  maxRetries: number
+  visibilityTimeout: number
+  delaySeconds: number
+}
+
+export type InfrastructureConfig = {
+  handler?: Partial<HandlerConfig>
+  queue?: Partial<QueueConfig>
+}
 
 export type EventConfig = {
   type: 'event'
@@ -47,6 +64,7 @@ export type EventConfig = {
    * Needs to be relative to the step file.
    */
   includeFiles?: string[]
+  infrastructure?: Partial<InfrastructureConfig>
 }
 
 export type NoopConfig = {
@@ -81,7 +99,7 @@ export interface ApiRouteConfig {
   virtualEmits?: Emit[]
   virtualSubscribes?: string[]
   flows?: string[]
-  middleware?: ApiMiddleware<any, any, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
+  middleware?: ApiMiddleware<any, any, any>[]
   bodySchema?: ZodInput
   responseSchema?: Record<number, ZodInput | ZodAny>
   queryParams?: QueryParam[]
@@ -133,11 +151,11 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
  * @deprecated Use `Handlers` instead.
  */
 export type StepHandler<T> = T extends EventConfig
-  ? EventHandler<z.infer<T['input']>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+  ? EventHandler<z.infer<T['input']>, { topic: string; data: any }>
   : T extends ApiRouteConfig
-    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }>
     : T extends CronConfig
-      ? CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
+      ? CronHandler<{ topic: string; data: any }>
       : never
 
 export type Event<TData = unknown> = {
@@ -147,6 +165,7 @@ export type Event<TData = unknown> = {
   flows?: string[]
   logger: Logger
   tracer: Tracer
+  messageGroupId?: string
 }
 
 export type Handler<TData = unknown> = (event: Event<TData>) => Promise<void>
@@ -183,5 +202,4 @@ export type Flow = {
   steps: Step[]
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type Handlers = {}

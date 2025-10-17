@@ -28,7 +28,6 @@ export class LockedData {
   private streamHandlers: Record<StreamEvent, ((stream: Stream) => void)[]>
   private streams: Record<string, Stream>
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private streamWrapper?: StreamWrapper<any>
 
   constructor(
@@ -106,7 +105,6 @@ export class LockedData {
     return this.activeSteps.filter((step) => step.filePath.endsWith('.ts'))
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getStreams(): Record<string, StreamFactory<any>> {
     const streams: Record<string, StreamFactory<unknown>> = {}
 

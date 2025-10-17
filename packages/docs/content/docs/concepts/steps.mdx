@@ -558,6 +558,401 @@ await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
 
 ---
 
+## Infrastructure Configuration
+
+For **Event Steps**, you can customize infrastructure settings to control handler resources and queue behavior. This is optional – Motia provides sensible defaults for all settings.
+
+### Handler Configuration
+
+Control the compute resources allocated to your Step handler:
+
+| Property | Type | Range | Default | Description |
+|----------|------|-------|---------|-------------|
+| `ram` | `number` | 128 - 10240 MB | 512 MB | Memory allocated to the handler |
+| `timeout` | `number` | 1 - 900 seconds | 30 seconds | Maximum execution time |
+| `cpu` | `number` | - | Auto-calculated | CPU allocation (proportional to RAM) |
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts title="steps/process-video.step.ts"
+import { EventConfig, Handlers } from 'motia';
+
+export const config: EventConfig = {
+  name: 'ProcessVideo',
+  type: 'event',
+  subscribes: ['video.uploaded'],
+  infrastructure: {
+    handler: {
+      ram: 2048,
+      timeout: 300
+    }
+  }
+};
+
+export const handler: Handlers['ProcessVideo'] = async (input, { logger }) => {
+  logger.info('Processing video with extended resources');
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/process_video_step.py"
+config = {
+    "name": "ProcessVideo",
+    "type": "event",
+    "subscribes": ["video.uploaded"],
+    "infrastructure": {
+        "handler": {
+            "ram": 2048,
+            "timeout": 300
+        }
+    }
+}
+
+async def handler(input, ctx):
+    ctx.logger.info("Processing video with extended resources")
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js title="steps/process-video.step.js"
+const config = {
+  name: 'ProcessVideo',
+  type: 'event',
+  subscribes: ['video.uploaded'],
+  infrastructure: {
+    handler: {
+      ram: 2048,
+      timeout: 300
+    }
+  }
+};
+
+const handler = async (input, { logger }) => {
+  logger.info('Processing video with extended resources');
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
+
+### Queue Configuration
+
+Control how events are queued and retried:
+
+| Property | Type | Options | Default | Description |
+|----------|------|---------|---------|-------------|
+| `type` | `string` | `standard`, `fifo` | `standard` | Queue type |
+| `maxRetries` | `number` | ≥ 0 | 3 | Number of retry attempts on failure |
+| `visibilityTimeout` | `number` | seconds | 900 | Time before message becomes visible again |
+| `delaySeconds` | `number` | 0 - 900 | 0 | Delay before processing the message |
+
+#### Retry Configuration Example
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts title="steps/send-email.step.ts"
+import { EventConfig, Handlers } from 'motia';
+
+export const config: EventConfig = {
+  name: 'SendEmail',
+  type: 'event',
+  subscribes: ['email.requested'],
+  infrastructure: {
+    handler: {
+      timeout: 10
+    },
+    queue: {
+      maxRetries: 5,
+      visibilityTimeout: 60
+    }
+  }
+};
+
+export const handler: Handlers['SendEmail'] = async (input, { logger }) => {
+  logger.info('Sending email with retry support');
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/send_email_step.py"
+config = {
+    "name": "SendEmail",
+    "type": "event",
+    "subscribes": ["email.requested"],
+    "infrastructure": {
+        "handler": {
+            "timeout": 10
+        },
+        "queue": {
+            "maxRetries": 5,
+            "visibilityTimeout": 60
+        }
+    }
+}
+
+async def handler(input, ctx):
+    ctx.logger.info("Sending email with retry support")
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js title="steps/send-email.step.js"
+const config = {
+  name: 'SendEmail',
+  type: 'event',
+  subscribes: ['email.requested'],
+  infrastructure: {
+    handler: {
+      timeout: 10
+    },
+    queue: {
+      maxRetries: 5,
+      visibilityTimeout: 60
+    }
+  }
+};
+
+const handler = async (input, { logger }) => {
+  logger.info('Sending email with retry support');
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
+
+#### FIFO Queue Example
+
+FIFO queues guarantee exactly-once processing and maintain message order within a group:
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts title="steps/process-order.step.ts"
+import { z } from 'zod';
+import { EventConfig, Handlers } from 'motia';
+
+const inputSchema = z.object({
+  orderId: z.string(),
+  customerId: z.string()
+});
+
+export const config: EventConfig = {
+  name: 'ProcessOrder',
+  type: 'event',
+  subscribes: ['order.created'],
+  input: inputSchema,
+  infrastructure: {
+    queue: {
+      type: 'fifo'
+    }
+  }
+};
+
+export const handler: Handlers['ProcessOrder'] = async (input, { logger }) => {
+  logger.info('Processing order in sequence', { orderId: input.orderId });
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/process_order_step.py"
+config = {
+    "name": "ProcessOrder",
+    "type": "event",
+    "subscribes": ["order.created"],
+    "input": {
+        "type": "object",
+        "properties": {
+            "orderId": {"type": "string"},
+            "customerId": {"type": "string"}
+        },
+        "required": ["orderId", "customerId"]
+    },
+    "infrastructure": {
+        "queue": {
+            "type": "fifo"
+        }
+    }
+}
+
+async def handler(input, ctx):
+    ctx.logger.info("Processing order in sequence", {"orderId": input["orderId"]})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js title="steps/process-order.step.js"
+const config = {
+  name: 'ProcessOrder',
+  type: 'event',
+  subscribes: ['order.created'],
+  input: {
+    type: 'object',
+    properties: {
+      orderId: { type: 'string' },
+      customerId: { type: 'string' }
+    },
+    required: ['orderId', 'customerId']
+  },
+  infrastructure: {
+    queue: {
+      type: 'fifo'
+    }
+  }
+};
+
+const handler = async (input, { logger }) => {
+  logger.info('Processing order in sequence', { orderId: input.orderId });
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
+
+#### Emitting to FIFO Queues
+
+When emitting events to FIFO queues, you must pass a `messageGroupId` as part of the emit options. This ID determines which message group the event belongs to, ensuring ordered processing within that group:
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts title="steps/create-order.step.ts"
+import { ApiRouteConfig, Handlers } from 'motia';
+
+export const config: ApiRouteConfig = {
+  name: 'CreateOrder',
+  type: 'api',
+  path: '/orders',
+  method: 'POST',
+  emits: ['order.created']
+};
+
+export const handler: Handlers['CreateOrder'] = async (req, { emit, logger }) => {
+  const { orderId, customerId } = req.body;
+  
+  await emit({
+    topic: 'order.created',
+    data: { orderId, customerId },
+    messageGroupId: customerId
+  });
+  
+  logger.info('Order created and emitted to FIFO queue', { orderId, customerId });
+  return { status: 200, body: { orderId } };
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/create_order_step.py"
+config = {
+    "name": "CreateOrder",
+    "type": "api",
+    "path": "/orders",
+    "method": "POST",
+    "emits": ["order.created"]
+}
+
+async def handler(req, ctx):
+    order_id = req.body["orderId"]
+    customer_id = req.body["customerId"]
+    
+    await ctx.emit({
+        "topic": "order.created",
+        "data": {"orderId": order_id, "customerId": customer_id},
+        "messageGroupId": customer_id
+    })
+    
+    ctx.logger.info("Order created and emitted to FIFO queue", {
+        "orderId": order_id,
+        "customerId": customer_id
+    })
+    return {"status": 200, "body": {"orderId": order_id}}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js title="steps/create-order.step.js"
+const config = {
+  name: 'CreateOrder',
+  type: 'api',
+  path: '/orders',
+  method: 'POST',
+  emits: ['order.created']
+};
+
+const handler = async (req, { emit, logger }) => {
+  const { orderId, customerId } = req.body;
+  
+  await emit({
+    topic: 'order.created',
+    data: { orderId, customerId },
+    messageGroupId: customerId
+  });
+  
+  logger.info('Order created and emitted to FIFO queue', { orderId, customerId });
+  return { status: 200, body: { orderId } };
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
+
+**When to use `messageGroupId` in emit:**
+
+- **Ordered processing**: When you need to ensure events are processed in the order they were emitted within a specific group
+- **Exactly-once delivery**: FIFO queues with message groups guarantee that each message is delivered exactly once
+- **Logical grouping**: Group related events together (e.g., all events for a specific customer, order, or user)
+
+For FIFO queues, the `messageGroupId` is required when calling `emit()`. Without it, the message will fail validation.
+
+### Validation Rules
+
+Motia validates your infrastructure configuration:
+
+- **Visibility Timeout Rule**: `visibilityTimeout` must be greater than `handler.timeout` to prevent premature message redelivery
+- **FIFO Queue Rule**: When `queue.type` is `fifo`, `messageGroupId` must be passed explicitly when calling `emit()`
+
+### Default Values
+
+If you don't specify infrastructure settings, Motia uses these defaults:
+
+```ts
+{
+  handler: {
+    ram: 512,
+    timeout: 30
+  },
+  queue: {
+    type: 'standard',
+    maxRetries: 3,
+    visibilityTimeout: 900,
+    delaySeconds: 0
+  }
+}
+```
+
+---
+
 ## Remember
 
 - **Steps are just files.** Export a `config` and `handler`.  
@@ -566,6 +961,6 @@ await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
 
 ---
 
-## What’s Next?
+## What's Next?
 
 👉 [Build your first app →](/docs/getting-started/build-your-first-motia-app)

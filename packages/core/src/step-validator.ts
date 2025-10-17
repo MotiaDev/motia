@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { infrastructureSchema } from './infrastructure-validator/schemas'
 import type { Step } from './types'
 
 const objectSchema = z.object({
@@ -65,6 +66,7 @@ const eventSchema = z
     input: z.union([jsonSchema, z.object({}), z.null()]).optional(),
     flows: z.array(z.string()).optional(),
     includeFiles: z.array(z.string()).optional(),
+    infrastructure: infrastructureSchema.optional(),
   })
   .strict()
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-require-imports */
+
 import { program } from 'commander'
 import './cloud'
 import { handler } from './cloud/config-utils'

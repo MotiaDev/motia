@@ -18,6 +18,7 @@ import { BaseLoggerFactory } from './logger-factory'
 import type { Motia } from './motia'
 import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
+import { QueueManager } from './queue-manager'
 import { createSocketServer } from './socket-server'
 import type { StateAdapter } from './state/state-adapter'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
@@ -48,6 +49,7 @@ export const createServer = (
   eventManager: EventManager,
   state: StateAdapter,
   config: MotiaServerConfig,
+  queueManager?: QueueManager,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
   const app = express()
@@ -71,7 +73,7 @@ export const createServer = (
 
       if (stream) {
         const result = stream ? await stream().getGroup(groupId) : []
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         return result.map(({ __motia, ...rest }) => rest)
       }
     },
@@ -80,7 +82,7 @@ export const createServer = (
   lockedData.applyStreamWrapper((streamName, stream) => {
     return (): MotiaStream<BaseStreamItem> => {
       const main = stream() as MotiaStream<BaseStreamItem>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const wrapObject = (groupId: string, id: string, object: any) => {
         if (!object) {
           return null
@@ -152,6 +154,7 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
+  const queueMgr = queueManager || new QueueManager()
   const motia: Motia = {
     loggerFactory,
     eventManager,
@@ -161,10 +164,11 @@ export const createServer = (
     tracerFactory,
     app,
     stateAdapter: state,
+    queueManager: queueMgr,
   }
 
   const cronManager = setupCronHandlers(motia)
-  const motiaEventManager = createStepHandlers(motia)
+  const motiaEventManager = createStepHandlers(motia, queueMgr)
 
   const asyncHandler = (step: Step<ApiRouteConfig>) => {
     return async (req: Request, res: Response) => {
@@ -273,7 +277,6 @@ export const createServer = (
     const { path, method } = step.config
     const routerStack = router.stack
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filteredStack = routerStack.filter((layer: any) => {
       if (layer.route) {
         const match = layer.route.path === path && layer.route.methods[method.toLowerCase()]

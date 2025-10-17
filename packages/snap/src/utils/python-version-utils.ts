@@ -53,7 +53,6 @@ export function findPythonSitePackagesDir(venvLibPath: string, pythonVersion: st
         internalLogger.info('Found Python directory', pythonVersionPath)
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     internalLogger.warn('Could not determine Python version directory', error.message)
   }

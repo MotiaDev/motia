@@ -23,17 +23,14 @@ export class CliContext {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type CliHandler = <TArgs extends Record<string, any>>(args: TArgs, context: CliContext) => Promise<void>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function handler(handler: CliHandler): (args: Record<string, any>) => Promise<void> {
   return async (args: Record<string, unknown>) => {
     const context = new CliContext()
 
     try {
       await handler(args, context)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (error instanceof Error) {
         context.log('error', (message) => message.tag('failed').append(error.message))

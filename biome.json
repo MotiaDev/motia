@@ -77,7 +77,7 @@
         "noImportAssign": "error",
         "noMisleadingCharacterClass": "error",
         "noMisleadingInstantiator": "error",
-        "noPrototypeBuiltins": "warn",
+        "noPrototypeBuiltins": "off",
         "noRedeclare": "error",
         "noShadowRestrictedNames": "warn",
         "noUnsafeDeclarationMerging": "error",
