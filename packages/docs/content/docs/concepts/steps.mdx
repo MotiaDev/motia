@@ -651,7 +651,6 @@ Control how events are queued and retried:
 | `maxRetries` | `number` | ≥ 0 | 3 | Number of retry attempts on failure |
 | `visibilityTimeout` | `number` | seconds | 900 | Time before message becomes visible again |
 | `delaySeconds` | `number` | 0 - 900 | 0 | Delay before processing the message |
-| `messageGroupId` | `string` | - | `null` | Field name to extract from event data for FIFO grouping, or `traceId` for trace-based grouping. Can be overridden by passing `messageGroupId` explicitly in emit options. |
 
 #### Retry Configuration Example
 
@@ -756,8 +755,7 @@ export const config: EventConfig = {
   input: inputSchema,
   infrastructure: {
     queue: {
-      type: 'fifo',
-      messageGroupId: 'customerId'
+      type: 'fifo'
     }
   }
 };
@@ -785,8 +783,7 @@ config = {
     },
     "infrastructure": {
         "queue": {
-            "type": "fifo",
-            "messageGroupId": "customerId"
+            "type": "fifo"
         }
     }
 }
@@ -813,8 +810,7 @@ const config = {
   },
   infrastructure: {
     queue: {
-      type: 'fifo',
-      messageGroupId: 'customerId'
+      type: 'fifo'
     }
   }
 };
@@ -831,7 +827,7 @@ module.exports = { config, handler };
 
 #### Emitting to FIFO Queues
 
-When emitting events to FIFO queues, you can pass an explicit `messageGroupId` as part of the emit options. This overrides any automatic extraction from the event data:
+When emitting events to FIFO queues, you must pass a `messageGroupId` as part of the emit options. This ID determines which message group the event belongs to, ensuring ordered processing within that group:
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
@@ -921,25 +917,20 @@ module.exports = { config, handler };
 </Tab>
 </Tabs>
 
-**When to use explicit `messageGroupId` in emit:**
+**When to use `messageGroupId` in emit:**
 
-- **Override automatic extraction**: When you need different grouping logic than what's in your event data
-- **Dynamic grouping**: When the group ID needs to be computed or derived from multiple fields
-- **Cross-step consistency**: When emitting from API or Cron steps to FIFO event steps
+- **Ordered processing**: When you need to ensure events are processed in the order they were emitted within a specific group
+- **Exactly-once delivery**: FIFO queues with message groups guarantee that each message is delivered exactly once
+- **Logical grouping**: Group related events together (e.g., all events for a specific customer, order, or user)
 
-**Priority order for FIFO message grouping:**
-
-1. Explicit `messageGroupId` passed in `emit()` options (highest priority)
-2. Automatic extraction from event data using `queue.messageGroupId` field name
-3. If neither is provided for a FIFO queue, the message will fail validation
+For FIFO queues, the `messageGroupId` is required when calling `emit()`. Without it, the message will fail validation.
 
 ### Validation Rules
 
 Motia validates your infrastructure configuration:
 
 - **Visibility Timeout Rule**: `visibilityTimeout` must be greater than `handler.timeout` to prevent premature message redelivery
-- **FIFO Queue Rule**: When `queue.type` is `fifo`, `messageGroupId` must either be specified in the queue config OR passed explicitly when calling `emit()`
-- **messageGroupId Reference**: When specified in queue config, must reference a valid field in your input schema (or use `traceId` for trace-based grouping)
+- **FIFO Queue Rule**: When `queue.type` is `fifo`, `messageGroupId` must be passed explicitly when calling `emit()`
 
 ### Default Values
 
@@ -955,7 +946,6 @@ If you don't specify infrastructure settings, Motia uses these defaults:
     type: 'standard',
     maxRetries: 3,
     visibilityTimeout: 900,
-    messageGroupId: null,
     delaySeconds: 0
   }
 }
