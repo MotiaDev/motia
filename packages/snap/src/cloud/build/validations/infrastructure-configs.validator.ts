@@ -15,7 +15,7 @@ export const infrastructureConfigsValidator: Validator = (builder) => {
 
     const relativePath = path.relative(builder.projectDir, step.filePath)
 
-    const validationResult = validateInfrastructureConfig(config.infrastructure, config.input)
+    const validationResult = validateInfrastructureConfig(config.infrastructure)
 
     if (!validationResult.success && validationResult.errors) {
       for (const error of validationResult.errors) {
