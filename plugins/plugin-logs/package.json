@@ -21,9 +21,12 @@
     "dist"
   ],
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch",
-    "clean": "rm -rf dist"
+    "build": "npm run build:css && tsc",
+    "build:css": "postcss src/styles.css -o dist/styles.css",
+    "dev": "npm run build:css && npm run dev:parallel",
+    "dev:parallel": "npm run dev:css & tsc --watch",
+    "dev:css": "postcss src/styles.css -o dist/styles.css --watch",
+    "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "lucide-react": "^0.545.0",

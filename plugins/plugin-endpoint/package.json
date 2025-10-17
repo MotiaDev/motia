@@ -24,7 +24,10 @@
     "build": "vite build",
     "dev": "vite build --watch",
     "build:css": "postcss src/styles.css -o dist/styles.css",
-    "clean": "rm -rf dist"
+    "dev": "npm run build:css && npm run dev:parallel",
+    "dev:parallel": "npm run dev:css & tsc --watch",
+    "dev:css": "postcss src/styles.css -o dist/styles.css --watch",
+    "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
