@@ -1,42 +1,74 @@
-import type { StateAdapter } from '@motiadev/core'
-import type { Express } from 'express'
+import { MotiaPluginContext, ApiRequest, ApiResponse, FlowContext } from '@motiadev/core'
 
-export const api = (app: Express, stateAdapter: StateAdapter) => {
-  app.get('/__motia/state', async (req, res) => {
-    try {
-      const groupId = req.query.groupId as string | undefined
-      const filter = req.query.filter ? JSON.parse(req.query.filter as string) : undefined
-      const items = await stateAdapter.items({ groupId, filter })
+export const api = (motia: MotiaPluginContext): void => {
+  motia.registerApi(
+    {
+      method: 'GET',
+      path: '/__motia/state',
+    },
+    async (req: ApiRequest): Promise<ApiResponse> => {
+      try {
+        const groupId = req.queryParams.groupId as string | undefined
+        const filter = req.queryParams.filter ? JSON.parse(req.queryParams.filter as string) : undefined
+        const items = await motia.state.items({ groupId, filter })
 
-      res.json(items)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      res.status(500).json({ error: error.message })
-    }
-  })
-
-  app.post('/__motia/state', async (req, res) => {
-    try {
-      const { key, groupId, value } = req.body
-      await stateAdapter.set(groupId, key, value)
-      res.json({ key, groupId, value })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      res.status(500).json({ error: error.message })
-    }
-  })
-
-  app.post('/__motia/state/delete', async (req, res) => {
-    try {
-      for (const id of req.body.ids) {
-        const [groupId, key] = id.split(':')
-        await stateAdapter.delete(groupId, key)
+        return {
+          status: 200,
+          body: items as unknown as Record<string, unknown>,
+        }
+      } catch (error: unknown) {
+        return {
+          status: 500,
+          body: { error: error instanceof Error ? error.message : 'Unknown error' },
+        }
       }
+    },
+  )
 
-      res.status(204).send()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      res.status(500).json({ error: error.message })
-    }
-  })
+  motia.registerApi(
+    {
+      method: 'POST',
+      path: '/__motia/state',
+    },
+    async (req: ApiRequest, ctx: FlowContext): Promise<ApiResponse> => {
+      try {
+        const { key, groupId, value } = req.body as { key: string; groupId: string; value: any }
+        await ctx.state.set(groupId, key, value)
+        return {
+          status: 200,
+          body: { key, groupId, value },
+        }
+      } catch (error: unknown) {
+        return {
+          status: 500,
+          body: { error: error instanceof Error ? error.message : 'Unknown error' },
+        }
+      }
+    },
+  )
+
+  motia.registerApi(
+    {
+      method: 'POST',
+      path: '/__motia/state/delete',
+    },
+    async (req: ApiRequest, ctx: FlowContext): Promise<ApiResponse> => {
+      try {
+        for (const id of (req.body as { ids: string[] }).ids) {
+          const [groupId, key] = id.split(':')
+          await ctx.state.delete(groupId, key)
+        }
+
+        return {
+          status: 204,
+          body: '',
+        }
+      } catch (error: unknown) {
+        return {
+          status: 500,
+          body: { error: error instanceof Error ? error.message : 'Unknown error' },
+        }
+      }
+    },
+  )
 }

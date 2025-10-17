@@ -4,7 +4,7 @@ import type { LoggerFactory } from './logger-factory'
 import type { TracerFactory } from './observability'
 import type { Printer } from './printer'
 import type { StateAdapter } from './state/state-adapter'
-import type { EventManager, InternalStateManager } from './types'
+import type { EventManager, InternalStateManager, ApiRouteConfig, ApiRouteHandler, ApiResponse } from './types'
 
 export type Motia = {
   loggerFactory: LoggerFactory
@@ -18,8 +18,22 @@ export type Motia = {
   stateAdapter: StateAdapter
 }
 
+export type PluginApiConfig = {
+  method: ApiRouteConfig['method']
+  path: string
+}
+
+export type UnregisterMotiaPluginApi = () => void
+
 export type MotiaPluginContext = {
-  app: Express
   state: StateAdapter
   lockedData: LockedData
+  registerApi: <
+    TRequestBody = unknown,
+    TResponseBody extends ApiResponse<number, unknown> = ApiResponse<number, unknown>,
+    TEmitData = never,
+  >(
+    config: PluginApiConfig,
+    handler: ApiRouteHandler<TRequestBody, TResponseBody, TEmitData>,
+  ) => UnregisterMotiaPluginApi
 }
