@@ -22,7 +22,7 @@ async function getConfig(filePath: string) {
     }
 
     if (isZodSchema(module.config.input)) {
-      module.config.input = zodToJsonSchema(module.config.input)
+      module.config.input = zodToJsonSchema(module.config.input, {$refStrategy: "none"})
     } else if (isZodSchema(module.config.bodySchema)) {
       module.config.bodySchema = zodToJsonSchema(module.config.bodySchema)
     }
@@ -30,13 +30,13 @@ async function getConfig(filePath: string) {
     if (module.config.responseSchema) {
       for (const [status, schema] of Object.entries(module.config.responseSchema)) {
         if (isZodSchema(schema)) {
-          module.config.responseSchema[status] = zodToJsonSchema(schema)
+          module.config.responseSchema[status] = zodToJsonSchema(schema, {$refStrategy: "none"})
         }
       }
     }
 
     if (isZodSchema(module.config.schema)) {
-      module.config.schema = zodToJsonSchema(module.config.schema)
+      module.config.schema = zodToJsonSchema(module.config.schema, {$refStrategy: "none"})
     }
 
     process.send?.(module.config)
