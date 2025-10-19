@@ -25,7 +25,6 @@ export const createEventManager = (): EventManager => {
 
     globalLogger.debug('[Flow Sub] Subscribing to event', { event, handlerName })
     handlers[event].push({ filePath, handler: handler as Handler })
-    console.log('Current handlers for event:', JSON.stringify(handlers[event]))
   }
 
   const unsubscribe = (config: UnsubscribeConfig) => {

@@ -34,6 +34,7 @@ export const createStepHandlers = (motia: Motia): MotiaEventManager => {
           let { data, traceId } = event
           const logger = event.logger.child({ step: step.config.name })
           const tracer = event.tracer.child(step, logger)
+          globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })
 
           /**
            * ✅ Simple runtime validator — no Zod needed.

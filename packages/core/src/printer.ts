@@ -158,10 +158,7 @@ export class NoPrinter extends Printer {
     super('')
   }
 
-  printEmitCreated() {}
-  printEmitUpdated() {}
-  printEmitRemoved() {}
-  printEmitValidationError() {}
+  printEventInputValidationError() {}
 
   printInvalidEmit() {}
   printStepCreated() {}
