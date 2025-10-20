@@ -39,3 +39,5 @@ export type MotiaPluginContext = {
     handler: ApiRouteHandler<TRequestBody, TResponseBody, TEmitData>,
   ) => UnregisterMotiaPluginApi
 }
+
+export const PLUGIN_FLOW_ID = '_plugin'

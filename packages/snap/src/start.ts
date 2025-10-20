@@ -2,7 +2,7 @@ import { createEventManager, createServer, createStateAdapter, type MotiaPlugin,
 import path from 'path'
 import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
-import { generatePlugins } from './generate-plugins'
+import { processPlugins } from './generate-plugins'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
 
@@ -37,7 +37,7 @@ export const start = async (
   const state = createStateAdapter({ adapter: 'default', filePath: dotMotia })
   const config = { isVerbose, isDev: false, version }
   const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
-  const plugins: MotiaPlugin[] = await generatePlugins(motiaServer)
+  const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
     const { applyMiddleware } = require('@motiadev/workbench/dist/middleware')

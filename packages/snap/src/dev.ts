@@ -15,7 +15,7 @@ import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
 import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
-import { generatePlugins } from './generate-plugins'
+import { processPlugins } from './generate-plugins'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
@@ -70,7 +70,7 @@ export const dev = async (
   const config = { isVerbose }
   const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
-  const plugins: MotiaPlugin[] = await generatePlugins(motiaServer)
+  const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   // Initialize mermaid generator
   if (enableMermaid) {
