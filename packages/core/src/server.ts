@@ -25,6 +25,9 @@ import { systemSteps } from './steps'
 import { type Log, LogsStream } from './streams/logs-stream'
 import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, EventManager, Step } from './types'
 import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
+import type { EventAdapter } from './adapters/event-adapter'
+import type { CronAdapter } from './adapters/cron-adapter'
+import type { StreamAdapter } from './streams/adapters/stream-adapter'
 
 export type MotiaServer = {
   app: Express
@@ -43,12 +46,19 @@ type MotiaServerConfig = {
   printer?: Printer
 }
 
+type AdapterOptions = {
+  eventAdapter?: EventAdapter
+  cronAdapter?: CronAdapter
+  streamAdapterFactory?: () => StreamAdapter<any>
+}
+
 export const createServer = (
   lockedData: LockedData,
   eventManager: EventManager,
   state: StateAdapter,
   config: MotiaServerConfig,
   queueManager?: QueueManager,
+  adapters?: AdapterOptions,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
   const app = express()
@@ -166,7 +176,7 @@ export const createServer = (
     queueManager: queueMgr,
   }
 
-  const cronManager = setupCronHandlers(motia)
+  const cronManager = setupCronHandlers(motia, adapters?.cronAdapter)
   const motiaEventManager = createStepHandlers(motia, queueMgr)
 
   const asyncHandler = (step: Step<ApiRouteConfig>) => {
@@ -320,8 +330,11 @@ export const createServer = (
   })
 
   const close = async (): Promise<void> => {
-    cronManager.close()
+    await cronManager.close()
     socketServer.close()
+    if (adapters?.eventAdapter) {
+      await adapters.eventAdapter.shutdown()
+    }
   }
 
   return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motia }

@@ -1,4 +1,3 @@
-// packages/snap/src/dev.ts
 import { flush } from '@amplitude/analytics-node'
 import {
   createEventManager,
@@ -16,6 +15,7 @@ import { isTutorialDisabled, workbenchBase } from './constants'
 import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { processPlugins } from './generate-plugins'
+import { loadMotiaConfig } from './load-motia-config'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
@@ -59,16 +59,22 @@ export const dev = async (
   const motiaFileStoragePath = motiaFileStorageDir || '.motia'
 
   const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
+  const appConfig = await loadMotiaConfig(baseDir)
 
   const queueManager = new QueueManager()
-  const eventManager = createEventManager(queueManager)
-  const state = createStateAdapter({
+  const state = appConfig.adapters?.state || createStateAdapter({
     adapter: 'default',
     filePath: path.join(baseDir, motiaFileStoragePath),
   })
+  const eventManager = createEventManager(queueManager, appConfig.adapters?.events)
 
   const config = { isVerbose }
-  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
+  const adapters = {
+    eventAdapter: appConfig.adapters?.events,
+    cronAdapter: appConfig.adapters?.cron,
+    streamAdapterFactory: appConfig.adapters?.streams ? () => appConfig.adapters!.streams! : undefined,
+  }
+  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager, adapters)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 

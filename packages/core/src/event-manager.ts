@@ -1,17 +1,20 @@
-import { DEFAULT_QUEUE_CONFIG } from './infrastructure-validator/defaults'
 import type { QueueManager } from './queue-manager'
 import type { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
+import type { EventAdapter, SubscriptionHandle } from './adapters/event-adapter'
+import { DefaultQueueEventAdapter } from './adapters/default-queue-event-adapter'
 
 type EventHandler = {
   filePath: string
   handler: Handler
 }
 
-export const createEventManager = (queueManager: QueueManager): EventManager => {
+export const createEventManager = (queueManager: QueueManager, eventAdapter?: EventAdapter): EventManager => {
+  const adapter = eventAdapter || new DefaultQueueEventAdapter(queueManager)
   const handlers: Record<string, EventHandler[]> = {}
+  const subscriptionHandles: Map<string, SubscriptionHandle> = new Map()
 
   const emit = async <TData>(event: Event<TData>, file?: string) => {
-    await queueManager.enqueue(event.topic, event, event.messageGroupId)
+    await adapter.emit(event)
   }
 
   const subscribe = <TData>(config: SubscribeConfig<TData>) => {
@@ -23,7 +26,9 @@ export const createEventManager = (queueManager: QueueManager): EventManager => 
 
     handlers[event].push({ filePath, handler: handler as Handler })
 
-    queueManager.subscribe(event, handler as Handler, DEFAULT_QUEUE_CONFIG, filePath)
+    adapter.subscribe(event, handler as any).then((handle) => {
+      subscriptionHandles.set(`${event}:${filePath}`, handle)
+    })
   }
 
   const unsubscribe = (config: UnsubscribeConfig) => {
@@ -35,7 +40,11 @@ export const createEventManager = (queueManager: QueueManager): EventManager => 
 
     const handlerToRemove = eventHandlers.find((h) => h.filePath === filePath)
     if (handlerToRemove) {
-      queueManager.unsubscribe(event, handlerToRemove.handler)
+      const handle = subscriptionHandles.get(`${event}:${filePath}`)
+      if (handle) {
+        adapter.unsubscribe(handle)
+        subscriptionHandles.delete(`${event}:${filePath}`)
+      }
     }
 
     handlers[event] = eventHandlers.filter((handler) => handler.filePath !== filePath)
