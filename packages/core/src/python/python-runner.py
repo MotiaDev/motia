@@ -10,6 +10,7 @@ from motia_context import Context
 from motia_middleware import compose_middleware
 from motia_rpc_stream_manager import RpcStreamManager
 from motia_dot_dict import DotDict
+from pathlib import Path
 
 def parse_args(arg: str) -> Dict:
     """Parse command line arguments into HandlerArgs"""
@@ -34,7 +35,12 @@ async def run_python_module(file_path: str, rpc: RpcSender, args: Dict) -> None:
             raise ImportError(f"Could not load module from {file_path}")
             
         module = importlib.util.module_from_spec(spec)
-        module.__package__ = os.path.basename(module_dir)
+
+        flows_dir = Path(file_path).parents[1]  # adjust if your root is deeper
+        rel_parts = Path(file_path).relative_to(flows_dir).with_suffix("").parts
+        module_name = flows_dir.name + "." + ".".join(rel_parts)
+        module.__package__ = module_name.rsplit(".", 1)[0]
+
         spec.loader.exec_module(module)
 
         if not hasattr(module, "handler"):
