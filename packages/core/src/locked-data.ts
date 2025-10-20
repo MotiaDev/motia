@@ -354,7 +354,7 @@ export class LockedData {
 
   private createStreamAdapter<TData>(streamName: string): StreamAdapter<TData> {
     if (this.streamAdapter === 'file') {
-      return new FileStreamAdapter(this.baseDir, streamName, this.motiaFileStoragePath)
+      return new FileStreamAdapter<TData>(this.baseDir, streamName, this.motiaFileStoragePath)
     }
 
     return new MemoryStreamAdapter<TData>()

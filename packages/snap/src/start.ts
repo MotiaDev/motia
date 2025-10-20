@@ -3,6 +3,7 @@ import path from 'path'
 import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { processPlugins } from './plugins'
+import { loadMotiaConfig } from './load-motia-config'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
 
@@ -32,11 +33,19 @@ export const start = async (
 
   const dotMotia = path.join(baseDir, motiaFileStoragePath)
   const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
+  const appConfig = await loadMotiaConfig(baseDir)
+
   const queueManager = new QueueManager()
-  const eventManager = createEventManager(queueManager)
-  const state = createStateAdapter({ adapter: 'default', filePath: dotMotia })
+  const state = appConfig.adapters?.state || createStateAdapter({ adapter: 'default', filePath: dotMotia })
+  const eventManager = createEventManager(queueManager, appConfig.adapters?.events)
+
   const config = { isVerbose, isDev: false, version }
-  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
+  const adapters = {
+    eventAdapter: appConfig.adapters?.events,
+    cronAdapter: appConfig.adapters?.cron,
+    streamAdapterFactory: appConfig.adapters?.streams ? () => appConfig.adapters!.streams! : undefined,
+  }
+  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager, adapters)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
