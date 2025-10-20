@@ -7,7 +7,7 @@ import { executeCommand } from '../utils/execute-command'
 import { version } from '../version'
 import { pullRules } from './pull-rules'
 import { setupTemplate } from './setup-template'
-import { checkIfDirectoryExists, checkIfFileExists, setupJest } from './utils'
+import { checkIfDirectoryExists, checkIfFileExists } from './utils'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
@@ -81,7 +81,6 @@ const preparePackageManager = async (rootDir: string, context: CliContext) => {
 
 const installNodeDependencies = async (rootDir: string, context: CliContext) => {
   const packageManager = await preparePackageManager(rootDir, context)
-  await setupJest(packageManager, rootDir, context)
 
   await installRequiredDependencies(packageManager, rootDir, context).catch((error: unknown) => {
     context.log('failed-to-install-dependencies', (message) =>
