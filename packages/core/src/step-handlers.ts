@@ -28,6 +28,7 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
 
     globalLogger.debug('[step handler] establishing step subscriptions', { filePath, step: step.config.name })
 
+    // Validate infrastructure config if present
     if (config.infrastructure) {
       globalLogger.debug('[step handler] validating infrastructure config', {
         step: name,
@@ -45,13 +46,10 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
         return
       }
 
-      globalLogger.debug('[step handler] infrastructure config validated successfully', {
-        step: name,
-      })
+      globalLogger.debug('[step handler] infrastructure config validated successfully', { step: name })
     }
 
     const queueConfig = getQueueConfigWithDefaults(config.infrastructure)
-
     const handlers: Array<{ topic: string; handler: (event: Event) => Promise<void> }> = []
 
     subscribes.forEach((subscribe) => {
@@ -61,67 +59,91 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
         const tracer = event.tracer.child(step, logger)
 
         globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })
+
         /**
-         * ✅ Simple runtime validator — no Zod needed.
-         * Matches the event data object with config.input.properties
+         * ✅ Simplified JSON schema-like validation (no dependencies, TS safe)
          */
-        function validateEventData(data: Record<string, any>, inputSchema: any) {
+        function validateEventData(
+          data: Record<string, any>,
+          inputSchema: any,
+        ): {
+          valid: boolean
+          missingFields: string[]
+          extraFields: string[]
+          typeMismatches: string[]
+        } {
+          if (typeof data !== 'object' || data === null) {
+            return {
+              valid: false,
+              missingFields: [],
+              extraFields: [],
+              typeMismatches: ['data is not an object'],
+            }
+          }
+
+          const schemaProps = inputSchema.properties ?? {}
+          const required = inputSchema.required ?? []
           const missingFields: string[] = []
           const extraFields: string[] = []
           const typeMismatches: string[] = []
 
-          // 1️⃣ Expected schema properties
-          const schemaProps = inputSchema.properties ?? {}
-          const requiredFields: string[] = inputSchema.required ?? []
-
-          // 2️⃣ Check for missing required fields
-          for (const field of requiredFields) {
+          // Missing required fields
+          for (const field of required) {
             if (!(field in data)) missingFields.push(field)
           }
 
-          // 3️⃣ Check for extra fields not defined in schema
+          // Extra fields not in schema
           for (const field of Object.keys(data)) {
             if (!(field in schemaProps)) extraFields.push(field)
           }
 
-          // 4️⃣ Check for type mismatches
-          for (const [field, def] of Object.entries(schemaProps as Record<string, any>)) {
-            if (field in data) {
-              const expectedType = (def as any)?.type
-              const actualType = Array.isArray((data as any)[field]) ? 'array' : typeof (data as any)[field]
-
-              if (expectedType && expectedType !== actualType) {
-                typeMismatches.push(`"${field}": expected ${expectedType}, got ${actualType}`)
+          // Type mismatches
+          for (const [field, defRaw] of Object.entries(schemaProps)) {
+            const def = defRaw as { type?: string }
+            if (field in data && def.type) {
+              const expected = def.type
+              const actual = Array.isArray(data[field]) ? 'array' : typeof data[field]
+              if (expected !== actual) {
+                typeMismatches.push(`"${field}": expected ${expected}, got ${actual}`)
               }
             }
           }
 
-          return { missingFields, extraFields, typeMismatches }
+          const valid = !missingFields.length && !extraFields.length && !typeMismatches.length
+          return { valid, missingFields, extraFields, typeMismatches }
         }
 
-        // ✅ Runtime validation block
         if (step.config.input) {
-          if (typeof data !== 'object' || data === null) {
-            logger.error(`❌ Validation failed for event "${step.config.name}": data is not an object`)
-            return
-          }
-
-          const { missingFields, extraFields, typeMismatches } = validateEventData(
-            data as Record<string, any>,
-            step.config.input,
-          )
-
-          if (missingFields.length || extraFields.length || typeMismatches.length) {
-            motia.printer.printEventInputValidationError(
-              { topic: event.topic },
-              { missingFields, extraFields, typeMismatches },
+          if (typeof data === 'object' && data !== null) {
+            const { valid, missingFields, extraFields, typeMismatches } = validateEventData(
+              data as Record<string, any>,
+              step.config.input,
             )
 
-            logger.error(`❌ Validation failed for event "${step.config.name}"`)
-            return // stop execution if invalid
+            if (!valid) {
+              motia.printer.printEventInputValidationError(
+                { topic: event.topic },
+                { missingFields, extraFields, typeMismatches },
+              )
+
+              logger.warn(`⚠️ Validation warning for event "${step.config.name}"`, {
+                missingFields,
+                extraFields,
+                typeMismatches,
+              })
+              globalLogger.warn('[step handler] event data validation warning', {
+                step: step.config.name,
+                missingFields,
+                extraFields,
+                typeMismatches,
+              })
+            }
+          } else {
+            logger.warn(`⚠️ Event "${step.config.name}" received non-object data`, { data })
           }
         }
 
+        // Continue execution even if validation failed
         await callStepFile({ step, data, traceId, tracer, logger, infrastructure: config.infrastructure }, motia)
       }
 
