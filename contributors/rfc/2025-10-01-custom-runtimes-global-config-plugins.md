@@ -11,12 +11,12 @@ enough to be able to add custom logic like Plugins and Runtimes.
 import { config } from 'motia'
 
 // Example of Motia official runtimes
-import { JavascriptEngine } from '@motiadev/runtime-javascript'
-import { TypeScriptEngine } from '@motiadev/runtime-typescript'
-import { RustEngine } from '@motiadev/runtime-rust'
+import { JavascriptRuntime } from '@motiadev/runtime-javascript'
+import { TypeScriptRuntime } from '@motiadev/runtime-typescript'
+import { RustRuntime } from '@motiadev/runtime-rust'
 
 // Example of Community runtime
-import { JavaEngine } from '@community/runtime-java'
+import { JavaRuntime } from '@community/runtime-java'
 
 // Example of a Motia official plugin that doesn't come out of the box
 import { mermaidPlugin } from '@motiadev/plugin-mermaid'
@@ -30,22 +30,22 @@ export default config({
     {
       steps: 'src/**/*.step.ts',
       streams: 'src/**/*.stream.ts',
-      runtime: new TypeScriptEngine(),
+      runtime: new TypeScriptRuntime(),
     },
     {
       steps: 'src/**/*.step.js',
       streams: 'src/**/*.stream.js',
-      runtime: new JavascriptEngine(),
+      runtime: new JavascriptRuntime(),
     },
     {
       steps: 'src/**/*.step.rs',
       streams: 'src/**/*.stream.rs',
-      runtime: new RustEngine(),
+      runtime: new RustRuntime(),
     },
     {
       steps: 'src/**/*Step.java',
       streams: 'src/**/*Stream.java',
-      runtime: new JavaEngine(),
+      runtime: new JavaRuntime(),
     },
   ],
 
@@ -72,7 +72,7 @@ In this example above:
 
 - We're configuring three runtimes, one for each language: TypeScript, JavaScript and Rust
   - The `files` option is a glob pattern that matches the step files for each runtime
-  - The `runtime` option is a function that returns a new instance of the runtime engine
+  - The `runtime` option is a function that returns a new instance of the runtime
 - We're configuring three plugins:
   - The `mermaidPlugin` plugin is a plugin that adds mermaid support to the Framework, which means on code changes it will automatically generate a mermaid diagram of the flow, a background plugin that doesn't show up in the workbench.
   - The `openApi` plugin is a plugin that adds OpenAPI support to the Workbench
@@ -184,9 +184,9 @@ Features that should be supported day one:
 - Create Steps
 - Add custom middlewares to the step execution
 
-## Motia Runtime Engine
+## Motia Runtime
 
-The proposal is to move runtimes to be under a RuntimeEngine interface.
+The proposal is to move runtimes to be under a Runtime interface.
 Motia will orchestrate the runtimes and plugins in one single place.
 The framework will handle all the triggers depending on the configuration of each runtime.
 
@@ -235,11 +235,11 @@ export interface ConfigResult {
   paths: string[] // relative paths to the project root
 }
 
-export interface RuntimeEngine {
+export interface Runtime {
   name: string
 
   /**
-   * Called whenever the Runtime Engine understands that the step has changed.
+   * Called whenever the Runtime understands that the step has changed.
    * @param step
    * @returns
    */

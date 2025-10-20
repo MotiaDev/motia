@@ -3,6 +3,7 @@ import request from 'supertest'
 import { createEventManager } from '../event-manager'
 import type { LockedData } from '../locked-data'
 import { Printer } from '../printer'
+import { QueueManager } from '../queue-manager'
 import { createServer } from '../server'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { MemoryStreamAdapter } from '../streams/adapters/memory-stream-adapter'
@@ -48,11 +49,12 @@ describe('Middleware Management', () => {
       on: () => {},
     } as unknown as LockedData
 
-    const eventManager = createEventManager()
+    const queueManager = new QueueManager()
+    const eventManager = createEventManager(queueManager)
     const state = new MemoryStateAdapter()
     const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
-    server = createServer(lockedData, eventManager, state, config)
+    server = createServer(lockedData, eventManager, state, config, queueManager)
   })
 
   afterEach(async () => {
@@ -105,7 +107,6 @@ describe('Middleware Management', () => {
   })
 
   it('should update middleware when re-adding a route', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const callStepFileModule = require('../call-step-file')
 
     // First, set up normal behavior

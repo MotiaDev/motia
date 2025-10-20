@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-require-imports */
+
 import { program } from 'commander'
 import './cloud'
 import { handler } from './cloud/config-utils'
@@ -20,31 +20,6 @@ program
   .action(() => {
     console.log(`Motia CLI v${version}`)
     process.exit(0)
-  })
-
-program
-  .command('test')
-  .description('Run all tests in your local project')
-  .option('-w, --watch', 'Run tests in watch mode')
-  .action(async (options) => {
-    // CommonJS style
-    const execa = require('execa') // no destructuring
-
-    const projectRoot = process.cwd()
-
-    try {
-      await execa('npx', options.watch ? ['jest', '--watch'] : ['jest'], {
-        stdio: 'inherit',
-        cwd: projectRoot,
-      })
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        console.error('Error running tests:', err.message)
-      } else {
-        console.error('Unknown error:', err)
-      }
-      process.exit(1)
-    }
   })
 
 program

@@ -7,7 +7,7 @@ export type Log = {
   msg: string
   traceId: string
   flows: string[]
-  [key: string]: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  [key: string]: any
 }
 
 /*
