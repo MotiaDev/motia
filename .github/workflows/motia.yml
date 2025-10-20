@@ -32,7 +32,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run linter
-        run: pnpm lint
+        run: pnpm lint:ci
 
       - name: Setup playground python environment
         run: |
