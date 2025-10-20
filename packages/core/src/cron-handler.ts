@@ -4,14 +4,15 @@ import { generateTraceId } from './generate-trace-id'
 import { globalLogger } from './logger'
 import type { Motia } from './motia'
 import type { CronConfig, Step } from './types'
+import type { CronAdapter, CronLock } from './adapters/cron-adapter'
 
 export type CronManager = {
   createCronJob: (step: Step<CronConfig>) => void
   removeCronJob: (step: Step<CronConfig>) => void
-  close: () => void
+  close: () => Promise<void>
 }
 
-export const setupCronHandlers = (motia: Motia) => {
+export const setupCronHandlers = (motia: Motia, cronAdapter?: CronAdapter) => {
   const cronJobs = new Map<string, cron.ScheduledTask>()
 
   const createCronJob = (step: Step<CronConfig>) => {
@@ -33,6 +34,33 @@ export const setupCronHandlers = (motia: Motia) => {
     })
 
     const task = cron.schedule(cronExpression, async () => {
+      let lock: CronLock | null = null
+
+      if (cronAdapter) {
+        try {
+          lock = await cronAdapter.acquireLock(stepName, 300000)
+
+          if (!lock) {
+            globalLogger.debug('[cron handler] failed to acquire lock, skipping execution', {
+              step: stepName,
+            })
+            return
+          }
+
+          globalLogger.debug('[cron handler] acquired lock for cron job', {
+            step: stepName,
+            lockId: lock.lockId,
+            instanceId: lock.instanceId,
+          })
+        } catch (error: any) {
+          globalLogger.error('[cron handler] error acquiring lock', {
+            error: error.message,
+            step: stepName,
+          })
+          return
+        }
+      }
+
       const traceId = generateTraceId()
       const logger = motia.loggerFactory.create({ traceId, flows, stepName })
       const tracer = await motia.tracerFactory.createTracer(traceId, step, logger)
@@ -44,6 +72,21 @@ export const setupCronHandlers = (motia: Motia) => {
           error: error.message,
           step: step.config.name,
         })
+      } finally {
+        if (lock && cronAdapter) {
+          try {
+            await cronAdapter.releaseLock(lock)
+            globalLogger.debug('[cron handler] released lock for cron job', {
+              step: stepName,
+              lockId: lock.lockId,
+            })
+          } catch (error: any) {
+            globalLogger.error('[cron handler] error releasing lock', {
+              error: error.message,
+              step: stepName,
+            })
+          }
+        }
       }
     })
 
@@ -59,9 +102,13 @@ export const setupCronHandlers = (motia: Motia) => {
     }
   }
 
-  const close = () => {
+  const close = async () => {
     cronJobs.forEach((task) => task.stop())
     cronJobs.clear()
+
+    if (cronAdapter) {
+      await cronAdapter.shutdown()
+    }
   }
 
   motia.lockedData.cronSteps().forEach(createCronJob)
