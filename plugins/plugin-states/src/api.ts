@@ -1,4 +1,4 @@
-import { MotiaPluginContext, ApiRequest, ApiResponse, FlowContext } from '@motiadev/core'
+import type { ApiRequest, ApiResponse, FlowContext, MotiaPluginContext } from '@motiadev/core'
 
 export const api = (motia: MotiaPluginContext): void => {
   motia.registerApi(

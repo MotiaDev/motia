@@ -29,8 +29,6 @@ export const installLambdaPythonPackages = ({ isVerbose = false, requirementsLis
 
       execSync(command, { stdio: 'inherit' })
       internalLogger.info('Python packages for lambda installed successfully')
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       internalLogger.error('Failed to install Python packages for lambda', error.message)
       throw error

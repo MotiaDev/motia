@@ -14,9 +14,8 @@ export type RpcMessage = {
 }
 
 export class RpcStdinProcessor implements RpcProcessorInterface {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlers: Record<string, RpcHandler<any, any>> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private messageCallback?: MessageCallback<any>
   private isClosed = false
   private rl?: readline.Interface

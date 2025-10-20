@@ -18,13 +18,11 @@ const getNodePosition = (flowConfig: FlowConfigResponse | null, stepName: string
 type FlowState = {
   nodes: Node<NodeData>[]
   edges: Edge<EdgeData>[]
-  nodeTypes: Record<string, React.ComponentType<any>>  
+  nodeTypes: Record<string, React.ComponentType<any>>
 }
 
- 
 const nodeComponentCache = new Map<string, React.ComponentType<any>>()
 
- 
 const BASE_NODE_TYPES: Record<string, React.ComponentType<any>> = {
   event: EventFlowNode,
   api: ApiFlowNode,
@@ -33,7 +31,6 @@ const BASE_NODE_TYPES: Record<string, React.ComponentType<any>> = {
 }
 
 async function importFlow(flow: FlowResponse, flowConfig: FlowConfigResponse | null): Promise<FlowState> {
-   
   const nodeTypes: Record<string, React.ComponentType<any>> = { ...BASE_NODE_TYPES }
 
   const customNodePromises = flow.steps
@@ -77,7 +74,6 @@ async function importFlow(flow: FlowResponse, flowConfig: FlowConfigResponse | n
 }
 
 export const useGetFlowState = (flow: FlowResponse, flowConfig: FlowConfigResponse) => {
-   
   const [nodeTypes, setNodeTypes] = useState<Record<string, React.ComponentType<any>>>(BASE_NODE_TYPES)
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<EdgeData>>([])
