@@ -19,6 +19,7 @@ export const createEventManager = (): EventManager => {
 
   const subscribe = <TData>(config: SubscribeConfig<TData>) => {
     const { event, handlerName, handler, filePath } = config
+
     if (!handlers[event]) {
       handlers[event] = []
     }
