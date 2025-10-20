@@ -114,13 +114,16 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
         }
 
         if (step.config.input) {
-          if (typeof data === 'object' && data !== null) {
-            const { valid, missingFields, extraFields, typeMismatches } = validateEventData(
+          // ✅ Validate only if input schema is defined
+          if (data === null || typeof data !== 'object') {
+            logger.warn(`⚠️ Event "${step.config.name}" received non-object data`, { data })
+          } else {
+            const { missingFields, extraFields, typeMismatches } = validateEventData(
               data as Record<string, any>,
               step.config.input,
             )
 
-            if (!valid) {
+            if (missingFields.length || extraFields.length || typeMismatches.length) {
               motia.printer.printEventInputValidationError(
                 { topic: event.topic },
                 { missingFields, extraFields, typeMismatches },
@@ -131,6 +134,7 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
                 extraFields,
                 typeMismatches,
               })
+
               globalLogger.warn('[step handler] event data validation warning', {
                 step: step.config.name,
                 missingFields,
@@ -138,8 +142,6 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
                 typeMismatches,
               })
             }
-          } else {
-            logger.warn(`⚠️ Event "${step.config.name}" received non-object data`, { data })
           }
         }
 
