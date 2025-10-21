@@ -1,6 +1,6 @@
 import { LevelDot } from '@motiadev/ui'
 import type React from 'react'
-import type { LogEntry } from '@/types/observability'
+import type { LogEntry } from '../../types/observability'
 
 export const TraceLogEvent: React.FC<{ event: LogEntry }> = ({ event }) => {
   return (

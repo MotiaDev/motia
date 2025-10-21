@@ -76,6 +76,7 @@ const loadConfig = async (baseDir: string): Promise<Config> => {
 const createPluginContext = (motiaServer: MotiaServer): MotiaPluginContext => {
   const { motia, addRoute, removeRoute } = motiaServer
   return {
+    tracerFactory: motia.tracerFactory,
     state: motia.stateAdapter,
     lockedData: motia.lockedData,
     registerApi: <

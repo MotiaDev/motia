@@ -9,7 +9,6 @@ import { analyticsEndpoint } from './endpoints/analytics-endpoint'
 import { flowsConfigEndpoint } from './endpoints/flows-config-endpoint'
 import { flowsEndpoint } from './endpoints/flows-endpoint'
 import { stepEndpoint } from './endpoints/step-endpoint'
-import { traceEndpoint } from './endpoints/trace-endpoint'
 import { generateTraceId } from './generate-trace-id'
 import { isApiStep } from './guards'
 import type { LockedData } from './locked-data'
@@ -208,6 +207,7 @@ export const createServer = (
             streams: lockedData.getStreams(),
           }
           result = await step.handler(data, context)
+          tracer.end()
         } else {
           result = await callStepFile<ApiResponse>({ data, step, logger, tracer, traceId }, motia)
         }
@@ -314,7 +314,6 @@ export const createServer = (
   flowsConfigEndpoint(app, process.cwd(), lockedData)
   analyticsEndpoint(app, process.cwd())
   stepEndpoint(app, lockedData)
-  traceEndpoint(app, tracerFactory)
 
   server.on('error', (error) => {
     console.error('Server error:', error)
