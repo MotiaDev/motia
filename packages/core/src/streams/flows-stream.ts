@@ -1,5 +1,6 @@
 import { generateFlow } from '../helper/flows-helper'
 import type { LockedData } from '../locked-data'
+import { PLUGIN_FLOW_ID } from '../motia'
 import type { FlowResponse } from '../types/flows-types'
 import { StreamAdapter } from './adapters/stream-adapter'
 
@@ -31,6 +32,8 @@ export class FlowsStream extends StreamAdapter<FlowResponse> {
      * Get list should receive a groupId argument but that's irrelevant for this stream
      * since we only have one group of flows.
      */
-    return Object.entries(this.lockedData.flows).map(([id, flow]) => generateFlow(id, flow.steps))
+    return Object.entries(this.lockedData.flows)
+      .map(([id, flow]) => generateFlow(id, flow.steps))
+      .filter((flow) => flow.id !== PLUGIN_FLOW_ID)
   }
 }
