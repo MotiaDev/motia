@@ -75,22 +75,23 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
     const jsonBytes = Buffer.byteLength(jsonData, 'utf8')
 
     // Default: keep old behavior (argv carries inline JSON)
-    let argvPayload = jsonData
-    let tempDir: string | undefined
-    let metaPath: string | undefined
-    // This is for keeping the cleanup idempotent
-    let isCleaned: boolean = false
-    let isCleaning: boolean = false
+    const payloadState = {
+      argv: jsonData,
+      tempFilePath: undefined as string | undefined,
+      isCleaned: false,
+      isCleaning: false,
+    }
 
     // If payload is large, write it to a temp file and pass the path instead
     if (jsonBytes >= THRESHOLD_BYTES) {
-      // Create a unique, process-specific temp directory
+      // Ensure shared motia temp directory exists and write a unique payload file inside it
+      const baseTempDir = path.join(os.tmpdir(), 'motia')
+      fs.mkdirSync(baseTempDir, { recursive: true, mode: 0o700 })
       const uniqueId = `${process.pid}-${crypto.randomBytes(6).toString('hex')}`
-      tempDir = path.join(os.tmpdir(), `motia-${uniqueId}`)
-      fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 })
-      metaPath = path.join(tempDir, 'meta.json')
+      const metaPath = path.join(baseTempDir, `meta-${uniqueId}.json`)
+      payloadState.tempFilePath = metaPath
       fs.writeFileSync(metaPath, jsonData, { mode: 0o600 })
-      argvPayload = metaPath
+      payloadState.argv = metaPath
     }
 
     const { runner, command, args } = getLanguageBasedRunner(step.filePath)
@@ -99,25 +100,26 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
     const processManager = new ProcessManager({
       command,
-      args: [...args, runner, step.filePath, argvPayload],
+      args: [...args, runner, step.filePath, payloadState.argv],
       logger,
       context: 'StepExecution',
       projectRoot: motia.lockedData.baseDir,
     })
 
     const cleanupTemp = async () => {
-      if (isCleaning || isCleaned || !tempDir) return
-      const dir = tempDir
-      tempDir = undefined
-      isCleaning = true
+      if (payloadState.isCleaning || payloadState.isCleaned || !payloadState.tempFilePath) return
+      const filePath = payloadState.tempFilePath
+      payloadState.tempFilePath = undefined
+      payloadState.isCleaning = true
 
       try {
-        await fs.promises.rm(dir, { recursive: true, force: true })
+        await fs.promises.rm(filePath, { force: true })
       } catch (err) {
-        logger.debug(`temp cleanup failed for ${dir}: ${err.message ?? err}`)
+        const message = err instanceof Error ? err.message : String(err)
+        logger.debug(`temp cleanup failed for ${filePath}: ${message}`)
       } finally {
-        isCleaning = false
-        isCleaned = true
+        payloadState.isCleaning = false
+        payloadState.isCleaned = true
       }
     }
 
@@ -296,11 +298,12 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       })
       .catch((error) => {
         // spawn failed before handlers attached — still clean up (async, best-effort)
-        if (tempDir) {
-          const dir = tempDir
-          tempDir = undefined
-          void fs.promises.rm(dir, { recursive: true, force: true })
-          .catch((err) => {logger.debug(`temp cleanup: ${dir}: ${err.message ?? err}`)})
+        if (payloadState.tempFilePath) {
+          const filePath = payloadState.tempFilePath
+          payloadState.tempFilePath = undefined
+          void fs.promises.rm(filePath, { force: true }).catch((err) => {
+            logger.debug(`temp cleanup: ${filePath}: ${err.message ?? err}`)
+          })
         }
         if (timeoutId) clearTimeout(timeoutId)
 

@@ -29,10 +29,6 @@ function parseArgs(arg?: string) {
     const st = fs.fstatSync(fd)
     if (!st.isFile()) throw new Error('Not a regular file')
 
-    // Optional: size cap to avoid huge payloads
-    const MAX = 10 * 1024 * 1024 // 10MB
-    if (st.size > MAX) throw new Error(`File too large (${st.size} bytes)`)
-
     const text = fs.readFileSync(fd, 'utf8')
     try {
       return JSON.parse(text)
