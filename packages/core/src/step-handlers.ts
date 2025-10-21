@@ -5,6 +5,13 @@ import { globalLogger } from './logger'
 import type { Motia } from './motia'
 import type { QueueManager } from './queue-manager'
 import type { Event, EventConfig, Step } from './types'
+import Ajv, { ErrorObject } from 'ajv'
+
+// ✅ Initialize AJV (safe options for JSON Schema)
+const ajv = new Ajv({
+  allErrors: true,
+  strict: false, // use this for compatibility
+})
 
 export type MotiaEventManager = {
   createHandler: (step: Step<EventConfig>) => void
@@ -28,7 +35,7 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
 
     globalLogger.debug('[step handler] establishing step subscriptions', { filePath, step: step.config.name })
 
-    // Validate infrastructure config if present
+    // ✅ Validate infrastructure config if present
     if (config.infrastructure) {
       globalLogger.debug('[step handler] validating infrastructure config', {
         step: name,
@@ -60,70 +67,46 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
 
         globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })
 
-        /**
-         * ✅ Simplified JSON schema-like validation (no dependencies, TS safe)
-         */
-        function validateEventData(
-          data: Record<string, any>,
-          inputSchema: any,
-        ): {
-          valid: boolean
-          missingFields: string[]
-          extraFields: string[]
-          typeMismatches: string[]
-        } {
-          if (typeof data !== 'object' || data === null) {
-            return {
-              valid: false,
-              missingFields: [],
-              extraFields: [],
-              typeMismatches: ['data is not an object'],
-            }
-          }
-
-          const schemaProps = inputSchema.properties ?? {}
-          const required = inputSchema.required ?? []
-          const missingFields: string[] = []
-          const extraFields: string[] = []
-          const typeMismatches: string[] = []
-
-          // Missing required fields
-          for (const field of required) {
-            if (!(field in data)) missingFields.push(field)
-          }
-
-          // Extra fields not in schema
-          for (const field of Object.keys(data)) {
-            if (!(field in schemaProps)) extraFields.push(field)
-          }
-
-          // Type mismatches
-          for (const [field, defRaw] of Object.entries(schemaProps)) {
-            const def = defRaw as { type?: string }
-            if (field in data && def.type) {
-              const expected = def.type
-              const actual = Array.isArray(data[field]) ? 'array' : typeof data[field]
-              if (expected !== actual) {
-                typeMismatches.push(`"${field}": expected ${expected}, got ${actual}`)
-              }
-            }
-          }
-
-          const valid = !missingFields.length && !extraFields.length && !typeMismatches.length
-          return { valid, missingFields, extraFields, typeMismatches }
-        }
-
+        // ✅ Schema validation using AJV (warn-only)
         if (step.config.input) {
-          // ✅ Validate only if input schema is defined
           if (data === null || typeof data !== 'object') {
             logger.warn(`⚠️ Event "${step.config.name}" received non-object data`, { data })
           } else {
-            const { missingFields, extraFields, typeMismatches } = validateEventData(
-              data as Record<string, any>,
-              step.config.input,
-            )
+            const validate = ajv.compile(step.config.input)
+            const valid = validate(data)
 
-            if (missingFields.length || extraFields.length || typeMismatches.length) {
+            if (!valid && validate.errors?.length) {
+              const missingFields: string[] = []
+              const extraFields: string[] = []
+              const typeMismatches: string[] = []
+
+              for (const err of validate.errors as ErrorObject[]) {
+                const field = err.instancePath ? err.instancePath.replace(/^\//, '').replace(/\//g, '.') : '(root)'
+                switch (err.keyword) {
+                  case 'required':
+                    if ('missingProperty' in err.params) {
+                      missingFields.push(
+                        field === '(root)' ? err.params.missingProperty : `${field}.${err.params.missingProperty}`,
+                      )
+                    }
+                    break
+                  case 'type':
+                    typeMismatches.push(`Field "${field}": must be ${err.params.type}`)
+                    break
+                  case 'additionalProperties':
+                    if ('additionalProperty' in err.params) {
+                      extraFields.push(
+                        field === '(root)'
+                          ? err.params.additionalProperty
+                          : `${field}.${err.params.additionalProperty}`,
+                      )
+                    }
+                    break
+                  default:
+                    typeMismatches.push(`Field "${field}": ${err.message}`)
+                }
+              }
+
               motia.printer.printEventInputValidationError(
                 { topic: event.topic },
                 { missingFields, extraFields, typeMismatches },
@@ -145,7 +128,7 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
           }
         }
 
-        // Continue execution even if validation failed
+        // ✅ Continue execution even if validation failed
         await callStepFile({ step, data, traceId, tracer, logger, infrastructure: config.infrastructure }, motia)
       }
 
@@ -163,7 +146,11 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
     if (handlers) {
       handlers.forEach(({ topic, handler }) => {
         queueManager.unsubscribe(topic, handler)
-        globalLogger.debug('[step handler] unsubscribed handler', { filePath, topic, step: step.config.name })
+        globalLogger.debug('[step handler] unsubscribed handler', {
+          filePath,
+          topic,
+          step: step.config.name,
+        })
       })
       handlerMap.delete(filePath)
     }
