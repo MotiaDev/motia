@@ -16,21 +16,45 @@ require('ts-node').register({
 })
 
 function parseArgs(arg?: string) {
-  // If there's no arg, keep behavior simple
   if (!arg) return { data: null }
 
-  try {
-    // New big-payload path: if arg is a path to a file, read & parse it
-    if (fs.existsSync(arg) && fs.statSync(arg).isFile()) {
-      const text = fs.readFileSync(arg, 'utf8')
-      return JSON.parse(text)
-    }
+  const { O_RDONLY, O_NOFOLLOW } = fs.constants
+  let fd: number | undefined
 
-    // Legacy small-payload path: arg is inline JSON
-    return JSON.parse(arg)
-  } catch {
-    // Legacy fallback: if arg wasn't valid JSON, pass it as event.data so handler still works
-    return { data: arg }
+  try {
+    // Open atomically; O_NOFOLLOW (if available) defends against symlink tricks
+    const flags = (O_NOFOLLOW ?? 0) | O_RDONLY
+    fd = fs.openSync(arg, flags)
+
+    const st = fs.fstatSync(fd)
+    if (!st.isFile()) throw new Error('Not a regular file')
+
+    // Optional: size cap to avoid huge payloads
+    const MAX = 10 * 1024 * 1024 // 10MB
+    if (st.size > MAX) throw new Error(`File too large (${st.size} bytes)`)
+
+    const text = fs.readFileSync(fd, 'utf8')
+    try {
+      return JSON.parse(text)
+    } catch {
+      // Keep legacy fallback (treat file contents as raw data)
+      return { data: text }
+    }
+  } catch (e: any) {
+    // If open failed because it's not a file path, try inline JSON
+    if (e?.code === 'ENOENT' || e?.code === 'ENOTDIR' || e?.code === 'EISDIR' || e?.message === 'Not a regular file') {
+      try {
+        return JSON.parse(arg)
+      } catch {
+        return { data: arg }
+      }
+    }
+    // Unexpected I/O error: surface it (better diagnostics than silent fallback)
+    throw e
+  } finally {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd) } catch {}
+    }
   }
 }
 
