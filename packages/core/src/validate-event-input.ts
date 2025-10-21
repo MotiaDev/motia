@@ -1,6 +1,6 @@
-import Ajv, { ErrorObject } from 'ajv'
-import type { Event, Step, EventConfig } from './types'
+import Ajv, { type ErrorObject } from 'ajv'
 import { globalLogger } from './logger'
+import type { Event, EventConfig, Step } from './types'
 
 const ajv = new Ajv({ allErrors: true, strict: false })
 
