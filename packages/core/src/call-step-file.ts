@@ -10,6 +10,7 @@ import type { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from '
 import { isAllowedToEmit } from './utils'
 import os from 'os'
 import fs from 'fs'
+import crypto from 'crypto'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }
@@ -83,7 +84,10 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
     // If payload is large, write it to a temp file and pass the path instead
     if (jsonBytes >= THRESHOLD_BYTES) {
-      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'motia-'))
+      // Create a unique, process-specific temp directory
+      const uniqueId = `${process.pid}-${crypto.randomBytes(6).toString('hex')}`
+      tempDir = path.join(os.tmpdir(), `motia-${uniqueId}`)
+      fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 })
       metaPath = path.join(tempDir, 'meta.json')
       fs.writeFileSync(metaPath, jsonData, { mode: 0o600 })
       argvPayload = metaPath
@@ -109,11 +113,12 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
       try {
         await fs.promises.rm(dir, { recursive: true, force: true })
-      } catch {}
-
-      isCleaning = false
-      isCleaned = true
-      
+      } catch (err) {
+        logger.debug(`temp cleanup failed for ${dir}: ${err.message ?? err}`)
+      } finally {
+        isCleaning = false
+        isCleaned = true
+      }
     }
 
     trackEvent('step_execution_started', {
