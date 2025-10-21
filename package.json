@@ -7,7 +7,7 @@
     "dev:workbench": "pnpm run build && pnpm -r --filter=playground dev:workbench",
     "build": "pnpm --filter=!docs run -r build",
     "lint": "biome check . && pnpm run -r --no-bail lint:plugins",
-    "lint:ci": "biome ci . --since=origin/main --changed && pnpm run -r --no-bail lint:plugins",
+    "lint:ci": "biome ci . --since=origin/main --changed --diagnostic-level=error && pnpm run -r --no-bail lint:plugins",
     "lint:fix": "biome check --write . && pnpm run -r --no-bail lint:plugins --fix",
     "lint:plugins": "pnpm run -r --no-bail lint:plugins",
     "format": "biome format --write .",
