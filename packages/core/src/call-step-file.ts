@@ -268,12 +268,6 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
 
         processManager.onProcessError(async (error) => {
-          if (tempDir) {
-            const dir = tempDir
-            tempDir = undefined
-            void fs.promises.rm(dir, { recursive: true, force: true })
-            .catch((err) => {logger.debug(`temp cleanup: ${dir}: ${err.message ?? err}`)})
-          }
           if (timeoutId) clearTimeout(timeoutId)
           processManager.close()
           tracer.end({
@@ -296,7 +290,15 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
       })
       .catch((error) => {
+        // spawn failed before handlers attached — still clean up (async, best-effort)
+        if (tempDir) {
+          const dir = tempDir
+          tempDir = undefined
+          void fs.promises.rm(dir, { recursive: true, force: true })
+          .catch((err) => {logger.debug(`temp cleanup: ${dir}: ${err.message ?? err}`)})
+        }
         if (timeoutId) clearTimeout(timeoutId)
+
         tracer.end({
           message: error.message,
           code: error.code,
