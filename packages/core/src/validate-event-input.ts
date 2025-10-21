@@ -2,6 +2,7 @@ import Ajv, { type ErrorObject } from 'ajv'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { globalLogger } from './logger'
 import type { Event, EventConfig, Step } from './types'
+import { Printer } from './printer'
 
 const ajv = new Ajv({ allErrors: true, strict: false })
 
@@ -9,24 +10,20 @@ export const validateEventInput = (step: Step<EventConfig>, event: Event, motia:
   const { data } = event
   const logger = event.logger.child({ step: step.config.name })
 
-  // ✅ 1. Only run if an input schema exists
   if (step.config.input) {
-    // ✅ 2. Ensure data is an object before validating
     if (data === null || typeof data !== 'object') {
       logger.warn(`⚠️ Event "${step.config.name}" received non-object data`, { data })
       return
     }
 
-    // ✅ 3. Convert Zod schema to JSON Schema if necessary
     let compiledSchema: any
     const inputSchema = step.config.input
 
     try {
       if (inputSchema && typeof inputSchema === 'object' && 'safeParse' in inputSchema) {
-        // It's a Zod schema → convert to JSON Schema
+        // Zod → JSON Schema
         compiledSchema = zodToJsonSchema(inputSchema, { target: 'jsonSchema7' })
       } else {
-        // Already a JSON Schema
         compiledSchema = inputSchema
       }
     } catch (err) {
@@ -35,7 +32,6 @@ export const validateEventInput = (step: Step<EventConfig>, event: Event, motia:
       return
     }
 
-    // ✅ 4. Compile and validate with AJV
     let validate
     try {
       validate = ajv.compile(compiledSchema)
@@ -47,7 +43,6 @@ export const validateEventInput = (step: Step<EventConfig>, event: Event, motia:
 
     const valid = validate(data)
 
-    // ✅ 5. Collect and print errors
     if (!valid && validate.errors?.length) {
       const missingFields: string[] = []
       const extraFields: string[] = []
@@ -79,24 +74,23 @@ export const validateEventInput = (step: Step<EventConfig>, event: Event, motia:
         }
       }
 
-      // ✅ 6. Report validation details
-      motia.printer.printEventInputValidationError(
-        { topic: event.topic },
-        { missingFields, extraFields, typeMismatches },
-      )
+      // ✅ Safely use motia.printer if available, otherwise fallback
+      const printer = motia?.printer ?? new Printer(process.cwd())
 
-      logger.warn(`⚠️ Validation warning for event "${step.config.name}"`, {
-        missingFields,
-        extraFields,
-        typeMismatches,
-      })
+      printer.printEventInputValidationError({ topic: event.topic }, { missingFields, extraFields, typeMismatches })
 
-      globalLogger.warn('[step handler] event data validation warning', {
-        step: step.config.name,
-        missingFields,
-        extraFields,
-        typeMismatches,
-      })
+      // logger.warn(`⚠️ Validation warning for event "${step.config.name}"`, {
+      //   missingFields,
+      //   extraFields,
+      //   typeMismatches,
+      // })
+
+      // globalLogger.warn('[step handler] event data validation warning', {
+      //   step: step.config.name,
+      //   missingFields,
+      //   extraFields,
+      //   typeMismatches,
+      // })
     }
   }
 }
