@@ -5,7 +5,7 @@ import { globalLogger } from './logger'
 import type { Motia } from './motia'
 import type { QueueManager } from './queue-manager'
 import type { Event, EventConfig, Step } from './types'
-import { validateEventInput } from './validateEventInput'
+import { validateEventInput } from './validate-event-input'
 
 export type MotiaEventManager = {
   createHandler: (step: Step<EventConfig>) => void
