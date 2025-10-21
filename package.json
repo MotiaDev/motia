@@ -52,7 +52,5 @@
     "node": "20.11.1"
   },
   "version": "0.0.7",
-  "dependencies": {
-    "ajv": "^8.17.1"
-  }
+  "dependencies": {}
 }
