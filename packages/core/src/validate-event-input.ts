@@ -1,8 +1,8 @@
 import Ajv, { type ErrorObject } from 'ajv'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { globalLogger } from './logger'
-import type { Event, EventConfig, Step } from './types'
 import { Printer } from './printer'
+import type { Event, EventConfig, Step } from './types'
 
 const ajv = new Ajv({ allErrors: true, strict: false })
 
