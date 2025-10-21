@@ -251,7 +251,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
         processManager.onStderr((data) => logger.error(Buffer.from(data).toString()))
 
-        processManager.onProcessClose((code) => {
+        processManager.onProcessClose(async (code) => {
           if (timeoutId) clearTimeout(timeoutId)
           processManager.close()
           await cleanupTemp()
@@ -267,7 +267,13 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           }
         })
 
-        processManager.onProcessError((error) => {
+        processManager.onProcessError(async (error) => {
+          if (tempDir) {
+            const dir = tempDir
+            tempDir = undefined
+            void fs.promises.rm(dir, { recursive: true, force: true })
+            .catch((err) => {logger.debug(`temp cleanup: ${dir}: ${err.message ?? err}`)})
+          }
           if (timeoutId) clearTimeout(timeoutId)
           processManager.close()
           tracer.end({
