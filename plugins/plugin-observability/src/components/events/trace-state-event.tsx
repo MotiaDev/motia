@@ -1,5 +1,5 @@
 import type React from 'react'
-import type { StateEvent } from '@/types/observability'
+import type { StateEvent } from '../../types/observability'
 import { FunctionCall } from './code/function-call'
 
 export const TraceStateEvent: React.FC<{ event: StateEvent }> = ({ event }) => {

@@ -44,6 +44,7 @@ async function globalSetup() {
       packageJson.dependencies['@motiadev/plugin-logs'] = 'workspace:*'
       packageJson.dependencies['@motiadev/plugin-states'] = 'workspace:*'
       packageJson.dependencies['@motiadev/plugin-endpoint'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-observability'] = 'workspace:*'
     }
 
     // Write updated package.json

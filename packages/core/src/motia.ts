@@ -30,6 +30,7 @@ export type UnregisterMotiaPluginApi = () => void
 export type MotiaPluginContext = {
   state: StateAdapter
   lockedData: LockedData
+  tracerFactory: TracerFactory
   registerApi: <
     TRequestBody = unknown,
     TResponseBody extends ApiResponse<number, unknown> = ApiResponse<number, unknown>,

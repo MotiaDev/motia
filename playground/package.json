@@ -21,6 +21,7 @@
     "@motiadev/plugin-logs": "workspace:*",
     "@motiadev/plugin-states": "workspace:*",
     "@motiadev/plugin-endpoint": "workspace:*",
+    "@motiadev/plugin-observability": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "@motiadev/workbench": "workspace:*",
     "deep-equal": "^2.2.3",

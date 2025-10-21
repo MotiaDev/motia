@@ -48,6 +48,7 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     `@motiadev/plugin-logs@${version}`,
     `@motiadev/plugin-states@${version}`,
     `@motiadev/plugin-endpoint@${version}`,
+    `@motiadev/plugin-observability@${version}`,
   ].join(' ')
 
   try {

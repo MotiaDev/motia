@@ -12,7 +12,7 @@ export {
 export { LockedData } from './src/locked-data'
 export { Logger } from './src/logger'
 export { createMermaidGenerator } from './src/mermaid-generator'
-export { Motia, MotiaPluginContext, PluginApiConfig, PLUGIN_FLOW_ID, UnregisterMotiaPluginApi } from './src/motia'
+export { Motia, MotiaPluginContext, PLUGIN_FLOW_ID, PluginApiConfig, UnregisterMotiaPluginApi } from './src/motia'
 export { NoTracer } from './src/observability/no-tracer'
 export { NoPrinter, Printer } from './src/printer'
 export { QueueManager } from './src/queue-manager'

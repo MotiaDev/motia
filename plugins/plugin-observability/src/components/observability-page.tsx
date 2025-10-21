@@ -2,14 +2,14 @@ import { useStreamGroup } from '@motiadev/stream-client-react'
 import { Button, cn, Input } from '@motiadev/ui'
 import { Search, Trash, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { TraceTimeline } from '@/components/observability/trace-timeline'
-import { TracesGroups } from '@/components/observability/traces-groups'
-import type { TraceGroup } from '@/types/observability'
-import { useGlobalStore } from '../../stores/use-global-store'
+import { useObservabilityStore } from '../stores/use-observability-store'
+import type { TraceGroup } from '../types/observability'
+import { TraceTimeline } from './trace-timeline'
+import { TracesGroups } from './traces-groups'
 
-export const TracesPage = () => {
-  const selectedGroupId = useGlobalStore((state) => state.selectedTraceGroupId)
-  const selectTraceGroupId = useGlobalStore((state) => state.selectTraceGroupId)
+export const ObservabilityPage = () => {
+  const selectedGroupId = useObservabilityStore((state) => state.selectedTraceGroupId)
+  const selectTraceGroupId = useObservabilityStore((state) => state.selectTraceGroupId)
   const { data } = useStreamGroup<TraceGroup>({ streamName: 'motia-trace-group', groupId: 'default' })
   const handleGroupSelect = (group: TraceGroup) => selectTraceGroupId(group.id)
   const [search, setSearch] = useState('')

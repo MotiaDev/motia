@@ -61,7 +61,7 @@ export const registerPluginTabs = (): void => {
       PluginContent.displayName = `${plugin.label}Content`
 
       addAppTab(tabLocation, {
-        id: plugin.label,
+        id: plugin.label.toLowerCase(),
         tabLabel: PluginTabLabel,
         content: PluginContent,
       })
