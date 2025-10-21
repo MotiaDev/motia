@@ -61,7 +61,7 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
 
     subscribes.forEach((subscribe) => {
       const handler = async (event: Event) => {
-        let { data, traceId } = event
+        const { data, traceId } = event
         const logger = event.logger.child({ step: step.config.name })
         const tracer = event.tracer.child(step, logger)
 
