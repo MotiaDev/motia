@@ -13,6 +13,8 @@ export type WorkbenchPlugin = {
 
 export type MotiaPlugin = {
   workbench: WorkbenchPlugin[]
+  dirname?: string
+  steps?: string[]
 }
 
 export type MotiaPluginBuilder = (motia: MotiaPluginContext) => MotiaPlugin

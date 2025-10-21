@@ -10,6 +10,7 @@ import type { StreamFactory } from './streams/stream-factory'
 import type { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
 import type { Stream } from './types-stream'
+import { PLUGIN_FLOW_ID } from './motia'
 
 type FlowEvent = 'flow-created' | 'flow-removed' | 'flow-updated'
 type StepEvent = 'step-created' | 'step-removed' | 'step-updated'
@@ -85,24 +86,28 @@ export class LockedData {
     this.streamHandlers[event].push(handler)
   }
 
+  getActiveSteps() {
+    return this.activeSteps.filter((step) => !step.config.flows?.includes(PLUGIN_FLOW_ID))
+  }
+
   eventSteps(): Step<EventConfig>[] {
-    return this.activeSteps.filter(isEventStep)
+    return this.getActiveSteps().filter(isEventStep)
   }
 
   apiSteps(): Step<ApiRouteConfig>[] {
-    return this.activeSteps.filter(isApiStep)
+    return this.getActiveSteps().filter(isApiStep)
   }
 
   cronSteps(): Step<CronConfig>[] {
-    return this.activeSteps.filter(isCronStep)
+    return this.getActiveSteps().filter(isCronStep)
   }
 
   pythonSteps(): Step[] {
-    return this.activeSteps.filter((step) => step.filePath.endsWith('.py'))
+    return this.getActiveSteps().filter((step) => step.filePath.endsWith('.py'))
   }
 
   tsSteps(): Step[] {
-    return this.activeSteps.filter((step) => step.filePath.endsWith('.ts'))
+    return this.getActiveSteps().filter((step) => step.filePath.endsWith('.ts'))
   }
 
   getStreams(): Record<string, StreamFactory<any>> {
