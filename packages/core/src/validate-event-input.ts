@@ -1,4 +1,3 @@
-// validateEventInput.ts
 import Ajv, { ErrorObject } from 'ajv'
 import type { Event, Step, EventConfig } from './types'
 import { globalLogger } from './logger'
