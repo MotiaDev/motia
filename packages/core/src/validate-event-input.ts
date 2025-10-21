@@ -1,4 +1,4 @@
-import Ajv, { type ErrorObject } from 'ajv'
+import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { globalLogger } from './logger'
 import { Printer } from './printer'
@@ -21,7 +21,6 @@ export const validateEventInput = (step: Step<EventConfig>, event: Event, motia:
 
     try {
       if (inputSchema && typeof inputSchema === 'object' && 'safeParse' in inputSchema) {
-        // Zod → JSON Schema
         compiledSchema = zodToJsonSchema(inputSchema, { target: 'jsonSchema7' })
       } else {
         compiledSchema = inputSchema
@@ -32,7 +31,7 @@ export const validateEventInput = (step: Step<EventConfig>, event: Event, motia:
       return
     }
 
-    let validate
+    let validate: ValidateFunction
     try {
       validate = ajv.compile(compiledSchema)
     } catch (err) {
@@ -74,23 +73,8 @@ export const validateEventInput = (step: Step<EventConfig>, event: Event, motia:
         }
       }
 
-      // ✅ Safely use motia.printer if available, otherwise fallback
       const printer = motia?.printer ?? new Printer(process.cwd())
-
       printer.printEventInputValidationError({ topic: event.topic }, { missingFields, extraFields, typeMismatches })
-
-      // logger.warn(`⚠️ Validation warning for event "${step.config.name}"`, {
-      //   missingFields,
-      //   extraFields,
-      //   typeMismatches,
-      // })
-
-      // globalLogger.warn('[step handler] event data validation warning', {
-      //   step: step.config.name,
-      //   missingFields,
-      //   extraFields,
-      //   typeMismatches,
-      // })
     }
   }
 }
