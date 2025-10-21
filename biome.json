@@ -54,7 +54,8 @@
         "useUniqueElementIds": "warn"
       },
       "style": {
-        "useConst": "error"
+        "useConst": "error",
+        "useNodejsImportProtocol": "off"
       },
       "suspicious": {
         "noAsyncPromiseExecutor": "error",
