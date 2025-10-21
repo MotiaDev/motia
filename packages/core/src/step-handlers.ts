@@ -5,13 +5,7 @@ import { globalLogger } from './logger'
 import type { Motia } from './motia'
 import type { QueueManager } from './queue-manager'
 import type { Event, EventConfig, Step } from './types'
-import Ajv, { ErrorObject } from 'ajv'
-
-// ✅ Initialize AJV (safe options for JSON Schema)
-const ajv = new Ajv({
-  allErrors: true,
-  strict: false, // use this for compatibility
-})
+import { validateEventInput } from './validateEventInput'
 
 export type MotiaEventManager = {
   createHandler: (step: Step<EventConfig>) => void
@@ -67,68 +61,9 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
 
         globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })
 
-        // ✅ Schema validation using AJV (warn-only)
-        if (step.config.input) {
-          if (data === null || typeof data !== 'object') {
-            logger.warn(`⚠️ Event "${step.config.name}" received non-object data`, { data })
-          } else {
-            const validate = ajv.compile(step.config.input)
-            const valid = validate(data)
+        validateEventInput(step, event, motia)
 
-            if (!valid && validate.errors?.length) {
-              const missingFields: string[] = []
-              const extraFields: string[] = []
-              const typeMismatches: string[] = []
-
-              for (const err of validate.errors as ErrorObject[]) {
-                const field = err.instancePath ? err.instancePath.replace(/^\//, '').replace(/\//g, '.') : '(root)'
-                switch (err.keyword) {
-                  case 'required':
-                    if ('missingProperty' in err.params) {
-                      missingFields.push(
-                        field === '(root)' ? err.params.missingProperty : `${field}.${err.params.missingProperty}`,
-                      )
-                    }
-                    break
-                  case 'type':
-                    typeMismatches.push(`Field "${field}": must be ${err.params.type}`)
-                    break
-                  case 'additionalProperties':
-                    if ('additionalProperty' in err.params) {
-                      extraFields.push(
-                        field === '(root)'
-                          ? err.params.additionalProperty
-                          : `${field}.${err.params.additionalProperty}`,
-                      )
-                    }
-                    break
-                  default:
-                    typeMismatches.push(`Field "${field}": ${err.message}`)
-                }
-              }
-
-              motia.printer.printEventInputValidationError(
-                { topic: event.topic },
-                { missingFields, extraFields, typeMismatches },
-              )
-
-              logger.warn(`⚠️ Validation warning for event "${step.config.name}"`, {
-                missingFields,
-                extraFields,
-                typeMismatches,
-              })
-
-              globalLogger.warn('[step handler] event data validation warning', {
-                step: step.config.name,
-                missingFields,
-                extraFields,
-                typeMismatches,
-              })
-            }
-          }
-        }
-
-        // ✅ Continue execution even if validation failed
+        // Continue execution even if validation failed
         await callStepFile({ step, data, traceId, tracer, logger, infrastructure: config.infrastructure }, motia)
       }
 
