@@ -2,6 +2,7 @@
   "name": "motia-monorepo",
   "private": true,
   "scripts": {
+    "prepare": "husky || true",
     "dev:docs": "pnpm -r --filter=docs start",
     "dev": "pnpm run build && pnpm -r --filter=playground dev",
     "dev:workbench": "pnpm run build && pnpm -r --filter=playground dev:workbench",
@@ -34,7 +35,14 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.0",
     "prettier": "^3.5.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,jsonc}": [
+      "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+    ]
   },
   "resolutions": {
     "autoprefixer": "^10.4.20",
