@@ -152,6 +152,11 @@ export const processPlugins = async (motiaServer: MotiaServer): Promise<MotiaPlu
 
   const appConfig: Config = await loadConfig(baseDir)
 
+  if (!appConfig?.plugins) {
+    console.warn('No plugins found in motia.config.ts')
+    return []
+  }
+
   const plugins: MotiaPlugin[] = appConfig.plugins?.flatMap((item) => item(context)) || []
 
   await processSteps(motiaServer, plugins, baseDir)
