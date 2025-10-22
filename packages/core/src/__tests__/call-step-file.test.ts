@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import express from 'express'
 import path from 'path'
+import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
 import { callStepFile } from '../call-step-file'
 import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
@@ -8,7 +9,6 @@ import { Logger } from '../logger'
 import type { Motia } from '../motia'
 import { NoTracer } from '../observability/no-tracer'
 import { NoPrinter } from '../printer'
-import { QueueManager } from '../queue-manager'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import type { InfrastructureConfig } from '../types'
 import { createCronStep, createEventStep } from './fixtures/step-fixtures'
@@ -19,8 +19,8 @@ describe('callStepFile', () => {
   })
 
   const createMockMotia = (baseDir: string): Motia => {
-    const queueManager = new QueueManager()
-    const eventManager = createEventManager(queueManager)
+    const eventAdapter = new DefaultQueueEventAdapter()
+    const eventManager = createEventManager(eventAdapter)
     const state = new MemoryStateAdapter()
     const printer = new NoPrinter()
 
@@ -28,7 +28,6 @@ describe('callStepFile', () => {
       eventManager,
       state,
       printer,
-      queueManager,
       lockedData: new LockedData(baseDir, 'memory', printer),
       loggerFactory: { create: () => new Logger() },
       tracerFactory: { createTracer: () => new NoTracer(), clear: () => Promise.resolve() },

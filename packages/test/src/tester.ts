@@ -1,4 +1,11 @@
-import { createServer, createStateAdapter, type Event, Logger } from '@motiadev/core'
+import {
+  createServer,
+  createStateAdapter,
+  DefaultCronAdapter,
+  DefaultQueueEventAdapter,
+  type Event,
+  Logger,
+} from '@motiadev/core'
 import { generateLockedData } from 'motia'
 import path from 'path'
 import request from 'supertest'
@@ -6,7 +13,8 @@ import { createEventManager } from './event-manager'
 import type { CapturedEvent, MotiaTester } from './types'
 
 export const createMotiaTester = (): MotiaTester => {
-  const eventManager = createEventManager()
+  const eventAdapter = new DefaultQueueEventAdapter()
+  const eventManager = createEventManager(eventAdapter)
   const logger = new Logger()
 
   const promise = (async () => {
@@ -21,7 +29,7 @@ export const createMotiaTester = (): MotiaTester => {
       eventManager,
       state,
       { isVerbose: false },
-      eventManager.queueManager,
+      { eventAdapter, cronAdapter: new DefaultCronAdapter() },
     )
 
     return { server, socketServer, eventManager, state, close }

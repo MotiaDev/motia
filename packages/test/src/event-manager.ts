@@ -1,24 +1,23 @@
-import type { Event, EventManager } from '@motiadev/core'
-import { createEventManager as createProductionEventManager, QueueManager } from '@motiadev/core'
+import type { Event, EventAdapter, EventManager, QueueMetrics } from '@motiadev/core'
+import { createEventManager as createProductionEventManager, DefaultQueueEventAdapter } from '@motiadev/core'
 
 interface TestEventManager extends EventManager {
   waitEvents(): Promise<void>
-  queueManager: QueueManager
 }
 
-export const createEventManager = (): TestEventManager => {
-  const queueManager = new QueueManager()
-  const productionEventManager = createProductionEventManager(queueManager)
+export const createEventManager = (eventAdapter: EventAdapter): TestEventManager => {
+  const productionEventManager = createProductionEventManager(eventAdapter)
 
   const waitEvents = async () => {
     await new Promise((resolve) => setTimeout(resolve, 200))
 
-    // Wait for all queue processing to complete
-    let hasWork = true
-    while (hasWork) {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      const metrics = queueManager.getAllMetrics()
-      hasWork = Object.values(metrics).some((m) => m.queueDepth > 0 || m.processingCount > 0)
+    if (eventAdapter instanceof DefaultQueueEventAdapter) {
+      let hasWork = true
+      while (hasWork) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        const metrics: Record<string, QueueMetrics> = eventAdapter.getAllMetrics()
+        hasWork = Object.values(metrics).some((m) => m.queueDepth > 0 || m.processingCount > 0)
+      }
     }
 
     await new Promise((resolve) => setTimeout(resolve, 100))
@@ -27,6 +26,5 @@ export const createEventManager = (): TestEventManager => {
   return {
     ...productionEventManager,
     waitEvents,
-    queueManager,
   }
 }
