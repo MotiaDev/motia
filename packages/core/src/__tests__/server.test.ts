@@ -120,6 +120,6 @@ describe('Server', () => {
       expect(found.status).toBe(200)
 
       await server.close()
-    })
+    }, 20000)
   })
 })

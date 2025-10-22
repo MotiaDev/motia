@@ -5,6 +5,7 @@ import { globalLogger } from './logger'
 import type { Motia } from './motia'
 import type { QueueManager } from './queue-manager'
 import type { Event, EventConfig, Step } from './types'
+import { validateEventInput } from './validate-event-input'
 
 export type MotiaEventManager = {
   createHandler: (step: Step<EventConfig>) => void
@@ -28,6 +29,7 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
 
     globalLogger.debug('[step handler] establishing step subscriptions', { filePath, step: step.config.name })
 
+    // ✅ Validate infrastructure config if present
     if (config.infrastructure) {
       globalLogger.debug('[step handler] validating infrastructure config', {
         step: name,
@@ -45,13 +47,10 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
         return
       }
 
-      globalLogger.debug('[step handler] infrastructure config validated successfully', {
-        step: name,
-      })
+      globalLogger.debug('[step handler] infrastructure config validated successfully', { step: name })
     }
 
     const queueConfig = getQueueConfigWithDefaults(config.infrastructure)
-
     const handlers: Array<{ topic: string; handler: (event: Event) => Promise<void> }> = []
 
     subscribes.forEach((subscribe) => {
@@ -62,6 +61,9 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
 
         globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })
 
+        validateEventInput(step, event, motia)
+
+        // Continue execution even if validation failed
         await callStepFile({ step, data, traceId, tracer, logger, infrastructure: config.infrastructure }, motia)
       }
 
@@ -79,7 +81,11 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
     if (handlers) {
       handlers.forEach(({ topic, handler }) => {
         queueManager.unsubscribe(topic, handler)
-        globalLogger.debug('[step handler] unsubscribed handler', { filePath, topic, step: step.config.name })
+        globalLogger.debug('[step handler] unsubscribed handler', {
+          filePath,
+          topic,
+          step: step.config.name,
+        })
       })
       handlerMap.delete(filePath)
     }
