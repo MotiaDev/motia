@@ -5,6 +5,9 @@ echo "🔍 Running lint-staged..."
 npx lint-staged || exit 1
 
 echo "🧹 Running full lint..."
+# Run Biome only on code directories (packages and playground)
+biome ci packages playground --since=origin/main --changed --diagnostic-level=error || exit 1
+
 pnpm run lint || exit 1
 
 echo "🧪 Detecting changed packages or playground..."
