@@ -1,9 +1,9 @@
+import type { EventAdapter, SubscriptionHandle } from './adapters/event-adapter'
 import { callStepFile } from './call-step-file'
 import { getQueueConfigWithDefaults } from './infrastructure-validator/defaults'
 import { validateInfrastructureConfig } from './infrastructure-validator/validations'
 import { globalLogger } from './logger'
 import type { Motia } from './motia'
-import type { QueueManager } from './queue-manager'
 import type { Event, EventConfig, Step } from './types'
 import { validateEventInput } from './validate-event-input'
 
@@ -12,9 +12,9 @@ export type MotiaEventManager = {
   removeHandler: (step: Step<EventConfig>) => void
 }
 
-export const createStepHandlers = (motia: Motia, queueManager: QueueManager): MotiaEventManager => {
+export const createStepHandlers = (motia: Motia, eventAdapter: EventAdapter): MotiaEventManager => {
   const eventSteps = motia.lockedData.eventSteps()
-  const handlerMap = new Map<string, Array<{ topic: string; handler: (event: Event) => Promise<void> }>>()
+  const handlerMap = new Map<string, Array<SubscriptionHandle>>()
 
   globalLogger.debug(`[step handler] creating step handlers for ${eventSteps.length} steps`)
 
@@ -51,13 +51,19 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
     }
 
     const queueConfig = getQueueConfigWithDefaults(config.infrastructure)
-    const handlers: Array<{ topic: string; handler: (event: Event) => Promise<void> }> = []
+    const handlers: Array<SubscriptionHandle> = []
 
-    subscribes.forEach((subscribe) => {
+    subscribes.forEach(async (subscribe) => {
       const handler = async (event: Event) => {
-        const { data, traceId } = event
-        const logger = event.logger.child({ step: step.config.name })
-        const tracer = event.tracer.child(step, logger)
+        const { data, traceId, flows } = event
+
+        const logger = event.logger
+          ? event.logger.child({ step: step.config.name })
+          : motia.loggerFactory.create({ traceId, flows: flows || [], stepName: step.config.name })
+
+        const tracer = event.tracer
+          ? event.tracer.child(step, logger)
+          : await motia.tracerFactory.createTracer(traceId, step, logger)
 
         globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })
 
@@ -67,8 +73,8 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
         await callStepFile({ step, data, traceId, tracer, logger, infrastructure: config.infrastructure }, motia)
       }
 
-      queueManager.subscribe(subscribe, handler, queueConfig, subscribe)
-      handlers.push({ topic: subscribe, handler })
+      const subscriptionHandle = await eventAdapter.subscribe(subscribe, handler, queueConfig)
+      handlers.push(subscriptionHandle)
     })
 
     handlerMap.set(filePath, handlers)
@@ -79,11 +85,11 @@ export const createStepHandlers = (motia: Motia, queueManager: QueueManager): Mo
     const handlers = handlerMap.get(filePath)
 
     if (handlers) {
-      handlers.forEach(({ topic, handler }) => {
-        queueManager.unsubscribe(topic, handler)
+      handlers.forEach((subscriptionHandle) => {
+        eventAdapter.unsubscribe(subscriptionHandle)
         globalLogger.debug('[step handler] unsubscribed handler', {
           filePath,
-          topic,
+          ...subscriptionHandle,
           step: step.config.name,
         })
       })

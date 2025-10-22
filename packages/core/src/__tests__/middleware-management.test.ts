@@ -1,4 +1,6 @@
 import path from 'path'
+import { DefaultCronAdapter } from 'src/adapters/default-cron-adapter'
+import { DefaultQueueEventAdapter } from 'src/adapters/default-queue-event-adapter'
 import request from 'supertest'
 import { createEventManager } from '../event-manager'
 import type { LockedData } from '../locked-data'
@@ -49,12 +51,14 @@ describe('Middleware Management', () => {
       on: () => {},
     } as unknown as LockedData
 
-    const queueManager = new QueueManager()
-    const eventManager = createEventManager(queueManager)
+    const eventManager = createEventManager(new DefaultQueueEventAdapter())
     const state = new MemoryStateAdapter()
     const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
-    server = createServer(lockedData, eventManager, state, config, queueManager)
+    server = createServer(lockedData, eventManager, state, config, {
+      eventAdapter: new DefaultQueueEventAdapter(),
+      cronAdapter: new DefaultCronAdapter(),
+    })
   })
 
   afterEach(async () => {

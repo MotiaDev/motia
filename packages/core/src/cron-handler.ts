@@ -1,10 +1,10 @@
 import * as cron from 'node-cron'
+import type { CronAdapter, CronLock } from './adapters/cron-adapter'
 import { callStepFile } from './call-step-file'
 import { generateTraceId } from './generate-trace-id'
 import { globalLogger } from './logger'
 import type { Motia } from './motia'
 import type { CronConfig, Step } from './types'
-import type { CronAdapter, CronLock } from './adapters/cron-adapter'
 
 export type CronManager = {
   createCronJob: (step: Step<CronConfig>) => void

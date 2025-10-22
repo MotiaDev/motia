@@ -1,0 +1,24 @@
+{
+  "name": "@motiadev/adapter-rabbitmq-events",
+  "description": "RabbitMQ event adapter for Motia framework, enabling distributed event handling across multiple instances.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "lint": "biome check .",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@motiadev/core": "workspace:*",
+    "amqplib": "^0.10.4",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@motiadev/core": "^0.8.0"
+  }
+}
