@@ -7,18 +7,26 @@ npx lint-staged || exit 1
 echo "🧹 Running full lint..."
 pnpm run lint || exit 1
 
-echo "🧪 Detecting changed packages..."
-CHANGED_PACKAGES=$(git diff --cached --name-only | grep "packages/" | cut -d'/' -f2 | sort -u)
+echo "🧪 Detecting changed packages or playground..."
+CHANGED_DIRS=$(git diff --cached --name-only | grep -E "packages/|playground/" | cut -d'/' -f2 | sort -u)
 
-if [ -z "$CHANGED_PACKAGES" ]; then
-  echo "🧪 No changed packages detected. Skipping tests."
+if [ -z "$CHANGED_DIRS" ]; then
+  echo "🧪 No changed packages or playground detected. Skipping tests."
 else
-  for pkg in $CHANGED_PACKAGES; do
-    echo "🧪 Running tests for @motiadev/$pkg..."
-    pnpm --filter "@motiadev/$pkg" run test -- --bail --passWithNoTests || {
-      echo "❌ Tests failed in @motiadev/$pkg"
-      exit 1
-    }
+  for dir in $CHANGED_DIRS; do
+    if [ "$dir" = "playground" ]; then
+      echo "🧪 Running tests for playground..."
+      pnpm --filter playground run test -- --bail --passWithNoTests || {
+        echo "❌ Tests failed in playground"
+        exit 1
+      }
+    else
+      echo "🧪 Running tests for @motiadev/$dir..."
+      pnpm --filter "@motiadev/$dir" run test -- --bail --passWithNoTests || {
+        echo "❌ Tests failed in @motiadev/$dir"
+        exit 1
+      }
+    fi
   done
 fi
 
