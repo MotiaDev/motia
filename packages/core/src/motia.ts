@@ -14,7 +14,6 @@ export type Motia = {
   lockedData: LockedData
   printer: Printer
   tracerFactory: TracerFactory
-  queueManager: QueueManager
 
   app: Express
   stateAdapter: StateAdapter

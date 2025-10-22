@@ -1,20 +1,16 @@
+import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
 import { createEventManager } from '../event-manager'
 import { QueueManager } from '../queue-manager'
 import { createEvent } from './fixtures/event-fixtures'
 
 describe('EventManager', () => {
-  let queueManager: QueueManager
-
   beforeEach(() => {
-    queueManager = new QueueManager()
-  })
-
-  afterEach(() => {
-    queueManager.reset()
+    jest.clearAllMocks()
   })
 
   it('should handle subscription, emission and unsubscription of events', async () => {
-    const eventManager = createEventManager(queueManager)
+    const eventAdapter = new DefaultQueueEventAdapter()
+    const eventManager = createEventManager(eventAdapter)
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
     const mockHandler = jest.fn().mockResolvedValue(undefined)
@@ -41,7 +37,8 @@ describe('EventManager', () => {
   })
 
   it('should handle multiple subscriptions to same event', async () => {
-    const eventManager = createEventManager(queueManager)
+    const eventAdapter = new DefaultQueueEventAdapter()
+    const eventManager = createEventManager(eventAdapter)
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
     const mockHandler1 = jest.fn().mockResolvedValue(undefined)

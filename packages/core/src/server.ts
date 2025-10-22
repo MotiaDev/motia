@@ -2,6 +2,8 @@ import bodyParser from 'body-parser'
 import express, { type Express, type Request, type Response } from 'express'
 import http from 'http'
 import type { Server as WsServer } from 'ws'
+import type { CronAdapter } from './adapters/cron-adapter'
+import type { EventAdapter } from './adapters/event-adapter'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
 import { type CronManager, setupCronHandlers } from './cron-handler'
@@ -22,12 +24,10 @@ import { createSocketServer } from './socket-server'
 import type { StateAdapter } from './state/state-adapter'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
+import type { StreamAdapter } from './streams/adapters/stream-adapter'
 import { type Log, LogsStream } from './streams/logs-stream'
 import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, EventManager, Step } from './types'
 import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
-import type { EventAdapter } from './adapters/event-adapter'
-import type { CronAdapter } from './adapters/cron-adapter'
-import type { StreamAdapter } from './streams/adapters/stream-adapter'
 
 export type MotiaServer = {
   app: Express
@@ -47,7 +47,7 @@ type MotiaServerConfig = {
 }
 
 type AdapterOptions = {
-  eventAdapter?: EventAdapter
+  eventAdapter: EventAdapter
   cronAdapter?: CronAdapter
   streamAdapterFactory?: () => StreamAdapter<any>
 }
@@ -57,8 +57,7 @@ export const createServer = (
   eventManager: EventManager,
   state: StateAdapter,
   config: MotiaServerConfig,
-  queueManager?: QueueManager,
-  adapters?: AdapterOptions,
+  adapters: AdapterOptions,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
   const app = express()
@@ -163,7 +162,6 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  const queueMgr = queueManager || new QueueManager()
   const motia: Motia = {
     loggerFactory,
     eventManager,
@@ -173,11 +171,10 @@ export const createServer = (
     tracerFactory,
     app,
     stateAdapter: state,
-    queueManager: queueMgr,
   }
 
   const cronManager = setupCronHandlers(motia, adapters?.cronAdapter)
-  const motiaEventManager = createStepHandlers(motia, queueMgr)
+  const motiaEventManager = createStepHandlers(motia, adapters.eventAdapter)
 
   const asyncHandler = (step: Step<ApiRouteConfig>) => {
     return async (req: Request, res: Response) => {

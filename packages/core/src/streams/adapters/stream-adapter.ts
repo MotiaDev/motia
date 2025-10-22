@@ -17,16 +17,16 @@ export abstract class StreamAdapter<TData> implements MotiaStream<TData> {
   abstract delete(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
   abstract getGroup(groupId: string): Promise<BaseStreamItem<TData>[]>
 
-  async send<T>(channel: StateStreamEventChannel, event: StateStreamEvent<T>): Promise<void> { }
+  async send<T>(channel: StateStreamEventChannel, event: StateStreamEvent<T>): Promise<void> {}
 
   async subscribe<T>(
     channel: StateStreamEventChannel,
-    handler: (event: StateStreamEvent<T>) => void | Promise<void>
-  ): Promise<void> { }
+    handler: (event: StateStreamEvent<T>) => void | Promise<void>,
+  ): Promise<void> {}
 
-  async unsubscribe(channel: StateStreamEventChannel): Promise<void> { }
+  async unsubscribe(channel: StateStreamEventChannel): Promise<void> {}
 
-  async clear(groupId: string): Promise<void> { }
+  async clear(groupId: string): Promise<void> {}
 
   async query(groupId: string, filter: StreamQueryFilter<TData>): Promise<BaseStreamItem<TData>[]> {
     return []

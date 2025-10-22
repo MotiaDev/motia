@@ -1,20 +1,17 @@
-import type { QueueManager } from './queue-manager'
-import type { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
 import type { EventAdapter, SubscriptionHandle } from './adapters/event-adapter'
-import { DefaultQueueEventAdapter } from './adapters/default-queue-event-adapter'
+import type { Event, EventManager, Handler, SubscribeConfig, UnsubscribeConfig } from './types'
 
 type EventHandler = {
   filePath: string
   handler: Handler
 }
 
-export const createEventManager = (queueManager: QueueManager, eventAdapter?: EventAdapter): EventManager => {
-  const adapter = eventAdapter || new DefaultQueueEventAdapter(queueManager)
+export const createEventManager = (eventAdapter: EventAdapter): EventManager => {
   const handlers: Record<string, EventHandler[]> = {}
   const subscriptionHandles: Map<string, SubscriptionHandle> = new Map()
 
   const emit = async <TData>(event: Event<TData>, file?: string) => {
-    await adapter.emit(event)
+    await eventAdapter.emit(event)
   }
 
   const subscribe = <TData>(config: SubscribeConfig<TData>) => {
@@ -26,7 +23,7 @@ export const createEventManager = (queueManager: QueueManager, eventAdapter?: Ev
 
     handlers[event].push({ filePath, handler: handler as Handler })
 
-    adapter.subscribe(event, handler as any).then((handle) => {
+    eventAdapter.subscribe(event, handler as any).then((handle) => {
       subscriptionHandles.set(`${event}:${filePath}`, handle)
     })
   }
@@ -42,7 +39,7 @@ export const createEventManager = (queueManager: QueueManager, eventAdapter?: Ev
     if (handlerToRemove) {
       const handle = subscriptionHandles.get(`${event}:${filePath}`)
       if (handle) {
-        adapter.unsubscribe(handle)
+        eventAdapter.unsubscribe(handle)
         subscriptionHandles.delete(`${event}:${filePath}`)
       }
     }

@@ -1,8 +1,8 @@
+import type { CronAdapter } from '../adapters/cron-adapter'
+import type { EventAdapter } from '../adapters/event-adapter'
 import type { MotiaPluginContext } from '../motia'
 import type { StateAdapter } from '../state/state-adapter'
 import type { StreamAdapter } from '../streams/adapters/stream-adapter'
-import type { EventAdapter } from '../adapters/event-adapter'
-import type { CronAdapter } from '../adapters/cron-adapter'
 
 export type WorkbenchPlugin = {
   packageName: string
