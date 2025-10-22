@@ -1,1 +1,25 @@
-npx lint-staged
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running lint-staged..."
+npx lint-staged || exit 1
+
+echo "🧹 Running full lint..."
+pnpm run lint || exit 1
+
+echo "🧪 Detecting changed packages..."
+CHANGED_PACKAGES=$(git diff --cached --name-only | grep "packages/" | cut -d'/' -f2 | sort -u)
+
+if [ -z "$CHANGED_PACKAGES" ]; then
+  echo "🧪 No changed packages detected. Skipping tests."
+else
+  for pkg in $CHANGED_PACKAGES; do
+    echo "🧪 Running tests for @motiadev/$pkg..."
+    pnpm --filter "@motiadev/$pkg" run test -- --bail --passWithNoTests || {
+      echo "❌ Tests failed in @motiadev/$pkg"
+      exit 1
+    }
+  done
+fi
+
+echo "✅ All checks passed. Proceeding with commit."
