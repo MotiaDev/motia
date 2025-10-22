@@ -22,9 +22,9 @@ async function getConfig(filePath: string) {
     }
 
     if (isZodSchema(module.config.input)) {
-      module.config.input = zodToJsonSchema(module.config.input, { $refStrategy : 'none' })
+      module.config.input = zodToJsonSchema(module.config.input, { $refStrategy: 'none' })
     } else if (isZodSchema(module.config.bodySchema)) {
-      module.config.bodySchema = zodToJsonSchema(module.config.bodySchema, { $refStrategy : 'none' })
+      module.config.bodySchema = zodToJsonSchema(module.config.bodySchema, { $refStrategy: 'none' })
     }
 
     if (module.config.responseSchema) {
