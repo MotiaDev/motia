@@ -105,7 +105,7 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
     async transform(code, id) {
       const normalizedId = normalizePath(id)
 
-      if (!normalizedId.endsWith('/workbench/src/index.css')) {
+      if (!normalizedId.endsWith('src/index.css')) {
         return null
       }
 
