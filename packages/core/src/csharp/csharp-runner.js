@@ -2,10 +2,10 @@
 
 /**
  * C# Step Runner (Stub Implementation)
- * 
+ *
  * This is a stub implementation to make tests pass (TDD Green phase).
  * In Days 3-4, this will be replaced with actual C# runner using dotnet.
- * 
+ *
  * Usage: node csharp-runner.js <step-file-path> <json-data>
  */
 
@@ -19,9 +19,9 @@ class RpcSender {
       const message = {
         type: 'rpc_request',
         method,
-        args
+        args,
       }
-      
+
       if (process.send) {
         // IPC mode (Unix/macOS)
         process.send(message)
@@ -40,9 +40,9 @@ class RpcSender {
     const message = {
       type: 'rpc_request',
       method,
-      args
+      args,
     }
-    
+
     if (process.send) {
       // IPC mode (Unix/macOS)
       process.send(message)
@@ -62,33 +62,33 @@ async function runCSharpStep(stepFilePath, eventData) {
       throw new Error(`Step file not found: ${stepFilePath}`)
     }
 
-    const { traceId, data } = eventData
+    const { traceId } = eventData
 
     // Stub: Return a successful response that matches test expectations
     // In the real implementation, this would:
     // 1. Compile the C# step file
     // 2. Execute the handler method
     // 3. Handle emit, state, and other context operations
-    
+
     const result = {
       status: 200,
-      body: { traceId }
+      body: { traceId },
     }
 
     // Send result back to parent process
     await sender.send('result', result)
-    
+
     // Small delay to ensure message is processed before close
-    await new Promise(resolve => setTimeout(resolve, 10))
-    
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
     await sender.send('close', undefined)
-    
+
     process.exit(0)
   } catch (err) {
     const error = {
       message: err.message || 'Unknown error',
       code: err.code || null,
-      stack: err.stack || ''
+      stack: err.stack || '',
     }
     sender.sendNoWait('close', error)
     process.exit(1)
@@ -112,4 +112,3 @@ try {
 }
 
 runCSharpStep(stepFilePath, eventData)
-

@@ -2,20 +2,19 @@
 
 /**
  * C# Config Parser (Stub Implementation)
- * 
+ *
  * This is a stub implementation to make tests pass (TDD Green phase).
  * In Days 3-4, this will be replaced with actual C# compilation and config extraction.
- * 
+ *
  * Usage: node get-config.js <step-file-path>
  */
 
 const fs = require('fs')
-const path = require('path')
 
 async function getCSharpConfig(stepFilePath) {
   // For now, return a stub config that matches the test expectations
   // This will be replaced with actual C# config extraction using dotnet CLI
-  
+
   // Read the file to validate it exists
   if (!fs.existsSync(stepFilePath)) {
     console.error(JSON.stringify({ error: `File not found: ${stepFilePath}` }))
@@ -28,7 +27,7 @@ async function getCSharpConfig(stepFilePath) {
     name: 'api-step',
     emits: ['TEST_EVENT'],
     path: '/test',
-    method: 'POST'
+    method: 'POST',
   }
 
   // Send config via IPC if available, otherwise stdout
@@ -39,7 +38,7 @@ async function getCSharpConfig(stepFilePath) {
     // RPC mode (stdout) - fallback
     console.log(JSON.stringify(config))
   }
-  
+
   process.exit(0)
 }
 
@@ -52,4 +51,3 @@ if (!stepFilePath) {
 }
 
 getCSharpConfig(stepFilePath)
-

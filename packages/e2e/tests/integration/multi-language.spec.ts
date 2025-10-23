@@ -1,7 +1,7 @@
-import { expect, test } from '@/src/motia-fixtures'
 import { execSync } from 'child_process'
-import { existsSync, writeFileSync, mkdirSync } from 'fs'
+import { existsSync } from 'fs'
 import path from 'path'
+import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('Multi-Language Support', () => {
   const testProjectPath = process.env.TEST_PROJECT_PATH || ''
@@ -50,7 +50,7 @@ test.describe('Multi-Language Support', () => {
 
     await test.step('Execute flow that emits events across languages', async () => {
       await workbench.open()
-      
+
       const response = await api.post('/basic-tutorial', {
         body: { data: 'cross-language-test' },
       })
@@ -63,24 +63,24 @@ test.describe('Multi-Language Support', () => {
 
       // Wait for logs to appear from multiple steps
       await logsPage.waitForLogFromStep('ApiTrigger', 30000)
-      
+
       const logs = await logsPage.getAllLogMessages()
-      
+
       // Multi-language flows should have multiple log entries
       expect(logs.length).toBeGreaterThanOrEqual(1)
     })
   })
 
   test('should maintain state across language boundaries', async ({ workbench, api }) => {
-    const template = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
+    // Using default nodejs template
 
     await test.step('Execute flow with state operations', async () => {
       await workbench.open()
 
       const response = await api.post('/basic-tutorial', {
-        body: { 
+        body: {
           message: 'state-test',
-          testValue: 'cross-language-state' 
+          testValue: 'cross-language-state',
         },
       })
 
@@ -99,7 +99,7 @@ test.describe('Multi-Language Support', () => {
     await test.step('Verify state persistence across calls', async () => {
       // Make another call to verify state can be retrieved
       const response = await api.post('/basic-tutorial', {
-        body: { 
+        body: {
           message: 'verify-state-persistence',
         },
       })
@@ -109,10 +109,7 @@ test.describe('Multi-Language Support', () => {
     })
   })
 
-  test('should display multi-language steps in workbench visualization', async ({ 
-    workbench, 
-    motiaApp 
-  }) => {
+  test('should display multi-language steps in workbench visualization', async ({ workbench, motiaApp }) => {
     await test.step('Navigate to workbench', async () => {
       await workbench.open()
       await motiaApp.isApplicationLoaded()
@@ -129,8 +126,8 @@ test.describe('Multi-Language Support', () => {
   })
 
   test('should handle errors consistently across languages', async ({ workbench, logsPage, api }) => {
-    const template = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
-    
+    // Using default nodejs template
+
     await test.step('Execute flow normally', async () => {
       await workbench.open()
 
@@ -148,7 +145,7 @@ test.describe('Multi-Language Support', () => {
 
       // Logs should exist regardless of success/failure
       const logs = await logsPage.getAllLogMessages()
-      
+
       // May or may not have logs depending on what happened
       expect(Array.isArray(logs)).toBeTruthy()
     })
@@ -180,4 +177,3 @@ test.describe('Multi-Language Support', () => {
     })
   })
 })
-
