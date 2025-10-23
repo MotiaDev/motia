@@ -1,5 +1,5 @@
 import { exec, execSync } from 'child_process'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
@@ -88,66 +88,157 @@ function injectLargePayloadStep(template: string) {
       return
     }
 
+    const petstoreDir = path.join(stepsDir, 'petstore')
+    ensureDir(petstoreDir)
+
     if (template === 'python') {
-      const pythonStepPath = path.join(stepsDir, 'large_payload_step.py')
-      const pythonStep = `config = {
+      const relativeStepPath = 'steps/petstore/large_payload_step.py'
+      const pythonStepPath = path.join(TEST_PROJECT_PATH, relativeStepPath)
+      const pythonStep = `from pydantic import BaseModel
+
+
+class LargePayloadRequest(BaseModel):
+    data: str
+
+
+class LargePayloadResponse(BaseModel):
+    byteLength: int
+
+
+config = {
     "type": "api",
-    "name": "large-payload-endpoint",
+    "name": "LargePayload",
+    "description": "Demonstrates how to accept and inspect multi-megabyte payloads.",
     "method": "POST",
     "path": "/api/large-payload",
     "emits": [],
     "flows": ["basic-tutorial"],
+    "bodySchema": LargePayloadRequest.model_json_schema(),
+    "responseSchema": {
+        200: LargePayloadResponse.model_json_schema(),
+    },
 }
 
 
 async def handler(req, context):
-    body = req.get("body", {})
-    data = body.get("data", "")
+    data = req.get("body", {}).get("data", "")
 
-    if isinstance(data, (bytes, bytearray)):
-        length = len(data)
+    if isinstance(data, bytes):
+        payload = data.decode("utf-8")
     elif isinstance(data, str):
-        length = len(data.encode("utf-8"))
+        payload = data
     else:
-        length = 0
+        payload = str(data)
 
-    return {"status": 200, "body": {"byteLength": length}}
+    byte_length = len(payload.encode("utf-8"))
+    context.logger.info("Processed large payload", {"byteLength": byte_length})
+
+    return {
+        "status": 200,
+        "body": {"byteLength": byte_length},
+    }
 `
       safeWriteFile(pythonStepPath, pythonStep)
-      registerStepInWorkbench('steps/large_payload_step.py')
+      writeFeaturesFile(
+        `${relativeStepPath}-features.json`,
+        `[
+  {
+    "id": "payload-schema",
+    "title": "Request payload schema",
+    "description": "Describes the expected request body with Pydantic so Motia can validate incoming calls.",
+    "lines": ["1-15"]
+  },
+  {
+    "id": "response-schema",
+    "title": "Response payload schema",
+    "description": "Captures the response structure that the step returns to callers.",
+    "lines": ["18-26"]
+  },
+  {
+    "id": "handler",
+    "title": "Handler implementation",
+    "description": "Normalises the payload, records its size and returns the byte length for verification.",
+    "lines": ["29-47"]
+  }
+]`,
+      )
+      registerStepInWorkbench(relativeStepPath)
       return
     }
 
-    const nodeStepPath = path.join(stepsDir, 'large-payload.step.ts')
-    const nodeStep = `import type { ApiRouteConfig } from 'motia'
+    const relativeStepPath = 'steps/petstore/large-payload.step.ts'
+    const nodeStepPath = path.join(TEST_PROJECT_PATH, relativeStepPath)
+    const nodeStep = `import { ApiRouteConfig, Handlers } from 'motia'
+import { z } from 'zod'
+
+const requestSchema = z.object({
+  data: z.string(),
+})
+
+const responseSchema = z.object({
+  byteLength: z.number(),
+})
 
 export const config: ApiRouteConfig = {
   type: 'api',
-  name: 'large-payload-endpoint',
+  name: 'LargePayload',
+  description: 'Demonstrates how to accept and inspect multi-megabyte payloads.',
+  flows: ['basic-tutorial'],
   method: 'POST',
   path: '/api/large-payload',
+  bodySchema: requestSchema,
+  responseSchema: {
+    200: responseSchema,
+  },
   emits: [],
-  flows: ['basic-tutorial'],
 }
 
-type RequestBody = { body?: { data?: unknown } }
+export const handler: Handlers['LargePayload'] = async (req, { logger }) => {
+  const payload = typeof req.body?.data === 'string' ? req.body.data : ''
+  const byteLength = Buffer.byteLength(payload)
 
-export const handler = async (req: RequestBody) => {
-  const data = req.body?.data
-  const text = typeof data === 'string' ? data : ''
+  logger.info('Processed large payload', { byteLength })
 
   return {
     status: 200,
-    body: {
-      byteLength: Buffer.byteLength(text),
-    },
+    body: { byteLength },
   }
 }
 `
     safeWriteFile(nodeStepPath, nodeStep)
-    registerStepInWorkbench('steps/large-payload.step.ts')
+    writeFeaturesFile(
+      `${relativeStepPath}-features.json`,
+      `[
+  {
+    "id": "body-schema",
+    "title": "Body schema",
+    "description": "Defines the expected request payload using Zod so Motia can validate the incoming data.",
+    "lines": ["5-8"]
+  },
+  {
+    "id": "response-schema",
+    "title": "Response schema",
+    "description": "Captures the metadata returned to the caller for documentation and type generation.",
+    "lines": ["10-13"]
+  },
+  {
+    "id": "handler",
+    "title": "Handler implementation",
+    "description": "Measures the payload size, logs it for observability, and returns the byte length.",
+    "lines": ["22-34"]
+  }
+]`,
+    )
+    registerStepInWorkbench(relativeStepPath)
   } catch (error) {
     console.error('[LargePayload][Setup] Unexpected error while injecting large payload step', error)
+  }
+}
+
+function ensureDir(dirPath: string) {
+  if (!existsSync(dirPath)) {
+    mkdirSync(dirPath, { recursive: true })
+    console.log(`[LargePayload][Setup] created directory ${dirPath}`)
   }
 }
 
@@ -163,6 +254,11 @@ function safeWriteFile(targetPath: string, contents: string) {
   if (!existsSync(targetPath)) {
     console.warn(`[LargePayload][Setup] file missing after write: ${targetPath}`)
   }
+}
+
+function writeFeaturesFile(relativePath: string, contents: string) {
+  const targetPath = path.join(TEST_PROJECT_PATH, relativePath)
+  safeWriteFile(targetPath, contents)
 }
 
 function registerStepInWorkbench(stepPath: string) {
@@ -184,7 +280,12 @@ function registerStepInWorkbench(stepPath: string) {
     }
 
     if (!basicFlow.config[stepPath]) {
-      basicFlow.config[stepPath] = { x: 420, y: 420 }
+      basicFlow.config[stepPath] = {
+        x: 420,
+        y: 320,
+        sourceHandlePosition: 'right',
+        targetHandlePosition: 'left',
+      }
       writeFileSync(workbenchPath, JSON.stringify(data, null, 2))
       console.log(`[LargePayload][Setup] registered ${stepPath} in motia-workbench.json`)
     } else {
