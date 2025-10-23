@@ -16,6 +16,8 @@ require('ts-node').register({
 })
 
 function parseArgs(arg?: string) {
+  const descriptorForLog = arg && arg.length > 0 ? arg : '<inline JSON>'
+
   if (!arg) return { data: null }
 
   const { O_RDONLY, O_NOFOLLOW } = fs.constants
@@ -52,7 +54,7 @@ function parseArgs(arg?: string) {
       try {
         fs.closeSync(fd)
       } catch (closeError) {
-        console.warn(`parseArgs: failed to close file descriptor for ${arg ?? '<inline JSON>'}`, closeError)
+        console.warn(`parseArgs: failed to close file descriptor for ${descriptorForLog}`, closeError)
       }
     }
   }
