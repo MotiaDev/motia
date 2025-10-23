@@ -51,7 +51,9 @@ function parseArgs(arg?: string) {
     if (fd !== undefined) {
       try {
         fs.closeSync(fd)
-      } catch {}
+      } catch (closeError) {
+        console.warn(`parseArgs: failed to close file descriptor for ${arg ?? '<inline JSON>'}`, closeError)
+      }
     }
   }
 }
