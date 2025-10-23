@@ -1,10 +1,12 @@
-import type { Plugin } from 'vite'
+import { Printer } from '@motiadev/core'
+import path from 'path'
+import type { Plugin, ViteDevServer } from 'vite'
 import { generateCssImports, generatePluginCode, isValidCode } from './generator'
 import { handlePluginHotUpdate } from './hmr'
-import { createAliasConfig } from './resolver'
+import { createAliasConfig, resolvePluginPackage } from './resolver'
 import type { WorkbenchPlugin } from './types'
 import { CONSTANTS } from './types'
-import { normalizePath } from './utils'
+import { isLocalPlugin, normalizePath } from './utils'
 import { validatePlugins } from './validator'
 
 /**
@@ -31,8 +33,10 @@ import { validatePlugins } from './validator'
  * })
  * ```
  */
+const printer = new Printer(process.cwd())
+
 export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
-  let devServer: any = null
+  let devServer: ViteDevServer | null = null
 
   try {
     const validationResult = validatePlugins(plugins, {
@@ -40,29 +44,33 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
     })
 
     if (!validationResult.valid) {
-      console.error('[motia-plugins] Plugin configuration validation failed:')
-      validationResult.errors.forEach((err) => console.error(`[motia-plugins]   ${err}`))
+      printer.printPluginError('Plugin configuration validation failed:')
+      for (const err of validationResult.errors) {
+        printer.printPluginError(`  ${err}`)
+      }
       throw new Error('Invalid plugin configuration. See errors above.')
     }
 
     if (validationResult.warnings.length > 0) {
-      validationResult.warnings.forEach((warning) => console.warn('[motia-plugins]', warning))
+      for (const warning of validationResult.warnings) {
+        printer.printPluginWarn(warning)
+      }
     }
   } catch (error) {
-    console.error('[motia-plugins] Failed to validate plugins:', error)
+    printer.printPluginError(`Failed to validate plugins: ${error}`)
     throw error
   }
 
   const alias = createAliasConfig(plugins)
 
-  console.log(`[motia-plugins] Initialized with ${plugins.length} plugin(s)`)
+  printer.printPluginLog(`Initialized with ${plugins.length} plugin(s)`)
 
   return {
     name: 'vite-plugin-motia-plugins',
     enforce: 'pre',
 
     buildStart() {
-      console.log('[motia-plugins] Build started')
+      printer.printPluginLog('Build started')
     },
 
     config: () => ({
@@ -73,7 +81,37 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
 
     configureServer(server) {
       devServer = server
-      console.log('[motia-plugins] Dev server configured, HMR enabled')
+      printer.printPluginLog('Dev server configured, HMR enabled')
+
+      const configPaths = [path.join(process.cwd(), 'motia.config.ts'), path.join(process.cwd(), 'motia.config.js')]
+
+      for (const configPath of configPaths) {
+        server.watcher.add(configPath)
+      }
+      printer.printPluginLog('Watching for config file changes')
+
+      const localPlugins = plugins.filter((p) => isLocalPlugin(p.packageName))
+      if (localPlugins.length > 0) {
+        printer.printPluginLog(`Watching ${localPlugins.length} local plugin(s)`)
+
+        for (const plugin of localPlugins) {
+          const resolved = resolvePluginPackage(plugin)
+          const watchPath = resolved.resolvedPath
+
+          server.watcher.add(watchPath)
+          printer.printPluginLog(`Watching: ${watchPath}`)
+        }
+
+        server.watcher.on('change', (file) => {
+          const normalizedFile = normalizePath(file)
+          printer.printPluginLog(`File watcher detected change: ${normalizedFile}`)
+        })
+
+        server.watcher.on('add', (file) => {
+          const normalizedFile = normalizePath(file)
+          printer.printPluginLog(`File watcher detected new file: ${normalizedFile}`)
+        })
+      }
     },
 
     resolveId(id) {
@@ -87,17 +125,17 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
         return null
       }
 
-      console.log('[motia-plugins] Loading plugins virtual module')
-      console.log('[motia-plugins] Generating plugin code...')
+      printer.printPluginLog('Loading plugins virtual module')
+      printer.printPluginLog('Generating plugin code...')
 
       const code = generatePluginCode(plugins)
 
       if (!isValidCode(code)) {
-        console.error('[motia-plugins] Generated code is invalid or empty')
+        printer.printPluginError('Generated code is invalid or empty')
         return 'export const plugins = []'
       }
 
-      console.log('[motia-plugins] Plugin code generated successfully')
+      printer.printPluginLog('Plugin code generated successfully')
 
       return code
     },
@@ -109,7 +147,7 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
         return null
       }
 
-      console.log('[motia-plugins] Injecting plugin CSS imports')
+      printer.printPluginLog('Injecting plugin CSS imports')
 
       const cssImports = generateCssImports(plugins)
 
@@ -125,19 +163,20 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
 
     handleHotUpdate(ctx) {
       if (!devServer) {
+        printer.printPluginWarn('HMR: Dev server not available')
         return
       }
 
-      const modulesToUpdate = handlePluginHotUpdate(ctx, plugins)
+      const modulesToUpdate = handlePluginHotUpdate(ctx, plugins, printer)
 
-      if (modulesToUpdate) {
-        console.log('[motia-plugins] Hot reloaded plugins')
+      if (modulesToUpdate && modulesToUpdate.length > 0) {
+        printer.printPluginLog(`HMR: Successfully updated ${modulesToUpdate.length} module(s)`)
         return modulesToUpdate
       }
     },
 
     buildEnd() {
-      console.log('[motia-plugins] Build ended')
+      printer.printPluginLog('Build ended')
     },
   }
 }
