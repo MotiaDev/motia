@@ -1,8 +1,8 @@
-import path from 'path'
 import { globSync } from 'glob'
-import { readRequirements } from '../read-requirements'
+import path from 'path'
 import { extractPythonData } from '../extract-python-data'
 import { PythonError, PythonImportNotFoundError } from '../python-errors'
+import { readRequirements } from '../read-requirements'
 
 describe('extractPythonData', () => {
   test('extracts python data correctly', () => {

@@ -1,7 +1,7 @@
-import chokidar, { FSWatcher } from 'chokidar'
-import { randomUUID } from 'crypto'
-import { getStepConfig, getStreamConfig, LockedData, Step } from '@motiadev/core'
+import { getStepConfig, getStreamConfig, type LockedData, type Step } from '@motiadev/core'
 import type { Stream } from '@motiadev/core/dist/src/types-stream'
+import chokidar, { type FSWatcher } from 'chokidar'
+import { randomUUID } from 'crypto'
 
 type StepChangeHandler = (oldStep: Step, newStep: Step) => void
 type StepCreateHandler = (step: Step) => void

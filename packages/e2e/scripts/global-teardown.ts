@@ -17,9 +17,11 @@ async function globalTeardown() {
       } catch (error) {}
     } else {
       try {
-        execSync('netstat -ano | findstr :3000 | for /f "tokens=5" %a in (\'more\') do taskkill /f /pid %a', { stdio: 'ignore' })
+        execSync('netstat -ano | findstr :3000 | for /f "tokens=5" %a in (\'more\') do taskkill /f /pid %a', {
+          stdio: 'ignore',
+        })
       } catch (error) {}
-      
+
       if (motiaTestPid) {
         try {
           execSync(`taskkill /f /pid ${motiaTestPid} 2>nul`, { stdio: 'ignore' })
@@ -32,7 +34,7 @@ async function globalTeardown() {
     const testProjectPath = process.env.TEST_PROJECT_PATH
     if (testProjectPath && existsSync(testProjectPath)) {
       console.log('🗑️  Removing test project directory...')
-      
+
       if (isWindows) {
         await removeDirectoryWithRetry(testProjectPath, 3)
       } else {
@@ -55,10 +57,10 @@ async function removeDirectoryWithRetry(path: string, maxRetries: number) {
     } catch (error: any) {
       if (error.code === 'EBUSY' || error.code === 'ENOTEMPTY') {
         console.log(`⏳ Directory busy, waiting before retry ${attempt}/${maxRetries}...`)
-        
+
         if (attempt < maxRetries) {
           await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
-          
+
           try {
             execSync(`rmdir /s /q "${path}"`, { stdio: 'ignore' })
             console.log(`✅ Successfully removed directory using rmdir command`)

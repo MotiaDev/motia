@@ -1,6 +1,6 @@
-import { EventConfig, Handlers } from 'motia'
-import { z } from 'zod'
 import equal from 'deep-equal'
+import type { EventConfig, Handlers } from 'motia'
+import { z } from 'zod'
 
 export const config: EventConfig = {
   type: 'event',

@@ -1,5 +1,5 @@
-import { EventNodeData } from '@/types/flow'
-import React from 'react'
+import type React from 'react'
+import type { EventNodeData } from '@/types/flow'
 
 const toTopic = (emit: string | { topic: string; label?: string; conditional?: boolean }) =>
   typeof emit === 'string' ? emit : emit.topic

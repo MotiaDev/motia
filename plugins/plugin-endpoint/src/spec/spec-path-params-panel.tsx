@@ -1,7 +1,7 @@
 import { Panel } from '@motiadev/ui'
-import { FC } from 'react'
+import type { FC } from 'react'
 import { usePathParams } from '../hooks/use-path-params'
-import { ApiEndpoint } from '../types/endpoint'
+import type { ApiEndpoint } from '../types/endpoint'
 
 type Props = {
   endpoint: ApiEndpoint

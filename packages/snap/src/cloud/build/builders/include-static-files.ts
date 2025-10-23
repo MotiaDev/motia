@@ -1,9 +1,9 @@
+import type { Step } from '@motiadev/core'
 import fs from 'fs'
-import path from 'path'
 import { globSync } from 'glob'
-import { Step } from '@motiadev/core'
-import { Builder } from '../builder'
-import { Archiver } from './archiver'
+import path from 'path'
+import type { Builder } from '../builder'
+import type { Archiver } from './archiver'
 
 export const includeStaticFiles = (steps: Step[], builder: Builder, archive: Archiver) => {
   for (const step of steps) {

@@ -1,9 +1,9 @@
 import { Panel } from '@motiadev/ui'
-import { FC } from 'react'
+import type { FC } from 'react'
 import ReactJson from 'react18-json-view'
 import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
-import { ApiEndpoint } from '../types/endpoint'
+import type { ApiEndpoint } from '../types/endpoint'
 
 type Props = {
   endpoint: ApiEndpoint

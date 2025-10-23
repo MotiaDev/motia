@@ -1,5 +1,5 @@
 import { Position, useReactFlow, useUpdateNodeInternals } from '@xyflow/react'
-import { BaseNodeProps } from '../publicComponents/node-props'
+import type { BaseNodeProps } from '../publicComponents/node-props'
 
 export const useHandlePositions = (data: BaseNodeProps) => {
   const reactFlow = useReactFlow()

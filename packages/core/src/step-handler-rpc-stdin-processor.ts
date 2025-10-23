@@ -1,6 +1,10 @@
-import { ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import readline from 'readline'
-import { RpcProcessorInterface, RpcHandler, MessageCallback } from './process-communication/rpc-processor-interface'
+import type {
+  MessageCallback,
+  RpcHandler,
+  RpcProcessorInterface,
+} from './process-communication/rpc-processor-interface'
 
 export type RpcMessage = {
   type: 'rpc_request'
@@ -10,9 +14,8 @@ export type RpcMessage = {
 }
 
 export class RpcStdinProcessor implements RpcProcessorInterface {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlers: Record<string, RpcHandler<any, any>> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private messageCallback?: MessageCallback<any>
   private isClosed = false
   private rl?: readline.Interface
@@ -47,7 +50,9 @@ export class RpcStdinProcessor implements RpcProcessorInterface {
       console.error(`[Node.js Debug] Sending RPC response to C#: ${messageStr}`)
       this.child.stdin.write(messageStr + '\n')
     } else {
-      console.error(`[Node.js Debug] Cannot send response - id:${id}, closed:${this.isClosed}, stdin:${!!this.child.stdin}, killed:${this.child.killed}`)
+      console.error(
+        `[Node.js Debug] Cannot send response - id:${id}, closed:${this.isClosed}, stdin:${!!this.child.stdin}, killed:${this.child.killed}`,
+      )
     }
   }
 

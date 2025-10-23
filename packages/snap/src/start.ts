@@ -1,17 +1,22 @@
-import { createEventManager, createServer, createStateAdapter } from '@motiadev/core'
+import { createEventManager, createServer, createStateAdapter, type MotiaPlugin, QueueManager } from '@motiadev/core'
 import path from 'path'
+import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
+import { processPlugins } from './generate-plugins'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
-import { workbenchBase } from './constants'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
 })
 
-export const start = async (port: number, hostname: string, disableVerbose: boolean): Promise<void> => {
+export const start = async (
+  port: number,
+  hostname: string,
+  disableVerbose: boolean,
+  motiaFileStorageDir?: string,
+): Promise<void> => {
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
 
@@ -23,17 +28,25 @@ export const start = async (port: number, hostname: string, disableVerbose: bool
     activatePythonVenv({ baseDir, isVerbose })
   }
 
-  const dotMotia = path.join(baseDir, '.motia')
-  const lockedData = await generateLockedData(baseDir)
-  const eventManager = createEventManager()
+  const motiaFileStoragePath = motiaFileStorageDir || '.motia'
+
+  const dotMotia = path.join(baseDir, motiaFileStoragePath)
+  const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
+  const queueManager = new QueueManager()
+  const eventManager = createEventManager(queueManager)
   const state = createStateAdapter({ adapter: 'default', filePath: dotMotia })
   const config = { isVerbose, isDev: false, version }
-  const motiaServer = createServer(lockedData, eventManager, state, config)
+  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
+  const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { applyMiddleware } = require('@motiadev/workbench/dist/middleware')
-    await applyMiddleware(motiaServer.app, port, workbenchBase)
+    await applyMiddleware({
+      app: motiaServer.app,
+      port,
+      workbenchBase,
+      plugins: plugins.flatMap((item) => item.workbench),
+    })
   }
 
   motiaServer.server.listen(port, hostname)

@@ -1,15 +1,14 @@
-import path from 'path'
 import fs from 'fs'
-import { executeCommand } from '../utils/execute-command'
-import { pythonInstall } from '../install'
+import path from 'path'
+import type { CliContext } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
+import { pythonInstall } from '../install'
+import { executeCommand } from '../utils/execute-command'
 import { version } from '../version'
-import { CliContext } from '../cloud/config-utils'
-import { setupTemplate } from './setup-template'
-import { checkIfFileExists, checkIfDirectoryExists } from './utils'
 import { pullRules } from './pull-rules'
+import { setupTemplate } from './setup-template'
+import { checkIfDirectoryExists, checkIfFileExists } from './utils'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
@@ -37,7 +36,20 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
   }[packageManager]
 
   const dependencies = [`motia@${version}`, 'zod@3.24.4'].join(' ')
-  const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@18.3.18'].join(' ')
+  const devDependencies = [
+    'ts-node@10.9.2',
+    'typescript@5.7.3',
+    '@types/react@18.3.18',
+    '@jest/globals@^29.7.0',
+    '@types/jest@^29.5.14',
+    'jest@^29.7.0',
+    'ts-jest@^29.2.5',
+    `@motiadev/core@${version}`,
+    `@motiadev/plugin-logs@${version}`,
+    `@motiadev/plugin-states@${version}`,
+    `@motiadev/plugin-endpoint@${version}`,
+    `@motiadev/plugin-observability@${version}`,
+  ].join(' ')
 
   try {
     await executeCommand(`${installCommand} ${dependencies}`, rootDir)
@@ -125,8 +137,13 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   }
 
   if (!checkIfFileExists(rootDir, 'package.json')) {
+    const finalProjectName =
+      !projectName || projectName === '.' || projectName === './' || projectName === '.\\'
+        ? path.basename(process.cwd())
+        : projectName.trim()
+
     const packageJsonContent = {
-      name: projectName,
+      name: finalProjectName,
       description: '',
       scripts: {
         postinstall: 'motia install',

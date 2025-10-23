@@ -1,5 +1,5 @@
-import { execSync, exec } from 'child_process'
-import { existsSync, rmSync, readFileSync, writeFileSync } from 'fs'
+import { exec, execSync } from 'child_process'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
@@ -24,7 +24,7 @@ async function globalSetup() {
 
     console.log(`📦 Creating test project with built CLI and template ${template}...`)
 
-    const createCommand = `node ${cliPath} create -n ${TEST_PROJECT_NAME} -t ${template} --confirm`
+    const createCommand = `node ${cliPath} create  ${TEST_PROJECT_NAME} -t ${template} --confirm`
 
     execSync(createCommand, {
       stdio: 'pipe',
@@ -40,6 +40,11 @@ async function globalSetup() {
     if (packageJson.dependencies && packageJson.dependencies['motia']) {
       packageJson.dependencies['motia'] = 'workspace:*'
       packageJson.dependencies['@motiadev/workbench'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/core'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-logs'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-states'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-endpoint'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-observability'] = 'workspace:*'
     }
 
     // Write updated package.json

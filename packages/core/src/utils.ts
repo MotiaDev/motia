@@ -1,5 +1,5 @@
-import { Step, Emit } from './types'
 import { isApiStep, isCronStep, isEventStep } from './guards'
+import type { Emit, Step } from './types'
 
 const toTopic = (emit: Emit) => (typeof emit === 'string' ? emit : emit.topic)
 

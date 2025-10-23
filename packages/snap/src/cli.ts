@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-require-imports */
+
 import { program } from 'commander'
 import './cloud'
-import { version } from './version'
 import { handler } from './cloud/config-utils'
+import { version } from './version'
 
 const defaultPort = 3000
 const defaultHost = '0.0.0.0'
@@ -23,19 +23,15 @@ program
   })
 
 program
-  .command('create')
+  .command('create [name]')
   .description('Create a new motia project')
-  .option(
-    '-n, --name <project name>',
-    'The name for your project, used to create a directory, use ./ or . to create it under the existing directory',
-  )
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .option('-c, --confirm', 'Confirm the project creation', false)
-  .action(
-    handler(async (arg, context) => {
+  .action((projectName, options) => {
+    const mergedArgs = { ...options, name: projectName }
+    return handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive')
-
       await createInteractive(
         {
           name: arg.name,
@@ -44,8 +40,8 @@ program
         },
         context,
       )
-    }),
-  )
+    })(mergedArgs)
+  })
 
 program
   .command('rules')
@@ -85,6 +81,7 @@ program
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
   .option('-m, --mermaid', 'Enable mermaid diagram generation')
+  .option('--motia-dir <path>', 'Path where .motia folder will be created')
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')
@@ -94,7 +91,7 @@ program
     const port = arg.port ? parseInt(arg.port) : defaultPort
     const host = arg.host ? arg.host : defaultHost
     const { dev } = require('./dev')
-    await dev(port, host, arg.disableVerbose, arg.mermaid)
+    await dev(port, host, arg.disableVerbose, arg.mermaid, arg.motiaDir)
   })
 
 program
@@ -104,6 +101,7 @@ program
   .option('-H, --host [host]', 'The host address for the server', `${defaultHost}`)
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
+  .option('--motia-dir <path>', 'Path where .motia folder will be created')
   .action(async (arg) => {
     if (arg.debug) {
       console.log('🔍 Debug logging enabled')
@@ -113,7 +111,7 @@ program
     const port = arg.port ? parseInt(arg.port) : defaultPort
     const host = arg.host ? arg.host : defaultHost
     const { start } = require('./start')
-    await start(port, host, arg.disableVerbose)
+    await start(port, host, arg.disableVerbose, arg.motiaDir)
   })
 
 program
@@ -159,6 +157,23 @@ generate
     await createStep({
       stepFilePath: arg.dir,
     })
+  })
+
+generate
+  .command('openapi')
+  .description('Generate OpenAPI spec for your project')
+  .option('-t, --title <title>', 'Title for the OpenAPI document. Defaults to project name')
+  .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
+  .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
+  .action(async (options) => {
+    const { generateLockedData } = require('./generate-locked-data')
+    const { generateOpenApi } = require('./openapi/generate')
+
+    const lockedData = await generateLockedData({ projectDir: process.cwd() })
+    const apiSteps = lockedData.apiSteps()
+
+    generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)
+    process.exit(0)
   })
 
 const docker = program.command('docker').description('Motia docker commands')

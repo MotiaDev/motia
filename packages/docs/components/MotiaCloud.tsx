@@ -1,18 +1,18 @@
 'use client'
 
-import React from 'react'
 import Image from 'next/image'
-import motiaCloudHeading from '@/public/images/landing/motiaCloudHeading.svg'
-import bgMotiaCloud from '@/public/images/landing/bgMotiaCloud.svg'
+import type React from 'react'
 import bgCloudCard1 from '@/public/images/landing/bgCloudCard1.svg'
+import bgMotiaCloud from '@/public/images/landing/bgMotiaCloud.svg'
 import motiaCloudFlow from '@/public/images/landing/motiaCloudFlow.webp'
-import { chevronRightCircle, liveCircle, motiaCloud } from './Icons'
-import SectionAppearAnimation from './SectionAppearAnimation'
-import RiveAnimation from './RiveAnimation'
-import logoFull from '@/public/images/logoFull.png'
+import motiaCloudHeading from '@/public/images/landing/motiaCloudHeading.svg'
 import motiaCloudNavLinks from '@/public/images/landing/motiaCloudNavLinks.svg'
 import motiaCloudNavSettings from '@/public/images/landing/motiaCloudNavSettings.png'
+import logoFull from '@/public/images/logoFull.png'
+import { chevronRightCircle, liveCircle, motiaCloud } from './Icons'
 import ModalCTA from './ModalCTA'
+import RiveAnimation from './RiveAnimation'
+import SectionAppearAnimation from './SectionAppearAnimation'
 
 const chevronDownIcon = (
   <svg width="11" height="6" viewBox="0 0 11 6" fill="none" xmlns="http://www.w3.org/2000/svg">

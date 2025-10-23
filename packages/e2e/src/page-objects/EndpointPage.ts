@@ -23,7 +23,7 @@ export class EndpointPage extends MotiaApplicationPage {
     await this.page.waitForTimeout(2000)
     await expect(this.editor).toBeVisible()
     await this.page.evaluate((value) => {
-      // @ts-ignore monaco should be present
+      // @ts-expect-error monaco should be present
       window.monaco.editor.getEditors()[0].setValue(value)
     }, value)
   }
@@ -32,7 +32,7 @@ export class EndpointPage extends MotiaApplicationPage {
     await this.page.waitForTimeout(2000)
     await expect(this.editor).toBeVisible()
     return await this.page.evaluate(() => {
-      // @ts-ignore monaco should be present
+      // @ts-expect-error monaco should be present
       return window.monaco.editor.getEditors()[0].getValue()
     })
   }

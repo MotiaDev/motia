@@ -11,13 +11,14 @@
     "build:csharp": "cd src/csharp && dotnet build -c Release",
     "move:csharp": "mkdir -p dist/src/csharp && cp -r src/csharp/bin dist/src/csharp/ && cp src/csharp/*.csproj dist/src/csharp/",
     "build": "rm -rf dist && tsc && npm run move:python && npm run move:rb && npm run move:steps && npm run build:csharp && npm run move:csharp",
-    "lint": "eslint --config ../../eslint.config.js",
+    "lint": "biome check .",
     "watch": "tsc --watch",
     "test": "jest",
     "clean": "rm -rf python_modules dist"
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.3.8",
+    "ajv": "^8.17.1",
     "body-parser": "^1.20.3",
     "colors": "^1.4.0",
     "dotenv": "^16.4.7",
@@ -28,18 +29,17 @@
     "uuid": "^11.1.0",
     "ws": "^8.18.2",
     "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.24.1"
+    "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",
-    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/jest": "^29.5.14",
     "@types/node-cron": "^3.0.11",
     "@types/supertest": "^6.0.2",
     "@types/ws": "^8.18.1",
     "jest": "^29.7.0",
-    "supertest": "^7.0.0",
+    "supertest": "^7.1.4",
     "ts-jest": "^29.2.5",
     "typescript": "^5.7.2"
   }

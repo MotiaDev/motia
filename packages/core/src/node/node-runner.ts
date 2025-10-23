@@ -1,15 +1,14 @@
 import path from 'path'
-import { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
+import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { Logger } from './logger'
 import { composeMiddleware } from './middleware-compose'
 import { RpcSender } from './rpc'
 import { RpcStateManager } from './rpc-state-manager'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('dotenv').config()
 
 // Add ts-node registration before dynamic imports
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
@@ -27,7 +26,6 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
   const sender = new RpcSender(process)
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const module = require(path.resolve(filePath))
 
     // Check if the specified function exists in the module
@@ -75,7 +73,6 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
     await sender.close()
 
     process.exit(0)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     const stack: string[] = err.stack?.split('\n') ?? []
 

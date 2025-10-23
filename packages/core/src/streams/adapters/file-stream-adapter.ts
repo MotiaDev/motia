@@ -1,7 +1,7 @@
 import fs from 'fs'
 import * as path from 'path'
+import type { BaseStreamItem } from '../../types-stream'
 import { StreamAdapter } from './stream-adapter'
-import { BaseStreamItem } from '../../types-stream'
 
 export type FileAdapterConfig = {
   filePath: string
@@ -11,9 +11,9 @@ export class FileStreamAdapter<TData> extends StreamAdapter<TData> {
   private readonly filePath: string
   private readonly streamsDir: string
 
-  constructor(filePath: string, streamName: string) {
+  constructor(filePath: string, streamName: string, motiaFileStoragePath: string = '.motia') {
     super()
-    this.streamsDir = path.join(filePath, '.motia', 'streams')
+    this.streamsDir = path.join(filePath, motiaFileStoragePath, 'streams')
     this.filePath = path.join(this.streamsDir, `${streamName}.stream.json`)
   }
 

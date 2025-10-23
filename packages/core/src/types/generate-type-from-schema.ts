@@ -1,4 +1,4 @@
-import { isAnyOf, JsonSchema } from './schema.types'
+import { isAnyOf, type JsonSchema } from './schema.types'
 
 export const generateTypeFromSchema = (schema: JsonSchema): string => {
   if (!schema) {

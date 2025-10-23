@@ -1,6 +1,7 @@
-import React, { forwardRef, useEffect } from 'react'
-import { TutorialImage } from './engine/tutorial-types'
 import { BackgroundEffect } from '@motiadev/ui'
+import type React from 'react'
+import { forwardRef, useEffect } from 'react'
+import type { TutorialImage } from './engine/tutorial-types'
 
 type TutorialStepProps = {
   step: number

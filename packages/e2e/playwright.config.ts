@@ -1,4 +1,4 @@
-import { defineConfig, devices, PlaywrightTestConfig } from '@playwright/test'
+import { defineConfig, devices, type PlaywrightTestConfig } from '@playwright/test'
 
 export const config: PlaywrightTestConfig = {
   testDir: './tests',
@@ -14,10 +14,13 @@ export const config: PlaywrightTestConfig = {
     ? [['html'], ['list'], ['github'], ['junit', { outputFile: 'test-results/junit.xml' }]]
     : [['html'], ['list'], ['dot']],
   // Support sharding from CLI
-  shard: process.env.CI && process.env.SHARD ? {
-    current: parseInt(process.env.SHARD.split('/')[0]),
-    total: parseInt(process.env.SHARD.split('/')[1])
-  } : undefined,
+  shard:
+    process.env.CI && process.env.SHARD
+      ? {
+          current: parseInt(process.env.SHARD.split('/')[0]),
+          total: parseInt(process.env.SHARD.split('/')[1]),
+        }
+      : undefined,
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',

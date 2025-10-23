@@ -1,4 +1,4 @@
-import { MotiaStream } from '@motiadev/core'
+import type { MotiaStream } from '@motiadev/core'
 
 export type BuildOutput = {
   packagePath: string

@@ -1,15 +1,16 @@
 import fs from 'fs'
 import path from 'path'
 import { isApiStep, isCronStep, isEventStep } from './guards'
-import { Printer } from './printer'
+import { PLUGIN_FLOW_ID } from './motia'
+import type { Printer } from './printer'
 import { validateStep } from './step-validator'
 import { FileStreamAdapter } from './streams/adapters/file-stream-adapter'
 import { MemoryStreamAdapter } from './streams/adapters/memory-stream-adapter'
-import { StreamAdapter } from './streams/adapters/stream-adapter'
-import { StreamFactory } from './streams/stream-factory'
-import { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
-import { Stream } from './types-stream'
+import type { StreamAdapter } from './streams/adapters/stream-adapter'
+import type { StreamFactory } from './streams/stream-factory'
+import type { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
+import type { Stream } from './types-stream'
 
 type FlowEvent = 'flow-created' | 'flow-removed' | 'flow-updated'
 type StepEvent = 'step-created' | 'step-removed' | 'step-updated'
@@ -28,13 +29,13 @@ export class LockedData {
   private streamHandlers: Record<StreamEvent, ((stream: Stream) => void)[]>
   private streams: Record<string, Stream>
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private streamWrapper?: StreamWrapper<any>
 
   constructor(
     public readonly baseDir: string,
     public readonly streamAdapter: 'file' | 'memory' = 'file',
     private readonly printer: Printer,
+    public readonly motiaFileStoragePath: string = '.motia',
   ) {
     this.flows = {}
     this.activeSteps = []
@@ -85,27 +86,30 @@ export class LockedData {
     this.streamHandlers[event].push(handler)
   }
 
+  getActiveSteps() {
+    return this.activeSteps.filter((step) => !step.config.flows?.includes(PLUGIN_FLOW_ID))
+  }
+
   eventSteps(): Step<EventConfig>[] {
-    return this.activeSteps.filter(isEventStep)
+    return this.getActiveSteps().filter(isEventStep)
   }
 
   apiSteps(): Step<ApiRouteConfig>[] {
-    return this.activeSteps.filter(isApiStep)
+    return this.getActiveSteps().filter(isApiStep)
   }
 
   cronSteps(): Step<CronConfig>[] {
-    return this.activeSteps.filter(isCronStep)
+    return this.getActiveSteps().filter(isCronStep)
   }
 
   pythonSteps(): Step[] {
-    return this.activeSteps.filter((step) => step.filePath.endsWith('.py'))
+    return this.getActiveSteps().filter((step) => step.filePath.endsWith('.py'))
   }
 
   tsSteps(): Step[] {
-    return this.activeSteps.filter((step) => step.filePath.endsWith('.ts'))
+    return this.getActiveSteps().filter((step) => step.filePath.endsWith('.ts'))
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getStreams(): Record<string, StreamFactory<any>> {
     const streams: Record<string, StreamFactory<unknown>> = {}
 
@@ -350,7 +354,7 @@ export class LockedData {
 
   private createStreamAdapter<TData>(streamName: string): StreamAdapter<TData> {
     if (this.streamAdapter === 'file') {
-      return new FileStreamAdapter(this.baseDir, streamName)
+      return new FileStreamAdapter(this.baseDir, streamName, this.motiaFileStoragePath)
     }
 
     return new MemoryStreamAdapter<TData>()

@@ -1,8 +1,8 @@
 'use client'
 
-import { useGitHubCode } from '@/hooks/useGitHubCode'
-import { CodeDisplay, LoadingSkeleton, ErrorDisplay } from './ui/CodeDisplay'
 import { Tab } from 'fumadocs-ui/components/tabs'
+import { useGitHubCode } from '@/hooks/useGitHubCode'
+import { CodeDisplay, ErrorDisplay, LoadingSkeleton } from './ui/CodeDisplay'
 
 const REPO = 'MotiaDev/motia-examples'
 const BRANCH = 'main'

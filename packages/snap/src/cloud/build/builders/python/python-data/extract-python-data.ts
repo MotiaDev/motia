@@ -1,5 +1,5 @@
-import { Requirements } from './read-requirements'
-import { TraverseTreeResult, traverseTree } from './traverse-tree'
+import type { Requirements } from './read-requirements'
+import { type TraverseTreeResult, traverseTree } from './traverse-tree'
 
 export type PythonResult = {
   standardLibDependencies: string[]

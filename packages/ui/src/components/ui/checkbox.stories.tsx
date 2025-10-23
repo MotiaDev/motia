@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Checkbox } from './checkbox'
 import { useState } from 'react'
+import { Checkbox } from './checkbox'
 
 const meta: Meta<typeof Checkbox> = {
   title: 'UI/Checkbox',
@@ -112,9 +112,7 @@ export const Controlled: Story = {
           <Checkbox checked={checked} onCheckedChange={() => setChecked(!checked)} />
           <label className="text-sm font-medium">Accept terms and conditions</label>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Current state: {checked ? 'checked' : 'unchecked'}
-        </p>
+        <p className="text-sm text-muted-foreground">Current state: {checked ? 'checked' : 'unchecked'}</p>
       </div>
     )
   },
@@ -145,9 +143,7 @@ export const WithLabelAndDescription: Story = {
         >
           Marketing emails
         </label>
-        <p className="text-xs text-muted-foreground">
-          Receive emails about new products, features, and more.
-        </p>
+        <p className="text-xs text-muted-foreground">Receive emails about new products, features, and more.</p>
       </div>
     </div>
   ),
@@ -163,12 +159,12 @@ export const AllStates: Story = {
             <Checkbox checked={false} />
             <label className="text-sm">Unchecked</label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox checked={true} />
             <label className="text-sm">Checked</label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox checked="indeterminate" />
             <label className="text-sm">Indeterminate</label>
@@ -183,12 +179,12 @@ export const AllStates: Story = {
             <Checkbox disabled checked={false} />
             <label className="text-sm opacity-50">Disabled unchecked</label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox disabled checked={true} />
             <label className="text-sm opacity-50">Disabled checked</label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox disabled checked="indeterminate" />
             <label className="text-sm opacity-50">Disabled indeterminate</label>
@@ -203,7 +199,7 @@ export const AllStates: Story = {
             <Checkbox aria-invalid checked={false} />
             <label className="text-sm text-destructive">Error unchecked</label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox aria-invalid checked={true} />
             <label className="text-sm text-destructive">Error checked</label>
@@ -223,7 +219,7 @@ export const FormExample: Story = {
     })
 
     const updatePreference = (key: keyof typeof preferences) => (checked: boolean) => {
-      setPreferences(prev => ({ ...prev, [key]: checked }))
+      setPreferences((prev) => ({ ...prev, [key]: checked }))
     }
 
     return (
@@ -318,15 +314,11 @@ export const CheckboxList: Story = {
     ]
 
     const toggleItem = (itemId: string) => {
-      setSelectedItems(prev => 
-        prev.includes(itemId) 
-          ? prev.filter(id => id !== itemId)
-          : [...prev, itemId]
-      )
+      setSelectedItems((prev) => (prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]))
     }
 
     const selectAll = () => {
-      setSelectedItems(items.map(item => item.id))
+      setSelectedItems(items.map((item) => item.id))
     }
 
     const selectNone = () => {
@@ -352,16 +344,10 @@ export const CheckboxList: Story = {
             </label>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={selectAll}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
+            <button onClick={selectAll} className="text-xs text-muted-foreground hover:text-foreground">
               All
             </button>
-            <button
-              onClick={selectNone}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
+            <button onClick={selectNone} className="text-xs text-muted-foreground hover:text-foreground">
               None
             </button>
           </div>
@@ -387,7 +373,7 @@ export const CheckboxList: Story = {
           <div className="p-3 border rounded-lg bg-muted/50">
             <p className="text-sm font-medium">Selected items:</p>
             <p className="text-xs text-muted-foreground">
-              {selectedItems.map(id => items.find(item => item.id === id)?.label).join(', ')}
+              {selectedItems.map((id) => items.find((item) => item.id === id)?.label).join(', ')}
             </p>
           </div>
         )}
@@ -400,7 +386,7 @@ export const AccessibilityExample: Story = {
   render: () => (
     <fieldset className="space-y-4 w-full max-w-md">
       <legend className="text-sm font-semibold">Accessibility Features</legend>
-      
+
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
           <Checkbox id="a11y-1" />
@@ -410,10 +396,7 @@ export const AccessibilityExample: Story = {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="a11y-2" 
-            aria-describedby="a11y-2-desc"
-          />
+          <Checkbox id="a11y-2" aria-describedby="a11y-2-desc" />
           <div>
             <label htmlFor="a11y-2" className="text-sm font-medium">
               Checkbox with description
@@ -425,11 +408,7 @@ export const AccessibilityExample: Story = {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="a11y-3" 
-            aria-invalid
-            aria-describedby="a11y-3-error"
-          />
+          <Checkbox id="a11y-3" aria-invalid aria-describedby="a11y-3-error" />
           <div>
             <label htmlFor="a11y-3" className="text-sm font-medium text-destructive">
               Checkbox with error state
@@ -441,11 +420,7 @@ export const AccessibilityExample: Story = {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="a11y-4" 
-            disabled
-            checked={true}
-          />
+          <Checkbox id="a11y-4" disabled checked={true} />
           <label htmlFor="a11y-4" className="text-sm opacity-50">
             Disabled checkbox (properly indicates state)
           </label>

@@ -1,9 +1,9 @@
-import path from 'path'
-import { z } from 'zod'
+import path from 'node:path'
+import type { z } from 'zod'
 import zodToJsonSchema from 'zod-to-json-schema'
 
 // Add ts-node registration before dynamic imports
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
@@ -15,7 +15,6 @@ function isZodSchema(value: unknown): value is z.ZodType {
 
 async function getConfig(filePath: string) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const module = require(path.resolve(filePath))
     // Check if the specified function exists in the module
     if (!module.config) {
@@ -23,21 +22,21 @@ async function getConfig(filePath: string) {
     }
 
     if (isZodSchema(module.config.input)) {
-      module.config.input = zodToJsonSchema(module.config.input)
+      module.config.input = zodToJsonSchema(module.config.input, { $refStrategy: 'none' })
     } else if (isZodSchema(module.config.bodySchema)) {
-      module.config.bodySchema = zodToJsonSchema(module.config.bodySchema)
+      module.config.bodySchema = zodToJsonSchema(module.config.bodySchema, { $refStrategy: 'none' })
     }
 
     if (module.config.responseSchema) {
       for (const [status, schema] of Object.entries(module.config.responseSchema)) {
         if (isZodSchema(schema)) {
-          module.config.responseSchema[status] = zodToJsonSchema(schema)
+          module.config.responseSchema[status] = zodToJsonSchema(schema, { $refStrategy: 'none' })
         }
       }
     }
 
     if (isZodSchema(module.config.schema)) {
-      module.config.schema = zodToJsonSchema(module.config.schema)
+      module.config.schema = zodToJsonSchema(module.config.schema, { $refStrategy: 'none' })
     }
 
     process.send?.(module.config)

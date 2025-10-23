@@ -1,5 +1,5 @@
-import { StreamSubscription } from '@motiadev/stream-client-browser'
-import { DependencyList, useEffect } from 'react'
+import type { StreamSubscription } from '@motiadev/stream-client-browser'
+import { type DependencyList, useEffect } from 'react'
 
 type UseStreamEventHandler = {
   event: StreamSubscription | null

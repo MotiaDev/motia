@@ -1,32 +1,30 @@
 import bodyParser from 'body-parser'
-import express, { Express, Request, Response } from 'express'
+import express, { type Express, type Request, type Response } from 'express'
 import http from 'http'
-import { Server as WsServer } from 'ws'
+import type { Server as WsServer } from 'ws'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
-import { CronManager, setupCronHandlers } from './cron-handler'
+import { type CronManager, setupCronHandlers } from './cron-handler'
 import { analyticsEndpoint } from './endpoints/analytics-endpoint'
-import { apiEndpoints } from './endpoints/api-endpoints'
 import { flowsConfigEndpoint } from './endpoints/flows-config-endpoint'
 import { flowsEndpoint } from './endpoints/flows-endpoint'
-import { stateEndpoints } from './endpoints/state-endpoints'
 import { stepEndpoint } from './endpoints/step-endpoint'
-import { traceEndpoint } from './endpoints/trace-endpoint'
 import { generateTraceId } from './generate-trace-id'
 import { isApiStep } from './guards'
-import { LockedData } from './locked-data'
+import type { LockedData } from './locked-data'
 import { globalLogger } from './logger'
 import { BaseLoggerFactory } from './logger-factory'
-import { Motia } from './motia'
+import type { Motia } from './motia'
 import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
+import { QueueManager } from './queue-manager'
 import { createSocketServer } from './socket-server'
-import { StateAdapter } from './state/state-adapter'
-import { createStepHandlers, MotiaEventManager } from './step-handlers'
+import type { StateAdapter } from './state/state-adapter'
+import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
-import { Log, LogsStream } from './streams/logs-stream'
-import { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EventManager, Step } from './types'
-import { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
+import { type Log, LogsStream } from './streams/logs-stream'
+import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, EventManager, Step } from './types'
+import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 
 export type MotiaServer = {
   app: Express
@@ -37,6 +35,7 @@ export type MotiaServer = {
   addRoute: (step: Step<ApiRouteConfig>) => void
   cronManager: CronManager
   motiaEventManager: MotiaEventManager
+  motia: Motia
 }
 
 type MotiaServerConfig = {
@@ -49,6 +48,7 @@ export const createServer = (
   eventManager: EventManager,
   state: StateAdapter,
   config: MotiaServerConfig,
+  queueManager?: QueueManager,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
   const app = express()
@@ -72,7 +72,7 @@ export const createServer = (
 
       if (stream) {
         const result = stream ? await stream().getGroup(groupId) : []
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         return result.map(({ __motia, ...rest }) => rest)
       }
     },
@@ -81,7 +81,7 @@ export const createServer = (
   lockedData.applyStreamWrapper((streamName, stream) => {
     return (): MotiaStream<BaseStreamItem> => {
       const main = stream() as MotiaStream<BaseStreamItem>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const wrapObject = (groupId: string, id: string, object: any) => {
         if (!object) {
           return null
@@ -153,10 +153,21 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  const motia: Motia = { loggerFactory, eventManager, state, lockedData, printer, tracerFactory }
+  const queueMgr = queueManager || new QueueManager()
+  const motia: Motia = {
+    loggerFactory,
+    eventManager,
+    state,
+    lockedData,
+    printer,
+    tracerFactory,
+    app,
+    stateAdapter: state,
+    queueManager: queueMgr,
+  }
 
   const cronManager = setupCronHandlers(motia)
-  const motiaEventManager = createStepHandlers(motia)
+  const motiaEventManager = createStepHandlers(motia, queueMgr)
 
   const asyncHandler = (step: Step<ApiRouteConfig>) => {
     return async (req: Request, res: Response) => {
@@ -175,7 +186,31 @@ export const createServer = (
       }
 
       try {
-        const result = await callStepFile<ApiResponse>({ data, step, logger, tracer, traceId }, motia)
+        let result: ApiResponse | undefined
+
+        if ('handler' in step && typeof step.handler === 'function') {
+          const context = {
+            traceId,
+            flows,
+            state: state,
+            emit: async (event: EmitData) => {
+              const eventObj = {
+                ...event,
+                traceId,
+                flows,
+                logger,
+                tracer,
+              }
+              await eventManager.emit(eventObj)
+            },
+            logger,
+            streams: lockedData.getStreams(),
+          }
+          result = await step.handler(data, context)
+          tracer.end()
+        } else {
+          result = await callStepFile<ApiResponse>({ data, step, logger, tracer, traceId }, motia)
+        }
 
         trackEvent('api_call_success', { stepName })
 
@@ -190,7 +225,13 @@ export const createServer = (
         }
 
         res.status(result.status)
-        res.json(result.body)
+
+        // Handle different body types
+        if (Buffer.isBuffer(result.body) || typeof result.body === 'string') {
+          res.send(result.body)
+        } else {
+          res.json(result.body)
+        }
       } catch (error) {
         trackEvent('api_call_error', {
           stepName,
@@ -236,7 +277,6 @@ export const createServer = (
     const { path, method } = step.config
     const routerStack = router.stack
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filteredStack = routerStack.filter((layer: any) => {
       if (layer.route) {
         const match = layer.route.path === path && layer.route.methods[method.toLowerCase()]
@@ -270,13 +310,10 @@ export const createServer = (
 
   app.use(router)
 
-  stateEndpoints(app, state)
-  apiEndpoints(lockedData)
   flowsEndpoint(lockedData)
   flowsConfigEndpoint(app, process.cwd(), lockedData)
   analyticsEndpoint(app, process.cwd())
   stepEndpoint(app, lockedData)
-  traceEndpoint(app, tracerFactory)
 
   server.on('error', (error) => {
     console.error('Server error:', error)
@@ -287,5 +324,5 @@ export const createServer = (
     socketServer.close()
   }
 
-  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager }
+  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motia }
 }

@@ -1,448 +1,394 @@
 ---
 title: State Management
-description: Learn how to manage state within your Motia.dev workflows for persistent data and cross-step communication.
+description: Persistent Key-Value storage that works across Triggers, Steps, and Functions
 ---
 
-State management is fundamental to building robust and dynamic workflows in Motia.dev. Our system is designed to be powerful yet simple, providing you with everything you need to maintain state across your flows and steps:
+State is persistent key-value storage that works across all your Triggers, Steps, and Functions. Set data in one Trigger, read it in another. Works across TypeScript, Python, and JavaScript.
 
-✨ **Zero Configuration (Default):** In-memory storage out of the box for quick setup. <br />
-🔌 **Flexible Storage Options:** Choose from Memory, File, and Redis adapters to suit your persistence needs. <br />
-🧹 **Automatic State Cleanup:** Optional Time-To-Live (TTL) support for automatic state expiration (Redis). <br />
-🔒 **Built-in Isolation:** Each flow execution can use its own isolated state, ensuring data separation and security. <br />
+## How It Works
 
-## Core Concepts: State Manager Methods
+State organizes data into **groups**. Each group can hold multiple items with unique keys.
 
-The `state` object, accessible within your step handlers via the `ctx` context, provides the following methods for state management:
+Think of it like folders and files:
+- **groupId** = A folder name (like `orders`, `users`, `cache`)
+- **key** = A file name inside that folder
+- **value** = The actual data
 
-| Method    | Parameters                             | Return Type          | Description                                                                                                                                                                                   |
-| --------- | -------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get`     | `scope: string, key: string`           | `Promise<T \| null>` | Retrieves a value associated with the given `key` and `scope` from the state store. Returns `null` if the key is not found. The type `T` is inferred based on how you use the returned value. |
-| `set`     | `scope: string, key: string, value: T` | `Promise<void>`      | Stores a `value` associated with the given `key` and `scope` in the state store. The type `T` can be any serializable JavaScript/JSON value.                                                  |
-| `delete`  | `scope: string, key: string`           | `Promise<void>`      | Removes the key-value pair associated with the given `key` and `scope` from the state store.                                                                                                  |
-| `clear`   | `scope: string`                        | `Promise<void>`      | Removes **all** state data associated with the provided `scope`. This is useful for cleaning up state for a specific scope.                                                                   |
-| `cleanup` | _(None)_                               | `Promise<void>`      | Performs periodic maintenance tasks, such as removing expired state data (TTL cleanup). The actual implementation depends on the configured state adapter.                                    |
-
-**Important:** State manager methods (`get`, `set`, `delete`, `clear`) **require a `scope` string as the first parameter.** While in most cases, you will use the `traceId` (automatically provided in `ctx.traceId`) as the scope to ensure flow-level isolation, **you can technically use any string value as the scope** to group and manage state data as needed. Using `traceId` is the recommended and most common practice for flow-isolated state.
-
-### State Scope and Isolation
-
-Each flow execution in Motia.dev is assigned a unique `traceId` (a UUID). Using this `traceId` as the **scope** for state management provides automatic isolation, ensuring: _(Revised to clarify `traceId` as scope)_
-
-| Feature        | Description                                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Isolation**  | Each flow execution operates within its own isolated state space when using `traceId` as the scope.                 |
-| **Boundaries** | Clear separation of state data between different flow executions when scoped by `traceId`, preventing interference. |
-| **Cleanup**    | State data scoped by `traceId` can be easily cleared using `state.clear(traceId)`.                                  |
-
-### State Structure Example
-
-State data is stored as key-value pairs, namespaced under a scope string. When using `traceId` as the scope, the internal structure might look like this:
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
 
 ```typescript
-// Example state structure (internal representation) - using traceId as scope
-{
-  "motia:state:{traceId-123}": {  // State for flow execution with traceId 'traceId-123' (scope)
-    "booking": {                 // Namespaced key 'booking'
-      "customer": { ... },
-      "venue": { ... }
-    },
-    "payment": {                 // Namespaced key 'payment'
-      "status": "pending",
-      "amount": 100
-    }
-  },
-  "motia:state:{traceId-456}": {  // State for another flow execution with traceId 'traceId-456' (different scope)
-    // ... different state data for this flow ...
-  }
+export const handler: Handlers['MyStep'] = async (input, { state }) => {
+  // Store an item in a group
+  await state.set('orders', 'order-123', { 
+    id: 'order-123',
+    status: 'pending',
+    total: 99.99 
+  })
+  
+  // Get a specific item
+  const order = await state.get('orders', 'order-123')
+  
+  // Get all items in a group
+  const allOrders = await state.getGroup('orders')
+  
+  // Delete a specific item
+  await state.delete('orders', 'order-123')
+  
+  // Clear entire group
+  await state.clear('orders')
 }
 ```
 
-> **Info:** You can access the `state` manager within any step through the `ctx` (context) argument, which is automatically injected into your [step handler](/docs/concepts/steps/steps#handler). While **`traceId` from `ctx.traceId` is the recommended scope for flow isolation**, remember that **you can use any string as the scope** parameter in `state` methods for more advanced state management scenarios.
+</Tab>
+<Tab value='Python'>
 
-## Using State in Steps
-
-<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
-  <Tab label="TypeScript">
+```python
+async def handler(input, context):
+    # Store an item in a group
+    await context.state.set("orders", "order-123", {
+        "id": "order-123",
+        "status": "pending",
+        "total": 99.99
+    })
     
-  ```typescript
-  import { Handlers } from 'motia'
-
-  interface BookingData {
-    customer: { name: string; email: string };
-    venue: { id: string; name: string };
-  }
-
-  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
-    // Store state (using traceId as scope)
-    await state.set<BookingData>(traceId, 'booking', {
-      customer: input.customer,
-      venue: input.venue,
-    });
-
-    // Retrieve state (using traceId as scope)
-    const booking = await state.get<BookingData>(traceId, 'booking');
-
-    // Delete specific state (using traceId as scope)
-    await state.delete(traceId, 'booking');
-
-    // Clear all state for this flow (using traceId as scope)
-    await state.clear(traceId);
-  }
+    # Get a specific item
+    order = await context.state.get("orders", "order-123")
+    
+    # Get all items in a group
+    all_orders = await context.state.get_group("orders")
+    
+    # Delete a specific item
+    await context.state.delete("orders", "order-123")
+    
+    # Clear entire group
+    await context.state.clear("orders")
   ```
 
   </Tab>
-
-  <Tab label="JavaScript">
+<Tab value='JavaScript'>
     
   ```javascript
-  import { Handlers } from 'motia'
-
-  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => { // Get traceId from context
-    // Store state (using traceId as scope)
-    await state.set(traceId, 'booking', {
-      customer: input.customer,
-      venue: input.venue,
-    });
-
-    // Retrieve state (using traceId as scope)
-    const booking = await state.get(traceId, 'booking');
-
-    // Delete specific state (using traceId as scope)
-    await state.delete(traceId, 'booking');
-
-    // Clear all state for this flow (using traceId as scope)
-    await state.clear(traceId);
+const handler = async (input, { state }) => {
+  // Store an item in a group
+  await state.set('orders', 'order-123', { 
+    id: 'order-123',
+    status: 'pending',
+    total: 99.99 
+  })
+  
+  // Get a specific item
+  const order = await state.get('orders', 'order-123')
+  
+  // Get all items in a group
+  const allOrders = await state.getGroup('orders')
+  
+  // Delete a specific item
+  await state.delete('orders', 'order-123')
+  
+  // Clear entire group
+  await state.clear('orders')
   }
   ```
 
   </Tab>
-
-  <Tab label="Python">
-  
-  ```python
-  async def handler(input, ctx): # ctx is the context object
-      trace_id = ctx.trace_id # Access traceId from context
-
-      # Store state (using traceId as scope)
-      await ctx.state.set(trace_id, 'booking', {
-          'customer': input.get("customer"),
-          'venue': input.get("venue")
-      })
-
-      # Retrieve state (using traceId as scope)
-      booking = await ctx.state.get(trace_id, 'booking')
-
-      # Delete specific state (using traceId as scope)
-      await ctx.state.delete(trace_id, 'booking')
-
-      # Clear all state (using traceId as scope)
-      await ctx.state.clear(trace_id)
-  ```
-  </Tab>
 </Tabs>
 
-## Debugging
+---
 
-### Inspecting State
+## State Methods
 
-<Tabs items={['Memory', 'File', 'Redis']}>
-  <Tab label="Memory">
-  > State is only available during runtime in the Node.js process memory. You cannot inspect memory state directly outside of a running step execution. Use logging within your steps to output state values for debugging purposes.
-  </Tab>
-  <Tab label="File">
+| Method | What it does |
+|--------|--------------|
+| `state.set(groupId, key, value)` | Store an item in a group |
+| `state.get(groupId, key)` | Get a specific item (returns `null` if not found) |
+| `state.getGroup(groupId)` | Get all items in a group as an array |
+| `state.delete(groupId, key)` | Remove a specific item |
+| `state.clear(groupId)` | Remove all items in a group |
+
+---
+
+## Real-World Example
+
+Let's build an order processing workflow that uses state across multiple Steps.
+
+**Step 1 - API receives order:**
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+export const handler: Handlers['CreateOrder'] = async (req, { state, emit, logger }) => {
+  const orderId = crypto.randomUUID()
   
-  To inspect state stored in the **File Adapter**, you can directly view the contents of the state file using the Motia CLI:
-
-  ```bash
-  # View state file contents
-  motia state list
-  ```
-
-  This command will output the entire state file (motia.state.json) content in JSON format to your console, allowing you to examine the stored state data.
-
-  </Tab>
-  <Tab label="Redis">
+  const order = {
+    id: orderId,
+    items: req.body.items,
+    total: req.body.total,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  }
   
-  To inspect state stored in **Redis Adapter**, you can use the `redis-cli` command-line tool to interact with your Redis server:
-
-  ```bash
-  # List all state keys (under the motia:state prefix)
-  redis-cli KEYS "motia:state:*"
-
-  # Get specific state for a given traceId and key
-  redis-cli GET "motia:state:{traceId}:booking"
-  ```
-  **Note:** Replace `{traceId}` in the `redis-cli GET` command with the actual `traceId` of the flow execution you are debugging. Replace `booking` with the specific `key` you want to inspect.
+  // Store in state
+  await state.set('orders', orderId, order)
+  
+  logger.info('Order created', { orderId })
+  
+  // Trigger processing
+  await emit({ 
+    topic: 'order.created', 
+    data: { orderId } 
+  })
+  
+  return { status: 201, body: order }
+}
+```
 
   </Tab>
-</Tabs>
+<Tab value='Python'>
 
-## Best Practices
+```python
+import uuid
+from datetime import datetime
 
-### Namespacing
-
-Use dot notation to organize related state data hierarchically:
-
-<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
-  <Tab label="TypeScript">
+async def handler(req, context):
+    order_id = str(uuid.uuid4())
     
-  ```typescript
-  // Good - Organized hierarchically (using traceId scope)
-  await state.set(traceId, 'booking.customer', customerData)
-  await state.set(traceId, 'booking.venue', venueData)
-  await state.set(traceId, 'payment.status', 'pending')
-
-  // Avoid - Flat structure (using traceId scope)
-  await state.set(traceId, 'customer', customerData)
-  await state.set(traceId, 'venue', venueData)
-  await state.set(traceId, 'paymentStatus', 'pending')
+    order = {
+        "id": order_id,
+        "items": req.get("body", {}).get("items"),
+        "total": req.get("body", {}).get("total"),
+        "status": "pending",
+        "created_at": datetime.now().isoformat()
+    }
+    
+    # Store in state
+    await context.state.set("orders", order_id, order)
+    
+    context.logger.info("Order created", {"orderId": order_id})
+    
+    # Trigger processing
+    await context.emit({
+        "topic": "order.created",
+        "data": {"orderId": order_id}
+    })
+    
+    return {"status": 201, "body": order}
   ```
 
   </Tab>
-
-  <Tab label="JavaScript">
+<Tab value='JavaScript'>
     
   ```javascript
-  // Good - Organized hierarchically (using traceId scope)
-  await state.set(traceId, 'booking.customer', customerData)
-  await state.set(traceId, 'booking.venue', venueData)
-  await state.set(traceId, 'payment.status', 'pending')
-
-  // Avoid - Flat structure (using traceId scope)
-  await state.set(traceId, 'customer', customerData)
-  await state.set(traceId, 'venue', venueData)
-  await state.set(traceId, 'paymentStatus', 'pending')
-  ```
-
-  </Tab>
-
-  <Tab label="Python">
-    
-  ```python
-  # Good - Organized hierarchically (using traceId scope)
-  await ctx.state.set(trace_id, 'booking.customer', customer_data)
-  await ctx.state.set(trace_id, 'booking.venue', venue_data)
-  await ctx.state.set(trace_id, 'payment.status', 'pending')
-
-  // Avoid - Flat structure (using traceId scope)
-  await ctx.state.set(trace_id, 'customer', customer_data)
-  await ctx.state.set(trace_id, 'venue', venue_data)
-  await ctx.state.set(trace_id, 'payment_status', 'pending')
+const handler = async (req, { state, emit, logger }) => {
+  const orderId = crypto.randomUUID()
+  
+  const order = {
+    id: orderId,
+    items: req.body.items,
+    total: req.body.total,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  }
+  
+  // Store in state
+  await state.set('orders', orderId, order)
+  
+  logger.info('Order created', { orderId })
+  
+  // Trigger processing
+  await emit({ 
+    topic: 'order.created', 
+    data: { orderId } 
+  })
+  
+  return { status: 201, body: order }
+}
   ```
 
   </Tab>
 </Tabs>
 
-### Type Safety
+**Step 2 - Process payment:**
 
-Define types for your state data to ensure consistency:
-
-<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
-  <Tab label="TypeScript">
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
     
   ```typescript
-  interface CustomerData {
-    name: string;
-    email: string;
-  }
-
-  interface VenueData {
-    id: string;
-    capacity: number;
-  }
-
-  type BookingState = {
-    customer: CustomerData;
-    venue: VenueData;
-    status: 'pending' | 'confirmed';
-  }
-
-  const booking = await state.get<BookingState>(traceId, 'booking')
-  ```
-
-  </Tab>
-
-{' '}
-  <Tab label="JavaScript">
+export const handler: Handlers['ProcessPayment'] = async (input, { state, emit, logger }) => {
+  const { orderId } = input
   
-  ```javascript 
-  // Define types or interfaces as needed for documentation clarity (optional in JS) const booking = await
-  state.get(traceId, 'booking') // No type casting in JS example 
+  // Get order from state
+  const order = await state.get('orders', orderId)
+  
+  if (!order) {
+    throw new Error(`Order ${orderId} not found`)
+  }
+  
+  // Update status
+  order.status = 'paid'
+  await state.set('orders', orderId, order)
+  
+  logger.info('Payment processed', { orderId })
+  
+  await emit({ 
+    topic: 'payment.completed', 
+    data: { orderId } 
+  })
+}
   ```
+
   </Tab>
+<Tab value='Python'>
 
-  <Tab label="Python">
+```python
+async def handler(input, context):
+    order_id = input.get("orderId")
     
-  ```python
-  from dataclasses import dataclass
-  from typing import Literal
+    # Get order from state
+    order = await context.state.get("orders", order_id)
+    
+    if not order:
+        raise Exception(f"Order {order_id} not found")
+    
+    # Update status
+    order["status"] = "paid"
+    await context.state.set("orders", order_id, order)
+    
+    context.logger.info("Payment processed", {"orderId": order_id})
+    
+    await context.emit({
+        "topic": "payment.completed",
+        "data": {"orderId": order_id}
+    })
+```
 
-  @dataclass
-  class CustomerData:
-      name: str
-      email: str
+</Tab>
+<Tab value='JavaScript'>
 
-  @dataclass
-  class VenueData:
-      id: str
-      capacity: int
-
-  @dataclass
-  class BookingState:
-      customer: CustomerData
-      venue: VenueData
-      status: Literal['pending', 'confirmed']
-
-  booking = await state.get(traceId, 'booking')
+```javascript
+const handler = async (input, { state, emit, logger }) => {
+  const { orderId } = input
+  
+  // Get order from state
+  const order = await state.get('orders', orderId)
+  
+  if (!order) {
+    throw new Error(`Order ${orderId} not found`)
+  }
+  
+  // Update status
+  order.status = 'paid'
+  await state.set('orders', orderId, order)
+  
+  logger.info('Payment processed', { orderId })
+  
+  await emit({ 
+    topic: 'payment.completed', 
+    data: { orderId } 
+  })
+}
   ```
 
   </Tab>
 </Tabs>
 
-### Cleanup
+**Step 3 - View all orders (Cron job):**
 
-Always clean up state when you're done with it:
-
-<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
-  <Tab label="TypeScript">
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
       
   ```typescript
-  export const handler: Handlers['StepName'] = async (input, { state, traceId }) => {
-    try {
-      await processBooking(input)
-      // Clean up specific keys
-      await state.delete(traceId, 'booking.customer')
-      // Or clean everything
-      await state.clear(traceId)
-    } catch (error) {
-      // Handle errors
-    }
-  }
-  ```
-  </Tab>
-
-  <Tab label="JavaScript">
-    
-  ```javascript
-  export const handler = async (input, { state, traceId }) => {
-    try {
-      await processBooking(input)
-      // Clean up specific keys
-      await state.delete(traceId, 'booking.customer')
-      // Or clean everything
-      await state.clear(traceId)
-    } catch (error) {
-      // Handle errors
-    }
-  }
-  ```
-  </Tab>
-
-  <Tab label="Python">
-    
-  ```python
-  async def handler(input, ctx):
-      trace_id = ctx.trace_id
-      try:
-          await process_booking(input)
-          # Clean up specific keys
-          await ctx.state.delete(trace_id, 'booking.customer')
-          # Or clean everything
-          await ctx.state.clear(trace_id)
-      except Exception as error:
-          # Handle errors
-          pass
-  ```
-  </Tab>
-</Tabs>
-
-### Performance Considerations
-
-| Consideration    | Description                                                          |
-| ---------------- | -------------------------------------------------------------------- |
-| Batch Operations | Group related state updates and use atomic operations when possible  |
-| State Size       | Keep state data minimal and consider access patterns                 |
-| TTL Management   | Set appropriate TTLs based on flow duration and error recovery needs |
-
-### Custom State Adapters
-
-```typescript title="Custom State Adapter Example"
-import { StateAdapter } from 'motia'
-
-class CustomStateAdapter extends StateAdapter {
-  async get<T>(traceId: string, key: string): Promise<T | null> {
-    // Implementation
-    return null
-  }
-
-  async set<T>(traceId: string, key: string, value: T): Promise<void> {
-    // Implementation
-  }
-
-  async delete(traceId: string, key: string): Promise<void> {
-    // Implementation
-  }
-
-  async clear(traceId: string): Promise<void> {
-    // Implementation
-  }
-
-  async cleanup(): Promise<void> {
-    // Implementation
-  }
+export const handler: Handlers['DailyReport'] = async ({ state, logger }) => {
+  // Get all orders
+  const allOrders = await state.getGroup<Order>('orders')
+  
+  const pending = allOrders.filter(o => o.status === 'pending')
+  const paid = allOrders.filter(o => o.status === 'paid')
+  
+  logger.info('Daily order report', {
+    total: allOrders.length,
+    pending: pending.length,
+    paid: paid.length
+  })
 }
 ```
 
-### Storage Adapters
+  </Tab>
+<Tab value='Python'>
 
-Motia.dev offers three built-in storage adapters:
-
-- 📁 **File (Default):** Persists state to a JSON file in your project (`.motia/motia.state.json`). No configuration needed for basic use.
-- 💾 **Memory:** Stores state in-memory. Fastest option, but state is not persistent across server restarts. Useful for development and non-critical data.
-- ⚡ **Redis:** Leverages Redis for persistent and scalable state storage. Ideal for production environments and flows requiring high availability and data durability.
-
-To configure a different state adapter, modify the `config.yml` file in your project root:
-
+```python
+async def handler(context):
+    # Get all orders
+    all_orders = await context.state.get_group("orders")
+    
+    pending = [o for o in all_orders if o.get("status") == "pending"]
+    paid = [o for o in all_orders if o.get("status") == "paid"]
+    
+    context.logger.info("Daily order report", {
+        "total": len(all_orders),
+        "pending": len(pending),
+        "paid": len(paid)
+    })
 ```
-my-project/
-├── config.yml
-└── steps/
-    ├── step-1.ts
-    └── step-2.ts
+
+</Tab>
+<Tab value='JavaScript'>
+    
+  ```javascript
+const handler = async ({ state, logger }) => {
+  // Get all orders
+  const allOrders = await state.getGroup('orders')
+  
+  const pending = allOrders.filter(o => o.status === 'pending')
+  const paid = allOrders.filter(o => o.status === 'paid')
+  
+  logger.info('Daily order report', {
+    total: allOrders.length,
+    pending: pending.length,
+    paid: paid.length
+  })
+}
 ```
 
-**File Adapter (Default)**
+  </Tab>
+</Tabs>
 
-> Default, no configuration required, state is stored into .motia/motia.state.json in your project root
+---
 
-**Memory Adapter**
+## When to Use State
+
+**✅ Good use cases:**
+- **Temporary workflow data** - Data that's only needed during a flow execution
+- **API response caching** - Cache expensive API calls that don't change often
+- **Sharing data between Steps** - Pass data between Steps without emitting it in events
+- **Building up results** - Accumulate data across multiple Steps
+
+**❌ Better alternatives:**
+- **Persistent user data** - Use a database like Postgres or MongoDB
+- **File storage** - Use S3 or similar for images, PDFs, documents
+- **Real-time updates** - Use Motia Streams for live data to clients
+- **Large datasets** - Use a proper database, not state
+
+---
+
+### File Storage configuration (Default)
+
+No setup needed. State goes to `.motia/motia.state.json`.
 
 ```yaml title="config.yml"
-state:
-  adapter: memory
+# Default - no config needed
 ```
 
-> **Warning: Memory Adapter**
-> State is stored in-memory and will be lost when the Motia.dev server restarts. Suitable for development and testing.
+---
 
-**Redis Adapter**
+## Remember
 
-```yaml title="config.yml"
-state:
-  adapter: redis
-  host: localhost # Redis server host (e.g., 'localhost' or IP address)
-  port: 6379 # Redis server port (default: 6379)
-  password: optional # Redis password (if required)
-  ttl: 3600 # Optional: State Time-To-Live in seconds (e.g., 3600 seconds = 1 hour)
-```
+- Organize data using **groupId** (like `orders`, `users`, `cache`)
+- Each item needs a unique **key** within its groupId
+- Use `getGroup(groupId)` to retrieve all items in a group
+- State works the same across TypeScript, Python, and JavaScript
+- Clean up state when you're done with it
+- Use databases for permanent data, state for temporary workflow data
 
-> **Info: Redis Adapter**
-> Recommended for production environments. Requires a running Redis server. The `ttl` (Time-To-Live) option is available to automatically expire state data after a specified number of seconds, helping to manage Redis storage.
-
-### Common Issues
-
-| Issue             | Troubleshooting Steps                                                                                                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| State Not Found   | - Verify state adapter configuration\n- Check TTL expiration (Redis)\n- Ensure file permissions (File adapter)\n- **Ensure correct `traceId` is being used in `state.get(traceId, key)` calls.** |
-| Persistence       | - Memory adapter: State is lost on process restart\n- File adapter: Check file write permissions\n- Redis: Verify connection and persistence settings                                            |
-| Concurrent Access | - Memory/File: Limited concurrent flow support\n- Redis: Use atomic operations and implement retry logic                                                                                         |
+---

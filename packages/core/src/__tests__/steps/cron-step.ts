@@ -1,14 +1,10 @@
-import { CronConfig, CronHandler, FlowContext } from '../../types'
+import type { CronConfig, CronHandler } from '../../types'
 
 export const config: CronConfig = {
   type: 'cron',
   name: 'cron-step',
-  emits: ['TEST_EVENT'],
-  cron: '* * * * *', // Run every minute
+  emits: [],
+  cron: '* * * * *',
 }
 
-type EmitData = { topic: 'TEST_EVENT'; data: { test: string } }
-
-export const handler: CronHandler<EmitData> = async (ctx: FlowContext<EmitData>) => {
-  await ctx.emit({ data: { test: 'data' }, topic: 'TEST_EVENT' })
-}
+export const handler: CronHandler<never> = async () => {}

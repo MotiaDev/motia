@@ -1,12 +1,12 @@
-import { Step } from '@motiadev/core'
-import { Stream } from '@motiadev/core/dist/src/types-stream'
+import type { Step } from '@motiadev/core'
+import type { Stream } from '@motiadev/core/dist/src/types-stream'
 import colors from 'colors'
-import { BuildStepConfig } from '../../build/builder'
+import type { BuildStepConfig } from '../../build/builder'
+import type { CliContext } from '../../config-utils'
 import { BuildPrinter } from './build-printer'
-import { CliContext } from '../../config-utils'
-import { DeployPrinter } from './printer'
-import { DeployData, DeploymentListener, DeploymentOutput, ValidationError } from './listener.types'
+import type { DeployData, DeploymentListener, DeploymentOutput, ValidationError } from './listener.types'
 import { printDeploymentStatus } from './print-deployment-status'
+import { DeployPrinter } from './printer'
 
 export class CliListener implements DeploymentListener {
   private readonly printer: BuildPrinter

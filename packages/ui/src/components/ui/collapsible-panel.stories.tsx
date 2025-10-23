@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { CollapsiblePanel, CollapsiblePanelGroup } from './collapsible-panel'
 import { Activity, Database, FileText, GitBranch } from 'lucide-react'
+import { CollapsiblePanel, CollapsiblePanelGroup } from './collapsible-panel'
 
 const meta: Meta<typeof CollapsiblePanel> = {
   title: 'UI/CollapsiblePanel',

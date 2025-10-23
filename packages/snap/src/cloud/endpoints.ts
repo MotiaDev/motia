@@ -1,11 +1,11 @@
+import type { LockedData, MotiaServer } from '@motiadev/core'
 import { randomUUID } from 'crypto'
-import { LockedData, MotiaServer } from '@motiadev/core'
 import { buildValidation } from './build/build-validation'
-import { StreamingDeploymentListener } from './new-deployment/listeners/streaming-deployment-listener'
 import { build } from './new-deployment/build'
-import { uploadArtifacts } from './new-deployment/upload-artifacts'
-import { DeploymentData, DeploymentStreamManager } from './new-deployment/streams/deployment-stream'
 import { cloudApi } from './new-deployment/cloud-api'
+import { StreamingDeploymentListener } from './new-deployment/listeners/streaming-deployment-listener'
+import { type DeploymentData, DeploymentStreamManager } from './new-deployment/streams/deployment-stream'
+import { uploadArtifacts } from './new-deployment/upload-artifacts'
 
 export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => {
   const { app } = server
@@ -23,7 +23,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
 
   const deploymentManager = new DeploymentStreamManager(deploymentStream)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.post('/__motia/cloud/deploy/start', async (req: any, res: any) => {
     try {
       const { deploymentToken, deploymentId, envs } = req.body
@@ -75,7 +74,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
             streams: builder.streamsConfig,
             routers: builder.routersConfig,
           })
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
           console.error('Deployment failed:', error)
 
@@ -85,7 +83,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
           }
         }
       })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Failed to start deployment:', error)
 
@@ -93,7 +90,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
     }
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.get('/__motia/cloud/deploy/status/:deploymentId', async (req: any, res: any) => {
     try {
       const { deploymentId } = req.params
@@ -102,8 +98,6 @@ export const deployEndpoints = (server: MotiaServer, lockedData: LockedData) => 
       return deployment
         ? res.status(200).json({ success: true, deployment })
         : res.status(404).json({ success: false, error: 'Deployment not found' })
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message })
     }

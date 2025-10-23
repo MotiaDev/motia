@@ -1,4 +1,5 @@
 import type { ApiRouteConfig, ApiRouteHandler } from '@motiadev/core'
+
 // {{imports}}
 
 type RouterPath = {

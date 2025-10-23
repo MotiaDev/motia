@@ -1,7 +1,7 @@
-import { BaseEdge as BaseReactFlowEdge, EdgeLabelRenderer, EdgeProps, getSmoothStepPath } from '@xyflow/react'
-import { cva } from 'class-variance-authority'
-import React from 'react'
 import { cn, useThemeStore } from '@motiadev/ui'
+import { BaseEdge as BaseReactFlowEdge, EdgeLabelRenderer, type EdgeProps, getSmoothStepPath } from '@xyflow/react'
+import { cva } from 'class-variance-authority'
+import type React from 'react'
 
 const labelVariants = cva('absolute pointer-events-all text-cs border p-1 px-2', {
   variants: {

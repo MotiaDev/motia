@@ -1,7 +1,8 @@
 'use client'
 
-import React, { MouseEventHandler, ReactNode } from 'react'
 import { motion } from 'framer-motion'
+import type React from 'react'
+import type { MouseEventHandler, ReactNode } from 'react'
 import { AGENT_GMAIL, AGENT_ICONS, AGENT_TABS } from './constants/agentExplorer'
 
 const transition = {

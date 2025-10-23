@@ -1,7 +1,7 @@
 import { Button, Checkbox, cn, Input } from '@motiadev/ui'
 import { AlertCircle, Check, Trash2 } from 'lucide-react'
-import { FC, memo, useCallback, useRef, useState } from 'react'
-import { ConfigurationLitItem } from '../hooks/use-endpoint-configuration'
+import { type FC, memo, useCallback, useRef, useState } from 'react'
+import type { ConfigurationLitItem } from '../hooks/use-endpoint-configuration'
 
 interface ConfigurationListItemProps {
   value: ConfigurationLitItem

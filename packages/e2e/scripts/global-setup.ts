@@ -1,4 +1,4 @@
-import { execSync, exec } from 'child_process'
+import { exec, execSync } from 'child_process'
 import { existsSync, rmSync } from 'fs'
 import path from 'path'
 
@@ -18,7 +18,7 @@ async function globalSetup() {
     const template = process.env.TEST_TEMPLATE || 'nodejs'
 
     console.log(`📦 Creating test project with Motia CLI ${motiaVersion} and template ${template}...`)
-    const createCommand = `npx motia@${motiaVersion} create -n ${TEST_PROJECT_NAME} -t ${template} --confirm`
+    const createCommand = `npx motia@${motiaVersion} create  ${TEST_PROJECT_NAME} -t ${template} --confirm`
 
     execSync(createCommand, {
       stdio: 'pipe',
@@ -36,7 +36,9 @@ async function globalSetup() {
     })
 
     console.log('⏳ Waiting for server to be ready...')
-    await waitForServer('http://localhost:3000', 60000)
+    const isWindows = process.platform === 'win32'
+    const serverTimeout = isWindows ? 45000 : 60000
+    await waitForServer('http://localhost:3000', serverTimeout)
 
     console.log('✅ E2E test environment setup complete!')
 
@@ -57,6 +59,8 @@ async function globalSetup() {
 
 async function waitForServer(url: string, timeout: number): Promise<void> {
   const start = Date.now()
+  const isWindows = process.platform === 'win32'
+  const pollInterval = isWindows ? 1000 : 2000
 
   while (Date.now() - start < timeout) {
     try {
@@ -66,7 +70,7 @@ async function waitForServer(url: string, timeout: number): Promise<void> {
       }
     } catch (error) {}
 
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, pollInterval))
   }
 
   throw new Error(`Server at ${url} did not start within ${timeout}ms`)

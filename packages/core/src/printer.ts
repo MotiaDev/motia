@@ -1,9 +1,9 @@
 import colors from 'colors'
 import path from 'path'
-import { ValidationError } from './step-validator'
-import { Step } from './types'
 import { isApiStep, isCronStep, isEventStep, isNoopStep } from './guards'
-import { Stream } from './types-stream'
+import type { ValidationError } from './step-validator'
+import type { Event, Step } from './types'
+import type { Stream } from './types-stream'
 
 const stepTag = colors.bold(colors.magenta('Step'))
 const flowTag = colors.bold(colors.blue('Flow'))
@@ -27,6 +27,38 @@ export class Printer {
   built = built
   updated = updated
   removed = removed
+
+  printEventInputValidationError(
+    emit: { topic: string },
+    details: { missingFields?: string[]; extraFields?: string[]; typeMismatches?: string[] },
+  ) {
+    const warnIcon = colors.yellow('⚠')
+    const emitPath = colors.bold(colors.cyan(`Emit ${emit.topic}`))
+
+    console.log(`${warnIcon} ${warning} ${emitPath} validation issues:`)
+
+    const hasAny = details.missingFields?.length || details.extraFields?.length || details.typeMismatches?.length
+
+    if (!hasAny) {
+      console.log(`${colors.yellow('│')} No issues found.`)
+      console.log(`${colors.yellow('└─')} Validation passed.`)
+      return
+    }
+
+    if (details.missingFields?.length) {
+      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Missing fields: ${details.missingFields.join(', ')}`)}`)
+    }
+
+    if (details.extraFields?.length) {
+      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Extra fields: ${details.extraFields.join(', ')}`)}`)
+    }
+
+    if (details.typeMismatches?.length) {
+      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Type mismatches: ${details.typeMismatches.join(', ')}`)}`)
+    }
+
+    console.log(`${colors.yellow('└─')} ${colors.yellow('Payload does not match schema.')}`)
+  }
 
   printInvalidEmit(step: Step, emit: string) {
     console.log(
@@ -125,6 +157,8 @@ export class NoPrinter extends Printer {
   constructor() {
     super('')
   }
+
+  printEventInputValidationError() {}
 
   printInvalidEmit() {}
   printStepCreated() {}

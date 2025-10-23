@@ -1,7 +1,7 @@
+import { type ANTLRErrorListener, CharStreams, CommonTokenStream, type Token } from 'antlr4ts'
 import { createVisitor } from 'python-ast'
 import { Python3Lexer } from 'python-ast/dist/parser/Python3Lexer'
 import { Python3Parser } from 'python-ast/dist/parser/Python3Parser'
-import { CharStreams, CommonTokenStream, ANTLRErrorListener, Token } from 'antlr4ts'
 import { STANDARD_LIB_MODULES } from './constants'
 import { PythonCompilationError } from './python-errors'
 

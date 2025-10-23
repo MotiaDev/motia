@@ -1,17 +1,17 @@
 import { BackgroundEffect, Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
 import { Book, X } from 'lucide-react'
-import { FC, memo, useState } from 'react'
+import { type FC, memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { EndpointPath } from '../components/endpoint-path'
 import {
   getHeadersSelector,
   getQueryParamsSelector,
   getResponseSelector,
-  UseEndpointConfiguration,
+  type UseEndpointConfiguration,
   useEndpointConfiguration,
 } from '../hooks/use-endpoint-configuration'
 import { SpecSidePanel } from '../spec/spec-side-panel'
-import { ApiEndpoint } from '../types/endpoint'
+import type { ApiEndpoint } from '../types/endpoint'
 import { SidePanelBodyTab } from './side-panel-body-tab'
 import { SidePanelHeadersTab } from './side-panel-headers-tab'
 import { SidePanelParamsTab } from './side-panel-params-tab'
@@ -20,14 +20,16 @@ import { TriggerButton } from './trigger-button'
 
 type EndpointSidePanelProps = { endpoint: ApiEndpoint; onClose: () => void }
 
-type ActiveTab = 'body' | 'headers'
+type ActiveTab = 'body' | 'headers' | 'params'
 
 const headersCountSelector = (state: UseEndpointConfiguration) => Object.keys(getHeadersSelector(state)).length
 const hasResponseSelector = (state: UseEndpointConfiguration) => getResponseSelector(state) !== undefined
 const paramsCountSelector = (state: UseEndpointConfiguration) => Object.keys(getQueryParamsSelector(state)).length
 
 export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }) => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('body')
+  const isGetOrDelete = endpoint.method === 'GET' || endpoint.method === 'DELETE'
+
+  const [activeTab, setActiveTab] = useState<ActiveTab>(isGetOrDelete ? 'params' : 'body')
   const [isSpecOpen, setIsSpecOpen] = useState(false)
   const headersCount = useEndpointConfiguration(useShallow(headersCountSelector))
   const hasResponse = useEndpointConfiguration(useShallow(hasResponseSelector))

@@ -73,7 +73,7 @@ Important notes:
 -   Mix and match workflow steps written in different languages within the same flow.
 
 ## Documentation
--   [overview](/docs/ai-guides/overview): Documentation for overview.
+-   [overview](/docs/ai-development-guide/overview): Documentation for overview.
 ---
 title: "AI Development Guides Overview"
 description: "Universal AI guides for building production-ready Motia applications with any AI tool"
@@ -284,11 +284,11 @@ processing using Motia patterns."
 </Tabs>
 
 <Callout type="success" title="Ready to Get Started?">
-  Check out the [Setup Guide](/docs/ai-guides/setup-guide) for detailed installation instructions and configuration for different AI tools.
+  Check out the [Setup Guide](/docs/ai-development-guide/setup-guide) for detailed installation instructions and configuration for different AI tools.
 </Callout>
 
 
--   [setup-guide](/docs/ai-guides/setup-guide): Documentation for setup-guide.
+-   [setup-guide](/docs/ai-development-guide/setup-guide): Documentation for setup-guide.
 ---
 title: "Setup Guide"
 description: "How to install and configure Motia AI Development Guides in your project"
@@ -561,13 +561,13 @@ After installation, your project should look like this:
     ### Share via Company Drive
     ```bash
     # Create a shared package
-    mkdir motia-ai-guides-v1.0.0
-    cp AGENTS.md motia-ai-guides-v1.0.0/
-    cp CLAUDE.md motia-ai-guides-v1.0.0/
-    cp -r .cursor motia-ai-guides-v1.0.0/
+    mkdir motia-ai-development-guide-v1.0.0
+    cp AGENTS.md motia-ai-development-guide-v1.0.0/
+    cp CLAUDE.md motia-ai-development-guide-v1.0.0/
+    cp -r .cursor motia-ai-development-guide-v1.0.0/
 
     # Create setup script
-    cat > motia-ai-guides-v1.0.0/setup.sh << 'EOF'
+    cat > motia-ai-development-guide-v1.0.0/setup.sh << 'EOF'
     #!/bin/bash
     echo "Setting up Motia AI Development Guides..."
 
@@ -580,7 +580,7 @@ After installation, your project should look like this:
     echo "📖 Open AGENTS.md to get started"
     EOF
 
-    chmod +x motia-ai-guides-v1.0.0/setup.sh
+    chmod +x motia-ai-development-guide-v1.0.0/setup.sh
     ```
   </Tab>
 
@@ -589,7 +589,7 @@ After installation, your project should look like this:
     ```json
     // team-motia-guides/package.json
     {
-      "name": "@yourcompany/motia-ai-guides",
+      "name": "@yourcompany/motia-ai-development-guide",
       "version": "1.0.0",
       "description": "Motia AI Development Guides and Cursor Rules",
       "main": "index.js",
@@ -936,7 +936,9 @@ npx motia@latest create [options]
 
 Options:
 
-- `-n, --name <project name>`: The name for your project, used to create a directory. Use `.` or `./` to create it in the current directory.
+- `[project name]` (optional): The name for your project folder. 
+  If not provided, you will be prompted to enter it. 
+  Use `.` or `./` to create it in the current directory.
 
 
 ### `build`

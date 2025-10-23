@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Input } from './input'
-import { Search, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Search } from 'lucide-react'
 import { useState } from 'react'
+import { Input } from './input'
 
 const meta: Meta<typeof Input> = {
   title: 'UI/Input',

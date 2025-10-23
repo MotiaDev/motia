@@ -1,7 +1,7 @@
-import * as React from 'react'
 import { cn } from '@motiadev/ui'
+import type * as React from 'react'
 import { memo } from 'react'
-import { ApiRouteMethod } from '../types/endpoint'
+import type { ApiRouteMethod } from '../types/endpoint'
 
 const getMethodStyles = (method: ApiRouteMethod): string => {
   switch (method.toUpperCase()) {

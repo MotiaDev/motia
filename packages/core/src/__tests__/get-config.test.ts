@@ -1,6 +1,6 @@
 import path from 'path'
 import { getStepConfig } from '../get-step-config'
-import { ApiRouteConfig, EventConfig, CronConfig, NoopConfig } from '../types'
+import type { ApiRouteConfig, CronConfig, EventConfig, NoopConfig } from '../types'
 
 describe('Get Config', () => {
   beforeAll(() => {

@@ -1,4 +1,4 @@
-import { isAnyOf, JsonSchema, JsonSchemaError, JsonSchemaType } from './schema.types'
+import { isAnyOf, type JsonSchema, JsonSchemaError, type JsonSchemaType } from './schema.types'
 
 export const isCompatible = (schema: JsonSchema, otherSchema: JsonSchema): boolean => {
   if (isAnyOf(schema)) {

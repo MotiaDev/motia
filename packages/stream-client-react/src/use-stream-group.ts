@@ -1,6 +1,6 @@
+import type { StreamSubscription } from '@motiadev/stream-client-browser'
 import { useEffect, useState } from 'react'
 import { useMotiaStream } from './use-motia-stream'
-import { StreamSubscription } from '@motiadev/stream-client-browser'
 
 export type StreamGroupArgs<TData extends { id: string }> = {
   streamName: string

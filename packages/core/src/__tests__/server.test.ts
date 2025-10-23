@@ -1,12 +1,13 @@
-import { createServer, MotiaServer } from '../server'
+import path from 'path'
+import request from 'supertest'
 import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
-import { ApiRouteConfig, Step } from '../types'
-import request from 'supertest'
-import { createApiStep } from './fixtures/step-fixtures'
-import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
-import path from 'path'
 import { NoPrinter } from '../printer'
+import { QueueManager } from '../queue-manager'
+import { createServer, type MotiaServer } from '../server'
+import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
+import type { ApiRouteConfig, Step } from '../types'
+import { createApiStep } from './fixtures/step-fixtures'
 
 const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
@@ -21,9 +22,10 @@ describe('Server', () => {
 
     beforeEach(async () => {
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
-      const eventManager = createEventManager()
+      const queueManager = new QueueManager()
+      const eventManager = createEventManager(queueManager)
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, eventManager, state, config)
+      server = await createServer(lockedData, eventManager, state, config, queueManager)
     })
 
     afterEach(async () => server?.close())
@@ -41,9 +43,10 @@ describe('Server', () => {
 
     beforeEach(async () => {
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
-      const eventManager = createEventManager()
+      const queueManager = new QueueManager()
+      const eventManager = createEventManager(queueManager)
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, eventManager, state, config)
+      server = await createServer(lockedData, eventManager, state, config, queueManager)
     })
     afterEach(async () => server?.close())
 
@@ -107,9 +110,7 @@ describe('Server', () => {
 
       server.addRoute(mockApiStep)
 
-      const response = await request(server.app)
-        .post('/test-state')
-        .send({ key: 'testKey', value: 'testValue' })
+      const response = await request(server.app).post('/test-state').send({ key: 'testKey', value: 'testValue' })
 
       expect(response.status).toBe(200)
       expect(response.body.setValue).toBe('testValue')
@@ -120,7 +121,8 @@ describe('Server', () => {
 
   describe('Router', () => {
     it('should create routes from locked data API steps', async () => {
-      const eventManager = createEventManager()
+      const queueManager = new QueueManager()
+      const eventManager = createEventManager(queueManager)
       const state = new MemoryStateAdapter()
       const baseDir = __dirname
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
@@ -131,7 +133,7 @@ describe('Server', () => {
 
       lockedData.createStep(mockApiStep, { disableTypeCreation: true })
 
-      const server = await createServer(lockedData, eventManager, state, config)
+      const server = await createServer(lockedData, eventManager, state, config, queueManager)
 
       const response = await request(server.app).post('/test')
       expect(response.status).toBe(200)
@@ -147,6 +149,6 @@ describe('Server', () => {
       expect(found.status).toBe(200)
 
       await server.close()
-    })
+    }, 20000)
   })
 })

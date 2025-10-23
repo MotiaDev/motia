@@ -1,6 +1,6 @@
-import { useThemeStore } from '@motiadev/ui'
 import { Editor, useMonaco } from '@monaco-editor/react'
-import { FC, useEffect, useMemo, useRef, useState } from 'react'
+import { useThemeStore } from '@motiadev/ui'
+import { type FC, useEffect, useMemo, useRef, useState } from 'react'
 
 type JsonEditorProps = {
   value: string

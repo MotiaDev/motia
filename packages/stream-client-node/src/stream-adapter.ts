@@ -1,5 +1,5 @@
-import { WebSocket, MessageEvent } from 'ws'
 import type { SocketAdapter } from '@motiadev/stream-client'
+import { type MessageEvent, WebSocket } from 'ws'
 
 export class StreamSocketAdapter implements SocketAdapter {
   private ws: WebSocket

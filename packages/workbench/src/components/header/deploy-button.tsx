@@ -1,7 +1,7 @@
-import { analytics } from '@/lib/analytics'
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { Rocket } from 'lucide-react'
 import { useState } from 'react'
+import { analytics } from '@/lib/analytics'
 
 export const DeployButton = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -27,7 +27,7 @@ export const DeployButton = () => {
 
   const onSelfHostedClick = () => {
     analytics.track('deploy_button_self_hosted_clicked')
-    window.open('https://www.motia.dev/docs/concepts/deployment/self-hosted', '_blank')
+    window.open('https://www.motia.dev/docs/deployment-guide/self-hosted', '_blank')
   }
 
   return (
@@ -59,6 +59,7 @@ export const DeployButton = () => {
               href="https://www.motia.dev/docs/concepts/deployment/motia-cloud/features"
               target="_blank"
               className="text-foreground text-xs font-semibold px-4 hover:underline"
+              rel="noopener"
             >
               Learn more about Motia Cloud
             </a>
@@ -75,6 +76,7 @@ export const DeployButton = () => {
                   href="https://motia.cloud?utm_source=workbench&utm_medium=referral"
                   target="_blank"
                   onClick={onDeployClick}
+                  rel="noopener"
                 >
                   <button className="driver-popover-next-btn">Deploy!</button>
                 </a>

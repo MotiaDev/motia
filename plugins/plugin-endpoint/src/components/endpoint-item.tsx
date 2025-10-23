@@ -1,6 +1,6 @@
 import { cn } from '@motiadev/ui'
-import { FC } from 'react'
-import { ApiEndpoint } from '../types/endpoint'
+import type { FC } from 'react'
+import type { ApiEndpoint } from '../types/endpoint'
 import { EndpointPath } from './endpoint-path'
 
 type EndpointItemProps = {

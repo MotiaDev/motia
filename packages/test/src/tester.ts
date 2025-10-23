@@ -1,18 +1,28 @@
-import { createServer, createStateAdapter, Event, Logger } from '@motiadev/core'
+import { createServer, createStateAdapter, type Event, Logger } from '@motiadev/core'
 import { generateLockedData } from 'motia'
 import path from 'path'
 import request from 'supertest'
 import { createEventManager } from './event-manager'
-import { CapturedEvent, MotiaTester } from './types'
+import type { CapturedEvent, MotiaTester } from './types'
 
 export const createMotiaTester = (): MotiaTester => {
   const eventManager = createEventManager()
   const logger = new Logger()
 
   const promise = (async () => {
-    const lockedData = await generateLockedData(path.join(process.cwd()), 'memory', 'disabled')
+    const lockedData = await generateLockedData({
+      projectDir: path.join(process.cwd()),
+      streamAdapter: 'memory',
+      printerType: 'disabled',
+    })
     const state = createStateAdapter({ adapter: 'memory' })
-    const { server, socketServer, close } = createServer(lockedData, eventManager, state, { isVerbose: false })
+    const { server, socketServer, close } = createServer(
+      lockedData,
+      eventManager,
+      state,
+      { isVerbose: false },
+      eventManager.queueManager,
+    )
 
     return { server, socketServer, eventManager, state, close }
   })()

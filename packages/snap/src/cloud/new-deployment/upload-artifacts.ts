@@ -1,5 +1,5 @@
-import { Builder } from '../build/builder'
-import { UploadListener } from './listeners/listener.types'
+import type { Builder } from '../build/builder'
+import type { UploadListener } from './listeners/listener.types'
 import { upload } from './utils/upload'
 
 export const uploadArtifacts = async (

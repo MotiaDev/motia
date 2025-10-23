@@ -1,8 +1,19 @@
+import react from '@vitejs/plugin-react'
 import type { Express, NextFunction, Request, Response } from 'express'
 import fs from 'fs'
 import path from 'path'
 import { createServer as createViteServer } from 'vite'
-import react from '@vitejs/plugin-react'
+import motiaPluginsPlugin from './motia-plugin'
+import type { WorkbenchPlugin } from './motia-plugin/types'
+
+const workbenchBasePlugin = (workbenchBase: string) => {
+  return {
+    name: 'html-transform',
+    transformIndexHtml: (html: string) => {
+      return html.replace('</head>', `<script>const workbenchBase = ${JSON.stringify(workbenchBase)};</script></head>`)
+    },
+  }
+}
 
 const processCwdPlugin = () => {
   return {
@@ -38,7 +49,14 @@ const reoPlugin = () => {
   }
 }
 
-export const applyMiddleware = async (app: Express, port: number, workbenchBase: string = '') => {
+export type ApplyMiddlewareParams = {
+  app: Express
+  port: number
+  workbenchBase: string
+  plugins: WorkbenchPlugin[]
+}
+
+export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: ApplyMiddlewareParams) => {
   const vite = await createViteServer({
     appType: 'spa',
     root: __dirname,
@@ -54,6 +72,7 @@ export const applyMiddleware = async (app: Express, port: number, workbenchBase:
           path.join(process.cwd(), './steps'), // steps directory
           path.join(process.cwd(), './tutorial.tsx'), // tutorial file
           path.join(process.cwd(), './node_modules'), // node_modules directory
+          path.join(__dirname, './node_modules'), // node_modules directory
         ],
       },
     },
@@ -63,7 +82,13 @@ export const applyMiddleware = async (app: Express, port: number, workbenchBase:
         '@/assets': path.resolve(__dirname, './src/assets'),
       },
     },
-    plugins: [react(), processCwdPlugin(), reoPlugin()],
+    plugins: [
+      react(),
+      processCwdPlugin(),
+      reoPlugin(),
+      motiaPluginsPlugin(plugins),
+      workbenchBasePlugin(workbenchBase),
+    ],
     assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico', '**/*.webp', '**/*.avif'],
   })
 

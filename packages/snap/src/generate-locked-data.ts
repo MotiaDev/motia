@@ -1,9 +1,10 @@
-import { LockedData, Step, getStepConfig, getStreamConfig } from '@motiadev/core'
+import { getStepConfig, getStreamConfig, LockedData, type Step } from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import colors from 'colors'
 import { randomUUID } from 'crypto'
 import { globSync } from 'glob'
 import path from 'path'
+import { activatePythonVenv } from './utils/activate-python-env'
 import { CompilationError } from './utils/errors/compilation.error'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
@@ -30,6 +31,12 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   const stepFiles = getStepFiles(projectDir)
   const streamFiles = getStreamFiles(projectDir)
   const deprecatedSteps = globSync('**/*.step.py', { absolute: true, cwd: path.join(projectDir, 'steps') })
+
+  const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
+
+  if (hasPythonFiles) {
+    activatePythonVenv({ baseDir: projectDir })
+  }
 
   for (const filePath of stepFiles) {
     try {
@@ -93,18 +100,20 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   return invalidSteps
 }
 
-export const generateLockedData = async (
-  projectDir: string,
-  streamAdapter: 'file' | 'memory' = 'file',
-  printerType: 'disabled' | 'default' = 'default',
-): Promise<LockedData> => {
+export const generateLockedData = async (config: {
+  projectDir: string
+  streamAdapter?: 'file' | 'memory'
+  printerType?: 'disabled' | 'default'
+  motiaFileStoragePath?: string
+}): Promise<LockedData> => {
   try {
+    const { projectDir, streamAdapter = 'file', printerType = 'default', motiaFileStoragePath = '.motia' } = config
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
     /*
      * NOTE: right now for performance and simplicity let's enforce a folder,
      * but we might want to remove this and scan the entire current directory
      */
-    const lockedData = new LockedData(projectDir, streamAdapter, printer)
+    const lockedData = new LockedData(projectDir, streamAdapter, printer, motiaFileStoragePath)
 
     await collectFlows(projectDir, lockedData)
     lockedData.saveTypes()

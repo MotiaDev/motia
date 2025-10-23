@@ -1,7 +1,7 @@
 name: Motia CI
 
 permissions:
-  contents: write
+  contents: read
 
 on:
   pull_request:
@@ -26,11 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
       - name: Setup
         uses: ./.github/actions/setup
 
       - name: Run linter
-        run: pnpm lint
+        run: pnpm lint:ci
 
       - name: Setup playground python environment
         run: |
