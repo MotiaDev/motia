@@ -13,6 +13,7 @@ import {
   PLUGIN_FLOW_ID,
   type PluginApiConfig,
   type PluginStep,
+  type Printer,
   type UnregisterMotiaPluginApi,
 } from '@motiadev/core'
 import { globSync } from 'glob'
@@ -21,11 +22,12 @@ const collectPluginSteps = async (
   dirname: string,
   stepPatterns: string[],
   projectRoot: string,
+  printer: Printer,
 ): Promise<Array<{ filePath: string; config: any }>> => {
   const pluginSteps: Array<{ filePath: string; config: any }> = []
 
   if (!fs.existsSync(dirname)) {
-    console.warn(`[Plugin] Directory not found: ${dirname}`)
+    printer.printPluginWarn(`Directory not found: ${dirname}`)
     return pluginSteps
   }
 
@@ -34,7 +36,7 @@ const collectPluginSteps = async (
       const stepFiles = globSync(pattern, { absolute: true, cwd: dirname })
 
       if (stepFiles.length === 0) {
-        console.log(`[Plugin] No files found matching pattern: ${pattern} in ${dirname}`)
+        printer.printPluginLog(`No files found matching pattern: ${pattern} in ${dirname}`)
         continue
       }
 
@@ -44,28 +46,28 @@ const collectPluginSteps = async (
           if (config) {
             pluginSteps.push({ filePath, config })
           } else {
-            console.warn(`[Plugin] No config found in step ${filePath}, step skipped`)
+            printer.printPluginWarn(`No config found in step ${filePath}, step skipped`)
           }
         } catch (error) {
-          console.error(`[Plugin] Error loading step ${filePath}:`, error)
+          printer.printPluginError(`Error loading step ${filePath}:`, error)
         }
       }
     } catch (error) {
-      console.error(`[Plugin] Error processing pattern ${pattern}:`, error)
+      printer.printPluginError(`Error processing pattern ${pattern}:`, error)
     }
   }
 
   return pluginSteps
 }
 
-const loadConfig = async (baseDir: string): Promise<Config> => {
+const loadConfig = async (baseDir: string, printer: Printer): Promise<Config> => {
   const configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: baseDir })
   if (configFiles.length === 0) {
     const templatePath = path.join(__dirname, 'create/templates/nodejs/motia.config.ts.txt')
     const templateContent = fs.readFileSync(templatePath, 'utf-8')
     const configPath = path.join(baseDir, 'motia.config.ts')
     fs.writeFileSync(configPath, templateContent)
-    console.log('Created motia.config.ts with default plugins')
+    printer.printPluginLog('Created motia.config.ts')
 
     return (await import(configPath)).default
   }
@@ -74,8 +76,9 @@ const loadConfig = async (baseDir: string): Promise<Config> => {
 }
 
 const createPluginContext = (motiaServer: MotiaServer): MotiaPluginContext => {
-  const { motia, addRoute, removeRoute } = motiaServer
+  const { motia, addRoute, removeRoute, printer } = motiaServer
   return {
+    printer,
     tracerFactory: motia.tracerFactory,
     state: motia.stateAdapter,
     lockedData: motia.lockedData,
@@ -111,12 +114,12 @@ const createPluginContext = (motiaServer: MotiaServer): MotiaPluginContext => {
 }
 
 const processSteps = async (motiaServer: MotiaServer, plugins: MotiaPlugin[], baseDir: string): Promise<void> => {
-  const { motia, addRoute } = motiaServer
+  const { motia, addRoute, printer } = motiaServer
   for (const plugin of plugins) {
     if (plugin.dirname && plugin.steps) {
-      console.log(`[Plugin] Loading steps from ${plugin.dirname}`)
+      printer.printPluginLog(`Loading steps from ${plugin.dirname}`)
       try {
-        const pluginSteps = await collectPluginSteps(plugin.dirname, plugin.steps, baseDir)
+        const pluginSteps = await collectPluginSteps(plugin.dirname, plugin.steps, baseDir, printer)
         const version = `plugin_${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
         for (const { filePath, config } of pluginSteps) {
@@ -132,28 +135,29 @@ const processSteps = async (motiaServer: MotiaServer, plugins: MotiaPlugin[], ba
                 addRoute(step as any)
               }
             } else {
-              console.warn(`[Plugin] Failed to register step: ${config.name} from ${filePath}`)
+              printer.printPluginWarn(`Failed to register step: ${config.name} from ${filePath}`)
             }
           } catch (error) {
-            console.error(`[Plugin] Error registering step ${filePath}:`, error)
+            printer.printPluginError(`Error registering step ${filePath}:`, error)
           }
         }
       } catch (error) {
-        console.error(`[Plugin] Error loading steps from ${plugin.dirname}:`, error)
+        printer.printPluginError(`Error loading steps from ${plugin.dirname}:`, error)
       }
     }
   }
 }
 
 export const processPlugins = async (motiaServer: MotiaServer): Promise<MotiaPlugin[]> => {
-  const baseDir = motiaServer.motia.lockedData.baseDir
+  const { printer, motia } = motiaServer
+  const baseDir = motia.lockedData.baseDir
 
   const context: MotiaPluginContext = createPluginContext(motiaServer)
 
-  const appConfig: Config = await loadConfig(baseDir)
+  const appConfig: Config = await loadConfig(baseDir, printer)
 
   if (!appConfig?.plugins) {
-    console.warn('No plugins found in motia.config.ts')
+    printer.printPluginError('No plugins found in motia.config.ts')
     return []
   }
 
