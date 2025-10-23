@@ -21,6 +21,44 @@ type StateStreamGetInput = { groupId: string; id: string }
 type StateStreamSendInput = { channel: StateStreamEventChannel; event: StateStreamEvent<unknown> }
 type StateStreamMutateInput = { groupId: string; id: string; data: BaseStreamItem }
 
+const sanitizeForPayload = (value: unknown, seen = new WeakSet<object>()): unknown => {
+  if (value === null) return null
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'bigint') {
+    return value.toString()
+  }
+  if (typeof value === 'symbol') {
+    return value.toString()
+  }
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) {
+    return { type: 'Buffer', data: Array.from(value.values()) }
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForPayload(item, seen))
+  }
+  if (typeof value === 'object' && value !== null) {
+    if (seen.has(value)) {
+      return '[Circular]'
+    }
+    seen.add(value)
+
+    return Object.entries(value as Record<string, unknown>).reduce<Record<string, unknown>>((acc, [key, val]) => {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        return acc
+      }
+      acc[key] = sanitizeForPayload(val, seen)
+      return acc
+    }, {})
+  }
+
+  return null
+}
+
 const getLanguageBasedRunner = (
   stepFilePath = '',
 ): {
@@ -71,7 +109,8 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
   return new Promise((resolve, reject) => {
     const streamConfig = motia.lockedData.getStreams()
     const streams = Object.keys(streamConfig).map((name) => ({ name }))
-    const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
+    const sanitizedData = sanitizeForPayload(data)
+    const jsonData = JSON.stringify({ data: sanitizedData, flows, traceId, contextInFirstArg, streams })
     const jsonBytes = Buffer.byteLength(jsonData, 'utf8')
 
     // Default: keep old behavior (argv carries inline JSON)

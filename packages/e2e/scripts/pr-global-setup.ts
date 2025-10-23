@@ -1,5 +1,14 @@
 import { exec, execSync } from 'child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import {
+  closeSync,
+  existsSync,
+  constants as fsConstants,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'fs'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
@@ -300,11 +309,6 @@ function registerStepInWorkbench(stepPath: string) {
   const workbenchPath = path.join(TEST_PROJECT_PATH, 'motia-workbench.json')
 
   try {
-    if (!existsSync(workbenchPath)) {
-      console.warn(`[LargePayload][Setup] motia-workbench.json not found at ${workbenchPath}`)
-      return
-    }
-
     const raw = readFileSync(workbenchPath, 'utf8')
     const data = JSON.parse(raw)
     const basicFlow = Array.isArray(data) ? data.find((flow: any) => flow.id === 'basic-tutorial') : null
@@ -321,13 +325,37 @@ function registerStepInWorkbench(stepPath: string) {
         sourceHandlePosition: 'right',
         targetHandlePosition: 'left',
       }
-      writeFileSync(workbenchPath, JSON.stringify(data, null, 2))
+      overwriteJsonFile(workbenchPath, data)
       console.log(`[LargePayload][Setup] registered ${stepPath} in motia-workbench.json`)
     } else {
       console.log(`[LargePayload][Setup] ${stepPath} already present in motia-workbench.json`)
     }
   } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      console.warn(`[LargePayload][Setup] motia-workbench.json not found at ${workbenchPath}`)
+      return
+    }
     console.error('[LargePayload][Setup] failed to update motia-workbench.json', error)
+  }
+}
+
+function overwriteJsonFile(filePath: string, data: unknown) {
+  const contents = JSON.stringify(data, null, 2)
+  const { O_NOFOLLOW, O_TRUNC, O_WRONLY } = fsConstants
+  const flags = O_WRONLY | O_TRUNC | (O_NOFOLLOW ?? 0)
+  let fd: number | undefined
+
+  try {
+    fd = openSync(filePath, flags)
+    writeFileSync(fd, contents, 'utf8')
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd)
+      } catch (closeError) {
+        console.warn(`[LargePayload][Setup] failed to close file descriptor for ${filePath}`, closeError)
+      }
+    }
   }
 }
 
