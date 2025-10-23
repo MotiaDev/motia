@@ -1,3 +1,6 @@
+import crypto from 'crypto'
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import { trackEvent } from './analytics/utils'
 import type { Logger } from './logger'
@@ -8,9 +11,6 @@ import { ProcessManager } from './process-communication/process-manager'
 import type { Event, InfrastructureConfig, Step } from './types'
 import type { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 import { isAllowedToEmit } from './utils'
-import os from 'os'
-import fs from 'fs'
-import crypto from 'crypto'
 
 type StateGetInput = { traceId: string; key: string }
 type StateSetInput = { traceId: string; key: string; value: unknown }
