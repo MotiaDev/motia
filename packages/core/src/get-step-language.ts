@@ -21,6 +21,10 @@ export const getStepLanguage = (fileExtension?: string): string | undefined => {
     return 'ruby'
   }
 
+  if (fileExtension.endsWith('.cs')) {
+    return 'csharp'
+  }
+
   if (fileExtension.endsWith('.php')) {
     return 'php'
   }

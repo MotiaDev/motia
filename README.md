@@ -15,7 +15,7 @@
   <strong>🔥 The Unified Backend Framework That Eliminates Runtime Fragmentation 🔥</strong>
 </p>
 <p align="center">
-  <em>APIs, background jobs, queueing, streaming, states, workflows, AI agents, observability, scaling, and deployment all in one system. JavaScript, TypeScript, Python, and more in a single core primitive</em>
+  <em>APIs, background jobs, queueing, streaming, states, workflows, AI agents, observability, scaling, and deployment all in one system. JavaScript, TypeScript, Python, C#, and more in a single core primitive</em>
 </p>
 
 <p align="center">
@@ -291,6 +291,7 @@ A complete chess platform benchmarking LLM performance with real-time evaluation
 | **TypeScript** | ✅ Stable |
 | **Python** | ✅ Stable |
 | **Ruby** | 🚧 Beta |
+| **C# (.NET 9)** | 🚧 Beta |
 | **Go** | 🔄 Soon |
 
 ## 📚 Resources

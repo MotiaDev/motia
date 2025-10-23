@@ -1,0 +1,36 @@
+using System.Text.Json;
+
+public static class NotificationConfig
+{
+    public static object Config = new
+    {
+        type = "event",
+        name = "SendNotification",
+        description = "Send notification email",
+        flows = new[] { "basic-tutorial" },
+        subscribes = new[] { "notification" },
+        emits = new string[] { }  // No events emitted from this step
+    };
+}
+
+public static class NotificationHandler
+{
+    public static async Task<object> Handler(object data, dynamic ctx)
+    {
+        // Parse the event data
+        var dataJson = JsonSerializer.Serialize(data);
+        var notificationData = JsonSerializer.Deserialize<Dictionary<string, object>>(dataJson);
+
+        var email = notificationData?.ContainsKey("email") == true ? notificationData["email"]?.ToString() : null;
+        var message = notificationData?.ContainsKey("message") == true ? notificationData["message"]?.ToString() : null;
+
+        ctx.Logger.Info("Step 03 – Sending notification", new { email, message });
+
+        // Simulate sending email (in a real app, this would use an email service)
+        ctx.Logger.Info($"Email sent to {email}: {message}");
+
+        await Task.CompletedTask;
+        return new { success = true };
+    }
+}
+

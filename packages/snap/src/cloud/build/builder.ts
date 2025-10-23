@@ -2,7 +2,7 @@ import type { ApiRouteConfig, Step, StepConfig } from '@motiadev/core'
 import type { Stream } from '@motiadev/core/dist/src/types-stream'
 import type { BuildListener } from '../new-deployment/listeners/listener.types'
 
-export type StepType = 'node' | 'python' | 'noop' | 'unknown'
+export type StepType = 'node' | 'python' | 'csharp' | 'noop' | 'unknown'
 
 export type BuildStepConfig = {
   type: StepType
@@ -135,6 +135,8 @@ export class Builder {
       return 'python'
     } else if (step.filePath.endsWith('.rb')) {
       return 'ruby'
+    } else if (step.filePath.endsWith('.cs')) {
+      return 'csharp'
     }
     return 'unknown'
   }

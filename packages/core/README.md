@@ -17,7 +17,7 @@ pnpm add @motiadev/core
 `@motiadev/core` is the foundation of the Motia framework, providing:
 
 - Event-driven architecture with pub/sub capabilities
-- Multi-language support (TypeScript, Python, Ruby)
+- Multi-language support (TypeScript, Python, C#, Ruby)
 - State management
 - Cron job scheduling
 - API route handling
@@ -105,11 +105,12 @@ const cronManager = setupCronHandlers(lockedData, eventManager, state, loggerFac
 
 Motia supports writing step handlers in multiple languages:
 
-- TypeScript/JavaScript
-- Python
-- Ruby
+- TypeScript/JavaScript - Direct execution
+- Python - RPC via `python-runner.py`
+- C# (.NET 9) - RPC via Roslyn scripting runner (Beta)
+- Ruby - RPC via `ruby-runner.rb` (Beta)
 
-Each language has its own runner that communicates with the core framework.
+Each language has its own runner that communicates with the core framework via JSON-RPC.
 
 ## Types
 
