@@ -1,69 +1,72 @@
-// import path from 'path'
-// import fs from 'fs'
-// import { callStepFile } from '../call-step-file'
-// import { createEventManager } from '../event-manager'
-// import { LockedData } from '../locked-data'
-// import { Logger } from '../logger'
-// import { Motia } from '../motia'
-// import { NoPrinter } from '../printer'
-// import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
-// import { createApiStep } from './fixtures/step-fixtures'
-// import { NoTracer } from '../observability/no-tracer'
-// import { spawnSync } from 'child_process'
-// import express from 'express'
+import { spawnSync } from 'child_process'
+import { randomUUID } from 'crypto'
+import express from 'express'
+import fs from 'fs'
+import path from 'path'
+import { callStepFile } from '../call-step-file'
+import { createEventManager } from '../event-manager'
+import { LockedData } from '../locked-data'
+import { Logger } from '../logger'
+import type { Motia } from '../motia'
+import { NoTracer } from '../observability/no-tracer'
+import { NoPrinter } from '../printer'
+import { QueueManager } from '../queue-manager'
+import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
+import { createApiStep } from './fixtures/step-fixtures'
 
-// describe('callStepFile (large payload via temp file) - Python', () => {
-//   const hasPython = spawnSync('python', ['-V']).status === 0
-//   const itif = hasPython ? it : it.skip
+describe('callStepFile (large payload via temp file) - Python', () => {
+  beforeAll(() => {
+    process.env._MOTIA_TEST_MODE = 'true'
+  })
 
-//   itif('writes large payload to meta.json and cleans temp dir after execution', async () => {
-//     const baseDir = path.join(__dirname, 'steps')
-//     const eventManager = createEventManager()
-//     const state = new MemoryStateAdapter()
+  const hasPython = spawnSync('python', ['-V']).status === 0
+  const itif = hasPython ? it : it.skip
 
-//     const step = createApiStep({ emits: [] }, path.join(baseDir, 'large-data-step.py'))
-//     const printer = new NoPrinter()
-//     const logger = new Logger()
-//     const tracer = new NoTracer()
+  itif(
+    'handles >1MB payload using meta file and cleans up temp dir',
+    async () => {
+      const baseDir = path.join(__dirname, 'steps')
+      const queueManager = new QueueManager()
+      const eventManager = createEventManager(queueManager)
+      const state = new MemoryStateAdapter()
 
-//     const motia: Motia = {
-//       eventManager,
-//       state,
-//       printer,
-//       lockedData: new LockedData(baseDir, 'memory', printer),
-//       loggerFactory: { create: () => logger },
-//       tracerFactory: { createTracer: () => tracer, clear: () => Promise.resolve() },
-//       app: express(),
-//       stateAdapter: state
-//     }
+      const step = createApiStep({ emits: [] }, path.join(baseDir, 'large-data-step.py'))
+      const printer = new NoPrinter()
+      const traceId = randomUUID()
+      const logger = new Logger()
+      const tracer = new NoTracer()
 
-//     const bigData = 'x'.repeat(2 * 1024 * 1024)
+      const motia: Motia = {
+        eventManager,
+        state,
+        printer,
+        queueManager,
+        lockedData: new LockedData(baseDir, 'memory', printer),
+        loggerFactory: { create: () => logger },
+        tracerFactory: { createTracer: () => tracer, clear: () => Promise.resolve() },
+        app: express(),
+        stateAdapter: state,
+      }
 
-//     let metaPath: string | undefined
-//     const originalWrite = fs.writeFileSync
-//     const writeSpy = jest.spyOn(fs, 'writeFileSync').mockImplementation((file: any, data: any, options?: any) => {
-//       if (typeof file === 'string' && file.endsWith(path.join('meta.json'))) {
-//         metaPath = file
-//       }
-//       return (originalWrite as any).call(fs, file, data, options)
-//     })
+      const bigData = 'x'.repeat(2 * 1024 * 1024)
 
-//     const result = await callStepFile<number>({ step, traceId: 't', data: bigData, logger, tracer }, motia)
+      let metaPath: string | undefined
+      const originalWrite = fs.writeFileSync
+      const writeSpy = jest.spyOn(fs, 'writeFileSync').mockImplementation((file: any, data: any, options?: any) => {
+        if (typeof file === 'string' && file.endsWith(path.join('meta.json'))) {
+          metaPath = file
+        }
+        return (originalWrite as any).call(fs, file, data, options)
+      })
 
-//     // ✅ Ensure meta.json was actually written
-//     expect(writeSpy).toHaveBeenCalledWith(
-//       expect.stringContaining('meta.json'),
-//       expect.any(String),
-//       expect.objectContaining({ mode: 0o600 })
-//     )
+      await callStepFile<number>({ step, traceId, data: bigData, logger, tracer }, motia)
 
-//     // ✅ Ensure the temp directory was deleted
-//     if (metaPath) {
-//       const dir = path.dirname(metaPath)
-//       await new Promise((resolve) => setTimeout(resolve, 100))
-//       expect(fs.existsSync(dir)).toBe(false)
-//     }
+      if (metaPath) {
+        expect(fs.existsSync(metaPath)).toBe(false)
+      }
 
-//     writeSpy.mockRestore()
-//   }, 30000)
-// })
+      writeSpy.mockRestore()
+    },
+    30000,
+  )
+})

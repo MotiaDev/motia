@@ -1,6 +1,6 @@
-import path from 'path'
 import fs from 'fs'
-import { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
+import path from 'path'
+import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { Logger } from './logger'
 import { composeMiddleware } from './middleware-compose'
 import { RpcSender } from './rpc'
@@ -49,7 +49,9 @@ function parseArgs(arg?: string) {
     throw e
   } finally {
     if (fd !== undefined) {
-      try { fs.closeSync(fd) } catch {}
+      try {
+        fs.closeSync(fd)
+      } catch {}
     }
   }
 }
