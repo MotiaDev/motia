@@ -40,7 +40,13 @@ function parseArgs(arg?: string) {
     }
   } catch (e: any) {
     // If open failed because it's not a file path, try inline JSON
-    if (e?.code === 'ENOENT' || e?.code === 'ENOTDIR' || e?.code === 'EISDIR' || e?.message === 'Not a regular file') {
+    if (
+      e?.code === 'ENOENT' ||
+      e?.code === 'ENOTDIR' ||
+      e?.code === 'EISDIR' ||
+      e?.code === 'ENAMETOOLONG' ||
+      e?.message === 'Not a regular file'
+    ) {
       try {
         return JSON.parse(arg)
       } catch {
