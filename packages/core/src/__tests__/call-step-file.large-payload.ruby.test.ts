@@ -23,7 +23,7 @@ describe('callStepFile (large payload via temp file) - Ruby', () => {
   const itif = hasRuby ? it : it.skip
 
   itif(
-    'handles >1MB payload using meta file and cleans up temp dir',
+    'handles >1MB payload using meta file and cleans up temporary dir',
     async () => {
       const baseDir = path.join(__dirname, 'steps')
       const queueManager = new QueueManager()
