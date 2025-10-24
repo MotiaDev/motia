@@ -2,7 +2,7 @@ import colors from 'colors'
 import path from 'path'
 import { isApiStep, isCronStep, isEventStep, isNoopStep } from './guards'
 import type { ValidationError } from './step-validator'
-import type { Event, Step } from './types'
+import type { Step } from './types'
 import type { Stream } from './types-stream'
 
 const stepTag = colors.bold(colors.magenta('Step'))
@@ -151,6 +151,24 @@ export class Printer {
     const streamPath = this.getRelativePath(stream.filePath)
     return colors.bold(colors.magenta(streamPath))
   }
+
+  printPluginLog(message: string) {
+    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
+    const levelTag = colors.blue('ℹ')
+    console.log(`${levelTag} ${pluginTag} ${message}`)
+  }
+
+  printPluginWarn(message: string) {
+    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
+    const levelTag = colors.yellow('⚠')
+    console.warn(`${levelTag} ${pluginTag} ${colors.yellow(message)}`)
+  }
+
+  printPluginError(message: string) {
+    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
+    const levelTag = colors.red('✖')
+    console.error(`${levelTag} ${pluginTag} ${colors.red(message)}`)
+  }
 }
 
 export class NoPrinter extends Printer {
@@ -173,4 +191,8 @@ export class NoPrinter extends Printer {
   printStreamCreated() {}
   printStreamUpdated() {}
   printStreamRemoved() {}
+
+  printPluginLog() {}
+  printPluginWarn() {}
+  printPluginError() {}
 }
