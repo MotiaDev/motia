@@ -77,6 +77,10 @@ jobs:
           npm dist-tag add motia@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/test@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/ui@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-endpoint@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-logs@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-observability@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-states@${{ needs.prepare.outputs.version }} latest
 
       - name: Remove pre-release tag
         run: |
@@ -89,6 +93,10 @@ jobs:
           npm dist-tag rm motia pre-release || true
           npm dist-tag rm @motiadev/test pre-release || true
           npm dist-tag rm @motiadev/ui pre-release || true
+          npm dist-tag rm @motiadev/plugin-endpoint pre-release || true
+          npm dist-tag rm @motiadev/plugin-logs pre-release || true
+          npm dist-tag rm @motiadev/plugin-observability pre-release || true
+          npm dist-tag rm @motiadev/plugin-states pre-release || true
 
   create-github-release:
     needs: [prepare, promote-to-latest]
@@ -235,6 +243,10 @@ jobs:
           - **@motiadev/stream-client-node**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/stream-client-react**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/test**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/plugin-endpoint**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/plugin-logs**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/plugin-observability**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/plugin-states**: ${{ needs.prepare.outputs.version }}
 
           ## 🚀 Installation & Upgrade
 
@@ -260,7 +272,7 @@ jobs:
 
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/
           FOOTER_EOF
-          
+
           echo "$PREVIOUS_TAG..${{ needs.prepare.outputs.tag_name }}" >> release_notes.md
 
           # Clean up
@@ -373,7 +385,7 @@ jobs:
             ]
           }
           EOF
-          
+
       - name: Send Slack notification
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
