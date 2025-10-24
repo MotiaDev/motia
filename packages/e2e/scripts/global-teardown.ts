@@ -1,6 +1,7 @@
 import { execSync } from 'child_process'
 import { existsSync, rmSync } from 'fs'
-import { platform } from 'os'
+import { platform, tmpdir } from 'os'
+import path from 'path'
 
 async function globalTeardown() {
   console.log('🧹 Cleaning up E2E test environment...')
@@ -39,6 +40,21 @@ async function globalTeardown() {
         await removeDirectoryWithRetry(testProjectPath, 3)
       } else {
         rmSync(testProjectPath, { recursive: true, force: true })
+      }
+    }
+
+    const tempDir = path.join(tmpdir(), 'motia')
+    if (existsSync(tempDir)) {
+      console.log('🧽 Clearing temp payload directory...')
+
+      try {
+        if (isWindows) {
+          await removeDirectoryWithRetry(tempDir, 3)
+        } else {
+          rmSync(tempDir, { recursive: true, force: true })
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to remove ${tempDir}:`, error)
       }
     }
 
