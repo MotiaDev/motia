@@ -1,1 +1,36 @@
-npx lint-staged
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running lint-staged..."
+npx lint-staged || exit 1
+
+echo "🧹 Running full lint..."
+# Run Biome only on code directories (packages and playground)
+biome ci packages playground --since=origin/main --changed --diagnostic-level=error || exit 1
+
+pnpm run lint || exit 1
+
+echo "🧪 Detecting changed packages or playground..."
+CHANGED_DIRS=$(git diff --cached --name-only | grep -E "packages/|playground/" | cut -d'/' -f2 | sort -u)
+
+if [ -z "$CHANGED_DIRS" ]; then
+  echo "🧪 No changed packages or playground detected. Skipping tests."
+else
+  for dir in $CHANGED_DIRS; do
+    if [ "$dir" = "playground" ]; then
+      echo "🧪 Running tests for playground..."
+      pnpm --filter playground run test -- --bail --passWithNoTests || {
+        echo "❌ Tests failed in playground"
+        exit 1
+      }
+    else
+      echo "🧪 Running tests for @motiadev/$dir..."
+      pnpm --filter "@motiadev/$dir" run test -- --bail --passWithNoTests || {
+        echo "❌ Tests failed in @motiadev/$dir"
+        exit 1
+      }
+    fi
+  done
+fi
+
+echo "✅ All checks passed. Proceeding with commit."
