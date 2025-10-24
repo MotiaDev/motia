@@ -28,6 +28,7 @@ export type PluginApiConfig = {
 export type UnregisterMotiaPluginApi = () => void
 
 export type MotiaPluginContext = {
+  printer: Printer
   state: StateAdapter
   lockedData: LockedData
   tracerFactory: TracerFactory

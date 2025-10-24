@@ -60,11 +60,13 @@ export class QueueManager {
   private queueEmitter = new EventEmitter()
   private scheduledTimeouts: Map<string, NodeJS.Timeout> = new Map()
   private metrics: Map<string, QueueMetrics> = new Map()
-  private topicListeners: Map<string, (t: string) => void> = new Map()
   private processingMessages: Set<string> = new Set()
 
   constructor(logger?: Logger) {
     this.logger = logger || globalLogger
+    this.queueEmitter.on('process', (topic: string) => {
+      this.processQueue(topic)
+    })
   }
 
   private initMetrics(topic: string): void {
@@ -134,7 +136,6 @@ export class QueueManager {
       message.visibleAt = Date.now()
     }
 
-    const visibilityTimeoutMs = handler.queueConfig.visibilityTimeout * 1000
     this.updateMetric(topic, 'processingCount', 1)
 
     try {
@@ -254,16 +255,6 @@ export class QueueManager {
       this.subscriptions[topic] = []
     }
 
-    if (!this.topicListeners.has(topic)) {
-      const listener = (t: string) => {
-        if (t === topic) {
-          this.processQueue(topic)
-        }
-      }
-      this.topicListeners.set(topic, listener)
-      this.queueEmitter.on('process', listener)
-    }
-
     const internalSubscriptionId = randomUUID()
     this.subscriptions[topic].push({ handler, queueConfig, subscriptionId, internalSubscriptionId })
 
@@ -293,11 +284,6 @@ export class QueueManager {
       delete this.subscriptions[topic]
       const hasQueuedMessages = this.queues[topic] && this.queues[topic].length > 0
       if (!hasQueuedMessages) {
-        const listener = this.topicListeners.get(topic)
-        if (listener) {
-          this.queueEmitter.off('process', listener)
-          this.topicListeners.delete(topic)
-        }
         const timeout = this.scheduledTimeouts.get(topic)
         if (timeout) {
           clearTimeout(timeout)
@@ -328,6 +314,5 @@ export class QueueManager {
     this.lockedGroups = new Set()
     this.processingMessages = new Set()
     this.metrics.clear()
-    this.topicListeners.clear()
   }
 }

@@ -15,6 +15,7 @@ import type { LockedData } from './locked-data'
 import { globalLogger } from './logger'
 import { BaseLoggerFactory } from './logger-factory'
 import type { Motia } from './motia'
+import type { Tracer } from './observability'
 import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
 import { QueueManager } from './queue-manager'
@@ -27,6 +28,7 @@ import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData,
 import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 
 export type MotiaServer = {
+  printer: Printer
   app: Express
   server: http.Server
   socketServer: WsServer
@@ -174,7 +176,6 @@ export const createServer = (
       const traceId = generateTraceId()
       const { name: stepName, flows } = step.config
       const logger = loggerFactory.create({ traceId, flows, stepName })
-      const tracer = await motia.tracerFactory.createTracer(traceId, step, logger)
 
       logger.debug('[API] Received request, processing step', { path: req.path })
 
@@ -199,7 +200,7 @@ export const createServer = (
                 traceId,
                 flows,
                 logger,
-                tracer,
+                tracer: null as unknown as Tracer,
               }
               await eventManager.emit(eventObj)
             },
@@ -207,8 +208,8 @@ export const createServer = (
             streams: lockedData.getStreams(),
           }
           result = await step.handler(data, context)
-          tracer.end()
         } else {
+          const tracer = await motia.tracerFactory.createTracer(traceId, step, logger)
           result = await callStepFile<ApiResponse>({ data, step, logger, tracer, traceId }, motia)
         }
 
@@ -324,5 +325,5 @@ export const createServer = (
     socketServer.close()
   }
 
-  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motia }
+  return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motia, printer }
 }
