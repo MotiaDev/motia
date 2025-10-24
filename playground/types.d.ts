@@ -23,6 +23,14 @@ declare module 'motia' {
     'JoinComplete': EventHandler<{ stepA: { msg: string; timestamp: number }; stepB: unknown; stepC: unknown; mergedAt: string }, never>
     'CallOpenAi': EventHandler<{ message: string; assistantMessageId: string; threadId: string }, never>
     'OpenAiApi': ApiRouteHandler<{ message: string }, ApiResponse<200, { message: string; from: 'user' | 'assistant'; status: 'created' | 'pending' | 'completed' }>, { topic: 'openai-prompt'; data: { message: string; assistantMessageId: string; threadId: string } }>
+    'MCPEndpoint': ApiRouteHandler<{ jsonrpc: string; id?: unknown; method: string; params?: Record<string, unknown> }, ApiResponse<200, { jsonrpc: string; id: unknown; result?: Record<string, unknown> }> | ApiResponse<202, {}> | ApiResponse<400, { jsonrpc: string; id: unknown; error: { code: number; message: string; data?: unknown } }> | ApiResponse<500, { jsonrpc: string; id: unknown; error: { code: number; message: string; data?: unknown } }>, { topic: 'mcp.tool.call'; data: never }>
+    'MCPEndpointGet': ApiRouteHandler<Record<string, unknown>, ApiResponse<405, { detail: string }>, never>
+    'MCPInitIntrospection': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; initialized: boolean }>, never>
+    'MCPTriggerWorkflow': EventHandler<{ toolName: string; arguments: Record<string, unknown>; requestId: unknown }, never>
+    'MCPManageState': EventHandler<{ toolName: string; arguments: Record<string, unknown>; requestId: unknown }, never>
+    'MCPListSteps': EventHandler<{ toolName: string; arguments: Record<string, unknown>; requestId: unknown }, never>
+    'MCPGetLogs': EventHandler<{ toolName: string; arguments: Record<string, unknown>; requestId: unknown }, never>
+    'MCPCallApi': EventHandler<{ toolName: string; arguments: Record<string, unknown>; requestId: unknown }, never>
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
     'StateAuditJob': CronHandler<{ topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
