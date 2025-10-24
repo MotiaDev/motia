@@ -41,7 +41,7 @@ const sanitizeForPayload = (value: unknown, seen = new WeakSet<object>()): unkno
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeForPayload(item, seen))
   }
-  if (typeof value === 'object' && value !== null) {
+  if (value && typeof value === 'object') {
     if (seen.has(value)) {
       return '[Circular]'
     }
