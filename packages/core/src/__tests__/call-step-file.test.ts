@@ -3,7 +3,6 @@ import express from 'express'
 import path from 'path'
 import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
 import { callStepFile } from '../call-step-file'
-import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
 import { Logger } from '../logger'
 import type { Motia } from '../motia'
@@ -20,17 +19,20 @@ describe('callStepFile', () => {
 
   const createMockMotia = (baseDir: string): Motia => {
     const eventAdapter = new DefaultQueueEventAdapter()
-    const eventManager = createEventManager(eventAdapter)
     const state = new MemoryStateAdapter()
     const printer = new NoPrinter()
 
     return {
-      eventManager,
+      eventAdapter,
       state,
       printer,
       lockedData: new LockedData(baseDir, 'memory', printer),
       loggerFactory: { create: () => new Logger() },
-      tracerFactory: { createTracer: () => new NoTracer(), clear: () => Promise.resolve() },
+      tracerFactory: {
+        createTracer: () => new NoTracer(),
+        attachToTrace: () => new NoTracer(),
+        clear: () => Promise.resolve(),
+      },
       app: express(),
       stateAdapter: state,
     }
@@ -44,11 +46,11 @@ describe('callStepFile', () => {
     const tracer = new NoTracer()
     const motia = createMockMotia(baseDir)
 
-    jest.spyOn(motia.eventManager, 'emit').mockImplementation(() => Promise.resolve())
+    jest.spyOn(motia.eventAdapter, 'emit').mockImplementation(() => Promise.resolve())
 
     await callStepFile({ step, traceId, logger, contextInFirstArg: true, tracer }, motia)
 
-    expect(motia.eventManager.emit).toHaveBeenCalledWith(
+    expect(motia.eventAdapter.emit).toHaveBeenCalledWith(
       {
         topic: 'TEST_EVENT',
         data: { test: 'data' },

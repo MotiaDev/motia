@@ -1,6 +1,4 @@
 import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
-import { createEventManager } from '../event-manager'
-import { QueueManager } from '../queue-manager'
 import { createEvent } from './fixtures/event-fixtures'
 
 describe('EventManager', () => {
@@ -10,27 +8,17 @@ describe('EventManager', () => {
 
   it('should handle subscription, emission and unsubscription of events', async () => {
     const eventAdapter = new DefaultQueueEventAdapter()
-    const eventManager = createEventManager(eventAdapter)
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
     const mockHandler = jest.fn().mockResolvedValue(undefined)
 
-    eventManager.subscribe({
-      event: 'TEST_EVENT',
-      handlerName: 'testHandler',
-      filePath: 'test.ts',
-      handler: mockHandler,
-    })
-
-    await eventManager.emit(testEvent)
+    await eventAdapter.emit(testEvent)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(mockHandler).toHaveBeenCalledWith(testEvent)
     expect(mockHandler).toHaveBeenCalledTimes(1)
 
-    eventManager.unsubscribe({ event: 'TEST_EVENT', filePath: 'test.ts' })
-
-    await eventManager.emit(testEvent)
+    await eventAdapter.emit(testEvent)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(mockHandler).toHaveBeenCalledTimes(1)
@@ -38,27 +26,12 @@ describe('EventManager', () => {
 
   it('should handle multiple subscriptions to same event', async () => {
     const eventAdapter = new DefaultQueueEventAdapter()
-    const eventManager = createEventManager(eventAdapter)
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
     const mockHandler1 = jest.fn().mockResolvedValue(undefined)
     const mockHandler2 = jest.fn().mockResolvedValue(undefined)
 
-    eventManager.subscribe({
-      event: 'TEST_EVENT',
-      handlerName: 'handler1',
-      filePath: 'test1.ts',
-      handler: mockHandler1,
-    })
-
-    eventManager.subscribe({
-      event: 'TEST_EVENT',
-      handlerName: 'handler2',
-      filePath: 'test2.ts',
-      handler: mockHandler2,
-    })
-
-    await eventManager.emit(testEvent)
+    await eventAdapter.emit(testEvent)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(mockHandler1).toHaveBeenCalledWith(testEvent)

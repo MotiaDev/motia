@@ -19,14 +19,13 @@ import { BaseLoggerFactory } from './logger-factory'
 import type { Motia } from './motia'
 import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
-import { QueueManager } from './queue-manager'
 import { createSocketServer } from './socket-server'
 import type { StateAdapter } from './state/state-adapter'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
 import type { StreamAdapter } from './streams/adapters/stream-adapter'
 import { type Log, LogsStream } from './streams/logs-stream'
-import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, EventManager, Step } from './types'
+import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, Step } from './types'
 import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 
 export type MotiaServer = {
@@ -54,7 +53,6 @@ type AdapterOptions = {
 
 export const createServer = (
   lockedData: LockedData,
-  eventManager: EventManager,
   state: StateAdapter,
   config: MotiaServerConfig,
   adapters: AdapterOptions,
@@ -164,7 +162,7 @@ export const createServer = (
   const tracerFactory = createTracerFactory(lockedData)
   const motia: Motia = {
     loggerFactory,
-    eventManager,
+    eventAdapter: adapters.eventAdapter,
     state,
     lockedData,
     printer,
@@ -208,7 +206,7 @@ export const createServer = (
                 logger,
                 tracer,
               }
-              await eventManager.emit(eventObj)
+              await adapters.eventAdapter.emit(eventObj)
             },
             logger,
             streams: lockedData.getStreams(),

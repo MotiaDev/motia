@@ -26,7 +26,6 @@ export const createMotiaTester = (): MotiaTester => {
     const state = createStateAdapter({ adapter: 'memory' })
     const { server, socketServer, close } = createServer(
       lockedData,
-      eventManager,
       state,
       { isVerbose: false },
       { eventAdapter, cronAdapter: new DefaultCronAdapter() },
@@ -44,15 +43,10 @@ export const createMotiaTester = (): MotiaTester => {
     watch: async <TData>(event: string) => {
       const events: CapturedEvent<TData>[] = []
 
-      eventManager.subscribe({
-        event,
-        filePath: '$watcher',
-        handlerName: '$watcher',
-        handler: async (event: Event<TData>) => {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { logger, tracer, ...rest } = event
-          events.push(rest)
-        },
+      eventManager.subscribe(event, '$watcher', async (event: Event<TData>) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { logger, tracer, ...rest } = event
+        events.push(rest)
       })
 
       return {

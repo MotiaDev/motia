@@ -69,8 +69,6 @@ export class RabbitMQEventAdapter implements EventAdapter {
           if (this.config.prefetch) {
             await this.channel.prefetch(this.config.prefetch)
           }
-
-          console.log('[RabbitMQ] Connected successfully')
         }
       }
     } catch (error) {
@@ -129,11 +127,12 @@ export class RabbitMQEventAdapter implements EventAdapter {
 
   async subscribe<TData>(
     topic: string,
+    stepName: string,
     handler: (event: Event<TData>) => void | Promise<void>,
     options?: QueueConfig,
   ): Promise<SubscriptionHandle> {
     const channel = await this.ensureConnection()
-    const queueName = `motia.${topic}.${uuidv4()}`
+    const queueName = `motia.${stepName}.${topic}`
 
     const subscribeOptions: RabbitMQSubscribeOptions = {
       durable: this.config.durable,

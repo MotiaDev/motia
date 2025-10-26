@@ -2,10 +2,8 @@ import path from 'path'
 import { DefaultCronAdapter } from 'src/adapters/default-cron-adapter'
 import { DefaultQueueEventAdapter } from 'src/adapters/default-queue-event-adapter'
 import request from 'supertest'
-import { createEventManager } from '../event-manager'
 import type { LockedData } from '../locked-data'
 import { Printer } from '../printer'
-import { QueueManager } from '../queue-manager'
 import { createServer } from '../server'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { MemoryStreamAdapter } from '../streams/adapters/memory-stream-adapter'
@@ -51,11 +49,10 @@ describe('Middleware Management', () => {
       on: () => {},
     } as unknown as LockedData
 
-    const eventManager = createEventManager(new DefaultQueueEventAdapter())
     const state = new MemoryStateAdapter()
     const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
-    server = createServer(lockedData, eventManager, state, config, {
+    server = createServer(lockedData, state, config, {
       eventAdapter: new DefaultQueueEventAdapter(),
       cronAdapter: new DefaultCronAdapter(),
     })

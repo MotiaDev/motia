@@ -76,9 +76,7 @@ export const dev = async (
     streamAdapterFactory: appConfig.adapters?.streams ? () => appConfig.adapters!.streams! : undefined,
   }
 
-  const eventManager = createEventManager(adapters.eventAdapter)
-
-  const motiaServer = createServer(lockedData, eventManager, state, config, adapters)
+  const motiaServer = createServer(lockedData, state, config, adapters)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
