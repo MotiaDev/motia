@@ -2,10 +2,10 @@
 
 import fs from 'fs'
 import path from 'path'
-import type { Emit, Step } from 'src/types'
 import { v5 as uuidv5 } from 'uuid'
 import { getStepLanguage } from '../get-step-language'
 import { isApiStep, isCronStep, isEventStep, isNoopStep } from '../guards'
+import type { Emit, Step } from '../types'
 import type { FlowEdge, FlowResponse, FlowStepResponse } from '../types/flows-types'
 
 const getNodeComponentPath = (filePath: string): string | undefined => {
