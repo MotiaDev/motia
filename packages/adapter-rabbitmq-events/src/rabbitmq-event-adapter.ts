@@ -1,7 +1,6 @@
 import type { Event, EventAdapter, QueueConfig, SubscriptionHandle } from '@motiadev/core'
 import type { ConsumeMessage } from 'amqplib'
 import amqp from 'amqplib'
-import { v4 as uuidv4 } from 'uuid'
 import type { RabbitMQEventAdapterConfig, RabbitMQSubscribeOptions } from './types'
 
 export class RabbitMQEventAdapter implements EventAdapter {
@@ -132,7 +131,7 @@ export class RabbitMQEventAdapter implements EventAdapter {
     options?: QueueConfig,
   ): Promise<SubscriptionHandle> {
     const channel = await this.ensureConnection()
-    const queueName = `motia.${stepName}.${topic}`
+    const queueName = `motia.${topic}.${stepName}`
 
     const subscribeOptions: RabbitMQSubscribeOptions = {
       durable: this.config.durable,
@@ -140,10 +139,21 @@ export class RabbitMQEventAdapter implements EventAdapter {
       prefetch: this.config.prefetch,
     }
 
+    const queueArgs: any = {}
+
+    if (options?.visibilityTimeout && options.visibilityTimeout > 0) {
+      queueArgs['x-consumer-timeout'] = options.visibilityTimeout * 1000
+    }
+
+    if (options?.type === 'fifo') {
+      queueArgs['x-single-active-consumer'] = true
+    }
+
     const queue = await channel.assertQueue(queueName, {
       durable: subscribeOptions.durable ?? true,
       exclusive: subscribeOptions.exclusive ?? false,
       autoDelete: !subscribeOptions.durable,
+      arguments: Object.keys(queueArgs).length > 0 ? queueArgs : undefined,
     })
 
     await channel.bindQueue(queue.queue, this.config.exchangeName, topic)
@@ -156,11 +166,29 @@ export class RabbitMQEventAdapter implements EventAdapter {
       if (!msg) return
 
       try {
+        const retryCount = (msg.properties.headers?.['x-retry-count'] as number) || 0
+
+        if (options?.maxRetries && retryCount >= options.maxRetries) {
+          console.warn(`[RabbitMQ] Message exceeded max retries (${options.maxRetries})`)
+          channel.nack(msg, false, false)
+          return
+        }
+
         const content = JSON.parse(msg.content.toString())
         await handler(content as Event<TData>)
         channel.ack(msg)
       } catch (error) {
         console.error('[RabbitMQ] Error processing message:', error)
+
+        if (options?.maxRetries) {
+          const retryCount = (msg.properties.headers?.['x-retry-count'] as number) || 0
+
+          if (retryCount < options.maxRetries) {
+            const headers = { ...msg.properties.headers, 'x-retry-count': retryCount + 1 }
+            channel.publish(this.config.exchangeName, topic, msg.content, { ...msg.properties, headers })
+          }
+        }
+
         channel.nack(msg, false, false)
       }
     })
