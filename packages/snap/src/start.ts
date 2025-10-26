@@ -45,7 +45,6 @@ export const start = async (
 
   const state = appConfig.adapters?.state || createStateAdapter({ adapter: 'default', filePath: dotMotia })
   const eventAdapter = appConfig.adapters?.events || new DefaultQueueEventAdapter()
-  const eventManager = createEventManager(eventAdapter)
 
   const config = { isVerbose, isDev: false, version }
   const adapters = {
@@ -53,7 +52,7 @@ export const start = async (
     cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
     streamAdapterFactory: appConfig.adapters?.streams ? () => appConfig.adapters!.streams! : undefined,
   }
-  const motiaServer = createServer(lockedData, eventManager, state, config, adapters)
+  const motiaServer = createServer(lockedData, state, config, adapters)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {

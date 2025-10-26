@@ -1,13 +1,13 @@
-import type { Event, EventAdapter, EventManager, QueueMetrics } from '@motiadev/core'
-import { createEventManager as createProductionEventManager, DefaultQueueEventAdapter } from '@motiadev/core'
+import type { Event, EventAdapter, QueueMetrics } from '@motiadev/core'
+import { DefaultQueueEventAdapter } from '@motiadev/core'
 
-interface TestEventManager extends EventManager {
+interface TestEventManager {
+  emit: <TData>(event: Event<TData>, file?: string) => Promise<void>
   waitEvents(): Promise<void>
+  subscribe: <TData>(topic: string, stepName: string, handler: (event: Event<TData>) => void | Promise<void>) => void
 }
 
 export const createEventManager = (eventAdapter: EventAdapter): TestEventManager => {
-  const productionEventManager = createProductionEventManager(eventAdapter)
-
   const waitEvents = async () => {
     await new Promise((resolve) => setTimeout(resolve, 200))
 
@@ -23,8 +23,17 @@ export const createEventManager = (eventAdapter: EventAdapter): TestEventManager
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
+  const subscribe = <TData>(
+    topic: string,
+    stepName: string,
+    handler: (event: Event<TData>) => void | Promise<void>,
+  ) => {
+    eventAdapter.subscribe(topic, stepName, handler)
+  }
+
   return {
-    ...productionEventManager,
+    emit: eventAdapter.emit,
     waitEvents,
+    subscribe,
   }
 }

@@ -15,6 +15,7 @@ export class DefaultQueueEventAdapter implements EventAdapter {
 
   async subscribe<TData>(
     topic: string,
+    stepName: string,
     handler: (event: Event<TData>) => void | Promise<void>,
     queueConfig?: QueueConfig,
   ): Promise<SubscriptionHandle> {

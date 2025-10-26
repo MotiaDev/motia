@@ -171,7 +171,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           }
 
           tracer.emitOperation(input.topic, input.data, true)
-          return motia.eventManager.emit({ ...input, traceId, flows, logger, tracer }, step.filePath)
+          return motia.eventAdapter.emit({ ...input, traceId, flows, logger, tracer })
         })
 
         Object.entries(streamConfig).forEach(([name, streamFactory]) => {
