@@ -10,6 +10,7 @@ export interface EventAdapter {
 
   subscribe<TData>(
     topic: string,
+    stepName: string,
     handler: (event: Event<TData>) => void | Promise<void>,
     options?: QueueConfig,
   ): Promise<SubscriptionHandle>

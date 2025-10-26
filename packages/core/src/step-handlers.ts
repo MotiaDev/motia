@@ -63,7 +63,7 @@ export const createStepHandlers = (motia: Motia, eventAdapter: EventAdapter): Mo
 
         const tracer = event.tracer
           ? event.tracer.child(step, logger)
-          : await motia.tracerFactory.createTracer(traceId, step, logger)
+          : await motia.tracerFactory.attachToTrace(traceId, step, logger)
 
         globalLogger.debug('[step handler] received event', { event: removeLogger(event), step: name })
 
@@ -73,7 +73,7 @@ export const createStepHandlers = (motia: Motia, eventAdapter: EventAdapter): Mo
         await callStepFile({ step, data, traceId, tracer, logger, infrastructure: config.infrastructure }, motia)
       }
 
-      const subscriptionHandle = await eventAdapter.subscribe(subscribe, handler, queueConfig)
+      const subscriptionHandle = await eventAdapter.subscribe(subscribe, name, handler, queueConfig)
       handlers.push(subscriptionHandle)
     })
 

@@ -13,7 +13,6 @@ export type {
 export { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled, trackEvent } from './src/analytics/utils'
 export { config } from './src/config'
 export { CronManager, setupCronHandlers } from './src/cron-handler'
-export { createEventManager } from './src/event-manager'
 export { getStepConfig, getStreamConfig } from './src/get-step-config'
 export { isApiStep, isCronStep, isEventStep, isNoopStep } from './src/guards'
 export {
