@@ -2,6 +2,7 @@
 
 import { program } from 'commander'
 import './cloud'
+import inquirer from 'inquirer'
 import { handler } from './cloud/config-utils'
 import { version } from './version'
 
@@ -14,6 +15,29 @@ require('ts-node').register({
   compilerOptions: { module: 'commonjs' },
 })
 
+// 🔹 1️⃣ New constant: remote templates JSON
+const TEMPLATE_INDEX = 'https://raw.githubusercontent.com/MotiaDev/motia-examples/main/examples/templates.json'
+
+interface Template {
+  name: string
+  description: string
+  repo: string
+  tags?: string[]
+}
+
+async function fetchTemplates(): Promise<Template[]> {
+  try {
+    const res = await fetch(TEMPLATE_INDEX)
+    if (!res.ok) throw new Error(`Failed to fetch templates: ${res.status}`)
+    return (await res.json()) as Template[]
+  } catch (err: any) {
+    console.error('❌ Unable to fetch templates:', err.message)
+    return []
+  }
+}
+
+/* ------------------ EXISTING COMMANDS ------------------- */
+
 program
   .command('version')
   .description('Display detailed version information')
@@ -22,26 +46,80 @@ program
     process.exit(0)
   })
 
+// ✅ 2️⃣ ENHANCED CREATE COMMAND
 program
   .command('create [name]')
-  .description('Create a new motia project')
-  .option('-t, --template <template>', 'The template to use for your project')
-  .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
-  .option('-c, --confirm', 'Confirm the project creation', false)
+  .description('Create a new Motia project')
+  .option('-t, --template <template>', 'Specify template name to use')
+  .option('-i, --interactive', 'Use interactive mode')
+  .option('-c, --confirm', 'Skip confirmation prompts', false)
   .action((projectName, options) => {
-    const mergedArgs = { ...options, name: projectName }
     return handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive')
+
+      let template = arg.template
+
+      // If no template provided, fetch + prompt
+      if (!template) {
+        const templates = await fetchTemplates()
+        if (templates.length === 0) {
+          console.log('⚠️ No templates found.')
+          process.exit(1)
+        }
+
+        const { chosen } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'chosen',
+            message: 'Choose a starter template:',
+            choices: templates.map((t) => ({
+              name: `${t.name} - ${t.description}`,
+              value: t.repo,
+            })),
+          },
+        ])
+
+        template = chosen
+      }
+
       await createInteractive(
         {
-          name: arg.name,
-          template: arg.template,
+          name: arg.name || projectName,
+          template,
           confirm: !!arg.confirm,
         },
         context,
       )
-    })(mergedArgs)
+    })(options)
   })
+
+// ✅ 3️⃣ NEW: SEARCH COMMAND
+program
+  .command('search [query]')
+  .description('Search available Motia templates')
+  .action(async (query) => {
+    const templates = await fetchTemplates()
+
+    if (!templates.length) {
+      console.log('⚠️ No templates found.')
+      process.exit(1)
+    }
+
+    const filtered = query
+      ? templates.filter((t) =>
+          [t.name, t.description, ...(t.tags || [])].join(' ').toLowerCase().includes(query.toLowerCase()),
+        )
+      : templates
+
+    console.log('\nAvailable templates:\n')
+    filtered.forEach((t) => {
+      console.log(`📦 ${t.name}`)
+      console.log(`   ${t.description}`)
+      console.log(`   🔗 ${t.repo}\n`)
+    })
+  })
+
+/* ---------------- EXISTING OTHER COMMANDS ---------------- */
 
 program
   .command('rules')
