@@ -20,11 +20,7 @@ const registerDefaultTabs = (): void => {
       content: FlowPage,
     },
   ]
-
-  const bottomTabs: AppTab[] = []
-
   setAppTabs(TabLocation.TOP, topTabs)
-  setAppTabs(TabLocation.BOTTOM, bottomTabs)
 }
 
 export const App: FC = () => {
