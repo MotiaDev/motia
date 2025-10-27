@@ -42,7 +42,6 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
     })
 
     this.client.on('connect', () => {
-      console.log('[Redis Stream] Connected successfully')
       this.connected = true
     })
 
