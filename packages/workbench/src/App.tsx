@@ -4,7 +4,7 @@ import { FlowTabMenuItem } from './components/flow/flow-tab-menu-item'
 import { registerPluginTabs } from './lib/plugins'
 import { getViewModeFromURL, type ViewMode } from './lib/utils'
 import { ProjectViewMode } from './project-view-mode'
-import { type AppTab, setAppTabs, TabLocation } from './stores/use-app-tabs-store'
+import { type AppTab, TabLocation, useAppTabsStore } from './stores/use-app-tabs-store'
 import { SystemViewMode } from './system-view-mode'
 
 const TAB_IDS = {
@@ -12,28 +12,28 @@ const TAB_IDS = {
   LOGS: 'logs',
 } as const
 
-const registerDefaultTabs = (): void => {
-  const topTabs: AppTab[] = [
-    {
-      id: TAB_IDS.FLOW,
-      tabLabel: FlowTabMenuItem,
-      content: FlowPage,
-    },
-  ]
-  setAppTabs(TabLocation.TOP, topTabs)
-}
+const topTabs: AppTab[] = [
+  {
+    id: TAB_IDS.FLOW,
+    tabLabel: FlowTabMenuItem,
+    content: FlowPage,
+  },
+]
 
 export const App: FC = () => {
+  const setTabs = useAppTabsStore((state) => state.setTabs)
+  const addTab = useAppTabsStore((state) => state.addTab)
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       console.log('registering default tabs')
-      registerDefaultTabs()
+      setTabs(TabLocation.TOP, topTabs)
       console.log('registering plugin tabs')
-      registerPluginTabs()
+      registerPluginTabs(addTab)
       console.log('registered tabs')
     }, 10)
     return () => clearTimeout(timeout)
-  }, [])
+  }, [setTabs, addTab])
 
   const viewMode = useMemo<ViewMode>(getViewModeFromURL, [])
 
