@@ -1,4 +1,4 @@
-import { type FC, useMemo } from 'react'
+import { type FC, useEffect, useMemo } from 'react'
 import { FlowPage } from './components/flow/flow-page'
 import { FlowTabMenuItem } from './components/flow/flow-tab-menu-item'
 import { registerPluginTabs } from './lib/plugins'
@@ -27,10 +27,18 @@ const registerDefaultTabs = (): void => {
   setAppTabs(TabLocation.BOTTOM, bottomTabs)
 }
 
-registerDefaultTabs()
-registerPluginTabs()
-
 export const App: FC = () => {
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      console.log('registering default tabs')
+      registerDefaultTabs()
+      console.log('registering plugin tabs')
+      registerPluginTabs()
+      console.log('registered tabs')
+    }, 10)
+    return () => clearTimeout(timeout)
+  }, [])
+
   const viewMode = useMemo<ViewMode>(getViewModeFromURL, [])
 
   const ViewComponent = viewMode === 'project' ? ProjectViewMode : SystemViewMode
