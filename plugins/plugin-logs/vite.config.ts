@@ -17,17 +17,7 @@ export default defineConfig({
       fileName: (format, entryName) => `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
     },
     rollupOptions: {
-      external: [
-        'react',
-        'react-dom',
-        '@motiadev/core',
-        '@motiadev/ui',
-        '@motiadev/stream-client-browser',
-        'express',
-        'zustand',
-        'lucide-react',
-        'react18-json-view',
-      ],
+      external: ['react', 'react-dom', '@motiadev/core', '@motiadev/ui', '@motiadev/stream-client-browser'],
     },
     cssCodeSplit: false,
   },
