@@ -45,7 +45,6 @@ export class RedisCronAdapter implements CronAdapter {
     })
 
     this.client.on('connect', () => {
-      console.log('[Redis Cron] Connected successfully')
       this.connected = true
     })
 

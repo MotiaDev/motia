@@ -36,7 +36,6 @@ export class RedisStateAdapter implements StateAdapter {
     })
 
     this.client.on('connect', () => {
-      console.log('[Redis State] Connected successfully')
       this.connected = true
     })
 
@@ -85,11 +84,9 @@ export class RedisStateAdapter implements StateAdapter {
   private determineType(value: unknown): StateItem['type'] {
     if (value === null) return 'null'
     if (Array.isArray(value)) return 'array'
-    if (typeof value === 'object') return 'object'
-    if (typeof value === 'string') return 'string'
-    if (typeof value === 'number') return 'number'
-    if (typeof value === 'boolean') return 'boolean'
-    return 'object'
+    return (
+      (['string', 'number', 'boolean', 'object'].find((type) => typeof value === type) as StateItem['type']) || 'object'
+    )
   }
 
   async get<T>(traceId: string, key: string): Promise<T | null> {
