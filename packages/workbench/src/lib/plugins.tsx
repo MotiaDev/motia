@@ -10,8 +10,6 @@ export const registerPluginTabs = (addTab: (position: TabLocation, tab: AppTab) 
     return
   }
 
-  console.log('[Motia] Registering plugins:', plugins)
-
   plugins.forEach((plugin, index) => {
     try {
       if (!plugin.label) {

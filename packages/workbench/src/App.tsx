@@ -26,11 +26,8 @@ export const App: FC = () => {
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      console.log('registering default tabs')
       setTabs(TabLocation.TOP, topTabs)
-      console.log('registering plugin tabs')
       registerPluginTabs(addTab)
-      console.log('registered tabs')
     }, 10)
     return () => clearTimeout(timeout)
   }, [setTabs, addTab])

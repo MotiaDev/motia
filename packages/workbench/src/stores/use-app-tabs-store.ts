@@ -47,13 +47,3 @@ export const useAppTabsStore = create<AppTabsState>((set) => ({
       },
     })),
 }))
-
-export const setAppTabs = (position: TabLocation, tabs: AppTab[]) => {
-  console.log('[Motia] Setting tabs:', position, tabs)
-  useAppTabsStore.getState().setTabs(position, tabs)
-}
-
-export const addAppTab = (position: TabLocation, tab: AppTab) => {
-  console.log('[Motia] Adding tab:', position, tab)
-  useAppTabsStore.getState().addTab(position, tab)
-}
