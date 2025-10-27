@@ -1,6 +1,5 @@
 import { flush } from '@amplitude/analytics-node'
 import {
-  createEventManager,
   createMermaidGenerator,
   createServer,
   createStateAdapter,
