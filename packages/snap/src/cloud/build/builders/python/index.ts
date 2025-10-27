@@ -152,6 +152,6 @@ export class PythonBuilder implements StepBuilder {
 
   private getModuleName(step: Step): string {
     // return step path
-    return step.filePath.replace(this.builder.projectDir, '').substring(1).replace(/\.py$/, '').replace(/\//g, '.')
+    return step.filePath.replace(this.builder.projectDir, '').substring(1).replace(/\.py$/, '').replace(/[\\/]/g, '.')
   }
 }
