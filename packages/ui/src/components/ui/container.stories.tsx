@@ -12,6 +12,7 @@ import {
   UserRound,
   Zap,
 } from 'lucide-react'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { Container, ContainerContent, ContainerHeader } from './container'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
 
@@ -21,8 +22,24 @@ const meta: Meta<typeof Container> = {
   parameters: {
     layout: 'centered',
     actions: { argTypesRegex: '^on.*' },
+    docs: {
+      description: {
+        component:
+          'A flexible container component with header and content sections. Commonly used with Tabs for tabbed interfaces and supports the Workbench layout pattern.',
+      },
+    },
   },
   tags: ['autodocs'],
+  argTypes: {
+    className: {
+      control: { type: 'text' },
+      description: 'Additional CSS classes to apply to the container',
+    },
+    children: {
+      control: { type: 'text' },
+      description: 'The content to render inside the container',
+    },
+  },
 }
 
 export default meta
@@ -216,5 +233,31 @@ export const WorkbenchLayout: Story = {
   ),
   parameters: {
     layout: 'fullscreen',
+  },
+}
+
+// Interaction Tests
+export const TabSwitchingInContainer: Story = {
+  render: () => (
+    <Container>
+      <Tabs defaultValue="account" className="h-full flex flex-col">
+        <ContainerHeader variant="tabs">
+          <TabsList>
+            <TabsTrigger value="account">Account</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+        </ContainerHeader>
+        <ContainerContent>
+          <TabsContent value="account">Account content</TabsContent>
+          <TabsContent value="settings">Settings content</TabsContent>
+        </ContainerContent>
+      </Tabs>
+    </Container>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const settingsTab = canvas.getByRole('tab', { name: 'Settings' })
+    await userEvent.click(settingsTab)
+    await waitFor(() => expect(canvas.getByText('Settings content')).toBeVisible())
   },
 }

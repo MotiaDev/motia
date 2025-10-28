@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { Play, Plus, Settings, X } from 'lucide-react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { Button } from './button'
 
 const meta: Meta<typeof Button> = {
@@ -341,4 +342,49 @@ export const States: Story = {
       </div>
     </div>
   ),
+}
+
+// Interaction Tests
+export const ClickInteraction: Story = {
+  args: {
+    children: 'Click me',
+    onClick: fn(),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole('button')
+    await userEvent.click(button)
+    await expect(args.onClick).toHaveBeenCalled()
+  },
+}
+
+export const DisabledNoClick: Story = {
+  args: {
+    children: 'Disabled Button',
+    disabled: true,
+    onClick: fn(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole('button')
+    // Verify button is disabled - can't click due to pointer-events: none
+    await expect(button).toBeDisabled()
+    await expect(button).toHaveAttribute('disabled')
+  },
+}
+
+export const KeyboardInteraction: Story = {
+  args: {
+    children: 'Press Enter or Space',
+    onClick: fn(),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole('button')
+    button.focus()
+    await userEvent.keyboard('{Enter}')
+    await expect(args.onClick).toHaveBeenCalledTimes(1)
+    await userEvent.keyboard(' ')
+    await expect(args.onClick).toHaveBeenCalledTimes(2)
+  },
 }
