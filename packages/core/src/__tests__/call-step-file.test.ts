@@ -32,6 +32,7 @@ describe('callStepFile', () => {
         createTracer: () => new NoTracer(),
         attachToTrace: () => new NoTracer(),
         clear: () => Promise.resolve(),
+        shutdown: () => Promise.resolve(),
       },
       app: express(),
       stateAdapter: state,

@@ -3,7 +3,9 @@ import express, { type Express, type Request, type Response } from 'express'
 import http from 'http'
 import type { Server as WsServer } from 'ws'
 import type { CronAdapter } from './adapters/cron-adapter'
+import { createDefaultObservabilityAdapter } from './adapters/default-observability-adapter'
 import type { EventAdapter } from './adapters/event-adapter'
+import type { ObservabilityAdapter } from './adapters/observability-adapter'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
 import { type CronManager, setupCronHandlers } from './cron-handler'
@@ -17,7 +19,6 @@ import type { LockedData } from './locked-data'
 import { globalLogger } from './logger'
 import { BaseLoggerFactory } from './logger-factory'
 import type { Motia } from './motia'
-import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
 import { createSocketServer } from './socket-server'
 import type { StateAdapter } from './state/state-adapter'
@@ -49,6 +50,7 @@ type AdapterOptions = {
   eventAdapter: EventAdapter
   cronAdapter?: CronAdapter
   streamAdapterFactory?: () => StreamAdapter<any>
+  observabilityAdapter?: ObservabilityAdapter
 }
 
 export const createServer = (
@@ -159,7 +161,7 @@ export const createServer = (
 
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
-  const tracerFactory = createTracerFactory(lockedData)
+  const tracerFactory = adapters.observabilityAdapter ?? createDefaultObservabilityAdapter(lockedData)
   const motia: Motia = {
     loggerFactory,
     eventAdapter: adapters.eventAdapter,

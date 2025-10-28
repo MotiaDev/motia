@@ -1,3 +1,7 @@
+export {
+  CompositeObservabilityAdapter,
+  createCompositeObservabilityAdapter,
+} from './src/adapters/composite-observability-adapter'
 export type {
   CronAdapter,
   CronAdapterConfig,
@@ -5,11 +9,20 @@ export type {
   CronLockInfo,
 } from './src/adapters/cron-adapter'
 export { DefaultCronAdapter } from './src/adapters/default-cron-adapter'
+export {
+  createDefaultObservabilityAdapter,
+  DefaultObservabilityAdapter,
+} from './src/adapters/default-observability-adapter'
 export { DefaultQueueEventAdapter } from './src/adapters/default-queue-event-adapter'
 export type {
   EventAdapter,
   SubscriptionHandle,
 } from './src/adapters/event-adapter'
+export type {
+  Metric,
+  ObservabilityAdapter,
+  Tracer,
+} from './src/adapters/observability-adapter'
 export { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled, trackEvent } from './src/analytics/utils'
 export { config } from './src/config'
 export { CronManager, setupCronHandlers } from './src/cron-handler'

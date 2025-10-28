@@ -49,6 +49,7 @@ export const start = async (
     eventAdapter,
     cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
     streamAdapterFactory: appConfig.adapters?.streams ? () => appConfig.adapters!.streams! : undefined,
+    observabilityAdapter: appConfig.adapters?.observability,
   }
   const motiaServer = createServer(lockedData, state, config, adapters)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
