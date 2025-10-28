@@ -1,11 +1,10 @@
 import path from 'path'
 import request from 'supertest'
-import { DefaultCronAdapter } from '../adapters/default-cron-adapter'
-import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
+import { InMemoryCronAdapter, InMemoryQueueEventAdapter } from '../adapters/defaults'
+import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { LockedData } from '../locked-data'
 import { NoPrinter } from '../printer'
 import { createServer, type MotiaServer } from '../server'
-import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import type { ApiRouteConfig, Step } from '../types'
 import { createApiStep } from './fixtures/step-fixtures'
 
@@ -24,8 +23,8 @@ describe('Server', () => {
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
       const state = new MemoryStateAdapter()
       server = await createServer(lockedData, state, config, {
-        eventAdapter: new DefaultQueueEventAdapter(),
-        cronAdapter: new DefaultCronAdapter(),
+        eventAdapter: new InMemoryQueueEventAdapter(),
+        cronAdapter: new InMemoryCronAdapter(),
       })
     })
 
@@ -46,8 +45,8 @@ describe('Server', () => {
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
       const state = new MemoryStateAdapter()
       server = await createServer(lockedData, state, config, {
-        eventAdapter: new DefaultQueueEventAdapter(),
-        cronAdapter: new DefaultCronAdapter(),
+        eventAdapter: new InMemoryQueueEventAdapter(),
+        cronAdapter: new InMemoryCronAdapter(),
       })
     })
     afterEach(async () => server?.close())
@@ -105,8 +104,8 @@ describe('Server', () => {
       lockedData.createStep(mockApiStep, { disableTypeCreation: true })
 
       const server = await createServer(lockedData, state, config, {
-        eventAdapter: new DefaultQueueEventAdapter(),
-        cronAdapter: new DefaultCronAdapter(),
+        eventAdapter: new InMemoryQueueEventAdapter(),
+        cronAdapter: new InMemoryCronAdapter(),
       })
 
       const response = await request(server.app).post('/test')

@@ -1,7 +1,7 @@
 import fs from 'fs'
 import * as path from 'path'
-import type { BaseStreamItem } from '../../types-stream'
-import { StreamAdapter } from './stream-adapter'
+import type { BaseStreamItem } from '../../../types-stream'
+import { StreamAdapter } from '../../interfaces/stream-adapter.interface'
 
 export type FileAdapterConfig = {
   filePath: string

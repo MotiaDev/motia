@@ -1,14 +1,14 @@
 import { randomUUID } from 'crypto'
 import express from 'express'
 import path from 'path'
-import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
+import { InMemoryQueueEventAdapter } from '../adapters/defaults/event/in-memory-queue-event-adapter'
+import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { callStepFile } from '../call-step-file'
 import { LockedData } from '../locked-data'
 import { Logger } from '../logger'
 import type { Motia } from '../motia'
 import { NoTracer } from '../observability/no-tracer'
 import { NoPrinter } from '../printer'
-import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import type { InfrastructureConfig } from '../types'
 import { createCronStep, createEventStep } from './fixtures/step-fixtures'
 
@@ -18,7 +18,7 @@ describe('callStepFile', () => {
   })
 
   const createMockMotia = (baseDir: string): Motia => {
-    const eventAdapter = new DefaultQueueEventAdapter()
+    const eventAdapter = new InMemoryQueueEventAdapter()
     const state = new MemoryStateAdapter()
     const printer = new NoPrinter()
 

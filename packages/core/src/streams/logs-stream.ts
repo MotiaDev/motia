@@ -1,4 +1,4 @@
-import { StreamAdapter } from './adapters/stream-adapter'
+import { StreamAdapter } from '../adapters/interfaces/stream-adapter.interface'
 
 export type Log = {
   id: string

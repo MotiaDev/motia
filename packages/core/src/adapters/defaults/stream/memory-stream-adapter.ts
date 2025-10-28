@@ -1,4 +1,4 @@
-import { StreamAdapter } from './stream-adapter'
+import { StreamAdapter } from '../../interfaces/stream-adapter.interface'
 
 export class MemoryStreamAdapter<TData> extends StreamAdapter<TData> {
   private state: Record<string, unknown> = {}

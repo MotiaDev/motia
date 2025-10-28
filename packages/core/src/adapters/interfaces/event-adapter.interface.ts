@@ -1,4 +1,5 @@
-import type { Event, QueueConfig } from '../types'
+import type { Event, QueueConfig } from '../../types'
+
 export interface SubscriptionHandle {
   topic: string
   id: string

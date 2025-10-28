@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid'
-import { DEFAULT_QUEUE_CONFIG } from '../infrastructure-validator/defaults'
-import { QueueManager, type QueueMetrics } from '../queue-manager'
-import type { Event, QueueConfig } from '../types'
-import type { EventAdapter, SubscriptionHandle } from './event-adapter'
+import { DEFAULT_QUEUE_CONFIG } from '../../../infrastructure-validator/defaults'
+import { QueueManager, type QueueMetrics } from '../../../queue-manager'
+import type { Event, QueueConfig } from '../../../types'
+import type { EventAdapter, SubscriptionHandle } from '../../interfaces/event-adapter.interface'
 
-export class DefaultQueueEventAdapter implements EventAdapter {
+export class InMemoryQueueEventAdapter implements EventAdapter {
   private queueManager: QueueManager = new QueueManager()
   private subscriptions: Map<string, { topic: string; handler: (event: Event<any>) => void | Promise<void> }> =
     new Map()
