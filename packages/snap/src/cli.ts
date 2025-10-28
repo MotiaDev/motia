@@ -2,7 +2,11 @@
 
 import { program } from 'commander'
 import './cloud'
+import { execSync } from 'child_process'
+import fs from 'fs'
 import inquirer from 'inquirer'
+import os from 'os'
+import path from 'path'
 import { handler } from './cloud/config-utils'
 import { version } from './version'
 
@@ -15,7 +19,7 @@ require('ts-node').register({
   compilerOptions: { module: 'commonjs' },
 })
 
-// 🔹 1️⃣ New constant: remote templates JSON
+// 🔹 Remote templates index
 const TEMPLATE_INDEX = 'https://raw.githubusercontent.com/MotiaDev/motia-examples/main/examples/templates.json'
 
 interface Template {
@@ -36,7 +40,56 @@ async function fetchTemplates(): Promise<Template[]> {
   }
 }
 
-/* ------------------ EXISTING COMMANDS ------------------- */
+async function cloneProject(templateRepo: string, projectName?: string) {
+  try {
+    const cwd = process.cwd()
+    const targetDir = projectName ? path.join(cwd, projectName) : cwd
+
+    const match = templateRepo.match(/(https:\/\/github\.com\/[^/]+\/[^/]+)\/tree\/([^/]+)\/(.+)/)
+    if (match) {
+      const [_, repoBase, branch, folderPath] = match
+      console.log(`\n📦 Cloning subdirectory ${folderPath} from ${repoBase} (${branch})...`)
+
+      const tempDir = path.join(cwd, `.motia-temp-${Date.now()}`)
+      fs.mkdirSync(tempDir, { recursive: true })
+
+      // ✅ Detect shell
+      const isWindows = os.platform() === 'win32'
+      const shell = isWindows ? undefined : '/bin/bash'
+
+      // ✅ Sparse checkout for only that folder
+      const commands = [
+        `git clone --no-checkout --depth 1 --branch ${branch} ${repoBase}.git ${tempDir}`,
+        `cd ${tempDir}`,
+        `git sparse-checkout init --cone`,
+        `git sparse-checkout set ${folderPath}`,
+        `git checkout`,
+      ]
+
+      execSync(commands.join(isWindows ? ' & ' : ' && '), {
+        stdio: 'inherit',
+        shell,
+      })
+
+      const sourceDir = path.join(tempDir, folderPath)
+      fs.cpSync(sourceDir, targetDir, { recursive: true })
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    } else {
+      console.log(`\n🚀 Cloning ${templateRepo}...`)
+      execSync(`git clone ${templateRepo} ${projectName || '.'}`, { stdio: 'inherit' })
+    }
+
+    const gitDir = path.join(targetDir, '.git')
+    if (fs.existsSync(gitDir)) fs.rmSync(gitDir, { recursive: true, force: true })
+
+    console.log(`\n✅ Project ready at: ${targetDir}`)
+  } catch (err: any) {
+    console.error('❌ Failed to clone repository:', err.message)
+    process.exit(1)
+  }
+}
+
+/* ------------------ COMMANDS ------------------- */
 
 program
   .command('version')
@@ -46,58 +99,50 @@ program
     process.exit(0)
   })
 
-// ✅ 2️⃣ ENHANCED CREATE COMMAND
+// ✅ CREATE command - now directly clones repo
 program
   .command('create [name]')
   .description('Create a new Motia project')
   .option('-t, --template <template>', 'Specify template name to use')
-  .option('-i, --interactive', 'Use interactive mode')
-  .option('-c, --confirm', 'Skip confirmation prompts', false)
-  .action((projectName, options) => {
-    return handler(async (arg, context) => {
-      const { createInteractive } = require('./create/interactive')
+  .action(async (projectName, options) => {
+    const templates = await fetchTemplates()
 
-      let template = arg.template
+    if (!templates.length) {
+      console.log('⚠️ No templates found.')
+      process.exit(1)
+    }
 
-      // If no template provided, fetch + prompt
-      if (!template) {
-        const templates = await fetchTemplates()
-        if (templates.length === 0) {
-          console.log('⚠️ No templates found.')
-          process.exit(1)
-        }
+    let templateRepo = options.template
 
-        const { chosen } = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'chosen',
-            message: 'Choose a starter template:',
-            choices: templates.map((t) => ({
-              name: `${t.name} - ${t.description}`,
-              value: t.repo,
-            })),
-          },
-        ])
-
-        template = chosen
-      }
-
-      await createInteractive(
+    // If no template specified, prompt user
+    if (!templateRepo) {
+      const { chosen } = await inquirer.prompt([
         {
-          name: arg.name || projectName,
-          template,
-          confirm: !!arg.confirm,
+          type: 'list',
+          name: 'chosen',
+          message: 'Choose a starter template:',
+          choices: templates.map((t) => ({
+            name: `${t.name} - ${t.description}`,
+            value: t.repo,
+          })),
         },
-        context,
-      )
-    })(options)
+      ])
+      templateRepo = chosen
+    } else {
+      // match by name if provided
+      const found = templates.find((t) => t.name === templateRepo)
+      if (found) templateRepo = found.repo
+    }
+
+    await cloneProject(templateRepo, projectName)
   })
 
-// ✅ 3️⃣ NEW: SEARCH COMMAND
+// ✅ SEARCH command with optional create
 program
   .command('search [query]')
   .description('Search available Motia templates')
-  .action(async (query) => {
+  .option('-c, --create', 'Create a project directly from a selected template after search')
+  .action(async (query, options) => {
     const templates = await fetchTemplates()
 
     if (!templates.length) {
@@ -106,20 +151,51 @@ program
     }
 
     const filtered = query
-      ? templates.filter((t) =>
-          [t.name, t.description, ...(t.tags || [])].join(' ').toLowerCase().includes(query.toLowerCase()),
-        )
+      ? templates.filter((t) => {
+          const text = [t.name, t.description].join(' ').toLowerCase()
+          const tags = (t.tags || []).map((tag) => tag.toLowerCase())
+          return text.includes(query.toLowerCase()) || tags.includes(query.toLowerCase())
+        })
       : templates
 
+    if (!filtered.length) {
+      console.log(`❌ No templates found for query "${query}"`)
+      process.exit(0)
+    }
+
     console.log('\nAvailable templates:\n')
-    filtered.forEach((t) => {
-      console.log(`📦 ${t.name}`)
+    filtered.forEach((t, idx) => {
+      console.log(`${idx + 1}. 📦 ${t.name}`)
       console.log(`   ${t.description}`)
       console.log(`   🔗 ${t.repo}\n`)
     })
-  })
 
-/* ---------------- EXISTING OTHER COMMANDS ---------------- */
+    if (options.create) {
+      const { chosenTemplate } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'chosenTemplate',
+          message: 'Choose a template to clone:',
+          choices: filtered.map((t) => ({
+            name: `${t.name} - ${t.description}`,
+            value: t.repo,
+          })),
+        },
+      ])
+
+      const { projectName } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'projectName',
+          message: 'Enter your new project name (leave blank to use current folder):',
+        },
+      ])
+
+      const finalName = projectName && projectName.trim().length > 0 ? projectName.trim() : path.basename(process.cwd())
+
+      await cloneProject(chosenTemplate, finalName)
+    }
+  })
 
 program
   .command('rules')
