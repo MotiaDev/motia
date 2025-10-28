@@ -1,11 +1,9 @@
 import {
-  createEventManager,
   createServer,
   createStateAdapter,
   DefaultCronAdapter,
   DefaultQueueEventAdapter,
   type MotiaPlugin,
-  QueueManager,
 } from '@motiadev/core'
 import path from 'path'
 import { workbenchBase } from './constants'
