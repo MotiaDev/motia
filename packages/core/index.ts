@@ -1,15 +1,39 @@
+export { FileStateAdapter, FileStreamAdapter, MemoryStateAdapter, MemoryStreamAdapter } from './src/adapters/defaults'
+export { InMemoryCronAdapter as DefaultCronAdapter } from './src/adapters/defaults/cron/in-memory-cron-adapter'
+export { InMemoryQueueEventAdapter as DefaultQueueEventAdapter } from './src/adapters/defaults/event/in-memory-queue-event-adapter'
+export {
+  CompositeObservabilityAdapter,
+  createCompositeObservabilityAdapter,
+} from './src/adapters/defaults/observability/composite-observability-adapter'
+export {
+  createDefaultObservabilityAdapter,
+  DefaultObservabilityAdapter,
+} from './src/adapters/defaults/observability/default-observability-adapter'
 export type {
   CronAdapter,
   CronAdapterConfig,
   CronLock,
   CronLockInfo,
-} from './src/adapters/cron-adapter'
-export { DefaultCronAdapter } from './src/adapters/default-cron-adapter'
-export { DefaultQueueEventAdapter } from './src/adapters/default-queue-event-adapter'
+} from './src/adapters/interfaces/cron-adapter.interface'
 export type {
   EventAdapter,
   SubscriptionHandle,
-} from './src/adapters/event-adapter'
+} from './src/adapters/interfaces/event-adapter.interface'
+export type {
+  Metric,
+  ObservabilityAdapter,
+  Tracer,
+} from './src/adapters/interfaces/observability-adapter.interface'
+export type {
+  StateAdapter,
+  StateFilter,
+  StateItem,
+  StateItemsInput,
+} from './src/adapters/interfaces/state-adapter.interface'
+export {
+  StreamAdapter,
+  type StreamQueryFilter,
+} from './src/adapters/interfaces/stream-adapter.interface'
 export { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled, trackEvent } from './src/analytics/utils'
 export { config } from './src/config'
 export { CronManager, setupCronHandlers } from './src/cron-handler'
@@ -29,9 +53,7 @@ export { NoPrinter, Printer } from './src/printer'
 export { QueueManager, type QueueMetrics } from './src/queue-manager'
 export { createServer, MotiaServer } from './src/server'
 export { createStateAdapter } from './src/state/create-state-adapter'
-export { StateAdapter, type StateFilter, type StateItem, type StateItemsInput } from './src/state/state-adapter'
 export { createStepHandlers, MotiaEventManager } from './src/step-handlers'
-export { StreamAdapter, type StreamQueryFilter } from './src/streams/adapters/stream-adapter'
 export * from './src/types'
 export type { AdapterConfig, Config } from './src/types/app-config-types'
 export * from './src/types/schema.types'

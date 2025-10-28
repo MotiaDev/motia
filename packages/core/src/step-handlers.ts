@@ -1,4 +1,4 @@
-import type { EventAdapter, SubscriptionHandle } from './adapters/event-adapter'
+import type { EventAdapter, SubscriptionHandle } from './adapters/interfaces/event-adapter.interface'
 import { callStepFile } from './call-step-file'
 import { getQueueConfigWithDefaults } from './infrastructure-validator/defaults'
 import { validateInfrastructureConfig } from './infrastructure-validator/validations'

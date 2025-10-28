@@ -1,6 +1,6 @@
 import fs from 'fs'
 import * as path from 'path'
-import type { StateAdapter, StateItem, StateItemsInput } from '../state-adapter'
+import type { StateAdapter, StateItem, StateItemsInput } from '../../interfaces/state-adapter.interface'
 import { filterItem, inferType } from './utils'
 
 export type FileAdapterConfig = {
@@ -99,9 +99,7 @@ export class FileStateAdapter implements StateAdapter {
     return Array.from(traceIds)
   }
 
-  async cleanup() {
-    // No cleanup needed for file system
-  }
+  async cleanup() {}
 
   async items(input: StateItemsInput): Promise<StateItem[]> {
     const data = this._readFile()

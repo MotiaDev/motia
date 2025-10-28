@@ -1,8 +1,8 @@
 import os from 'os'
 import { v4 as uuidv4 } from 'uuid'
-import type { CronAdapter, CronLock, CronLockInfo } from './cron-adapter'
+import type { CronAdapter, CronLock, CronLockInfo } from '../../interfaces/cron-adapter.interface'
 
-export class DefaultCronAdapter implements CronAdapter {
+export class InMemoryCronAdapter implements CronAdapter {
   private locks: Map<string, CronLock> = new Map()
   private instanceId: string
 

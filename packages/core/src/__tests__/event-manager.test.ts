@@ -1,4 +1,4 @@
-import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
+import { InMemoryQueueEventAdapter } from '../adapters/defaults'
 import { createEvent } from './fixtures/event-fixtures'
 
 describe('EventManager', () => {
@@ -7,7 +7,7 @@ describe('EventManager', () => {
   })
 
   it('should handle subscription, emission and unsubscription of events', async () => {
-    const eventAdapter = new DefaultQueueEventAdapter()
+    const eventAdapter = new InMemoryQueueEventAdapter()
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
     const mockHandler = jest.fn().mockResolvedValue(undefined)
@@ -27,7 +27,7 @@ describe('EventManager', () => {
   })
 
   it('should handle multiple subscriptions to same event', async () => {
-    const eventAdapter = new DefaultQueueEventAdapter()
+    const eventAdapter = new InMemoryQueueEventAdapter()
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
     const mockHandler1 = jest.fn().mockResolvedValue(undefined)

@@ -1,12 +1,11 @@
 import path from 'path'
 import request from 'supertest'
-import { DefaultCronAdapter } from '../adapters/default-cron-adapter'
-import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
+import { InMemoryCronAdapter, InMemoryQueueEventAdapter } from '../adapters/defaults'
+import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
+import { MemoryStreamAdapter } from '../adapters/defaults/stream/memory-stream-adapter'
 import type { LockedData } from '../locked-data'
 import { Printer } from '../printer'
 import { createServer } from '../server'
-import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
-import { MemoryStreamAdapter } from '../streams/adapters/memory-stream-adapter'
 import type { ApiMiddleware, ApiRouteConfig, Step } from '../types'
 
 // Mock callStepFile to prevent actual file execution
@@ -53,8 +52,8 @@ describe('Middleware Management', () => {
     const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
     server = createServer(lockedData, state, config, {
-      eventAdapter: new DefaultQueueEventAdapter(),
-      cronAdapter: new DefaultCronAdapter(),
+      eventAdapter: new InMemoryQueueEventAdapter(),
+      cronAdapter: new InMemoryCronAdapter(),
     })
   })
 

@@ -1,10 +1,10 @@
 import type { Express } from 'express'
-import type { EventAdapter } from './adapters/event-adapter'
+import type { EventAdapter } from './adapters/interfaces/event-adapter.interface'
+import type { StateAdapter } from './adapters/interfaces/state-adapter.interface'
 import type { LockedData } from './locked-data'
 import type { LoggerFactory } from './logger-factory'
 import type { TracerFactory } from './observability'
 import type { Printer } from './printer'
-import type { StateAdapter } from './state/state-adapter'
 import type { ApiResponse, ApiRouteConfig, ApiRouteHandler, InternalStateManager } from './types'
 
 export type Motia = {

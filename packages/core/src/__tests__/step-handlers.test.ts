@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { EventAdapter, SubscriptionHandle } from '../adapters/event-adapter'
+import type { EventAdapter, SubscriptionHandle } from '../adapters/interfaces/event-adapter.interface'
 import * as callStepFileModule from '../call-step-file'
 import { globalLogger } from '../logger'
 import type { Motia } from '../motia'
