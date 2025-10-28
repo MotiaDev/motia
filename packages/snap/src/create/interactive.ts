@@ -12,6 +12,7 @@ interface InteractiveAnswers {
 const choices: Record<string, string> = {
   nodejs: 'Base (TypeScript)',
   python: 'Base (Python)',
+  plugin: 'Plugin (TypeScript)',
 }
 
 interface CreateInteractiveArgs {

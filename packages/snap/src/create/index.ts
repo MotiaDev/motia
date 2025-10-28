@@ -92,13 +92,20 @@ const installNodeDependencies = async (rootDir: string, context: CliContext) => 
   return packageManager
 }
 
-const wrapUp = async (context: CliContext, packageManager: string) => {
+const wrapUp = async (context: CliContext, packageManager: string, isPlugin = false) => {
   context.log('project-setup-completed', (message) =>
     message.tag('success').append('Project setup completed, happy coding!'),
   )
-  context.log('package-manager-used', (message) =>
-    message.tag('info').append('To start the development server, run').append(`${packageManager} run dev`, 'gray'),
-  )
+
+  if (isPlugin) {
+    context.log('package-manager-used', (message) =>
+      message.tag('info').append('To build the plugin, run').append(`${packageManager} run build`, 'gray'),
+    )
+  } else {
+    context.log('package-manager-used', (message) =>
+      message.tag('info').append('To start the development server, run').append(`${packageManager} run dev`, 'gray'),
+    )
+  }
 }
 
 type Args = {
@@ -126,6 +133,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
 
   const isCurrentDir = projectName === '.' || projectName === './' || projectName === '.\\'
   const rootDir = isCurrentDir ? process.cwd() : path.join(process.cwd(), projectName)
+  const isPluginTemplate = template === 'plugin'
 
   if (!isCurrentDir && !checkIfDirectoryExists(rootDir)) {
     fs.mkdirSync(path.join(rootDir))
@@ -136,7 +144,8 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     context.log('directory-using', (message) => message.tag('info').append('Using current directory'))
   }
 
-  if (!checkIfFileExists(rootDir, 'package.json')) {
+  // Plugin template handles package.json differently (via template)
+  if (!isPluginTemplate && !checkIfFileExists(rootDir, 'package.json')) {
     const finalProjectName =
       !projectName || projectName === '.' || projectName === './' || projectName === '.\\'
         ? path.basename(process.cwd())
@@ -161,7 +170,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     context.log('package-json-created', (message) =>
       message.tag('success').append('File').append('package.json', 'cyan').append('has been created.'),
     )
-  } else {
+  } else if (!isPluginTemplate) {
     const packageJsonPath = path.join(rootDir, 'package.json')
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
 
@@ -190,7 +199,8 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     )
   }
 
-  if (!checkIfFileExists(rootDir, 'tsconfig.json')) {
+  // Plugin template handles tsconfig.json via template
+  if (!isPluginTemplate && !checkIfFileExists(rootDir, 'tsconfig.json')) {
     const tsconfigContent = {
       compilerOptions: {
         target: 'ES2020',
@@ -217,7 +227,8 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     )
   }
 
-  if (!checkIfFileExists(rootDir, '.gitignore')) {
+  // Plugin template handles .gitignore via template
+  if (!isPluginTemplate && !checkIfFileExists(rootDir, '.gitignore')) {
     const gitignoreContent = [
       'node_modules',
       'python_modules',
@@ -235,7 +246,8 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     )
   }
 
-  if (cursorEnabled) {
+  // Skip cursor rules for plugin template
+  if (!isPluginTemplate && cursorEnabled) {
     await pullRules({ force: true, rootDir }, context)
   }
 
@@ -243,14 +255,22 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     await setupTemplate(template, rootDir, context)
   }
 
-  const packageManager = await installNodeDependencies(rootDir, context)
+  // Skip dependency installation for plugin template
+  let packageManager = 'npm'
+  if (!isPluginTemplate) {
+    packageManager = await installNodeDependencies(rootDir, context)
 
-  if (template === 'python') {
-    await pythonInstall({ baseDir: rootDir })
+    if (template === 'python') {
+      await pythonInstall({ baseDir: rootDir })
+    }
+
+    await generateTypes(rootDir)
+  } else {
+    // For plugin template, just detect the package manager
+    packageManager = await preparePackageManager(rootDir, context)
   }
 
-  await generateTypes(rootDir)
-  await wrapUp(context, packageManager)
+  await wrapUp(context, packageManager, isPluginTemplate)
 
   return
 }
