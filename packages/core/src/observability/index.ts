@@ -4,6 +4,7 @@ import type { StateOperation, StreamOperation, TraceError } from './types'
 
 export interface TracerFactory {
   createTracer(traceId: string, step: Step, logger: Logger): Promise<Tracer> | Tracer
+  attachToTrace(traceId: string, step: Step, logger: Logger): Promise<Tracer> | Tracer
   clear(): Promise<void>
 }
 

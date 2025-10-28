@@ -72,6 +72,19 @@ export class BaseTracerFactory implements TracerFactory {
 
     return new StreamTracer(manager, traceGroup, trace, logger)
   }
+
+  async attachToTrace(traceId: string, step: Step, logger: Logger) {
+    const existingGroup = await this.traceGroupStream.get('default', traceId)
+
+    if (!existingGroup) {
+      return this.createTracer(traceId, step, logger)
+    }
+
+    const trace = createTrace(existingGroup, step)
+    const manager = new TraceManager(this.traceStream, this.traceGroupStream, existingGroup, trace)
+
+    return new StreamTracer(manager, existingGroup, trace, logger)
+  }
 }
 
 export const createTracerFactory = (lockedData: LockedData): TracerFactory => {

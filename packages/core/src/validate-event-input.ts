@@ -8,7 +8,9 @@ const ajv = new Ajv({ allErrors: true, strict: false })
 
 export const validateEventInput = (step: Step<EventConfig>, event: Event, motia: any) => {
   const { data } = event
-  const logger = event.logger.child({ step: step.config.name })
+  const logger = event.logger
+    ? event.logger.child({ step: step.config.name })
+    : motia.loggerFactory.create({ step: step.config.name, traceId: event.traceId })
 
   if (step.config.input) {
     if (data === null || typeof data !== 'object') {

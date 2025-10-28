@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { Logger, type LogListener } from './logger'
-import type { StreamAdapter } from './streams/adapters/stream-adapter'
 import type { Log } from './streams/logs-stream'
+import type { MotiaStream } from './types-stream'
 
 type CreateLogger = {
   traceId: string
@@ -16,7 +16,7 @@ export interface LoggerFactory {
 export class BaseLoggerFactory implements LoggerFactory {
   constructor(
     private readonly isVerbose: boolean,
-    private readonly logStream: StreamAdapter<Log>,
+    private readonly logStream: MotiaStream<Log>,
   ) {}
 
   create({ stepName, traceId, flows }: CreateLogger): Logger {

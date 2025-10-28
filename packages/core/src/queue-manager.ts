@@ -45,7 +45,7 @@ type QueueSubscription = {
   internalSubscriptionId: string
 }
 
-type QueueMetrics = {
+export type QueueMetrics = {
   queueDepth: number
   processingCount: number
   retriesCount: number

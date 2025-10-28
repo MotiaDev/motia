@@ -1,9 +1,9 @@
 import path from 'path'
 import request from 'supertest'
-import { createEventManager } from '../event-manager'
+import { DefaultCronAdapter } from '../adapters/default-cron-adapter'
+import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
 import { LockedData } from '../locked-data'
 import { NoPrinter } from '../printer'
-import { QueueManager } from '../queue-manager'
 import { createServer, type MotiaServer } from '../server'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import type { ApiRouteConfig, Step } from '../types'
@@ -22,10 +22,11 @@ describe('Server', () => {
 
     beforeEach(async () => {
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
-      const queueManager = new QueueManager()
-      const eventManager = createEventManager(queueManager)
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, eventManager, state, config, queueManager)
+      server = await createServer(lockedData, state, config, {
+        eventAdapter: new DefaultQueueEventAdapter(),
+        cronAdapter: new DefaultCronAdapter(),
+      })
     })
 
     afterEach(async () => server?.close())
@@ -43,10 +44,11 @@ describe('Server', () => {
 
     beforeEach(async () => {
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
-      const queueManager = new QueueManager()
-      const eventManager = createEventManager(queueManager)
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, eventManager, state, config, queueManager)
+      server = await createServer(lockedData, state, config, {
+        eventAdapter: new DefaultQueueEventAdapter(),
+        cronAdapter: new DefaultCronAdapter(),
+      })
     })
     afterEach(async () => server?.close())
 
@@ -92,8 +94,6 @@ describe('Server', () => {
 
   describe('Router', () => {
     it('should create routes from locked data API steps', async () => {
-      const queueManager = new QueueManager()
-      const eventManager = createEventManager(queueManager)
       const state = new MemoryStateAdapter()
       const baseDir = __dirname
       const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
@@ -104,7 +104,10 @@ describe('Server', () => {
 
       lockedData.createStep(mockApiStep, { disableTypeCreation: true })
 
-      const server = await createServer(lockedData, eventManager, state, config, queueManager)
+      const server = await createServer(lockedData, state, config, {
+        eventAdapter: new DefaultQueueEventAdapter(),
+        cronAdapter: new DefaultCronAdapter(),
+      })
 
       const response = await request(server.app).post('/test')
       expect(response.status).toBe(200)

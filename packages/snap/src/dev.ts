@@ -1,13 +1,12 @@
-// packages/snap/src/dev.ts
 import { flush } from '@amplitude/analytics-node'
 import {
-  createEventManager,
   createMermaidGenerator,
   createServer,
   createStateAdapter,
+  DefaultCronAdapter,
+  DefaultQueueEventAdapter,
   getProjectIdentifier,
   type MotiaPlugin,
-  QueueManager,
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
@@ -16,6 +15,7 @@ import { isTutorialDisabled, workbenchBase } from './constants'
 import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { processPlugins } from './generate-plugins'
+import { loadMotiaConfig } from './load-motia-config'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
@@ -59,16 +59,23 @@ export const dev = async (
   const motiaFileStoragePath = motiaFileStorageDir || '.motia'
 
   const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
+  const appConfig = await loadMotiaConfig(baseDir)
 
-  const queueManager = new QueueManager()
-  const eventManager = createEventManager(queueManager)
-  const state = createStateAdapter({
-    adapter: 'default',
-    filePath: path.join(baseDir, motiaFileStoragePath),
-  })
+  const state =
+    appConfig.adapters?.state ||
+    createStateAdapter({
+      adapter: 'default',
+      filePath: path.join(baseDir, motiaFileStoragePath),
+    })
 
   const config = { isVerbose }
-  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
+  const adapters = {
+    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
+    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
+    streamAdapterFactory: appConfig.adapters?.streams ? () => appConfig.adapters!.streams! : undefined,
+  }
+
+  const motiaServer = createServer(lockedData, state, config, adapters)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 

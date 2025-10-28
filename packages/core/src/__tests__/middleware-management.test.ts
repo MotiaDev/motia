@@ -1,9 +1,9 @@
 import path from 'path'
 import request from 'supertest'
-import { createEventManager } from '../event-manager'
+import { DefaultCronAdapter } from '../adapters/default-cron-adapter'
+import { DefaultQueueEventAdapter } from '../adapters/default-queue-event-adapter'
 import type { LockedData } from '../locked-data'
 import { Printer } from '../printer'
-import { QueueManager } from '../queue-manager'
 import { createServer } from '../server'
 import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import { MemoryStreamAdapter } from '../streams/adapters/memory-stream-adapter'
@@ -49,12 +49,13 @@ describe('Middleware Management', () => {
       on: () => {},
     } as unknown as LockedData
 
-    const queueManager = new QueueManager()
-    const eventManager = createEventManager(queueManager)
     const state = new MemoryStateAdapter()
     const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
-    server = createServer(lockedData, eventManager, state, config, queueManager)
+    server = createServer(lockedData, state, config, {
+      eventAdapter: new DefaultQueueEventAdapter(),
+      cronAdapter: new DefaultCronAdapter(),
+    })
   })
 
   afterEach(async () => {
