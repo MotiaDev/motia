@@ -131,18 +131,26 @@ export class RedisCronAdapter implements CronAdapter {
     await this.ensureConnected()
 
     const key = this.makeKey(lock.jobName)
-    const currentLockData = await this.client.get(key)
 
-    if (!currentLockData) {
-      return
-    }
+    const luaScript = `
+      local current = redis.call('GET', KEYS[1])
+      if not current then
+        return 0
+      end
+      
+      local lock = cjson.decode(current)
+      if lock.lockId == ARGV[1] and lock.instanceId == ARGV[2] then
+        return redis.call('DEL', KEYS[1])
+      end
+      
+      return 0
+    `
 
     try {
-      const currentLock: CronLock = JSON.parse(currentLockData)
-
-      if (currentLock.lockId === lock.lockId && currentLock.instanceId === this.instanceId) {
-        await this.client.del(key)
-      }
+      await this.client.eval(luaScript, {
+        keys: [key],
+        arguments: [lock.lockId, lock.instanceId],
+      })
     } catch (error) {
       console.error('[Redis Cron] Error releasing lock:', error)
     }
@@ -152,34 +160,40 @@ export class RedisCronAdapter implements CronAdapter {
     await this.ensureConnected()
 
     const key = this.makeKey(lock.jobName)
-    const currentLockData = await this.client.get(key)
+    const now = Date.now()
+    const expiresAt = now + ttl
 
-    if (!currentLockData) {
-      return false
+    const renewedLock: CronLock = {
+      ...lock,
+      expiresAt,
     }
+
+    const luaScript = `
+      local current = redis.call('GET', KEYS[1])
+      if not current then
+        return 0
+      end
+      
+      local lock = cjson.decode(current)
+      if lock.lockId == ARGV[1] and lock.instanceId == ARGV[2] then
+        redis.call('SET', KEYS[1], ARGV[3], 'PX', ARGV[4])
+        return 1
+      end
+      
+      return 0
+    `
 
     try {
-      const currentLock: CronLock = JSON.parse(currentLockData)
+      const result = await this.client.eval(luaScript, {
+        keys: [key],
+        arguments: [lock.lockId, lock.instanceId, JSON.stringify(renewedLock), ttl.toString()],
+      })
 
-      if (currentLock.lockId === lock.lockId && currentLock.instanceId === this.instanceId) {
-        const now = Date.now()
-        const renewedLock: CronLock = {
-          ...lock,
-          expiresAt: now + ttl,
-        }
-
-        const result = await this.client.set(key, JSON.stringify(renewedLock), {
-          PX: ttl,
-          XX: true,
-        })
-
-        return result === 'OK'
-      }
+      return result === 1
     } catch (error) {
       console.error('[Redis Cron] Error renewing lock:', error)
+      return false
     }
-
-    return false
   }
 
   async isHealthy(): Promise<boolean> {
