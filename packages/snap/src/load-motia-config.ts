@@ -1,6 +1,5 @@
 import type { Config } from '@motiadev/core'
 import { globSync } from 'glob'
-import path from 'path'
 
 export const loadMotiaConfig = async (baseDir: string): Promise<Config> => {
   const configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: baseDir })
