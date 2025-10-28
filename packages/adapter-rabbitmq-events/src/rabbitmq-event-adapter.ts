@@ -1,11 +1,11 @@
 import type { Event, EventAdapter, QueueConfig, SubscriptionHandle } from '@motiadev/core'
-import type { ConsumeMessage } from 'amqplib'
+import type { Channel, ChannelModel, ConsumeMessage } from 'amqplib'
 import amqp from 'amqplib'
 import type { RabbitMQEventAdapterConfig, RabbitMQSubscribeOptions } from './types'
 
 export class RabbitMQEventAdapter implements EventAdapter {
-  private connection: any = null
-  private channel: any = null
+  private connection: ChannelModel | null = null
+  private channel: Channel | null = null
   private config: Required<RabbitMQEventAdapterConfig>
   private subscriptions: Map<string, SubscriptionHandle> = new Map()
   private reconnecting = false
@@ -120,7 +120,7 @@ export class RabbitMQEventAdapter implements EventAdapter {
     })
 
     if (!published) {
-      throw new Error('Failed to publish message to RabbitMQ')
+      throw new Error(`Failed to publish message to RabbitMQ for topic: ${event.topic}`)
     }
   }
 

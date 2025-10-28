@@ -77,6 +77,10 @@ jobs:
           npm dist-tag add motia@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/test@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/ui@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/adapter-rabbitmq-events@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/adapter-redis-cron@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/adapter-redis-state@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/adapter-redis-streams@${{ needs.prepare.outputs.version }} latest
 
       - name: Remove pre-release tag
         run: |
@@ -89,6 +93,10 @@ jobs:
           npm dist-tag rm motia pre-release || true
           npm dist-tag rm @motiadev/test pre-release || true
           npm dist-tag rm @motiadev/ui pre-release || true
+          npm dist-tag rm @motiadev/adapter-rabbitmq-events pre-release || true
+          npm dist-tag rm @motiadev/adapter-redis-cron pre-release || true
+          npm dist-tag rm @motiadev/adapter-redis-state pre-release || true
+          npm dist-tag rm @motiadev/adapter-redis-streams pre-release || true
 
   create-github-release:
     needs: [prepare, promote-to-latest]
@@ -226,15 +234,25 @@ jobs:
           cat >> release_notes.md << 'FOOTER_EOF'
 
           ## 📦 Package Versions
+          
+          ### Core Packages
           - **motia**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/core**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/workbench**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/ui**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/test**: ${{ needs.prepare.outputs.version }}
+          
+          ### Stream Clients
           - **@motiadev/stream-client**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/stream-client-browser**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/stream-client-node**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/stream-client-react**: ${{ needs.prepare.outputs.version }}
-          - **@motiadev/test**: ${{ needs.prepare.outputs.version }}
+          
+          ### Adapters
+          - **@motiadev/adapter-rabbitmq-events**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/adapter-redis-cron**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/adapter-redis-state**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/adapter-redis-streams**: ${{ needs.prepare.outputs.version }}
 
           ## 🚀 Installation & Upgrade
 
