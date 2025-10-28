@@ -1,8 +1,9 @@
-import type { CronAdapter } from '../adapters/cron-adapter'
-import type { EventAdapter } from '../adapters/event-adapter'
+import type { CronAdapter } from '../adapters/interfaces/cron-adapter.interface'
+import type { EventAdapter } from '../adapters/interfaces/event-adapter.interface'
+import type { ObservabilityAdapter } from '../adapters/interfaces/observability-adapter.interface'
+import type { StateAdapter } from '../adapters/interfaces/state-adapter.interface'
+import type { StreamAdapter } from '../adapters/interfaces/stream-adapter.interface'
 import type { MotiaPluginContext } from '../motia'
-import type { StateAdapter } from '../state/state-adapter'
-import type { StreamAdapter } from '../streams/adapters/stream-adapter'
 
 export type WorkbenchPlugin = {
   packageName: string

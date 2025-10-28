@@ -1,8 +1,11 @@
-import { type FileAdapterConfig, FileStateAdapter } from './adapters/default-state-adapter'
-import { MemoryStateAdapter } from './adapters/memory-state-adapter'
-import type { StateAdapter } from './state-adapter'
+import {
+  FileStateAdapter,
+  type FileAdapterConfig as FileStateAdapterConfig,
+} from '../adapters/defaults/state/file-state-adapter'
+import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
+import type { StateAdapter } from '../adapters/interfaces/state-adapter.interface'
 
-type AdapterConfig = FileAdapterConfig | { adapter: 'memory' }
+type AdapterConfig = FileStateAdapterConfig | { adapter: 'memory' }
 
 export function createStateAdapter(config: AdapterConfig): StateAdapter {
   return config.adapter === 'default' ? new FileStateAdapter(config) : new MemoryStateAdapter()

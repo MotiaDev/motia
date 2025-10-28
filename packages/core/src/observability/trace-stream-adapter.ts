@@ -1,4 +1,4 @@
-import { FileStreamAdapter } from '../streams/adapters/file-stream-adapter'
+import { FileStreamAdapter } from '../adapters/defaults/stream/file-stream-adapter'
 import type { BaseStreamItem } from '../types-stream'
 
 export class TraceStreamAdapter<TData> extends FileStreamAdapter<TData> {

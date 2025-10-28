@@ -8,9 +8,6 @@ export interface StreamQueryFilter<TData> {
   where?: Partial<TData>
 }
 
-/**
- * Interface for stream management adapters
- */
 export abstract class StreamAdapter<TData> implements MotiaStream<TData> {
   abstract get(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
   abstract set(groupId: string, id: string, data: TData): Promise<BaseStreamItem<TData>>

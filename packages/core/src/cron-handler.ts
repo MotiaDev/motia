@@ -1,5 +1,5 @@
 import * as cron from 'node-cron'
-import type { CronAdapter, CronLock } from './adapters/cron-adapter'
+import type { CronAdapter, CronLock } from './adapters/interfaces/cron-adapter.interface'
 import { callStepFile } from './call-step-file'
 import { generateTraceId } from './generate-trace-id'
 import { globalLogger } from './logger'

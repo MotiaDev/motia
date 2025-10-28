@@ -1,8 +1,8 @@
+import { StreamAdapter } from '../adapters/interfaces/stream-adapter.interface'
 import { generateFlow } from '../helper/flows-helper'
 import type { LockedData } from '../locked-data'
 import { PLUGIN_FLOW_ID } from '../motia'
 import type { FlowResponse } from '../types/flows-types'
-import { StreamAdapter } from './adapters/stream-adapter'
 
 export class FlowsStream extends StreamAdapter<FlowResponse> {
   constructor(private readonly lockedData: LockedData) {
