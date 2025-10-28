@@ -50,17 +50,14 @@ describe('callStepFile', () => {
 
     await callStepFile({ step, traceId, logger, contextInFirstArg: true, tracer }, motia)
 
-    expect(motia.eventAdapter.emit).toHaveBeenCalledWith(
-      {
-        topic: 'TEST_EVENT',
-        data: { test: 'data' },
-        flows: ['motia-server'],
-        traceId,
-        logger: expect.anything(),
-        tracer: expect.anything(),
-      },
-      step.filePath,
-    )
+    expect(motia.eventAdapter.emit).toHaveBeenCalledWith({
+      topic: 'TEST_EVENT',
+      data: { test: 'data' },
+      flows: ['motia-server'],
+      traceId,
+      logger: expect.anything(),
+      tracer: expect.anything(),
+    })
   })
 
   describe('Timeout Functionality', () => {

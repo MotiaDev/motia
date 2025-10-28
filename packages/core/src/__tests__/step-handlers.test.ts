@@ -35,7 +35,9 @@ describe('Step Handlers Infrastructure', () => {
       unsubscribe: jest.fn(async () => {}),
     }
     mockEventAdapter = {
-      subscribe: jest.fn(async () => mockSubscriptionHandle),
+      subscribe: jest.fn(
+        async (topic: string, stepName: string, handler: any, options?: any) => mockSubscriptionHandle,
+      ),
       unsubscribe: jest.fn(async () => {}),
       emit: jest.fn(async () => {}),
       shutdown: jest.fn(async () => {}),
@@ -109,6 +111,7 @@ describe('Step Handlers Infrastructure', () => {
 
       expect(mockEventAdapter.subscribe).toHaveBeenCalledWith(
         'test.event',
+        'defaultConfigStep',
         expect.any(Function),
         expect.objectContaining({
           type: 'standard',
@@ -133,6 +136,7 @@ describe('Step Handlers Infrastructure', () => {
 
       expect(mockEventAdapter.subscribe).toHaveBeenCalledWith(
         'test.event',
+        'partialQueueStep',
         expect.any(Function),
         expect.objectContaining({
           type: 'standard',
@@ -157,7 +161,7 @@ describe('Step Handlers Infrastructure', () => {
 
       createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(mockEventAdapter.subscribe).toHaveBeenCalledWith('test.event', expect.any(Function), {
+      expect(mockEventAdapter.subscribe).toHaveBeenCalledWith('test.event', 'customQueueStep', expect.any(Function), {
         type: 'fifo',
         maxRetries: 10,
         visibilityTimeout: 60,
@@ -278,7 +282,7 @@ describe('Step Handlers Infrastructure', () => {
 
       createStepHandlers(mockMotia, mockEventAdapter)
 
-      const subscribedHandler = (mockEventAdapter.subscribe as jest.Mock).mock.calls[0][1]
+      const subscribedHandler = (mockEventAdapter.subscribe as jest.Mock).mock.calls[0][2]
 
       const mockEvent = {
         topic: 'test.event',
