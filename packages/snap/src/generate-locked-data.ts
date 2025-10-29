@@ -1,4 +1,11 @@
-import { getStepConfig, getStreamConfig, LockedData, type Step, type StreamAdapter } from '@motiadev/core'
+import {
+  getStepConfig,
+  getStreamConfig,
+  LockedData,
+  type Step,
+  type StreamAdapter,
+  type StreamAdapterFactory,
+} from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import colors from 'colors'
 import { randomUUID } from 'crypto'
@@ -124,7 +131,7 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
 
 export const generateLockedData = async (config: {
   projectDir: string
-  streamAdapter: 'file' | 'memory' | StreamAdapter<any>
+  streamAdapter: 'file' | 'memory' | StreamAdapterFactory
   printerType?: 'disabled' | 'default'
   motiaFileStoragePath?: string
 }): Promise<LockedData> => {

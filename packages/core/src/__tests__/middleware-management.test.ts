@@ -44,7 +44,7 @@ describe('Middleware Management', () => {
       cronSteps: () => [],
       onStep: () => {},
       applyStreamWrapper: () => {},
-      createStream: () => () => new MemoryStreamAdapter(),
+      createStream: () => () => new MemoryStreamAdapter('test-stream'),
       on: () => {},
     } as unknown as LockedData
 

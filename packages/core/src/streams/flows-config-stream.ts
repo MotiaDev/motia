@@ -6,7 +6,7 @@ export class FlowsConfigStream extends StreamAdapter<FlowConfig> {
   private config: FlowConfig[] = []
 
   constructor(private readonly configPath: string) {
-    super()
+    super('__motia.flows-config')
   }
 
   private getConfig(): FlowConfig[] {
