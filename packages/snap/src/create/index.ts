@@ -255,8 +255,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     await setupTemplate(template, rootDir, context)
   }
 
-  // Skip dependency installation for plugin template
-  let packageManager = 'npm'
+  let packageManager: string
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
 

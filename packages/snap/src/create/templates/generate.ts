@@ -37,12 +37,7 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
         const targetFilePath = path.join(rootDir, fileName)
         const targetDir = path.dirname(targetFilePath)
 
-        try {
-          // Check if it's a directory in the template
-          statSync(targetDir)
-        } catch {
-          mkdirSync(targetDir, { recursive: true })
-        }
+        mkdirSync(targetDir, { recursive: true })
 
         if (statSync(filePath).isDirectory()) {
           const folderPath = filePath.replace(templatePath, '')
@@ -55,9 +50,8 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
         const generateFilePath = path.join(rootDir, sanitizedFileName)
         let content = await fs.readFile(filePath, 'utf8')
 
-        // Make sure statSync doesn't break the execution if the file doesn't exist
-        try {
-          if (isWorkbenchConfig && statSync(generateFilePath).isFile()) {
+        if (isWorkbenchConfig) {
+          try {
             const existingWorkbenchConfig = await fs.readFile(generateFilePath, 'utf8')
             const workbenchContent = JSON.parse(content)
 
@@ -66,9 +60,9 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
             context.log('workbench-config-updated', (message) =>
               message.tag('success').append('Workbench config').append('has been updated.'),
             )
+          } catch {
+            void 0
           }
-        } catch {
-          void 0
         }
 
         await fs.writeFile(generateFilePath, content, 'utf8')
@@ -94,11 +88,7 @@ export const generatePluginTemplate = (templateFolder: string): Generator => {
         const targetFilePath = path.join(rootDir, fileName)
         const targetDir = path.dirname(targetFilePath)
 
-        try {
-          statSync(targetDir)
-        } catch {
-          mkdirSync(targetDir, { recursive: true })
-        }
+        mkdirSync(targetDir, { recursive: true })
 
         if (statSync(filePath).isDirectory()) {
           const folderPath = filePath.replace(templatePath, '')
@@ -110,7 +100,6 @@ export const generatePluginTemplate = (templateFolder: string): Generator => {
         const generateFilePath = path.join(rootDir, sanitizedFileName)
         let content = await fs.readFile(filePath, 'utf8')
 
-        // Replace template variables
         content = replaceTemplateVariables(content, projectName)
 
         await fs.writeFile(generateFilePath, content, 'utf8')
