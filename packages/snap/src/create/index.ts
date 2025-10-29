@@ -3,7 +3,9 @@ import path from 'path'
 import type { CliContext } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
+import { pluginDependencies } from '../plugins/plugin-dependencies'
 import { executeCommand } from '../utils/execute-command'
+import { getPackageManager } from '../utils/get-package-manager'
 import { version } from '../version'
 import { pullRules } from './pull-rules'
 import { setupTemplate } from './setup-template'
@@ -13,18 +15,6 @@ require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
 })
-
-const getPackageManager = (dir: string): string => {
-  if (checkIfFileExists(dir, 'yarn.lock')) {
-    return 'yarn'
-  } else if (checkIfFileExists(dir, 'pnpm-lock.yaml')) {
-    return 'pnpm'
-  } else if (checkIfFileExists(dir, 'package-lock.json')) {
-    return 'npm'
-  } else {
-    return 'unknown'
-  }
-}
 
 const installRequiredDependencies = async (packageManager: string, rootDir: string, context: CliContext) => {
   context.log('installing-dependencies', (message) => message.tag('info').append('Installing dependencies...'))
@@ -44,11 +34,7 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     '@types/jest@^29.5.14',
     'jest@^29.7.0',
     'ts-jest@^29.2.5',
-    `@motiadev/core@${version}`,
-    `@motiadev/plugin-logs@${version}`,
-    `@motiadev/plugin-states@${version}`,
-    `@motiadev/plugin-endpoint@${version}`,
-    `@motiadev/plugin-observability@${version}`,
+    ...pluginDependencies.map((dep) => `${dep}@${version}`),
   ].join(' ')
 
   try {
