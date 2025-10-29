@@ -24,9 +24,11 @@ export type MotiaPlugin = {
 
 export type MotiaPluginBuilder = (motia: MotiaPluginContext) => MotiaPlugin
 
+export type StreamAdapterFactory = <TData>(streamName: string) => StreamAdapter<TData>
+
 export type AdapterConfig = {
   state?: StateAdapter
-  streams?: StreamAdapter<any>
+  streams?: StreamAdapterFactory
   events?: EventAdapter
   cron?: CronAdapter
 }

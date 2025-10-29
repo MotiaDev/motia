@@ -6,7 +6,7 @@ import type { FlowResponse } from '../types/flows-types'
 
 export class FlowsStream extends StreamAdapter<FlowResponse> {
   constructor(private readonly lockedData: LockedData) {
-    super()
+    super('__motia.flows')
   }
 
   async get(_: string, id: string): Promise<FlowResponse | null> {
