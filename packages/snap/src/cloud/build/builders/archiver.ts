@@ -20,40 +20,54 @@ export class Archiver {
 
   appendDirectory(sourcePath: string, targetPath: string) {
     try {
-      const items = fs.readdirSync(sourcePath)
+      const stat = fs.statSync(sourcePath)
+
+      if (!stat.isDirectory()) {
+        return
+      }
+
+      this.uncompressedSize += this.calculateDirectorySize(sourcePath)
+
+      this.archive.directory(sourcePath, targetPath === '/' ? false : targetPath)
+    } catch (_error) {}
+  }
+
+  private calculateDirectorySize(dirPath: string): number {
+    let totalSize = 0
+
+    try {
+      const items = fs.readdirSync(dirPath)
 
       for (const item of items) {
-        const fullPath = path.join(sourcePath, item)
+        const fullPath = path.join(dirPath, item)
 
         try {
           const stat = fs.statSync(fullPath)
 
           if (stat.isDirectory()) {
-            this.appendDirectory(fullPath, path.join(targetPath, item))
+            totalSize += this.calculateDirectorySize(fullPath)
           } else {
-            this.append(fs.createReadStream(fullPath), targetPath ? path.join(targetPath, item) : item)
+            totalSize += stat.size
           }
-        } catch (_error) {
-          // Ignore individual file errors
-        }
+        } catch (_error) {}
       }
-    } catch (_error) {
-      // Ignore directory read errors
-    }
+    } catch (_error) {}
+
+    return totalSize
   }
 
-  append(stream: fs.ReadStream | string, filePath: string) {
-    // Track uncompressed size
+  append(stream: fs.ReadStream | string | Buffer, filePath: string) {
     if (typeof stream === 'string') {
-      // String content
       this.uncompressedSize += Buffer.byteLength(stream, 'utf8')
+      this.archive.append(stream, { name: filePath })
+    } else if (Buffer.isBuffer(stream)) {
+      this.uncompressedSize += stream.length
+      this.archive.append(stream, { name: filePath })
     } else {
-      // ReadStream - get file stats
       const stats = fs.statSync(stream.path as string)
       this.uncompressedSize += stats.size
+      this.archive.append(stream, { name: filePath })
     }
-
-    this.archive.append(stream, { name: filePath })
   }
 
   async finalize(): Promise<ArchiveResult> {
