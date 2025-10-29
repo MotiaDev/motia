@@ -1,4 +1,4 @@
-import { promises as fs, mkdirSync, statSync } from 'fs'
+import { constants, promises as fs, mkdirSync, statSync } from 'fs'
 import { globSync } from 'glob'
 import * as path from 'path'
 import type { CliContext } from '../../cloud/config-utils'
@@ -52,20 +52,35 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
 
         if (isWorkbenchConfig) {
           try {
-            const existingWorkbenchConfig = await fs.readFile(generateFilePath, 'utf8')
-            const workbenchContent = JSON.parse(content)
+            // Use file descriptor to avoid TOCTOU vulnerability
+            let fd: fs.FileHandle | null = null
+            try {
+              // Try to open existing file for reading
+              fd = await fs.open(generateFilePath, constants.O_RDONLY)
+              const existingWorkbenchConfig = await fd.readFile('utf8')
+              const workbenchContent = JSON.parse(content)
 
-            content = JSON.stringify([...JSON.parse(existingWorkbenchConfig), ...workbenchContent], null, 2)
+              content = JSON.stringify([...JSON.parse(existingWorkbenchConfig), ...workbenchContent], null, 2)
 
-            context.log('workbench-config-updated', (message) =>
-              message.tag('success').append('Workbench config').append('has been updated.'),
-            )
+              context.log('workbench-config-updated', (message) =>
+                message.tag('success').append('Workbench config').append('has been updated.'),
+              )
+            } finally {
+              if (fd) await fd.close()
+            }
           } catch {
             void 0
           }
         }
 
-        await fs.writeFile(generateFilePath, content, 'utf8')
+        // Use file descriptor for atomic write operation
+        let fd: fs.FileHandle | null = null
+        try {
+          fd = await fs.open(generateFilePath, constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC, 0o644)
+          await fd.writeFile(content, 'utf8')
+        } finally {
+          if (fd) await fd.close()
+        }
         context.log(sanitizedFileName, (message) => {
           message.tag('success').append('File').append(sanitizedFileName, 'cyan').append('has been created.')
         })
@@ -102,7 +117,14 @@ export const generatePluginTemplate = (templateFolder: string): Generator => {
 
         content = replaceTemplateVariables(content, projectName)
 
-        await fs.writeFile(generateFilePath, content, 'utf8')
+        // Use file descriptor for atomic write operation
+        let fd: fs.FileHandle | null = null
+        try {
+          fd = await fs.open(generateFilePath, constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC, 0o644)
+          await fd.writeFile(content, 'utf8')
+        } finally {
+          if (fd) await fd.close()
+        }
         context.log(sanitizedFileName, (message) => {
           message.tag('success').append('File').append(sanitizedFileName, 'cyan').append('has been created.')
         })
