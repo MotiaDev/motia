@@ -5,15 +5,16 @@ import type { RedisStreamAdapterConfig } from './types'
 
 export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
   private client: RedisClientType
-  private pubClient: RedisClientType
   private subClient?: RedisClientType
   private keyPrefix: string
+  private groupPrefix: string
   private connected = false
   private subscriptions: Map<string, (event: StateStreamEvent<any>) => void | Promise<void>> = new Map()
 
   constructor(streamName: string, config: RedisStreamAdapterConfig) {
     super(streamName)
     this.keyPrefix = config.keyPrefix || 'motia:stream:'
+    this.groupPrefix = `${this.keyPrefix}${streamName}:group:`
 
     const clientConfig = {
       socket: {
@@ -35,7 +36,6 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
     }
 
     this.client = createClient(clientConfig)
-    this.pubClient = createClient(clientConfig)
 
     this.client.on('error', (err) => {
       console.error('[Redis Stream] Client error:', err)
@@ -50,17 +50,13 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
       this.connected = false
     })
 
-    this.pubClient.on('error', (err) => {
-      console.error('[Redis Stream] Pub client error:', err)
-    })
-
     this.connect()
   }
 
   private async connect(): Promise<void> {
     if (!this.connected) {
       try {
-        await Promise.all([this.client.connect(), this.pubClient.connect()])
+        await this.client.connect()
       } catch (error) {
         console.error('[Redis Stream] Failed to connect:', error)
         throw error
@@ -68,16 +64,8 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
     }
   }
 
-  private async ensureConnected(): Promise<void> {
-    if (!this.client.isOpen || !this.pubClient.isOpen) {
-      await this.connect()
-    }
-  }
-
-  private makeKey(groupId: string, id?: string): string {
-    return id
-      ? `${this.keyPrefix}${this.streamName}:${groupId}:${id}`
-      : `${this.keyPrefix}${this.streamName}:${groupId}`
+  private makeGroupKey(groupId: string): string {
+    return `${this.groupPrefix}${groupId}`
   }
 
   private makeChannelKey(channel: StateStreamEventChannel): string {
@@ -87,49 +75,50 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
   }
 
   async get(groupId: string, id: string): Promise<BaseStreamItem<TData> | null> {
-    await this.ensureConnected()
-    const key = this.makeKey(groupId, id)
-    const value = await this.client.get(key)
+    const hashKey = this.makeGroupKey(groupId)
+    const value = await this.client.hGet(hashKey, id)
     return value ? JSON.parse(value) : null
   }
 
   async set(groupId: string, id: string, data: TData): Promise<BaseStreamItem<TData>> {
-    await this.ensureConnected()
-    const key = this.makeKey(groupId, id)
+    const hashKey = this.makeGroupKey(groupId)
     const item: BaseStreamItem<TData> = { ...data, id } as BaseStreamItem<TData>
-    await this.client.set(key, JSON.stringify(item))
+    const itemJson = JSON.stringify(item)
 
-    await this.send({ groupId, id }, { type: 'update', data: item })
+    const existed = await this.client.hExists(hashKey, id)
+    const eventType = existed ? 'update' : 'create'
+
+    await Promise.all([
+      this.client.hSet(hashKey, id, itemJson),
+      this.send({ groupId, id }, { type: eventType, data: item }),
+    ])
 
     return item
   }
 
   async delete(groupId: string, id: string): Promise<BaseStreamItem<TData> | null> {
-    await this.ensureConnected()
-    const item = await this.get(groupId, id)
-    if (item) {
-      const key = this.makeKey(groupId, id)
-      await this.client.del(key)
-      await this.send({ groupId, id }, { type: 'delete', data: item })
-    }
+    const hashKey = this.makeGroupKey(groupId)
+    const value = await this.client.hGet(hashKey, id)
+
+    if (!value) return null
+
+    const item = JSON.parse(value) as BaseStreamItem<TData>
+
+    await Promise.all([this.client.hDel(hashKey, id), this.send({ groupId, id }, { type: 'delete', data: item })])
+
     return item
   }
 
   async getGroup(groupId: string): Promise<BaseStreamItem<TData>[]> {
-    await this.ensureConnected()
-    const pattern = `${this.makeKey(groupId)}:*`
-    const keys = await this.scanKeys(pattern)
+    const hashKey = this.makeGroupKey(groupId)
+    const values = await this.client.hGetAll(hashKey)
 
-    if (keys.length === 0) return []
-
-    const values = await this.client.mGet(keys)
-    return values.filter((v): v is string => v !== null).map((v) => JSON.parse(v))
+    return Object.values(values).map((v) => JSON.parse(v))
   }
 
   async send<T>(channel: StateStreamEventChannel, event: StateStreamEvent<T>): Promise<void> {
-    await this.ensureConnected()
     const channelKey = this.makeChannelKey(channel)
-    await this.pubClient.publish(channelKey, JSON.stringify(event))
+    await this.client.publish(channelKey, JSON.stringify(event))
   }
 
   async subscribe<T>(
@@ -184,13 +173,8 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
   }
 
   async clear(groupId: string): Promise<void> {
-    await this.ensureConnected()
-    const pattern = `${this.makeKey(groupId)}:*`
-    const keys = await this.scanKeys(pattern)
-
-    if (keys.length > 0) {
-      await this.client.del(keys)
-    }
+    const hashKey = this.makeGroupKey(groupId)
+    await this.client.del(hashKey)
   }
 
   async query(groupId: string, filter: StreamQueryFilter<TData>): Promise<BaseStreamItem<TData>[]> {
@@ -224,28 +208,9 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
     return items
   }
 
-  private async scanKeys(pattern: string): Promise<string[]> {
-    const keys: string[] = []
-    let cursor = 0
-
-    do {
-      const result = await this.client.scan(cursor, {
-        MATCH: pattern,
-        COUNT: 100,
-      })
-      cursor = result.cursor
-      keys.push(...result.keys)
-    } while (cursor !== 0)
-
-    return keys
-  }
-
   async cleanup(): Promise<void> {
     if (this.subClient?.isOpen) {
       await this.subClient.quit()
-    }
-    if (this.pubClient.isOpen) {
-      await this.pubClient.quit()
     }
     if (this.client.isOpen) {
       await this.client.quit()
