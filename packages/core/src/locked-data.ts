@@ -33,7 +33,7 @@ export class LockedData {
 
   constructor(
     public readonly baseDir: string,
-    public readonly streamAdapter: 'file' | 'memory' = 'file',
+    public readonly streamAdapter: 'file' | 'memory' | StreamAdapter<any> = 'file',
     private readonly printer: Printer,
     public readonly motiaFileStoragePath: string = '.motia',
   ) {
@@ -357,6 +357,10 @@ export class LockedData {
       return new FileStreamAdapter<TData>(this.baseDir, streamName, this.motiaFileStoragePath)
     }
 
-    return new MemoryStreamAdapter<TData>()
+    if (this.streamAdapter === 'memory') {
+      return new MemoryStreamAdapter<TData>()
+    }
+
+    return this.streamAdapter as StreamAdapter<TData>
   }
 }

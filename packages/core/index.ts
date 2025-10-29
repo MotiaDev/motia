@@ -1,14 +1,6 @@
 export { FileStateAdapter, FileStreamAdapter, MemoryStateAdapter, MemoryStreamAdapter } from './src/adapters/defaults'
 export { InMemoryCronAdapter as DefaultCronAdapter } from './src/adapters/defaults/cron/in-memory-cron-adapter'
 export { InMemoryQueueEventAdapter as DefaultQueueEventAdapter } from './src/adapters/defaults/event/in-memory-queue-event-adapter'
-export {
-  CompositeObservabilityAdapter,
-  createCompositeObservabilityAdapter,
-} from './src/adapters/defaults/observability/composite-observability-adapter'
-export {
-  createDefaultObservabilityAdapter,
-  DefaultObservabilityAdapter,
-} from './src/adapters/defaults/observability/default-observability-adapter'
 export type {
   CronAdapter,
   CronAdapterConfig,

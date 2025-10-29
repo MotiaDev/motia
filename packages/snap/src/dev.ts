@@ -58,8 +58,18 @@ export const dev = async (
 
   const motiaFileStoragePath = motiaFileStorageDir || '.motia'
 
-  const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
   const appConfig = await loadMotiaConfig(baseDir)
+  const adapters = {
+    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
+    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
+    streamAdapter: appConfig.adapters?.streams,
+  }
+
+  const lockedData = await generateLockedData({
+    projectDir: baseDir,
+    motiaFileStoragePath,
+    streamAdapter: adapters.streamAdapter ?? 'file',
+  })
 
   const state =
     appConfig.adapters?.state ||
@@ -69,11 +79,6 @@ export const dev = async (
     })
 
   const config = { isVerbose }
-  const adapters = {
-    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapterFactory: appConfig.adapters?.streams ? () => appConfig.adapters!.streams! : undefined,
-  }
 
   const motiaServer = createServer(lockedData, state, config, adapters)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
