@@ -18,7 +18,7 @@ import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
 
 export default config({
   adapters: {
-    streams: new RedisStreamAdapter({
+    streams: (streamName) => new RedisStreamAdapter(streamName, {
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
       password: process.env.REDIS_PASSWORD,
@@ -55,15 +55,17 @@ export default config({
 ## Key Namespacing
 
 The adapter uses the following patterns:
-- **Stream data**: `{keyPrefix}{groupId}:{id}`
-- **Events**: `motia:stream:events:{groupId}` or `motia:stream:events:{groupId}:{id}`
+- **Stream data**: `{keyPrefix}{streamName}:{groupId}:{id}`
+- **Events**: `motia:stream:events:{streamName}:{groupId}` or `motia:stream:events:{streamName}:{groupId}:{id}`
+
+This ensures that different streams with the same groupId don't conflict when using shared storage.
 
 For example:
 ```
-motia:stream:users:user-123
-motia:stream:orders:order-456
-motia:stream:events:users
-motia:stream:events:users:user-123
+motia:stream:users:active:user-123
+motia:stream:orders:pending:order-456
+motia:stream:events:users:active
+motia:stream:events:users:active:user-123
 ```
 
 ## Example
@@ -71,7 +73,7 @@ motia:stream:events:users:user-123
 ```typescript
 import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
 
-const adapter = new RedisStreamAdapter({
+const adapter = new RedisStreamAdapter('users', {
   host: 'redis.example.com',
   port: 6379,
   password: 'your-secure-password',

@@ -11,8 +11,8 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
   private connected = false
   private subscriptions: Map<string, (event: StateStreamEvent<any>) => void | Promise<void>> = new Map()
 
-  constructor(config: RedisStreamAdapterConfig) {
-    super()
+  constructor(streamName: string, config: RedisStreamAdapterConfig) {
+    super(streamName)
     this.keyPrefix = config.keyPrefix || 'motia:stream:'
 
     const clientConfig = {
@@ -75,13 +75,15 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
   }
 
   private makeKey(groupId: string, id?: string): string {
-    return id ? `${this.keyPrefix}${groupId}:${id}` : `${this.keyPrefix}${groupId}`
+    return id
+      ? `${this.keyPrefix}${this.streamName}:${groupId}:${id}`
+      : `${this.keyPrefix}${this.streamName}:${groupId}`
   }
 
   private makeChannelKey(channel: StateStreamEventChannel): string {
     return channel.id
-      ? `motia:stream:events:${channel.groupId}:${channel.id}`
-      : `motia:stream:events:${channel.groupId}`
+      ? `motia:stream:events:${this.streamName}:${channel.groupId}:${channel.id}`
+      : `motia:stream:events:${this.streamName}:${channel.groupId}`
   }
 
   async get(groupId: string, id: string): Promise<BaseStreamItem<TData> | null> {

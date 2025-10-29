@@ -9,6 +9,12 @@ export interface StreamQueryFilter<TData> {
 }
 
 export abstract class StreamAdapter<TData> implements MotiaStream<TData> {
+  protected streamName: string
+
+  constructor(streamName: string) {
+    this.streamName = streamName
+  }
+
   abstract get(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
   abstract set(groupId: string, id: string, data: TData): Promise<BaseStreamItem<TData>>
   abstract delete(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
