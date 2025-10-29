@@ -47,8 +47,8 @@ type MotiaServerConfig = {
 
 type AdapterOptions = {
   eventAdapter: EventAdapter
-  cronAdapter?: CronAdapter
-  streamAdapterFactory?: () => StreamAdapter<any>
+  cronAdapter: CronAdapter
+  streamAdapter?: StreamAdapter<any>
 }
 
 export const createServer = (

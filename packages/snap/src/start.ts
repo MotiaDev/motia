@@ -3,6 +3,7 @@ import {
   createStateAdapter,
   DefaultCronAdapter,
   DefaultQueueEventAdapter,
+  MemoryStreamAdapter,
   type MotiaPlugin,
 } from '@motiadev/core'
 import path from 'path'
@@ -38,18 +39,21 @@ export const start = async (
   const motiaFileStoragePath = motiaFileStorageDir || '.motia'
 
   const dotMotia = path.join(baseDir, motiaFileStoragePath)
-  const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
   const appConfig = await loadMotiaConfig(baseDir)
-
+  const adapters = {
+    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
+    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
+    streamAdapter: appConfig.adapters?.streams || new MemoryStreamAdapter(),
+  }
+  const lockedData = await generateLockedData({
+    projectDir: baseDir,
+    motiaFileStoragePath,
+    streamAdapter: adapters.streamAdapter,
+  })
   const state = appConfig.adapters?.state || createStateAdapter({ adapter: 'default', filePath: dotMotia })
-  const eventAdapter = appConfig.adapters?.events || new DefaultQueueEventAdapter()
 
   const config = { isVerbose, isDev: false, version }
-  const adapters = {
-    eventAdapter,
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapterFactory: appConfig.adapters?.streams ? () => appConfig.adapters!.streams! : undefined,
-  }
+
   const motiaServer = createServer(lockedData, state, config, adapters)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 

@@ -88,12 +88,9 @@ export class BaseTracerFactory implements TracerFactory {
 }
 
 export const createTracerFactory = (lockedData: LockedData): TracerFactory => {
+  const streamAdapter = lockedData.streamAdapter === 'file' ? 'file' : 'memory'
   const traceStreamName = 'motia-trace'
-  const traceStreamAdapter = new TraceStreamAdapter<Trace>(
-    lockedData.baseDir,
-    traceStreamName,
-    lockedData.streamAdapter,
-  )
+  const traceStreamAdapter = new TraceStreamAdapter<Trace>(lockedData.baseDir, traceStreamName, streamAdapter)
   const traceStream = lockedData.createStream<Trace>({
     filePath: traceStreamName,
     hidden: true,
@@ -105,11 +102,7 @@ export const createTracerFactory = (lockedData: LockedData): TracerFactory => {
   })()
 
   const traceGroupName = 'motia-trace-group'
-  const traceGroupStreamAdapter = new TraceStreamAdapter<TraceGroup>(
-    lockedData.baseDir,
-    traceGroupName,
-    lockedData.streamAdapter,
-  )
+  const traceGroupStreamAdapter = new TraceStreamAdapter<TraceGroup>(lockedData.baseDir, traceGroupName, streamAdapter)
   const traceGroupStream = lockedData.createStream<TraceGroup>({
     filePath: traceGroupName,
     hidden: true,
