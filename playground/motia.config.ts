@@ -5,6 +5,7 @@ const statesPlugin = require('@motiadev/plugin-states/plugin')
 const endpointPlugin = require('@motiadev/plugin-endpoint/plugin')
 const logsPlugin = require('@motiadev/plugin-logs/plugin')
 const observabilityPlugin = require('@motiadev/plugin-observability/plugin')
+const examplePlugin = require('@motiadev/plugin-example/plugin')
 
 function localPluginExample(motia: MotiaPluginContext): MotiaPlugin {
   motia.registerApi(
@@ -41,5 +42,5 @@ function localPluginExample(motia: MotiaPluginContext): MotiaPlugin {
 }
 
 export default config({
-  plugins: [statesPlugin, endpointPlugin, logsPlugin, observabilityPlugin, localPluginExample],
+  plugins: [statesPlugin, endpointPlugin, logsPlugin, observabilityPlugin, examplePlugin, localPluginExample],
 })
