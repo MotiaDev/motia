@@ -1,7 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import { FileStreamAdapter } from './adapters/defaults/stream/file-stream-adapter'
-import { MemoryStreamAdapter } from './adapters/defaults/stream/memory-stream-adapter'
 import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
 import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { isApiStep, isCronStep, isEventStep } from './guards'
@@ -34,9 +32,8 @@ export class LockedData {
 
   constructor(
     public readonly baseDir: string,
-    public readonly streamAdapter: 'file' | 'memory' | StreamAdapterManager = 'file',
+    public readonly streamAdapter: StreamAdapterManager,
     private readonly printer: Printer,
-    public readonly motiaFileStoragePath: string = '.motia',
   ) {
     this.flows = {}
     this.activeSteps = []
@@ -354,14 +351,6 @@ export class LockedData {
   }
 
   private createStreamAdapter<TData>(streamName: string): StreamAdapter<TData> {
-    if (this.streamAdapter === 'file') {
-      return new FileStreamAdapter<TData>(this.baseDir, streamName, this.motiaFileStoragePath)
-    }
-
-    if (this.streamAdapter === 'memory') {
-      return new MemoryStreamAdapter<TData>(streamName)
-    }
-
     return this.streamAdapter.createStream<TData>(streamName)
   }
 }

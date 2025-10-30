@@ -5,6 +5,7 @@ import {
   createStateAdapter,
   DefaultCronAdapter,
   DefaultQueueEventAdapter,
+  FileStreamAdapterManager,
   getProjectIdentifier,
   type MotiaPlugin,
   trackEvent,
@@ -62,13 +63,12 @@ export const dev = async (
   const adapters = {
     eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
     cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapter: appConfig.adapters?.streams,
+    streamAdapter: appConfig.adapters?.streams || new FileStreamAdapterManager(baseDir, motiaFileStoragePath),
   }
 
   const lockedData = await generateLockedData({
     projectDir: baseDir,
-    motiaFileStoragePath,
-    streamAdapter: adapters.streamAdapter ?? 'file',
+    streamAdapter: adapters.streamAdapter,
   })
 
   const state =
