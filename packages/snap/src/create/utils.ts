@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import { executeCommand } from '../utils/execute-command'
 
 export const checkIfFileExists = (dir: string, fileName: string): boolean => {
   return fs.existsSync(path.join(dir, fileName))
