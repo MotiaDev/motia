@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { Eye, EyeOff, Lock, Mail, Search } from 'lucide-react'
 import { useState } from 'react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { Input } from './input'
 
 const meta: Meta<typeof Input> = {
@@ -326,4 +327,48 @@ export const WithIcons: Story = {
       </div>
     </div>
   ),
+}
+
+// Interaction Tests
+export const TypeInteraction: Story = {
+  args: {
+    placeholder: 'Type here...',
+    onChange: fn(),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const input = canvas.getByPlaceholderText('Type here...')
+    await userEvent.type(input, 'Hello World')
+    await expect(input).toHaveValue('Hello World')
+    await expect(args.onChange).toHaveBeenCalled()
+  },
+}
+
+export const ClearInput: Story = {
+  args: {
+    placeholder: 'Type to clear',
+    onChange: fn(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const input = canvas.getByPlaceholderText('Type to clear')
+    await userEvent.type(input, 'Some text')
+    await expect(input).toHaveValue('Some text')
+    await userEvent.clear(input)
+    await expect(input).toHaveValue('')
+  },
+}
+
+export const EmailValidation: Story = {
+  args: {
+    type: 'email',
+    placeholder: 'email@example.com',
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const input = canvas.getByPlaceholderText('email@example.com')
+    await userEvent.type(input, 'test@example.com')
+    await expect(input).toHaveValue('test@example.com')
+    await expect(input).toHaveAttribute('type', 'email')
+  },
 }
