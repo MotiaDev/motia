@@ -3,6 +3,11 @@ title: Plugins
 description: Learn how to create and use plugins to extend Motia's functionality
 ---
 
+import { Files, Folder, File } from 'fumadocs-ui/components/files';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+
 # Plugins
 
 Plugins are a powerful way to extend Motia's functionality by adding custom features to the workbench, creating new APIs, and integrating with external services.
@@ -11,11 +16,13 @@ Plugins are a powerful way to extend Motia's functionality by adding custom feat
 
 Plugins in Motia allow you to:
 
-- Add custom tabs to the workbench interface
-- Create specialized visualizations and tools
-- Integrate with external services and APIs
-- Extend Motia's core functionality
-- Share reusable functionality across projects
+<Cards cols={2}>
+  <Card title="Custom Workbench Tabs">Add custom tabs to the workbench interface</Card>
+  <Card title="Specialized Visualizations">Create rich tooling tailored to your workflows</Card>
+  <Card title="Service Integrations">Integrate with external services and APIs</Card>
+  <Card title="Core Extensions">Extend Motia's core functionality with new capabilities</Card>
+  <Card title="Reusable Modules">Share reusable functionality across projects</Card>
+</Cards>
 
 Motia comes with several official plugins like `plugin-logs`, `plugin-endpoint`, `plugin-observability`, and `plugin-states` that demonstrate the power and flexibility of the plugin system.
 
@@ -43,7 +50,7 @@ Configuration for a workbench tab:
 
 ```typescript
 type WorkbenchPlugin = {
-  packageName: string           // NPM package name (e.g., '@motiadev/plugin-example')
+  packageName: string           // Package registry name (e.g., '@motiadev/plugin-example')
   componentName?: string        // React component name to render
   label?: string                // Tab label text
   labelIcon?: string            // Icon name from lucide-react
@@ -71,265 +78,269 @@ type MotiaPluginContext = {
 
 ### Quick Start with CLI
 
-The fastest way to create a new plugin is using the Motia CLI:
+<Steps>
+  <Step title="Generate a plugin project">
+    The fastest way to create a new plugin is using the Motia CLI:
 
-```bash
-npx motia create my-plugin --template plugin
-```
+    ```bash
+    pnpm dlx motia create my-plugin --template plugin
+    ```
+  </Step>
+  <Step title="Use interactive mode (optional)">
+    Prefer to pick from templates interactively? Launch the wizard:
 
-Or use the interactive mode:
+    ```bash
+    pnpm dlx motia create
+    # Select "Plugin (TypeScript)" from the template options
+    ```
+  </Step>
+  <Step title="Install dependencies and build">
+    After creation, set up and verify the build pipeline:
 
-```bash
-npx motia create
-# Select "Plugin (TypeScript)" from the template options
-```
+    ```bash
+    cd my-plugin
+    pnpm install
+    pnpm run build
+    ```
+  </Step>
+</Steps>
 
-This will scaffold a complete plugin project with:
-- TypeScript and React setup
-- Vite build configuration
-- Example UI component
-- All necessary dependencies configured
-- Ready to build and publish
-
-After creation, navigate to your plugin directory and build it:
-
-```bash
-cd my-plugin
-pnpm install  # or npm install / yarn install
-pnpm run build
-```
+<Callout type="success" title="What the CLI template includes">
+- TypeScript and React configuration
+- Vite build setup
+- Example workbench UI component
+- Required dependencies pre-installed
+- Ready-to-build project structure
+</Callout>
 
 ### Manual Setup
 
 If you prefer to set up manually or want to understand the structure, follow these steps:
 
-#### 1. Project Structure
+<Steps>
+  <Step title="Create project structure">
+    Create a new directory for your plugin with the following structure:
 
-Create a new directory for your plugin with the following structure:
+    <Files>
+      <Folder name="plugins" defaultOpen>
+        <Folder name="plugin-example" defaultOpen>
+          <Folder name="src" defaultOpen>
+            <Folder name="components">
+              <File name="example-page.tsx">Main UI component</File>
+            </Folder>
+            <File name="index.ts">Package entry point</File>
+            <File name="plugin.ts">Plugin definition</File>
+            <File name="styles.css">Tailwind styles</File>
+          </Folder>
+          <File name="package.json">Project metadata</File>
+          <File name="tsconfig.json">TypeScript configuration</File>
+          <File name="vite.config.ts">Vite build configuration</File>
+          <File name="postcss.config.js">PostCSS configuration</File>
+          <File name="README.md">Plugin documentation</File>
+        </Folder>
+      </Folder>
+    </Files>
+  </Step>
+  <Step title="Configure package.json">
+    Create a `package.json` with proper exports for both the main entry and plugin definition:
 
-```
-plugins/plugin-example/
-├── src/
-│   ├── components/
-│   │   └── example-page.tsx    # Main UI component
-│   ├── index.ts                # Package entry point
-│   ├── plugin.ts               # Plugin definition
-│   └── styles.css              # Tailwind styles
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── postcss.config.js
-└── README.md
-```
-
-#### 2. Package Configuration
-
-Create a `package.json` with proper exports for both the main entry and plugin definition:
-
-```json
-{
-  "name": "@motiadev/plugin-example",
-  "version": "0.8.2-beta.139",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
+    ```json
+    {
+      "name": "@motiadev/plugin-example",
+      "version": "0.8.2-beta.139",
+      "type": "module",
+      "main": "./dist/index.js",
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    },
-    "./plugin": {
-      "types": "./dist/plugin.d.ts",
-      "import": "./dist/plugin.js",
-      "require": "./dist/plugin.cjs"
-    },
-    "./styles.css": "./dist/styles.css"
-  },
-  "peerDependencies": {
-    "@motiadev/ui": "workspace:*",
-    "@motiadev/core": "workspace:*"
-  }
-}
-```
-
-#### 3. Plugin Definition
-
-Create `src/plugin.ts` to define your plugin:
-
-```typescript
-import type { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
-
-export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
-  return {
-    workbench: [
-      {
-        packageName: '@motiadev/plugin-example',
-        cssImports: ['@motiadev/plugin-example/dist/plugin-example.css'],
-        label: 'Example',
-        position: 'bottom',
-        componentName: 'ExamplePage',
-        labelIcon: 'sparkles',
+      "exports": {
+        ".": {
+          "types": "./dist/index.d.ts",
+          "import": "./dist/index.js",
+          "require": "./dist/index.cjs"
+        },
+        "./plugin": {
+          "types": "./dist/plugin.d.ts",
+          "import": "./dist/plugin.js",
+          "require": "./dist/plugin.cjs"
+        },
+        "./styles.css": "./dist/styles.css"
       },
-    ],
-  }
-}
-```
+      "peerDependencies": {
+        "@motiadev/ui": "workspace:*",
+        "@motiadev/core": "workspace:*"
+      }
+    }
+    ```
+  </Step>
+  <Step title="Define the plugin entry">
+    Create `src/plugin.ts` to define your plugin:
 
-#### 4. Create UI Components
+    ```typescript
+    import type { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 
-Create your React component in `src/components/example-page.tsx`:
+    export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
+      return {
+        workbench: [
+          {
+            packageName: '@motiadev/plugin-example',
+            cssImports: ['@motiadev/plugin-example/dist/plugin-example.css'],
+            label: 'Example',
+            position: 'bottom',
+            componentName: 'ExamplePage',
+            labelIcon: 'sparkles',
+          },
+        ],
+      }
+    }
+    ```
+  </Step>
+  <Step title="Build the workbench component">
+    Create your React component in `src/components/example-page.tsx`:
 
-```typescript
-import { Badge, Button, Card } from '@motiadev/ui'
-import { Sparkles } from 'lucide-react'
-import type React from 'react'
+    ```typescript
+    import { Badge, Button, Card } from '@motiadev/ui'
+    import { Sparkles } from 'lucide-react'
+    import type React from 'react'
 
-export const ExamplePage: React.FC = () => {
-  return (
-    <div className="h-full w-full p-6 overflow-auto">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Sparkles className="w-8 h-8 text-primary" />
-          <h1 className="text-3xl font-bold">Example Plugin</h1>
-          <Badge variant="info">v1.0.0</Badge>
+    export const ExamplePage: React.FC = () => {
+      return (
+        <div className="h-full w-full p-6 overflow-auto">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-8 h-8 text-primary" />
+              <h1 className="text-3xl font-bold">Example Plugin</h1>
+              <Badge variant="info">v1.0.0</Badge>
+            </div>
+
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Welcome!</h2>
+              <p className="text-muted-foreground">
+                This is your custom plugin content.
+              </p>
+            </Card>
+          </div>
         </div>
+      )
+    }
+    ```
+  </Step>
+  <Step title="Export bundle entry points">
+    Create `src/index.ts` to export your components:
 
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Welcome!</h2>
-          <p className="text-muted-foreground">
-            This is your custom plugin content.
-          </p>
-        </Card>
-      </div>
-    </div>
-  )
-}
-```
+    ```typescript
+    import './styles.css'
 
-#### 5. Export Components
+    export { ExamplePage } from './components/example-page'
+    ```
+  </Step>
+  <Step title="Add shared styles">
+    Create `src/styles.css` to import Motia's UI styles:
 
-Create `src/index.ts` to export your components:
+    ```css
+    @import "@motiadev/ui/globals.css";
+    @import "tailwindcss";
+    ```
+  </Step>
+  <Step title="Configure build tooling">
+    **Vite configuration** — Create `vite.config.ts`:
 
-```typescript
-import './styles.css'
+    ```typescript
+    import tailwindcss from '@tailwindcss/vite'
+    import react from '@vitejs/plugin-react'
+    import { resolve } from 'path'
+    import { defineConfig } from 'vite'
+    import dts from 'vite-plugin-dts'
 
-export { ExamplePage } from './components/example-page'
-```
-
-#### 6. Add Styles
-
-Create `src/styles.css` to import Motia's UI styles:
-
-```css
-@import "@motiadev/ui/globals.css";
-@import "tailwindcss";
-```
-
-#### 7. Build Configuration
-
-##### Vite Configuration
-
-Create `vite.config.ts`:
-
-```typescript
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
-import { defineConfig } from 'vite'
-import dts from 'vite-plugin-dts'
-
-export default defineConfig({
-  plugins: [react(), tailwindcss(), dts({ insertTypesEntry: true })],
-  build: {
-    lib: {
-      entry: {
-        index: resolve(__dirname, 'src/index.ts'),
-        plugin: resolve(__dirname, 'src/plugin.ts'),
+    export default defineConfig({
+      plugins: [react(), tailwindcss(), dts({ insertTypesEntry: true })],
+      build: {
+        lib: {
+          entry: {
+            index: resolve(__dirname, 'src/index.ts'),
+            plugin: resolve(__dirname, 'src/plugin.ts'),
+          },
+          name: 'MotiaPluginExample',
+          formats: ['es', 'cjs'],
+          fileName: (format, entryName) => 
+            `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
+        },
+        rollupOptions: {
+          external: ['react', 'react-dom', '@motiadev/core', '@motiadev/ui'],
+        },
+        cssCodeSplit: false,
       },
-      name: 'MotiaPluginExample',
-      formats: ['es', 'cjs'],
-      fileName: (format, entryName) => 
-        `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
-    },
-    rollupOptions: {
-      external: ['react', 'react-dom', '@motiadev/core', '@motiadev/ui'],
-    },
-    cssCodeSplit: false,
-  },
-})
-```
+    })
+    ```
 
-##### PostCSS Configuration
+    **PostCSS configuration** — Create `postcss.config.js`:
 
-Create `postcss.config.js`:
+    ```javascript
+    export default {
+      plugins: {
+        '@tailwindcss/postcss': {},
+      },
+    }
+    ```
 
-```javascript
-export default {
-  plugins: {
-    '@tailwindcss/postcss': {},
-  },
-}
-```
+    **TypeScript configuration** — Create `tsconfig.json`:
 
-##### TypeScript Configuration
+    ```json
+    {
+      "compilerOptions": {
+        "target": "ES2020",
+        "lib": ["ES2020", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "jsx": "react-jsx",
+        "strict": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true
+      },
+      "include": ["src"],
+      "exclude": ["dist", "node_modules"]
+    }
+    ```
+  </Step>
+  <Step title="Add scripts and build">
+    Add build scripts to your `package.json`:
 
-Create `tsconfig.json`:
+    ```json
+    {
+      "scripts": {
+        "build": "vite build",
+        "dev": "vite build --watch",
+        "clean": "rm -rf dist"
+      }
+    }
+    ```
 
-```json
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "strict": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
-  },
-  "include": ["src"],
-  "exclude": ["dist", "node_modules"]
-}
-```
+    Then run the build:
 
-#### 8. Build Your Plugin
-
-Add build scripts to your `package.json`:
-
-```json
-{
-  "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch",
-    "clean": "rm -rf dist"
-  }
-}
-```
-
-Run the build:
-
-```bash
-pnpm run build
-```
+    ```bash
+    pnpm run build
+    ```
+  </Step>
+</Steps>
 
 ## Local Plugins
 
-Local plugins provide a simpler alternative to creating full npm packages when you want to add custom functionality specific to your project. Unlike publishable plugins, local plugins don't require building, packaging, or separate dependencies—they live directly in your project directory.
+Local plugins provide a simpler alternative to creating full distributable packages when you want to add custom functionality specific to your project. Unlike publishable plugins, local plugins don't require building, packaging, or separate dependencies—they live directly in your project directory.
 
 ### When to Use Local Plugins
 
 Local plugins are ideal for:
 
-- **Development and prototyping**: Quickly test plugin ideas without the overhead of package setup
-- **Project-specific features**: Custom functionality that only makes sense for your specific project
-- **Internal tooling**: Custom dashboards, monitors, or utilities for your team
-- **Learning**: Understand how plugins work before creating a distributable package
+<Cards cols={2}>
+  <Card title="Development & prototyping">Quickly test plugin ideas without the overhead of package setup.</Card>
+  <Card title="Project-specific features">Ship custom functionality that only matters for your project.</Card>
+  <Card title="Internal tooling">Build dashboards, monitors, or utilities tailored to your team.</Card>
+  <Card title="Learning environment">Understand how plugins work before creating a distributable package.</Card>
+</Cards>
 
 ### The `~/` Package Name Syntax
 
-The key to local plugins is the `~/` prefix in the `packageName` field. This special syntax tells Motia to load components from your local project directory instead of node_modules:
+<Callout type="info" title="Local package resolution with ~/">
+The `~/` prefix in `packageName` tells Motia to load components from your local project directory instead of `node_modules`:
 
 ```typescript
 workbench: [
@@ -341,138 +352,143 @@ workbench: [
 ]
 ```
 
-The `~/` prefix is resolved to your project root, allowing you to import components without publishing them as npm packages.
+Motia resolves `~/` to your project root, so you can import components without publishing them as registry packages.
+</Callout>
 
 ### Creating a Local Plugin
 
-#### 1. Directory Structure
+<Steps>
+  <Step title="Prepare local directories">
+    Create a simple structure in your project:
 
-Create a simple structure in your project:
+    <Files>
+      <Folder name="playground" defaultOpen>
+        <Folder name="plugins" defaultOpen>
+          <File name="index.tsx">UI component export</File>
+          <Folder name="plugin-api-example">
+            <File name="api-example.api.step.ts">Optional plugin-specific steps</File>
+          </Folder>
+        </Folder>
+        <File name="motia.config.ts">Plugin registration</File>
+      </Folder>
+    </Files>
+  </Step>
+  <Step title="Define your plugin function">
+    In `motia.config.ts`, create a plugin function that returns the plugin configuration:
 
-```
-playground/
-├── plugins/
-│   ├── index.tsx              # UI component export
-│   └── plugin-api-example/    # Optional: plugin-specific steps
-│       └── api-example.api.step.ts
-└── motia.config.ts            # Plugin registration
-```
+    ```typescript
+    import path from 'node:path'
+    import { config, type MotiaPlugin, type MotiaPluginContext } from '@motiadev/core'
 
-#### 2. Define Your Plugin Function
-
-In `motia.config.ts`, create a plugin function that returns the plugin configuration:
-
-```typescript
-import path from 'node:path'
-import { config, type MotiaPlugin, type MotiaPluginContext } from '@motiadev/core'
-
-function localPluginExample(motia: MotiaPluginContext): MotiaPlugin {
-  // Register custom API endpoint
-  motia.registerApi(
-    {
-      method: 'GET',
-      path: '/__motia/local-plugin-example',
-    },
-    async (req, ctx) => {
-      return {
-        status: 200,
-        body: {
-          message: 'Hello from Motia Plugin!',
-          timestamp: new Date().toISOString(),
-          environment: process.env.NODE_ENV || 'development',
-          status: 'active',
+    function localPluginExample(motia: MotiaPluginContext): MotiaPlugin {
+      // Register custom API endpoint
+      motia.registerApi(
+        {
+          method: 'GET',
+          path: '/__motia/local-plugin-example',
         },
+        async (req, ctx) => {
+          return {
+            status: 200,
+            body: {
+              message: 'Hello from Motia Plugin!',
+              timestamp: new Date().toISOString(),
+              environment: process.env.NODE_ENV || 'development',
+              status: 'active',
+            },
+          }
+        },
+      )
+
+      return {
+        dirname: path.join(__dirname, 'plugins'),
+        steps: ['**/*.step.ts', '**/*_step.py'],
+        workbench: [
+          {
+            componentName: 'Plugin',
+            packageName: '~/plugins',  // Load from local project
+            label: 'Local Plugin Example',
+            position: 'top',
+            labelIcon: 'toy-brick',
+          },
+        ],
       }
-    },
-  )
-
-  return {
-    dirname: path.join(__dirname, 'plugins'),
-    steps: ['**/*.step.ts', '**/*_step.py'],
-    workbench: [
-      {
-        componentName: 'Plugin',
-        packageName: '~/plugins',  // Load from local project
-        label: 'Local Plugin Example',
-        position: 'top',
-        labelIcon: 'toy-brick',
-      },
-    ],
-  }
-}
-
-export default config({
-  plugins: [localPluginExample],
-})
-```
-
-#### 3. Create the UI Component
-
-Create `plugins/index.tsx` with your component:
-
-```typescript
-import { Badge, Button, cn } from '@motiadev/ui'
-import { AlertCircle, CheckCircle2, Clock, RefreshCw, Server } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-
-interface PluginData {
-  message: string
-  timestamp: string
-  environment: string
-  status: 'active' | 'inactive'
-}
-
-export const Plugin = () => {
-  const [data, setData] = useState<PluginData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  const fetchData = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch('/__motia/local-plugin-example')
-      const result = await response.json()
-      setData(result)
-    } catch (err) {
-      console.error('Failed to fetch data:', err)
-    } finally {
-      setIsLoading(false)
     }
-  }, [])
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    export default config({
+      plugins: [localPluginExample],
+    })
+    ```
+  </Step>
+  <Step title="Render the plugin UI">
+    Create `plugins/index.tsx` with your component:
 
-  return (
-    <div className="h-full flex flex-col p-4 gap-4">
-      <div className="flex items-center justify-between border-b pb-4">
-        <div className="flex items-center gap-3">
-          <Server className="w-5 h-5 text-accent-1000" />
-          <h1 className="text-xl font-semibold">Local Plugin Example</h1>
-        </div>
-        <Button onClick={fetchData} disabled={isLoading}>
-          <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
-          Refresh
-        </Button>
-      </div>
-      
-      {data && (
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg border bg-card">
-            <Badge variant={data.status === 'active' ? 'default' : 'secondary'}>
-              {data.status}
-            </Badge>
-            <p className="text-2xl font-semibold mt-2">{data.message}</p>
+    ```typescript
+    import { Badge, Button, cn } from '@motiadev/ui'
+    import { AlertCircle, CheckCircle2, Clock, RefreshCw, Server } from 'lucide-react'
+    import { useCallback, useEffect, useState } from 'react'
+
+    interface PluginData {
+      message: string
+      timestamp: string
+      environment: string
+      status: 'active' | 'inactive'
+    }
+
+    export const Plugin = () => {
+      const [data, setData] = useState<PluginData | null>(null)
+      const [isLoading, setIsLoading] = useState(true)
+
+      const fetchData = useCallback(async () => {
+        setIsLoading(true)
+        try {
+          const response = await fetch('/__motia/local-plugin-example')
+          const result = await response.json()
+          setData(result)
+        } catch (err) {
+          console.error('Failed to fetch data:', err)
+        } finally {
+          setIsLoading(false)
+        }
+      }, [])
+
+      useEffect(() => {
+        fetchData()
+      }, [fetchData])
+
+      return (
+        <div className="h-full flex flex-col p-4 gap-4">
+          <div className="flex items-center justify-between border-b pb-4">
+            <div className="flex items-center gap-3">
+              <Server className="w-5 h-5 text-accent-1000" />
+              <h1 className="text-xl font-semibold">Local Plugin Example</h1>
+            </div>
+            <Button onClick={fetchData} disabled={isLoading}>
+              <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
+              Refresh
+            </Button>
           </div>
+          
+          {data && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg border bg-card">
+                <Badge variant={data.status === 'active' ? 'default' : 'secondary'}>
+                  {data.status}
+                </Badge>
+                <p className="text-2xl font-semibold mt-2">{data.message}</p>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
-  )
-}
-```
+      )
+    }
+    ```
+  </Step>
+</Steps>
 
 ### Including Custom Steps
 
+<Callout type="default" title="Include custom steps">
 Local plugins can also include custom steps by specifying a `dirname` and `steps` pattern:
 
 ```typescript
@@ -483,48 +499,54 @@ return {
 }
 ```
 
-This allows your plugin to load API routes, event handlers, and other step types from the plugin directory.
+This loads API routes, event handlers, and other step types directly from the plugin directory.
+</Callout>
 
 ### Best Practices for Local Plugins
 
-1. **Keep components simple**: Use Motia's UI components directly without extra build configuration
-2. **Use TypeScript**: Get full type safety without separate declaration files
-3. **Organize by feature**: Group related components and steps in subdirectories
-4. **Reuse project dependencies**: Leverage packages already in your project
-5. **Document your APIs**: Add clear comments for custom endpoints and interfaces
+<Cards cols={2}>
+  <Card title="Keep components simple">Use Motia UI components directly without extra build tooling.</Card>
+  <Card title="Use TypeScript">Leverage type safety and IDE support without extra declaration files.</Card>
+  <Card title="Organize by feature">Group related components and steps inside meaningful folders.</Card>
+  <Card title="Reuse dependencies">Rely on packages already present in your project workspace.</Card>
+  <Card title="Document your APIs">Add clear comments for every custom endpoint and interface.</Card>
+</Cards>
 
 ### When to Migrate to NPM Plugin
 
-Consider converting your local plugin to an NPM package when:
-
+<Callout type="warning" title="When to publish as a distributable package">
 - You want to share it across multiple projects
 - It provides general-purpose functionality
 - You need versioning and dependency management
 - The plugin is stable and well-tested
+</Callout>
 
 ## Using Plugins
 
 ### Installing a Plugin
 
-1. Install the plugin package (if external):
+<Steps>
+  <Step title="Install the plugin package">
 
-```bash
-pnpm add @motiadev/plugin-example
-```
+    ```bash
+    pnpm add @motiadev/plugin-example
+    ```
+  </Step>
+  <Step title="Register it in motia.config.ts">
 
-2. Import and configure in `motia.config.ts`:
+    ```typescript
+    import examplePlugin from '@motiadev/plugin-example/plugin'
 
-```typescript
-import examplePlugin from '@motiadev/plugin-example/plugin'
-
-export default {
-  plugins: [examplePlugin],
-}
-```
+    export default {
+      plugins: [examplePlugin],
+    }
+    ```
+  </Step>
+</Steps>
 
 ### Configuring Multiple Plugins
 
-You can use multiple plugins at once:
+<Callout type="default" title="Configure multiple plugins">
 
 ```typescript
 import logsPlugin from '@motiadev/plugin-logs/plugin'
@@ -539,8 +561,11 @@ export default {
   ],
 }
 ```
+
+</Callout>
 ### Registering Custom APIs
 
+<Callout type="info" title="Register custom APIs">
 Use the `registerApi` method from the plugin context:
 
 ```typescript
@@ -562,30 +587,12 @@ export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
   }
 }
 ```
-
-## Best Practices
-
-1. **Use TypeScript**: Leverage type safety for better development experience
-2. **Export properly**: Ensure both main entry and plugin entry are exported
-3. **Style consistently**: Use Motia's UI components and Tailwind CSS
-4. **Handle errors**: Implement proper error handling and user feedback
-5. **Document well**: Provide clear README and inline documentation
-6. **Test thoroughly**: Write tests for your plugin functionality
-
-## Official Plugins
-
-Motia provides several official plugins you can use as reference:
-
-- **@motiadev/plugin-logs**: Real-time log viewer with search and filtering
-- **@motiadev/plugin-endpoint**: API endpoint testing and management
-- **@motiadev/plugin-observability**: Performance monitoring and tracing
-- **@motiadev/plugin-states**: State management visualization
-
-See the [plugins directory](https://github.com/motiadev/motia/tree/main/plugins) for complete source code examples.
+</Callout>
 
 ## Example Plugin
 
-A complete minimal example plugin is available at `plugins/plugin-example` in the Motia repository. This demonstrates:
+<Callout type="success" title="Example plugin reference">
+A complete minimal example plugin lives at `plugins/plugin-example` in the Motia repository. It demonstrates:
 
 - Basic plugin structure
 - Workbench tab integration
@@ -593,34 +600,31 @@ A complete minimal example plugin is available at `plugins/plugin-example` in th
 - Build configuration
 - TypeScript setup
 
-You can use it as a starting point for your own plugins.
+Use it as a starting point for your own plugins.
+</Callout>
 
 ## Troubleshooting
 
-### Plugin not showing in workbench
-
+<Callout type="warning" title="Plugin not showing in workbench">
 - Check that the plugin is imported in `motia.config.ts`
 - Verify the `componentName` matches your exported component
 - Ensure the plugin is built (`pnpm run build`)
 - Check browser console for errors
+</Callout>
 
-### Styles not loading
-
+<Callout type="warning" title="Styles not loading">
 - Verify CSS is imported in `src/index.ts`
 - Check that `styles.css` is exported in `package.json`
 - Ensure TailwindCSS is properly configured
-- Confirm that `cssImports` is defined in your plugin definition (`src/plugin.ts`) with the correct path to your built CSS file (e.g., `['@motiadev/plugin-example/dist/plugin-example.css']`)
+- Confirm that `cssImports` is defined in `src/plugin.ts` with the path to the built CSS file (e.g., `['@motiadev/plugin-example/dist/plugin-example.css']`)
+</Callout>
 
-### Type errors
-
-- Make sure `@motiadev/core` and `@motiadev/ui` are in `peerDependencies`
-- Run `pnpm install` to ensure types are available
-- Check that `declaration: true` is set in `tsconfig.json`
+<Callout type="default" title="Resolving type errors">
+- Make sure `@motiadev/core` and `@motiadev/ui` are listed in `peerDependencies`
+- Run `pnpm install` so TypeScript picks up the types
+- Confirm `declaration: true` is set in `tsconfig.json`
+</Callout>
 
 ## Next Steps
 
 - Explore the [plugin-logs source code](https://github.com/motiadev/motia/tree/main/plugins/plugin-logs) for a complete example
-- Learn about [State Management](/docs/development-guide/state-management)
-- Read about [Streams](/docs/development-guide/streams) for real-time features
-- Check out [Customizing Flows](/docs/development-guide/customizing-flows)
-
