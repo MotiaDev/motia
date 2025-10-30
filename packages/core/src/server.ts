@@ -6,6 +6,7 @@ import type { CronAdapter } from './adapters/interfaces/cron-adapter.interface'
 import type { EventAdapter } from './adapters/interfaces/event-adapter.interface'
 import type { StateAdapter } from './adapters/interfaces/state-adapter.interface'
 import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
+import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
 import { type CronManager, setupCronHandlers } from './cron-handler'
@@ -26,7 +27,6 @@ import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
 import { type Log, LogsStream } from './streams/logs-stream'
 import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, Step } from './types'
-import type { StreamAdapterFactory } from './types/app-config-types'
 import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 
 export type MotiaServer = {
@@ -49,7 +49,7 @@ type MotiaServerConfig = {
 type AdapterOptions = {
   eventAdapter: EventAdapter
   cronAdapter: CronAdapter
-  streamAdapter?: StreamAdapterFactory
+  streamAdapter?: StreamAdapterManager
 }
 
 export const createServer = (
