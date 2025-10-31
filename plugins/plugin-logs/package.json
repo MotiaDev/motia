@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-logs",
-  "version": "0.8.2-beta.139",
+  "version": "0.8.3-beta.140",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
