@@ -17,7 +17,7 @@ export class RabbitMQEventAdapter implements EventAdapter {
       autoDelete: false,
       connectionTimeout: 10000,
       reconnectDelay: 5000,
-      prefetch: 10,
+      prefetch: 1,
       ...config,
     }
   }
