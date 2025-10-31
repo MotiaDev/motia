@@ -1,6 +1,6 @@
 import path from 'path'
 import request from 'supertest'
-import { InMemoryCronAdapter, InMemoryQueueEventAdapter } from '../adapters/defaults'
+import { InMemoryCronAdapter, InMemoryQueueEventAdapter, MemoryStreamAdapterManager } from '../adapters/defaults'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { LockedData } from '../locked-data'
 import { NoPrinter } from '../printer'
@@ -20,7 +20,7 @@ describe('Server', () => {
     let server: MotiaServer
 
     beforeEach(async () => {
-      const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
+      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const state = new MemoryStateAdapter()
       server = await createServer(lockedData, state, config, {
         eventAdapter: new InMemoryQueueEventAdapter(),
@@ -42,7 +42,7 @@ describe('Server', () => {
     let server: MotiaServer
 
     beforeEach(async () => {
-      const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
+      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const state = new MemoryStateAdapter()
       server = await createServer(lockedData, state, config, {
         eventAdapter: new InMemoryQueueEventAdapter(),
@@ -95,7 +95,7 @@ describe('Server', () => {
     it('should create routes from locked data API steps', async () => {
       const state = new MemoryStateAdapter()
       const baseDir = __dirname
-      const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
+      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const mockApiStep: Step<ApiRouteConfig> = createApiStep(
         { emits: ['TEST_EVENT'], path: '/test', method: 'POST' },
         path.join(baseDir, 'steps', 'api-step.ts'),

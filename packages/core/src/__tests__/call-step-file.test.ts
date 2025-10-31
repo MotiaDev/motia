@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import express from 'express'
 import path from 'path'
+import { MemoryStreamAdapterManager } from '../adapters/defaults'
 import { InMemoryQueueEventAdapter } from '../adapters/defaults/event/in-memory-queue-event-adapter'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { callStepFile } from '../call-step-file'
@@ -26,7 +27,7 @@ describe('callStepFile', () => {
       eventAdapter,
       state,
       printer,
-      lockedData: new LockedData(baseDir, 'memory', printer),
+      lockedData: new LockedData(baseDir, new MemoryStreamAdapterManager(), printer),
       loggerFactory: { create: () => new Logger() },
       tracerFactory: {
         createTracer: () => new NoTracer(),

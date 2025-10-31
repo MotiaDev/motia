@@ -34,7 +34,7 @@ export const mapEndpoint = (step: Step<ApiRouteConfig>): ApiEndpoint => {
 
 export class EndpointsStream extends StreamAdapter<ApiEndpoint> {
   constructor(private readonly lockedData: LockedData) {
-    super()
+    super('__motia.api-endpoints')
   }
 
   async get(_groupId: string, id: string): Promise<ApiEndpoint | null> {
