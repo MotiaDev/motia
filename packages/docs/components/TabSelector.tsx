@@ -62,7 +62,7 @@ export const AgentTab: React.FC<AgentTab> = ({ variant = 'inactive', children, o
               'radial-gradient(136.33% 100% at 50% 0%, rgba(13, 20, 54,1) 0%, rgba(8, 24, 101, 1) 71.63%, rgba(5, 28, 138, 1) 100%)',
           },
         }}
-        className="font-tasa flex items-center justify-center gap-3 rounded-[inherit] bg-black p-[12px] text-[16px] font-medium tracking-[0.48px] text-white"
+        className="font-tasa flex items-center justify-center gap-3 rounded-[inherit] bg-black p-[12px] text-[16px] font-medium tracking-[0.48px] whitespace-nowrap text-white"
       >
         {children}
       </motion.div>
@@ -108,7 +108,7 @@ interface TabSelector {
 export const TabSelector: React.FC<TabSelector> = ({ agent, setAgent = () => {} }) => {
   return (
     <div className="scrollbar-hide mt-[80px] mb-[10px] w-full overflow-x-auto px-[16px]">
-      <div className="flex w-full gap-[16px] pb-[30px] max-md:w-[320%] max-md:max-w-[1000px]">
+      <div className="flex w-full gap-[16px] pb-[30px] max-md:w-[320%] max-md:max-w-[1000px] md:w-[130%] lg:w-full">
         {AGENT_TABS.map((tab, i) => {
           return (
             <AgentTab
