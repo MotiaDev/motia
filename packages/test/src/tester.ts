@@ -5,6 +5,7 @@ import {
   DefaultQueueEventAdapter,
   type Event,
   Logger,
+  MemoryStreamAdapterManager,
 } from '@motiadev/core'
 import { generateLockedData } from 'motia'
 import path from 'path'
@@ -20,7 +21,7 @@ export const createMotiaTester = (): MotiaTester => {
   const promise = (async () => {
     const lockedData = await generateLockedData({
       projectDir: path.join(process.cwd()),
-      streamAdapter: 'memory',
+      streamAdapter: new MemoryStreamAdapterManager(),
       printerType: 'disabled',
     })
     const state = createStateAdapter({ adapter: 'memory' })

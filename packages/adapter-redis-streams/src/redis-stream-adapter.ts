@@ -8,60 +8,14 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
   private subClient?: RedisClientType
   private keyPrefix: string
   private groupPrefix: string
-  private connected = false
   private subscriptions: Map<string, (event: StateStreamEvent<any>) => void | Promise<void>> = new Map()
 
-  constructor(streamName: string, config: RedisStreamAdapterConfig) {
+  constructor(streamName: string, config: RedisStreamAdapterConfig, sharedClient: RedisClientType) {
     super(streamName)
     this.keyPrefix = config.keyPrefix || 'motia:stream:'
     this.groupPrefix = `${this.keyPrefix}${streamName}:group:`
 
-    const clientConfig = {
-      socket: {
-        host: config.host || 'localhost',
-        port: config.port || 6379,
-        reconnectStrategy:
-          config.socket?.reconnectStrategy ||
-          ((retries) => {
-            if (retries > 10) {
-              return new Error('Redis connection retry limit exceeded')
-            }
-            return Math.min(retries * 100, 3000)
-          }),
-        connectTimeout: config.socket?.connectTimeout || 10000,
-      },
-      password: config.password,
-      username: config.username,
-      database: config.database || 0,
-    }
-
-    this.client = createClient(clientConfig)
-
-    this.client.on('error', (err) => {
-      console.error('[Redis Stream] Client error:', err)
-    })
-
-    this.client.on('connect', () => {
-      this.connected = true
-    })
-
-    this.client.on('disconnect', () => {
-      console.warn('[Redis Stream] Disconnected')
-      this.connected = false
-    })
-
-    this.connect()
-  }
-
-  private async connect(): Promise<void> {
-    if (!this.connected) {
-      try {
-        await this.client.connect()
-      } catch (error) {
-        console.error('[Redis Stream] Failed to connect:', error)
-        throw error
-      }
-    }
+    this.client = sharedClient
   }
 
   private makeGroupKey(groupId: string): string {
@@ -209,12 +163,6 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
   }
 
   async cleanup(): Promise<void> {
-    if (this.subClient?.isOpen) {
-      await this.subClient.quit()
-    }
-    if (this.client.isOpen) {
-      await this.client.quit()
-    }
     this.subscriptions.clear()
   }
 }

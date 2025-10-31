@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import zodToJsonSchema from 'zod-to-json-schema'
+import { MemoryStreamAdapterManager } from '../adapters/defaults'
 import { generateFlow } from '../helper/flows-helper'
 import { LockedData } from '../locked-data'
 import { NoPrinter } from '../printer'
@@ -33,7 +34,7 @@ const mockFlowSteps: Step[] = [
 
 describe('flowEndpoint', () => {
   it('should generate a list of flows with steps', () => {
-    const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
+    const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
     mockFlowSteps.forEach((step) => lockedData.createStep(step, { disableTypeCreation: true }))
 
     const result = generateFlow('motia-server', lockedData.flows['motia-server'].steps)

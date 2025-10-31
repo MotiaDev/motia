@@ -1,3 +1,4 @@
+import { FileStreamAdapterManager } from '../adapters/defaults/stream/file-stream-adapter-manager'
 import type { LockedData } from '../locked-data'
 import type { Logger } from '../logger'
 import type { Step } from '../types'
@@ -88,7 +89,7 @@ export class BaseTracerFactory implements TracerFactory {
 }
 
 export const createTracerFactory = (lockedData: LockedData): TracerFactory => {
-  const streamAdapter = lockedData.streamAdapter === 'file' ? 'file' : 'memory'
+  const streamAdapter = lockedData.streamAdapter instanceof FileStreamAdapterManager ? 'file' : 'memory'
   const traceStreamName = 'motia-trace'
   const traceStreamAdapter = new TraceStreamAdapter<Trace>(lockedData.baseDir, traceStreamName, streamAdapter)
   const traceStream = lockedData.createStream<Trace>({

@@ -14,11 +14,11 @@ Configure the Redis streams adapter in your `motia.config.ts`:
 
 ```typescript
 import { config } from '@motiadev/core'
-import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 
 export default config({
   adapters: {
-    streams: (streamName) => new RedisStreamAdapter(streamName, {
+    streams: new RedisStreamAdapterManager({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
       password: process.env.REDIS_PASSWORD,
@@ -27,6 +27,8 @@ export default config({
   },
 })
 ```
+
+The `RedisStreamAdapterManager` creates a **single shared Redis connection** that is reused across all streams, providing better resource efficiency than creating separate connections per stream.
 
 ## Configuration Options
 
@@ -49,6 +51,7 @@ export default config({
 - **Real-time Updates**: Pub/sub for instant data synchronization
 - **Efficient Querying**: Support for filtering, sorting, and pagination
 - **Automatic Reconnection**: Handles connection failures gracefully
+- **Shared Connections**: Manager pattern provides single Redis connection reused across all streams
 - **Connection Pooling**: Separate clients for pub/sub operations
 - **Type Safety**: Full TypeScript support with generics
 
@@ -68,7 +71,9 @@ motia:stream:events:users:active
 motia:stream:events:users:active:user-123
 ```
 
-## Example
+## Advanced Example
+
+For direct adapter usage (not recommended for configuration), you can still instantiate adapters directly:
 
 ```typescript
 import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
@@ -89,6 +94,8 @@ const adapter = new RedisStreamAdapter('users', {
   },
 })
 ```
+
+**Note:** For configuration in `motia.config.ts`, use `RedisStreamAdapterManager` instead (see Usage section above) to benefit from connection sharing across all streams.
 
 ## Real-time Updates
 

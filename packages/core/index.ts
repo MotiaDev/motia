@@ -1,4 +1,11 @@
-export { FileStateAdapter, FileStreamAdapter, MemoryStateAdapter, MemoryStreamAdapter } from './src/adapters/defaults'
+export {
+  FileStateAdapter,
+  FileStreamAdapter,
+  FileStreamAdapterManager,
+  MemoryStateAdapter,
+  MemoryStreamAdapter,
+  MemoryStreamAdapterManager,
+} from './src/adapters/defaults'
 export { InMemoryCronAdapter as DefaultCronAdapter } from './src/adapters/defaults/cron/in-memory-cron-adapter'
 export { InMemoryQueueEventAdapter as DefaultQueueEventAdapter } from './src/adapters/defaults/event/in-memory-queue-event-adapter'
 export type {
@@ -26,6 +33,7 @@ export {
   StreamAdapter,
   type StreamQueryFilter,
 } from './src/adapters/interfaces/stream-adapter.interface'
+export type { StreamAdapterManager } from './src/adapters/interfaces/stream-adapter-manager.interface'
 export { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled, trackEvent } from './src/analytics/utils'
 export { config } from './src/config'
 export { CronManager, setupCronHandlers } from './src/cron-handler'

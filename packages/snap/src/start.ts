@@ -3,7 +3,7 @@ import {
   createStateAdapter,
   DefaultCronAdapter,
   DefaultQueueEventAdapter,
-  MemoryStreamAdapter,
+  FileStreamAdapterManager,
   type MotiaPlugin,
 } from '@motiadev/core'
 import path from 'path'
@@ -43,11 +43,10 @@ export const start = async (
   const adapters = {
     eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
     cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapter: appConfig.adapters?.streams || new MemoryStreamAdapter(),
+    streamAdapter: appConfig.adapters?.streams || new FileStreamAdapterManager(baseDir),
   }
   const lockedData = await generateLockedData({
     projectDir: baseDir,
-    motiaFileStoragePath,
     streamAdapter: adapters.streamAdapter,
   })
   const state = appConfig.adapters?.state || createStateAdapter({ adapter: 'default', filePath: dotMotia })
