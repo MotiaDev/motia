@@ -55,7 +55,9 @@ export const api = (motia: MotiaPluginContext): void => {
     async (req: ApiRequest, ctx: FlowContext): Promise<ApiResponse> => {
       try {
         for (const id of (req.body as { ids: string[] }).ids) {
-          const [groupId, key] = id.split(':')
+          const colonIndex = id.indexOf(':')
+          const groupId = id.slice(0, colonIndex)
+          const key = id.slice(colonIndex + 1)
           await ctx.state.delete(groupId, key)
         }
 
