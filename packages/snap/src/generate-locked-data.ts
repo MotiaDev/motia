@@ -2,6 +2,7 @@ import { getStepConfig, getStreamConfig, LockedData, type Step } from '@motiadev
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import colors from 'colors'
 import { randomUUID } from 'crypto'
+import { existsSync } from 'fs'
 import { globSync } from 'glob'
 import path from 'path'
 import { activatePythonVenv } from './utils/activate-python-env'
@@ -9,20 +10,36 @@ import { CompilationError } from './utils/errors/compilation.error'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
+const getStepFilesFromDir = (dir: string): string[] => {
+  if (!existsSync(dir)) {
+    return []
+  }
+  return [
+    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: dir }),
+    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: dir }),
+  ]
+}
+
 export const getStepFiles = (projectDir: string): string[] => {
   const stepsDir = path.join(projectDir, 'steps')
+  const srcDir = path.join(projectDir, 'src')
+  return [...getStepFilesFromDir(stepsDir), ...getStepFilesFromDir(srcDir)]
+}
+
+const getStreamFilesFromDir = (dir: string): string[] => {
+  if (!existsSync(dir)) {
+    return []
+  }
   return [
-    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
-    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
+    ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: dir }),
+    ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: dir }),
   ]
 }
 
 export const getStreamFiles = (projectDir: string): string[] => {
   const stepsDir = path.join(projectDir, 'steps')
-  return [
-    ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
-    ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
-  ]
+  const srcDir = path.join(projectDir, 'src')
+  return [...getStreamFilesFromDir(stepsDir), ...getStreamFilesFromDir(srcDir)]
 }
 
 // Helper function to recursively collect flow data
@@ -30,7 +47,12 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   const invalidSteps: Step[] = []
   const stepFiles = getStepFiles(projectDir)
   const streamFiles = getStreamFiles(projectDir)
-  const deprecatedSteps = globSync('**/*.step.py', { absolute: true, cwd: path.join(projectDir, 'steps') })
+  const stepsDir = path.join(projectDir, 'steps')
+  const srcDir = path.join(projectDir, 'src')
+  const deprecatedSteps = [
+    ...(existsSync(stepsDir) ? globSync('**/*.step.py', { absolute: true, cwd: stepsDir }) : []),
+    ...(existsSync(srcDir) ? globSync('**/*.step.py', { absolute: true, cwd: srcDir }) : []),
+  ]
 
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
