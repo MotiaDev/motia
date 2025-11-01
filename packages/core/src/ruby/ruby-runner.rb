@@ -8,10 +8,12 @@ require_relative 'rpc_state_manager'
 
 def parse_args(arg)
   begin
+    if arg && File.file?(arg)
+      return JSON.parse(File.read(arg), object_class: OpenStruct)
+    end
     JSON.parse(arg, object_class: OpenStruct)
-  rescue JSON::ParserError
-    puts "Error parsing args: #{arg}"
-    arg
+  rescue JSON::ParserError, Errno::ENOENT
+    OpenStruct.new({ data: arg })
   end
 end
 
