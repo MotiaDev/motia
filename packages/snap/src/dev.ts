@@ -79,8 +79,6 @@ export const dev = async (
     trackEvent('mermaid_generator_initialized')
   }
 
-  watcher.init()
-
   deployEndpoints(motiaServer, lockedData)
 
   motiaServer.app.get('/__motia', (_, res) => {

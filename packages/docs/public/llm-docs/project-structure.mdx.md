@@ -42,15 +42,16 @@ Here's what a typical Motia project looks like:
 | `config.yml` | Optional Motia configuration | Config | - |
 
 <Callout type="info">
-The `steps/` directory is the heart of your Motia application - this is where all your workflow logic lives. Motia automatically discovers and registers any file following the naming pattern.
+The `steps/` and `src/` directories are the heart of your Motia application - this is where all your workflow logic lives. Motia automatically discovers and registers any file following the naming pattern from both directories.
 </Callout>
 
 <Callout>
 <strong>Location and nesting rules</strong>
 
-- The `steps/` directory must live at the <em>project root</em> (e.g., `my-motia-project/steps`).
-- You can freely nest steps in subfolders under `steps/` (e.g., `steps/aaa/a1.step.ts`, `steps/bbb/ccc/c1.step.py`).
-- Discovery is recursive inside `steps/`, so deeper folder structures for large apps are supported.
+- Both the `steps/` and `src/` directories are supported at the <em>project root</em> (e.g., `my-motia-project/steps` or `my-motia-project/src`).
+- You can freely nest steps in subfolders under either directory (e.g., `steps/aaa/a1.step.ts`, `src/bbb/ccc/c1.step.py`).
+- Discovery is recursive inside both directories, so deeper folder structures for large apps are supported.
+- You can use either `steps/`, `src/`, or both directories in your project.
 </Callout>
 
 ## Automatic Step Discovery
@@ -63,7 +64,7 @@ Motia will automatically discover and register **any file** that follows the `.s
 
 ### Discovery Rules
 
-Motia scans your `steps/` directory and automatically registers files as steps based on these rules:
+Motia scans your `steps/` and `src/` directories and automatically registers files as steps based on these rules:
 
 1. **File must contain `.step.` or `_step.` in the filename** (e.g., `my-task.step.ts`, `my_task_step.py`)
 2. **File must export a `config` object** defining the step configuration
@@ -71,8 +72,8 @@ Motia scans your `steps/` directory and automatically registers files as steps b
 4. **File extension determines the runtime** (`.ts` = TypeScript, `.py` = Python, `.js` = JavaScript)
 
 When you run `motia dev`, Motia will:
-- Scan the `steps/` directory recursively
-- Find all files matching `*.step.*`
+- Scan both the `steps/` and `src/` directories recursively
+- Find all files matching `*.step.*` in both directories
 - Parse their `config` exports to understand step types and connections
 - Register them in the workflow engine
 - Make them available in the Workbench
@@ -476,16 +477,16 @@ export const handler = async (input, ctx) => {
 </Tab>
 <Tab value="Location Issues">
 
-**File outside steps/ directory**
+**File outside steps/ or src/ directory**
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
 ❌ **Won't be discovered:**
 <Folder name="project-root" defaultOpen>
-  <Folder name="src">
+  <Folder name="lib">
     <File name="user-handler.step.ts" />
   </Folder>
-  <Folder name="lib">
+  <Folder name="components">
     <File name="processor.step.py" />
   </Folder>
 </Folder>
@@ -495,11 +496,15 @@ export const handler = async (input, ctx) => {
 <Folder name="project-root" defaultOpen>
   <Folder name="steps" defaultOpen>
     <File name="user-handler.step.ts" />
+  </Folder>
+  <Folder name="src" defaultOpen>
     <File name="processor.step.py" />
   </Folder>
 </Folder>
 </div>
 </div>
+
+Note: Both `steps/` and `src/` directories are supported. Files must be in one of these directories to be discovered.
 
 </Tab>
 </Tabs>
