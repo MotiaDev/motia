@@ -3,6 +3,7 @@ import json
 import importlib.util
 import os
 import platform
+from pathlib import Path
 
 def sendMessage(text):
     'sends a Node IPC message to parent proccess'
@@ -21,21 +22,45 @@ def sendMessage(text):
 
 async def run_python_module(file_path: str) -> None:
     try:
-        module_dir = os.path.dirname(os.path.abspath(file_path))
-        
-        if module_dir not in sys.path:
-            sys.path.insert(0, module_dir)
-            
-        flows_dir = os.path.dirname(module_dir)
-        if flows_dir not in sys.path:
-            sys.path.insert(0, flows_dir)
+        file_path_obj = Path(file_path).resolve()
+        module_dir = file_path_obj.parent
+
+        module_dir_str = str(module_dir)
+        if module_dir_str not in sys.path:
+            sys.path.insert(0, module_dir_str)
+
+        # Walk up the directory tree to find the outermost package that still has an __init__.py.
+        package_root = None
+        current = module_dir
+        while True:
+            if (current / "__init__.py").is_file():
+                package_root = current
+
+            parent = current.parent
+            if parent == current:
+                break
+
+            current = parent
+
+        package_root = package_root or module_dir
+        package_root_parent = package_root.parent
+        package_root_parent_str = str(package_root_parent)
+        if package_root_parent_str not in sys.path:
+            sys.path.insert(0, package_root_parent_str)
 
         spec = importlib.util.spec_from_file_location("dynamic_module", file_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"Could not load module from {file_path}")
             
         module = importlib.util.module_from_spec(spec)
-        module.__package__ = os.path.basename(module_dir)
+        rel_parts = file_path_obj.with_suffix("").relative_to(package_root_parent).parts
+        module_name = ".".join(rel_parts)
+        if len(rel_parts) <= 1:
+            module.__package__ = ""
+        elif len(rel_parts) == 2:
+            module.__package__ = module_name
+        else:
+            module.__package__ = ".".join(rel_parts[:-1])
         spec.loader.exec_module(module)
 
         if not hasattr(module, 'config'):
