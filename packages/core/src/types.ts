@@ -17,7 +17,7 @@ export type InternalStateManager = {
 export type EmitData = { topic: ''; data: unknown; messageGroupId?: string }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
-export type FlowContextStateStreams = {}
+export interface FlowContextStateStreams {}
 
 export interface FlowContext<TEmitData = never> {
   emit: Emitter<TEmitData>
@@ -202,4 +202,4 @@ export type Flow = {
   steps: Step[]
 }
 
-export type Handlers = {}
+export interface Handlers {}
