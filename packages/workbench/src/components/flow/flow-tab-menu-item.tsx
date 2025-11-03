@@ -2,7 +2,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ChevronsUpDown, Workflow } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useFetchFlows } from '@/hooks/use-fetch-flows'
-import { analytics } from '@/lib/analytics'
+import { motiaAnalytics } from '@/lib/motia-analytics'
 import { useFlowStore } from '@/stores/use-flow-store'
 
 export const FlowTabMenuItem = () => {
@@ -18,7 +18,7 @@ export const FlowTabMenuItem = () => {
 
   const handleFlowSelect = (flowId: string) => {
     selectFlowId(flowId)
-    analytics.track('flow_selected', { flow: flowId })
+    motiaAnalytics.track('flow_selected', { flow: flowId })
   }
 
   return (
