@@ -25,16 +25,18 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     pnpm: 'pnpm add',
   }[packageManager]
 
-  const dependencies = [`motia@${version}`, 'zod@3.24.4'].join(' ')
+  const dependencies = [`motia@${version}`, 'zod@3.24.4', ...pluginDependencies.map((dep) => `${dep}@${version}`)].join(
+    ' ',
+  )
+
   const devDependencies = [
     'ts-node@10.9.2',
     'typescript@5.7.3',
-    '@types/react@18.3.18',
+    '@types/react@19.1.1',
     '@jest/globals@^29.7.0',
     '@types/jest@^29.5.14',
     'jest@^29.7.0',
     'ts-jest@^29.2.5',
-    ...pluginDependencies.map((dep) => `${dep}@${version}`),
   ].join(' ')
 
   try {
