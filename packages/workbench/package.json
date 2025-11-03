@@ -1,7 +1,7 @@
 {
   "name": "@motiadev/workbench",
   "description": "A web-based interface for building and managing Motia workflows.",
-  "version": "0.8.3-beta.140",
+  "version": "0.8.4-beta.141",
   "main": "dist/index.js",
   "scripts": {
     "lint": "biome check .",
