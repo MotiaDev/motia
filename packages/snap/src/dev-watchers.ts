@@ -103,23 +103,17 @@ export const createDevWatchers = (
   cronManager: CronManager,
 ) => {
   const baseDir = process.cwd()
-  const stepDir = path.join(baseDir, 'steps')
-  const srcDir = path.join(baseDir, 'src')
+  const dirs = [path.join(baseDir, 'steps'), path.join(baseDir, 'src')]
   const watchers: Watcher[] = []
 
-  if (existsSync(stepDir)) {
-    const stepWatcher = new Watcher(stepDir, lockedData)
-    setupWatcherHandlers(stepWatcher, lockedData, server, eventHandler, cronManager)
-    stepWatcher.init()
-    watchers.push(stepWatcher)
-  }
-
-  if (existsSync(srcDir)) {
-    const srcWatcher = new Watcher(srcDir, lockedData)
-    setupWatcherHandlers(srcWatcher, lockedData, server, eventHandler, cronManager)
-    srcWatcher.init()
-    watchers.push(srcWatcher)
-  }
+  dirs.forEach((dir) => {
+    if (existsSync(dir)) {
+      const watcher = new Watcher(dir, lockedData)
+      setupWatcherHandlers(watcher, lockedData, server, eventHandler, cronManager)
+      watcher.init()
+      watchers.push(watcher)
+    }
+  })
 
   return {
     stop: async () => {
