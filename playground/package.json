@@ -19,6 +19,7 @@
     "@motiadev/core": "workspace:*",
     "@motiadev/test": "workspace:*",
     "@motiadev/plugin-logs": "workspace:*",
+    "@motiadev/plugin-example": "workspace:*",
     "@motiadev/plugin-states": "workspace:*",
     "@motiadev/plugin-endpoint": "workspace:*",
     "@motiadev/plugin-observability": "workspace:*",

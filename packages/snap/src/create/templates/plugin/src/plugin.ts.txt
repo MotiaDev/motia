@@ -1,0 +1,17 @@
+import type { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
+
+export default function plugin(_motia: MotiaPluginContext): MotiaPlugin {
+  return {
+    workbench: [
+      {
+        packageName: '{{PROJECT_NAME}}',
+        cssImports: ['{{PROJECT_NAME}}/dist/{{CSS_FILE_NAME}}.css'],
+        label: 'Example',
+        position: 'bottom',
+        componentName: 'ExamplePage',
+        labelIcon: 'sparkles',
+      },
+    ],
+  }
+}
+

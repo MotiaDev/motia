@@ -1,32 +1,32 @@
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { Rocket } from 'lucide-react'
 import { useState } from 'react'
-import { analytics } from '@/lib/analytics'
+import { motiaAnalytics } from '@/lib/motia-analytics'
 
 export const DeployButton = () => {
   const [isOpen, setIsOpen] = useState(false)
 
   const onDeployButtonClick = () => {
-    analytics.track('deploy_button_clicked')
+    motiaAnalytics.track('deploy_button_clicked')
   }
 
   const onDeployClick = () => {
     setIsOpen(false)
-    analytics.track('deploy_button_deploy_clicked')
+    motiaAnalytics.track('deploy_button_deploy_clicked')
   }
 
   const onClose = () => {
     setIsOpen(false)
-    analytics.track('deploy_button_closed')
+    motiaAnalytics.track('deploy_button_closed')
   }
 
   const onMotiaCloudClick = () => {
     setIsOpen(true)
-    analytics.track('deploy_button_motia_cloud_clicked')
+    motiaAnalytics.track('deploy_button_motia_cloud_clicked')
   }
 
   const onSelfHostedClick = () => {
-    analytics.track('deploy_button_self_hosted_clicked')
+    motiaAnalytics.track('deploy_button_self_hosted_clicked')
     window.open('https://www.motia.dev/docs/deployment-guide/self-hosted', '_blank')
   }
 

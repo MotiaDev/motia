@@ -14,25 +14,28 @@
       href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap"
       rel="stylesheet"
     />
-    <script src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz"></script>
     <script>
-      window.amplitude.init('ab2408031a38aa5cb85587a27ecfc69c', {
-        autocapture: {
-          fileDownloads: false,
-          formInteractions: false,
-        },
-        fetchRemoteConfig: true,
-        recording: false,
-        optOut: true,
-      })
+      function initAmplitude() {
+        window.amplitude.init('ab2408031a38aa5cb85587a27ecfc69c', {
+          autocapture: {
+            fileDownloads: false,
+            formInteractions: false,
+          },
+          fetchRemoteConfig: true,
+          recording: false,
+          optOut: true,
+        })
+      }
     </script>
+
+    <script src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz" onload="initAmplitude()"></script>
 
     <script>
       const importFile = async (path) => {
         // Normalize the path for cross-platform compatibility
         const normalizedPath = path.replace(/\\/g, '/')
         const fullPath = `${processCwd}/${normalizedPath}`.replace(/\\/g, '/')
-        
+
         // Handle Windows drive letters properly
         let importPath = fullPath
         if (navigator.platform.includes('Win')) {
@@ -45,7 +48,7 @@
         } else {
           importPath = `/@fs/${fullPath}`
         }
-        
+
         try {
           return await import(/* @vite-ignore */ importPath)
         } catch (error) {

@@ -81,6 +81,7 @@ jobs:
           npm dist-tag add @motiadev/plugin-logs@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/plugin-observability@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/plugin-states@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-example@${{ needs.prepare.outputs.version }} latest
 
       - name: Remove pre-release tag
         run: |
@@ -97,6 +98,7 @@ jobs:
           npm dist-tag rm @motiadev/plugin-logs pre-release || true
           npm dist-tag rm @motiadev/plugin-observability pre-release || true
           npm dist-tag rm @motiadev/plugin-states pre-release || true
+          npm dist-tag rm @motiadev/plugin-example pre-release || true
 
   create-github-release:
     needs: [prepare, promote-to-latest]

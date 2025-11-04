@@ -122,15 +122,15 @@ class WorkbenchAnalytics {
   }
 }
 
-export const analytics = new WorkbenchAnalytics()
+export const motiaAnalytics = new WorkbenchAnalytics()
 
 export const useAnalytics = () => {
   const track = useCallback((eventName: string, properties?: Record<string, any>) => {
-    analytics.track(eventName, properties)
+    motiaAnalytics.track(eventName, properties)
   }, [])
 
   const getAnalyticsIds = useCallback(() => {
-    return analytics.getAnalyticsIds()
+    return motiaAnalytics.getAnalyticsIds()
   }, [])
 
   return {
