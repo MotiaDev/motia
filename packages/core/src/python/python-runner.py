@@ -23,24 +23,26 @@ def parse_args(arg: str) -> Dict:
 async def run_python_module(file_path: str, rpc: RpcSender, args: Dict) -> None:
     """Execute a Python module with the given arguments"""
     try:
-        module_dir = os.path.dirname(os.path.abspath(file_path))
-        flows_dir = os.path.dirname(module_dir)
-        
-        for path in [module_dir, flows_dir]:
-            if path not in sys.path:
-                sys.path.insert(0, path)
+        path = Path(file_path).resolve()
+        snap_dir = next((p for p in path.parents if p.name == "snap"), None)
+        if snap_dir is None:
+            raise RuntimeError("Could not find 'snap' directory in path")
 
-        spec = importlib.util.spec_from_file_location("dynamic_module", file_path)
+        snap_parent = snap_dir.parent
+        if str(snap_parent) not in sys.path:
+            sys.path.insert(0, str(snap_parent))
+
+        rel_parts = path.relative_to(snap_parent).with_suffix("").parts
+        module_name = ".".join(rel_parts)
+        package_name = module_name.rsplit(".", 1)[0] if "." in module_name else ""
+
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"Could not load module from {file_path}")
-            
+
         module = importlib.util.module_from_spec(spec)
-
-        flows_dir = Path(file_path).parents[1]  # adjust if your root is deeper
-        rel_parts = Path(file_path).relative_to(flows_dir).with_suffix("").parts
-        module_name = flows_dir.name + "." + ".".join(rel_parts)
-        module.__package__ = module_name.rsplit(".", 1)[0]
-
+        module.__package__ = package_name
+        sys.modules[module_name] = module
         spec.loader.exec_module(module)
 
         if not hasattr(module, "handler"):
