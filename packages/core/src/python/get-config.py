@@ -23,15 +23,16 @@ def sendMessage(text):
 async def run_python_module(file_path: str) -> None:
     try:
         path = Path(file_path).resolve()
-        snap_dir = next((p for p in path.parents if p.name == "snap"), None)
-        if snap_dir is None:
-            raise RuntimeError("Could not find 'snap' directory in path")
+        steps_dir = next((p for p in path.parents if p.name == "steps"), None)
+        if steps_dir is None:
+            raise RuntimeError("Could not find 'steps' directory in path")
 
-        snap_parent = snap_dir.parent
-        if str(snap_parent) not in sys.path:
-            sys.path.insert(0, str(snap_parent))
+        project_root = steps_dir.parent
+        project_parent = project_root.parent
+        if str(project_parent) not in sys.path:
+            sys.path.insert(0, str(project_parent))
 
-        rel_parts = path.relative_to(snap_parent).with_suffix("").parts
+        rel_parts = path.relative_to(project_parent).with_suffix("").parts
         module_name = ".".join(rel_parts)
         package_name = module_name.rsplit(".", 1)[0] if "." in module_name else ""
 
