@@ -34,8 +34,17 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
   let template = args.template
 
   if (args.plugin) {
+    if (!args.name) {
+      context.log('failed', (message) =>
+        message
+          .tag('failed')
+          .append(`Project name is required: ${colors.bold('motia create --plugin [project-name]')}\n`),
+      )
+      return
+    }
+
     return create({
-      projectName: name || '.',
+      projectName: args.name,
       template: 'plugin',
       cursorEnabled: false,
       context,
