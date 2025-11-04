@@ -2,7 +2,7 @@
   "name": "@motiadev/core",
   "description": "Core functionality for the Motia framework, providing the foundation for building event-driven workflows.",
   "main": "dist/index.js",
-  "version": "0.8.4-beta.141",
+  "version": "0.8.5-beta.142",
   "scripts": {
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
     "move:python": "mkdir -p dist/src/python && cp src/python/*.py dist/src/python",
