@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 function getWorkbenchBase() {
   const basePath = process.env.MOTIA_WORKBENCH_BASE
 
@@ -9,4 +12,5 @@ function getWorkbenchBase() {
 }
 
 export const workbenchBase = getWorkbenchBase()
-export const isTutorialDisabled = process.env.MOTIA_TUTORIAL_DISABLED === 'true'
+export const isTutorialDisabled =
+  process.env.MOTIA_TUTORIAL_DISABLED === 'true' || !fs.existsSync(path.join(process.cwd(), '/tutorial/tutorial.tsx'))
