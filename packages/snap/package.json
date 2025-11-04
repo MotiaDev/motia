@@ -70,11 +70,6 @@
     "ts-jest": "^29.2.5",
     "typescript": "^5.7.2",
     "typescript-transform-paths": "^3.5.3",
-    "openapi-types": "^12.1.3",
-    "@motiadev/core": "0.8.3-beta.140",
-    "@motiadev/plugin-logs": "0.8.3-beta.140",
-    "@motiadev/plugin-states": "0.8.3-beta.140",
-    "@motiadev/plugin-endpoint": "0.8.3-beta.140",
-    "@motiadev/plugin-observability": "0.8.3-beta.140"
+    "openapi-types": "^12.1.3"
   }
 }
