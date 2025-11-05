@@ -108,7 +108,8 @@ export class FileStateAdapter implements StateAdapter {
 
     return Object.entries(data)
       .map(([key, value]) => {
-        const [groupId, itemKey] = key.split(':')
+        const [groupId, ...keyParts] = key.split(':')
+        const itemKey = keyParts.join(':')
         const itemValue = JSON.parse(value)
         return { groupId, key: itemKey, value: itemValue, type: inferType(itemValue) }
       })
