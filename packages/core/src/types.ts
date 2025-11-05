@@ -17,6 +17,7 @@ export type InternalStateManager = {
 export type EmitData = { topic: ''; data: unknown; messageGroupId?: string }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
+// biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface FlowContextStateStreams {}
 
 export interface FlowContext<TEmitData = never> {
@@ -196,4 +197,5 @@ export type Flow = {
   steps: Step[]
 }
 
+// biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface Handlers {}

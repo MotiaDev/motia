@@ -9,8 +9,8 @@ import {
 import path from 'path'
 import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
-import { processPlugins } from './plugins'
 import { loadMotiaConfig } from './load-motia-config'
+import { processPlugins } from './plugins'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
 
