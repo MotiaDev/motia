@@ -33,9 +33,10 @@ export class FileStreamAdapter<TData> extends StreamAdapter<TData> {
 
   async getGroup(groupId: string): Promise<BaseStreamItem<TData>[]> {
     const data = this._readFile()
+    const prefix = this._makeKey(groupId, '')
 
     return Object.entries(data)
-      .filter(([key]) => key.startsWith(groupId))
+      .filter(([key]) => key.startsWith(prefix))
       .map(([, value]) => JSON.parse(value) as BaseStreamItem<TData>)
   }
 
