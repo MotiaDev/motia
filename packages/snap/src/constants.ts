@@ -13,4 +13,4 @@ function getWorkbenchBase() {
 
 export const workbenchBase = getWorkbenchBase()
 export const isTutorialDisabled =
-  process.env.MOTIA_TUTORIAL_DISABLED === 'true' || !fs.existsSync(path.join(process.cwd(), '/tutorial/tutorial.tsx'))
+  process.env.MOTIA_TUTORIAL_DISABLED === 'true' || !fs.existsSync(path.join(process.cwd(), 'tutorial/tutorial.tsx'))
