@@ -18,14 +18,49 @@ The Motia CLI is automatically installed when you install the `motia` package. Y
 Create a new Motia project.
 
 ```bash
-npx motia@latest create [options]
+npx motia@latest create [project-name] [options]
 ```
 
-Options:
+**Arguments:**
 
-- `[project name]` (optional): The name for your project folder. 
+- `[project-name]` (optional): The name for your project folder. 
   If not provided, you will be prompted to enter it. 
   Use `.` or `./` to create it in the current directory.
+
+**Options:**
+
+- `--template <template-name>` (optional): The template to use for your project. 
+  If not provided, you will be prompted to select one interactively.
+
+**Available Templates:**
+
+Motia provides several project templates to help you get started quickly:
+
+| Template | Description | Use Case |
+|----------|-------------|----------|
+| `starter-typescript` | Starter (TypeScript) | Minimal TypeScript project with basic examples |
+| `starter-javascript` | Starter (JavaScript) | Minimal JavaScript project with basic examples |
+| `starter-python` | Starter (Python) | Minimal Python project with basic examples |
+| `motia-tutorial-typescript` | Tutorial (TypeScript) | Interactive tutorial project in TypeScript |
+| `motia-tutorial-python` | Tutorial (Python) | Interactive tutorial project in Python |
+
+**Examples:**
+
+Create a TypeScript starter project:
+```bash
+npx motia@latest create my-app --template starter-typescript
+```
+
+Create a Python tutorial project:
+```bash
+npx motia@latest create my-tutorial --template motia-tutorial-python
+```
+
+Use interactive mode (no template specified):
+```bash
+npx motia@latest create
+# You'll be prompted to select a template from the list above
+```
 
 
 ### `build`
