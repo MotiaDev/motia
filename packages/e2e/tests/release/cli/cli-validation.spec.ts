@@ -12,7 +12,7 @@ test.describe('CLI Validation', () => {
   test('should create project with correct structure', async () => {
     expect(existsSync(testProjectPath)).toBeTruthy()
 
-    const expectedFiles = ['package.json', 'steps', 'motia-workbench.json', 'tutorial.tsx']
+    const expectedFiles = ['package.json', 'steps', 'motia-workbench.json', 'tutorial/tutorial.tsx']
 
     for (const file of expectedFiles) {
       const filePath = path.join(testProjectPath, file)
