@@ -54,7 +54,7 @@
         } catch (error) {
           console.error(`Failed to import ${path}:`, error)
           // Return empty module if tutorial.tsx doesn't exist
-          if (path === 'tutorial.tsx') {
+          if (path === 'tutorial/tutorial.tsx') {
             return { steps: [] }
           }
           throw error
