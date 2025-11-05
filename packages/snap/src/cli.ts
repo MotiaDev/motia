@@ -27,6 +27,7 @@ program
   .command('create [name]')
   .description('Create a new motia project')
   .option('-t, --template <template>', 'The template to use for your project')
+  .option('-p, --plugin', 'Create a plugin project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .option('-c, --confirm', 'Confirm the project creation', false)
   .action((projectName, options) => {
@@ -37,6 +38,7 @@ program
         {
           name: arg.name,
           template: arg.template,
+          plugin: !!arg.plugin,
           confirm: !!arg.confirm,
         },
         context,
