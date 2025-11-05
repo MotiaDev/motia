@@ -16,8 +16,22 @@ export const installPluginDependencies = async (baseDir: string, printer: Printe
 
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
 
-  const devDependencies = packageJson.devDependencies || {}
-  const missingDependencies = pluginDependencies.filter((dep) => !devDependencies[dep])
+  if (!packageJson.dependencies) {
+    packageJson.dependencies = {}
+  }
+
+  const missingDependencies: string[] = []
+
+  for (const dep of pluginDependencies) {
+    if (packageJson.devDependencies?.[dep]) {
+      delete packageJson.devDependencies[dep]
+    }
+
+    if (!packageJson.dependencies[dep]) {
+      packageJson.dependencies[dep] = version
+      missingDependencies.push(dep)
+    }
+  }
 
   if (missingDependencies.length === 0) {
     printer.printPluginLog('All plugin dependencies already installed')
@@ -25,14 +39,6 @@ export const installPluginDependencies = async (baseDir: string, printer: Printe
   }
 
   printer.printPluginLog(`Adding missing plugin dependencies: ${missingDependencies.join(', ')}`)
-
-  if (!packageJson.devDependencies) {
-    packageJson.devDependencies = {}
-  }
-
-  for (const dep of missingDependencies) {
-    packageJson.devDependencies[dep] = version
-  }
 
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`)
   printer.printPluginLog('Updated package.json with plugin dependencies')
