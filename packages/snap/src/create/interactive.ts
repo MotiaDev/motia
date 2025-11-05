@@ -10,11 +10,11 @@ interface InteractiveAnswers {
 }
 
 const choices: Record<string, string> = {
+  nodejs: 'Tutorial (TypeScript)',
+  python: 'Tutorial (Python)',
   'starter-typescript': 'Starter (TypeScript)',
   'starter-javascript': 'Starter (JavaScript)',
   'starter-python': 'Starter (Python)',
-  nodejs: 'Tutorial (TypeScript)',
-  python: 'Tutorial (Python)',
 }
 
 interface CreateInteractiveArgs {
