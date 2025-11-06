@@ -1,0 +1,266 @@
+---
+title: 'Adapter Configuration'
+description: 'Configure distributed adapters for horizontal scaling in production'
+---
+
+This guide shows you how to configure distributed adapters for Motia to enable horizontal scaling and production-ready deployments. We'll cover setting up Redis and RabbitMQ adapters for state, streams, events, and cron.
+
+## Why Distributed Adapters?
+
+By default, Motia uses file-based and in-memory adapters that work great for single-instance deployments. However, when you need to:
+
+- Run multiple Motia instances
+- Scale horizontally
+- Share state/events/streams across instances
+- Deploy to production with high availability
+
+You need distributed adapters that use shared infrastructure like Redis or RabbitMQ.
+
+---
+
+## Quick Setup
+
+### 1. Install Adapter Packages
+
+```bash
+npm install @motiadev/adapter-redis-state \
+            @motiadev/adapter-redis-streams \
+            @motiadev/adapter-rabbitmq-events \
+            @motiadev/adapter-redis-cron
+```
+
+### 2. Configure Adapters
+
+```typescript title="motia.config.ts"
+import { config } from '@motiadev/core'
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
+import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
+
+export default config({
+  adapters: {
+    state: new RedisStateAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    }),
+    streams: new RedisStreamAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    }),
+    events: new RabbitMQEventAdapter({
+      url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+    }),
+    cron: new RedisCronAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    }),
+  },
+})
+```
+
+### 3. Set Environment Variables
+
+```bash title=".env"
+REDIS_HOST=localhost
+REDIS_PORT=6379
+RABBITMQ_URL=amqp://localhost:5672
+```
+
+---
+
+## Docker Compose Setup
+
+For local development and production, use Docker Compose to run Redis and RabbitMQ:
+
+```yaml title="docker-compose.yml"
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+volumes:
+  redis-data:
+  rabbitmq-data:
+```
+
+Start the services:
+
+```bash
+docker-compose up -d
+```
+
+---
+
+## Partial Adapter Configuration
+
+You don't need to configure all adapters. Mix and match based on your needs:
+
+### Only State Adapter
+
+If you only need shared state across instances:
+
+```typescript title="motia.config.ts"
+import { config } from '@motiadev/core'
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+
+export default config({
+  adapters: {
+    state: new RedisStateAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: 6379,
+    }),
+    // Streams, events, and cron use defaults
+  },
+})
+```
+
+### Only Event Adapter
+
+If you only need distributed events:
+
+```typescript title="motia.config.ts"
+import { config } from '@motiadev/core'
+import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
+
+export default config({
+  adapters: {
+    events: new RabbitMQEventAdapter({
+      url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+    }),
+    // State, streams, and cron use defaults
+  },
+})
+```
+
+---
+
+## Production Deployment
+
+### Scaling Multiple Instances
+
+With distributed adapters, you can run multiple Motia instances:
+
+```yaml title="docker-compose.yml"
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+
+  motia-1:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - redis
+      - rabbitmq
+
+  motia-2:
+    build: .
+    ports:
+      - "3001:3000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - redis
+      - rabbitmq
+
+  motia-3:
+    build: .
+    ports:
+      - "3002:3000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - redis
+      - rabbitmq
+```
+
+All instances share the same state, events, and streams.
+
+### Cloud Provider Configuration
+
+For cloud deployments, use managed services:
+
+**AWS ElastiCache (Redis):**
+```typescript
+state: new RedisStateAdapter({
+  host: process.env.REDIS_HOST, // ElastiCache endpoint
+  port: 6379,
+  password: process.env.REDIS_PASSWORD,
+})
+```
+
+**CloudAMQP (RabbitMQ):**
+```typescript
+events: new RabbitMQEventAdapter({
+  url: process.env.CLOUDAMQP_URL, // CloudAMQP connection string
+})
+```
+
+---
+
+## Testing Adapter Configuration
+
+Your application code doesn't change when switching adapters. Test with defaults first:
+
+```typescript
+// This works with both file and Redis adapters
+export const handler: Handlers['MyStep'] = async (req, { state, streams, emit }) => {
+  await state.set('orders', 'order-123', { id: 'order-123' })
+  await streams.messages.set('chat-123', 'msg-1', { text: 'Hello' })
+  await emit({ topic: 'order.created', data: { orderId: '123' } })
+}
+```
+
+Then switch to distributed adapters for production without changing your code.
+
+---
+
+## What's Next?
+
+<Cards>
+  <Card href="/docs/development-guide/adapters/usage" title="📖 Using Adapters">
+    Learn more about using adapters in your application
+  </Card>
+  
+  <Card href="/docs/development-guide/adapters/creating-adapters" title="🔧 Creating Adapters">
+    Build custom adapters for your infrastructure
+  </Card>
+  
+  <Card href="/docs/deployment-guide/self-hosted" title="🚀 Deployment Guide">
+    Learn about deploying Motia to production
+  </Card>
+</Cards>
+
