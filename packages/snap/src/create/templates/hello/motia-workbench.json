@@ -1,0 +1,15 @@
+[
+  {
+    "id": "hello-world-flow",
+    "config": {
+      "steps/hello/process-greeting.step.ts": {
+        "x": 451,
+        "y": -24
+      },
+      "steps/hello/hello-api.step.ts": {
+        "x": -37,
+        "y": -68
+      }
+    }
+  }
+]

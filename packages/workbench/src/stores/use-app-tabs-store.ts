@@ -47,11 +47,3 @@ export const useAppTabsStore = create<AppTabsState>((set) => ({
       },
     })),
 }))
-
-export const setAppTabs = (position: TabLocation, tabs: AppTab[]) => {
-  useAppTabsStore.getState().setTabs(position, tabs)
-}
-
-export const addAppTab = (position: TabLocation, tab: AppTab) => {
-  useAppTabsStore.getState().addTab(position, tab)
-}

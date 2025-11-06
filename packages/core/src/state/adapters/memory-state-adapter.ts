@@ -65,12 +65,15 @@ export class MemoryStateAdapter implements StateAdapter {
 
   async items(input: StateItemsInput): Promise<StateItem[]> {
     return Object.entries(this.state)
-      .map(([key, value]) => ({
-        groupId: key.split(':')[0],
-        key: key.split(':')[1],
-        type: inferType(value),
-        value: value as StateItem['value'],
-      }))
+      .map(([key, value]) => {
+        const [groupId, ...keyParts] = key.split(':')
+        return {
+          groupId,
+          key: keyParts.join(':'),
+          type: inferType(value),
+          value: value as StateItem['value'],
+        }
+      })
       .filter((item) => (input.groupId ? item.groupId === input.groupId : true))
       .filter((item) => (input.filter ? filterItem(item, input.filter) : true))
   }

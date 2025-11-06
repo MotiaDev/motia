@@ -77,8 +77,8 @@ export class NodeBuilder implements StepBuilder {
     const routerJs = path.join(distDir, 'router.js')
     const routerMap = path.join(distDir, 'router.js.map')
 
-    archiver.append(fs.createReadStream(routerJs), 'router.js')
-    archiver.append(fs.createReadStream(routerMap), 'router.js.map')
+    archiver.append(fs.readFileSync(routerJs), 'router.js')
+    archiver.append(fs.readFileSync(routerMap), 'router.js.map')
     includeStaticFiles(steps, this.builder, archiver)
 
     const { compressedSize, uncompressedSize } = await archiver.finalize()
@@ -115,8 +115,8 @@ export class NodeBuilder implements StepBuilder {
 
       const archiver = new Archiver(path.join(distDir, bundlePath))
 
-      archiver.append(fs.createReadStream(outputJsFile), entrypointPath)
-      archiver.append(fs.createReadStream(outputMapFile), entrypointMapPath)
+      archiver.append(fs.readFileSync(outputJsFile), entrypointPath)
+      archiver.append(fs.readFileSync(outputMapFile), entrypointMapPath)
       includeStaticFiles([step], this.builder, archiver)
 
       const { compressedSize, uncompressedSize } = await archiver.finalize()

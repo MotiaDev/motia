@@ -18,7 +18,8 @@ export const includeStaticFiles = (steps: Step[], builder: Builder, archive: Arc
         const matches = globSync(file, { cwd: path.dirname(step.filePath), absolute: true })
         matches.forEach((filePath: string) => {
           const relativeFilePath = path.relative(builder.projectDir, filePath)
-          archive.append(fs.createReadStream(filePath), relativeFilePath)
+          const content = fs.readFileSync(filePath)
+          archive.append(content, relativeFilePath)
         })
       })
     }

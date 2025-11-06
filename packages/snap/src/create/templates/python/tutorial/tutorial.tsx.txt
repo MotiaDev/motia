@@ -248,7 +248,7 @@ export const steps: TutorialStep[] = [
     title: 'Event Step Input',
     description: () => (
       <p>
-        <b>Event</b> Steps, like other Steps types, are composed of a configuration and a handler.
+        <b> Event</b> Steps, like other Step types, are composed of a configuration and a handler.
         <br />
         <br />
         <b>Event</b> Steps have a specific attribute from their config, the <b>input</b> attribute, which declares the
@@ -304,12 +304,12 @@ export const steps: TutorialStep[] = [
     link: 'https://www.motia.dev/docs/concepts/steps/cron',
     description: () => (
       <p>
-        Let's do a recap of what you've learned, thus far you've become familiar with two Step types <b>API</b>{' '}
+        Let's do a recap of what you've learned. Thus far, you've become familiar with two Step types: <b>API</b>{' '}
         and <b>Event</b> Steps.
         <br />
         <br />
         You've also started to learn how to navigate around Workbench. Let's wrap up Motia's Step types with the last
-        one the <b>CRON</b> Step. Let's take a deeper look at its definition.
+        one: the <b>CRON</b> Step. Let's take a deeper look at its definition.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],
@@ -653,7 +653,7 @@ export const steps: TutorialStep[] = [
         <br />
         <br />
         We recommend you give our{' '}
-        <a href="https://www.motia.dev/docs/concepts" target="_blank">
+        <a href="https://www.motia.dev/docs/concepts/overview" target="_blank">
           core concepts
         </a>{' '}
         a read if you wish to learn further about Motia's fundamentals.

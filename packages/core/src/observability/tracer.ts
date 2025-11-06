@@ -10,7 +10,7 @@ import { TraceStreamAdapter } from './trace-stream-adapter'
 import type { Trace, TraceGroup } from './types'
 
 const MAX_TRACE_GROUPS = process.env.MOTIA_MAX_TRACE_GROUPS //
-  ? parseInt(process.env.MOTIA_MAX_TRACE_GROUPS)
+  ? Number.parseInt(process.env.MOTIA_MAX_TRACE_GROUPS, 10)
   : 50
 
 export class BaseTracerFactory implements TracerFactory {

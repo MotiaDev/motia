@@ -15,7 +15,7 @@ import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
 import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
-import { processPlugins } from './generate-plugins'
+import { processPlugins } from './plugins'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
@@ -78,8 +78,6 @@ export const dev = async (
     mermaidGenerator.initialize(lockedData)
     trackEvent('mermaid_generator_initialized')
   }
-
-  watcher.init()
 
   deployEndpoints(motiaServer, lockedData)
 

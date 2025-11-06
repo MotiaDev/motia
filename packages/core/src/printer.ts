@@ -16,6 +16,9 @@ const removed = colors.red('➜ [REMOVED]')
 const invalidEmit = colors.red('➜ [INVALID EMIT]')
 const error = colors.red('[ERROR]')
 const warning = colors.yellow('[WARNING]')
+const warnIcon = colors.yellow('⚠')
+const infoIcon = colors.blue('ℹ')
+const errorIcon = colors.red('✖')
 
 export class Printer {
   constructor(private readonly baseDir: string) {}
@@ -32,7 +35,6 @@ export class Printer {
     emit: { topic: string },
     details: { missingFields?: string[]; extraFields?: string[]; typeMismatches?: string[] },
   ) {
-    const warnIcon = colors.yellow('⚠')
     const emitPath = colors.bold(colors.cyan(`Emit ${emit.topic}`))
 
     console.log(`${warnIcon} ${warning} ${emitPath} validation issues:`)
@@ -104,7 +106,7 @@ export class Printer {
 
   printInvalidEmitConfiguration(step: Step, emit: string) {
     console.log(
-      `${warning} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} emits to ${colors.yellow(emit)}, but there is no subscriber defined`,
+      `${warnIcon} ${warning} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} emits to ${colors.yellow(emit)}, but there is no subscriber defined`,
     )
   }
 
@@ -154,20 +156,17 @@ export class Printer {
 
   printPluginLog(message: string) {
     const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
-    const levelTag = colors.blue('ℹ')
-    console.log(`${levelTag} ${pluginTag} ${message}`)
+    console.log(`${infoIcon} ${pluginTag} ${message}`)
   }
 
   printPluginWarn(message: string) {
     const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
-    const levelTag = colors.yellow('⚠')
-    console.warn(`${levelTag} ${pluginTag} ${colors.yellow(message)}`)
+    console.warn(`${warnIcon} ${pluginTag} ${colors.yellow(message)}`)
   }
 
-  printPluginError(message: string) {
+  printPluginError(message: string, ...args: unknown[]) {
     const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
-    const levelTag = colors.red('✖')
-    console.error(`${levelTag} ${pluginTag} ${colors.red(message)}`)
+    console.error(`${errorIcon} ${pluginTag} ${colors.red(message)}`, ...args)
   }
 }
 

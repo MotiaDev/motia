@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { Activity, Copy, FileText, PictureInPicture2, Settings, Users, X } from 'lucide-react'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { Button } from './button'
 import { Panel } from './panel'
 
@@ -12,7 +13,7 @@ const meta: Meta<typeof Panel> = {
     docs: {
       description: {
         component:
-          'A glassmorphic panel component for displaying structured information with a header and key-value pairs.',
+          'A glassmorphic panel component for displaying structured information with a header and key-value pairs. Supports multiple variants (default, outlined, filled, ghost), tabs, custom actions, and flexible content rendering.',
       },
     },
   },
@@ -651,5 +652,46 @@ export const WithCustomContentClassName: Story = {
       { label: 'B', value: 'Beta', highlighted: true },
       { label: 'C', value: 'Charlie' },
     ],
+  },
+}
+
+// Interaction Tests
+export const ActionButtonClick: Story = {
+  render: () => {
+    const handleCopy = fn()
+    const handleClose = fn()
+    return (
+      <Panel
+        title="Test Panel"
+        subtitle="With action buttons"
+        actions={[
+          { icon: <Copy />, onClick: handleCopy, label: 'Copy' },
+          { icon: <X />, onClick: handleClose, label: 'Close' },
+        ]}
+        details={[{ label: 'Test', value: 'Value' }]}
+      />
+    )
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const copyButton = canvas.getByRole('button', { name: 'Copy' })
+    await userEvent.click(copyButton)
+  },
+}
+
+export const TabSwitching: Story = {
+  args: {
+    title: 'Panel with Tabs',
+    tabs: [
+      { label: 'Tab1', content: <div>Content 1</div> },
+      { label: 'Tab2', content: <div>Content 2</div> },
+      { label: 'Tab3', content: <div>Content 3</div> },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const tab2 = canvas.getByRole('tab', { name: 'Tab2' })
+    await userEvent.click(tab2)
+    await waitFor(() => expect(canvas.getByText('Content 2')).toBeVisible())
   },
 }

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import { expect } from 'storybook/test'
 import { LevelDot } from './level-dot'
 
 const meta: Meta<typeof LevelDot> = {
@@ -9,7 +10,8 @@ const meta: Meta<typeof LevelDot> = {
     actions: { argTypesRegex: '^on.*' },
     docs: {
       description: {
-        component: 'A small colored dot indicator used to display log levels and status information.',
+        component:
+          'A small colored dot indicator used to display log levels and status information. Features color-coded variants for different severity levels (info/blue, warn/yellow, error-fatal/red).',
       },
     },
   },
@@ -18,7 +20,12 @@ const meta: Meta<typeof LevelDot> = {
     level: {
       control: { type: 'select' },
       options: ['info', 'trace', 'debug', 'error', 'fatal', 'warn'],
-      description: 'The log level or status type to display.',
+      description:
+        'The log level or status type to display. Colors: info/trace/debug (blue), warn (yellow), error/fatal (red).',
+      table: {
+        type: { summary: 'string' },
+        defaultValue: { summary: 'info' },
+      },
     },
   },
 }
@@ -44,7 +51,7 @@ export const Debug: Story = {
   },
 }
 
-export const Error: Story = {
+export const ErrorLevel: Story = {
   args: {
     level: 'error',
   },
@@ -99,7 +106,7 @@ export const AllVariants: Story = {
         <h3 className="text-sm font-semibold mb-3">Grouped by Color</h3>
         <div className="flex flex-col gap-3">
           <div>
-            <p className="text-xs text-gray-500 mb-2">Blue (Informational)</p>
+            <p className="text-xs text-muted-foreground mb-2">Blue (Informational)</p>
             <div className="flex gap-4 items-center">
               <div className="flex items-center gap-2">
                 <LevelDot level="info" />
@@ -116,7 +123,7 @@ export const AllVariants: Story = {
             </div>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-2">Yellow (Warning)</p>
+            <p className="text-xs text-muted-foreground mb-2">Yellow (Warning)</p>
             <div className="flex gap-4 items-center">
               <div className="flex items-center gap-2">
                 <LevelDot level="warn" />
@@ -125,7 +132,7 @@ export const AllVariants: Story = {
             </div>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-2">Red (Critical)</p>
+            <p className="text-xs text-muted-foreground mb-2">Red (Critical)</p>
             <div className="flex gap-4 items-center">
               <div className="flex items-center gap-2">
                 <LevelDot level="error" />
@@ -182,42 +189,42 @@ export const LogLevelIndicators: Story = {
         <div className="flex items-start gap-2 p-2 rounded bg-gray-50 dark:bg-gray-900">
           <LevelDot level="info" />
           <div className="flex-1">
-            <span className="text-gray-500">2025-10-08 14:23:15</span>
+            <span className="text-muted-foreground">2025-10-08 14:23:15</span>
             <span className="ml-2">Server listening on port 3000</span>
           </div>
         </div>
         <div className="flex items-start gap-2 p-2 rounded bg-gray-50 dark:bg-gray-900">
           <LevelDot level="trace" />
           <div className="flex-1">
-            <span className="text-gray-500">2025-10-08 14:23:16</span>
+            <span className="text-muted-foreground">2025-10-08 14:23:16</span>
             <span className="ml-2">Entering function: processRequest</span>
           </div>
         </div>
         <div className="flex items-start gap-2 p-2 rounded bg-gray-50 dark:bg-gray-900">
           <LevelDot level="debug" />
           <div className="flex-1">
-            <span className="text-gray-500">2025-10-08 14:23:17</span>
+            <span className="text-muted-foreground">2025-10-08 14:23:17</span>
             <span className="ml-2">Request payload: {JSON.stringify({ user: 'test' })}</span>
           </div>
         </div>
         <div className="flex items-start gap-2 p-2 rounded bg-gray-50 dark:bg-gray-900">
           <LevelDot level="warn" />
           <div className="flex-1">
-            <span className="text-gray-500">2025-10-08 14:23:18</span>
+            <span className="text-muted-foreground">2025-10-08 14:23:18</span>
             <span className="ml-2">Slow query detected: 2.3s</span>
           </div>
         </div>
         <div className="flex items-start gap-2 p-2 rounded bg-gray-50 dark:bg-gray-900">
           <LevelDot level="error" />
           <div className="flex-1">
-            <span className="text-gray-500">2025-10-08 14:23:19</span>
+            <span className="text-muted-foreground">2025-10-08 14:23:19</span>
             <span className="ml-2">Database connection failed</span>
           </div>
         </div>
         <div className="flex items-start gap-2 p-2 rounded bg-gray-50 dark:bg-gray-900">
           <LevelDot level="fatal" />
           <div className="flex-1">
-            <span className="text-gray-500">2025-10-08 14:23:20</span>
+            <span className="text-muted-foreground">2025-10-08 14:23:20</span>
             <span className="ml-2">Unrecoverable error: Out of memory</span>
           </div>
         </div>
@@ -236,21 +243,21 @@ export const UseCases: Story = {
             <span>API Server</span>
             <div className="flex items-center gap-2">
               <LevelDot level="info" />
-              <span className="text-sm text-gray-600">Running</span>
+              <span className="text-sm text-muted-foreground">Running</span>
             </div>
           </div>
           <div className="flex items-center justify-between p-2 rounded border">
             <span>Database</span>
             <div className="flex items-center gap-2">
               <LevelDot level="warn" />
-              <span className="text-sm text-gray-600">Degraded</span>
+              <span className="text-sm text-muted-foreground">Degraded</span>
             </div>
           </div>
           <div className="flex items-center justify-between p-2 rounded border">
             <span>Cache Service</span>
             <div className="flex items-center gap-2">
               <LevelDot level="error" />
-              <span className="text-sm text-gray-600">Offline</span>
+              <span className="text-sm text-muted-foreground">Offline</span>
             </div>
           </div>
         </div>
@@ -261,22 +268,22 @@ export const UseCases: Story = {
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
             <LevelDot level="info" />
-            <span className="text-gray-500">12:05</span>
+            <span className="text-muted-foreground">12:05</span>
             <span>User logged in</span>
           </div>
           <div className="flex items-center gap-2">
             <LevelDot level="debug" />
-            <span className="text-gray-500">12:06</span>
+            <span className="text-muted-foreground">12:06</span>
             <span>Session created</span>
           </div>
           <div className="flex items-center gap-2">
             <LevelDot level="trace" />
-            <span className="text-gray-500">12:07</span>
+            <span className="text-muted-foreground">12:07</span>
             <span>API call: /api/user/profile</span>
           </div>
           <div className="flex items-center gap-2">
             <LevelDot level="warn" />
-            <span className="text-gray-500">12:08</span>
+            <span className="text-muted-foreground">12:08</span>
             <span>Rate limit approaching</span>
           </div>
         </div>
@@ -346,35 +353,51 @@ export const CompactList: Story = {
       <div className="border rounded-lg overflow-hidden">
         <div className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 border-b">
           <LevelDot level="info" />
-          <span className="text-xs text-gray-500 w-20">14:23:15</span>
+          <span className="text-xs text-muted-foreground w-20">14:23:15</span>
           <span className="text-sm flex-1">Server started</span>
         </div>
         <div className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 border-b">
           <LevelDot level="debug" />
-          <span className="text-xs text-gray-500 w-20">14:23:16</span>
+          <span className="text-xs text-muted-foreground w-20">14:23:16</span>
           <span className="text-sm flex-1">Loading configuration</span>
         </div>
         <div className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 border-b">
           <LevelDot level="trace" />
-          <span className="text-xs text-gray-500 w-20">14:23:17</span>
+          <span className="text-xs text-muted-foreground w-20">14:23:17</span>
           <span className="text-sm flex-1">Database query executed</span>
         </div>
         <div className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 border-b">
           <LevelDot level="warn" />
-          <span className="text-xs text-gray-500 w-20">14:23:18</span>
+          <span className="text-xs text-muted-foreground w-20">14:23:18</span>
           <span className="text-sm flex-1">Memory usage high</span>
         </div>
         <div className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 border-b">
           <LevelDot level="error" />
-          <span className="text-xs text-gray-500 w-20">14:23:19</span>
+          <span className="text-xs text-muted-foreground w-20">14:23:19</span>
           <span className="text-sm flex-1">Connection timeout</span>
         </div>
         <div className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-900">
           <LevelDot level="fatal" />
-          <span className="text-xs text-gray-500 w-20">14:23:20</span>
+          <span className="text-xs text-muted-foreground w-20">14:23:20</span>
           <span className="text-sm flex-1">System crash</span>
         </div>
       </div>
     </div>
   ),
+}
+
+// Interaction Tests (Visual Verification)
+export const AllLevelsRender: Story = {
+  render: () => (
+    <div className="flex gap-4">
+      <LevelDot level="info" />
+      <LevelDot level="warn" />
+      <LevelDot level="error" />
+      <LevelDot level="fatal" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const dots = canvasElement.querySelectorAll('div[class*="bg-"]')
+    await expect(dots.length).toBeGreaterThanOrEqual(4)
+  },
 }
