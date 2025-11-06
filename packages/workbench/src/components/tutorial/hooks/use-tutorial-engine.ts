@@ -156,7 +156,7 @@ export const useTutorialEngine = () => {
   }
 
   useEffect(() => {
-    importFile('tutorial.tsx')
+    importFile('tutorial/tutorial.tsx')
       .then((module) => {
         if (Array.isArray(module.steps) && module.steps.length > 0) {
           MotiaTutorial.register(module.steps)

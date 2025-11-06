@@ -42,5 +42,5 @@ function localPluginExample(motia: MotiaPluginContext): MotiaPlugin {
 }
 
 export default config({
-  plugins: [statesPlugin, endpointPlugin, logsPlugin, observabilityPlugin, examplePlugin, localPluginExample],
+  plugins: [observabilityPlugin, statesPlugin, endpointPlugin, logsPlugin, examplePlugin, localPluginExample],
 })

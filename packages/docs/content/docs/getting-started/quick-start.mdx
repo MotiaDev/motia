@@ -13,7 +13,26 @@ Use `npx` to create a new Motia project. This single command will scaffold a new
 npx motia@latest create
 ```
 
-The installer will guide you through a few questions to set up your project. Once it's done, you will have a new project directory ready to go.
+The installer will guide you through a few questions to set up your project, including choosing a template. Once it's done, you will have a new project directory ready to go.
+
+<Callout type="info">
+**Quick Start with a Specific Template**
+
+If you already know which template you want, you can skip the interactive prompts:
+
+```bash
+# TypeScript starter
+npx motia@latest create my-app --template starter-typescript
+
+# JavaScript starter
+npx motia@latest create my-app --template starter-javascript
+
+# Python starter
+npx motia@latest create my-app --template starter-python
+```
+
+See the [CLI documentation](/docs/development-guide/cli#create) for all available templates.
+</Callout>
 
 </Step>
 

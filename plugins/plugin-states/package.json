@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-states",
-  "version": "0.8.4-beta.141",
+  "version": "0.8.6-beta.143",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
