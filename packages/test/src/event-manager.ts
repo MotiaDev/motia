@@ -1,32 +1,39 @@
-import type { Event, EventManager } from '@motiadev/core'
-import { createEventManager as createProductionEventManager, QueueManager } from '@motiadev/core'
+import type { Event, EventAdapter, QueueMetrics } from '@motiadev/core'
+import { DefaultQueueEventAdapter } from '@motiadev/core'
 
-interface TestEventManager extends EventManager {
+interface TestEventManager {
+  emit: <TData>(event: Event<TData>, file?: string) => Promise<void>
   waitEvents(): Promise<void>
-  queueManager: QueueManager
+  subscribe: <TData>(topic: string, stepName: string, handler: (event: Event<TData>) => void | Promise<void>) => void
 }
 
-export const createEventManager = (): TestEventManager => {
-  const queueManager = new QueueManager()
-  const productionEventManager = createProductionEventManager(queueManager)
-
+export const createEventManager = (eventAdapter: EventAdapter): TestEventManager => {
   const waitEvents = async () => {
     await new Promise((resolve) => setTimeout(resolve, 200))
 
-    // Wait for all queue processing to complete
-    let hasWork = true
-    while (hasWork) {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      const metrics = queueManager.getAllMetrics()
-      hasWork = Object.values(metrics).some((m) => m.queueDepth > 0 || m.processingCount > 0)
+    if (eventAdapter instanceof DefaultQueueEventAdapter) {
+      let hasWork = true
+      while (hasWork) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        const metrics: Record<string, QueueMetrics> = eventAdapter.getAllMetrics()
+        hasWork = Object.values(metrics).some((m) => m.queueDepth > 0 || m.processingCount > 0)
+      }
     }
 
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
+  const subscribe = <TData>(
+    topic: string,
+    stepName: string,
+    handler: (event: Event<TData>) => void | Promise<void>,
+  ) => {
+    eventAdapter.subscribe(topic, stepName, handler)
+  }
+
   return {
-    ...productionEventManager,
+    emit: eventAdapter.emit,
     waitEvents,
-    queueManager,
+    subscribe,
   }
 }

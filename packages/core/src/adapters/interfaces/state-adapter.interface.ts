@@ -1,4 +1,4 @@
-import type { InternalStateManager } from '../types'
+import type { InternalStateManager } from '../../types'
 
 export interface StateItem {
   groupId: string
@@ -30,9 +30,6 @@ export interface StateItemsInput {
   filter?: StateFilter[]
 }
 
-/**
- * Interface for state management adapters
- */
 export interface StateAdapter extends InternalStateManager {
   clear(traceId: string): Promise<void>
   cleanup(): Promise<void>

@@ -1,11 +1,10 @@
 import path from 'path'
 import request from 'supertest'
-import { createEventManager } from '../event-manager'
+import { InMemoryCronAdapter, InMemoryQueueEventAdapter, MemoryStreamAdapterManager } from '../adapters/defaults'
+import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { LockedData } from '../locked-data'
 import { NoPrinter } from '../printer'
-import { QueueManager } from '../queue-manager'
 import { createServer, type MotiaServer } from '../server'
-import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import type { ApiRouteConfig, Step } from '../types'
 import { createApiStep } from './fixtures/step-fixtures'
 
@@ -21,11 +20,12 @@ describe('Server', () => {
     let server: MotiaServer
 
     beforeEach(async () => {
-      const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
-      const queueManager = new QueueManager()
-      const eventManager = createEventManager(queueManager)
+      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, eventManager, state, config, queueManager)
+      server = await createServer(lockedData, state, config, {
+        eventAdapter: new InMemoryQueueEventAdapter(),
+        cronAdapter: new InMemoryCronAdapter(),
+      })
     })
 
     afterEach(async () => server?.close())
@@ -42,11 +42,12 @@ describe('Server', () => {
     let server: MotiaServer
 
     beforeEach(async () => {
-      const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
-      const queueManager = new QueueManager()
-      const eventManager = createEventManager(queueManager)
+      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, eventManager, state, config, queueManager)
+      server = await createServer(lockedData, state, config, {
+        eventAdapter: new InMemoryQueueEventAdapter(),
+        cronAdapter: new InMemoryCronAdapter(),
+      })
     })
     afterEach(async () => server?.close())
 
@@ -92,11 +93,9 @@ describe('Server', () => {
 
   describe('Router', () => {
     it('should create routes from locked data API steps', async () => {
-      const queueManager = new QueueManager()
-      const eventManager = createEventManager(queueManager)
       const state = new MemoryStateAdapter()
       const baseDir = __dirname
-      const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
+      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const mockApiStep: Step<ApiRouteConfig> = createApiStep(
         { emits: ['TEST_EVENT'], path: '/test', method: 'POST' },
         path.join(baseDir, 'steps', 'api-step.ts'),
@@ -104,7 +103,10 @@ describe('Server', () => {
 
       lockedData.createStep(mockApiStep, { disableTypeCreation: true })
 
-      const server = await createServer(lockedData, eventManager, state, config, queueManager)
+      const server = await createServer(lockedData, state, config, {
+        eventAdapter: new InMemoryQueueEventAdapter(),
+        cronAdapter: new InMemoryCronAdapter(),
+      })
 
       const response = await request(server.app).post('/test')
       expect(response.status).toBe(200)

@@ -1,8 +1,8 @@
 import { z } from 'zod'
+import type { EventAdapter, SubscriptionHandle } from '../adapters/interfaces/event-adapter.interface'
 import * as callStepFileModule from '../call-step-file'
 import { globalLogger } from '../logger'
 import type { Motia } from '../motia'
-import type { QueueManager } from '../queue-manager'
 import { createStepHandlers } from '../step-handlers'
 import type { EventConfig, Step } from '../types'
 
@@ -18,7 +18,8 @@ jest.mock('../call-step-file', () => ({
 }))
 
 describe('Step Handlers Infrastructure', () => {
-  let mockQueueManager: QueueManager
+  let mockEventAdapter: EventAdapter
+  let mockSubscriptionHandle: SubscriptionHandle
 
   const mockMotia = {
     lockedData: {
@@ -28,10 +29,21 @@ describe('Step Handlers Infrastructure', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    mockQueueManager = {
-      subscribe: jest.fn(),
-      unsubscribe: jest.fn(),
-    } as unknown as QueueManager
+    mockSubscriptionHandle = {
+      topic: 'test.event',
+      id: 'test-id',
+      unsubscribe: jest.fn(async () => {}),
+    }
+    mockEventAdapter = {
+      subscribe: jest.fn(
+        async (topic: string, stepName: string, handler: any, options?: any) => mockSubscriptionHandle,
+      ),
+      unsubscribe: jest.fn(async () => {}),
+      emit: jest.fn(async () => {}),
+      shutdown: jest.fn(async () => {}),
+      getSubscriptionCount: jest.fn(async () => 0),
+      listTopics: jest.fn(async () => []),
+    }
   })
 
   const createEventStep = (name: string, infrastructure?: EventConfig['infrastructure']): Step<EventConfig> => {
@@ -66,9 +78,9 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(mockQueueManager.subscribe).toHaveBeenCalled()
+      expect(mockEventAdapter.subscribe).toHaveBeenCalled()
       expect(globalLogger.debug).toHaveBeenCalledWith(
         expect.stringContaining('[step handler] validating infrastructure config'),
         expect.any(Object),
@@ -84,9 +96,9 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(mockQueueManager.subscribe).toHaveBeenCalled()
+      expect(mockEventAdapter.subscribe).toHaveBeenCalled()
       expect(globalLogger.error).not.toHaveBeenCalled()
     })
 
@@ -95,10 +107,11 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(mockQueueManager.subscribe).toHaveBeenCalledWith(
+      expect(mockEventAdapter.subscribe).toHaveBeenCalledWith(
         'test.event',
+        'defaultConfigStep',
         expect.any(Function),
         expect.objectContaining({
           type: 'standard',
@@ -106,7 +119,6 @@ describe('Step Handlers Infrastructure', () => {
           visibilityTimeout: 900,
           delaySeconds: 0,
         }),
-        'test.event',
       )
     })
 
@@ -120,10 +132,11 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(mockQueueManager.subscribe).toHaveBeenCalledWith(
+      expect(mockEventAdapter.subscribe).toHaveBeenCalledWith(
         'test.event',
+        'partialQueueStep',
         expect.any(Function),
         expect.objectContaining({
           type: 'standard',
@@ -131,7 +144,6 @@ describe('Step Handlers Infrastructure', () => {
           visibilityTimeout: 120,
           delaySeconds: 0,
         }),
-        'test.event',
       )
     })
 
@@ -147,19 +159,14 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(mockQueueManager.subscribe).toHaveBeenCalledWith(
-        'test.event',
-        expect.any(Function),
-        {
-          type: 'fifo',
-          maxRetries: 10,
-          visibilityTimeout: 60,
-          delaySeconds: 5,
-        },
-        'test.event',
-      )
+      expect(mockEventAdapter.subscribe).toHaveBeenCalledWith('test.event', 'customQueueStep', expect.any(Function), {
+        type: 'fifo',
+        maxRetries: 10,
+        visibilityTimeout: 60,
+        delaySeconds: 5,
+      })
     })
   })
 
@@ -174,7 +181,7 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
       expect(globalLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('[step handler] Infrastructure configuration validation failed'),
@@ -183,7 +190,7 @@ describe('Step Handlers Infrastructure', () => {
           errors: expect.any(Array),
         }),
       )
-      expect(mockQueueManager.subscribe).not.toHaveBeenCalled()
+      expect(mockEventAdapter.subscribe).not.toHaveBeenCalled()
     })
 
     it('should not register step with invalid queue config', () => {
@@ -197,13 +204,13 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
       expect(globalLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('[step handler] Infrastructure configuration validation failed'),
         expect.any(Object),
       )
-      expect(mockQueueManager.subscribe).not.toHaveBeenCalled()
+      expect(mockEventAdapter.subscribe).not.toHaveBeenCalled()
     })
 
     it('should not register step with visibilityTimeout <= handler.timeout', () => {
@@ -221,10 +228,10 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
       expect(globalLogger.error).toHaveBeenCalled()
-      expect(mockQueueManager.subscribe).not.toHaveBeenCalled()
+      expect(mockEventAdapter.subscribe).not.toHaveBeenCalled()
     })
   })
 
@@ -241,9 +248,9 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step1, step2])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(mockQueueManager.subscribe).toHaveBeenCalledTimes(2)
+      expect(mockEventAdapter.subscribe).toHaveBeenCalledTimes(2)
     })
 
     it('should register valid steps and skip invalid ones', () => {
@@ -256,9 +263,9 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [validStep, invalidStep])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(mockQueueManager.subscribe).toHaveBeenCalledTimes(1)
+      expect(mockEventAdapter.subscribe).toHaveBeenCalledTimes(1)
       expect(globalLogger.error).toHaveBeenCalledTimes(1)
     })
   })
@@ -273,9 +280,9 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      createStepHandlers(mockMotia, mockQueueManager)
+      createStepHandlers(mockMotia, mockEventAdapter)
 
-      const subscribedHandler = (mockQueueManager.subscribe as jest.Mock).mock.calls[0][1]
+      const subscribedHandler = (mockEventAdapter.subscribe as jest.Mock).mock.calls[0][2]
 
       const mockEvent = {
         topic: 'test.event',
@@ -298,23 +305,23 @@ describe('Step Handlers Infrastructure', () => {
   })
 
   describe('Handler Removal', () => {
-    it('should unsubscribe handler from queue manager on removeHandler', () => {
+    it('should unsubscribe handler from event adapter on removeHandler', async () => {
       const step = createEventStep('removeStep', {
         handler: { ram: 2048, timeout: 30 },
       })
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      const manager = createStepHandlers(mockMotia, mockQueueManager)
+      const manager = createStepHandlers(mockMotia, mockEventAdapter)
 
-      const subscribedHandler = (mockQueueManager.subscribe as jest.Mock).mock.calls[0][1]
+      await new Promise((resolve) => setImmediate(resolve))
 
       manager.removeHandler(step)
 
-      expect(mockQueueManager.unsubscribe).toHaveBeenCalledWith('test.event', subscribedHandler)
+      expect(mockEventAdapter.unsubscribe).toHaveBeenCalledWith(mockSubscriptionHandle)
     })
 
-    it('should handle removal of step with multiple subscriptions', () => {
+    it('should handle removal of step with multiple subscriptions', async () => {
       const step: Step<EventConfig> = {
         filePath: '/test/steps/multiSub.step.ts',
         version: '1.0.0',
@@ -333,11 +340,13 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [step])
 
-      const manager = createStepHandlers(mockMotia, mockQueueManager)
+      const manager = createStepHandlers(mockMotia, mockEventAdapter)
+
+      await new Promise((resolve) => setImmediate(resolve))
 
       manager.removeHandler(step)
 
-      expect(mockQueueManager.unsubscribe).toHaveBeenCalledTimes(3)
+      expect(mockEventAdapter.unsubscribe).toHaveBeenCalledTimes(3)
     })
 
     it('should not throw when removing non-existent handler', () => {
@@ -345,7 +354,7 @@ describe('Step Handlers Infrastructure', () => {
 
       mockMotia.lockedData.eventSteps = jest.fn(() => [])
 
-      const manager = createStepHandlers(mockMotia, mockQueueManager)
+      const manager = createStepHandlers(mockMotia, mockEventAdapter)
 
       expect(() => manager.removeHandler(step)).not.toThrow()
     })

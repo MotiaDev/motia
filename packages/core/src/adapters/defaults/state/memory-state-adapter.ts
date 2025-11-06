@@ -1,4 +1,4 @@
-import type { StateAdapter, StateItem, StateItemsInput } from '../state-adapter'
+import type { StateAdapter, StateItem, StateItemsInput } from '../../interfaces/state-adapter.interface'
 import { filterItem, inferType } from './utils'
 
 export class MemoryStateAdapter implements StateAdapter {
@@ -78,9 +78,7 @@ export class MemoryStateAdapter implements StateAdapter {
       .filter((item) => (input.filter ? filterItem(item, input.filter) : true))
   }
 
-  async cleanup() {
-    // No cleanup needed for memory
-  }
+  async cleanup() {}
 
   private _makeKey(traceId: string, key: string) {
     return `${traceId}:${key}`
