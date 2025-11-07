@@ -1,7 +1,7 @@
 import { Badge, Sidebar } from '@motiadev/ui'
 import { X } from 'lucide-react'
 import type React from 'react'
-import { memo } from 'react'
+import { Fragment, memo } from 'react'
 import { formatDuration } from '../../lib/utils'
 import type { Trace } from '../../types/observability'
 import { EventIcon } from '../events/event-icon'
@@ -16,11 +16,12 @@ export const TraceItemDetail: React.FC<Props> = memo(({ trace, onClose }) => {
   return (
     <Sidebar
       onClose={onClose}
+      initialWidth={600}
       title="Trace Details"
       subtitle={`Viewing details from step ${trace.name}`}
       actions={[{ icon: <X />, onClick: onClose, label: 'Close' }]}
     >
-      <div className="px-2 w-[800px] overflow-auto">
+      <div className="px-2 overflow-auto">
         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
           {trace.endTime && <span>Duration: {formatDuration(trace.endTime - trace.startTime)}</span>}
           <div className="bg-blue-500 font-bold text-xs px-[4px] py-[2px] rounded-sm text-blue-100">
@@ -28,19 +29,24 @@ export const TraceItemDetail: React.FC<Props> = memo(({ trace, onClose }) => {
           </div>
           {trace.correlationId && <Badge variant="outline">Correlated: {trace.correlationId}</Badge>}
         </div>
-        <div className="pl-6 border-l-1 border-gray-500/40 font-mono text-xs flex flex-col gap-3">
+        <div className="grid grid-cols-[auto_auto_auto_1fr] gap-x-2 gap-y-3 font-mono text-xs border-l-1 border-gray-500/40 pl-6">
           {trace.events.map((event, index) => (
-            <div key={index} className="relative">
-              <div className="absolute -left-[26px] top-[8px] w-1 h-1 rounded-full bg-emerald-500 outline outline-2 outline-emerald-500/50"></div>
-
-              <div className="flex items-center gap-2">
+            <Fragment key={index}>
+              <div className="grid place-items-center">
+                <div className="w-1 h-1 rounded-full bg-emerald-500 outline outline-2 outline-emerald-500/50 -ml-[26px]"></div>
+              </div>
+              <div className="grid place-items-center">
                 <EventIcon event={event} />
+              </div>
+              <div className="grid place-items-center">
                 <span className="text-sm font-mono text-muted-foreground">
                   +{formatDuration(Math.floor(event.timestamp - trace.startTime))}
                 </span>
+              </div>
+              <div className="grid place-items-start">
                 <TraceEvent event={event} />
               </div>
-            </div>
+            </Fragment>
           ))}
         </div>
       </div>

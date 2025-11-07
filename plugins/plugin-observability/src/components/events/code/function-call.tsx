@@ -1,4 +1,9 @@
-import type React from 'react'
+import { Fragment, memo, useMemo } from 'react'
+import { CopyButton } from '@/components/ui/copy-button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Argument } from './argument'
+import { ClosingParenthesis } from './closing-parenthesis'
+import { FunctionCallContent } from './function-call-content'
 
 type Props = {
   topLevelClassName?: string
@@ -8,56 +13,78 @@ type Props = {
   callsQuantity?: number
 }
 
-export const Argument: React.FC<{ arg: string | object | false }> = ({ arg }) => {
-  if (typeof arg === 'string') {
-    return <span className="font-mono text-blue-500">'{arg}'</span>
-  } else if (arg === false) {
-    return <span className="font-mono text-blue-100 font-bold bg-blue-500/50 px-2 rounded-md">value</span>
-  }
+const GRID_LAYOUT_STYLE = { gridTemplateColumns: 'max-content 1fr max-content' }
 
-  const entries = Object.entries(arg)
+export const FunctionCall: React.FC<Props> = memo(
+  ({ topLevelClassName, objectName, functionName, args, callsQuantity }) => {
+    const filteredArgs = useMemo(() => args.filter((arg) => arg !== undefined), [args])
 
-  return (
-    <>
-      <span className="font-mono text-green-500">{'{ '}</span>
-      {entries.map(([key, value], index) => (
-        <span key={key}>
-          <span className="font-mono text-green-500">{key}</span>
-          <span className="font-mono text-muted-foreground">:</span> <Argument arg={value} />
-          {index < entries.length - 1 && <>, </>}
-        </span>
-      ))}
-      <span className="font-mono text-green-500">{' }'}</span>
-    </>
-  )
-}
+    const argsGridStyle = useMemo(
+      () => ({ gridTemplateColumns: `repeat(${filteredArgs.length * 2}, minmax(0, auto))` }),
+      [filteredArgs.length],
+    )
 
-export const FunctionCall: React.FC<Props> = ({ topLevelClassName, objectName, functionName, args, callsQuantity }) => {
-  const hasCalls = callsQuantity && callsQuantity > 1
-  const filteredArgs = args.filter((arg) => arg !== undefined)
+    const functionCallText = useMemo(() => {
+      const prefix = [topLevelClassName, objectName].filter(Boolean).join('.')
+      const fullPrefix = prefix ? `${prefix}.` : ''
+      const argsString = filteredArgs
+        .map((arg) => {
+          if (typeof arg === 'object' && arg !== null) {
+            return JSON.stringify(arg, null, 2)
+          }
+          if (arg === null) {
+            return 'null'
+          }
+          if (typeof arg === 'string') {
+            return `'${arg}'`
+          }
+          return String(arg)
+        })
+        .join(', ')
+      return `${fullPrefix}${functionName}(${argsString})`
+    }, [topLevelClassName, objectName, functionName, filteredArgs])
 
-  return (
-    <div>
-      {topLevelClassName && (
-        <>
-          <span className="font-mono text-pink-500">{topLevelClassName}</span>.
-        </>
-      )}
-      {objectName && (
-        <>
-          <span className="font-mono text-pink-500">{objectName}</span>.
-        </>
-      )}
-      <span className="font-mono text-pink-500">{functionName}</span>
-      <span className="font-mono text-emerald-500">(</span>
-      {filteredArgs.map((arg, index) => (
-        <span key={index}>
-          <Argument arg={arg} />
-          {index < filteredArgs.length - 1 && <>, </>}
-        </span>
-      ))}
-      <span className="font-mono text-emerald-500">)</span>
-      {hasCalls && <span className="font-mono text-muted-foreground"> x{callsQuantity}</span>}
-    </div>
-  )
-}
+    return (
+      <div className="grid overflow-hidden items-center" style={GRID_LAYOUT_STYLE}>
+        <Popover>
+          <PopoverTrigger asChild>
+            <FunctionCallContent
+              className="cursor-pointer"
+              functionName={functionName}
+              topLevelClassName={topLevelClassName}
+              objectName={objectName}
+            />
+          </PopoverTrigger>
+          <PopoverContent className="grid grid-rows-auto backdrop-blur-md w-auto max-w-2xl">
+            <div className="flex items-center justify-between gap-2">
+              <FunctionCallContent
+                className="cursor-pointer"
+                functionName={functionName}
+                topLevelClassName={topLevelClassName}
+                objectName={objectName}
+              />
+              <CopyButton textToCopy={functionCallText} />
+            </div>
+            {filteredArgs.map((arg, index) => (
+              <div key={index} className="grid grid-cols-[auto_1fr] items-center pl-4">
+                <Argument arg={arg} popover={false} />
+                {index < filteredArgs.length - 1 && <span>, </span>}
+              </div>
+            ))}
+            <ClosingParenthesis callsQuantity={callsQuantity} noQuantity />
+          </PopoverContent>
+        </Popover>
+        <div className="grid items-center min-w-0" style={argsGridStyle}>
+          {filteredArgs.map((arg, index) => (
+            <Fragment key={index}>
+              <Argument arg={arg} />
+              {index < filteredArgs.length - 1 && <span>, </span>}
+            </Fragment>
+          ))}
+        </div>
+        <ClosingParenthesis callsQuantity={callsQuantity} />
+      </div>
+    )
+  },
+)
+FunctionCall.displayName = 'FunctionCall'

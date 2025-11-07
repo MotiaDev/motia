@@ -8,7 +8,7 @@ export const TraceStreamEvent: React.FC<{ event: StreamEvent }> = ({ event }) =>
       topLevelClassName="streams"
       objectName={event.streamName}
       functionName={event.operation}
-      args={[event.data.groupId, event.data.id, event.data.data ? false : undefined]}
+      args={[event.data.groupId, event.data.id, event.data.data as unknown as object | false | undefined]}
       callsQuantity={event.calls}
     />
   )
