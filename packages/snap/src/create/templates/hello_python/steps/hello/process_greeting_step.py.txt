@@ -50,9 +50,6 @@ async def handler(input_data, context):
     
     greeting = f"{greeting_prefix} {app_name}!"
     
-    # Simulate background processing
-    await asyncio.sleep(2)
-    
     # Store result in state (demonstrates state usage)
     # Note: The state.set method takes (groupId, key, value)
     await context.state.set("greetings", request_id, {
