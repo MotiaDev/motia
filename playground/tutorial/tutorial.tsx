@@ -297,7 +297,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('stateauditjob'),
     title: 'Cron Step',
-    link: 'https://www.motia.dev/docs/concepts/steps/cron',
+    link: 'https://www.motia.dev/docs/concepts/steps#cron-trigger',
     description: () => (
       <p>
         Let's do a recap of what you've learned, thus far you've become familiar with two Step types <b>API</b> and{' '}
@@ -313,7 +313,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Cron Schedule',
-    link: 'https://www.motia.dev/docs/concepts/steps/cron',
+    link: 'https://www.motia.dev/docs/concepts/steps#cron-trigger',
     description: () => (
       <p>
         <b>CRON</b> Steps are similar to the other Step types, they are composed by a configuration and a handler.
