@@ -279,7 +279,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Storing Data in State',
-    link: 'https://www.motia.dev/docs/concepts/state-management',
+    link: 'https://www.motia.dev/docs/development-guide/state-management',
     description: () => (
       <p>
         Let's take a closer look at storing data in state.
