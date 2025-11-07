@@ -1,4 +1,4 @@
-import { isApiStep, LockedData } from '@motiadev/core'
+import { isApiStep, LockedData, MemoryStreamAdapterManager } from '@motiadev/core'
 import { NoPrinter } from '@motiadev/core/dist/src/printer'
 import fs from 'fs'
 import { collectFlows, getStepFiles } from '../../generate-locked-data'
@@ -27,7 +27,7 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
   fs.rmSync(distDir, { recursive: true, force: true })
   fs.mkdirSync(distDir, { recursive: true })
 
-  const lockedData = new LockedData(projectDir, 'memory', new NoPrinter())
+  const lockedData = new LockedData(projectDir, new MemoryStreamAdapterManager(), new NoPrinter())
 
   if (hasPythonSteps(stepFiles)) {
     builder.registerBuilder('python', new PythonBuilder(builder, listener))
