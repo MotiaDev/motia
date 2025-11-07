@@ -29,7 +29,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('apitrigger'),
     title: 'API Step',
-    link: 'https://www.motia.dev/docs/concepts/steps/api',
+    link: 'https://www.motia.dev/docs/concepts/steps#api-trigger',
     description: () => (
       <p>
         Let's evaluate the Step that will allow you to receive traffic from external applications, API Steps will allow
