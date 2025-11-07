@@ -92,3 +92,7 @@ jobs:
           pnpm publish -r --filter @motiadev/stream-client-react --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter motia --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/test --no-git-checks --tag ${{ github.event.inputs.tag }}
+          pnpm publish -r --filter @motiadev/adapter-rabbitmq-events --no-git-checks --tag ${{ github.event.inputs.tag }}
+          pnpm publish -r --filter @motiadev/adapter-redis-cron --no-git-checks --tag ${{ github.event.inputs.tag }}
+          pnpm publish -r --filter @motiadev/adapter-redis-state --no-git-checks --tag ${{ github.event.inputs.tag }}
+          pnpm publish -r --filter @motiadev/adapter-redis-streams --no-git-checks --tag ${{ github.event.inputs.tag }}

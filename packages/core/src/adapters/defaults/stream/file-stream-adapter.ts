@@ -1,7 +1,7 @@
 import fs from 'fs'
 import * as path from 'path'
-import type { BaseStreamItem } from '../../types-stream'
-import { StreamAdapter } from './stream-adapter'
+import type { BaseStreamItem } from '../../../types-stream'
+import { StreamAdapter } from '../../interfaces/stream-adapter.interface'
 
 export type FileAdapterConfig = {
   filePath: string
@@ -12,7 +12,7 @@ export class FileStreamAdapter<TData> extends StreamAdapter<TData> {
   private readonly streamsDir: string
 
   constructor(filePath: string, streamName: string, motiaFileStoragePath: string = '.motia') {
-    super()
+    super(streamName)
     this.streamsDir = path.join(filePath, motiaFileStoragePath, 'streams')
     this.filePath = path.join(this.streamsDir, `${streamName}.stream.json`)
   }
@@ -33,9 +33,10 @@ export class FileStreamAdapter<TData> extends StreamAdapter<TData> {
 
   async getGroup(groupId: string): Promise<BaseStreamItem<TData>[]> {
     const data = this._readFile()
+    const prefix = this._makeKey(groupId, '')
 
     return Object.entries(data)
-      .filter(([key]) => key.startsWith(groupId))
+      .filter(([key]) => key.startsWith(prefix))
       .map(([, value]) => JSON.parse(value) as BaseStreamItem<TData>)
   }
 

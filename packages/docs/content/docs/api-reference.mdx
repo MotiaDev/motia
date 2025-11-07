@@ -526,6 +526,141 @@ interface BaseStreamItem<TData> {
 
 ---
 
+## Adapter Interfaces
+
+Adapter interfaces define contracts for pluggable infrastructure components. Implement these interfaces to create custom adapters for state, streams, events, and cron.
+
+<Callout type="info">
+Adapter creation is only supported in TypeScript/JavaScript. Python steps can use adapters configured in `motia.config.ts`, but cannot create custom adapters.
+</Callout>
+
+### StateAdapter
+
+Interface for state storage adapters.
+
+```typescript
+interface StateAdapter extends InternalStateManager {
+  // From InternalStateManager
+  get<T>(traceId: string, key: string): Promise<T | null>
+  set<T>(traceId: string, key: string, value: T): Promise<T>
+  delete<T>(traceId: string, key: string): Promise<T | null>
+  getGroup<T>(traceId: string): Promise<T[]>
+  clear(traceId: string): Promise<void>
+
+  // Additional StateAdapter methods
+  cleanup(): Promise<void>
+  keys(traceId: string): Promise<string[]>
+  traceIds(): Promise<string[]>
+  items(input: StateItemsInput): Promise<StateItem[]>
+}
+```
+
+### StreamAdapter
+
+Abstract class for stream adapters.
+
+```typescript
+abstract class StreamAdapter<TData> {
+  constructor(streamName: string)
+
+  // Required methods
+  abstract get(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
+  abstract set(groupId: string, id: string, data: TData): Promise<BaseStreamItem<TData>>
+  abstract delete(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
+  abstract getGroup(groupId: string): Promise<BaseStreamItem<TData>[]>
+
+  // Optional methods (with defaults)
+  send(channel: StreamChannel, event: StreamEvent): Promise<void>
+  subscribe(channel: StreamChannel, handler: StreamEventHandler): Promise<void>
+  unsubscribe(channel: StreamChannel): Promise<void>
+  clear(groupId: string): Promise<void>
+  query(groupId: string, filter: StreamFilter): Promise<BaseStreamItem<TData>[]>
+}
+```
+
+### EventAdapter
+
+Interface for event handling adapters.
+
+```typescript
+interface EventAdapter {
+  emit<TData>(event: Event<TData>): Promise<void>
+  subscribe<TData>(
+    topic: string,
+    stepName: string,
+    handler: (event: Event<TData>) => void | Promise<void>,
+    options?: QueueConfig,
+  ): Promise<SubscriptionHandle>
+  unsubscribe(handle: SubscriptionHandle): Promise<void>
+  shutdown(): Promise<void>
+  getSubscriptionCount(topic: string): Promise<number>
+  listTopics(): Promise<string[]>
+}
+```
+
+### CronAdapter
+
+Interface for cron job locking adapters.
+
+```typescript
+interface CronAdapter {
+  acquireLock(jobName: string, ttl: number): Promise<CronLock | null>
+  releaseLock(lock: CronLock): Promise<void>
+  renewLock(lock: CronLock, ttl: number): Promise<boolean>
+  isHealthy(): Promise<boolean>
+  shutdown(): Promise<void>
+  getActiveLocks(): Promise<CronLockInfo[]>
+}
+```
+
+### Supporting Types
+
+```typescript
+interface Event<TData> {
+  topic: string
+  data: TData
+  timestamp?: number
+  traceId?: string
+}
+
+interface SubscriptionHandle {
+  topic: string
+  id: string
+  unsubscribe: () => Promise<void>
+}
+
+interface CronLock {
+  jobName: string
+  lockId: string
+  acquiredAt: number
+  expiresAt: number
+  instanceId: string
+}
+
+interface CronLockInfo {
+  jobName: string
+  instanceId: string
+  acquiredAt: number
+  expiresAt: number
+}
+
+interface StateItem {
+  groupId: string
+  key: string
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'null'
+  value: unknown
+}
+
+interface StateItemsInput {
+  groupId?: string
+  traceId?: string
+}
+```
+
+[Learn more about creating adapters →](/docs/development-guide/adapters/creating-adapters)
+
+---
+
 ## What's Next?
 
 <Cards>

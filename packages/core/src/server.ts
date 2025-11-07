@@ -2,6 +2,11 @@ import bodyParser from 'body-parser'
 import express, { type Express, type Request, type Response } from 'express'
 import http from 'http'
 import type { Server as WsServer } from 'ws'
+import type { CronAdapter } from './adapters/interfaces/cron-adapter.interface'
+import type { EventAdapter } from './adapters/interfaces/event-adapter.interface'
+import type { StateAdapter } from './adapters/interfaces/state-adapter.interface'
+import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
+import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
 import { type CronManager, setupCronHandlers } from './cron-handler'
@@ -18,13 +23,11 @@ import type { Motia } from './motia'
 import type { Tracer } from './observability'
 import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
-import { QueueManager } from './queue-manager'
 import { createSocketServer } from './socket-server'
-import type { StateAdapter } from './state/state-adapter'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
 import { type Log, LogsStream } from './streams/logs-stream'
-import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, EventManager, Step } from './types'
+import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, Step } from './types'
 import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 
 export type MotiaServer = {
@@ -45,12 +48,17 @@ type MotiaServerConfig = {
   printer?: Printer
 }
 
+type AdapterOptions = {
+  eventAdapter: EventAdapter
+  cronAdapter: CronAdapter
+  streamAdapter?: StreamAdapterManager
+}
+
 export const createServer = (
   lockedData: LockedData,
-  eventManager: EventManager,
   state: StateAdapter,
   config: MotiaServerConfig,
-  queueManager?: QueueManager,
+  adapters: AdapterOptions,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
   const app = express()
@@ -155,21 +163,19 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
   const tracerFactory = createTracerFactory(lockedData)
-  const queueMgr = queueManager || new QueueManager()
   const motia: Motia = {
     loggerFactory,
-    eventManager,
+    eventAdapter: adapters.eventAdapter,
     state,
     lockedData,
     printer,
     tracerFactory,
     app,
     stateAdapter: state,
-    queueManager: queueMgr,
   }
 
-  const cronManager = setupCronHandlers(motia)
-  const motiaEventManager = createStepHandlers(motia, queueMgr)
+  const cronManager = setupCronHandlers(motia, adapters?.cronAdapter)
+  const motiaEventManager = createStepHandlers(motia, adapters.eventAdapter)
 
   const asyncHandler = (step: Step<ApiRouteConfig>) => {
     return async (req: Request, res: Response) => {
@@ -202,7 +208,7 @@ export const createServer = (
                 logger,
                 tracer: null as unknown as Tracer,
               }
-              await eventManager.emit(eventObj)
+              await adapters.eventAdapter.emit(eventObj)
             },
             logger,
             streams: lockedData.getStreams(),
@@ -321,8 +327,11 @@ export const createServer = (
   })
 
   const close = async (): Promise<void> => {
-    cronManager.close()
+    await cronManager.close()
     socketServer.close()
+    if (adapters?.eventAdapter) {
+      await adapters.eventAdapter.shutdown()
+    }
   }
 
   return { app, server, socketServer, close, removeRoute, addRoute, cronManager, motiaEventManager, motia, printer }

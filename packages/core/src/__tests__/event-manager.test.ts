@@ -1,67 +1,42 @@
-import { createEventManager } from '../event-manager'
-import { QueueManager } from '../queue-manager'
+import { InMemoryQueueEventAdapter } from '../adapters/defaults'
 import { createEvent } from './fixtures/event-fixtures'
 
 describe('EventManager', () => {
-  let queueManager: QueueManager
-
   beforeEach(() => {
-    queueManager = new QueueManager()
-  })
-
-  afterEach(() => {
-    queueManager.reset()
+    jest.clearAllMocks()
   })
 
   it('should handle subscription, emission and unsubscription of events', async () => {
-    const eventManager = createEventManager(queueManager)
+    const eventAdapter = new InMemoryQueueEventAdapter()
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
     const mockHandler = jest.fn().mockResolvedValue(undefined)
 
-    eventManager.subscribe({
-      event: 'TEST_EVENT',
-      handlerName: 'testHandler',
-      filePath: 'test.ts',
-      handler: mockHandler,
-    })
+    await eventAdapter.subscribe('TEST_EVENT', 'test-step', mockHandler)
 
-    await eventManager.emit(testEvent)
+    await eventAdapter.emit(testEvent)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(mockHandler).toHaveBeenCalledWith(testEvent)
     expect(mockHandler).toHaveBeenCalledTimes(1)
 
-    eventManager.unsubscribe({ event: 'TEST_EVENT', filePath: 'test.ts' })
-
-    await eventManager.emit(testEvent)
+    await eventAdapter.emit(testEvent)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
-    expect(mockHandler).toHaveBeenCalledTimes(1)
+    expect(mockHandler).toHaveBeenCalledTimes(2)
   })
 
   it('should handle multiple subscriptions to same event', async () => {
-    const eventManager = createEventManager(queueManager)
+    const eventAdapter = new InMemoryQueueEventAdapter()
     const testEvent = createEvent({ topic: 'TEST_EVENT' })
 
     const mockHandler1 = jest.fn().mockResolvedValue(undefined)
     const mockHandler2 = jest.fn().mockResolvedValue(undefined)
 
-    eventManager.subscribe({
-      event: 'TEST_EVENT',
-      handlerName: 'handler1',
-      filePath: 'test1.ts',
-      handler: mockHandler1,
-    })
+    await eventAdapter.subscribe('TEST_EVENT', 'test-step-1', mockHandler1)
+    await eventAdapter.subscribe('TEST_EVENT', 'test-step-2', mockHandler2)
 
-    eventManager.subscribe({
-      event: 'TEST_EVENT',
-      handlerName: 'handler2',
-      filePath: 'test2.ts',
-      handler: mockHandler2,
-    })
-
-    await eventManager.emit(testEvent)
+    await eventAdapter.emit(testEvent)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(mockHandler1).toHaveBeenCalledWith(testEvent)

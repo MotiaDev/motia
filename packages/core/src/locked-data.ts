@@ -1,12 +1,11 @@
 import fs from 'fs'
 import path from 'path'
+import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
+import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { isApiStep, isCronStep, isEventStep } from './guards'
 import { PLUGIN_FLOW_ID } from './motia'
 import type { Printer } from './printer'
 import { validateStep } from './step-validator'
-import { FileStreamAdapter } from './streams/adapters/file-stream-adapter'
-import { MemoryStreamAdapter } from './streams/adapters/memory-stream-adapter'
-import type { StreamAdapter } from './streams/adapters/stream-adapter'
 import type { StreamFactory } from './streams/stream-factory'
 import type { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
@@ -33,9 +32,8 @@ export class LockedData {
 
   constructor(
     public readonly baseDir: string,
-    public readonly streamAdapter: 'file' | 'memory' = 'file',
+    public readonly streamAdapter: StreamAdapterManager,
     private readonly printer: Printer,
-    public readonly motiaFileStoragePath: string = '.motia',
   ) {
     this.flows = {}
     this.activeSteps = []
@@ -353,10 +351,6 @@ export class LockedData {
   }
 
   private createStreamAdapter<TData>(streamName: string): StreamAdapter<TData> {
-    if (this.streamAdapter === 'file') {
-      return new FileStreamAdapter(this.baseDir, streamName, this.motiaFileStoragePath)
-    }
-
-    return new MemoryStreamAdapter<TData>()
+    return this.streamAdapter.createStream<TData>(streamName)
   }
 }
