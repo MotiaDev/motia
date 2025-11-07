@@ -80,22 +80,6 @@ const installNodeDependencies = async (rootDir: string, context: CliContext) => 
   return packageManager
 }
 
-const wrapUp = async (context: CliContext, packageManager: string, isPlugin = false) => {
-  context.log('project-setup-completed', (message) =>
-    message.tag('success').append('Project setup completed, happy coding!'),
-  )
-
-  if (isPlugin) {
-    context.log('package-manager-used', (message) =>
-      message.tag('info').append('To build the plugin, run').append(`${packageManager} run build`, 'gray'),
-    )
-  } else {
-    context.log('package-manager-used', (message) =>
-      message.tag('info').append('To start the development server, run').append(`${packageManager} run dev`, 'gray'),
-    )
-  }
-}
-
 type Args = {
   projectName: string
   template: string
@@ -247,7 +231,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
 
-    if (template === 'python') {
+    if (template.includes('python')) {
       await pythonInstall({ baseDir: rootDir })
     }
 
@@ -257,7 +241,25 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     packageManager = await preparePackageManager(rootDir, context)
   }
 
-  await wrapUp(context, packageManager, isPluginTemplate)
+  context.log('project-setup-completed', (message) =>
+    message.tag('success').append('All set! Your project is ready to go.'),
+  )
 
-  return
+  context.log('project-location', (message) =>
+    message
+      .tag('success')
+      .append('Created at')
+      .append(`./${path.basename(rootDir)}`, 'cyan')
+      .append('- happy coding!'),
+  )
+
+  context.log('starting-development-server-command', (message) =>
+    message
+      .tag('info')
+      .append('Next steps:')
+      .append(`cd ${path.basename(rootDir)}`, 'gray')
+      .append('then run', 'dark')
+      .append(`${packageManager} run dev`, 'gray')
+      .append('to start the development server.', 'dark'),
+  )
 }
