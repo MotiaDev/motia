@@ -20,13 +20,13 @@ export const Argument: React.FC<ArgumentProps> = memo(({ arg, popover = true }) 
 
   if (!popover) {
     return (
-      <span>
+      <>
         {isObject ? (
           <ReactJson src={arg} theme="default" enableClipboard={false} style={{ padding: 0 }} />
         ) : (
           <span className="font-mono text-blue-500">{value}</span>
         )}
-      </span>
+      </>
     )
   }
 

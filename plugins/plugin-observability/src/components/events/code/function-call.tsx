@@ -58,7 +58,6 @@ export const FunctionCall: React.FC<Props> = memo(
           <PopoverContent className="grid grid-rows-auto backdrop-blur-md w-auto max-w-2xl">
             <div className="flex items-center justify-between gap-2">
               <FunctionCallContent
-                className="cursor-pointer"
                 functionName={functionName}
                 topLevelClassName={topLevelClassName}
                 objectName={objectName}
