@@ -200,7 +200,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('processfoodorder'),
     title: 'Event Step',
-    link: 'https://www.motia.dev/docs/concepts/steps#event-trigger:~:text=API-,Event,-Cron',
+    link: 'https://www.motia.dev/docs/concepts/steps#event-trigger',
     description: () => (
       <p>
         Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
@@ -221,7 +221,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Event Step',
-    link: 'https://www.motia.dev/docs/concepts/steps#event-trigger:~:text=API-,Event,-Cron',
+    link: 'https://www.motia.dev/docs/concepts/steps#event-trigger',
     description: () => (
       <p>
         Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
