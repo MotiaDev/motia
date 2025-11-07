@@ -103,7 +103,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Request Body',
-    link: 'https://zod.dev',
+    link: 'https://zod.dev/api',
     description: () => (
       <p>
         The <b>bodySchema</b> attribute will define the shape of the request body.
@@ -117,7 +117,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Response Payload',
-    link: 'https://zod.dev',
+    link: 'https://zod.dev/api',
     description: () => (
       <p>
         Through the <b>responseSchema</b> attribute you can declare the different type of http responses based on the
