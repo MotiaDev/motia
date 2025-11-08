@@ -18,6 +18,8 @@ export class RabbitMQEventAdapter implements EventAdapter {
       connectionTimeout: 10000,
       reconnectDelay: 5000,
       prefetch: 1,
+      deadLetterExchange: `${config.exchangeName}.dlq`,
+      deadLetterRoutingKey: 'dlq',
       ...config,
     }
   }
@@ -149,6 +151,26 @@ export class RabbitMQEventAdapter implements EventAdapter {
       queueArgs['x-single-active-consumer'] = true
     }
 
+    const dlqExchange = this.config.deadLetterExchange
+    const dlqQueueName = `${queueName}.dlq`
+    const dlqRoutingKey = `${queueName}.${this.config.deadLetterRoutingKey}`
+
+    await channel.assertExchange(dlqExchange, 'direct', {
+      durable: this.config.durable,
+      autoDelete: this.config.autoDelete,
+    })
+
+    await channel.assertQueue(dlqQueueName, {
+      durable: this.config.durable,
+      exclusive: false,
+      autoDelete: !this.config.durable,
+    })
+
+    await channel.bindQueue(dlqQueueName, dlqExchange, dlqRoutingKey)
+
+    queueArgs['x-dead-letter-exchange'] = dlqExchange
+    queueArgs['x-dead-letter-routing-key'] = dlqRoutingKey
+
     const queue = await channel.assertQueue(queueName, {
       durable: subscribeOptions.durable ?? true,
       exclusive: subscribeOptions.exclusive ?? false,
@@ -165,30 +187,37 @@ export class RabbitMQEventAdapter implements EventAdapter {
     const consumerTag = await channel.consume(queue.queue, async (msg: ConsumeMessage | null) => {
       if (!msg) return
 
+      const retryCount = (msg.properties.headers?.['x-retry-count'] as number) || 0
+
+      if (options?.maxRetries && retryCount >= options.maxRetries) {
+        console.warn(`[RabbitMQ] Message exceeded max retries (${options.maxRetries}), sending to DLQ`)
+        channel.nack(msg, false, false)
+        return
+      }
+
       try {
-        const retryCount = (msg.properties.headers?.['x-retry-count'] as number) || 0
-
-        if (options?.maxRetries && retryCount >= options.maxRetries) {
-          console.warn(`[RabbitMQ] Message exceeded max retries (${options.maxRetries})`)
-          channel.nack(msg, false, false)
-          return
-        }
-
         const content = JSON.parse(msg.content.toString())
         await handler(content as Event<TData>)
         channel.ack(msg)
       } catch (error) {
         console.error('[RabbitMQ] Error processing message:', error)
 
-        if (options?.maxRetries) {
-          const retryCount = (msg.properties.headers?.['x-retry-count'] as number) || 0
+        if (options?.maxRetries && retryCount < options.maxRetries) {
+          const headers = msg.properties.headers || {}
+          headers['x-retry-count'] = retryCount + 1
 
-          if (retryCount < options.maxRetries) {
-            const headers = { ...msg.properties.headers, 'x-retry-count': retryCount + 1 }
-            channel.publish(this.config.exchangeName, topic, msg.content, { ...msg.properties, headers })
+          const republishOptions = {
+            ...msg.properties,
+            headers,
+            persistent: this.config.durable,
           }
+
+          channel.sendToQueue(queue.queue, msg.content, republishOptions)
+          channel.ack(msg)
+          return
         }
 
+        console.warn('[RabbitMQ] Sending failed message to DLQ')
         channel.nack(msg, false, false)
       }
     })
