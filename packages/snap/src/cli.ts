@@ -100,7 +100,6 @@ program
     process.exit(0)
   })
 
-// ✅ CREATE command - now directly clones repo
 program
   .command('create [name]')
   .description('Create a new motia project')
@@ -112,6 +111,7 @@ program
     const mergedArgs = { ...options, name: projectName }
     return handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive')
+      console.log('arg:', arg)
       await createInteractive(
         {
           name: arg.name,
@@ -122,6 +122,73 @@ program
         context,
       )
     })(mergedArgs)
+  })
+
+program
+  .command('search [query]')
+  .description('Search and optionally clone templates')
+  .action(async (query) => {
+    const templates = await fetchTemplates()
+
+    if (!templates.length) {
+      console.log('⚠️ No templates found.')
+      process.exit(1)
+    }
+
+    const filtered = query
+      ? templates.filter((t) => {
+          const text = [t.name, t.description].join(' ').toLowerCase()
+          const tags = (t.tags || []).map((tag) => tag.toLowerCase())
+          return text.includes(query.toLowerCase()) || tags.includes(query.toLowerCase())
+        })
+      : templates
+
+    if (!filtered.length) {
+      console.log(`❌ No templates found for "${query}"`)
+      process.exit(0)
+    }
+
+    console.log('\nAvailable Templates:\n')
+    filtered.forEach((t, idx) => {
+      console.log(`${idx + 1}. 📦 ${t.name}`)
+      console.log(`   ${t.description}`)
+      console.log(`   🔗 ${t.repo}\n`)
+    })
+
+    // ✅ Always ask if they want to clone one
+    const { selected } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selected',
+        message: 'Pick a template to clone or Cancel:',
+        loop: false,
+        choices: [
+          ...filtered.map((t) => ({
+            name: `${t.name} - ${t.description}`,
+            value: t.repo,
+          })),
+          new inquirer.Separator(),
+          { name: '🚫 Cancel', value: null },
+        ],
+      },
+    ])
+
+    if (!selected) {
+      console.log('👍 Cancelled. No project created.')
+      return
+    }
+
+    const { projectName } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'projectName',
+        message: 'Project name (leave blank for current folder):',
+      },
+    ])
+
+    const finalName = projectName && projectName.trim().length > 0 ? projectName.trim() : path.basename(process.cwd())
+
+    await cloneProject(selected, finalName)
   })
 
 program
