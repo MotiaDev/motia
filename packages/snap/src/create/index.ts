@@ -29,15 +29,7 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     ' ',
   )
 
-  const devDependencies = [
-    'ts-node@10.9.2',
-    'typescript@5.7.3',
-    '@types/react@19.1.1',
-    '@jest/globals@^29.7.0',
-    '@types/jest@^29.5.14',
-    'jest@^29.7.0',
-    'ts-jest@^29.2.5',
-  ].join(' ')
+  const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@19.1.1'].join(' ')
 
   try {
     await executeCommand(`${installCommand} ${dependencies}`, rootDir)
