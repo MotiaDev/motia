@@ -24,8 +24,6 @@ const handler = async (input, { logger, state }) => {
   
   const greeting = `${greetingPrefix} ${appName}!`;
 
-  await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate background processing
-
   // Store result in state (demonstrates state usage)
   // Note: The state.set method takes (groupId, key, value)
   await state.set('greetings', requestId, {

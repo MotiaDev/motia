@@ -562,85 +562,6 @@ await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
 
 For **Event Steps**, you can customize infrastructure settings to control handler resources and queue behavior. This is optional – Motia provides sensible defaults for all settings.
 
-### Handler Configuration
-
-Control the compute resources allocated to your Step handler:
-
-| Property | Type | Range | Default | Description |
-|----------|------|-------|---------|-------------|
-| `ram` | `number` | 128 - 10240 MB | 512 MB | Memory allocated to the handler |
-| `timeout` | `number` | 1 - 900 seconds | 30 seconds | Maximum execution time |
-| `cpu` | `number` | - | Auto-calculated | CPU allocation (proportional to RAM) |
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-<Tab value='TypeScript'>
-
-```ts title="steps/process-video.step.ts"
-import { EventConfig, Handlers } from 'motia';
-
-export const config: EventConfig = {
-  name: 'ProcessVideo',
-  type: 'event',
-  subscribes: ['video.uploaded'],
-  infrastructure: {
-    handler: {
-      ram: 2048,
-      timeout: 300
-    }
-  }
-};
-
-export const handler: Handlers['ProcessVideo'] = async (input, { logger }) => {
-  logger.info('Processing video with extended resources');
-};
-```
-
-</Tab>
-<Tab value='Python'>
-
-```python title="steps/process_video_step.py"
-config = {
-    "name": "ProcessVideo",
-    "type": "event",
-    "subscribes": ["video.uploaded"],
-    "infrastructure": {
-        "handler": {
-            "ram": 2048,
-            "timeout": 300
-        }
-    }
-}
-
-async def handler(input, ctx):
-    ctx.logger.info("Processing video with extended resources")
-```
-
-</Tab>
-<Tab value='JavaScript'>
-
-```js title="steps/process-video.step.js"
-const config = {
-  name: 'ProcessVideo',
-  type: 'event',
-  subscribes: ['video.uploaded'],
-  infrastructure: {
-    handler: {
-      ram: 2048,
-      timeout: 300
-    }
-  }
-};
-
-const handler = async (input, { logger }) => {
-  logger.info('Processing video with extended resources');
-};
-
-module.exports = { config, handler };
-```
-
-</Tab>
-</Tabs>
-
 ### Queue Configuration
 
 Control how events are queued and retried:
@@ -939,7 +860,6 @@ If you don't specify infrastructure settings, Motia uses these defaults:
 ```ts
 {
   handler: {
-    ram: 512,
     timeout: 30
   },
   queue: {

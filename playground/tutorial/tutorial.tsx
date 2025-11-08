@@ -28,7 +28,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('apitrigger'),
     title: 'API Step',
-    link: 'https://www.motia.dev/docs/concepts/steps/api',
+    link: 'https://www.motia.dev/docs/concepts/steps#api-trigger',
     description: () => (
       <p>
         Let's evaluate the Step that will allow you to receive traffic from external applications, API Steps will allow
@@ -102,7 +102,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Request Body',
-    link: 'https://zod.dev',
+    link: 'https://zod.dev/api',
     description: () => (
       <p>
         The <b>bodySchema</b> attribute will define the shape of the request body.
@@ -116,7 +116,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Response Payload',
-    link: 'https://zod.dev',
+    link: 'https://zod.dev/api',
     description: () => (
       <p>
         Through the <b>responseSchema</b> attribute you can declare the different type of http responses based on the
@@ -200,7 +200,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('processfoodorder'),
     title: 'Event Step',
-    link: 'https://www.motia.dev/docs/concepts/steps/event',
+    link: 'https://www.motia.dev/docs/concepts/steps#event-trigger',
     description: () => (
       <p>
         Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
@@ -221,7 +221,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Event Step',
-    link: 'https://www.motia.dev/docs/concepts/steps/event',
+    link: 'https://www.motia.dev/docs/concepts/steps#event-trigger',
     description: () => (
       <p>
         Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
@@ -279,7 +279,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Storing Data in State',
-    link: 'https://www.motia.dev/docs/concepts/state-management',
+    link: 'https://www.motia.dev/docs/development-guide/state-management',
     description: () => (
       <p>
         Let's take a closer look at storing data in state.
@@ -297,7 +297,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('stateauditjob'),
     title: 'Cron Step',
-    link: 'https://www.motia.dev/docs/concepts/steps/cron',
+    link: 'https://www.motia.dev/docs/concepts/steps#cron-trigger',
     description: () => (
       <p>
         Let's do a recap of what you've learned, thus far you've become familiar with two Step types <b>API</b> and{' '}
@@ -313,7 +313,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Cron Schedule',
-    link: 'https://www.motia.dev/docs/concepts/steps/cron',
+    link: 'https://www.motia.dev/docs/concepts/steps#cron-trigger',
     description: () => (
       <p>
         <b>CRON</b> Steps are similar to the other Step types, they are composed by a configuration and a handler.
