@@ -70,7 +70,8 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
         allow: [
           __dirname, // workbench root
           path.join(process.cwd(), './steps'), // steps directory
-          path.join(process.cwd(), './tutorial.tsx'), // tutorial file
+          path.join(process.cwd(), './src'), // src directory
+          path.join(process.cwd(), './tutorial'), // tutorial directory
           path.join(process.cwd(), './node_modules'), // node_modules directory
           path.join(__dirname, './node_modules'), // node_modules directory
         ],

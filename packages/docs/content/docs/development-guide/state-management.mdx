@@ -372,13 +372,63 @@ const handler = async ({ state, logger }) => {
 
 ---
 
-### File Storage configuration (Default)
+### State Adapters
+
+State adapters control where and how state is stored. Motia provides default adapters that work out of the box, and distributed adapters for production deployments.
+
+#### Default Adapter (File Storage)
 
 No setup needed. State goes to `.motia/motia.state.json`.
 
-```yaml title="config.yml"
-# Default - no config needed
+```typescript title="motia.config.ts"
+import { config } from '@motiadev/core'
+
+export default config({
+  // Uses FileStateAdapter by default
+  // State stored in .motia/motia.state.json
+})
 ```
+
+<Callout type="info">
+The default FileStateAdapter is perfect for single-instance deployments, development, and testing. No configuration needed!
+</Callout>
+
+#### Distributed Adapter (Redis)
+
+For production deployments with multiple Motia instances, use Redis to share state across instances:
+
+```typescript title="motia.config.ts"
+import { config } from '@motiadev/core'
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+
+export default config({
+  adapters: {
+    state: new RedisStateAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    }),
+  },
+})
+```
+
+<Callout type="warn">
+Use distributed adapters (like Redis) when running multiple Motia instances. Without them, each instance has isolated state that isn't shared.
+</Callout>
+
+**Your Step code stays the same:**
+
+```typescript
+// Works with both file and Redis adapters
+export const handler: Handlers['MyStep'] = async (req, { state }) => {
+  await state.set('orders', 'order-123', { id: 'order-123' })
+  const order = await state.get('orders', 'order-123')
+  // ... rest of your code
+}
+```
+
+The adapter handles the storage backend - your application code doesn't change.
+
+[Learn more about adapters →](/docs/development-guide/adapters/usage)
 
 ---
 

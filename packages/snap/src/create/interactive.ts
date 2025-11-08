@@ -10,26 +10,49 @@ interface InteractiveAnswers {
 }
 
 const choices: Record<string, string> = {
-  nodejs: 'Base (TypeScript)',
-  python: 'Base (Python)',
-  plugin: 'Plugin (TypeScript)',
+  nodejs: 'Tutorial (TypeScript)',
+  python: 'Tutorial (Python)',
+  'starter-typescript': 'Starter (TypeScript)',
+  'starter-javascript': 'Starter (JavaScript)',
+  'starter-python': 'Starter (Python)',
 }
 
 interface CreateInteractiveArgs {
   name?: string
   template?: string
+  plugin?: boolean
   confirm?: boolean
 }
 
 export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
-  context.log('welcome', (message) => message.append('\n🚀 ' + colors.bold('Welcome to Motia Project Creator!')))
+  context.log('welcome', (message) =>
+    message.append(
+      `\n🚀 ${colors.bold(args.plugin ? 'Welcome to Motia Plugin Creator!' : 'Welcome to Motia Project Creator!')}`,
+    ),
+  )
 
   const questions: QuestionCollection<never>[] = []
 
   let name = args.name
   let template = args.template
 
-  if (!args.template) {
+  if (args.plugin) {
+    if (!args.name) {
+      context.log('failed', (message) =>
+        message
+          .tag('failed')
+          .append(`Project name is required: ${colors.bold('motia create --plugin [project-name]')}\n`),
+      )
+      return
+    }
+
+    return create({
+      projectName: args.name,
+      template: 'plugin',
+      cursorEnabled: false,
+      context,
+    })
+  } else if (!args.template) {
     questions.push({
       type: 'list',
       name: 'template',

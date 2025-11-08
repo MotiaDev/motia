@@ -1,15 +1,15 @@
 import { randomUUID } from 'crypto'
 import express from 'express'
 import path from 'path'
+import { MemoryStreamAdapterManager } from '../adapters/defaults'
+import { InMemoryQueueEventAdapter } from '../adapters/defaults/event/in-memory-queue-event-adapter'
+import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { callStepFile } from '../call-step-file'
-import { createEventManager } from '../event-manager'
 import { LockedData } from '../locked-data'
 import { Logger } from '../logger'
 import type { Motia } from '../motia'
 import { NoTracer } from '../observability/no-tracer'
 import { NoPrinter } from '../printer'
-import { QueueManager } from '../queue-manager'
-import { MemoryStateAdapter } from '../state/adapters/memory-state-adapter'
 import type { InfrastructureConfig } from '../types'
 import { createCronStep, createEventStep } from './fixtures/step-fixtures'
 
@@ -19,19 +19,21 @@ describe('callStepFile', () => {
   })
 
   const createMockMotia = (baseDir: string): Motia => {
-    const queueManager = new QueueManager()
-    const eventManager = createEventManager(queueManager)
+    const eventAdapter = new InMemoryQueueEventAdapter()
     const state = new MemoryStateAdapter()
     const printer = new NoPrinter()
 
     return {
-      eventManager,
+      eventAdapter,
       state,
       printer,
-      queueManager,
-      lockedData: new LockedData(baseDir, 'memory', printer),
+      lockedData: new LockedData(baseDir, new MemoryStreamAdapterManager(), printer),
       loggerFactory: { create: () => new Logger() },
-      tracerFactory: { createTracer: () => new NoTracer(), clear: () => Promise.resolve() },
+      tracerFactory: {
+        createTracer: () => new NoTracer(),
+        attachToTrace: () => new NoTracer(),
+        clear: () => Promise.resolve(),
+      },
       app: express(),
       stateAdapter: state,
     }
@@ -45,21 +47,18 @@ describe('callStepFile', () => {
     const tracer = new NoTracer()
     const motia = createMockMotia(baseDir)
 
-    jest.spyOn(motia.eventManager, 'emit').mockImplementation(() => Promise.resolve())
+    jest.spyOn(motia.eventAdapter, 'emit').mockImplementation(() => Promise.resolve())
 
     await callStepFile({ step, traceId, logger, contextInFirstArg: true, tracer }, motia)
 
-    expect(motia.eventManager.emit).toHaveBeenCalledWith(
-      {
-        topic: 'TEST_EVENT',
-        data: { test: 'data' },
-        flows: ['motia-server'],
-        traceId,
-        logger: expect.anything(),
-        tracer: expect.anything(),
-      },
-      step.filePath,
-    )
+    expect(motia.eventAdapter.emit).toHaveBeenCalledWith({
+      topic: 'TEST_EVENT',
+      data: { test: 'data' },
+      flows: ['motia-server'],
+      traceId,
+      logger: expect.anything(),
+      tracer: expect.anything(),
+    })
   })
 
   describe('Timeout Functionality', () => {

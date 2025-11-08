@@ -1,4 +1,4 @@
-import { StreamAdapter } from './adapters/stream-adapter'
+import { StreamAdapter } from '../adapters/interfaces/stream-adapter.interface'
 
 export type Log = {
   id: string
@@ -16,6 +16,10 @@ export type Log = {
  * in this case, we're just streaming through events.
  */
 export class LogsStream extends StreamAdapter<Log> {
+  constructor() {
+    super('__motia.logs')
+  }
+
   get = async () => null
   delete = async () => null
   getGroup = async () => []

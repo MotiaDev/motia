@@ -12,6 +12,7 @@
     "github-integration-workflow",
     "gmail-automation",
     "finance-agent",
-    "ai-deep-research-agent"
+    "ai-deep-research-agent",
+    "adapter-configuration"
   ]
 }

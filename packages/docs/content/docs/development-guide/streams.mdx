@@ -376,6 +376,69 @@ await streams.chatMessage.send(
 
 ---
 
+## Stream Adapters
+
+Stream adapters control where and how stream data is stored. Motia provides default adapters that work out of the box, and distributed adapters for production deployments with multiple instances.
+
+### Default Adapter (File Storage)
+
+No setup needed. Streams are stored in `.motia/streams/` directory.
+
+```typescript title="motia.config.ts"
+import { config } from '@motiadev/core'
+
+export default config({
+  // Uses FileStreamAdapter by default
+  // Streams stored in .motia/streams/
+})
+```
+
+<Callout type="info">
+The default FileStreamAdapter is perfect for single-instance deployments, development, and testing. Real-time updates work seamlessly within a single instance.
+</Callout>
+
+### Distributed Adapter (Redis)
+
+For production deployments with multiple Motia instances, use Redis to synchronize streams across instances. This ensures all connected clients receive updates regardless of which instance handles the request:
+
+```typescript title="motia.config.ts"
+import { config } from '@motiadev/core'
+import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
+
+export default config({
+  adapters: {
+    streams: new RedisStreamAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    }),
+  },
+})
+```
+
+<Callout type="warn">
+Use distributed stream adapters (like Redis) when running multiple Motia instances. Without them, stream updates are only visible to clients connected to the instance that created them.
+</Callout>
+
+**Your Step code stays the same:**
+
+```typescript
+// Works with both file and Redis adapters
+export const handler: Handlers['Chat'] = async (req, { streams }) => {
+  await streams.messages.set('chat-123', 'msg-1', {
+    content: 'Hello!',
+    userId: 'user-1',
+    timestamp: Date.now(),
+  })
+  // ... rest of your code
+}
+```
+
+The adapter handles the storage backend and synchronization - your application code doesn't change. All connected clients receive updates in real-time, regardless of which instance processes the request.
+
+[Learn more about adapters →](/docs/development-guide/adapters/usage)
+
+---
+
 ## Remember
 
 - **Streams = Real-time state** that clients subscribe to
