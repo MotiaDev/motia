@@ -53,6 +53,8 @@ export default config({
     }),
     events: new RabbitMQEventAdapter({
       url: process.env.RABBITMQ_URL,
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
     }),
     cron: new RedisCronAdapter({
       host: process.env.REDIS_HOST,

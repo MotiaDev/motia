@@ -50,6 +50,8 @@ export default config({
     }),
     events: new RabbitMQEventAdapter({
       url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
     }),
     cron: new RedisCronAdapter({
       host: process.env.REDIS_HOST || 'localhost',
@@ -311,6 +313,8 @@ export default config({
   adapters: {
     events: new RabbitMQEventAdapter({
       url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
     }),
     // State, streams, and cron use defaults
   },
@@ -393,6 +397,8 @@ state: new RedisStateAdapter({
 ```typescript
 events: new RabbitMQEventAdapter({
   url: process.env.CLOUDAMQP_URL, // CloudAMQP connection string
+  exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+  exchangeType: 'topic',
 })
 ```
 
