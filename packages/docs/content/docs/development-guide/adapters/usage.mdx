@@ -37,7 +37,7 @@ export default config({
 ```typescript title="motia.config.ts"
 import { config } from '@motiadev/core'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
-import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 
@@ -47,12 +47,14 @@ export default config({
       host: process.env.REDIS_HOST,
       port: 6379,
     }),
-    streams: new RedisStreamAdapter({
+    streams: new RedisStreamAdapterManager({
       host: process.env.REDIS_HOST,
       port: 6379,
     }),
     events: new RabbitMQEventAdapter({
       url: process.env.RABBITMQ_URL,
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
     }),
     cron: new RedisCronAdapter({
       host: process.env.REDIS_HOST,
@@ -507,6 +509,85 @@ The cron adapter automatically:
 - Prevents duplicate executions across multiple instances
 
 No additional code is needed to use the cron adapter - it works automatically when you configure a cron step.
+
+### How Cron Adapter Works
+
+When running multiple instances of a Motia application, each instance schedules the same cron jobs. Without coordination, this leads to duplicate executions. The Redis Cron Adapter solves this using distributed locking:
+
+1. **Job Scheduling**: All instances schedule cron jobs normally
+2. **Lock Acquisition**: When a cron job triggers, the instance attempts to acquire a distributed lock
+3. **Execution**: Only the instance that successfully acquires the lock executes the job
+4. **Lock Release**: After execution completes (or fails), the lock is released
+5. **TTL Protection**: Locks have a TTL to prevent deadlocks if an instance crashes
+
+**Execution Flow:**
+
+```
+Instance 1              Instance 2              Instance 3
+    |                       |                       |
+    | Cron triggers         | Cron triggers         | Cron triggers
+    | (9:00 AM)             | (9:00 AM)             | (9:00 AM)
+    |                       |                       |
+    v                       v                       v
+acquireLock()          acquireLock()          acquireLock()
+    |                       |                       |
+    v                       v                       v
+┌─────────────────────────────────────────────────────┐
+│         Distributed Lock Store (Redis)              │
+│                                                     │
+│  Lock: daily-report                                │
+│  Owner: instance-1                                 │
+│  Acquired: 2025-10-22 09:00:00                    │
+│  Expires: 2025-10-22 09:05:00                     │
+└─────────────────────────────────────────────────────┘
+    |                       |                       |
+    v                       v                       v
+Lock acquired ✓        Lock failed ✗          Lock failed ✗
+    |                       |                       |
+    v                       |                       |
+Execute job             Skip execution         Skip execution
+    |                       |                       |
+    v                       |                       |
+releaseLock()              |                       |
+```
+
+### Lock TTL Selection
+
+Choose the lock TTL based on your job execution times:
+
+- **Short Jobs** (< 1 minute): Use 60000ms (1 minute) TTL
+- **Medium Jobs** (1-5 minutes): Use 300000ms (5 minutes) TTL
+- **Long Jobs** (> 5 minutes): Use 600000ms+ (10+ minutes) TTL
+
+Configure the TTL in your adapter configuration:
+
+```typescript title="motia.config.ts"
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
+
+export default config({
+  adapters: {
+    cron: new RedisCronAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: 6379,
+      lockTTL: 600000, // 10 minutes for long-running jobs
+    }),
+  },
+})
+```
+
+### Edge Cases
+
+**Instance Crashes**: If an instance crashes while holding a lock, the lock will expire after the TTL, allowing another instance to execute the job. This provides automatic recovery.
+
+**Clock Skew**: Different instances might have slightly different system clocks, causing cron jobs to trigger at slightly different times. The lock mechanism ensures only one execution regardless of timing differences.
+
+**Redis Unavailability**: If Redis is unavailable, all instances will fail to acquire locks and no cron jobs will execute. This is a fail-safe behavior to prevent duplicates.
+
+### Development vs Production
+
+**Development**: For development environments where horizontal scaling is not needed, you can omit the `cron` adapter from configuration. Cron jobs will execute normally without distributed locking, reducing external dependencies during development.
+
+**Production**: For production with multiple instances, always configure a cron adapter. Use managed Redis services (AWS ElastiCache, etc.) for high availability, set appropriate lock TTLs based on job execution times, and monitor active locks to ensure proper coordination.
 
 ## Available Implementations
 

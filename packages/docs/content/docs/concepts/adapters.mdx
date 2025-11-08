@@ -52,7 +52,7 @@ Adapters implement interfaces defined in `@motiadev/core`. Your application code
 ```typescript title="motia.config.ts"
 import { config } from '@motiadev/core'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
-import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 
@@ -62,12 +62,14 @@ export default config({
       host: process.env.REDIS_HOST,
       port: 6379,
     }),
-    streams: new RedisStreamAdapter({
+    streams: new RedisStreamAdapterManager({
       host: process.env.REDIS_HOST,
       port: 6379,
     }),
     events: new RabbitMQEventAdapter({
       url: process.env.RABBITMQ_URL,
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
     }),
     cron: new RedisCronAdapter({
       host: process.env.REDIS_HOST,

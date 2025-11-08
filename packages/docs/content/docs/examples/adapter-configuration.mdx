@@ -34,7 +34,7 @@ npm install @motiadev/adapter-redis-state \
 ```typescript title="motia.config.ts"
 import { config } from '@motiadev/core'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
-import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 
@@ -44,12 +44,14 @@ export default config({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
     }),
-    streams: new RedisStreamAdapter({
+    streams: new RedisStreamAdapterManager({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
     }),
     events: new RabbitMQEventAdapter({
       url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
     }),
     cron: new RedisCronAdapter({
       host: process.env.REDIS_HOST || 'localhost',
@@ -59,13 +61,180 @@ export default config({
 })
 ```
 
-### 3. Set Environment Variables
+---
 
-```bash title=".env"
-REDIS_HOST=localhost
-REDIS_PORT=6379
-RABBITMQ_URL=amqp://localhost:5672
+## Configuration Options
+
+Each adapter supports additional configuration options for production use:
+
+### Redis State Adapter
+
+```typescript title="motia.config.ts"
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+
+export default config({
+  adapters: {
+    state: new RedisStateAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD,
+      username: process.env.REDIS_USERNAME,
+      database: parseInt(process.env.REDIS_DATABASE || '0'),
+      keyPrefix: process.env.STATE_KEY_PREFIX || 'motia:state:',
+      ttl: parseInt(process.env.STATE_TTL || '3600'),
+      socket: {
+        connectTimeout: 10000,
+        reconnectStrategy: (retries) => {
+          if (retries > 20) {
+            return new Error('Too many retries')
+          }
+          return Math.min(retries * 50, 2000)
+        },
+      },
+    }),
+  },
+})
 ```
+
+**Configuration Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `host` | `string` | `'localhost'` | Redis server host |
+| `port` | `number` | `6379` | Redis server port |
+| `password` | `string` | `undefined` | Redis authentication password |
+| `username` | `string` | `undefined` | Redis authentication username |
+| `database` | `number` | `0` | Redis database number |
+| `keyPrefix` | `string` | `'motia:state:'` | Prefix for all state keys |
+| `ttl` | `number` | `undefined` | Time-to-live in seconds for state entries |
+| `socket.reconnectStrategy` | `function` | Auto-retry | Custom reconnection strategy |
+| `socket.connectTimeout` | `number` | `10000` | Connection timeout in milliseconds |
+
+### Redis Stream Adapter
+
+```typescript title="motia.config.ts"
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
+
+export default config({
+  adapters: {
+    streams: new RedisStreamAdapterManager({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD,
+      username: process.env.REDIS_USERNAME,
+      database: parseInt(process.env.REDIS_DATABASE || '0'),
+      keyPrefix: process.env.STREAM_KEY_PREFIX || 'motia:stream:',
+      socket: {
+        connectTimeout: 10000,
+        reconnectStrategy: (retries) => {
+          if (retries > 20) {
+            return new Error('Too many retries')
+          }
+          return Math.min(retries * 50, 2000)
+        },
+      },
+    }),
+  },
+})
+```
+
+**Configuration Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `host` | `string` | `'localhost'` | Redis server host |
+| `port` | `number` | `6379` | Redis server port |
+| `password` | `string` | `undefined` | Redis authentication password |
+| `username` | `string` | `undefined` | Redis authentication username |
+| `database` | `number` | `0` | Redis database number |
+| `keyPrefix` | `string` | `'motia:stream:'` | Prefix for all stream keys |
+| `socket.reconnectStrategy` | `function` | Auto-retry | Custom reconnection strategy |
+| `socket.connectTimeout` | `number` | `10000` | Connection timeout in milliseconds |
+
+### RabbitMQ Event Adapter
+
+```typescript title="motia.config.ts"
+import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
+
+export default config({
+  adapters: {
+    events: new RabbitMQEventAdapter({
+      url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
+      durable: true,
+      autoDelete: false,
+      connectionTimeout: 10000,
+      reconnectDelay: 5000,
+      prefetch: 10,
+    }),
+  },
+})
+```
+
+**Configuration Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `url` | `string` | Required | RabbitMQ connection URL (e.g., `amqp://localhost`) |
+| `exchangeName` | `string` | Required | Name of the exchange to use |
+| `exchangeType` | `'direct' \| 'topic' \| 'fanout' \| 'headers'` | Required | Type of exchange |
+| `durable` | `boolean` | `true` | Whether the exchange should survive broker restarts |
+| `autoDelete` | `boolean` | `false` | Whether to delete the exchange when all queues are unbound |
+| `connectionTimeout` | `number` | `10000` | Connection timeout in milliseconds |
+| `reconnectDelay` | `number` | `5000` | Delay before attempting reconnection in milliseconds |
+| `prefetch` | `number` | `10` | Number of messages to prefetch |
+
+### Redis Cron Adapter
+
+```typescript title="motia.config.ts"
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
+
+export default config({
+  adapters: {
+    cron: new RedisCronAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD,
+      username: process.env.REDIS_USERNAME,
+      database: parseInt(process.env.REDIS_DATABASE || '0'),
+      keyPrefix: process.env.CRON_KEY_PREFIX || 'motia:cron:lock:',
+      lockTTL: parseInt(process.env.CRON_LOCK_TTL || '300000'),
+      lockRetryDelay: 1000,
+      lockRetryAttempts: 0,
+      instanceId: process.env.INSTANCE_ID,
+      enableHealthCheck: true,
+      socket: {
+        connectTimeout: 10000,
+        reconnectStrategy: (retries) => {
+          if (retries > 20) {
+            return new Error('Too many retries')
+          }
+          return Math.min(retries * 50, 2000)
+        },
+      },
+    }),
+  },
+})
+```
+
+**Configuration Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `host` | `string` | `'localhost'` | Redis server host |
+| `port` | `number` | `6379` | Redis server port |
+| `password` | `string` | `undefined` | Redis authentication password |
+| `username` | `string` | `undefined` | Redis authentication username |
+| `database` | `number` | `0` | Redis database number |
+| `keyPrefix` | `string` | `'motia:cron:lock:'` | Prefix for all lock keys |
+| `lockTTL` | `number` | `300000` | Lock time-to-live in milliseconds (5 minutes) |
+| `lockRetryDelay` | `number` | `1000` | Delay between lock retry attempts in milliseconds |
+| `lockRetryAttempts` | `number` | `0` | Number of times to retry acquiring a lock |
+| `instanceId` | `string` | Auto-generated UUID | Unique identifier for this instance |
+| `enableHealthCheck` | `boolean` | `true` | Whether to perform periodic health checks |
+| `socket.reconnectStrategy` | `function` | Auto-retry | Custom reconnection strategy |
+| `socket.connectTimeout` | `number` | `10000` | Connection timeout in milliseconds |
 
 ---
 
@@ -144,6 +313,8 @@ export default config({
   adapters: {
     events: new RabbitMQEventAdapter({
       url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
     }),
     // State, streams, and cron use defaults
   },
@@ -226,6 +397,8 @@ state: new RedisStateAdapter({
 ```typescript
 events: new RabbitMQEventAdapter({
   url: process.env.CLOUDAMQP_URL, // CloudAMQP connection string
+  exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+  exchangeType: 'topic',
 })
 ```
 
