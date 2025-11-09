@@ -21,6 +21,7 @@ import type { LockedData } from './locked-data'
 import { globalLogger } from './logger'
 import { BaseLoggerFactory } from './logger-factory'
 import type { Motia } from './motia'
+import { createTracerAdapter } from './observability/tracer'
 import { Printer } from './printer'
 import { createSocketServer } from './socket-server'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
@@ -163,7 +164,7 @@ export const createServer = (
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerAdapter = adapters.observabilityAdapter?.loggerAdapter
   const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream, loggerAdapter)
-  const tracerFactory = adapters.observabilityAdapter?.tracerAdapter
+  const tracerFactory = createTracerAdapter(lockedData)
   const motia: Motia = {
     loggerFactory,
     eventAdapter: adapters.eventAdapter,

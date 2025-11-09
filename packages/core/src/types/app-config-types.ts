@@ -29,7 +29,6 @@ export type AdapterConfig = {
   streams?: StreamAdapterManager
   events?: EventAdapter
   cron?: CronAdapter
-  observability?: ObservabilityAdapter
 }
 
 export type Config = {

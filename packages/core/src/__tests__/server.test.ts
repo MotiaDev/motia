@@ -4,7 +4,6 @@ import { InMemoryCronAdapter, InMemoryQueueEventAdapter, MemoryStreamAdapterMana
 import { DefaultLoggerAdapter } from '../adapters/defaults/logger/default-logger-adapter'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { LockedData } from '../locked-data'
-import { BaseTracerAdapter } from '../observability/tracer'
 import { NoPrinter } from '../printer'
 import { createServer, type MotiaServer } from '../server'
 import type { ApiRouteConfig, Step } from '../types'
@@ -17,7 +16,6 @@ const defaultTestAdapterOptions = {
   cronAdapter: new InMemoryCronAdapter(),
   streamAdapter: new MemoryStreamAdapterManager(),
   observabilityAdapter: {
-    tracerAdapter: new BaseTracerAdapter(new MemoryStreamAdapterManager()),
     loggerAdapter: new DefaultLoggerAdapter(true),
   },
 }

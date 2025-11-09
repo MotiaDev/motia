@@ -1,5 +1,5 @@
 import type { TracerAdapter } from '../adapters/interfaces/observability-adapter.interface'
-import type { StreamAdapterManager } from '../adapters/interfaces/stream-adapter-manager.interface'
+import type { LockedData } from '../locked-data'
 import type { Logger } from '../logger'
 import type { Step } from '../types'
 import type { MotiaStream } from '../types-stream'
@@ -13,16 +13,10 @@ const MAX_TRACE_GROUPS = process.env.MOTIA_MAX_TRACE_GROUPS //
   : 50
 
 export class BaseTracerAdapter implements TracerAdapter {
-  private readonly traceStream: MotiaStream<Trace>
-  private readonly traceGroupStream: MotiaStream<TraceGroup>
-
-  constructor(streamAdapterManager: StreamAdapterManager) {
-    const traceAdapter = streamAdapterManager.createStream<Trace>('motia-trace')
-    const traceGroupAdapter = streamAdapterManager.createStream<TraceGroup>('motia-trace-group')
-
-    this.traceStream = traceAdapter as MotiaStream<Trace>
-    this.traceGroupStream = traceGroupAdapter as MotiaStream<TraceGroup>
-  }
+  constructor(
+    private readonly traceStream: MotiaStream<Trace>,
+    private readonly traceGroupStream: MotiaStream<TraceGroup>,
+  ) {}
 
   private async getAllGroups() {
     return await this.traceGroupStream.getGroup('default')
@@ -90,4 +84,28 @@ export class BaseTracerAdapter implements TracerAdapter {
 
     return new StreamTracer(manager, existingGroup, trace, logger)
   }
+}
+
+export const createTracerAdapter = (lockedData: LockedData) => {
+  const traceStream = lockedData.createStream<Trace>({
+    filePath: 'motia-trace',
+    hidden: true,
+    config: {
+      name: 'motia-trace',
+      baseConfig: { storageType: 'default' },
+      schema: null as never,
+    },
+  })()
+
+  const traceGroupStream = lockedData.createStream<TraceGroup>({
+    filePath: 'motia-trace-group',
+    hidden: true,
+    config: {
+      name: 'motia-trace-group',
+      baseConfig: { storageType: 'default' },
+      schema: null as never,
+    },
+  })()
+
+  return new BaseTracerAdapter(traceStream, traceGroupStream)
 }

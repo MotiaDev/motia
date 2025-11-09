@@ -1,4 +1,3 @@
-import { BaseTracerAdapter } from '../../observability/tracer'
 import type { EventAdapter, ObservabilityAdapter } from '../interfaces'
 import type { CronAdapter } from '../interfaces/cron-adapter.interface'
 import type { StreamAdapterManager } from '../interfaces/stream-adapter-manager.interface'
@@ -19,7 +18,6 @@ export const defaultAdapterOptions = {
   cronAdapter: new InMemoryCronAdapter(),
   streamAdapter: new FileStreamAdapterManager(process.cwd()),
   observabilityAdapter: {
-    tracerAdapter: new BaseTracerAdapter(new FileStreamAdapterManager(process.cwd())),
     loggerAdapter: new DefaultLoggerAdapter(),
   },
 }

@@ -25,7 +25,6 @@ export interface TracerAdapter {
 }
 
 export interface ObservabilityAdapter {
-  tracerAdapter: TracerAdapter
   loggerAdapter: LoggerAdapter
   recordMetric?(metric: Metric): Promise<void> | void
 }

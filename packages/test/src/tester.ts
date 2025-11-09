@@ -3,6 +3,7 @@ import {
   createStateAdapter,
   DefaultCronAdapter,
   DefaultLogger,
+  DefaultLoggerAdapter,
   DefaultQueueEventAdapter,
   type Event,
   MemoryStreamAdapterManager,
@@ -30,7 +31,12 @@ export const createMotiaTester = (): MotiaTester => {
       lockedData,
       state,
       { isVerbose: false },
-      { eventAdapter, cronAdapter: new DefaultCronAdapter(), streamAdapter },
+      {
+        eventAdapter,
+        cronAdapter: new DefaultCronAdapter(),
+        streamAdapter,
+        observabilityAdapter: { loggerAdapter: new DefaultLoggerAdapter() },
+      },
     )
 
     return { server, socketServer, eventManager, state, close }

@@ -5,7 +5,6 @@ import { InMemoryCronAdapter, InMemoryQueueEventAdapter, MemoryStreamAdapterMana
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { MemoryStreamAdapter } from '../adapters/defaults/stream/memory-stream-adapter'
 import type { LockedData } from '../locked-data'
-import { BaseTracerAdapter } from '../observability/tracer'
 import { Printer } from '../printer'
 import { createServer } from '../server'
 import type { ApiMiddleware, ApiRouteConfig, Step } from '../types'
@@ -58,7 +57,6 @@ describe('Middleware Management', () => {
       cronAdapter: new InMemoryCronAdapter(),
       streamAdapter: new MemoryStreamAdapterManager(),
       observabilityAdapter: {
-        tracerAdapter: new BaseTracerAdapter(new MemoryStreamAdapterManager()),
         loggerAdapter: new DefaultLoggerAdapter(true),
       },
     })
