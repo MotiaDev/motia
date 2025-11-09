@@ -1,4 +1,4 @@
-import { BaseTracerAdapter } from 'src/observability/tracer'
+import { BaseTracerAdapter } from '../../observability/tracer'
 import type { EventAdapter, ObservabilityAdapter } from '../interfaces'
 import type { CronAdapter } from '../interfaces/cron-adapter.interface'
 import type { StreamAdapterManager } from '../interfaces/stream-adapter-manager.interface'
