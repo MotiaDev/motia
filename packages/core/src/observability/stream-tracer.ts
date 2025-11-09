@@ -1,6 +1,6 @@
+import type { Tracer } from '../adapters/interfaces'
 import type { Logger } from '../logger'
 import type { Step } from '../types'
-import type { Tracer } from '.'
 import { createTrace } from './create-trace'
 import type { TraceManager } from './trace-manager'
 import type { StateOperation, StreamOperation, Trace, TraceError, TraceEvent, TraceGroup } from './types'

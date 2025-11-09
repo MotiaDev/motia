@@ -1,4 +1,4 @@
-import { Logger } from '@motiadev/core'
+import { DefaultLoggerAdapter, type Logger } from '@motiadev/core'
 import type { MockFlowContext, MockLogger } from './types'
 
 export const createMockLogger = () => {
@@ -13,7 +13,13 @@ export const createMockLogger = () => {
 }
 
 export const setupLoggerMock = () => {
-  ;(Logger as jest.MockedClass<typeof Logger>).mockImplementation(createMockLogger)
+  ;(DefaultLoggerAdapter as jest.MockedClass<typeof DefaultLoggerAdapter>).mockImplementation(
+    () =>
+      ({
+        isVerbose: false,
+        createLogger: jest.fn(() => createMockLogger()),
+      }) as unknown as DefaultLoggerAdapter,
+  )
 }
 
 export const createMockContext = (options?: {

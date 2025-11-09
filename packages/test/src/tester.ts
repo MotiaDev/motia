@@ -2,9 +2,9 @@ import {
   createServer,
   createStateAdapter,
   DefaultCronAdapter,
+  DefaultLogger,
   DefaultQueueEventAdapter,
   type Event,
-  Logger,
   MemoryStreamAdapterManager,
 } from '@motiadev/core'
 import { generateLockedData } from 'motia'
@@ -16,7 +16,7 @@ import type { CapturedEvent, MotiaTester } from './types'
 export const createMotiaTester = (): MotiaTester => {
   const eventAdapter = new DefaultQueueEventAdapter()
   const eventManager = createEventManager(eventAdapter)
-  const logger = new Logger()
+  const logger = new DefaultLogger()
 
   const promise = (async () => {
     const lockedData = await generateLockedData({
@@ -25,11 +25,12 @@ export const createMotiaTester = (): MotiaTester => {
       printerType: 'disabled',
     })
     const state = createStateAdapter({ adapter: 'memory' })
+    const streamAdapter = new MemoryStreamAdapterManager()
     const { server, socketServer, close } = createServer(
       lockedData,
       state,
       { isVerbose: false },
-      { eventAdapter, cronAdapter: new DefaultCronAdapter() },
+      { eventAdapter, cronAdapter: new DefaultCronAdapter(), streamAdapter },
     )
 
     return { server, socketServer, eventManager, state, close }

@@ -1,4 +1,4 @@
-import { Logger } from '../logger'
+import { DefaultLogger } from '../adapters/defaults/logger/default-logger-adapter'
 import { NoTracer } from '../observability/no-tracer'
 import { QueueManager } from '../queue-manager'
 import { type Event, Handler, type QueueConfig } from '../types'
@@ -25,7 +25,7 @@ describe('Queue Integration Tests', () => {
     data,
     traceId: 'test-trace-id',
     flows: ['test-flow'],
-    logger: new Logger(),
+    logger: new DefaultLogger(),
     tracer: new NoTracer(),
     messageGroupId,
   })

@@ -3,10 +3,11 @@ import express from 'express'
 import path from 'path'
 import { MemoryStreamAdapterManager } from '../adapters/defaults'
 import { InMemoryQueueEventAdapter } from '../adapters/defaults/event/in-memory-queue-event-adapter'
+import { DefaultLogger } from '../adapters/defaults/logger/default-logger-adapter'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { callStepFile } from '../call-step-file'
 import { LockedData } from '../locked-data'
-import { Logger } from '../logger'
+import type { Logger } from '../logger'
 import type { Motia } from '../motia'
 import { NoTracer } from '../observability/no-tracer'
 import { NoPrinter } from '../printer'
@@ -28,7 +29,7 @@ describe('callStepFile', () => {
       state,
       printer,
       lockedData: new LockedData(baseDir, new MemoryStreamAdapterManager(), printer),
-      loggerFactory: { create: () => new Logger() },
+      loggerFactory: { create: () => new DefaultLogger() },
       tracerFactory: {
         createTracer: () => new NoTracer(),
         attachToTrace: () => new NoTracer(),
@@ -43,7 +44,7 @@ describe('callStepFile', () => {
     const baseDir = path.join(__dirname, 'steps')
     const step = createCronStep({ emits: ['TEST_EVENT'], cron: '* * * * *' }, path.join(baseDir, 'cron-step-emit.ts'))
     const traceId = randomUUID()
-    const logger = new Logger()
+    const logger = new DefaultLogger()
     const tracer = new NoTracer()
     const motia = createMockMotia(baseDir)
 
@@ -66,7 +67,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -77,7 +78,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -94,7 +95,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createEventStep({ subscribes: ['test'], emits: [] }, path.join(baseDir, 'long-running-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -123,7 +124,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -144,7 +145,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createEventStep({ subscribes: ['test'], emits: [] }, path.join(baseDir, 'nonexistent-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -165,7 +166,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -182,7 +183,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -199,7 +200,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -212,7 +213,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -229,7 +230,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -245,7 +246,7 @@ describe('callStepFile', () => {
     it('should handle multiple concurrent calls with timeout', async () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -266,7 +267,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createCronStep({ emits: [], cron: '* * * * *' }, path.join(baseDir, 'cron-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -283,7 +284,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createEventStep({ subscribes: ['test'], emits: [] }, path.join(baseDir, 'nonexistent-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 
@@ -304,7 +305,7 @@ describe('callStepFile', () => {
       const baseDir = path.join(__dirname, 'steps')
       const step = createEventStep({ subscribes: ['test'], emits: [] }, path.join(baseDir, 'long-running-step.ts'))
       const traceId = randomUUID()
-      const logger = new Logger()
+      const logger = new DefaultLogger()
       const tracer = new NoTracer()
       const motia = createMockMotia(baseDir)
 

@@ -2,10 +2,12 @@ import bodyParser from 'body-parser'
 import express, { type Express, type Request, type Response } from 'express'
 import http from 'http'
 import type { Server as WsServer } from 'ws'
+import { DefaultLoggerAdapter } from './adapters/defaults/logger/default-logger-adapter'
+import type { Tracer } from './adapters/interfaces'
 import type { CronAdapter } from './adapters/interfaces/cron-adapter.interface'
 import type { EventAdapter } from './adapters/interfaces/event-adapter.interface'
+import type { ObservabilityAdapter } from './adapters/interfaces/observability-adapter.interface'
 import type { StateAdapter } from './adapters/interfaces/state-adapter.interface'
-import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
 import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
@@ -20,8 +22,7 @@ import type { LockedData } from './locked-data'
 import { globalLogger } from './logger'
 import { BaseLoggerFactory } from './logger-factory'
 import type { Motia } from './motia'
-import type { Tracer } from './observability'
-import { createTracerFactory } from './observability/tracer'
+import { BaseTracerAdapter } from './observability/tracer'
 import { Printer } from './printer'
 import { createSocketServer } from './socket-server'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
@@ -51,7 +52,8 @@ type MotiaServerConfig = {
 type AdapterOptions = {
   eventAdapter: EventAdapter
   cronAdapter: CronAdapter
-  streamAdapter?: StreamAdapterManager
+  streamAdapter: StreamAdapterManager
+  observabilityAdapter?: ObservabilityAdapter
 }
 
 export const createServer = (
@@ -161,8 +163,9 @@ export const createServer = (
   })()
 
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
-  const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream)
-  const tracerFactory = createTracerFactory(lockedData)
+  const loggerAdapter = adapters.observabilityAdapter?.loggerAdapter || new DefaultLoggerAdapter(config.isVerbose)
+  const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream, loggerAdapter)
+  const tracerFactory = adapters.observabilityAdapter?.tracerAdapter || new BaseTracerAdapter(adapters.streamAdapter)
   const motia: Motia = {
     loggerFactory,
     eventAdapter: adapters.eventAdapter,

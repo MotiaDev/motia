@@ -1,11 +1,4 @@
-import {
-  createServer,
-  createStateAdapter,
-  DefaultCronAdapter,
-  DefaultQueueEventAdapter,
-  FileStreamAdapterManager,
-  type MotiaPlugin,
-} from '@motiadev/core'
+import { createServer, createStateAdapter, defaultAdapterOptions, type MotiaPlugin } from '@motiadev/core'
 import path from 'path'
 import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
@@ -41,9 +34,8 @@ export const start = async (
   const dotMotia = path.join(baseDir, motiaFileStoragePath)
   const appConfig = await loadMotiaConfig(baseDir)
   const adapters = {
-    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapter: appConfig.adapters?.streams || new FileStreamAdapterManager(baseDir),
+    ...defaultAdapterOptions,
+    ...appConfig.adapters,
   }
   const lockedData = await generateLockedData({
     projectDir: baseDir,

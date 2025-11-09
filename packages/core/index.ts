@@ -7,7 +7,9 @@ export {
   MemoryStreamAdapterManager,
 } from './src/adapters/defaults'
 export { InMemoryCronAdapter as DefaultCronAdapter } from './src/adapters/defaults/cron/in-memory-cron-adapter'
+export { defaultAdapterOptions } from './src/adapters/defaults/default-adapters'
 export { InMemoryQueueEventAdapter as DefaultQueueEventAdapter } from './src/adapters/defaults/event/in-memory-queue-event-adapter'
+export { DefaultLogger, DefaultLoggerAdapter } from './src/adapters/defaults/logger/default-logger-adapter'
 export type {
   CronAdapter,
   CronAdapterConfig,
@@ -18,6 +20,7 @@ export type {
   EventAdapter,
   SubscriptionHandle,
 } from './src/adapters/interfaces/event-adapter.interface'
+export type { LoggerAdapter } from './src/adapters/interfaces/logger-adapter.interface'
 export type {
   Metric,
   ObservabilityAdapter,
@@ -45,7 +48,8 @@ export {
   validateInfrastructureConfig,
 } from './src/infrastructure-validator'
 export { LockedData } from './src/locked-data'
-export { Logger } from './src/logger'
+export type { Logger } from './src/logger'
+export { globalLogger } from './src/logger'
 export { createMermaidGenerator } from './src/mermaid-generator'
 export { Motia, MotiaPluginContext, PLUGIN_FLOW_ID, PluginApiConfig, UnregisterMotiaPluginApi } from './src/motia'
 export { NoTracer } from './src/observability/no-tracer'

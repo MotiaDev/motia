@@ -1,6 +1,8 @@
 import path from 'path'
+import { DefaultLogger, DefaultLoggerAdapter } from 'src/adapters/defaults/logger/default-logger-adapter'
+import { BaseTracerAdapter } from 'src/observability/tracer'
 import request from 'supertest'
-import { InMemoryCronAdapter, InMemoryQueueEventAdapter } from '../adapters/defaults'
+import { InMemoryCronAdapter, InMemoryQueueEventAdapter, MemoryStreamAdapterManager } from '../adapters/defaults'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { MemoryStreamAdapter } from '../adapters/defaults/stream/memory-stream-adapter'
 import type { LockedData } from '../locked-data'
@@ -54,6 +56,11 @@ describe('Middleware Management', () => {
     server = createServer(lockedData, state, config, {
       eventAdapter: new InMemoryQueueEventAdapter(),
       cronAdapter: new InMemoryCronAdapter(),
+      streamAdapter: new MemoryStreamAdapterManager(),
+      observabilityAdapter: {
+        tracerAdapter: new BaseTracerAdapter(new MemoryStreamAdapterManager()),
+        loggerAdapter: new DefaultLoggerAdapter(true),
+      },
     })
   })
 

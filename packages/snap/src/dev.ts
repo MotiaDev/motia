@@ -3,9 +3,7 @@ import {
   createMermaidGenerator,
   createServer,
   createStateAdapter,
-  DefaultCronAdapter,
-  DefaultQueueEventAdapter,
-  FileStreamAdapterManager,
+  defaultAdapterOptions,
   getProjectIdentifier,
   type MotiaPlugin,
   trackEvent,
@@ -61,9 +59,8 @@ export const dev = async (
 
   const appConfig = await loadMotiaConfig(baseDir)
   const adapters = {
-    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapter: appConfig.adapters?.streams || new FileStreamAdapterManager(baseDir, motiaFileStoragePath),
+    ...defaultAdapterOptions,
+    ...appConfig.adapters,
   }
 
   const lockedData = await generateLockedData({

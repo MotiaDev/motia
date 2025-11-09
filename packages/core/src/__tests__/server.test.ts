@@ -1,4 +1,6 @@
 import path from 'path'
+import { DefaultLoggerAdapter } from 'src/adapters/defaults/logger/default-logger-adapter'
+import { BaseTracerAdapter } from 'src/observability/tracer'
 import request from 'supertest'
 import { InMemoryCronAdapter, InMemoryQueueEventAdapter, MemoryStreamAdapterManager } from '../adapters/defaults'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
@@ -9,6 +11,16 @@ import type { ApiRouteConfig, Step } from '../types'
 import { createApiStep } from './fixtures/step-fixtures'
 
 const config = { isVerbose: true, isDev: true, version: '1.0.0' }
+
+const defaultTestAdapterOptions = {
+  eventAdapter: new InMemoryQueueEventAdapter(),
+  cronAdapter: new InMemoryCronAdapter(),
+  streamAdapter: new MemoryStreamAdapterManager(),
+  observabilityAdapter: {
+    tracerAdapter: new BaseTracerAdapter(new MemoryStreamAdapterManager()),
+    loggerAdapter: new DefaultLoggerAdapter(true),
+  },
+}
 
 describe('Server', () => {
   beforeAll(() => {
@@ -23,8 +35,7 @@ describe('Server', () => {
       const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const state = new MemoryStateAdapter()
       server = await createServer(lockedData, state, config, {
-        eventAdapter: new InMemoryQueueEventAdapter(),
-        cronAdapter: new InMemoryCronAdapter(),
+        ...defaultTestAdapterOptions,
       })
     })
 
@@ -45,8 +56,7 @@ describe('Server', () => {
       const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const state = new MemoryStateAdapter()
       server = await createServer(lockedData, state, config, {
-        eventAdapter: new InMemoryQueueEventAdapter(),
-        cronAdapter: new InMemoryCronAdapter(),
+        ...defaultTestAdapterOptions,
       })
     })
     afterEach(async () => server?.close())
@@ -104,8 +114,7 @@ describe('Server', () => {
       lockedData.createStep(mockApiStep, { disableTypeCreation: true })
 
       const server = await createServer(lockedData, state, config, {
-        eventAdapter: new InMemoryQueueEventAdapter(),
-        cronAdapter: new InMemoryCronAdapter(),
+        ...defaultTestAdapterOptions,
       })
 
       const response = await request(server.app).post('/test')

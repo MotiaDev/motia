@@ -1,4 +1,4 @@
-import { Logger } from '../logger'
+import { DefaultLogger } from '../adapters/defaults/logger/default-logger-adapter'
 import { NoTracer } from '../observability/no-tracer'
 import { QueueManager } from '../queue-manager'
 import type { Event, QueueConfig } from '../types'
@@ -26,7 +26,7 @@ describe('QueueManager', () => {
     traceId: 'test-trace-id',
     messageGroupId,
     flows: ['test-flow'],
-    logger: new Logger(),
+    logger: new DefaultLogger(),
     tracer: new NoTracer(),
   })
 

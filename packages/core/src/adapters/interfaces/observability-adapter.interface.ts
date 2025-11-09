@@ -1,6 +1,7 @@
 import type { Logger } from '../../logger'
 import type { StateOperation, StreamOperation, TraceError } from '../../observability/types'
 import type { Step } from '../../types'
+import type { LoggerAdapter } from './logger-adapter.interface'
 
 export interface Metric {
   name: string
@@ -17,9 +18,14 @@ export interface Tracer {
   child(step: Step, logger: Logger): Tracer
 }
 
-export interface ObservabilityAdapter {
+export interface TracerAdapter {
   createTracer(traceId: string, step: Step, logger: Logger): Promise<Tracer> | Tracer
   attachToTrace(traceId: string, step: Step, logger: Logger): Promise<Tracer> | Tracer
   clear(): Promise<void>
+}
+
+export interface ObservabilityAdapter {
+  tracerAdapter: TracerAdapter
+  loggerAdapter: LoggerAdapter
   recordMetric?(metric: Metric): Promise<void> | void
 }

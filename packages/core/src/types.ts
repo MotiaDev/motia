@@ -1,6 +1,6 @@
 import type { ZodAny, ZodArray, ZodObject, z } from 'zod'
+import type { Tracer } from './adapters/interfaces'
 import type { Logger } from './logger'
-import type { Tracer } from './observability'
 
 export * from './types/app-config-types'
 
