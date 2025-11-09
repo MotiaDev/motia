@@ -37,14 +37,27 @@ export class FileStreamAdapter<TData> extends StreamAdapter<TData> {
 
     return Object.entries(data)
       .filter(([key]) => key.startsWith(prefix))
-      .map(([, value]) => JSON.parse(value) as BaseStreamItem<TData>)
+      .map(([, value]) => {
+        if (typeof value === 'string') {
+          return JSON.parse(value) as BaseStreamItem<TData>
+        }
+        return value as BaseStreamItem<TData>
+      })
   }
 
   async get(groupId: string, key: string): Promise<BaseStreamItem<TData> | null> {
     const data = this._readFile()
     const fullKey = this._makeKey(groupId, key)
 
-    return data[fullKey] ? (JSON.parse(data[fullKey]) as BaseStreamItem<TData>) : null
+    if (!data[fullKey]) {
+      return null
+    }
+
+    const value = data[fullKey]
+    if (typeof value === 'string') {
+      return JSON.parse(value) as BaseStreamItem<TData>
+    }
+    return value as BaseStreamItem<TData>
   }
 
   async set(groupId: string, id: string, value: TData) {
@@ -88,7 +101,7 @@ export class FileStreamAdapter<TData> extends StreamAdapter<TData> {
     return `${groupId}:${id}`
   }
 
-  protected _readFile(): Record<string, string> {
+  protected _readFile(): Record<string, string | object> {
     try {
       const content = fs.readFileSync(this.filePath, 'utf-8')
       return JSON.parse(content)
