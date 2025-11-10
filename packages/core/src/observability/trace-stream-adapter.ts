@@ -1,4 +1,4 @@
-import { FileStreamAdapter } from '../streams/adapters/file-stream-adapter'
+import { FileStreamAdapter } from '../adapters/defaults/stream/file-stream-adapter'
 import type { BaseStreamItem } from '../types-stream'
 
 export class TraceStreamAdapter<TData> extends FileStreamAdapter<TData> {
@@ -56,8 +56,9 @@ export class TraceStreamAdapter<TData> extends FileStreamAdapter<TData> {
   }
 
   async getGroup(groupId: string): Promise<BaseStreamItem<TData>[]> {
+    const prefix = this._makeKey(groupId, '')
     return Object.entries(this.state)
-      .filter(([key]) => key.startsWith(groupId))
+      .filter(([key]) => key.startsWith(prefix))
       .map(([, value]) => value as BaseStreamItem<TData>)
   }
 }

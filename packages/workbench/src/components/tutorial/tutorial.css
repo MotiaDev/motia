@@ -1,6 +1,6 @@
-@import "@motiadev/ui/styles.css";
-@import "@motiadev/ui/globals.css";
-@import "tw-animate-css";
+@import '@motiadev/ui/styles.css';
+@import '@motiadev/ui/globals.css';
+@import 'tw-animate-css';
 
 :root {
   --tutorial-text-color: var(--dark-800);
@@ -121,7 +121,7 @@
 }
 
 .driver-popover-navigation-btns-hint:hover:before {
-  content: "Use arrow keys to navigate";
+  content: 'Use the right arrow key to navigate';
   position: absolute;
   color: white;
   top: -20px;

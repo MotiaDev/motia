@@ -21,7 +21,7 @@ export const handler: Handlers['TestStateCheck'] = async (input, { traceId, logg
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const value = await state.get<any>(traceId, input.key)
 
-  if (!equal(value.data, input.expected, { strict: true })) {
+  if (!equal(value, input.expected, { strict: true })) {
     logger.error(`[Test motia state with TS] state value is not as expected`, { value, expected: input.expected })
   } else {
     logger.info(`[Test motia state with TS] state value is as expected 🏁 🟢`)

@@ -1,13 +1,13 @@
-// packages/snap/src/dev.ts
 import { flush } from '@amplitude/analytics-node'
 import {
-  createEventManager,
   createMermaidGenerator,
   createServer,
   createStateAdapter,
+  DefaultCronAdapter,
+  DefaultQueueEventAdapter,
+  FileStreamAdapterManager,
   getProjectIdentifier,
   type MotiaPlugin,
-  QueueManager,
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
@@ -15,6 +15,7 @@ import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
 import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
+import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
@@ -58,17 +59,28 @@ export const dev = async (
 
   const motiaFileStoragePath = motiaFileStorageDir || '.motia'
 
-  const lockedData = await generateLockedData({ projectDir: baseDir, motiaFileStoragePath })
+  const appConfig = await loadMotiaConfig(baseDir)
+  const adapters = {
+    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
+    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
+    streamAdapter: appConfig.adapters?.streams || new FileStreamAdapterManager(baseDir, motiaFileStoragePath),
+  }
 
-  const queueManager = new QueueManager()
-  const eventManager = createEventManager(queueManager)
-  const state = createStateAdapter({
-    adapter: 'default',
-    filePath: path.join(baseDir, motiaFileStoragePath),
+  const lockedData = await generateLockedData({
+    projectDir: baseDir,
+    streamAdapter: adapters.streamAdapter,
   })
 
+  const state =
+    appConfig.adapters?.state ||
+    createStateAdapter({
+      adapter: 'default',
+      filePath: path.join(baseDir, motiaFileStoragePath),
+    })
+
   const config = { isVerbose }
-  const motiaServer = createServer(lockedData, eventManager, state, config, queueManager)
+
+  const motiaServer = createServer(lockedData, state, config, adapters)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
@@ -78,8 +90,6 @@ export const dev = async (
     mermaidGenerator.initialize(lockedData)
     trackEvent('mermaid_generator_initialized')
   }
-
-  watcher.init()
 
   deployEndpoints(motiaServer, lockedData)
 

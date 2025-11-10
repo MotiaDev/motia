@@ -1,12 +1,12 @@
 import fs from 'fs'
+import { StreamAdapter } from '../adapters/interfaces/stream-adapter.interface'
 import type { FlowConfig } from '../types/flows-config-types'
-import { StreamAdapter } from './adapters/stream-adapter'
 
 export class FlowsConfigStream extends StreamAdapter<FlowConfig> {
   private config: FlowConfig[] = []
 
   constructor(private readonly configPath: string) {
-    super()
+    super('__motia.flows-config')
   }
 
   private getConfig(): FlowConfig[] {

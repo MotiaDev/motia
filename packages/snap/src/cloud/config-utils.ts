@@ -1,4 +1,22 @@
+import { flush } from '@amplitude/analytics-node'
+import { logCliError } from '../utils/analytics'
 import { CLIOutputManager, type Message } from './cli-output-manager'
+
+const getCommandName = (): string => {
+  const args = process.argv.slice(2)
+  const commandParts: string[] = []
+
+  for (let i = 0; i < args.length && i < 3; i++) {
+    const arg = args[i]
+    if (!arg.startsWith('-') && !arg.startsWith('--')) {
+      commandParts.push(arg)
+    } else {
+      break
+    }
+  }
+
+  return commandParts.join(' ') || 'unknown'
+}
 
 export class CliContext {
   private readonly output = new CLIOutputManager()
@@ -28,10 +46,15 @@ export type CliHandler = <TArgs extends Record<string, any>>(args: TArgs, contex
 export function handler(handler: CliHandler): (args: Record<string, any>) => Promise<void> {
   return async (args: Record<string, unknown>) => {
     const context = new CliContext()
+    const commandName = getCommandName()
 
     try {
       await handler(args, context)
     } catch (error: any) {
+      logCliError(commandName, error)
+      await flush().promise.catch(() => {
+        // Silently fail
+      })
       if (error instanceof Error) {
         context.log('error', (message) => message.tag('failed').append(error.message))
         context.exit(1)

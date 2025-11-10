@@ -2,7 +2,7 @@ name: E2E Tests (Release)
 
 # This workflow runs end-to-end tests across multiple operating systems:
 # - Ubuntu (Linux)
-# - Windows 
+# - Windows
 # - macOS
 # Ensures cross-platform compatibility of the Motia framework
 
@@ -16,7 +16,7 @@ concurrency:
 
 on:
   workflow_run:
-    workflows: ["Deploy Release"]
+    workflows: ['Deploy Release']
     types:
       - completed
   workflow_dispatch:
@@ -96,7 +96,7 @@ jobs:
           ruby-version: '3.3.6'
 
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4  # Versão mais recente
+      - uses: actions/setup-node@v4 # Versão mais recente
         with:
           node-version: '20.11.1'
           cache: 'pnpm'
@@ -220,7 +220,7 @@ jobs:
           echo "- OS: ${{ matrix.os }}"
           echo "- Test outcome: ${{ steps.run_tests.outcome }}"
           echo "- Duration: ${{ env.TEST_DURATION }} seconds"
-          
+
           if [ "${{ steps.run_tests.outcome }}" == "success" ]; then
             echo "result=success" >> $GITHUB_OUTPUT
             echo "✅ E2E tests passed successfully"
@@ -263,11 +263,11 @@ jobs:
         shell: bash
         run: |
           echo "Checking results from all OS matrix jobs..."
-          
+
           # Get the results from the matrix jobs
           RESULTS='${{ toJSON(needs.e2e-tests.result) }}'
           echo "Matrix job result: $RESULTS"
-          
+
           if [ "$RESULTS" == '"success"' ]; then
             echo "result=success" >> $GITHUB_OUTPUT
             echo "✅ All E2E tests passed successfully across all platforms"

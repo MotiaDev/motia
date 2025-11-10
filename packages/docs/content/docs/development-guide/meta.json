@@ -5,6 +5,7 @@
     "project-structure",
     "state-management",
     "streams",
+    "adapters",
     "observability",
     "customizing-flows",
     "plugins",

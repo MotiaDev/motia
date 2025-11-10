@@ -210,6 +210,154 @@ Create a Web Service, point to your repo. Render builds automatically.
 
 ---
 
+## Configuring Adapters for Production
+
+When deploying multiple Motia instances, you need distributed adapters to share state, events, and streams across instances. Without them, each instance operates in isolation.
+
+### When to Use Distributed Adapters
+
+**Use default adapters when:**
+- Running a single Motia instance
+- Development and testing
+- Simple deployments
+
+**Use distributed adapters when:**
+- Running multiple Motia instances (horizontal scaling)
+- Production deployments requiring high availability
+- Need shared state/events/streams across instances
+
+### Docker Compose with Redis
+
+For production deployments, use Docker Compose to run Motia with Redis:
+
+```yaml title="docker-compose.yml"
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  motia:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - redis
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+volumes:
+  redis-data:
+  rabbitmq-data:
+```
+
+### Configure Adapters in motia.config.ts
+
+Update your configuration to use distributed adapters:
+
+```typescript title="motia.config.ts"
+import { config } from '@motiadev/core'
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
+import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
+
+export default config({
+  adapters: {
+    state: new RedisStateAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    }),
+    streams: new RedisStreamAdapterManager({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    }),
+    events: new RabbitMQEventAdapter({
+      url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
+      exchangeType: 'topic',
+    }),
+    cron: new RedisCronAdapter({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    }),
+  },
+})
+```
+
+### Install Adapter Packages
+
+Add the adapter packages to your `package.json`:
+
+```bash
+npm install @motiadev/adapter-redis-state \
+            @motiadev/adapter-redis-streams \
+            @motiadev/adapter-rabbitmq-events \
+            @motiadev/adapter-redis-cron
+```
+
+### Scaling Multiple Instances
+
+With distributed adapters configured, you can scale to multiple instances:
+
+```yaml title="docker-compose.yml"
+services:
+  motia-1:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  motia-2:
+    build: .
+    ports:
+      - "3001:3000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  motia-3:
+    build: .
+    ports:
+      - "3002:3000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+```
+
+All instances share the same state, events, and streams through Redis and RabbitMQ.
+
+<Callout type="warn">
+Without distributed adapters, each Motia instance has isolated state and events. Use Redis/RabbitMQ adapters for multi-instance deployments.
+</Callout>
+
+[Learn more about adapters →](/docs/development-guide/adapters/usage)
+
+---
+
 ## Resources
 
 - [Docker Hub](https://hub.docker.com/r/motiadev/motia) - Official Motia image

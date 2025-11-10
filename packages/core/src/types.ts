@@ -17,6 +17,7 @@ export type InternalStateManager = {
 export type EmitData = { topic: ''; data: unknown; messageGroupId?: string }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
+// biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface FlowContextStateStreams {}
 
 export interface FlowContext<TEmitData = never> {
@@ -182,12 +183,6 @@ export type UnsubscribeConfig = {
   event: string
 }
 
-export type EventManager = {
-  emit: <TData>(event: Event<TData>, file?: string) => Promise<void>
-  subscribe: <TData>(config: SubscribeConfig<TData>) => void
-  unsubscribe: (config: UnsubscribeConfig) => void
-}
-
 export type StepConfig = EventConfig | NoopConfig | ApiRouteConfig | CronConfig
 
 export type Step<TConfig extends StepConfig = StepConfig> = { filePath: string; version: string; config: TConfig }
@@ -202,4 +197,5 @@ export type Flow = {
   steps: Step[]
 }
 
+// biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface Handlers {}
