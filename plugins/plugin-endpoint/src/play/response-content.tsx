@@ -46,7 +46,7 @@ export const ResponseContent: React.FC<CodeDisplayProps> = ({ code, blob, conten
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div className="flex flex-col flex-1 overflow-y-auto [&_pre]:flex-1">
       {blob && (
         <div className="flex p-8 justify-center">
           <Button variant="default" onClick={onDownload}>

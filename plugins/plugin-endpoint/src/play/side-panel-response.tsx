@@ -23,7 +23,7 @@ export const SidePanelResponse = memo(() => {
     <Tabs
       value={activeTab}
       onValueChange={(value: string) => setActiveTab(value as ActiveTab)}
-      className="border-l border-border"
+      className="border-l border-border overflow-x-auto"
       data-testid="endpoint-response-container"
     >
       <div className="grid grid-cols-[1fr_auto] items-center h-10 border-b px-5 bg-card">
@@ -51,7 +51,7 @@ export const SidePanelResponse = memo(() => {
         </div>
       </div>
 
-      <TabsContent value="preview">
+      <TabsContent value="preview" className="flex flex-col">
         <ResponseContent
           code={data}
           blob={response?.body instanceof Blob ? response.body : undefined}
