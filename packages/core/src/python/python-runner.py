@@ -31,7 +31,7 @@ async def run_python_module(file_path: str, rpc: RpcSender, args: Dict) -> None:
         project_root = steps_dir.parent
         project_parent = project_root.parent
         if str(project_parent) not in sys.path:
-            sys.path.append(str(project_parent))
+            sys.path.insert(0, str(project_parent))
 
         rel_parts = path.relative_to(project_parent).with_suffix("").parts
         module_name = ".".join(rel_parts)
