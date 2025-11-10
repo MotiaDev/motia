@@ -7,7 +7,7 @@ export const TraceStateEvent: React.FC<{ event: StateEvent }> = ({ event }) => {
     <FunctionCall
       objectName="state"
       functionName={event.operation}
-      args={[event.data.traceId, event.data.key, event.data.value ? false : undefined]}
+      args={[event.data.traceId, event.data.key, event.data.value]}
     />
   )
 }
