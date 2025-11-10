@@ -10,6 +10,7 @@ from motia_context import Context
 from motia_middleware import compose_middleware
 from motia_rpc_stream_manager import RpcStreamManager
 from motia_dot_dict import DotDict
+from pathlib import Path
 
 def parse_args(arg: str) -> Dict:
     """Parse command line arguments into HandlerArgs"""
@@ -22,19 +23,27 @@ def parse_args(arg: str) -> Dict:
 async def run_python_module(file_path: str, rpc: RpcSender, args: Dict) -> None:
     """Execute a Python module with the given arguments"""
     try:
-        module_dir = os.path.dirname(os.path.abspath(file_path))
-        flows_dir = os.path.dirname(module_dir)
-        
-        for path in [module_dir, flows_dir]:
-            if path not in sys.path:
-                sys.path.insert(0, path)
+        path = Path(file_path).resolve()
+        steps_dir = next((p for p in path.parents if p.name == "steps"), None)
+        if steps_dir is None:
+            raise RuntimeError("Could not find 'steps' directory in path")
 
-        spec = importlib.util.spec_from_file_location("dynamic_module", file_path)
+        project_root = steps_dir.parent
+        project_parent = project_root.parent
+        if str(project_parent) not in sys.path:
+            sys.path.insert(0, str(project_parent))
+
+        rel_parts = path.relative_to(project_parent).with_suffix("").parts
+        module_name = ".".join(rel_parts)
+        package_name = module_name.rsplit(".", 1)[0] if "." in module_name else ""
+
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"Could not load module from {file_path}")
-            
+
         module = importlib.util.module_from_spec(spec)
-        module.__package__ = os.path.basename(module_dir)
+        module.__package__ = package_name
+        sys.modules[module_name] = module
         spec.loader.exec_module(module)
 
         if not hasattr(module, "handler"):

@@ -3,6 +3,7 @@ import json
 import importlib.util
 import os
 import platform
+from pathlib import Path
 
 def sendMessage(text):
     'sends a Node IPC message to parent proccess'
@@ -21,21 +22,27 @@ def sendMessage(text):
 
 async def run_python_module(file_path: str) -> None:
     try:
-        module_dir = os.path.dirname(os.path.abspath(file_path))
-        
-        if module_dir not in sys.path:
-            sys.path.insert(0, module_dir)
-            
-        flows_dir = os.path.dirname(module_dir)
-        if flows_dir not in sys.path:
-            sys.path.insert(0, flows_dir)
+        path = Path(file_path).resolve()
+        steps_dir = next((p for p in path.parents if p.name == "steps"), None)
+        if steps_dir is None:
+            raise RuntimeError("Could not find 'steps' directory in path")
 
-        spec = importlib.util.spec_from_file_location("dynamic_module", file_path)
+        project_root = steps_dir.parent
+        project_parent = project_root.parent
+        if str(project_parent) not in sys.path:
+            sys.path.insert(0, str(project_parent))
+
+        rel_parts = path.relative_to(project_parent).with_suffix("").parts
+        module_name = ".".join(rel_parts)
+        package_name = module_name.rsplit(".", 1)[0] if "." in module_name else ""
+
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"Could not load module from {file_path}")
-            
+
         module = importlib.util.module_from_spec(spec)
-        module.__package__ = os.path.basename(module_dir)
+        module.__package__ = package_name
+        sys.modules[module_name] = module
         spec.loader.exec_module(module)
 
         if not hasattr(module, 'config'):
