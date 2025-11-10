@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useRef } from 'react'
 import ReactJson from 'react18-json-view'
 import { CopyButton } from '@/components/ui/copy-button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -35,7 +35,7 @@ export const Argument: React.FC<ArgumentProps> = memo(({ arg, popover = true }) 
       <PopoverTrigger asChild>
         <span className="truncate font-mono text-blue-500 cursor-pointer inline-block">{value}</span>
       </PopoverTrigger>
-      <PopoverContent className="backdrop-blur-md w-auto max-w-2xl relative">
+      <PopoverContent className="backdrop-blur-md w-auto max-w-2xl relative max-h-[50vh] overflow-y-auto">
         {isObject ? (
           <div>
             <CopyButton textToCopy={textToCopy} className="absolute top-4 right-4" title="Copy JSON" />
