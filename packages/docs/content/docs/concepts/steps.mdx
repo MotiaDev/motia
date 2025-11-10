@@ -201,6 +201,10 @@ module.exports = { config, handler };
 
 ## Triggers
 
+<div id="triggers-api"></div>
+<div id="triggers-event"></div>
+<div id="triggers-cron"></div>
+
 Every Step has a `type` that defines **how it triggers**:
 
 | Type | When it runs | Use case |
@@ -209,8 +213,8 @@ Every Step has a `type` that defines **how it triggers**:
 | `event` | Event emitted | Background jobs, workflows |
 | `cron` | Schedule | Cleanup, reports, reminders |
 
-<Tabs items={['API', 'Event', 'Cron']}>
-  <Tab value="API">
+<Tabs items={['API', 'Event', 'Cron']} groupId="triggers" updateAnchor defaultIndex={0}>
+  <Tab id="triggers-api" value="API">
 
 ### API Trigger
 
@@ -290,7 +294,7 @@ Runs when an HTTP request hits the path.
 
 </Tab>
 
-  <Tab value="Event">
+  <Tab id="triggers-event" value="Event">
 
 ### Event Trigger
 
@@ -366,7 +370,7 @@ Runs when an event is emitted. Use for background tasks.
 
 </Tab>
 
-  <Tab value="Cron">
+  <Tab id="triggers-cron" value="Cron">
 
 ### Cron Trigger
 
