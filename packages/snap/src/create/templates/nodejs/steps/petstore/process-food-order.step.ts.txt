@@ -10,6 +10,7 @@ export const config: EventConfig = {
   subscribes: ['process-food-order'],
   emits: ['notification'],
   input: z.object({
+    id: z.string(),
     email: z.string(),
     quantity: z.number(),
     petId: z.number(),
