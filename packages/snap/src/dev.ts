@@ -1,9 +1,9 @@
 import { flush } from '@amplitude/analytics-node'
 import {
+  createDefaultAdapterOptions,
   createMermaidGenerator,
   createServer,
   createStateAdapter,
-  defaultAdapterOptions,
   getProjectIdentifier,
   type MotiaPlugin,
   trackEvent,
@@ -59,7 +59,7 @@ export const dev = async (
 
   const appConfig = await loadMotiaConfig(baseDir)
   const adapters = {
-    ...defaultAdapterOptions,
+    ...createDefaultAdapterOptions(baseDir, isVerbose),
     ...appConfig.adapters,
   }
 
@@ -75,9 +75,7 @@ export const dev = async (
       filePath: path.join(baseDir, motiaFileStoragePath),
     })
 
-  const config = { isVerbose }
-
-  const motiaServer = createServer(lockedData, state, config, adapters)
+  const motiaServer = createServer(lockedData, state, adapters)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 

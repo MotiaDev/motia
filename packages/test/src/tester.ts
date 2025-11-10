@@ -27,17 +27,12 @@ export const createMotiaTester = (): MotiaTester => {
     })
     const state = createStateAdapter({ adapter: 'memory' })
     const streamAdapter = new MemoryStreamAdapterManager()
-    const { server, socketServer, close } = createServer(
-      lockedData,
-      state,
-      { isVerbose: false },
-      {
-        eventAdapter,
-        cronAdapter: new DefaultCronAdapter(),
-        streamAdapter,
-        observabilityAdapter: { loggerAdapter: new DefaultLoggerAdapter() },
-      },
-    )
+    const { server, socketServer, close } = createServer(lockedData, state, {
+      eventAdapter,
+      cronAdapter: new DefaultCronAdapter(),
+      streamAdapter,
+      observabilityAdapter: { loggerAdapter: new DefaultLoggerAdapter() },
+    })
 
     return { server, socketServer, eventManager, state, close }
   })()

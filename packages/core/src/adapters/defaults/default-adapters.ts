@@ -13,11 +13,13 @@ export type AdapterOptions = {
   observabilityAdapter: ObservabilityAdapter
 }
 
-export const defaultAdapterOptions = {
-  eventAdapter: new InMemoryQueueEventAdapter(),
-  cronAdapter: new InMemoryCronAdapter(),
-  streamAdapter: new FileStreamAdapterManager(process.cwd()),
-  observabilityAdapter: {
-    loggerAdapter: new DefaultLoggerAdapter(),
-  },
+export const createDefaultAdapterOptions = (baseDir: string = process.cwd(), isVerbose: boolean = false) => {
+  return {
+    eventAdapter: new InMemoryQueueEventAdapter(),
+    cronAdapter: new InMemoryCronAdapter(),
+    streamAdapter: new FileStreamAdapterManager(baseDir),
+    observabilityAdapter: {
+      loggerAdapter: new DefaultLoggerAdapter(isVerbose),
+    },
+  }
 }

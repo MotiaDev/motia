@@ -7,7 +7,7 @@ export {
   MemoryStreamAdapterManager,
 } from './src/adapters/defaults'
 export { InMemoryCronAdapter as DefaultCronAdapter } from './src/adapters/defaults/cron/in-memory-cron-adapter'
-export { defaultAdapterOptions } from './src/adapters/defaults/default-adapters'
+export { createDefaultAdapterOptions } from './src/adapters/defaults/default-adapters'
 export { InMemoryQueueEventAdapter as DefaultQueueEventAdapter } from './src/adapters/defaults/event/in-memory-queue-event-adapter'
 export { DefaultLogger, DefaultLoggerAdapter } from './src/adapters/defaults/logger/default-logger-adapter'
 export type {

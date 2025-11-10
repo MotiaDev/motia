@@ -50,9 +50,7 @@ describe('Middleware Management', () => {
     } as unknown as LockedData
 
     const state = new MemoryStateAdapter()
-    const config = { isVerbose: true, isDev: true, version: '1.0.0' }
-
-    server = createServer(lockedData, state, config, {
+    server = createServer(lockedData, state, {
       eventAdapter: new InMemoryQueueEventAdapter(),
       cronAdapter: new InMemoryCronAdapter(),
       streamAdapter: new MemoryStreamAdapterManager(),

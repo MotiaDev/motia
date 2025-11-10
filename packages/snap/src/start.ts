@@ -1,4 +1,4 @@
-import { createServer, createStateAdapter, defaultAdapterOptions, type MotiaPlugin } from '@motiadev/core'
+import { createDefaultAdapterOptions, createServer, createStateAdapter, type MotiaPlugin } from '@motiadev/core'
 import path from 'path'
 import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
@@ -34,18 +34,17 @@ export const start = async (
   const dotMotia = path.join(baseDir, motiaFileStoragePath)
   const appConfig = await loadMotiaConfig(baseDir)
   const adapters = {
-    ...defaultAdapterOptions,
+    ...createDefaultAdapterOptions(baseDir, isVerbose),
     ...appConfig.adapters,
   }
+  console.log('adapters', adapters)
   const lockedData = await generateLockedData({
     projectDir: baseDir,
     streamAdapter: adapters.streamAdapter,
   })
   const state = appConfig.adapters?.state || createStateAdapter({ adapter: 'default', filePath: dotMotia })
 
-  const config = { isVerbose, isDev: false, version }
-
-  const motiaServer = createServer(lockedData, state, config, adapters)
+  const motiaServer = createServer(lockedData, state, adapters)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {

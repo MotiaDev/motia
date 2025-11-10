@@ -2,6 +2,7 @@ import bodyParser from 'body-parser'
 import express, { type Express, type Request, type Response } from 'express'
 import http from 'http'
 import type { Server as WsServer } from 'ws'
+import { FileStreamAdapter } from './adapters/defaults'
 import type { Tracer } from './adapters/interfaces'
 import type { CronAdapter } from './adapters/interfaces/cron-adapter.interface'
 import type { EventAdapter } from './adapters/interfaces/event-adapter.interface'
@@ -19,14 +20,13 @@ import { generateTraceId } from './generate-trace-id'
 import { isApiStep } from './guards'
 import type { LockedData } from './locked-data'
 import { globalLogger } from './logger'
-import { BaseLoggerFactory } from './logger-factory'
+import { BaseLoggerFactory, type Log } from './logger-factory'
 import type { Motia } from './motia'
 import { createTracerAdapter } from './observability/tracer'
 import { Printer } from './printer'
 import { createSocketServer } from './socket-server'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
-import { type Log, LogsStream } from './streams/logs-stream'
 import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, Step } from './types'
 import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 
@@ -43,11 +43,6 @@ export type MotiaServer = {
   motia: Motia
 }
 
-type MotiaServerConfig = {
-  isVerbose: boolean
-  printer?: Printer
-}
-
 type AdapterOptions = {
   eventAdapter: EventAdapter
   cronAdapter: CronAdapter
@@ -55,13 +50,8 @@ type AdapterOptions = {
   observabilityAdapter: ObservabilityAdapter
 }
 
-export const createServer = (
-  lockedData: LockedData,
-  state: StateAdapter,
-  config: MotiaServerConfig,
-  adapters: AdapterOptions,
-): MotiaServer => {
-  const printer = config.printer ?? new Printer(process.cwd())
+export const createServer = (lockedData: LockedData, state: StateAdapter, adapters: AdapterOptions): MotiaServer => {
+  const printer = new Printer(process.cwd())
   const app = express()
   const server = http.createServer(app)
 
@@ -156,14 +146,14 @@ export const createServer = (
     hidden: true,
     config: {
       name: '__motia.logs',
-      baseConfig: { storageType: 'custom', factory: () => new LogsStream() },
+      baseConfig: { storageType: 'custom', factory: () => new FileStreamAdapter<Log>(process.cwd(), '__motia.logs') },
       schema: null as never,
     },
   })()
 
   const allSteps = [...systemSteps, ...lockedData.activeSteps]
   const loggerAdapter = adapters.observabilityAdapter?.loggerAdapter
-  const loggerFactory = new BaseLoggerFactory(config.isVerbose, logStream, loggerAdapter)
+  const loggerFactory = new BaseLoggerFactory(logStream, loggerAdapter)
   const tracerFactory = createTracerAdapter(lockedData)
   const motia: Motia = {
     loggerFactory,

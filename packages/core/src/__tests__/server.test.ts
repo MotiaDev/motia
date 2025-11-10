@@ -9,8 +9,6 @@ import { createServer, type MotiaServer } from '../server'
 import type { ApiRouteConfig, Step } from '../types'
 import { createApiStep } from './fixtures/step-fixtures'
 
-const config = { isVerbose: true, isDev: true, version: '1.0.0' }
-
 const defaultTestAdapterOptions = {
   eventAdapter: new InMemoryQueueEventAdapter(),
   cronAdapter: new InMemoryCronAdapter(),
@@ -32,7 +30,7 @@ describe('Server', () => {
     beforeEach(async () => {
       const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, state, config, {
+      server = await createServer(lockedData, state, {
         ...defaultTestAdapterOptions,
       })
     })
@@ -53,7 +51,7 @@ describe('Server', () => {
     beforeEach(async () => {
       const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, state, config, {
+      server = await createServer(lockedData, state, {
         ...defaultTestAdapterOptions,
       })
     })
@@ -111,7 +109,7 @@ describe('Server', () => {
 
       lockedData.createStep(mockApiStep, { disableTypeCreation: true })
 
-      const server = await createServer(lockedData, state, config, {
+      const server = await createServer(lockedData, state, {
         ...defaultTestAdapterOptions,
       })
 
