@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react'
+import { memo, useMemo } from 'react'
 import ReactJson from 'react18-json-view'
 import { CopyButton } from '@/components/ui/copy-button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
