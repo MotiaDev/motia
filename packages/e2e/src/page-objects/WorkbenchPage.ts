@@ -66,15 +66,19 @@ export class WorkbenchPage extends MotiaApplicationPage {
 
   async getFlowCount() {
     await this.flowsDropdownTrigger.click()
+    const dropdownContent = this.page.locator('.flows-dropdown')
+    await expect(dropdownContent)
+      .toBeVisible({ timeout: 5000 })
+      .catch(() => {})
     const count = await this.flowsLink.count()
-    await this.page.keyboard.press('Escape') // close the dropdown
-
+    await this.page.keyboard.press('Escape')
     return count
   }
 
   async navigateToFlow(flowName: string) {
     await this.flowsDropdownTrigger.click()
     const flowLink = this.page.getByTestId(`dropdown-${flowName}`)
+    await expect(flowLink).toBeVisible()
     await flowLink.click()
     await this.waitForApplication()
   }
@@ -82,6 +86,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
   async navigateToFlowByIndex(index: number) {
     await this.flowsDropdownTrigger.click()
     const flowLink = this.flowsLink.nth(index)
+    await expect(flowLink).toBeVisible()
     await flowLink.click()
     await this.waitForApplication()
   }
