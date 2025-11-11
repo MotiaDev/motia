@@ -170,8 +170,9 @@ export default function motiaPluginsPlugin(plugins: WorkbenchPlugin[]): Plugin {
       const modulesToUpdate = handlePluginHotUpdate(ctx, plugins, printer)
 
       if (modulesToUpdate && modulesToUpdate.length > 0) {
-        printer.printPluginLog(`HMR: Successfully updated ${modulesToUpdate.length} module(s)`)
-        return modulesToUpdate
+        const merged = Array.from(new Set([...(ctx.modules || []), ...modulesToUpdate]))
+        printer.printPluginLog(`HMR: Successfully updated ${merged.length} module(s)`)
+        return merged
       }
     },
 
