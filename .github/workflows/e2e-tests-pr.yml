@@ -36,7 +36,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.event.inputs.branch || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify checkout branch
+        run: |
+          echo "Current branch: $(git branch --show-current || echo 'detached HEAD')"
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Event name: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
+            echo "PR head ref: ${{ github.event.pull_request.head.ref }}"
+            echo "PR base ref: ${{ github.event.pull_request.base.ref }}"
+            echo "Expected commit SHA: ${{ github.event.pull_request.head.sha }}"
+            echo "Actual commit SHA: $(git rev-parse HEAD)"
+            if [ "$(git rev-parse HEAD)" != "${{ github.event.pull_request.head.sha }}" ]; then
+              echo "⚠️ WARNING: Checkout SHA mismatch!"
+              exit 1
+            fi
+          fi
 
       - uses: pnpm/action-setup@v4
       - name: Setup
