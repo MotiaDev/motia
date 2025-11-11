@@ -5,7 +5,6 @@ import { useShallow } from 'zustand/react/shallow'
 import { EndpointPath } from '../components/endpoint-path'
 import {
   getHeadersSelector,
-  getQueryParamsSelector,
   getResponseSelector,
   type UseEndpointConfiguration,
   useEndpointConfiguration,
@@ -24,7 +23,6 @@ type ActiveTab = 'body' | 'headers' | 'params'
 
 const headersCountSelector = (state: UseEndpointConfiguration) => Object.keys(getHeadersSelector(state)).length
 const hasResponseSelector = (state: UseEndpointConfiguration) => getResponseSelector(state) !== undefined
-const paramsCountSelector = (state: UseEndpointConfiguration) => Object.keys(getQueryParamsSelector(state)).length
 
 export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }) => {
   const isGetOrDelete = endpoint.method === 'GET' || endpoint.method === 'DELETE'
@@ -33,7 +31,13 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
   const [isSpecOpen, setIsSpecOpen] = useState(false)
   const headersCount = useEndpointConfiguration(useShallow(headersCountSelector))
   const hasResponse = useEndpointConfiguration(useShallow(hasResponseSelector))
-  const paramsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
+
+  const getParamsCount = () => {
+    const pathParamsFromPath = endpoint.path.match(/:(\w+)/g)?.length ?? 0
+    const queryString = endpoint.path.split('?')[1] || ''
+    const queryParamsFromPath = queryString ? (queryString.match(/([^&=]+)=/g)?.length ?? 0) : 0
+    return pathParamsFromPath + queryParamsFromPath
+  }
 
   return (
     <div
@@ -71,7 +75,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
               >
                 Params
                 <Badge variant="outline" className="h-4 px-1.5 text-xs">
-                  {paramsCount}
+                  {getParamsCount()}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="body" className="cursor-pointer" data-testid="endpoint-body-tab">
