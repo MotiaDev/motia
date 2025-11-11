@@ -301,10 +301,9 @@ Workbench has a dropdown to filter by flow. Select a flow to see only the Steps 
 
 ![Flow dropdown in Workbench](../img/drop-down-flow.png)
 
-### Visual Connections
+### Virtual Connections
 
-- **Real connections** - When a Step `emits` a topic another Step `subscribes` to
-- **Virtual connections** - Use `virtualEmits` and `virtualSubscribes` for visualization only
+Use `virtualEmits` and `virtualSubscribes` for visualization without actual events:
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
@@ -351,7 +350,67 @@ const config = {
 </Tab>
 </Tabs>
 
-![Virtual connections in Workbench](../img/virtual-emit-subscribe.png)
+Virtual connections show as gray/dashed lines in Workbench. Real connections (from `emits` and `subscribes`) show as dark solid lines.
+
+![Virtual connections with labels in Workbench](../img/virtual-emit-subscribe.png)
+
+### Labels
+
+Add labels to connections in Workbench:
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript
+export const config: ApiRouteConfig = {
+  name: 'SendEmail',
+  type: 'api',
+  path: '/send',
+  method: 'POST',
+  virtualEmits: [
+    { topic: 'email-sent', label: 'Email delivered' },
+    { topic: 'email-failed', label: 'Failed to send', conditional: true },
+  ],
+  flows: ['notifications']
+}
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+config = {
+    "name": "SendEmail",
+    "type": "api",
+    "path": "/send",
+    "method": "POST",
+    "virtualEmits": [
+        {"topic": "email-sent", "label": "Email delivered"},
+        {"topic": "email-failed", "label": "Failed to send", "conditional": True}
+    ],
+    "flows": ["notifications"]
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript
+const config = {
+  name: 'SendEmail',
+  type: 'api',
+  path: '/send',
+  method: 'POST',
+  virtualEmits: [
+    { topic: 'email-sent', label: 'Email delivered' },
+    { topic: 'email-failed', label: 'Failed to send', conditional: true }
+  ],
+  flows: ['notifications']
+}
+```
+
+</Tab>
+</Tabs>
 
 ### NOOP Steps
 
