@@ -558,6 +558,245 @@ await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
 
 ---
 
+## Organizing Steps with Flows
+
+Steps can be grouped together using the `flows` property. This helps you organize related Steps into logical workflows and visualize them better in Workbench.
+
+### Why Use Flows?
+
+Think of flows as tags for your Steps. They help you:
+
+- **Group related Steps** → All Steps working together on the same feature
+- **Visualize workflows** → See connected Steps together in Workbench
+- **Organize your code** → Find Steps that belong to the same business flow
+- **Share context** → Document which Steps are part of which workflow
+
+A Step can belong to multiple flows. Just add more flow names to the array.
+
+### Basic Example
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts title="steps/create-order.step.ts"
+import { ApiRouteConfig, Handlers } from 'motia';
+
+export const config: ApiRouteConfig = {
+  name: 'CreateOrder',
+  type: 'api',
+  path: '/orders',
+  method: 'POST',
+  flows: ['order-management'],
+  emits: ['order.created']
+};
+
+export const handler: Handlers['CreateOrder'] = async (req, { emit }) => {
+  await emit({ topic: 'order.created', data: req.body });
+  return { status: 200, body: { ok: true } };
+};
+```
+
+```ts title="steps/process-order.step.ts"
+import { EventConfig, Handlers } from 'motia';
+
+export const config: EventConfig = {
+  name: 'ProcessOrder',
+  type: 'event',
+  subscribes: ['order.created'],
+  flows: ['order-management'],
+  emits: ['order.processed']
+};
+
+export const handler: Handlers['ProcessOrder'] = async (input, { emit }) => {
+  // Process the order
+  await emit({ topic: 'order.processed', data: input });
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="steps/create_order_step.py"
+config = {
+    "name": "CreateOrder",
+    "type": "api",
+    "path": "/orders",
+    "method": "POST",
+    "flows": ["order-management"],
+    "emits": ["order.created"]
+}
+
+async def handler(req, ctx):
+    await ctx.emit({"topic": "order.created", "data": req.body})
+    return {"status": 200, "body": {"ok": True}}
+```
+
+```python title="steps/process_order_step.py"
+config = {
+    "name": "ProcessOrder",
+    "type": "event",
+    "subscribes": ["order.created"],
+    "flows": ["order-management"],
+    "emits": ["order.processed"]
+}
+
+async def handler(input, ctx):
+    # Process the order
+    await ctx.emit({"topic": "order.processed", "data": input})
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js title="steps/create-order.step.js"
+const config = {
+  name: 'CreateOrder',
+  type: 'api',
+  path: '/orders',
+  method: 'POST',
+  flows: ['order-management'],
+  emits: ['order.created']
+};
+
+const handler = async (req, { emit }) => {
+  await emit({ topic: 'order.created', data: req.body });
+  return { status: 200, body: { ok: true } };
+};
+
+module.exports = { config, handler };
+```
+
+```js title="steps/process-order.step.js"
+const config = {
+  name: 'ProcessOrder',
+  type: 'event',
+  subscribes: ['order.created'],
+  flows: ['order-management'],
+  emits: ['order.processed']
+};
+
+const handler = async (input, { emit }) => {
+  // Process the order
+  await emit({ topic: 'order.processed', data: input });
+};
+
+module.exports = { config, handler };
+```
+
+</Tab>
+</Tabs>
+
+👉 Both Steps are now part of the `order-management` flow. In Workbench, they'll appear grouped together.
+
+### Multiple Flows
+
+A Step can belong to multiple flows at once:
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts
+export const config: EventConfig = {
+  name: 'SendNotification',
+  type: 'event',
+  subscribes: ['order.processed', 'user.created'],
+  flows: ['order-management', 'user-onboarding'],
+  emits: ['notification.sent']
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+config = {
+    "name": "SendNotification",
+    "type": "event",
+    "subscribes": ["order.processed", "user.created"],
+    "flows": ["order-management", "user-onboarding"],
+    "emits": ["notification.sent"]
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+const config = {
+  name: 'SendNotification',
+  type: 'event',
+  subscribes: ['order.processed', 'user.created'],
+  flows: ['order-management', 'user-onboarding'],
+  emits: ['notification.sent']
+};
+```
+
+</Tab>
+</Tabs>
+
+👉 This Step will show up in both the `order-management` and `user-onboarding` flows in Workbench.
+
+### Flows are Optional
+
+You don't have to use flows. They're just for organization and visualization. Steps work the same with or without them:
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts
+// This works fine - no flows needed
+export const config: ApiRouteConfig = {
+  name: 'HealthCheck',
+  type: 'api',
+  path: '/health',
+  method: 'GET'
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+# This works fine - no flows needed
+config = {
+    "name": "HealthCheck",
+    "type": "api",
+    "path": "/health",
+    "method": "GET"
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+// This works fine - no flows needed
+const config = {
+  name: 'HealthCheck',
+  type: 'api',
+  path: '/health',
+  method: 'GET'
+};
+```
+
+</Tab>
+</Tabs>
+
+### When to Use Flows
+
+**Use flows when:**
+- You have multiple Steps working together
+- You want to visualize how Steps connect in Workbench
+- You're building multiple features and want to keep them organized
+- You're sharing your project with others and want clear documentation
+
+**Skip flows when:**
+- You have simple, standalone Steps
+- You're just prototyping
+- Organization isn't important for your use case
+
+---
+
 ## Infrastructure Configuration
 
 For **Event Steps**, you can customize infrastructure settings to control handler resources and queue behavior. This is optional – Motia provides sensible defaults for all settings.
