@@ -556,6 +556,54 @@ await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
 
 👉 [Learn more about Streams →](/docs/development-guide/streams)
 
+### Flows – Visualize in Workbench
+
+Group Steps together for diagram visualization in Workbench.
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```ts
+export const config: ApiRouteConfig = {
+  name: 'CreateOrder',
+  type: 'api',
+  path: '/orders',
+  method: 'POST',
+  flows: ['order-management']
+};
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python
+config = {
+    "name": "CreateOrder",
+    "type": "api",
+    "path": "/orders",
+    "method": "POST",
+    "flows": ["order-management"]
+}
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```js
+const config = {
+  name: 'CreateOrder',
+  type: 'api',
+  path: '/orders',
+  method: 'POST',
+  flows: ['order-management']
+};
+```
+
+</Tab>
+</Tabs>
+
+👉 [Learn more about Flows →](/docs/development-guide/flows)
+
 ---
 
 ## Organizing Steps with Flows
