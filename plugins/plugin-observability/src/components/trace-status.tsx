@@ -1,6 +1,6 @@
 import { Badge, type BadgeProps } from '@motiadev/ui'
 import type React from 'react'
-import { useMemo } from 'react'
+import { memo } from 'react'
 import type { TraceGroup } from '@/types/observability'
 
 type Props = {
@@ -8,19 +8,17 @@ type Props = {
   duration?: string
 }
 
-export const TraceStatusBadge: React.FC<Props> = ({ status, duration }) => {
-  const variant = useMemo(() => {
-    if (status === 'running') {
-      return 'info'
-    }
-    if (status === 'completed') {
-      return 'success'
-    }
-    if (status === 'failed') {
-      return 'error'
-    }
-    return 'default'
-  }, [status]) as BadgeProps['variant']
-
-  return <Badge variant={variant}>{duration && status !== 'failed' ? duration : status}</Badge>
+const variantMap = {
+  running: 'info',
+  completed: 'success',
+  failed: 'error',
+  default: 'default',
 }
+
+export const TraceStatusBadge: React.FC<Props> = memo(({ status, duration }) => (
+  <Badge variant={variantMap[status] as BadgeProps['variant']}>
+    {duration && status !== 'failed' ? duration : status}
+  </Badge>
+))
+
+TraceStatusBadge.displayName = 'TraceStatusBadge'

@@ -3,16 +3,20 @@ import type { TraceGroup } from '../types/observability'
 
 export const useGetEndTime = (group: TraceGroup | undefined | null) => {
   const groupEndTime = group?.endTime
-  const [endTime, setEndTime] = useState(groupEndTime || Date.now())
+  const [endTime, setEndTime] = useState(() => groupEndTime || Date.now())
 
   useEffect(() => {
+    let interval: NodeJS.Timeout
     if (groupEndTime) {
-      setEndTime(groupEndTime)
+      if (groupEndTime !== endTime) {
+        setEndTime(groupEndTime)
+      }
     } else {
-      const interval = setInterval(() => setEndTime(Date.now()), 50)
-      return () => clearInterval(interval)
+      interval = setInterval(() => setEndTime(Date.now()), 100)
     }
-  }, [groupEndTime])
+
+    return () => clearInterval(interval)
+  }, [groupEndTime, endTime])
 
   return endTime
 }

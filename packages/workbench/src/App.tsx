@@ -1,4 +1,4 @@
-import { type FC, useEffect, useMemo } from 'react'
+import { type FC, memo, useEffect, useMemo } from 'react'
 import { FlowPage } from './components/flow/flow-page'
 import { FlowTabMenuItem } from './components/flow/flow-tab-menu-item'
 import { registerPluginTabs } from './lib/plugins'
@@ -20,7 +20,7 @@ const topTabs: AppTab[] = [
   },
 ]
 
-export const App: FC = () => {
+export const App: FC = memo(() => {
   const setTabs = useAppTabsStore((state) => state.setTabs)
   const addTab = useAppTabsStore((state) => state.addTab)
 
@@ -37,4 +37,5 @@ export const App: FC = () => {
   const ViewComponent = viewMode === 'project' ? ProjectViewMode : SystemViewMode
 
   return <ViewComponent />
-}
+})
+App.displayName = 'App'

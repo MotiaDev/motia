@@ -17,3 +17,4 @@ export const TraceEvent: React.FC<{ event: TraceEventType }> = memo(({ event }) 
     return <TraceStreamEvent event={event} />
   }
 })
+TraceEvent.displayName = 'TraceEvent'

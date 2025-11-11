@@ -55,7 +55,10 @@ export const FunctionCall: React.FC<Props> = memo(
               objectName={objectName}
             />
           </PopoverTrigger>
-          <PopoverContent className="grid grid-rows-auto backdrop-blur-md w-auto max-w-2xl">
+          <PopoverContent
+            className="grid grid-rows-auto backdrop-blur-md w-auto max-w-2xl max-h-[50vh] overflow-y-auto"
+            hideWhenDetached
+          >
             <div className="flex items-center justify-between gap-2">
               <FunctionCallContent
                 functionName={functionName}

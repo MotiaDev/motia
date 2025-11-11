@@ -1,5 +1,5 @@
 import type { StreamSubscription } from '@motiadev/stream-client-browser'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useMotiaStream } from './use-motia-stream'
 
 export type StreamItemArgs = {
@@ -28,13 +28,18 @@ export const useStreamItem = <TData>(args?: StreamItemArgs) => {
   const { stream } = useMotiaStream()
   const [data, setData] = useState<TData | null>(null)
   const [event, setEvent] = useState<StreamSubscription | null>(null)
+  const { streamName, groupId, id } = args || {}
+
+  const handleChange = useCallback((data: unknown) => {
+    setData(data as TData)
+  }, [])
 
   useEffect(() => {
-    if (!args?.streamName || !args?.groupId || !args?.id || !stream) return
+    if (!streamName || !groupId || !id || !stream) return
 
-    const subscription = stream.subscribeItem(args.streamName, args.groupId, args.id)
+    const subscription = stream.subscribeItem(streamName, groupId, id)
 
-    subscription.addChangeListener((data) => setData(data as TData))
+    subscription.addChangeListener(handleChange)
     setEvent(subscription)
 
     return () => {
@@ -42,7 +47,7 @@ export const useStreamItem = <TData>(args?: StreamItemArgs) => {
       setEvent(null)
       subscription.close()
     }
-  }, [stream, args?.streamName, args?.groupId, args?.id])
+  }, [stream, streamName, groupId, id, handleChange])
 
   return { data, event }
 }
