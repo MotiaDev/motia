@@ -3,7 +3,7 @@
   "description": "RabbitMQ event adapter for Motia framework, enabling distributed event handling across multiple instances.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "version": "0.9.1-beta.146",
+  "version": "0.9.3-beta.148",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "lint": "biome check .",
