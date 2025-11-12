@@ -164,8 +164,8 @@ export type Event<TData = unknown> = {
   data: TData
   traceId: string
   flows?: string[]
-  logger: Logger
-  tracer: Tracer
+  logger?: Logger
+  tracer?: Tracer
   messageGroupId?: string
 }
 
