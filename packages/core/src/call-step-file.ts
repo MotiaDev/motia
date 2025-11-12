@@ -134,7 +134,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
 
         processManager.handler<StateSetInput, unknown>('state.set', async (input) => {
-          tracer.stateOperation('set', { traceId: input.traceId, key: input.key, value: true })
+          tracer.stateOperation('set', { traceId: input.traceId, key: input.key, value: input.value })
           return motia.state.set(input.traceId, input.key, input.value)
         })
 
@@ -183,7 +183,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           })
 
           processManager.handler<StateStreamMutateInput>(`streams.${name}.set`, async (input) => {
-            tracer.streamOperation(name, 'set', { groupId: input.groupId, id: input.id, data: true })
+            tracer.streamOperation(name, 'set', { groupId: input.groupId, id: input.id, data: input.data })
             return stateStream.set(input.groupId, input.id, input.data)
           })
 

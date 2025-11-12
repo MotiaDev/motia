@@ -1,11 +1,10 @@
 import { Badge, Sidebar } from '@motiadev/ui'
 import { X } from 'lucide-react'
 import type React from 'react'
-import { Fragment, memo } from 'react'
+import { memo, useMemo } from 'react'
 import { formatDuration } from '../../lib/utils'
 import type { Trace } from '../../types/observability'
-import { EventIcon } from '../events/event-icon'
-import { TraceEvent } from '../events/trace-event'
+import { TraceEventItem } from './trace-event-item'
 
 type Props = {
   trace: Trace
@@ -13,13 +12,14 @@ type Props = {
 }
 
 export const TraceItemDetail: React.FC<Props> = memo(({ trace, onClose }) => {
+  const actions = useMemo(() => [{ icon: <X />, onClick: onClose, label: 'Close' }], [onClose])
   return (
     <Sidebar
       onClose={onClose}
       initialWidth={600}
       title="Trace Details"
       subtitle={`Viewing details from step ${trace.name}`}
-      actions={[{ icon: <X />, onClick: onClose, label: 'Close' }]}
+      actions={actions}
     >
       <div className="px-2 overflow-auto">
         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
@@ -31,22 +31,7 @@ export const TraceItemDetail: React.FC<Props> = memo(({ trace, onClose }) => {
         </div>
         <div className="grid grid-cols-[auto_auto_auto_1fr] gap-x-2 gap-y-3 font-mono text-xs border-l-1 border-gray-500/40 pl-6">
           {trace.events.map((event, index) => (
-            <Fragment key={index}>
-              <div className="grid place-items-center">
-                <div className="w-1 h-1 rounded-full bg-emerald-500 outline outline-2 outline-emerald-500/50 -ml-[26px]"></div>
-              </div>
-              <div className="grid place-items-center">
-                <EventIcon event={event} />
-              </div>
-              <div className="grid place-items-center">
-                <span className="text-sm font-mono text-muted-foreground">
-                  +{formatDuration(Math.floor(event.timestamp - trace.startTime))}
-                </span>
-              </div>
-              <div className="grid place-items-start">
-                <TraceEvent event={event} />
-              </div>
-            </Fragment>
+            <TraceEventItem key={index} event={event} traceStartTime={trace.startTime} />
           ))}
         </div>
       </div>
@@ -59,3 +44,4 @@ export const TraceItemDetail: React.FC<Props> = memo(({ trace, onClose }) => {
     </Sidebar>
   )
 })
+TraceItemDetail.displayName = 'TraceItemDetail'

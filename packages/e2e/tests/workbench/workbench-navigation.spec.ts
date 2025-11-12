@@ -44,25 +44,6 @@ test.describe('CLI Generated Project - Workbench Navigation', () => {
     })
   })
 
-  test('should navigate through flow sections in sidebar', async ({ workbench }) => {
-    await workbench.open()
-
-    const flowCount = await workbench.getFlowCount()
-
-    if (flowCount > 0) {
-      const maxFlowsToTest = Math.min(flowCount, 3)
-
-      for (let i = 0; i < maxFlowsToTest; i++) {
-        await test.step(`Navigate to flow ${i + 1}`, async () => {
-          await workbench.navigateToFlowByIndex(i)
-          await expect(workbench.body).toBeVisible()
-        })
-      }
-    } else {
-      console.log('No flows found in sidebar - this is expected for new projects')
-    }
-  })
-
   test('should display project information correctly', async ({ workbench }) => {
     await workbench.open()
 

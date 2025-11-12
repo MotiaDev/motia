@@ -27,11 +27,8 @@ export const FlowTabMenuItem = () => {
       {selectedFlowId ?? 'No flow selected'}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <div
-            data-testid="flows-dropdown-trigger"
-            className="flex flex-row justify-center items-center gap-2 cursor-pointer"
-          >
-            <ChevronsUpDown className="size-4" />
+          <div className="flex flex-row justify-center items-center gap-2 cursor-pointer">
+            <ChevronsUpDown className="size-4" data-testid="flows-dropdown-trigger" />
           </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="bg-background text-foreground flows-dropdown">

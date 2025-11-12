@@ -2,7 +2,7 @@ import { useStreamGroup, useStreamItem } from '@motiadev/stream-client-react'
 import { Button } from '@motiadev/ui'
 import { Minus, Plus } from 'lucide-react'
 import type React from 'react'
-import { memo, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useGetEndTime } from '../hooks/use-get-endtime'
 import { formatDuration } from '../lib/utils'
 import { useObservabilityStore } from '../stores/use-observability-store'
@@ -10,17 +10,26 @@ import type { Trace, TraceGroup } from '../types/observability'
 import { TraceItem } from './trace-item/trace-item'
 import { TraceItemDetail } from './trace-item/trace-item-detail'
 
-type Props = {
+export const TraceTimeline: React.FC = memo(() => {
+  const groupId = useObservabilityStore((state) => state.selectedTraceGroupId)
+  if (!groupId) return null
+  return <TraceTimelineComponent groupId={groupId} />
+})
+TraceTimeline.displayName = 'TraceTimeline'
+
+interface TraceTimelineComponentProps {
   groupId: string
 }
+const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ groupId }) => {
+  const streamItemArgs = useMemo(
+    () => ({ streamName: 'motia-trace-group', groupId: 'default', id: groupId }),
+    [groupId],
+  )
+  const { data: group } = useStreamItem<TraceGroup>(streamItemArgs)
 
-export const TraceTimeline: React.FC<Props> = memo(({ groupId }) => {
-  const { data: group } = useStreamItem<TraceGroup>({
-    streamName: 'motia-trace-group',
-    groupId: 'default',
-    id: groupId,
-  })
-  const { data } = useStreamGroup<Trace>({ streamName: 'motia-trace', groupId })
+  const streamGroupArgs = useMemo(() => ({ streamName: 'motia-trace', groupId }), [groupId])
+  const { data } = useStreamGroup<Trace>(streamGroupArgs)
+
   const endTime = useGetEndTime(group)
   const [zoom, setZoom] = useState(1)
   const selectedTraceId = useObservabilityStore((state) => state.selectedTraceId)
@@ -28,9 +37,13 @@ export const TraceTimeline: React.FC<Props> = memo(({ groupId }) => {
 
   const selectedTrace = useMemo(() => data?.find((trace) => trace.id === selectedTraceId), [data, selectedTraceId])
 
-  const zoomMinus = () => {
-    if (zoom > 0.5) setZoom(zoom - 0.1)
-  }
+  const zoomMinus = useCallback(() => {
+    if (zoom > 0.5) setZoom((prev) => prev - 0.1)
+  }, [])
+
+  const zoomPlus = useCallback(() => {
+    setZoom((prev) => prev + 0.1)
+  }, [])
 
   if (!group) return null
 
@@ -44,7 +57,7 @@ export const TraceTimeline: React.FC<Props> = memo(({ groupId }) => {
                 <Minus className="w-4 h-4 cursor-pointer" />
               </Button>
               <span className="text-sm font-bold text-muted-foreground">{Math.floor(zoom * 100)}%</span>
-              <Button variant="icon" size="sm" className="px-2" onClick={() => setZoom(zoom + 0.1)}>
+              <Button variant="icon" size="sm" className="px-2" onClick={zoomPlus}>
                 <Plus className="w-4 h-4 cursor-pointer" />
               </Button>
             </div>
@@ -66,7 +79,17 @@ export const TraceTimeline: React.FC<Props> = memo(({ groupId }) => {
 
           <div className="flex flex-col w-full h-full">
             {data?.map((trace) => (
-              <TraceItem key={trace.id} trace={trace} group={group} groupEndTime={endTime} onExpand={selectTraceId} />
+              <TraceItem
+                key={trace.id}
+                traceId={trace.id}
+                traceName={trace.name}
+                traceStatus={trace.status}
+                traceStartTime={trace.startTime}
+                traceEndTime={trace.endTime}
+                groupStartTime={group.startTime}
+                groupEndTime={endTime}
+                onExpand={selectTraceId}
+              />
             ))}
           </div>
         </div>
@@ -75,3 +98,4 @@ export const TraceTimeline: React.FC<Props> = memo(({ groupId }) => {
     </>
   )
 })
+TraceTimelineComponent.displayName = 'TraceTimelineComponent'

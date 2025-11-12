@@ -82,6 +82,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
   async navigateToFlowByIndex(index: number) {
     await this.flowsDropdownTrigger.click()
     const flowLink = this.flowsLink.nth(index)
+    await this.flowsDropdownTrigger.click()
     await flowLink.click()
     await this.waitForApplication()
   }

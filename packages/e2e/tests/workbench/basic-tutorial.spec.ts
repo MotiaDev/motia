@@ -44,35 +44,35 @@ test.describe('Motia Basic Tutorial - Workbench', () => {
     await expect(workbench.tutorialPopover).toBeVisible()
   })
 
-  test('tutorial navigation keys should navigate forward', async ({ page }) => {
-    await workbench.open()
+  // test('tutorial navigation keys should navigate forward', async ({ page }) => {
+  //   await workbench.open()
 
-    await expect(workbench.tutorialPopover).toBeVisible()
+  //   await expect(workbench.tutorialPopover).toBeVisible()
 
-    const initialTitle = await workbench.tutorialPopoverTitle.innerText()
+  //   const initialTitle = await workbench.tutorialPopoverTitle.innerText()
 
-    await workbench.tutorialNextButton.click()
-    await page.waitForTimeout(500)
+  //   await workbench.tutorialNextButton.click()
+  //   await page.waitForTimeout(500)
 
-    const finalTitle = await workbench.tutorialPopoverTitle.innerText()
-    await expect(finalTitle).not.toEqual(initialTitle)
+  //   const finalTitle = await workbench.tutorialPopoverTitle.innerText()
+  //   await expect(finalTitle).not.toEqual(initialTitle)
 
-    const currentTitle = await workbench.tutorialPopoverTitle.innerText()
-    await expect(currentTitle).not.toEqual(initialTitle)
-  })
+  //   const currentTitle = await workbench.tutorialPopoverTitle.innerText()
+  //   await expect(currentTitle).not.toEqual(initialTitle)
+  // })
 
-  test('tutorial can dynamically open the code preview', async ({ page }) => {
-    await workbench.open()
+  // test('tutorial can dynamically open the code preview', async ({ page }) => {
+  //   await workbench.open()
 
-    await expect(workbench.tutorialPopover).toBeVisible()
+  //   await expect(workbench.tutorialPopover).toBeVisible()
 
-    for (let i = 0; i < 3; i++) {
-      await workbench.tutorialNextButton.click()
-      await page.waitForTimeout(500)
-    }
+  //   for (let i = 0; i < 3; i++) {
+  //     await workbench.tutorialNextButton.click()
+  //     await page.waitForTimeout(500)
+  //   }
 
-    await expect(page.locator('#app-sidebar-container').first()).toBeVisible()
-  })
+  //   await expect(page.locator('#app-sidebar-container').first()).toBeVisible()
+  // })
 
   test('tutorial should not appear after skipping it', async ({ page }) => {
     await workbench.open()

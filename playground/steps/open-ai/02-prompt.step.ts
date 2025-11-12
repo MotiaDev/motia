@@ -20,7 +20,7 @@ export const handler: Handlers['CallOpenAi'] = async (input, context) => {
   const { logger } = context
   const { message, assistantMessageId, threadId } = input
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_ })
-  const assistantId = 'asst_bYwnoUmhK87FRqhQKDJZSkZQ'
+  const assistantId = 'asst_dyEMCyKeZUnZrBBcnsE6diYf'
 
   logger.info('Starting OpenAI response')
 
