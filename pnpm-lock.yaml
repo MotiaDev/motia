@@ -360,43 +360,6 @@ importers:
         specifier: ^7.0.3
         version: 7.0.3
 
-  packages/motia-e2e-test-project:
-    dependencies:
-      '@motiadev/core':
-        specifier: workspace:*
-        version: link:../core
-      '@motiadev/plugin-endpoint':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-endpoint
-      '@motiadev/plugin-logs':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-logs
-      '@motiadev/plugin-observability':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-observability
-      '@motiadev/plugin-states':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-states
-      '@motiadev/workbench':
-        specifier: workspace:*
-        version: link:../workbench
-      motia:
-        specifier: workspace:*
-        version: link:../snap
-      zod:
-        specifier: ^3.24.4
-        version: 3.24.4
-    devDependencies:
-      '@types/react':
-        specifier: ^19.1.4
-        version: 19.1.4
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.12.5)(@types/node@22.15.18)(typescript@5.8.3)
-      typescript:
-        specifier: ^5.7.3
-        version: 5.8.3
-
   packages/snap:
     dependencies:
       '@amplitude/analytics-node':
