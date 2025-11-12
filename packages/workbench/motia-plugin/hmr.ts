@@ -71,11 +71,6 @@ export function handlePluginHotUpdate(
 
   printer.printPluginLog(`HMR: File changed: ${normalizePath(file)}`)
 
-  // Check if this change affects plugins
-  if (!shouldInvalidatePlugins(file, plugins)) {
-    return // Let Vite handle it normally
-  }
-
   if (isConfigFile(file)) {
     printer.printPluginLog('HMR: Config file changed, triggering full page reload')
     printer.printPluginWarn(
@@ -88,13 +83,17 @@ export function handlePluginHotUpdate(
     return
   }
 
+  if (!shouldInvalidatePlugins(file, plugins)) {
+    printer.printPluginLog('HMR: Change outside plugin scope, delegating to Vite default handling')
+    return
+  }
+
   printer.printPluginLog('HMR: Plugin change detected, invalidating virtual module')
 
-  // Find the virtual module
   const virtualModule = server.moduleGraph.getModuleById(CONSTANTS.RESOLVED_VIRTUAL_MODULE_ID)
 
   if (!virtualModule) {
-    printer.printPluginWarn('HMR: Virtual module not found, triggering full reload')
+    printer.printPluginWarn('HMR: Virtual module not found, triggering full reload as fallback')
     server.ws.send({
       type: 'full-reload',
       path: '*',
@@ -105,34 +104,18 @@ export function handlePluginHotUpdate(
   server.moduleGraph.invalidateModule(virtualModule, new Set(), timestamp)
   printer.printPluginLog('HMR: Virtual module invalidated')
 
-  const modulesToUpdate: ModuleNode[] = [virtualModule]
+  const modulesToUpdateSet = new Set<ModuleNode>([virtualModule])
   const processedModules = new Set<ModuleNode>([virtualModule])
 
-  // Recursively add all importers
-  const addImporters = (module: ModuleNode) => {
-    for (const importer of module.importers) {
-      if (!processedModules.has(importer)) {
-        processedModules.add(importer)
-        modulesToUpdate.push(importer)
-        server.moduleGraph.invalidateModule(importer, new Set(), timestamp)
-        addImporters(importer)
-      }
+  for (const importer of virtualModule.importers) {
+    if (!processedModules.has(importer)) {
+      processedModules.add(importer)
+      modulesToUpdateSet.add(importer)
+      server.moduleGraph.invalidateModule(importer, new Set(), timestamp)
     }
   }
 
-  addImporters(virtualModule)
-
-  server.ws.send({
-    type: 'update',
-    updates: modulesToUpdate
-      .filter((m) => m.url)
-      .map((m) => ({
-        type: m.type === 'css' ? ('css-update' as const) : ('js-update' as const),
-        path: m.url,
-        acceptedPath: m.url,
-        timestamp,
-      })),
-  })
+  const modulesToUpdate = Array.from(modulesToUpdateSet)
 
   printer.printPluginLog(`HMR: Updated ${modulesToUpdate.length} module(s)`)
 
