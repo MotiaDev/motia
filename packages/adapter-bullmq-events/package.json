@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@motiadev/core": "workspace:*",
-    "bullmq": "^5.28.0",
-    "ioredis": "^5.4.1",
+    "bullmq": "^5.63.0",
+    "ioredis": "^5.8.2",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
