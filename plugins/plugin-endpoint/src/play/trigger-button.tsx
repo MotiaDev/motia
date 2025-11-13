@@ -1,5 +1,6 @@
 import { Button } from '@motiadev/ui'
-import { Loader2, Play } from 'lucide-react'
+import Loader2 from 'lucide-react/icons/loader-2'
+import Play from 'lucide-react/icons/play'
 import { memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { getBodySelector, getHeadersSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'

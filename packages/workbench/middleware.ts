@@ -81,6 +81,8 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
       alias: {
         '@': path.resolve(__dirname, './src'),
         '@/assets': path.resolve(__dirname, './src/assets'),
+        'lucide-react/dynamic': 'lucide-react/dynamic.mjs',
+        'lucide-react': 'lucide-react/dist/cjs/lucide-react.js',
       },
     },
     plugins: [

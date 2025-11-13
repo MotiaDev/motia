@@ -1,5 +1,6 @@
 import { BackgroundEffect, Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import { Book, X } from 'lucide-react'
+import Book from 'lucide-react/icons/book'
+import X from 'lucide-react/icons/x'
 import { type FC, memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { usePathParams } from '@/hooks/use-path-params'

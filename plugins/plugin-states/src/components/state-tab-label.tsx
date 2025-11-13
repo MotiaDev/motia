@@ -1,4 +1,4 @@
-import { File } from 'lucide-react'
+import File from 'lucide-react/icons/file'
 import { memo } from 'react'
 
 export const StatesTabLabel = memo(() => (

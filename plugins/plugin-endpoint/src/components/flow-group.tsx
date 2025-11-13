@@ -1,5 +1,5 @@
 import { cn } from '@motiadev/ui'
-import { ChevronDown } from 'lucide-react'
+import ChevronDown from 'lucide-react/icons/chevron-down'
 import type { FC } from 'react'
 import type { ApiEndpoint } from '../types/endpoint'
 import { EndpointItem } from './endpoint-item'

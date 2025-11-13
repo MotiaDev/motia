@@ -1,5 +1,5 @@
 import { Badge, Sidebar } from '@motiadev/ui'
-import { X } from 'lucide-react'
+import X from 'lucide-react/icons/x'
 import type React from 'react'
 import { memo, useMemo } from 'react'
 import { formatDuration } from '../../lib/utils'

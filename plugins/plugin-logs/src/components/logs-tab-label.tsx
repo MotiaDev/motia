@@ -1,4 +1,4 @@
-import { LogsIcon } from 'lucide-react'
+import LogsIcon from 'lucide-react/icons/logs-icon'
 import { memo } from 'react'
 
 export const LogsTabLabel = memo(() => (
