@@ -1,0 +1,51 @@
+[
+  {
+    "id": "greet-flow",
+    "config": {
+      "steps/api.step.js": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  },
+  {
+    "id": "default",
+    "config": {
+      "steps/03-check-state-change.step.ts": {
+        "x": 20,
+        "y": 636
+      },
+      "steps/02-test-state.step.ts": {
+        "x": 0,
+        "y": 426
+      },
+      "steps/01-api.step.ts": {
+        "x": 17,
+        "y": 188
+      },
+      "steps/00-noop.step.ts": {
+        "x": 57,
+        "y": 0
+      }
+    }
+  },
+  {
+    "id": "content-pipeline",
+    "config": {
+      "steps/retrieve-tweets-api.step.js": {
+        "x": 336,
+        "y": 145
+      },
+      "steps/event.step.js": {
+        "x": 20,
+        "y": 303,
+        "targetHandlePosition": "top"
+      },
+      "steps/api.step.js": {
+        "x": -423,
+        "y": 45,
+        "sourceHandlePosition": "bottom"
+      }
+    }
+  }
+]

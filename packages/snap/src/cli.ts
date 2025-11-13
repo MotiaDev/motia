@@ -2,6 +2,11 @@
 
 import { program } from 'commander'
 import './cloud'
+import { execSync } from 'child_process'
+import fs from 'fs'
+import inquirer from 'inquirer'
+import os from 'os'
+import path from 'path'
 import { handler } from './cloud/config-utils'
 import { wrapAction } from './utils/analytics'
 import { version } from './version'
@@ -14,6 +19,78 @@ require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
 })
+
+// 🔹 Remote templates index
+const TEMPLATE_INDEX = 'https://raw.githubusercontent.com/MotiaDev/motia-examples/main/examples/templates.json'
+
+interface Template {
+  name: string
+  description: string
+  repo: string
+  tags?: string[]
+}
+
+async function fetchTemplates(): Promise<Template[]> {
+  try {
+    const res = await fetch(TEMPLATE_INDEX)
+    if (!res.ok) throw new Error(`Failed to fetch templates: ${res.status}`)
+    return (await res.json()) as Template[]
+  } catch (err: any) {
+    console.error('❌ Unable to fetch templates:', err.message)
+    return []
+  }
+}
+
+async function cloneProject(templateRepo: string, projectName?: string) {
+  try {
+    const cwd = process.cwd()
+    const targetDir = projectName ? path.join(cwd, projectName) : cwd
+
+    const match = templateRepo.match(/(https:\/\/github\.com\/[^/]+\/[^/]+)\/tree\/([^/]+)\/(.+)/)
+    if (match) {
+      const [_, repoBase, branch, folderPath] = match
+      console.log(`\n📦 Cloning subdirectory ${folderPath} from ${repoBase} (${branch})...`)
+
+      const tempDir = path.join(cwd, `.motia-temp-${Date.now()}`)
+      fs.mkdirSync(tempDir, { recursive: true })
+
+      // ✅ Detect shell
+      const isWindows = os.platform() === 'win32'
+      const shell = isWindows ? undefined : '/bin/bash'
+
+      // ✅ Sparse checkout for only that folder
+      const commands = [
+        `git clone --no-checkout --depth 1 --branch ${branch} ${repoBase}.git ${tempDir}`,
+        `cd ${tempDir}`,
+        `git sparse-checkout init --cone`,
+        `git sparse-checkout set ${folderPath}`,
+        `git checkout`,
+      ]
+
+      execSync(commands.join(isWindows ? ' & ' : ' && '), {
+        stdio: 'inherit',
+        shell,
+      })
+
+      const sourceDir = path.join(tempDir, folderPath)
+      fs.cpSync(sourceDir, targetDir, { recursive: true })
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    } else {
+      console.log(`\n🚀 Cloning ${templateRepo}...`)
+      execSync(`git clone ${templateRepo} ${projectName || '.'}`, { stdio: 'inherit' })
+    }
+
+    const gitDir = path.join(targetDir, '.git')
+    if (fs.existsSync(gitDir)) fs.rmSync(gitDir, { recursive: true, force: true })
+
+    console.log(`\n✅ Project ready at: ${targetDir}`)
+  } catch (err: any) {
+    console.error('❌ Failed to clone repository:', err.message)
+    process.exit(1)
+  }
+}
+
+/* ------------------ COMMANDS ------------------- */
 
 program
   .command('version')
@@ -34,6 +111,7 @@ program
     const mergedArgs = { ...options, name: projectName }
     return handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive')
+      console.log('arg:', arg)
       await createInteractive(
         {
           name: arg.name,
@@ -44,6 +122,73 @@ program
         context,
       )
     })(mergedArgs)
+  })
+
+program
+  .command('search [query]')
+  .description('Search and optionally clone templates')
+  .action(async (query) => {
+    const templates = await fetchTemplates()
+
+    if (!templates.length) {
+      console.log('⚠️ No templates found.')
+      process.exit(1)
+    }
+
+    const filtered = query
+      ? templates.filter((t) => {
+          const text = [t.name, t.description].join(' ').toLowerCase()
+          const tags = (t.tags || []).map((tag) => tag.toLowerCase())
+          return text.includes(query.toLowerCase()) || tags.includes(query.toLowerCase())
+        })
+      : templates
+
+    if (!filtered.length) {
+      console.log(`❌ No templates found for "${query}"`)
+      process.exit(0)
+    }
+
+    console.log('\nAvailable Templates:\n')
+    filtered.forEach((t, idx) => {
+      console.log(`${idx + 1}. 📦 ${t.name}`)
+      console.log(`   ${t.description}`)
+      console.log(`   🔗 ${t.repo}\n`)
+    })
+
+    // ✅ Always ask if they want to clone one
+    const { selected } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selected',
+        message: 'Pick a template to clone or Cancel:',
+        loop: false,
+        choices: [
+          ...filtered.map((t) => ({
+            name: `${t.name} - ${t.description}`,
+            value: t.repo,
+          })),
+          new inquirer.Separator(),
+          { name: '🚫 Cancel', value: null },
+        ],
+      },
+    ])
+
+    if (!selected) {
+      console.log('👍 Cancelled. No project created.')
+      return
+    }
+
+    const { projectName } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'projectName',
+        message: 'Project name (leave blank for current folder):',
+      },
+    ])
+
+    const finalName = projectName && projectName.trim().length > 0 ? projectName.trim() : path.basename(process.cwd())
+
+    await cloneProject(selected, finalName)
   })
 
 program

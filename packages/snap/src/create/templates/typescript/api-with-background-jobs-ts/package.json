@@ -1,0 +1,27 @@
+{
+  "name": "react-for-backend",
+  "description": "",
+  "scripts": {
+    "postinstall": "motia install",
+    "dev": "motia dev",
+    "dev:debug": "motia dev --verbose",
+    "generate-types": "motia generate-types",
+    "build": "motia build",
+    "clean": "rm -rf dist node_modules python_modules .motia .mermaid"
+  },
+  "keywords": [
+    "motia"
+  ],
+  "dependencies": {
+    "axios": "^1.10.0",
+    "dotenv": "^16.5.0",
+    "motia": "^0.5.5-beta.113",
+    "openai": "^5.7.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.23",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
