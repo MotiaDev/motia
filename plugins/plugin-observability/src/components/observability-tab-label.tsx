@@ -1,4 +1,4 @@
-import { GanttChart } from 'lucide-react'
+import GanttChart from 'lucide-react/icons/gantt-chart'
 import { memo } from 'react'
 
 export const ObservabilityTabLabel = memo(() => (

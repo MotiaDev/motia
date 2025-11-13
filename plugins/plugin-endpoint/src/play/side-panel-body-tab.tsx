@@ -1,4 +1,4 @@
-import { CircleX } from 'lucide-react'
+import CircleX from 'lucide-react/icons/circle-x'
 import { type FC, memo, useCallback, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { JsonEditor } from '../components/json-editor'

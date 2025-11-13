@@ -1,5 +1,5 @@
 import { Badge, Button } from '@motiadev/ui'
-import { Sparkles } from 'lucide-react'
+import Sparkles from 'lucide-react/icons/sparkles'
 import type React from 'react'
 
 export const ExamplePage: React.FC = () => {

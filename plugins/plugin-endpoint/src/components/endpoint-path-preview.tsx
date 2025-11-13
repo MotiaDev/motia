@@ -1,5 +1,6 @@
 import { Button, cn } from '@motiadev/ui'
-import { Check, Copy } from 'lucide-react'
+import Check from 'lucide-react/icons/check'
+import Copy from 'lucide-react/icons/copy'
 import { type FC, useState } from 'react'
 import { usePathUrl } from '../hooks/use-path-url'
 

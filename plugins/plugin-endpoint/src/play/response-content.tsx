@@ -1,5 +1,5 @@
 import { Button, useThemeStore } from '@motiadev/ui'
-import { Download } from 'lucide-react'
+import Download from 'lucide-react/icons/download'
 import type React from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { atomDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'

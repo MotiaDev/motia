@@ -1,5 +1,6 @@
 import { cn, Input } from '@motiadev/ui'
-import { Search, X } from 'lucide-react'
+import Search from 'lucide-react/icons/search'
+import X from 'lucide-react/icons/x'
 
 type EndpointsSearchProps = {
   value: string

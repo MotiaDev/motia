@@ -1,5 +1,7 @@
 import { Button, cn, Input } from '@motiadev/ui'
-import { Search, Trash, X } from 'lucide-react'
+import Search from 'lucide-react/icons/search'
+import Trash from 'lucide-react/icons/trash'
+import X from 'lucide-react/icons/x'
 import { memo } from 'react'
 import { useObservabilityStore } from '../stores/use-observability-store'
 

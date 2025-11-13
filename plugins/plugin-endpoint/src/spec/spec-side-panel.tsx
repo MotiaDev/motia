@@ -1,5 +1,5 @@
 import { Sidebar } from '@motiadev/ui'
-import { X } from 'lucide-react'
+import X from 'lucide-react/icons/x'
 import type { FC } from 'react'
 import { EndpointPath } from '../components/endpoint-path'
 import { useJsonSchemaToJson } from '../hooks/use-json-schema-to-json'

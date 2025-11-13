@@ -10,7 +10,10 @@ import {
   TableHeader,
   TableRow,
 } from '@motiadev/ui'
-import { RefreshCw, Search, Trash, X } from 'lucide-react'
+import RefreshCw from 'lucide-react/icons/refresh-cw'
+import Search from 'lucide-react/icons/search'
+import Trash from 'lucide-react/icons/trash'
+import X from 'lucide-react/icons/x'
 import { useMemo, useState } from 'react'
 import { useGetStateItems } from '../hooks/states-hooks'
 import { useStatesStore } from '../stores/use-states-store'
