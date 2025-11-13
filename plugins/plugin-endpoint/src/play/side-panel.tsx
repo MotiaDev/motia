@@ -1,7 +1,7 @@
 import { BackgroundEffect, Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
 import Book from 'lucide-react/icons/book'
 import X from 'lucide-react/icons/x'
-import { type FC, memo, useState } from 'react'
+import { type FC, memo, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { usePathParams } from '@/hooks/use-path-params'
 import { EndpointPath } from '../components/endpoint-path'
@@ -37,6 +37,21 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
   const pathParamsCount = usePathParams(endpoint.path).length
   const queryParamsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
   const paramsCount = queryParamsCount + pathParamsCount
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerHeight, setContainerHeight] = useState(0)
+
+  useEffect(() => {
+    const container = containerRef.current
+
+    const updateHeight = () => {
+      if (container) setContainerHeight(container.offsetHeight)
+    }
+
+    const observer = new ResizeObserver(updateHeight)
+    if (container) observer.observe(container)
+
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div
@@ -63,7 +78,10 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           <X />
         </Button>
       </div>
-      <div className={cn('grid grid-cols-[minmax(350px,1fr)_minmax(auto,1fr)]', !hasResponse && 'grid-cols-1')}>
+      <div
+        ref={containerRef}
+        className={cn('grid grid-cols-[minmax(350px,1fr)_minmax(auto,1fr)]', !hasResponse && 'grid-cols-1')}
+      >
         <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as ActiveTab)}>
           <div className="grid grid-cols-[1fr_auto] items-center h-10 border-b px-5 bg-card">
             <TabsList>
@@ -102,7 +120,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           </TabsContent>
 
           <TabsContent value="headers">
-            <SidePanelHeadersTab />
+            <SidePanelHeadersTab containerHeight={containerHeight} />
           </TabsContent>
         </Tabs>
         <SidePanelResponse />

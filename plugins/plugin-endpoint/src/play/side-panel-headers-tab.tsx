@@ -5,7 +5,11 @@ import { useShallow } from 'zustand/react/shallow'
 import { ConfigurationListItem } from '../components/configuration-list-item'
 import { getHeadersSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
 
-export const SidePanelHeadersTab = () => {
+type Props = {
+  containerHeight: number
+}
+
+export const SidePanelHeadersTab = ({ containerHeight }: Props) => {
   const { setHeaders, removeHeaders } = useEndpointConfiguration()
   const headers = useEndpointConfiguration(useShallow(getHeadersSelector))
 
@@ -27,7 +31,7 @@ export const SidePanelHeadersTab = () => {
   )
 
   return (
-    <div className="h-full max-h-full grid grid-rows-[auto_1fr]">
+    <div className="grid grid-rows-[auto_1fr]">
       <div className="grid px-4 border-b h-10 items-center grid-cols-[auto_1fr]">
         <Button size="sm" onClick={addHeader}>
           <Plus className="h-3 w-3" />
@@ -35,7 +39,7 @@ export const SidePanelHeadersTab = () => {
         </Button>
       </div>
 
-      <div className="p-2">
+      <div className="p-2 overflow-y-auto" style={{ maxHeight: `${containerHeight - 80}px` }}>
         {Object.entries(headers).map(([key, header]) => (
           <ConfigurationListItem key={key} value={header} id={key} onUpdate={updateHeader} onRemove={removeHeaders} />
         ))}
