@@ -1,7 +1,7 @@
 {
   "name": "@motiadev/stream-client-react",
   "description": "Motia Stream Client React Package – Responsible for managing streams of data.",
-  "version": "0.9.3-beta.148",
+  "version": "0.9.4-beta.150",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

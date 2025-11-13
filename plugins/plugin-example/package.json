@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-example",
-  "version": "0.9.3-beta.148",
+  "version": "0.9.4-beta.150",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
