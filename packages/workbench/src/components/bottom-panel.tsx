@@ -1,17 +1,16 @@
 import { CollapsiblePanel, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import { memo, useId } from 'react'
+import { memo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { type AppTabsState, TabLocation, useAppTabsStore } from '../stores/use-app-tabs-store'
 import { useTabsStore } from '../stores/use-tabs-store'
 
 const bottomTabsSelector = (state: AppTabsState) => state.tabs[TabLocation.BOTTOM]
+const bottomPanelId = 'bottom-panel'
 
 export const BottomPanel = memo(() => {
   const defaultTab = useTabsStore((state) => state.tab.bottom)
   const setBottomTab = useTabsStore((state) => state.setBottomTab)
   const tabs = useAppTabsStore(useShallow(bottomTabsSelector))
-
-  const bottomPanelId = useId()
 
   return (
     <CollapsiblePanel

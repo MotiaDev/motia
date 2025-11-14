@@ -26,7 +26,7 @@ export const workbenchXPath = {
   },
 
   tracing: {
-    trace: (index: number) => `(//div[contains(@class, 'motia-trace-group')])[${index}]`,
+    trace: (index: number) => `(//button[contains(@class, 'motia-trace-group')])[${index}]`,
     details: '//div[@data-testid="trace-details"]',
     timeline: (index: number) => `(//div[@data-testid="trace-timeline-item"])[${index}]`,
   },
@@ -46,7 +46,7 @@ export const workbenchXPath = {
   links: {
     flows: '//div[@data-testid="flows-dropdown-trigger"]',
     endpoints: '//button[@data-testid="endpoints-link"]',
-    tracing: '//button[@data-testid="traces-link"]',
+    tracing: '//button[@data-testid="tracing-link"]',
     logs: '//button[@data-testid="logs-link"]',
     states: '//button[@data-testid="states-link"]',
   },
