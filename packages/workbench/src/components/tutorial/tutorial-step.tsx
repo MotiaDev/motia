@@ -18,18 +18,13 @@ export const TutorialStep = forwardRef<HTMLDivElement, TutorialStepProps>(
   ({ step, totalSteps, title, description, link, image, onNext, onClose }, ref) => {
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
+        if (step > 0 && e.key === 'Escape') {
           onClose()
-        } else if (e.key === 'ArrowRight') {
+        } else if (step > 0 && e.key === 'ArrowRight') {
           onNext()
         }
       }
-
-      if (step > 0) {
-        window.addEventListener('keydown', handleKeyDown)
-      } else {
-        window.removeEventListener('keydown', handleKeyDown)
-      }
+      window.addEventListener('keydown', handleKeyDown)
 
       return () => window.removeEventListener('keydown', handleKeyDown)
     }, [onClose, onNext, step])
