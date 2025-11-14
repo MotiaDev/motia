@@ -6,7 +6,6 @@ import { create } from './index'
 interface InteractiveAnswers {
   template: string
   projectName: string
-  proceed: boolean
 }
 
 const choices: Record<string, string> = {
@@ -21,7 +20,6 @@ interface CreateInteractiveArgs {
   name?: string
   template?: string
   plugin?: boolean
-  confirm?: boolean
 }
 
 export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
@@ -81,23 +79,8 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
     })
   }
 
-  if (!args.confirm) {
-    questions.push({
-      type: 'confirm',
-      name: 'proceed',
-      message: 'Proceed? [Y/n]:',
-      default: true,
-    })
-  }
-
   if (questions.length > 0) {
     const answers: InteractiveAnswers = await inquirer.prompt(questions)
-
-    if (!args.confirm && !answers.proceed) {
-      context.log('cancelled', (message) => message.tag('info').append('\n❌ Project creation cancelled.'))
-      return
-    }
-
     name = args.name || answers.projectName
     template = args.template || answers.template
   }

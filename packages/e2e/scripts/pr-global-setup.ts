@@ -24,7 +24,7 @@ async function globalSetup() {
 
     console.log(`📦 Creating test project with built CLI and template ${template}...`)
 
-    const createCommand = `node ${cliPath} create  ${TEST_PROJECT_NAME} -t ${template} --confirm`
+    const createCommand = `node ${cliPath} create  ${TEST_PROJECT_NAME} -t ${template}`
 
     execSync(createCommand, {
       stdio: 'pipe',

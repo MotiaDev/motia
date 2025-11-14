@@ -63,7 +63,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           <X />
         </Button>
       </div>
-      <div className={cn('grid grid-cols-[minmax(350px,1fr)_minmax(auto,1fr)]', !hasResponse && 'grid-cols-1')}>
+      <div className={cn('grid grid-cols-[minmax(380px,1fr)_minmax(auto,1fr)]', !hasResponse && 'grid-cols-1')}>
         <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as ActiveTab)}>
           <div className="grid grid-cols-[1fr_auto] items-center h-10 border-b px-5 bg-card">
             <TabsList>
