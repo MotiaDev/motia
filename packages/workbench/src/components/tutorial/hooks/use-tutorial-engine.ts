@@ -150,7 +150,6 @@ export const useTutorialEngine = () => {
       setTimeout(() => {
         if (ref.current?.parentElement) {
           ref.current.parentElement.style.display = 'none'
-          setCurrentStep(0)
         }
       }, 300)
     }
