@@ -1,7 +1,7 @@
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv'
-import { zodToJsonSchema } from 'zod-to-json-schema'
 import { globalLogger } from './logger'
 import { Printer } from './printer'
+import { schemaToJsonSchema } from './schema-utils'
 import type { Event, EventConfig, Step } from './types'
 
 const ajv = new Ajv({ allErrors: true, strict: false })
@@ -22,9 +22,8 @@ export const validateEventInput = (step: Step<EventConfig>, event: Event, motia:
     const inputSchema = step.config.input
 
     try {
-      if (inputSchema && typeof inputSchema === 'object' && 'safeParse' in inputSchema) {
-        compiledSchema = zodToJsonSchema(inputSchema, { target: 'jsonSchema7' })
-      } else {
+      compiledSchema = schemaToJsonSchema(inputSchema)
+      if (!compiledSchema) {
         compiledSchema = inputSchema
       }
     } catch (err) {

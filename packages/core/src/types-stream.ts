@@ -1,9 +1,9 @@
-import type { ZodObject } from 'zod'
 import type { StreamFactory } from './streams/stream-factory'
+import type { StepSchemaInput } from './types'
 
 export interface StreamConfig {
   name: string
-  schema: ZodObject<any>
+  schema: StepSchemaInput
   baseConfig: { storageType: 'default' } | { storageType: 'custom'; factory: () => MotiaStream<any> }
 }
 
