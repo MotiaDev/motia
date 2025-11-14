@@ -25,7 +25,7 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     pnpm: 'pnpm add',
   }[packageManager]
 
-  const dependencies = [`motia@${version}`, 'zod@3.24.4', ...pluginDependencies.map((dep) => `${dep}@${version}`)].join(
+  const dependencies = [`motia@${version}`, 'zod@4.1.12', ...pluginDependencies.map((dep) => `${dep}@${version}`)].join(
     ' ',
   )
 
