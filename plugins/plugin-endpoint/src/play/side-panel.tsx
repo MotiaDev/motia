@@ -38,13 +38,13 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
   const queryParamsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
   const paramsCount = queryParamsCount + pathParamsCount
   const containerRef = useRef<HTMLDivElement>(null)
-  const [containerHeight, setContainerHeight] = useState(0)
+  const [tabsContainerHeight, setTabsContainerHeight] = useState(0)
 
   useEffect(() => {
     const container = containerRef.current
 
     const updateHeight = () => {
-      if (container) setContainerHeight(container.offsetHeight)
+      if (container) setTabsContainerHeight(container.offsetHeight)
     }
 
     const observer = new ResizeObserver(updateHeight)
@@ -55,7 +55,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
 
   return (
     <div
-      className="isolate grid grid-cols-1 overflow-y-auto min-w-0 grid-rows-[auto_1fr] border-l border-border"
+      className="isolate grid grid-cols-1 overflow-y-hidden min-w-0 grid-rows-[auto_1fr] border-l border-border"
       data-testid="endpoint-details-panel"
     >
       <BackgroundEffect />
@@ -80,7 +80,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
       </div>
       <div
         ref={containerRef}
-        className={cn('grid grid-cols-[minmax(350px,1fr)_minmax(auto,1fr)]', !hasResponse && 'grid-cols-1')}
+        className={cn('grid min-h-[128px]', hasResponse && 'grid-cols-[minmax(350px,1fr)_minmax(auto,1fr)]')}
       >
         <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as ActiveTab)}>
           <div className="grid grid-cols-[1fr_auto] items-center h-10 border-b px-5 bg-card">
@@ -120,7 +120,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           </TabsContent>
 
           <TabsContent value="headers">
-            <SidePanelHeadersTab containerHeight={containerHeight} />
+            <SidePanelHeadersTab tabsContainerHeight={tabsContainerHeight} />
           </TabsContent>
         </Tabs>
         <SidePanelResponse />

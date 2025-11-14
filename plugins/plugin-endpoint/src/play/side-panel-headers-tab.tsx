@@ -6,12 +6,15 @@ import { ConfigurationListItem } from '../components/configuration-list-item'
 import { getHeadersSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
 
 type Props = {
-  containerHeight: number
+  tabsContainerHeight: number
 }
 
-export const SidePanelHeadersTab = ({ containerHeight }: Props) => {
+export const SidePanelHeadersTab = ({ tabsContainerHeight = 0 }: Props) => {
   const { setHeaders, removeHeaders } = useEndpointConfiguration()
   const headers = useEndpointConfiguration(useShallow(getHeadersSelector))
+  const headersContainerHeight = tabsContainerHeight - 80
+  const headerItemHeight = 48
+  const maxHeight = headersContainerHeight < headerItemHeight ? headerItemHeight : headersContainerHeight
 
   const addHeader = useCallback(() => {
     const newHeader = {
@@ -31,7 +34,7 @@ export const SidePanelHeadersTab = ({ containerHeight }: Props) => {
   )
 
   return (
-    <div className="grid grid-rows-[auto_1fr]">
+    <div className="grid grid-rows-[auto_1fr] min-h-[88px]">
       <div className="grid px-4 border-b h-10 items-center grid-cols-[auto_1fr]">
         <Button size="sm" onClick={addHeader}>
           <Plus className="h-3 w-3" />
@@ -39,7 +42,7 @@ export const SidePanelHeadersTab = ({ containerHeight }: Props) => {
         </Button>
       </div>
 
-      <div className="p-2 overflow-y-auto" style={{ maxHeight: `${containerHeight - 80}px` }}>
+      <div className="p-2 overflow-y-auto min-h-12" style={{ maxHeight }}>
         {Object.entries(headers).map(([key, header]) => (
           <ConfigurationListItem key={key} value={header} id={key} onUpdate={updateHeader} onRemove={removeHeaders} />
         ))}

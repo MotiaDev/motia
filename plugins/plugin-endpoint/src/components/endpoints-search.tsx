@@ -10,7 +10,7 @@ type EndpointsSearchProps = {
 
 export const EndpointsSearch = ({ value, onChange, onClear }: EndpointsSearchProps) => {
   return (
-    <div className="p-2 border-b gap-4" data-testid="endpoints-search-container">
+    <div className="p-2 border-b gap-4 overflow-hidden" data-testid="endpoints-search-container">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
         <Input
