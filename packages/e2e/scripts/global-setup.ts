@@ -18,7 +18,7 @@ async function globalSetup() {
     const template = process.env.TEST_TEMPLATE || 'nodejs'
 
     console.log(`📦 Creating test project with Motia CLI ${motiaVersion} and template ${template}...`)
-    const createCommand = `npx motia@${motiaVersion} create  ${TEST_PROJECT_NAME} -t ${template} --confirm`
+    const createCommand = `npx motia@${motiaVersion} create  ${TEST_PROJECT_NAME} -t ${template}`
 
     execSync(createCommand, {
       stdio: 'pipe',

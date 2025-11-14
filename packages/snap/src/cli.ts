@@ -29,7 +29,6 @@ program
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-p, --plugin', 'Create a plugin project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
-  .option('-c, --confirm', 'Confirm the project creation', false)
   .action((projectName, options) => {
     const mergedArgs = { ...options, name: projectName }
     return handler(async (arg, context) => {
@@ -39,7 +38,6 @@ program
           name: arg.name,
           template: arg.template,
           plugin: !!arg.plugin,
-          confirm: !!arg.confirm,
         },
         context,
       )
