@@ -11,7 +11,7 @@ export const config: ApiRouteConfig = {
   flows: ['_system'],
   bodySchema: z.object({
     topic: z.string(),
-    data: z.record(z.unknown()),
+    data: z.record(z.string(), z.any()),
   }),
 }
 

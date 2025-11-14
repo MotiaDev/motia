@@ -1,5 +1,4 @@
-import { z } from 'zod'
-import zodToJsonSchema from 'zod-to-json-schema'
+import * as z from 'zod'
 import { MemoryStreamAdapterManager } from '../adapters/defaults'
 import { generateFlow } from '../helper/flows-helper'
 import { LockedData } from '../locked-data'
@@ -20,14 +19,14 @@ const mockFlowSteps: Step[] = [
     name: 'Processor',
     subscribes: ['ws-server-example.start'],
     emits: ['ws-server-example.processed'],
-    input: zodToJsonSchema(z.object({})) as never,
+    input: z.toJSONSchema(z.object({})) as never,
     flows: ['motia-server'],
   }),
   createEventStep({
     name: 'Finalizer',
     subscribes: ['ws-server-example.processed'],
     emits: [],
-    input: zodToJsonSchema(z.object({})) as never,
+    input: z.toJSONSchema(z.object({})) as never,
     flows: ['motia-server'],
   }),
 ]

@@ -31,7 +31,7 @@ const WorkbenchPluginSchema = z.object({
 
   cssImports: z.array(z.string()).optional(),
 
-  props: z.record(z.any()).optional(),
+  props: z.record(z.any(), z.any()).optional(),
 })
 
 /**
@@ -57,7 +57,7 @@ export function validatePluginConfig(plugin: any, index: number): ValidationResu
     const result = WorkbenchPluginSchema.safeParse(plugin)
 
     if (!result.success) {
-      result.error.errors.forEach((err) => {
+      result.error.issues.forEach((err: z.core.$ZodIssue) => {
         const path = err.path.join('.')
         errors.push(`Plugin at index ${index}, field "${path}": ${err.message}`)
       })
