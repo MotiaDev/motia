@@ -19,6 +19,7 @@ export const TopPanel = memo(() => {
       variant={'tabs'}
       defaultTab={defaultTab}
       onTabChange={setTopTab}
+      withResizeHandle
       header={
         <TabsList>
           {tabs.map(({ id, tabLabel: Label }) => (
