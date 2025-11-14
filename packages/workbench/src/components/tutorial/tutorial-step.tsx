@@ -24,9 +24,15 @@ export const TutorialStep = forwardRef<HTMLDivElement, TutorialStepProps>(
           onNext()
         }
       }
-      window.addEventListener('keydown', handleKeyDown)
+
+      if (step > 0) {
+        window.addEventListener('keydown', handleKeyDown)
+      } else {
+        window.removeEventListener('keydown', handleKeyDown)
+      }
+
       return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [onClose, onNext])
+    }, [onClose, onNext, step])
 
     return (
       <div ref={ref} className="driver-popover ">
