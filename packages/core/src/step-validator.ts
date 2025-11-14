@@ -4,7 +4,7 @@ import type { Step } from './types'
 
 const objectSchema = z.object({
   type: z.literal('object'),
-  properties: z.record(z.any()),
+  properties: z.record(z.string(), z.any()),
   required: z.array(z.string()).optional(),
   additionalProperties: z.boolean().optional(),
   description: z.string().optional(),
@@ -137,8 +137,8 @@ export const validateStep = (step: Step): ValidationResult => {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: error.errors.map((err) => err.message).join(', '),
-        errors: error.errors.map((err) => ({ path: err.path.join('.'), message: err.message })),
+        error: error.issues.map((err) => err.message).join(', '),
+        errors: error.issues.map((err) => ({ path: err.path.join('.'), message: err.message })),
       }
     }
 

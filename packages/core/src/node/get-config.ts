@@ -1,42 +1,46 @@
 import path from 'node:path'
-import type { z } from 'zod'
-import zodToJsonSchema from 'zod-to-json-schema'
-
-// Add ts-node registration before dynamic imports
+import { type SchemaInput, schemaToJsonSchema } from '../schema-utils'
 
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
 })
 
-function isZodSchema(value: unknown): value is z.ZodType {
-  return Boolean(value && typeof (value as z.ZodType).safeParse === 'function' && (value as z.ZodType)._def)
-}
-
 async function getConfig(filePath: string) {
   try {
     const module = require(path.resolve(filePath))
-    // Check if the specified function exists in the module
     if (!module.config) {
       throw new Error(`Config not found in module ${filePath}`)
     }
 
-    if (isZodSchema(module.config.input)) {
-      module.config.input = zodToJsonSchema(module.config.input, { $refStrategy: 'none' })
-    } else if (isZodSchema(module.config.bodySchema)) {
-      module.config.bodySchema = zodToJsonSchema(module.config.bodySchema, { $refStrategy: 'none' })
+    if (module.config.input) {
+      const converted = schemaToJsonSchema(module.config.input)
+      if (converted) {
+        module.config.input = converted
+      }
+    }
+
+    if (module.config.bodySchema) {
+      const converted = schemaToJsonSchema(module.config.bodySchema)
+      if (converted) {
+        module.config.bodySchema = converted
+      }
     }
 
     if (module.config.responseSchema) {
       for (const [status, schema] of Object.entries(module.config.responseSchema)) {
-        if (isZodSchema(schema)) {
-          module.config.responseSchema[status] = zodToJsonSchema(schema, { $refStrategy: 'none' })
+        const converted = schemaToJsonSchema(schema as SchemaInput)
+        if (converted) {
+          module.config.responseSchema[status] = converted
         }
       }
     }
 
-    if (isZodSchema(module.config.schema)) {
-      module.config.schema = zodToJsonSchema(module.config.schema, { $refStrategy: 'none' })
+    if (module.config.schema) {
+      const converted = schemaToJsonSchema(module.config.schema)
+      if (converted) {
+        module.config.schema = converted
+      }
     }
 
     process.send?.(module.config)

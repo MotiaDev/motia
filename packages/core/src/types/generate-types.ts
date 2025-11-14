@@ -1,5 +1,6 @@
 import { isApiStep, isCronStep, isEventStep } from '../guards'
 import type { Printer } from '../printer'
+import { schemaToJsonSchema } from '../schema-utils'
 import type { Emit, Step } from '../types'
 import type { Stream } from '../types-stream'
 import { generateTypeFromSchema } from './generate-type-from-schema'
@@ -66,8 +67,10 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
         }
 
         try {
-          const input = step.config.input as never as JsonSchema
-          const schema = existingSchema ? mergeSchemas(existingSchema, input) : input
+          const input = step.config.input
+          const schema = existingSchema
+            ? mergeSchemas(existingSchema, input)
+            : (schemaToJsonSchema(input) ?? (input as JsonSchema))
           topics[topic] = generateTypeFromSchema(schema)
           topicsSchemas[topic] = schema
         } catch (error) {
