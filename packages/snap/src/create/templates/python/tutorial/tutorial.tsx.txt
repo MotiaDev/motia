@@ -432,15 +432,19 @@ export const steps: TutorialStep[] = [
     elementXpath: workbenchXPath.endpoints.callPanel,
     title: 'API Endpoint Test',
     description: () => (
-      <p>
-        This form will allow you to validate your API Step by executing an HTTP request against your API endpoint.
+      <>
+        <p>
+          This form will allow you to validate your API Step by executing an HTTP request against your API endpoint.
+        </p>
         <br />
         <br />
-        You can also test your API endpoints using your terminal through the curl command.
+        <p>You can also test your API endpoints using your terminal through the curl command.</p>
         <br />
         <br />
-        💡 Thanks to the <b>bodySchema</b> attribute from the API Step config, you are automatically provided with a
-        sample request payload.
+        <p>
+          💡 Thanks to the <b>bodySchema</b> attribute from the API Step config, you are automatically provided with a
+          sample request payload.
+        </p>
         <br />
         <br />
         <pre className="code-preview">
@@ -455,7 +459,7 @@ export const steps: TutorialStep[] = [
             '
           </code>
         </pre>
-      </p>
+      </>
     ),
     before: [
       { type: 'click', selector: workbenchXPath.closePanelButton },
