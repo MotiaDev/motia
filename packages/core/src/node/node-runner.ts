@@ -1,3 +1,4 @@
+import fs from 'fs'
 import path from 'path'
 import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { Logger } from './logger'
@@ -14,11 +15,54 @@ require('ts-node').register({
   compilerOptions: { module: 'commonjs' },
 })
 
-function parseArgs(arg: string) {
+function parseArgs(arg?: string) {
+  const descriptorForLog = arg && arg.length > 0 ? arg : '<inline JSON>'
+
+  if (!arg) return { data: null }
+
+  const { O_RDONLY, O_NOFOLLOW } = fs.constants
+  let fd: number | undefined
+
   try {
-    return JSON.parse(arg)
-  } catch {
-    return arg
+    // Open atomically; O_NOFOLLOW (if available) defends against symlink tricks
+    const flags = (O_NOFOLLOW ?? 0) | O_RDONLY
+    fd = fs.openSync(arg, flags)
+
+    const st = fs.fstatSync(fd)
+    if (!st.isFile()) throw new Error('Not a regular file')
+
+    const text = fs.readFileSync(fd, 'utf8')
+    try {
+      return JSON.parse(text)
+    } catch {
+      // Keep legacy fallback (treat file contents as raw data)
+      return { data: text }
+    }
+  } catch (e: any) {
+    // If open failed because it's not a file path, try inline JSON
+    if (
+      e?.code === 'ENOENT' ||
+      e?.code === 'ENOTDIR' ||
+      e?.code === 'EISDIR' ||
+      e?.code === 'ENAMETOOLONG' ||
+      e?.message === 'Not a regular file'
+    ) {
+      try {
+        return JSON.parse(arg)
+      } catch {
+        return { data: arg }
+      }
+    }
+    // Unexpected I/O error: surface it (better diagnostics than silent fallback)
+    throw e
+  } finally {
+    if (fd !== undefined) {
+      try {
+        fs.closeSync(fd)
+      } catch (closeError) {
+        console.warn(`parseArgs: failed to close file descriptor for ${descriptorForLog}`, closeError)
+      }
+    }
   }
 }
 
@@ -60,7 +104,7 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
 
     sender.init()
 
-    const middlewares = Array.isArray(module.config.middleware) ? module.config.middleware : []
+    const middlewares = Array.isArray(module.config?.middleware) ? module.config.middleware : []
 
     const composedMiddleware = composeMiddleware(...middlewares)
     const handlerFn = () => {
