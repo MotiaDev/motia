@@ -3,7 +3,7 @@
   "description": "Redis cron adapter for Motia framework, enabling distributed cron job coordination to prevent duplicate executions across multiple instances.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "version": "0.9.4-beta.150",
+  "version": "0.9.5-beta.151",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "lint": "biome check .",

@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/e2e",
-  "version": "0.9.4-beta.150",
+  "version": "0.9.5-beta.151",
   "private": true,
   "description": "End-to-end tests for Motia using Playwright",
   "type": "module",
