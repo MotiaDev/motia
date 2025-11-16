@@ -193,6 +193,8 @@ module.exports = { config, handler };
 
 Get Motia project up and running in **under 60 seconds**:
 
+> 🪟 **Windows Users**: Check out our detailed [Windows Setup Guide](WINDOWS_SETUP.md) with PowerShell instructions and automated setup script!
+
 ### 1. Bootstrap a New Motia Project
 
 ```bash
@@ -296,6 +298,8 @@ A complete chess platform benchmarking LLM performance with real-time evaluation
 ## 📚 Resources
 
 - **[📖 Documentation](https://motia.dev/docs)** - Complete guides and API reference
+- **[🪟 Windows Setup Guide](WINDOWS_SETUP.md)** - Detailed Windows installation and configuration
+- **[🔗 Integration Examples](INTEGRATION_EXAMPLE.md)** - How to integrate Motia into existing projects
 - **[💬 Discord](https://discord.gg/motia)** - Community support and discussions
 - **[🐛 GitHub Issues](https://github.com/MotiaDev/motia/issues)** - Bug reports and feature requests
 - **[🗺️ Roadmap](https://github.com/orgs/MotiaDev/projects/2)** - Upcoming features and progress
