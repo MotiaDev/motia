@@ -5,7 +5,7 @@
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt && python_modules/bin/pip install -r ../packages/core/requirements.txt",
     "dev": "motia dev",
     "dev:workbench": "__MOTIA_DEV_MODE__=1 motia dev",
-    "clean": "rm -rf .mermaid node_modules python_modules",
+    "clean": "rimraf .mermaid node_modules python_modules",
     "get-config": "motia get-config --output ./",
     "test:tsc-check": "tsc -p ./tests/tsconfig.test.json --noEmit",
     "test": "PATH=python_modules/bin:$PATH jest",

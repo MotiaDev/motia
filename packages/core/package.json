@@ -5,14 +5,14 @@
   "version": "0.9.5-beta.151",
   "scripts": {
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
-    "move:python": "mkdir -p dist/src/python && cp src/python/*.py dist/src/python",
-    "move:rb": "mkdir -p dist/src/ruby && cp src/ruby/*.rb dist/src/ruby",
-    "move:steps": "cp src/steps/*.ts dist/src/steps",
-    "build": "rm -rf dist && tsc && npm run move:python && npm run move:rb && npm run move:steps",
+    "move:python": "mkdirp dist/src/python && cpy 'src/python/*.py' dist/src/python",
+    "move:rb": "mkdirp dist/src/ruby && cpy 'src/ruby/*.rb' dist/src/ruby",
+    "move:steps": "cpy 'src/steps/*.ts' dist/src/steps",
+    "build": "rimraf dist && tsc && npm run move:python && npm run move:rb && npm run move:steps",
     "lint": "biome check .",
     "watch": "tsc --watch",
     "test": "jest",
-    "clean": "rm -rf python_modules dist"
+    "clean": "rimraf python_modules dist"
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.3.8",

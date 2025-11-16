@@ -18,7 +18,7 @@
     "test:e2e:ui": "pnpm --filter=@motiadev/e2e test:ui",
     "test:e2e:headed": "pnpm --filter=@motiadev/e2e test:headed",
     "e2e:install": "pnpm --filter=@motiadev/e2e install && pnpm --filter=@motiadev/e2e install:deps",
-    "clean": "rm -rf node_modules pnpm-lock.yaml dist .turbo .next"
+    "clean": "rimraf node_modules pnpm-lock.yaml dist .turbo .next"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.6",
@@ -28,6 +28,7 @@
     "@types/node": "^22.18.10",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
+    "cpy-cli": "^5.0.0",
     "eslint": "^9.26.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-jest": "^28.11.0",
@@ -37,7 +38,9 @@
     "globals": "^16.1.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.2.0",
-    "prettier": "^3.5.3"
+    "mkdirp": "^3.0.1",
+    "prettier": "^3.5.3",
+    "rimraf": "^6.0.1"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,jsonc}": [

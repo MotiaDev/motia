@@ -8,7 +8,7 @@
     "lint:plugins": "pnpm run lint:plugins:ts && pnpm run lint:plugins:tsx",
     "lint:plugins:ts": "eslint",
     "lint:plugins:tsx": "eslint --config ../../eslint.config.tsx.js",
-    "build": "rm -rf dist && tsc --build && sh post-build.sh",
+    "build": "rimraf dist && tsc --build && node post-build.js",
     "test": "jest",
     "test:watch": "jest --watch"
   },
