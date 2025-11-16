@@ -297,12 +297,18 @@ A complete chess platform benchmarking LLM performance with real-time evaluation
 
 ## 📚 Resources
 
+### Official Documentation
 - **[📖 Documentation](https://motia.dev/docs)** - Complete guides and API reference
-- **[🪟 Windows Setup Guide](WINDOWS_SETUP.md)** - Detailed Windows installation and configuration
-- **[🔗 Integration Examples](INTEGRATION_EXAMPLE.md)** - How to integrate Motia into existing projects
 - **[💬 Discord](https://discord.gg/motia)** - Community support and discussions
 - **[🐛 GitHub Issues](https://github.com/MotiaDev/motia/issues)** - Bug reports and feature requests
 - **[🗺️ Roadmap](https://github.com/orgs/MotiaDev/projects/2)** - Upcoming features and progress
+
+### Integration Guides
+- **[🚀 Getting Started Guide](GETTING_STARTED_GUIDE.md)** - Start here! Complete walkthrough from evaluation to integration
+- **[🪟 Windows Setup Guide](WINDOWS_SETUP.md)** - Detailed Windows installation and configuration with PowerShell
+- **[🔗 Integration Examples](INTEGRATION_EXAMPLE.md)** - Practical examples for Express, Next.js, React, and microservices
+- **[📊 Integration Analysis](INTEGRATION_ANALYSIS.md)** - In-depth analysis, compatibility checklist, and ROI evaluation
+- **[📋 Project Evaluation Template](PROJECT_EVALUATION_TEMPLATE.md)** - Comprehensive template to evaluate Motia for your specific project
 
 ## 🚧 Roadmap
 
