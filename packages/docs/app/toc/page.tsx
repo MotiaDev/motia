@@ -37,9 +37,9 @@ export default function TermsPage() {
           <section className={normalText}>
             <h2 className={headingText}>Description of Service</h2>
             <p>
-              Motia is a <span className={gradientText}>software development framework</span> that unifies API
-              endpoints, automations, workflows, background tasks, queues, and AI agents into a single, coherent system.
-              The service includes developer tools, cloud infrastructure, and related documentation.
+              Motia is a <span className={gradientText}>production-grade backend runtime</span> that unifies APIs, 
+              background jobs, queues, durable workflows, and AI agents into a single system with built-in state 
+              management and observability. The service includes developer tools, cloud infrastructure, and related documentation.
             </p>
           </section>
 
