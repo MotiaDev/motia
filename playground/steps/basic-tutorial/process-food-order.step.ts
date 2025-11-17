@@ -13,12 +13,12 @@ export const config: EventConfig = {
     id: z.string(),
     email: z.string(),
     quantity: z.number(),
-    petId: z.number(),
+    petId: z.string(),
   }),
 }
 
 export const handler: Handlers['ProcessFoodOrder'] = async (input, { traceId, logger, state, emit }) => {
-  logger.info('Step 02 – Process food order', { input, traceId })
+  logger.info('Step 02 - Process food order', { input, traceId })
 
   const order = await petStoreService.createOrder({
     ...input,
@@ -26,7 +26,7 @@ export const handler: Handlers['ProcessFoodOrder'] = async (input, { traceId, lo
     status: 'placed',
   })
 
-  await state.set('orders', order.id, order)
+  await state.set('orders', input.id, order)
 
   await emit({
     topic: 'notification',

@@ -2,7 +2,7 @@ import type { Order, Pet } from './types'
 
 export const petStoreService = {
   createPet: async (pet: Omit<Pet, 'id'>): Promise<Pet> => {
-    const response = await fetch('https://petstore.swagger.io/v2/pet', {
+    const response = await fetch('http://localhost:3000/pet', {
       method: 'POST',
       body: JSON.stringify({
         name: pet?.name ?? '',
@@ -14,11 +14,11 @@ export const petStoreService = {
     return response.json()
   },
   createOrder: async (order: Omit<Order, 'id'>): Promise<Order> => {
-    const response = await fetch('https://petstore.swagger.io/v2/store/order', {
+    const response = await fetch('http://localhost:3000/store/order', {
       method: 'POST',
       body: JSON.stringify({
         quantity: order?.quantity ?? 1,
-        petId: order?.petId ?? 1,
+        petId: order?.petId ?? '1',
         shipDate: order?.shipDate ?? new Date().toISOString(),
         status: order?.status ?? 'placed',
       }),

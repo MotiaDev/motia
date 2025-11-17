@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const petSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
   photoUrl: z.string(),
 })
@@ -11,7 +11,7 @@ export const orderStatusSchema = z.enum(['placed', 'approved', 'delivered'])
 export const orderSchema = z.object({
   id: z.string(),
   quantity: z.number(),
-  petId: z.number(),
+  petId: z.string(),
   shipDate: z.string(),
   status: orderStatusSchema,
 })
