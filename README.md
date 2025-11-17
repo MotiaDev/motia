@@ -182,7 +182,7 @@ module.exports = { config, handler };
 
 👉 With just two files, you've built an **API endpoint**, a **queue**, and a **worker**. No extra frameworks required.
 
-**[Learn more about Steps →](https://motia.dev/docs/concepts/steps/steps)**
+**[Learn more about Steps →](https://motia.dev/docs/concepts/steps)**
 
 [![Motia combines APIs, background queues, and AI agents into one system](assets/github-readme-banner.gif)](https://motia.dev)
 
