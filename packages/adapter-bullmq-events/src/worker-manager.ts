@@ -1,11 +1,9 @@
 import type { Event, QueueConfig, SubscriptionHandle } from '@motiadev/core'
-import { type Job, Worker } from 'bullmq'
+import { type Job, type Queue, Worker } from 'bullmq'
 import type { Redis } from 'ioredis'
-import { FIFO_CONCURRENCY, MILLISECONDS_PER_SECOND } from './constants'
+import type { MergedConfig } from './config-builder'
+import { FIFO_CONCURRENCY, LOG_PREFIX, MILLISECONDS_PER_SECOND } from './constants'
 import { WorkerCreationError } from './errors'
-import type { BullMQEventAdapterConfig } from './types'
-
-type MergedConfig = Required<Pick<BullMQEventAdapterConfig, 'defaultJobOptions' | 'prefix' | 'concurrency'>>
 
 type WorkerInfo = {
   worker: Worker
@@ -28,11 +26,18 @@ export class WorkerManager {
   private readonly connection: Redis
   private readonly config: MergedConfig
   private readonly getQueueName: (topic: string, stepName: string) => string
+  private readonly getDLQueue: (queueName: string) => Queue | undefined
 
-  constructor(connection: Redis, config: MergedConfig, getQueueName: (topic: string, stepName: string) => string) {
+  constructor(
+    connection: Redis,
+    config: MergedConfig,
+    getQueueName: (topic: string, stepName: string) => string,
+    getDLQueue: (queueName: string) => Queue | undefined,
+  ) {
     this.connection = connection
     this.config = config
     this.getQueueName = getQueueName
+    this.getDLQueue = getDLQueue
   }
 
   createWorker<TData>(
@@ -73,7 +78,7 @@ export class WorkerManager {
       },
     )
 
-    this.setupWorkerHandlers(worker, topic, stepName, attempts ?? 1)
+    this.setupWorkerHandlers(worker, topic, stepName, queueName, attempts ?? 1)
 
     const handle: SubscriptionHandle = {
       topic,
@@ -161,20 +166,59 @@ export class WorkerManager {
     }
   }
 
-  private setupWorkerHandlers(worker: Worker, topic: string, stepName: string, attempts: number): void {
+  private setupWorkerHandlers(
+    worker: Worker,
+    topic: string,
+    stepName: string,
+    queueName: string,
+    attempts: number,
+  ): void {
     worker.on('error', (err: Error) => {
       const error = new WorkerCreationError(topic, stepName, err)
-      console.error(`[BullMQ] Worker error for topic ${topic}, step ${stepName}:`, error)
+      console.error(`${LOG_PREFIX} Worker error for topic ${topic}, step ${stepName}:`, error)
     })
 
-    worker.on('failed', (job: Job | undefined, err: Error) => {
+    worker.on('failed', async (job: Job | undefined, err: Error) => {
       if (job) {
         const attemptsMade = job.attemptsMade || 0
         if (attemptsMade >= attempts) {
           const error = new WorkerCreationError(topic, stepName, err)
-          console.error(`[BullMQ] Job ${job.id} failed after ${attemptsMade} attempts:`, error)
+          console.error(`${LOG_PREFIX} Job ${job.id} failed after ${attemptsMade} attempts:`, error)
+
+          if (this.config.deadLetterQueue.enabled) {
+            await this.moveToDLQ(job, queueName, err, attemptsMade)
+          }
         }
       }
     })
+  }
+
+  private async moveToDLQ(job: Job, queueName: string, error: Error, attemptsMade: number): Promise<void> {
+    const dlq = this.getDLQueue(queueName)
+    if (!dlq) {
+      console.warn(`${LOG_PREFIX} DLQ not available for queue ${queueName}, skipping DLQ move`)
+      return
+    }
+
+    try {
+      const dlqJobData = {
+        originalJobId: job.id,
+        originalJobName: job.name,
+        originalData: job.data,
+        failureReason: error.message,
+        failureStack: error.stack,
+        attemptsMade,
+        failedAt: new Date().toISOString(),
+        queueName,
+      }
+
+      await dlq.add(`dlq:${job.name}`, dlqJobData, {
+        jobId: `dlq:${job.id}`,
+      })
+
+      console.log(`${LOG_PREFIX} Moved job ${job.id} to DLQ after ${attemptsMade} attempts`)
+    } catch (dlqError) {
+      console.error(`${LOG_PREFIX} Failed to move job ${job.id} to DLQ:`, dlqError)
+    }
   }
 }

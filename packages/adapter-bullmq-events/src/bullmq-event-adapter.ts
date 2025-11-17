@@ -14,8 +14,11 @@ export class BullMQEventAdapter implements EventAdapter {
     const mergedConfig = buildConfig(config)
     this.connectionManager = new ConnectionManager(config.connection)
     this.queueManager = new QueueManager(this.connectionManager.connection, mergedConfig)
-    this.workerManager = new WorkerManager(this.connectionManager.connection, mergedConfig, (topic, stepName) =>
-      this.queueManager.getQueueName(topic, stepName),
+    this.workerManager = new WorkerManager(
+      this.connectionManager.connection,
+      mergedConfig,
+      (topic, stepName) => this.queueManager.getQueueName(topic, stepName),
+      (queueName) => this.queueManager.getDLQueue(queueName),
     )
   }
 

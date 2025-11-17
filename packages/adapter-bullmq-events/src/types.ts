@@ -16,4 +16,9 @@ export interface BullMQEventAdapterConfig {
     removeOnFail?: KeepJobs
   }
   prefix?: string
+  deadLetterQueue?: {
+    enabled?: boolean
+    suffix?: string
+    maxJobAge?: number
+  }
 }

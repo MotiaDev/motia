@@ -56,6 +56,7 @@ const adapter = new BullMQEventAdapter({
 | `connection` | `IORedis.Redis \| IORedis.RedisOptions` | Required | Redis connection instance or configuration |
 | `prefix` | `string` | `'motia'` | Prefix for BullMQ queue keys |
 | `defaultJobOptions` | `object` | See below | Default options for all jobs |
+| `deadLetterQueue` | `object` | See below | Dead Letter Queue configuration |
 
 ### Default Job Options
 
@@ -66,6 +67,14 @@ const adapter = new BullMQEventAdapter({
 | `removeOnComplete` | `boolean \| number \| object` | `{ count: 1000 }` | Remove completed jobs after N jobs or age |
 | `removeOnFail` | `boolean \| number \| object` | `{ count: 5000 }` | Remove failed jobs after N jobs or age |
 
+### Dead Letter Queue Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Enable Dead Letter Queue for failed jobs |
+| `suffix` | `string` | `'.dlq'` | Suffix appended to queue names for DLQ queues |
+| `maxJobAge` | `number` | `undefined` | Maximum age in seconds for DLQ jobs (optional cleanup) |
+
 ### Backoff Types
 
 - `fixed`: Wait a fixed delay between retries
@@ -75,6 +84,7 @@ const adapter = new BullMQEventAdapter({
 
 - **Queue/Worker Pattern**: Uses BullMQ's robust job queue system
 - **Automatic Retries**: Configurable retry attempts with backoff strategies
+- **Dead Letter Queue**: Failed jobs after max retries are automatically moved to DLQ
 - **FIFO Queues**: Support for FIFO processing via `concurrency: 1`
 - **Priority Support**: Jobs can have priorities (configured via defaultJobOptions)
 - **Delayed Jobs**: Support for delayed job execution
@@ -109,6 +119,36 @@ const adapter = new BullMQEventAdapter({
   },
 })
 ```
+
+### Dead Letter Queue Configuration
+
+Dead Letter Queue (DLQ) is enabled by default. Failed jobs that exceed the maximum retry attempts are automatically moved to a dedicated DLQ queue for later analysis or reprocessing.
+
+```typescript
+const adapter = new BullMQEventAdapter({
+  connection: {
+    host: 'localhost',
+    port: 6379,
+  },
+  deadLetterQueue: {
+    enabled: true,
+    suffix: '.dlq',
+    maxJobAge: 86400,
+  },
+})
+```
+
+DLQ queues are created with the naming convention: `{originalQueueName}.dlq`. For example, a queue named `user.created.sendEmail` will have a corresponding DLQ queue named `user.created.sendEmail.dlq`.
+
+Jobs moved to DLQ include the following metadata:
+- `originalJobId`: The original job ID
+- `originalJobName`: The original job name
+- `originalData`: The original job data
+- `failureReason`: The error message
+- `failureStack`: The error stack trace
+- `attemptsMade`: Number of attempts before failure
+- `failedAt`: ISO timestamp of when the job failed
+- `queueName`: The original queue name
 
 ### FIFO Queue Support
 
@@ -212,6 +252,16 @@ If Redis memory usage is high:
 1. Configure `removeOnComplete` and `removeOnFail` appropriately
 2. Use job age limits instead of count limits for long-running queues
 3. Monitor Redis memory usage and set up eviction policies
+4. Configure `maxJobAge` for DLQ to automatically clean up old failed jobs
+
+### Dead Letter Queue
+
+If jobs are accumulating in DLQ:
+1. Review DLQ queues using BullMQ dashboard or Redis commands
+2. Analyze failure reasons in DLQ job data
+3. Fix underlying issues and reprocess DLQ jobs if needed
+4. Configure `maxJobAge` to automatically remove old DLQ jobs
+5. Monitor DLQ queue sizes and set up alerts
 
 ## License
 
