@@ -19,7 +19,7 @@ config = {
 }
 
 async def handler(input_data, context):
-    context.logger.info("Step 02 – Process food order", {"input": input_data})
+    context.logger.info("Step 02 - Process food order", {"input": input_data})
 
     order = await pet_store_service.create_order({
         "id": input_data.get("id"),

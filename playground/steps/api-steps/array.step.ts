@@ -32,7 +32,7 @@ export const config: ApiRouteConfig = {
 }
 
 export const handler: Handlers['ArrayStep'] = async (req, { logger, emit }) => {
-  logger.info('Step 01 – Processing API Step', { body: req.body })
+  logger.info('Step 01 - Processing API Step', { body: req.body })
 
   const [{ pet, foodOrder }] = req.body
   const newPetRecord = await petStoreService.createPet(pet)
