@@ -29,7 +29,7 @@ declare module 'motia' {
     'ProcessFoodOrder': EventHandler<{ id: string; email: string; quantity: number; petId: string }, { topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'Notification': EventHandler<{ templateId: string; email: string; templateData: Record<string, unknown> }, never>
     'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }, ApiResponse<200, { id: string; name: string; photoUrl: string }>, { topic: 'process-food-order'; data: { id: string; email: string; quantity: number; petId: string } }>
-    'ArrayStep': ApiRouteHandler<Array<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }>, ApiResponse<200, Array<{ id: number; name: string; photoUrl: string }>>, { topic: 'process-food-order'; data: { id: string; email: string; quantity: number; petId: string } }>
+    'ArrayStep': ApiRouteHandler<Array<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }>, ApiResponse<200, Array<{ id: string; name: string; photoUrl: string }>>, { topic: 'process-food-order'; data: { id: string; email: string; quantity: number; petId: string } }>
     'RubyApiStep': ApiRouteHandler<{ rbMessage: string }, ApiResponse<200, { rbResponse: string }>, never>
     'Test State With Python': EventHandler<unknown, { topic: 'test-state-check'; data: { key: string; expected?: unknown } }>
     'Tested Event': EventHandler<never, never>
@@ -42,7 +42,6 @@ declare module 'motia' {
     'PythonStateAuditJob': CronHandler<{ topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
     'PythonProcessFoodOrder': EventHandler<{ id: string; email: string; quantity: unknown; pet_id: unknown }, { topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
     'PythonNotification': EventHandler<{ template_id: string; email: string; template_data: Record<string, unknown> }, never>
-    'ApiExampleApiTrigger': ApiRouteHandler<{}, unknown, never>
     'PythonApiTrigger': ApiRouteHandler<{ pet: unknown; food_order?: unknown | unknown }, ApiResponse<200, { id: unknown; name: string; photoUrl: string }>, { topic: 'python-process-food-order'; data: { id: string; email: string; quantity: unknown; pet_id: unknown } }>
   }
 }

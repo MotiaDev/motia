@@ -2,7 +2,7 @@ import type { Order, Pet } from './types'
 
 export const petStoreService = {
   createPet: async (pet: Omit<Pet, 'id'>): Promise<Pet> => {
-    const response = await fetch('http://localhost:3000/pet', {
+    const response = await fetch('https://xnigaj-xtnawg.motiahub.com/pet', {
       method: 'POST',
       body: JSON.stringify({
         name: pet?.name ?? '',
@@ -14,7 +14,7 @@ export const petStoreService = {
     return response.json()
   },
   createOrder: async (order: Omit<Order, 'id'>): Promise<Order> => {
-    const response = await fetch('http://localhost:3000/store/order', {
+    const response = await fetch('https://xnigaj-xtnawg.motiahub.com/store/order', {
       method: 'POST',
       body: JSON.stringify({
         quantity: order?.quantity ?? 1,

@@ -12,7 +12,7 @@ class PetStoreService:
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                'https://petstore.swagger.io/v2/pet',
+                'https://xnigaj-xtnawg.motiahub.com/pet',
                 json=pet_data,
                 headers={'Content-Type': 'application/json'}
             )
@@ -28,7 +28,7 @@ class PetStoreService:
             }
             
             response = await client.post(
-                'https://petstore.swagger.io/v2/store/order',
+                'https://xnigaj-xtnawg.motiahub.com/store/order',
                 json=order_data,
                 headers={'Content-Type': 'application/json'}
             )
