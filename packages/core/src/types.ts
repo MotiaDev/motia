@@ -3,7 +3,6 @@ import type { Logger } from './logger'
 import type { Tracer } from './observability'
 import type { JsonSchema } from './types/schema.types'
 
-export { registerSchemaConverter, type SchemaConverter } from './schema-converters'
 export * from './types/app-config-types'
 
 export type ZodInput = ZodObject<any> | ZodArray<any>
