@@ -1,12 +1,12 @@
 # Motia Monorepo
 
-This repository hosts the development of **Motia**, a production-grade backend runtime that unifies APIs, background jobs, queues, workflows, and AI agents with built-in state management, streaming, and observability. The repository is structured to facilitate the iterative development and testing of the core framework and includes a playground environment for real-world use cases.
+This repository hosts the development of **Motia**, a unified backend framework that combines APIs, background jobs, queues, workflows, and AI agents with built-in state management, streaming, and observability. The repository is structured to facilitate the iterative development and testing of the core framework and includes a playground environment for real-world use cases.
 
 ## Overview
 
 **Build production-grade backends with a single primitive.**
 
-Modern backends shouldn't require juggling frameworks, queues, and services. Motia unifies everything into one runtime with a single core primitive: **the Step**.
+Modern backends shouldn't require juggling frameworks, queues, and services. Motia is a unified framework with a single core primitive: **the Step**.
 
 Motia provides:
 

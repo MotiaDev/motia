@@ -14,7 +14,7 @@ pnpm add @motiadev/core
 
 ## Overview
 
-`@motiadev/core` is the foundation of Motia, providing a unified runtime for:
+`@motiadev/core` is the foundation of Motia, the unified backend framework for:
 
 - **API** endpoints with routing and validation
 - **Background jobs** with built-in queues
