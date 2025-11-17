@@ -1,14 +1,14 @@
 import type { ZodArray, ZodObject } from 'zod'
-import type { StandardSchemaV1 } from 'zod/v4/core/standard-schema.cjs'
 import type { Logger } from './logger'
 import type { Tracer } from './observability'
 import type { JsonSchema } from './types/schema.types'
 
+export { registerSchemaConverter, type SchemaConverter } from './schema-converters'
 export * from './types/app-config-types'
 
 export type ZodInput = ZodObject<any> | ZodArray<any>
 
-export type StepSchemaInput = StandardSchemaV1 | ZodInput | JsonSchema
+export type StepSchemaInput = ZodInput | JsonSchema
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
