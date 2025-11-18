@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const petSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
   photoUrl: z.string(),
 })
