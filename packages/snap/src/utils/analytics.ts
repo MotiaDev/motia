@@ -3,6 +3,7 @@ import { getUserIdentifier, isAnalyticsEnabled, trackEvent } from '@motiadev/cor
 import { getProjectName } from '@motiadev/core/dist/src/analytics/utils'
 import { version } from '../version'
 import { MotiaEnrichmentPlugin } from './amplitude/enrichment-plugin'
+import { BuildError } from './errors/build.error'
 
 init('ab2408031a38aa5cb85587a27ecfc69c', {
   logLevel: Types.LogLevel.None,
@@ -39,12 +40,12 @@ export const identifyUser = () => {
   }
 }
 
-export const logCliError = (command: string, error: unknown) => {
+export const logCliError = (command: string, error: BuildError) => {
   try {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorType = error instanceof Error ? error.constructor.name : 'Unknown'
-    const errorStack =
-      error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 10).join('\n') : undefined
+    const cause = error.cause instanceof BuildError ? error.cause : (error as Error)
+    const errorMessage = cause?.message || 'Unknown error'
+    const errorType = cause?.constructor?.name || 'Unknown error type'
+    const errorStack = cause?.stack ? cause.stack.split('\n').slice(0, 10).join('\n') : undefined
 
     const truncatedMessage = errorMessage.length > 500 ? `${errorMessage.substring(0, 500)}...` : errorMessage
 

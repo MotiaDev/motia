@@ -53,7 +53,7 @@ export const start = async (
 
   const config = { isVerbose, isDev: false, version }
 
-  const motiaServer = createServer(lockedData, state, config, adapters)
+  const motiaServer = createServer(lockedData, state, config, adapters, appConfig.app)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {

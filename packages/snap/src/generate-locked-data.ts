@@ -7,6 +7,7 @@ import { globSync } from 'glob'
 import path from 'path'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { CompilationError } from './utils/errors/compilation.error'
+import { LockedDataGenerationError } from './utils/errors/locked-data-generation.error'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
@@ -142,6 +143,10 @@ export const generateLockedData = async (config: {
     return lockedData
   } catch (error) {
     console.error(error)
-    throw Error('Failed to parse the project, generating locked data step failed')
+
+    throw new LockedDataGenerationError(
+      'Failed to parse the project, generating locked data step failed',
+      error as Error,
+    )
   }
 }
