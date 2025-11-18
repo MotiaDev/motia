@@ -449,7 +449,7 @@ export const steps: TutorialStep[] = [
             {'  '}-d '
             {JSON.stringify({
               pet: { name: 'Jack', photoUrl: 'https://images.dog.ceo/breeds/pug/n02110958_13560.jpg' },
-              foodOrder: { quantity: 0 },
+              foodOrder: { quantity: 1 },
             })}
             '
           </code>
@@ -475,7 +475,7 @@ export const steps: TutorialStep[] = [
         type: 'fill-editor',
         content: {
           pet: { name: 'Jack', photoUrl: 'https://images.dog.ceo/breeds/pug/n02110958_13560.jpg' },
-          foodOrder: { quantity: 0 },
+          foodOrder: { quantity: 1 },
         },
       },
     ],
