@@ -11,7 +11,7 @@ export const config: ApiRouteConfig = {
   method: 'GET',
   path: '/files/index.html',
   responseSchema: {
-    200: z.any({ description: 'HTML File' }),
+    200: z.toJSONSchema(z.file()),
   },
   emits: [],
 }

@@ -29,6 +29,9 @@ export const generateTypeFromSchema = (schema: JSONSchema.BaseSchema): string =>
   }
 
   if (schema.type === 'string') {
+    if (schema.format === 'binary') {
+      return 'Buffer'
+    }
     return schema.enum && schema.enum.length > 0 // must have at least one enum value
       ? schema.enum.map((value) => `'${value}'`).join(' | ')
       : 'string'
