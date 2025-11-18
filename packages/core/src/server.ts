@@ -59,9 +59,10 @@ export const createServer = (
   state: StateAdapter,
   config: MotiaServerConfig,
   adapters: AdapterOptions,
+  serverInstance?: Express,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
-  const app = express()
+  const app = serverInstance ?? express()
   const server = http.createServer(app)
 
   const { pushEvent, socketServer } = createSocketServer({

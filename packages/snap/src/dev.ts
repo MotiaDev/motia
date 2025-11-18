@@ -80,7 +80,7 @@ export const dev = async (
 
   const config = { isVerbose }
 
-  const motiaServer = createServer(lockedData, state, config, adapters)
+  const motiaServer = createServer(lockedData, state, config, adapters, appConfig.app)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
