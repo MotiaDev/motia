@@ -392,7 +392,7 @@ export const steps: TutorialStep[] = [
     description: () => (
       <p>
         Once you click on an endpoint from the list, you will be able to test it by providing a request payload and
-        clicking on the <b>Play</b> button.
+        clicking on the <b>Send</b> button.
         <br />
         <br />
         This section will provide an overview of your API endpoint.
@@ -466,7 +466,7 @@ export const steps: TutorialStep[] = [
     title: 'API Endpoint Test',
     description: () => (
       <p>
-        Once you've filled the request payload, you can click on the <b>Play</b> button to trigger an HTTP request
+        Once you've filled the request payload, you can click on the <b>Send</b> button to trigger an HTTP request
         against your API endpoint.
       </p>
     ),
