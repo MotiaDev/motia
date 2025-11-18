@@ -169,6 +169,85 @@ Await `next()` to get the response, then modify it:
 
 ---
 
+## Passing Data to Handlers
+
+Middleware can attach data to the `req` object, making it available to your handler. This is perfect for authentication—verify the user once in middleware, then use their details in the handler.
+
+<Tabs items={['TypeScript', 'JavaScript', 'Python']}>
+  <Tab value="TypeScript">
+    First, extend the request type in `api.d.ts`:
+
+    ```typescript
+    // api.d.ts
+    import 'motia'
+
+    declare module 'motia' {
+      interface ApiRequest {
+        user?: { id: string; role: string }
+      }
+    }
+    ```
+
+    Then attach the data in your middleware:
+
+    ```typescript
+    const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
+      // Verify token...
+      req.user = { id: '123', role: 'admin' }
+      return next()
+    }
+    ```
+
+    Now use it in your handler:
+
+    ```typescript
+    export const handler = async (req, ctx) => {
+      // req.user is typed and ready to use
+      if (req.user?.role === 'admin') {
+        return { status: 200, body: { message: 'Welcome Admin' } }
+      }
+      return { status: 403, body: { error: 'Forbidden' } }
+    }
+    ```
+  </Tab>
+  <Tab value="JavaScript">
+    Attach data to `req` in middleware:
+
+    ```javascript
+    const authMiddleware = async (req, ctx, next) => {
+      req.user = { id: '123', role: 'admin' }
+      return next()
+    }
+    ```
+
+    Access it in your handler:
+
+    ```javascript
+    const handler = async (req, ctx) => {
+      const { user } = req
+      return { status: 200, body: { user } }
+    }
+    ```
+  </Tab>
+  <Tab value="Python">
+    Add data to the `req` dictionary:
+
+    ```python
+    async def auth_middleware(req, context, next_fn):
+        req["user"] = {"id": "123", "role": "admin"}
+        return await next_fn()
+
+    async def handler(req, context):
+        user = req.get("user")
+        return {"status": 200, "body": {"user": user}}
+    ```
+  </Tab>
+</Tabs>
+
+> **Learn more:** Check out the [Middleware Auth Handler Example](https://github.com/MotiaDev/motia-examples/tree/main/examples/middleware-auth-handler-example) to see a complete project with JWT validation and type safety.
+
+---
+
 ## Error Handling
 
 Catch errors from handlers:
