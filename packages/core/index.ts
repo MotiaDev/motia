@@ -14,29 +14,20 @@ export type {
   CronLock,
   CronLockInfo,
 } from './src/adapters/interfaces/cron-adapter.interface'
-export type {
-  EventAdapter,
-  SubscriptionHandle,
-} from './src/adapters/interfaces/event-adapter.interface'
-export type {
-  Metric,
-  ObservabilityAdapter,
-  Tracer,
-} from './src/adapters/interfaces/observability-adapter.interface'
+export type { EventAdapter, SubscriptionHandle } from './src/adapters/interfaces/event-adapter.interface'
+export type { Metric, ObservabilityAdapter, Tracer } from './src/adapters/interfaces/observability-adapter.interface'
 export type {
   StateAdapter,
   StateFilter,
   StateItem,
   StateItemsInput,
 } from './src/adapters/interfaces/state-adapter.interface'
-export {
-  StreamAdapter,
-  type StreamQueryFilter,
-} from './src/adapters/interfaces/stream-adapter.interface'
+export { StreamAdapter, type StreamQueryFilter } from './src/adapters/interfaces/stream-adapter.interface'
 export type { StreamAdapterManager } from './src/adapters/interfaces/stream-adapter-manager.interface'
 export { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled, trackEvent } from './src/analytics/utils'
 export { config } from './src/config'
 export { CronManager, setupCronHandlers } from './src/cron-handler'
+export { CronExpression } from './src/enums/cron-expression.enum'
 export { getStepConfig, getStreamConfig } from './src/get-step-config'
 export { isApiStep, isCronStep, isEventStep, isNoopStep } from './src/guards'
 export {
