@@ -1,4 +1,6 @@
 import { flush } from '@amplitude/analytics-node'
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import {
   createMermaidGenerator,
   createServer,
@@ -11,12 +13,14 @@ import {
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
+import type { RedisClientType } from 'redis'
 import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
 import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins'
+import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
@@ -60,23 +64,22 @@ export const dev = async (
   const motiaFileStoragePath = motiaFileStorageDir || '.motia'
 
   const appConfig = await loadMotiaConfig(baseDir)
+
+  const redisClient: RedisClientType = await instanceRedisMemoryServer(motiaFileStoragePath, true)
+
   const adapters = {
     eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
     cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapter: appConfig.adapters?.streams || new FileStreamAdapterManager(baseDir, motiaFileStoragePath),
+    streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),
   }
 
   const lockedData = await generateLockedData({
     projectDir: baseDir,
     streamAdapter: adapters.streamAdapter,
+    redisClient,
   })
 
-  const state =
-    appConfig.adapters?.state ||
-    createStateAdapter({
-      adapter: 'default',
-      filePath: path.join(baseDir, motiaFileStoragePath),
-    })
+  const state = appConfig.adapters?.state || new RedisStateAdapter(redisClient)
 
   const config = { isVerbose }
 
@@ -133,11 +136,11 @@ export const dev = async (
   console.log('🚀 Server ready and listening on port', port)
   console.log(`🔗 Open http://localhost:${port}${workbenchBase} to open workbench 🛠️`)
 
-  // 6) Gracefully shut down on SIGTERM
   process.on('SIGTERM', async () => {
     trackEvent('dev_server_shutdown', { reason: 'SIGTERM' })
     motiaServer.server.close()
     await watcher.stop()
+    await stopRedisMemoryServer()
     await flush().promise
     process.exit(0)
   })
@@ -146,6 +149,7 @@ export const dev = async (
     trackEvent('dev_server_shutdown', { reason: 'SIGINT' })
     motiaServer.server.close()
     await watcher.stop()
+    await stopRedisMemoryServer()
     await flush().promise
     process.exit(0)
   })

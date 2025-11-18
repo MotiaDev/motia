@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@motiadev/core": "workspace:*",
-    "redis": "^4.7.0",
+    "redis": "^5.9.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

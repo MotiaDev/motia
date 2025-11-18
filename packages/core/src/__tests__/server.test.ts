@@ -7,6 +7,7 @@ import { NoPrinter } from '../printer'
 import { createServer, type MotiaServer } from '../server'
 import type { ApiRouteConfig, Step } from '../types'
 import { createApiStep } from './fixtures/step-fixtures'
+import { createMockRedisClient } from './test-helpers/redis-client'
 
 const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
@@ -20,7 +21,12 @@ describe('Server', () => {
     let server: MotiaServer
 
     beforeEach(async () => {
-      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(
+        baseDir,
+        new MemoryStreamAdapterManager(),
+        new NoPrinter(),
+        createMockRedisClient(),
+      )
       const state = new MemoryStateAdapter()
       server = await createServer(lockedData, state, config, {
         eventAdapter: new InMemoryQueueEventAdapter(),
@@ -42,7 +48,12 @@ describe('Server', () => {
     let server: MotiaServer
 
     beforeEach(async () => {
-      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(
+        baseDir,
+        new MemoryStreamAdapterManager(),
+        new NoPrinter(),
+        createMockRedisClient(),
+      )
       const state = new MemoryStateAdapter()
       server = await createServer(lockedData, state, config, {
         eventAdapter: new InMemoryQueueEventAdapter(),
@@ -95,7 +106,12 @@ describe('Server', () => {
     it('should create routes from locked data API steps', async () => {
       const state = new MemoryStateAdapter()
       const baseDir = __dirname
-      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(
+        baseDir,
+        new MemoryStreamAdapterManager(),
+        new NoPrinter(),
+        createMockRedisClient(),
+      )
       const mockApiStep: Step<ApiRouteConfig> = createApiStep(
         { emits: ['TEST_EVENT'], path: '/test', method: 'POST' },
         path.join(baseDir, 'steps', 'api-step.ts'),

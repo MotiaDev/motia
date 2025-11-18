@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import type { RedisClientType } from 'redis'
 import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
 import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { isApiStep, isCronStep, isEventStep } from './guards'
@@ -34,6 +35,7 @@ export class LockedData {
     public readonly baseDir: string,
     public readonly streamAdapter: StreamAdapterManager,
     private readonly printer: Printer,
+    public readonly redisClient: RedisClientType,
   ) {
     this.flows = {}
     this.activeSteps = []

@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto'
 import { existsSync } from 'fs'
 import { globSync } from 'glob'
 import path from 'path'
+import type { RedisClientType } from 'redis'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { CompilationError } from './utils/errors/compilation.error'
 import { LockedDataGenerationError } from './utils/errors/locked-data-generation.error'
@@ -126,16 +127,17 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
 export const generateLockedData = async (config: {
   projectDir: string
   streamAdapter: StreamAdapterManager
+  redisClient: RedisClientType
   printerType?: 'disabled' | 'default'
 }): Promise<LockedData> => {
   try {
-    const { projectDir, streamAdapter, printerType = 'default' } = config
+    const { projectDir, streamAdapter, printerType = 'default', redisClient } = config
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
     /*
      * NOTE: right now for performance and simplicity let's enforce a folder,
      * but we might want to remove this and scan the entire current directory
      */
-    const lockedData = new LockedData(projectDir, streamAdapter, printer)
+    const lockedData = new LockedData(projectDir, streamAdapter, printer, redisClient)
 
     await collectFlows(projectDir, lockedData)
     lockedData.saveTypes()

@@ -556,6 +556,9 @@ importers:
       motia:
         specifier: workspace:*
         version: link:../snap
+      redis:
+        specifier: ^5.9.0
+        version: 5.9.0
       supertest:
         specifier: ^7.1.4
         version: 7.1.4
