@@ -5,14 +5,14 @@ from .services.types import Pet
 
 class PetRequest(BaseModel):
     name: str
-    photo_url: str
+    photoUrl: str
 
 class FoodOrder(BaseModel):
     quantity: int
 
 class RequestBody(BaseModel):
     pet: PetRequest
-    food_order: Optional[FoodOrder] = None
+    foodOrder: Optional[FoodOrder] = None
 
 config = {
     "type": "api",
@@ -33,7 +33,7 @@ async def handler(req, context):
     context.logger.info("Step 01 - Processing API Step", {"body": body})
 
     pet = body.get("pet", {})
-    food_order = body.get("food_order", {})
+    food_order = body.get("foodOrder", {})
     
     new_pet_record = await pet_store_service.create_pet(pet)
 
