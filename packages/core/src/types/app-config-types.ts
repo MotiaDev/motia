@@ -32,7 +32,7 @@ export type AdapterConfig = {
 }
 
 export type Config = {
-  app?: Express
+  app?: (app: Express) => void
   plugins?: MotiaPluginBuilder[]
   adapters?: AdapterConfig
 }
