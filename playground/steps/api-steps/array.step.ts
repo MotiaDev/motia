@@ -19,7 +19,6 @@ export const config: ApiRouteConfig = {
       }),
       foodOrder: z
         .object({
-          id: z.string(),
           quantity: z.number(),
         })
         .optional(),
@@ -43,7 +42,7 @@ export const handler: Handlers['ArrayStep'] = async (req, { logger, emit }) => {
     await emit({
       topic: 'process-food-order',
       data: {
-        ...foodOrder,
+        quantity: foodOrder.quantity,
         email: 'test@test.com', // sample email
         petId: newPetRecord.id,
       },
