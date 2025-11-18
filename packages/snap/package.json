@@ -1,6 +1,6 @@
 {
   "name": "motia",
-  "description": "A Modern Unified Backend Framework for APIs, Events and Agents",
+  "description": "Build production-grade backends with a single primitive. APIs, background jobs, Queues, Workflows, and AI agents - unified in one system with built-in State management, Streaming, and Observability.",
   "version": "0.10.0-beta.153",
   "license": "MIT",
   "repository": {

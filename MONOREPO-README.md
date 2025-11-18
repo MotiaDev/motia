@@ -1,23 +1,31 @@
 # Motia Monorepo
 
-This repository hosts the development of **Motia.js**, a framework for building event-driven business automation flows. The repository is structured to facilitate the iterative development and testing of the core framework and includes a playground environment for real-world use cases.
+This repository hosts the development of **Motia**, a unified backend framework that combines APIs, background jobs, queues, workflows, and AI agents with built-in state management, streaming, and observability. The repository is structured to facilitate the iterative development and testing of the core framework and includes a playground environment for real-world use cases.
 
 ## Overview
 
-Motia.js aims to simplify the creation and scaling of event-driven flows by:
+**Build production-grade backends with a single primitive.**
 
-- Providing a **core framework** for defining flows as collections of testable components.
-- Supporting **real-time event handling** with loose coupling between components.
-- Offering tools for **UI-based flow visualization**.
-- Enabling seamless **integration with external APIs** like Google Drive and OpenAI.
+Modern backends shouldn't require juggling frameworks, queues, and services. Motia is a unified framework with a single core primitive: **the Step**.
+
+Motia provides:
+
+- **APIs** - RESTful endpoints with validation and routing
+- **Background Jobs** - Async processing with built-in queues
+- **Durable Workflows** - Complex multi-step orchestration
+- **Agentic AI** - AI agent workflows with streaming support
+- **State Management** - Built-in persistent storage across steps
+- **Streaming** - Real-time data updates to clients
+- **Logging & Observability** - End-to-end tracing and monitoring
+- **Multi-language Support** - Write steps in TypeScript, Python, JavaScript, and more
 
 ### Aspirational Vision
 
-Motia.js strives to be:
+Motia strives to be:
 
-- **Developer-Friendly**: Easy to adopt and extend.
-- **Production-Ready**: Scales gracefully from prototypes to enterprise-grade flows.
-- **Integration-First**: Works seamlessly with third-party tools and services.
+- **Developer-Friendly**: Easy to adopt and extend with a single primitive.
+- **Production-Ready**: Scales gracefully from prototypes to enterprise-grade systems.
+- **Unified**: One runtime for all backend patterns - no more juggling frameworks.
 
 ## Repository Structure
 

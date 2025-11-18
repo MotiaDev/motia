@@ -53,7 +53,7 @@ APIs live in one framework, background jobs in another, queues and schedulers el
 
 **Motia unifies all of these concerns around one core primitive: the Step.**
 
-Just as React made frontend development simple by introducing components, Motia redefines backend development with Steps.
+Just as React made frontend development simple by introducing components, Motia redefines backend development with Steps - a single primitive that handles everything.
 
 Every backend pattern, API endpoints, background jobs, queues, workflows, AI agents, streaming, observability, and state, is expressed with the same primitive.
 
