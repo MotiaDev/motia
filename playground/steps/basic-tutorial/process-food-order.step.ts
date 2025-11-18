@@ -10,7 +10,6 @@ export const config: EventConfig = {
   subscribes: ['process-food-order'],
   emits: ['notification'],
   input: z.object({
-    id: z.string(),
     email: z.string(),
     quantity: z.number(),
     petId: z.string(),
@@ -26,7 +25,7 @@ export const handler: Handlers['ProcessFoodOrder'] = async (input, { traceId, lo
     status: 'placed',
   })
 
-  await state.set('orders', input.id, order)
+  await state.set('orders', order.id, order)
 
   await emit({
     topic: 'notification',

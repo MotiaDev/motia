@@ -18,7 +18,6 @@ export const config: ApiRouteConfig = {
     }),
     foodOrder: z
       .object({
-        id: z.string(),
         quantity: z.number(),
       })
       .optional(),

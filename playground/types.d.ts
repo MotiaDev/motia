@@ -26,10 +26,10 @@ declare module 'motia' {
     'PeriodicJobHandled': EventHandler<{ message: string }, { topic: 'tested'; data: never }>
     'HandlePeriodicJob': CronHandler<{ topic: 'periodic-job-handled'; data: { message: string } }>
     'StateAuditJob': CronHandler<{ topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
-    'ProcessFoodOrder': EventHandler<{ id: string; email: string; quantity: number; petId: string }, { topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
+    'ProcessFoodOrder': EventHandler<{ email: string; quantity: number; petId: string }, { topic: 'notification'; data: { templateId: string; email: string; templateData: Record<string, unknown> } }>
     'Notification': EventHandler<{ templateId: string; email: string; templateData: Record<string, unknown> }, never>
-    'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }, ApiResponse<200, { id: string; name: string; photoUrl: string }>, { topic: 'process-food-order'; data: { id: string; email: string; quantity: number; petId: string } }>
-    'ArrayStep': ApiRouteHandler<Array<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }>, ApiResponse<200, Array<{ id: string; name: string; photoUrl: string }>>, { topic: 'process-food-order'; data: { id: string; email: string; quantity: number; petId: string } }>
+    'ApiTrigger': ApiRouteHandler<{ pet: { name: string; photoUrl: string }; foodOrder?: { quantity: number } }, ApiResponse<200, { id: string; name: string; photoUrl: string }>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: string } }>
+    'ArrayStep': ApiRouteHandler<Array<{ pet: { name: string; photoUrl: string }; foodOrder?: { id: string; quantity: number } }>, ApiResponse<200, Array<{ id: string; name: string; photoUrl: string }>>, { topic: 'process-food-order'; data: { email: string; quantity: number; petId: string } }>
     'RubyApiStep': ApiRouteHandler<{ rbMessage: string }, ApiResponse<200, { rbResponse: string }>, never>
     'Test State With Python': EventHandler<unknown, { topic: 'test-state-check'; data: { key: string; expected?: unknown } }>
     'Tested Event': EventHandler<never, never>
