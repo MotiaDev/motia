@@ -8,7 +8,6 @@ export const config: ApiRouteConfig = {
   name: 'ApiTrigger',
   description: 'basic-tutorial api trigger',
   flows: ['basic-tutorial'],
-
   method: 'POST',
   path: '/basic-tutorial',
   bodySchema: z.object({

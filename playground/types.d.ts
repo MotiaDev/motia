@@ -42,7 +42,7 @@ declare module 'motia' {
     'PythonStateAuditJob': CronHandler<{ topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
     'PythonProcessFoodOrder': EventHandler<{ email: string; quantity: unknown; pet_id: string }, { topic: 'python-notification'; data: { template_id: string; email: string; template_data: Record<string, unknown> } }>
     'PythonNotification': EventHandler<{ template_id: string; email: string; template_data: Record<string, unknown> }, never>
-    'PythonApiTrigger': ApiRouteHandler<{ pet: unknown; food_order?: unknown | unknown }, ApiResponse<200, { id: unknown; name: string; photoUrl: string }>, { topic: 'python-process-food-order'; data: { email: string; quantity: unknown; pet_id: string } }>
+    'PythonApiTrigger': ApiRouteHandler<{ pet: unknown; food_order?: unknown | unknown }, ApiResponse<200, { id: string; name: string; photoUrl: string }>, { topic: 'python-process-food-order'; data: { email: string; quantity: unknown; pet_id: string } }>
     'ApiExampleApiTrigger': ApiRouteHandler<{}, unknown, never>
   }
 }
