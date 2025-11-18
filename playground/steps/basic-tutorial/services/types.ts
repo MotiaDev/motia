@@ -14,6 +14,7 @@ export const orderSchema = z.object({
   petId: z.string(),
   shipDate: z.string(),
   status: orderStatusSchema,
+  complete: z.boolean(),
 })
 
 export type Pet = z.infer<typeof petSchema>

@@ -17,3 +17,4 @@ class Order(BaseModel):
     petId: str
     shipDate: str
     status: OrderStatus
+    complete: bool

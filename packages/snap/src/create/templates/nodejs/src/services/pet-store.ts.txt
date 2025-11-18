@@ -13,7 +13,7 @@ export const petStoreService = {
     })
     return response.json()
   },
-  createOrder: async (order: Omit<Order, 'id'>): Promise<Order> => {
+  createOrder: async (order: Omit<Order, 'id' | 'complete'>): Promise<Order> => {
     const response = await fetch('https://xnigaj-xtnawg.motiahub.com/store/order', {
       method: 'POST',
       body: JSON.stringify({
