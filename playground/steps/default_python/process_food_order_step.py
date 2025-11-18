@@ -3,10 +3,9 @@ from datetime import datetime
 from .services.pet_store import pet_store_service
 
 class InputSchema(BaseModel):
-    id: str
     email: str
     quantity: int
-    pet_id: int
+    pet_id: str
 
 config = {
     "type": "event",
@@ -19,10 +18,9 @@ config = {
 }
 
 async def handler(input_data, context):
-    context.logger.info("Step 02 - Process food order", {"input": input_data})
+    context.logger.info("Step 02 - Process food order", {"input": input_data, "traceId": context.trace_id})
 
     order = await pet_store_service.create_order({
-        "id": input_data.get("id"),
         "quantity": input_data.get("quantity"),
         "pet_id": input_data.get("pet_id"),
         "email": input_data.get("email"),

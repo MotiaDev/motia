@@ -8,7 +8,6 @@ class PetRequest(BaseModel):
     photo_url: str
 
 class FoodOrder(BaseModel):
-    id: str
     quantity: int
 
 class RequestBody(BaseModel):
@@ -42,7 +41,6 @@ async def handler(req, context):
         await context.emit({
             "topic": "python-process-food-order",
             "data": {
-                "id": food_order.get("id"),
                 "quantity": food_order.get("quantity"),
                 "email": "test@test.com",  # sample email
                 "pet_id": new_pet_record.get("id"),

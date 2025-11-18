@@ -22,7 +22,7 @@ class PetStoreService:
         async with httpx.AsyncClient() as client:
             order_data = {
                 "quantity": order.get("quantity", 1),
-                "petId": 1,
+                "petId": order.get("pet_id", '1'),
                 "shipDate": order.get("ship_date", "2025-08-22T22:07:04.730Z"),
                 "status": order.get("status", "placed"),
             }

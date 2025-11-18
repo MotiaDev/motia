@@ -25,6 +25,8 @@ export const handler: Handlers['ProcessFoodOrder'] = async (input, { traceId, lo
     status: 'placed',
   })
 
+  logger.info('Order created', { order })
+
   await state.set('orders', order.id, order)
 
   await emit({
