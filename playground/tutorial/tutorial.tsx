@@ -154,7 +154,6 @@ export const steps: TutorialStep[] = [
         Handlers are essential for the execution of your Step. For API Steps, the handler will receive the request
         object as the first argument, followed by a second argument that provides access to the <b>logger</b>,{' '}
         <b>event emitter</b>, <b>state manager</b>, and <b>trace id</b>.<br />
-        <br />
         <br />💡 We will cover these in depth further down the tutorial.
       </p>
     ),
@@ -185,8 +184,6 @@ export const steps: TutorialStep[] = [
     description: () => (
       <p>
         Now let's wrap our API Step and return a response.
-        <br />
-        <br />
         <br />
         You simply need to return an object that complies with one of the <b>responseSchema</b> definitions declared in
         your Step configuration.
@@ -349,7 +346,7 @@ export const steps: TutorialStep[] = [
     before: [{ type: 'click', selector: workbenchXPath.flows.feature('handler') }],
   },
 
-  // // Endpoints
+  // Endpoints
 
   {
     elementXpath: workbenchXPath.links.endpoints,
@@ -432,15 +429,12 @@ export const steps: TutorialStep[] = [
           This form will allow you to validate your API Step by executing an HTTP request against your API endpoint.
         </p>
         <br />
-        <br />
         <p>You can also test your API endpoints using your terminal through the curl command.</p>
-        <br />
         <br />
         <p>
           💡 Thanks to the <b>bodySchema</b> attribute from the API Step config, you are automatically provided with a
           sample request payload.
         </p>
-        <br />
         <br />
         <pre className="code-preview">
           <code className="language-bash">

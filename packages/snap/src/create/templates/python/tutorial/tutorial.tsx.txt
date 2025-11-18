@@ -156,7 +156,6 @@ export const steps: TutorialStep[] = [
         object as the first argument, followed by a second argument that provides access to the <b>logger</b>,{' '}
         <b>event emitter</b>, <b>state manager</b>, and <b>trace id</b>.<br />
         <br />
-        <br />
         💡 We will cover these in depth further down the tutorial.
       </p>
     ),
@@ -188,10 +187,8 @@ export const steps: TutorialStep[] = [
       <p>
         Now let's wrap our API Step and return a response.
         <br />
-        <br />
-        <br />
-        You simply need to return an object that complies with one of the <b>responseSchema</b> definitions
-        declared in your Step configuration.
+        You simply need to return an object that complies with one of the <b>responseSchema</b> definitions declared in
+        your Step configuration.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.feature('http-response') }],
@@ -212,8 +209,8 @@ export const steps: TutorialStep[] = [
         For this we will look at the <b>Event</b> Step.
         <br />
         <br />
-        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the
-        anatomy of an Event Step by taking a look at the code visualization tool.
+        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the anatomy of
+        an Event Step by taking a look at the code visualization tool.
         <br />
         <br />
         💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
@@ -353,7 +350,7 @@ export const steps: TutorialStep[] = [
     before: [{ type: 'click', selector: workbenchXPath.flows.feature('handler') }],
   },
 
-  // // Endpoints
+  // Endpoints
 
   {
     elementXpath: workbenchXPath.links.endpoints,
@@ -437,15 +434,12 @@ export const steps: TutorialStep[] = [
           This form will allow you to validate your API Step by executing an HTTP request against your API endpoint.
         </p>
         <br />
-        <br />
         <p>You can also test your API endpoints using your terminal through the curl command.</p>
-        <br />
         <br />
         <p>
           💡 Thanks to the <b>bodySchema</b> attribute from the API Step config, you are automatically provided with a
           sample request payload.
         </p>
-        <br />
         <br />
         <pre className="code-preview">
           <code className="language-bash">
