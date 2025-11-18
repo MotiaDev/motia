@@ -22,7 +22,7 @@ export default function Hero() {
           <Title>Build production-grade backends with a single primitive</Title>
 
           <p className="w-[520px] max-w-full text-[17px] font-light text-white opacity-80">
-            Modern backends shouldn't require juggling frameworks, queues, and services. Motia is a{' '}
+            Modern backends shouldn&apos;t require juggling frameworks, queues, and services. Motia is a{' '}
             <span className="font-bold">unified framework</span> that combines{' '}
             <span className="font-bold">API endpoints, background jobs, durable workflows, AI agents, streaming, and observability</span>{' '}
             with a single core primitive. All{' '}
