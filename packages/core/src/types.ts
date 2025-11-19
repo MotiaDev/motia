@@ -1,10 +1,13 @@
-import type { ZodAny, ZodArray, ZodObject, z } from 'zod'
+import type { ZodArray, ZodObject } from 'zod'
 import type { Logger } from './logger'
 import type { Tracer } from './observability'
+import type { JsonSchema } from './types/schema.types'
 
 export * from './types/app-config-types'
 
 export type ZodInput = ZodObject<any> | ZodArray<any>
+
+export type StepSchemaInput = ZodInput | JsonSchema
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
@@ -58,7 +61,7 @@ export type EventConfig = {
   emits: Emit[]
   virtualEmits?: Emit[]
   virtualSubscribes?: string[]
-  input: ZodInput
+  input?: StepSchemaInput
   flows?: string[]
   /**
    * Files to include in the step bundle.
@@ -101,8 +104,8 @@ export interface ApiRouteConfig {
   virtualSubscribes?: string[]
   flows?: string[]
   middleware?: ApiMiddleware<any, any, any>[]
-  bodySchema?: ZodInput
-  responseSchema?: Record<number, ZodInput | ZodAny>
+  bodySchema?: StepSchemaInput
+  responseSchema?: Record<number, StepSchemaInput>
   queryParams?: QueryParam[]
   /**
    * Files to include in the step bundle.
@@ -152,7 +155,7 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
  * @deprecated Use `Handlers` instead.
  */
 export type StepHandler<T> = T extends EventConfig
-  ? EventHandler<z.infer<T['input']>, { topic: string; data: any }>
+  ? EventHandler<unknown, { topic: string; data: any }>
   : T extends ApiRouteConfig
     ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }>
     : T extends CronConfig

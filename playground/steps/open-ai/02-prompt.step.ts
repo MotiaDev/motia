@@ -9,9 +9,9 @@ export const config: EventConfig = {
   subscribes: ['openai-prompt'],
   emits: [],
   input: z.object({
-    message: z.string({ description: 'The message to send to OpenAI' }),
-    assistantMessageId: z.string({ description: 'The assistant message ID' }),
-    threadId: z.string({ description: 'The thread ID' }),
+    message: z.string().describe('The message to send to OpenAI'),
+    assistantMessageId: z.string().describe('The assistant message ID'),
+    threadId: z.string().describe('The thread ID'),
   }),
   flows: ['open-ai'],
 }

@@ -11,7 +11,7 @@ export const config: ApiRouteConfig = {
   method: 'GET',
   path: '/files/sample.pdf',
   responseSchema: {
-    200: z.any({ description: 'PDF File' }),
+    200: z.toJSONSchema(z.file()),
   },
   emits: [],
 }
