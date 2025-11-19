@@ -15,7 +15,7 @@ export const EndpointsPage = () => {
     () => endpoints.find((endpoint: ApiEndpoint) => endpoint.id === selectedEndpointId),
     [endpoints, selectedEndpointId],
   )
-  console.log(selectedEndpoint)
+
   const onClose = useCallback(() => {
     setSelectedEndpointId('')
   }, [setSelectedEndpointId])
