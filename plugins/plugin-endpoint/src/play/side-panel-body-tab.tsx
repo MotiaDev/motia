@@ -18,6 +18,9 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
     if (schema) {
       setBody(body || JSON.stringify(convertSchemaToJson(schema), null, 2))
       setBodyIsValid(true)
+    } else {
+      setBody(body || JSON.stringify({}, null, 2))
+      setBodyIsValid(true)
     }
   }, [schema])
 
@@ -28,9 +31,20 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
     [setBody, setBodyIsValid],
   )
 
+  const handleValidate = useCallback(
+    (isValid: boolean) => {
+      if (schema) {
+        setBodyIsValid(isValid)
+      } else {
+        setBodyIsValid(true)
+      }
+    },
+    [schema, setBodyIsValid],
+  )
+
   return (
     <div className="max-h-full h-full relative">
-      <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={setBodyIsValid} />
+      <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={handleValidate} />
       {!bodyIsValid && (
         <div
           className="absolute bottom-0 left-0 right-0 border-t border-border p-3 text-sm dark:text-yellow-500 text-yellow-700 flex items-center gap-1 font-medium"
