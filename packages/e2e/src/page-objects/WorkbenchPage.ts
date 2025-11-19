@@ -105,7 +105,6 @@ export class WorkbenchPage extends MotiaApplicationPage {
         photoUrl: 'string',
       },
       foodOrder: {
-        id: 'string',
         quantity: 0,
       },
     })
