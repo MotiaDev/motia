@@ -38,7 +38,7 @@ config = {
 
 async def handler(req, context):
     body = req.get("body", {})
-    context.logger.info("Step 01 – Processing API Step", {"body": body})
+    context.logger.info("Step 01 - Processing API Step", {"body": body})
 
     pet = body.get("pet", {})
     food_order = body.get("foodOrder", {})

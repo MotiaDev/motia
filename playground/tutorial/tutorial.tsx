@@ -9,10 +9,10 @@ export const steps: TutorialStep[] = [
     },
     description: () => (
       <p>
-        Build production-grade backends with a single primitive. Motia unifies APIs, background jobs, queues, 
-        workflows, and AI agents in one system with built-in state management, streaming, and observability. 
-        Thanks to its event-driven architecture you can run tasks in parallel, stream data to clients, 
-        and orchestrate complex flows seamlessly.
+        Build production-grade backends with a single primitive. Motia unifies APIs, background jobs, queues, workflows,
+        and AI agents in one system with built-in state management, streaming, and observability. Thanks to its
+        event-driven architecture you can run tasks in parallel, stream data to clients, and orchestrate complex flows
+        seamlessly.
         <br />
         <br />
         Let's start with <b>Workbench</b>, it is a development tool provided by Motia's ecosystem, from here you'll be
@@ -28,7 +28,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('apitrigger'),
     title: 'API Step',
-    link: 'https://www.motia.dev/docs/concepts/steps#api-trigger',
+    link: 'https://www.motia.dev/docs/concepts/steps#triggers-api',
     description: () => (
       <p>
         Let's evaluate the Step that will allow you to receive traffic from external applications, API Steps will allow
@@ -154,7 +154,6 @@ export const steps: TutorialStep[] = [
         Handlers are essential for the execution of your Step. For API Steps, the handler will receive the request
         object as the first argument, followed by a second argument that provides access to the <b>logger</b>,{' '}
         <b>event emitter</b>, <b>state manager</b>, and <b>trace id</b>.<br />
-        <br />
         <br />💡 We will cover these in depth further down the tutorial.
       </p>
     ),
@@ -186,8 +185,6 @@ export const steps: TutorialStep[] = [
       <p>
         Now let's wrap our API Step and return a response.
         <br />
-        <br />
-        <br />
         You simply need to return an object that complies with one of the <b>responseSchema</b> definitions declared in
         your Step configuration.
       </p>
@@ -200,7 +197,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('processfoodorder'),
     title: 'Event Step',
-    link: 'https://www.motia.dev/docs/concepts/steps#event-trigger',
+    link: 'https://www.motia.dev/docs/concepts/steps#triggers-event',
     description: () => (
       <p>
         Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
@@ -221,7 +218,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Event Step',
-    link: 'https://www.motia.dev/docs/concepts/steps#event-trigger',
+    link: 'https://www.motia.dev/docs/concepts/steps#triggers-event',
     description: () => (
       <p>
         Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
@@ -297,7 +294,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.node('stateauditjob'),
     title: 'Cron Step',
-    link: 'https://www.motia.dev/docs/concepts/steps#cron-trigger',
+    link: 'https://www.motia.dev/docs/concepts/steps#triggers-cron',
     description: () => (
       <p>
         Let's do a recap of what you've learned, thus far you've become familiar with two Step types <b>API</b> and{' '}
@@ -313,7 +310,7 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.sidebarContainer,
     title: 'Cron Schedule',
-    link: 'https://www.motia.dev/docs/concepts/steps#cron-trigger',
+    link: 'https://www.motia.dev/docs/concepts/steps#triggers-cron',
     description: () => (
       <p>
         <b>CRON</b> Steps are similar to the other Step types, they are composed by a configuration and a handler.
@@ -349,7 +346,7 @@ export const steps: TutorialStep[] = [
     before: [{ type: 'click', selector: workbenchXPath.flows.feature('handler') }],
   },
 
-  // // Endpoints
+  // Endpoints
 
   {
     elementXpath: workbenchXPath.links.endpoints,
@@ -392,7 +389,7 @@ export const steps: TutorialStep[] = [
     description: () => (
       <p>
         Once you click on an endpoint from the list, you will be able to test it by providing a request payload and
-        clicking on the <b>Play</b> button.
+        clicking on the <b>Send</b> button.
         <br />
         <br />
         This section will provide an overview of your API endpoint.
@@ -432,15 +429,12 @@ export const steps: TutorialStep[] = [
           This form will allow you to validate your API Step by executing an HTTP request against your API endpoint.
         </p>
         <br />
-        <br />
         <p>You can also test your API endpoints using your terminal through the curl command.</p>
-        <br />
         <br />
         <p>
           💡 Thanks to the <b>bodySchema</b> attribute from the API Step config, you are automatically provided with a
           sample request payload.
         </p>
-        <br />
         <br />
         <pre className="code-preview">
           <code className="language-bash">
@@ -449,7 +443,7 @@ export const steps: TutorialStep[] = [
             {'  '}-d '
             {JSON.stringify({
               pet: { name: 'Jack', photoUrl: 'https://images.dog.ceo/breeds/pug/n02110958_13560.jpg' },
-              foodOrder: { id: 'food-order-1', quantity: 0 },
+              foodOrder: { quantity: 1 },
             })}
             '
           </code>
@@ -466,7 +460,7 @@ export const steps: TutorialStep[] = [
     title: 'API Endpoint Test',
     description: () => (
       <p>
-        Once you've filled the request payload, you can click on the <b>Play</b> button to trigger an HTTP request
+        Once you've filled the request payload, you can click on the <b>Send</b> button to trigger an HTTP request
         against your API endpoint.
       </p>
     ),
@@ -475,7 +469,7 @@ export const steps: TutorialStep[] = [
         type: 'fill-editor',
         content: {
           pet: { name: 'Jack', photoUrl: 'https://images.dog.ceo/breeds/pug/n02110958_13560.jpg' },
-          foodOrder: { id: 'food-order-1', quantity: 0 },
+          foodOrder: { quantity: 1 },
         },
       },
     ],

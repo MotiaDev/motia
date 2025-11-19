@@ -12,7 +12,7 @@ class PetStoreService:
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                'https://petstore.swagger.io/v2/pet',
+                'https://xnigaj-xtnawg.motiahub.com/pet',
                 json=pet_data,
                 headers={'Content-Type': 'application/json'}
             )
@@ -22,13 +22,13 @@ class PetStoreService:
         async with httpx.AsyncClient() as client:
             order_data = {
                 "quantity": order.get("quantity", 1),
-                "petId": 1,
+                "petId": order.get("pet_id", '1'),
                 "shipDate": order.get("ship_date", "2025-08-22T22:07:04.730Z"),
                 "status": order.get("status", "placed"),
             }
             
             response = await client.post(
-                'https://petstore.swagger.io/v2/store/order',
+                'https://xnigaj-xtnawg.motiahub.com/store/order',
                 json=order_data,
                 headers={'Content-Type': 'application/json'}
             )

@@ -19,7 +19,6 @@ export const config: ApiRouteConfig = {
       }),
       foodOrder: z
         .object({
-          id: z.string(),
           quantity: z.number(),
         })
         .optional(),
@@ -32,7 +31,7 @@ export const config: ApiRouteConfig = {
 }
 
 export const handler: Handlers['ArrayStep'] = async (req, { logger, emit }) => {
-  logger.info('Step 01 – Processing API Step', { body: req.body })
+  logger.info('Step 01 - Processing API Step', { body: req.body })
 
   const [{ pet, foodOrder }] = req.body
   const newPetRecord = await petStoreService.createPet(pet)
@@ -43,7 +42,7 @@ export const handler: Handlers['ArrayStep'] = async (req, { logger, emit }) => {
     await emit({
       topic: 'process-food-order',
       data: {
-        ...foodOrder,
+        quantity: foodOrder.quantity,
         email: 'test@test.com', // sample email
         petId: newPetRecord.id,
       },
