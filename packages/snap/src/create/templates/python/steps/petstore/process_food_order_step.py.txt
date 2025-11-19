@@ -21,7 +21,6 @@ async def handler(input_data, context):
     context.logger.info("Step 02 - Process food order", {"input": input_data, "traceId": context.trace_id})
 
     order = await pet_store_service.create_order({
-        "id": input_data.get("id"),
         "quantity": input_data.get("quantity"),
         "pet_id": input_data.get("pet_id"),
         "email": input_data.get("email"),
