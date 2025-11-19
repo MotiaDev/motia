@@ -1,5 +1,6 @@
 import path from 'path'
 import request from 'supertest'
+import { z } from 'zod'
 import { InMemoryCronAdapter, InMemoryQueueEventAdapter, MemoryStreamAdapterManager } from '../adapters/defaults'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { LockedData } from '../locked-data'
@@ -8,12 +9,47 @@ import { createServer, type MotiaServer } from '../server'
 import type { ApiRouteConfig, Step } from '../types'
 import { createApiStep } from './fixtures/step-fixtures'
 import { createMockRedisClient } from './test-helpers/redis-client'
+import { config as remoteCanAccessConfig } from './steps/streams/remote-can-access.stream'
+
+const socketServerOptions: Array<{
+  authorize?: (
+    subscription: { streamName: string; groupId: string; id?: string },
+    authContext?: unknown,
+  ) => Promise<boolean> | boolean
+}> = []
+
+const getLatestAuthorize = () => {
+  const latest = socketServerOptions[socketServerOptions.length - 1]
+  if (!latest?.authorize) {
+    throw new Error('Socket server authorize handler not registered')
+  }
+  return latest.authorize
+}
+
+jest.mock('../socket-server', () => {
+  return {
+    createSocketServer: jest.fn((options) => {
+      socketServerOptions.push(options)
+      return {
+        pushEvent: jest.fn(),
+        socketServer: {
+          on: jest.fn(),
+          close: jest.fn(),
+        },
+      }
+    }),
+  }
+})
 
 const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
 describe('Server', () => {
   beforeAll(() => {
     process.env._MOTIA_TEST_MODE = 'true'
+  })
+
+  afterEach(() => {
+    socketServerOptions.length = 0
   })
 
   describe('CORS', () => {
@@ -99,6 +135,80 @@ describe('Server', () => {
       const response = await request(server.app).post('/test')
       expect(response.status).toBe(200)
       expect(response.body.traceId).toBeDefined()
+    })
+  })
+
+  describe('Stream authorization', () => {
+    const baseDir = path.join(__dirname, 'steps')
+
+    const createTestServer = async (lockedData: LockedData) => {
+      const state = new MemoryStateAdapter()
+      return createServer(lockedData, state, config, {
+        eventAdapter: new InMemoryQueueEventAdapter(),
+        cronAdapter: new InMemoryCronAdapter(),
+      })
+    }
+
+    it('uses inline canAccess implementations when available', async () => {
+      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const canAccess = jest.fn().mockResolvedValue(true)
+      lockedData.createStream(
+        {
+          filePath: path.join(baseDir, 'inline.stream.ts'),
+          config: {
+            name: 'inline-stream',
+            schema: z.object({ groupId: z.string() }),
+            baseConfig: { storageType: 'default' },
+            canAccess,
+          },
+        },
+        { disableTypeCreation: true },
+      )
+
+      const server = await createTestServer(lockedData)
+      const authorize = getLatestAuthorize()
+
+      try {
+        const allowed = await authorize({ streamName: 'inline-stream', groupId: 'public:1' })
+        expect(canAccess).toHaveBeenCalledWith({ groupId: 'public:1', id: undefined }, undefined)
+        expect(allowed).toBe(true)
+      } finally {
+        await server.close()
+      }
+    })
+
+    it('evaluates remote canAccess implementations via runner', async () => {
+      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const streamPath = path.join(baseDir, 'streams', 'remote-can-access.stream.ts')
+      const remoteConfig = {
+        ...remoteCanAccessConfig,
+        baseConfig: remoteCanAccessConfig.baseConfig,
+        schema: remoteCanAccessConfig.schema,
+        canAccess: undefined,
+        __motia_hasCanAccess: true,
+      }
+
+      lockedData.createStream({ filePath: streamPath, config: remoteConfig }, { disableTypeCreation: true })
+
+      const server = await createTestServer(lockedData)
+      const authorize = getLatestAuthorize()
+
+      try {
+        const authContext = { token: 'private-access' }
+        const allowed = await authorize(
+          { streamName: remoteCanAccessConfig.name, groupId: 'private-access' },
+          authContext,
+        )
+        const denied = await authorize(
+          { streamName: remoteCanAccessConfig.name, groupId: 'private-access' },
+          { token: 'other' },
+        )
+
+        expect(allowed).toBe(true)
+        expect(denied).toBe(false)
+      } finally {
+        await server.close()
+      }
     })
   })
 

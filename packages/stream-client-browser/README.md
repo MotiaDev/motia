@@ -27,7 +27,10 @@ npm install @motiadev/stream-client-browser
 ```typescript
 import { Stream } from '@motiadev/stream-client-browser'
 
-const stream = new Stream('wss://your-stream-server')
+const token = window.sessionStorage.getItem('motia.streamToken') ?? undefined
+const protocols = token ? ['Authorization', token] : undefined
+
+const stream = new Stream('wss://your-stream-server', { protocols })
 ```
 
 ### 2. Subscribing to an Item Stream
@@ -69,10 +72,10 @@ stream.close()
 
 ### `Stream`
 
-- **constructor(address: string, onReady: () => void)**
+- **constructor(address: string, options?: { protocols?: string | string[] })**
 
   - Establishes a WebSocket connection to the given address.
-  - Calls `onReady` when the connection is open.
+  - Passes any `protocols` directly to the underlying `WebSocket` constructor (useful for sending `Sec-WebSocket-Protocol: Authorization,<token>`).
 
 - **subscribeItem<T>(streamName: string, id: string): StreamItemSubscription<T>**
 
@@ -161,7 +164,10 @@ All types are exported from `stream.types.ts` for advanced usage and type safety
 ```typescript
 import { Stream } from '@motiadev/stream-client-browser'
 
-const stream = new Stream('wss://example.com')
+const token = window.sessionStorage.getItem('motia.streamToken') ?? undefined
+const protocols = token ? ['Authorization', token] : undefined
+
+const stream = new Stream('wss://example.com', { protocols })
 const userSub = stream.subscribeItem<{ id: string; name: string }>('users', 'user-1')
 
 userSub.addChangeListener((user) => {
