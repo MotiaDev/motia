@@ -9,10 +9,10 @@ export const steps: TutorialStep[] = [
     },
     description: () => (
       <p>
-        Build production-grade backends with a single primitive. Motia unifies APIs, background jobs, queues, 
-        workflows, and AI agents in one system with built-in state management, streaming, and observability. 
-        Thanks to its event-driven architecture you can run tasks in parallel, stream data to clients, 
-        and orchestrate complex flows seamlessly.
+        Build production-grade backends with a single primitive. Motia unifies APIs, background jobs, queues, workflows,
+        and AI agents in one system with built-in state management, streaming, and observability. Thanks to its
+        event-driven architecture you can run tasks in parallel, stream data to clients, and orchestrate complex flows
+        seamlessly.
         <br />
         <br />
         Let's start with <b>Workbench</b>, it is a development tool provided by Motia's ecosystem, from here you'll be
