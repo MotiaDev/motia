@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger, useThemeStore } from '@motiadev/ui'
 import { type FC, useMemo } from 'react'
 import ReactJson from 'react18-json-view'
-import { convertJsonSchemaToJson } from '../hooks/utils'
+import { convertSchemaToJson } from '../hooks/utils'
 
 export type EndpointResponseItem = {
   responseCode: string
@@ -15,7 +15,7 @@ type EndpointResponseProps = {
 
 const EndpointResponseSchemaItem: FC<EndpointResponseItem> = ({ responseCode, bodySchema }) => {
   const theme = useThemeStore((store: { theme: string }) => store.theme)
-  const schema = useMemo(() => convertJsonSchemaToJson(bodySchema), [bodySchema])
+  const schema = useMemo(() => convertSchemaToJson(bodySchema), [bodySchema])
   const description = typeof bodySchema.description === 'string' ? bodySchema.description : ''
 
   return (

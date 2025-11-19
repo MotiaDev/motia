@@ -3,7 +3,7 @@ import { type FC, memo, useCallback, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { JsonEditor } from '../components/json-editor'
 import { getBodyIsValidSelector, getBodySelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
-import { convertJsonSchemaToJson } from '../hooks/utils'
+import { convertSchemaToJson } from '../hooks/utils'
 
 type SidePanelBodyTabProps = {
   schema: Record<string, any> | undefined
@@ -16,7 +16,7 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
 
   useEffect(() => {
     if (schema) {
-      setBody(body || JSON.stringify(convertJsonSchemaToJson(schema), null, 2))
+      setBody(body || JSON.stringify(convertSchemaToJson(schema), null, 2))
       setBodyIsValid(true)
     }
   }, [schema])
