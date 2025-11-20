@@ -3,7 +3,7 @@
   "description": "Redis streams adapter for Motia framework, enabling distributed stream management with real-time updates.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "version": "0.11.1-beta.155",
+  "version": "0.11.2-beta.156",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "lint": "biome check .",
