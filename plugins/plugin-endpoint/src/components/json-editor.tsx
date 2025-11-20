@@ -120,7 +120,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
       theme={editorTheme}
       onMount={setEditor}
       onChange={(value: string | undefined) => {
-        if (!value) {
+        if (schema && !value) {
           onValidate?.(false)
         }
         onChange?.(value ?? '')
