@@ -24,6 +24,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
   const editorTheme = useMemo(() => (theme === 'dark' ? 'transparent-dark' : 'transparent-light'), [theme])
   const [editor, setEditor] = useState<any>(null)
   const resizeAnimationFrameRef = useRef<number | null>(null)
+  const isValidatingRef = useRef(false)
 
   useLayoutEffect(() => {
     if (!monaco) return
@@ -113,23 +114,31 @@ export const JsonEditor: FC<JsonEditorProps> = ({
   }, [editor])
 
   useEffect(() => {
-    if (!editor || !monaco || !onValidate) return
+    if (!editor || !monaco || !onValidate || isValidatingRef.current) return
 
     const model = editor.getModel()
     if (!model) return
 
     const isEmptyWithSchema = schema && !value
+    if (isEmptyWithSchema) {
+      isValidatingRef.current = true
+      onValidate(false)
+      isValidatingRef.current = false
+      return
+    }
+
+    isValidatingRef.current = true
     const timeoutId = setTimeout(() => {
-      if (isEmptyWithSchema) {
-        onValidate(false)
-        return
-      }
       const markers = monaco.editor.getModelMarkers({ resource: model.uri })
       const isValid = markers.length === 0
       onValidate(isValid)
+      isValidatingRef.current = false
     }, 100)
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      clearTimeout(timeoutId)
+      isValidatingRef.current = false
+    }
   }, [editor, monaco, onValidate, value, schema])
 
   const editorKey = useMemo(() => (schema ? JSON.stringify(schema) : 'no-schema'), [schema])
@@ -144,14 +153,18 @@ export const JsonEditor: FC<JsonEditorProps> = ({
       theme={editorTheme}
       onMount={setEditor}
       onChange={(value: string | undefined) => {
-        if (schema && !value) {
-          onValidate?.(false)
-        }
         onChange?.(value ?? '')
       }}
       onValidate={(markers: any[]) => {
-        console.log('markers', markers)
-        onValidate?.(markers.length === 0)
+        if (!onValidate || isValidatingRef.current) return
+        isValidatingRef.current = true
+        const isEmptyWithSchema = schema && !value
+        if (isEmptyWithSchema) {
+          onValidate(false)
+        } else {
+          onValidate(markers.length === 0)
+        }
+        isValidatingRef.current = false
       }}
       options={{
         automaticLayout: false,
