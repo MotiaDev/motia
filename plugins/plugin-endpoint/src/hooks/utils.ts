@@ -1,6 +1,3 @@
-/**
- * Resolves a $ref reference to its actual schema definition
- */
 const resolveRef = (ref: string, rootSchema?: Record<string, any>): Record<string, any> | undefined => {
   if (!rootSchema || !ref.startsWith('#/$defs/')) {
     return undefined
@@ -19,10 +16,8 @@ const resolveRef = (ref: string, rootSchema?: Record<string, any>): Record<strin
 export const convertSchemaToJson = (schema?: Record<string, any>, rootSchema?: Record<string, any>): any => {
   if (!schema) return {}
 
-  // Default rootSchema to schema if not provided (for Python schemas where $defs are at root level)
   const effectiveRootSchema = rootSchema ?? schema
 
-  // Handle $ref references (Python step format)
   if (schema.$ref) {
     const resolvedSchema = resolveRef(schema.$ref, effectiveRootSchema)
     if (resolvedSchema) {
