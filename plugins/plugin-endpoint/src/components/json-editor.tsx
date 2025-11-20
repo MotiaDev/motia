@@ -1,6 +1,6 @@
 import { Editor, useMonaco } from '@monaco-editor/react'
 import { useThemeStore } from '@motiadev/ui'
-import { type FC, useEffect, useMemo, useRef, useState } from 'react'
+import { type FC, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 type JsonEditorProps = {
   value: string
@@ -24,8 +24,9 @@ export const JsonEditor: FC<JsonEditorProps> = ({
   const editorTheme = useMemo(() => (theme === 'dark' ? 'transparent-dark' : 'transparent-light'), [theme])
   const [editor, setEditor] = useState<any>(null)
   const resizeAnimationFrameRef = useRef<number | null>(null)
+  const isValidatingRef = useRef(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!monaco) return
 
     monaco.editor.defineTheme('transparent-light', {
@@ -76,7 +77,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
     })
   }, [monaco, schema])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!monaco) return
     monaco.editor.setTheme(editorTheme)
   }, [monaco, editorTheme])
@@ -112,20 +113,59 @@ export const JsonEditor: FC<JsonEditorProps> = ({
     }
   }, [editor])
 
+  useEffect(() => {
+    if (!editor || !monaco || !onValidate || isValidatingRef.current) return
+
+    const model = editor.getModel()
+    if (!model) return
+
+    const isEmptyWithSchema = schema && !value
+    if (isEmptyWithSchema) {
+      isValidatingRef.current = true
+      onValidate(false)
+      isValidatingRef.current = false
+      return
+    }
+
+    isValidatingRef.current = true
+    const timeoutId = setTimeout(() => {
+      const markers = monaco.editor.getModelMarkers({ resource: model.uri })
+      const isValid = markers.length === 0
+      onValidate(isValid)
+      isValidatingRef.current = false
+    }, 100)
+
+    return () => {
+      clearTimeout(timeoutId)
+      isValidatingRef.current = false
+    }
+  }, [editor, monaco, onValidate, value, schema])
+
+  const editorKey = useMemo(() => (schema ? JSON.stringify(schema) : 'no-schema'), [schema])
+
   return (
     <Editor
+      key={editorKey}
       data-testid="json-editor"
       language={language}
       value={value}
+      loading=""
       theme={editorTheme}
       onMount={setEditor}
       onChange={(value: string | undefined) => {
-        if (!value) {
-          onValidate?.(false)
-        }
         onChange?.(value ?? '')
       }}
-      onValidate={(markers: any[]) => onValidate?.(markers.length === 0)}
+      onValidate={(markers: any[]) => {
+        if (!onValidate || isValidatingRef.current) return
+        isValidatingRef.current = true
+        const isEmptyWithSchema = schema && !value
+        if (isEmptyWithSchema) {
+          onValidate(false)
+        } else {
+          onValidate(markers.length === 0)
+        }
+        isValidatingRef.current = false
+      }}
       options={{
         automaticLayout: false,
         readOnly,
