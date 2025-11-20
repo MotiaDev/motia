@@ -52,7 +52,7 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
   return (
     <div className="max-h-full h-full relative">
       <JsonEditor value={body} schema={schema} onChange={handleBodyChange} onValidate={setBodyIsValid} />
-      {!bodyIsValid && (
+      {bodyIsValid === false && (
         <div
           className="absolute bottom-0 left-0 right-0 border-t border-border p-3 text-sm dark:text-yellow-500 text-yellow-700 flex items-center gap-1 font-medium"
           data-testid="endpoint-body-tab-invalid"
