@@ -1,6 +1,6 @@
 import { Editor, useMonaco } from '@monaco-editor/react'
 import { useThemeStore } from '@motiadev/ui'
-import { type FC, useEffect, useMemo, useRef, useState } from 'react'
+import { type FC, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 type JsonEditorProps = {
   value: string
@@ -25,7 +25,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
   const [editor, setEditor] = useState<any>(null)
   const resizeAnimationFrameRef = useRef<number | null>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!monaco) return
 
     monaco.editor.defineTheme('transparent-light', {
@@ -76,7 +76,7 @@ export const JsonEditor: FC<JsonEditorProps> = ({
     })
   }, [monaco, schema])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!monaco) return
     monaco.editor.setTheme(editorTheme)
   }, [monaco, editorTheme])
@@ -112,11 +112,35 @@ export const JsonEditor: FC<JsonEditorProps> = ({
     }
   }, [editor])
 
+  useEffect(() => {
+    if (!editor || !monaco || !onValidate) return
+
+    const model = editor.getModel()
+    if (!model) return
+
+    const isEmptyWithSchema = schema && !value
+    const timeoutId = setTimeout(() => {
+      if (isEmptyWithSchema) {
+        onValidate(false)
+        return
+      }
+      const markers = monaco.editor.getModelMarkers({ resource: model.uri })
+      const isValid = markers.length === 0
+      onValidate(isValid)
+    }, 100)
+
+    return () => clearTimeout(timeoutId)
+  }, [editor, monaco, onValidate, value, schema])
+
+  const editorKey = useMemo(() => (schema ? JSON.stringify(schema) : 'no-schema'), [schema])
+
   return (
     <Editor
+      key={editorKey}
       data-testid="json-editor"
       language={language}
       value={value}
+      loading=""
       theme={editorTheme}
       onMount={setEditor}
       onChange={(value: string | undefined) => {
@@ -125,7 +149,10 @@ export const JsonEditor: FC<JsonEditorProps> = ({
         }
         onChange?.(value ?? '')
       }}
-      onValidate={(markers: any[]) => onValidate?.(markers.length === 0)}
+      onValidate={(markers: any[]) => {
+        console.log('markers', markers)
+        onValidate?.(markers.length === 0)
+      }}
       options={{
         automaticLayout: false,
         readOnly,

@@ -1,5 +1,5 @@
 import CircleX from 'lucide-react/icons/circle-x'
-import { type FC, memo, useCallback, useEffect } from 'react'
+import { type FC, memo, useCallback, useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { JsonEditor } from '../components/json-editor'
 import { getBodyIsValidSelector, getBodySelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
@@ -13,24 +13,32 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
   const { setBody, setBodyIsValid } = useEndpointConfiguration()
   const bodyIsValid = useEndpointConfiguration(useShallow(getBodyIsValidSelector))
   const body = useEndpointConfiguration(getBodySelector)
+  const previousSchemaRef = useRef<Record<string, any> | undefined>(schema)
 
   useEffect(() => {
-    if (schema && body) {
-      setBody(body)
-    } else if (schema && !body) {
+    const schemaChanged = previousSchemaRef.current !== schema
+    previousSchemaRef.current = schema
+
+    if (schemaChanged && schema && !body) {
       setBody(JSON.stringify(convertSchemaToJson(schema), null, 2))
-      setBodyIsValid(true)
-    } else {
+      return
+    }
+
+    if (!schema) {
       setBody(body || '')
       setBodyIsValid(true)
     }
-  }, [schema, body])
+  }, [schema, body, setBody, setBodyIsValid])
 
   const handleBodyChange = useCallback(
     (value: string) => {
       setBody(value)
+      const isEmptyWithSchema = schema && !value
+      if (isEmptyWithSchema) {
+        setBodyIsValid(false)
+      }
     },
-    [setBody, setBodyIsValid],
+    [setBody, schema, setBodyIsValid],
   )
 
   return (
