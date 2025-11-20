@@ -1,5 +1,5 @@
 import { mkdirSync } from 'fs'
-import { createClient, type RedisClientType } from 'redis'
+import { createClient } from 'redis'
 import { RedisMemoryServer } from 'redis-memory-server'
 import { instanceRedisMemoryServer, stopRedisMemoryServer } from '../redis-memory-manager'
 
@@ -142,17 +142,16 @@ describe('redis-memory-manager', () => {
       expect(reconnectStrategy).toBeDefined()
       expect(typeof reconnectStrategy).toBe('function')
 
-      if (reconnectStrategy && typeof reconnectStrategy === 'function') {
-        const mockError = new Error('test')
-        expect(reconnectStrategy(5, mockError)).toBe(500)
-        expect(reconnectStrategy(10, mockError)).toBe(1000)
-        expect(reconnectStrategy(11, mockError)).toBeInstanceOf(Error)
-        expect((reconnectStrategy(11, mockError) as Error).message).toBe('Redis connection retry limit exceeded')
-        expect(reconnectStrategy(15, mockError)).toBeInstanceOf(Error)
-        expect(reconnectStrategy(20, mockError)).toBeInstanceOf(Error)
-        expect(reconnectStrategy(30, mockError)).toBeInstanceOf(Error)
-        expect(reconnectStrategy(50, mockError)).toBeInstanceOf(Error)
-      }
+      const mockError = new Error('test')
+      const strategyFn = reconnectStrategy as (retries: number, error: Error) => number | Error
+      expect(strategyFn(5, mockError)).toBe(500)
+      expect(strategyFn(10, mockError)).toBe(1000)
+      expect(strategyFn(11, mockError)).toBeInstanceOf(Error)
+      expect((strategyFn(11, mockError) as Error).message).toBe('Redis connection retry limit exceeded')
+      expect(strategyFn(15, mockError)).toBeInstanceOf(Error)
+      expect(strategyFn(20, mockError)).toBeInstanceOf(Error)
+      expect(strategyFn(30, mockError)).toBeInstanceOf(Error)
+      expect(strategyFn(50, mockError)).toBeInstanceOf(Error)
     })
   })
 
