@@ -14,12 +14,17 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
   const bodyIsValid = useEndpointConfiguration(useShallow(getBodyIsValidSelector))
   const body = useEndpointConfiguration(getBodySelector)
   const previousSchemaRef = useRef<Record<string, any> | undefined>(schema)
+  const userClearedRef = useRef(false)
 
   useEffect(() => {
     const schemaChanged = previousSchemaRef.current !== schema
     previousSchemaRef.current = schema
 
-    if (schemaChanged && schema && !body) {
+    if (schemaChanged) {
+      userClearedRef.current = false
+    }
+
+    if (schema && !body && !userClearedRef.current) {
       setBody(JSON.stringify(convertSchemaToJson(schema), null, 2))
       return
     }
@@ -36,6 +41,9 @@ export const SidePanelBodyTab: FC<SidePanelBodyTabProps> = memo(({ schema }) => 
       const isEmptyWithSchema = schema && !value
       if (isEmptyWithSchema) {
         setBodyIsValid(false)
+        userClearedRef.current = true
+      } else {
+        userClearedRef.current = false
       }
     },
     [setBody, schema, setBodyIsValid],
