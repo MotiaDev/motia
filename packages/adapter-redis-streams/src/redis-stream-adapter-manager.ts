@@ -16,6 +16,7 @@ export class RedisStreamAdapterManager implements StreamAdapterManager {
   constructor(redisConnection: RedisClientType | RedisClientOptions, options?: RedisStreamAdapterOptions) {
     this.config = {
       keyPrefix: options?.keyPrefix || 'motia:stream:',
+      socketKeepAlive: options?.socketKeepAlive ?? 5000,
     }
 
     if (isRedisClient(redisConnection)) {
@@ -23,7 +24,15 @@ export class RedisStreamAdapterManager implements StreamAdapterManager {
       this.isExternalClient = true
       this.connected = this.client.isOpen
     } else {
-      const config: RedisClientOptions = redisConnection
+      const config: RedisClientOptions = {
+        ...redisConnection,
+        socket: {
+          ...(redisConnection.socket || {}),
+          keepAlive: this.config.socketKeepAlive,
+          noDelay: true,
+        },
+        commandsQueueMaxLength: 1,
+      } as RedisClientOptions
       this.isExternalClient = false
 
       this.client = createClient(config) as RedisClientType

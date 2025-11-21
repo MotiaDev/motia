@@ -87,11 +87,14 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
         socket: {
           host: socketConfig?.host || 'localhost',
           port: socketConfig?.port || 6379,
+          keepAlive: socketConfig?.keepAlive ?? 5000,
+          noDelay: true,
         },
         password: this.client.options?.password,
         username: this.client.options?.username,
         database: this.client.options?.database || 0,
-      }
+        commandsQueueMaxLength: 1,
+      } as any
       this.subClient = createClient(clientConfig)
 
       this.subClient.on('error', (err) => {
