@@ -63,6 +63,8 @@ describe('redis-memory-manager', () => {
           port: 6379,
           reconnectStrategy: expect.any(Function),
           connectTimeout: 10000,
+          keepAlive: true,
+          noDelay: true,
         },
       })
       expect(mockRedisClient.connect).toHaveBeenCalled()
