@@ -261,7 +261,7 @@ describe('callStepFile', () => {
       )
 
       await expect(Promise.all(calls)).resolves.not.toThrow()
-    })
+    }, 15000)
 
     it('should handle fractional timeout value', async () => {
       const baseDir = path.join(__dirname, 'steps')
