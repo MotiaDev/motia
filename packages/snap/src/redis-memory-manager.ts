@@ -70,6 +70,8 @@ class RedisMemoryManager {
         socket: {
           host,
           port,
+          noDelay: true,
+          keepAlive: true,
           reconnectStrategy: (retries: number) => {
             if (retries > 10) {
               return new Error('Redis connection retry limit exceeded')

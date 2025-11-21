@@ -1,9 +1,9 @@
 export interface RedisStreamAdapterConfig {
   keyPrefix?: string
-  socketKeepAlive?: number
+  socketKeepAlive?: boolean
 }
 
 export interface RedisStreamAdapterOptions {
   keyPrefix?: string
-  socketKeepAlive?: number
+  socketKeepAlive?: boolean
 }

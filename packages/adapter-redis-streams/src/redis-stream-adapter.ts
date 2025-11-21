@@ -36,7 +36,11 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
 
   async set(groupId: string, id: string, data: TData): Promise<BaseStreamItem<TData>> {
     const hashKey = this.makeGroupKey(groupId)
-    const item: BaseStreamItem<TData> = { ...data, id } as BaseStreamItem<TData>
+    const item: BaseStreamItem<TData> = {
+      ...data,
+      id,
+      _createdAt: (data as any)._createdAt || Date.now(),
+    } as BaseStreamItem<TData>
     const itemJson = JSON.stringify(item)
 
     const existed = await this.client.hExists(hashKey, id)
@@ -67,7 +71,13 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
     const hashKey = this.makeGroupKey(groupId)
     const values = await this.client.hGetAll(hashKey)
 
-    return Object.values(values).map((v) => JSON.parse(v))
+    const items = Object.values(values).map((v) => JSON.parse(v) as BaseStreamItem<TData>)
+
+    return items.sort((a, b) => {
+      const aTime = (a as any)._createdAt || 0
+      const bTime = (b as any)._createdAt || 0
+      return aTime - bTime
+    })
   }
 
   async send<T>(channel: StateStreamEventChannel, event: StateStreamEvent<T>): Promise<void> {
@@ -93,7 +103,6 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
         password: this.client.options?.password,
         username: this.client.options?.username,
         database: this.client.options?.database || 0,
-        commandsQueueMaxLength: 1,
       } as any
       this.subClient = createClient(clientConfig)
 
