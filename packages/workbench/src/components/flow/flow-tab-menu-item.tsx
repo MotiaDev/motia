@@ -12,10 +12,6 @@ export const FlowTabMenuItem = () => {
   const flows = useFlowStore(useShallow((state) => Object.values(state.flows)))
   const selectedFlowId = useFlowStore((state) => state.selectedFlowId)
 
-  if (flows.length === 0) {
-    return null
-  }
-
   const handleFlowSelect = (flowId: string) => {
     selectFlowId(flowId)
     motiaAnalytics.track('flow_selected', { flow: flowId })
@@ -24,29 +20,31 @@ export const FlowTabMenuItem = () => {
   return (
     <div className="flex flex-row justify-center items-center gap-2 cursor-pointer">
       <Workflow />
-      {selectedFlowId ?? 'No flow selected'}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <div
-            className="flex flex-row justify-center items-center gap-2 cursor-pointer"
-            data-testid="flows-dropdown-trigger"
-          >
-            <ChevronsUpDown className="size-4" />
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="bg-background text-foreground flows-dropdown">
-          {flows.map((item) => (
-            <DropdownMenuItem
-              data-testid={`dropdown-${item}`}
-              key={`dropdown-${item}`}
-              className="cursor-pointer gap-2 flow-link"
-              onClick={() => handleFlowSelect(item)}
+      {flows.length > 0 && selectedFlowId ? selectedFlowId : 'Flows'}
+      {flows.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div
+              className="flex flex-row justify-center items-center gap-2 cursor-pointer"
+              data-testid="flows-dropdown-trigger"
             >
-              {item}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              <ChevronsUpDown className="size-4" />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-background text-foreground flows-dropdown">
+            {flows.map((item) => (
+              <DropdownMenuItem
+                data-testid={`dropdown-${item}`}
+                key={`dropdown-${item}`}
+                className="cursor-pointer gap-2 flow-link"
+                onClick={() => handleFlowSelect(item)}
+              >
+                {item}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   )
 }
