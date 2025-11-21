@@ -12,8 +12,12 @@ Every Step file contains two parts:
 - **Config** → defines when and how the Step runs, and gives it a unique `name`  
 - **Handler** → the function that executes your business logic  
 
-Motia automatically discovers any file ending in `.step.ts`, `.step.js`, or `_step.py`.  
-The filename tells Motia to load it, and the `name` in the `config` uniquely identifies the Step inside your system.
+Motia automatically discovers any file ending in `.step.ts`, `.step.js`, or `_step.py` from your `steps/` or `src/` directories.  
+The filename pattern tells Motia to load it, and the `name` in the `config` uniquely identifies the Step inside your system.
+
+<Callout type="info">
+**Flexible Organization** - Steps can be placed in either `steps/` or `src/` directories (or both). Motia discovers them automatically regardless of which directory you choose or how deeply nested they are.
+</Callout>
 
 ---
 

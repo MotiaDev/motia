@@ -492,6 +492,8 @@ return {
 ```
 
 This loads API routes, event handlers, and other step types directly from the plugin directory.
+
+**Note:** Plugin steps follow the same discovery rules as regular steps - they can be organized in subdirectories and will be discovered recursively. The `dirname` specifies the root directory to scan, and steps can be nested at any depth within it.
 </Callout>
 
 ### Best Practices for Local Plugins
