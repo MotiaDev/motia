@@ -1,14 +1,27 @@
 import type { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from '@motiadev/core'
 import { StreamAdapter, type StreamQueryFilter } from '@motiadev/core'
-import { createClient, type RedisClientType } from 'redis'
+import { createClient, type RedisClientOptions, type RedisClientType } from 'redis'
 import type { RedisStreamAdapterConfig } from './types'
+
+type StreamItemWithTimestamp<TData> = BaseStreamItem<TData> & {
+  _createdAt?: number
+}
+
+type RedisSocketConfig = {
+  host?: string
+  port?: number
+  keepAlive?: boolean
+  noDelay?: boolean
+}
+
+type EventHandler<T> = (event: StateStreamEvent<T>) => void | Promise<void>
 
 export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
   private client: RedisClientType
   private subClient?: RedisClientType
   private keyPrefix: string
   private groupPrefix: string
-  private subscriptions: Map<string, (event: StateStreamEvent<any>) => void | Promise<void>> = new Map()
+  private subscriptions: Map<string, EventHandler<unknown>> = new Map()
 
   constructor(streamName: string, config: RedisStreamAdapterConfig, sharedClient: RedisClientType) {
     super(streamName)
@@ -36,11 +49,12 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
 
   async set(groupId: string, id: string, data: TData): Promise<BaseStreamItem<TData>> {
     const hashKey = this.makeGroupKey(groupId)
-    const item: BaseStreamItem<TData> = {
+    const dataWithTimestamp = data as StreamItemWithTimestamp<TData>
+    const item: StreamItemWithTimestamp<TData> = {
       ...data,
       id,
-      _createdAt: (data as any)._createdAt || Date.now(),
-    } as BaseStreamItem<TData>
+      _createdAt: dataWithTimestamp._createdAt || Date.now(),
+    }
     const itemJson = JSON.stringify(item)
 
     const existed = await this.client.hExists(hashKey, id)
@@ -71,11 +85,11 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
     const hashKey = this.makeGroupKey(groupId)
     const values = await this.client.hGetAll(hashKey)
 
-    const items = Object.values(values).map((v) => JSON.parse(v) as BaseStreamItem<TData>)
+    const items = Object.values(values).map((v) => JSON.parse(v) as StreamItemWithTimestamp<TData>)
 
     return items.sort((a, b) => {
-      const aTime = (a as any)._createdAt || 0
-      const bTime = (b as any)._createdAt || 0
+      const aTime = a._createdAt || 0
+      const bTime = b._createdAt || 0
       return aTime - bTime
     })
   }
@@ -92,19 +106,20 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
     const channelKey = this.makeChannelKey(channel)
 
     if (!this.subClient) {
-      const socketConfig = this.client.options?.socket as any
-      const clientConfig = {
+      const socketConfig = this.client.options?.socket as RedisSocketConfig | undefined
+      const keepAliveValue = socketConfig?.keepAlive
+      const clientConfig: RedisClientOptions = {
         socket: {
           host: socketConfig?.host || 'localhost',
           port: socketConfig?.port || 6379,
-          keepAlive: socketConfig?.keepAlive ?? 5000,
+          keepAlive: keepAliveValue,
           noDelay: true,
         },
         password: this.client.options?.password,
         username: this.client.options?.username,
         database: this.client.options?.database || 0,
-      } as any
-      this.subClient = createClient(clientConfig)
+      }
+      this.subClient = createClient(clientConfig) as RedisClientType
 
       this.subClient.on('error', (err) => {
         console.error('[Redis Stream] Sub client error:', err)
@@ -113,9 +128,12 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
       await this.subClient.connect()
     }
 
-    this.subscriptions.set(channelKey, handler as (event: StateStreamEvent<any>) => void | Promise<void>)
+    this.subscriptions.set(channelKey, handler as EventHandler<unknown>)
 
-    await this.subClient.subscribe(channelKey, async (message) => {
+    const subClient = this.subClient
+    if (!subClient) return
+
+    await subClient.subscribe(channelKey, async (message) => {
       try {
         const event = JSON.parse(message) as StateStreamEvent<T>
         await handler(event)
@@ -147,17 +165,20 @@ export class RedisStreamAdapter<TData> extends StreamAdapter<TData> {
     let items = await this.getGroup(groupId)
 
     if (filter.where) {
+      const where = filter.where
       items = items.filter((item) => {
-        return Object.entries(filter.where!).every(([key, value]) => {
-          return (item as any)[key] === value
+        return Object.entries(where).every(([key, value]) => {
+          const itemKey = key as keyof BaseStreamItem<TData>
+          return item[itemKey] === value
         })
       })
     }
 
     if (filter.orderBy) {
       items.sort((a, b) => {
-        const aVal = (a as any)[filter.orderBy!]
-        const bVal = (b as any)[filter.orderBy!]
+        const orderKey = filter.orderBy as keyof BaseStreamItem<TData>
+        const aVal = a[orderKey]
+        const bVal = b[orderKey]
         const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
         return filter.orderDirection === 'desc' ? -comparison : comparison
       })
