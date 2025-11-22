@@ -11,6 +11,7 @@ import { generateLockedData } from 'motia'
 import path from 'path'
 import request from 'supertest'
 import { createEventManager } from './event-manager'
+import { createMockRedisClient } from './helpers'
 import type { CapturedEvent, MotiaTester } from './types'
 
 export const createMotiaTester = (): MotiaTester => {
@@ -23,6 +24,7 @@ export const createMotiaTester = (): MotiaTester => {
       projectDir: path.join(process.cwd()),
       streamAdapter: new MemoryStreamAdapterManager(),
       printerType: 'disabled',
+      redisClient: createMockRedisClient(),
     })
     const state = createStateAdapter({ adapter: 'memory' })
     const { server, socketServer, close } = createServer(

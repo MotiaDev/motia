@@ -93,4 +93,6 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
     cursorEnabled: true, // Default to true for cursor rules
     context,
   })
+
+  process.exit(0)
 }

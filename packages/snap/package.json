@@ -39,6 +39,8 @@
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.3.8",
+    "@motiadev/adapter-redis-state": "workspace:*",
+    "@motiadev/adapter-redis-streams": "workspace:*",
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-node": "workspace:*",
     "@motiadev/workbench": "workspace:*",
@@ -56,6 +58,8 @@
     "inquirer": "^8.2.5",
     "node-cron": "^3.0.3",
     "python-ast": "^0.1.0",
+    "redis": "^5.9.0",
+    "redis-memory-server": "^0.14.0",
     "table": "^6.9.0",
     "ts-node": "^10.9.2"
   },

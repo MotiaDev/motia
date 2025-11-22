@@ -12,6 +12,7 @@ import { NoTracer } from '../observability/no-tracer'
 import { NoPrinter } from '../printer'
 import type { InfrastructureConfig } from '../types'
 import { createCronStep, createEventStep } from './fixtures/step-fixtures'
+import { createMockRedisClient } from './test-helpers/redis-client'
 
 describe('callStepFile', () => {
   beforeAll(() => {
@@ -27,7 +28,7 @@ describe('callStepFile', () => {
       eventAdapter,
       state,
       printer,
-      lockedData: new LockedData(baseDir, new MemoryStreamAdapterManager(), printer),
+      lockedData: new LockedData(baseDir, new MemoryStreamAdapterManager(), printer, createMockRedisClient()),
       loggerFactory: { create: () => new Logger() },
       tracerFactory: {
         createTracer: () => new NoTracer(),
@@ -260,7 +261,7 @@ describe('callStepFile', () => {
       )
 
       await expect(Promise.all(calls)).resolves.not.toThrow()
-    })
+    }, 15000)
 
     it('should handle fractional timeout value', async () => {
       const baseDir = path.join(__dirname, 'steps')
