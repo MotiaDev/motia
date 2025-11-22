@@ -26,7 +26,7 @@ export type StreamItemArgs = {
  */
 export const useStreamItem = <TData>(args?: StreamItemArgs) => {
   const { stream } = useMotiaStream()
-  const [data, setData] = useState<TData | null>(null)
+  const [data, setData] = useState<TData | null | undefined>()
   const [event, setEvent] = useState<StreamSubscription | null>(null)
   const { streamName, groupId, id } = args || {}
 
@@ -43,7 +43,7 @@ export const useStreamItem = <TData>(args?: StreamItemArgs) => {
     setEvent(subscription)
 
     return () => {
-      setData(null)
+      setData(undefined)
       setEvent(null)
       subscription.close()
     }
