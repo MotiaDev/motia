@@ -77,6 +77,11 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
         invalidSteps.push({ filePath, version, config })
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      if (errorMessage.includes('Executable ruby not found') || errorMessage.includes('Executable python not found')) {
+        console.warn(colors.yellow(`! [WARNING] Skipping step ${filePath}: ${errorMessage}`))
+        continue
+      }
       throw new CompilationError(`Error collecting flow ${filePath}`, path.relative(projectDir, filePath), err as Error)
     }
   }
