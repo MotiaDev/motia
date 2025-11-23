@@ -55,7 +55,7 @@ Before contributing, you’ll need to set up the project locally.
 
 6. Start the development environment:
 
-   - pnpn run dev
+   - pnpm run dev
 
    - Run this command at the root of the project to start workbench
 
