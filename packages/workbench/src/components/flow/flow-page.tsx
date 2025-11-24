@@ -25,6 +25,14 @@ export const FlowPage = memo(() => {
   )
   const { data: flowConfig } = useStreamItem<FlowConfigResponse>(streamItemArgsConfig)
 
+  // if (flow === undefined) {
+  //   return (
+  //     <div className="flex w-full h-full bg-background">
+  //       <p>Loading flow...</p>
+  //     </div>
+  //   )
+  // }
+
   if (flows.length === 0) {
     return (
       <div className="flex w-full h-full bg-background">
@@ -56,6 +64,7 @@ export const FlowPage = memo(() => {
   }
 
   if (!flow) {
+    // if (flow === null) {
     return (
       <div className="flex w-full h-full bg-background">
         <Empty>
@@ -88,7 +97,27 @@ export const FlowPage = memo(() => {
   if (flow?.error) {
     return (
       <div className="flex w-full h-full bg-background">
-        <p>{flow.error}</p>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Workflow />
+            </EmptyMedia>
+            <EmptyTitle>Error loading flow</EmptyTitle>
+            <EmptyDescription>{flow.error}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button variant="link" asChild size="sm">
+              <a
+                href="https://www.motia.dev/docs/development-guide/flows"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => motiaAnalytics.track('flows_docs_link_clicked')}
+              >
+                Learn more <ExternalLink />
+              </a>
+            </Button>
+          </EmptyContent>
+        </Empty>
       </div>
     )
   }
