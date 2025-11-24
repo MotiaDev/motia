@@ -9,7 +9,21 @@ Thank you for your interest in contributing to Motia! We welcome contributions f
 
 ## Local Setup
 
+
 Before contributing, you’ll need to set up the project locally.
+
+## Project Structure
+
+Motia is a pnpm-based monorepo. Key directories:
+
+- **packages/core** — main workflow engine and internal execution logic
+- **packages/server** — backend HTTP API used by the playground and workbench
+- **packages/ui** — reusable UI components
+- **packages/workbench** — local developer tools and debugging interface
+- **packages/snap** — Motia CLI implementation
+- **packages/stream-client*** — client SDKs for streams
+- **plugins/** — official Motia plugins (logs, states, observability, endpoints, etc.)
+- **playground/** — example workspace used during local development
 
 ### Prerequisites
 
@@ -31,6 +45,21 @@ Before contributing, you’ll need to set up the project locally.
    ```bash
    pnpm install
    ```
+
+   If you see a warning like:
+
+   ```
+   Ignored build scripts...
+   Run "pnpm approve-builds"
+   ```
+
+   Run:
+
+   ```bash
+   pnpm approve-builds
+   ```
+
+   Then press **a** to select all packages, then **Enter**.
    
 3. Build the project:
 
@@ -38,11 +67,27 @@ Before contributing, you’ll need to set up the project locally.
    pnpm build
    ```
 
-4. Set up Motia in the playground:
+4. Set up the Motia CLI for development:
+
+   Before using the CLI, you must link it globally:
+
+   ```bash
+   pnpm setup
+   source ~/.zshrc   # or ~/.bashrc
+   pnpm link ./packages/snap --global
+   ```
+
+   Verify:
+
+   ```bash
+   motia --version
+   ```
+
+   Then install playground dependencies:
 
    ```bash
    cd playground
-   npx motia install
+   motia install
    ```
 
 5. Set up environment variables:
@@ -55,7 +100,13 @@ Before contributing, you’ll need to set up the project locally.
 
 6. Start the development environment:
 
-   - pnpm run dev
+   This launches MotiaCore, MotiaServer, and all supporting background services.
+
+   Run the full development environment:
+
+   ```bash
+   pnpm run dev
+   ```
 
    - Run this command at the root of the project to start workbench
 
@@ -71,7 +122,20 @@ Before contributing, you’ll need to set up the project locally.
 
    The app runs locally at **[http://localhost:3000](http://localhost:3000)**.
 
----
+## Running Tests
+
+Run all tests:
+
+```bash
+pnpm test
+```
+
+Run tests for a specific package:
+
+```bash
+pnpm --filter <package-name> test
+```
+----
 
 ## Reporting Issues
 
@@ -89,6 +153,42 @@ We appreciate pull requests for bug fixes, enhancements, or new features. To sub
 6. Open a pull request against the `main` branch of the Motia repository.
 
 Please provide a clear description of your changes in the pull request, along with any relevant information or context.
+
+## Troubleshooting
+
+### Error: `command not found: motia`
+Make sure the pnpm global bin directory is created and in PATH:
+
+```bash
+pnpm setup
+source ~/.zshrc   # or ~/.bashrc
+pnpm link ./packages/snap --global
+```
+
+### Warning: Ignored build scripts
+Run:
+
+```bash
+pnpm approve-builds
+```
+
+Then press **a** to select all packages.
+
+### pnpm: No global bin directory
+Run:
+
+```bash
+pnpm setup
+source ~/.zshrc
+```
+
+### Playground does not start
+Ensure you installed Python dependencies:
+
+```bash
+cd playground
+motia install
+```
 
 ## Documentation Improvements
 
