@@ -1,10 +1,8 @@
 import type { Event } from '@motiadev/core'
 import { Queue } from 'bullmq'
 import type { Redis } from 'ioredis'
+import type { MergedConfig } from './config-builder'
 import { QueueCreationError } from './errors'
-import type { BullMQEventAdapterConfig } from './types'
-
-type MergedConfig = Required<Pick<BullMQEventAdapterConfig, 'defaultJobOptions' | 'prefix' | 'concurrency'>>
 
 type SubscriberInfo = {
   topic: string
