@@ -8,16 +8,20 @@ export class TraceManager {
     private readonly traceGroup: TraceGroup,
     private readonly trace: Trace,
   ) {
-    this.updateTrace()
-    this.updateTraceGroup()
+    this.updateTrace().catch(() => {})
+    this.updateTraceGroup().catch(() => {})
   }
 
-  updateTrace() {
-    this.traceStream.set(this.traceGroup.id, this.trace.id, this.trace)
+  async updateTrace() {
+    await this.traceStream.set(this.traceGroup.id, this.trace.id, this.trace)
   }
 
-  updateTraceGroup() {
-    this.traceGroupStream.set('default', this.traceGroup.id, this.traceGroup)
+  async updateTraceGroup() {
+    await this.traceGroupStream.set('default', this.traceGroup.id, this.traceGroup)
+  }
+
+  async getAllTracesForGroup(): Promise<Trace[]> {
+    return await this.traceStream.getGroup(this.traceGroup.id)
   }
 
   child(trace: Trace) {
