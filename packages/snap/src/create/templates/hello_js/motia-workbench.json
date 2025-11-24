@@ -8,7 +8,8 @@
       },
       "steps/hello/hello-api.step.js": {
         "x": 0,
-        "y": 0
+        "y": 0,
+        "sourceHandlePosition": "right"
       }
     }
   }
