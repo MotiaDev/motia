@@ -10,10 +10,10 @@ export interface Metric {
 }
 
 export interface Tracer {
-  end(err?: TraceError): void
-  stateOperation(operation: StateOperation, input: unknown): void
-  emitOperation(topic: string, data: unknown, success: boolean): void
-  streamOperation(streamName: string, operation: StreamOperation, input: unknown): void
+  end(err?: TraceError): Promise<void>
+  stateOperation(operation: StateOperation, input: unknown): Promise<void>
+  emitOperation(topic: string, data: unknown, success: boolean): Promise<void>
+  streamOperation(streamName: string, operation: StreamOperation, input: unknown): Promise<void>
   child(step: Step, logger: Logger): Tracer
 }
 

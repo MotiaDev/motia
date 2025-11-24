@@ -12,8 +12,8 @@ export class StreamTracer implements Tracer {
     private readonly trace: Trace,
     logger: Logger,
   ) {
-    logger.addListener((level, msg, args) => {
-      this.addEvent({
+    logger.addListener(async (level, msg, args) => {
+      await this.addEvent({
         type: 'log',
         timestamp: Date.now(),
         level,
@@ -23,9 +23,8 @@ export class StreamTracer implements Tracer {
     })
   }
 
-  end(err?: TraceError) {
+  async end(err?: TraceError) {
     if (this.trace.endTime) {
-      // avoiding updating twice
       return
     }
 
@@ -33,26 +32,44 @@ export class StreamTracer implements Tracer {
     this.trace.endTime = Date.now()
     this.trace.error = err
 
-    this.traceGroup.metadata.completedSteps++
-    this.traceGroup.metadata.activeSteps--
-
-    if (this.traceGroup.metadata.activeSteps === 0) {
-      if (this.traceGroup.status === 'running') {
-        this.traceGroup.status = 'completed'
-      }
-      this.traceGroup.endTime = Date.now()
-    }
-
-    if (err) {
-      this.traceGroup.status = 'failed'
-    }
-
-    this.manager.updateTrace()
-    this.manager.updateTraceGroup()
+    await this.manager.updateTrace()
+    await this.recomputeTraceGroupStatus()
+    await this.manager.updateTraceGroup()
   }
 
-  stateOperation(operation: StateOperation, input: unknown) {
-    this.addEvent({
+  private async recomputeTraceGroupStatus() {
+    const allTracesFromStorage = await this.manager.getAllTracesForGroup()
+
+    const currentTraceIndex = allTracesFromStorage.findIndex((t) => t.id === this.trace.id)
+    const allTraces = [...allTracesFromStorage]
+
+    if (currentTraceIndex >= 0) {
+      allTraces[currentTraceIndex] = this.trace
+    } else {
+      allTraces.push(this.trace)
+    }
+
+    const completedCount = allTraces.filter((t) => t.status === 'completed').length
+    const failedCount = allTraces.filter((t) => t.status === 'failed').length
+    const runningCount = allTraces.filter((t) => t.status === 'running').length
+
+    this.traceGroup.metadata.completedSteps = completedCount
+    this.traceGroup.metadata.activeSteps = runningCount
+
+    if (failedCount > 0) {
+      this.traceGroup.status = 'failed'
+    } else if (runningCount === 0 && completedCount > 0) {
+      this.traceGroup.status = 'completed'
+      if (!this.traceGroup.endTime) {
+        this.traceGroup.endTime = Date.now()
+      }
+    } else {
+      this.traceGroup.status = 'running'
+    }
+  }
+
+  async stateOperation(operation: StateOperation, input: unknown) {
+    await this.addEvent({
       type: 'state',
       timestamp: Date.now(),
       operation,
@@ -60,8 +77,8 @@ export class StreamTracer implements Tracer {
     })
   }
 
-  emitOperation(topic: string, data: unknown, success: boolean) {
-    this.addEvent({
+  async emitOperation(topic: string, data: unknown, success: boolean) {
+    await this.addEvent({
       type: 'emit',
       timestamp: Date.now(),
       topic,
@@ -70,7 +87,7 @@ export class StreamTracer implements Tracer {
     })
   }
 
-  streamOperation(
+  async streamOperation(
     streamName: string,
     operation: StreamOperation,
     input: { groupId: string; id: string; data?: unknown },
@@ -90,14 +107,14 @@ export class StreamTracer implements Tracer {
         lastEvent.maxTimestamp = Date.now()
 
         this.traceGroup.lastActivity = lastEvent.maxTimestamp
-        this.manager.updateTrace()
-        this.manager.updateTraceGroup()
+        await this.manager.updateTrace()
+        await this.manager.updateTraceGroup()
 
         return
       }
     }
 
-    this.addEvent({
+    await this.addEvent({
       type: 'stream',
       timestamp: Date.now(),
       operation,
@@ -114,11 +131,11 @@ export class StreamTracer implements Tracer {
     return new StreamTracer(manager, this.traceGroup, trace, logger)
   }
 
-  private addEvent(event: TraceEvent) {
+  private async addEvent(event: TraceEvent) {
     this.trace.events.push(event)
     this.traceGroup.lastActivity = event.timestamp
 
-    this.manager.updateTrace()
-    this.manager.updateTraceGroup()
+    await this.manager.updateTrace()
+    await this.manager.updateTraceGroup()
   }
 }

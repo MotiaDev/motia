@@ -1,11 +1,10 @@
 import type { Event, QueueConfig, SubscriptionHandle } from '@motiadev/core'
 import { type Job, Worker } from 'bullmq'
 import type { Redis } from 'ioredis'
+import type { MergedConfig } from './config-builder'
 import { FIFO_CONCURRENCY, MILLISECONDS_PER_SECOND } from './constants'
+import type { DLQManager } from './dlq-manager'
 import { WorkerCreationError } from './errors'
-import type { BullMQEventAdapterConfig } from './types'
-
-type MergedConfig = Required<Pick<BullMQEventAdapterConfig, 'defaultJobOptions' | 'prefix' | 'concurrency'>>
 
 type WorkerInfo = {
   worker: Worker
@@ -28,11 +27,18 @@ export class WorkerManager {
   private readonly connection: Redis
   private readonly config: MergedConfig
   private readonly getQueueName: (topic: string, stepName: string) => string
+  private readonly dlqManager: DLQManager | null
 
-  constructor(connection: Redis, config: MergedConfig, getQueueName: (topic: string, stepName: string) => string) {
+  constructor(
+    connection: Redis,
+    config: MergedConfig,
+    getQueueName: (topic: string, stepName: string) => string,
+    dlqManager?: DLQManager,
+  ) {
     this.connection = connection
     this.config = config
     this.getQueueName = getQueueName
+    this.dlqManager = dlqManager ?? null
   }
 
   createWorker<TData>(
@@ -54,13 +60,13 @@ export class WorkerManager {
       queueName,
       async (job: Job<JobData<TData>>) => {
         const eventData = job.data
-        const event: Event<TData> = {
+        const event = {
           topic: eventData.topic,
           data: eventData.data,
           traceId: eventData.traceId,
           flows: eventData.flows,
           messageGroupId: eventData.messageGroupId,
-        }
+        } as Event<TData>
         await handler(event)
       },
       {
@@ -167,12 +173,25 @@ export class WorkerManager {
       console.error(`[BullMQ] Worker error for topic ${topic}, step ${stepName}:`, error)
     })
 
-    worker.on('failed', (job: Job | undefined, err: Error) => {
+    worker.on('failed', async (job: Job<JobData<unknown>> | undefined, err: Error) => {
       if (job) {
         const attemptsMade = job.attemptsMade || 0
         if (attemptsMade >= attempts) {
           const error = new WorkerCreationError(topic, stepName, err)
           console.error(`[BullMQ] Job ${job.id} failed after ${attemptsMade} attempts:`, error)
+
+          if (this.dlqManager) {
+            const eventData = job.data
+            const event = {
+              topic: eventData.topic,
+              data: eventData.data,
+              traceId: eventData.traceId,
+              flows: eventData.flows,
+              messageGroupId: eventData.messageGroupId,
+            } as Event<unknown>
+
+            await this.dlqManager.moveToDLQ(topic, stepName, event, err, attemptsMade, job.id)
+          }
         }
       }
     })

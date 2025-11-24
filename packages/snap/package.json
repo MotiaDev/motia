@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.3.8",
+    "@motiadev/adapter-bullmq-events": "workspace:*",
     "@motiadev/adapter-redis-state": "workspace:*",
     "@motiadev/adapter-redis-streams": "workspace:*",
     "@motiadev/core": "workspace:*",

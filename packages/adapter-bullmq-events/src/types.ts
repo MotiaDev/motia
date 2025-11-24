@@ -16,4 +16,9 @@ export interface BullMQEventAdapterConfig {
     removeOnFail?: KeepJobs
   }
   prefix?: string
+  dlq?: {
+    enabled?: boolean
+    ttl?: number
+    suffix?: string
+  }
 }
