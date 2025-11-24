@@ -3,25 +3,24 @@
     "id": "basic-tutorial",
     "config": {
       "steps/petstore/state-audit-cron.step.ts": {
-        "x": -165,
-        "y": 217,
+        "x": -175,
+        "y": 219,
         "sourceHandlePosition": "right"
       },
       "steps/petstore/process-food-order.step.ts": {
-        "x": 211,
+        "x": 144,
         "y": 17,
-        "sourceHandlePosition": "bottom",
-        "targetHandlePosition": "left"
-      },
-      "steps/petstore/api.step.ts": {
-        "x": -100,
-        "y": 3,
-        "sourceHandlePosition": "right",
-        "targetHandlePosition": "left"
+        "sourceHandlePosition": "bottom"
       },
       "steps/petstore/notification.step.ts": {
-        "x": 300,
-        "y": 264
+        "x": 331,
+        "y": 261,
+        "sourceHandlePosition": "bottom"
+      },
+      "steps/petstore/api.step.ts": {
+        "x": -175,
+        "y": 3,
+        "sourceHandlePosition": "right"
       }
     }
   }
