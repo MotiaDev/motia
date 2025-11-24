@@ -226,6 +226,9 @@ docker
   )
 
 program.version(version, '-V, --version', 'Output the current version')
-program.parseAsync(process.argv).catch(() => {
-  process.exit(1)
-})
+program
+  .parseAsync(process.argv)
+  .then(() => process.exit(0))
+  .catch(() => {
+    process.exit(1)
+  })
