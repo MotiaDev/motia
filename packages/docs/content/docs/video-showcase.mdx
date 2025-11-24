@@ -25,38 +25,51 @@ Explore Motia's capabilities through our collection of demonstration videos and 
 <VideoShowcase
   title="Featured Videos"
   description="Watch Motia in action with these curated video demonstrations"
-  columns={2}
   videos={[
     {
       id: "demo-1",
-      title: "A challenge to traditional backend development flow",
-      description: "A challenge to traditional backend",
-      url: "https://youtu.be/U59FUduO6wY?si=pw4CmpZXLreHVzs6"
-    },
-    {
-      id: "demo-2", 
-      title: "Vercel but for backend",
-      description: "Motia Overview",
-      url: "https://youtu.be/UUVE5db78cc?si=th_rD9cgMsE1BJrt"
-    },
-    {
-      id: "demo-3",
       title: "Next.js Background Jobs Are Easy Now",
-      description: "Next.js Background Jobs with Motia",
-      url: "https://youtu.be/7KZS0syLrUo?si=3LEyfcZ-5ZaEB8xQ"
+      description: "Next.js Background Jobs with Motia by Web Dev Simplified",
+      url: "https://youtu.be/7KZS0syLrUo?si=iahtz0Gta3gTD4km"
     },
     {
       id: "demo-4",
-      title: "You have never seen a DX (Developer Experience) like this",
-      description: "Motia's Interactive tutorial Demo",
-      url: "https://youtu.be/JECQtMSBJyY?si=aScCBb09B5tXfOsX"
+      title: "The Only Backend For Next.js You Need (Motia)",
+      description: "Motia unified backend Framework",
+      url: "https://youtu.be/70jKtCdy6eQ?si=IVabS265wVZW_PTf"
     },
     {
-      id: "demo-5",
-      title: "The only AI framework you’ll ever need",
+      id: "demo-6",
+      title: "Add AI To Next.js With AI SDK & AI Elements (Shadcn UI) - Tutorial",
+      description: "Complete tutorial on integrating AI into Next.js applications",
+      url: "https://www.youtube.com/watch?v=nX7MlUhupig&t=28s"
+    },
+    {
+      id: "demo-7",
+      title: "Tanstack Start + Motia Backend Framework",
+      description: "Tanstack Start + Motia Backend Framework",
+      url: "https://www.youtube.com/watch?v=VhRhGrOt-48&t=1s"
+    }
+  ]}
+/>
+
+<VideoShowcase
+  title="Other Videos"
+  description="More tutorials and guides to help you build with Motia"
+  videos={[
+    {
+      id: "demo-2",
+      title: "The only AI framework you'll ever need",
       description: "Motia's tutorial for LinkedIn and Twitter Automation on Typefully",
       url: "https://www.youtube.com/watch?v=6EFTemC99AM"
-    }
+    },
+    {
+      id: "demo-8",
+      title: "Motia Framework Tutorial",
+      description: "You have never seen a DX (Developer Experience) like this | Motia",
+      url: "hhttps://www.youtube.com/watch?v=JECQtMSBJyY"
+    },
+
   ]}
 />
 
