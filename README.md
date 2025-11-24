@@ -39,7 +39,7 @@
 <p align="center">
   <a href="https://www.motia.dev/manifesto">💡 Motia Manifesto</a> •
   <a href="https://www.motia.dev/docs/getting-started/quick-start">🚀 Quick Start</a> •
-  <a href="https://www.motia.dev/docs/concepts/steps/steps">📋 Defining Steps</a> •
+  <a href="https://www.motia.dev/docs/concepts/steps">📋 Defining Steps</a> •
   <a href="https://www.motia.dev/docs">📚 Docs</a>
 </p>
 
