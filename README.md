@@ -45,6 +45,16 @@
 
 ---
 
+## 🚀 Create your first Motia App
+
+Get started in seconds:
+
+```bash
+npx motia@latest create
+```
+
+---
+
 ## 🎯 What is Motia?
 
 Backend development today is fragmented.
