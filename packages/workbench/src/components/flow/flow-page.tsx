@@ -25,15 +25,7 @@ export const FlowPage = memo(() => {
   )
   const { data: flowConfig } = useStreamItem<FlowConfigResponse>(streamItemArgsConfig)
 
-  // if (flow === undefined) {
-  //   return (
-  //     <div className="flex w-full h-full bg-background">
-  //       <p>Loading flow...</p>
-  //     </div>
-  //   )
-  // }
-
-  if (flows.length === 0) {
+  if (flows.length === 0 || flow?.error) {
     return (
       <div className="flex w-full h-full bg-background">
         <Empty>
@@ -41,10 +33,19 @@ export const FlowPage = memo(() => {
             <EmptyMedia variant="icon">
               <Workflow />
             </EmptyMedia>
-            <EmptyTitle>No flows registered</EmptyTitle>
-            <EmptyDescription>
-              You haven't registered any flows yet. Get started by registering your first flow.
-            </EmptyDescription>
+            {flow?.error ? (
+              <>
+                <EmptyTitle>Error loading flow</EmptyTitle>
+                <EmptyDescription>{flow.error}</EmptyDescription>
+              </>
+            ) : (
+              <>
+                <EmptyTitle>No flows registered</EmptyTitle>
+                <EmptyDescription>
+                  You haven't registered any flows yet. Get started by registering your first flow.
+                </EmptyDescription>
+              </>
+            )}
           </EmptyHeader>
           <EmptyContent>
             <Button variant="link" asChild size="sm">
@@ -63,64 +64,7 @@ export const FlowPage = memo(() => {
     )
   }
 
-  if (!flow) {
-    // if (flow === null) {
-    return (
-      <div className="flex w-full h-full bg-background">
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Workflow />
-            </EmptyMedia>
-            <EmptyTitle>No steps found for {selectedFlowId}</EmptyTitle>
-            <EmptyDescription>
-              This flow doesn't have any steps yet. Get started by adding your first step to this flow.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button variant="link" asChild size="sm">
-              <a
-                href="https://www.motia.dev/docs/development-guide/flows"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => motiaAnalytics.track('flows_docs_link_clicked')}
-              >
-                Learn more <ExternalLink />
-              </a>
-            </Button>
-          </EmptyContent>
-        </Empty>
-      </div>
-    )
-  }
-
-  if (flow?.error) {
-    return (
-      <div className="flex w-full h-full bg-background">
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Workflow />
-            </EmptyMedia>
-            <EmptyTitle>Error loading flow</EmptyTitle>
-            <EmptyDescription>{flow.error}</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button variant="link" asChild size="sm">
-              <a
-                href="https://www.motia.dev/docs/development-guide/flows"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => motiaAnalytics.track('flows_docs_link_clicked')}
-              >
-                Learn more <ExternalLink />
-              </a>
-            </Button>
-          </EmptyContent>
-        </Empty>
-      </div>
-    )
-  }
+  if (!flow) return null
 
   return (
     <ReactFlowProvider>
