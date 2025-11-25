@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { getStepFiles } from './generate-locked-data'
+import { getStepFiles, getStreamFiles } from './generate-locked-data'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { ensureUvInstalled } from './utils/ensure-uv'
 import { executeCommand } from './utils/execute-command'
@@ -73,8 +73,8 @@ export const pythonInstall = async ({
 export const install = async ({ isVerbose = false, pythonVersion = '3.13' }: InstallConfig): Promise<void> => {
   const baseDir = process.cwd()
 
-  const steps = getStepFiles(baseDir)
-  if (steps.some((file) => file.endsWith('.py'))) {
+  const hasPythonFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)].some((file) => file.endsWith('.py'))
+  if (hasPythonFiles) {
     await pythonInstall({ baseDir, isVerbose, pythonVersion })
   }
 
