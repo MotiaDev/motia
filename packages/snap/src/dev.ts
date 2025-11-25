@@ -17,7 +17,7 @@ import type { RedisClientType } from 'redis'
 import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
 import { createDevWatchers } from './dev-watchers'
-import { generateLockedData, getStepFiles } from './generate-locked-data'
+import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins'
 import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
@@ -44,7 +44,7 @@ export const dev = async (
 
   identifyUser()
 
-  const stepFiles = getStepFiles(baseDir)
+  const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
   trackEvent('dev_server_started', {
@@ -77,6 +77,7 @@ export const dev = async (
     projectDir: baseDir,
     streamAdapter: adapters.streamAdapter,
     redisClient,
+    streamAuth: appConfig.streamAuth,
   })
 
   const state = appConfig.adapters?.state || new RedisStateAdapter(redisClient)

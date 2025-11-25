@@ -43,6 +43,11 @@ async function getConfig(filePath: string) {
       }
     }
 
+    if (typeof module.config.canAccess === 'function') {
+      module.config.__motia_hasCanAccess = !!module.config.canAccess
+      delete module.config.canAccess
+    }
+
     process.send?.(module.config)
 
     process.exit(0)

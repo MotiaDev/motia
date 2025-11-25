@@ -9,7 +9,7 @@ interface PluginData {
   status: 'active' | 'inactive'
 }
 
-export const Plugin = () => {
+export const Example = () => {
   const [data, setData] = useState<PluginData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

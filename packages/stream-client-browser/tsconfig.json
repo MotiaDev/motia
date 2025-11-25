@@ -13,6 +13,7 @@
     "rootDir": ".",
     "baseUrl": ".",
     "declaration": true,
+    "declarationMap": true,
     "lib": ["dom"]
   },
   "include": ["src", "index.ts", "__tests__"],

@@ -1,4 +1,12 @@
-import { getStepConfig, getStreamConfig, LockedData, type Step, type StreamAdapterManager } from '@motiadev/core'
+import {
+  getStepConfig,
+  getStreamConfig,
+  type JsonSchema,
+  LockedData,
+  type Step,
+  type StreamAdapterManager,
+  type StreamAuthConfig,
+} from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import colors from 'colors'
 import { randomUUID } from 'crypto'
@@ -129,20 +137,27 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   return invalidSteps
 }
 
+type StreamAuthOptions = {
+  authenticate: StreamAuthConfig['authenticate']
+  contextSchema?: JsonSchema
+}
+
 export const generateLockedData = async (config: {
   projectDir: string
   streamAdapter: StreamAdapterManager
   redisClient: RedisClientType
   printerType?: 'disabled' | 'default'
+  streamAuth?: StreamAuthOptions
 }): Promise<LockedData> => {
   try {
-    const { projectDir, streamAdapter, printerType = 'default', redisClient } = config
+    const { projectDir, streamAdapter, printerType = 'default', redisClient, streamAuth } = config
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
     /*
      * NOTE: right now for performance and simplicity let's enforce a folder,
      * but we might want to remove this and scan the entire current directory
      */
     const lockedData = new LockedData(projectDir, streamAdapter, printer, redisClient)
+    lockedData.setStreamAuthConfig(streamAuth)
 
     await collectFlows(projectDir, lockedData)
     lockedData.saveTypes()

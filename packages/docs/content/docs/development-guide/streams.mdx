@@ -220,6 +220,123 @@ export const handler: Handlers['CreateTodo'] = async (req, { logger, streams }) 
 
 ---
 
+## Restricting Stream Access
+
+Streams can now enforce authentication and authorization rules so that only approved clients can subscribe.
+
+### 1. Configure `streamAuth` in `motia.config.ts`
+
+```typescript title="motia.config.ts"
+import type { StreamAuthRequest } from '@motiadev/core'
+import { config } from 'motia'
+import { z } from 'zod'
+
+const streamAuthContextSchema = z.object({
+  userId: z.string(),
+  plan: z.enum(['free', 'pro']),
+  projectIds: z.array(z.string()),
+})
+
+const extractAuthToken = (request: StreamAuthRequest): string | undefined => {
+  const protocolHeader = request.headers['sec-websocket-protocol']
+  if (protocolHeader?.includes('Authorization')) {
+    const [, token] = protocolHeader.split(',')
+    if (token) {
+      return token.trim()
+    }
+  }
+
+  if (!request.url) return undefined
+
+  try {
+    const url = new URL(request.url, 'http://localhost')
+    return url.searchParams.get('authToken') ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+export default config({
+  streamAuth: {
+    contextSchema: z.toJSONSchema(streamAuthContextSchema),
+    authenticate: async (request: StreamAuthRequest) => {
+      const token = extractAuthToken(request)
+      if (!token) return null
+
+      // look up the token in your auth system
+      const session = await mySessionStore.get(token)
+      if (!session) {
+        throw new Error(`Invalid token: ${token}`)
+      }
+
+      return session
+    },
+  },
+})
+```
+
+Motia uses `contextSchema` to generate the `StreamAuthContext` type inside your project's `types.d.ts` and stores whatever `authenticate` returns as `authContext` on the WebSocket connection. Returning `null` means the client is anonymous.
+
+### 2. Apply fine-grained rules with `canAccess`
+
+Each stream can expose an optional `canAccess` function that receives the subscription info plus the `StreamAuthContext` value returned by your `authenticate` function.
+
+```typescript title="steps/chat-messages.stream.ts"
+export const config: StreamConfig = {
+  name: 'chatMessage',
+  schema: chatMessageSchema,
+  baseConfig: { storageType: 'default' },
+  canAccess: ({ groupId, id }, authContext) => {
+    if (!authContext) return false
+    // only allow users that are part of the project backing this chat
+    return authContext.projectIds.includes(groupId)
+  },
+}
+```
+
+`canAccess` can be synchronous or async. If it's not defined, Motia allows every client (even anonymous ones) to subscribe. If you remove the function from a stream that previously had one, Motia evaluates it out-of-process using the generated runner (useful for Python/Ruby streams).
+
+### 3. Send tokens from the client
+
+Provide an auth token when creating the stream client by embedding it in the WebSocket URL. Motia will read it in `authenticate` before authorizing subscriptions.
+
+```tsx title="App.tsx"
+import { useMemo } from 'react'
+import { MotiaStreamProvider } from '@motiadev/stream-client-react'
+
+function AppShell({ session }: { session?: { streamToken?: string } }) {
+  const streamAddress = useMemo(() => new URL('ws://localhost:3000').toString(), [])
+  const protocols = useMemo(() => {
+    return session?.streamToken ? ['Authorization', session.streamToken] : undefined
+  }, [session?.streamToken])
+
+  return (
+    <MotiaStreamProvider address={streamAddress} protocols={protocols}>
+      <App />
+    </MotiaStreamProvider>
+  )
+}
+```
+
+When you pass the token via the `protocols` prop Motia sends it as `Sec-WebSocket-Protocol: Authorization,<token>`, matching the Workbench Stream RBAC plugin (`ActiveStreamConnection.tsx`).
+
+Using the browser/node clients directly:
+
+```ts
+import { Stream } from '@motiadev/stream-client-node'
+
+const url = new URL('wss://api.example.com/streams')
+if (process.env.STREAM_TOKEN) {
+  url.searchParams.set('authToken', process.env.STREAM_TOKEN)
+}
+
+const stream = new Stream(url.toString())
+```
+
+On the server side Motia validates the token (via `authenticate`), stores the resulting context on the WebSocket, and calls `canAccess` before creating a subscription. Unauthorized clients receive an `error` event and no subscriptions are created.
+
+---
+
 ## Testing Streams in Workbench
 
 Testing real-time features can be tricky. Workbench makes it easy.
@@ -259,8 +376,10 @@ Wrap your app with the provider:
 import { MotiaStreamProvider } from '@motiadev/stream-client-react'
 
 function App() {
+  const authToken = useAuthToken() // e.g. from cookies or local storage
+
   return (
-    <MotiaStreamProvider address="ws://localhost:3000">
+    <MotiaStreamProvider address="ws://localhost:3000" authToken={authToken}>
       {/* Your app */}
     </MotiaStreamProvider>
   )

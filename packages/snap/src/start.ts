@@ -4,7 +4,7 @@ import { createServer, DefaultCronAdapter, DefaultQueueEventAdapter, type MotiaP
 import path from 'path'
 import type { RedisClientType } from 'redis'
 import { workbenchBase } from './constants'
-import { generateLockedData, getStepFiles } from './generate-locked-data'
+import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins'
 import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
@@ -25,7 +25,7 @@ export const start = async (
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
 
-  const stepFiles = getStepFiles(baseDir)
+  const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
   if (hasPythonFiles) {
@@ -49,6 +49,7 @@ export const start = async (
     projectDir: baseDir,
     streamAdapter: adapters.streamAdapter,
     redisClient,
+    streamAuth: appConfig.streamAuth,
   })
 
   const state = appConfig.adapters?.state || new RedisStateAdapter(redisClient)

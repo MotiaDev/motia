@@ -41,8 +41,11 @@ Wrap your application (or a subtree) with `MotiaStreamProvider` to initialize th
 import { MotiaStreamProvider } from '@motiadev/stream-client-react'
 
 const App = () => {
+  const token = useMemo(() => window.sessionStorage.getItem('motia.streamToken') ?? undefined, [])
+  const protocols = useMemo(() => (token ? ['Authorization', token] : undefined), [token])
+
   return (
-    <MotiaStreamProvider address="wss://your-stream-server">
+    <MotiaStreamProvider address="wss://your-stream-server" protocols={protocols}>
       <App />
     </MotiaStreamProvider>
   )
@@ -52,6 +55,7 @@ const App = () => {
 **Props:**
 
 - `address` (string): The WebSocket address of your Motia stream server.
+- `protocols` (string | string[] | undefined): Optional WebSocket subprotocols (use `['Authorization', token]` to send tokens via `Sec-WebSocket-Protocol`).
 
 ---
 
@@ -193,8 +197,11 @@ function UserComponent({ userId }) {
 }
 
 export default function App() {
+  const token = window.sessionStorage.getItem('motia.streamToken') ?? undefined
+  const protocols = token ? ['Authorization', token] : undefined
+
   return (
-    <MotiaStreamProvider address="wss://your-stream-server">
+    <MotiaStreamProvider address="wss://your-stream-server" protocols={protocols}>
       <UserComponent userId="user-123" />
     </MotiaStreamProvider>
   )

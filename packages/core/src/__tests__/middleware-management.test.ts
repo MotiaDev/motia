@@ -45,6 +45,10 @@ describe('Middleware Management', () => {
       onStep: () => {},
       applyStreamWrapper: () => {},
       createStream: () => () => new MemoryStreamAdapter('test-stream'),
+      setStreamAuthConfig: () => {},
+      getStreamAuthConfig: () => undefined,
+      getStreamByName: () => undefined,
+      getStreams: () => ({}),
       on: () => {},
     } as unknown as LockedData
 
