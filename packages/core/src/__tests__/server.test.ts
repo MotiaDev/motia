@@ -8,8 +8,8 @@ import { NoPrinter } from '../printer'
 import { createServer, type MotiaServer } from '../server'
 import type { ApiRouteConfig, Step } from '../types'
 import { createApiStep } from './fixtures/step-fixtures'
-import { createMockRedisClient } from './test-helpers/redis-client'
 import { config as remoteCanAccessConfig } from './steps/streams/remote-can-access.stream'
+import { createMockRedisClient } from './test-helpers/redis-client'
 
 const socketServerOptions: Array<{
   authorize?: (
@@ -150,7 +150,12 @@ describe('Server', () => {
     }
 
     it('uses inline canAccess implementations when available', async () => {
-      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(
+        baseDir,
+        new MemoryStreamAdapterManager(),
+        new NoPrinter(),
+        createMockRedisClient(),
+      )
       const canAccess = jest.fn().mockResolvedValue(true)
       lockedData.createStream(
         {
@@ -178,7 +183,12 @@ describe('Server', () => {
     })
 
     it('evaluates remote canAccess implementations via runner', async () => {
-      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(
+        baseDir,
+        new MemoryStreamAdapterManager(),
+        new NoPrinter(),
+        createMockRedisClient(),
+      )
       const streamPath = path.join(baseDir, 'streams', 'remote-can-access.stream.ts')
       const remoteConfig = {
         ...remoteCanAccessConfig,
