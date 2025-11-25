@@ -38,6 +38,10 @@ import { GmailTab } from '../../../components/GmailCodeFetcher'
   <File name="organize-email.step.ts" />
 </Folder>
 
+<Callout type="info">
+This example uses the `steps/` directory, but you can also use `src/` or both. Motia discovers step files from either location automatically.
+</Callout>
+
 <Tabs items={['webhook', 'analyze-email', 'auto-responder', 'daily-summary', 'fetch-email', 'organize-email']}>
   <GmailTab tab="webhook" value="gmail-webhook" />
   <GmailTab tab="analyze-email" value="analyze-email" fileExtension="py" />

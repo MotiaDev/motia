@@ -30,7 +30,7 @@ To read more about this, check out our [manifesto](/manifesto).
 
 At the heart of Motia is a single primitive: the **Step**.  
 
-A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files from `/steps` directory and connects them automatically.
+A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files from your project (either `steps/` or `src/` directories) and connects them automatically - no manual registration required.
 
 Here’s a simple example of two Steps working together: an API Step that emits an event, and an Event Step that processes it.
 
