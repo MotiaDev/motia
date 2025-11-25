@@ -39,9 +39,19 @@
 <p align="center">
   <a href="https://www.motia.dev/manifesto">💡 Motia Manifesto</a> •
   <a href="https://www.motia.dev/docs/getting-started/quick-start">🚀 Quick Start</a> •
-  <a href="https://www.motia.dev/docs/concepts/steps/steps">📋 Defining Steps</a> •
+  <a href="https://www.motia.dev/docs/concepts/steps">📋 Defining Steps</a> •
   <a href="https://www.motia.dev/docs">📚 Docs</a>
 </p>
+
+---
+
+## 🚀 Create your first Motia App
+
+Get started in seconds:
+
+```bash
+npx motia@latest create
+```
 
 ---
 
@@ -308,16 +318,16 @@ Feel free to add comments to the issues, or create a new issue if you have a fea
 
 | Feature | Status | Link | Description |
 | ------- | ------ | ---- | ----------- |
-| Python Types | Planned | [#485](https://github.com/MotiaDev/motia/issues/485) | Add support for Python types |
-| Streams: RBAC | Planned | [#495](https://github.com/MotiaDev/motia/issues/495) | Add support for RBAC |
-| Streams: Workbench UI | Planned | [#497](https://github.com/MotiaDev/motia/issues/497) | Add support for Workbench UI |
-| Queue Strategies | Planned | [#476](https://github.com/MotiaDev/motia/issues/476) | Add support for Queue Strategies |
-| Reactive Steps | Planned | [#477](https://github.com/MotiaDev/motia/issues/477) | Add support for Reactive Steps |
-| Point in time triggers | Planned | [#480](https://github.com/MotiaDev/motia/issues/480) | Add support for Point in time triggers |
-| Workbench plugins | Planned | [#481](https://github.com/MotiaDev/motia/issues/481) | Add support for Workbench plugins |
-| Rewrite our Core in either Go or Rust | Planned | [#482](https://github.com/MotiaDev/motia/issues/482) | Rewrite our Core in either Go or Rust |
-| Decrease deployment time | Planned | [#483](https://github.com/MotiaDev/motia/issues/483) | Decrease deployment time |
-| Built-in database support | Planned | [#484](https://github.com/MotiaDev/motia/issues/484) | Add support for built-in database |
+| Python Types | 🚧 In Progress | [#485](https://github.com/MotiaDev/motia/issues/485) | Add support for Python types |
+| Streams: RBAC | ✅ Shipped | [#495](https://github.com/MotiaDev/motia/issues/495) | Add support for RBAC |
+| Streams: Workbench UI | 🎨 Design Phase | [#497](https://github.com/MotiaDev/motia/issues/497) | Add support for Workbench UI |
+| Queue Strategies | ✅ Shipped | [#476](https://github.com/MotiaDev/motia/issues/476) | Add support for Queue Strategies |
+| Reactive Steps | 📅 Planned | [#477](https://github.com/MotiaDev/motia/issues/477) | Add support for Reactive Steps |
+| Point in time triggers | 📅 Planned | [#480](https://github.com/MotiaDev/motia/issues/480) | Add support for Point in time triggers |
+| Workbench plugins | ✅ Shipped | [#481](https://github.com/MotiaDev/motia/issues/481) | Add support for Workbench plugins |
+| Rewrite core in Rust | 🚧 In Progress | [#482](https://github.com/MotiaDev/motia/issues/482) | Rewrite our Core in Rust |
+| Decrease deployment time | 🚧 In Progress | [#483](https://github.com/MotiaDev/motia/issues/483) | Decrease deployment time |
+| Built-in database support | 📅 Planned | [#484](https://github.com/MotiaDev/motia/issues/484) | Add support for built-in database |
 
 ## 🤝 Contributing
 
