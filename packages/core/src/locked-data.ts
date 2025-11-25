@@ -40,7 +40,7 @@ export class LockedData {
     public readonly baseDir: string,
     public readonly streamAdapter: StreamAdapterManager,
     private readonly printer: Printer,
-    public readonly redisClient: RedisClientType,
+    public readonly redisClient?: RedisClientType,
   ) {
     this.flows = {}
     this.activeSteps = []

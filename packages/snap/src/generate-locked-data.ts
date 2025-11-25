@@ -3,6 +3,7 @@ import {
   getStreamConfig,
   type JsonSchema,
   LockedData,
+  MemoryStreamAdapterManager,
   type Step,
   type StreamAdapterManager,
   type StreamAuthConfig,
@@ -145,13 +146,19 @@ type StreamAuthOptions = {
 
 export const generateLockedData = async (config: {
   projectDir: string
-  streamAdapter: StreamAdapterManager
-  redisClient: RedisClientType
+  streamAdapter?: StreamAdapterManager
+  redisClient?: RedisClientType
   printerType?: 'disabled' | 'default'
   streamAuth?: StreamAuthOptions
 }): Promise<LockedData> => {
   try {
-    const { projectDir, streamAdapter, printerType = 'default', redisClient, streamAuth } = config
+    const {
+      projectDir,
+      streamAdapter = new MemoryStreamAdapterManager(),
+      printerType = 'default',
+      redisClient,
+      streamAuth,
+    } = config
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
     /*
      * NOTE: right now for performance and simplicity let's enforce a folder,

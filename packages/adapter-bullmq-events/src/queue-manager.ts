@@ -59,7 +59,13 @@ export class QueueManager {
         messageGroupId: event.messageGroupId,
       }
 
-      return queue.add(event.topic, jobData, { jobId }).then(() => undefined)
+      const jobOptions = {
+        jobId,
+        attempts: this.config.defaultJobOptions.attempts,
+        backoff: this.config.defaultJobOptions.backoff,
+      }
+
+      return queue.add(event.topic, jobData, jobOptions).then(() => undefined)
     })
 
     await Promise.all(promises)
