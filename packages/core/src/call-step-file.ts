@@ -1,3 +1,6 @@
+import crypto from 'crypto'
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import { trackEvent } from './analytics/utils'
 import type { Logger } from './logger'
@@ -17,6 +20,44 @@ type StateClearInput = { traceId: string }
 type StateStreamGetInput = { groupId: string; id: string }
 type StateStreamSendInput = { channel: StateStreamEventChannel; event: StateStreamEvent<unknown> }
 type StateStreamMutateInput = { groupId: string; id: string; data: BaseStreamItem }
+
+const sanitizeForPayload = (value: unknown, seen = new WeakSet<object>()): unknown => {
+  if (value === null) return null
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'bigint') {
+    return value.toString()
+  }
+  if (typeof value === 'symbol') {
+    return value.toString()
+  }
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) {
+    return { type: 'Buffer', data: Array.from(value.values()) }
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForPayload(item, seen))
+  }
+  if (value && typeof value === 'object') {
+    if (seen.has(value)) {
+      return '[Circular]'
+    }
+    seen.add(value)
+
+    return Object.entries(value as Record<string, unknown>).reduce<Record<string, unknown>>((acc, [key, val]) => {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        return acc
+      }
+      acc[key] = sanitizeForPayload(val, seen)
+      return acc
+    }, {})
+  }
+
+  return null
+}
 
 const getLanguageBasedRunner = (
   stepFilePath = '',
@@ -58,6 +99,8 @@ type CallStepFileOptions = {
   infrastructure?: Partial<InfrastructureConfig>
 }
 
+const THRESHOLD_BYTES = 1 * 1024 * 1024 // 1 MB
+
 export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia): Promise<TData | undefined> => {
   const { step, traceId, data, tracer, logger, contextInFirstArg = false, infrastructure } = options
 
@@ -66,18 +109,58 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
   return new Promise((resolve, reject) => {
     const streamConfig = motia.lockedData.getStreams()
     const streams = Object.keys(streamConfig).map((name) => ({ name }))
-    const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
+    const sanitizedData = sanitizeForPayload(data)
+    const jsonData = JSON.stringify({ data: sanitizedData, flows, traceId, contextInFirstArg, streams })
+    const jsonBytes = Buffer.byteLength(jsonData, 'utf8')
+
+    // Default: keep old behavior (argv carries inline JSON)
+    const payloadState = {
+      argv: jsonData,
+      tempFilePath: undefined as string | undefined,
+      isCleaned: false,
+      isCleaning: false,
+    }
+
+    // If payload is large, write it to a temp file and pass the path instead
+    if (jsonBytes >= THRESHOLD_BYTES) {
+      // Ensure shared motia temp directory exists and write a unique payload file inside it
+      const baseTempDir = path.join(os.tmpdir(), 'motia')
+      fs.mkdirSync(baseTempDir, { recursive: true, mode: 0o700 })
+      const uniqueId = `${process.pid}-${crypto.randomBytes(6).toString('hex')}`
+      const metaPath = path.join(baseTempDir, `meta-${uniqueId}.json`)
+      payloadState.tempFilePath = metaPath
+      fs.writeFileSync(metaPath, jsonData, { mode: 0o600 })
+      payloadState.argv = metaPath
+    }
+
     const { runner, command, args } = getLanguageBasedRunner(step.filePath)
     let result: TData | undefined
     let timeoutId: NodeJS.Timeout | undefined
 
     const processManager = new ProcessManager({
       command,
-      args: [...args, runner, step.filePath, jsonData],
+      args: [...args, runner, step.filePath, payloadState.argv],
       logger,
       context: 'StepExecution',
       projectRoot: motia.lockedData.baseDir,
     })
+
+    const cleanupTemp = async () => {
+      if (payloadState.isCleaning || payloadState.isCleaned || !payloadState.tempFilePath) return
+      const filePath = payloadState.tempFilePath
+      payloadState.tempFilePath = undefined
+      payloadState.isCleaning = true
+
+      try {
+        await fs.promises.rm(filePath, { force: true })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        logger.debug(`temp cleanup failed for ${filePath}: ${message}`)
+      } finally {
+        payloadState.isCleaning = false
+        payloadState.isCleaned = true
+      }
+    }
 
     trackEvent('step_execution_started', {
       stepName: step.config.name,
@@ -214,9 +297,10 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
         processManager.onStderr((data) => logger.error(Buffer.from(data).toString()))
 
-        processManager.onProcessClose((code) => {
+        processManager.onProcessClose(async (code) => {
           if (timeoutId) clearTimeout(timeoutId)
           processManager.close()
+          await cleanupTemp()
 
           if (code !== 0 && code !== null) {
             const error = { message: `Process exited with code ${code}`, code }
@@ -229,7 +313,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           }
         })
 
-        processManager.onProcessError((error) => {
+        processManager.onProcessError(async (error) => {
           if (timeoutId) clearTimeout(timeoutId)
           processManager.close()
           tracer.end({
@@ -252,7 +336,16 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
       })
       .catch((error) => {
+        // spawn failed before handlers attached — still clean up (async, best-effort)
+        if (payloadState.tempFilePath) {
+          const filePath = payloadState.tempFilePath
+          payloadState.tempFilePath = undefined
+          void fs.promises.rm(filePath, { force: true }).catch((err) => {
+            logger.debug(`temp cleanup: ${filePath}: ${err.message ?? err}`)
+          })
+        }
         if (timeoutId) clearTimeout(timeoutId)
+
         tracer.end({
           message: error.message,
           code: error.code,
