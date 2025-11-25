@@ -11,12 +11,12 @@ export const useGetEndpoints = () => {
   const groupedEndpoints = useMemo(() => {
     return endpoints.reduce(
       (acc, endpoint) => {
-        endpoint.flows?.forEach((flow) => {
-          acc[flow] = acc[flow] || []
-          acc[flow].push(endpoint)
-        })
-
-        if (endpoint.flows?.length == 0) {
+        if (endpoint.flows && endpoint.flows.length > 0) {
+          endpoint.flows.forEach((flow) => {
+            acc[flow] = acc[flow] || []
+            acc[flow].push(endpoint)
+          })
+        } else {
           acc['no-flow'] = acc['no-flow'] || []
           acc['no-flow'].push(endpoint)
         }
