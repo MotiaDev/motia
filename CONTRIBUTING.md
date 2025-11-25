@@ -73,7 +73,15 @@ Motia is a pnpm-based monorepo. Key directories:
 
    ```bash
    pnpm setup
-   source ~/.zshrc   # or ~/.bashrc
+
+   # Activate pnpm depending on your shell:
+   # Zsh:
+   source ~/.zshrc
+   # Bash:
+   source ~/.bashrc
+   # Fish:
+   source ~/.config/fish/config.fish
+
    pnpm link ./packages/snap --global
    ```
 
@@ -161,7 +169,15 @@ Make sure the pnpm global bin directory is created and in PATH:
 
 ```bash
 pnpm setup
-source ~/.zshrc   # or ~/.bashrc
+
+# Activate pnpm depending on your shell:
+# Zsh:
+source ~/.zshrc
+# Bash:
+source ~/.bashrc
+# Fish:
+source ~/.config/fish/config.fish
+
 pnpm link ./packages/snap --global
 ```
 
@@ -179,7 +195,14 @@ Run:
 
 ```bash
 pnpm setup
+
+# Activate pnpm depending on your shell:
+# Zsh:
 source ~/.zshrc
+# Bash:
+source ~/.bashrc
+# Fish:
+source ~/.config/fish/config.fish
 ```
 
 ### Playground does not start
