@@ -1,6 +1,8 @@
+import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
-import { createServer, DefaultCronAdapter, DefaultQueueEventAdapter, type MotiaPlugin } from '@motiadev/core'
+import { createServer, type MotiaPlugin } from '@motiadev/core'
 import path from 'path'
 import type { RedisClientType } from 'redis'
 import { workbenchBase } from './constants'
@@ -41,8 +43,15 @@ export const start = async (
   const redisClient: RedisClientType = await instanceRedisMemoryServer(dotMotia)
 
   const adapters = {
-    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
+    eventAdapter:
+      appConfig.adapters?.events ||
+      new BullMQEventAdapter({
+        connection: {
+          host: (redisClient.options.socket as { host?: string })?.host || 'localhost',
+          port: (redisClient.options.socket as { port?: number })?.port || 6379,
+        },
+      }),
+    cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),
     streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),
   }
   const lockedData = await generateLockedData({
