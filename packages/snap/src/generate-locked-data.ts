@@ -64,7 +64,8 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
     ...(existsSync(srcDir) ? globSync('**/*.step.py', { absolute: true, cwd: srcDir }) : []),
   ]
 
-  const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
+  const hasPythonFiles =
+    stepFiles.some((file) => file.endsWith('.py')) || streamFiles.some((file) => file.endsWith('.py'))
 
   if (hasPythonFiles) {
     activatePythonVenv({ baseDir: projectDir })
