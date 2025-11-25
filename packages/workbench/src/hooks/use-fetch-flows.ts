@@ -8,6 +8,7 @@ const streamGroupArgs = { streamName: '__motia.flows', groupId: 'default' }
 export const useFetchFlows = () => {
   const setFlows = useFlowStore((state) => state.setFlows)
   const selectFlowId = useFlowStore((state) => state.selectFlowId)
+  const clearSelectedFlowId = useFlowStore((state) => state.clearSelectedFlowId)
   const selectedFlowId = useFlowStore((state) => state.selectedFlowId)
 
   const { data: flows } = useStreamGroup<FlowResponse>(streamGroupArgs)
@@ -17,11 +18,16 @@ export const useFetchFlows = () => {
   }, [flows, setFlows])
 
   useEffect(() => {
-    if (
-      (!selectedFlowId && flows.length > 0) ||
-      (selectedFlowId && flows.length > 0 && !flows.find((flow) => flow.id === selectedFlowId))
-    ) {
+    const hasFlows = flows.length > 0
+    const isSelectedFlowValid = selectedFlowId && flows.some((flow) => flow.id === selectedFlowId)
+
+    if (!hasFlows && selectedFlowId) {
+      clearSelectedFlowId()
+      return
+    }
+
+    if (hasFlows && (!selectedFlowId || !isSelectedFlowValid)) {
       selectFlowId(flows[0].id)
     }
-  }, [flows, selectedFlowId, selectFlowId])
+  }, [flows, selectedFlowId, selectFlowId, clearSelectedFlowId])
 }
