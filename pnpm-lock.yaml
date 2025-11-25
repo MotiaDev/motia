@@ -390,6 +390,9 @@ importers:
       '@motiadev/adapter-bullmq-events':
         specifier: workspace:*
         version: link:../adapter-bullmq-events
+      '@motiadev/adapter-redis-cron':
+        specifier: workspace:*
+        version: link:../adapter-redis-cron
       '@motiadev/adapter-redis-state':
         specifier: workspace:*
         version: link:../adapter-redis-state

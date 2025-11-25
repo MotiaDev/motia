@@ -1,11 +1,11 @@
 import { flush } from '@amplitude/analytics-node'
 import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import {
   createMermaidGenerator,
   createServer,
-  DefaultCronAdapter,
   getProjectIdentifier,
   type MotiaPlugin,
   trackEvent,
@@ -74,7 +74,7 @@ export const dev = async (
         },
         prefix: 'motia:events',
       }),
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
+    cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),
     streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),
   }
 

@@ -89,6 +89,12 @@ export class BaseTracerFactory implements TracerFactory {
 }
 
 export const createTracerFactory = (lockedData: LockedData): TracerFactory => {
+  if (!lockedData.redisClient) {
+    throw new Error(
+      'Redis client is required for tracer factory. Please provide a redisClient when creating LockedData.',
+    )
+  }
+
   const traceStreamName = 'motia-trace'
   const traceStreamAdapter: MotiaStream<Trace> = new RedisTraceStreamAdapter(traceStreamName, lockedData.redisClient)
 
