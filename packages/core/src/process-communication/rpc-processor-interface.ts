@@ -1,4 +1,4 @@
-export type RpcHandler<TInput, TOutput> = (input: TInput) => Promise<TOutput>
+export type RpcHandler<TInput, TOutput> = (input: TInput) => Promise<TOutput> | TOutput
 export type MessageCallback<T = unknown> = (message: T) => void
 
 export interface RpcProcessorInterface {
