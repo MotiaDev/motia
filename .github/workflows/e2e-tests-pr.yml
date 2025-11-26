@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        template: [nodejs, python]
+        template: [motia-tutorial-typescript, motia-tutorial-python]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -128,7 +128,7 @@ jobs:
             export MOTIA_TEST_TEMPLATE=${{ matrix.template }}
 
             # Run tests based on template (no sharding)
-            if [ "${{ matrix.template }}" == "python" ]; then
+            if [ "${{ matrix.template }}" == "motia-tutorial-python" ]; then
               pnpm test:pr:python --reporter=line,html,github
             else
               pnpm test:pr --reporter=line,html,github

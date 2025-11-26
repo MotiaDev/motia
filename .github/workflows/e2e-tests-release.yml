@@ -76,7 +76,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        template: [nodejs, python]
+        template: [motia-tutorial-typescript, motia-tutorial-python]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     env:
@@ -196,7 +196,7 @@ jobs:
           command: |
             cd packages/e2e
             echo "Starting Release E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}"
-            if [ "${{ matrix.template }}" == "python" ]; then
+            if [ "${{ matrix.template }}" == "motia-tutorial-python" ]; then
               pnpm test:release:python --reporter=line,html,github
             else
               pnpm test:release --reporter=line,html,github
