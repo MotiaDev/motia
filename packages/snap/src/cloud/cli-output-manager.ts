@@ -61,14 +61,37 @@ export class Message {
   box(messages: string[], color: keyof typeof colorTags = 'blue'): Message {
     const ansiEscape = String.fromCharCode(0x1b)
     const stripAnsi = (str: string) => str.replace(new RegExp(`${ansiEscape}\\[[0-9;]*m`, 'g'), '')
-    const lines = messages.map((msg) => msg.trim()).filter((msg) => msg.length > 0)
-    const maxWidth = Math.max(...lines.map((line) => stripAnsi(line).length))
-    const contentWidth = Math.min(60, Math.max(40, maxWidth))
+    const contentWidth = 40
     const border = '─'.repeat(contentWidth + 2)
     const borderColor = colorTags[color]
 
+    const processedLines: string[] = []
+    messages.forEach((msg) => {
+      const trimmed = msg.trim()
+      if (trimmed.length === 0) return
+
+      const visibleLength = stripAnsi(trimmed).length
+      if (visibleLength <= contentWidth) {
+        processedLines.push(trimmed)
+      } else {
+        const words = trimmed.split(/\s+/)
+        let currentLine = ''
+        words.forEach((word) => {
+          const wordLength = stripAnsi(word).length
+          const currentLength = stripAnsi(currentLine).length
+          if (currentLength + wordLength + 1 <= contentWidth) {
+            currentLine = currentLine ? `${currentLine} ${word}` : word
+          } else {
+            if (currentLine) processedLines.push(currentLine)
+            currentLine = word
+          }
+        })
+        if (currentLine) processedLines.push(currentLine)
+      }
+    })
+
     this.output.push(borderColor(`\n  ┌${border}┐\n`))
-    lines.forEach((line) => {
+    processedLines.forEach((line) => {
       const lineLength = stripAnsi(line).length
       const padding = ' '.repeat(contentWidth - lineLength)
       this.output.push(`${borderColor(' │')} ${line}${padding} ${borderColor('│\n')}`)
