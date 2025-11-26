@@ -19,7 +19,7 @@ export function VideoPlayer({ videoPath, title, thumbnailPath, gifPath, classNam
   const [showControls, setShowControls] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>()
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handlePlayClick = () => {
     setIsPlaying(true)
