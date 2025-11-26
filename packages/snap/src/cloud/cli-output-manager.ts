@@ -59,18 +59,21 @@ export class Message {
   }
 
   box(messages: string[], color: keyof typeof colorTags = 'blue'): Message {
-    const message = messages.join('\n \n')
-    const lines = message.match(/.{1,40}/g) || [message]
-    const width = Math.min(40, Math.max(...lines.map((line) => line.length)))
-    const border = '─'.repeat(width + 2)
+    const ansiEscape = String.fromCharCode(0x1b)
+    const stripAnsi = (str: string) => str.replace(new RegExp(`${ansiEscape}\\[[0-9;]*m`, 'g'), '')
+    const lines = messages.map((msg) => msg.trim()).filter((msg) => msg.length > 0)
+    const maxWidth = Math.max(...lines.map((line) => stripAnsi(line).length))
+    const contentWidth = Math.min(60, Math.max(40, maxWidth))
+    const border = '─'.repeat(contentWidth + 2)
     const borderColor = colorTags[color]
 
-    this.output.push(borderColor('\n ┌' + border + '┐\n'))
+    this.output.push(borderColor(`\n  ┌${border}┐\n`))
     lines.forEach((line) => {
-      const padding = ' '.repeat(width - line.trim().length)
-      this.output.push(borderColor('│ ') + line.trim() + padding + borderColor(' │\n'))
+      const lineLength = stripAnsi(line).length
+      const padding = ' '.repeat(contentWidth - lineLength)
+      this.output.push(`${borderColor(' │')} ${line}${padding} ${borderColor('│\n')}`)
     })
-    this.output.push(borderColor('└' + border + '┘'))
+    this.output.push(borderColor(` └${border}┘`))
     return this
   }
 
