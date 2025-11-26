@@ -1,3 +1,4 @@
+import colors from 'colors'
 import fs from 'fs'
 import path from 'path'
 import type { CliContext } from '../cloud/config-utils'
@@ -84,14 +85,14 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   console.log(
     '\n\n' +
       `
-         _____   ______  ______   ______     
- /'\\_/\`\\/\\  __\`\\/\\__  _\\/\\__  _\\ /\\  _  \\    
-/\\      \\ \\ \\/\\ \\/_/\\ \\/\\/_/\\ \\/ \\ \\ \\L\\ \\   
-\\ \\ \\__\\ \\ \\ \\ \\ \\ \\ \\ \\   \\ \\ \\  \\ \\  __ \\  
- \\ \\ \\_/\\ \\ \\ \\_\\ \\ \\ \\ \\   \\_\\ \\__\\ \\ \\/\\ \\ 
-  \\ \\_\\\\ \\_\\ \\_____\\ \\ \\_\\  /\\_____\\\\ \\_\\ \\_\\
-   \\/_/ \\/_/\\/_____/  \\/_/  \\/_____/ \\/_/\\/_/
-      ` +
+           _____   ______  ______   ______
+   /'\\_/\`\\/\\  __\`\\/\\__  _\\/\\__  _\\ /\\  _  \\
+  /\\      \\ \\ \\/\\ \\/_/\\ \\/\\/_/\\ \\/ \\ \\ \\L\\ \\
+  \\ \\ \\__\\ \\ \\ \\ \\ \\ \\ \\ \\   \\ \\ \\  \\ \\  __ \\
+   \\ \\ \\_/\\ \\ \\ \\_\\ \\ \\ \\ \\   \\_\\ \\__\\ \\ \\/\\ \\
+    \\ \\_\\\\ \\_\\ \\_____\\ \\ \\_\\  /\\_____\\\\ \\_\\ \\_\\
+     \\/_/ \\/_/\\/_____/  \\/_/  \\/_____/ \\/_/\\/_/
+        ` +
       '\n\n',
   )
 
@@ -245,13 +246,18 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
       .append('- happy coding!'),
   )
 
-  context.log('starting-development-server-command', (message) =>
-    message
-      .tag('info')
-      .append('Next steps:')
-      .append(`cd ${path.basename(rootDir)}`, 'gray')
-      .append('then run', 'dark')
-      .append(`${packageManager} run dev`, 'gray')
-      .append('to start the development server.', 'dark'),
-  )
+  const projectDirName = path.basename(rootDir)
+  const devCommand = `${packageManager} run dev`
+  const nextSteps: string[] = []
+
+  if (isCurrentDir) {
+    nextSteps.push(`Run ${colors.cyan(devCommand)}`)
+  } else {
+    nextSteps.push(`cd ${colors.cyan(projectDirName)}`, `then run ${colors.cyan(devCommand)}`)
+  }
+
+  context.log('starting-development-server-command', (message) => {
+    message.tag('info').append('Next steps:')
+    message.box([...nextSteps, 'to start the development server.'], 'cyan')
+  })
 }
