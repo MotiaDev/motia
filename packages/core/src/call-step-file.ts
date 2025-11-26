@@ -197,16 +197,10 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
             (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
             (trimmed.startsWith('[') && trimmed.endsWith(']'))
           ) {
-            let parsed: unknown
             try {
-              parsed = JSON.parse(trimmed)
-            } catch {
-              parsed = undefined
-            }
-            if (parsed !== undefined) {
-              logger.log(parsed)
+              logger.log(JSON.parse(trimmed))
               return
-            }
+            } catch {}
           }
           logger.info(text)
         })
