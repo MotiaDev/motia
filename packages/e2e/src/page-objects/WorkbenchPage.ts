@@ -10,6 +10,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
   readonly tracesLink: Locator
   readonly flowsLink: Locator
   readonly flowsDropdownTrigger: Locator
+  readonly flowsDropdownContent: Locator
   readonly startFlowButton: Locator
   readonly flowContainer: Locator
   readonly tutorialPopover: Locator
@@ -24,6 +25,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
     this.tracesLink = page.getByTestId('tracing-link')
     this.endpointsLink = page.getByTestId('endpoints-link')
     this.flowsDropdownTrigger = page.getByTestId('flows-dropdown-trigger')
+    this.flowsDropdownContent = page.locator('.flows-dropdown')
     this.flowsLink = page.locator('.flows-dropdown .flow-link')
     this.startFlowButton = page.getByTestId('start-flow-button')
     this.flowContainer = page.getByTestId('flow-container')
@@ -73,9 +75,15 @@ export class WorkbenchPage extends MotiaApplicationPage {
   }
 
   async navigateToFlow(flowName: string) {
-    await this.flowsDropdownTrigger.click()
     const flowLink = this.page.getByTestId(`dropdown-${flowName}`)
-    await flowLink.click()
+    const isDropdownOpen = await this.flowsDropdownContent.isVisible()
+
+    if (!isDropdownOpen) {
+      await this.flowsDropdownTrigger.click()
+      await expect(this.flowsDropdownContent).toBeVisible({ timeout: 5000 })
+    }
+
+    await flowLink.click({ timeout: 10000 })
     await this.waitForApplication()
   }
 
