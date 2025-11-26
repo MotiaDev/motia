@@ -26,7 +26,7 @@ test.describe('CLI Validation', () => {
 
     let expectedSteps: string[] = []
 
-    if (testTemplate === 'motia-tutorial-python' || testTemplate === 'python') {
+    if (testTemplate === 'motia-tutorial-python') {
       expectedSteps = [
         'api_step.py',
         'api_step.py-features.json',
@@ -116,7 +116,7 @@ test.describe('CLI Validation', () => {
   })
 
   test('should have working TypeScript configuration', async () => {
-    if (testTemplate !== 'motia-tutorial-typescript' && testTemplate !== 'nodejs') {
+    if (testTemplate !== 'motia-tutorial-typescript') {
       test.skip()
       return
     }

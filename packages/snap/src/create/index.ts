@@ -224,7 +224,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
 
-    if (template.includes('python') || template.includes('motia-tutorial-python')) {
+    if (template.includes('python')) {
       await pythonInstall({ baseDir: rootDir })
     }
 
