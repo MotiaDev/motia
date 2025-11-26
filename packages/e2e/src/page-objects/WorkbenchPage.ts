@@ -75,15 +75,10 @@ export class WorkbenchPage extends MotiaApplicationPage {
   }
 
   async navigateToFlow(flowName: string) {
+    await this.flowsDropdownTrigger.click()
+    await expect(this.flowsDropdownContent).toBeVisible({ timeout: 5000 })
     const flowLink = this.page.getByTestId(`dropdown-${flowName}`)
-    const isDropdownOpen = await this.flowsDropdownContent.isVisible()
-
-    if (!isDropdownOpen) {
-      await this.flowsDropdownTrigger.click()
-      await expect(this.flowsDropdownContent).toBeVisible({ timeout: 5000 })
-    }
-
-    await flowLink.click({ timeout: 10000 })
+    await flowLink.click()
     await this.waitForApplication()
   }
 

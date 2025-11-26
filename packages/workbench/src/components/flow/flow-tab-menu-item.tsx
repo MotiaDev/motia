@@ -37,7 +37,7 @@ export const FlowTabMenuItem = () => {
                 data-testid={`dropdown-${item}`}
                 key={`dropdown-${item}`}
                 className="cursor-pointer gap-2 flow-link"
-                onClick={() => handleFlowSelect(item)}
+                onSelect={() => handleFlowSelect(item)}
               >
                 {item}
               </DropdownMenuItem>
