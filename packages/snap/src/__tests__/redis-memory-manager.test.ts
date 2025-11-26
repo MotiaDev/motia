@@ -1,19 +1,36 @@
-import { mkdirSync } from 'fs'
-import { createClient } from 'redis'
-import { RedisMemoryServer } from 'redis-memory-server'
-import { instanceRedisMemoryServer, stopRedisMemoryServer } from '../redis-memory-manager'
+import { jest } from '@jest/globals'
 
-jest.mock('fs')
-jest.mock('redis')
-jest.mock('redis-memory-server')
+// Set up mocks before importing modules
+const mockMkdirSync = jest.fn()
+jest.unstable_mockModule('fs', () => ({
+  mkdirSync: mockMkdirSync,
+}))
 
-const mockMkdirSync = mkdirSync as jest.MockedFunction<typeof mkdirSync>
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>
-const mockRedisMemoryServer = RedisMemoryServer as jest.MockedClass<typeof RedisMemoryServer>
+const mockCreateClient = jest.fn()
+jest.unstable_mockModule('redis', () => ({
+  createClient: mockCreateClient,
+}))
+
+const MockRedisMemoryServer = jest.fn()
+jest.unstable_mockModule('redis-memory-server', () => ({
+  RedisMemoryServer: MockRedisMemoryServer,
+}))
+
+// Dynamic imports after mocks are set up
+const { instanceRedisMemoryServer, stopRedisMemoryServer } = await import('../redis-memory-manager')
 
 describe('redis-memory-manager', () => {
-  let mockRedisClient: any
-  let mockServerInstance: jest.Mocked<RedisMemoryServer>
+  let mockRedisClient: {
+    connect: jest.Mock<() => Promise<void>>
+    quit: jest.Mock<() => Promise<void>>
+    isOpen: boolean
+    on: jest.Mock
+  }
+  let mockServerInstance: {
+    getHost: jest.Mock<() => Promise<string>>
+    getPort: jest.Mock<() => Promise<number>>
+    stop: jest.Mock<() => Promise<void>>
+  }
   const originalEnv = process.env
 
   beforeEach(() => {
@@ -21,20 +38,20 @@ describe('redis-memory-manager', () => {
     process.env = { ...originalEnv }
 
     mockRedisClient = {
-      connect: jest.fn().mockResolvedValue(undefined),
-      quit: jest.fn().mockResolvedValue(undefined),
+      connect: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      quit: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
       isOpen: true,
       on: jest.fn(),
     }
 
     mockServerInstance = {
-      getHost: jest.fn().mockResolvedValue('127.0.0.1'),
-      getPort: jest.fn().mockResolvedValue(6379),
-      stop: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<RedisMemoryServer>
+      getHost: jest.fn<() => Promise<string>>().mockResolvedValue('127.0.0.1'),
+      getPort: jest.fn<() => Promise<number>>().mockResolvedValue(6379),
+      stop: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    }
 
-    mockCreateClient.mockReturnValue(mockRedisClient as any)
-    mockRedisMemoryServer.mockImplementation(() => mockServerInstance)
+    mockCreateClient.mockReturnValue(mockRedisClient)
+    MockRedisMemoryServer.mockImplementation(() => mockServerInstance)
   })
 
   afterEach(async () => {
@@ -48,7 +65,7 @@ describe('redis-memory-manager', () => {
       const client = await instanceRedisMemoryServer(baseDir, true)
 
       expect(mockMkdirSync).toHaveBeenCalledWith(baseDir, { recursive: true })
-      expect(mockRedisMemoryServer).toHaveBeenCalledWith({
+      expect(MockRedisMemoryServer).toHaveBeenCalledWith({
         instance: {
           ip: '127.0.0.1',
           args: ['--appendonly', 'yes', '--save', '900 1', '--save', '300 10', '--save', '60 100', '--dir', baseDir],
@@ -77,7 +94,7 @@ describe('redis-memory-manager', () => {
 
       await instanceRedisMemoryServer(baseDir, false)
 
-      expect(mockRedisMemoryServer).toHaveBeenCalledWith({
+      expect(MockRedisMemoryServer).toHaveBeenCalledWith({
         instance: expect.objectContaining({
           ip: '192.168.1.1',
         }),
@@ -91,7 +108,7 @@ describe('redis-memory-manager', () => {
 
       await instanceRedisMemoryServer(baseDir, true)
 
-      expect(mockRedisMemoryServer).toHaveBeenCalledWith({
+      expect(MockRedisMemoryServer).toHaveBeenCalledWith({
         instance: expect.objectContaining({
           port: 6380,
         }),
@@ -105,7 +122,7 @@ describe('redis-memory-manager', () => {
       const client2 = await instanceRedisMemoryServer(baseDir, false)
 
       expect(client1).toBe(client2)
-      expect(mockRedisMemoryServer).toHaveBeenCalledTimes(1)
+      expect(MockRedisMemoryServer).toHaveBeenCalledTimes(1)
       expect(mockCreateClient).toHaveBeenCalledTimes(1)
     })
 
@@ -119,7 +136,8 @@ describe('redis-memory-manager', () => {
     it('should handle connection errors', async () => {
       const baseDir = '/test/dir'
       const error = new Error('Connection failed')
-      mockRedisClient.connect.mockRejectedValue(error)
+      mockRedisClient.connect = jest.fn<() => Promise<void>>().mockRejectedValue(error)
+      mockCreateClient.mockReturnValue(mockRedisClient)
 
       await expect(instanceRedisMemoryServer(baseDir, true)).rejects.toThrow('Connection failed')
     })
@@ -127,7 +145,7 @@ describe('redis-memory-manager', () => {
     it('should handle server start errors', async () => {
       const baseDir = '/test/dir'
       const error = new Error('Server start failed')
-      mockServerInstance.getHost.mockRejectedValue(error)
+      mockServerInstance.getHost = jest.fn<() => Promise<string>>().mockRejectedValue(error)
 
       await expect(instanceRedisMemoryServer(baseDir, true)).rejects.toThrow('Server start failed')
     })
@@ -136,7 +154,9 @@ describe('redis-memory-manager', () => {
       const baseDir = '/test/dir'
       await instanceRedisMemoryServer(baseDir, true)
 
-      const callArgs = mockCreateClient.mock.calls[0]
+      const callArgs = mockCreateClient.mock.calls[0] as [
+        { socket: { reconnectStrategy: (retries: number) => number | Error } },
+      ]
       expect(callArgs).toBeDefined()
       const socketConfig = callArgs?.[0]?.socket
       expect(socketConfig).toBeDefined()
@@ -144,16 +164,15 @@ describe('redis-memory-manager', () => {
       expect(reconnectStrategy).toBeDefined()
       expect(typeof reconnectStrategy).toBe('function')
 
-      const mockError = new Error('test')
-      const strategyFn = reconnectStrategy as (retries: number, error: Error) => number | Error
-      expect(strategyFn(5, mockError)).toBe(500)
-      expect(strategyFn(10, mockError)).toBe(1000)
-      expect(strategyFn(11, mockError)).toBeInstanceOf(Error)
-      expect((strategyFn(11, mockError) as Error).message).toBe('Redis connection retry limit exceeded')
-      expect(strategyFn(15, mockError)).toBeInstanceOf(Error)
-      expect(strategyFn(20, mockError)).toBeInstanceOf(Error)
-      expect(strategyFn(30, mockError)).toBeInstanceOf(Error)
-      expect(strategyFn(50, mockError)).toBeInstanceOf(Error)
+      const strategyFn = reconnectStrategy as (retries: number) => number | Error
+      expect(strategyFn(5)).toBe(500)
+      expect(strategyFn(10)).toBe(1000)
+      expect(strategyFn(11)).toBeInstanceOf(Error)
+      expect((strategyFn(11) as Error).message).toBe('Redis connection retry limit exceeded')
+      expect(strategyFn(15)).toBeInstanceOf(Error)
+      expect(strategyFn(20)).toBeInstanceOf(Error)
+      expect(strategyFn(30)).toBeInstanceOf(Error)
+      expect(strategyFn(50)).toBeInstanceOf(Error)
     })
   })
 
@@ -172,7 +191,7 @@ describe('redis-memory-manager', () => {
       const baseDir = '/test/dir'
       await instanceRedisMemoryServer(baseDir, true)
       const error = new Error('Close failed')
-      mockRedisClient.quit.mockRejectedValue(error)
+      mockRedisClient.quit = jest.fn<() => Promise<void>>().mockRejectedValue(error)
 
       await stopRedisMemoryServer()
 
@@ -184,7 +203,7 @@ describe('redis-memory-manager', () => {
       const baseDir = '/test/dir'
       await instanceRedisMemoryServer(baseDir, true)
       const error = new Error('Stop failed')
-      mockServerInstance.stop.mockRejectedValue(error)
+      mockServerInstance.stop = jest.fn<() => Promise<void>>().mockRejectedValue(error)
 
       await stopRedisMemoryServer()
 

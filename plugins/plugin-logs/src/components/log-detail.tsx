@@ -1,5 +1,5 @@
 import { LevelDot, Sidebar } from '@motiadev/ui'
-import X from 'lucide-react/icons/x'
+import { X } from 'lucide-react'
 import type React from 'react'
 import { useMemo, useState } from 'react'
 import ReactJson from 'react18-json-view'

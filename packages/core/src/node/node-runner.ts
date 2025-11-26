@@ -1,3 +1,4 @@
+import dotenv from 'dotenv'
 import path from 'path'
 import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { Logger } from './logger'
@@ -5,14 +6,7 @@ import { composeMiddleware } from './middleware-compose'
 import { RpcSender } from './rpc'
 import { RpcStateManager } from './rpc-state-manager'
 
-require('dotenv').config()
-
-// Add ts-node registration before dynamic imports
-
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
+dotenv.config()
 
 function parseArgs(arg: string) {
   try {
@@ -26,10 +20,12 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
   const sender = new RpcSender(process)
 
   try {
-    const module = require(path.resolve(filePath))
+    const importedModule = await import(path.resolve(filePath))
+    const handler = importedModule.handler || importedModule.default?.handler
+    const config = importedModule.config || importedModule.default?.config || {}
 
     // Check if the specified function exists in the module
-    if (typeof module.handler !== 'function') {
+    if (typeof handler !== 'function') {
       throw new Error(`Function handler not found in module ${filePath}`)
     }
 
@@ -60,11 +56,11 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
 
     sender.init()
 
-    const middlewares = Array.isArray(module.config.middleware) ? module.config.middleware : []
+    const middlewares = Array.isArray(config.middleware) ? config.middleware : []
 
     const composedMiddleware = composeMiddleware(...middlewares)
     const handlerFn = () => {
-      return contextInFirstArg ? module.handler(context) : module.handler(event.data, context)
+      return contextInFirstArg ? handler(context) : handler(event.data, context)
     }
 
     const result = await composedMiddleware(event.data, context, handlerFn)
@@ -94,7 +90,7 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
 const [, , filePath, arg] = process.argv
 
 if (!filePath) {
-  console.error('Usage: node nodeRunner.js <file-path> <arg>')
+  console.error('Usage: node node-runner.mjs <file-path> <arg>')
   process.exit(1)
 }
 

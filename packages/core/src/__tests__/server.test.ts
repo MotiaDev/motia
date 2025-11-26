@@ -1,12 +1,15 @@
+import { jest } from '@jest/globals'
 import path from 'path'
 import request from 'supertest'
+import { fileURLToPath } from 'url'
 import { z } from 'zod'
 import { InMemoryCronAdapter, InMemoryQueueEventAdapter, MemoryStreamAdapterManager } from '../adapters/defaults'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
 import { LockedData } from '../locked-data'
 import { NoPrinter } from '../printer'
-import { createServer, type MotiaServer } from '../server'
+import type { MotiaServer } from '../server'
 import type { ApiRouteConfig, Step } from '../types'
+import type { StreamSubscription } from '../types-stream'
 import { createApiStep } from './fixtures/step-fixtures'
 import { config as remoteCanAccessConfig } from './steps/streams/remote-can-access.stream'
 import { createMockRedisClient } from './test-helpers/redis-client'
@@ -26,10 +29,17 @@ const getLatestAuthorize = () => {
   return latest.authorize
 }
 
-jest.mock('../socket-server', () => {
+jest.unstable_mockModule('../socket-server', () => {
   return {
     createSocketServer: jest.fn((options) => {
-      socketServerOptions.push(options)
+      socketServerOptions.push(
+        options as {
+          authorize?: (
+            subscription: { streamName: string; groupId: string; id?: string },
+            authContext?: unknown,
+          ) => Promise<boolean> | boolean
+        },
+      )
       return {
         pushEvent: jest.fn(),
         socketServer: {
@@ -40,6 +50,11 @@ jest.mock('../socket-server', () => {
     }),
   }
 })
+
+// Must dynamically import after mock is set up
+const { createServer } = await import('../server')
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const config = { isVerbose: true, isDev: true, version: '1.0.0' }
 
@@ -64,7 +79,7 @@ describe('Server', () => {
         createMockRedisClient(),
       )
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, state, config, {
+      server = createServer(lockedData, state, config, {
         eventAdapter: new InMemoryQueueEventAdapter(),
         cronAdapter: new InMemoryCronAdapter(),
       })
@@ -91,7 +106,7 @@ describe('Server', () => {
         createMockRedisClient(),
       )
       const state = new MemoryStateAdapter()
-      server = await createServer(lockedData, state, config, {
+      server = createServer(lockedData, state, config, {
         eventAdapter: new InMemoryQueueEventAdapter(),
         cronAdapter: new InMemoryCronAdapter(),
       })
@@ -156,7 +171,7 @@ describe('Server', () => {
         new NoPrinter(),
         createMockRedisClient(),
       )
-      const canAccess = jest.fn().mockResolvedValue(true)
+      const canAccess = jest.fn().mockResolvedValue(true as never)
       lockedData.createStream(
         {
           filePath: path.join(baseDir, 'inline.stream.ts'),
@@ -164,7 +179,7 @@ describe('Server', () => {
             name: 'inline-stream',
             schema: z.object({ groupId: z.string() }),
             baseConfig: { storageType: 'default' },
-            canAccess,
+            canAccess: canAccess as (subscription: StreamSubscription, authContext: unknown) => boolean,
           },
         },
         { disableTypeCreation: true },

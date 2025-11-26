@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { FlowConfigResponse } from '@/types/flow'
+import type { FlowConfigResponse } from '../../../types/flow'
 
 export const useSaveWorkflowConfig = () => {
   return useCallback(async (body: FlowConfigResponse) => {

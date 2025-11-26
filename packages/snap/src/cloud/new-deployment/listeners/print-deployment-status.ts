@@ -1,4 +1,5 @@
 import colors, { type Color } from 'colors'
+import type { Message } from '../../cli-output-manager'
 import type { CliContext } from '../../config-utils'
 import type { DeployData, DeployStatus } from './listener.types'
 
@@ -28,7 +29,7 @@ export const printDeploymentStatus = (data: DeployData, context: CliContext) => 
     return colors.gray(spinner)
   }
 
-  context.log('deployment-status-blank-1', (message) => message.append(''))
+  context.log('deployment-status-blank-1', (message: Message) => message.append(''))
 
   const generateEmitList = (emits: string[] = []) => {
     return emits.map((e) => colors.white(`⌁ ${e}`)).join(colors.white(', '))
@@ -49,7 +50,7 @@ export const printDeploymentStatus = (data: DeployData, context: CliContext) => 
     return acc === 'failed' ? 'failed' : acc === 'completed' ? endpoint.status : acc
   }, 'completed' as DeployStatus)
 
-  context.log('deployment-status-step-handler', (message) =>
+  context.log('deployment-status-step-handler', (message: Message) =>
     message.append(`[${getStatus(eventStatus)}]   [λ Step Handler]`),
   )
 
@@ -59,15 +60,15 @@ export const printDeploymentStatus = (data: DeployData, context: CliContext) => 
     const status = getStatus(event.status)
     const topicList = generateEmitList(event.topics)
 
-    context.log(`event-${event.stepName}`, (message) => {
+    context.log(`event-${event.stepName}`, (message: Message) => {
       message.append(`[${status}]    ↳ [${topicList}] → [≡ ${color(event.queue)}] → [${lambda(event.stepName, color)}]`)
     })
   })
 
-  context.log('deployment-status-blank-2', (message) => message.append(''))
+  context.log('deployment-status-blank-2', (message: Message) => message.append(''))
 
   // Display API Gateway
-  context.log('deployment-status-api-gateway', (message) =>
+  context.log('deployment-status-api-gateway', (message: Message) =>
     message.append(`[${getStatus(apigwStatus)}]   [⛩ API Gateway]`),
   )
 
@@ -76,16 +77,16 @@ export const printDeploymentStatus = (data: DeployData, context: CliContext) => 
     const status = getStatus(endpoint.status)
     const emitsList = generateEmitList(endpoint.emits)
 
-    context.log(`endpoint-${endpoint.stepName}`, (message) => {
+    context.log(`endpoint-${endpoint.stepName}`, (message: Message) => {
       message.append(
         `[${status}]    ↳ /${endpoint.method} ${endpoint.path} → [${lambda(endpoint.stepName, color)}] → [${emitsList}]`,
       )
     })
   })
-  context.log('deployment-status-blank-3', (message) => message.append(''))
+  context.log('deployment-status-blank-3', (message: Message) => message.append(''))
 
   // Display Cron jobs
-  context.log('deployment-status-cron', (message) => message.append(`[${getStatus(cronStatus)}]   [↺ Cron]`))
+  context.log('deployment-status-cron', (message: Message) => message.append(`[${getStatus(cronStatus)}]   [↺ Cron]`))
 
   if (data.cron.length > 0) {
     data.cron.forEach((cronJob) => {
@@ -93,21 +94,21 @@ export const printDeploymentStatus = (data: DeployData, context: CliContext) => 
       const status = getStatus(cronJob.status)
       const emitsList = generateEmitList(cronJob.emits)
 
-      context.log(`cron-${cronJob.stepName}`, (message) => {
+      context.log(`cron-${cronJob.stepName}`, (message: Message) => {
         message.append(`[${status}]    ↳ ${cronJob.cron} → [${lambda(cronJob.stepName, color)}] → [${emitsList}]`)
       })
     })
   } else {
-    context.log('deployment-status-cron-no-jobs', (message) =>
+    context.log('deployment-status-cron-no-jobs', (message: Message) =>
       message.append(`[${colors.green('✓')}]    ↳ No cron jobs configured`),
     )
   }
 
   // Display Legend
-  context.log('deployment-status-legent', (message) => message.append('\nLegend'))
-  context.log('deployment-status-legent-queue', (message) => message.append('↳ ≡ Queue'))
-  context.log('deployment-status-legent-api-gateway', (message) => message.append('↳ ⛩ API Gateway'))
-  context.log('deployment-status-legent-topic', (message) => message.append('↳ ⌁ Topic'))
-  context.log('deployment-status-legent-function-handler', (message) => message.append('↳ λ Step Handler'))
-  context.log('deployment-status-legent-cron-job', (message) => message.append('↳ ↺ Cron Job'))
+  context.log('deployment-status-legent', (message: Message) => message.append('\nLegend'))
+  context.log('deployment-status-legent-queue', (message: Message) => message.append('↳ ≡ Queue'))
+  context.log('deployment-status-legent-api-gateway', (message: Message) => message.append('↳ ⛩ API Gateway'))
+  context.log('deployment-status-legent-topic', (message: Message) => message.append('↳ ⌁ Topic'))
+  context.log('deployment-status-legent-function-handler', (message: Message) => message.append('↳ λ Step Handler'))
+  context.log('deployment-status-legent-cron-job', (message: Message) => message.append('↳ ↺ Cron Job'))
 }

@@ -1,5 +1,5 @@
 export default {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default-esm',
   modulePathIgnorePatterns: [],
   resetMocks: true,
   roots: ['__tests__'],
@@ -10,4 +10,21 @@ export default {
   testTimeout: 15000,
   forceExit: true,
   detectOpenHandles: true,
+  extensionsToTreatAsEsm: ['.ts'],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^uuid$': '<rootDir>/__mocks__/uuid.ts',
+  },
+  transform: {
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: {
+          module: 'ESNext',
+          moduleResolution: 'Node',
+        },
+      },
+    ],
+  },
 }

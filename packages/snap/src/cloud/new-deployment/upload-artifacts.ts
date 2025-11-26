@@ -13,14 +13,14 @@ export const uploadArtifacts = async (
   await Promise.all([
     ...stepEntries.map(async ([stepPath, stepConfig]) => {
       listener.stepUploadStart(stepPath, stepConfig)
-      await upload(deploymentToken, stepPath, (progress) => {
+      await upload(deploymentToken, stepPath, (progress: number) => {
         listener.stepUploadProgress(stepPath, stepConfig, progress)
       })
       listener.stepUploadEnd(stepPath, stepConfig)
     }),
     ...routerEntries.map(async ([language, routerPath]) => {
       listener.routeUploadStart(routerPath, language)
-      await upload(deploymentToken, routerPath, (progress) => {
+      await upload(deploymentToken, routerPath, (progress: number) => {
         listener.routeUploadProgress(routerPath, language, progress)
       })
       listener.routeUploadEnd(routerPath, language)

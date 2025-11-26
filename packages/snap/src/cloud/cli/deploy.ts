@@ -1,8 +1,8 @@
 import { buildValidation } from '../build/build-validation'
 import { cloudCli } from '../cli'
-import { handler } from '../config-utils'
+import { handler, type Message } from '../config-utils'
 import { build } from '../new-deployment/build'
-import { cloudApi } from '../new-deployment/cloud-api'
+import { cloudApi } from '../new-deployment/cloud-api/index'
 import { deploy } from '../new-deployment/deploy'
 import { CliListener } from '../new-deployment/listeners/cli-listener'
 import { uploadArtifacts } from '../new-deployment/upload-artifacts'
@@ -30,8 +30,8 @@ cloudCli
         process.exit(1)
       }
 
-      context.log('build-completed', (message) => message.tag('success').append('Build completed'))
-      context.log('creating-deployment', (message) => message.tag('progress').append('Creating deployment...'))
+      context.log('build-completed', (message: Message) => message.tag('success').append('Build completed'))
+      context.log('creating-deployment', (message: Message) => message.tag('progress').append('Creating deployment...'))
 
       const deployment = await cloudApi
         .createDeployment({
@@ -43,17 +43,19 @@ cloudCli
           versionDescription: arg.versionDescription,
         })
         .catch((error) => {
-          context.log('creating-deployment', (message) => message.tag('failed').append('Failed to create deployment'))
+          context.log('creating-deployment', (message: Message) =>
+            message.tag('failed').append('Failed to create deployment'),
+          )
           throw error
         })
 
-      context.log('creating-deployment', (message) => message.tag('success').append('Deployment created'))
-      context.log('uploading-artifacts', (message) => message.tag('progress').append('Uploading artifacts...'))
+      context.log('creating-deployment', (message: Message) => message.tag('success').append('Deployment created'))
+      context.log('uploading-artifacts', (message: Message) => message.tag('progress').append('Uploading artifacts...'))
 
       await uploadArtifacts(builder, deployment.deploymentToken, listener)
 
-      context.log('uploading-artifacts', (message) => message.tag('success').append('Artifacts uploaded'))
-      context.log('starting-deployment', (message) => message.tag('progress').append('Starting deployment...'))
+      context.log('uploading-artifacts', (message: Message) => message.tag('success').append('Artifacts uploaded'))
+      context.log('starting-deployment', (message: Message) => message.tag('progress').append('Starting deployment...'))
 
       await deploy({
         envVars: loadEnvData(arg.envFile, context),

@@ -1,7 +1,7 @@
 import type React from 'react'
 import { memo, useEffect, useMemo } from 'react'
-import { useObservabilityStore } from '@/stores/use-observability-store'
 import { useFilteredTraceGroups } from '../hooks/use-filtered-trace-groups'
+import { useObservabilityStore } from '../stores/use-observability-store'
 import { TraceGroupItem } from './trace-group-item'
 
 export const TracesGroups: React.FC = memo(() => {

@@ -3,11 +3,12 @@ import {
   getStreamConfig,
   type JsonSchema,
   LockedData,
+  NoPrinter,
+  Printer,
   type Step,
   type StreamAdapterManager,
   type StreamAuthConfig,
 } from '@motiadev/core'
-import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import colors from 'colors'
 import { randomUUID } from 'crypto'
 import { existsSync } from 'fs'

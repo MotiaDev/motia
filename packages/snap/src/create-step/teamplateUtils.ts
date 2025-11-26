@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import type { StepAnswers } from './types'
 
 /**
@@ -36,6 +37,7 @@ function replaceTemplateVariables(content: string, answers: StepAnswers): string
 /**
  * Generates the appropriate template based on language and type
  */
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export async function generateTemplate(answers: StepAnswers): Promise<string> {
   const templateDir = path.join(__dirname, 'templates', answers.type)
   const templateFile = `template.${answers.language}.txt`

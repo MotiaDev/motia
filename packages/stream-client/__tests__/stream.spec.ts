@@ -1,6 +1,6 @@
-import type { SocketAdapter } from '../src/socket-adapter'
-import { Stream } from '../src/stream'
-import type { GroupEventMessage } from '../src/stream.types'
+import type { SocketAdapter } from '../src/socket-adapter.js'
+import { Stream } from '../src/stream.js'
+import type { GroupEventMessage } from '../src/stream.types.js'
 
 type TestData = { id: string; name: string; value: number }
 

@@ -1,3 +1,4 @@
+import type { Stream } from '@motiadev/core'
 import {
   type CronManager,
   isApiStep,
@@ -9,7 +10,6 @@ import {
   type Step,
   trackEvent,
 } from '@motiadev/core'
-import type { Stream } from '@motiadev/core/dist/src/types-stream'
 import { existsSync } from 'fs'
 import path from 'path'
 import { Watcher } from './watcher'

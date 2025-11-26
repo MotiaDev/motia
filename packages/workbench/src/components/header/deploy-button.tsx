@@ -1,7 +1,7 @@
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { Rocket } from 'lucide-react'
 import { useState } from 'react'
-import { motiaAnalytics } from '@/lib/motia-analytics'
+import { motiaAnalytics } from '../../lib/motia-analytics'
 
 export const DeployButton = () => {
   const [isOpen, setIsOpen] = useState(false)

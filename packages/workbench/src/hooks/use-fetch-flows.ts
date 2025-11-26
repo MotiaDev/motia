@@ -1,7 +1,7 @@
 import { useStreamGroup } from '@motiadev/stream-client-react'
 import { useEffect } from 'react'
-import { useFlowStore } from '@/stores/use-flow-store'
-import type { FlowResponse } from '@/types/flow'
+import { useFlowStore } from '../stores/use-flow-store'
+import type { FlowResponse } from '../types/flow'
 
 const streamGroupArgs = { streamName: '__motia.flows', groupId: 'default' }
 

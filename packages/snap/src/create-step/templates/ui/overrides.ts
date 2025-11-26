@@ -1,10 +1,12 @@
 import { promises as fs } from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import type { StepAnswers } from '../../types'
 
 /**
  * Generates a React component override for the step
  */
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export async function generateOverride(answers: StepAnswers): Promise<string> {
   const templatePath = path.join(__dirname, `${answers.type}.step.txt`)
   const content = await fs.readFile(templatePath, 'utf8')

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { motiaAnalytics } from '@/lib/motia-analytics'
+import { motiaAnalytics } from '../lib/motia-analytics'
 
 interface TabsState {
   tab: Record<string, string>

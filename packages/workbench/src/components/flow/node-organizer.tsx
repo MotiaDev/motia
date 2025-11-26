@@ -3,7 +3,7 @@ import dagre from 'dagre'
 import isEqual from 'fast-deep-equal'
 import type React from 'react'
 import { useEffect, useRef } from 'react'
-import type { EdgeData, NodeData } from '@/types/flow'
+import type { EdgeData, NodeData } from '../../types/flow'
 
 const organizeNodes = (nodes: Node<NodeData>[], edges: Edge<EdgeData>[]): Node<NodeData>[] => {
   const dagreGraph = new dagre.graphlib.Graph({ directed: true, compound: false, multigraph: false })

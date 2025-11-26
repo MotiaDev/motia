@@ -1,6 +1,7 @@
 {
   "name": "playground",
   "private": true,
+  "type": "module",
   "scripts": {
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt && python_modules/bin/pip install -r ../packages/core/requirements.txt",
     "dev": "motia dev",

@@ -2,9 +2,10 @@ import react from '@vitejs/plugin-react'
 import type { Express, NextFunction, Request, Response } from 'express'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { createServer as createViteServer } from 'vite'
-import motiaPluginsPlugin from './motia-plugin'
-import type { WorkbenchPlugin } from './motia-plugin/types'
+import motiaPluginsPlugin from './motia-plugin/index.js'
+import type { WorkbenchPlugin } from './motia-plugin/types.js'
 
 const workbenchBasePlugin = (workbenchBase: string) => {
   return {
@@ -56,7 +57,9 @@ export type ApplyMiddlewareParams = {
   plugins: WorkbenchPlugin[]
 }
 
-export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: ApplyMiddlewareParams) => {
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: ApplyMiddlewareParams): Promise<void> => {
   const vite = await createViteServer({
     appType: 'spa',
     root: __dirname,
@@ -86,7 +89,11 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
       },
     },
     plugins: [
-      react(),
+      react({
+        babel: {
+          plugins: ['babel-plugin-react-compiler'],
+        },
+      }),
       processCwdPlugin(),
       reoPlugin(),
       motiaPluginsPlugin(plugins),

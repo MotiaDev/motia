@@ -1,9 +1,9 @@
-import LogsIcon from 'lucide-react/icons/logs-icon'
+import { ClipboardList } from 'lucide-react'
 import { memo } from 'react'
 
 export const LogsTabLabel = memo(() => (
   <>
-    <LogsIcon aria-hidden="true" />
+    <ClipboardList aria-hidden="true" />
     <span>Logs</span>
   </>
 ))

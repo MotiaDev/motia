@@ -1,6 +1,5 @@
 import { Button, cn } from '@motiadev/ui'
-import Check from 'lucide-react/icons/check'
-import Copy from 'lucide-react/icons/copy'
+import { Check, Copy } from 'lucide-react'
 import { useCallback, useState } from 'react'
 
 type CopyButtonProps = {

@@ -1,7 +1,7 @@
 import { Button } from '@motiadev/ui'
 import { Book } from 'lucide-react'
 import type { FC } from 'react'
-import { motiaAnalytics } from '@/lib/motia-analytics'
+import { motiaAnalytics } from '../../lib/motia-analytics'
 import { Tooltip } from '../ui/tooltip'
 import { useTutorial } from './hooks/use-tutorial'
 

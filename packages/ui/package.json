@@ -9,11 +9,11 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
     },
-    "./styles.css": "./dist/ui.css",
+    "./package.json": "./package.json",
+    "./styles.css": "./dist/styles.css",
     "./globals.css": "./dist/globals.css"
   },
   "files": [
@@ -21,8 +21,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "vite build && tsc --emitDeclarationOnly --declaration --outDir dist",
-    "dev": "vite build --watch",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "lint": "biome check .",
     "lint:plugins": "eslint --config ../../eslint.config.js",
     "storybook": "storybook dev -p 6006",
@@ -53,23 +53,32 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@bosh-code/tsdown-plugin-tailwindcss": "^1.0.1",
+    "@rollup/plugin-babel": "^6.1.0",
     "@storybook/addon-a11y": "^10.0.0",
     "@storybook/addon-docs": "^10.0.0",
     "@storybook/addon-themes": "^10.0.0",
     "@storybook/react": "^10.0.0",
     "@storybook/react-vite": "^10.0.0",
     "@storybook/test-runner": "^0.24.0",
-    "@tailwindcss/vite": "^4.1.16",
+    "@tailwindcss/postcss": "^4.1.17",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.1.0",
+    "babel-plugin-react-compiler": "^1.0.0",
     "concurrently": "^9.2.1",
     "husky": "^9.1.7",
     "storybook": "^10.0.0",
-    "tailwindcss": "^4.1.16",
+    "tailwindcss": "^4.1.17",
+    "tsdown": "^0.16.6",
     "typescript": "^5.9.3",
-    "vite": "^7.1.12",
-    "vite-plugin-dts": "^4.5.4",
     "wait-on": "^9.0.1"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json",
+      "./styles.css": "./dist/styles.css",
+      "./globals.css": "./dist/globals.css"
+    }
   }
 }

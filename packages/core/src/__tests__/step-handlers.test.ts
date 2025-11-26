@@ -1,21 +1,26 @@
+import { jest } from '@jest/globals'
 import { z } from 'zod'
 import type { EventAdapter, SubscriptionHandle } from '../adapters/interfaces/event-adapter.interface'
-import * as callStepFileModule from '../call-step-file'
-import { globalLogger } from '../logger'
 import type { Motia } from '../motia'
-import { createStepHandlers } from '../step-handlers'
 import type { EventConfig, Step } from '../types'
 
-jest.mock('../logger', () => ({
+const mockCallStepFile = jest.fn()
+const mockDebug = jest.fn()
+const mockError = jest.fn()
+
+jest.unstable_mockModule('../logger', () => ({
   globalLogger: {
-    debug: jest.fn(),
-    error: jest.fn(),
+    debug: mockDebug,
+    error: mockError,
   },
 }))
 
-jest.mock('../call-step-file', () => ({
-  callStepFile: jest.fn(),
+jest.unstable_mockModule('../call-step-file', () => ({
+  callStepFile: mockCallStepFile,
 }))
+
+const { createStepHandlers } = await import('../step-handlers')
+const callStepFileModule = await import('../call-step-file')
 
 describe('Step Handlers Infrastructure', () => {
   let mockEventAdapter: EventAdapter
@@ -24,11 +29,16 @@ describe('Step Handlers Infrastructure', () => {
   const mockMotia = {
     lockedData: {
       eventSteps: jest.fn(() => []),
+      getStreams: jest.fn(() => ({})),
     },
   } as unknown as Motia
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockCallStepFile.mockClear()
+    mockDebug.mockClear()
+    mockError.mockClear()
+
     mockSubscriptionHandle = {
       topic: 'test.event',
       id: 'test-id',
@@ -81,11 +91,11 @@ describe('Step Handlers Infrastructure', () => {
       createStepHandlers(mockMotia, mockEventAdapter)
 
       expect(mockEventAdapter.subscribe).toHaveBeenCalled()
-      expect(globalLogger.debug).toHaveBeenCalledWith(
+      expect(mockDebug).toHaveBeenCalledWith(
         expect.stringContaining('[step handler] validating infrastructure config'),
         expect.any(Object),
       )
-      expect(globalLogger.debug).toHaveBeenCalledWith(
+      expect(mockDebug).toHaveBeenCalledWith(
         expect.stringContaining('[step handler] infrastructure config validated successfully'),
         expect.any(Object),
       )
@@ -99,7 +109,7 @@ describe('Step Handlers Infrastructure', () => {
       createStepHandlers(mockMotia, mockEventAdapter)
 
       expect(mockEventAdapter.subscribe).toHaveBeenCalled()
-      expect(globalLogger.error).not.toHaveBeenCalled()
+      expect(mockError).not.toHaveBeenCalled()
     })
 
     it('should apply default queue config when no infrastructure provided', () => {
@@ -183,7 +193,7 @@ describe('Step Handlers Infrastructure', () => {
 
       createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(globalLogger.error).toHaveBeenCalledWith(
+      expect(mockError).toHaveBeenCalledWith(
         expect.stringContaining('[step handler] Infrastructure configuration validation failed'),
         expect.objectContaining({
           step: 'invalidStep',
@@ -206,7 +216,7 @@ describe('Step Handlers Infrastructure', () => {
 
       createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(globalLogger.error).toHaveBeenCalledWith(
+      expect(mockError).toHaveBeenCalledWith(
         expect.stringContaining('[step handler] Infrastructure configuration validation failed'),
         expect.any(Object),
       )
@@ -230,7 +240,7 @@ describe('Step Handlers Infrastructure', () => {
 
       createStepHandlers(mockMotia, mockEventAdapter)
 
-      expect(globalLogger.error).toHaveBeenCalled()
+      expect(mockError).toHaveBeenCalled()
       expect(mockEventAdapter.subscribe).not.toHaveBeenCalled()
     })
   })
@@ -266,7 +276,7 @@ describe('Step Handlers Infrastructure', () => {
       createStepHandlers(mockMotia, mockEventAdapter)
 
       expect(mockEventAdapter.subscribe).toHaveBeenCalledTimes(1)
-      expect(globalLogger.error).toHaveBeenCalledTimes(1)
+      expect(mockError).toHaveBeenCalledTimes(1)
     })
   })
 

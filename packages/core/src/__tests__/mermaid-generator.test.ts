@@ -1,19 +1,30 @@
-import fs from 'fs'
+import { jest } from '@jest/globals'
 import path from 'path'
-import { MemoryStreamAdapterManager } from '../adapters/defaults'
-import { LockedData } from '../locked-data'
-import { createMermaidGenerator } from '../mermaid-generator'
-import { NoPrinter } from '../printer'
-import { createApiStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
 import { createMockRedisClient } from './test-helpers/redis-client'
 
-// Mock fs module
-jest.mock('fs', () => ({
-  existsSync: jest.fn(),
-  mkdirSync: jest.fn(),
-  writeFileSync: jest.fn(),
-  unlinkSync: jest.fn(),
+const mockExistsSync = jest.fn()
+const mockMkdirSync = jest.fn()
+const mockWriteFileSync = jest.fn()
+const mockUnlinkSync = jest.fn()
+
+jest.unstable_mockModule('fs', () => ({
+  default: {
+    existsSync: mockExistsSync,
+    mkdirSync: mockMkdirSync,
+    writeFileSync: mockWriteFileSync,
+    unlinkSync: mockUnlinkSync,
+  },
+  existsSync: mockExistsSync,
+  mkdirSync: mockMkdirSync,
+  writeFileSync: mockWriteFileSync,
+  unlinkSync: mockUnlinkSync,
 }))
+
+const { createMermaidGenerator } = await import('../mermaid-generator')
+const { LockedData } = await import('../locked-data')
+const { MemoryStreamAdapterManager } = await import('../adapters/defaults')
+const { NoPrinter } = await import('../printer')
+const { createApiStep, createEventStep, createNoopStep } = await import('./fixtures/step-fixtures')
 
 describe('Mermaid Generator', () => {
   const baseDir = '/test/dir'
@@ -21,20 +32,20 @@ describe('Mermaid Generator', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(fs.existsSync as jest.Mock).mockReturnValue(true)
+    mockExistsSync.mockReturnValue(true)
   })
 
   describe('createMermaidGenerator', () => {
     it('should create diagrams directory if it does not exist', () => {
-      ;(fs.existsSync as jest.Mock).mockReturnValue(false)
+      mockExistsSync.mockReturnValue(false)
       createMermaidGenerator(baseDir)
-      expect(fs.mkdirSync).toHaveBeenCalledWith(diagramsDir, { recursive: true })
+      expect(mockMkdirSync).toHaveBeenCalledWith(diagramsDir, { recursive: true })
     })
 
     it('should not create diagrams directory if it already exists', () => {
-      ;(fs.existsSync as jest.Mock).mockReturnValue(true)
+      mockExistsSync.mockReturnValue(true)
       createMermaidGenerator(baseDir)
-      expect(fs.mkdirSync).not.toHaveBeenCalled()
+      expect(mockMkdirSync).not.toHaveBeenCalled()
     })
 
     it('should return an object with initialize method', () => {
@@ -78,7 +89,7 @@ describe('Mermaid Generator', () => {
       }
 
       generator.initialize(lockedData)
-      expect(fs.writeFileSync).toHaveBeenCalledWith(path.join(diagramsDir, 'flow-1.mmd'), expect.any(String))
+      expect(mockWriteFileSync).toHaveBeenCalledWith(path.join(diagramsDir, 'flow-1.mmd'), expect.any(String))
     })
   })
 
@@ -119,7 +130,7 @@ describe('Mermaid Generator', () => {
       // Call the flow-created handler
       flowCreatedHandler('flow-1')
 
-      expect(fs.writeFileSync).toHaveBeenCalledWith(path.join(diagramsDir, 'flow-1.mmd'), expect.any(String))
+      expect(mockWriteFileSync).toHaveBeenCalledWith(path.join(diagramsDir, 'flow-1.mmd'), expect.any(String))
     })
 
     it('should update diagram when flow is updated', () => {
@@ -138,14 +149,14 @@ describe('Mermaid Generator', () => {
       // Call the flow-updated handler
       flowUpdatedHandler('flow-1')
 
-      expect(fs.writeFileSync).toHaveBeenCalledWith(path.join(diagramsDir, 'flow-1.mmd'), expect.any(String))
+      expect(mockWriteFileSync).toHaveBeenCalledWith(path.join(diagramsDir, 'flow-1.mmd'), expect.any(String))
     })
 
     it('should remove diagram when flow is removed', () => {
       // Call the flow-removed handler
       flowRemovedHandler('flow-1')
 
-      expect(fs.unlinkSync).toHaveBeenCalledWith(path.join(diagramsDir, 'flow-1.mmd'))
+      expect(mockUnlinkSync).toHaveBeenCalledWith(path.join(diagramsDir, 'flow-1.mmd'))
     })
   })
 
@@ -196,9 +207,6 @@ describe('Mermaid Generator', () => {
       // Generate the diagram
       const generator = createMermaidGenerator(baseDir)
 
-      // Use a spy to capture the diagram content
-      const writeFileSpy = jest.spyOn(fs, 'writeFileSync')
-
       // Mock the on method to capture the handler directly
       let flowCreatedHandler: ((flowName: string) => void) | undefined
       lockedData.on = jest.fn().mockImplementation((event, handler) => {
@@ -214,8 +222,8 @@ describe('Mermaid Generator', () => {
       }
       flowCreatedHandler('flow-1')
 
-      // Get the diagram content from the spy
-      const diagramContent = writeFileSpy.mock.calls[0][1] as string
+      // Get the diagram content from the mock
+      const diagramContent = mockWriteFileSync.mock.calls[0][1] as string
 
       // Verify the diagram content
       expect(diagramContent).toContain('flowchart TD')
@@ -253,9 +261,6 @@ describe('Mermaid Generator', () => {
       // Generate the diagram
       const generator = createMermaidGenerator(baseDir)
 
-      // Use a spy to capture the diagram content
-      const writeFileSpy = jest.spyOn(fs, 'writeFileSync')
-
       // Mock the on method to capture the handler directly
       let flowCreatedHandler: ((flowName: string) => void) | undefined
       lockedData.on = jest.fn().mockImplementation((event, handler) => {
@@ -271,8 +276,8 @@ describe('Mermaid Generator', () => {
       }
       flowCreatedHandler('empty-flow')
 
-      // Get the diagram content from the spy
-      const diagramContent = writeFileSpy.mock.calls[0][1] as string
+      // Get the diagram content from the mock
+      const diagramContent = mockWriteFileSync.mock.calls[0][1] as string
 
       // Verify the diagram content
       expect(diagramContent).toContain('flowchart TD')

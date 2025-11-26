@@ -1,7 +1,7 @@
 import { ChevronsUpDown } from 'lucide-react'
 import type { ComponentProps, FC, ReactNode } from 'react'
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../lib/utils'
 import { Button } from './button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
 

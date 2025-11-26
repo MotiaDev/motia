@@ -2,7 +2,7 @@ import { type Edge, type Node, useEdgesState, useNodesState } from '@xyflow/reac
 import isEqual from 'fast-deep-equal'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { EdgeData, FlowConfigResponse, FlowResponse, NodeConfig, NodeData } from '@/types/flow'
+import type { EdgeData, FlowConfigResponse, FlowResponse, NodeConfig, NodeData } from '../../../types/flow'
 import { ApiFlowNode } from '../nodes/api-flow-node'
 import { CronFlowNode } from '../nodes/cron-flow-node'
 import { EventFlowNode } from '../nodes/event-flow-node'
