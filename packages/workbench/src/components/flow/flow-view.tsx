@@ -9,7 +9,7 @@ import {
 } from '@xyflow/react'
 import type React from 'react'
 import { useCallback, useState } from 'react'
-import type { EdgeData, FlowConfigResponse, FlowResponse, NodeData } from '@/types/flow'
+import type { EdgeData, FlowConfigResponse, FlowResponse, NodeData } from '../../types/flow'
 import { BaseEdge } from './base-edge'
 import { FlowLoader } from './flow-loader'
 import { useGetFlowState } from './hooks/use-get-flow-state'

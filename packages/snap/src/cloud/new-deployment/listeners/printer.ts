@@ -1,7 +1,7 @@
-import { Printer } from '@motiadev/core/dist/src/printer'
+import { Printer } from '@motiadev/core'
 import pc from 'picocolors'
 import type { BuildStepConfig } from '../../build/builder'
-import { CLIOutputManager } from '../../cli-output-manager'
+import { CLIOutputManager, type Message } from '../../cli-output-manager'
 import { projectDir } from '../constants'
 
 const uploading = pc.yellow('➜ [UPLOADING]')
@@ -60,7 +60,7 @@ export class DeployPrinter {
     const stepPath = this.getStepPath(stepConfig)
     const stepTag = this.printer.stepTag
 
-    this.output.log(stepConfig.filePath, (message) => {
+    this.output.log(stepConfig.filePath, (message: Message) => {
       message.append(`${uploading} ${stepLanguage} ${stepTag} ${stepType} ${stepPath}`)
     })
   }
@@ -71,7 +71,7 @@ export class DeployPrinter {
     const stepPath = this.getStepPath(stepConfig)
     const stepTag = this.printer.stepTag
 
-    this.output.log(stepConfig.filePath, (message) => {
+    this.output.log(stepConfig.filePath, (message: Message) => {
       message.append(`${uploaded} ${stepLanguage} ${stepTag} ${stepType} ${stepPath}`)
     })
   }
@@ -80,21 +80,21 @@ export class DeployPrinter {
     const stepLanguage = this.getLanguage(language)
     const stepPath = this.getRelativePath(routerPath)
 
-    this.output.log(routerPath, (message) => message.append(`${uploading} ${stepLanguage} ${stepPath}`))
+    this.output.log(routerPath, (message: Message) => message.append(`${uploading} ${stepLanguage} ${stepPath}`))
   }
 
   printRouterUploaded(language: string, routerPath: string): void {
     const stepLanguage = this.getLanguage(language)
     const stepPath = this.getRelativePath(routerPath)
 
-    this.output.log(routerPath, (message) => message.append(`${uploaded} ${stepLanguage} ${stepPath}`))
+    this.output.log(routerPath, (message: Message) => message.append(`${uploaded} ${stepLanguage} ${stepPath}`))
   }
 
   printConfigurationUploading(): void {
-    this.output.log('upload-config', (message) => message.tag('progress').append(`${uploading} Configuration`))
+    this.output.log('upload-config', (message: Message) => message.tag('progress').append(`${uploading} Configuration`))
   }
 
   printConfigurationUploaded(): void {
-    this.output.log('upload-config', (message) => message.tag('success').append(`${uploaded} Configuration`))
+    this.output.log('upload-config', (message: Message) => message.tag('success').append(`${uploaded} Configuration`))
   }
 }

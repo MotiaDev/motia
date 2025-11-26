@@ -1,5 +1,5 @@
-import type { GroupEventMessage, JoinMessage } from '../src/stream.types'
-import { StreamGroupSubscription } from '../src/stream-group'
+import type { GroupEventMessage, JoinMessage } from '../src/stream.types.js'
+import { StreamGroupSubscription } from '../src/stream-group.js'
 
 type TestData = { id: string; name: string; value: number }
 

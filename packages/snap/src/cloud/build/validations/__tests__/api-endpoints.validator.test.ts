@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import type { Builder, BuildStepConfig } from '../../builder'
 import { apiEndpointsValidator } from '../api-endpoints.validator'
 

@@ -43,7 +43,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
     await expect(this.logsLink).toBeVisible()
     await expect(this.statesLink).toBeVisible()
     await expect(this.endpointsLink).toBeVisible()
-    await expect(this.flowsDropdownTrigger).toBeVisible()
+    await expect(this.flowsDropdownTrigger).toBeVisible({ timeout: 5000 })
   }
 
   async navigateToLogs() {

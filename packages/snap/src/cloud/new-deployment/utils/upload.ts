@@ -1,7 +1,7 @@
 import axios from 'axios'
 import fs from 'fs'
 import path from 'path'
-import { cloudApi } from '../cloud-api'
+import { cloudApi } from '../cloud-api/index'
 import { distDir, maxUploadSize } from '../constants'
 
 export const upload = async (deploymentToken: string, fileName: string, onProgress: (progress: number) => void) => {

@@ -23,7 +23,7 @@ export const getStepAnswers = async (): Promise<StepAnswers> => {
       type: 'list',
       name: 'type',
       message: 'Select step type:',
-      choices: STEP_TYPES.map((type) => ({
+      choices: STEP_TYPES.map((type: string) => ({
         name: type.toUpperCase(),
         value: type,
       })),
@@ -36,7 +36,7 @@ export const getStepAnswers = async (): Promise<StepAnswers> => {
     type: 'list',
     name: 'language',
     message: 'Select language:',
-    choices: LANGUAGES.map((lang) => ({
+    choices: LANGUAGES.map((lang: string) => ({
       name: lang.charAt(0).toUpperCase() + lang.slice(1),
       value: lang,
     })),

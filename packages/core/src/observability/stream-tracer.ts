@@ -1,7 +1,7 @@
 import type { Logger } from '../logger'
 import type { Step } from '../types'
-import type { Tracer } from '.'
 import { createTrace } from './create-trace'
+import type { Tracer } from './index'
 import type { TraceManager } from './trace-manager'
 import type { StateOperation, StreamOperation, Trace, TraceError, TraceEvent, TraceGroup } from './types'
 

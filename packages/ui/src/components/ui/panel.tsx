@@ -1,5 +1,5 @@
 import { type FC, type ReactNode, useMemo } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../lib/utils'
 import { BackgroundEffect } from './background-effect'
 import { Button } from './button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'

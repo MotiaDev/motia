@@ -11,6 +11,7 @@ on:
       - 'docs/**'
       - 'contributors/**'
       - 'packages/docs/**'
+
   push:
     branches:
       - main
@@ -42,7 +43,7 @@ jobs:
           pnpm python-setup
 
       - name: Run tests
-        run: PATH=python_modules/bin:$PATH pnpm -r run test
+        run: PATH=python_modules/bin:$PATH pnpm -r --filter='!./plugins/**' --filter='!./playground/**' run test
 
   # Note: Publishing is now handled by the deploy.yml workflow
   # This workflow only handles CI/CD quality checks

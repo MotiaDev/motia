@@ -27,7 +27,7 @@ export const handler = async (
   logger.info('Starting mock RBAC stream')
 
   // Generate a random paragraph using faker
-  const fullMessage = faker.lorem.paragraphs(3, '\n\n')
+  const fullMessage = faker.lorem.paragraphs(50, '\n\n')
 
   // Split into words for chunking
   const words = fullMessage.split(' ')

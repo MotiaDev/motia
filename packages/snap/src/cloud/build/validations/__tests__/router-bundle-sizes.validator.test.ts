@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import type { Builder, BuildStepConfig } from '../../builder'
 import { BUNDLE_SIZE_LIMITS, BYTES_TO_MB } from '../constants'
 import { routerBundleSizesValidator } from '../router-bundle-sizes.validator'

@@ -1,6 +1,7 @@
 import { constants, promises as fs, mkdirSync, statSync } from 'fs'
 import { globSync } from 'glob'
 import * as path from 'path'
+import { fileURLToPath } from 'url'
 import type { CliContext } from '../../cloud/config-utils'
 
 export type Generator = (rootDir: string, context: CliContext) => Promise<void>
@@ -25,6 +26,7 @@ const toPascalCase = (str: string): string => {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join('')
 }
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export const generateTemplateSteps = (templateFolder: string): Generator => {
   return async (rootDir: string, context: CliContext): Promise<void> => {

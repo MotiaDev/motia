@@ -1,13 +1,16 @@
 {
   "name": "@motiadev/adapter-redis-state",
   "description": "Redis state adapter for Motia framework, enabling distributed state management across multiple instances.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "main": "dist/index.mjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
   "version": "0.14.0-beta.164",
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "lint": "biome check .",
-    "watch": "tsc --watch"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@motiadev/core": "workspace:*",
@@ -15,6 +18,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "tsdown": "^0.16.6",
     "typescript": "^5.7.2"
   },
   "peerDependencies": {

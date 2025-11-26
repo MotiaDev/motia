@@ -1,4 +1,5 @@
 import fs from 'fs'
+import type { Message } from '../../cli-output-manager'
 import type { CliContext } from '../../config-utils'
 
 export const loadEnvData = (envFile: string, context: CliContext): Record<string, string> => {
@@ -6,10 +7,10 @@ export const loadEnvData = (envFile: string, context: CliContext): Record<string
     return {}
   }
 
-  context.log('load-env', (message) => message.tag('progress').append('Loading environment variables...'))
+  context.log('load-env', (message: Message) => message.tag('progress').append('Loading environment variables...'))
 
   if (envFile && !fs.existsSync(envFile)) {
-    context.log('load-env', (message) =>
+    context.log('load-env', (message: Message) =>
       message
         .tag('failed')
         .append('Environment file not found:')
@@ -21,7 +22,7 @@ export const loadEnvData = (envFile: string, context: CliContext): Record<string
 
   const data = parseEnvFile(envFile)
 
-  context.log('load-env', (message) => {
+  context.log('load-env', (message: Message) => {
     message.tag('success').append('Environment variables loaded from file')
 
     const boxText = Object.keys(data)

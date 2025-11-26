@@ -1,9 +1,9 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { ChevronsUpDown, Workflow } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
-import { useFetchFlows } from '@/hooks/use-fetch-flows'
-import { motiaAnalytics } from '@/lib/motia-analytics'
-import { useFlowStore } from '@/stores/use-flow-store'
+import { useFetchFlows } from '../../hooks/use-fetch-flows'
+import { motiaAnalytics } from '../../lib/motia-analytics'
+import { useFlowStore } from '../../stores/use-flow-store'
 
 export const FlowTabMenuItem = () => {
   useFetchFlows()
@@ -21,18 +21,20 @@ export const FlowTabMenuItem = () => {
     <div className="flex flex-row justify-center items-center gap-2 cursor-pointer">
       <Workflow />
       {flows.length > 0 && selectedFlowId ? selectedFlowId : 'Flows'}
-      {flows.length > 0 && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div
-              className="flex flex-row justify-center items-center gap-2 cursor-pointer"
-              data-testid="flows-dropdown-trigger"
-            >
-              <ChevronsUpDown className="size-4" />
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-background text-foreground flows-dropdown">
-            {flows.map((item) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <div
+            className="flex flex-row justify-center items-center gap-2 cursor-pointer"
+            data-testid="flows-dropdown-trigger"
+          >
+            <ChevronsUpDown className="size-4" />
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="bg-background text-foreground flows-dropdown">
+          {flows.length === 0 ? (
+            <DropdownMenuItem disabled>Loading flows...</DropdownMenuItem>
+          ) : (
+            flows.map((item) => (
               <DropdownMenuItem
                 data-testid={`dropdown-${item}`}
                 key={`dropdown-${item}`}
@@ -41,10 +43,10 @@ export const FlowTabMenuItem = () => {
               >
                 {item}
               </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+            ))
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

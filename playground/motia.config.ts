@@ -1,13 +1,14 @@
 import path from 'node:path'
 import { config, type MotiaPlugin, type MotiaPluginContext, type StreamAuthRequest } from '@motiadev/core'
+import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
+import examplePlugin from '@motiadev/plugin-example/plugin'
+import logsPlugin from '@motiadev/plugin-logs/plugin'
+import observabilityPlugin from '@motiadev/plugin-observability/plugin'
+import statesPlugin from '@motiadev/plugin-states/plugin'
+import bullmqPlugin from '@motiadev/plugin-bullmq/plugin'
 import { z } from 'zod'
 
-const statesPlugin = require('@motiadev/plugin-states/plugin')
-const endpointPlugin = require('@motiadev/plugin-endpoint/plugin')
-const logsPlugin = require('@motiadev/plugin-logs/plugin')
-const observabilityPlugin = require('@motiadev/plugin-observability/plugin')
-const examplePlugin = require('@motiadev/plugin-example/plugin')
-const bullmqPlugin = require('@motiadev/plugin-bullmq/plugin')
+const __dirname = path.dirname(new URL(import.meta.url).pathname)
 
 function localPluginExample(motia: MotiaPluginContext): MotiaPlugin {
   motia.registerApi(

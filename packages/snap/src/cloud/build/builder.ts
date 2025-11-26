@@ -1,5 +1,4 @@
-import type { ApiRouteConfig, Step, StepConfig } from '@motiadev/core'
-import type { Stream } from '@motiadev/core/dist/src/types-stream'
+import type { ApiRouteConfig, Step, StepConfig, Stream } from '@motiadev/core'
 import type { BuildListener } from '../new-deployment/listeners/listener.types'
 
 export type StepType = 'node' | 'python' | 'noop' | 'unknown'

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import type { Builder, BuildStepConfig } from '../../builder'
 import { duplicateStepNamesValidator } from '../duplicate-step-names.validator'
 

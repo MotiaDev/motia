@@ -2,8 +2,11 @@ import { getProjectIdentifier, trackEvent } from '@motiadev/core'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as readline from 'readline'
+import { fileURLToPath } from 'url'
 import { identifyUser } from '../utils/analytics'
 import { printMotiaDockerIntro } from './utils/print-intro'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const updatePackageJson = (): void => {
   const packageJsonPath = path.join(process.cwd(), 'package.json')

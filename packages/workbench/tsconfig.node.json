@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2023"],
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "skipLibCheck": true,
     "esModuleInterop": true,
 
@@ -11,6 +11,7 @@
     "composite": true,
     "declaration": true,
     "isolatedModules": true,
+    "isolatedDeclarations": true,
     "moduleDetection": "force",
     "outDir": "dist",
 

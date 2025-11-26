@@ -1,6 +1,10 @@
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { PythonError } from '../python-errors'
 import { resolveDepNames } from '../resolve-dep-names'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const sitePackagesDir = path.join(__dirname, 'site-packages')
 

@@ -16,7 +16,7 @@ async function globalSetup() {
     }
 
     const template = process.env.MOTIA_TEST_TEMPLATE || 'motia-tutorial-typescript'
-    const cliPath = process.env.MOTIA_CLI_PATH || path.join(ROOT_PATH, 'packages/snap/dist/cjs/cli.js')
+    const cliPath = process.env.MOTIA_CLI_PATH || path.join(ROOT_PATH, 'packages/snap/dist/cli.mjs')
 
     if (!existsSync(cliPath)) {
       throw new Error(`Built CLI not found at ${cliPath}`)

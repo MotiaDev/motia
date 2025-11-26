@@ -1,6 +1,6 @@
 import { cn } from '@motiadev/ui'
 import type React from 'react'
-import type { Feature } from '@/types/file'
+import type { Feature } from '../../types/file'
 
 type Props = {
   feature: Feature

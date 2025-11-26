@@ -1,5 +1,5 @@
 import type { Server } from 'http'
-import { type WebSocket, Server as WsServer } from 'ws'
+import { type WebSocket, WebSocketServer } from 'ws'
 import { globalLogger } from './logger'
 import {
   type BaseMessage,
@@ -26,7 +26,7 @@ type Props = {
 
 const AUTH_ERROR_CODE = 401
 export const createSocketServer = ({ server, onJoin, onJoinGroup, authenticate, authorize }: Props) => {
-  const socketServer = new WsServer({
+  const socketServer = new WebSocketServer({
     server,
     verifyClient: async (info, callback) => {
       if (authenticate) {

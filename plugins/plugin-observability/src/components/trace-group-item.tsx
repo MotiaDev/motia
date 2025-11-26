@@ -2,8 +2,8 @@ import { cn } from '@motiadev/ui'
 import { formatDistanceToNow } from 'date-fns'
 import type React from 'react'
 import { memo, useCallback, useMemo } from 'react'
-import { useObservabilityStore } from '@/stores/use-observability-store'
 import { formatDuration } from '../lib/utils'
+import { useObservabilityStore } from '../stores/use-observability-store'
 import { TraceStatusBadge } from './trace-status'
 
 interface TraceGroupItemProps {

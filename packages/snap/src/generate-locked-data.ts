@@ -4,11 +4,12 @@ import {
   type JsonSchema,
   LockedData,
   MemoryStreamAdapterManager,
+  NoPrinter,
+  Printer,
   type Step,
   type StreamAdapterManager,
   type StreamAuthConfig,
 } from '@motiadev/core'
-import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import { randomUUID } from 'crypto'
 import { existsSync } from 'fs'
 import { globSync } from 'glob'

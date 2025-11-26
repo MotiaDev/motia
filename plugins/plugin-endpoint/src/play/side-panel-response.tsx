@@ -1,5 +1,5 @@
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import X from 'lucide-react/icons/x'
+import { X } from 'lucide-react'
 import { memo, useState } from 'react'
 import { getResponseSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
 import { useStateStream } from '../hooks/use-state-stream'

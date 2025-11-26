@@ -1,12 +1,5 @@
 import path from 'node:path'
 
-require('dotenv').config()
-
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
-
 type CanAccessPayload = {
   subscription: { groupId: string; id?: string }
   authContext?: unknown
@@ -21,13 +14,15 @@ function parsePayload(arg: string): CanAccessPayload {
 }
 
 async function runCanAccess(filePath: string, payload: CanAccessPayload) {
-  const module = require(path.resolve(filePath))
+  const module = await import(path.resolve(filePath))
 
-  if (!module?.config) {
+  const config = module.config || module.default?.config
+
+  if (!config) {
     throw new Error(`Config not found in module ${filePath}`)
   }
 
-  const canAccess = module.config.canAccess
+  const canAccess = config.canAccess
 
   if (typeof canAccess !== 'function') {
     process.send?.(true)
@@ -42,7 +37,7 @@ async function runCanAccess(filePath: string, payload: CanAccessPayload) {
 const [, , filePath, payloadArg] = process.argv
 
 if (!filePath || !payloadArg) {
-  console.error('Usage: node can-access.js <file-path> <payload>')
+  console.error('Usage: node can-access.mjs <file-path> <payload>')
   process.exit(1)
 }
 
