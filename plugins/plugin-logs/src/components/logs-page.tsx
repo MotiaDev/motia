@@ -37,7 +37,7 @@ export const LogsPage = () => {
               variant="shade"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="px-9 font-medium"
+              className="px-9! font-medium"
               placeholder="Search by Trace ID or Message"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />

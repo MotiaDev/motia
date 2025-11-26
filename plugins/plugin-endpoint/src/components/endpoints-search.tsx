@@ -17,7 +17,7 @@ export const EndpointsSearch = ({ value, onChange, onClear }: EndpointsSearchPro
           variant="shade"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="px-9 font-medium"
+          className="px-9! font-medium"
           placeholder="Search by Method or Path"
         />
         <X
