@@ -15,7 +15,7 @@ async function globalSetup() {
       rmSync(TEST_PROJECT_PATH, { recursive: true, force: true })
     }
 
-    const template = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
+    const template = process.env.MOTIA_TEST_TEMPLATE || 'motia-tutorial-typescript'
     const cliPath = process.env.MOTIA_CLI_PATH || path.join(ROOT_PATH, 'packages/snap/dist/cjs/cli.js')
 
     if (!existsSync(cliPath)) {

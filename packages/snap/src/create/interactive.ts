@@ -9,8 +9,8 @@ interface InteractiveAnswers {
 }
 
 const choices: Record<string, string> = {
-  nodejs: 'Tutorial (TypeScript)',
-  python: 'Tutorial (Python)',
+  'motia-tutorial-typescript': 'Tutorial (TypeScript)',
+  'motia-tutorial-python': 'Tutorial (Python)',
   'starter-typescript': 'Starter (TypeScript)',
   'starter-javascript': 'Starter (JavaScript)',
   'starter-python': 'Starter (Python)',
@@ -89,7 +89,7 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
 
   await create({
     projectName: name || '.',
-    template: template || 'nodejs',
+    template: template || 'motia-tutorial-typescript',
     cursorEnabled: true, // Default to true for cursor rules
     context,
   })
