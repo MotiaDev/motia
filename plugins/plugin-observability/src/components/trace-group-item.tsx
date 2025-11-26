@@ -43,7 +43,7 @@ export const TraceGroupItem: React.FC<TraceGroupItemProps> = memo(
       >
         <div className="p-3 flex flex-col gap-1">
           <div className="flex flex-row justify-between items-center gap-2">
-            <span className="font-semibold text-lg">{groupName}</span>
+            <span className="font-semibold text-lg truncate flex-1 min-w-0">{groupName}</span>
             <TraceStatusBadge status={groupStatus} duration={duration} />
           </div>
 
