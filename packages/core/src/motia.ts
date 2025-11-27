@@ -31,6 +31,7 @@ export type MotiaPluginContext = {
   state: StateAdapter
   lockedData: LockedData
   tracerFactory: TracerFactory
+  eventAdapter: EventAdapter
   registerApi: <
     TRequestBody = unknown,
     TResponseBody extends ApiResponse<number, unknown> = ApiResponse<number, unknown>,

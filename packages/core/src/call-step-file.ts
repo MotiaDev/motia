@@ -76,9 +76,10 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       .spawn()
       .then(() => {
         processManager.handler<TraceError | undefined>('close', async (err) => {
-          processManager.kill()
-
           if (err) {
+            if (timeoutId) clearTimeout(timeoutId)
+            processManager.close()
+
             trackEvent('step_execution_error', {
               stepName: step.config.name,
               traceId,
@@ -91,10 +92,14 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
               stack: err.stack?.replace(new RegExp(`${motia.lockedData.baseDir}/`), ''),
             })
 
-            reject(new Error(err.message || 'Handler execution failed'))
+            const error = err ?? new Error('Handler execution failed')
+
+            reject(error)
           } else {
             await tracer.end()
           }
+
+          processManager.kill()
         })
         processManager.handler<unknown>('log', async (input: unknown) => logger.log(input))
 

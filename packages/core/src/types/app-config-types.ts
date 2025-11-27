@@ -22,6 +22,7 @@ export type MotiaPlugin = {
   workbench: WorkbenchPlugin[]
   dirname?: string
   steps?: string[]
+  onShutdown?: () => Promise<void>
 }
 
 export type MotiaPluginBuilder = (motia: MotiaPluginContext) => MotiaPlugin

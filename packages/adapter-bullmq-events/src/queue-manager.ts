@@ -2,12 +2,9 @@ import type { Event } from '@motiadev/core'
 import { Queue } from 'bullmq'
 import type { Redis } from 'ioredis'
 import type { MergedConfig } from './config-builder'
+import { MILLISECONDS_PER_SECOND } from './constants'
 import { QueueCreationError } from './errors'
-
-type SubscriberInfo = {
-  topic: string
-  stepName: string
-}
+import type { SubscriberInfo } from './worker-manager'
 
 export class QueueManager {
   private readonly queues: Map<string, Queue> = new Map()
@@ -59,10 +56,17 @@ export class QueueManager {
         messageGroupId: event.messageGroupId,
       }
 
+      const maxRetries = subscriber.queueConfig?.maxRetries
+      const attempts = maxRetries != null ? maxRetries + 1 : this.config.defaultJobOptions.attempts
+      const delay = subscriber.queueConfig?.delaySeconds
+        ? subscriber.queueConfig.delaySeconds * MILLISECONDS_PER_SECOND
+        : undefined
+
       const jobOptions = {
         jobId,
-        attempts: this.config.defaultJobOptions.attempts,
+        attempts,
         backoff: this.config.defaultJobOptions.backoff,
+        delay,
       }
 
       return queue.add(event.topic, jobData, jobOptions).then(() => undefined)
@@ -87,5 +91,17 @@ export class QueueManager {
     )
     await Promise.allSettled(promises)
     this.queues.clear()
+  }
+
+  listQueueNames(): string[] {
+    return Array.from(this.queues.keys())
+  }
+
+  getPrefix(): string {
+    return this.config.prefix
+  }
+
+  getConnection(): Redis {
+    return this.connection
   }
 }
