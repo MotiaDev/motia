@@ -1,6 +1,7 @@
 import type { Event, QueueConfig, SubscriptionHandle } from '@motiadev/core'
 import { type Job, Worker } from 'bullmq'
 import type { Redis } from 'ioredis'
+import { v4 as uuidv4 } from 'uuid'
 import type { MergedConfig } from './config-builder'
 import { FIFO_CONCURRENCY, MILLISECONDS_PER_SECOND } from './constants'
 import type { DLQManager } from './dlq-manager'
@@ -54,7 +55,7 @@ export class WorkerManager {
     handler: (event: Event<TData>) => void | Promise<void>,
     options?: QueueConfig,
   ): SubscriptionHandle {
-    const id = this.getSubscriptionId(topic, stepName)
+    const id = uuidv4()
     const queueName = this.getQueueName(topic, stepName)
 
     this.addTopicSubscription(topic, id)
@@ -154,10 +155,6 @@ export class WorkerManager {
     return Array.from(new Set(Array.from(this.workers.values()).map((w) => w.topic)))
   }
 
-  private getSubscriptionId(topic: string, stepName: string): string {
-    return `${topic}:${stepName}`
-  }
-
   private addTopicSubscription(topic: string, id: string): void {
     if (!this.topicSubscriptions.has(topic)) {
       this.topicSubscriptions.set(topic, new Set())
@@ -180,7 +177,6 @@ export class WorkerManager {
       const error = new WorkerCreationError(topic, stepName, err)
       console.error(`[BullMQ] Worker error for topic ${topic}, step ${stepName}:`, error)
     })
-
     worker.on('failed', async (job: Job<JobData<unknown>> | undefined, err: Error) => {
       if (job) {
         const attemptsMade = job.attemptsMade || 0
