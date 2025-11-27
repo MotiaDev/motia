@@ -3,7 +3,7 @@ import { Button } from '@motiadev/ui'
 import Minus from 'lucide-react/icons/minus'
 import Plus from 'lucide-react/icons/plus'
 import type React from 'react'
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { useGetEndTime } from '../hooks/use-get-endtime'
 import { formatDuration } from '../lib/utils'
 import { useObservabilityStore } from '../stores/use-observability-store'
@@ -38,25 +38,17 @@ const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ gr
 
   const selectedTrace = useMemo(() => data?.find((trace) => trace.id === selectedTraceId), [data, selectedTraceId])
 
-  const zoomMinus = useCallback(() => {
-    if (zoom > 100) setZoom(zoom - 10)
-  }, [zoom])
-
-  const zoomPlus = useCallback(() => {
-    if (zoom < 200) setZoom(zoom + 10)
-  }, [zoom])
+  const zoomMinus = () => zoom > 100 && setZoom((prevZoom) => prevZoom - 10)
+  const zoomPlus = () => zoom < 200 && setZoom((prevZoom) => prevZoom + 10)
 
   if (!group) return null
 
   return (
     <>
-      <div className="flex flex-col flex-1 overflow-x-auto h-full relative">
-        <div
-          className="flex flex-col items-center min-w-full sticky top-0"
-          style={{ width: `${(zoom / 100) * 1000}px` }}
-        >
-          <div className="flex flex-1 w-full sticky top-0 bg-background z-10">
-            <div className="w-full min-h-[37px] h-[37px] min-w-[200px] max-w-[200px] flex items-center justify-center gap-2 sticky left-0 top-0 bg-card backdrop-blur-[4px] backdrop-filter">
+      <div className="flex flex-col flex-1 relative min-h-full min-w-[1000px]">
+        <div className="flex flex-col" style={{ width: `${zoom}%` }}>
+          <div className="flex flex-1 bg-background" style={{ width: `${zoom}%` }}>
+            <div className="shrink-0 w-[200px] h-[37px] flex items-center justify-center gap-2 sticky left-0 top-0 z-10 bg-card backdrop-blur-xs backdrop-filter">
               <Button variant="icon" size="sm" className="px-2" onClick={zoomMinus} disabled={zoom <= 100}>
                 <Minus className="w-4 h-4 cursor-pointer" />
               </Button>
@@ -66,22 +58,15 @@ const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ gr
               </Button>
             </div>
             <div className="flex justify-between font-mono p-2 w-full text-xs text-muted-foreground bg-card">
-              <span>{formatDuration(0)}</span>
+              <span>0ms</span>
               <span>{formatDuration(Math.floor((endTime - group.startTime) * 0.25))}</span>
               <span>{formatDuration(Math.floor((endTime - group.startTime) * 0.5))}</span>
               <span>{formatDuration(Math.floor((endTime - group.startTime) * 0.75))}</span>
               <span>{formatDuration(Math.floor(endTime - group.startTime))}</span>
-              <div className="absolute bottom-[-4px] w-full flex justify-between">
-                <span className="w-[1px] h-full bg-blue-500"></span>
-                <span className="w-[1px] h-full bg-blue-500"></span>
-                <span className="w-[1px] h-full bg-blue-500"></span>
-                <span className="w-[1px] h-full bg-blue-500"></span>
-                <span className="w-[1px] h-full bg-blue-500"></span>
-              </div>
             </div>
           </div>
 
-          <div className="flex flex-col w-full h-full">
+          <div className="flex flex-col h-full" style={{ width: `${zoom}%` }}>
             {data?.map((trace) => (
               <TraceItem
                 key={trace.id}
