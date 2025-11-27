@@ -73,7 +73,6 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
             void 0
           }
         } else {
-          // Replace template variables (e.g., {{PROJECT_NAME}})
           content = replaceTemplateVariables(content, projectName)
         }
 
