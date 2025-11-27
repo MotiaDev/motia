@@ -38,7 +38,7 @@ export const QueueDetail = memo(() => {
   const selectedQueue = useBullMQStore((state) => state.selectedQueue)
   const selectedStatus = useBullMQStore((state) => state.selectedStatus)
   const setSelectedStatus = useBullMQStore((state) => state.setSelectedStatus)
-  const { pauseQueue, resumeQueue, cleanQueue, drainQueue, fetchQueues } = useQueues()
+  const { pauseQueue, resumeQueue, cleanQueue, drainQueue } = useQueues()
   const { fetchJobs } = useJobs()
 
   const handlePause = useCallback(async () => {
@@ -68,9 +68,8 @@ export const QueueDetail = memo(() => {
 
   const handleRefresh = useCallback(async () => {
     if (!selectedQueue) return
-    await fetchQueues()
     await fetchJobs(selectedQueue.name, selectedStatus)
-  }, [selectedQueue, selectedStatus, fetchQueues, fetchJobs])
+  }, [selectedQueue, selectedStatus, fetchJobs])
 
   if (!selectedQueue) {
     return (

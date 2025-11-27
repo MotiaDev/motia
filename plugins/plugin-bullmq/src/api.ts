@@ -1,52 +1,15 @@
 import type { ApiRequest, ApiResponse, MotiaPluginContext } from '@motiadev/core'
-import { Queue } from 'bullmq'
 import type { Redis } from 'ioredis'
+import { discoverQueueNames, getOrCreateQueue, getQueueInfo } from './streams/queues-stream'
 import type { CleanOptions, JobInfo, JobStatus, QueueInfo } from './types/queue'
 
-const queues: Map<string, Queue> = new Map()
-
-const getOrCreateQueue = (name: string, connection: Redis, prefix: string): Queue => {
-  const existing = queues.get(name)
-  if (existing) {
-    return existing
-  }
-  const queue = new Queue(name, { connection, prefix })
-  queues.set(name, queue)
-  return queue
-}
-
 const discoverQueues = async (connection: Redis, prefix: string, dlqSuffix: string): Promise<QueueInfo[]> => {
-  const pattern = `${prefix}:*:id`
-  const keys = await connection.keys(pattern)
-  const queueNames = new Set<string>()
-
-  for (const key of keys) {
-    const withoutPrefix = key.slice(prefix.length + 1)
-    const withoutId = withoutPrefix.slice(0, -3)
-    queueNames.add(withoutId)
-  }
-
+  const queueNames = await discoverQueueNames(connection, prefix)
   const queueInfos: QueueInfo[] = []
 
   for (const name of queueNames) {
-    const queue = getOrCreateQueue(name, connection, prefix)
-    const [isPaused, counts] = await Promise.all([queue.isPaused(), queue.getJobCounts()])
-
-    queueInfos.push({
-      name,
-      displayName: name,
-      isPaused,
-      isDLQ: name.endsWith(dlqSuffix),
-      stats: {
-        waiting: counts.waiting || 0,
-        active: counts.active || 0,
-        completed: counts.completed || 0,
-        failed: counts.failed || 0,
-        delayed: counts.delayed || 0,
-        paused: counts.paused || 0,
-        prioritized: counts.prioritized || 0,
-      },
-    })
+    const info = await getQueueInfo(name, connection, prefix, dlqSuffix)
+    queueInfos.push(info)
   }
 
   return queueInfos
