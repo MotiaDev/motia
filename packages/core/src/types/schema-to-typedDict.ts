@@ -1,13 +1,17 @@
 /**
  * Converts a simple schema string into Python TypedDict definitions.
  * The pipeline is split into small stages: tokenize -> parse -> name -> render.
+ *
+ * The goal of this file is to keep each stage obvious to readers reviewing the
+ * generator. Comments are placed at the "why" level rather than restating code.
  */
 // Flow notes: comment numbers follow runtime execution starting at the entry point (1),
 // even when supporting definitions live above the entry point for readability.
 
 // === AST ==========================================================
 
-// 0. Shared AST node shapes used by the parser and renderer.
+// 0. Shared AST node shapes used by the parser and renderer. They are intentionally
+// minimal, just enough to describe the schema language we support.
 interface Base {
   node: 'Base'
   kind: string
@@ -58,7 +62,7 @@ type TokenKind =
   | 'KEY_WORD'
   | 'PIPE'
   | 'STRING_LITERAL'
-  | 'UNKNOWN'
+  | 'UNKNOWN' // Placeholder for anything we don't understand but want to keep parsing
 
 interface Token {
   kind: TokenKind
@@ -83,6 +87,7 @@ const isAlpha = (c: string) => /[A-Za-z_]/.test(c)
 const isAlnum = (c: string) => /[A-Za-z0-9_]/.test(c)
 
 // 3. Turn the raw schema string into a linear token stream for the parser.
+// Supports quoted strings (single or double) with simple escaping.
 function tokenize(src: string): Token[] {
   const out: Token[] = []
   for (let i = 0; i < src.length; ) {
@@ -138,6 +143,10 @@ function tokenize(src: string): Token[] {
 
 // === PARSER =======================================================
 
+/**
+ * Very small recursive-descent parser for the schema language. It only needs to
+ * understand object literals, unions, arrays, and Record<string, T> shapes.
+ */
 class Parser {
   private index = 0
 
@@ -281,6 +290,7 @@ function buildUnion(members: TypeNode[]): TypeNode {
 
 // === HELPERS ======================================================
 
+// Python keywords we avoid using as identifiers.
 const PYTHON_KEYWORDS = new Set([
   'False',
   'None',
@@ -465,19 +475,18 @@ function nameForObject(obj: Obj, path: string[], nameMap: Map<string, string>, u
 
 // === PYTHON TYPE MAPPING ==========================================
 
+const BASE_TYPE_MAP: Record<string, string> = {
+  string: 'str',
+  number: 'float',
+  int: 'int',
+  boolean: 'bool',
+}
+
 // 12.2 Map a TypeNode into its Python type representation.
 function toPythonType(t: TypeNode): string {
   switch (t.node) {
     case 'Base':
-      return t.kind === 'string'
-        ? 'str'
-        : t.kind === 'number'
-          ? 'float'
-          : t.kind === 'int'
-            ? 'int'
-            : t.kind === 'boolean'
-              ? 'bool'
-              : 'Any'
+      return BASE_TYPE_MAP[t.kind] ?? 'Any'
     case 'Array':
       return `list[${toPythonType(t.item)}]`
     case 'Obj':

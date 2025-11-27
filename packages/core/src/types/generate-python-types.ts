@@ -1,15 +1,19 @@
 /**
  * Builds Python TypedDict/type alias definitions for handlers and streams.
- * The code is organized into small generators for each section (streams, inputs,
- * requests/responses, flow contexts), all orchestrated by generatePythonTypesString.
+ * The module is intentionally split into small generators (streams, inputs,
+ * requests/responses, flow contexts) to keep each concern easy to follow.
+ * Top-level entry: generatePythonTypesString().
  */
 
 import { schema_to_typeddict } from './schema-to-typedDict'
 
 // ===== Types ======================================================
 
+// Describes a handler and the raw schema strings for its generics.
 type HandlerDef = { type: string; generics: string[] }
 type HandlersMap = Record<string, HandlerDef>
+
+// Map of stream name -> schema for the stream's payload.
 type StreamsMap = Record<string, string>
 
 interface GenResult {
@@ -28,6 +32,7 @@ interface TopicData {
 
 // ===== Constants ==================================================
 
+// Import block prefixed to every generated file; keep aligned with runtime deps.
 const PYTHON_HEADER =
   'from typing import Any, TypeAlias, TypedDict, Literal, Protocol, Never, Union, Optional, Callable, Iterable, Iterator, Sequence, Mapping, Dict, List, Tuple, Set, FrozenSet, Generator, AsyncGenerator, Awaitable, Coroutine, TypeVar, Generic, overload, cast, Final, ClassVar, Concatenate, ParamSpec\n' +
   'from motia.core import ApiRequest, ApiResponse, FlowContext, NotRequired, MotiaStream, FlowContextStateStreams \n'
@@ -44,6 +49,7 @@ const handlerBanner = (name: string, type: string) => `# ----- ${type}: ${name} 
 
 const sectionBanner = (title: string) => `# ===== ${title} =====`
 
+// Adds a symbol to an export accumulator and returns it for inline usage.
 const exportSymbol = (exportsArr: string[], sym: string) => {
   exportsArr.push(sym)
   return sym
@@ -59,6 +65,7 @@ const logTypegenError = (context: string, err: unknown, details?: Record<string,
   }
 }
 
+// Split on "top-level" pipes only (ignoring pipes inside angle/brace pairs).
 const splitOnTopLevelPipes = (input: string, open: string, close: string): string[] => {
   const parts: string[] = []
   let depth = 0
@@ -89,6 +96,8 @@ const emitTypeddictOrFallback = (
   try {
     return schema_to_typeddict(schema, rootName).trimEnd()
   } catch (err) {
+    // Parsing can fail when the schema text is malformed. We still emit something
+    // predictable so downstream tooling does not break entirely.
     logTypegenError(context, err, { rootName, schemaSnippet: schema.slice(0, 200) })
     if (fallbackShape === 'alias_dict_any') {
       return `${rootName}: TypeAlias = Dict[str, Any]`
@@ -99,6 +108,11 @@ const emitTypeddictOrFallback = (
 
 // ===== ApiRequest ================================================
 
+/**
+ * Generates the ApiRequest typed alias for a single handler.
+ * Handles the special "Record<string, unknown>" permissive shape, otherwise
+ * delegates to the TypedDict renderer.
+ */
 const generateApiRequest = (requestBodySchema: string, handlerName: string): GenResult => {
   const code: string[] = []
   const exports: string[] = []
@@ -126,6 +140,7 @@ const generateApiRequest = (requestBodySchema: string, handlerName: string): Gen
 
 // ===== ApiResponse ===============================================
 
+// Extracts the individual ApiResponse<status, Body> pieces from a union string.
 const parseApiResponses = (schema: string): ParsedResponse[] => {
   const parts = splitOnTopLevelPipes(schema, '<', '>')
   const out: ParsedResponse[] = []
@@ -139,6 +154,10 @@ const parseApiResponses = (schema: string): ParsedResponse[] => {
   return out
 }
 
+/**
+ * Emits a TypeAlias for ApiResponse unions, generating TypedDicts for each
+ * distinct HTTP status payload as needed.
+ */
 const generateApiResponse = (responseSchema: string, handlerName: string): GenResult => {
   const code: string[] = []
   const exports: string[] = []
@@ -172,6 +191,7 @@ const generateApiResponse = (responseSchema: string, handlerName: string): GenRe
 
 // ===== FlowContext ===============================================
 
+// Break apart a union of FlowContext emits into topic/data pairs.
 const extractTopicDataVariants = (unionSchema: string): TopicData[] => {
   const chunks = splitOnTopLevelPipes(unionSchema, '{', '}')
   const result: TopicData[] = []
@@ -190,6 +210,11 @@ const extractTopicDataVariants = (unionSchema: string): TopicData[] => {
   return result
 }
 
+/**
+ * Creates FlowContext protocol definitions for a handler. When emitDataSchema
+ * is "never" we produce the minimal FlowContext, otherwise we map each topic
+ * variant into a TypedDict and build a union for FlowContext's generic.
+ */
 const generateFlowContext = (emitDataSchema: string, name: string): GenResult => {
   const code: string[] = []
   const exports: string[] = []
@@ -247,6 +272,10 @@ const generateFlowContext = (emitDataSchema: string, name: string): GenResult =>
 
 // ===== Input =====================================================
 
+/**
+ * Emits input TypedDict/type aliases for handlers. For "never" we simply alias
+ * to Never; otherwise we let schema_to_typeddict parse the input shape.
+ */
 const generateInput = (schema: string, name: string): GenResult => {
   const code: string[] = []
   const exports: string[] = []
@@ -272,6 +301,10 @@ const generateInput = (schema: string, name: string): GenResult => {
 
 // ===== Streams Section ===========================================
 
+/**
+ * Builds the shared stream definitions, plus a composite AllStreams type that
+ * handlers can reference in generated FlowContexts.
+ */
 const generateStreamsSection = (streams: StreamsMap): { code: string } => {
   const lines: string[] = []
   const streamClassNames: string[] = []
@@ -302,6 +335,9 @@ const generateStreamsSection = (streams: StreamsMap): { code: string } => {
 
 // ===== Handler Groups ============================================
 
+/**
+ * Event handlers expose only input + FlowContext generics.
+ */
 const generateEventHandlersSection = (handlers: HandlersMap): GenResult => {
   const code: string[] = []
   const exports: string[] = []
@@ -325,6 +361,9 @@ const generateEventHandlersSection = (handlers: HandlersMap): GenResult => {
   return { code: code.join('\n'), exports }
 }
 
+/**
+ * Api route handlers require request/response shapes plus FlowContext.
+ */
 const generateApiRouteHandlersSection = (handlers: HandlersMap): GenResult => {
   const code: string[] = []
   const exports: string[] = []
@@ -352,6 +391,9 @@ const generateApiRouteHandlersSection = (handlers: HandlersMap): GenResult => {
   return { code: code.join('\n'), exports }
 }
 
+/**
+ * Cron handlers only emit FlowContext because they have no request/response.
+ */
 const generateCronHandlersSection = (handlers: HandlersMap): GenResult => {
   const code: string[] = []
   const exports: string[] = []
@@ -373,6 +415,11 @@ const generateCronHandlersSection = (handlers: HandlersMap): GenResult => {
 
 // ===== Public API =================================================
 
+/**
+ * Entry point: orchestrates generation of stream definitions and the various
+ * handler groupings, returning the full Python source string plus exported
+ * symbol names for the caller to surface.
+ */
 export function generatePythonTypesString(
   handlers: HandlersMap,
   streams: StreamsMap,
