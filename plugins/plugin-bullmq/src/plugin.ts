@@ -1,6 +1,9 @@
 import type { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 import IORedis from 'ioredis'
 import { api } from './api'
+import { QueuesStream } from './streams/queues-stream'
+
+const STREAM_NAME = '__motia.bullmq-queues'
 
 const isBullMQAdapter = (adapter: unknown): adapter is { connection: IORedis; prefix: string; dlqSuffix: string } => {
   return (
@@ -33,6 +36,30 @@ export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
     ownsConnection = true
   }
 
+  const queuesStream = new QueuesStream(connection, prefix, dlqSuffix)
+
+  const stream = motia.lockedData.createStream({
+    filePath: `${STREAM_NAME}.ts`,
+    hidden: true,
+    config: {
+      name: STREAM_NAME,
+      baseConfig: { storageType: 'custom', factory: () => queuesStream },
+      schema: null as never,
+    },
+  })()
+
+  queuesStream.setUpdateCallback((queueInfo) => {
+    stream.set('default', queueInfo.id, queueInfo)
+  })
+
+  queuesStream.setupAllQueueEvents().then(() => {
+    queuesStream.getGroup('default').then((queues) => {
+      for (const queue of queues) {
+        stream.set('default', queue.id, queue)
+      }
+    })
+  })
+
   api(motia, prefix, dlqSuffix, connection)
 
   return {
@@ -47,6 +74,7 @@ export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
       },
     ],
     onShutdown: async () => {
+      await queuesStream.closeAllQueueEvents()
       if (ownsConnection) {
         await connection.quit()
       }

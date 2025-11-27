@@ -1,9 +1,12 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 import type { DLQJobInfo, JobInfo, JobStatus } from '../types/queue'
 
 export const useJobs = () => {
   const { jobs, selectedQueue, selectedStatus, setJobs, setLoading, setError, isLoading, error } = useBullMQStore()
+  const lastStatsRef = useRef<string | null>(null)
+  const lastQueueRef = useRef<string | null>(null)
+  const lastStatusRef = useRef<JobStatus | null>(null)
 
   const fetchJobs = useCallback(
     async (queueName: string, status: JobStatus, start = 0, end = 100) => {
@@ -26,6 +29,28 @@ export const useJobs = () => {
     [setJobs, setLoading, setError],
   )
 
+  useEffect(() => {
+    if (!selectedQueue) {
+      lastStatsRef.current = null
+      lastQueueRef.current = null
+      lastStatusRef.current = null
+      return
+    }
+
+    const statsKey = JSON.stringify(selectedQueue.stats)
+    const queueChanged = lastQueueRef.current !== selectedQueue.name
+    const statusChanged = lastStatusRef.current !== selectedStatus
+    const statsChanged = lastStatsRef.current !== null && lastStatsRef.current !== statsKey
+
+    if (queueChanged || statusChanged || statsChanged) {
+      fetchJobs(selectedQueue.name, selectedStatus)
+    }
+
+    lastStatsRef.current = statsKey
+    lastQueueRef.current = selectedQueue.name
+    lastStatusRef.current = selectedStatus
+  }, [selectedQueue, selectedStatus, fetchJobs])
+
   const getJob = useCallback(async (queueName: string, jobId: string): Promise<JobInfo | null> => {
     try {
       const response = await fetch(
@@ -46,14 +71,11 @@ export const useJobs = () => {
         await fetch(`/__motia/bullmq/queues/${encodeURIComponent(queueName)}/jobs/${encodeURIComponent(jobId)}/retry`, {
           method: 'POST',
         })
-        if (selectedQueue) {
-          await fetchJobs(selectedQueue.name, selectedStatus)
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to retry job')
       }
     },
-    [selectedQueue, selectedStatus, fetchJobs, setError],
+    [setError],
   )
 
   const removeJob = useCallback(
@@ -65,14 +87,11 @@ export const useJobs = () => {
             method: 'POST',
           },
         )
-        if (selectedQueue) {
-          await fetchJobs(selectedQueue.name, selectedStatus)
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to remove job')
       }
     },
-    [selectedQueue, selectedStatus, fetchJobs, setError],
+    [setError],
   )
 
   const promoteJob = useCallback(
@@ -84,14 +103,11 @@ export const useJobs = () => {
             method: 'POST',
           },
         )
-        if (selectedQueue) {
-          await fetchJobs(selectedQueue.name, selectedStatus)
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to promote job')
       }
     },
-    [selectedQueue, selectedStatus, fetchJobs, setError],
+    [setError],
   )
 
   const getDLQJobs = useCallback(async (queueName: string, start = 0, end = 100): Promise<DLQJobInfo[]> => {
@@ -146,12 +162,6 @@ export const useJobs = () => {
     },
     [setError],
   )
-
-  useEffect(() => {
-    if (selectedQueue) {
-      fetchJobs(selectedQueue.name, selectedStatus)
-    }
-  }, [selectedQueue, selectedStatus, fetchJobs])
 
   return {
     jobs,
