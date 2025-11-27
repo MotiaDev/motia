@@ -26,7 +26,7 @@ Steps need to be created in the `steps` folder, it can be in subfolders.
 
 ## Definition
 
-Defining an API Step is done by two elements. Configuration and Handler.
+Defining an Event Step is done by two elements. Configuration and Handler.
 
 ### Schema Definition
 
@@ -40,6 +40,9 @@ Defining an API Step is done by two elements. Configuration and Handler.
 **Python**: You need to define a `config` dictionary with the same properties as the TypeScript `EventConfig`.
 
 ```typescript
+export type ZodInput = ZodObject<any> | ZodArray<any>
+export type StepSchemaInput = ZodInput | JsonSchema
+
 export type Emit = string | { 
   /**
    * The topic name to emit to.
@@ -92,7 +95,14 @@ export type EventConfig = {
   virtualEmits?: Emit[]
 
   /**
-   * The Zod schema of the input data of events this step processes.
+   * Optional: Virtually subscribed topics for documentation/lineage purposes.
+   */
+  virtualSubscribes?: string[]
+
+  /**
+   * Schema for input data. Accepts either:
+   * - Zod schema (ZodObject or ZodArray)
+   * - JSON Schema object
    * 
    * This is used by Motia to create the correct types for whoever emits the event 
    * to this step.
@@ -102,17 +112,23 @@ export type EventConfig = {
    * recommended to store it in the state and fetch it from the state on the 
    * Event Step handler.
    */
-  input: ZodInput
+  input?: StepSchemaInput
 
   /**
    * Optional: An array of flow names this step belongs to.
    */
   flows?: string[]
+
   /**
    * Files to include in the step bundle.
    * Needs to be relative to the step file.
    */
   includeFiles?: string[]
+
+  /**
+   * Optional: Infrastructure configuration for handler and queue settings.
+   */
+  infrastructure?: Partial<InfrastructureConfig>
 }
 ```
 
