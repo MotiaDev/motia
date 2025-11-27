@@ -105,11 +105,11 @@ export function VideoPlayer({ videoPath, title, thumbnailPath, gifPath, classNam
   return (
     <div 
       ref={containerRef}
-      className={`rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md overflow-hidden ${isFullscreen ? 'rounded-none border-none' : ''} ${className}`}
+      className={`rounded-xl overflow-hidden ${isFullscreen ? 'rounded-none' : ''} ${className}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => !isPaused && setShowControls(false)}
     >
-      <div className={`aspect-video relative bg-gray-200 dark:bg-gray-900 ${isFullscreen ? 'h-screen w-screen aspect-auto' : ''}`}>
+      <div className={`aspect-video relative bg-black ${isFullscreen ? 'h-screen w-screen aspect-auto' : ''}`}>
         {!isPlaying ? (
           <button
             onClick={handlePlayClick}
