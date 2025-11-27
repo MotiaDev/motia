@@ -52,7 +52,7 @@ const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ gr
               <Button variant="icon" size="sm" className="px-2" onClick={zoomMinus} disabled={zoom <= 100}>
                 <Minus className="w-4 h-4 cursor-pointer" />
               </Button>
-              <span className="text-sm font-bold text-muted-foreground">{zoom}%</span>
+              <span className="min-w-12 text-center select-none text-sm font-bold text-muted-foreground">{zoom}%</span>
               <Button variant="icon" size="sm" className="px-2" onClick={zoomPlus} disabled={zoom >= 200}>
                 <Plus className="w-4 h-4 cursor-pointer" />
               </Button>
