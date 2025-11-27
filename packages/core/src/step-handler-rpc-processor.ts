@@ -12,6 +12,10 @@ export type RpcMessage = {
   args: unknown
 }
 
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
+  return Boolean(value) && typeof (value as PromiseLike<unknown>).then === 'function'
+}
+
 export class RpcProcessor implements RpcProcessorInterface {
   private handlers: Record<string, RpcHandler<any, any>> = {}
 
@@ -28,12 +32,16 @@ export class RpcProcessor implements RpcProcessorInterface {
     this.messageCallback = callback
   }
 
-  async handle(method: string, input: unknown) {
+  handle(method: string, input: unknown): Promise<unknown> {
     const handler = this.handlers[method]
     if (!handler) {
-      throw new Error(`Handler for method ${method} not found`)
+      return Promise.reject(new Error(`Handler for method ${method} not found`))
     }
-    return handler(input)
+    try {
+      return Promise.resolve(handler(input))
+    } catch (error) {
+      return Promise.reject(error)
+    }
   }
 
   private response(id: string | undefined, result: unknown, error: unknown) {
@@ -50,6 +58,9 @@ export class RpcProcessor implements RpcProcessorInterface {
 
   async init() {
     this.child.on('message', (msg: any) => {
+      if (this.isClosed) {
+        return
+      }
       // Call generic message callback if registered
       if (this.messageCallback) {
         this.messageCallback(msg)
@@ -58,9 +69,25 @@ export class RpcProcessor implements RpcProcessorInterface {
       // Handle RPC requests specifically
       if (msg && msg.type === 'rpc_request') {
         const { id, method, args } = msg as RpcMessage
-        this.handle(method, args)
-          .then((result) => this.response(id, result, null))
-          .catch((error) => this.response(id, null, error))
+        const handler = this.handlers[method]
+        if (!handler) {
+          this.response(id, null, `Unknown RPC method: ${method}`)
+          return
+        }
+        let result: unknown
+        try {
+          result = handler(args)
+        } catch (error) {
+          this.response(id, null, error)
+          return
+        }
+        if (isPromiseLike(result)) {
+          Promise.resolve(result)
+            .then((value) => this.response(id, value, null))
+            .catch((error: unknown) => this.response(id, null, error))
+        } else {
+          this.response(id, result, null)
+        }
       }
     })
 

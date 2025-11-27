@@ -5,8 +5,9 @@ import type { Motia } from './motia'
 import type { Tracer } from './observability'
 import type { TraceError } from './observability/types'
 import { ProcessManager } from './process-communication/process-manager'
+import type { StreamFactory } from './streams/stream-factory'
 import type { Event, InfrastructureConfig, Step } from './types'
-import type { BaseStreamItem, StateStreamEvent, StateStreamEventChannel } from './types-stream'
+import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
 import { isAllowedToEmit } from './utils'
 
 type StateGetInput = { traceId: string; key: string }
@@ -28,6 +29,17 @@ type CallStepFileOptions = {
   infrastructure?: Partial<InfrastructureConfig>
 }
 
+const streamInstanceCache = new WeakMap<StreamFactory<unknown>, MotiaStream<unknown>>()
+
+const getStreamInstance = <T>(factory: StreamFactory<T>): MotiaStream<T> => {
+  let instance = streamInstanceCache.get(factory)
+  if (!instance) {
+    instance = factory()
+    streamInstanceCache.set(factory, instance)
+  }
+  return instance as MotiaStream<T>
+}
+
 export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia): Promise<TData | undefined> => {
   const { step, traceId, data, tracer, logger, contextInFirstArg = false, infrastructure } = options
 
@@ -35,7 +47,8 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
   return new Promise((resolve, reject) => {
     const streamConfig = motia.lockedData.getStreams()
-    const streams = Object.keys(streamConfig).map((name) => ({ name }))
+    const streamEntries = Object.entries(streamConfig)
+    const streams = streamEntries.map(([name]) => ({ name }))
     const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
     const { runner, command, args } = getLanguageBasedRunner(step.filePath)
     let result: TData | undefined
@@ -124,12 +137,16 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
 
         processManager.handler<TData, void>('result', async (input) => {
-          const anyInput: any = { ...input }
-
-          if (anyInput.body && anyInput.body.type === 'Buffer') {
-            anyInput.body = Buffer.from(anyInput.body.data)
+          const normalized = { ...input } as TData & { body?: { type?: string; data?: number[] } | Buffer }
+          if (
+            normalized.body &&
+            !Buffer.isBuffer(normalized.body) &&
+            normalized.body.type === 'Buffer' &&
+            Array.isArray(normalized.body.data)
+          ) {
+            normalized.body = Buffer.from(normalized.body.data)
           }
-          result = anyInput
+          result = normalized
         })
 
         processManager.handler<Event, unknown>('emit', async (input) => {
@@ -144,8 +161,8 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           return motia.eventAdapter.emit({ ...input, traceId, flows, logger, tracer })
         })
 
-        Object.entries(streamConfig).forEach(([name, streamFactory]) => {
-          const stateStream = streamFactory()
+        streamEntries.forEach(([name, streamFactory]) => {
+          const stateStream = getStreamInstance(streamFactory)
 
           processManager.handler<StateStreamGetInput>(`streams.${name}.get`, async (input) => {
             tracer.streamOperation(name, 'get', input)
@@ -174,12 +191,18 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
         })
 
         processManager.onStdout((data) => {
-          try {
-            const message = JSON.parse(data.toString())
-            logger.log(message)
-          } catch {
-            logger.info(Buffer.from(data).toString())
+          const text = data.toString()
+          const trimmed = text.trim()
+          if (
+            (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+            (trimmed.startsWith('[') && trimmed.endsWith(']'))
+          ) {
+            try {
+              logger.log(JSON.parse(trimmed))
+              return
+            } catch {}
           }
+          logger.info(text)
         })
 
         processManager.onStderr((data) => logger.error(Buffer.from(data).toString()))
