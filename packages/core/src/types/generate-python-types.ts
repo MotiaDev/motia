@@ -1,45 +1,52 @@
-// Refactored for clarity, maintainability, and consistency
-// - Removed unused imports
-// - Consolidated string building via arrays and join()
-// - Introduced small, single-purpose helpers with strong typing
-// - Consistent naming, error handling, and docs
-// - Reduced duplicated logic for top-level splitting
-// - Functions return { code, exports } to centralize symbol tracking
+/**
+ * Builds Python TypedDict/type alias definitions for handlers and streams.
+ * The code is organized into small generators for each section (streams, inputs,
+ * requests/responses, flow contexts), all orchestrated by generatePythonTypesString.
+ */
 
 import { schema_to_typeddict } from "./schema-to-typedDict";
 
 // ===== Types ======================================================
 
-type HandlersMap = Record<string, { type: string; generics: string[] }>
+type HandlerDef = { type: string; generics: string[] };
+type HandlersMap = Record<string, HandlerDef>;
+type StreamsMap = Record<string, string>;
 
-type StreamsMap = Record<string, string>
+interface GenResult { code: string; exports: string[]; }
+interface ParsedResponse { status: number; schema: string; }
+interface TopicData { topic: string; topicId: string; dataSchema: string; }
 
-interface GenResult {
-  code: string;
-  exports: string[];
-}
+// ===== Constants ==================================================
+
+const PYTHON_HEADER =
+  "from typing import Any, TypeAlias, TypedDict, Literal, Protocol, Never, Union, Optional, Callable, Iterable, Iterator, Sequence, Mapping, Dict, List, Tuple, Set, FrozenSet, Generator, AsyncGenerator, Awaitable, Coroutine, TypeVar, Generic, overload, cast, Final, ClassVar, Concatenate, ParamSpec\n" +
+  "from motia.core import ApiRequest, ApiResponse, FlowContext,  MotiaStream, FlowContextStateStreams \n";
 
 // ===== Helpers ====================================================
 
-/** Ensures the provided root name is valid for Python by collapsing leading underscores to a single underscore. */
-function safeRootName(name: string): string {
-  return name.replace(/^_+/, "_");
-}
+const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-/** Produces a stable handler name from a user-facing label. */
-function toHandlerName(name: string): string {
-  return name.trim().replace(/\s+/g, "_") + "_Handler";
-}
+const safeRootName = (name: string) => name.replace(/^_+/, "_");
 
-/**
- * Splits a string on top-level pipes `|`, while respecting nesting delimited by
- * the provided open/close characters (e.g., angle brackets for generics or braces for objects).
- */
-function splitOnTopLevelPipes(
-  input: string,
-  open: string,
-  close: string
-): string[] {
+const toHandlerName = (name: string) => `${name.trim().replace(/\s+/g, "_")}_Handler`;
+
+const handlerBanner = (name: string, type: string) => `# ----- ${type}: ${name} -----`;
+
+const sectionBanner = (title: string) => `# ===== ${title} =====`;
+
+const exportSymbol = (exportsArr: string[], sym: string) => { exportsArr.push(sym); return sym; };
+
+const logTypegenError = (context: string, err: unknown, details?: Record<string, unknown>) => {
+  const base = `[TYPEGEN] ${context}: ${errorMessage(err)}`;
+  try {
+    if (details) console.error(base, details);
+    else console.error(base);
+  } catch {
+    // ignore logging failures
+  }
+};
+
+const splitOnTopLevelPipes = (input: string, open: string, close: string): string[] => {
   const parts: string[] = [];
   let depth = 0;
   let current = "";
@@ -58,45 +65,14 @@ function splitOnTopLevelPipes(
 
   if (current.trim()) parts.push(current.trim());
   return parts;
-}
+};
 
-/** Small utility to append and return a symbol in one step. */
-function exportSymbol(exportsArr: string[], sym: string): string {
-  exportsArr.push(sym);
-  return sym;
-}
-
-/** Minimal one-line banner for Python output. */
-function handlerBanner(name: string, type: string): string {
-  return `# ----- ${type}: ${name} -----`;
-}
-
-/** Section banner for non-handler areas like Streams. */
-function sectionBanner(title: string): string {
-  return `# ===== ${title} =====`;
-}
-
-function errMsg(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function logTypegenError(context: string, err: unknown, details?: Record<string, unknown>) {
-  const base = `[TYPEGEN] ${context}: ${errMsg(err)}`;
-  try {
-    if (details) console.error(base, details);
-    else console.error(base);
-  } catch {
-    // no-op logging fallback
-  }
-}
-
-/** Emit schema_to_typeddict or a minimal fallback, logging on error. */
-function emitTypeddictOrFallback(
+const emitTypeddictOrFallback = (
   schema: string,
   rootName: string,
   context: string,
   fallbackShape: "empty_typed_dict" | "alias_dict_any" = "empty_typed_dict"
-): string {
+): string => {
   try {
     return schema_to_typeddict(schema, rootName).trimEnd();
   } catch (err) {
@@ -106,18 +82,15 @@ function emitTypeddictOrFallback(
     }
     return `class ${rootName}(TypedDict):\n    pass`;
   }
-}
+};
 
-// ===== Codegen: ApiRequest =======================================
+// ===== ApiRequest ================================================
 
-function generateApiRequest(
-  requestBodySchema: string,
-  handlerName: string
-): GenResult {
+const generateApiRequest = (requestBodySchema: string, handlerName: string): GenResult => {
   const code: string[] = [];
   const exports: string[] = [];
 
-  const apiReqRoot = safeRootName("_" + handlerName + "_ApiRequest_type_root");
+  const apiReqRoot = safeRootName(`_${handlerName}_ApiRequest_type_root`);
   const alias = `${handlerName}_ApiRequest_type`;
 
   try {
@@ -130,41 +103,30 @@ function generateApiRequest(
     code.push(emitTypeddictOrFallback(requestBodySchema, apiReqRoot, `ApiRequest:${handlerName}`).trimEnd(), "");
     code.push(`${alias}: TypeAlias = ApiRequest[${apiReqRoot}]`, "");
   } catch (err) {
-    // Fallback to the most permissive form on failure
     logTypegenError(`ApiRequest:${handlerName}`, err, { schemaSnippet: requestBodySchema.slice(0, 200) });
     code.push(`${alias}: TypeAlias = ApiRequest[Dict[str, Any]]`, "");
   }
 
   exportSymbol(exports, alias);
   return { code: code.join("\n"), exports };
-}
+};
 
-// ===== Codegen: ApiResponse ======================================
+// ===== ApiResponse ===============================================
 
-interface ParsedResponse {
-  status: number;
-  schema: string;
-}
-
-function parseApiResponses(schema: string): ParsedResponse[] {
-  // Split top-level by `|` using angle-bracket depth for generics
+const parseApiResponses = (schema: string): ParsedResponse[] => {
   const parts = splitOnTopLevelPipes(schema, "<", ">");
-
   const out: ParsedResponse[] = [];
+
   for (const part of parts) {
     const match = part.match(/^\s*ApiResponse<\s*(\d+)\s*,\s*([\s\S]*)>\s*$/);
     if (!match) continue;
-    const status = Number(match[1]);
-    const body = match[2].trim();
-    out.push({ status, schema: body });
+    out.push({ status: Number(match[1]), schema: match[2].trim() });
   }
-  return out;
-}
 
-function generateApiResponse(
-  responseSchema: string,
-  handlerName: string
-): GenResult {
+  return out;
+};
+
+const generateApiResponse = (responseSchema: string, handlerName: string): GenResult => {
   const code: string[] = [];
   const exports: string[] = [];
   const alias = `${handlerName}_ApiResponse_Type`;
@@ -180,15 +142,12 @@ function generateApiResponse(
     const unionParts: string[] = [];
 
     for (const { status, schema } of responses) {
-      const root = "_" + handlerName + `_ApiResponse_${status}_type_root`;
+      const root = `_${handlerName}_ApiResponse_${status}_type_root`;
       code.push(emitTypeddictOrFallback(schema, root, `ApiResponse:${handlerName}:${status}`).trimEnd(), "");
       unionParts.push(`ApiResponse[Literal[${status}], ${root}]`);
     }
 
-    code.push(
-      `${alias}: TypeAlias = ${unionParts.length ? unionParts.join(" | ") : "Any"}`,
-      ""
-    );
+    code.push(`${alias}: TypeAlias = ${unionParts.length ? unionParts.join(" | ") : "Any"}`, "");
   } catch (err) {
     logTypegenError(`ApiResponse:${handlerName}`, err, { schemaSnippet: responseSchema.slice(0, 200) });
     code.push(`${alias}: TypeAlias = Any`, "");
@@ -196,18 +155,11 @@ function generateApiResponse(
 
   exportSymbol(exports, alias);
   return { code: code.join("\n"), exports };
-}
+};
 
-// ===== Codegen: FlowContext ======================================
+// ===== FlowContext ===============================================
 
-interface TopicData {
-  topic: string; // Display topic (unmodified literal for Python Literal[])
-  topicId: string; // Topic normalized for class naming
-  dataSchema: string;
-}
-
-function extractTopicDataVariants(unionSchema: string): TopicData[] {
-  // Split top-level by `|` but respect object braces
+const extractTopicDataVariants = (unionSchema: string): TopicData[] => {
   const chunks = splitOnTopLevelPipes(unionSchema, "{", "}");
   const result: TopicData[] = [];
 
@@ -223,12 +175,9 @@ function extractTopicDataVariants(unionSchema: string): TopicData[] {
   }
 
   return result;
-}
+};
 
-function generateFlowContext(
-  emitDataSchema: string,
-  name: string
-): GenResult {
+const generateFlowContext = (emitDataSchema: string, name: string): GenResult => {
   const code: string[] = [];
   const exports: string[] = [];
 
@@ -286,15 +235,15 @@ function generateFlowContext(
 
   exportSymbol(exports, alias);
   return { code: code.join("\n"), exports };
-}
+};
 
-// ===== Codegen: Input ============================================
+// ===== Input =====================================================
 
-function generateInput(schema: string, name: string): GenResult {
+const generateInput = (schema: string, name: string): GenResult => {
   const code: string[] = [];
   const exports: string[] = [];
 
-  const rootName = safeRootName(name + "_Input_Type");
+  const rootName = safeRootName(`${name}_Input_Type`);
 
   if (schema === "never") {
     code.push(`${rootName}: TypeAlias = Never`, "");
@@ -311,37 +260,24 @@ function generateInput(schema: string, name: string): GenResult {
 
   exportSymbol(exports, rootName);
   return { code: code.join("\n"), exports };
-}
+};
 
-// ===== Public API =================================================
+// ===== Streams Section ===========================================
 
-export function generatePythonTypesString(
-  handlers: HandlersMap,
-  streams: StreamsMap
-): { internal: string; exports: string[] } {
-  const code: string[] = [];
-  const exports: string[] = [];
-
-  // Header
-  const header = `from typing import Any, TypeAlias, TypedDict, Literal, Protocol, Never, Union, Optional, Callable, Iterable, Iterator, Sequence, Mapping, Dict, List, Tuple, Set, FrozenSet, Generator, AsyncGenerator, Awaitable, Coroutine, TypeVar, Generic, overload, cast, Final, ClassVar, Concatenate, ParamSpec\nfrom motia.core import ApiRequest, ApiResponse, FlowContext,  MotiaStream, FlowContextStateStreams \n`;
-
-  code.push(header, "");
-
-  // Streams
-  code.push(sectionBanner("Streams"), "");
-
+const generateStreamsSection = (streams: StreamsMap): { code: string } => {
+  const lines: string[] = [];
   const streamClassNames: string[] = [];
 
+  lines.push(sectionBanner("Streams"), "");
+
   Object.entries(streams).forEach(([streamName, streamSchema]) => {
-    const payloadRoot = "_" + streamName + "Payload";
-    const itemRoot = "_" + streamName + "Item";
-
-    code.push(emitTypeddictOrFallback(streamSchema, payloadRoot, `Stream:${streamName}`).trimEnd(), "");
-
-    code.push(`class ${itemRoot}(${payloadRoot}):`, `    id: str`, "");
-
+    const payloadRoot = `_${streamName}Payload`;
+    const itemRoot = `_${streamName}Item`;
     const streamTypeddict = `_${streamName}Stream`;
-    code.push(
+
+    lines.push(emitTypeddictOrFallback(streamSchema, payloadRoot, `Stream:${streamName}`).trimEnd(), "");
+    lines.push(`class ${itemRoot}(${payloadRoot}):`, `    id: str`, "");
+    lines.push(
       `class ${streamTypeddict}(TypedDict):`,
       `    ${streamName}: MotiaStream[${payloadRoot}, ${itemRoot}]`,
       ""
@@ -351,10 +287,16 @@ export function generatePythonTypesString(
   });
 
   const allStreamsBases = ["FlowContextStateStreams", ...streamClassNames].join(", ");
-  code.push(`class AllStreams(${allStreamsBases}, total=False):`, "    pass", "");
+  lines.push(`class AllStreams(${allStreamsBases}, total=False):`, "    pass", "");
 
-  // Event Handlers
-  // Per-handler banners emitted below for each EventHandler
+  return { code: lines.join("\n") };
+};
+
+// ===== Handler Groups ============================================
+
+const generateEventHandlersSection = (handlers: HandlersMap): GenResult => {
+  const code: string[] = [];
+  const exports: string[] = [];
 
   for (const [key, def] of Object.entries(handlers)) {
     if (def.type !== "EventHandler") continue;
@@ -372,8 +314,12 @@ export function generatePythonTypesString(
     exports.push(...ctxRes.exports);
   }
 
-  // API Route Handlers
-  // Per-handler banners emitted below for each ApiRouteHandler
+  return { code: code.join("\n"), exports };
+};
+
+const generateApiRouteHandlersSection = (handlers: HandlersMap): GenResult => {
+  const code: string[] = [];
+  const exports: string[] = [];
 
   for (const [key, def] of Object.entries(handlers)) {
     if (def.type !== "ApiRouteHandler") continue;
@@ -391,12 +337,16 @@ export function generatePythonTypesString(
     exports.push(...resRes.exports);
 
     const ctxRes = generateFlowContext(flowContextSchema, handlerName);
-    code.push(ctxRes.code);
+    code.push(ctxRes.code, "");
     exports.push(...ctxRes.exports);
   }
 
-  // Cron Handlers
-  // Per-handler banners emitted below for each CronHandler
+  return { code: code.join("\n"), exports };
+};
+
+const generateCronHandlersSection = (handlers: HandlersMap): GenResult => {
+  const code: string[] = [];
+  const exports: string[] = [];
 
   for (const [key, def] of Object.entries(handlers)) {
     if (def.type !== "CronHandler") continue;
@@ -406,9 +356,38 @@ export function generatePythonTypesString(
     const [flowContextSchema] = def.generics;
 
     const ctxRes = generateFlowContext(flowContextSchema, handlerName);
-    code.push(ctxRes.code);
+    code.push(ctxRes.code, "");
     exports.push(...ctxRes.exports);
   }
+
+  return { code: code.join("\n"), exports };
+};
+
+// ===== Public API =================================================
+
+export function generatePythonTypesString(
+  handlers: HandlersMap,
+  streams: StreamsMap
+): { internal: string; exports: string[] } {
+  const code: string[] = [];
+  const exports: string[] = [];
+
+  code.push(PYTHON_HEADER, "");
+
+  const streamsSection = generateStreamsSection(streams);
+  code.push(streamsSection.code, "");
+
+  const eventSection = generateEventHandlersSection(handlers);
+  code.push(eventSection.code);
+  exports.push(...eventSection.exports);
+
+  const apiSection = generateApiRouteHandlersSection(handlers);
+  code.push(apiSection.code);
+  exports.push(...apiSection.exports);
+
+  const cronSection = generateCronHandlersSection(handlers);
+  code.push(cronSection.code);
+  exports.push(...cronSection.exports);
 
   return { internal: code.join("\n"), exports };
 }
