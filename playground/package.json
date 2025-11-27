@@ -18,6 +18,7 @@
   "dependencies": {
     "@faker-js/faker": "^9.2.0",
     "@motiadev/core": "workspace:*",
+    "@motiadev/plugin-bullmq": "workspace:*",
     "@motiadev/plugin-endpoint": "workspace:*",
     "@motiadev/plugin-example": "workspace:*",
     "@motiadev/plugin-logs": "workspace:*",
