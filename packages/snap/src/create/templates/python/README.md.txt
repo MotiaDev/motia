@@ -4,9 +4,7 @@ A Motia tutorial project in Python.
 
 ## What is Motia?
 
-Motia is a unified backend framework that combines APIs, background jobs, queues, workflows, AI agents, streaming, and observability into one system using a single core primitive: the **Step**.
-
-Just as React simplified frontend development with components, Motia simplifies backend development with Steps - a single primitive that handles everything.
+Motia is an open-source, unified backend framework that eliminates runtime fragmentation by bringing **APIs, background jobs, queueing, streaming, state, workflows, AI agents, observability, scaling, and deployment** into one unified system using a single core primitive, the **Step**.
 
 ## Quick Start
 
