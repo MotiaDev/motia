@@ -32,33 +32,36 @@ const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ gr
   const { data } = useStreamGroup<Trace>(streamGroupArgs)
 
   const endTime = useGetEndTime(group)
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(100)
   const selectedTraceId = useObservabilityStore((state) => state.selectedTraceId)
   const selectTraceId = useObservabilityStore((state) => state.selectTraceId)
 
   const selectedTrace = useMemo(() => data?.find((trace) => trace.id === selectedTraceId), [data, selectedTraceId])
 
   const zoomMinus = useCallback(() => {
-    if (zoom > 0.5) setZoom((prev) => prev - 0.1)
-  }, [])
+    if (zoom > 100) setZoom(zoom - 10)
+  }, [zoom])
 
   const zoomPlus = useCallback(() => {
-    setZoom((prev) => prev + 0.1)
-  }, [])
+    if (zoom < 200) setZoom(zoom + 10)
+  }, [zoom])
 
   if (!group) return null
 
   return (
     <>
       <div className="flex flex-col flex-1 overflow-x-auto h-full relative">
-        <div className="flex flex-col items-center min-w-full sticky top-0" style={{ width: `${zoom * 1000}px` }}>
+        <div
+          className="flex flex-col items-center min-w-full sticky top-0"
+          style={{ width: `${(zoom / 100) * 1000}px` }}
+        >
           <div className="flex flex-1 w-full sticky top-0 bg-background z-10">
             <div className="w-full min-h-[37px] h-[37px] min-w-[200px] max-w-[200px] flex items-center justify-center gap-2 sticky left-0 top-0 bg-card backdrop-blur-[4px] backdrop-filter">
-              <Button variant="icon" size="sm" className="px-2" onClick={zoomMinus}>
+              <Button variant="icon" size="sm" className="px-2" onClick={zoomMinus} disabled={zoom <= 100}>
                 <Minus className="w-4 h-4 cursor-pointer" />
               </Button>
-              <span className="text-sm font-bold text-muted-foreground">{Math.floor(zoom * 100)}%</span>
-              <Button variant="icon" size="sm" className="px-2" onClick={zoomPlus}>
+              <span className="text-sm font-bold text-muted-foreground">{zoom}%</span>
+              <Button variant="icon" size="sm" className="px-2" onClick={zoomPlus} disabled={zoom >= 200}>
                 <Plus className="w-4 h-4 cursor-pointer" />
               </Button>
             </div>
