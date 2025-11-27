@@ -13,6 +13,10 @@ Just as React simplified frontend development with components, Motia simplifies 
 ```bash
 # Start the development server
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
 ```
 
 This starts the Motia runtime and the **Workbench** - a powerful UI for developing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
@@ -35,9 +39,26 @@ Every Step has a `type` that defines how it triggers:
 ## Development Commands
 
 ```bash
-npm run dev              # Start Workbench and development server
-npm run generate-types   # Generate TypeScript types from Step configs
-npm run build            # Build project for deployment
+# Start Workbench and development server
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+
+# Generate TypeScript types from Step configs
+npm run generate-types
+# or
+yarn generate-types
+# or
+pnpm generate-types
+
+# Build project for deployment
+npm run build
+# or
+yarn build
+# or
+pnpm build
 ```
 
 ## Project Structure
