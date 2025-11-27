@@ -30,7 +30,7 @@
     "@typescript-eslint/parser": "^8.32.1",
     "eslint": "^9.26.0",
     "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-jest": "^28.11.0",
+    "eslint-plugin-jest": "^29.2.1",
     "eslint-plugin-prettier": "^5.4.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -54,6 +54,19 @@
     "@types/node": "^22.15.18",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "form-data": ">=4.0.4",
+      "glob": ">=10.5.0",
+      "prismjs": ">=1.30.0",
+      "next": ">=15.4.7",
+      "vite": ">=6.4.1",
+      "tar": ">=7.5.2",
+      "js-yaml": ">=4.1.1",
+      "brace-expansion": ">=2.0.2",
+      "@eslint/plugin-kit": ">=0.3.4"
+    }
   },
   "packageManager": "pnpm@10.11.0",
   "volta": {
