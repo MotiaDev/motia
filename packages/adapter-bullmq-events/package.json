@@ -20,6 +20,6 @@
     "typescript": "^5.7.2"
   },
   "peerDependencies": {
-    "@motiadev/core": "^0.8.0"
+    "@motiadev/core": ">=0.8.0"
   }
 }
