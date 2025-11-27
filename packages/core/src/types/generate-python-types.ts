@@ -30,7 +30,7 @@ interface TopicData {
 
 const PYTHON_HEADER =
   'from typing import Any, TypeAlias, TypedDict, Literal, Protocol, Never, Union, Optional, Callable, Iterable, Iterator, Sequence, Mapping, Dict, List, Tuple, Set, FrozenSet, Generator, AsyncGenerator, Awaitable, Coroutine, TypeVar, Generic, overload, cast, Final, ClassVar, Concatenate, ParamSpec\n' +
-  'from motia.core import ApiRequest, ApiResponse, FlowContext,  MotiaStream, FlowContextStateStreams \n'
+  'from motia.core import ApiRequest, ApiResponse, FlowContext, NotRequired, MotiaStream, FlowContextStateStreams \n'
 
 // ===== Helpers ====================================================
 

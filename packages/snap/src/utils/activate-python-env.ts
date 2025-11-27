@@ -40,9 +40,15 @@ export const activatePythonVenv = ({ baseDir, isVerbose = false, pythonVersion =
     // Ensure motia/core types exist for Python users
     const motiaDir = path.join(baseDir, 'motia')
     const coreDest = path.join(motiaDir, 'core')
-    const coreSource = path.resolve(baseDir, 'node_modules/@motiadev/core/src/python/motia_core')
+    const coreSourceCandidates = [
+      path.resolve(baseDir, 'node_modules/@motiadev/core/dist/src/python/motia_core'),
+      path.resolve(baseDir, 'node_modules/@motiadev/core/src/python/motia_core'),
+    ]
+    const coreSource = coreSourceCandidates.find((p) => fs.existsSync(p))
 
-    if (!fs.existsSync(coreDest)) {
+    if (!coreSource) {
+      internalLogger.warn('[motia] Could not find motia_core in @motiadev/core; skipping type copy')
+    } else if (!fs.existsSync(coreDest)) {
       fs.mkdirSync(motiaDir, { recursive: true })
       fs.cpSync(coreSource, coreDest, { recursive: true })
       internalLogger.info('[motia] Copied core Python types to motia/core')

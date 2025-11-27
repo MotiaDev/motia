@@ -5,7 +5,7 @@
   "version": "0.13.0-beta.161",
   "scripts": {
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
-    "move:python": "mkdir -p dist/src/python && cp src/python/*.py dist/src/python",
+    "move:python": "mkdir -p dist/src/python && cp src/python/*.py dist/src/python && cp -r src/python/motia_core dist/src/python/motia_core",
     "move:rb": "mkdir -p dist/src/ruby && cp src/ruby/*.rb dist/src/ruby",
     "move:steps": "cp src/steps/*.ts dist/src/steps",
     "build": "rm -rf dist && tsc && npm run move:python && npm run move:rb && npm run move:steps",

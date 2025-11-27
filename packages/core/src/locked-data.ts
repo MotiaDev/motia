@@ -97,10 +97,12 @@ export class LockedData {
 
     fs.writeFileSync(path.join(motiaDir, '_internal.py'), pythonInternal)
 
-    const coreSource = path.resolve(__dirname, '../../src/python/motia_core')
+    const coreSource = path.resolve(__dirname, 'python/motia_core')
     const coreDest = path.join(motiaDir, 'core')
 
-    if (!fs.existsSync(coreDest)) {
+    if (!fs.existsSync(coreSource)) {
+      console.warn('[motia] Core types source not found; skipping motia/core copy')
+    } else if (!fs.existsSync(coreDest)) {
       fs.cpSync(coreSource, coreDest, { recursive: true })
       console.log('[motia] Core types copied to motia/core/')
     } else {
