@@ -1325,12 +1325,21 @@ Create a new Motia project.
 ```bash
 npx motia create my-app
 npx motia create .  # Use current directory
-npx motia create --template python my-python-app
+npx motia create --template motia-tutorial-python my-python-app
 ```
 
 **Options:**
 - `[name]` - Project name (or `.` for current directory)
-- `-t, --template <name>` - Template to use (`nodejs` or `python`)
+- `-t, --template <name>` - Template to use. Available options:
+
+| Template | Description | Use Case |
+|----------|-------------|----------|
+| `starter-typescript` | Starter (TypeScript) | Minimal TypeScript project with basic examples |
+| `starter-javascript` | Starter (JavaScript) | Minimal JavaScript project with basic examples |
+| `starter-python` | Starter (Python) | Minimal Python project with basic examples |
+| `motia-tutorial-typescript` | Tutorial (TypeScript) | Interactive tutorial project in TypeScript |
+| `motia-tutorial-python` | Tutorial (Python) | Interactive tutorial project in Python |
+
 - `-c, --cursor` - Add Cursor IDE rules
 
 ---

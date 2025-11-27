@@ -15,7 +15,7 @@ async function globalSetup() {
     }
 
     const motiaVersion = process.env.MOTIA_VERSION || 'pre-release'
-    const template = process.env.TEST_TEMPLATE || 'nodejs'
+    const template = process.env.TEST_TEMPLATE || 'motia-tutorial-typescript'
 
     console.log(`📦 Creating test project with Motia CLI ${motiaVersion} and template ${template}...`)
     const createCommand = `npx motia@${motiaVersion} create  ${TEST_PROJECT_NAME} -t ${template}`
