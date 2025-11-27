@@ -1,10 +1,10 @@
-import type { PropsWithChildren } from 'react'
-import { memo } from 'react'
-import { useAnalytics } from '@/lib/motia-analytics'
+import React, { PropsWithChildren } from 'react'
+import { useAnalytics } from '@/lib/analytics'
+import { useLogListener } from '@/hooks/use-log-listener'
 
-export const RootMotia: React.FC<PropsWithChildren> = memo(({ children }) => {
+export const RootMotia: React.FC<PropsWithChildren> = ({ children }) => {
+  useLogListener()
   useAnalytics()
 
   return children
-})
-RootMotia.displayName = 'RootMotia'
+}

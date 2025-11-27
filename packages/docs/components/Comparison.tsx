@@ -1,9 +1,6 @@
 'use client'
 
-import Image from 'next/image'
-import type { ReactNode } from 'react'
-import bgComparisontable from '@/public/images/landing/bgComparisonTable.svg'
-import comparisontableGlow from '@/public/images/landing/pricingTableGlow.avif'
+import { ReactNode } from 'react'
 import {
   agentBasedIcon,
   blueTick,
@@ -19,7 +16,9 @@ import {
 } from './Icons'
 import SectionAppearAnimation from './SectionAppearAnimation'
 import Title from './Title'
-
+import bgComparisontable from '@/public/images/landing/bgComparisonTable.svg'
+import comparisontableGlow from '@/public/images/landing/pricingTableGlow.avif'
+import Image from 'next/image'
 type TableRow = { text: string; icon: ReactNode }
 
 type TableHeaders = {

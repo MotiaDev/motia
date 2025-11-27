@@ -1,4 +1,4 @@
-import type { NoopNodeProps } from '@/publicComponents/node-props'
+import { NoopNodeProps } from '@/publicComponents/node-props'
 import { NoopNode } from '@/publicComponents/noop-node'
 
 export const NoopFlowNode = ({ data }: NoopNodeProps) => {

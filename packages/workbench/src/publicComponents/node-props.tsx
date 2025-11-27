@@ -1,4 +1,4 @@
-import type { ApiNodeData, CronNodeData, EventNodeData, NoopNodeData } from '../types/flow'
+import { ApiNodeData, CronNodeData, EventNodeData, NoopNodeData } from '../types/flow'
 
 export type NodeProps = EventNodeProps | NoopNodeProps | ApiNodeProps | CronNodeProps
 export type BaseNodeProps = {

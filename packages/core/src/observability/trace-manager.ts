@@ -1,5 +1,5 @@
-import type { MotiaStream } from '../types-stream'
-import type { Trace, TraceGroup } from './types'
+import { MotiaStream } from '../types-stream'
+import { Trace, TraceGroup } from './types'
 
 export class TraceManager {
   constructor(

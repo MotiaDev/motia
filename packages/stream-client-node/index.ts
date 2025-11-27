@@ -1,3 +1,2 @@
-export { StreamGroupSubscription, StreamItemSubscription, StreamSubscription } from '@motiadev/stream-client'
-export type { NodeStreamOptions } from './src/stream'
 export { Stream } from './src/stream'
+export { StreamItemSubscription, StreamGroupSubscription, StreamSubscription } from '@motiadev/stream-client'

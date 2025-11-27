@@ -1,33 +1,33 @@
+import { analytics } from '@/lib/analytics'
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { Rocket } from 'lucide-react'
 import { useState } from 'react'
-import { motiaAnalytics } from '@/lib/motia-analytics'
 
 export const DeployButton = () => {
   const [isOpen, setIsOpen] = useState(false)
 
   const onDeployButtonClick = () => {
-    motiaAnalytics.track('deploy_button_clicked')
+    analytics.track('deploy_button_clicked')
   }
 
   const onDeployClick = () => {
     setIsOpen(false)
-    motiaAnalytics.track('deploy_button_deploy_clicked')
+    analytics.track('deploy_button_deploy_clicked')
   }
 
   const onClose = () => {
     setIsOpen(false)
-    motiaAnalytics.track('deploy_button_closed')
+    analytics.track('deploy_button_closed')
   }
 
   const onMotiaCloudClick = () => {
     setIsOpen(true)
-    motiaAnalytics.track('deploy_button_motia_cloud_clicked')
+    analytics.track('deploy_button_motia_cloud_clicked')
   }
 
   const onSelfHostedClick = () => {
-    motiaAnalytics.track('deploy_button_self_hosted_clicked')
-    window.open('https://www.motia.dev/docs/deployment-guide/self-hosted', '_blank')
+    analytics.track('deploy_button_self_hosted_clicked')
+    window.open('https://www.motia.dev/docs/concepts/deployment/self-hosted', '_blank')
   }
 
   return (
@@ -59,7 +59,6 @@ export const DeployButton = () => {
               href="https://www.motia.dev/docs/concepts/deployment/motia-cloud/features"
               target="_blank"
               className="text-foreground text-xs font-semibold px-4 hover:underline"
-              rel="noopener"
             >
               Learn more about Motia Cloud
             </a>
@@ -76,7 +75,6 @@ export const DeployButton = () => {
                   href="https://motia.cloud?utm_source=workbench&utm_medium=referral"
                   target="_blank"
                   onClick={onDeployClick}
-                  rel="noopener"
                 >
                   <button className="driver-popover-next-btn">Deploy!</button>
                 </a>

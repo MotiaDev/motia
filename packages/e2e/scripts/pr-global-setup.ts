@@ -1,5 +1,5 @@
-import { exec, execSync } from 'child_process'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { execSync, exec } from 'child_process'
+import { existsSync, rmSync, readFileSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
@@ -24,7 +24,7 @@ async function globalSetup() {
 
     console.log(`📦 Creating test project with built CLI and template ${template}...`)
 
-    const createCommand = `node ${cliPath} create  ${TEST_PROJECT_NAME} -t ${template}`
+    const createCommand = `node ${cliPath} create -n ${TEST_PROJECT_NAME} -t ${template} --confirm`
 
     execSync(createCommand, {
       stdio: 'pipe',
@@ -37,20 +37,9 @@ async function globalSetup() {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
 
     // Update dependencies to use workspace references
-    if (packageJson.dependencies?.motia) {
+    if (packageJson.dependencies && packageJson.dependencies['motia']) {
       packageJson.dependencies['motia'] = 'workspace:*'
       packageJson.dependencies['@motiadev/workbench'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/core'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-logs'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-states'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-endpoint'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-observability'] = 'workspace:*'
-    }
-
-    // Temporarily remove postinstall script to avoid running 'motia install' before dependencies are linked
-    const originalPostinstall = packageJson.scripts?.postinstall
-    if (packageJson.scripts?.postinstall) {
-      delete packageJson.scripts.postinstall
     }
 
     // Write updated package.json
@@ -66,23 +55,6 @@ async function globalSetup() {
         CI: 'false',
       },
     })
-
-    // Restore postinstall script and run it manually with correct PATH
-    if (originalPostinstall) {
-      packageJson.scripts = packageJson.scripts || {}
-      packageJson.scripts.postinstall = originalPostinstall
-      writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-
-      console.log('🔧 Running motia install with workspace CLI...')
-      execSync(`node ${cliPath} install`, {
-        cwd: TEST_PROJECT_PATH,
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          PATH: `${path.dirname(cliPath)}:${process.env.PATH}`,
-        },
-      })
-    }
 
     console.log('🌟 Starting test project server...')
     const serverProcess = exec('pnpm run dev', {
@@ -123,7 +95,7 @@ async function waitForServer(url: string, timeout: number): Promise<void> {
       if (response.ok) {
         return
       }
-    } catch {
+    } catch (error) {
       // Server not ready yet, continue waiting
     }
 

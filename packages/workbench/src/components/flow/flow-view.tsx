@@ -1,15 +1,14 @@
+import { EdgeData, FlowConfigResponse, FlowResponse, NodeData } from '@/types/flow'
 import {
   Background,
   BackgroundVariant,
-  type NodeChange,
-  type OnNodesChange,
+  NodeChange,
+  OnNodesChange,
   ReactFlow,
-  type Edge as ReactFlowEdge,
-  type Node as ReactFlowNode,
+  Edge as ReactFlowEdge,
+  Node as ReactFlowNode,
 } from '@xyflow/react'
-import type React from 'react'
-import { useCallback, useState } from 'react'
-import type { EdgeData, FlowConfigResponse, FlowResponse, NodeData } from '@/types/flow'
+import React, { useCallback, useState } from 'react'
 import { BaseEdge } from './base-edge'
 import { FlowLoader } from './flow-loader'
 import { useGetFlowState } from './hooks/use-get-flow-state'

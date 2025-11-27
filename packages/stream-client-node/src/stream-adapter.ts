@@ -1,14 +1,11 @@
+import { WebSocket, MessageEvent } from 'ws'
 import type { SocketAdapter } from '@motiadev/stream-client'
-import { type MessageEvent, WebSocket } from 'ws'
 
 export class StreamSocketAdapter implements SocketAdapter {
   private ws: WebSocket
 
-  constructor(
-    private address: string,
-    protocols?: string | string[] | undefined,
-  ) {
-    this.ws = new WebSocket(this.address, protocols)
+  constructor(private address: string) {
+    this.ws = new WebSocket(this.address)
   }
 
   connect(): void {}

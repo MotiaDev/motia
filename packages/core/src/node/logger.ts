@@ -1,10 +1,6 @@
-import type { RpcSender } from './rpc'
-
-export type LogListener = (level: string, message: string, args?: unknown) => void
+import { RpcSender } from './rpc'
 
 export class Logger {
-  private readonly listeners: LogListener[] = []
-
   constructor(
     private readonly traceId: string,
     private readonly flows: string[],
@@ -33,8 +29,6 @@ export class Logger {
     }
 
     this.sender.sendNoWait('log', logEntry)
-
-    this.listeners.forEach((listener) => listener(level, message, args))
   }
 
   info(message: string, args?: Record<string, unknown>): void {
@@ -51,9 +45,5 @@ export class Logger {
 
   warn(message: string, args?: Record<string, unknown>): void {
     this._log('warn', message, args)
-  }
-
-  addListener(listener: LogListener) {
-    this.listeners.push(listener)
   }
 }

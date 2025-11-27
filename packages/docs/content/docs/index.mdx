@@ -1,31 +1,21 @@
 ---
 title: Welcome to Motia
-description: "Build production-grade backends with a single primitive. APIs, background jobs, Queues, Workflows, and AI agents - unified in one system with built-in State management, Streaming, and Observability."
+description: "Motia is a multi-language, event-driven runtime manager built on a core primitive: the Step. It feels like a backend framework, but powers distributed backends for APIs, background jobs, queues, workflows, agents, streaming, state, and observability, all unified in one system."
 ---
-
-import VideoPlayer from '@/components/VideoPlayer';
 
 # Welcome to Motia
 
-<VideoPlayer videoPath="/docs-videos/1-motia-welcome.mp4" gifPath="/docs-videos/gifs/1-motia-welcome.gif" title="Welcome to Motia" className="mb-8" />
-
 ## Why Motia?
 
-**Build production-grade backends with a single primitive.**
+Backend development today is fragmented.  
 
-Modern backends shouldn't require juggling frameworks, queues, and services. Motia unifies everything: API endpoints, background jobs, durable workflows, AI agents, streaming, and observability into one runtime with a single core primitive.
+APIs live in one framework, background jobs in another, queues and schedulers elsewhere, and now AI agents and streaming systems have their own runtimes. Add observability and state management on top, and you’re stitching together half a dozen tools before writing your first feature.
 
-**Motia** is your complete backend solution:
-- 🌐 **API** - RESTful endpoints with validation and routing
-- ⚡ **Background Jobs** - Async processing with built-in queues
-- 🔄 **Durable Workflows** - Complex multi-step orchestration
-- 🤖 **Agentic** - AI agent workflows with streaming support
-- 🏪 **State** - Built-in persistent storage across Steps
-- 📊 **Streaming** - Real-time data updates to clients
-- 📝 **Logging** - Structured, traceable logs
-- 👁️ **Observability** - End-to-end tracing and monitoring
+**Motia unifies all of these concerns around one core primitive: the Step.**
 
-Just as React made frontend development simple by introducing components, **Motia redefines backend development with Steps** - a single primitive that powers everything.
+Just as React made frontend development simple by introducing components, Motia redefines backend development with Steps.  
+
+Every backend pattern, API endpoints, background jobs, queues, workflows, AI agents, streaming, observability, and state, is expressed with the same primitive.
 
 To read more about this, check out our [manifesto](/manifesto).
 
@@ -34,7 +24,7 @@ To read more about this, check out our [manifesto](/manifesto).
 
 At the heart of Motia is a single primitive: the **Step**.  
 
-A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files from your project (either `steps/` or `src/` directories) and connects them automatically - no manual registration required.
+A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files from `/steps` directory and connects them automatically.
 
 Here’s a simple example of two Steps working together: an API Step that emits an event, and an Event Step that processes it.
 
@@ -143,7 +133,7 @@ module.exports = { config, handler };
 
 👉 With just two files, you’ve built an **API endpoint**, a **queue**, and a **worker**. No extra frameworks required.
 
-Learn more about Steps here: [What is a Step?](/docs/concepts/steps).
+Learn more about Steps here: [What is a Step?](/docs/concepts/steps/steps).
 
 ---
 

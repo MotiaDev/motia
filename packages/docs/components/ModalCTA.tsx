@@ -1,10 +1,10 @@
 'use client'
 
-import { type ReactNode, useState } from 'react'
+import { ReactNode, useState } from 'react'
+import ModalForm from './Modal'
 import ButtonPrimary from './ButtonPrimary'
 import ButtonSecondary from './ButtonSecondary'
 import { twinkleStarsIcon } from './Icons'
-import ModalForm from './Modal'
 
 export const ModalCTAVariants = {
   PRIMARY: 'primary',

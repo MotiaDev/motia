@@ -5,18 +5,6 @@ description: A powerful event-driven financial analysis workflow that combines w
 
 import { CodeFetcher } from '../../../components/CodeFetcher'
 
----
-
-## Explore the Workbench
-
-<div className="my-8">![Finance Agent](./../img/finance-agent.gif)</div>
-
-**Try it yourself:**
-- [View Source Code](https://github.com/MotiaDev/motia-examples/tree/main/examples/finance-agent)
-- [Browse All Examples](https://github.com/MotiaDev/motia-examples)
-
----
-
 ## Let's build a finance agent that:
 
 - Real-time Financial Analysis: Combines multiple data sources for comprehensive insights
@@ -35,10 +23,6 @@ import { CodeFetcher } from '../../../components/CodeFetcher'
   <File name="save-result.step.ts" />
   <File name="web-search.step.ts" />
 </Folder>
-
-<Callout type="info">
-This example uses the `steps/` directory, but you can also use `src/` or both. Motia discovers step files from either location automatically.
-</Callout>
 
 <Tabs items={['finance-data', 'openai-analysis', 'query-api', 'response-coordinator', 'result-api', 'save-result', 'web-search']}>
   <CodeFetcher path="examples/finance-agent/steps" tab="finance-data" value="finance-data" />

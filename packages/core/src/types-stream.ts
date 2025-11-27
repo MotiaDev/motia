@@ -1,13 +1,13 @@
-import type { StreamFactory } from './streams/stream-factory'
-import type { StepSchemaInput } from './types'
-
-export type StreamSubscription = { groupId: string; id?: string }
+import { ZodObject } from 'zod'
+import { StreamFactory } from './streams/stream-factory'
 
 export interface StreamConfig {
   name: string
-  schema: StepSchemaInput
-  baseConfig: { storageType: 'default' } | { storageType: 'custom'; factory: () => MotiaStream<any> }
-  canAccess?: (subscription: StreamSubscription, authContext: any) => boolean | Promise<boolean>
+  schema: ZodObject<any> // eslint-disable-line @typescript-eslint/no-explicit-any
+  baseConfig:
+    | { storageType: 'default' }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    | { storageType: 'custom'; factory: () => MotiaStream<any> }
 }
 
 export type StateStreamEventChannel = { groupId: string; id?: string }

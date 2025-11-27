@@ -36,46 +36,56 @@ The Websocket server will then invoke the defined authentication function define
 
 ### Defining the authentication function
 
-Developers need to define the authentication configuration in `motia.config.ts` using the `streamAuth` property.
+Developers need to create a file called `/motia/stream-auth.ts` or `/motia/stream_auth.py` to define the authentication function.
 
-The configuration should include:
+The file content should export an `authenticate` function that should receive only one parameter, the token, in string.
 
-- `contextSchema`: A Zod schema defining the authentication context structure
-- `authenticate`: A function that receives the token as a string and returns a `StreamAuthContext` object or `null` if authentication fails
+The function can return a `StreamAuthContext` object or `null` if the authentication fails.
+The file can also export a type called contextSchema using zod
 
 **TypeScript Example**
 
 ```typescript
-// motia.config.ts
-import { config } from 'motia'
-import { z } from 'zod'
-
 // Define your Stream auth context model using zod
-const streamAuthContextSchema = z.object({
+export const contextSchema = z.object({
   userId: z.string(),
   userName: z.string(),
   userStatus: z.enum(['active', 'inactive']),
   projectIds: z.array(z.string()),
 })
 
-export default config({
-  // ... other config options
-
-  streamAuth: {
-    contextSchema: streamAuthContextSchema,
-    authenticate: async (token: string) => {
-      // Implement your authentication logic here
-      // Example: verify JWT, check database, etc.
-
-      // returning null means the user is not authenticated and will be considered anonymous
-      // anonymous users can still have access to streams depending on the logic
-      return null
-    },
-  },
-})
+// Function's name needs to be `authenticate`
+export async function authenticate(token: string): Promise<StreamAuthContext | null> {
+  // returning null means the user is not authenticated and will be considered anonymous
+  // anonymous users can still have access to streams depending on the logic
+  return null
+}
 ```
 
-Motia framework will automatically create the `StreamAuthContext` type inside `types.d.ts` file for the project based on the `contextSchema`. From the example above, it should generate the following type:
+**Python Example**
+
+```python
+from pydantic import BaseModel
+from typing import Literal, List
+
+# Define your Stream auth context model using Pydantic
+class StreamAuthContext(BaseModel):
+    userId: str
+    userName: str
+    userStatus: Literal["active", "inactive"]
+    projectIds: List[str]
+
+# Exports the schema to Motia Framework
+contextSchema = StreamAuthContext.model_json_schema()
+
+# Function's name needs to be `authenticate`
+async def authenticate(token: str) -> StreamAuthContext | None:
+    # returning None means the user is not authenticated and will be considered anonymous
+    # anonymous users can still have access to streams depending on the logic
+    return None
+```
+
+Motia framework will automatically create the `StreamAuthContext` object based on the `contextSchema` type inside `types.d.ts` file for the project. From the example above, it should generate the following type:
 
 ```typescript
 interface StreamAuthContext {
@@ -105,7 +115,7 @@ export const config: StreamConfig = {
 }
 ```
 
-Users will be able to control whoever has access to a stream subscription using the `canAccess` function.
+Users will be able to control whoever has access to a stream subscription using the `checkAccess` function.
 
 **TypeScript Example**
 
@@ -121,7 +131,7 @@ export const config: StreamConfig = {
 
   /**
    * type Subscription = { groupId: string, itemId?: string }
-   * type StreamAuthContext depends on the contextSchema defined in motia.config.ts
+   * type StreamAuthContext depends on the contextSchema defined in the stream-auth.ts file
    *
    * If this function is not defined, anonymous user has access to the stream
    *
@@ -131,7 +141,7 @@ export const config: StreamConfig = {
    * @param authContext - The authentication context
    * @returns true if the user has access to the stream, false otherwise
    */
-  canAccess: (subscription: Subscription, authContext?: StreamAuthContext): boolean => {
+  checkAccess: (subscription: Subscription, authContext?: StreamAuthContext): boolean => {
     return true
   },
 }
@@ -161,7 +171,7 @@ sequenceDiagram
     participant Stream
 
     Client->>Server: Send message (subscribe)
-    Server->>StreamFunction: canAccess(sub, authContext)
+    Server->>StreamFunction: checkAccess(sub, authContext)
     StreamFunction-->>Server: Returns result (true/false)
     alt Access Granted
         Server->>Stream: getGroup(groupId)

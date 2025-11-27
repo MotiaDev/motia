@@ -1,6 +1,6 @@
-import fs from 'fs'
 import path from 'path'
-import type { CliContext } from '../cloud/config-utils'
+import fs from 'fs'
+import { CliContext } from '../cloud/config-utils'
 
 type PullRulesArgs = {
   rootDir: string

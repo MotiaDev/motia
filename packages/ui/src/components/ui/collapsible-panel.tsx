@@ -1,10 +1,10 @@
-import { ChevronDown, Equal } from 'lucide-react'
-import React, { type PropsWithChildren, type ReactNode, useCallback, useMemo, useRef, useState } from 'react'
-import { type ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import React, { PropsWithChildren, ReactNode, useCallback, useMemo, useRef, useState } from 'react'
+import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { Container, ContainerContent, ContainerHeader, ContainerHeaderProps } from '@/components/ui/container.tsx'
 import { Button } from '@/components/ui/button.tsx'
-import { Container, ContainerContent, ContainerHeader, type ContainerHeaderProps } from '@/components/ui/container.tsx'
-import { Tabs } from '@/components/ui/tabs.tsx'
+import { ChevronDown, Equal } from 'lucide-react'
 import { cn } from '@/lib/utils.ts'
+import { Tabs } from '@/components/ui/tabs.tsx'
 
 export interface CollapsiblePanelProps extends PropsWithChildren {
   id: string

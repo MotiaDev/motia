@@ -1,8 +1,8 @@
-import { track } from '@amplitude/analytics-node'
-import crypto from 'crypto'
+import path from 'path'
 import fs from 'fs'
 import os from 'os'
-import path from 'path'
+import crypto from 'crypto'
+import { track } from '@amplitude/analytics-node'
 
 export const getProjectName = (baseDir: string): string => {
   const packageJsonPath = path.join(baseDir, 'package.json')
@@ -31,6 +31,7 @@ export const isAnalyticsEnabled = (): boolean => {
   return process.env.MOTIA_ANALYTICS_DISABLED !== 'true'
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const trackEvent = (eventName: string, properties: Record<string, any> = {}) => {
   try {
     if (isAnalyticsEnabled()) {

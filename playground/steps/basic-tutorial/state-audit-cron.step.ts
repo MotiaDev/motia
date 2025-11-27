@@ -1,5 +1,4 @@
-import type { CronConfig, Handlers } from 'motia'
-import type { Order } from './services/types'
+import { CronConfig, Handlers } from 'motia'
 
 export const config: CronConfig = {
   type: 'cron',
@@ -8,6 +7,15 @@ export const config: CronConfig = {
   description: 'Checks the state for orders that are not complete and have a ship date in the past',
   emits: ['notification'],
   flows: ['basic-tutorial'],
+}
+
+type Order = {
+  id: number
+  petId: number
+  quantity: number
+  shipDate: string
+  status: string
+  complete: boolean
 }
 
 export const handler: Handlers['StateAuditJob'] = async ({ logger, state, emit }) => {

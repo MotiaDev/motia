@@ -1,4 +1,4 @@
-import type { ComponentProps, FC } from 'react'
+import { FC, ComponentProps } from 'react'
 
 import { cn } from '@/lib/utils'
 

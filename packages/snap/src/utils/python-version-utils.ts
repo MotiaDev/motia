@@ -30,17 +30,6 @@ export async function getPythonCommand(requestedVersion: string, baseDir: string
     // If error, python command doesn't exist or can't be executed
   }
 
-  // Check if python3 exists
-  try {
-    const result = await executeCommand('python3 --version', baseDir, { silent: true })
-    const versionMatch = result.match(/Python\s+(\d+)\.(\d+)\.(\d+)/)
-    if (versionMatch && parseInt(versionMatch[1], 10) >= 3) {
-      return 'python3'
-    }
-  } catch (error) {
-    // If error, python3 command doesn't exist or can't be executed
-  }
-
   throw new Error('No compatible Python 3 installation found. Please install Python 3.')
 }
 
@@ -64,6 +53,7 @@ export function findPythonSitePackagesDir(venvLibPath: string, pythonVersion: st
         internalLogger.info('Found Python directory', pythonVersionPath)
       }
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     internalLogger.warn('Could not determine Python version directory', error.message)
   }

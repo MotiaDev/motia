@@ -1,4 +1,4 @@
-import { expect, test } from '@/src/motia-fixtures'
+import { test, expect } from '@/src/motia-fixtures'
 
 test.describe('End-to-End Integration Tests', () => {
   test.beforeEach(({ helpers }) => helpers.skipTutorial())
@@ -42,7 +42,6 @@ test.describe('End-to-End Integration Tests', () => {
       const flowCount = await workbench.getFlowCount()
       expect(flowCount).toBeGreaterThan(0)
 
-      await workbench.flowsDropdownTrigger.click()
       await workbench.navigateToFlow('basic-tutorial')
       await workbench.executeTutorialFlow(api)
     })

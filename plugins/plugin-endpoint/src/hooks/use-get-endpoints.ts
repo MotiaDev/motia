@@ -1,6 +1,6 @@
 import { useStreamGroup } from '@motiadev/stream-client-react'
+import { ApiEndpoint } from '../types/endpoint'
 import { useMemo } from 'react'
-import type { ApiEndpoint } from '../types/endpoint'
 
 export const useGetEndpoints = () => {
   const { data: endpoints } = useStreamGroup<ApiEndpoint>({
@@ -11,12 +11,12 @@ export const useGetEndpoints = () => {
   const groupedEndpoints = useMemo(() => {
     return endpoints.reduce(
       (acc, endpoint) => {
-        if (endpoint.flows && endpoint.flows.length > 0) {
-          endpoint.flows.forEach((flow) => {
-            acc[flow] = acc[flow] || []
-            acc[flow].push(endpoint)
-          })
-        } else {
+        endpoint.flows?.forEach((flow) => {
+          acc[flow] = acc[flow] || []
+          acc[flow].push(endpoint)
+        })
+
+        if (endpoint.flows?.length == 0) {
           acc['no-flow'] = acc['no-flow'] || []
           acc['no-flow'].push(endpoint)
         }

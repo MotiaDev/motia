@@ -1,55 +1,27 @@
-import {
-  getStepConfig,
-  getStreamConfig,
-  type JsonSchema,
-  LockedData,
-  type Step,
-  type StreamAdapterManager,
-  type StreamAuthConfig,
-} from '@motiadev/core'
+import { LockedData, Step, getStepConfig, getStreamConfig } from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import colors from 'colors'
 import { randomUUID } from 'crypto'
-import { existsSync } from 'fs'
 import { globSync } from 'glob'
 import path from 'path'
-import type { RedisClientType } from 'redis'
-import { activatePythonVenv } from './utils/activate-python-env'
 import { CompilationError } from './utils/errors/compilation.error'
-import { LockedDataGenerationError } from './utils/errors/locked-data-generation.error'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
-const getStepFilesFromDir = (dir: string): string[] => {
-  if (!existsSync(dir)) {
-    return []
-  }
-  return [
-    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: dir }),
-    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: dir }),
-  ]
-}
-
 export const getStepFiles = (projectDir: string): string[] => {
   const stepsDir = path.join(projectDir, 'steps')
-  const srcDir = path.join(projectDir, 'src')
-  return [...getStepFilesFromDir(stepsDir), ...getStepFilesFromDir(srcDir)]
-}
-
-const getStreamFilesFromDir = (dir: string): string[] => {
-  if (!existsSync(dir)) {
-    return []
-  }
   return [
-    ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: dir }),
-    ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: dir }),
+    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
+    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
   ]
 }
 
 export const getStreamFiles = (projectDir: string): string[] => {
   const stepsDir = path.join(projectDir, 'steps')
-  const srcDir = path.join(projectDir, 'src')
-  return [...getStreamFilesFromDir(stepsDir), ...getStreamFilesFromDir(srcDir)]
+  return [
+    ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: stepsDir }),
+    ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: stepsDir }),
+  ]
 }
 
 // Helper function to recursively collect flow data
@@ -57,19 +29,7 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   const invalidSteps: Step[] = []
   const stepFiles = getStepFiles(projectDir)
   const streamFiles = getStreamFiles(projectDir)
-  const stepsDir = path.join(projectDir, 'steps')
-  const srcDir = path.join(projectDir, 'src')
-  const deprecatedSteps = [
-    ...(existsSync(stepsDir) ? globSync('**/*.step.py', { absolute: true, cwd: stepsDir }) : []),
-    ...(existsSync(srcDir) ? globSync('**/*.step.py', { absolute: true, cwd: srcDir }) : []),
-  ]
-
-  const hasPythonFiles =
-    stepFiles.some((file) => file.endsWith('.py')) || streamFiles.some((file) => file.endsWith('.py'))
-
-  if (hasPythonFiles) {
-    activatePythonVenv({ baseDir: projectDir })
-  }
+  const deprecatedSteps = globSync('**/*.step.py', { absolute: true, cwd: path.join(projectDir, 'steps') })
 
   for (const filePath of stepFiles) {
     try {
@@ -86,11 +46,6 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
         invalidSteps.push({ filePath, version, config })
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      if (errorMessage.includes('Executable ruby not found') || errorMessage.includes('Executable python not found')) {
-        console.warn(colors.yellow(`! [WARNING] Skipping step ${filePath}: ${errorMessage}`))
-        continue
-      }
       throw new CompilationError(`Error collecting flow ${filePath}`, path.relative(projectDir, filePath), err as Error)
     }
   }
@@ -138,27 +93,18 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   return invalidSteps
 }
 
-type StreamAuthOptions = {
-  authenticate: StreamAuthConfig['authenticate']
-  contextSchema?: JsonSchema
-}
-
-export const generateLockedData = async (config: {
-  projectDir: string
-  streamAdapter: StreamAdapterManager
-  redisClient: RedisClientType
-  printerType?: 'disabled' | 'default'
-  streamAuth?: StreamAuthOptions
-}): Promise<LockedData> => {
+export const generateLockedData = async (
+  projectDir: string,
+  streamAdapter: 'file' | 'memory' = 'file',
+  printerType: 'disabled' | 'default' = 'default',
+): Promise<LockedData> => {
   try {
-    const { projectDir, streamAdapter, printerType = 'default', redisClient, streamAuth } = config
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
     /*
      * NOTE: right now for performance and simplicity let's enforce a folder,
      * but we might want to remove this and scan the entire current directory
      */
-    const lockedData = new LockedData(projectDir, streamAdapter, printer, redisClient)
-    lockedData.setStreamAuthConfig(streamAuth)
+    const lockedData = new LockedData(projectDir, streamAdapter, printer)
 
     await collectFlows(projectDir, lockedData)
     lockedData.saveTypes()
@@ -166,10 +112,6 @@ export const generateLockedData = async (config: {
     return lockedData
   } catch (error) {
     console.error(error)
-
-    throw new LockedDataGenerationError(
-      'Failed to parse the project, generating locked data step failed',
-      error as Error,
-    )
+    throw Error('Failed to parse the project, generating locked data step failed')
   }
 }

@@ -98,7 +98,9 @@ export class ApiHelpers {
         if (response.status === 200) {
           return response
         }
-      } catch (error) {}
+      } catch (error) {
+        continue
+      }
     }
 
     throw new Error('No working health endpoint found')

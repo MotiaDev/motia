@@ -1,12 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger, useThemeStore } from '@motiadev/ui'
-import { type FC, useMemo } from 'react'
+import { FC, useMemo } from 'react'
 import ReactJson from 'react18-json-view'
-import { convertSchemaToJson } from '../hooks/utils'
+import { convertJsonSchemaToJson } from '../hooks/utils'
 
 export type EndpointResponseItem = {
   responseCode: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  bodySchema: Record<string, any>
+  bodySchema: Record<string, Record<string, any>>
 }
 
 type EndpointResponseProps = {
@@ -15,22 +15,17 @@ type EndpointResponseProps = {
 
 const EndpointResponseSchemaItem: FC<EndpointResponseItem> = ({ responseCode, bodySchema }) => {
   const theme = useThemeStore((store: { theme: string }) => store.theme)
-  const schema = useMemo(() => convertSchemaToJson(bodySchema), [bodySchema])
-  const description = typeof bodySchema.description === 'string' ? bodySchema.description : ''
+  const schema = useMemo(() => convertJsonSchemaToJson(bodySchema), [bodySchema])
 
   return (
     <TabsContent value={responseCode} key={responseCode} className="border-t">
       <div className="text-xs font-mono rounded-lg whitespace-pre-wrap">
-        {schema ? (
-          <ReactJson
-            src={schema}
-            dark={theme === 'dark'}
-            enableClipboard={false}
-            style={{ backgroundColor: 'transparent' }}
-          />
-        ) : (
-          <div className="text-xs font-mono rounded-lg whitespace-pre-wrap p-4">{description}</div>
-        )}
+        <ReactJson
+          src={schema}
+          dark={theme === 'dark'}
+          enableClipboard={false}
+          style={{ backgroundColor: 'transparent' }}
+        />
       </div>
     </TabsContent>
   )

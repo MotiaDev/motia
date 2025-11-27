@@ -1,38 +1,18 @@
-import {
-  createServer,
-  createStateAdapter,
-  DefaultCronAdapter,
-  DefaultQueueEventAdapter,
-  type Event,
-  Logger,
-  MemoryStreamAdapterManager,
-} from '@motiadev/core'
+import { createServer, createStateAdapter, Event, Logger } from '@motiadev/core'
 import { generateLockedData } from 'motia'
 import path from 'path'
 import request from 'supertest'
 import { createEventManager } from './event-manager'
-import { createMockRedisClient } from './helpers'
-import type { CapturedEvent, MotiaTester } from './types'
+import { CapturedEvent, MotiaTester } from './types'
 
 export const createMotiaTester = (): MotiaTester => {
-  const eventAdapter = new DefaultQueueEventAdapter()
-  const eventManager = createEventManager(eventAdapter)
+  const eventManager = createEventManager()
   const logger = new Logger()
 
   const promise = (async () => {
-    const lockedData = await generateLockedData({
-      projectDir: path.join(process.cwd()),
-      streamAdapter: new MemoryStreamAdapterManager(),
-      printerType: 'disabled',
-      redisClient: createMockRedisClient(),
-    })
+    const lockedData = await generateLockedData(path.join(process.cwd()), 'memory', 'disabled')
     const state = createStateAdapter({ adapter: 'memory' })
-    const { server, socketServer, close } = createServer(
-      lockedData,
-      state,
-      { isVerbose: false },
-      { eventAdapter, cronAdapter: new DefaultCronAdapter() },
-    )
+    const { server, socketServer, close } = createServer(lockedData, eventManager, state, { isVerbose: false })
 
     return { server, socketServer, eventManager, state, close }
   })()
@@ -46,10 +26,15 @@ export const createMotiaTester = (): MotiaTester => {
     watch: async <TData>(event: string) => {
       const events: CapturedEvent<TData>[] = []
 
-      eventManager.subscribe(event, '$watcher', async (event: Event<TData>) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { logger, tracer, ...rest } = event
-        events.push(rest)
+      eventManager.subscribe({
+        event,
+        filePath: '$watcher',
+        handlerName: '$watcher',
+        handler: async (event: Event<TData>) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { logger, tracer, ...rest } = event
+          events.push(rest)
+        },
       })
 
       return {

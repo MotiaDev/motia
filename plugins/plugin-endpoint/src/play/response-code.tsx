@@ -1,5 +1,5 @@
 import { cn } from '@motiadev/ui'
-import type { FC } from 'react'
+import { FC } from 'react'
 import { getStatusMessage } from './reponse-code/utils'
 
 type ResponseCodeProps = {

@@ -1,9 +1,9 @@
-import type { Logger } from '../logger'
-import type { Step } from '../types'
-import type { Tracer } from '.'
+import { Tracer } from '.'
+import { Logger } from '../logger'
+import { Step } from '../types'
 import { createTrace } from './create-trace'
-import type { TraceManager } from './trace-manager'
-import type { StateOperation, StreamOperation, Trace, TraceError, TraceEvent, TraceGroup } from './types'
+import { TraceManager } from './trace-manager'
+import { StateOperation, StreamOperation, Trace, TraceError, TraceEvent, TraceGroup } from './types'
 
 export class StreamTracer implements Tracer {
   constructor(

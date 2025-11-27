@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { generateFlow } from '../helper/flows-helper'
-import type { LockedData } from '../locked-data'
+import { LockedData } from '../locked-data'
 import { FlowsStream } from '../streams/flows-stream'
+import { generateFlow } from '../helper/flows-helper'
 
 export const flowsEndpoint = (lockedData: LockedData) => {
   const flowsStream = lockedData.createStream(

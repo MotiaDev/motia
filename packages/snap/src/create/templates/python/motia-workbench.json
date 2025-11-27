@@ -3,23 +3,23 @@
     "id": "basic-tutorial",
     "config": {
       "steps/petstore/state_audit_cron_step.py": {
-        "x": -175,
-        "y": 219,
+        "x": -38,
+        "y": 683,
         "sourceHandlePosition": "right"
       },
       "steps/petstore/process_food_order_step.py": {
-        "x": 144,
-        "y": 17,
-        "sourceHandlePosition": "bottom"
+        "x": 384,
+        "y": 476,
+        "targetHandlePosition": "left"
       },
       "steps/petstore/notification_step.py": {
-        "x": 331,
-        "y": 261,
-        "sourceHandlePosition": "bottom"
+        "x": 601,
+        "y": 724,
+        "targetHandlePosition": "left"
       },
       "steps/petstore/api_step.py": {
-        "x": -175,
-        "y": 3,
+        "x": 15,
+        "y": 461,
         "sourceHandlePosition": "right"
       }
     }

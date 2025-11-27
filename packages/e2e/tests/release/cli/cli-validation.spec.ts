@@ -1,7 +1,7 @@
+import { expect, test } from '@/src/motia-fixtures'
 import { execSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import path from 'path'
-import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('CLI Validation', () => {
   const testProjectPath = process.env.TEST_PROJECT_PATH || ''
@@ -12,7 +12,7 @@ test.describe('CLI Validation', () => {
   test('should create project with correct structure', async () => {
     expect(existsSync(testProjectPath)).toBeTruthy()
 
-    const expectedFiles = ['package.json', 'steps', 'motia-workbench.json', 'tutorial/tutorial.tsx']
+    const expectedFiles = ['package.json', 'steps', 'motia-workbench.json', 'tutorial.tsx']
 
     for (const file of expectedFiles) {
       const filePath = path.join(testProjectPath, file)
@@ -58,25 +58,6 @@ test.describe('CLI Validation', () => {
         console.log(`Step ${step} not found - CLI may have different naming convention`)
       }
     }
-  })
-
-  test('should generate openapi.json with correct content', async () => {
-    const openapiPath = path.join(testProjectPath, 'openapi.json')
-
-    try {
-      console.log(`Running 'npx motia generate openapi' in ${testProjectPath}`)
-      execSync('npx motia generate openapi', {
-        cwd: testProjectPath,
-        stdio: 'inherit',
-      })
-    } catch (error) {
-      console.error('Error generating openapi.json:', error)
-      expect(error).toBeNull()
-    }
-
-    expect(existsSync(openapiPath)).toBeTruthy()
-
-    expect(readFileSync(openapiPath, 'utf8')).toMatchSnapshot('openapi.json')
   })
 
   test('should build project successfully', async () => {

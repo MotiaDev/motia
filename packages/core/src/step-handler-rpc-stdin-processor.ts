@@ -1,10 +1,6 @@
-import type { ChildProcess } from 'child_process'
+import { ChildProcess } from 'child_process'
 import readline from 'readline'
-import type {
-  MessageCallback,
-  RpcHandler,
-  RpcProcessorInterface,
-} from './process-communication/rpc-processor-interface'
+import { RpcProcessorInterface, RpcHandler, MessageCallback } from './process-communication/rpc-processor-interface'
 
 export type RpcMessage = {
   type: 'rpc_request'
@@ -14,8 +10,9 @@ export type RpcMessage = {
 }
 
 export class RpcStdinProcessor implements RpcProcessorInterface {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlers: Record<string, RpcHandler<any, any>> = {}
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private messageCallback?: MessageCallback<any>
   private isClosed = false
   private rl?: readline.Interface

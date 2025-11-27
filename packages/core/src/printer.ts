@@ -1,9 +1,9 @@
 import colors from 'colors'
 import path from 'path'
+import { ValidationError } from './step-validator'
+import { Step } from './types'
 import { isApiStep, isCronStep, isEventStep, isNoopStep } from './guards'
-import type { ValidationError } from './step-validator'
-import type { Step } from './types'
-import type { Stream } from './types-stream'
+import { Stream } from './types-stream'
 
 const stepTag = colors.bold(colors.magenta('Step'))
 const flowTag = colors.bold(colors.blue('Flow'))
@@ -16,9 +16,6 @@ const removed = colors.red('➜ [REMOVED]')
 const invalidEmit = colors.red('➜ [INVALID EMIT]')
 const error = colors.red('[ERROR]')
 const warning = colors.yellow('[WARNING]')
-const warnIcon = colors.yellow('⚠')
-const infoIcon = colors.blue('ℹ')
-const errorIcon = colors.red('✖')
 
 export class Printer {
   constructor(private readonly baseDir: string) {}
@@ -30,37 +27,6 @@ export class Printer {
   built = built
   updated = updated
   removed = removed
-
-  printEventInputValidationError(
-    emit: { topic: string },
-    details: { missingFields?: string[]; extraFields?: string[]; typeMismatches?: string[] },
-  ) {
-    const emitPath = colors.bold(colors.cyan(`Emit ${emit.topic}`))
-
-    console.log(`${warnIcon} ${warning} ${emitPath} validation issues:`)
-
-    const hasAny = details.missingFields?.length || details.extraFields?.length || details.typeMismatches?.length
-
-    if (!hasAny) {
-      console.log(`${colors.yellow('│')} No issues found.`)
-      console.log(`${colors.yellow('└─')} Validation passed.`)
-      return
-    }
-
-    if (details.missingFields?.length) {
-      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Missing fields: ${details.missingFields.join(', ')}`)}`)
-    }
-
-    if (details.extraFields?.length) {
-      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Extra fields: ${details.extraFields.join(', ')}`)}`)
-    }
-
-    if (details.typeMismatches?.length) {
-      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Type mismatches: ${details.typeMismatches.join(', ')}`)}`)
-    }
-
-    console.log(`${colors.yellow('└─')} ${colors.yellow('Payload does not match schema.')}`)
-  }
 
   printInvalidEmit(step: Step, emit: string) {
     console.log(
@@ -106,7 +72,7 @@ export class Printer {
 
   printInvalidEmitConfiguration(step: Step, emit: string) {
     console.log(
-      `${warnIcon} ${warning} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} emits to ${colors.yellow(emit)}, but there is no subscriber defined`,
+      `${warning} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} emits to ${colors.yellow(emit)}, but there is no subscriber defined`,
     )
   }
 
@@ -153,29 +119,12 @@ export class Printer {
     const streamPath = this.getRelativePath(stream.filePath)
     return colors.bold(colors.magenta(streamPath))
   }
-
-  printPluginLog(message: string) {
-    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
-    console.log(`${infoIcon} ${pluginTag} ${message}`)
-  }
-
-  printPluginWarn(message: string) {
-    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
-    console.warn(`${warnIcon} ${pluginTag} ${colors.yellow(message)}`)
-  }
-
-  printPluginError(message: string, ...args: unknown[]) {
-    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
-    console.error(`${errorIcon} ${pluginTag} ${colors.red(message)}`, ...args)
-  }
 }
 
 export class NoPrinter extends Printer {
   constructor() {
     super('')
   }
-
-  printEventInputValidationError() {}
 
   printInvalidEmit() {}
   printStepCreated() {}
@@ -190,8 +139,4 @@ export class NoPrinter extends Printer {
   printStreamCreated() {}
   printStreamUpdated() {}
   printStreamRemoved() {}
-
-  printPluginLog() {}
-  printPluginWarn() {}
-  printPluginError() {}
 }

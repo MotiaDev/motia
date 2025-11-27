@@ -3,117 +3,76 @@ title: Self-Hosted Deployment
 description: Learn how to deploy your Motia project to production using motia-docker
 ---
 
-import VideoPlayer from '@/components/VideoPlayer';
+We provide a docker image that you can use to deploy your Motia project to production. You can use it as a base image and add your own customizations or use it as is.
 
-<VideoPlayer videoPath="/docs-videos/8-motia-self-hosting.mp4" gifPath="/docs-videos/gifs/8-motia-self-hosting.gif" title="Self-Hosting & Deployment" className="mb-8" />
+<Callout type="warn">You will need to use the latest version of the motia package **0.5.2-beta.101 or higher**</Callout>
 
-Run your Motia app in Docker containers. Same environment everywhere - dev, staging, production.
-
-<Callout type="warn">You need motia package **0.5.2-beta.101 or higher**</Callout>
-
-## Quick Start
-
-<Callout type="info">
-**Important:** Run these commands from your project root (where your `package.json` is).
-</Callout>
+## Quick setup
 
 <Steps>
 <Step>
-#### Navigate to your project
-
-```bash
-cd /path/to/your/motia-project
-```
-
-Make sure you see `package.json` when you run `ls`.
-
-</Step>
-<Step>
-#### Setup Docker files
+#### Setup your motia project
 
 ```bash
 npx motia@latest docker setup
 ```
 
-This creates `Dockerfile` and `.dockerignore` in your project.
-
 </Step>
 <Step>
-#### Build and run
+#### Run your motia project inside a container
 
 ```bash
-npx motia@latest docker run --project-name my-app
+npx motia@latest docker run
 ```
 
-Replace `my-app` with your project name.
+  </Step>
+  <Step>
+#### You are good to go, your project should be running on localhost under port 3000, for additional options and configuration run
 
-</Step>
-<Step>
-#### Check it works
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-For more options:
 ```bash
 npx motia@latest docker run --help
 ```
 
-</Step>
+  </Step>
 </Steps>
 
-<Callout type="error">
-**Getting `ENOENT: no such file or directory, open package.json`?**
+> Reference the [CLI](/docs/concepts/cli#docker) for more information on the docker commands.
 
-You're not in your project directory. Run `cd /path/to/your/project` first.
-</Callout>
+## Using the docker image
 
----
+You will need to implement your own Dockerfile where you will use the motia-docker image as a base image. Use the following template as a starting point for your Dockerfile:
 
-## Manual Docker Setup
-
-Want more control? Build it yourself.
-
-The `docker setup` command creates a Dockerfile for you, but here's what's in it:
-
-```dockerfile title="Dockerfile"
-# Use Motia's base image (has Node + Python ready)
+```dockerfile
+# NOTE: Some cloud providers will require you to specify the platform to match your target architecture
+# i.e.: AWS Lightsail requires arm64, therefore you update your FROM statement to: FROM --platform=linux/arm64 motiadev/motia:latest
 FROM motiadev/motia:latest
 
-# For AWS Lightsail or other ARM platforms, use:
-# FROM --platform=linux/arm64 motiadev/motia:latest
-
-# Copy package files
+# Install Dependencies
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci --only=production
 
-# Copy your app
+# Move application files
 COPY . .
 
-# If you have Python steps, uncomment this line:
+# Enable the following lines if you are using python steps!!!
+# Setup python steps dependencies
 # RUN npx motia@latest install
 
-# Expose the port
+# Expose outside access to the motia project
 EXPOSE 3000
 
-# Start your app
+# Run your application
 CMD ["npm", "run", "start"]
 ```
 
-### Python Steps?
+<Callout type="info">
+  Depending on the cloud provider you will use to deploy your Motia project, you will need to adjust the exposed ports
+  and the command to start your application.
+</Callout>
 
-If you have Python steps, uncomment this line in the Dockerfile:
+## Create a .dockerignore file
 
-```dockerfile
-RUN npx motia@latest install
-```
-
-And make sure you have a `requirements.txt` file in your project.
-
-### .dockerignore
-
-Create a `.dockerignore` file to keep your image small:
+Create a .dockerignore file in the root of your project to exclude files that are not needed in the docker image. You can use the following template as a starting point for your .dockerignore file:
 
 ```bash
 # Git
@@ -155,215 +114,22 @@ ehthumbs.db
 Thumbs.db
 ```
 
----
-
-## Build and Run Manually
-
-### Build your image
+## Build your image
 
 ```bash
-docker build -t my-motia-app .
+docker build -t <your-image-name> .
 ```
 
-### Run it
+## Run your Motia application
+
+Once you've built your image, you can run it using the following command:
 
 ```bash
-docker run -it --rm -p 3000:3000 my-motia-app
+docker run -it --rm -p 3000:3000 <your-image-name>
 ```
 
-Open [http://localhost:3000](http://localhost:3000) - your app should be running!
+## Motia Docker Resources
 
----
-
-## Deploy to Cloud
-
-### AWS Lightsail
-
-Lightsail needs ARM. Update your Dockerfile:
-
-```dockerfile
-FROM --platform=linux/arm64 motiadev/motia:latest
-```
-
-Then build and deploy.
-
-### Railway
-
-Connect your GitHub repo. Railway detects the Dockerfile automatically.
-
-### Fly.io
-
-Create `fly.toml`:
-
-```toml
-app = "my-motia-app"
-
-[build]
-  dockerfile = "Dockerfile"
-
-[[services]]
-  internal_port = 3000
-  protocol = "tcp"
-```
-
-Deploy: `fly deploy`
-
-### Render
-
-Create a Web Service, point to your repo. Render builds automatically.
-
----
-
-## Configuring Adapters for Production
-
-When deploying multiple Motia instances, you need distributed adapters to share state, events, and streams across instances. Without them, each instance operates in isolation.
-
-### When to Use Distributed Adapters
-
-**Use default adapters when:**
-- Running a single Motia instance
-- Development and testing
-- Simple deployments
-
-**Use distributed adapters when:**
-- Running multiple Motia instances (horizontal scaling)
-- Production deployments requiring high availability
-- Need shared state/events/streams across instances
-
-### Docker Compose with Redis
-
-For production deployments, use Docker Compose to run Motia with Redis:
-
-```yaml title="docker-compose.yml"
-version: '3.8'
-
-services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-
-  motia:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - RABBITMQ_URL=amqp://rabbitmq:5672
-    depends_on:
-      - redis
-      - rabbitmq
-
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-
-volumes:
-  redis-data:
-  rabbitmq-data:
-```
-
-### Configure Adapters in motia.config.ts
-
-Update your configuration to use distributed adapters:
-
-```typescript title="motia.config.ts"
-import { config } from '@motiadev/core'
-import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
-import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
-import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
-import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
-
-export default config({
-  adapters: {
-    state: new RedisStateAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    }),
-    streams: new RedisStreamAdapterManager({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    }),
-    events: new RabbitMQEventAdapter({
-      url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
-      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
-      exchangeType: 'topic',
-    }),
-    cron: new RedisCronAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    }),
-  },
-})
-```
-
-### Install Adapter Packages
-
-Add the adapter packages to your `package.json`:
-
-```bash
-npm install @motiadev/adapter-redis-state \
-            @motiadev/adapter-redis-streams \
-            @motiadev/adapter-rabbitmq-events \
-            @motiadev/adapter-redis-cron
-```
-
-### Scaling Multiple Instances
-
-With distributed adapters configured, you can scale to multiple instances:
-
-```yaml title="docker-compose.yml"
-services:
-  motia-1:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      - redis
-
-  motia-2:
-    build: .
-    ports:
-      - "3001:3000"
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      - redis
-
-  motia-3:
-    build: .
-    ports:
-      - "3002:3000"
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      - redis
-```
-
-All instances share the same state, events, and streams through Redis and RabbitMQ.
-
-<Callout type="warn">
-Without distributed adapters, each Motia instance has isolated state and events. Use Redis/RabbitMQ adapters for multi-instance deployments.
-</Callout>
-
-[Learn more about adapters →](/docs/development-guide/adapters/usage)
-
----
-
-## Resources
-
-- [Docker Hub](https://hub.docker.com/r/motiadev/motia) - Official Motia image
-- [Example Project](https://github.com/MotiaDev/motia-examples/tree/main/examples/motia-docker) - Full deployment example
-- [CLI Reference](/docs/development-guide/cli#docker) - All docker commands
+- [Docker Registry](https://hub.docker.com/r/motiadev/motia)
+- [Github Repo](https://github.com/MotiaDev/motia/packages/docker)
+- [Example Motia project with deployment boilerplate for AWS LightSail and Railway](https://github.com/MotiaDev/motia-examples/tree/main/examples/motia-docker)

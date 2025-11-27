@@ -7,14 +7,13 @@ class OrderStatus(str, Enum):
     DELIVERED = "delivered"
 
 class Pet(BaseModel):
-    id: str
+    id: int
     name: str
     photoUrl: str
 
 class Order(BaseModel):
     id: str
     quantity: int
-    petId: str
+    petId: int
     shipDate: str
     status: OrderStatus
-    complete: bool

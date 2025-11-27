@@ -1,7 +1,6 @@
 import { Button, cn } from '@motiadev/ui'
-import Check from 'lucide-react/icons/check'
-import Copy from 'lucide-react/icons/copy'
-import { type FC, useState } from 'react'
+import { Check, Copy } from 'lucide-react'
+import { FC, useState } from 'react'
 import { usePathUrl } from '../hooks/use-path-url'
 
 interface EndpointPathPreviewProps {
@@ -42,7 +41,7 @@ export const EndpointPathPreview: FC<EndpointPathPreviewProps> = ({ path, baseUr
             copied ? 'text-green-400' : 'text-muted-foreground',
           )}
           variant="icon"
-          size="sm"
+          size="small"
           aria-label="Copy URL"
         >
           {copied ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}

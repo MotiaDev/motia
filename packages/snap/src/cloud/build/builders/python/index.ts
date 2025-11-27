@@ -1,10 +1,10 @@
-import type { ApiRouteConfig, Step } from '@motiadev/core'
+import { ApiRouteConfig, Step } from '@motiadev/core'
 import fs from 'fs'
 import path from 'path'
 import { activatePythonVenv, getSitePackagesPath } from '../../../../utils/activate-python-env'
 import { distDir } from '../../../new-deployment/constants'
-import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
-import type { Builder, RouterBuildResult, StepBuilder } from '../../builder'
+import { BuildListener } from '../../../new-deployment/listeners/listener.types'
+import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
 import { extractPythonData } from './python-data/extract-python-data'
@@ -152,6 +152,6 @@ export class PythonBuilder implements StepBuilder {
 
   private getModuleName(step: Step): string {
     // return step path
-    return step.filePath.replace(this.builder.projectDir, '').substring(1).replace(/\.py$/, '').replace(/[\\/]/g, '.')
+    return step.filePath.replace(this.builder.projectDir, '').substring(1).replace(/\.py$/, '').replace(/\//g, '.')
   }
 }

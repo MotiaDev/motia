@@ -1,12 +1,11 @@
 // Helper functions
-
-import fs from 'fs'
-import path from 'path'
-import { v5 as uuidv5 } from 'uuid'
-import { getStepLanguage } from '../get-step-language'
+import { Emit, Step } from 'src/types'
 import { isApiStep, isCronStep, isEventStep, isNoopStep } from '../guards'
-import type { Emit, Step } from '../types'
-import type { FlowEdge, FlowResponse, FlowStepResponse } from '../types/flows-types'
+import { FlowEdge, FlowResponse, FlowStepResponse } from '../types/flows-types'
+import { getStepLanguage } from '../get-step-language'
+import path from 'path'
+import fs from 'fs'
+import { v5 as uuidv5 } from 'uuid'
 
 const getNodeComponentPath = (filePath: string): string | undefined => {
   const filePathWithoutExtension = filePath.replace(/\.[^/.]+$/, '')

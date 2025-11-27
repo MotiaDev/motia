@@ -1,6 +1,6 @@
 # @motiadev/core
 
-Core functionality for Motia - Build production-grade backends with a single primitive.
+Core functionality for the Motia framework, providing the foundation for building event-driven workflows.
 
 ## Installation
 
@@ -14,16 +14,14 @@ pnpm add @motiadev/core
 
 ## Overview
 
-`@motiadev/core` is the foundation of Motia, the unified backend framework for:
+`@motiadev/core` is the foundation of the Motia framework, providing:
 
-- **API** endpoints with routing and validation
-- **Background jobs** with built-in queues
-- **Durable workflows** with state management
-- **Agentic** AI workflows with streaming
-- **State** management across all steps
-- **Streaming** real-time data to clients
-- **Logging** and observability infrastructure
-- **Multi-language** support (TypeScript, Python, Ruby)
+- Event-driven architecture with pub/sub capabilities
+- Multi-language support (TypeScript, Python, Ruby)
+- State management
+- Cron job scheduling
+- API route handling
+- Logging infrastructure
 
 ## Key Components
 

@@ -1,2 +1,0 @@
-# Optional: Uncomment if you want to use Pydantic for validation
-# pydantic>=2.0.0

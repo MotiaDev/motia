@@ -1,7 +1,7 @@
-import fs from 'fs'
-import { tmpdir } from 'os'
-import path from 'path'
 import { readRequirements } from '../read-requirements'
+import fs from 'fs'
+import path from 'path'
+import { tmpdir } from 'os'
 
 describe('readRequirements', () => {
   let tempFilePath: string

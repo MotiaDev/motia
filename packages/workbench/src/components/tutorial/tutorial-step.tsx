@@ -1,7 +1,6 @@
+import React, { forwardRef, useEffect } from 'react'
+import { TutorialImage } from './engine/tutorial-types'
 import { BackgroundEffect } from '@motiadev/ui'
-import type React from 'react'
-import { forwardRef, useEffect } from 'react'
-import type { TutorialImage } from './engine/tutorial-types'
 
 type TutorialStepProps = {
   step: number
@@ -18,16 +17,15 @@ export const TutorialStep = forwardRef<HTMLDivElement, TutorialStepProps>(
   ({ step, totalSteps, title, description, link, image, onNext, onClose }, ref) => {
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (step > 0 && e.key === 'Escape') {
+        if (e.key === 'Escape') {
           onClose()
-        } else if (step > 0 && e.key === 'ArrowRight') {
+        } else if (e.key === 'ArrowRight') {
           onNext()
         }
       }
       window.addEventListener('keydown', handleKeyDown)
-
       return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [onClose, onNext, step])
+    }, [onClose, onNext])
 
     return (
       <div ref={ref} className="driver-popover ">

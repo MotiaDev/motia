@@ -1,4 +1,4 @@
-import type { Emit } from '../types'
+import { Emit } from '../types'
 
 export type FlowListResponse = { id: string; name: string }
 

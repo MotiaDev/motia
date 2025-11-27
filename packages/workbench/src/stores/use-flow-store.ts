@@ -4,7 +4,6 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 type UseFlowStore = {
   selectedFlowId?: string
   selectFlowId: (flowId: string) => void
-  clearSelectedFlowId: () => void
   flows: string[]
   setFlows: (flows: string[]) => void
 }
@@ -21,7 +20,6 @@ export const useFlowStore = create(
           }
           return { selectedFlowId: flowId }
         }),
-      clearSelectedFlowId: () => set({ selectedFlowId: undefined }),
     }),
     {
       name: 'motia-flow-storage',

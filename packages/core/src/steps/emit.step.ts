@@ -1,5 +1,5 @@
+import { ApiResponse, ApiRouteConfig, ApiRouteHandler } from '../types'
 import { z } from 'zod'
-import type { ApiResponse, ApiRouteConfig, ApiRouteHandler } from '../types'
 
 export const config: ApiRouteConfig = {
   type: 'api',
@@ -11,7 +11,7 @@ export const config: ApiRouteConfig = {
   flows: ['_system'],
   bodySchema: z.object({
     topic: z.string(),
-    data: z.record(z.string(), z.any()),
+    data: z.record(z.unknown()),
   }),
 }
 

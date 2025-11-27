@@ -39,19 +39,9 @@
 <p align="center">
   <a href="https://www.motia.dev/manifesto">💡 Motia Manifesto</a> •
   <a href="https://www.motia.dev/docs/getting-started/quick-start">🚀 Quick Start</a> •
-  <a href="https://www.motia.dev/docs/concepts/steps">📋 Defining Steps</a> •
+  <a href="https://www.motia.dev/docs/concepts/steps/steps">📋 Defining Steps</a> •
   <a href="https://www.motia.dev/docs">📚 Docs</a>
 </p>
-
----
-
-## 🚀 Create your first Motia App
-
-Get started in seconds:
-
-```bash
-npx motia@latest create
-```
 
 ---
 
@@ -63,7 +53,7 @@ APIs live in one framework, background jobs in another, queues and schedulers el
 
 **Motia unifies all of these concerns around one core primitive: the Step.**
 
-Just as React made frontend development simple by introducing components, Motia redefines backend development with Steps - a single primitive that handles everything.
+Just as React made frontend development simple by introducing components, Motia redefines backend development with Steps.
 
 Every backend pattern, API endpoints, background jobs, queues, workflows, AI agents, streaming, observability, and state, is expressed with the same primitive.
 
@@ -192,7 +182,7 @@ module.exports = { config, handler };
 
 👉 With just two files, you've built an **API endpoint**, a **queue**, and a **worker**. No extra frameworks required.
 
-**[Learn more about Steps →](https://motia.dev/docs/concepts/steps)**
+**[Learn more about Steps →](https://motia.dev/docs/concepts/steps/steps)**
 
 [![Motia combines APIs, background queues, and AI agents into one system](assets/github-readme-banner.gif)](https://motia.dev)
 
@@ -226,23 +216,10 @@ npx motia dev # ➜ http://localhost:3000
 - ✅ Multi-language support
 - ✅ Event-driven architecture
 - ✅ Zero configuration
-- ✅ AI development guides included (Cursor, OpenCode, Codex, and more)
 
 ![new-workbench](assets/new-workbench.png)
 
 > 📖 **[Full tutorial in our docs →](https://motia.dev/docs/getting-started/quick-start)**
-
-### 🤖 AI-Assisted Development
-
-Every Motia project includes detailed AI development guides that work with **any AI coding tool**:
-
-- **[Cursor IDE](https://cursor.sh/)** - Optimized `.mdc` rules with context-aware suggestions
-- **[OpenCode](https://opencode.ai/)**, **[Codex (OpenAI)](https://openai.com/index/introducing-codex/)** - Full support via `AGENTS.md` standard
-- **Aider, Jules, Factory, Amp, GitHub Copilot** - Compatible with [AGENTS.md format](https://agents.md/) (used by 20k+ projects)
-
-The guides include patterns for API endpoints, background tasks, state management, real-time streaming, and complete architecture blueprints.
-
-> 🤖 **[Learn more about AI development support →](https://motia.dev/docs/ai-development-guide)**
 
 ## 🎯 Step Types
 
@@ -318,16 +295,16 @@ Feel free to add comments to the issues, or create a new issue if you have a fea
 
 | Feature | Status | Link | Description |
 | ------- | ------ | ---- | ----------- |
-| Python Types | 🚧 In Progress | [#485](https://github.com/MotiaDev/motia/issues/485) | Add support for Python types |
-| Streams: RBAC | ✅ Shipped | [#495](https://github.com/MotiaDev/motia/issues/495) | Add support for RBAC |
-| Streams: Workbench UI | 🎨 Design Phase | [#497](https://github.com/MotiaDev/motia/issues/497) | Add support for Workbench UI |
-| Queue Strategies | ✅ Shipped | [#476](https://github.com/MotiaDev/motia/issues/476) | Add support for Queue Strategies |
-| Reactive Steps | 📅 Planned | [#477](https://github.com/MotiaDev/motia/issues/477) | Add support for Reactive Steps |
-| Point in time triggers | 📅 Planned | [#480](https://github.com/MotiaDev/motia/issues/480) | Add support for Point in time triggers |
-| Workbench plugins | ✅ Shipped | [#481](https://github.com/MotiaDev/motia/issues/481) | Add support for Workbench plugins |
-| Rewrite core in Rust | 🚧 In Progress | [#482](https://github.com/MotiaDev/motia/issues/482) | Rewrite our Core in Rust |
-| Decrease deployment time | 🚧 In Progress | [#483](https://github.com/MotiaDev/motia/issues/483) | Decrease deployment time |
-| Built-in database support | 📅 Planned | [#484](https://github.com/MotiaDev/motia/issues/484) | Add support for built-in database |
+| Python Types | Planned | [#485](https://github.com/MotiaDev/motia/issues/485) | Add support for Python types |
+| Streams: RBAC | Planned | [#495](https://github.com/MotiaDev/motia/issues/495) | Add support for RBAC |
+| Streams: Workbench UI | Planned | [#497](https://github.com/MotiaDev/motia/issues/497) | Add support for Workbench UI |
+| Queue Strategies | Planned | [#476](https://github.com/MotiaDev/motia/issues/476) | Add support for Queue Strategies |
+| Reactive Steps | Planned | [#477](https://github.com/MotiaDev/motia/issues/477) | Add support for Reactive Steps |
+| Point in time triggers | Planned | [#480](https://github.com/MotiaDev/motia/issues/480) | Add support for Point in time triggers |
+| Workbench plugins | Planned | [#481](https://github.com/MotiaDev/motia/issues/481) | Add support for Workbench plugins |
+| Rewrite our Core in either Go or Rust | Planned | [#482](https://github.com/MotiaDev/motia/issues/482) | Rewrite our Core in either Go or Rust |
+| Decrease deployment time | Planned | [#483](https://github.com/MotiaDev/motia/issues/483) | Decrease deployment time |
+| Built-in database support | Planned | [#484](https://github.com/MotiaDev/motia/issues/484) | Add support for built-in database |
 
 ## 🤝 Contributing
 

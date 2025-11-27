@@ -1,9 +1,9 @@
-import type { Step } from '@motiadev/core'
 import fs from 'fs'
-import { globSync } from 'glob'
 import path from 'path'
-import type { Builder } from '../builder'
-import type { Archiver } from './archiver'
+import { globSync } from 'glob'
+import { Step } from '@motiadev/core'
+import { Builder } from '../builder'
+import { Archiver } from './archiver'
 
 export const includeStaticFiles = (steps: Step[], builder: Builder, archive: Archiver) => {
   for (const step of steps) {
@@ -18,8 +18,7 @@ export const includeStaticFiles = (steps: Step[], builder: Builder, archive: Arc
         const matches = globSync(file, { cwd: path.dirname(step.filePath), absolute: true })
         matches.forEach((filePath: string) => {
           const relativeFilePath = path.relative(builder.projectDir, filePath)
-          const content = fs.readFileSync(filePath)
-          archive.append(content, relativeFilePath)
+          archive.append(fs.createReadStream(filePath), relativeFilePath)
         })
       })
     }

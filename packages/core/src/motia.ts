@@ -1,44 +1,14 @@
-import type { Express } from 'express'
-import type { EventAdapter } from './adapters/interfaces/event-adapter.interface'
-import type { StateAdapter } from './adapters/interfaces/state-adapter.interface'
-import type { LockedData } from './locked-data'
-import type { LoggerFactory } from './logger-factory'
-import type { TracerFactory } from './observability'
-import type { Printer } from './printer'
-import type { ApiResponse, ApiRouteConfig, ApiRouteHandler, InternalStateManager } from './types'
+import { Printer } from './printer'
+import { TracerFactory } from './observability'
+import { EventManager, InternalStateManager } from './types'
+import { LockedData } from './locked-data'
+import { LoggerFactory } from './logger-factory'
 
 export type Motia = {
   loggerFactory: LoggerFactory
-  eventAdapter: EventAdapter
+  eventManager: EventManager
   state: InternalStateManager
   lockedData: LockedData
   printer: Printer
   tracerFactory: TracerFactory
-
-  app: Express
-  stateAdapter: StateAdapter
 }
-
-export type PluginApiConfig = {
-  method: ApiRouteConfig['method']
-  path: string
-}
-
-export type UnregisterMotiaPluginApi = () => void
-
-export type MotiaPluginContext = {
-  printer: Printer
-  state: StateAdapter
-  lockedData: LockedData
-  tracerFactory: TracerFactory
-  registerApi: <
-    TRequestBody = unknown,
-    TResponseBody extends ApiResponse<number, unknown> = ApiResponse<number, unknown>,
-    TEmitData = never,
-  >(
-    config: PluginApiConfig,
-    handler: ApiRouteHandler<TRequestBody, TResponseBody, TEmitData>,
-  ) => UnregisterMotiaPluginApi
-}
-
-export const PLUGIN_FLOW_ID = '_plugin'

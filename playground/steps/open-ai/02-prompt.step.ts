@@ -1,4 +1,4 @@
-import type { EventConfig, Handlers } from 'motia'
+import { EventConfig, Handlers } from 'motia'
 import { OpenAI } from 'openai'
 import { z } from 'zod'
 
@@ -9,9 +9,9 @@ export const config: EventConfig = {
   subscribes: ['openai-prompt'],
   emits: [],
   input: z.object({
-    message: z.string().describe('The message to send to OpenAI'),
-    assistantMessageId: z.string().describe('The assistant message ID'),
-    threadId: z.string().describe('The thread ID'),
+    message: z.string({ description: 'The message to send to OpenAI' }),
+    assistantMessageId: z.string({ description: 'The assistant message ID' }),
+    threadId: z.string({ description: 'The thread ID' }),
   }),
   flows: ['open-ai'],
 }
@@ -20,7 +20,7 @@ export const handler: Handlers['CallOpenAi'] = async (input, context) => {
   const { logger } = context
   const { message, assistantMessageId, threadId } = input
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_ })
-  const assistantId = 'asst_dyEMCyKeZUnZrBBcnsE6diYf'
+  const assistantId = 'asst_bYwnoUmhK87FRqhQKDJZSkZQ'
 
   logger.info('Starting OpenAI response')
 

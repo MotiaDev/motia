@@ -1,14 +1,13 @@
-import { isApiStep, LockedData, MemoryStreamAdapterManager } from '@motiadev/core'
+import { isApiStep, LockedData } from '@motiadev/core'
 import { NoPrinter } from '@motiadev/core/dist/src/printer'
 import fs from 'fs'
-import { collectFlows, getStepFiles, getStreamFiles } from '../../generate-locked-data'
-import { instanceRedisMemoryServer } from '../../redis-memory-manager'
+import { collectFlows, getStepFiles } from '../../generate-locked-data'
 import { BuildError, BuildErrorType } from '../../utils/errors/build.error'
-import { Builder, type StepsConfigFile } from '../build/builder'
+import { Builder, StepsConfigFile } from '../build/builder'
 import { NodeBuilder } from '../build/builders/node'
 import { PythonBuilder } from '../build/builders/python'
 import { distDir, projectDir, stepsConfigPath } from './constants'
-import type { BuildListener } from './listeners/listener.types'
+import { BuildListener } from './listeners/listener.types'
 
 const hasPythonSteps = (stepFiles: string[]) => {
   return stepFiles.some((file) => file.endsWith('.py'))
@@ -17,7 +16,6 @@ const hasPythonSteps = (stepFiles: string[]) => {
 export const build = async (listener: BuildListener): Promise<Builder> => {
   const builder = new Builder(projectDir, listener)
   const stepFiles = getStepFiles(projectDir)
-  const streamFiles = getStreamFiles(projectDir)
 
   if (stepFiles.length === 0) {
     throw new Error('Project contains no steps, please add some steps before building')
@@ -29,10 +27,9 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
   fs.rmSync(distDir, { recursive: true, force: true })
   fs.mkdirSync(distDir, { recursive: true })
 
-  const redisClient = await instanceRedisMemoryServer(projectDir, false)
-  const lockedData = new LockedData(projectDir, new MemoryStreamAdapterManager(), new NoPrinter(), redisClient)
+  const lockedData = new LockedData(projectDir, 'memory', new NoPrinter())
 
-  if (hasPythonSteps([...stepFiles, ...streamFiles])) {
+  if (hasPythonSteps(stepFiles)) {
     builder.registerBuilder('python', new PythonBuilder(builder, listener))
   }
 

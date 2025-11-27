@@ -13,7 +13,6 @@
     "rootDir": "src",
     "baseUrl": ".",
     "declaration": true,
-    "declarationMap": true,
     "paths": {
       "@/*": ["src/*"]
     }

@@ -1,32 +1,25 @@
-import { flush } from '@amplitude/analytics-node'
-import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
-import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
+// packages/snap/src/dev.ts
 import {
+  createEventManager,
   createMermaidGenerator,
   createServer,
   createStateAdapter,
-  DefaultCronAdapter,
-  DefaultQueueEventAdapter,
-  FileStreamAdapterManager,
   getProjectIdentifier,
-  type MotiaPlugin,
   trackEvent,
 } from '@motiadev/core'
 import path from 'path'
-import type { RedisClientType } from 'redis'
-import { deployEndpoints } from './cloud/endpoints'
-import { isTutorialDisabled, workbenchBase } from './constants'
+import { flush } from '@amplitude/analytics-node'
+import { generateLockedData, getStepFiles } from './generate-locked-data'
 import { createDevWatchers } from './dev-watchers'
-import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
-import { loadMotiaConfig } from './load-motia-config'
-import { processPlugins } from './plugins'
-import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
+import { deployEndpoints } from './cloud/endpoints'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
+import { workbenchBase, isTutorialDisabled } from './constants'
 
 process.env.VITE_CJS_IGNORE_WARNING = 'true'
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: { module: 'commonjs' },
@@ -37,14 +30,13 @@ export const dev = async (
   hostname: string,
   disableVerbose: boolean,
   enableMermaid: boolean,
-  motiaFileStorageDir?: string,
 ): Promise<void> => {
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
 
   identifyUser()
 
-  const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
+  const stepFiles = getStepFiles(baseDir)
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
   trackEvent('dev_server_started', {
@@ -61,32 +53,17 @@ export const dev = async (
     trackEvent('python_environment_activated')
   }
 
-  const motiaFileStoragePath = motiaFileStorageDir || '.motia'
+  const lockedData = await generateLockedData(baseDir)
 
-  const appConfig = await loadMotiaConfig(baseDir)
-
-  const redisClient: RedisClientType = await instanceRedisMemoryServer(motiaFileStoragePath, true)
-
-  const adapters = {
-    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),
-  }
-
-  const lockedData = await generateLockedData({
-    projectDir: baseDir,
-    streamAdapter: adapters.streamAdapter,
-    redisClient,
-    streamAuth: appConfig.streamAuth,
+  const eventManager = createEventManager()
+  const state = createStateAdapter({
+    adapter: 'default',
+    filePath: path.join(baseDir, '.motia'),
   })
 
-  const state = appConfig.adapters?.state || new RedisStateAdapter(redisClient)
-
   const config = { isVerbose }
-
-  const motiaServer = createServer(lockedData, state, config, adapters, appConfig.app)
+  const motiaServer = createServer(lockedData, eventManager, state, config)
   const watcher = createDevWatchers(lockedData, motiaServer, motiaServer.motiaEventManager, motiaServer.cronManager)
-  const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   // Initialize mermaid generator
   if (enableMermaid) {
@@ -94,6 +71,8 @@ export const dev = async (
     mermaidGenerator.initialize(lockedData)
     trackEvent('mermaid_generator_initialized')
   }
+
+  watcher.init()
 
   deployEndpoints(motiaServer, lockedData)
 
@@ -124,24 +103,21 @@ export const dev = async (
   })
 
   const { applyMiddleware } = process.env.__MOTIA_DEV_MODE__
-    ? require('@motiadev/workbench/middleware')
-    : require('@motiadev/workbench/dist/middleware')
-  await applyMiddleware({
-    app: motiaServer.app,
-    port,
-    workbenchBase,
-    plugins: plugins.flatMap((item) => item.workbench),
-  })
+    ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('@motiadev/workbench/middleware')
+    : // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('@motiadev/workbench/dist/middleware')
+  await applyMiddleware(motiaServer.app, port, workbenchBase)
 
   motiaServer.server.listen(port, hostname)
   console.log('🚀 Server ready and listening on port', port)
   console.log(`🔗 Open http://localhost:${port}${workbenchBase} to open workbench 🛠️`)
 
+  // 6) Gracefully shut down on SIGTERM
   process.on('SIGTERM', async () => {
     trackEvent('dev_server_shutdown', { reason: 'SIGTERM' })
     motiaServer.server.close()
     await watcher.stop()
-    await stopRedisMemoryServer()
     await flush().promise
     process.exit(0)
   })
@@ -150,7 +126,6 @@ export const dev = async (
     trackEvent('dev_server_shutdown', { reason: 'SIGINT' })
     motiaServer.server.close()
     await watcher.stop()
-    await stopRedisMemoryServer()
     await flush().promise
     process.exit(0)
   })

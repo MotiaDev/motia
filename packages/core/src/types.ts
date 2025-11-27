@@ -1,13 +1,8 @@
-import type { ZodArray, ZodObject } from 'zod'
-import type { Logger } from './logger'
-import type { Tracer } from './observability'
-import type { JsonSchema } from './types/schema.types'
+import { z, ZodArray, ZodObject } from 'zod'
+import { Logger } from './logger'
+import { Tracer } from './observability'
 
-export * from './types/app-config-types'
-
-export type ZodInput = ZodObject<any> | ZodArray<any>
-
-export type StepSchemaInput = ZodInput | JsonSchema
+export type ZodInput = ZodObject<any> | ZodArray<any> // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
@@ -17,10 +12,10 @@ export type InternalStateManager = {
   clear(groupId: string): Promise<void>
 }
 
-export type EmitData = { topic: ''; data: unknown; messageGroupId?: string }
+export type EmitData = { topic: ''; data: unknown }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
-// biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface FlowContextStateStreams {}
 
 export interface FlowContext<TEmitData = never> {
@@ -35,24 +30,6 @@ export type EventHandler<TInput, TEmitData> = (input: TInput, ctx: FlowContext<T
 
 export type Emit = string | { topic: string; label?: string; conditional?: boolean }
 
-export type HandlerConfig = {
-  ram: number
-  cpu?: number
-  timeout: number
-}
-
-export type QueueConfig = {
-  type: 'fifo' | 'standard'
-  maxRetries: number
-  visibilityTimeout: number
-  delaySeconds: number
-}
-
-export type InfrastructureConfig = {
-  handler?: Partial<HandlerConfig>
-  queue?: Partial<QueueConfig>
-}
-
 export type EventConfig = {
   type: 'event'
   name: string
@@ -61,14 +38,13 @@ export type EventConfig = {
   emits: Emit[]
   virtualEmits?: Emit[]
   virtualSubscribes?: string[]
-  input?: StepSchemaInput
+  input: ZodInput
   flows?: string[]
   /**
    * Files to include in the step bundle.
    * Needs to be relative to the step file.
    */
   includeFiles?: string[]
-  infrastructure?: Partial<InfrastructureConfig>
 }
 
 export type NoopConfig = {
@@ -103,9 +79,9 @@ export interface ApiRouteConfig {
   virtualEmits?: Emit[]
   virtualSubscribes?: string[]
   flows?: string[]
-  middleware?: ApiMiddleware<any, any, any>[]
-  bodySchema?: StepSchemaInput
-  responseSchema?: Record<number, StepSchemaInput>
+  middleware?: ApiMiddleware<any, any, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
+  bodySchema?: ZodInput
+  responseSchema?: Record<number, ZodInput>
   queryParams?: QueryParam[]
   /**
    * Files to include in the step bundle.
@@ -155,11 +131,11 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
  * @deprecated Use `Handlers` instead.
  */
 export type StepHandler<T> = T extends EventConfig
-  ? EventHandler<unknown, { topic: string; data: any }>
+  ? EventHandler<z.infer<T['input']>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
   : T extends ApiRouteConfig
-    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }>
+    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
     : T extends CronConfig
-      ? CronHandler<{ topic: string; data: any }>
+      ? CronHandler<{ topic: string; data: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
       : never
 
 export type Event<TData = unknown> = {
@@ -169,7 +145,6 @@ export type Event<TData = unknown> = {
   flows?: string[]
   logger: Logger
   tracer: Tracer
-  messageGroupId?: string
 }
 
 export type Handler<TData = unknown> = (event: Event<TData>) => Promise<void>
@@ -186,13 +161,15 @@ export type UnsubscribeConfig = {
   event: string
 }
 
+export type EventManager = {
+  emit: <TData>(event: Event<TData>, file?: string) => Promise<void>
+  subscribe: <TData>(config: SubscribeConfig<TData>) => void
+  unsubscribe: (config: UnsubscribeConfig) => void
+}
+
 export type StepConfig = EventConfig | NoopConfig | ApiRouteConfig | CronConfig
 
 export type Step<TConfig extends StepConfig = StepConfig> = { filePath: string; version: string; config: TConfig }
-
-export type PluginStep<TConfig extends StepConfig = ApiRouteConfig> = Step<TConfig> & {
-  handler?: ApiRouteHandler<any, any, any>
-}
 
 export type Flow = {
   name: string
@@ -200,11 +177,5 @@ export type Flow = {
   steps: Step[]
 }
 
-// biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Handlers {}
-
-declare module 'http' {
-  interface IncomingMessage {
-    authContext?: unknown | null
-  }
-}
