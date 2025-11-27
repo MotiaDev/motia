@@ -1,5 +1,6 @@
 import type { Event, EventAdapter, QueueConfig, SubscriptionHandle } from '@motiadev/core'
-import { buildConfig } from './config-builder'
+import type { Redis } from 'ioredis'
+import { buildConfig, type MergedConfig } from './config-builder'
 import { ConnectionManager } from './connection-manager'
 import { DLQManager } from './dlq-manager'
 import { QueueManager } from './queue-manager'
@@ -8,30 +9,55 @@ import { WorkerManager } from './worker-manager'
 
 export class BullMQEventAdapter implements EventAdapter {
   private readonly connectionManager: ConnectionManager
-  private readonly queueManager: QueueManager
-  private readonly workerManager: WorkerManager
-  private readonly dlqManager: DLQManager
+  private readonly _queueManager: QueueManager
+  private readonly _workerManager: WorkerManager
+  private readonly _dlqManager: DLQManager
+  private readonly _config: MergedConfig
 
   constructor(config: BullMQEventAdapterConfig) {
-    const mergedConfig = buildConfig(config)
+    this._config = buildConfig(config)
     this.connectionManager = new ConnectionManager(config.connection)
-    this.queueManager = new QueueManager(this.connectionManager.connection, mergedConfig)
-    this.dlqManager = new DLQManager(this.connectionManager.connection, mergedConfig)
-    this.workerManager = new WorkerManager(
+    this._queueManager = new QueueManager(this.connectionManager.connection, this._config)
+    this._dlqManager = new DLQManager(this.connectionManager.connection, this._config)
+    this._workerManager = new WorkerManager(
       this.connectionManager.connection,
-      mergedConfig,
-      (topic, stepName) => this.queueManager.getQueueName(topic, stepName),
-      this.dlqManager,
+      this._config,
+      (topic, stepName) => this._queueManager.getQueueName(topic, stepName),
+      this._dlqManager,
     )
   }
 
+  get connection(): Redis {
+    return this.connectionManager.connection
+  }
+
+  get prefix(): string {
+    return this._config.prefix
+  }
+
+  get dlqSuffix(): string {
+    return this._config.dlq.suffix
+  }
+
+  get queueManager(): QueueManager {
+    return this._queueManager
+  }
+
+  get workerManager(): WorkerManager {
+    return this._workerManager
+  }
+
+  get dlqManager(): DLQManager {
+    return this._dlqManager
+  }
+
   async emit<TData>(event: Event<TData>): Promise<void> {
-    const subscribers = this.workerManager.getSubscribers(event.topic)
+    const subscribers = this._workerManager.getSubscribers(event.topic)
     if (subscribers.length === 0) {
       return
     }
 
-    await this.queueManager.enqueueToAll(event, subscribers)
+    await this._queueManager.enqueueToAll(event, subscribers)
   }
 
   async subscribe<TData>(
@@ -40,23 +66,27 @@ export class BullMQEventAdapter implements EventAdapter {
     handler: (event: Event<TData>) => void | Promise<void>,
     options?: QueueConfig,
   ): Promise<SubscriptionHandle> {
-    const queueName = this.queueManager.getQueueName(topic, stepName)
-    this.queueManager.getQueue(queueName)
+    const queueName = this._queueManager.getQueueName(topic, stepName)
+    this._queueManager.getQueue(queueName)
 
-    return this.workerManager.createWorker(topic, stepName, handler, options)
+    return this._workerManager.createWorker(topic, stepName, handler, options)
   }
 
   async unsubscribe(handle: SubscriptionHandle): Promise<void> {
-    const workerInfo = this.workerManager.getWorkerInfo(handle.id)
+    const workerInfo = this._workerManager.getWorkerInfo(handle.id)
     if (workerInfo) {
-      const queueName = this.queueManager.getQueueName(workerInfo.topic, workerInfo.stepName)
-      await this.queueManager.closeQueue(queueName)
-      await this.workerManager.removeWorker(handle.id)
+      const queueName = this._queueManager.getQueueName(workerInfo.topic, workerInfo.stepName)
+      await this._queueManager.closeQueue(queueName)
+      await this._workerManager.removeWorker(handle.id)
     }
   }
 
   async shutdown(): Promise<void> {
-    await Promise.allSettled([this.workerManager.closeAll(), this.queueManager.closeAll(), this.dlqManager.closeAll()])
+    await Promise.allSettled([
+      this._workerManager.closeAll(),
+      this._queueManager.closeAll(),
+      this._dlqManager.closeAll(),
+    ])
 
     try {
       await this.connectionManager.close()
@@ -66,10 +96,10 @@ export class BullMQEventAdapter implements EventAdapter {
   }
 
   async getSubscriptionCount(topic: string): Promise<number> {
-    return this.workerManager.getSubscriptionCount(topic)
+    return this._workerManager.getSubscriptionCount(topic)
   }
 
   async listTopics(): Promise<string[]> {
-    return this.workerManager.listTopics()
+    return this._workerManager.listTopics()
   }
 }

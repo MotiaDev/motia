@@ -27,7 +27,7 @@ export type QueueInfo = {
   stats: QueueStats
 }
 
-export type JobProgress = number | string | object | null
+export type JobProgress = number | string | object | boolean | null
 
 export type JobInfo = {
   id: string

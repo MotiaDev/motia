@@ -75,17 +75,25 @@ export class DLQManager {
       const dlqQueueName = this.getDLQQueueName(topic, stepName)
       const dlqQueue = this.getOrCreateDLQQueue(dlqQueueName)
 
+      const sanitizedEvent = {
+        topic: event.topic,
+        data: event.data,
+        traceId: event.traceId || 'unknown',
+        ...(event.flows && { flows: event.flows }),
+        ...(event.messageGroupId && { messageGroupId: event.messageGroupId }),
+      } as Event<TData>
+
       const dlqJobData: DLQJobData<TData> = {
-        originalEvent: event,
-        failureReason: error.message,
+        originalEvent: sanitizedEvent,
+        failureReason: error.message || 'Unknown error',
         failureTimestamp: Date.now(),
         attemptsMade,
-        originalJobId,
+        ...(originalJobId && { originalJobId }),
       }
 
-      const jobId = originalJobId ? `${DLQ_JOB_PREFIX}${originalJobId}` : undefined
+      const jobOptions = originalJobId ? { jobId: `${DLQ_JOB_PREFIX}${originalJobId}` } : {}
 
-      await dlqQueue.add(`${topic}.dlq`, dlqJobData, { jobId })
+      await dlqQueue.add(`${topic}.dlq`, dlqJobData, jobOptions)
 
       console.warn(`${LOG_PREFIX} Moved failed job to DLQ: ${dlqQueueName}`, {
         topic,
@@ -119,5 +127,25 @@ export class DLQManager {
 
   getDLQQueue(queueName: string): Queue | undefined {
     return this.dlqQueues.get(queueName)
+  }
+
+  getOrCreateDLQ(queueName: string): Queue {
+    return this.getOrCreateDLQQueue(queueName)
+  }
+
+  listDLQQueueNames(): string[] {
+    return Array.from(this.dlqQueues.keys())
+  }
+
+  getDLQSuffix(): string {
+    return this.config.dlq.suffix
+  }
+
+  getPrefix(): string {
+    return this.config.prefix
+  }
+
+  getConnection(): Redis {
+    return this.connection
   }
 }

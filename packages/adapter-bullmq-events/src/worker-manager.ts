@@ -6,11 +6,18 @@ import { FIFO_CONCURRENCY, MILLISECONDS_PER_SECOND } from './constants'
 import type { DLQManager } from './dlq-manager'
 import { WorkerCreationError } from './errors'
 
+export type SubscriberInfo = {
+  topic: string
+  stepName: string
+  queueConfig?: QueueConfig
+}
+
 type WorkerInfo = {
   worker: Worker
   topic: string
   stepName: string
   handle: SubscriptionHandle
+  queueConfig?: QueueConfig
 }
 
 type JobData<TData> = {
@@ -53,7 +60,7 @@ export class WorkerManager {
     this.addTopicSubscription(topic, id)
 
     const concurrency = options?.type === 'fifo' ? FIFO_CONCURRENCY : this.config.concurrency
-    const attempts = options?.maxRetries ?? this.config.defaultJobOptions.attempts
+    const attempts = options?.maxRetries != null ? options.maxRetries + 1 : this.config.defaultJobOptions.attempts
     const lockDuration = options?.visibilityTimeout ? options.visibilityTimeout * MILLISECONDS_PER_SECOND : undefined
 
     const worker = new Worker(
@@ -79,7 +86,7 @@ export class WorkerManager {
       },
     )
 
-    this.setupWorkerHandlers(worker, topic, stepName, attempts ?? 1)
+    this.setupWorkerHandlers(worker, topic, stepName, attempts ?? 3)
 
     const handle: SubscriptionHandle = {
       topic,
@@ -94,13 +101,14 @@ export class WorkerManager {
       topic,
       stepName,
       handle,
+      queueConfig: options,
     }
 
     this.workers.set(id, workerInfo)
     return handle
   }
 
-  getSubscribers(topic: string): Array<{ topic: string; stepName: string }> {
+  getSubscribers(topic: string): SubscriberInfo[] {
     const subscriptionIds = this.topicSubscriptions.get(topic)
     if (!subscriptionIds || subscriptionIds.size === 0) {
       return []
@@ -109,7 +117,7 @@ export class WorkerManager {
     return Array.from(subscriptionIds)
       .map((id) => this.workers.get(id))
       .filter((info): info is WorkerInfo => info !== undefined)
-      .map((info) => ({ topic: info.topic, stepName: info.stepName }))
+      .map((info) => ({ topic: info.topic, stepName: info.stepName, queueConfig: info.queueConfig }))
   }
 
   getWorkerInfo(id: string): WorkerInfo | undefined {
@@ -177,17 +185,14 @@ export class WorkerManager {
       if (job) {
         const attemptsMade = job.attemptsMade || 0
         if (attemptsMade >= attempts) {
-          const error = new WorkerCreationError(topic, stepName, err)
-          console.error(`[BullMQ] Job ${job.id} failed after ${attemptsMade} attempts:`, error)
-
           if (this.dlqManager) {
             const eventData = job.data
             const event = {
-              topic: eventData.topic,
+              topic: eventData.topic || topic,
               data: eventData.data,
-              traceId: eventData.traceId,
-              flows: eventData.flows,
-              messageGroupId: eventData.messageGroupId,
+              traceId: eventData.traceId || 'unknown',
+              ...(eventData.flows && { flows: eventData.flows }),
+              ...(eventData.messageGroupId && { messageGroupId: eventData.messageGroupId }),
             } as Event<unknown>
 
             await this.dlqManager.moveToDLQ(topic, stepName, event, err, attemptsMade, job.id)
