@@ -1,4 +1,4 @@
-import type { StepConfig } from '../types'
+import { StepConfig } from '../types'
 
 export interface TraceGroup {
   id: string

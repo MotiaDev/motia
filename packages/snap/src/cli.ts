@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { program } from 'commander'
 import './cloud'
-import { handler } from './cloud/config-utils'
-import { wrapAction } from './utils/analytics'
 import { version } from './version'
+import { handler } from './cloud/config-utils'
 
 const defaultPort = 3000
 const defaultHost = '0.0.0.0'
@@ -24,25 +23,29 @@ program
   })
 
 program
-  .command('create [name]')
+  .command('create')
   .description('Create a new motia project')
+  .option(
+    '-n, --name <project name>',
+    'The name for your project, used to create a directory, use ./ or . to create it under the existing directory',
+  )
   .option('-t, --template <template>', 'The template to use for your project')
-  .option('-p, --plugin', 'Create a plugin project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
-  .action((projectName, options) => {
-    const mergedArgs = { ...options, name: projectName }
-    return handler(async (arg, context) => {
+  .option('-c, --confirm', 'Confirm the project creation', false)
+  .action(
+    handler(async (arg, context) => {
       const { createInteractive } = require('./create/interactive')
+
       await createInteractive(
         {
           name: arg.name,
           template: arg.template,
-          plugin: !!arg.plugin,
+          confirm: !!arg.confirm,
         },
         context,
       )
-    })(mergedArgs)
-  })
+    }),
+  )
 
 program
   .command('rules')
@@ -59,24 +62,20 @@ program
 program
   .command('generate-types')
   .description('Generate types.d.ts file for your project')
-  .action(
-    wrapAction(async () => {
-      const { generateTypes } = require('./generate-types')
-      await generateTypes(process.cwd())
-      process.exit(0)
-    }),
-  )
+  .action(async () => {
+    const { generateTypes } = require('./generate-types')
+    await generateTypes(process.cwd())
+    process.exit(0)
+  })
 
 program
   .command('install')
   .description('Sets up Python virtual environment and install dependencies')
   .option('-v, --verbose', 'Enable verbose logging')
-  .action(
-    wrapAction(async (options) => {
-      const { install } = require('./install')
-      await install({ isVerbose: options.verbose })
-    }),
-  )
+  .action(async (options) => {
+    const { install } = require('./install')
+    await install({ isVerbose: options.verbose })
+  })
 
 program
   .command('dev')
@@ -86,20 +85,17 @@ program
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
   .option('-m, --mermaid', 'Enable mermaid diagram generation')
-  .option('--motia-dir <path>', 'Path where .motia folder will be created')
-  .action(
-    wrapAction(async (arg) => {
-      if (arg.debug) {
-        console.log('🔍 Debug logging enabled')
-        process.env.LOG_LEVEL = 'debug'
-      }
+  .action(async (arg) => {
+    if (arg.debug) {
+      console.log('🔍 Debug logging enabled')
+      process.env.LOG_LEVEL = 'debug'
+    }
 
-      const port = arg.port ? parseInt(arg.port) : defaultPort
-      const host = arg.host ? arg.host : defaultHost
-      const { dev } = require('./dev')
-      await dev(port, host, arg.disableVerbose, arg.mermaid, arg.motiaDir)
-    }),
-  )
+    const port = arg.port ? parseInt(arg.port) : defaultPort
+    const host = arg.host ? arg.host : defaultHost
+    const { dev } = require('./dev')
+    await dev(port, host, arg.disableVerbose, arg.mermaid)
+  })
 
 program
   .command('start')
@@ -108,20 +104,17 @@ program
   .option('-H, --host [host]', 'The host address for the server', `${defaultHost}`)
   .option('-v, --disable-verbose', 'Disable verbose logging')
   .option('-d, --debug', 'Enable debug logging')
-  .option('--motia-dir <path>', 'Path where .motia folder will be created')
-  .action(
-    wrapAction(async (arg) => {
-      if (arg.debug) {
-        console.log('🔍 Debug logging enabled')
-        process.env.LOG_LEVEL = 'debug'
-      }
+  .action(async (arg) => {
+    if (arg.debug) {
+      console.log('🔍 Debug logging enabled')
+      process.env.LOG_LEVEL = 'debug'
+    }
 
-      const port = arg.port ? parseInt(arg.port) : defaultPort
-      const host = arg.host ? arg.host : defaultHost
-      const { start } = require('./start')
-      await start(port, host, arg.disableVerbose, arg.motiaDir)
-    }),
-  )
+    const port = arg.port ? parseInt(arg.port) : defaultPort
+    const host = arg.host ? arg.host : defaultHost
+    const { start } = require('./start')
+    await start(port, host, arg.disableVerbose)
+  })
 
 program
   .command('emit')
@@ -129,11 +122,11 @@ program
   .requiredOption('--topic <topic>', 'Event topic/type to emit')
   .requiredOption('--message <message>', 'Event payload as JSON string')
   .option('-p, --port <number>', 'Port number (default: 3000)')
-  .action(
-    wrapAction(async (options) => {
-      const port = options.port || 3000
-      const url = `http://localhost:${port}/emit`
+  .action(async (options) => {
+    const port = options.port || 3000
+    const url = `http://localhost:${port}/emit`
 
+    try {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -149,8 +142,11 @@ program
 
       const result = await response.json()
       console.log('Event emitted successfully:', result)
-    }),
-  )
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : 'Unknown error')
+      process.exit(1)
+    }
+  })
 
 const generate = program.command('generate').description('Generate motia resources')
 
@@ -158,46 +154,23 @@ generate
   .command('step')
   .description('Create a new step with interactive prompts')
   .option('-d, --dir <step file path>', 'The path relative to the steps directory, used to create the step file')
-  .action(
-    wrapAction(async (arg) => {
-      const { createStep } = require('./create-step')
-      await createStep({
-        stepFilePath: arg.dir,
-      })
-    }),
-  )
-
-generate
-  .command('openapi')
-  .description('Generate OpenAPI spec for your project')
-  .option('-t, --title <title>', 'Title for the OpenAPI document. Defaults to project name')
-  .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
-  .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
-  .action(
-    wrapAction(async (options) => {
-      const { generateLockedData } = require('./generate-locked-data')
-      const { generateOpenApi } = require('./openapi/generate')
-
-      const lockedData = await generateLockedData({ projectDir: process.cwd() })
-      const apiSteps = lockedData.apiSteps()
-
-      generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)
-      process.exit(0)
-    }),
-  )
+  .action(async (arg) => {
+    const { createStep } = require('./create-step')
+    await createStep({
+      stepFilePath: arg.dir,
+    })
+  })
 
 const docker = program.command('docker').description('Motia docker commands')
 
 docker
   .command('setup')
   .description('Setup a motia-docker for your project')
-  .action(
-    wrapAction(async () => {
-      const { setup } = require('./docker/setup')
-      await setup()
-      process.exit(0)
-    }),
-  )
+  .action(async () => {
+    const { setup } = require('./docker/setup')
+    await setup()
+    process.exit(0)
+  })
 
 docker
   .command('run')
@@ -205,27 +178,21 @@ docker
   .option('-p, --port <port>', 'The port to run the server on', `${defaultPort}`)
   .option('-n, --project-name <project name>', 'The name for your project')
   .option('-s, --skip-build', 'Skip docker build')
-  .action(
-    wrapAction(async (arg) => {
-      const { run } = require('./docker/run')
-      await run(arg.port, arg.projectName, arg.skipBuild)
-      process.exit(0)
-    }),
-  )
+  .action(async (arg) => {
+    const { run } = require('./docker/run')
+    await run(arg.port, arg.projectName, arg.skipBuild)
+    process.exit(0)
+  })
 
 docker
   .command('build')
   .description('Build your project in a docker container')
   .option('-n, --project-name <project name>', 'The name for your project')
-  .action(
-    wrapAction(async (arg) => {
-      const { build } = require('./docker/build')
-      await build(arg.projectName)
-      process.exit(0)
-    }),
-  )
+  .action(async (arg) => {
+    const { build } = require('./docker/build')
+    await build(arg.projectName)
+    process.exit(0)
+  })
 
 program.version(version, '-V, --version', 'Output the current version')
-program.parseAsync(process.argv).catch(() => {
-  process.exit(1)
-})
+program.parse(process.argv)

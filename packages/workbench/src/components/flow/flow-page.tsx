@@ -1,23 +1,21 @@
-import { useStreamItem } from '@motiadev/stream-client-react'
-import { ReactFlowProvider } from '@xyflow/react'
-import { memo, useMemo } from 'react'
 import { useFlowStore } from '@/stores/use-flow-store'
-import type { FlowConfigResponse, FlowResponse } from '@/types/flow'
+import { FlowConfigResponse, FlowResponse } from '@/types/flow'
+import { useStreamItem } from '@motiadev/stream-client-react'
 import { FlowView } from './flow-view'
 
-export const FlowPage = memo(() => {
+export const FlowPage = () => {
   const selectedFlowId = useFlowStore((state) => state.selectedFlowId)
-  const streamItemArgs = useMemo(
-    () => ({ streamName: '__motia.flows', groupId: 'default', id: selectedFlowId ?? '' }),
-    [selectedFlowId],
-  )
-  const { data: flow } = useStreamItem<FlowResponse>(streamItemArgs)
+  const { data: flow } = useStreamItem<FlowResponse>({
+    streamName: '__motia.flows',
+    groupId: 'default',
+    id: selectedFlowId ?? '',
+  })
 
-  const streamItemArgsConfig = useMemo(
-    () => ({ streamName: '__motia.flowsConfig', groupId: 'default', id: selectedFlowId ?? '' }),
-    [selectedFlowId],
-  )
-  const { data: flowConfig } = useStreamItem<FlowConfigResponse>(streamItemArgsConfig)
+  const { data: flowConfig } = useStreamItem<FlowConfigResponse>({
+    streamName: '__motia.flowsConfig',
+    groupId: 'default',
+    id: selectedFlowId ?? '',
+  })
 
   if (!flow || flow.error)
     return (
@@ -26,10 +24,5 @@ export const FlowPage = memo(() => {
       </div>
     )
 
-  return (
-    <ReactFlowProvider>
-      <FlowView flow={flow} flowConfig={flowConfig!} />
-    </ReactFlowProvider>
-  )
-})
-FlowPage.displayName = 'FlowPage'
+  return <FlowView flow={flow} flowConfig={flowConfig!} />
+}

@@ -1,12 +1,12 @@
+import { StreamAdapter } from './adapters/stream-adapter'
 import fs from 'fs'
-import { StreamAdapter } from '../adapters/interfaces/stream-adapter.interface'
-import type { FlowConfig } from '../types/flows-config-types'
+import { FlowConfig } from '../types/flows-config-types'
 
 export class FlowsConfigStream extends StreamAdapter<FlowConfig> {
   private config: FlowConfig[] = []
 
   constructor(private readonly configPath: string) {
-    super('__motia.flows-config')
+    super()
   }
 
   private getConfig(): FlowConfig[] {
@@ -32,6 +32,7 @@ export class FlowsConfigStream extends StreamAdapter<FlowConfig> {
     return allFlowsConfig.find((flow) => flow.id === id) || null
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async delete(_: string): Promise<null> {
     return null
   }

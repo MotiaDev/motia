@@ -1,8 +1,13 @@
 import { Button } from '@motiadev/ui'
-import Loader2 from 'lucide-react/icons/loader-2'
+import { Loader2, Play } from 'lucide-react'
 import { memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { getBodySelector, getHeadersSelector, useEndpointConfiguration } from '../hooks/use-endpoint-configuration'
+import {
+  getBodyIsValidSelector,
+  getBodySelector,
+  getHeadersSelector,
+  useEndpointConfiguration,
+} from '../hooks/use-endpoint-configuration'
 import { usePathUrl } from '../hooks/use-path-url'
 
 type TriggerButtonProps = {
@@ -48,8 +53,8 @@ export const TriggerButton = memo(({ method, path }: TriggerButtonProps) => {
   }
 
   return (
-    <Button variant="accent" size="sm" onClick={onClick} disabled={isLoading} data-testid="endpoint-play-button">
-      {isLoading ? <Loader2 className="animate-spin" /> : 'Send'}
+    <Button variant="ghost" size="icon" onClick={onClick} disabled={isLoading} data-testid="endpoint-play-button">
+      {isLoading ? <Loader2 className="animate-spin" /> : <Play className="h-4 w-4" />}
     </Button>
   )
 })

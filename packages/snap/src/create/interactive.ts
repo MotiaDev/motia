@@ -1,56 +1,34 @@
+import inquirer, { QuestionCollection } from 'inquirer'
 import colors from 'colors'
-import inquirer, { type QuestionCollection } from 'inquirer'
-import type { CliContext } from '../cloud/config-utils'
 import { create } from './index'
+import { CliContext } from '../cloud/config-utils'
 
 interface InteractiveAnswers {
   template: string
   projectName: string
+  proceed: boolean
 }
 
 const choices: Record<string, string> = {
-  nodejs: 'Tutorial (TypeScript)',
-  python: 'Tutorial (Python)',
-  'starter-typescript': 'Starter (TypeScript)',
-  'starter-javascript': 'Starter (JavaScript)',
-  'starter-python': 'Starter (Python)',
+  nodejs: 'Base (TypeScript)',
+  python: 'Base (Python)',
 }
 
 interface CreateInteractiveArgs {
   name?: string
   template?: string
-  plugin?: boolean
+  confirm?: boolean
 }
 
 export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
-  context.log('welcome', (message) =>
-    message.append(
-      `\n🚀 ${colors.bold(args.plugin ? 'Welcome to Motia Plugin Creator!' : 'Welcome to Motia Project Creator!')}`,
-    ),
-  )
+  context.log('welcome', (message) => message.append('\n🚀 ' + colors.bold('Welcome to Motia Project Creator!')))
 
   const questions: QuestionCollection<never>[] = []
 
   let name = args.name
   let template = args.template
 
-  if (args.plugin) {
-    if (!args.name) {
-      context.log('failed', (message) =>
-        message
-          .tag('failed')
-          .append(`Project name is required: ${colors.bold('motia create --plugin [project-name]')}\n`),
-      )
-      return
-    }
-
-    return create({
-      projectName: args.name,
-      template: 'plugin',
-      cursorEnabled: false,
-      context,
-    })
-  } else if (!args.template) {
+  if (!args.template) {
     questions.push({
       type: 'list',
       name: 'template',
@@ -79,8 +57,23 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
     })
   }
 
+  if (!args.confirm) {
+    questions.push({
+      type: 'confirm',
+      name: 'proceed',
+      message: 'Proceed? [Y/n]:',
+      default: true,
+    })
+  }
+
   if (questions.length > 0) {
     const answers: InteractiveAnswers = await inquirer.prompt(questions)
+
+    if (!args.confirm && !answers.proceed) {
+      context.log('cancelled', (message) => message.tag('info').append('\n❌ Project creation cancelled.'))
+      return
+    }
+
     name = args.name || answers.projectName
     template = args.template || answers.template
   }

@@ -1,4 +1,4 @@
-import type React from 'react'
+import React from 'react'
 import type { ButtonHTMLAttributes } from 'react'
 
 interface ButtonSecondaryProps extends ButtonHTMLAttributes<HTMLButtonElement> {

@@ -58,6 +58,7 @@
 
 .driver-popover-title {
   padding: 16px 16px 0 16px;
+  
 }
 
 .driver-popover-description {
@@ -121,7 +122,7 @@
 }
 
 .driver-popover-navigation-btns-hint:hover:before {
-  content: 'Use the right arrow key to navigate';
+  content: 'Use arrow keys to navigate';
   position: absolute;
   color: white;
   top: -20px;
@@ -154,8 +155,7 @@
   display: none;
 }
 
-.driver-popover-next-btn,
-.driver-popover-next-btn:hover {
+.driver-popover-next-btn, .driver-popover-next-btn:hover {
   color: white;
   padding: 16px 32px;
 }
@@ -201,7 +201,7 @@
   background: var(--tutorial-code-bg);
   padding: 16px;
   border-radius: 8px;
-
+  
   code {
     font-size: 14px;
     font-weight: 400;

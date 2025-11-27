@@ -1,7 +1,6 @@
-import type { JSONSchema } from 'zod/v4/core'
-import { isAnyOf } from './schema.types'
+import { isAnyOf, JsonSchema } from './schema.types'
 
-export const generateTypeFromSchema = (schema: JSONSchema.BaseSchema): string => {
+export const generateTypeFromSchema = (schema: JsonSchema): string => {
   if (!schema) {
     return 'unknown'
   }
@@ -12,26 +11,23 @@ export const generateTypeFromSchema = (schema: JSONSchema.BaseSchema): string =>
   }
 
   if (schema.type === 'array') {
-    const itemType = schema.items ? generateTypeFromSchema(schema.items as JSONSchema.ArraySchema) : 'unknown'
+    const itemType = schema.items ? generateTypeFromSchema(schema.items) : 'unknown'
     return `Array<${itemType}>`
   }
 
   if (schema.type === 'object' && schema.properties) {
     const props = Object.entries(schema.properties).map(([key, prop]) => {
       const isRequired = schema.required?.includes(key)
-      const propType = generateTypeFromSchema(prop as JSONSchema.BaseSchema)
+      const propType = generateTypeFromSchema(prop)
       return `${key}${isRequired ? '' : '?'}: ${propType}`
     })
     return props.length > 0 ? `{ ${props.join('; ')} }` : '{}'
   } else if (schema.type === 'object' && schema.additionalProperties) {
-    const propType = generateTypeFromSchema(schema.additionalProperties as JSONSchema.BaseSchema)
+    const propType = generateTypeFromSchema(schema.additionalProperties)
     return `Record<string, ${propType}>`
   }
 
   if (schema.type === 'string') {
-    if (schema.format === 'binary') {
-      return 'Buffer'
-    }
     return schema.enum && schema.enum.length > 0 // must have at least one enum value
       ? schema.enum.map((value) => `'${value}'`).join(' | ')
       : 'string'

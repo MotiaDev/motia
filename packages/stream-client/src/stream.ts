@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid'
-import type { SocketAdapterFactory } from './adapter-factory'
-import type { SocketAdapter } from './socket-adapter'
-import type { BaseMessage, ItemEventMessage } from './stream.types'
 import { StreamGroupSubscription } from './stream-group'
 import { StreamItemSubscription } from './stream-item'
-import type { StreamSubscription } from './stream-subscription'
+import { StreamSubscription } from './stream-subscription'
+import { BaseMessage, ItemEventMessage } from './stream.types'
+import { SocketAdapter } from './socket-adapter'
+import { SocketAdapterFactory } from './adapter-factory'
 
 export class Stream {
   private ws: SocketAdapter

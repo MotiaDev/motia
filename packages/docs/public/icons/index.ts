@@ -1,14 +1,14 @@
-export { default as CodeSandboxIcon } from './CodeSandboxIcon'
-export { default as GitHubIcon } from './GitHubIcon'
-export { default as JavaScriptIcon } from './JavaScriptIcon'
-export { default as PythonIcon } from './PythonIcon'
-export { default as TypeScriptIcon } from './TypeScriptIcon'
-export type { IconProps } from './types'
+export { default as TypeScriptIcon } from './TypeScriptIcon';
+export { default as GitHubIcon } from './GitHubIcon';
+export { default as CodeSandboxIcon } from './CodeSandboxIcon';
+export { default as JavaScriptIcon } from './JavaScriptIcon';
+export { default as PythonIcon } from './PythonIcon';
 export {
-  AscendingSortIcon,
-  CheckIcon,
-  CrossOverIcon,
-  PinLocationIcon,
-  SynchronizeRefreshIcon,
   TextFlowIcon,
-} from './WorkbenchIcons'
+  AscendingSortIcon,
+  CrossOverIcon,
+  CheckIcon,
+  SynchronizeRefreshIcon,
+  PinLocationIcon
+} from './WorkbenchIcons';
+export type { IconProps } from './types'; 

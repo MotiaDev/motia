@@ -1,6 +1,6 @@
-import type { PropsWithChildren } from 'react'
+import { PropsWithChildren } from 'react'
 import { BaseNode } from './base-node/base-node'
-import type { ApiNodeProps } from './node-props'
+import { ApiNodeProps } from './node-props'
 
 type Props = PropsWithChildren<ApiNodeProps>
 

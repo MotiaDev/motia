@@ -1,15 +1,16 @@
 import fs from 'fs'
 import path from 'path'
-import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
-import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { isApiStep, isCronStep, isEventStep } from './guards'
-import { PLUGIN_FLOW_ID } from './motia'
-import type { Printer } from './printer'
+import { Printer } from './printer'
 import { validateStep } from './step-validator'
-import type { StreamFactory } from './streams/stream-factory'
-import type { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
+import { FileStreamAdapter } from './streams/adapters/file-stream-adapter'
+import { MemoryStreamAdapter } from './streams/adapters/memory-stream-adapter'
+import { StreamAdapter } from './streams/adapters/stream-adapter'
+import { StreamFactory } from './streams/stream-factory'
+import { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
+import { Stream } from './types-stream'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
-import type { Stream } from './types-stream'
+import { generatePythonTypesString } from './types/generate-python-types'
 
 type FlowEvent = 'flow-created' | 'flow-removed' | 'flow-updated'
 type StepEvent = 'step-created' | 'step-removed' | 'step-updated'
@@ -28,11 +29,12 @@ export class LockedData {
   private streamHandlers: Record<StreamEvent, ((stream: Stream) => void)[]>
   private streams: Record<string, Stream>
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private streamWrapper?: StreamWrapper<any>
 
   constructor(
     public readonly baseDir: string,
-    public readonly streamAdapter: StreamAdapterManager,
+    public readonly streamAdapter: 'file' | 'memory' = 'file',
     private readonly printer: Printer,
   ) {
     this.flows = {}
@@ -68,8 +70,39 @@ export class LockedData {
   saveTypes() {
     const types = generateTypesFromSteps(this.activeSteps, this.printer)
     const streams = generateTypesFromStreams(this.streams)
+
     const typesString = generateTypesString(types, streams)
-    fs.writeFileSync(path.join(this.baseDir, 'types.d.ts'), typesString)
+    const { internal, exports } = generatePythonTypesString(types, streams);
+
+    const motiaDir = path.join(this.baseDir, "motia");
+    if (!fs.existsSync(motiaDir)) {
+      fs.mkdirSync(motiaDir, { recursive: true });
+    }
+
+    fs.writeFileSync(path.join(motiaDir, "_internal.py"), internal);
+
+    const coreSource = path.resolve(__dirname, "../../src/python/motia_core");
+    const coreDest = path.join(motiaDir, "core");
+
+    if (!fs.existsSync(coreDest)) {
+      fs.cpSync(coreSource, coreDest, { recursive: true });
+      console.log("[motia] Core types copied to motia/core/");
+    } else {
+      console.log("[motia] Core types already exist, skipping copy");
+    }
+
+    const reExports = exports.map(
+      (name) => `${name} = _internal.${name}`
+    ).join("\n");
+
+    const allBlock = `\n\n__all__ = [\n${exports.map((e) => `    "${e}",`).join("\n")}\n]`;
+
+    const initContent =
+      `from motia.core import *\nimport motia._internal as _internal\n\n${reExports}${allBlock}\n`;
+
+    fs.writeFileSync(path.join(motiaDir, "__init__.py"), initContent);
+
+    fs.writeFileSync(path.join(this.baseDir, "types.d.ts"), typesString);
   }
 
   on(event: FlowEvent, handler: (flowName: string) => void) {
@@ -84,30 +117,27 @@ export class LockedData {
     this.streamHandlers[event].push(handler)
   }
 
-  getActiveSteps() {
-    return this.activeSteps.filter((step) => !step.config.flows?.includes(PLUGIN_FLOW_ID))
-  }
-
   eventSteps(): Step<EventConfig>[] {
-    return this.getActiveSteps().filter(isEventStep)
+    return this.activeSteps.filter(isEventStep)
   }
 
   apiSteps(): Step<ApiRouteConfig>[] {
-    return this.getActiveSteps().filter(isApiStep)
+    return this.activeSteps.filter(isApiStep)
   }
 
   cronSteps(): Step<CronConfig>[] {
-    return this.getActiveSteps().filter(isCronStep)
+    return this.activeSteps.filter(isCronStep)
   }
 
   pythonSteps(): Step[] {
-    return this.getActiveSteps().filter((step) => step.filePath.endsWith('.py'))
+    return this.activeSteps.filter((step) => step.filePath.endsWith('.py'))
   }
 
   tsSteps(): Step[] {
-    return this.getActiveSteps().filter((step) => step.filePath.endsWith('.ts'))
+    return this.activeSteps.filter((step) => step.filePath.endsWith('.ts'))
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getStreams(): Record<string, StreamFactory<any>> {
     const streams: Record<string, StreamFactory<unknown>> = {}
 
@@ -351,6 +381,10 @@ export class LockedData {
   }
 
   private createStreamAdapter<TData>(streamName: string): StreamAdapter<TData> {
-    return this.streamAdapter.createStream<TData>(streamName)
+    if (this.streamAdapter === 'file') {
+      return new FileStreamAdapter(this.baseDir, streamName)
+    }
+
+    return new MemoryStreamAdapter<TData>()
   }
 }

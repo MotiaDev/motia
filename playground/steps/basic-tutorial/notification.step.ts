@@ -1,4 +1,4 @@
-import type { EventConfig, Handlers } from 'motia'
+import { EventConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 export const config: EventConfig = {

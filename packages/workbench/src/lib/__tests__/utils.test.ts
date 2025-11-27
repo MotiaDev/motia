@@ -108,3 +108,4 @@ describe('formatDuration', () => {
     })
   })
 })
+

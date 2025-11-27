@@ -1,13 +1,12 @@
 import path from 'path'
-import { MemoryStreamAdapterManager } from '../adapters/defaults'
 import { LockedData } from '../locked-data'
-import { NoPrinter } from '../printer'
 import { createApiStep, createCronStep, createEventStep, createNoopStep } from './fixtures/step-fixtures'
+import { NoPrinter } from '../printer'
 
 describe('LockedData', () => {
   describe('step creation', () => {
     it('should add steps to activeSteps when created', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const step = createApiStep()
       lockedData.createStep(step, { disableTypeCreation: true })
 
@@ -16,7 +15,7 @@ describe('LockedData', () => {
     })
 
     it('should add steps to devSteps when virtualEmits is present', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const step = createNoopStep()
 
       lockedData.createStep(step, { disableTypeCreation: true })
@@ -27,7 +26,7 @@ describe('LockedData', () => {
     })
 
     it('should create flows when they do not exist', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const step = createApiStep({ name: 'Test 1', flows: ['flow1', 'flow2'] })
 
       lockedData.createStep(step, { disableTypeCreation: true })
@@ -38,7 +37,7 @@ describe('LockedData', () => {
     })
 
     it('should trigger event handlers when step is created', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const handler = jest.fn()
       const step = createApiStep()
 
@@ -57,7 +56,7 @@ describe('LockedData', () => {
     const cronStep = createCronStep()
 
     beforeAll(() => {
-      lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       lockedData.createStep(apiStep, { disableTypeCreation: true })
       lockedData.createStep(eventStep, { disableTypeCreation: true })
       lockedData.createStep(cronStep, { disableTypeCreation: true })
@@ -84,7 +83,7 @@ describe('LockedData', () => {
 
   describe('step changes', () => {
     it('should handle flow changes correctly', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const oldStep = createApiStep({ flows: ['flow-1', 'flow-2'] })
       lockedData.createStep(oldStep, { disableTypeCreation: true })
 
@@ -102,7 +101,7 @@ describe('LockedData', () => {
 
     it('should handle type changes correctly', () => {
       const baseDir = '/test/dir'
-      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
       const filePath = path.join(baseDir, 'steps/flow-1/step.ts')
       const oldStep = createApiStep({}, filePath)
       lockedData.createStep(oldStep, { disableTypeCreation: true })
@@ -117,7 +116,7 @@ describe('LockedData', () => {
     it('should trigger event handlers when step is updated', () => {
       const baseDir = '/test/dir'
       const handler = jest.fn()
-      const lockedData = new LockedData(baseDir, new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(baseDir, 'memory', new NoPrinter())
       const filePath = path.join(baseDir, 'steps/flow-1/step.ts')
       const oldStep = createApiStep({}, filePath)
       lockedData.createStep(oldStep, { disableTypeCreation: true })
@@ -134,7 +133,7 @@ describe('LockedData', () => {
 
   describe('step deletion', () => {
     it('should remove steps from activeSteps and flows', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const step = createApiStep({ flows: ['flow-1'] })
 
       lockedData.createStep(step, { disableTypeCreation: true })
@@ -149,7 +148,7 @@ describe('LockedData', () => {
     })
 
     it('should remove steps from devSteps', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const step = createNoopStep()
 
       lockedData.createStep(step, { disableTypeCreation: true })
@@ -160,7 +159,7 @@ describe('LockedData', () => {
     })
 
     it('should keep flows with remaining steps', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
 
       const step1 = createApiStep({ flows: ['flow-1'] })
       const step2 = createEventStep({ flows: ['flow-1'] })
@@ -176,7 +175,7 @@ describe('LockedData', () => {
     })
 
     it('should trigger event handlers when step is deleted', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const handler = jest.fn()
       const step = createApiStep()
 
@@ -190,7 +189,7 @@ describe('LockedData', () => {
 
   describe('flow events', () => {
     it('should call handlers when flow is created', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const handler = jest.fn()
 
       lockedData.on('flow-created', handler)
@@ -200,7 +199,7 @@ describe('LockedData', () => {
     })
 
     it('should call handlers when flow is removed', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const handler = jest.fn()
       const step = createApiStep({ flows: ['flow-1'] })
 
@@ -213,7 +212,7 @@ describe('LockedData', () => {
     })
 
     it('should call updated handlers when new step is added to flow', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const handler = jest.fn()
 
       lockedData.on('flow-updated', handler)
@@ -225,7 +224,7 @@ describe('LockedData', () => {
     })
 
     it('should call handlers when step is removed from flow', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const updateHandler = jest.fn()
       const event = createEventStep({ flows: ['flow-1'] })
 
@@ -241,7 +240,7 @@ describe('LockedData', () => {
     })
 
     it('should not call removed handlers when step is removed from flow but flow is not empty', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const deleteHandler = jest.fn()
       const event = createEventStep({ flows: ['flow-1'] })
 
@@ -256,7 +255,7 @@ describe('LockedData', () => {
     })
 
     it('should call handlers when step is updated inside a flow', () => {
-      const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+      const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
       const updateHandler = jest.fn()
       const event = createEventStep({ flows: ['flow-1'] })
 

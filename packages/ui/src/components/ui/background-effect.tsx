@@ -1,5 +1,4 @@
-import type React from 'react'
-import type { CSSProperties } from 'react'
+import React, { CSSProperties } from 'react'
 
 type PatternType = 'subtle'
 

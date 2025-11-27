@@ -14,24 +14,26 @@ pnpm add @motiadev/test --save-dev
 
 ## Features
 
-* Create mock flow contexts for testing steps and workflows
-* Simulate event emission and capture events
-* Mock loggers for testing
-* Test event-driven workflows in isolation
-* Utilities for testing state management
+- Create mock flow contexts for testing
+- Simulate event emission and capture
+- Mock loggers for testing
+- Test event-driven workflows in isolation
+- Utilities for testing state management
 
 ## Usage
 
 ### Creating a Tester
 
 ```typescript
-import { createMotiaTester } from '@motiadev/test';
+import { createTester } from '@motiadev/test';
 
 // Create a tester instance
-const tester = createMotiaTester();
+const tester = createTester();
 
 // Use the tester to test your workflows
-const response = await tester.post('/api/endpoint', { body: { data: 'test' } });
+const response = await tester.request()
+  .post('/api/endpoint')
+  .send({ data: 'test' });
 
 // Assert on the response
 expect(response.status).toBe(200);
@@ -40,18 +42,20 @@ expect(response.status).toBe(200);
 ### Capturing Events
 
 ```typescript
-import { createMotiaTester } from '@motiadev/test';
+import { createTester } from '@motiadev/test';
 
-const tester = createMotiaTester();
+const tester = createTester();
 
 // Set up event capturing
-const watcher = tester.watch('event.topic');
+const watcher = tester.watchEvents('event.topic');
 
 // Trigger an action that emits events
-await tester.post('/api/trigger', { body: { action: 'test' } });
+await tester.request()
+  .post('/api/trigger')
+  .send({ action: 'test' });
 
 // Get captured events
-const events = await watcher;
+const events = watcher.getCapturedEvents();
 expect(events).toHaveLength(1);
 expect(events[0].data).toEqual({ result: 'success' });
 ```
@@ -86,84 +90,79 @@ const logger = createMockLogger();
 logger.info('Test message');
 
 // Assert on logged messages
-expect(logger.info).toHaveBeenCalledWith('Test message');
+expect(logger.messages.info).toContain('Test message');
 ```
 
 ## API Reference
 
-### `createMotiaTester()`
+### `createTester()`
 
 Creates a tester instance for testing Motia workflows.
 
 **Returns:**
-
-* `MotiaTester`: Tester instance with methods for posting requests, watching events, and closing the tester.
+- `MotiaTester`: A tester instance with methods for testing workflows.
 
 ### `createMockFlowContext()`
 
 Creates a mock flow context for testing step handlers.
 
 **Returns:**
-
-* `MockFlowContext`: Mocked context with spied methods like `emit` and `logger`.
+- `MockFlowContext`: A mock context object with spied methods.
 
 ### `createMockLogger()`
 
 Creates a mock logger for testing logging functionality.
 
 **Returns:**
-
-* `MockLogger`: Mock logger with all standard logging methods mocked.
+- `MockLogger`: A mock logger with methods for logging and tracking messages.
 
 ### `MotiaTester` Methods
 
-* `post(path, options)` → Send POST requests to your endpoint.
-* `get(path, options)` → Send GET requests.
-* `watch(event)` → Capture events emitted on a topic.
-* `waitEvents()` → Wait for all events to be processed.
-* `emit(event)` → Emit an event.
-* `close()` → Clean up resources after testing.
+- `request()`: Returns a supertest instance for making HTTP requests.
+- `watchEvents(topic)`: Creates a watcher for capturing events on a specific topic.
+- `close()`: Closes the tester and cleans up resources.
 
 ### `Watcher` Methods
 
-* Returns a Promise of captured events.
-* `getCapturedEvents()` → Get an array of captured events.
+- `getCapturedEvents()`: Returns an array of captured events.
 
 ## Example: Testing a Complete Flow
 
 ```typescript
-import { createMotiaTester } from '@motiadev/test';
+import { createTester } from '@motiadev/test';
 import { expect, test } from 'vitest';
 
 test('complete order flow works correctly', async () => {
-  const tester = createMotiaTester();
+  const tester = createTester();
   
   // Watch for order completion events
-const orderCompletedWatcher = tester.watch('order.completed');
-
+  const orderCompletedWatcher = tester.watchEvents('order.completed');
   
   // Trigger the order creation
-const response = await tester.post('/api/orders', {
-    body: {
+  const response = await tester.request()
+    .post('/api/orders')
+    .send({
       items: [{ id: 'item1', quantity: 2 }],
       customer: { id: 'cust1', email: 'test@example.com' }
-    }
-  });
+    });
   
   // Verify the API response
   expect(response.status).toBe(200);
   expect(response.body).toHaveProperty('orderId');
   
   // Wait for all events to be processed
-  await tester.waitEvents();
+  await tester.waitForEvents();
   
   // Verify the order completed event was emitted
-  const completedEvents = await orderCompletedWatcher;
+  const completedEvents = orderCompletedWatcher.getCapturedEvents();
   expect(completedEvents).toHaveLength(1);
-  expect(completedEvents[0].data).toMatchObject({ orderId: expect.any(String), status: 'completed' });
-
+  expect(completedEvents[0].data).toMatchObject({
+    orderId: expect.any(String),
+    status: 'completed'
+  });
+  
   // Clean up
-await tester.close();
+  await tester.close();
 });
 ```
 

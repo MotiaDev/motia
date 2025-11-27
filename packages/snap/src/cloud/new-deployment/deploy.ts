@@ -1,9 +1,9 @@
-import { Stream } from '@motiadev/stream-client-node'
-import type { Builder } from '../build/builder'
-import type { CliContext } from '../config-utils'
+import { Builder } from '../build/builder'
+import { CliContext } from '../config-utils'
 import { cloudApi } from './cloud-api'
 import { cloudApiWsUrl } from './cloud-api/endpoints'
-import type { DeployData, DeployListener } from './listeners/listener.types'
+import { DeployData, DeployListener } from './listeners/listener.types'
+import { Stream } from '@motiadev/stream-client-node'
 
 export type DeployInput = {
   envVars: Record<string, string>

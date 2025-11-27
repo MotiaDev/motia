@@ -94,4 +94,3 @@ agents/**/components/
 .mermaid/
 
 playground/motia-workbench.json
-playground/openapi.json

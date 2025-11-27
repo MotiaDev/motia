@@ -1,9 +1,9 @@
-import { type ChildProcess, spawn } from 'child_process'
-import type { Logger } from '../logger'
+import { spawn, ChildProcess } from 'child_process'
+import { createCommunicationConfig, CommunicationType } from './communication-config'
 import { RpcProcessor } from '../step-handler-rpc-processor'
 import { RpcStdinProcessor } from '../step-handler-rpc-stdin-processor'
-import { type CommunicationType, createCommunicationConfig } from './communication-config'
-import type { MessageCallback, RpcHandler, RpcProcessorInterface } from './rpc-processor-interface'
+import { RpcProcessorInterface, RpcHandler, MessageCallback } from './rpc-processor-interface'
+import { Logger } from '../logger'
 
 export interface ProcessManagerOptions {
   command: string

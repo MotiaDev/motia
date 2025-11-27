@@ -1,4 +1,4 @@
-import type { ApiRouteConfig, Handlers } from 'motia'
+import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 export const config: ApiRouteConfig = {

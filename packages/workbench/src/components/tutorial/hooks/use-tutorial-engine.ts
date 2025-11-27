@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MotiaTutorial } from '../engine/tutorial-engine'
-import type { TutorialImage } from '../engine/tutorial-types'
+import { TutorialImage } from '../engine/tutorial-types'
 import { waitForElementByXPath } from './tutorial-utils'
 
 export const useTutorialEngine = () => {
@@ -150,14 +150,13 @@ export const useTutorialEngine = () => {
       setTimeout(() => {
         if (ref.current?.parentElement) {
           ref.current.parentElement.style.display = 'none'
-          setCurrentStep(0)
         }
       }, 300)
     }
   }
 
   useEffect(() => {
-    importFile('tutorial/tutorial.tsx')
+    importFile('tutorial.tsx')
       .then((module) => {
         if (Array.isArray(module.steps) && module.steps.length > 0) {
           MotiaTutorial.register(module.steps)

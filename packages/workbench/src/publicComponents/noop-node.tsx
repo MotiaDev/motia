@@ -1,7 +1,6 @@
-import type React from 'react'
-import type { PropsWithChildren } from 'react'
+import React, { PropsWithChildren } from 'react'
 import { BaseNode } from './base-node/base-node'
-import type { NoopNodeProps } from './node-props'
+import { NoopNodeProps } from './node-props'
 
 export const NoopNode: React.FC<PropsWithChildren<NoopNodeProps>> = ({ data, children }) => {
   return (

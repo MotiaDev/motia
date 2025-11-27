@@ -5,13 +5,8 @@
     "project-structure",
     "state-management",
     "streams",
-    "flows",
-    "infrastructure",
-    "adapters",
     "observability",
     "customizing-flows",
-    "plugins",
-    "middleware",
     "testing",
     "environment-variables",
     "cli"

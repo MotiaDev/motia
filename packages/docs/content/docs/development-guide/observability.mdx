@@ -1,302 +1,262 @@
 ---
 title: Observability
-description: See what's happening in your Motia app with logging, tracing, and debugging
+description: Understanding how to use the logging and debugging system in Motia
 ---
 
-Your app is running. But what's actually happening inside?
-- Is that API getting hit?
-- Did the event emit?
-- Why did that Step fail?
-- Which user triggered this flow?
+## Overview
 
-Motia gives you everything you need to answer these questions.
+Motia provides an out of the box logging and debugging system that works across different runtime environments. The system offers:
 
----
+- Real-time log streaming in both terminal and Motia Workbench
+- Multiple log levels with contextual information
+- Local development debugging tools
+- Integrated flow monitoring
 
-## Logging
+## Log Levels and Usage
 
-Every Step has a `logger` in the context. Use it to see what's happening.
+Motia supports four standard log levels:
 
-### Log Levels
+| Log Type | Description                                                                        |
+| -------- | ---------------------------------------------------------------------------------- |
+| info     | General information about step execution, flow progress, and successful operations |
+| error    | Critical issues, exceptions, failed operations, and system errors                  |
+| debug    | Detailed debugging information and diagnostic data for troubleshooting             |
+| warn     | Potential issues, edge cases, or situations requiring attention                    |
 
-| Level | When to use it |
-| ----- | -------------- |
-| `info` | Normal stuff - "User created", "Order processed" |
-| `warn` | Something's weird but not broken - "High API usage", "Slow response" |
-| `error` | Things broke - Failed API calls, exceptions, crashes |
-| `debug` | Deep debugging - Raw data, internal state, timing info |
+### Example Usage
 
----
-
-## How to Log
-
-<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
-  <Tab value='TypeScript'>
+<Tabs items={['TS', 'JS', 'Python']}>
+  <Tab value='TS'>
     ```typescript
-    export const handler: Handlers['ProcessOrder'] = async (input, { logger }) => {
-      // Simple message
-      logger.info('Processing order')
+    export const handler: Handlers['StepName'] = async (input, { logger }) => {
+      // Basic logging
+      logger.info('Starting process')
 
-      // With context data
-      logger.info('Order created', {
-        orderId: input.id,
-        total: input.total
+      // Logging with context
+      logger.info('Operation completed', {
+        operationId: input.id,
+        duration: 1500
       })
 
-      // Errors
+      // Error handling
       try {
-        await chargeCard(input.paymentMethod)
+        await riskyOperation()
       } catch (error) {
-        logger.error('Payment failed', {
+        logger.error('Operation failed', {
           error: error.message,
-          orderId: input.id
+          stack: error.stack
         })
       }
 
-      // Warnings for unusual situations
-      if (input.total > 1000) {
-        logger.warn('Large order', {
-          total: input.total,
+      // Debug logging
+      logger.debug('Operation details', {
+        rawInput: input,
+        timestamp: Date.now()
+      })
+
+      // Warning logging
+      if (input.amount > 1000) {
+        logger.warn('Large operation detected', {
+          amount: input.amount,
           threshold: 1000
         })
       }
-
-      // Debug info (only shows with --debug flag)
-      logger.debug('Raw input', { input })
     }
     ```
+
+  </Tab>
+  <Tab value='JS'>
+    ```javascript
+    export const handler = async (input, { logger }) => {
+      // Basic logging
+      logger.info('Starting process')
+
+      // Logging with context
+      logger.info('Operation completed', {
+        operationId: input.id,
+        duration: 1500
+      })
+
+      // Error handling
+      try {
+        await riskyOperation()
+      } catch (error) {
+        logger.error('Operation failed', {
+          error: error.message,
+          stack: error.stack
+        })
+      }
+
+      // Debug logging
+      logger.debug('Operation details', {
+        rawInput: input,
+        timestamp: Date.now()
+      })
+
+      // Warning logging
+      if (input.amount > 1000) {
+        logger.warn('Large operation detected', {
+          amount: input.amount,
+          threshold: 1000
+        })
+      }
+    }
+    ```
+
   </Tab>
   <Tab value='Python'>
     ```python
-    async def handler(input, context):
-        # Simple message
-        context.logger.info('Processing order')
+    async def handler(input, ctx):
+        # Basic logging
+        ctx.logger.info('Starting process')
 
-        # With context data
-        context.logger.info('Order created', {
-            'order_id': input.get("id"),
-            'total': input.get("total")
+        # Logging with context
+        ctx.logger.info('Operation completed', {
+            'operation_id': input.get("id"),
+            'duration': 1500
         })
 
-        # Errors
+        # Error handling
         try:
-            await charge_card(input.get("payment_method"))
+            await risky_operation()
         except Exception as error:
-            context.logger.error('Payment failed', {
+            ctx.logger.error('Operation failed', {
                 'error': str(error),
-                'order_id': input.get("id")
+                'stack': traceback.format_exc()
             })
 
-        # Warnings for unusual situations
-        if input.get("total", 0) > 1000:
-            context.logger.warn('Large order', {
-                'total': input.get("total"),
+        # Debug logging
+        ctx.logger.debug('Operation details', {
+            'raw_input': input.__dict__,
+            'timestamp': time.time()
+        })
+
+        # Warning logging
+        if input.amount > 1000:
+            ctx.logger.warn('Large operation detected', {
+                'amount': input.get("amount"),
                 'threshold': 1000
             })
-
-        # Debug info (only shows with --debug flag)
-        context.logger.debug('Raw input', {'input': input})
-    ```
-  </Tab>
-  <Tab value='JavaScript'>
-    ```javascript
-    const handler = async (input, { logger }) => {
-      // Simple message
-      logger.info('Processing order')
-
-      // With context data
-      logger.info('Order created', {
-        orderId: input.id,
-        total: input.total
-      })
-
-      // Errors
-      try {
-        await chargeCard(input.paymentMethod)
-      } catch (error) {
-        logger.error('Payment failed', {
-          error: error.message,
-          orderId: input.id
-        })
-      }
-
-      // Warnings for unusual situations
-      if (input.total > 1000) {
-        logger.warn('Large order', {
-          total: input.total,
-          threshold: 1000
-        })
-      }
-
-      // Debug info (only shows with --debug flag)
-      logger.debug('Raw input', { input })
-    }
     ```
   </Tab>
 </Tabs>
 
-👉 Always add context data to your logs. `{ orderId: '123' }` is way more useful than just a message.
+## Running and Debugging
 
----
+<Steps>
+  <Step>
+    ### Start the Dev Server
 
-## Where to See Logs
+    1. Navigate to your Motia project root folder
+    2. Start the development server:
 
-Start your app:
+    <Tabs items={['npm', 'yarn', 'pnpm', 'bun']}>
+      <Tab value="yarn">```yarn run dev ```</Tab>
+      <Tab value="npm">```npm run dev ```</Tab>
+      <Tab value="pnpm">```pnpm run dev ```</Tab>
+      <Tab value="bun">```bun run dev ```</Tab>
+    </Tabs>
 
-```bash
-npm run dev
-```
+    3. You can monitor logs in two ways:
+      - Open [Motia Workbench](http://localhost:3000), select your flow, and expand the logs container
+      - View logs directly in the terminal where you ran the dev command
+  </Step>
+  
+  <Step>
+    ### Trigger and Monitor Flows
 
-Logs appear in **two places**:
+    You can trigger flows using either the CLI or an [API step](/docs/concepts/steps/api):
 
-### 1. Your Terminal
+    <Tabs items={['cli', 'api']}>
+      <Tab value='cli'>
+      ```bash
+      npx motia emit --topic <topic> --message '{}'
+      ```
+      </Tab>
+      <Tab value='api'>
+      ```bash
+      curl -X POST http://localhost:3000/<api-step-path> \
+      -H "Content-Type: application/json" \
+      -d '{}'
+      ```
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step>
+    ### Debug Using Logs
 
-See logs right where you ran `npm run dev`:
+    Each log entry automatically includes:
 
-```
-[INFO] Processing order { orderId: '123', total: 99.99 }
-[INFO] Order created { orderId: '123' }
-[INFO] Payment successful
-```
+    - `timestamp`: When the log was generated
+    - `traceId`: Unique identifier for the flow execution
+    - `flows`: Array of flow names this step belongs to
+    - `file`: Source file generating the log
+    - `level`: Log level
+    - `msg`: Log message
+  </Step>
+  
+  <Step>
+    ### Stopping the development server
+    Press **Ctrl + C** (or **Cmd + C** on macOS) in your terminal. That's it!
+  </Step>
+</Steps>
 
-### 2. Workbench
+## Best Practices
 
-Open [http://localhost:3000](http://localhost:3000) and click on your flow. Logs show up in real-time with:
-- Timestamps
-- Which Step logged it
-- The trace ID (to follow a request through the entire flow)
-- Full context data
-
-![Workbench Logs](./../img/build-your-first-app/ai-enrichment-logs.png)
-
----
-
-## Tracing
-
-Every request gets a unique `traceId`. This lets you follow a single request through your entire flow.
+### Structured Logging
 
 ```typescript
-export const handler: Handlers['CreateOrder'] = async (req, { logger, traceId }) => {
-  logger.info('Order started', { traceId })
-  
-  // traceId stays the same across all Steps in this flow
-  await emit({ 
-    topic: 'process.payment', 
-    data: { orderId: '123' } 
-  })
-  
-  return { status: 200, body: { traceId } }
-}
-```
-
-**In Workbench:**
-- Click any log entry
-- See all logs with the same `traceId`
-- Follow the request from start to finish
-
----
-
-## Debug Mode
-
-Want more detailed logs?
-
-```bash
-npm run dev -- --debug
-```
-
-This enables `debug` level logs. You'll see everything - raw inputs, internal state, timing info.
-
-**In production:** Don't use debug mode (it's slow and logs everything).
-
----
-
-## Tips for Better Logs
-
-### Use Objects, Not Strings
-
-**Good:**
-```typescript
+// Good - Structured and searchable
 logger.info('Payment processed', {
   paymentId: '123',
   amount: 100,
-  status: 'success'
+  status: 'success',
+})
+
+// Avoid - Harder to parse and search
+logger.info(`Payment ${paymentId} processed: amount=${amount}`)
+```
+
+### Performance Monitoring
+
+```typescript
+export const handler: Handlers['StepName'] = async (input, { logger }) => {
+  const startTime = performance.now()
+
+  // Process operation
+  const result = await processOperation(input)
+
+  logger.info('Operation completed', {
+    duration: performance.now() - startTime,
+    memoryUsage: process.memoryUsage().heapUsed,
+  })
+}
+```
+
+### Debugging Tips
+
+1. Add detailed context to error logs:
+
+```typescript
+logger.error('Operation failed', {
+  error: error.message,
+  code: error.code,
+  input: JSON.stringify(input),
+  stack: error.stack,
 })
 ```
 
-**Bad:**
-```typescript
-logger.info(`Payment 123 processed: amount=100`)
-```
-
-Why? Objects are searchable, filterable, and easier to parse.
-
-### Track Performance
+2. Use debug logs for detailed troubleshooting:
 
 ```typescript
-export const handler: Handlers['ProcessOrder'] = async (input, { logger }) => {
-  const start = performance.now()
-
-  await processOrder(input)
-
-  logger.info('Order processed', {
-    duration: performance.now() - start,
-    orderId: input.id
-  })
-}
+logger.debug('Operation details', {
+  rawInput: input,
+  timestamp: Date.now(),
+  state: currentState,
+})
 ```
 
-### Log Errors Properly
-
-```typescript
-try {
-  await riskyOperation()
-} catch (error) {
-  logger.error('Operation failed', {
-    error: error.message,
-    stack: error.stack,
-    input: input.id  // Don't log sensitive data!
-  })
-  throw error  // Re-throw so Motia can retry
-}
-```
-
----
-
-## Debugging Workflows
-
-**Problem:** Something's not working, but where?
-
-**Steps to debug:**
-
-1. **Check terminal logs** - See which Steps ran
-2. **Open Workbench** at [http://localhost:3000](http://localhost:3000)
-3. **Click your flow** - See the visual diagram
-4. **Expand logs panel** - See all logs in chronological order
-5. **Click a log** - Filter by that `traceId` to follow the request
-6. **Check each Step** - See where it failed
-
-### Common Issues
-
-**API not responding?**
-- Check if the Step ran: Look for logs with your Step's name
-- Check the response: Look for `status: 200` in logs
-
-**Event not firing?**
-- Check if `emit()` was called: Search logs for "emit"
-- Check the topic name: Make sure it matches `subscribes: ['topic']`
-
-**Step not running?**
-- Check if it's discovered: Look for `[CREATED] Step` in startup logs
-- Check the file name: Must contain `.step.` or `_step`
-
----
-
-## Remember
-
-- **Log everything important** - But not everything (no sensitive data!)
-- **Use `traceId`** - Follow requests through your entire flow
-- **Check Workbench** - Visual debugging is easier
-- **Use objects** - Don't log strings, log objects
-- **Debug mode** - Only for development, never in production
-
----
+<Callout>
+  Remember to stop your development server with Ctrl + C (or Cmd + C on macOS) when you're done debugging.
+</Callout>

@@ -5,14 +5,15 @@ from .services.types import Pet
 
 class PetRequest(BaseModel):
     name: str
-    photoUrl: str
+    photo_url: str
 
 class FoodOrder(BaseModel):
+    id: str
     quantity: int
 
 class RequestBody(BaseModel):
     pet: PetRequest
-    foodOrder: Optional[FoodOrder] = None
+    food_order: Optional[FoodOrder] = None
 
 config = {
     "type": "api",
@@ -30,10 +31,10 @@ config = {
 
 async def handler(req, context):
     body = req.get("body", {})
-    context.logger.info("Step 01 - Processing API Step", {"body": body})
+    context.logger.info("Step 01 – Processing API Step", {"body": body})
 
     pet = body.get("pet", {})
-    food_order = body.get("foodOrder", {})
+    food_order = body.get("food_order", {})
     
     new_pet_record = await pet_store_service.create_pet(pet)
 
@@ -41,6 +42,7 @@ async def handler(req, context):
         await context.emit({
             "topic": "python-process-food-order",
             "data": {
+                "id": food_order.get("id"),
                 "quantity": food_order.get("quantity"),
                 "email": "test@test.com",  # sample email
                 "pet_id": new_pet_record.get("id"),

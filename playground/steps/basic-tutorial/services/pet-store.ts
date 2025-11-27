@@ -1,8 +1,8 @@
-import type { Order, Pet } from './types'
+import { Order, Pet } from './types'
 
 export const petStoreService = {
   createPet: async (pet: Omit<Pet, 'id'>): Promise<Pet> => {
-    const response = await fetch('https://xnigaj-xtnawg.motiahub.com/pet', {
+    const response = await fetch('https://petstore.swagger.io/v2/pet', {
       method: 'POST',
       body: JSON.stringify({
         name: pet?.name ?? '',
@@ -13,12 +13,12 @@ export const petStoreService = {
     })
     return response.json()
   },
-  createOrder: async (order: Omit<Order, 'id' | 'complete'>): Promise<Order> => {
-    const response = await fetch('https://xnigaj-xtnawg.motiahub.com/store/order', {
+  createOrder: async (order: Omit<Order, 'id'>): Promise<Order> => {
+    const response = await fetch('https://petstore.swagger.io/v2/store/order', {
       method: 'POST',
       body: JSON.stringify({
         quantity: order?.quantity ?? 1,
-        petId: order?.petId ?? '1',
+        petId: 1,
         shipDate: order?.shipDate ?? new Date().toISOString(),
         status: order?.status ?? 'placed',
       }),

@@ -5,20 +5,8 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  testMatch: [
-    '<rootDir>/src/**/__tests__/**/*.(ts|tsx|js)',
-    '<rootDir>/src/**/*.(test|spec).(ts|tsx|js)',
-    '<rootDir>/motia-plugin/**/__tests__/**/*.(ts|tsx|js)',
-    '<rootDir>/motia-plugin/**/*.(test|spec).(ts|tsx|js)',
-    '<rootDir>/__tests__/**/*.(ts|tsx|js)',
-  ],
-  collectCoverageFrom: [
-    'src/**/*.(ts|tsx)',
-    '!src/**/*.d.ts',
-    '!src/index.tsx',
-    'motia-plugin/**/*.(ts|tsx)',
-    '!motia-plugin/**/*.d.ts',
-  ],
+  testMatch: ['<rootDir>/src/**/__tests__/**/*.(ts|tsx|js)', '<rootDir>/src/**/*.(test|spec).(ts|tsx|js)'],
+  collectCoverageFrom: ['src/**/*.(ts|tsx)', '!src/**/*.d.ts', '!src/index.tsx'],
   transform: {
     '^.+\\.(ts|tsx)$': [
       'ts-jest',
@@ -56,7 +44,9 @@ module.exports = {
       },
     ],
   },
-  transformIgnorePatterns: ['node_modules/(?!(@motiadev/stream-client-react|@motiadev/stream-client-browser)/)'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(@motiadev/stream-client-react|@motiadev/stream-client-browser)/)',
+  ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testEnvironmentOptions: {
     url: 'http://localhost',

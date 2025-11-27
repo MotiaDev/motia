@@ -1,4 +1,4 @@
-import { motiaAnalytics } from '@/lib/motia-analytics'
+import { analytics } from '@/lib/analytics'
 import { useTutorialEngine } from './hooks/use-tutorial-engine'
 import { TutorialStep } from './tutorial-step'
 import './tutorial.css'
@@ -13,11 +13,11 @@ export const Tutorial = () => {
     engine.moveStep(nextStep)
 
     if (engine.currentStep === engine.totalSteps) {
-      motiaAnalytics.track('tutorial_completed', {
+      analytics.track('tutorial_completed', {
         manualOpen: engine.manualOpenRef.current,
       })
     } else {
-      motiaAnalytics.track('tutorial_next_step', {
+      analytics.track('tutorial_next_step', {
         step: nextStep,
         manualOpen: engine.manualOpenRef.current,
       })
@@ -25,7 +25,7 @@ export const Tutorial = () => {
   }
 
   const onClose = () => {
-    motiaAnalytics.track('tutorial_closed', {
+    analytics.track('tutorial_closed', {
       step: engine.currentStepRef.current,
       manualOpen: engine.manualOpenRef.current,
     })

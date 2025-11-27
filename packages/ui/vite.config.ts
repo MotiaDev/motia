@@ -1,9 +1,9 @@
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
-import { copyFileSync, mkdirSync } from 'fs'
-import { resolve } from 'path'
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
 import dts from 'vite-plugin-dts'
+import tailwindcss from '@tailwindcss/vite'
+import { copyFileSync, mkdirSync } from 'fs'
 
 export default defineConfig({
   plugins: [

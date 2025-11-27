@@ -1,10 +1,9 @@
 import { z } from 'zod'
-import { infrastructureSchema } from './infrastructure-validator/schemas'
-import type { Step } from './types'
+import { Step } from './types'
 
 const objectSchema = z.object({
   type: z.literal('object'),
-  properties: z.record(z.string(), z.any()),
+  properties: z.record(z.any()),
   required: z.array(z.string()).optional(),
   additionalProperties: z.boolean().optional(),
   description: z.string().optional(),
@@ -66,7 +65,6 @@ const eventSchema = z
     input: z.union([jsonSchema, z.object({}), z.null()]).optional(),
     flows: z.array(z.string()).optional(),
     includeFiles: z.array(z.string()).optional(),
-    infrastructure: infrastructureSchema.optional(),
   })
   .strict()
 
@@ -137,8 +135,8 @@ export const validateStep = (step: Step): ValidationResult => {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: error.issues.map((err) => err.message).join(', '),
-        errors: error.issues.map((err) => ({ path: err.path.join('.'), message: err.message })),
+        error: error.errors.map((err) => err.message).join(', '),
+        errors: error.errors.map((err) => ({ path: err.path.join('.'), message: err.message })),
       }
     }
 

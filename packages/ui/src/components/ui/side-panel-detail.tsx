@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from 'react'
+import { PropsWithChildren } from 'react'
 
 type ItemProps = PropsWithChildren<{
   title: string

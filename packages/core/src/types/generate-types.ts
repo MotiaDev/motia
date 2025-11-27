@@ -1,12 +1,11 @@
 import { isApiStep, isCronStep, isEventStep } from '../guards'
-import type { Printer } from '../printer'
-import { schemaToJsonSchema } from '../schema-utils'
-import type { Emit, Step } from '../types'
-import type { Stream } from '../types-stream'
+import { Printer } from '../printer'
+import { Emit, Step } from '../types'
+import { Stream } from '../types-stream'
 import { generateTypeFromSchema } from './generate-type-from-schema'
 import { generateTypesFromResponse } from './generate-types-from-response'
 import { mergeSchemas } from './merge-schemas'
-import type { JsonSchema } from './schema.types'
+import { JsonSchema } from './schema.types'
 
 type HandlersMap = Record<string, { type: string; generics: string[] }>
 type StreamsMap = Record<string, string>
@@ -42,7 +41,6 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
   const topics: Record<string, string> = {}
   const topicsSchemas: Record<string, JsonSchema> = {}
   const topicsSteps: Record<string, Step[]> = {}
-  const topicIsFifo: Record<string, boolean> = {}
 
   for (const step of steps) {
     if (isEventStep(step)) {
@@ -61,20 +59,14 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
         topicsSteps[topic] = topicsSteps[topic] ?? []
         topicsSteps[topic].push(step)
 
-        const queueType = step.config.infrastructure?.queue?.type
-        if (queueType === 'fifo') {
-          topicIsFifo[topic] = true
-        }
-
         try {
-          const input = step.config.input
-          const schema = existingSchema
-            ? mergeSchemas(existingSchema, input)
-            : (schemaToJsonSchema(input) ?? (input as JsonSchema))
+          const input = step.config.input as never as JsonSchema
+          const schema = existingSchema ? mergeSchemas(existingSchema, input) : input
           topics[topic] = generateTypeFromSchema(schema)
           topicsSchemas[topic] = schema
         } catch (error) {
           printer.printInvalidSchema(topic, topicsSteps[topic])
+          // invalid schema, the topic should be ignored
           topics[topic] = 'never'
         }
       }
@@ -88,12 +80,7 @@ export const generateTypesFromSteps = (steps: Step[], printer: Printer): Handler
         const topicType = topics[topic]
 
         if (topicType) {
-          const isFifo = topicIsFifo[topic]
-          if (isFifo) {
-            acc.push(`{ topic: '${topic.replace(/'/g, "\\'")}'; data: ${topicType}; messageGroupId: string }`)
-          } else {
-            acc.push(`{ topic: '${topic.replace(/'/g, "\\'")}'; data: ${topicType} }`)
-          }
+          acc.push(`{ topic: '${topic.replace(/'/g, "\\'")}'; data: ${topicType} }`)
         } else {
           printer.printInvalidEmitConfiguration(step, topic)
         }

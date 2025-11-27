@@ -1,10 +1,10 @@
-import * as z from 'zod'
-import { MemoryStreamAdapterManager } from '../adapters/defaults'
-import { generateFlow } from '../helper/flows-helper'
-import { LockedData } from '../locked-data'
-import { NoPrinter } from '../printer'
-import type { Step } from '../types'
 import { createApiStep, createEventStep } from './fixtures/step-fixtures'
+import { LockedData } from '../locked-data'
+import { z } from 'zod'
+import { Step } from '../types'
+import zodToJsonSchema from 'zod-to-json-schema'
+import { NoPrinter } from '../printer'
+import { generateFlow } from '../helper/flows-helper'
 
 const mockFlowSteps: Step[] = [
   createApiStep({
@@ -19,21 +19,21 @@ const mockFlowSteps: Step[] = [
     name: 'Processor',
     subscribes: ['ws-server-example.start'],
     emits: ['ws-server-example.processed'],
-    input: z.toJSONSchema(z.object({})) as never,
+    input: zodToJsonSchema(z.object({})) as never,
     flows: ['motia-server'],
   }),
   createEventStep({
     name: 'Finalizer',
     subscribes: ['ws-server-example.processed'],
     emits: [],
-    input: z.toJSONSchema(z.object({})) as never,
+    input: zodToJsonSchema(z.object({})) as never,
     flows: ['motia-server'],
   }),
 ]
 
 describe('flowEndpoint', () => {
   it('should generate a list of flows with steps', () => {
-    const lockedData = new LockedData(process.cwd(), new MemoryStreamAdapterManager(), new NoPrinter())
+    const lockedData = new LockedData(process.cwd(), 'memory', new NoPrinter())
     mockFlowSteps.forEach((step) => lockedData.createStep(step, { disableTypeCreation: true }))
 
     const result = generateFlow('motia-server', lockedData.flows['motia-server'].steps)

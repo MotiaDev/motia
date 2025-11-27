@@ -6,7 +6,7 @@
 [![Twitter Follow](https://img.shields.io/badge/Follow-@motiadev-1DA1F2?style=flat&logo=twitter&logoColor=white&labelColor=000000)](https://twitter.com/motiadev)
 [![Discord](https://img.shields.io/discord/1322278831184281721?style=flat&logo=discord&logoColor=white&color=5865F2&label=Discord&labelColor=000000)](https://discord.gg/motia)
 
-**🔥 Build production-grade backends with a single primitive 🔥**
+**🔥 A Modern Unified Backend Framework for APIs, background jobs, workflows, and Agents 🔥**
 
 [💡 Motia Manifesto](https://www.motia.dev/manifesto) •
 [🚀 Quick Start](https://www.motia.dev/docs/getting-started/quick-start) •
@@ -17,13 +17,9 @@
 
 ## 🎯 What is Motia?
 
-Modern backends shouldn't require juggling frameworks, queues, and services. Motia unifies everything: API endpoints, background jobs, durable workflows, AI agents, streaming, and observability into one runtime with a single core primitive.
+Motia is a **modern backend framework** that unifies APIs, background jobs, workflows, and AI agents into a single cohesive system. Eliminate runtime complexity and build unified backends where **JavaScript, TypeScript, Python, etc**, work together in event-driven workflows, with built-in state management, observability, and one-click deployments.
 
-**Motia** is your production-grade backend system that combines:
-- APIs, background jobs, queues, durable workflows, AI agents
-- Built-in state management, streaming, and observability
-- Multi-language support (JavaScript, TypeScript, Python, etc.)
-- All unified around one core primitive: the **Step**
+Motia brings cohesion to the fragmented backend world with our core primitive: the **Step**.
 
 ![Motia combines APIs, background queues, and AI agents into one system](https://github.com/MotiaDev/motia/raw/main/assets/github-readme-banner.gif)
 
@@ -229,7 +225,7 @@ Create a new Motia project in a fresh directory or the current one.
 npx motia create [options]
 
 # options
-  # + # [project name] (optional): Project name/folder; if not provided, you will be prompted. Use . or ./ to use current directory
+  # -n, --name <project name>: Project name; use . or ./ to use current directory
   # -t, --template <template name>: Template to use; run npx motia templates to view available ones
   # -c, --cursor: Adds .cursor config for Cursor IDE
   # Alternatively, you can use `npx motia create` to use the create command in interactive mode

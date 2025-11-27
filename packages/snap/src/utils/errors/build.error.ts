@@ -1,6 +1,5 @@
 export enum BuildErrorType {
   COMPILATION = 'COMPILATION',
-  LOCKED_DATA_GENERATION = 'LOCKED_DATA_GENERATION',
 }
 
 export class BuildError extends Error {

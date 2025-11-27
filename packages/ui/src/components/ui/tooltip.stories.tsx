@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Download, Heart, HelpCircle, Info, Settings, Star } from 'lucide-react'
-import { expect, within } from 'storybook/test'
-import { Button } from './button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'
+import { Button } from './button'
+import { Info, HelpCircle, Settings, Star, Heart, Download } from 'lucide-react'
 
 const meta: Meta<typeof Tooltip> = {
   title: 'UI/Tooltip',
@@ -55,7 +54,7 @@ export const WithIcon: Story = {
   render: () => (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="More information">
+        <Button variant="ghost" size="icon">
           <Info className="h-4 w-4" />
         </Button>
       </TooltipTrigger>
@@ -160,7 +159,7 @@ export const WithFormElements: Story = {
           </label>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-4 w-4" aria-label="Email help">
+              <Button variant="ghost" size="icon" className="h-4 w-4">
                 <HelpCircle className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
@@ -184,7 +183,7 @@ export const WithFormElements: Story = {
           </label>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-4 w-4" aria-label="Password help">
+              <Button variant="ghost" size="icon" className="h-4 w-4">
                 <HelpCircle className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
@@ -209,7 +208,7 @@ export const ActionButtons: Story = {
     <div className="flex gap-2">
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="icon" aria-label="Settings">
+          <Button variant="outline" size="icon">
             <Settings className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
@@ -220,7 +219,7 @@ export const ActionButtons: Story = {
 
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="icon" aria-label="Add to favorites">
+          <Button variant="outline" size="icon">
             <Star className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
@@ -231,7 +230,7 @@ export const ActionButtons: Story = {
 
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="icon" aria-label="Like this item">
+          <Button variant="outline" size="icon">
             <Heart className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
@@ -242,7 +241,7 @@ export const ActionButtons: Story = {
 
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="icon" aria-label="Download file">
+          <Button variant="outline" size="icon">
             <Download className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
@@ -343,7 +342,7 @@ export const DataTable: Story = {
     <div className="w-full max-w-2xl">
       <table className="w-full border-collapse border border-gray-300">
         <thead>
-          <tr className="bg-secondary">
+          <tr className="bg-gray-50">
             <th className="border border-gray-300 px-4 py-2 text-left">Name</th>
             <th className="border border-gray-300 px-4 py-2 text-left">Status</th>
             <th className="border border-gray-300 px-4 py-2 text-left">Actions</th>
@@ -357,7 +356,7 @@ export const DataTable: Story = {
                 <span className="text-green-600">Active</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-4 w-4" aria-label="Status information">
+                    <Button variant="ghost" size="icon" className="h-4 w-4">
                       <Info className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
@@ -371,7 +370,7 @@ export const DataTable: Story = {
               <div className="flex gap-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Edit user settings">
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
                       <Settings className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
@@ -381,7 +380,7 @@ export const DataTable: Story = {
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Add to favorites">
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
                       <Star className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
@@ -399,7 +398,7 @@ export const DataTable: Story = {
                 <span className="text-yellow-600">Pending</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-4 w-4" aria-label="Status information">
+                    <Button variant="ghost" size="icon" className="h-4 w-4">
                       <Info className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
@@ -413,7 +412,7 @@ export const DataTable: Story = {
               <div className="flex gap-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Edit user settings">
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
                       <Settings className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
@@ -423,7 +422,7 @@ export const DataTable: Story = {
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Add to favorites">
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
                       <Star className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
@@ -537,7 +536,7 @@ export const AllVariants: Story = {
         <div className="flex gap-4">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Information">
+              <Button variant="ghost" size="icon">
                 <Info className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -548,7 +547,7 @@ export const AllVariants: Story = {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Settings">
+              <Button variant="ghost" size="icon">
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -559,7 +558,7 @@ export const AllVariants: Story = {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Star">
+              <Button variant="ghost" size="icon">
                 <Star className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -612,47 +611,4 @@ export const AllVariants: Story = {
       </div>
     </div>
   ),
-}
-
-// Interaction Tests
-// Note: Tooltip uses portals and timing-based display which can be flaky in test-runner
-// Tooltips are accessibility-tested via the a11y addon in all other stories
-export const HoverInteraction: Story = {
-  render: () => (
-    <Tooltip delayDuration={0}>
-      <TooltipTrigger asChild>
-        <Button>Hover me for tooltip</Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Test tooltip content</p>
-      </TooltipContent>
-    </Tooltip>
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    const button = canvas.getByRole('button', { name: 'Hover me for tooltip' })
-    await expect(button).toBeInTheDocument()
-    // Hover interaction verified via manual testing
-    // Tooltip portal behavior is complex for automated testing
-  },
-}
-
-export const UnhoverHidesTooltip: Story = {
-  render: () => (
-    <Tooltip delayDuration={0}>
-      <TooltipTrigger asChild>
-        <Button>Hover then leave button</Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Test disappearing tooltip</p>
-      </TooltipContent>
-    </Tooltip>
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    const button = canvas.getByRole('button', { name: 'Hover then leave button' })
-    await expect(button).toBeInTheDocument()
-    // Tooltip show/hide behavior verified via manual testing
-    // Portal timing makes automated testing unreliable
-  },
 }

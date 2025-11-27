@@ -155,20 +155,9 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
           }))
           return
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let body: any
+        let body = undefined
         try {
-          const contentType = response?.headers.get('content-type') ?? ''
-
-          if (contentType.includes('text/')) {
-            body = response ? await response.text() : undefined
-          } else if (contentType.includes('application/json')) {
-            body = response ? await response.json() : undefined
-          } else {
-            body = response ? await response.blob() : undefined
-            // this is important to avoid the body being serialized to JSON
-            body.toJSON = () => 'Preview not available'
-          }
+          body = response ? await response.json() : undefined
         } catch (error) {
           console.error('Error setting response:', error)
         }

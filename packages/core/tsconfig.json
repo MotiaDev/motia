@@ -13,8 +13,7 @@
     "rootDir": ".",
     "baseUrl": ".",
     "declaration": true,
-    "declarationMap": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
   },
   "include": ["**/*.ts", "**/*.js"],
   "exclude": ["node_modules", "dist"]

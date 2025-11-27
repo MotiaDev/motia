@@ -1,13 +1,13 @@
-import type { ApiRouteConfig, Step } from '@motiadev/core'
+import { ApiRouteConfig, Step } from '@motiadev/core'
 import colors from 'colors'
 import * as esbuild from 'esbuild'
 import fs from 'fs'
 import path from 'path'
-import { distDir } from '../../../new-deployment/constants'
-import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
-import type { Builder, RouterBuildResult, StepBuilder } from '../../builder'
+import { Builder, RouterBuildResult, StepBuilder } from '../../builder'
 import { Archiver } from '../archiver'
 import { includeStaticFiles } from '../include-static-files'
+import { distDir } from '../../../new-deployment/constants'
+import { BuildListener } from '../../../new-deployment/listeners/listener.types'
 
 export class NodeBuilder implements StepBuilder {
   constructor(
@@ -77,8 +77,8 @@ export class NodeBuilder implements StepBuilder {
     const routerJs = path.join(distDir, 'router.js')
     const routerMap = path.join(distDir, 'router.js.map')
 
-    archiver.append(fs.readFileSync(routerJs), 'router.js')
-    archiver.append(fs.readFileSync(routerMap), 'router.js.map')
+    archiver.append(fs.createReadStream(routerJs), 'router.js')
+    archiver.append(fs.createReadStream(routerMap), 'router.js.map')
     includeStaticFiles(steps, this.builder, archiver)
 
     const { compressedSize, uncompressedSize } = await archiver.finalize()
@@ -115,8 +115,8 @@ export class NodeBuilder implements StepBuilder {
 
       const archiver = new Archiver(path.join(distDir, bundlePath))
 
-      archiver.append(fs.readFileSync(outputJsFile), entrypointPath)
-      archiver.append(fs.readFileSync(outputMapFile), entrypointMapPath)
+      archiver.append(fs.createReadStream(outputJsFile), entrypointPath)
+      archiver.append(fs.createReadStream(outputMapFile), entrypointMapPath)
       includeStaticFiles([step], this.builder, archiver)
 
       const { compressedSize, uncompressedSize } = await archiver.finalize()

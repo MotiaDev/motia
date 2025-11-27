@@ -1,26 +1,27 @@
 import {
-  type CronManager,
+  CronManager,
   isApiStep,
   isCronStep,
   isEventStep,
-  type LockedData,
-  type MotiaEventManager,
-  type MotiaServer,
-  type Step,
+  LockedData,
+  MotiaEventManager,
+  MotiaServer,
+  Step,
   trackEvent,
 } from '@motiadev/core'
 import type { Stream } from '@motiadev/core/dist/src/types-stream'
-import { existsSync } from 'fs'
 import path from 'path'
 import { Watcher } from './watcher'
 
-const setupWatcherHandlers = (
-  watcher: Watcher,
+export const createDevWatchers = (
   lockedData: LockedData,
   server: MotiaServer,
   eventHandler: MotiaEventManager,
   cronManager: CronManager,
 ) => {
+  const stepDir = path.join(process.cwd(), 'steps')
+  const watcher = new Watcher(stepDir, lockedData)
+
   watcher.onStreamChange((oldStream: Stream, stream: Stream) => {
     trackEvent('stream_updated', {
       streamName: stream.config.name,
@@ -94,30 +95,6 @@ const setupWatcherHandlers = (
 
     lockedData.deleteStep(step)
   })
-}
 
-export const createDevWatchers = (
-  lockedData: LockedData,
-  server: MotiaServer,
-  eventHandler: MotiaEventManager,
-  cronManager: CronManager,
-) => {
-  const baseDir = process.cwd()
-  const dirs = [path.join(baseDir, 'steps'), path.join(baseDir, 'src')]
-  const watchers: Watcher[] = []
-
-  dirs.forEach((dir) => {
-    if (existsSync(dir)) {
-      const watcher = new Watcher(dir, lockedData)
-      setupWatcherHandlers(watcher, lockedData, server, eventHandler, cronManager)
-      watcher.init()
-      watchers.push(watcher)
-    }
-  })
-
-  return {
-    stop: async () => {
-      await Promise.all(watchers.map((watcher) => watcher.stop()))
-    },
-  }
+  return watcher
 }

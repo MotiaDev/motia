@@ -1,4 +1,4 @@
-import type { ApiRouteConfig, CronConfig, EventConfig, NoopConfig, Step } from './types'
+import { ApiRouteConfig, EventConfig, NoopConfig, Step, CronConfig } from './types'
 
 export const isApiStep = (step: Step): step is Step<ApiRouteConfig> => step.config.type === 'api'
 export const isEventStep = (step: Step): step is Step<EventConfig> => step.config.type === 'event'

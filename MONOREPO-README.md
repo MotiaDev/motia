@@ -1,31 +1,23 @@
 # Motia Monorepo
 
-This repository hosts the development of **Motia**, a unified backend framework that combines APIs, background jobs, queues, workflows, and AI agents with built-in state management, streaming, and observability. The repository is structured to facilitate the iterative development and testing of the core framework and includes a playground environment for real-world use cases.
+This repository hosts the development of **Motia.js**, a framework for building event-driven business automation flows. The repository is structured to facilitate the iterative development and testing of the core framework and includes a playground environment for real-world use cases.
 
 ## Overview
 
-**Build production-grade backends with a single primitive.**
+Motia.js aims to simplify the creation and scaling of event-driven flows by:
 
-Modern backends shouldn't require juggling frameworks, queues, and services. Motia is a unified framework with a single core primitive: **the Step**.
-
-Motia provides:
-
-- **APIs** - RESTful endpoints with validation and routing
-- **Background Jobs** - Async processing with built-in queues
-- **Durable Workflows** - Complex multi-step orchestration
-- **Agentic AI** - AI agent workflows with streaming support
-- **State Management** - Built-in persistent storage across steps
-- **Streaming** - Real-time data updates to clients
-- **Logging & Observability** - End-to-end tracing and monitoring
-- **Multi-language Support** - Write steps in TypeScript, Python, JavaScript, and more
+- Providing a **core framework** for defining flows as collections of testable components.
+- Supporting **real-time event handling** with loose coupling between components.
+- Offering tools for **UI-based flow visualization**.
+- Enabling seamless **integration with external APIs** like Google Drive and OpenAI.
 
 ### Aspirational Vision
 
-Motia strives to be:
+Motia.js strives to be:
 
-- **Developer-Friendly**: Easy to adopt and extend with a single primitive.
-- **Production-Ready**: Scales gracefully from prototypes to enterprise-grade systems.
-- **Unified**: One runtime for all backend patterns - no more juggling frameworks.
+- **Developer-Friendly**: Easy to adopt and extend.
+- **Production-Ready**: Scales gracefully from prototypes to enterprise-grade flows.
+- **Integration-First**: Works seamlessly with third-party tools and services.
 
 ## Repository Structure
 
@@ -40,7 +32,7 @@ Motia strives to be:
 │   └── other-packages/         # Placeholder for future packages
 ├── playground/                 # Sandbox environment for testing
 │   ├── src/                    # Source code for testing and examples
-│   │   ├── flows/              # Flow implementations
+│   │   ├── flows/          # Flow implementations
 │   │   ├── traffic/            # Traffic definitions (inbound/outbound)
 │   │   ├── ui/                 # Custom UI components
 │   │   └── index.js            # Playground entry point
@@ -75,20 +67,13 @@ Motia strives to be:
    pnpm install
    ```
 
-3. Build the project:
+3. Install Motia CLI globally:
 
    ```bash
-   pnpm build
+   npm install -g motia
    ```
 
-4. Set up Motia in the playground:
-
-   ```bash
-   cd playground
-   npx motia install
-   ```
-
-5. Set up environment variables:
+4. Set up environment variables:
    - Copy the example `.env` file:
      ```bash
      cp playground/.env.example playground/.env
@@ -108,8 +93,6 @@ This command starts the following services:
 - **MotiaCore**: The flow orchestrator.
 - **MotiaServer**: Provides HTTP endpoints for triggering flows.
 - **Playground UI**: A React-based visualization tool for flows.
-
-The workbench runs locally at **[http://localhost:3000](http://localhost:3000)**.
 
 ## How to Contribute
 
@@ -146,8 +129,6 @@ The workbench runs locally at **[http://localhost:3000](http://localhost:3000)**
 - Follow the existing code style (Prettier and ESLint are configured).
 - Write unit tests for new features and components.
 - Keep commits focused and descriptive.
-
-📘 **For detailed contribution guidelines, setup steps, and best practices, see the [CONTRIBUTING.md](https://github.com/MotiaDev/motia/blob/main/CONTRIBUTING.md) file.**
 
 ## Roadmap
 

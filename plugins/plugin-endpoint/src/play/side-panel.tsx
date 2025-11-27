@@ -1,19 +1,17 @@
 import { BackgroundEffect, Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import Book from 'lucide-react/icons/book'
-import X from 'lucide-react/icons/x'
-import { type FC, memo, useState } from 'react'
+import { Book, X } from 'lucide-react'
+import { FC, memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { usePathParams } from '@/hooks/use-path-params'
 import { EndpointPath } from '../components/endpoint-path'
 import {
   getHeadersSelector,
   getQueryParamsSelector,
   getResponseSelector,
-  type UseEndpointConfiguration,
+  UseEndpointConfiguration,
   useEndpointConfiguration,
 } from '../hooks/use-endpoint-configuration'
 import { SpecSidePanel } from '../spec/spec-side-panel'
-import type { ApiEndpoint } from '../types/endpoint'
+import { ApiEndpoint } from '../types/endpoint'
 import { SidePanelBodyTab } from './side-panel-body-tab'
 import { SidePanelHeadersTab } from './side-panel-headers-tab'
 import { SidePanelParamsTab } from './side-panel-params-tab'
@@ -22,21 +20,18 @@ import { TriggerButton } from './trigger-button'
 
 type EndpointSidePanelProps = { endpoint: ApiEndpoint; onClose: () => void }
 
-type ActiveTab = 'body' | 'headers' | 'params'
+type ActiveTab = 'body' | 'headers'
 
 const headersCountSelector = (state: UseEndpointConfiguration) => Object.keys(getHeadersSelector(state)).length
 const hasResponseSelector = (state: UseEndpointConfiguration) => getResponseSelector(state) !== undefined
 const paramsCountSelector = (state: UseEndpointConfiguration) => Object.keys(getQueryParamsSelector(state)).length
 
 export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }) => {
-  const isGetOrDelete = endpoint.method === 'GET' || endpoint.method === 'DELETE'
-  const [activeTab, setActiveTab] = useState<ActiveTab>(isGetOrDelete ? 'params' : 'body')
+  const [activeTab, setActiveTab] = useState<ActiveTab>('body')
   const [isSpecOpen, setIsSpecOpen] = useState(false)
   const headersCount = useEndpointConfiguration(useShallow(headersCountSelector))
   const hasResponse = useEndpointConfiguration(useShallow(hasResponseSelector))
-  const pathParamsCount = usePathParams(endpoint.path).length
-  const queryParamsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
-  const paramsCount = queryParamsCount + pathParamsCount
+  const paramsCount = useEndpointConfiguration(useShallow(paramsCountSelector))
 
   return (
     <div
@@ -63,7 +58,7 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           <X />
         </Button>
       </div>
-      <div className={cn('grid grid-cols-[minmax(380px,1fr)_minmax(auto,1fr)]', !hasResponse && 'grid-cols-1')}>
+      <div className={cn('grid grid-cols-[minmax(350px,1fr)_minmax(auto,1fr)]', !hasResponse && 'grid-cols-1')}>
         <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as ActiveTab)}>
           <div className="grid grid-cols-[1fr_auto] items-center h-10 border-b px-5 bg-card">
             <TabsList>

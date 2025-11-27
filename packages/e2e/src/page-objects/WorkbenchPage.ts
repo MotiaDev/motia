@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import type { ApiHelpers } from './ApiHelpers'
 import { MotiaApplicationPage } from './MotiaApplicationPage'
+import { ApiHelpers } from './ApiHelpers'
 
 export class WorkbenchPage extends MotiaApplicationPage {
   readonly sidebarContainer: Locator
@@ -21,7 +21,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
     this.sidebarContainer = page.getByTestId('sidebar')
     this.logsLink = page.getByTestId('logs-link')
     this.statesLink = page.getByTestId('states-link')
-    this.tracesLink = page.getByTestId('tracing-link')
+    this.tracesLink = page.getByTestId('traces-link')
     this.endpointsLink = page.getByTestId('endpoints-link')
     this.flowsDropdownTrigger = page.getByTestId('flows-dropdown-trigger')
     this.flowsLink = page.locator('.flows-dropdown .flow-link')
@@ -82,7 +82,6 @@ export class WorkbenchPage extends MotiaApplicationPage {
   async navigateToFlowByIndex(index: number) {
     await this.flowsDropdownTrigger.click()
     const flowLink = this.flowsLink.nth(index)
-    await this.flowsDropdownTrigger.click()
     await flowLink.click()
     await this.waitForApplication()
   }
@@ -105,6 +104,7 @@ export class WorkbenchPage extends MotiaApplicationPage {
         photoUrl: 'string',
       },
       foodOrder: {
+        id: 'string',
         quantity: 0,
       },
     })

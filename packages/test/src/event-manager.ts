@@ -1,39 +1,42 @@
-import type { Event, EventAdapter, QueueMetrics } from '@motiadev/core'
-import { DefaultQueueEventAdapter } from '@motiadev/core'
+import { Event, EventManager, Handler, SubscribeConfig } from '@motiadev/core'
 
-interface TestEventManager {
-  emit: <TData>(event: Event<TData>, file?: string) => Promise<void>
+interface TestEventManager extends EventManager {
   waitEvents(): Promise<void>
-  subscribe: <TData>(topic: string, stepName: string, handler: (event: Event<TData>) => void | Promise<void>) => void
 }
 
-export const createEventManager = (eventAdapter: EventAdapter): TestEventManager => {
-  const waitEvents = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 200))
+export const createEventManager = (): TestEventManager => {
+  const handlers: Record<string, Handler[]> = {}
+  const events: Array<Promise<unknown>> = []
 
-    if (eventAdapter instanceof DefaultQueueEventAdapter) {
-      let hasWork = true
-      while (hasWork) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        const metrics: Record<string, QueueMetrics> = eventAdapter.getAllMetrics()
-        hasWork = Object.values(metrics).some((m) => m.queueDepth > 0 || m.processingCount > 0)
-      }
+  const waitEvents = async () => {
+    let eventsToAwait = [...events]
+
+    // We need to wait for all events to be resolved because the event manager is async
+    // and we need to ensure that all events have been processed before we can continue
+    while (eventsToAwait.length > 0) {
+      events.splice(0, eventsToAwait.length)
+      await Promise.race([Promise.allSettled(eventsToAwait), new Promise((resolve) => setTimeout(resolve, 2000))])
+      eventsToAwait = [...events]
+    }
+  }
+
+  const emit = async <TData>(event: Event<TData>) => {
+    const eventHandlers = handlers[event.topic] ?? []
+    events.push(...eventHandlers.map((handler) => handler(event)))
+  }
+
+  const subscribe = <TData>(config: SubscribeConfig<TData>) => {
+    const { event, handler } = config
+
+    if (!handlers[event]) {
+      handlers[event] = []
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    handlers[event].push(handler as Handler)
   }
 
-  const subscribe = <TData>(
-    topic: string,
-    stepName: string,
-    handler: (event: Event<TData>) => void | Promise<void>,
-  ) => {
-    eventAdapter.subscribe(topic, stepName, handler)
-  }
+  // We don't need to unsubscribe in the test environment
+  const unsubscribe = () => {}
 
-  return {
-    emit: eventAdapter.emit,
-    waitEvents,
-    subscribe,
-  }
+  return { emit, subscribe, waitEvents, unsubscribe }
 }

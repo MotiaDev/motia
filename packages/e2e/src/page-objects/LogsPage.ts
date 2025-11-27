@@ -18,28 +18,19 @@ export class LogsPage extends MotiaApplicationPage {
   }
 
   async waitForLogContainingText(logText: string, timeout: number = 15000) {
-    const logElement = this.page
-      .getByTestId(/msg-\d+/)
-      .filter({ hasText: logText })
-      .first()
+    const logElement = this.page.getByTestId(/msg-\d+/).filter({ hasText: logText }).first()
     await logElement.waitFor({ timeout })
     return logElement
   }
 
   async waitForLogFromStep(stepName: string, timeout: number = 15000) {
-    const logElement = this.page
-      .getByTestId(/step-\d+/)
-      .filter({ hasText: stepName })
-      .first()
+    const logElement = this.page.getByTestId(/step-\d+/).filter({ hasText: stepName }).first()
     await logElement.waitFor({ timeout })
     return logElement
   }
 
   async clickLogFromStep(stepName: string) {
-    const logElement = this.page
-      .getByTestId(/step-\d+/)
-      .filter({ hasText: stepName })
-      .first()
+    const logElement = this.page.getByTestId(/step-\d+/).filter({ hasText: stepName }).first()
     await logElement.waitFor({ timeout: 15000 })
     await expect(logElement).toBeVisible()
     await logElement.click()
@@ -81,19 +72,19 @@ export class LogsPage extends MotiaApplicationPage {
     const traceId = await row.getByTestId(`trace-${index}`).textContent()
     const step = await row.getByTestId(`step-${index}`).textContent()
     const message = await row.getByTestId(`msg-${index}`).textContent()
-
+    
     return { time, traceId, step, message }
   }
 
   async getAllLogDetails() {
     const count = await this.getLogCount()
     const logs = []
-
+    
     for (let i = 0; i < count; i++) {
       const log = await this.getLogDetailsAtIndex(i)
       logs.push(log)
     }
-
+    
     return logs
   }
 
@@ -110,7 +101,7 @@ export class LogsPage extends MotiaApplicationPage {
   async getAllLogMessages() {
     const count = await this.getLogCount()
     const logTexts = []
-
+    
     for (let i = 0; i < count; i++) {
       const messageCell = this.logTableRows.nth(i).getByTestId(`msg-${i}`)
       const logText = await messageCell.textContent()
@@ -118,7 +109,7 @@ export class LogsPage extends MotiaApplicationPage {
         logTexts.push(logText)
       }
     }
-
+    
     return logTexts
   }
 
@@ -147,4 +138,4 @@ export class LogsPage extends MotiaApplicationPage {
     await this.logsContainer.waitFor({ timeout })
     await this.logsTable.waitFor({ timeout })
   }
-}
+} 

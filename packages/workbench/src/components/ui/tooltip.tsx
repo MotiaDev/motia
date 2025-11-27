@@ -1,5 +1,5 @@
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
-import type { ReactNode } from 'react'
+import { ReactNode } from 'react'
 
 export const Tooltip = ({
   children,

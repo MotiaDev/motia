@@ -7,6 +7,7 @@ test.describe('Workbench - Endpoint Call JSON Validation', () => {
           "photoUrl": "string"
         },
         "foodOrder": {
+          "id": "string",
           "quantity": 0
         }
       }`

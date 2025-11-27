@@ -1,4 +1,4 @@
-import type React from 'react'
+import React from 'react'
 
 export const Subscribe: React.FC<{ subscribes: string[] }> = ({ subscribes }) => {
   return (

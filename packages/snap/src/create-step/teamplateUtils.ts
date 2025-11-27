@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { StepAnswers } from './types'
+import { StepAnswers } from './types'
 
 /**
  * Reads a template file and replaces variables

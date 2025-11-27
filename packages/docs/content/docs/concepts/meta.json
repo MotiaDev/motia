@@ -1,5 +1,9 @@
 {
   "title": "Core Concepts",
   "defaultOpen": true,
-  "pages": ["overview", "steps", "workbench"]
+  "pages": [
+    "overview",
+    "steps",
+    "workbench"
+  ]
 }

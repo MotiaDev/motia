@@ -1,9 +1,9 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { ChevronsUpDown, Workflow } from 'lucide-react'
-import { useShallow } from 'zustand/react/shallow'
-import { useFetchFlows } from '@/hooks/use-fetch-flows'
-import { motiaAnalytics } from '@/lib/motia-analytics'
 import { useFlowStore } from '@/stores/use-flow-store'
+import { useFetchFlows } from '@/hooks/use-fetch-flows'
+import { useShallow } from 'zustand/react/shallow'
+import { analytics } from '@/lib/analytics'
 
 export const FlowTabMenuItem = () => {
   useFetchFlows()
@@ -18,7 +18,7 @@ export const FlowTabMenuItem = () => {
 
   const handleFlowSelect = (flowId: string) => {
     selectFlowId(flowId)
-    motiaAnalytics.track('flow_selected', { flow: flowId })
+    analytics.track('flow_selected', { flow: flowId })
   }
 
   return (
@@ -28,8 +28,8 @@ export const FlowTabMenuItem = () => {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <div
-            className="flex flex-row justify-center items-center gap-2 cursor-pointer"
             data-testid="flows-dropdown-trigger"
+            className="flex flex-row justify-center items-center gap-2 cursor-pointer"
           >
             <ChevronsUpDown className="size-4" />
           </div>

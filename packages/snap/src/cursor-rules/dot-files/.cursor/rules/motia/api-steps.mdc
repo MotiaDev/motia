@@ -223,8 +223,8 @@ const bodySchema = z.object({
 })
 
 export const config: ApiRouteConfig = {
-  name: 'CreateResource',
   type: 'api',
+  name: 'CreateResource',
   path: '/resources',
   method: 'POST',
   emits: ['send-email'],
@@ -352,8 +352,8 @@ class ErrorResponse(BaseModel):
     error: str
 
 config = {
-    "name": "CreateResource",
     "type": "api",
+    "name": "CreateResource",
     "path": "/resources",
     "method": "POST",
     "emits": ["send-email"],

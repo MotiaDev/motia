@@ -1,6 +1,6 @@
-import { type FC, useMemo } from 'react'
-import type { ApiRouteMethod } from '../types/endpoint'
+import { FC, useMemo } from 'react'
 import { EndpointBadge } from './endpoint-badge'
+import { ApiRouteMethod } from '../types/endpoint'
 
 interface EndpointPathProps {
   method: string

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export const composeMiddleware = (...middlewares: any[]) => {
   return async (req: any, ctx: any, handler: () => Promise<any>): Promise<any> => {
     const composedHandler = middlewares.reduceRight<() => Promise<any>>(
@@ -8,3 +9,4 @@ export const composeMiddleware = (...middlewares: any[]) => {
     return composedHandler()
   }
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
