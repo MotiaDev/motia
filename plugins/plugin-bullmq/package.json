@@ -35,6 +35,7 @@
     "zustand": "^5.0.8"
   },
   "peerDependencies": {
+    "@motiadev/adapter-bullmq-events": "workspace:*",
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*"
