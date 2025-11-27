@@ -30,6 +30,7 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
   return async (rootDir: string, context: CliContext): Promise<void> => {
     const templatePath = path.join(__dirname, templateFolder)
     const files = globSync('**/*', { absolute: false, cwd: templatePath, dot: true })
+    const projectName = path.basename(rootDir)
 
     try {
       for (const fileName of files) {
@@ -71,6 +72,8 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
           } catch {
             void 0
           }
+        } else {
+          content = replaceTemplateVariables(content, projectName)
         }
 
         // Use file descriptor for atomic write operation
