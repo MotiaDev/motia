@@ -1,26 +1,38 @@
+import { useStreamGroup } from '@motiadev/stream-client-react'
 import { useCallback, useEffect } from 'react'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 import type { QueueInfo } from '../types/queue'
 
-export const useQueues = () => {
-  const { queues, setQueues, setLoading, setError, isLoading, error } = useBullMQStore()
+const STREAM_NAME = '__motia.bullmq-queues'
 
-  const fetchQueues = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetch('/__motia/bullmq/queues')
-      if (!response.ok) {
-        throw new Error('Failed to fetch queues')
+type StreamQueueInfo = QueueInfo & { id: string }
+
+export const useQueues = () => {
+  const { queues, setQueues, setError, isLoading, error, selectedQueue, setSelectedQueue } = useBullMQStore()
+
+  const { data: streamQueues } = useStreamGroup<StreamQueueInfo>({
+    streamName: STREAM_NAME,
+    groupId: 'default',
+  })
+
+  useEffect(() => {
+    if (streamQueues.length > 0) {
+      setQueues(streamQueues)
+
+      if (selectedQueue) {
+        const updatedQueue = streamQueues.find((q) => q.name === selectedQueue.name)
+        if (updatedQueue) {
+          const currentStats = JSON.stringify(selectedQueue.stats)
+          const newStats = JSON.stringify(updatedQueue.stats)
+          const pausedChanged = selectedQueue.isPaused !== updatedQueue.isPaused
+
+          if (currentStats !== newStats || pausedChanged) {
+            setSelectedQueue(updatedQueue)
+          }
+        }
       }
-      const data = await response.json()
-      setQueues(data.queues)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setLoading(false)
     }
-  }, [setQueues, setLoading, setError])
+  }, [streamQueues, setQueues, selectedQueue, setSelectedQueue])
 
   const refreshQueue = useCallback(async (name: string): Promise<QueueInfo | null> => {
     try {
@@ -38,24 +50,22 @@ export const useQueues = () => {
     async (name: string) => {
       try {
         await fetch(`/__motia/bullmq/queues/${encodeURIComponent(name)}/pause`, { method: 'POST' })
-        await fetchQueues()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to pause queue')
       }
     },
-    [fetchQueues, setError],
+    [setError],
   )
 
   const resumeQueue = useCallback(
     async (name: string) => {
       try {
         await fetch(`/__motia/bullmq/queues/${encodeURIComponent(name)}/resume`, { method: 'POST' })
-        await fetchQueues()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to resume queue')
       }
     },
-    [fetchQueues, setError],
+    [setError],
   )
 
   const cleanQueue = useCallback(
@@ -66,37 +76,28 @@ export const useQueues = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status, grace, limit }),
         })
-        await fetchQueues()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to clean queue')
       }
     },
-    [fetchQueues, setError],
+    [setError],
   )
 
   const drainQueue = useCallback(
     async (name: string) => {
       try {
         await fetch(`/__motia/bullmq/queues/${encodeURIComponent(name)}/drain`, { method: 'POST' })
-        await fetchQueues()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to drain queue')
       }
     },
-    [fetchQueues, setError],
+    [setError],
   )
-
-  useEffect(() => {
-    fetchQueues()
-    const interval = setInterval(fetchQueues, 5000)
-    return () => clearInterval(interval)
-  }, [fetchQueues])
 
   return {
     queues,
     isLoading,
     error,
-    fetchQueues,
     refreshQueue,
     pauseQueue,
     resumeQueue,

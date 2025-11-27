@@ -20,7 +20,6 @@ import { memo, useCallback, useEffect, useState } from 'react'
 import JsonView from 'react18-json-view'
 import 'react18-json-view/src/style.css'
 import { useJobs } from '../hooks/use-jobs'
-import { useQueues } from '../hooks/use-queues'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 import type { DLQJobInfo } from '../types/queue'
 
@@ -73,7 +72,6 @@ DLQJobDataTab.displayName = 'DLQJobDataTab'
 export const DLQPanel = memo(() => {
   const selectedQueue = useBullMQStore((state) => state.selectedQueue)
   const { getDLQJobs, retryFromDLQ, retryAllFromDLQ, clearDLQ } = useJobs()
-  const { fetchQueues } = useQueues()
   const [dlqJobs, setDlqJobs] = useState<DLQJobInfo[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedDlqJob, setSelectedDlqJob] = useState<DLQJobInfo | null>(null)
@@ -100,24 +98,21 @@ export const DLQPanel = memo(() => {
       if (!selectedQueue) return
       await retryFromDLQ(selectedQueue.name, jobId)
       await loadDLQJobs()
-      await fetchQueues()
     },
-    [selectedQueue, retryFromDLQ, loadDLQJobs, fetchQueues],
+    [selectedQueue, retryFromDLQ, loadDLQJobs],
   )
 
   const handleRetryAll = useCallback(async () => {
     if (!selectedQueue) return
     await retryAllFromDLQ(selectedQueue.name)
     await loadDLQJobs()
-    await fetchQueues()
-  }, [selectedQueue, retryAllFromDLQ, loadDLQJobs, fetchQueues])
+  }, [selectedQueue, retryAllFromDLQ, loadDLQJobs])
 
   const handleClear = useCallback(async () => {
     if (!selectedQueue) return
     await clearDLQ(selectedQueue.name)
     await loadDLQJobs()
-    await fetchQueues()
-  }, [selectedQueue, clearDLQ, loadDLQJobs, fetchQueues])
+  }, [selectedQueue, clearDLQ, loadDLQJobs])
 
   const handleCloseSidePanel = useCallback(() => {
     setSelectedDlqJob(null)
