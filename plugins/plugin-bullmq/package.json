@@ -27,6 +27,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
     "bullmq": "^5.63.0",
     "date-fns": "^3.6.0",
     "ioredis": "^5.8.2",

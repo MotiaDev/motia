@@ -1,12 +1,13 @@
 import { memo, useEffect } from 'react'
 import { useQueues } from '../hooks/use-queues'
+import { QueryProvider } from '../providers/query-provider'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 import { DLQPanel } from './dlq-panel'
 import { JobDetail } from './job-detail'
 import { QueueDetail } from './queue-detail'
 import { QueueList } from './queue-list'
 
-export const QueuesPage = memo(() => {
+const QueuesPageContent = memo(() => {
   const selectedQueue = useBullMQStore((state) => state.selectedQueue)
   const updateSelectedQueueStats = useBullMQStore((state) => state.updateSelectedQueueStats)
   const { queues } = useQueues()
@@ -28,6 +29,15 @@ export const QueuesPage = memo(() => {
       <div className="overflow-hidden">{selectedQueue?.isDLQ ? <DLQPanel /> : <QueueDetail />}</div>
       <JobDetail />
     </div>
+  )
+})
+QueuesPageContent.displayName = 'QueuesPageContent'
+
+export const QueuesPage = memo(() => {
+  return (
+    <QueryProvider>
+      <QueuesPageContent />
+    </QueryProvider>
   )
 })
 QueuesPage.displayName = 'QueuesPage'
