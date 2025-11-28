@@ -8,18 +8,23 @@
     "type": "git",
     "url": "https://github.com/motiadev/motia.git"
   },
-  "main": "dist/index.mjs",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.mts",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs"
+      "development": "./src/index.ts",
+      "default": "./dist/index.mjs"
+    },
+    "./cli": {
+      "development": "./src/cli.ts",
+      "default": "./dist/cli.mjs"
     },
     "./workbench": {
-      "types": "./dist/workbench.d.mts",
-      "import": "./dist/workbench.mjs"
-    }
+      "development": "./src/workbench.ts",
+      "default": "./dist/workbench.mjs"
+    },
+    "./package.json": "./package.json"
   },
   "bin": {
     "motia": "dist/cli.mjs"
@@ -79,5 +84,13 @@
     "typescript": "^5.7.2",
     "typescript-transform-paths": "^3.5.3",
     "zod": "^4.1.13"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.mjs",
+      "./cli": "./dist/cli.mjs",
+      "./workbench": "./dist/workbench.mjs",
+      "./package.json": "./package.json"
+    }
   }
 }

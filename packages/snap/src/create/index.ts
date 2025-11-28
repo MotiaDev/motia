@@ -181,9 +181,6 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
         rootDir: '.',
         baseUrl: '.',
         jsx: 'react-jsx',
-        paths: {
-          '@/*': ['./src/*'],
-        },
       },
       include: ['**/*.ts', 'motia.config.ts', '**/*.tsx', 'types.d.ts', '**/*.jsx'],
       exclude: ['node_modules', 'dist', 'tests'],

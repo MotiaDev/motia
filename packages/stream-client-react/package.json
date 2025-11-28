@@ -4,9 +4,9 @@
   "version": "0.13.1-beta.162",
   "license": "Elastic-2.0",
   "type": "module",
-  "main": "dist/index.mjs",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.mts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
@@ -22,5 +22,18 @@
     "@types/react": "^19.0.7",
     "tsdown": "^0.16.6",
     "typescript": "^5.7.2"
+  },
+  "exports": {
+    ".": {
+      "development": "./index.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    }
   }
 }

@@ -5,14 +5,14 @@ export default defineConfig({
     index: './index.ts',
   },
   format: 'esm',
-  platform: 'neutral',
+  platform: 'browser',
   external: ['@motiadev/stream-client', 'uuid'],
   dts: {
     build: true,
   },
   clean: true,
   outDir: 'dist',
-  sourcemap: true,
-  unbundle: true,
-  fixedExtension: true,
+  exports: {
+    devExports: 'development',
+  },
 })

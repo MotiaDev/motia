@@ -12,7 +12,7 @@ export default defineConfig({
   },
   clean: true,
   outDir: 'dist',
-  sourcemap: true,
-  unbundle: true,
-  fixedExtension: true,
+  exports: {
+    devExports: 'development',
+  },
 })
