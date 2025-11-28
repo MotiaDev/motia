@@ -1,21 +1,24 @@
 #!/usr/bin/env node
 
-import { MemoryStreamAdapterManager } from '@motiadev/core'
 import { program } from 'commander'
-import './cloud'
 import { handler } from './cloud/config-utils'
-import { loadMotiaConfig } from './load-motia-config'
 import { wrapAction } from './utils/analytics'
 import { version } from './version'
 
 const defaultPort = 3000
 const defaultHost = '0.0.0.0'
 
-require('dotenv/config')
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
+const registerTsNode = () => {
+  require('dotenv/config')
+  require('ts-node').register({
+    transpileOnly: true,
+    compilerOptions: { module: 'commonjs' },
+  })
+}
+
+const registerCloudCommands = () => {
+  require('./cloud')
+}
 
 program
   .command('version')
@@ -30,7 +33,7 @@ program
   .description('Create a new motia project')
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-p, --plugin', 'Create a plugin project')
-  .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
+  .option('-i, --interactive', 'Use interactive prompts to create project')
   .action((projectName, options) => {
     const mergedArgs = { ...options, name: projectName }
     return handler(async (arg, context) => {
@@ -63,6 +66,7 @@ program
   .description('Generate types.d.ts file for your project')
   .action(
     wrapAction(async () => {
+      registerTsNode()
       const { generateTypes } = require('./generate-types')
       await generateTypes(process.cwd())
       process.exit(0)
@@ -91,6 +95,7 @@ program
   .option('--motia-dir <path>', 'Path where .motia folder will be created')
   .action(
     wrapAction(async (arg) => {
+      registerTsNode()
       if (arg.debug) {
         console.log('🔍 Debug logging enabled')
         process.env.LOG_LEVEL = 'debug'
@@ -113,6 +118,7 @@ program
   .option('--motia-dir <path>', 'Path where .motia folder will be created')
   .action(
     wrapAction(async (arg) => {
+      registerTsNode()
       if (arg.debug) {
         console.log('🔍 Debug logging enabled')
         process.env.LOG_LEVEL = 'debug'
@@ -177,6 +183,9 @@ generate
   .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
   .action(
     wrapAction(async (options) => {
+      registerTsNode()
+      const { MemoryStreamAdapterManager } = require('@motiadev/core')
+      const { loadMotiaConfig } = require('./load-motia-config')
       const { generateLockedData } = require('./generate-locked-data')
       const { generateOpenApi } = require('./openapi/generate')
 
@@ -233,6 +242,8 @@ docker
       process.exit(0)
     }),
   )
+
+registerCloudCommands()
 
 program.version(version, '-V, --version', 'Output the current version')
 program.parseAsync(process.argv).catch(() => {
