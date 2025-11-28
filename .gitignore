@@ -42,6 +42,7 @@ playground/reports/unit/
 # IDEs and editors
 .idea/
 .vscode/
+.cursor/
 *.sublime-project
 *.sublime-workspace
 .project
