@@ -18,6 +18,41 @@ It's called Streams.
 
 Creating a Stream means defining a data schema that will be stored and served to the clients who are subscribing.
 
+### StreamConfig Type Definition
+
+```typescript
+export type ZodInput = ZodObject<any> | ZodArray<any>
+export type StepSchemaInput = ZodInput | JsonSchema
+
+export type StreamSubscription = { groupId: string; id?: string }
+
+export interface StreamConfig {
+  /**
+   * The stream name, used on the client side to subscribe.
+   */
+  name: string
+
+  /**
+   * Schema for stream data. Accepts either:
+   * - Zod schema (ZodObject or ZodArray)
+   * - JSON Schema object
+   */
+  schema: StepSchemaInput
+
+  /**
+   * Storage configuration for the stream.
+   * Use 'default' for built-in storage or 'custom' with a factory function.
+   */
+  baseConfig: { storageType: 'default' } | { storageType: 'custom'; factory: () => MotiaStream<any> }
+
+  /**
+   * Optional: Access control callback to authorize subscriptions.
+   * Return true to allow access, false to deny.
+   */
+  canAccess?: (subscription: StreamSubscription, authContext: any) => boolean | Promise<boolean>
+}
+```
+
 ### TypeScript Example
 
 ```typescript
@@ -35,24 +70,8 @@ export const chatMessageSchema = z.object({
 export type ChatMessage = z.infer<typeof chatMessageSchema>
 
 export const config: StreamConfig = {
-  /**
-   * This is the stream name, it's extremely important to
-   * be used on the client side.
-   */
   name: 'chatMessage',
-
-  /**
-   * This is the schema of the data that will be stored in the stream.
-   * 
-   * It helps Motia to create the types on the steps to enforce the 
-   * streams objects are created correctly.
-   */
   schema: chatMessageSchema,
-
-  /**
-   * Let's not worry about base config for now, all streams
-   * have this storage type default
-   */
   baseConfig: { storageType: 'default' },
 }
 ```
@@ -106,6 +125,8 @@ Streams managers are automatically injected into the context of the steps.
 The interface of each stream is this
 
 ```typescript
+export type BaseStreamItem<TData = unknown> = TData & { id: string }
+
 interface MotiaStream<TData> {
   /**
    * Retrieves a single item from the stream
