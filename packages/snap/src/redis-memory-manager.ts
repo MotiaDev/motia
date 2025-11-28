@@ -106,9 +106,7 @@ class RedisMemoryManager {
     if (this.client && this.running) {
       try {
         if (this.client.isOpen) {
-          await this.client.quit().catch((error: unknown) => {
-            console.error('[Redis Memory Server] Error closing client:', error)
-          })
+          await this.client.quit().catch()
         }
         this.client = null
       } catch (error) {}
