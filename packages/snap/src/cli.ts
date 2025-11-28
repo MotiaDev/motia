@@ -16,10 +16,6 @@ const registerTsNode = () => {
   })
 }
 
-const registerCloudCommands = () => {
-  require('./cloud')
-}
-
 program
   .command('version')
   .description('Display detailed version information')
@@ -243,7 +239,97 @@ docker
     }),
   )
 
-registerCloudCommands()
+const cloud = program.command('cloud').description('Motia cloud commands')
+
+cloud
+  .command('build')
+  .description('Build the project')
+  .action(
+    handler(async (_, context) => {
+      const { buildValidation } = require('./cloud/build/build-validation')
+      const { build } = require('./cloud/new-deployment/build')
+      const { CliListener } = require('./cloud/new-deployment/listeners/cli-listener')
+
+      const listener = new CliListener(context)
+      const builder = await build(listener)
+      const isValid = buildValidation(builder, listener)
+
+      if (!isValid) {
+        process.exit(1)
+      }
+
+      context.log('build-completed', (message) => message.tag('success').append('Build completed'))
+    }),
+  )
+
+cloud
+  .command('deploy')
+  .description('Deploy a new version to Motia Cloud')
+  .requiredOption('-k, --api-key <key>', 'The API key for authentication', process.env.MOTIA_API_KEY)
+  .requiredOption('-v, --version-name <version>', 'The version to deploy')
+  .option('-p, --project-id <id>', 'Project ID (Deprecated)')
+  .option('-n, --project-name <name>', 'Project name (used when creating a new project)')
+  .option('-s, --environment-id <id>', 'Environment ID', process.env.MOTIA_ENVIRONMENT_ID)
+  .option('--environment-name <name>', 'Environment name')
+  .option('-e, --env-file <path>', 'Path to environment file')
+  .option('-d, --version-description <description>', 'The description of the version')
+  .option('-c, --ci', 'CI mode', process.env.CI)
+  .action(
+    handler(async (arg, context) => {
+      const { buildValidation } = require('./cloud/build/build-validation')
+      const { build } = require('./cloud/new-deployment/build')
+      const { cloudApi } = require('./cloud/new-deployment/cloud-api')
+      const { deploy } = require('./cloud/new-deployment/deploy')
+      const { CliListener } = require('./cloud/new-deployment/listeners/cli-listener')
+      const { uploadArtifacts } = require('./cloud/new-deployment/upload-artifacts')
+      const { loadEnvData } = require('./cloud/new-deployment/utils/load-env-data')
+
+      const listener = new CliListener(context)
+      const builder = await build(listener)
+      const isValid = buildValidation(builder, listener)
+
+      if (!isValid) {
+        process.exit(1)
+      }
+
+      context.log('build-completed', (message) => message.tag('success').append('Build completed'))
+      context.log('creating-deployment', (message) => message.tag('progress').append('Creating deployment...'))
+
+      const deployment = await cloudApi
+        .createDeployment({
+          apiKey: arg.apiKey,
+          projectName: arg.projectName,
+          environmentId: arg.environmentId,
+          environmentName: arg.environmentName,
+          versionName: arg.versionName,
+          versionDescription: arg.versionDescription,
+        })
+        .catch((error: Error) => {
+          context.log('creating-deployment', (message) => message.tag('failed').append('Failed to create deployment'))
+          throw error
+        })
+
+      context.log('creating-deployment', (message) => message.tag('success').append('Deployment created'))
+      context.log('uploading-artifacts', (message) => message.tag('progress').append('Uploading artifacts...'))
+
+      await uploadArtifacts(builder, deployment.deploymentToken, listener)
+
+      context.log('uploading-artifacts', (message) => message.tag('success').append('Artifacts uploaded'))
+      context.log('starting-deployment', (message) => message.tag('progress').append('Starting deployment...'))
+
+      await deploy({
+        envVars: loadEnvData(arg.envFile, context),
+        deploymentId: deployment.deploymentId,
+        deploymentToken: deployment.deploymentToken,
+        builder,
+        listener,
+        context,
+        ci: arg.ci,
+      })
+
+      context.exit(0)
+    }),
+  )
 
 program.version(version, '-V, --version', 'Output the current version')
 program.parseAsync(process.argv).catch(() => {
