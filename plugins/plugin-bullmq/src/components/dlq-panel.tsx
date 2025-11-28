@@ -16,10 +16,11 @@ import { formatDistanceToNow } from 'date-fns'
 import RefreshCw from 'lucide-react/icons/refresh-cw'
 import Trash from 'lucide-react/icons/trash'
 import X from 'lucide-react/icons/x'
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import JsonView from 'react18-json-view'
 import 'react18-json-view/src/style.css'
-import { useJobs } from '../hooks/use-jobs'
+import { useClearDLQ, useRetryAllFromDLQ, useRetryFromDLQ } from '../hooks/use-jobs-mutations'
+import { useDLQJobsQuery } from '../hooks/use-jobs-query'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 import type { DLQJobInfo } from '../types/queue'
 
@@ -71,48 +72,33 @@ DLQJobDataTab.displayName = 'DLQJobDataTab'
 
 export const DLQPanel = memo(() => {
   const selectedQueue = useBullMQStore((state) => state.selectedQueue)
-  const { getDLQJobs, retryFromDLQ, retryAllFromDLQ, clearDLQ } = useJobs()
-  const [dlqJobs, setDlqJobs] = useState<DLQJobInfo[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const {
+    data: dlqJobs = [],
+    isLoading,
+    refetch,
+  } = useDLQJobsQuery(selectedQueue?.isDLQ ? selectedQueue.name : undefined)
+  const retryFromDLQMutation = useRetryFromDLQ()
+  const retryAllFromDLQMutation = useRetryAllFromDLQ()
+  const clearDLQMutation = useClearDLQ()
   const [selectedDlqJob, setSelectedDlqJob] = useState<DLQJobInfo | null>(null)
 
-  const loadDLQJobs = useCallback(async () => {
-    if (!selectedQueue?.isDLQ) return
-    setIsLoading(true)
-    try {
-      const jobs = await getDLQJobs(selectedQueue.name)
-      setDlqJobs(jobs)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [selectedQueue, getDLQJobs])
-
-  useEffect(() => {
-    if (selectedQueue?.isDLQ) {
-      loadDLQJobs()
-    }
-  }, [selectedQueue, loadDLQJobs])
-
   const handleRetry = useCallback(
-    async (jobId: string) => {
+    (jobId: string) => {
       if (!selectedQueue) return
-      await retryFromDLQ(selectedQueue.name, jobId)
-      await loadDLQJobs()
+      retryFromDLQMutation.mutate({ queueName: selectedQueue.name, jobId })
     },
-    [selectedQueue, retryFromDLQ, loadDLQJobs],
+    [selectedQueue, retryFromDLQMutation],
   )
 
-  const handleRetryAll = useCallback(async () => {
+  const handleRetryAll = useCallback(() => {
     if (!selectedQueue) return
-    await retryAllFromDLQ(selectedQueue.name)
-    await loadDLQJobs()
-  }, [selectedQueue, retryAllFromDLQ, loadDLQJobs])
+    retryAllFromDLQMutation.mutate({ queueName: selectedQueue.name })
+  }, [selectedQueue, retryAllFromDLQMutation])
 
-  const handleClear = useCallback(async () => {
+  const handleClear = useCallback(() => {
     if (!selectedQueue) return
-    await clearDLQ(selectedQueue.name)
-    await loadDLQJobs()
-  }, [selectedQueue, clearDLQ, loadDLQJobs])
+    clearDLQMutation.mutate({ queueName: selectedQueue.name })
+  }, [selectedQueue, clearDLQMutation])
 
   const handleCloseSidePanel = useCallback(() => {
     setSelectedDlqJob(null)
@@ -140,7 +126,7 @@ export const DLQPanel = memo(() => {
           <div className="flex items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={loadDLQJobs} disabled={isLoading}>
+                <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={isLoading}>
                   <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 </Button>
               </TooltipTrigger>

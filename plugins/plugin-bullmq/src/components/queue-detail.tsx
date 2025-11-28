@@ -14,13 +14,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@motiadev/ui'
+import { useQueryClient } from '@tanstack/react-query'
 import MoreVertical from 'lucide-react/icons/more-vertical'
 import Pause from 'lucide-react/icons/pause'
 import Play from 'lucide-react/icons/play'
 import RefreshCw from 'lucide-react/icons/refresh-cw'
 import Trash from 'lucide-react/icons/trash'
 import { memo, useCallback } from 'react'
-import { useJobs } from '../hooks/use-jobs'
 import { useQueues } from '../hooks/use-queues'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 import type { JobStatus } from '../types/queue'
@@ -35,11 +35,11 @@ const STATUS_TABS: { value: JobStatus; label: string }[] = [
 ]
 
 export const QueueDetail = memo(() => {
+  const queryClient = useQueryClient()
   const selectedQueue = useBullMQStore((state) => state.selectedQueue)
   const selectedStatus = useBullMQStore((state) => state.selectedStatus)
   const setSelectedStatus = useBullMQStore((state) => state.setSelectedStatus)
   const { pauseQueue, resumeQueue, cleanQueue, drainQueue } = useQueues()
-  const { fetchJobs } = useJobs()
 
   const handlePause = useCallback(async () => {
     if (!selectedQueue) return
@@ -66,10 +66,10 @@ export const QueueDetail = memo(() => {
     await drainQueue(selectedQueue.name)
   }, [selectedQueue, drainQueue])
 
-  const handleRefresh = useCallback(async () => {
+  const handleRefresh = useCallback(() => {
     if (!selectedQueue) return
-    await fetchJobs(selectedQueue.name, selectedStatus)
-  }, [selectedQueue, selectedStatus, fetchJobs])
+    queryClient.invalidateQueries({ queryKey: ['jobs', selectedQueue.name] })
+  }, [selectedQueue, queryClient])
 
   if (!selectedQueue) {
     return (

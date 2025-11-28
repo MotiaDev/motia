@@ -8,7 +8,7 @@ const STREAM_NAME = '__motia.bullmq-queues'
 type StreamQueueInfo = QueueInfo & { id: string }
 
 export const useQueues = () => {
-  const { queues, setQueues, setError, isLoading, error, selectedQueue, setSelectedQueue } = useBullMQStore()
+  const { queues, setQueues, setError, error, selectedQueue, setSelectedQueue } = useBullMQStore()
 
   const { data: streamQueues } = useStreamGroup<StreamQueueInfo>({
     streamName: STREAM_NAME,
@@ -96,7 +96,6 @@ export const useQueues = () => {
 
   return {
     queues,
-    isLoading,
     error,
     refreshQueue,
     pauseQueue,

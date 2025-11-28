@@ -7,7 +7,7 @@ import X from 'lucide-react/icons/x'
 import { memo, useCallback } from 'react'
 import JsonView from 'react18-json-view'
 import 'react18-json-view/src/style.css'
-import { useJobs } from '../hooks/use-jobs'
+import { usePromoteJob, useRemoveJob, useRetryJob } from '../hooks/use-jobs-mutations'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 
 const JobDataTab = memo<{ data: unknown }>(({ data }) => (
@@ -55,30 +55,32 @@ export const JobDetail = memo(() => {
   const jobDetailOpen = useBullMQStore((state) => state.jobDetailOpen)
   const setJobDetailOpen = useBullMQStore((state) => state.setJobDetailOpen)
   const setSelectedJob = useBullMQStore((state) => state.setSelectedJob)
-  const { retryJob, removeJob, promoteJob } = useJobs()
+  const retryJobMutation = useRetryJob()
+  const removeJobMutation = useRemoveJob()
+  const promoteJobMutation = usePromoteJob()
 
   const handleClose = useCallback(() => {
     setJobDetailOpen(false)
     setSelectedJob(null)
   }, [setJobDetailOpen, setSelectedJob])
 
-  const handleRetry = useCallback(async () => {
+  const handleRetry = useCallback(() => {
     if (!selectedQueue || !selectedJob) return
-    await retryJob(selectedQueue.name, selectedJob.id)
+    retryJobMutation.mutate({ queueName: selectedQueue.name, jobId: selectedJob.id })
     handleClose()
-  }, [selectedQueue, selectedJob, retryJob, handleClose])
+  }, [selectedQueue, selectedJob, retryJobMutation, handleClose])
 
-  const handleRemove = useCallback(async () => {
+  const handleRemove = useCallback(() => {
     if (!selectedQueue || !selectedJob) return
-    await removeJob(selectedQueue.name, selectedJob.id)
+    removeJobMutation.mutate({ queueName: selectedQueue.name, jobId: selectedJob.id })
     handleClose()
-  }, [selectedQueue, selectedJob, removeJob, handleClose])
+  }, [selectedQueue, selectedJob, removeJobMutation, handleClose])
 
-  const handlePromote = useCallback(async () => {
+  const handlePromote = useCallback(() => {
     if (!selectedQueue || !selectedJob) return
-    await promoteJob(selectedQueue.name, selectedJob.id)
+    promoteJobMutation.mutate({ queueName: selectedQueue.name, jobId: selectedJob.id })
     handleClose()
-  }, [selectedQueue, selectedJob, promoteJob, handleClose])
+  }, [selectedQueue, selectedJob, promoteJobMutation, handleClose])
 
   if (!jobDetailOpen || !selectedJob || !selectedQueue) return null
 

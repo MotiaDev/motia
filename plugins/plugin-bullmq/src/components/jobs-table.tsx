@@ -18,7 +18,8 @@ import MoreVertical from 'lucide-react/icons/more-vertical'
 import RefreshCw from 'lucide-react/icons/refresh-cw'
 import Trash from 'lucide-react/icons/trash'
 import { memo, useCallback } from 'react'
-import { useJobs } from '../hooks/use-jobs'
+import { usePromoteJob, useRemoveJob, useRetryJob } from '../hooks/use-jobs-mutations'
+import { useJobsQuery } from '../hooks/use-jobs-query'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 import type { JobInfo } from '../types/queue'
 
@@ -30,30 +31,32 @@ type JobRowProps = {
 }
 
 const JobRow = memo<JobRowProps>(({ job, queueName, onSelect, isSelected }) => {
-  const { retryJob, removeJob, promoteJob } = useJobs()
+  const retryJobMutation = useRetryJob()
+  const removeJobMutation = useRemoveJob()
+  const promoteJobMutation = usePromoteJob()
 
   const handleRetry = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      retryJob(queueName, job.id)
+      retryJobMutation.mutate({ queueName, jobId: job.id })
     },
-    [queueName, job.id, retryJob],
+    [queueName, job.id, retryJobMutation],
   )
 
   const handleRemove = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      removeJob(queueName, job.id)
+      removeJobMutation.mutate({ queueName, jobId: job.id })
     },
-    [queueName, job.id, removeJob],
+    [queueName, job.id, removeJobMutation],
   )
 
   const handlePromote = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      promoteJob(queueName, job.id)
+      promoteJobMutation.mutate({ queueName, jobId: job.id })
     },
-    [queueName, job.id, promoteJob],
+    [queueName, job.id, promoteJobMutation],
   )
 
   return (
@@ -117,7 +120,7 @@ const JobRow = memo<JobRowProps>(({ job, queueName, onSelect, isSelected }) => {
 JobRow.displayName = 'JobRow'
 
 export const JobsTable = memo(() => {
-  const jobs = useBullMQStore((state) => state.jobs)
+  const { data: jobs = [], isLoading } = useJobsQuery()
   const selectedQueue = useBullMQStore((state) => state.selectedQueue)
   const selectedJob = useBullMQStore((state) => state.selectedJob)
   const setSelectedJob = useBullMQStore((state) => state.setSelectedJob)
@@ -135,6 +138,10 @@ export const JobsTable = memo(() => {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">Select a queue to view jobs</div>
     )
+  }
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-full text-muted-foreground">Loading jobs...</div>
   }
 
   if (jobs.length === 0) {
