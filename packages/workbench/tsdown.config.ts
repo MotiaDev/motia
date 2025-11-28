@@ -1,5 +1,3 @@
-import { injectCssPlugin } from '@bosh-code/tsdown-plugin-inject-css'
-import { tailwindPlugin } from '@bosh-code/tsdown-plugin-tailwindcss'
 import pluginBabel from '@rollup/plugin-babel'
 import url from '@rollup/plugin-url'
 import { defineConfig } from 'tsdown'
@@ -85,10 +83,6 @@ export default defineConfig([
         include: ['**/*.png'],
         limit: 8192, // Inline files smaller than 8kb as data URLs
       }),
-      tailwindPlugin({
-        minify: process.env.NODE_ENV === 'prod',
-      }),
-      injectCssPlugin(),
       pluginBabel({
         babelHelpers: 'bundled',
         parserOpts: {

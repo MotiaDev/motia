@@ -502,40 +502,6 @@ importers:
         specifier: ^3.5.3
         version: 3.5.5(typescript@5.9.3)
 
-  packages/snap/dist/test:
-    dependencies:
-      '@motiadev/core':
-        specifier: workspace:*
-        version: link:../../../core
-      '@motiadev/plugin-endpoint':
-        specifier: workspace:*
-        version: link:../../../../plugins/plugin-endpoint
-      '@motiadev/plugin-logs':
-        specifier: workspace:*
-        version: link:../../../../plugins/plugin-logs
-      '@motiadev/plugin-observability':
-        specifier: workspace:*
-        version: link:../../../../plugins/plugin-observability
-      '@motiadev/plugin-states':
-        specifier: workspace:*
-        version: link:../../../../plugins/plugin-states
-      motia:
-        specifier: workspace:*
-        version: link:../..
-      zod:
-        specifier: ^4.1.12
-        version: 4.1.13
-    devDependencies:
-      '@types/react':
-        specifier: ^19.1.4
-        version: 19.2.7
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.15.3(@swc/helpers@0.5.17))(@types/node@22.19.1)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-
   packages/stream-client:
     dependencies:
       uuid:
@@ -875,12 +841,6 @@ importers:
         specifier: ^5.0.8
         version: 5.0.8(@types/react@19.2.7)(react@19.2.0)(use-sync-external-store@1.6.0(react@19.2.0))
     devDependencies:
-      '@bosh-code/tsdown-plugin-inject-css':
-        specifier: ^2.0.0
-        version: 2.0.0(tsdown@0.16.8(publint@0.3.15)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6))
-      '@bosh-code/tsdown-plugin-tailwindcss':
-        specifier: ^1.0.1
-        version: 1.0.1(tailwindcss@4.1.17)
       '@rollup/plugin-babel':
         specifier: ^6.1.0
         version: 6.1.0(@babel/core@7.28.5)(@types/babel__core@7.20.5)(rollup@4.53.3)
@@ -1057,9 +1017,6 @@ importers:
         specifier: ^5.0.8
         version: 5.0.8(@types/react@19.2.7)(react@19.2.0)(use-sync-external-store@1.6.0(react@19.2.0))
     devDependencies:
-      '@bosh-code/tsdown-plugin-inject-css':
-        specifier: ^2.0.0
-        version: 2.0.0(tsdown@0.16.8(publint@0.3.15)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6))
       '@bosh-code/tsdown-plugin-tailwindcss':
         specifier: ^1.0.1
         version: 1.0.1(tailwindcss@4.1.17)

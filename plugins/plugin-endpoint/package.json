@@ -41,7 +41,6 @@
     "@motiadev/ui": "workspace:*"
   },
   "devDependencies": {
-    "@bosh-code/tsdown-plugin-inject-css": "^2.0.0",
     "@bosh-code/tsdown-plugin-tailwindcss": "^1.0.1",
     "@rollup/plugin-babel": "^6.1.0",
     "@tailwindcss/postcss": "^4.1.17",

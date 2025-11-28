@@ -1,3 +1,1 @@
-import './styles.css'
-
 export { ExamplePage } from './components/example-page'

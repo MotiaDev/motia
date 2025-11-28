@@ -61,8 +61,6 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@bosh-code/tsdown-plugin-inject-css": "^2.0.0",
-    "@bosh-code/tsdown-plugin-tailwindcss": "^1.0.1",
     "@rollup/plugin-babel": "^6.1.0",
     "@rollup/plugin-url": "^8.0.2",
     "@testing-library/jest-dom": "^6.9.1",
