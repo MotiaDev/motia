@@ -119,6 +119,11 @@ export interface ApiRequest<TBody = unknown> {
   queryParams: Record<string, string | string[]>
   body: TBody
   headers: Record<string, string | string[]>
+  /**
+   * The raw unparsed request body as a string.
+   * This is the same body that was sent but without type enforcement/parsing.
+   */
+  rawBody: string
 }
 
 export type ApiResponse<TStatus extends number = number, TBody = string | Buffer | Record<string, unknown>> = {
@@ -206,5 +211,6 @@ export interface Handlers {}
 declare module 'http' {
   interface IncomingMessage {
     authContext?: unknown | null
+    rawBody?: string
   }
 }
