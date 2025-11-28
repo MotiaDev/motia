@@ -1,11 +1,14 @@
+import { Printer } from '@motiadev/core'
 import react from '@vitejs/plugin-react'
 import type { Express, NextFunction, Request, Response } from 'express'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import type { ViteDevServer } from 'vite'
 import { createServer as createViteServer } from 'vite'
 import motiaPluginsPlugin from './motia-plugin/index.js'
 import type { WorkbenchPlugin } from './motia-plugin/types.js'
+import { CONSTANTS } from './motia-plugin/types.js'
 
 const workbenchBasePlugin = (workbenchBase: string) => {
   return {
@@ -59,6 +62,22 @@ export type ApplyMiddlewareParams = {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+const warmupMotiaPlugins = async (viteServer: ViteDevServer) => {
+  try {
+    const result = await viteServer.transformRequest(CONSTANTS.VIRTUAL_MODULE_ID)
+
+    if (result?.code) {
+      printer.printPluginLog('Plugin system warmed up eagerly')
+    } else {
+      printer.printPluginWarn('Plugin warm-up returned empty result')
+    }
+  } catch (error) {
+    printer.printPluginWarn(`Failed to warm up plugin system, continuing lazily: ${error}`)
+  }
+}
+
+const printer = new Printer(process.cwd())
+
 export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: ApplyMiddlewareParams): Promise<void> => {
   const vite = await createViteServer({
     appType: 'spa',
@@ -101,6 +120,8 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
     ],
     assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico', '**/*.webp', '**/*.avif'],
   })
+
+  await warmupMotiaPlugins(vite)
 
   app.use(workbenchBase, vite.middlewares)
   app.use(`${workbenchBase}/*`, async (req: Request, res: Response, next: NextFunction) => {
