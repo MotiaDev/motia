@@ -7,6 +7,7 @@ const endpointPlugin = require('@motiadev/plugin-endpoint/plugin')
 const logsPlugin = require('@motiadev/plugin-logs/plugin')
 const observabilityPlugin = require('@motiadev/plugin-observability/plugin')
 const examplePlugin = require('@motiadev/plugin-example/plugin')
+const bullmqPlugin = require('@motiadev/plugin-bullmq/plugin')
 
 function localPluginExample(motia: MotiaPluginContext): MotiaPlugin {
   motia.registerApi(
@@ -85,7 +86,15 @@ const extractAuthToken = (request: StreamAuthRequest): string | undefined => {
 }
 
 export default config({
-  plugins: [observabilityPlugin, statesPlugin, endpointPlugin, logsPlugin, examplePlugin, localPluginExample],
+  plugins: [
+    observabilityPlugin,
+    statesPlugin,
+    endpointPlugin,
+    logsPlugin,
+    examplePlugin,
+    bullmqPlugin,
+    localPluginExample,
+  ],
   streamAuth: {
     contextSchema: z.toJSONSchema(streamAuthContextSchema),
     authenticate: async (request: StreamAuthRequest) => {

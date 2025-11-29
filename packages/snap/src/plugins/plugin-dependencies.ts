@@ -4,4 +4,5 @@ export const pluginDependencies = [
   '@motiadev/plugin-states',
   '@motiadev/plugin-endpoint',
   '@motiadev/plugin-observability',
+  '@motiadev/plugin-bullmq',
 ]

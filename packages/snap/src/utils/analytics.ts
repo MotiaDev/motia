@@ -82,7 +82,9 @@ export const wrapAction = <T extends (...args: any[]) => Promise<any>>(action: T
       return await action(...args)
     } catch (error) {
       const commandName = getCommandNameFromArgs()
-      logCliError(commandName, error)
+      if (error instanceof BuildError) {
+        logCliError(commandName, error)
+      }
       await flush().promise.catch(() => {
         // Silently fail
       })

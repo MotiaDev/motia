@@ -1,18 +1,15 @@
 import { flush } from '@amplitude/analytics-node'
+import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import {
   createMermaidGenerator,
   createServer,
-  createStateAdapter,
-  DefaultCronAdapter,
-  DefaultQueueEventAdapter,
-  FileStreamAdapterManager,
   getProjectIdentifier,
   type MotiaPlugin,
   trackEvent,
 } from '@motiadev/core'
-import path from 'path'
 import type { RedisClientType } from 'redis'
 import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
@@ -68,8 +65,16 @@ export const dev = async (
   const redisClient: RedisClientType = await instanceRedisMemoryServer(motiaFileStoragePath, true)
 
   const adapters = {
-    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
+    eventAdapter:
+      appConfig.adapters?.events ||
+      new BullMQEventAdapter({
+        connection: {
+          host: (redisClient.options.socket as { host?: string })?.host || 'localhost',
+          port: (redisClient.options.socket as { port?: number })?.port || 6379,
+        },
+        prefix: 'motia:events',
+      }),
+    cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),
     streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),
   }
 

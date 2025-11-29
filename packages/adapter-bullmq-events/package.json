@@ -1,0 +1,25 @@
+{
+  "name": "@motiadev/adapter-bullmq-events",
+  "description": "BullMQ event adapter for Motia framework, enabling distributed event handling with advanced features like retries, priorities, delays, and FIFO queues.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "version": "0.9.1-beta.146",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "lint": "biome check .",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@motiadev/core": "workspace:*",
+    "bullmq": "^5.63.0",
+    "ioredis": "^5.8.2",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@motiadev/core": ">=0.8.0"
+  }
+}

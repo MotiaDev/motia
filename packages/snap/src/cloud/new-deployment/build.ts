@@ -2,7 +2,6 @@ import { isApiStep, LockedData, MemoryStreamAdapterManager } from '@motiadev/cor
 import { NoPrinter } from '@motiadev/core/dist/src/printer'
 import fs from 'fs'
 import { collectFlows, getStepFiles, getStreamFiles } from '../../generate-locked-data'
-import { instanceRedisMemoryServer } from '../../redis-memory-manager'
 import { BuildError, BuildErrorType } from '../../utils/errors/build.error'
 import { Builder, type StepsConfigFile } from '../build/builder'
 import { NodeBuilder } from '../build/builders/node'
@@ -29,8 +28,7 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
   fs.rmSync(distDir, { recursive: true, force: true })
   fs.mkdirSync(distDir, { recursive: true })
 
-  const redisClient = await instanceRedisMemoryServer(projectDir, false)
-  const lockedData = new LockedData(projectDir, new MemoryStreamAdapterManager(), new NoPrinter(), redisClient)
+  const lockedData = new LockedData(projectDir, new MemoryStreamAdapterManager(), new NoPrinter())
 
   if (hasPythonSteps([...stepFiles, ...streamFiles])) {
     builder.registerBuilder('python', new PythonBuilder(builder, listener))

@@ -7,6 +7,7 @@ import type { LockedData } from '../locked-data'
 import { Printer } from '../printer'
 import { createServer } from '../server'
 import type { ApiMiddleware, ApiRouteConfig, Step } from '../types'
+import { createMockRedisClient } from './test-helpers/redis-client'
 
 // Mock callStepFile to prevent actual file execution
 jest.mock('../call-step-file', () => ({
@@ -50,6 +51,7 @@ describe('Middleware Management', () => {
       getStreamByName: () => undefined,
       getStreams: () => ({}),
       on: () => {},
+      redisClient: createMockRedisClient(),
     } as unknown as LockedData
 
     const state = new MemoryStateAdapter()

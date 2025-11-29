@@ -225,6 +225,11 @@ export const createServer = (
       baseConfig: {
         storageType: 'custom',
         factory: () => {
+          if (!lockedData.redisClient) {
+            throw new Error(
+              'Redis client is required for server operation. Please provide a redisClient when creating LockedData.',
+            )
+          }
           return new RedisLogsStream(lockedData.redisClient)
         },
       },

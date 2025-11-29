@@ -82,7 +82,9 @@ jobs:
           npm dist-tag add @motiadev/plugin-observability@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/plugin-states@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/plugin-example@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-bullmq@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/adapter-rabbitmq-events@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/adapter-bullmq-events@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/adapter-redis-cron@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/adapter-redis-state@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/adapter-redis-streams@${{ needs.prepare.outputs.version }} latest
@@ -103,7 +105,9 @@ jobs:
           npm dist-tag rm @motiadev/plugin-observability pre-release || true
           npm dist-tag rm @motiadev/plugin-states pre-release || true
           npm dist-tag rm @motiadev/plugin-example pre-release || true
+          npm dist-tag rm @motiadev/plugin-bullmq pre-release || true
           npm dist-tag rm @motiadev/adapter-rabbitmq-events pre-release || true
+          npm dist-tag rm @motiadev/adapter-bullmq-events pre-release || true
           npm dist-tag rm @motiadev/adapter-redis-cron pre-release || true
           npm dist-tag rm @motiadev/adapter-redis-state pre-release || true
           npm dist-tag rm @motiadev/adapter-redis-streams pre-release || true
@@ -263,9 +267,11 @@ jobs:
           - **@motiadev/plugin-logs**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/plugin-observability**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/plugin-states**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/plugin-bullmq**: ${{ needs.prepare.outputs.version }}
           
           ### Adapters
           - **@motiadev/adapter-rabbitmq-events**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/adapter-bullmq-events**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/adapter-redis-cron**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/adapter-redis-state**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/adapter-redis-streams**: ${{ needs.prepare.outputs.version }}
