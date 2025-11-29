@@ -95,8 +95,27 @@ async function globalSetup() {
       },
     })
 
+    // Capture server output for debugging
+    serverProcess.stdout?.on('data', (data) => {
+      console.log(`[server stdout] ${data.toString().trim()}`)
+    })
+    serverProcess.stderr?.on('data', (data) => {
+      console.error(`[server stderr] ${data.toString().trim()}`)
+    })
+
+    // Track if server process exits early
+    let serverExited = false
+    let serverExitCode: number | null = null
+    serverProcess.on('exit', (code) => {
+      serverExited = true
+      serverExitCode = code
+      if (code !== 0) {
+        console.error(`❌ Server process exited with code ${code}`)
+      }
+    })
+
     console.log('⏳ Waiting for server to be ready...')
-    await waitForServer('http://localhost:3000', 60000)
+    await waitForServer('http://localhost:3000', 60000, () => ({ exited: serverExited, code: serverExitCode }))
 
     console.log('✅ PR E2E test environment setup complete!')
 
@@ -115,10 +134,22 @@ async function globalSetup() {
   }
 }
 
-async function waitForServer(url: string, timeout: number): Promise<void> {
+async function waitForServer(
+  url: string,
+  timeout: number,
+  getServerStatus?: () => { exited: boolean; code: number | null },
+): Promise<void> {
   const start = Date.now()
 
   while (Date.now() - start < timeout) {
+    // Check if server process crashed
+    if (getServerStatus) {
+      const status = getServerStatus()
+      if (status.exited && status.code !== 0) {
+        throw new Error(`Server process exited early with code ${status.code}`)
+      }
+    }
+
     try {
       const response = await fetch(url)
       if (response.ok) {

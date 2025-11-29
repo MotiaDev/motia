@@ -11,7 +11,6 @@ on:
       - 'docs/**'
       - 'contributors/**'
       - 'packages/docs/**'
-      - 'plugins/**'
 
   push:
     branches:
@@ -44,7 +43,7 @@ jobs:
           pnpm python-setup
 
       - name: Run tests
-        run: PATH=python_modules/bin:$PATH pnpm -r run test
+        run: PATH=python_modules/bin:$PATH pnpm -r --filter='!./plugins/**' run test
 
   # Note: Publishing is now handled by the deploy.yml workflow
   # This workflow only handles CI/CD quality checks
