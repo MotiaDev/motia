@@ -11,6 +11,8 @@ on:
       - 'docs/**'
       - 'contributors/**'
       - 'packages/docs/**'
+      - 'plugins/**'
+
   push:
     branches:
       - main
