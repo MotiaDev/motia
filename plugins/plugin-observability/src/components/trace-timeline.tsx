@@ -1,4 +1,4 @@
-import { useStreamGroup, useStreamItem } from '@motiadev/stream-client-react'
+import { useStreamGroup } from '@motiadev/stream-client-react'
 import { Button } from '@motiadev/ui'
 import Minus from 'lucide-react/icons/minus'
 import Plus from 'lucide-react/icons/plus'
@@ -22,11 +22,9 @@ interface TraceTimelineComponentProps {
   groupId: string
 }
 const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ groupId }) => {
-  const streamItemArgs = useMemo(
-    () => ({ streamName: 'motia-trace-group', groupId: 'default', id: groupId }),
-    [groupId],
-  )
-  const { data: group } = useStreamItem<TraceGroup>(streamItemArgs)
+  const traceGroupStreamArgs = useMemo(() => ({ streamName: 'motia-trace-group', groupId: 'default' }), [])
+  const { data: traceGroups } = useStreamGroup<TraceGroup>(traceGroupStreamArgs)
+  const group = useMemo(() => traceGroups.find((traceGroup) => traceGroup.id === groupId), [traceGroups, groupId])
 
   const streamGroupArgs = useMemo(() => ({ streamName: 'motia-trace', groupId }), [groupId])
   const { data } = useStreamGroup<Trace>(streamGroupArgs)
