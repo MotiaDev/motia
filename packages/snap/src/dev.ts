@@ -4,15 +4,12 @@ import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import {
   createMermaidGenerator,
   createServer,
-  createStateAdapter,
   DefaultCronAdapter,
   DefaultQueueEventAdapter,
-  FileStreamAdapterManager,
   getProjectIdentifier,
   type MotiaPlugin,
   trackEvent,
 } from '@motiadev/core'
-import path from 'path'
 import type { RedisClientType } from 'redis'
 import { deployEndpoints } from './cloud/endpoints'
 import { isTutorialDisabled, workbenchBase } from './constants'
@@ -24,13 +21,6 @@ import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
-
-process.env.VITE_CJS_IGNORE_WARNING = 'true'
-
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
 
 export const dev = async (
   port: number,
@@ -123,9 +113,8 @@ export const dev = async (
     environment: process.env.NODE_ENV || 'development',
   })
 
-  const { applyMiddleware } = process.env.__MOTIA_DEV_MODE__
-    ? require('@motiadev/workbench/middleware')
-    : require('@motiadev/workbench/dist/middleware')
+  const { applyMiddleware } = await import('@motiadev/workbench/middleware')
+
   await applyMiddleware({
     app: motiaServer.app,
     port,

@@ -1,5 +1,5 @@
 import { exec, execSync } from 'child_process'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
@@ -16,48 +16,56 @@ async function globalSetup() {
     }
 
     const template = process.env.MOTIA_TEST_TEMPLATE || 'motia-tutorial-typescript'
-    const cliPath = process.env.MOTIA_CLI_PATH || path.join(ROOT_PATH, 'packages/snap/dist/cjs/cli.js')
+    const cliPath = process.env.MOTIA_CLI_PATH || path.join(ROOT_PATH, 'packages/snap/dist/cli.mjs')
 
     if (!existsSync(cliPath)) {
       throw new Error(`Built CLI not found at ${cliPath}`)
     }
 
-    console.log(`📦 Creating test project with built CLI and template ${template}...`)
+    console.log(`📦 Creating test project with template ${template}...`)
 
-    const createCommand = `node ${cliPath} create  ${TEST_PROJECT_NAME} -t ${template}`
+    // Manually create project structure to avoid npm/pnpm install during create
+    mkdirSync(TEST_PROJECT_PATH, { recursive: true })
 
-    execSync(createCommand, {
-      stdio: 'pipe',
-      cwd: path.join(ROOT_PATH, 'packages'),
-    })
-
-    // Update package.json to use workspace references
-    console.log('🔗 Updating package.json to use workspace references...')
-    const packageJsonPath = path.join(TEST_PROJECT_PATH, 'package.json')
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
-
-    // Update dependencies to use workspace references
-    if (packageJson.dependencies?.motia) {
-      packageJson.dependencies['motia'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/workbench'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/core'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-logs'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-states'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-endpoint'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-observability'] = 'workspace:*'
+    // Copy template files
+    const templatePath = path.join(ROOT_PATH, 'packages/snap/dist/create/templates', template)
+    if (existsSync(templatePath)) {
+      cpSync(templatePath, TEST_PROJECT_PATH, { recursive: true, filter: (src) => !src.includes('node_modules') })
     }
 
-    // Temporarily remove postinstall script to avoid running 'motia install' before dependencies are linked
-    const originalPostinstall = packageJson.scripts?.postinstall
-    if (packageJson.scripts?.postinstall) {
-      delete packageJson.scripts.postinstall
+    // Create package.json with workspace dependencies
+    const packageJsonContent = {
+      name: TEST_PROJECT_NAME,
+      description: 'E2E test project',
+      type: 'module',
+      scripts: {
+        dev: 'motia dev',
+        'generate-types': 'motia generate-types',
+        build: 'motia build',
+        clean: 'rm -rf dist node_modules python_modules .motia .mermaid',
+      },
+      dependencies: {
+        motia: 'workspace:*',
+        '@motiadev/workbench': 'workspace:*',
+        '@motiadev/core': 'workspace:*',
+        '@motiadev/plugin-logs': 'workspace:*',
+        '@motiadev/plugin-states': 'workspace:*',
+        '@motiadev/plugin-endpoint': 'workspace:*',
+        '@motiadev/plugin-observability': 'workspace:*',
+        zod: '4.1.12',
+      },
+      devDependencies: {
+        'ts-node': '10.9.2',
+        typescript: '5.7.3',
+        '@types/react': '19.1.1',
+      },
+      keywords: ['motia'],
     }
 
-    // Write updated package.json
-    writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+    writeFileSync(path.join(TEST_PROJECT_PATH, 'package.json'), JSON.stringify(packageJsonContent, null, 2))
+    writeFileSync(path.join(TEST_PROJECT_PATH, 'pnpm-lock.yaml'), '')
 
     console.log('📦 Installing dependencies with pnpm...')
-    // execSync('pnpm build', { cwd: ROOT_PATH, stdio: 'pipe' })
     execSync('pnpm install', {
       cwd: ROOT_PATH,
       stdio: 'inherit',
@@ -67,22 +75,15 @@ async function globalSetup() {
       },
     })
 
-    // Restore postinstall script and run it manually with correct PATH
-    if (originalPostinstall) {
-      packageJson.scripts = packageJson.scripts || {}
-      packageJson.scripts.postinstall = originalPostinstall
-      writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-
-      console.log('🔧 Running motia install with workspace CLI...')
-      execSync(`node ${cliPath} install`, {
-        cwd: TEST_PROJECT_PATH,
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          PATH: `${path.dirname(cliPath)}:${process.env.PATH}`,
-        },
-      })
-    }
+    console.log('🔧 Running motia install with workspace CLI...')
+    execSync(`node ${cliPath} install`, {
+      cwd: TEST_PROJECT_PATH,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        PATH: `${path.dirname(cliPath)}:${process.env.PATH}`,
+      },
+    })
 
     console.log('🌟 Starting test project server...')
     const serverProcess = exec('pnpm run dev', {
@@ -94,8 +95,27 @@ async function globalSetup() {
       },
     })
 
+    // Capture server output for debugging
+    serverProcess.stdout?.on('data', (data) => {
+      console.log(`[server stdout] ${data.toString().trim()}`)
+    })
+    serverProcess.stderr?.on('data', (data) => {
+      console.error(`[server stderr] ${data.toString().trim()}`)
+    })
+
+    // Track if server process exits early
+    let serverExited = false
+    let serverExitCode: number | null = null
+    serverProcess.on('exit', (code) => {
+      serverExited = true
+      serverExitCode = code
+      if (code !== 0) {
+        console.error(`❌ Server process exited with code ${code}`)
+      }
+    })
+
     console.log('⏳ Waiting for server to be ready...')
-    await waitForServer('http://localhost:3000', 60000)
+    await waitForServer('http://localhost:3000', 160000, () => ({ exited: serverExited, code: serverExitCode }))
 
     console.log('✅ PR E2E test environment setup complete!')
 
@@ -114,10 +134,22 @@ async function globalSetup() {
   }
 }
 
-async function waitForServer(url: string, timeout: number): Promise<void> {
+async function waitForServer(
+  url: string,
+  timeout: number,
+  getServerStatus?: () => { exited: boolean; code: number | null },
+): Promise<void> {
   const start = Date.now()
 
   while (Date.now() - start < timeout) {
+    // Check if server process crashed
+    if (getServerStatus) {
+      const status = getServerStatus()
+      if (status.exited && status.code !== 0) {
+        throw new Error(`Server process exited early with code ${status.code}`)
+      }
+    }
+
     try {
       const response = await fetch(url)
       if (response.ok) {

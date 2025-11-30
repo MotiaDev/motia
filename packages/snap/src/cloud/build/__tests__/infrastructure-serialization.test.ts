@@ -1,4 +1,4 @@
-import { z } from '@motiadev/core/node_modules/zod'
+import { z } from 'zod'
 import type { BuildStepConfig, StepsConfigFile } from '../builder'
 
 describe('Infrastructure Config Serialization', () => {

@@ -1,9 +1,11 @@
 import { useThemeStore } from '@motiadev/ui'
 import type React from 'react'
 import { memo, useEffect } from 'react'
-import motiaLogoDark from '@/assets/motia-dark.png'
-import motiaLogoLight from '@/assets/motia-light.png'
-import { useMotiaConfigStore } from '@/stores/use-motia-config-store'
+// @ts-expect-error
+import motiaLogoDark from '../../assets/motia-dark.png'
+// @ts-expect-error
+import motiaLogoLight from '../../assets/motia-light.png'
+import { useMotiaConfigStore } from '../../stores/use-motia-config-store'
 import { Tutorial } from '../tutorial/tutorial'
 import { TutorialButton } from '../tutorial/tutorial-button'
 import { ThemeToggle } from '../ui/theme-toggle'

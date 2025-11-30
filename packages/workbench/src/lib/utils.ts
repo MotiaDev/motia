@@ -1,4 +1,4 @@
-import { TabLocation } from '@/stores/use-app-tabs-store'
+import { TabLocation } from '../stores/use-app-tabs-store'
 
 export const formatDuration = (duration?: number) => {
   if (duration === undefined || duration === null) return 'N/A'

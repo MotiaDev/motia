@@ -1,5 +1,4 @@
-import type { MotiaStream, Step } from '@motiadev/core'
-import type { Stream } from '@motiadev/core/dist/src/types-stream'
+import type { MotiaStream, Step, Stream } from '@motiadev/core'
 import type { BuildStepConfig } from '../../build/builder'
 import {
   type BuildOutput,

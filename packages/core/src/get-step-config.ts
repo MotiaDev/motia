@@ -8,7 +8,7 @@ const getConfig = <T>(file: string, projectRoot?: string): Promise<T | null> => 
   const { runner, command, args } = getLanguageBasedRunner(file, {
     python: 'get-config.py',
     ruby: 'get-config.rb',
-    node: { js: 'get-config.js', ts: 'get-config.ts' },
+    node: { js: 'get-config.mjs', ts: 'get-config.ts' },
   })
 
   return new Promise((resolve, reject) => {

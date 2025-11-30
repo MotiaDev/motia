@@ -1,6 +1,8 @@
+import { jest } from '@jest/globals'
 import { randomUUID } from 'crypto'
 import express from 'express'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { MemoryStreamAdapterManager } from '../adapters/defaults'
 import { InMemoryQueueEventAdapter } from '../adapters/defaults/event/in-memory-queue-event-adapter'
 import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
@@ -13,6 +15,8 @@ import { NoPrinter } from '../printer'
 import type { InfrastructureConfig } from '../types'
 import { createCronStep, createEventStep } from './fixtures/step-fixtures'
 import { createMockRedisClient } from './test-helpers/redis-client'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 describe('callStepFile', () => {
   beforeAll(() => {

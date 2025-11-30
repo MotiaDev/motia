@@ -1,29 +1,33 @@
+import { jest } from '@jest/globals'
+
+type MockFn<T = unknown> = jest.Mock<(...args: unknown[]) => T>
+
 export interface MockRedisClient {
-  connect: jest.Mock<Promise<void>>
-  quit: jest.Mock<Promise<void>>
-  disconnect: jest.Mock<Promise<void>>
+  connect: MockFn<Promise<void>>
+  quit: MockFn<Promise<void>>
+  disconnect: MockFn<Promise<void>>
   isOpen: boolean
-  on: jest.Mock
-  get: jest.Mock<Promise<string | null>>
-  set: jest.Mock<Promise<string | null>>
-  del: jest.Mock<Promise<number>>
-  exists: jest.Mock<Promise<number>>
-  keys: jest.Mock<Promise<string[]>>
-  flushAll: jest.Mock<Promise<string>>
-  ping: jest.Mock<Promise<string>>
-  xAdd: jest.Mock<Promise<string>>
-  xRead: jest.Mock<Promise<unknown[]>>
-  xReadGroup: jest.Mock<Promise<unknown[]>>
-  xGroupCreate: jest.Mock<Promise<string>>
-  xAck: jest.Mock<Promise<number>>
-  hGet: jest.Mock<Promise<string | null>>
-  hSet: jest.Mock<Promise<number>>
-  hGetAll: jest.Mock<Promise<Record<string, string>>>
-  hDel: jest.Mock<Promise<number>>
-  hExists: jest.Mock<Promise<number>>
-  expire: jest.Mock<Promise<number>>
-  ttl: jest.Mock<Promise<number>>
-  publish: jest.Mock<Promise<number>>
+  on: MockFn
+  get: MockFn<Promise<string | null>>
+  set: MockFn<Promise<string | null>>
+  del: MockFn<Promise<number>>
+  exists: MockFn<Promise<number>>
+  keys: MockFn<Promise<string[]>>
+  flushAll: MockFn<Promise<string>>
+  ping: MockFn<Promise<string>>
+  xAdd: MockFn<Promise<string>>
+  xRead: MockFn<Promise<unknown[]>>
+  xReadGroup: MockFn<Promise<unknown[]>>
+  xGroupCreate: MockFn<Promise<string>>
+  xAck: MockFn<Promise<number>>
+  hGet: MockFn<Promise<string | null>>
+  hSet: MockFn<Promise<number>>
+  hGetAll: MockFn<Promise<Record<string, string>>>
+  hDel: MockFn<Promise<number>>
+  hExists: MockFn<Promise<number>>
+  expire: MockFn<Promise<number>>
+  ttl: MockFn<Promise<number>>
+  publish: MockFn<Promise<number>>
   [key: string]: unknown
 }
 
@@ -36,31 +40,31 @@ export function createMockRedisClient(options: RedisTestHelperOptions = {}): Moc
   const { autoConnect = true, isOpen = true } = options
 
   const mockClient: MockRedisClient = {
-    connect: jest.fn().mockResolvedValue(undefined),
-    quit: jest.fn().mockResolvedValue(undefined),
-    disconnect: jest.fn().mockResolvedValue(undefined),
+    connect: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    quit: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    disconnect: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     isOpen,
     on: jest.fn(),
-    get: jest.fn().mockResolvedValue(null),
-    set: jest.fn().mockResolvedValue('OK'),
-    del: jest.fn().mockResolvedValue(1),
-    exists: jest.fn().mockResolvedValue(1),
-    keys: jest.fn().mockResolvedValue([]),
-    flushAll: jest.fn().mockResolvedValue('OK'),
-    ping: jest.fn().mockResolvedValue('PONG'),
-    xAdd: jest.fn().mockResolvedValue(''),
-    xRead: jest.fn().mockResolvedValue([]),
-    xReadGroup: jest.fn().mockResolvedValue([]),
-    xGroupCreate: jest.fn().mockResolvedValue('OK'),
-    xAck: jest.fn().mockResolvedValue(1),
-    hGet: jest.fn().mockResolvedValue(null),
-    hSet: jest.fn().mockResolvedValue(1),
-    hGetAll: jest.fn().mockResolvedValue({}),
-    hDel: jest.fn().mockResolvedValue(1),
-    hExists: jest.fn().mockResolvedValue(0),
-    expire: jest.fn().mockResolvedValue(1),
-    ttl: jest.fn().mockResolvedValue(-1),
-    publish: jest.fn().mockResolvedValue(0),
+    get: jest.fn<() => Promise<string | null>>().mockResolvedValue(null),
+    set: jest.fn<() => Promise<string | null>>().mockResolvedValue('OK'),
+    del: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    exists: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    keys: jest.fn<() => Promise<string[]>>().mockResolvedValue([]),
+    flushAll: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
+    ping: jest.fn<() => Promise<string>>().mockResolvedValue('PONG'),
+    xAdd: jest.fn<() => Promise<string>>().mockResolvedValue(''),
+    xRead: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+    xReadGroup: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+    xGroupCreate: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
+    xAck: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    hGet: jest.fn<() => Promise<string | null>>().mockResolvedValue(null),
+    hSet: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    hGetAll: jest.fn<() => Promise<Record<string, string>>>().mockResolvedValue({}),
+    hDel: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    hExists: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+    expire: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    ttl: jest.fn<() => Promise<number>>().mockResolvedValue(-1),
+    publish: jest.fn<() => Promise<number>>().mockResolvedValue(0),
   }
 
   if (autoConnect) {
@@ -72,8 +76,9 @@ export function createMockRedisClient(options: RedisTestHelperOptions = {}): Moc
 
 export function resetMockRedisClient(client: MockRedisClient): void {
   Object.keys(client).forEach((key) => {
-    if (jest.isMockFunction(client[key])) {
-      client[key].mockClear()
+    const value = client[key]
+    if (typeof value === 'function' && 'mockClear' in value) {
+      ;(value as MockFn).mockClear()
     }
   })
 }
@@ -106,7 +111,7 @@ export class RedisTestHelper {
   }
 
   mockGet(key: string, value: string | null): void {
-    this.client.get.mockImplementation((k: string) => {
+    this.client.get.mockImplementation((k: unknown) => {
       if (k === key) {
         return Promise.resolve(value)
       }
@@ -119,7 +124,7 @@ export class RedisTestHelper {
   }
 
   mockExists(key: string, exists: boolean): void {
-    this.client.exists.mockImplementation((k: string) => {
+    this.client.exists.mockImplementation((k: unknown) => {
       if (k === key) {
         return Promise.resolve(exists ? 1 : 0)
       }

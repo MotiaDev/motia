@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import type { CliContext } from '../cloud/config-utils'
+import { fileURLToPath } from 'url'
+import type { CliContext, Message } from '../cloud/config-utils'
 
 type PullRulesArgs = {
   rootDir: string
@@ -8,6 +9,7 @@ type PullRulesArgs = {
 }
 
 export const pullRules = async (args: PullRulesArgs, context: CliContext) => {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url))
   const cursorTemplateDir = path.join(__dirname, '..', 'cursor-rules', 'dot-files')
   const files = fs.readdirSync(cursorTemplateDir)
 
@@ -22,11 +24,11 @@ export const pullRules = async (args: PullRulesArgs, context: CliContext) => {
         force: true,
       })
 
-      context.log(`${file}-created`, (message) =>
+      context.log(`${file}-created`, (message: Message) =>
         message.tag('success').append(type).append(file, 'cyan').append('has been created.'),
       )
     } else {
-      context.log(`${file}-skipped`, (message) =>
+      context.log(`${file}-skipped`, (message: Message) =>
         message.tag('warning').append(type).append(file, 'cyan').append('already exists, skipping...'),
       )
     }

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
 import { buildValidation, validateStepsConfig } from '../../build-validation'
 import type { Builder, BuildStepConfig } from '../../builder'

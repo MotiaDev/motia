@@ -1,4 +1,4 @@
-import Link2 from 'lucide-react/icons/link-2'
+import { Link2 } from 'lucide-react'
 import { memo } from 'react'
 
 export const EndpointTabLabel = memo(() => (

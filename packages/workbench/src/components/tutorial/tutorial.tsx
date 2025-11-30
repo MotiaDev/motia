@@ -1,4 +1,4 @@
-import { motiaAnalytics } from '@/lib/motia-analytics'
+import { motiaAnalytics } from '../../lib/motia-analytics'
 import { useTutorialEngine } from './hooks/use-tutorial-engine'
 import { TutorialStep } from './tutorial-step'
 import './tutorial.css'

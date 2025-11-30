@@ -1,4 +1,5 @@
-import { z } from '@motiadev/core/node_modules/zod'
+import { jest } from '@jest/globals'
+import { z } from 'zod'
 import { validateStepsConfig } from '../build-validation'
 import type { Builder, BuildStepConfig } from '../builder'
 

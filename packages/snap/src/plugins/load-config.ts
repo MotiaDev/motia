@@ -1,8 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Config, Printer } from '@motiadev/core'
 import { globSync } from 'glob'
 import { installPluginDependencies } from './install-plugin-dependencies'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export const loadConfig = async (baseDir: string, printer: Printer): Promise<Config> => {
   const configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: baseDir })

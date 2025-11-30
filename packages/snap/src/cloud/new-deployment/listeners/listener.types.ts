@@ -1,5 +1,4 @@
-import type { Step } from '@motiadev/core'
-import type { Stream } from '@motiadev/core/dist/src/types-stream'
+import type { Step, Stream } from '@motiadev/core'
 import type { BuildStepConfig } from '../../build/builder'
 
 export type ValidationError = {

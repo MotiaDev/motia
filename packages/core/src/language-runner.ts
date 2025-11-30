@@ -1,4 +1,6 @@
+import { createRequire } from 'module'
 import path from 'path'
+import { fileURLToPath } from 'url'
 
 export type LanguageRunnerConfig = {
   command: string
@@ -12,6 +14,18 @@ export type LanguageRunnerOverrides = {
   node?: {
     js: string
     ts?: string
+  }
+}
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const require = createRequire(import.meta.url)
+
+const getTsxPath = () => {
+  try {
+    const tsxModule = require.resolve('tsx/package.json')
+    return path.join(path.dirname(tsxModule), 'dist', 'cli.mjs')
+  } catch {
+    return 'tsx'
   }
 }
 
@@ -31,14 +45,10 @@ export const getLanguageBasedRunner = (
     return { runner: rubyRunner, command: 'ruby', args: [] }
   } else if (isNode) {
     const defaultNodeOverrides = overrides?.node
-    const tsRunner = path.join(__dirname, 'node', defaultNodeOverrides?.ts ?? 'node-runner.ts')
-    const jsRunner = path.join(__dirname, 'node', defaultNodeOverrides?.js ?? 'node-runner.js')
+    const jsRunner = path.join(__dirname, 'node', defaultNodeOverrides?.js ?? 'node-runner.mjs')
 
-    if (process.env._MOTIA_TEST_MODE === 'true') {
-      return { runner: tsRunner, command: 'node', args: ['-r', 'ts-node/register'] }
-    }
-
-    return { runner: jsRunner, command: 'node', args: [] }
+    const tsxPath = getTsxPath()
+    return { runner: jsRunner, command: tsxPath, args: [] }
   }
 
   throw Error(`Unsupported file extension ${stepFilePath}`)

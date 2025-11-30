@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import type { RedisClientType } from 'redis'
 
 export function createMockRedisClient(): RedisClientType {

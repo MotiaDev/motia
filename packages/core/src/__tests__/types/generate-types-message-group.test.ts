@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import type { Printer } from '../../printer'
 import type { EventConfig, Step } from '../../types'
 import { generateTypesFromSteps } from '../../types/generate-types'

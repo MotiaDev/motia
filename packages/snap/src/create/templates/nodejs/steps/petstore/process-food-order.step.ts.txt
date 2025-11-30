@@ -1,6 +1,6 @@
 import { EventConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { petStoreService } from '../../src/services/pet-store'
+import { petStoreService } from '../../src/services/pet-store.ts'
 
 export const config: EventConfig = {
   type: 'event',

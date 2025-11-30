@@ -28,7 +28,9 @@ export const JsonEditor: FC<JsonEditorProps> = ({
   useEffect(() => {
     if (!monaco) return
 
+    // @ts-expect-error - monaco.languages.typescript.javascriptDefaults is not typed
     monaco.languages.typescript.javascriptDefaults.setCompilerOptions({ isolatedModules: true })
+    // @ts-expect-error - monaco.languages.json.jsonDefaults is not typed
     monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
       schemas: schema
         ? [

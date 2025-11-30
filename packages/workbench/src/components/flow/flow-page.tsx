@@ -4,9 +4,9 @@ import { ReactFlowProvider } from '@xyflow/react'
 import { ExternalLink, Workflow } from 'lucide-react'
 import { memo, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { motiaAnalytics } from '@/lib/motia-analytics'
-import { useFlowStore } from '@/stores/use-flow-store'
-import type { FlowConfigResponse, FlowResponse } from '@/types/flow'
+import { motiaAnalytics } from '../../lib/motia-analytics'
+import { useFlowStore } from '../../stores/use-flow-store'
+import type { FlowConfigResponse, FlowResponse } from '../../types/flow'
 import { FlowView } from './flow-view'
 
 export const FlowPage = memo(() => {

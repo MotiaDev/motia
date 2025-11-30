@@ -1,5 +1,5 @@
+import type { Stream } from '@motiadev/core'
 import { getStepConfig, getStreamConfig, type LockedData, type Step } from '@motiadev/core'
-import type { Stream } from '@motiadev/core/dist/src/types-stream'
 import chokidar, { type FSWatcher } from 'chokidar'
 import { randomUUID } from 'crypto'
 

@@ -19,7 +19,7 @@ export const runStreamCanAccess = async ({
   const { runner, command, args } = getLanguageBasedRunner(file, {
     python: 'can-access.py',
     ruby: 'can-access.rb',
-    node: { js: 'can-access.js', ts: 'can-access.ts' },
+    node: { js: 'can-access.mjs', ts: 'can-access.ts' },
   })
 
   const payload = JSON.stringify({ subscription, authContext })

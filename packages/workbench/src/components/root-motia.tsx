@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react'
 import { memo } from 'react'
-import { useAnalytics } from '@/lib/motia-analytics'
+import { useAnalytics } from '../lib/motia-analytics'
 
 export const RootMotia: React.FC<PropsWithChildren> = memo(({ children }) => {
   useAnalytics()
