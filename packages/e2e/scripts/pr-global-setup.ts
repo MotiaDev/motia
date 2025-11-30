@@ -115,7 +115,7 @@ async function globalSetup() {
     })
 
     console.log('⏳ Waiting for server to be ready...')
-    await waitForServer('http://localhost:3000', 60000, () => ({ exited: serverExited, code: serverExitCode }))
+    await waitForServer('http://localhost:3000', 160000, () => ({ exited: serverExited, code: serverExitCode }))
 
     console.log('✅ PR E2E test environment setup complete!')
 
