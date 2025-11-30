@@ -192,7 +192,7 @@ importers:
         specifier: ^4.2.0
         version: 4.2.0
       tsx:
-        specifier: ^4.19.0
+        specifier: ^4.20.6
         version: 4.20.6
       uuid:
         specifier: ^11.1.0
@@ -383,43 +383,6 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
-
-  packages/motia-e2e-test-project:
-    dependencies:
-      '@motiadev/core':
-        specifier: workspace:*
-        version: link:../core
-      '@motiadev/plugin-endpoint':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-endpoint
-      '@motiadev/plugin-logs':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-logs
-      '@motiadev/plugin-observability':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-observability
-      '@motiadev/plugin-states':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-states
-      '@motiadev/workbench':
-        specifier: workspace:*
-        version: link:../workbench
-      motia:
-        specifier: workspace:*
-        version: link:../snap
-      zod:
-        specifier: 4.1.12
-        version: 4.1.12
-    devDependencies:
-      '@types/react':
-        specifier: ^19.1.4
-        version: 19.2.7
-      ts-node:
-        specifier: 10.9.2
-        version: 10.9.2(@swc/core@1.15.3(@swc/helpers@0.5.17))(@types/node@22.19.1)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
 
   packages/snap:
     dependencies:
@@ -9510,9 +9473,6 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-
-  zod@4.1.12:
-    resolution: {integrity: sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==}
 
   zod@4.1.13:
     resolution: {integrity: sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig==}
@@ -19162,8 +19122,6 @@ snapshots:
       readable-stream: 4.7.0
 
   zod@3.25.76: {}
-
-  zod@4.1.12: {}
 
   zod@4.1.13: {}
 
