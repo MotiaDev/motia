@@ -61,8 +61,8 @@ async function globalSetup() {
 
     console.log('📦 Installing dependencies with pnpm...')
     // execSync('pnpm build', { cwd: ROOT_PATH, stdio: 'pipe' })
-    execSync(`pnpm install --filter ${TEST_PROJECT_NAME}`, {
-      cwd: ROOT_PATH,
+    execSync(`pnpm install`, {
+      cwd: TEST_PROJECT_PATH,
       stdio: 'inherit',
       env: {
         ...process.env,
