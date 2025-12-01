@@ -30,7 +30,9 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     ' ',
   )
 
-  const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@19.1.1'].join(' ')
+  // Note: ts-node is already included in motia package, no need to install separately
+  // typescript is explicitly installed for IDE support and tsconfig.json
+  const devDependencies = ['typescript@5.7.3', '@types/react@19.1.1'].join(' ')
 
   try {
     await executeCommand(`${installCommand} ${dependencies}`, rootDir)
