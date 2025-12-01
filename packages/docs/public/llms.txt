@@ -3436,7 +3436,7 @@ type ApiMiddleware = (req: ApiRequest, ctx: FlowContext, next: () => Promise<Api
 
 Middleware functions receive:
 
-- `req`: The API request object with body, headers, pathParams, and queryParams
+- `req`: The API request object with body, headers, pathParams, queryParams, and rawBody
 - `ctx`: The flow context with logger, state, emit, and traceId
 - `next`: A function to call the next middleware or handler in the chain
   - Call `next()` to continue to the next middleware or handler
@@ -4030,6 +4030,7 @@ For API triggers, the first parameter contains HTTP request information:
 | `headers` | `object` | HTTP request headers |
 | `method` | `string` | HTTP method (`GET`, `POST`, etc.) |
 | `path` | `string` | Request URL path |
+| `rawBody` | `string` | The raw unparsed request body as a string (same body that was sent but without type enforcement/parsing) |
 
 ### Input Data (`input`) - Event Triggers Only
 
