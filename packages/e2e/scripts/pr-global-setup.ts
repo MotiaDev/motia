@@ -48,6 +48,8 @@ async function globalSetup() {
       '@motiadev/adapter-bullmq-events': 'workspace:*',
     }
 
+    console.log('packageJson', packageJson)
+
     // Temporarily remove postinstall script to avoid running 'motia install' before dependencies are linked
     const originalPostinstall = packageJson.scripts?.postinstall
     if (packageJson.scripts?.postinstall) {
