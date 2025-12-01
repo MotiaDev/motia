@@ -100,11 +100,11 @@ async function globalSetup() {
       },
     })
 
-    serverProcess.unref()
-
     console.log(`⏳ Server started with PID ${serverProcess.pid}, waiting for it to be ready...`)
     console.log(`📝 Logs: ${path.join(TEST_PROJECT_PATH, 'server.log')}`)
     await waitForServer('http://localhost:3000', 60000)
+
+    serverProcess.unref()
 
     console.log('✅ PR E2E test environment setup complete!')
 
