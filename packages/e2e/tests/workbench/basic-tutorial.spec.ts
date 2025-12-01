@@ -11,6 +11,7 @@ test.describe('Motia Basic Tutorial - Workbench', () => {
 
     await page.addInitScript(() => {
       localStorage.removeItem('motia-tutorial-skipped')
+      localStorage.removeItem('motia-tutorial-closed')
       let currentFlowStorage: {
         state?: {
           selectedFlowId?: string
