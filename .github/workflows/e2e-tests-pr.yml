@@ -60,6 +60,19 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Install Redis
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y redis-server
+            redis-server --daemonize yes
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            brew install redis
+            brew services start redis
+          fi
+          sleep 2
+          redis-cli ping || echo "Redis not responding to ping"
+
       - name: Get Playwright version
         id: playwright-version
         run: |
@@ -126,6 +139,7 @@ jobs:
             export MOTIA_ANALYTICS_DISABLED=true
             export MOTIA_API_URL=http://localhost:3000
             export MOTIA_TEST_TEMPLATE=${{ matrix.template }}
+            export REDISMS_SYSTEM_BINARY=$(which redis-server)
 
             # Run tests based on template (no sharding)
             if [ "${{ matrix.template }}" == "motia-tutorial-python" ]; then
