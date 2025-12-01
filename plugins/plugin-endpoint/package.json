@@ -31,7 +31,7 @@
     "@monaco-editor/react": "^4.7.0",
     "clsx": "^2.1.1",
     "json-schema": "^0.4.0",
-    "lucide-react": "^0.545.0",
+    "lucide-react": "^0.548.0",
     "react-syntax-highlighter": "^15.6.6",
     "react18-json-view": "^0.2.9",
     "tailwind-merge": "^3.3.1",

@@ -26,7 +26,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "lucide-react": "^0.545.0",
+    "lucide-react": "^0.548.0",
     "react18-json-view": "^0.2.9",
     "zustand": "^5.0.8"
   },
