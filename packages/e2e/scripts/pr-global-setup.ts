@@ -36,16 +36,17 @@ async function globalSetup() {
     const packageJsonPath = path.join(TEST_PROJECT_PATH, 'package.json')
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
 
-    // Update dependencies to use workspace references
-    if (packageJson.dependencies?.motia) {
-      packageJson.dependencies['motia'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/workbench'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/core'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-logs'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-states'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-endpoint'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-observability'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-bullmq'] = 'workspace:*'
+    packageJson.dependencies = {
+      ...(packageJson.dependencies || {}),
+      motia: 'workspace:*',
+      '@motiadev/workbench': 'workspace:*',
+      '@motiadev/core': 'workspace:*',
+      '@motiadev/plugin-logs': 'workspace:*',
+      '@motiadev/plugin-states': 'workspace:*',
+      '@motiadev/plugin-endpoint': 'workspace:*',
+      '@motiadev/plugin-observability': 'workspace:*',
+      '@motiadev/plugin-bullmq': 'workspace:*',
+      '@motiadev/adapter-bullmq-events': 'workspace:*',
     }
 
     // Temporarily remove postinstall script to avoid running 'motia install' before dependencies are linked
@@ -86,9 +87,8 @@ async function globalSetup() {
     }
 
     console.log('🌟 Starting test project server...')
-    const serverProcess = execSync('pnpm run dev', {
+    const serverProcess = exec('pnpm run dev', {
       cwd: TEST_PROJECT_PATH,
-      stdio: 'inherit',
       env: {
         MOTIA_ANALYTICS_DISABLED: 'true',
         PATH: `${path.dirname(cliPath)}:${process.env.PATH}`,
@@ -104,7 +104,7 @@ async function globalSetup() {
     process.env.TEST_PROJECT_PATH = TEST_PROJECT_PATH
     process.env.TEST_PROJECT_NAME = TEST_PROJECT_NAME
     process.env.MOTIA_TEST_TEMPLATE = template
-    process.env.MOTIA_TEST_PID = '1234' //mock
+    process.env.MOTIA_TEST_PID = serverProcess.pid?.toString() || ''
   } catch (error) {
     console.error('❌ Failed to setup PR E2E test environment:', error)
 
