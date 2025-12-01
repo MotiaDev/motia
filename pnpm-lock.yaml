@@ -781,8 +781,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       lucide-react:
-        specifier: ^0.510.0
-        version: 0.510.0(react@19.1.1)
+        specifier: ^0.548.0
+        version: 0.548.0(react@19.1.1)
       postcss:
         specifier: ^8.5.3
         version: 8.5.3
@@ -7539,11 +7539,6 @@ packages:
 
   lucide-react@0.507.0:
     resolution: {integrity: sha512-XfgE6gvAHwAtnbUvWiTTHx4S3VGR+cUJHEc0vrh9Ogu672I1Tue2+Cp/8JJqpytgcBHAB1FVI297W4XGNwc2dQ==}
-    peerDependencies:
-      react: ^19.1.1
-
-  lucide-react@0.510.0:
-    resolution: {integrity: sha512-p8SQRAMVh7NhsAIETokSqDrc5CHnDLbV29mMnzaXx+Vc/hnqQzwI2r0FMWCcoTXnbw2KEjy48xwpGdEL+ck06Q==}
     peerDependencies:
       react: ^19.1.1
 
@@ -17505,10 +17500,6 @@ snapshots:
       yallist: 4.0.0
 
   lucide-react@0.507.0(react@19.1.1):
-    dependencies:
-      react: 19.1.1
-
-  lucide-react@0.510.0(react@19.1.1):
     dependencies:
       react: 19.1.1
 
