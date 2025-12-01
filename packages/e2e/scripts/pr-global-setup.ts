@@ -1,5 +1,5 @@
-import { exec, execSync } from 'child_process'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { exec, execSync, spawn } from 'child_process'
+import { existsSync, openSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
@@ -88,16 +88,22 @@ async function globalSetup() {
     }
 
     console.log('🌟 Starting test project server...')
-    const serverProcess = exec('pnpm run dev', {
+
+    const serverProcess = spawn('pnpm', ['run', 'dev'], {
       cwd: TEST_PROJECT_PATH,
+      detached: true,
+      stdio: 'inherit',
       env: {
+        ...process.env,
         MOTIA_ANALYTICS_DISABLED: 'true',
         PATH: `${path.dirname(cliPath)}:${process.env.PATH}`,
-        ...process.env,
       },
     })
 
-    console.log('⏳ Waiting for server to be ready...')
+    serverProcess.unref()
+
+    console.log(`⏳ Server started with PID ${serverProcess.pid}, waiting for it to be ready...`)
+    console.log(`📝 Logs: ${path.join(TEST_PROJECT_PATH, 'server.log')}`)
     await waitForServer('http://localhost:3000', 60000)
 
     console.log('✅ PR E2E test environment setup complete!')
@@ -105,7 +111,6 @@ async function globalSetup() {
     process.env.TEST_PROJECT_PATH = TEST_PROJECT_PATH
     process.env.TEST_PROJECT_NAME = TEST_PROJECT_NAME
     process.env.MOTIA_TEST_TEMPLATE = template
-    process.env.MOTIA_TEST_PID = serverProcess.pid?.toString() || ''
   } catch (error) {
     console.error('❌ Failed to setup PR E2E test environment:', error)
 
