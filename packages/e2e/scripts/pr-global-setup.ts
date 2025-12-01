@@ -45,6 +45,7 @@ async function globalSetup() {
       packageJson.dependencies['@motiadev/plugin-states'] = 'workspace:*'
       packageJson.dependencies['@motiadev/plugin-endpoint'] = 'workspace:*'
       packageJson.dependencies['@motiadev/plugin-observability'] = 'workspace:*'
+      packageJson.dependencies['@motiadev/plugin-bullmq'] = 'workspace:*'
     }
 
     // Temporarily remove postinstall script to avoid running 'motia install' before dependencies are linked
