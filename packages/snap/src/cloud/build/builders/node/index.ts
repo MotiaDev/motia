@@ -1,8 +1,8 @@
 import type { ApiRouteConfig, Step } from '@motiadev/core'
-import colors from 'colors'
 import * as esbuild from 'esbuild'
 import fs from 'fs'
 import path from 'path'
+import pc from 'picocolors'
 import { distDir } from '../../../new-deployment/constants'
 import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
 import type { Builder, RouterBuildResult, StepBuilder } from '../../builder'
@@ -25,7 +25,7 @@ export class NodeBuilder implements StepBuilder {
           const configContent = fs.readFileSync(configPath, 'utf-8')
           return JSON.parse(configContent)
         } catch (err) {
-          console.warn(colors.yellow(`Warning: Failed to load esbuild config from ${configFile}`))
+          console.warn(pc.yellow(`Warning: Failed to load esbuild config from ${configFile}`))
         }
       }
     }

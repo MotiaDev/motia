@@ -48,7 +48,7 @@
     "archiver": "^7.0.1",
     "axios": "^1.8.2",
     "chokidar": "^4.0.3",
-    "colors": "^1.4.0",
+    "picocolors": "^1.1.1",
     "commander": "^13.0.0",
     "cron": "^4.3.0",
     "dotenv": "^16.4.7",

@@ -1,6 +1,6 @@
-import colors from 'colors'
 import fs from 'fs'
 import path from 'path'
+import pc from 'picocolors'
 import { getStepAnswers } from './getAnswers'
 import { generateTemplate } from './teamplateUtils'
 import { generateOverride } from './templates/ui/overrides'
@@ -22,26 +22,26 @@ export async function createStep(options: { stepFilePath?: string }) {
 
     // Check if file already exists
     if (fs.existsSync(stepPath)) {
-      console.error(colors.red(`\n❌ Error: Step file already exists at ${stepPath}`))
+      console.error(pc.red(`\n❌ Error: Step file already exists at ${stepPath}`))
       process.exit(1)
     }
 
     // Generate and write step file
     const stepContent = await generateTemplate(answers)
     fs.writeFileSync(stepPath, stepContent)
-    console.log(colors.green(`\n✨ Created step file at ${stepPath}`))
+    console.log(pc.green(`\n✨ Created step file at ${stepPath}`))
 
     // Create UI override if requested
     if (answers.createOverride) {
       const overridePath = path.join(stepDir, `${answers.name}.step.tsx`)
       const overrideContent = await generateOverride(answers)
       fs.writeFileSync(overridePath, overrideContent)
-      console.log(colors.green(`✨ Created UI override at ${overridePath}`))
+      console.log(pc.green(`✨ Created UI override at ${overridePath}`))
     }
 
-    console.log(colors.bold('\n🎉 Step creation complete!'))
+    console.log(pc.bold('\n🎉 Step creation complete!'))
   } catch (error) {
-    console.error(colors.red('\n❌ Error creating step:'), error)
+    console.error(pc.red('\n❌ Error creating step:'), error)
     process.exit(1)
   }
 }

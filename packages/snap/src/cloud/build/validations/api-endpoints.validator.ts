@@ -1,5 +1,5 @@
-import colors from 'colors'
 import path from 'path'
+import pc from 'picocolors'
 import type { Validator } from './types'
 
 export const apiEndpointsValidator: Validator = (builder) => {
@@ -17,9 +17,9 @@ export const apiEndpointsValidator: Validator = (builder) => {
           relativePath,
           message: [
             `Endpoint conflict`,
-            `  ${colors.red('➜')} ${colors.magenta(endpoint)} is defined in the following files`,
-            `    ${colors.red('➜')} ${colors.blue(entrypoint)}`,
-            `    ${colors.red('➜')} ${colors.blue(endpoints.get(endpoint)!)}`,
+            `  ${pc.red('➜')} ${pc.magenta(endpoint)} is defined in the following files`,
+            `    ${pc.red('➜')} ${pc.blue(entrypoint)}`,
+            `    ${pc.red('➜')} ${pc.blue(endpoints.get(endpoint)!)}`,
           ].join('\n'),
           step,
         })

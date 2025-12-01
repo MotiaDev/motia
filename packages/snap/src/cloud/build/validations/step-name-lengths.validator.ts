@@ -1,5 +1,5 @@
-import colors from 'colors'
 import path from 'path'
+import pc from 'picocolors'
 import { BUNDLE_SIZE_LIMITS } from './constants'
 import type { Validator } from './types'
 
@@ -13,7 +13,7 @@ export const stepNameLengthsValidator: Validator = (builder) => {
         relativePath,
         message: [
           `Step name is too long. Maximum is ${BUNDLE_SIZE_LIMITS.STEP_NAME_MAX_LENGTH} characters.`,
-          `  ${colors.red('➜')} ${colors.magenta(step.config.name)}`,
+          `  ${pc.red('➜')} ${pc.magenta(step.config.name)}`,
         ].join('\n'),
         step,
       })

@@ -1,29 +1,29 @@
-import colors from 'colors'
+import pc from 'picocolors'
 
-const stepTag = (step: string) => colors.bold(colors.cyan(step))
-const timestampTag = (timestamp: string) => colors.gray(timestamp)
-const traceIdTag = (traceId: string) => colors.gray(traceId)
+const stepTag = (step: string) => pc.bold(pc.cyan(step))
+const timestampTag = (timestamp: string) => pc.gray(timestamp)
+const traceIdTag = (traceId: string) => pc.gray(traceId)
 
 const levelTags: Record<string, string> = {
-  error: colors.red('[ERROR]'),
-  info: colors.blue('[INFO]'),
-  warn: colors.yellow('[WARN]'),
-  debug: colors.gray('[DEBUG]'),
-  trace: colors.gray('[TRACE]'),
+  error: pc.red('[ERROR]'),
+  info: pc.blue('[INFO]'),
+  warn: pc.yellow('[WARN]'),
+  debug: pc.gray('[DEBUG]'),
+  trace: pc.gray('[TRACE]'),
 }
 
-const numericTag = (value: string) => colors.green(value)
-const stringTag = (value: string) => colors.cyan(value)
-const booleanTag = (value: string) => colors.blue(value)
+const numericTag = (value: string) => pc.green(value)
+const stringTag = (value: string) => pc.cyan(value)
+const booleanTag = (value: string) => pc.blue(value)
 
-const arrayBrackets = ['[', ']'].map((s) => colors.gray(s))
-const objectBrackets = ['{', '}'].map((s) => colors.gray(s))
+const arrayBrackets = ['[', ']'].map((s) => pc.gray(s))
+const objectBrackets = ['{', '}'].map((s) => pc.gray(s))
 
 const prettyPrintObject = (obj: Record<string, any>, depth = 0, parentIsLast = false, prefix = ''): string => {
   const tab = prefix + (depth === 0 ? '' : parentIsLast ? '│ ' : '│ ')
 
   if (depth > 2) {
-    return `${tab} └ ${colors.gray('[...]')}`
+    return `${tab} └ ${pc.gray('[...]')}`
   }
 
   const entries = Object.entries(obj)

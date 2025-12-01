@@ -1,16 +1,16 @@
 import type { Step } from '@motiadev/core'
 import { Printer } from '@motiadev/core/dist/src/printer'
 import type { Stream } from '@motiadev/core/dist/src/types-stream'
-import colors from 'colors'
+import pc from 'picocolors'
 import { CLIOutputManager } from '../../cli-output-manager'
 import { prettyBytes } from '../utils/pretty-bytes'
 
-const building = colors.yellow('➜ [BUILDING]')
-const built = colors.green('✓ [BUILT]')
-const failed = colors.red('✘ [FAILED]')
-const skipped = colors.gray('- [SKIPPED]')
+const building = pc.yellow('➜ [BUILDING]')
+const built = pc.green('✓ [BUILT]')
+const failed = pc.red('✘ [FAILED]')
+const skipped = pc.gray('- [SKIPPED]')
 
-const baseTag = (tag: string) => colors.bold(colors.magenta(tag))
+const baseTag = (tag: string) => pc.bold(pc.magenta(tag))
 const streamTag = baseTag('Stream')
 const stepTag = baseTag('Step')
 const routerTag = baseTag('Router')
@@ -21,14 +21,14 @@ export class BuildPrinter {
 
   getLanguage(language: string) {
     if (language === 'python') {
-      return colors.bold(colors.blue('Python'))
+      return pc.bold(pc.blue('Python'))
     } else if (language === 'node') {
-      return colors.bold(colors.green('Node'))
+      return pc.bold(pc.green('Node'))
     } else if (language === 'ruby') {
-      return colors.bold(colors.red('Ruby'))
+      return pc.bold(pc.red('Ruby'))
     }
 
-    return colors.bold(colors.gray('Unknown'))
+    return pc.bold(pc.gray('Unknown'))
   }
 
   getStepLanguage(step: Step) {
@@ -52,7 +52,7 @@ export class BuildPrinter {
       message.append(`${building} ${stepTag} ${stepLanguage} ${stepType} ${stepPath}`)
 
       if (progressMessage) {
-        message.append(colors.yellow(progressMessage))
+        message.append(pc.yellow(progressMessage))
       }
     })
   }
@@ -71,7 +71,7 @@ export class BuildPrinter {
 
   printApiRouterBuilding(language: string) {
     const fileName = `router-${language}.zip`
-    const coloredFileName = colors.bold(colors.cyan(fileName))
+    const coloredFileName = pc.bold(pc.cyan(fileName))
 
     this.output.log(fileName, (message) =>
       message //
@@ -84,7 +84,7 @@ export class BuildPrinter {
 
   printApiRouterBuilt(language: string, size: number) {
     const fileName = `router-${language}.zip`
-    const coloredFileName = colors.bold(colors.cyan(fileName))
+    const coloredFileName = pc.bold(pc.cyan(fileName))
 
     this.output.log(fileName, (message) =>
       message
@@ -118,12 +118,12 @@ export class BuildPrinter {
 
   printStreamCreated(stream: Stream) {
     const streamPath = this.getStreamPath(stream)
-    const streamName = colors.gray(`[${stream.config.name}]`)
+    const streamName = pc.gray(`[${stream.config.name}]`)
 
     this.output.log(stream.filePath, (message) => message.append(`${built} ${streamTag} ${streamName} ${streamPath}`))
   }
 
   getStreamPath(stream: Stream) {
-    return colors.bold(colors.cyan(this.printer.getRelativePath(stream.filePath)))
+    return pc.bold(pc.cyan(this.printer.getRelativePath(stream.filePath)))
   }
 }

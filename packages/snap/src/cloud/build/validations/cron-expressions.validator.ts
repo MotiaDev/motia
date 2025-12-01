@@ -1,6 +1,6 @@
-import colors from 'colors'
 import * as cron from 'node-cron'
 import path from 'path'
+import pc from 'picocolors'
 import type { Validator } from './types'
 
 export const cronExpressionsValidator: Validator = (builder) => {
@@ -14,7 +14,7 @@ export const cronExpressionsValidator: Validator = (builder) => {
           relativePath,
           message: [
             'Cron step has an invalid cron expression.',
-            `  ${colors.red('➜')} ${colors.magenta(step.config.cron)}`,
+            `  ${pc.red('➜')} ${pc.magenta(step.config.cron)}`,
           ].join('\n'),
           step,
         })

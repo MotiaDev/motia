@@ -8,11 +8,11 @@ import {
   type StreamAuthConfig,
 } from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
-import colors from 'colors'
 import { randomUUID } from 'crypto'
 import { existsSync } from 'fs'
 import { globSync } from 'glob'
 import path from 'path'
+import pc from 'picocolors'
 import type { RedisClientType } from 'redis'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { CompilationError } from './utils/errors/compilation.error'
@@ -88,7 +88,7 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       if (errorMessage.includes('Executable ruby not found') || errorMessage.includes('Executable python not found')) {
-        console.warn(colors.yellow(`! [WARNING] Skipping step ${filePath}: ${errorMessage}`))
+        console.warn(pc.yellow(`! [WARNING] Skipping step ${filePath}: ${errorMessage}`))
         continue
       }
       throw new CompilationError(`Error collecting flow ${filePath}`, path.relative(projectDir, filePath), err as Error)
@@ -107,21 +107,21 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   }
 
   if (deprecatedSteps.length > 0) {
-    const warning = colors.yellow('! [WARNING]')
+    const warning = pc.yellow('! [WARNING]')
     console.warn(
-      colors.yellow(
+      pc.yellow(
         [
           '',
           '========================================',
           warning,
           '',
-          `Python steps with ${colors.gray('.step.py')} extensions are no longer supported.`,
-          `Please rename them to ${colors.gray('_step.py')}.`,
+          `Python steps with ${pc.gray('.step.py')} extensions are no longer supported.`,
+          `Please rename them to ${pc.gray('_step.py')}.`,
           '',
-          colors.bold('Steps:'),
+          pc.bold('Steps:'),
           ...deprecatedSteps.map((step) =>
-            colors.reset(
-              `- ${colors.cyan(colors.bold(step.replace(projectDir, '')))} rename to ${colors.gray(`${step.replace(projectDir, '').replace('.step.py', '_step.py')}`)}`,
+            pc.reset(
+              `- ${pc.cyan(pc.bold(step.replace(projectDir, '')))} rename to ${pc.gray(`${step.replace(projectDir, '').replace('.step.py', '_step.py')}`)}`,
             ),
           ),
 

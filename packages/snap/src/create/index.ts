@@ -1,6 +1,6 @@
-import colors from 'colors'
 import fs from 'fs'
 import path from 'path'
+import pc from 'picocolors'
 import type { CliContext } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
@@ -234,30 +234,24 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     packageManager = await preparePackageManager(rootDir, context)
   }
 
-  context.log('project-setup-completed', (message) =>
-    message.tag('success').append('All set! Your project is ready to go.'),
-  )
-
-  context.log('project-location', (message) =>
-    message
-      .tag('success')
-      .append('Created at')
-      .append(`./${path.basename(rootDir)}`, 'cyan')
-      .append('- happy coding!'),
-  )
-
   const projectDirName = path.basename(rootDir)
   const devCommand = `${packageManager} run dev`
-  const nextSteps: string[] = []
+  const port = 3000
+  const cdCommand = isCurrentDir ? '' : `${pc.cyan(`cd ${projectDirName}`)}\n  `
 
-  if (isCurrentDir) {
-    nextSteps.push(`Run ${colors.cyan(devCommand)}`)
-  } else {
-    nextSteps.push(`cd ${colors.cyan(projectDirName)}`, `then run ${colors.cyan(devCommand)}`)
-  }
-
-  context.log('starting-development-server-command', (message) => {
-    message.tag('info').append('Next steps:')
-    message.box([...nextSteps, 'to start the development server.'], 'cyan')
-  })
+  context.log('success-blank', (message) => message.text(''))
+  context.log('success-header', (message) =>
+    message.text(`${pc.green('✨')} ${pc.bold('All set! Your project is ready to go.')}`),
+  )
+  context.log('success-blank-2', (message) => message.text(''))
+  context.log('success-get-started', (message) => message.text('Get started:'))
+  context.log('success-blank-3', (message) => message.text(''))
+  context.log('success-commands', (message) => message.text(`  ${cdCommand}${pc.cyan(devCommand)}`))
+  context.log('success-blank-4', (message) => message.text(''))
+  context.log('success-open', (message) => message.text(`Then open ${pc.cyan(`http://localhost:${port}`)}`))
+  context.log('success-blank-5', (message) => message.text(''))
+  context.log('success-docs', (message) => message.text(`Docs: ${pc.cyan('https://www.motia.dev/docs')}`))
+  context.log('success-blank-6', (message) => message.text(''))
+  context.log('success-signoff', (message) => message.text('Happy coding! 🚀'))
+  context.log('success-blank-7', (message) => message.text(''))
 }

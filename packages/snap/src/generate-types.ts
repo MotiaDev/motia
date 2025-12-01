@@ -1,5 +1,6 @@
 import { getStepConfig, getStreamConfig, LockedData, MemoryStreamAdapterManager, Printer } from '@motiadev/core'
 import { randomUUID } from 'crypto'
+import pc from 'picocolors'
 import { getStepFiles, getStreamFiles } from './generate-locked-data'
 import { instanceRedisMemoryServer } from './redis-memory-manager'
 
@@ -30,5 +31,5 @@ export const generateTypes = async (projectDir: string) => {
 
   lockedData.saveTypes()
 
-  console.log('✨ Types created successfully')
+  console.log(`${pc.green('✓ [SUCCESS]')} Types generated`)
 }

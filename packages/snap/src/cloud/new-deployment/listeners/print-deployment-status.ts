@@ -1,21 +1,23 @@
-import colors, { type Color } from 'colors'
+import pc from 'picocolors'
 import type { CliContext } from '../../config-utils'
 import type { DeployData, DeployStatus } from './listener.types'
 
+type ColorFn = (text: string) => string
+
 let spinnerIndex = 0
 
-export const getStatusColor = (status: DeployStatus): Color => {
+export const getStatusColor = (status: DeployStatus): ColorFn => {
   switch (status) {
     case 'completed':
-      return colors.green
+      return pc.green
     case 'failed':
-      return colors.red
+      return pc.red
     case 'progress':
-      return colors.yellow
+      return pc.yellow
     case 'pending':
-      return colors.gray
+      return pc.gray
     default:
-      return colors.gray
+      return pc.gray
   }
 }
 
@@ -25,20 +27,20 @@ export const printDeploymentStatus = (data: DeployData, context: CliContext) => 
   const getSpinner = () => {
     const spinner = spinners[spinnerIndex]
     spinnerIndex = (spinnerIndex + 1) % spinners.length
-    return colors.gray(spinner)
+    return pc.gray(spinner)
   }
 
   context.log('deployment-status-blank-1', (message) => message.append(''))
 
   const generateEmitList = (emits: string[] = []) => {
-    return emits.map((e) => colors.white(`⌁ ${e}`)).join(colors.white(', '))
+    return emits.map((e) => pc.white(`⌁ ${e}`)).join(pc.white(', '))
   }
 
   const getStatus = (status: DeployStatus) => {
-    return status === 'failed' ? colors.red('✘') : status === 'completed' ? colors.green('✓') : getSpinner()
+    return status === 'failed' ? pc.red('✘') : status === 'completed' ? pc.green('✓') : getSpinner()
   }
 
-  const lambda = (stepName: string, color: Color) => color(`λ ${stepName}`)
+  const lambda = (stepName: string, color: ColorFn) => color(`λ ${stepName}`)
   const eventStatus = data.events.reduce((acc, event) => {
     return acc === 'failed' ? 'failed' : acc === 'completed' ? event.status : acc
   }, 'completed' as DeployStatus)
@@ -99,7 +101,7 @@ export const printDeploymentStatus = (data: DeployData, context: CliContext) => 
     })
   } else {
     context.log('deployment-status-cron-no-jobs', (message) =>
-      message.append(`[${colors.green('✓')}]    ↳ No cron jobs configured`),
+      message.append(`[${pc.green('✓')}]    ↳ No cron jobs configured`),
     )
   }
 

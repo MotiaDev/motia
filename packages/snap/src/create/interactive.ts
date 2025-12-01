@@ -1,5 +1,5 @@
-import colors from 'colors'
 import inquirer, { type QuestionCollection } from 'inquirer'
+import pc from 'picocolors'
 import type { CliContext } from '../cloud/config-utils'
 import { create } from './index'
 
@@ -25,7 +25,7 @@ interface CreateInteractiveArgs {
 export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
   context.log('welcome', (message) =>
     message.append(
-      `\n🚀 ${colors.bold(args.plugin ? 'Welcome to Motia Plugin Creator!' : 'Welcome to Motia Project Creator!')}`,
+      `\n🚀 ${pc.bold(args.plugin ? 'Welcome to Motia Plugin Creator!' : 'Welcome to Motia Project Creator!')}`,
     ),
   )
 
@@ -37,9 +37,7 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
   if (args.plugin) {
     if (!args.name) {
       context.log('failed', (message) =>
-        message
-          .tag('failed')
-          .append(`Project name is required: ${colors.bold('motia create --plugin [project-name]')}\n`),
+        message.tag('failed').append(`Project name is required: ${pc.bold('motia create --plugin [project-name]')}\n`),
       )
       return
     }
