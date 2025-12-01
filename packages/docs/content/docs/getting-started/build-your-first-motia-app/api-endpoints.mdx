@@ -141,6 +141,7 @@ View on GitHub:
       method: 'POST',
       bodySchema: createPetSchema,
       flows: ['PetManagement'],
+      emits: [],
     }
 
     export const handler: Handlers['CreatePet'] = async (req, { logger }) => {
@@ -269,6 +270,7 @@ View on GitHub:
       path: '/pets',
       method: 'GET',
       flows: ['PetManagement'],
+      emits: [],
     }
 
     export const handler: Handlers['GetPets'] = async (req, { logger }) => {
@@ -361,6 +363,7 @@ View on GitHub:
       path: '/pets/:id',
       method: 'GET',
       flows: ['PetManagement'],
+      emits: [],
     }
 
     export const handler: Handlers['GetPet'] = async (req, { logger }) => {
@@ -476,6 +479,7 @@ View on GitHub:
       method: 'PUT',
       bodySchema: updatePetSchema,
       flows: ['PetManagement'],
+      emits: [],
     }
 
     export const handler: Handlers['UpdatePet'] = async (req, { logger }) => {
@@ -601,6 +605,7 @@ View on GitHub:
       path: '/pets/:id',
       method: 'DELETE',
       flows: ['PetManagement'],
+      emits: [],
     }
 
     export const handler: Handlers['DeletePet'] = async (req, { logger }) => {
