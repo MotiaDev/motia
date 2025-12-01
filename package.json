@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "prepare": "husky || true",
-    "dev:docs": "pnpm -r --filter=docs start",
+    "dev:docs": "pnpm -r --filter=docs dev",
     "dev": "pnpm run build && pnpm -r --filter=playground dev",
     "dev:workbench": "pnpm run build && pnpm -r --filter=playground dev:workbench",
     "build": "pnpm --filter=!docs run -r build",

@@ -257,11 +257,14 @@ export const createServer = (
 
       logger.debug('[API] Received request, processing step', { path: req.path })
 
+      const rawBody = req.rawBody || ''
+
       const data: ApiRequest = {
         body: req.body,
         headers: req.headers as Record<string, string | string[]>,
         pathParams: req.params,
         queryParams: req.query as Record<string, string | string[]>,
+        rawBody,
       }
 
       try {
@@ -324,8 +327,38 @@ export const createServer = (
     }
   }
 
-  app.use(bodyParser.json({ limit: '1gb' }))
-  app.use(bodyParser.urlencoded({ extended: true, limit: '1gb' }))
+  app.use((req, _, next) => {
+    req.rawBody = ''
+    next()
+  })
+
+  app.use(
+    bodyParser.json({
+      limit: '1gb',
+      verify: (req, _, buf, encoding) => {
+        req.rawBody = buf.toString((encoding as BufferEncoding) || 'utf8')
+      },
+    }),
+  )
+
+  app.use(
+    bodyParser.urlencoded({
+      extended: true,
+      limit: '1gb',
+      verify: (req, _, buf, encoding) => {
+        req.rawBody = buf.toString((encoding as BufferEncoding) || 'utf8')
+      },
+    }),
+  )
+
+  app.use(
+    bodyParser.text({
+      limit: '1gb',
+      verify: (req, _, buf, encoding) => {
+        req.rawBody = buf.toString((encoding as BufferEncoding) || 'utf8')
+      },
+    }),
+  )
 
   const router = express.Router()
 
