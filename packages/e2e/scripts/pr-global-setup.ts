@@ -46,9 +46,8 @@ async function globalSetup() {
       '@motiadev/plugin-observability': 'workspace:*',
       '@motiadev/plugin-bullmq': 'workspace:*',
       '@motiadev/adapter-bullmq-events': 'workspace:*',
+      zod: '^4.1.12',
     }
-
-    console.log('packageJson', packageJson)
 
     // Temporarily remove postinstall script to avoid running 'motia install' before dependencies are linked
     const originalPostinstall = packageJson.scripts?.postinstall
