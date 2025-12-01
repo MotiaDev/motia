@@ -86,8 +86,9 @@ async function globalSetup() {
     }
 
     console.log('🌟 Starting test project server...')
-    const serverProcess = exec('pnpm run dev', {
+    const serverProcess = execSync('pnpm run dev', {
       cwd: TEST_PROJECT_PATH,
+      stdio: 'inherit',
       env: {
         MOTIA_ANALYTICS_DISABLED: 'true',
         PATH: `${path.dirname(cliPath)}:${process.env.PATH}`,
@@ -103,7 +104,7 @@ async function globalSetup() {
     process.env.TEST_PROJECT_PATH = TEST_PROJECT_PATH
     process.env.TEST_PROJECT_NAME = TEST_PROJECT_NAME
     process.env.MOTIA_TEST_TEMPLATE = template
-    process.env.MOTIA_TEST_PID = serverProcess.pid?.toString() || ''
+    process.env.MOTIA_TEST_PID = '1234' //mock
   } catch (error) {
     console.error('❌ Failed to setup PR E2E test environment:', error)
 
