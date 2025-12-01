@@ -27,6 +27,7 @@ async function globalSetup() {
     const createCommand = `node ${cliPath} create  ${TEST_PROJECT_NAME} -t ${template}`
 
     execSync(createCommand, {
+      stdio: 'inherit',
       cwd: path.join(ROOT_PATH, 'packages'),
     })
 
@@ -62,6 +63,7 @@ async function globalSetup() {
     // execSync('pnpm build', { cwd: ROOT_PATH, stdio: 'pipe' })
     execSync(`pnpm install --filter ${TEST_PROJECT_NAME}`, {
       cwd: ROOT_PATH,
+      stdio: 'inherit',
       env: {
         ...process.env,
         CI: 'false',
