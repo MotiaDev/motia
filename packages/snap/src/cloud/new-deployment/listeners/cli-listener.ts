@@ -1,6 +1,6 @@
 import type { Step } from '@motiadev/core'
 import type { Stream } from '@motiadev/core/dist/src/types-stream'
-import colors from 'colors'
+import pc from 'picocolors'
 import type { BuildStepConfig } from '../../build/builder'
 import type { CliContext } from '../../config-utils'
 import { BuildPrinter } from './build-printer'
@@ -58,14 +58,14 @@ export class CliListener implements DeploymentListener {
     })
 
     errors.map((error) => {
-      const filePath = colors.gray(`[${error.relativePath}]`)
+      const filePath = pc.gray(`[${error.relativePath}]`)
       this.context.log(`build-errors-${error.relativePath}`, (message) => {
         message.tag('failed').append(`${filePath} ${error.message}`)
       })
     })
 
     this.context.log('build-failed-end', (message) => {
-      message.append(colors.gray('\n--------------------------------\n'))
+      message.append(pc.gray('\n--------------------------------\n'))
       message.tag('failed').append('Deployment canceled', 'red')
     })
   }

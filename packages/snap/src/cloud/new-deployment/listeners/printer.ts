@@ -1,11 +1,11 @@
 import { Printer } from '@motiadev/core/dist/src/printer'
-import colors from 'colors'
+import pc from 'picocolors'
 import type { BuildStepConfig } from '../../build/builder'
 import { CLIOutputManager } from '../../cli-output-manager'
 import { projectDir } from '../constants'
 
-const uploading = colors.yellow('➜ [UPLOADING]')
-const uploaded = colors.green('✓ [UPLOADED]')
+const uploading = pc.yellow('➜ [UPLOADING]')
+const uploaded = pc.green('✓ [UPLOADED]')
 
 export class DeployPrinter {
   private readonly printer = new Printer(projectDir)
@@ -13,13 +13,13 @@ export class DeployPrinter {
 
   getLanguage(language: string): string {
     if (language === 'node') {
-      return colors.bold(colors.green('Node'))
+      return pc.bold(pc.green('Node'))
     } else if (language === 'python') {
-      return colors.bold(colors.blue('Python'))
+      return pc.bold(pc.blue('Python'))
     } else if (language === 'ruby') {
-      return colors.bold(colors.red('Ruby'))
+      return pc.bold(pc.red('Ruby'))
     }
-    return colors.bold(colors.gray('Unknown'))
+    return pc.bold(pc.gray('Unknown'))
   }
 
   getStepLanguage(stepConfig: BuildStepConfig): string {
@@ -35,19 +35,19 @@ export class DeployPrinter {
 
   getStepType(stepConfig: BuildStepConfig): string {
     if (stepConfig.config.type === 'api') {
-      return colors.gray('(API)')
+      return pc.gray('(API)')
     } else if (stepConfig.config.type === 'event') {
-      return colors.gray('(Event)')
+      return pc.gray('(Event)')
     } else if (stepConfig.config.type === 'cron') {
-      return colors.gray('(Cron)')
+      return pc.gray('(Cron)')
     } else if (stepConfig.config.type === 'noop') {
-      return colors.gray('(Noop)')
+      return pc.gray('(Noop)')
     }
-    return colors.gray('(Unknown)')
+    return pc.gray('(Unknown)')
   }
 
   getRelativePath(path: string): string {
-    return colors.bold(colors.cyan(this.printer.getRelativePath(path)))
+    return pc.bold(pc.cyan(this.printer.getRelativePath(path)))
   }
 
   getStepPath(stepConfig: BuildStepConfig): string {

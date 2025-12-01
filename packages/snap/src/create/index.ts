@@ -1,6 +1,6 @@
-import colors from 'colors'
 import fs from 'fs'
 import path from 'path'
+import pc from 'picocolors'
 import type { CliContext } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
@@ -251,9 +251,9 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   const nextSteps: string[] = []
 
   if (isCurrentDir) {
-    nextSteps.push(`Run ${colors.cyan(devCommand)}`)
+    nextSteps.push(`Run ${pc.cyan(devCommand)}`)
   } else {
-    nextSteps.push(`cd ${colors.cyan(projectDirName)}`, `then run ${colors.cyan(devCommand)}`)
+    nextSteps.push(`cd ${pc.cyan(projectDirName)}`, `then run ${pc.cyan(devCommand)}`)
   }
 
   context.log('starting-development-server-command', (message) => {

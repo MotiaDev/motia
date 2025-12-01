@@ -1,9 +1,9 @@
-import colors from 'colors'
 import inquirer from 'inquirer'
+import pc from 'picocolors'
 import { HTTP_METHODS, LANGUAGES, STEP_TYPES, type StepAnswers } from './types'
 
 export const getStepAnswers = async (): Promise<StepAnswers> => {
-  console.log('\n📝 ', colors.bold('Create a new Motia step\n'))
+  console.log('\n📝 ', pc.bold('Create a new Motia step\n'))
 
   // Basic information prompts
   const basicInfo = await inquirer.prompt([

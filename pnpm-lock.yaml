@@ -152,9 +152,6 @@ importers:
       body-parser:
         specifier: ^1.20.3
         version: 1.20.3
-      colors:
-        specifier: ^1.4.0
-        version: 1.4.0
       dotenv:
         specifier: ^16.4.7
         version: 16.5.0
@@ -164,6 +161,9 @@ importers:
       node-cron:
         specifier: ^3.0.3
         version: 3.0.3
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
       redis:
         specifier: ^5.0.0
         version: 5.10.0
@@ -392,9 +392,6 @@ importers:
       chokidar:
         specifier: ^4.0.3
         version: 4.0.3
-      colors:
-        specifier: ^1.4.0
-        version: 1.4.0
       commander:
         specifier: ^13.0.0
         version: 13.1.0
@@ -419,6 +416,9 @@ importers:
       node-cron:
         specifier: ^3.0.3
         version: 3.0.3
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
       python-ast:
         specifier: ^0.1.0
         version: 0.1.0
@@ -5148,10 +5148,6 @@ packages:
 
   colorette@2.0.20:
     resolution: {integrity: sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w==}
-
-  colors@1.4.0:
-    resolution: {integrity: sha512-a+UqTh4kgZg/SlGvfbzDHpgRu7AAQOmmqRHJnxhRZICKFUT91brVhNNt58CMWU9PsBbv3PDCZUHbVxuDiH2mtA==}
-    engines: {node: '>=0.1.90'}
 
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
@@ -14388,8 +14384,6 @@ snapshots:
     optional: true
 
   colorette@2.0.20: {}
-
-  colors@1.4.0: {}
 
   combined-stream@1.0.8:
     dependencies:

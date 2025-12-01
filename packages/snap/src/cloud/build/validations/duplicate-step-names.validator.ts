@@ -1,5 +1,5 @@
-import colors from 'colors'
 import path from 'path'
+import pc from 'picocolors'
 import type { Validator } from './types'
 
 export const duplicateStepNamesValidator: Validator = (builder) => {
@@ -10,7 +10,7 @@ export const duplicateStepNamesValidator: Validator = (builder) => {
     if (stepNames.has(step.config.name)) {
       errors.push({
         relativePath: path.relative(builder.projectDir, step.filePath),
-        message: [`Duplicate step names: ${colors.red(step.config.name)}`].join('\n'),
+        message: [`Duplicate step names: ${pc.red(step.config.name)}`].join('\n'),
         step,
       })
     } else {

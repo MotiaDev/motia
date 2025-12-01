@@ -1,24 +1,24 @@
-import colors from 'colors'
 import path from 'path'
+import pc from 'picocolors'
 import { isApiStep, isCronStep, isEventStep, isNoopStep } from './guards'
 import type { ValidationError } from './step-validator'
 import type { Step } from './types'
 import type { Stream } from './types-stream'
 
-const stepTag = colors.bold(colors.magenta('Step'))
-const flowTag = colors.bold(colors.blue('Flow'))
-const streamTag = colors.bold(colors.green('Stream'))
-const registered = colors.green('➜ [REGISTERED]')
-const building = colors.yellow('⚡ [BUILDING]')
-const built = colors.green('✓ [BUILT]')
-const updated = colors.yellow('➜ [UPDATED]')
-const removed = colors.red('➜ [REMOVED]')
-const invalidEmit = colors.red('➜ [INVALID EMIT]')
-const error = colors.red('[ERROR]')
-const warning = colors.yellow('[WARNING]')
-const warnIcon = colors.yellow('⚠')
-const infoIcon = colors.blue('ℹ')
-const errorIcon = colors.red('✖')
+const stepTag = pc.bold(pc.magenta('Step'))
+const flowTag = pc.bold(pc.blue('Flow'))
+const streamTag = pc.bold(pc.green('Stream'))
+const registered = pc.green('➜ [REGISTERED]')
+const building = pc.yellow('⚡ [BUILDING]')
+const built = pc.green('✓ [BUILT]')
+const updated = pc.yellow('➜ [UPDATED]')
+const removed = pc.red('➜ [REMOVED]')
+const invalidEmit = pc.red('➜ [INVALID EMIT]')
+const error = pc.red('[ERROR]')
+const warning = pc.yellow('[WARNING]')
+const warnIcon = pc.yellow('⚠')
+const infoIcon = pc.blue('ℹ')
+const errorIcon = pc.red('✖')
 
 export class Printer {
   constructor(private readonly baseDir: string) {}
@@ -35,36 +35,36 @@ export class Printer {
     emit: { topic: string },
     details: { missingFields?: string[]; extraFields?: string[]; typeMismatches?: string[] },
   ) {
-    const emitPath = colors.bold(colors.cyan(`Emit ${emit.topic}`))
+    const emitPath = pc.bold(pc.cyan(`Emit ${emit.topic}`))
 
     console.log(`${warnIcon} ${warning} ${emitPath} validation issues:`)
 
     const hasAny = details.missingFields?.length || details.extraFields?.length || details.typeMismatches?.length
 
     if (!hasAny) {
-      console.log(`${colors.yellow('│')} No issues found.`)
-      console.log(`${colors.yellow('└─')} Validation passed.`)
+      console.log(`${pc.yellow('│')} No issues found.`)
+      console.log(`${pc.yellow('└─')} Validation passed.`)
       return
     }
 
     if (details.missingFields?.length) {
-      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Missing fields: ${details.missingFields.join(', ')}`)}`)
+      console.log(`${pc.yellow('│')} ${pc.yellow(`⚠ Missing fields: ${details.missingFields.join(', ')}`)}`)
     }
 
     if (details.extraFields?.length) {
-      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Extra fields: ${details.extraFields.join(', ')}`)}`)
+      console.log(`${pc.yellow('│')} ${pc.yellow(`⚠ Extra fields: ${details.extraFields.join(', ')}`)}`)
     }
 
     if (details.typeMismatches?.length) {
-      console.log(`${colors.yellow('│')} ${colors.yellow(`⚠ Type mismatches: ${details.typeMismatches.join(', ')}`)}`)
+      console.log(`${pc.yellow('│')} ${pc.yellow(`⚠ Type mismatches: ${details.typeMismatches.join(', ')}`)}`)
     }
 
-    console.log(`${colors.yellow('└─')} ${colors.yellow('Payload does not match schema.')}`)
+    console.log(`${pc.yellow('└─')} ${pc.yellow('Payload does not match schema.')}`)
   }
 
   printInvalidEmit(step: Step, emit: string) {
     console.log(
-      `${invalidEmit} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} tried to emit an event not defined in the step config: ${colors.yellow(emit)}`,
+      `${invalidEmit} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} tried to emit an event not defined in the step config: ${pc.yellow(emit)}`,
     )
   }
 
@@ -81,15 +81,15 @@ export class Printer {
   }
 
   printFlowCreated(flowName: string) {
-    console.log(`${registered} ${flowTag} ${colors.bold(colors.cyan(flowName))} registered`)
+    console.log(`${registered} ${flowTag} ${pc.bold(pc.cyan(flowName))} registered`)
   }
 
   printFlowUpdated(flowName: string) {
-    console.log(`${updated} ${flowTag} ${colors.bold(colors.cyan(flowName))} updated`)
+    console.log(`${updated} ${flowTag} ${pc.bold(pc.cyan(flowName))} updated`)
   }
 
   printFlowRemoved(flowName: string) {
-    console.log(`${removed} ${flowTag} ${colors.bold(colors.cyan(flowName))} removed`)
+    console.log(`${removed} ${flowTag} ${pc.bold(pc.cyan(flowName))} removed`)
   }
 
   printStreamCreated(stream: Stream) {
@@ -106,29 +106,29 @@ export class Printer {
 
   printInvalidEmitConfiguration(step: Step, emit: string) {
     console.log(
-      `${warnIcon} ${warning} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} emits to ${colors.yellow(emit)}, but there is no subscriber defined`,
+      `${warnIcon} ${warning} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} emits to ${pc.yellow(emit)}, but there is no subscriber defined`,
     )
   }
 
   printInvalidSchema(topic: string, step: Step[]) {
-    console.log(`${error} Topic ${colors.bold(colors.blue(topic))} has incompatible schemas in the following steps:`)
+    console.log(`${error} Topic ${pc.bold(pc.blue(topic))} has incompatible schemas in the following steps:`)
     step.forEach((step) => {
-      console.log(`${colors.red('  ✖')} ${this.getStepPath(step)}`)
+      console.log(`${pc.red('  ✖')} ${this.getStepPath(step)}`)
     })
   }
 
   printValidationError(stepPath: string, validationError: ValidationError) {
     const relativePath = this.getRelativePath(stepPath)
 
-    console.log(`${error} ${colors.bold(colors.cyan(relativePath))}`)
+    console.log(`${error} ${pc.bold(pc.cyan(relativePath))}`)
     validationError.errors?.forEach((error) => {
       if (error.path) {
-        console.log(`${colors.red('│')} ${colors.yellow(`✖ ${error.path}`)}: ${error.message}`)
+        console.log(`${pc.red('│')} ${pc.yellow(`✖ ${error.path}`)}: ${error.message}`)
       } else {
-        console.log(`${colors.red('│')} ${colors.yellow('✖')} ${error.message}`)
+        console.log(`${pc.red('│')} ${pc.yellow('✖')} ${error.message}`)
       }
     })
-    console.log(`${colors.red('└─')} ${colors.red(validationError.error)}  `)
+    console.log(`${pc.red('└─')} ${pc.red(validationError.error)}  `)
   }
 
   getRelativePath(filePath: string) {
@@ -136,37 +136,37 @@ export class Printer {
   }
 
   getStepType(step: Step) {
-    if (isApiStep(step)) return colors.gray('(API)')
-    if (isEventStep(step)) return colors.gray('(Event)')
-    if (isCronStep(step)) return colors.gray('(Cron)')
-    if (isNoopStep(step)) return colors.gray('(Noop)')
+    if (isApiStep(step)) return pc.gray('(API)')
+    if (isEventStep(step)) return pc.gray('(Event)')
+    if (isCronStep(step)) return pc.gray('(Cron)')
+    if (isNoopStep(step)) return pc.gray('(Noop)')
 
-    return colors.gray('(Unknown)')
+    return pc.gray('(Unknown)')
   }
 
   getStepPath(step: Step) {
     const stepPath = this.getRelativePath(step.filePath)
-    return colors.bold(colors.cyan(stepPath))
+    return pc.bold(pc.cyan(stepPath))
   }
 
   getStreamPath(stream: Stream) {
     const streamPath = this.getRelativePath(stream.filePath)
-    return colors.bold(colors.magenta(streamPath))
+    return pc.bold(pc.magenta(streamPath))
   }
 
   printPluginLog(message: string) {
-    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
+    const pluginTag = pc.bold(pc.cyan('[motia-plugins]'))
     console.log(`${infoIcon} ${pluginTag} ${message}`)
   }
 
   printPluginWarn(message: string) {
-    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
-    console.warn(`${warnIcon} ${pluginTag} ${colors.yellow(message)}`)
+    const pluginTag = pc.bold(pc.cyan('[motia-plugins]'))
+    console.warn(`${warnIcon} ${pluginTag} ${pc.yellow(message)}`)
   }
 
   printPluginError(message: string, ...args: unknown[]) {
-    const pluginTag = colors.bold(colors.cyan('[motia-plugins]'))
-    console.error(`${errorIcon} ${pluginTag} ${colors.red(message)}`, ...args)
+    const pluginTag = pc.bold(pc.cyan('[motia-plugins]'))
+    console.error(`${errorIcon} ${pluginTag} ${pc.red(message)}`, ...args)
   }
 }
 
