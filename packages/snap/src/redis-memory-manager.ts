@@ -2,6 +2,7 @@ import { mkdirSync } from 'fs'
 import { createClient, type RedisClientType } from 'redis'
 import { RedisMemoryServer } from 'redis-memory-server'
 import type { RedisMemoryInstancePropT } from 'redis-memory-server/lib/types'
+import { handleBuildToolsError } from './utils/build-tools-error'
 
 export interface RedisConnectionInfo {
   host: string
@@ -97,7 +98,12 @@ class RedisMemoryManager {
 
       return this.client
     } catch (error) {
-      console.error('[Redis Memory Server] Failed to start:', error)
+      const wasBuildToolsError = handleBuildToolsError(error, 'runtime')
+
+      if (!wasBuildToolsError) {
+        console.error('[Redis Memory Server] Failed to start:', error)
+      }
+
       throw error
     }
   }

@@ -175,6 +175,39 @@ Open [http://localhost:3000](http://localhost:3000) - your app should be running
 
 ---
 
+## Troubleshooting
+
+### Using Minimal Docker Images (node:24-slim)
+
+If you're using a minimal Docker image like `node:24-slim` instead of the official `motiadev/motia:latest` image, you may encounter errors when creating a new Motia project or running `motia dev`.
+
+**Error:** `make: not found` or `gcc: not found` during installation or runtime.
+
+**Cause:** The `redis-memory-server` package requires build tools (`make`, `gcc`, etc.) to compile Redis from source. These are not included in minimal images.
+
+**Solution:** Install the required dependencies before running Motia:
+
+```bash
+docker run --rm node:24-slim bash -c "
+  apt-get update && apt-get install -y ca-certificates git build-essential &&
+  npx motia@latest create my-app --template starter-typescript
+"
+```
+
+**Alternative:** Install Redis system package to avoid compilation:
+
+```bash
+docker run --rm node:24-slim bash -c "
+  apt-get update && apt-get install -y ca-certificates git redis-server &&
+  export REDISMS_SYSTEM_BINARY=/usr/bin/redis-server &&
+  npx motia@latest create my-app --template starter-typescript
+"
+```
+
+**Recommended:** Use the official `motiadev/motia:latest` image which includes all required dependencies, or use the full `node:24` image instead of `node:24-slim`.
+
+---
+
 ## Deploy to Cloud
 
 ### AWS Lightsail

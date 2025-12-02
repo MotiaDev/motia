@@ -5,6 +5,7 @@ import type { CliContext, Message } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
 import { pluginDependencies } from '../plugins/plugin-dependencies'
+import { handleBuildToolsError } from '../utils/build-tools-error'
 import { executeCommand } from '../utils/execute-command'
 import { getPackageManager } from '../utils/get-package-manager'
 import { version } from '../version'
@@ -36,7 +37,17 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
 
     context.log('dependencies-installed', (message: Message) => message.tag('success').append('Dependencies installed'))
   } catch (error) {
+    const wasBuildToolsError = handleBuildToolsError(error, 'install')
+
+    if (!wasBuildToolsError) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      context.log('install-error', (message) =>
+        message.tag('failed').append('Failed to install dependencies:').append(errorMessage),
+      )
+    }
+
     console.error('❌ Failed to install dependencies:', error)
+    throw error
   }
 }
 
