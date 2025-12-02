@@ -10,10 +10,6 @@ import { StreamTracer } from './stream-tracer'
 import { TraceManager } from './trace-manager'
 import type { Trace, TraceGroup } from './types'
 
-const MAX_TRACE_GROUPS = process.env.MOTIA_MAX_TRACE_GROUPS //
-  ? Number.parseInt(process.env.MOTIA_MAX_TRACE_GROUPS, 10)
-  : 50
-
 export class BaseTracerFactory implements TracerFactory {
   constructor(
     private readonly traceStream: MotiaStream<Trace>,
@@ -54,18 +50,6 @@ export class BaseTracerFactory implements TracerFactory {
       correlationId: undefined,
       status: 'running',
       startTime: Date.now(),
-    }
-
-    const groups = await this.getAllGroups()
-
-    if (groups.length >= MAX_TRACE_GROUPS) {
-      const groupsToDelete = groups
-        .sort((a, b) => a.startTime - b.startTime) // date ascending
-        .slice(0, groups.length - MAX_TRACE_GROUPS + 1)
-
-      for (const group of groupsToDelete) {
-        await this.deleteGroup(group)
-      }
     }
 
     const trace = createTrace(traceGroup, step)
