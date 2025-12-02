@@ -3,7 +3,7 @@
   "description": "BullMQ event adapter for Motia framework, enabling distributed event handling with advanced features like retries, priorities, delays, and FIFO queues.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "version": "0.9.1-beta.146",
+  "version": "0.14.0-beta.164",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "lint": "biome check .",
