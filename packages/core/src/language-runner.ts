@@ -55,8 +55,13 @@ export const getLanguageBasedRunner = (
       }
     }
     const jsRunner = path.join(__dirname, 'node', defaultNodeOverrides?.js ?? 'node-runner.mjs')
-
     const tsxPath = getTsxPath()
+
+    // On Windows, .mjs files cannot be spawned directly - must run via node
+    if (process.platform === 'win32' && tsxPath !== 'tsx') {
+      return { runner: jsRunner, command: 'node', args: [tsxPath] }
+    }
+
     return { runner: jsRunner, command: tsxPath, args: [] }
   }
 

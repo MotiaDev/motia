@@ -8,6 +8,17 @@ import { printMotiaDockerIntro } from './utils/print-intro'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+const resolveTemplatesDir = (): string => {
+  const localTemplates = path.join(__dirname, './templates')
+  if (fs.existsSync(localTemplates)) {
+    return localTemplates
+  }
+  // Fallback for development: resolve to packages/docker/templates
+  return path.join(__dirname, '../../../docker/templates')
+}
+
+const templatesDir = resolveTemplatesDir()
+
 const updatePackageJson = (): void => {
   const packageJsonPath = path.join(process.cwd(), 'package.json')
   if (fs.existsSync(packageJsonPath)) {
@@ -45,7 +56,7 @@ const createDockerfile = async () => {
     }
   }
 
-  const dockerfileContent = fs.readFileSync(path.join(__dirname, './templates', 'MotiaDockerSample'), 'utf-8')
+  const dockerfileContent = fs.readFileSync(path.join(templatesDir, 'MotiaDockerSample'), 'utf-8')
 
   try {
     fs.writeFileSync(dockerfilePath, dockerfileContent)
@@ -63,7 +74,7 @@ const createDockerignore = async () => {
     project_name: getProjectIdentifier(process.cwd()),
   })
 
-  const dockerignoreContent = fs.readFileSync(path.join(__dirname, './templates', '.dockerignore.sample'), 'utf-8')
+  const dockerignoreContent = fs.readFileSync(path.join(templatesDir, '.dockerignore.sample'), 'utf-8')
 
   const dockerignorePath = path.join(process.cwd(), '.dockerignore')
 

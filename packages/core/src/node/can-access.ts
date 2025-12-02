@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 type CanAccessPayload = {
   subscription: { groupId: string; id?: string }
@@ -14,7 +15,7 @@ function parsePayload(arg: string): CanAccessPayload {
 }
 
 async function runCanAccess(filePath: string, payload: CanAccessPayload) {
-  const module = await import(path.resolve(filePath))
+  const module = await import(pathToFileURL(path.resolve(filePath)).href)
 
   const config = module.config || module.default?.config
 

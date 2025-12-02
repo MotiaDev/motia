@@ -1,5 +1,6 @@
 import dotenv from 'dotenv'
 import path from 'path'
+import { pathToFileURL } from 'url'
 import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { Logger } from './logger'
 import { composeMiddleware } from './middleware-compose'
@@ -20,7 +21,7 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
   const sender = new RpcSender(process)
 
   try {
-    const importedModule = await import(path.resolve(filePath))
+    const importedModule = await import(pathToFileURL(path.resolve(filePath)).href)
     const handler = importedModule.handler || importedModule.default?.handler
     const config = importedModule.config || importedModule.default?.config || {}
 

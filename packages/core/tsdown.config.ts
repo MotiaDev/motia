@@ -50,4 +50,9 @@ export default defineConfig({
   outDir: 'dist',
   sourcemap: true,
   unbundle: true,
+  copy: [
+    { from: 'src/python', to: 'dist/src/python' },
+    { from: 'src/ruby', to: 'dist/src/ruby' },
+    { from: 'src/steps', to: 'dist/src/steps' },
+  ],
 })

@@ -14,15 +14,12 @@
   "version": "0.14.0-beta.164",
   "scripts": {
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
-    "move:python": "mkdir -p dist/src/python && cp src/python/*.py dist/src/python",
-    "move:rb": "mkdir -p dist/src/ruby && cp src/ruby/*.rb dist/src/ruby",
-    "move:steps": "mkdir -p dist/src/steps && cp src/steps/*.ts dist/src/steps",
-    "build": "tsdown && npm run move:python && npm run move:rb && npm run move:steps",
+    "build": "tsdown",
     "dev": "tsdown --watch",
     "lint": "biome check .",
     "watch": "tsc --watch",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings=ExperimentalWarning' jest",
-    "clean": "rm -rf python_modules dist"
+    "clean": "rimraf dist python_modules"
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.5.26",

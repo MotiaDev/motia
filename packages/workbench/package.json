@@ -24,7 +24,7 @@
     "lint:plugins:tsx": "eslint --config ../../eslint.config.tsx.js",
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -78,6 +78,7 @@
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "publint": "^0.3.15",
+    "rimraf": "^6.0.1",
     "ts-jest": "^29.4.5",
     "tsdown": "^0.16.8"
   },
