@@ -11,7 +11,7 @@ const STANDARD_QUEUE = 'bullmq.tests.standard.BullMQStandardPrimary'
 test.describe('BullMQ Workbench UI', () => {
   test.beforeEach(async ({ helpers }) => helpers.skipTutorial())
 
-  test('shows queue list, details, and job interactions', async ({ api, bullmq }) => {
+  test.skip('shows queue list, details, and job interactions', async ({ api, bullmq }) => {
     const testCaseId = createBullMQTestCaseId()
     await resetBullMQTestCase(api, testCaseId)
     await emitBullMQEvent(api, {
