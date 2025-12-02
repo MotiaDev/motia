@@ -3,9 +3,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Config, Printer } from '@motiadev/core'
 import { globSync } from 'glob'
+import { createJiti } from 'jiti'
 import { installPluginDependencies } from './install-plugin-dependencies'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const jiti = createJiti(import.meta.url)
 
 export const loadConfig = async (baseDir: string, printer: Printer): Promise<Config> => {
   const configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: baseDir })
@@ -18,8 +20,8 @@ export const loadConfig = async (baseDir: string, printer: Printer): Promise<Con
 
     await installPluginDependencies(baseDir, printer)
 
-    return (await import(configPath)).default
+    return (await jiti.import(configPath)).default
   }
 
-  return (await import(configFiles[0])).default
+  return (await jiti.import(configFiles[0])).default
 }

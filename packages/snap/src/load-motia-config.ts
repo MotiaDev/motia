@@ -1,7 +1,10 @@
 import type { Config } from '@motiadev/core'
 import { globSync } from 'glob'
+import { createJiti } from 'jiti'
 
 export type LoadedMotiaConfig = Config
+
+const jiti = createJiti(import.meta.url)
 
 export const loadMotiaConfig = async (baseDir: string): Promise<LoadedMotiaConfig> => {
   const configFiles = globSync('motia.config.{ts,js}', { absolute: true, cwd: baseDir })
@@ -11,7 +14,7 @@ export const loadMotiaConfig = async (baseDir: string): Promise<LoadedMotiaConfi
   }
 
   try {
-    const appConfig: Config = (await import(configFiles[0])).default
+    const appConfig: Config = (await jiti.import(configFiles[0])).default
     return appConfig || {}
   } catch (error) {
     console.warn('Failed to load motia.config.ts:', error)

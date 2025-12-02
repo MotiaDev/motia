@@ -29,6 +29,7 @@ export default defineConfig({
     'tsx',
     'glob',
     'inquirer',
+    'jiti',
     'node-cron',
     'openapi-types',
     'python-ast',
