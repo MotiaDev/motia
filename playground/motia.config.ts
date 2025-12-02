@@ -1,11 +1,11 @@
 import path from 'node:path'
 import { config, type MotiaPlugin, type MotiaPluginContext, type StreamAuthRequest } from '@motiadev/core'
+import bullmqPlugin from '@motiadev/plugin-bullmq/plugin'
 import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
 import examplePlugin from '@motiadev/plugin-example/plugin'
 import logsPlugin from '@motiadev/plugin-logs/plugin'
 import observabilityPlugin from '@motiadev/plugin-observability/plugin'
 import statesPlugin from '@motiadev/plugin-states/plugin'
-import bullmqPlugin from '@motiadev/plugin-bullmq/plugin'
 import { z } from 'zod'
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname)
