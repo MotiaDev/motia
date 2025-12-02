@@ -158,7 +158,7 @@ The workbench runs locally at **[http://localhost:3000](http://localhost:3000)**
 
 ## License
 
-This project is licensed under [LICENSE_NAME].
+This project is licensed under the [Elastic License 2.0 (ELv2)](https://github.com/MotiaDev/motia/blob/main/LICENSE).
 
 ---
 

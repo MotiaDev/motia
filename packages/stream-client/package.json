@@ -1,8 +1,8 @@
 {
   "name": "@motiadev/stream-client",
   "description": "Motia Stream Client Package – Responsible for managing streams of data.",
-  "version": "0.11.1-beta.155",
-  "license": "MIT",
+  "version": "0.13.0-beta.161",
+  "license": "Elastic-2.0",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/types/index.d.ts",

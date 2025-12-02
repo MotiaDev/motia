@@ -1,10 +1,19 @@
-import { getStepConfig, getStreamConfig, LockedData, type Step, type StreamAdapterManager } from '@motiadev/core'
+import {
+  getStepConfig,
+  getStreamConfig,
+  type JsonSchema,
+  LockedData,
+  type Step,
+  type StreamAdapterManager,
+  type StreamAuthConfig,
+} from '@motiadev/core'
 import { NoPrinter, Printer } from '@motiadev/core/dist/src/printer'
 import colors from 'colors'
 import { randomUUID } from 'crypto'
 import { existsSync } from 'fs'
 import { globSync } from 'glob'
 import path from 'path'
+import type { RedisClientType } from 'redis'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { CompilationError } from './utils/errors/compilation.error'
 import { LockedDataGenerationError } from './utils/errors/locked-data-generation.error'
@@ -55,7 +64,8 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
     ...(existsSync(srcDir) ? globSync('**/*.step.py', { absolute: true, cwd: srcDir }) : []),
   ]
 
-  const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
+  const hasPythonFiles =
+    stepFiles.some((file) => file.endsWith('.py')) || streamFiles.some((file) => file.endsWith('.py'))
 
   if (hasPythonFiles) {
     activatePythonVenv({ baseDir: projectDir })
@@ -76,6 +86,11 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
         invalidSteps.push({ filePath, version, config })
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      if (errorMessage.includes('Executable ruby not found') || errorMessage.includes('Executable python not found')) {
+        console.warn(colors.yellow(`! [WARNING] Skipping step ${filePath}: ${errorMessage}`))
+        continue
+      }
       throw new CompilationError(`Error collecting flow ${filePath}`, path.relative(projectDir, filePath), err as Error)
     }
   }
@@ -123,19 +138,27 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
   return invalidSteps
 }
 
+type StreamAuthOptions = {
+  authenticate: StreamAuthConfig['authenticate']
+  contextSchema?: JsonSchema
+}
+
 export const generateLockedData = async (config: {
   projectDir: string
   streamAdapter: StreamAdapterManager
+  redisClient: RedisClientType
   printerType?: 'disabled' | 'default'
+  streamAuth?: StreamAuthOptions
 }): Promise<LockedData> => {
   try {
-    const { projectDir, streamAdapter, printerType = 'default' } = config
+    const { projectDir, streamAdapter, printerType = 'default', redisClient, streamAuth } = config
     const printer = printerType === 'disabled' ? new NoPrinter() : new Printer(projectDir)
     /*
      * NOTE: right now for performance and simplicity let's enforce a folder,
      * but we might want to remove this and scan the entire current directory
      */
-    const lockedData = new LockedData(projectDir, streamAdapter, printer)
+    const lockedData = new LockedData(projectDir, streamAdapter, printer, redisClient)
+    lockedData.setStreamAuthConfig(streamAuth)
 
     await collectFlows(projectDir, lockedData)
     lockedData.saveTypes()

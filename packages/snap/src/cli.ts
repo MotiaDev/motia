@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
+import { MemoryStreamAdapterManager } from '@motiadev/core'
 import { program } from 'commander'
 import './cloud'
 import { handler } from './cloud/config-utils'
+import { loadMotiaConfig } from './load-motia-config'
 import { wrapAction } from './utils/analytics'
 import { version } from './version'
 
@@ -178,7 +180,14 @@ generate
       const { generateLockedData } = require('./generate-locked-data')
       const { generateOpenApi } = require('./openapi/generate')
 
-      const lockedData = await generateLockedData({ projectDir: process.cwd() })
+      const baseDir = process.cwd()
+      const appConfig = await loadMotiaConfig(baseDir)
+
+      const lockedData = await generateLockedData({
+        projectDir: baseDir,
+        streamAdapter: new MemoryStreamAdapterManager(),
+        streamAuth: appConfig.streamAuth,
+      })
       const apiSteps = lockedData.apiSteps()
 
       generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)

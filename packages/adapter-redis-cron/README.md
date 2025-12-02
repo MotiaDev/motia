@@ -261,5 +261,5 @@ If locks are frequently contended:
 
 ## License
 
-MIT
+[Elastic License 2.0 (ELv2)](https://github.com/MotiaDev/motia/blob/main/LICENSE)
 

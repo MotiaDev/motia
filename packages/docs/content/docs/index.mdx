@@ -3,7 +3,11 @@ title: Welcome to Motia
 description: "Build production-grade backends with a single primitive. APIs, background jobs, Queues, Workflows, and AI agents - unified in one system with built-in State management, Streaming, and Observability."
 ---
 
+import VideoPlayer from '@/components/VideoPlayer';
+
 # Welcome to Motia
+
+<VideoPlayer videoPath="https://assets.motia.dev/videos/mp4/site/v1/1-motia-welcome.mp4" gifPath="https://assets.motia.dev/images/gifs/v1/1-motia-welcome.gif" title="Welcome to Motia" className="mb-8" />
 
 ## Why Motia?
 
@@ -30,7 +34,7 @@ To read more about this, check out our [manifesto](/manifesto).
 
 At the heart of Motia is a single primitive: the **Step**.  
 
-A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files from `/steps` directory and connects them automatically.
+A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files from your project (either `steps/` or `src/` directories) and connects them automatically - no manual registration required.
 
 Here’s a simple example of two Steps working together: an API Step that emits an event, and an Event Step that processes it.
 

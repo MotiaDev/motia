@@ -4,8 +4,11 @@ import { type MessageEvent, WebSocket } from 'ws'
 export class StreamSocketAdapter implements SocketAdapter {
   private ws: WebSocket
 
-  constructor(private address: string) {
-    this.ws = new WebSocket(this.address)
+  constructor(
+    private address: string,
+    protocols?: string | string[] | undefined,
+  ) {
+    this.ws = new WebSocket(this.address, protocols)
   }
 
   connect(): void {}

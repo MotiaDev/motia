@@ -1,54 +1,51 @@
 import type { StateAdapter, StateFilter, StateItem, StateItemsInput } from '@motiadev/core'
-import { createClient, type RedisClientType } from 'redis'
-import type { RedisStateAdapterConfig } from './types'
+import { createClient, type RedisClientOptions, type RedisClientType } from 'redis'
+import type { RedisStateAdapterOptions } from './types'
+
+function isRedisClient(input: RedisClientType | RedisClientOptions): input is RedisClientType {
+  return typeof input === 'object' && 'isOpen' in input && 'connect' in input
+}
 
 export class RedisStateAdapter implements StateAdapter {
   private client: RedisClientType
   private keyPrefix: string
   private ttl?: number
   private connected = false
+  private isExternalClient: boolean
 
-  constructor(config: RedisStateAdapterConfig) {
-    this.keyPrefix = config.keyPrefix || 'motia:state:'
-    this.ttl = config.ttl
+  constructor(redisConnection: RedisClientType | RedisClientOptions, options?: RedisStateAdapterOptions) {
+    this.keyPrefix = options?.keyPrefix || 'motia:state:'
+    this.ttl = options?.ttl
 
-    this.client = createClient({
-      socket: {
-        host: config.host || 'localhost',
-        port: config.port || 6379,
-        reconnectStrategy:
-          config.socket?.reconnectStrategy ||
-          ((retries) => {
-            if (retries > 10) {
-              return new Error('Redis connection retry limit exceeded')
-            }
-            return Math.min(retries * 100, 3000)
-          }),
-        connectTimeout: config.socket?.connectTimeout || 10000,
-      },
-      password: config.password,
-      username: config.username,
-      database: config.database || 0,
-    })
+    if (isRedisClient(redisConnection)) {
+      this.client = redisConnection
+      this.isExternalClient = true
+      this.connected = this.client.isOpen
+    } else {
+      const config: RedisClientOptions = redisConnection
+      this.isExternalClient = false
 
-    this.client.on('error', (err) => {
-      console.error('[Redis State] Client error:', err)
-    })
+      this.client = createClient(config) as RedisClientType
 
-    this.client.on('connect', () => {
-      this.connected = true
-    })
+      this.client.on('error', (err) => {
+        console.error('[Redis State] Client error:', err)
+      })
 
-    this.client.on('disconnect', () => {
-      console.warn('[Redis State] Disconnected')
-      this.connected = false
-    })
+      this.client.on('connect', () => {
+        this.connected = true
+      })
 
-    this.client.on('reconnecting', () => {
-      console.log('[Redis State] Reconnecting...')
-    })
+      this.client.on('disconnect', () => {
+        console.warn('[Redis State] Disconnected')
+        this.connected = false
+      })
 
-    this.connect()
+      this.client.on('reconnecting', () => {
+        console.log('[Redis State] Reconnecting...')
+      })
+
+      this.connect()
+    }
   }
 
   private async connect(): Promise<void> {
@@ -140,7 +137,7 @@ export class RedisStateAdapter implements StateAdapter {
   }
 
   async cleanup(): Promise<void> {
-    if (this.client.isOpen) {
+    if (!this.isExternalClient && this.client.isOpen) {
       await this.client.quit()
     }
   }
@@ -221,16 +218,16 @@ export class RedisStateAdapter implements StateAdapter {
 
   private async scanKeys(pattern: string): Promise<string[]> {
     const keys: string[] = []
-    let cursor = 0
+    let cursor: string | number = '0'
 
     do {
-      const result = await this.client.scan(cursor, {
+      const result = await this.client.scan(cursor.toString(), {
         MATCH: pattern,
         COUNT: 100,
       })
       cursor = result.cursor
       keys.push(...result.keys)
-    } while (cursor !== 0)
+    } while (String(cursor) !== '0')
 
     return keys
   }

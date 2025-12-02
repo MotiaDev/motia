@@ -1,7 +1,11 @@
 import type { CronAdapter, CronLock, CronLockInfo } from '@motiadev/core'
-import { createClient, type RedisClientType } from 'redis'
+import { createClient, type RedisClientOptions, type RedisClientType } from 'redis'
 import { v4 as uuidv4 } from 'uuid'
-import type { RedisCronAdapterConfig } from './types'
+import type { RedisCronAdapterOptions } from './types'
+
+function isRedisClient(input: RedisClientType | RedisClientOptions): input is RedisClientType {
+  return typeof input === 'object' && 'isOpen' in input && 'connect' in input
+}
 
 export class RedisCronAdapter implements CronAdapter {
   private client: RedisClientType
@@ -12,52 +16,45 @@ export class RedisCronAdapter implements CronAdapter {
   private instanceId: string
   private enableHealthCheck: boolean
   private connected = false
+  private isExternalClient: boolean
 
-  constructor(config: RedisCronAdapterConfig) {
-    this.keyPrefix = config.keyPrefix || 'motia:cron:lock:'
-    this.lockTTL = config.lockTTL || 300000
-    this.lockRetryDelay = config.lockRetryDelay || 1000
-    this.lockRetryAttempts = config.lockRetryAttempts || 0
-    this.instanceId = config.instanceId || `motia-${uuidv4()}`
-    this.enableHealthCheck = config.enableHealthCheck ?? true
+  constructor(redisConnection: RedisClientType | RedisClientOptions, options?: RedisCronAdapterOptions) {
+    this.keyPrefix = options?.keyPrefix || 'motia:cron:lock:'
+    this.lockTTL = options?.lockTTL || 300000
+    this.lockRetryDelay = options?.lockRetryDelay || 1000
+    this.lockRetryAttempts = options?.lockRetryAttempts || 0
+    this.instanceId = options?.instanceId || `motia-${uuidv4()}`
+    this.enableHealthCheck = options?.enableHealthCheck ?? true
 
-    this.client = createClient({
-      socket: {
-        host: config.host || 'localhost',
-        port: config.port || 6379,
-        reconnectStrategy:
-          config.socket?.reconnectStrategy ||
-          ((retries) => {
-            if (retries > 10) {
-              return new Error('Redis connection retry limit exceeded')
-            }
-            return Math.min(retries * 100, 3000)
-          }),
-        connectTimeout: config.socket?.connectTimeout || 10000,
-      },
-      password: config.password,
-      username: config.username,
-      database: config.database || 0,
-    })
+    if (isRedisClient(redisConnection)) {
+      this.client = redisConnection
+      this.isExternalClient = true
+      this.connected = this.client.isOpen
+    } else {
+      const config: RedisClientOptions = redisConnection
+      this.isExternalClient = false
 
-    this.client.on('error', (err) => {
-      console.error('[Redis Cron] Client error:', err)
-    })
+      this.client = createClient(config) as RedisClientType
 
-    this.client.on('connect', () => {
-      this.connected = true
-    })
+      this.client.on('error', (err) => {
+        console.error('[Redis Cron] Client error:', err)
+      })
 
-    this.client.on('disconnect', () => {
-      console.warn('[Redis Cron] Disconnected')
-      this.connected = false
-    })
+      this.client.on('connect', () => {
+        this.connected = true
+      })
 
-    this.client.on('reconnecting', () => {
-      console.log('[Redis Cron] Reconnecting...')
-    })
+      this.client.on('disconnect', () => {
+        console.warn('[Redis Cron] Disconnected')
+        this.connected = false
+      })
 
-    this.connect()
+      this.client.on('reconnecting', () => {
+        console.log('[Redis Cron] Reconnecting...')
+      })
+
+      this.connect()
+    }
   }
 
   private async connect(): Promise<void> {
@@ -205,7 +202,7 @@ export class RedisCronAdapter implements CronAdapter {
       await this.ensureConnected()
       const result = await this.client.ping()
       return result === 'PONG'
-    } catch (error) {
+    } catch {
       return false
     }
   }
@@ -230,7 +227,7 @@ export class RedisCronAdapter implements CronAdapter {
       }
     }
 
-    if (this.client.isOpen) {
+    if (!this.isExternalClient && this.client.isOpen) {
       await this.client.quit()
     }
   }
@@ -264,16 +261,16 @@ export class RedisCronAdapter implements CronAdapter {
 
   private async scanKeys(pattern: string): Promise<string[]> {
     const keys: string[] = []
-    let cursor = 0
+    let cursor: string | number = '0'
 
     do {
-      const result = await this.client.scan(cursor, {
+      const result = await this.client.scan(cursor.toString(), {
         MATCH: pattern,
         COUNT: 100,
       })
       cursor = result.cursor
       keys.push(...result.keys)
-    } while (cursor !== 0)
+    } while (String(cursor) !== '0')
 
     return keys
   }

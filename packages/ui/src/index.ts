@@ -22,6 +22,7 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from './components/ui/dropdown-menu'
+export { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from './components/ui/empty'
 export { Input } from './components/ui/input'
 export { Label } from './components/ui/label'
 export { LevelDot } from './components/ui/level-dot'

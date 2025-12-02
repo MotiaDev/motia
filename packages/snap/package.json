@@ -1,8 +1,8 @@
 {
   "name": "motia",
   "description": "Build production-grade backends with a single primitive. APIs, background jobs, Queues, Workflows, and AI agents - unified in one system with built-in State management, Streaming, and Observability.",
-  "version": "0.11.1-beta.155",
-  "license": "MIT",
+  "version": "0.13.0-beta.161",
+  "license": "Elastic-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/motiadev/motia.git"
@@ -39,6 +39,8 @@
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.3.8",
+    "@motiadev/adapter-redis-state": "workspace:*",
+    "@motiadev/adapter-redis-streams": "workspace:*",
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-node": "workspace:*",
     "@motiadev/workbench": "workspace:*",
@@ -56,8 +58,11 @@
     "inquirer": "^8.2.5",
     "node-cron": "^3.0.3",
     "python-ast": "^0.1.0",
+    "redis": "^5.9.0",
+    "redis-memory-server": "^0.14.0",
     "table": "^6.9.0",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@amplitude/analytics-types": "^2.9.2",

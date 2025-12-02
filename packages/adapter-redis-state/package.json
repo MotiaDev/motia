@@ -3,7 +3,7 @@
   "description": "Redis state adapter for Motia framework, enabling distributed state management across multiple instances.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "version": "0.11.1-beta.155",
+  "version": "0.13.0-beta.161",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "lint": "biome check .",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@motiadev/core": "workspace:*",
-    "redis": "^4.7.0"
+    "redis": "^5.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

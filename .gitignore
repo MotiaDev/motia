@@ -42,6 +42,7 @@ playground/reports/unit/
 # IDEs and editors
 .idea/
 .vscode/
+.cursor/
 *.sublime-project
 *.sublime-workspace
 .project
@@ -95,3 +96,4 @@ agents/**/components/
 
 playground/motia-workbench.json
 playground/openapi.json
+playground/types.d.ts

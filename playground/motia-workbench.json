@@ -60,49 +60,24 @@
     "id": "python-tutorial",
     "config": {
       "steps/default_python/state_audit_cron_step.py": {
-        "x": -332,
-        "y": 149,
+        "x": -175,
+        "y": 219,
         "sourceHandlePosition": "right"
       },
       "steps/default_python/process_food_order_step.py": {
-        "x": 81,
-        "y": -52,
-        "targetHandlePosition": "left"
+        "x": 144,
+        "y": 17,
+        "sourceHandlePosition": "bottom"
       },
       "steps/default_python/notification_step.py": {
-        "x": 142,
-        "y": 175
+        "x": 331,
+        "y": 261,
+        "sourceHandlePosition": "bottom"
       },
       "steps/default_python/api_step.py": {
-        "x": -302,
-        "y": -66,
+        "x": -175,
+        "y": 3,
         "sourceHandlePosition": "right"
-      }
-    }
-  },
-  {
-    "id": "basic-tutorial",
-    "config": {
-      "steps/basic-tutorial/state-audit-cron.step.ts": {
-        "x": -169,
-        "y": 252,
-        "sourceHandlePosition": "right"
-      },
-      "steps/basic-tutorial/process-food-order.step.ts": {
-        "x": 211,
-        "y": 17,
-        "sourceHandlePosition": "bottom",
-        "targetHandlePosition": "left"
-      },
-      "steps/basic-tutorial/notification.step.ts": {
-        "x": 307,
-        "y": 258
-      },
-      "steps/basic-tutorial/api.step.ts": {
-        "x": -136,
-        "y": 14,
-        "sourceHandlePosition": "right",
-        "targetHandlePosition": "left"
       }
     }
   },
@@ -170,6 +145,31 @@
       "steps/simplePython/api_endpoint_step.py": {
         "x": 0,
         "y": 0
+      }
+    }
+  },
+  {
+    "id": "basic-tutorial",
+    "config": {
+      "steps/basic-tutorial/state-audit-cron.step.ts": {
+        "x": -175,
+        "y": 219,
+        "sourceHandlePosition": "right"
+      },
+      "steps/basic-tutorial/process-food-order.step.ts": {
+        "x": 144,
+        "y": 17,
+        "sourceHandlePosition": "bottom"
+      },
+      "steps/basic-tutorial/notification.step.ts": {
+        "x": 331,
+        "y": 261,
+        "sourceHandlePosition": "bottom"
+      },
+      "steps/basic-tutorial/api.step.ts": {
+        "x": -175,
+        "y": 3,
+        "sourceHandlePosition": "right"
       }
     }
   }

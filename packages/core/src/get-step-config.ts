@@ -1,41 +1,15 @@
-import path from 'path'
+import { getLanguageBasedRunner } from './language-runner'
 import { globalLogger } from './logger'
 import { ProcessManager } from './process-communication/process-manager'
 import type { StepConfig } from './types'
 import type { StreamConfig } from './types-stream'
 
-const getLanguageBasedRunner = (
-  stepFilePath = '',
-): {
-  command: string
-  runner: string
-  args: string[]
-} => {
-  const isPython = stepFilePath.endsWith('.py')
-  const isRuby = stepFilePath.endsWith('.rb')
-  const isNode = stepFilePath.endsWith('.js') || stepFilePath.endsWith('.ts')
-
-  if (isPython) {
-    const pythonRunner = path.join(__dirname, 'python', 'get-config.py')
-    return { runner: pythonRunner, command: 'python', args: [] }
-  } else if (isRuby) {
-    const rubyRunner = path.join(__dirname, 'ruby', 'get-config.rb')
-    return { runner: rubyRunner, command: 'ruby', args: [] }
-  } else if (isNode) {
-    if (process.env._MOTIA_TEST_MODE === 'true') {
-      const nodeRunner = path.join(__dirname, 'node', 'get-config.ts')
-      return { runner: nodeRunner, command: 'node', args: ['-r', 'ts-node/register'] }
-    }
-
-    const nodeRunner = path.join(__dirname, 'node', 'get-config.js')
-    return { runner: nodeRunner, command: 'node', args: [] }
-  }
-
-  throw Error(`Unsupported file extension ${stepFilePath}`)
-}
-
 const getConfig = <T>(file: string, projectRoot?: string): Promise<T | null> => {
-  const { runner, command, args } = getLanguageBasedRunner(file)
+  const { runner, command, args } = getLanguageBasedRunner(file, {
+    python: 'get-config.py',
+    ruby: 'get-config.rb',
+    node: { js: 'get-config.js', ts: 'get-config.ts' },
+  })
 
   return new Promise((resolve, reject) => {
     let config: T | null = null

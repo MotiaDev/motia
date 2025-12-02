@@ -202,3 +202,9 @@ export type Flow = {
 
 // biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface Handlers {}
+
+declare module 'http' {
+  interface IncomingMessage {
+    authContext?: unknown | null
+  }
+}

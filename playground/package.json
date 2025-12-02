@@ -16,20 +16,23 @@
     "lint:plugins:tsx": "eslint --config ../eslint.config.tsx.js"
   },
   "dependencies": {
+    "@faker-js/faker": "^9.2.0",
     "@motiadev/core": "workspace:*",
-    "@motiadev/test": "workspace:*",
-    "@motiadev/plugin-logs": "workspace:*",
-    "@motiadev/plugin-example": "workspace:*",
-    "@motiadev/plugin-states": "workspace:*",
     "@motiadev/plugin-endpoint": "workspace:*",
+    "@motiadev/plugin-example": "workspace:*",
+    "@motiadev/plugin-logs": "workspace:*",
     "@motiadev/plugin-observability": "workspace:*",
+    "@motiadev/plugin-states": "workspace:*",
+    "@motiadev/stream-client-react": "workspace:*",
+    "@motiadev/test": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "@motiadev/workbench": "workspace:*",
     "deep-equal": "^2.2.3",
     "lucide-react": "^0.525.0",
     "motia": "workspace:*",
     "openai": "^4.78.1",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@types/deep-equal": "^1.0.4",

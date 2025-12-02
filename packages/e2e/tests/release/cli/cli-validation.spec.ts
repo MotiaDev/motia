@@ -5,7 +5,7 @@ import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('CLI Validation', () => {
   const testProjectPath = process.env.TEST_PROJECT_PATH || ''
-  const testTemplate = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
+  const testTemplate = process.env.MOTIA_TEST_TEMPLATE || 'motia-tutorial-typescript'
 
   test.beforeEach(({ helpers }) => helpers.skipTutorial())
 
@@ -26,7 +26,7 @@ test.describe('CLI Validation', () => {
 
     let expectedSteps: string[] = []
 
-    if (testTemplate === 'python') {
+    if (testTemplate === 'motia-tutorial-python') {
       expectedSteps = [
         'api_step.py',
         'api_step.py-features.json',
@@ -116,7 +116,7 @@ test.describe('CLI Validation', () => {
   })
 
   test('should have working TypeScript configuration', async () => {
-    if (testTemplate !== 'nodejs') {
+    if (testTemplate !== 'motia-tutorial-typescript') {
       test.skip()
       return
     }

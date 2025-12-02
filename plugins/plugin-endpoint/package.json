@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-endpoint",
-  "version": "0.11.1-beta.155",
+  "version": "0.13.0-beta.161",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -24,7 +24,8 @@
     "build": "vite build",
     "dev": "vite build --watch",
     "build:css": "postcss src/styles.css -o dist/styles.css",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "jest"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -43,12 +44,15 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.14",
+    "@types/jest": "^29.5.14",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^24.7.2",
     "@types/react": "^19.2.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^5.0.4",
+    "jest": "^29.7.0",
     "react": "^19.2.0",
+    "ts-jest": "^29.2.5",
     "typescript": "^5.9.3",
     "tailwindcss": "^4.1.14",
     "vite": "^7.1.10",

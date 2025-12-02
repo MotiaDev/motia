@@ -5,9 +5,9 @@ import type { Step } from '../types'
 import type { MotiaStream } from '../types-stream'
 import type { TracerFactory } from '.'
 import { createTrace } from './create-trace'
+import { RedisTraceStreamAdapter } from './redis-trace-stream-adapter'
 import { StreamTracer } from './stream-tracer'
 import { TraceManager } from './trace-manager'
-import { TraceStreamAdapter } from './trace-stream-adapter'
 import type { Trace, TraceGroup } from './types'
 
 const MAX_TRACE_GROUPS = process.env.MOTIA_MAX_TRACE_GROUPS //
@@ -89,9 +89,9 @@ export class BaseTracerFactory implements TracerFactory {
 }
 
 export const createTracerFactory = (lockedData: LockedData): TracerFactory => {
-  const streamAdapter = lockedData.streamAdapter instanceof FileStreamAdapterManager ? 'file' : 'memory'
   const traceStreamName = 'motia-trace'
-  const traceStreamAdapter = new TraceStreamAdapter<Trace>(lockedData.baseDir, traceStreamName, streamAdapter)
+  const traceStreamAdapter: MotiaStream<Trace> = new RedisTraceStreamAdapter(traceStreamName, lockedData.redisClient)
+
   const traceStream = lockedData.createStream<Trace>({
     filePath: traceStreamName,
     hidden: true,
@@ -103,7 +103,11 @@ export const createTracerFactory = (lockedData: LockedData): TracerFactory => {
   })()
 
   const traceGroupName = 'motia-trace-group'
-  const traceGroupStreamAdapter = new TraceStreamAdapter<TraceGroup>(lockedData.baseDir, traceGroupName, streamAdapter)
+  const traceGroupStreamAdapter: MotiaStream<TraceGroup> = new RedisTraceStreamAdapter(
+    traceGroupName,
+    lockedData.redisClient,
+  )
+
   const traceGroupStream = lockedData.createStream<TraceGroup>({
     filePath: traceGroupName,
     hidden: true,

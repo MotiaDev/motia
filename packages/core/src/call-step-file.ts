@@ -1,5 +1,5 @@
-import path from 'path'
 import { trackEvent } from './analytics/utils'
+import { getLanguageBasedRunner } from './language-runner'
 import type { Logger } from './logger'
 import type { Motia } from './motia'
 import type { Tracer } from './observability'
@@ -17,36 +17,6 @@ type StateClearInput = { traceId: string }
 type StateStreamGetInput = { groupId: string; id: string }
 type StateStreamSendInput = { channel: StateStreamEventChannel; event: StateStreamEvent<unknown> }
 type StateStreamMutateInput = { groupId: string; id: string; data: BaseStreamItem }
-
-const getLanguageBasedRunner = (
-  stepFilePath = '',
-): {
-  command: string
-  runner: string
-  args: string[]
-} => {
-  const isPython = stepFilePath.endsWith('.py')
-  const isRuby = stepFilePath.endsWith('.rb')
-  const isNode = stepFilePath.endsWith('.js') || stepFilePath.endsWith('.ts')
-
-  if (isPython) {
-    const pythonRunner = path.join(__dirname, 'python', 'python-runner.py')
-    return { runner: pythonRunner, command: 'python', args: [] }
-  } else if (isRuby) {
-    const rubyRunner = path.join(__dirname, 'ruby', 'ruby-runner.rb')
-    return { runner: rubyRunner, command: 'ruby', args: [] }
-  } else if (isNode) {
-    if (process.env._MOTIA_TEST_MODE === 'true') {
-      const nodeRunner = path.join(__dirname, 'node', 'node-runner.ts')
-      return { runner: nodeRunner, command: 'node', args: ['-r', 'ts-node/register'] }
-    }
-
-    const nodeRunner = path.join(__dirname, 'node', 'node-runner.js')
-    return { runner: nodeRunner, command: 'node', args: [] }
-  }
-
-  throw Error(`Unsupported file extension ${stepFilePath}`)
-}
 
 type CallStepFileOptions = {
   step: Step

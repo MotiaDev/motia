@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { Logger, type LogListener } from './logger'
-import type { Log } from './streams/logs-stream'
+import type { Log } from './streams/redis-logs-stream'
 import type { MotiaStream } from './types-stream'
 
 type CreateLogger = {

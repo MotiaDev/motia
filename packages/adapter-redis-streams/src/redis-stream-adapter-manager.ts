@@ -1,52 +1,60 @@
 import type { StreamAdapter, StreamAdapterManager } from '@motiadev/core'
-import { createClient, type RedisClientType } from 'redis'
+import { createClient, type RedisClientOptions, type RedisClientType } from 'redis'
 import { RedisStreamAdapter } from './redis-stream-adapter'
-import type { RedisStreamAdapterConfig } from './types'
+import type { RedisStreamAdapterConfig, RedisStreamAdapterOptions } from './types'
+
+function isRedisClient(input: RedisClientType | RedisClientOptions): input is RedisClientType {
+  return typeof input === 'object' && 'isOpen' in input && 'connect' in input
+}
 
 export class RedisStreamAdapterManager implements StreamAdapterManager {
   private client: RedisClientType
   private connected = false
+  private isExternalClient: boolean
+  private config: RedisStreamAdapterConfig
 
-  constructor(private config: RedisStreamAdapterConfig) {
-    const clientConfig = {
-      socket: {
-        host: config.host || 'localhost',
-        port: config.port || 6379,
-        reconnectStrategy:
-          config.socket?.reconnectStrategy ||
-          ((retries: number): number | Error => {
-            if (retries > 10) {
-              return new Error('Redis connection retry limit exceeded')
-            }
-            return Math.min(retries * 100, 3000)
-          }),
-        connectTimeout: config.socket?.connectTimeout || 10000,
-      },
-      password: config.password,
-      username: config.username,
-      database: config.database || 0,
+  constructor(redisConnection: RedisClientType | RedisClientOptions, options?: RedisStreamAdapterOptions) {
+    this.config = {
+      keyPrefix: options?.keyPrefix || 'motia:stream:',
+      socketKeepAlive: options?.socketKeepAlive ?? true,
     }
 
-    this.client = createClient(clientConfig)
+    if (isRedisClient(redisConnection)) {
+      this.client = redisConnection
+      this.isExternalClient = true
+      this.connected = this.client.isOpen
+    } else {
+      const config: RedisClientOptions = {
+        ...redisConnection,
+        socket: {
+          ...(redisConnection.socket || {}),
+          keepAlive: this.config.socketKeepAlive,
+          noDelay: true,
+        },
+      } as RedisClientOptions
+      this.isExternalClient = false
 
-    this.client.on('error', (err) => {
-      console.error('[Redis Stream Manager] Client error:', err)
-    })
+      this.client = createClient(config) as RedisClientType
 
-    this.client.on('connect', () => {
-      this.connected = true
-    })
+      this.client.on('error', (err) => {
+        console.error('[Redis Stream Manager] Client error:', err)
+      })
 
-    this.client.on('disconnect', () => {
-      console.warn('[Redis Stream Manager] Disconnected')
-      this.connected = false
-    })
+      this.client.on('connect', () => {
+        this.connected = true
+      })
 
-    this.connect()
+      this.client.on('disconnect', () => {
+        console.warn('[Redis Stream Manager] Disconnected')
+        this.connected = false
+      })
+
+      this.connect()
+    }
   }
 
   private async connect(): Promise<void> {
-    if (!this.connected) {
+    if (!this.connected && !this.isExternalClient) {
       try {
         await this.client.connect()
       } catch (error) {
@@ -60,8 +68,12 @@ export class RedisStreamAdapterManager implements StreamAdapterManager {
     return new RedisStreamAdapter<TData>(streamName, this.config, this.client)
   }
 
+  getClient(): RedisClientType {
+    return this.client
+  }
+
   async shutdown(): Promise<void> {
-    if (this.client.isOpen) {
+    if (!this.isExternalClient && this.client.isOpen) {
       await this.client.quit()
     }
   }

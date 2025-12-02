@@ -1,7 +1,8 @@
 import { isApiStep, LockedData, MemoryStreamAdapterManager } from '@motiadev/core'
 import { NoPrinter } from '@motiadev/core/dist/src/printer'
 import fs from 'fs'
-import { collectFlows, getStepFiles } from '../../generate-locked-data'
+import { collectFlows, getStepFiles, getStreamFiles } from '../../generate-locked-data'
+import { instanceRedisMemoryServer } from '../../redis-memory-manager'
 import { BuildError, BuildErrorType } from '../../utils/errors/build.error'
 import { Builder, type StepsConfigFile } from '../build/builder'
 import { NodeBuilder } from '../build/builders/node'
@@ -16,6 +17,7 @@ const hasPythonSteps = (stepFiles: string[]) => {
 export const build = async (listener: BuildListener): Promise<Builder> => {
   const builder = new Builder(projectDir, listener)
   const stepFiles = getStepFiles(projectDir)
+  const streamFiles = getStreamFiles(projectDir)
 
   if (stepFiles.length === 0) {
     throw new Error('Project contains no steps, please add some steps before building')
@@ -27,9 +29,10 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
   fs.rmSync(distDir, { recursive: true, force: true })
   fs.mkdirSync(distDir, { recursive: true })
 
-  const lockedData = new LockedData(projectDir, new MemoryStreamAdapterManager(), new NoPrinter())
+  const redisClient = await instanceRedisMemoryServer(projectDir, false)
+  const lockedData = new LockedData(projectDir, new MemoryStreamAdapterManager(), new NoPrinter(), redisClient)
 
-  if (hasPythonSteps(stepFiles)) {
+  if (hasPythonSteps([...stepFiles, ...streamFiles])) {
     builder.registerBuilder('python', new PythonBuilder(builder, listener))
   }
 

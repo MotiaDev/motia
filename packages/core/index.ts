@@ -14,25 +14,15 @@ export type {
   CronLock,
   CronLockInfo,
 } from './src/adapters/interfaces/cron-adapter.interface'
-export type {
-  EventAdapter,
-  SubscriptionHandle,
-} from './src/adapters/interfaces/event-adapter.interface'
-export type {
-  Metric,
-  ObservabilityAdapter,
-  Tracer,
-} from './src/adapters/interfaces/observability-adapter.interface'
+export type { EventAdapter, SubscriptionHandle } from './src/adapters/interfaces/event-adapter.interface'
+export type { Metric, ObservabilityAdapter, Tracer } from './src/adapters/interfaces/observability-adapter.interface'
 export type {
   StateAdapter,
   StateFilter,
   StateItem,
   StateItemsInput,
 } from './src/adapters/interfaces/state-adapter.interface'
-export {
-  StreamAdapter,
-  type StreamQueryFilter,
-} from './src/adapters/interfaces/stream-adapter.interface'
+export { StreamAdapter, type StreamQueryFilter } from './src/adapters/interfaces/stream-adapter.interface'
 export type { StreamAdapterManager } from './src/adapters/interfaces/stream-adapter-manager.interface'
 export { getProjectIdentifier, getUserIdentifier, isAnalyticsEnabled, trackEvent } from './src/analytics/utils'
 export { config } from './src/config'
@@ -55,7 +45,7 @@ export { createServer, MotiaServer } from './src/server'
 export { createStateAdapter } from './src/state/create-state-adapter'
 export { createStepHandlers, MotiaEventManager } from './src/step-handlers'
 export * from './src/types'
-export type { AdapterConfig, Config } from './src/types/app-config-types'
+export type { AdapterConfig, Config, StreamAuthRequest } from './src/types/app-config-types'
 export * from './src/types/schema.types'
 export {
   type BaseStreamItem,
@@ -63,4 +53,5 @@ export {
   type StateStreamEvent,
   type StateStreamEventChannel,
   StreamConfig,
+  type StreamSubscription,
 } from './src/types-stream'

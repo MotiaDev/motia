@@ -2,10 +2,10 @@
   "name": "@motiadev/core",
   "description": "Core functionality for the Motia framework, providing the foundation for building event-driven workflows.",
   "main": "dist/index.js",
-  "version": "0.11.1-beta.155",
+  "version": "0.13.0-beta.161",
   "scripts": {
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
-    "move:python": "mkdir -p dist/src/python && cp src/python/*.py dist/src/python",
+    "move:python": "mkdir -p dist/src/python && cp src/python/*.py dist/src/python && cp -r src/python/motia_core dist/src/python/motia_core",
     "move:rb": "mkdir -p dist/src/ruby && cp src/ruby/*.rb dist/src/ruby",
     "move:steps": "cp src/steps/*.ts dist/src/steps",
     "build": "rm -rf dist && tsc && npm run move:python && npm run move:rb && npm run move:steps",
@@ -39,5 +39,8 @@
     "supertest": "^7.1.4",
     "ts-jest": "^29.2.5",
     "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "redis": "^5.0.0"
   }
 }
