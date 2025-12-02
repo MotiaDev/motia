@@ -1,9 +1,11 @@
 import { exec, execSync } from 'child_process'
 import { existsSync, rmSync } from 'fs'
 import path from 'path'
+import { configureBullMQProject } from './utils/bullmq-setup'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
 const TEST_PROJECT_PATH = path.join(process.cwd(), TEST_PROJECT_NAME)
+const WORKSPACE_ROOT = path.join(process.cwd(), '..', '..')
 
 async function globalSetup() {
   console.log('🚀 Setting up E2E test environment...')
@@ -26,11 +28,32 @@ async function globalSetup() {
     })
     execSync(`npm install --save motia@${motiaVersion}`, { cwd: TEST_PROJECT_PATH })
 
+    try {
+      execSync(
+        `npm install --save @motiadev/plugin-bullmq@${motiaVersion} @motiadev/adapter-bullmq-events@${motiaVersion}`,
+        { cwd: TEST_PROJECT_PATH, stdio: 'pipe' },
+      )
+    } catch (err) {
+      console.warn('⚠️ Failed to install BullMQ packages with requested version, falling back to latest.', err)
+      execSync(`npm install --save @motiadev/plugin-bullmq @motiadev/adapter-bullmq-events`, {
+        cwd: TEST_PROJECT_PATH,
+        stdio: 'pipe',
+      })
+    }
+
+    const { prefix } = configureBullMQProject({ projectPath: TEST_PROJECT_PATH, workspaceRoot: WORKSPACE_ROOT })
+    process.env.REDIS_HOST = process.env.REDIS_HOST || '127.0.0.1'
+    process.env.REDIS_PORT = process.env.REDIS_PORT || '6379'
+    console.log(`🔧 Configured BullMQ adapter with prefix ${prefix}`)
+
     console.log('🌟 Starting test project server...')
     const serverProcess = exec('npm run dev', {
       cwd: TEST_PROJECT_PATH,
       env: {
         MOTIA_ANALYTICS_DISABLED: 'true',
+        REDIS_HOST: process.env.REDIS_HOST || '127.0.0.1',
+        REDIS_PORT: process.env.REDIS_PORT || '6379',
+        BULLMQ_PREFIX: process.env.BULLMQ_PREFIX,
         ...process.env,
       },
     })

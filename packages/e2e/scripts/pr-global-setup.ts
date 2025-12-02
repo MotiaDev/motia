@@ -1,6 +1,7 @@
 import { exec, execSync } from 'child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import path from 'path'
+import { configureBullMQProject } from './utils/bullmq-setup'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
 const ROOT_PATH = path.join(process.cwd(), '../..')
@@ -86,6 +87,10 @@ async function globalSetup() {
         },
       })
     }
+    const { prefix } = configureBullMQProject({ projectPath: TEST_PROJECT_PATH, workspaceRoot: ROOT_PATH })
+    process.env.REDIS_HOST = process.env.REDIS_HOST || '127.0.0.1'
+    process.env.REDIS_PORT = process.env.REDIS_PORT || '6379'
+    console.log(`🔧 Configured BullMQ adapter with prefix ${prefix}`)
 
     console.log('🌟 Starting test project server...')
     const serverProcess = exec('pnpm run dev', {
@@ -93,6 +98,9 @@ async function globalSetup() {
       env: {
         ...process.env,
         MOTIA_ANALYTICS_DISABLED: 'true',
+        REDIS_HOST: process.env.REDIS_HOST || '127.0.0.1',
+        REDIS_PORT: process.env.REDIS_PORT || '6379',
+        BULLMQ_PREFIX: process.env.BULLMQ_PREFIX,
         PATH: `${path.dirname(cliPath)}:${process.env.PATH}`,
       },
     })
