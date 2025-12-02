@@ -14,8 +14,8 @@ export const loadMotiaConfig = async (baseDir: string): Promise<LoadedMotiaConfi
   }
 
   try {
-    const appConfig: Config = (await jiti.import(configFiles[0])).default
-    return appConfig || {}
+    const appConfig: Config = (await jiti.import(configFiles[0], { default: true })) as Config
+    return appConfig
   } catch (error) {
     console.warn('Failed to load motia.config.ts:', error)
     return {}

@@ -20,8 +20,8 @@ export const loadConfig = async (baseDir: string, printer: Printer): Promise<Con
 
     await installPluginDependencies(baseDir, printer)
 
-    return (await jiti.import(configPath)).default
+    return (await jiti.import(configPath, { default: true })) as Config
   }
 
-  return (await jiti.import(configFiles[0])).default
+  return (await jiti.import(configFiles[0], { default: true })) as Config
 }
