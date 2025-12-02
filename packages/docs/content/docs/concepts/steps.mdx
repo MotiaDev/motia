@@ -296,7 +296,7 @@ Runs when an HTTP request hits the path.
 
 **Handler:** `handler(req, ctx)`
 
-- `req` - Request with `body`, `headers`, `pathParams`, `queryParams`
+- `req` - Request with `body`, `headers`, `pathParams`, `queryParams`, `rawBody`
 - `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
 - Returns `{ status, body, headers? }`
 
