@@ -1,4 +1,5 @@
-import { mkdirSync } from 'fs'
+import { execSync } from 'child_process'
+import { existsSync, mkdirSync } from 'fs'
 import { createClient, type RedisClientType } from 'redis'
 import { RedisMemoryServer } from 'redis-memory-server'
 import type { RedisMemoryInstancePropT } from 'redis-memory-server/lib/types'
@@ -6,6 +7,45 @@ import type { RedisMemoryInstancePropT } from 'redis-memory-server/lib/types'
 export interface RedisConnectionInfo {
   host: string
   port: number
+}
+
+/**
+ * Detects if Redis is already installed on the system and sets REDISMS_SYSTEM_BINARY
+ * to avoid compiling Redis from source (which is slow and requires build tools).
+ *
+ * Common locations checked:
+ * - /usr/bin/redis-server (Linux apt)
+ * - /usr/local/bin/redis-server (Linux manual install, older Homebrew)
+ * - /opt/homebrew/bin/redis-server (Homebrew on Apple Silicon)
+ * - Falls back to `which redis-server` for PATH lookup
+ */
+function detectSystemRedisBinary(): void {
+  // Skip if already set (e.g., in Docker)
+  if (process.env.REDISMS_SYSTEM_BINARY) {
+    return
+  }
+
+  const commonPaths = ['/usr/bin/redis-server', '/usr/local/bin/redis-server', '/opt/homebrew/bin/redis-server']
+
+  // Check common paths first (faster than spawning a process)
+  for (const path of commonPaths) {
+    if (existsSync(path)) {
+      process.env.REDISMS_SYSTEM_BINARY = path
+      console.log(`[Redis Memory Server] Using system Redis binary: ${path}`)
+      return
+    }
+  }
+
+  // Fall back to PATH lookup
+  try {
+    const whichResult = execSync('which redis-server', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+    if (whichResult && existsSync(whichResult)) {
+      process.env.REDISMS_SYSTEM_BINARY = whichResult
+      console.log(`[Redis Memory Server] Using system Redis binary: ${whichResult}`)
+    }
+  } catch {
+    // redis-server not found in PATH, redis-memory-server will compile it
+  }
 }
 
 class RedisMemoryManager {
@@ -45,6 +85,9 @@ class RedisMemoryManager {
     if (this.client && this.running) {
       return this.client
     }
+
+    // Detect system Redis binary to avoid slow compilation
+    detectSystemRedisBinary()
 
     try {
       mkdirSync(baseDir, { recursive: true })

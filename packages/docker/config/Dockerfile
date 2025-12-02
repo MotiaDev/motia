@@ -5,7 +5,9 @@ FROM python:3.13-slim-bullseye
 ENV NODE_VERSION=22.17.1\
     NPM_VERSION=10.9.2\
     NODE_HOME=/usr/local/node\
-    MOTIA_DOCKER=true
+    MOTIA_DOCKER=true\
+    REDISMS_DISABLE_POSTINSTALL=1\
+    REDISMS_SYSTEM_BINARY=/usr/bin/redis-server
 
 # System packages
 RUN apt-get update && \
@@ -26,6 +28,7 @@ RUN apt-get update && \
     xz-utils \
     ruby-full \
     build-essential \
+    redis-server \
     && rm -rf /var/lib/apt/lists/*
 
 # Setup Ruby bundler
