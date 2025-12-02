@@ -57,7 +57,7 @@
   },
   "packageManager": "pnpm@10.11.0",
   "volta": {
-    "node": "20.11.1"
+    "node": "24.11.1"
   },
   "pnpm": {
     "overrides": {

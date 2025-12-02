@@ -90,7 +90,7 @@ export const QueueList = memo(() => {
             variant="shade"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-9 font-medium text-sm"
+            className="px-9! font-medium text-sm"
             placeholder="Search queues..."
           />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
