@@ -1,10 +1,18 @@
 import type { Tracer } from '.'
 
 export class NoTracer implements Tracer {
-  end() {}
-  stateOperation() {}
-  emitOperation() {}
-  streamOperation() {}
+  async end() {
+    return Promise.resolve()
+  }
+  async stateOperation() {
+    return Promise.resolve()
+  }
+  async emitOperation() {
+    return Promise.resolve()
+  }
+  async streamOperation() {
+    return Promise.resolve()
+  }
   clear() {}
   child() {
     return this

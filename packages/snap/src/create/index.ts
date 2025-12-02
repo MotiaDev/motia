@@ -26,9 +26,12 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     pnpm: 'pnpm add',
   }[packageManager]
 
-  const dependencies = [`motia@${version}`, 'zod@4.1.12', ...pluginDependencies.map((dep) => `${dep}@${version}`)].join(
-    ' ',
-  )
+  const dependencies = [
+    `motia@${version}`,
+    'zod@4.1.12',
+    `@motiadev/adapter-bullmq-events@${version}`,
+    ...pluginDependencies.map((dep) => `${dep}@${version}`),
+  ].join(' ')
 
   const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@19.1.1'].join(' ')
 

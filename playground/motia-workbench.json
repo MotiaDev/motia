@@ -128,23 +128,10 @@
       "steps/parallelMergeState/stepB_step.py": {
         "x": 509,
         "y": 272
-      }
-    }
-  },
-  {
-    "id": "simple-python",
-    "config": {
-      "steps/simplePython/tested_event_step.py": {
-        "x": 393,
-        "y": 58
       },
-      "steps/simplePython/test_event_step.py": {
-        "x": 220,
-        "y": 58
-      },
-      "steps/simplePython/api_endpoint_step.py": {
-        "x": 0,
-        "y": 0
+      "steps/parallelMergeState/stepA.step.ts": {
+        "x": 509,
+        "y": 272
       }
     }
   },
