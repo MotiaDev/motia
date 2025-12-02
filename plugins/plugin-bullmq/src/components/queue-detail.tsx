@@ -15,11 +15,7 @@ import {
   TooltipTrigger,
 } from '@motiadev/ui'
 import { useQueryClient } from '@tanstack/react-query'
-import MoreVertical from 'lucide-react/icons/more-vertical'
-import Pause from 'lucide-react/icons/pause'
-import Play from 'lucide-react/icons/play'
-import RefreshCw from 'lucide-react/icons/refresh-cw'
-import Trash from 'lucide-react/icons/trash'
+import { MoreVertical, Pause, Play, RefreshCw, Trash } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useQueues } from '../hooks/use-queues'
 import { useBullMQStore } from '../stores/use-bullmq-store'

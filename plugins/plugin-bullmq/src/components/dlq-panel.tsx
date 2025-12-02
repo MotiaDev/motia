@@ -13,9 +13,7 @@ import {
   TooltipTrigger,
 } from '@motiadev/ui'
 import { formatDistanceToNow } from 'date-fns'
-import RefreshCw from 'lucide-react/icons/refresh-cw'
-import Trash from 'lucide-react/icons/trash'
-import X from 'lucide-react/icons/x'
+import { RefreshCw, Trash, X } from 'lucide-react'
 import { memo, useCallback, useState } from 'react'
 import JsonView from 'react18-json-view'
 import 'react18-json-view/src/style.css'
