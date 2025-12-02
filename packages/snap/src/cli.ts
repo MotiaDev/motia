@@ -237,22 +237,6 @@ docker
   )
 
 program.version(version, '-V, --version', 'Output the current version')
-
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error.message)
-  console.error(error.stack)
-  process.exit(1)
-})
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason)
-  process.exit(1)
-})
-
-program.parseAsync(process.argv).catch((error) => {
-  console.error('CLI Error:', error instanceof Error ? error.message : String(error))
-  if (error instanceof Error && error.stack) {
-    console.error(error.stack)
-  }
+program.parseAsync(process.argv).catch(() => {
   process.exit(1)
 })
