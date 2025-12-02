@@ -14,10 +14,20 @@ export const executeCommand = async (
   return new Promise((resolve, reject) => {
     exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
       if (error) {
+        const stderrOutput = stderr?.toString() || ''
+        const stdoutOutput = stdout?.toString() || ''
+        const combinedOutput = `${stderrOutput} ${stdoutOutput} ${error.message}`
+
+        const enhancedError = new Error(combinedOutput)
+        enhancedError.stack = error.stack
+
         if (!silent) {
           console.error(`exec error: ${error}`)
+          if (stderr) {
+            console.error(stderr.toString())
+          }
         }
-        reject(error)
+        reject(enhancedError)
         return
       }
 

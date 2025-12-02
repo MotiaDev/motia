@@ -1,5 +1,6 @@
 import { flush } from '@amplitude/analytics-node'
 import { logCliError } from '../utils/analytics'
+import { handleBuildToolsError } from '../utils/build-tools-error'
 import { CLIOutputManager, type Message } from './cli-output-manager'
 
 export type { Message }
@@ -57,12 +58,18 @@ export function handler(handler: CliHandler): (args: Record<string, any>) => Pro
       await flush().promise.catch(() => {
         // Silently fail
       })
-      if (error instanceof Error) {
-        context.log('error', (message) => message.tag('failed').append(error.message))
-        context.exit(1)
-      } else {
-        context.exitWithError('An error occurred', error)
+
+      const wasBuildToolsError = handleBuildToolsError(error, 'install')
+
+      if (!wasBuildToolsError) {
+        if (error instanceof Error) {
+          context.log('error', (message) => message.tag('failed').append(error.message))
+        } else {
+          context.exitWithError('An error occurred', error)
+        }
       }
+
+      context.exit(1)
     }
   }
 }
