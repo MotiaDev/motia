@@ -20,5 +20,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["middleware.ts", "motia-plugin/**/*"]
+  "include": ["middleware.ts", "motia-plugin/**/*", "plugin-bundler/**/*"]
 }
