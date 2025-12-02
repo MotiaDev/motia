@@ -1,8 +1,8 @@
 import { Stream } from '@motiadev/stream-client-node'
 import type { Builder } from '../build/builder'
-import type { CliContext } from '../config-utils'
-import { cloudApi } from './cloud-api'
+import type { CliContext, Message } from '../config-utils'
 import { cloudApiWsUrl } from './cloud-api/endpoints'
+import { cloudApi } from './cloud-api/index'
 import type { DeployData, DeployListener } from './listeners/listener.types'
 
 export type DeployInput = {
@@ -27,7 +27,7 @@ export const deploy = async (input: DeployInput): Promise<void> => {
     routers: builder.routersConfig,
   })
 
-  context.log('starting-deployment', (message) => message.tag('success').append('Deployment started'))
+  context.log('starting-deployment', (message: Message) => message.tag('success').append('Deployment started'))
 
   if (!ci) {
     const subscription = client.subscribeItem<DeployData>('deployment', deploymentId, 'data')
@@ -40,7 +40,7 @@ export const deploy = async (input: DeployInput): Promise<void> => {
     }, 1000)
 
     await new Promise<void>((resolve) => {
-      subscription.addChangeListener((item) => {
+      subscription.addChangeListener((item: DeployData) => {
         if (item && ['failed', 'completed'].includes(item.status)) {
           clearInterval(interval)
           listener.onDeployProgress(item)
@@ -57,7 +57,7 @@ export const deploy = async (input: DeployInput): Promise<void> => {
       })
     })
   } else {
-    context.log('deploy-progress', (message) =>
+    context.log('deploy-progress', (message: Message) =>
       message
         .tag('progress')
         .append(`Deployment in progress... You can view the deployment at ${response?.deploymentUrl}`),

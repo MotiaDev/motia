@@ -1,14 +1,15 @@
+import { jest } from '@jest/globals'
 import type { ApiRouteConfig, Step, ZodInput } from '@motiadev/core'
-import * as fs from 'fs'
 import type { OpenAPIV3 } from 'openapi-types'
 import * as path from 'path'
 
-import { generateOpenApi } from '../../openapi/generate'
-
-jest.mock('fs', () => ({
+jest.unstable_mockModule('fs', () => ({
   readFileSync: jest.fn(),
   writeFileSync: jest.fn(),
 }))
+
+const fs = await import('fs')
+const { generateOpenApi } = await import('../../openapi/generate')
 
 describe('generateOpenApi', () => {
   const mockProjectDir = '/mock/project'

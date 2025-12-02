@@ -22,13 +22,6 @@ import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
 
-process.env.VITE_CJS_IGNORE_WARNING = 'true'
-
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
-
 export const dev = async (
   port: number,
   hostname: string,
@@ -128,9 +121,8 @@ export const dev = async (
     environment: process.env.NODE_ENV || 'development',
   })
 
-  const { applyMiddleware } = process.env.__MOTIA_DEV_MODE__
-    ? require('@motiadev/workbench/middleware')
-    : require('@motiadev/workbench/dist/middleware')
+  const { applyMiddleware } = await import('@motiadev/workbench/middleware')
+
   await applyMiddleware({
     app: motiaServer.app,
     port,

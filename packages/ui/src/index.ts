@@ -1,5 +1,3 @@
-import './styles/globals.css'
-
 export { BackgroundEffect } from './components/ui/background-effect'
 export { Badge, type BadgeProps } from './components/ui/badge'
 export { Breadcrumb, BreadcrumbItem, type BreadcrumbItemProps, type BreadcrumbProps } from './components/ui/breadcrumb'

@@ -1,7 +1,8 @@
+import { jest } from '@jest/globals'
 import { Logger } from '../logger'
 import { NoTracer } from '../observability/no-tracer'
 import { QueueManager } from '../queue-manager'
-import { type Event, Handler, type QueueConfig } from '../types'
+import type { Event, QueueConfig } from '../types'
 
 jest.useFakeTimers({ doNotFake: ['nextTick'] })
 

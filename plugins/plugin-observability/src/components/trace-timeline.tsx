@@ -1,7 +1,6 @@
 import { useStreamGroup } from '@motiadev/stream-client-react'
 import { Button } from '@motiadev/ui'
-import Minus from 'lucide-react/icons/minus'
-import Plus from 'lucide-react/icons/plus'
+import { Minus, Plus } from 'lucide-react'
 import type React from 'react'
 import { memo, useMemo, useState } from 'react'
 import { useGetEndTime } from '../hooks/use-get-endtime'

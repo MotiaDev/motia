@@ -1,7 +1,4 @@
-import MessageCircle from 'lucide-react/icons/message-circle'
-import Package from 'lucide-react/icons/package'
-import Radio from 'lucide-react/icons/radio'
-import ScrollText from 'lucide-react/icons/scroll-text'
+import { MessageCircle, Package, Radio, ScrollText } from 'lucide-react'
 import type React from 'react'
 import type { TraceEvent as TraceEventType } from '../../types/observability'
 

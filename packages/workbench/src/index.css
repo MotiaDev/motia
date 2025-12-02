@@ -1,7 +1,7 @@
-@import "@motiadev/ui/styles.css";
-@import "@motiadev/ui/globals.css";
+@import '@motiadev/ui/styles.css';
+@import '@motiadev/ui/globals.css';
 
-@import "tw-animate-css";
+@import 'tw-animate-css';
 @config "../tailwind.config.js";
 
 @keyframes flowDash {
@@ -27,7 +27,7 @@
 }
 
 .font-mono {
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 14px;
 }
 
@@ -40,7 +40,7 @@
 .json-view {
   border-radius: 8px;
   padding: 12px 12px;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.5;
   font-weight: 500;

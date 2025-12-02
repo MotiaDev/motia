@@ -3,34 +3,38 @@
   "description": "Motia Stream Client Package – Responsible for managing streams of data.",
   "version": "0.14.0-beta.164",
   "license": "Elastic-2.0",
-  "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
-  "types": "dist/types/index.d.ts",
-  "exports": {
-    ".": {
-      "require": "./dist/cjs/index.js",
-      "import": "./dist/esm/index.js",
-      "types": "./dist/types/index.d.ts"
-    },
-    "./workbench": {
-      "require": "./dist/cjs/workbench.js",
-      "import": "./dist/esm/workbench.js",
-      "types": "./dist/types/workbench.d.ts"
-    }
-  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "sh scripts/build.sh",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "lint": "eslint --config ../../eslint.config.js",
     "test": "jest"
   },
   "dependencies": {
-    "uuid": "^11.1.0"
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "@types/ws": "^8.18.1",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.3.2",
-    "typescript": "^5.7.2"
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "tsdown": "^0.16.6",
+    "typescript": "^5.9.3"
+  },
+  "exports": {
+    ".": {
+      "development": "./index.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    }
   }
 }

@@ -1,6 +1,7 @@
 import type { ApiRouteConfig, Step } from '@motiadev/core'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { activatePythonVenv, getSitePackagesPath } from '../../../../utils/activate-python-env'
 import { distDir } from '../../../new-deployment/constants'
 import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
@@ -143,6 +144,8 @@ export class PythonBuilder implements StepBuilder {
         return `    '${method} ${path}': RouterPath('${step.config.name}', '${step.config.method.toLowerCase()}', route${index}_handler, route${index}_config)`
       })
       .join(',\n')
+
+    const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
     return fs
       .readFileSync(path.join(__dirname, 'router_template.py'), 'utf-8')

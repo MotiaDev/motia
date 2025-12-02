@@ -1,5 +1,5 @@
-export { SocketAdapterFactory } from './src/adapter-factory'
-export { SocketAdapter } from './src/socket-adapter'
+export type { SocketAdapterFactory } from './src/adapter-factory'
+export type { SocketAdapter } from './src/socket-adapter'
 export { Stream } from './src/stream'
 export * from './src/stream.types'
 export { StreamGroupSubscription } from './src/stream-group'

@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { useObservabilityStore } from '@/stores/use-observability-store'
+import { useObservabilityStore } from '../stores/use-observability-store'
 
 export const TraceEmptyState: React.FC = memo(() => {
   const selectedGroupId = useObservabilityStore((state) => state.selectedTraceGroupId)

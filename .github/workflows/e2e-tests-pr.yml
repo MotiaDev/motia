@@ -108,16 +108,16 @@ jobs:
       - name: Verify built CLI
         run: |
           # Verify the built CLI exists
-          if [ ! -f "packages/snap/dist/cjs/cli.js" ]; then
-            echo "❌ Built CLI not found at packages/snap/dist/cjs/cli.js"
+          if [ ! -f "packages/snap/dist/cli.mjs" ]; then
+            echo "❌ Built CLI not found at packages/snap/dist/cli.mjs"
             echo "Available files in dist:"
             ls -la packages/snap/dist/ || echo "dist directory not found"
             exit 1
           fi
 
           # Make CLI executable through node
-          echo "✅ Built CLI found at packages/snap/dist/cjs/cli.js"
-          node packages/snap/dist/cjs/cli.js --version || echo "CLI version check failed"
+          echo "✅ Built CLI found at packages/snap/dist/cli.mjs"
+          node packages/snap/dist/cli.mjs --version || echo "CLI version check failed"
 
       - name: Record test start time
         run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
@@ -135,7 +135,7 @@ jobs:
             echo "🧪 Starting PR E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}"
 
             # Export the built CLI path for tests to use
-            export MOTIA_CLI_PATH="$GITHUB_WORKSPACE/packages/snap/dist/cjs/cli.js"
+            export MOTIA_CLI_PATH="$GITHUB_WORKSPACE/packages/snap/dist/cli.mjs"
             export MOTIA_ANALYTICS_DISABLED=true
             export MOTIA_API_URL=http://localhost:3000
             export MOTIA_TEST_TEMPLATE=${{ matrix.template }}

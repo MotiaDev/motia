@@ -8,15 +8,10 @@ import type { RedisClientType } from 'redis'
 import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
-import { processPlugins } from './plugins'
+import { processPlugins } from './plugins/index'
 import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
-
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
 
 export const start = async (
   port: number,
@@ -69,7 +64,7 @@ export const start = async (
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
-    const { applyMiddleware } = require('@motiadev/workbench/dist/middleware')
+    const { applyMiddleware } = await import('@motiadev/workbench/middleware')
     await applyMiddleware({
       app: motiaServer.app,
       port,

@@ -57,7 +57,14 @@
   },
   "packageManager": "pnpm@10.11.0",
   "volta": {
-    "node": "20.11.1"
+    "node": "24.11.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "axe-core": "4.10.3",
+      "dompurify": "3.2.6",
+      "@vercel/analytics": "1.5.0"
+    }
   },
   "version": "0.0.7"
 }

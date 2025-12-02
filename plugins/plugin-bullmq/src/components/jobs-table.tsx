@@ -13,10 +13,7 @@ import {
   TableRow,
 } from '@motiadev/ui'
 import { formatDistanceToNow } from 'date-fns'
-import ArrowUpRight from 'lucide-react/icons/arrow-up-right'
-import MoreVertical from 'lucide-react/icons/more-vertical'
-import RefreshCw from 'lucide-react/icons/refresh-cw'
-import Trash from 'lucide-react/icons/trash'
+import { ArrowUpRight, MoreVertical, RefreshCw, Trash } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { usePromoteJob, useRemoveJob, useRetryJob } from '../hooks/use-jobs-mutations'
 import { useJobsQuery } from '../hooks/use-jobs-query'

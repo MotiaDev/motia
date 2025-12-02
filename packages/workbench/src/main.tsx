@@ -5,7 +5,6 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { App } from './App'
 import { NotFoundPage } from './components/NotFoundPage'
 import { RootMotia } from './components/root-motia'
-import '@motiadev/ui/globals.css'
 import './index.css'
 
 const rootElement = document.getElementById('root')!

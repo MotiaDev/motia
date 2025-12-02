@@ -1,10 +1,5 @@
 import { cn, Input } from '@motiadev/ui'
-import AlertTriangle from 'lucide-react/icons/alert-triangle'
-import Layers from 'lucide-react/icons/layers'
-import Pause from 'lucide-react/icons/pause'
-import Search from 'lucide-react/icons/search'
-import Skull from 'lucide-react/icons/skull'
-import X from 'lucide-react/icons/x'
+import { AlertTriangle, Layers, Pause, Search, Skull, X } from 'lucide-react'
 import { memo, useMemo } from 'react'
 import { useBullMQStore } from '../stores/use-bullmq-store'
 import type { QueueInfo } from '../types/queue'
@@ -95,7 +90,7 @@ export const QueueList = memo(() => {
             variant="shade"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-9 font-medium text-sm"
+            className="px-9! font-medium text-sm"
             placeholder="Search queues..."
           />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />

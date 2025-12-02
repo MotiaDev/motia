@@ -1,6 +1,5 @@
 import { add, flush, Identify, identify, init, setOptOut, Types } from '@amplitude/analytics-node'
-import { getUserIdentifier, isAnalyticsEnabled, trackEvent } from '@motiadev/core'
-import { getProjectName } from '@motiadev/core/dist/src/analytics/utils'
+import { getProjectName, getUserIdentifier, isAnalyticsEnabled, trackEvent } from '@motiadev/core'
 import { version } from '../version'
 import { MotiaEnrichmentPlugin } from './amplitude/enrichment-plugin'
 import { BuildError } from './errors/build.error'
@@ -83,7 +82,7 @@ export const wrapAction = <T extends (...args: any[]) => Promise<any>>(action: T
     } catch (error) {
       const commandName = getCommandNameFromArgs()
       if (error instanceof BuildError) {
-        logCliError(commandName, error)
+        logCliError(commandName, error as BuildError)
       }
       await flush().promise.catch(() => {
         // Silently fail

@@ -44,7 +44,7 @@ export function plugin({ lockedData }: MotiaPluginContext): MotiaPlugin {
     workbench: [
       {
         packageName: '@motiadev/plugin-endpoint',
-        cssImports: ['@motiadev/plugin-endpoint/dist/plugin-endpoint.css'],
+        cssImports: ['@motiadev/plugin-endpoint/dist/index.css'],
         label: 'Endpoints',
         position: 'top',
         componentName: 'EndpointsPage',

@@ -1,6 +1,9 @@
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { getStepConfig } from '../get-step-config'
 import type { ApiRouteConfig } from '../types'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 describe('Get Config', () => {
   beforeAll(() => {

@@ -19,7 +19,7 @@ export const config: ApiRouteConfig = {
 export const handler: Handlers['Download PDF'] = async (_req, { logger }) => {
   logger.info('Downloading PDF file')
 
-  const buffer = await fs.readFile(path.join(__dirname, 'sample.pdf'))
+  const buffer = await fs.readFile(path.join(import.meta.dirname, 'sample.pdf'))
 
   return {
     status: 200,

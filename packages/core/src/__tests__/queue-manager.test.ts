@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import { Logger } from '../logger'
 import { NoTracer } from '../observability/no-tracer'
 import { QueueManager } from '../queue-manager'

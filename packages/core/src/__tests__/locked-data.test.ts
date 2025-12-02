@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import path from 'path'
 import { MemoryStreamAdapterManager } from '../adapters/defaults'
 import { LockedData } from '../locked-data'

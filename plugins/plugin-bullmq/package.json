@@ -7,23 +7,21 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
     },
     "./plugin": {
-      "types": "./dist/plugin.d.ts",
-      "import": "./dist/plugin.js",
-      "require": "./dist/plugin.cjs"
+      "development": "./src/plugin.ts",
+      "default": "./dist/plugin.js"
     },
-    "./styles.css": "./dist/plugin-bullmq.css"
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -42,15 +40,23 @@
     "@motiadev/ui": "workspace:*"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.14",
+    "@bosh-code/tsdown-plugin-tailwindcss": "^1.0.1",
+    "@rollup/plugin-babel": "^6.1.0",
+    "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^24.7.2",
     "@types/react": "^19.2.2",
-    "@vitejs/plugin-react": "^5.0.4",
+    "babel-plugin-react-compiler": "^1.0.0",
     "react": "^19.2.0",
-    "tailwindcss": "^4.1.14",
+    "tailwindcss": "^4.1.17",
+    "tsdown": "^0.16.8",
     "tw-animate-css": "^1.2.9",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.10",
-    "vite-plugin-dts": "^4.5.4"
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./plugin": "./dist/plugin.js",
+      "./package.json": "./package.json"
+    }
   }
 }

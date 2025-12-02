@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import http from 'http'
 import WebSocket from 'ws'
 import { createSocketServer } from '../socket-server'

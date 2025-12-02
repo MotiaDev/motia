@@ -1,9 +1,9 @@
-import File from 'lucide-react/icons/file'
+import { FileText } from 'lucide-react'
 import { memo } from 'react'
 
 export const StatesTabLabel = memo(() => (
   <>
-    <File aria-hidden="true" />
+    <FileText aria-hidden="true" />
     <span>States</span>
   </>
 ))

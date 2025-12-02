@@ -3,6 +3,7 @@ import * as esbuild from 'esbuild'
 import fs from 'fs'
 import path from 'path'
 import pc from 'picocolors'
+import { fileURLToPath } from 'url'
 import { distDir } from '../../../new-deployment/constants'
 import type { BuildListener } from '../../../new-deployment/listeners/listener.types'
 import type { Builder, RouterBuildResult, StepBuilder } from '../../builder'
@@ -41,6 +42,7 @@ export class NodeBuilder implements StepBuilder {
         .replace(/(.*)\.(ts|js)$/, '$1.js')
         .replace(/\\/g, '/')
     }
+    const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
     const file = fs
       .readFileSync(path.join(__dirname, 'router-template.ts'), 'utf-8')

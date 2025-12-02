@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import { InMemoryQueueEventAdapter } from '../adapters/defaults'
 import { createEvent } from './fixtures/event-fixtures'
 

@@ -1,5 +1,3 @@
-import './styles.css'
-
 export { QueuesPage } from './components/queues-page'
 export type {
   BullMQPluginConfig,

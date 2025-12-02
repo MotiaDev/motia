@@ -1,54 +1,51 @@
 import path from 'node:path'
 import { type SchemaInput, schemaToJsonSchema } from '../schema-utils'
 
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
-
 async function getConfig(filePath: string) {
   try {
-    const module = require(path.resolve(filePath))
-    if (!module.config) {
+    const importedModule = await import(path.resolve(filePath))
+    const config = importedModule.config || importedModule.default?.config
+
+    if (!config) {
       throw new Error(`Config not found in module ${filePath}`)
     }
 
-    if (module.config.input) {
-      const converted = schemaToJsonSchema(module.config.input)
+    if (config.input) {
+      const converted = schemaToJsonSchema(config.input)
       if (converted) {
-        module.config.input = converted
+        config.input = converted
       }
     }
 
-    if (module.config.bodySchema) {
-      const converted = schemaToJsonSchema(module.config.bodySchema)
+    if (config.bodySchema) {
+      const converted = schemaToJsonSchema(config.bodySchema)
       if (converted) {
-        module.config.bodySchema = converted
+        config.bodySchema = converted
       }
     }
 
-    if (module.config.responseSchema) {
-      for (const [status, schema] of Object.entries(module.config.responseSchema)) {
+    if (config.responseSchema) {
+      for (const [status, schema] of Object.entries(config.responseSchema)) {
         const converted = schemaToJsonSchema(schema as SchemaInput)
         if (converted) {
-          module.config.responseSchema[status] = converted
+          config.responseSchema[status] = converted
         }
       }
     }
 
-    if (module.config.schema) {
-      const converted = schemaToJsonSchema(module.config.schema)
+    if (config.schema) {
+      const converted = schemaToJsonSchema(config.schema)
       if (converted) {
-        module.config.schema = converted
+        config.schema = converted
       }
     }
 
-    if (typeof module.config.canAccess === 'function') {
-      module.config.__motia_hasCanAccess = !!module.config.canAccess
-      delete module.config.canAccess
+    if (typeof config.canAccess === 'function') {
+      config.__motia_hasCanAccess = !!config.canAccess
+      delete config.canAccess
     }
 
-    process.send?.(module.config)
+    process.send?.(config)
 
     process.exit(0)
   } catch (error) {
@@ -60,7 +57,7 @@ async function getConfig(filePath: string) {
 const [, , filePath] = process.argv
 
 if (!filePath) {
-  console.error('Usage: node get-config.js <file-path>')
+  console.error('Usage: node get-config.mjs <file-path>')
   process.exit(1)
 }
 

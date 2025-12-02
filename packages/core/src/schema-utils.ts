@@ -1,5 +1,5 @@
+import type { StandardSchemaV1 } from '@standard-schema/spec'
 import * as z from 'zod'
-import type { StandardSchemaV1 } from 'zod/v4/core/standard-schema.cjs'
 import type { JsonSchema } from './types/schema.types'
 
 // export interface StandardSchema<T = unknown> {
