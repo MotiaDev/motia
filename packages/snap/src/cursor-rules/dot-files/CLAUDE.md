@@ -48,9 +48,9 @@ See `AGENTS.md` in this directory for a quick overview and links to specific gui
 ## Key Commands
 
 ```bash
-npm run dev              # Start development server
+npm run dev              # Start development server (with hot reload)
+npm run start            # Start production server (without hot reload)
 npx motia generate-types # Regenerate TypeScript types
-npx motia workbench      # Open visual workflow designer
 ```
 
 ---

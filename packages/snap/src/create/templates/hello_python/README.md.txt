@@ -44,6 +44,13 @@ yarn dev
 # or
 pnpm dev
 
+# Start production server (without hot reload)
+npm run start
+# or
+yarn start
+# or
+pnpm start
+
 # Generate TypeScript types from Step configs
 npm run generate-types
 # or

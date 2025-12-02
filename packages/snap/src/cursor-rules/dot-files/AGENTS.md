@@ -20,8 +20,11 @@ This is a **Motia** application - a framework for building event-driven, type-sa
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server (with hot reload)
 npm run dev
+
+# Start production server (without hot reload)
+npm run start
 
 # Generate TypeScript types from steps
 npx motia generate-types

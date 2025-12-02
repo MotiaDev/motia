@@ -73,7 +73,7 @@ The deployment process:
 
 ### `dev`
 
-Start the development server.
+Start the development server with hot reload and Workbench.
 
 ```bash
 npx motia dev [options]
@@ -84,6 +84,23 @@ Options:
 - `-p, --port <port>`: The port to run the server on (default: 3000).
 - `-H, --host [host]`: The host address for the server (default: localhost).
 - `-d, --debug`: Enable debug logging.
+- `-m, --mermaid`: Enable Mermaid diagram generation.
+- `--motia-dir <path>`: Custom path for `.motia` folder.
+
+### `start`
+
+Start the production server without hot reload. Workbench is included by default (can be disabled via `MOTIA_DOCKER_DISABLE_WORKBENCH` environment variable).
+
+```bash
+npx motia start [options]
+```
+
+Options:
+
+- `-p, --port <port>`: The port to run the server on (default: 3000).
+- `-H, --host [host]`: The host address for the server (default: localhost).
+- `-d, --debug`: Enable debug logging.
+- `--motia-dir <path>`: Custom path for `.motia` folder.
 
 ### `get-config`
 
