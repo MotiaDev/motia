@@ -1,4 +1,4 @@
-import type { Tracer } from '../observability/index'
+import type { Tracer } from './index'
 
 export class NoTracer implements Tracer {
   async end() {
