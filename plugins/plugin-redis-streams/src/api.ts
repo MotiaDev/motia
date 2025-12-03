@@ -1,51 +1,7 @@
 import type { ApiRequest, ApiResponse, MotiaPluginContext } from '@motiadev/core'
 import type { RedisClientType } from 'redis'
-import type { StreamEntry, StreamInfo } from './types/stream'
-
-const STREAM_KEY_PATTERN = 'motia:stream:*:group:*'
-
-const discoverStreams = async (client: RedisClientType): Promise<StreamInfo[]> => {
-  const keys = await client.keys(STREAM_KEY_PATTERN)
-  const streamInfos: StreamInfo[] = []
-  const seenStreams = new Set<string>()
-
-  for (const key of keys) {
-    const streamName = key.replace(/^motia:stream:/, '').replace(/:group:.*$/, '')
-
-    if (seenStreams.has(streamName)) {
-      continue
-    }
-    seenStreams.add(streamName)
-
-    const streamKey = key.split(':group:')[0]
-    const info = await getStreamInfo(client, streamName, streamKey)
-    if (info) {
-      streamInfos.push(info)
-    }
-  }
-
-  return streamInfos
-}
-
-const getStreamInfo = async (client: RedisClientType, name: string, key: string): Promise<StreamInfo | null> => {
-  try {
-    const info = await client.xInfoStream(key)
-    const groups = await client.xInfoGroups(key).catch(() => [])
-
-    return {
-      name,
-      displayName: name,
-      length: info.length,
-      firstEntryId: info['first-entry']?.id ?? null,
-      lastEntryId: info['last-entry']?.id ?? null,
-      groups: groups.length,
-      radixTreeKeys: info['radix-tree-keys'],
-      radixTreeNodes: info['radix-tree-nodes'],
-    }
-  } catch {
-    return null
-  }
-}
+import { discoverStreams, getStreamInfo, makeStreamKey } from './streams/redis-streams-stream'
+import type { StreamEntry } from './types/stream'
 
 export const api = ({ registerApi }: MotiaPluginContext, client: RedisClientType): void => {
   registerApi({ method: 'GET', path: '/__motia/redis-streams/streams' }, async (): Promise<ApiResponse> => {
@@ -62,7 +18,7 @@ export const api = ({ registerApi }: MotiaPluginContext, client: RedisClientType
     async (req: ApiRequest): Promise<ApiResponse> => {
       try {
         const name = req.pathParams.name as string
-        const streamKey = `motia:stream:${name}:group:default`
+        const streamKey = makeStreamKey(name)
 
         const info = await getStreamInfo(client, name, streamKey)
         if (!info) {
@@ -86,7 +42,7 @@ export const api = ({ registerApi }: MotiaPluginContext, client: RedisClientType
         const count = parseInt((req.queryParams.count as string) || '50', 10)
         const reverse = req.queryParams.reverse === 'true'
 
-        const streamKey = `motia:stream:${name}:group:default`
+        const streamKey = makeStreamKey(name)
 
         let rawEntries: Array<{ id: string; message: Record<string, string> }>
 
@@ -120,7 +76,7 @@ export const api = ({ registerApi }: MotiaPluginContext, client: RedisClientType
         const body = req.body as { maxLength: number }
         const maxLength = body.maxLength || 1000
 
-        const streamKey = `motia:stream:${name}:group:default`
+        const streamKey = makeStreamKey(name)
 
         await client.xTrim(streamKey, 'MAXLEN', maxLength)
 
