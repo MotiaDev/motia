@@ -41,12 +41,20 @@ export type HandlerConfig = {
   timeout: number
 }
 
-export type QueueConfig = {
-  type: 'fifo' | 'standard'
-  maxRetries: number
-  visibilityTimeout: number
-  delaySeconds: number
-}
+export type QueueConfig =
+  | {
+      type: 'fifo'
+      maxRetries: number
+      visibilityTimeout: number
+      delaySeconds: number
+    }
+  | {
+      type: 'standard'
+      maxRetries: number
+      visibilityTimeout: number
+      delaySeconds: number
+      concurrency?: number
+    }
 
 export type InfrastructureConfig = {
   handler?: Partial<HandlerConfig>
