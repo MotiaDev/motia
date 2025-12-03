@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         template: [motia-tutorial-typescript, motia-tutorial-python]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -40,6 +40,7 @@ jobs:
           fetch-depth: 0
 
       - name: Verify checkout branch
+        shell: bash
         run: |
           echo "Current branch: $(git branch --show-current || echo 'detached HEAD')"
           echo "Current commit: $(git rev-parse HEAD)"
@@ -61,6 +62,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Install Redis
+        if: runner.os != 'Windows'
         run: |
           if [ "${{ runner.os }}" == "Linux" ]; then
             sudo apt-get update
@@ -75,6 +77,7 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
+        shell: bash
         run: |
           cd packages/e2e
           PLAYWRIGHT_VERSION=$(node -p "require('./package.json').dependencies['@playwright/test'] || require('./package.json').devDependencies['@playwright/test']")
@@ -105,7 +108,8 @@ jobs:
           cd packages/e2e
           pnpm clean
 
-      - name: Verify built CLI
+      - name: Verify built CLI (Unix)
+        if: runner.os != 'Windows'
         run: |
           # Verify the built CLI exists
           if [ ! -f "packages/snap/dist/cli.mjs" ]; then
@@ -119,7 +123,27 @@ jobs:
           echo "✅ Built CLI found at packages/snap/dist/cli.mjs"
           node packages/snap/dist/cli.mjs --version || echo "CLI version check failed"
 
+      - name: Verify built CLI (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "packages/snap/dist/cli.mjs")) {
+            Write-Host "❌ Built CLI not found at packages/snap/dist/cli.mjs"
+            Write-Host "Available files in dist:"
+            Get-ChildItem packages/snap/dist/ -ErrorAction SilentlyContinue || Write-Host "dist directory not found"
+            exit 1
+          }
+          Write-Host "✅ Built CLI found at packages/snap/dist/cli.mjs"
+          node packages/snap/dist/cli.mjs --version
+
+      - name: Set test environment variables (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          echo "MOTIA_WINDOWS_FAST_MODE=true" >> $env:GITHUB_ENV
+
       - name: Record test start time
+        shell: bash
         run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
 
       - name: Run PR E2E tests with built CLI
@@ -139,7 +163,6 @@ jobs:
             export MOTIA_ANALYTICS_DISABLED=true
             export MOTIA_API_URL=http://localhost:3000
             export MOTIA_TEST_TEMPLATE=${{ matrix.template }}
-            export REDISMS_SYSTEM_BINARY=$(which redis-server)
 
             # Run tests based on template (no sharding)
             if [ "${{ matrix.template }}" == "motia-tutorial-python" ]; then
@@ -150,6 +173,7 @@ jobs:
 
       - name: Record test metrics
         if: always()
+        shell: bash
         run: |
           TEST_DURATION=$(($(date +%s) - $START_TIME))
           echo "TEST_DURATION=$TEST_DURATION" >> $GITHUB_ENV
@@ -163,6 +187,7 @@ jobs:
       - name: Process test results
         id: test_result
         if: always()
+        shell: bash
         run: |
           echo "📊 Test Results Summary:"
           echo "- Template: ${{ matrix.template }}"
@@ -196,8 +221,8 @@ jobs:
             packages/e2e/test-results.xml
           retention-days: 7
 
-      - name: Clean up test artifacts
-        if: always()
+      - name: Clean up test artifacts (Unix)
+        if: always() && runner.os != 'Windows'
         run: |
           echo "🧹 Cleaning up test artifacts..."
 
@@ -213,6 +238,25 @@ jobs:
           rm -rf packages/e2e/motia-e2e-test-project* 2>/dev/null || true
 
           echo "✅ Cleanup complete"
+
+      - name: Clean up test artifacts (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "🧹 Cleaning up test artifacts..."
+
+          # Kill any processes on port 3000
+          $connections = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
+          if ($connections) {
+            $connections | ForEach-Object {
+              Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          # Clean up any test project directories created during tests
+          Remove-Item -Path "packages/e2e/motia-e2e-test-project*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Host "✅ Cleanup complete"
 
   # Aggregate results from all matrix jobs
   check-results:
