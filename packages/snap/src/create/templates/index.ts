@@ -7,4 +7,5 @@ export const templates: Record<string, Generator> = {
   'starter-typescript': generateTemplateSteps('hello'),
   'starter-javascript': generateTemplateSteps('hello_js'),
   'starter-python': generateTemplateSteps('hello_python'),
+  'starter-multilang': generateTemplateSteps('hello_multilang'),
 }

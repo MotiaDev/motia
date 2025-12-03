@@ -14,6 +14,7 @@ const choices: Record<string, string> = {
   'starter-typescript': 'Starter (TypeScript)',
   'starter-javascript': 'Starter (JavaScript)',
   'starter-python': 'Starter (Python)',
+  'starter-multilang': 'Starter (Multi-language: TypeScript + Python)',
 }
 
 interface CreateInteractiveArgs {
