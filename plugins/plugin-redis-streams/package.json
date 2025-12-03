@@ -1,0 +1,62 @@
+{
+  "name": "@motiadev/plugin-redis-streams",
+  "version": "0.14.0-beta.164",
+  "description": "Redis Streams plugin for Motia - inspect and debug stream activity in real-time",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "development": "./src/plugin.ts",
+      "default": "./dist/plugin.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.545.0",
+    "react18-json-view": "^0.2.9",
+    "redis": "^5.9.0",
+    "zustand": "^5.0.8"
+  },
+  "peerDependencies": {
+    "@motiadev/adapter-redis-streams": "workspace:*",
+    "@motiadev/core": "workspace:*",
+    "@motiadev/stream-client-react": "workspace:*",
+    "@motiadev/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@bosh-code/tsdown-plugin-tailwindcss": "^1.0.1",
+    "@rollup/plugin-babel": "^6.1.0",
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "react": "^19.2.0",
+    "tailwindcss": "^4.1.17",
+    "tsdown": "^0.16.8",
+    "tw-animate-css": "^1.2.9",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./plugin": "./dist/plugin.js",
+      "./package.json": "./package.json"
+    }
+  }
+}
