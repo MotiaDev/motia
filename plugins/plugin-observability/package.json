@@ -39,9 +39,10 @@
   },
   "devDependencies": {
     "@bosh-code/tsdown-plugin-inject-css": "^2.0.0",
-    "@bosh-code/tsdown-plugin-tailwindcss": "^1.0.1",
     "@rollup/plugin-babel": "^6.1.0",
+    "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^24.10.1",
+    "rollup-plugin-postcss": "^4.0.2",
     "@types/react": "^19.2.7",
     "babel-plugin-react-compiler": "^1.0.0",
     "publint": "^0.3.15",

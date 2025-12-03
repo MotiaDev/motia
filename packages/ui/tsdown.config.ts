@@ -1,5 +1,5 @@
-import { tailwindPlugin } from '@bosh-code/tsdown-plugin-tailwindcss'
 import pluginBabel from '@rollup/plugin-babel'
+import postcss from 'rollup-plugin-postcss'
 import { defineConfig } from 'tsdown'
 
 export default defineConfig([
@@ -56,9 +56,10 @@ export default defineConfig([
     outDir: 'dist',
     clean: false,
     plugins: [
-      tailwindPlugin({
-        minify: process.env.NODE_ENV === 'prod',
-        sourcemap: false,
+      postcss({
+        extract: true,
+        minimize: process.env.NODE_ENV === 'prod',
+        plugins: [], // @tailwindcss/postcss is auto-loaded from postcss.config.js
       }),
     ],
   },
