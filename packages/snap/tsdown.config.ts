@@ -1,4 +1,4 @@
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, statSync } from 'fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { dirname, join, resolve } from 'path'
 import { defineConfig } from 'tsdown'
 import { fileURLToPath } from 'url'
@@ -9,10 +9,18 @@ function resolveSource(srcPath: string): string {
   if (!existsSync(srcPath)) {
     return srcPath
   }
-  const stats = statSync(srcPath)
+
+  // Read file atomically - handles symlink detection without TOCTOU race
+  let content: string
+  try {
+    content = readFileSync(srcPath, 'utf-8').trim()
+  } catch {
+    // Could not read as text file (likely a directory)
+    return srcPath
+  }
+
   // Handle Git symlinks on Windows (stored as small text files with relative path)
-  if (stats.isFile() && stats.size < 200) {
-    const content = readFileSync(srcPath, 'utf-8').trim()
+  if (content.length < 200) {
     // Check if content looks like a relative path
     if (content.startsWith('../') || content.startsWith('./')) {
       const resolvedPath = resolve(dirname(srcPath), content)
