@@ -60,7 +60,7 @@ export class WorkerManager {
 
     this.addTopicSubscription(topic, id)
 
-    const concurrency = options?.type === 'fifo' ? FIFO_CONCURRENCY : this.config.concurrency
+    const concurrency = options?.type === 'fifo' ? FIFO_CONCURRENCY : options?.concurrency || this.config.concurrency
     const attempts = options?.maxRetries != null ? options.maxRetries + 1 : this.config.defaultJobOptions.attempts
     const lockDuration = options?.visibilityTimeout ? options.visibilityTimeout * MILLISECONDS_PER_SECOND : undefined
 
