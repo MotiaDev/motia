@@ -20,5 +20,5 @@ class Context:
         self.streams = streams
         self.logger = Logger(self.trace_id, self.flows, rpc)
 
-    async def emit(self, event: Any) -> Optional[HandlerResult]:
-        return await self.rpc.send('emit', event)
+    def emit(self, event: Any) -> Optional[HandlerResult]:
+        return self.rpc.send_no_wait('emit', event)

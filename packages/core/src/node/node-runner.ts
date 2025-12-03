@@ -34,7 +34,7 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
     const logger = new Logger(traceId as string, flows as string[], sender)
     const state = new RpcStateManager(sender)
 
-    const emit = async (data: unknown) => sender.send('emit', data)
+    const emit = (data: unknown) => sender.sendNoWait('emit', data)
     const streamsConfig = event.streams as StreamConfig[]
     const streams = (streamsConfig ?? []).reduce(
       (acc, streams) => {
