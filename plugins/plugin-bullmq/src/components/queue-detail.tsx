@@ -129,7 +129,7 @@ export const QueueDetail = memo(() => {
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="bg-background text-foreground">
                     <DropdownMenuItem onClick={handleCleanCompleted}>
                       <Trash className="mr-2 h-4 w-4" />
                       Clean Completed

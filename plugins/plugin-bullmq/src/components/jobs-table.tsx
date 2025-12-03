@@ -91,7 +91,7 @@ const JobRow = memo<JobRowProps>(({ job, queueName, onSelect, isSelected }) => {
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="bg-background text-foreground">
             {job.failedReason && (
               <DropdownMenuItem onClick={handleRetry}>
                 <RefreshCw className="mr-2 h-4 w-4" />
