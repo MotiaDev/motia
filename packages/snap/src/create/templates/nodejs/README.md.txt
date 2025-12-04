@@ -90,4 +90,3 @@ This project includes an interactive tutorial that will guide you through:
 - [Quick Start Guide](https://motia.dev/docs/getting-started/quick-start) - Detailed getting started tutorial
 - [Core Concepts](https://motia.dev/docs/concepts/overview) - Learn about Steps and Motia architecture
 - [Discord Community](https://discord.gg/motia) - Get help and connect with other developers
-
