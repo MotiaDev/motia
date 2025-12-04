@@ -1206,9 +1206,6 @@ importers:
         specifier: ^19.1.1
         version: 19.2.0
     devDependencies:
-      '@bosh-code/tsdown-plugin-inject-css':
-        specifier: ^2.0.0
-        version: 2.0.0(tsdown@0.16.8(publint@0.3.15)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6))
       '@rollup/plugin-babel':
         specifier: ^6.1.0
         version: 6.1.0(@babel/core@7.28.5)(@types/babel__core@7.20.5)(rollup@4.53.3)
