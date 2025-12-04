@@ -1,7 +1,7 @@
 import os
 import random
 import string
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Optional: Using Pydantic for validation (remove if not using Pydantic)
 try:
@@ -43,7 +43,7 @@ config = {
 
 async def handler(req, context):
     app_name = os.environ.get("APP_NAME", "Motia App")
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     
     context.logger.info("Hello API endpoint called", {
         "app_name": app_name,
