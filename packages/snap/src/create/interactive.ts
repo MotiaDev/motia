@@ -9,12 +9,12 @@ interface InteractiveAnswers {
 }
 
 const choices: Record<string, string> = {
-  'motia-tutorial-typescript': 'Tutorial (TypeScript)',
-  'motia-tutorial-python': 'Tutorial (Python)',
-  'starter-typescript': 'Starter (TypeScript)',
-  'starter-javascript': 'Starter (JavaScript)',
-  'starter-python': 'Starter (Python)',
-  'starter-multilang': 'Starter (Multi-language: TypeScript + Python)',
+  'motia-tutorial-typescript': 'Tutorial (TypeScript only)',
+  'motia-tutorial-python': 'Tutorial (Python only)',
+  'starter-multilang': 'Starter (All languages; TS/JS + Python)',
+  'starter-python': 'Starter (Python only)',
+  'starter-typescript': 'Starter (TypeScript only)',
+  'starter-javascript': 'Starter (JavaScript only)',
 }
 
 interface CreateInteractiveArgs {
