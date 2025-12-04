@@ -63,4 +63,3 @@ async def handler(input_data, context):
         "greeting": greeting,
         "stored_in_state": True
     })
-
