@@ -66,7 +66,7 @@ export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
     workbench: [
       {
         packageName: '@motiadev/plugin-bullmq',
-        cssImports: ['@motiadev/plugin-bullmq/dist/index.css'],
+        cssImports: ['@motiadev/plugin-bullmq/dist/styles.css'],
         label: 'Queues',
         position: 'top',
         componentName: 'QueuesPage',

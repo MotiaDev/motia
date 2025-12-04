@@ -5,7 +5,7 @@ export default function plugin(_motia: MotiaPluginContext): MotiaPlugin {
     workbench: [
       {
         packageName: '@motiadev/plugin-example',
-        cssImports: ['@motiadev/plugin-example/dist/index.css'],
+        cssImports: ['@motiadev/plugin-example/dist/styles.css'],
         label: 'Example',
         position: 'bottom',
         componentName: 'ExamplePage',

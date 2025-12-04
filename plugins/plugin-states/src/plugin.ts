@@ -8,7 +8,7 @@ export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
     workbench: [
       {
         packageName: '@motiadev/plugin-states',
-        cssImports: ['@motiadev/plugin-states/dist/index.css'],
+        cssImports: ['@motiadev/plugin-states/dist/styles.css'],
         label: 'States',
         position: 'bottom',
         componentName: 'StatesPage',
