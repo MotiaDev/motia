@@ -12,9 +12,9 @@ const choices: Record<string, string> = {
   'motia-tutorial-typescript': 'Tutorial (TypeScript only)',
   'motia-tutorial-python': 'Tutorial (Python only)',
   'starter-multilang': 'Starter (All languages; TS/JS + Python)',
-  'starter-python': 'Starter (Python only)',
   'starter-typescript': 'Starter (TypeScript only)',
   'starter-javascript': 'Starter (JavaScript only)',
+  'starter-python': 'Starter (Python only)',
 }
 
 interface CreateInteractiveArgs {
