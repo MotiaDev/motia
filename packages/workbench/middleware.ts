@@ -107,6 +107,9 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
         'lucide-react': 'lucide-react/dist/cjs/lucide-react.js',
       },
     },
+    optimizeDeps: {
+      exclude: ['@motiadev/workbench'],
+    },
     plugins: [
       react({
         babel: {
