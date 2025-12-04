@@ -1827,6 +1827,12 @@ packages:
     peerDependencies:
       tsdown: '>=0.10.0'
 
+  '@bosh-code/tsdown-plugin-tailwindcss@1.0.1':
+    resolution: {integrity: sha512-b8VWDYp322wFqFdkqiF/JRnZsIqi8aa/UxpHGiiMAPUejRPzQ0Nn7to31exZUDtzrWCEbi38dvAaoDKSbfn6kQ==}
+    engines: {node: '>=24'}
+    peerDependencies:
+      tailwindcss: ^4.1.14
+
   '@braintree/sanitize-url@7.1.1':
     resolution: {integrity: sha512-i1L7noDNxtFyL5DmZafWy1wRVhGehQmzZaz1HiN5e7iylJMSZR7ekOV7NsIqa5qBldlLrsKv4HbgFUVlQrz8Mw==}
 
@@ -10502,6 +10508,12 @@ snapshots:
     dependencies:
       '@ast-grep/napi': 0.39.9
       tsdown: 0.16.8(publint@0.3.15)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6)
+
+  '@bosh-code/tsdown-plugin-tailwindcss@1.0.1(tailwindcss@4.1.17)':
+    dependencies:
+      '@tailwindcss/node': 4.1.17
+      '@tailwindcss/oxide': 4.1.17
+      tailwindcss: 4.1.17
 
   '@braintree/sanitize-url@7.1.1': {}
 
