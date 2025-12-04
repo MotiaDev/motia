@@ -53,7 +53,6 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "@bosh-code/tsdown-plugin-tailwindcss": "^1.0.1",
     "@rollup/plugin-babel": "^6.1.0",
     "@storybook/addon-a11y": "^10.0.0",
     "@storybook/addon-docs": "^10.0.0",
@@ -67,6 +66,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "concurrently": "^9.2.1",
     "husky": "^9.1.7",
+    "rollup-plugin-postcss": "^4.0.2",
     "storybook": "^10.0.0",
     "tailwindcss": "^4.1.17",
     "tsdown": "^0.16.8",

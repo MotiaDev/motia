@@ -14,6 +14,8 @@ import { createApiStep } from './fixtures/step-fixtures'
 import { config as remoteCanAccessConfig } from './steps/streams/remote-can-access.stream'
 import { createMockRedisClient } from './test-helpers/redis-client'
 
+jest.setTimeout(15000)
+
 const socketServerOptions: Array<{
   authorize?: (
     subscription: { streamName: string; groupId: string; id?: string },

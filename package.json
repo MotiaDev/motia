@@ -18,10 +18,11 @@
     "test:e2e:ui": "pnpm --filter=@motiadev/e2e test:ui",
     "test:e2e:headed": "pnpm --filter=@motiadev/e2e test:headed",
     "e2e:install": "pnpm --filter=@motiadev/e2e install && pnpm --filter=@motiadev/e2e install:deps",
-    "clean": "rm -rf node_modules pnpm-lock.yaml dist .turbo .next"
+    "clean": "rimraf node_modules pnpm-lock.yaml dist .turbo .next"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.6",
+    "rimraf": "^6.0.1",
     "@eslint/js": "^9.28.0",
     "@jest/globals": "^30.2.0",
     "@types/jest": "^29.5.14",

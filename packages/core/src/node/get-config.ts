@@ -1,9 +1,10 @@
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { type SchemaInput, schemaToJsonSchema } from '../schema-utils'
 
 async function getConfig(filePath: string) {
   try {
-    const importedModule = await import(path.resolve(filePath))
+    const importedModule = await import(pathToFileURL(path.resolve(filePath)).href)
     const config = importedModule.config || importedModule.default?.config
 
     if (!config) {

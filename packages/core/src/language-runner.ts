@@ -55,8 +55,12 @@ export const getLanguageBasedRunner = (
       }
     }
     const jsRunner = path.join(__dirname, 'node', defaultNodeOverrides?.js ?? 'node-runner.mjs')
-
     const tsxPath = getTsxPath()
+    // When tsx resolves to a file path, run it through node (tsx CLI is an .mjs file)
+    // When tsx falls back to 'tsx' string, use it directly as a command (assumes tsx is in PATH)
+    if (tsxPath !== 'tsx') {
+      return { runner: jsRunner, command: 'node', args: [tsxPath] }
+    }
     return { runner: jsRunner, command: tsxPath, args: [] }
   }
 

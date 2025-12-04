@@ -10,7 +10,7 @@
     "build": "tsdown",
     "dev": "tsdown --watch",
     "lint": "eslint --config ../../eslint.config.js",
-    "clean": "rm -rf dist"
+    "clean": "rimraf dist"
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
@@ -25,6 +25,7 @@
     "@types/jest": "^29.5.14",
     "@types/supertest": "^6.0.2",
     "jest": "^29.7.0",
+    "rimraf": "^6.0.1",
     "ts-jest": "^29.2.5",
     "tsdown": "^0.16.6",
     "typescript": "^5.7.2"

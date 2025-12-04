@@ -37,7 +37,6 @@
     "move:python": "sh scripts/move-python.sh",
     "move:dot-files": "sh scripts/move-dot-files.sh",
     "build": "tsdown",
-    "postbuild": "sh scripts/post-build.sh",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "biome check .",
     "lint:plugins": "eslint --config ../../eslint.config.js"

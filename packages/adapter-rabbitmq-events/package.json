@@ -10,7 +10,7 @@
     "build": "tsdown",
     "dev": "tsdown --watch",
     "lint": "biome check .",
-    "clean": "rm -rf dist"
+    "clean": "rimraf dist"
   },
   "dependencies": {
     "@motiadev/core": "workspace:*",
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.5",
+    "rimraf": "^6.0.1",
     "tsdown": "^0.16.6",
     "typescript": "^5.7.2"
   },
