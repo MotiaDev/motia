@@ -11,7 +11,8 @@ Motia is an open-source, unified backend framework that eliminates runtime fragm
 This template demonstrates Motia's polyglot capabilities by combining:
 
 - **TypeScript**: API endpoint (`hello-api.step.ts`) - handles HTTP requests
-- **Python**: Event processor (`process_greeting_step.py`) - handles background work
+- **Python**: Event processor (`process_greeting_step.py`) - handles background processing
+- **JavaScript**: Logger (`log-greeting.step.js`) - handles workflow completion
 
 This shows how you can use the best language for each task while keeping everything in a single unified system.
 
@@ -37,8 +38,9 @@ curl http://localhost:3000/hello
 
 1. **TypeScript API Step** receives the HTTP request at `/hello`
 2. It emits a `process-greeting` event with the request data
-3. **Python Event Step** picks up the event and processes it in the background
-4. The result is stored in state using Python
+3. **Python Event Step** picks up the event, processes it, and stores the result in state
+4. Python emits a `greeting-processed` event
+5. **JavaScript Event Step** logs the completed workflow
 
 ## Step Types
 
@@ -88,7 +90,8 @@ pnpm build
 steps/                           # Your Step definitions
 ├── hello/
 │   ├── hello-api.step.ts       # TypeScript API endpoint
-│   └── process_greeting_step.py # Python event processor
+│   ├── process_greeting_step.py # Python event processor
+│   └── log-greeting.step.js    # JavaScript logger
 motia.config.ts                  # Motia configuration
 requirements.txt                 # Python dependencies
 ```

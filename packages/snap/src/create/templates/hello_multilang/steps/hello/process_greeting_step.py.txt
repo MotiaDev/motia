@@ -30,7 +30,7 @@ config = {
     "type": "event",
     "description": "Processes greeting in the background (Python)",
     "subscribes": ["process-greeting"],
-    "emits": [],
+    "emits": ["greeting-processed"],
     "flows": ["hello-world-flow"],
     "input": input_schema
 }
@@ -62,4 +62,14 @@ async def handler(input_data, context):
         "request_id": request_id,
         "greeting": greeting,
         "stored_in_state": True
+    })
+    
+    # Emit event for JavaScript notification step
+    await context.emit({
+        "topic": "greeting-processed",
+        "data": {
+            "requestId": request_id,
+            "greeting": greeting,
+            "processedBy": "python"
+        }
     })
