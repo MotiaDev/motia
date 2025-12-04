@@ -1,6 +1,6 @@
 import type { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 
-export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
+export default function plugin(_motia: MotiaPluginContext): MotiaPlugin {
   return {
     workbench: [
       {

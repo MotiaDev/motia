@@ -10,7 +10,6 @@ const replaceTemplateVariables = (content: string, projectName: string): string 
   const replacements: Record<string, string> = {
     '{{PROJECT_NAME}}': projectName,
     '{{PLUGIN_NAME}}': toPascalCase(projectName),
-    '{{CSS_FILE_NAME}}': projectName.replace(/^@[^/]+\//, ''),
   }
 
   return Object.entries(replacements).reduce((result, [key, value]) => {

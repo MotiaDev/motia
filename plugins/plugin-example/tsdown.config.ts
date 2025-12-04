@@ -37,7 +37,7 @@ export default defineConfig([
   // Separate CSS build
   {
     entry: {
-      index: './src/styles.css',
+      styles: './src/styles.css',
     },
     format: 'esm',
     platform: 'browser',

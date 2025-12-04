@@ -8,7 +8,7 @@ export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
     workbench: [
       {
         packageName: '@motiadev/plugin-observability',
-        cssImports: ['@motiadev/plugin-observability/dist/index.css'],
+        cssImports: ['@motiadev/plugin-observability/dist/styles.css'],
         label: 'Tracing',
         position: 'bottom',
         componentName: 'ObservabilityPage',
