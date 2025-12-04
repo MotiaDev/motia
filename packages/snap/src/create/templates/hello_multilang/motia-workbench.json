@@ -2,14 +2,14 @@
   {
     "id": "hello-world-flow",
     "config": {
+      "steps/hello/hello-api.step.ts": {
+        "x": 0,
+        "y": 10,
+        "sourceHandlePosition": "right"
+      },
       "steps/hello/process_greeting_step.py": {
         "x": 409,
         "y": 44
-      },
-      "steps/hello/hello-api.step.ts": {
-        "x": 0,
-        "y": 0,
-        "sourceHandlePosition": "right"
       }
     }
   }
