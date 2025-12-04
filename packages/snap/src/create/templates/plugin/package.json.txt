@@ -28,8 +28,8 @@
     "react": "^19.2.0"
   },
   "peerDependencies": {
-    "@motiadev/core": "workspace:*",
-    "@motiadev/ui": "workspace:*"
+    "@motiadev/core": "latest",
+    "@motiadev/ui": "latest"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",
