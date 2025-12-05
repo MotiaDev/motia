@@ -1,10 +1,9 @@
 import { prettyPrint } from './pretty-print'
 
-const logLevel = process.env.LOG_LEVEL ?? 'info'
-
-const isDebugEnabled = logLevel === 'debug'
-const isInfoEnabled = ['info', 'debug'].includes(logLevel)
-const isWarnEnabled = ['warn', 'info', 'debug', 'trace'].includes(logLevel)
+const getLogLevel = () => process.env.LOG_LEVEL ?? 'info'
+const isDebugEnabled = () => getLogLevel() === 'debug'
+const isInfoEnabled = () => ['info', 'debug'].includes(getLogLevel())
+const isWarnEnabled = () => ['warn', 'info', 'debug', 'trace'].includes(getLogLevel())
 
 export type LogListener = (level: string, msg: string, args?: unknown) => void
 
@@ -39,7 +38,7 @@ export class Logger {
   }
 
   info(message: string, args?: unknown) {
-    if (isInfoEnabled) {
+    if (isInfoEnabled()) {
       this._log('info', message, args)
     }
   }
@@ -49,19 +48,23 @@ export class Logger {
   }
 
   debug(message: string, args?: unknown) {
-    if (isDebugEnabled) {
+    if (isDebugEnabled()) {
       this._log('debug', message, args)
     }
   }
 
   warn(message: string, args?: unknown) {
-    if (isWarnEnabled) {
+    if (isWarnEnabled()) {
       this._log('warn', message, args)
     }
   }
 
   log(args: any) {
-    this._log(args.level ?? 'info', args.msg, args)
+    const level = args.level ?? 'info'
+
+    if (level === 'debug' && !isDebugEnabled()) return
+
+    this._log(level, args.msg, args)
   }
 
   addListener(listener: LogListener) {
