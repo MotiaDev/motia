@@ -20,6 +20,7 @@ import { processPlugins } from './plugins'
 import { getRedisClient, getRedisConnectionInfo, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
+import { validatePythonEnvironment } from './utils/validate-python-environment'
 import { version } from './version'
 
 export const dev = async (
@@ -46,7 +47,12 @@ export const dev = async (
     project_name: getProjectIdentifier(baseDir),
   })
 
-  if (hasPythonFiles) {
+  const pythonValidation = await validatePythonEnvironment({ baseDir, hasPythonFiles })
+  if (!pythonValidation.success) {
+    process.exit(1)
+  }
+
+  if (pythonValidation.hasPythonFiles) {
     activatePythonVenv({ baseDir, isVerbose })
     trackEvent('python_environment_activated')
   }
