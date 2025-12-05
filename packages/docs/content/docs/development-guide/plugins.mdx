@@ -139,26 +139,49 @@ If you prefer to set up manually or want to understand the structure, follow the
     ```json
     {
       "name": "@motiadev/plugin-example",
-      "version": "0.8.2-beta.139",
+      "version": "0.14.0-beta.164",
       "type": "module",
       "main": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "exports": {
         ".": {
-          "types": "./dist/index.d.ts",
-          "import": "./dist/index.js",
-          "require": "./dist/index.cjs"
+          "development": "./src/index.ts",
+          "default": "./dist/index.js"
         },
         "./plugin": {
-          "types": "./dist/plugin.d.ts",
-          "import": "./dist/plugin.js",
-          "require": "./dist/plugin.cjs"
+          "development": "./src/plugin.ts",
+          "default": "./dist/plugin.js"
         },
-        "./styles.css": "./dist/styles.css"
+        "./package.json": "./package.json"
       },
+      "files": ["dist"],
       "peerDependencies": {
-        "@motiadev/ui": "workspace:*",
-        "@motiadev/core": "workspace:*"
+        "@motiadev/core": "latest",
+        "@motiadev/ui": "latest"
+      },
+      "dependencies": {
+        "lucide-react": "^0.555.0",
+        "react": "^19.2.0"
+      },
+      "devDependencies": {
+        "@rollup/plugin-babel": "^6.1.0",
+        "@tailwindcss/postcss": "^4.1.17",
+        "rollup-plugin-postcss": "^4.0.2",
+        "@types/node": "^24.10.1",
+        "@types/react": "^19.2.7",
+        "babel-plugin-react-compiler": "^1.0.0",
+        "publint": "^0.3.15",
+        "tailwindcss": "^4.1.17",
+        "tsdown": "^0.16.8",
+        "typescript": "^5.9.3",
+        "unplugin-unused": "^0.5.6"
+      },
+      "publishConfig": {
+        "exports": {
+          ".": "./dist/index.js",
+          "./plugin": "./dist/plugin.js",
+          "./package.json": "./package.json"
+        }
       }
     }
     ```
@@ -169,12 +192,12 @@ If you prefer to set up manually or want to understand the structure, follow the
     ```typescript
     import type { MotiaPlugin, MotiaPluginContext } from '@motiadev/core'
 
-    export default function plugin(motia: MotiaPluginContext): MotiaPlugin {
+    export default function plugin(_motia: MotiaPluginContext): MotiaPlugin {
       return {
         workbench: [
           {
             packageName: '@motiadev/plugin-example',
-            cssImports: ['@motiadev/plugin-example/dist/plugin-example.css'],
+            cssImports: ['@motiadev/plugin-example/dist/styles.css'],
             label: 'Example',
             position: 'bottom',
             componentName: 'ExamplePage',
@@ -189,7 +212,7 @@ If you prefer to set up manually or want to understand the structure, follow the
     Create your React component in `src/components/example-page.tsx`:
 
     ```typescript
-    import { Badge, Button, Card } from '@motiadev/ui'
+    import { Badge, Button } from '@motiadev/ui'
     import { Sparkles } from 'lucide-react'
     import type React from 'react'
 
@@ -203,12 +226,48 @@ If you prefer to set up manually or want to understand the structure, follow the
               <Badge variant="info">v1.0.0</Badge>
             </div>
 
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Welcome!</h2>
+            <p className="text-muted-foreground text-lg">
+              Welcome to the example plugin! This demonstrates the basic structure 
+              and functionality of a Motia plugin.
+            </p>
+
+            <div className="p-6 space-y-4">
+              <h2 className="text-xl font-semibold">What is this?</h2>
               <p className="text-muted-foreground">
-                This is your custom plugin content.
+                This is a minimal example plugin that shows how to create custom 
+                workbench tabs in Motia. Plugins can extend the Motia workbench 
+                with custom functionality, visualizations, and tools.
               </p>
-            </Card>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-semibold mb-2">Easy to Create</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Build plugins with React, TypeScript, and Tailwind CSS
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-semibold mb-2">Integrated</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Seamlessly integrate with Motia's workbench UI
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-semibold mb-2">Powerful</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Access Motia's plugin context and APIs
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <Button variant="default">
+                  <Sparkles className="w-4 h-4" />
+                  Get Started
+                </Button>
+                <Button variant="outline">View Documentation</Button>
+              </div>
+            </div>
           </div>
         </div>
       )
@@ -236,20 +295,59 @@ If you prefer to set up manually or want to understand the structure, follow the
     **tsdown configuration** — Create `tsdown.config.ts`:
 
     ```typescript
+    import pluginBabel from '@rollup/plugin-babel'
+    import postcss from 'rollup-plugin-postcss'
     import { defineConfig } from 'tsdown'
 
-    export default defineConfig({
-      entry: ['src/index.ts', 'src/plugin.ts'],
-      format: ['esm', 'cjs'],
-      dts: true,
-      clean: true,
-      external: ['react', 'react-dom', '@motiadev/core', '@motiadev/ui'],
-      esbuildOptions: (options) => {
-        options.banner = {
-          js: '"use client";',
-        }
+    export default defineConfig([
+      // Main JavaScript/TypeScript build
+      {
+        entry: {
+          index: './src/index.ts',
+          plugin: './src/plugin.ts',
+        },
+        format: 'esm',
+        platform: 'browser',
+        external: [/^react($|\/)/, 'react/jsx-runtime'],
+        dts: {
+          build: true,
+        },
+        exports: {
+          devExports: 'development',
+        },
+        clean: true,
+        publint: true,
+        unused: true,
+        outDir: 'dist',
+        plugins: [
+          pluginBabel({
+            babelHelpers: 'bundled',
+            parserOpts: {
+              sourceType: 'module',
+              plugins: ['jsx', 'typescript'],
+            },
+            plugins: ['babel-plugin-react-compiler'],
+            extensions: ['.js', '.jsx', '.ts', '.tsx'],
+          }),
+        ],
       },
-    })
+      // Separate CSS build
+      {
+        entry: {
+          styles: './src/styles.css',
+        },
+        format: 'esm',
+        platform: 'browser',
+        outDir: 'dist',
+        clean: false,
+        plugins: [
+          postcss({
+            extract: true,
+            minimize: process.env.NODE_ENV === 'prod',
+          }),
+        ],
+      },
+    ])
     ```
 
     **PostCSS configuration** — Create `postcss.config.js`:
@@ -598,9 +696,9 @@ Use it as a starting point for your own plugins.
 
 <Callout type="warning" title="Styles not loading">
 - Verify CSS is imported in `src/index.ts`
-- Check that `styles.css` is exported in `package.json`
-- Ensure TailwindCSS is properly configured
-- Confirm that `cssImports` is defined in `src/plugin.ts` with the path to the built CSS file (e.g., `['@motiadev/plugin-example/dist/plugin-example.css']`)
+- Check that the CSS build is configured in `tsdown.config.ts`
+- Ensure TailwindCSS is properly configured in `postcss.config.js`
+- Confirm that `cssImports` is defined in `src/plugin.ts` with the correct path (e.g., `['@motiadev/plugin-example/dist/styles.css']`)
 </Callout>
 
 <Callout type="default" title="Resolving type errors">
