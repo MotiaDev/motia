@@ -96,6 +96,7 @@ export class RpcStdinProcessor implements RpcProcessorInterface {
     this.isClosed = true
     this.messageCallback = undefined
     if (this.rl) {
+      this.rl.removeAllListeners()
       this.rl.close()
     }
   }
