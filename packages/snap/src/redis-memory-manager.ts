@@ -51,7 +51,7 @@ class RedisMemoryManager {
 
       const instance: RedisMemoryInstancePropT = {
         ip: process.env.MOTIA_REDIS_HOST || '127.0.0.1',
-        args: ['--appendonly', 'yes', '--save', '900 1', '--save', '300 10', '--save', '60 100', '--dir', baseDir],
+        args: ['--appendonly', 'yes', '--appendfsync', 'everysec', '--save', '""', '--dir', baseDir],
       }
 
       if (process.env.MOTIA_REDIS_PORT) {

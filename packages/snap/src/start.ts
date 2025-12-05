@@ -45,6 +45,7 @@ export const start = async (
           host: (redisClient.options.socket as { host?: string })?.host || 'localhost',
           port: (redisClient.options.socket as { port?: number })?.port || 6379,
         },
+        prefix: 'motia:events',
       }),
     cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),
     streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),
