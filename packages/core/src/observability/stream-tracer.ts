@@ -31,10 +31,9 @@ export class StreamTracer implements Tracer {
     this.trace.status = err ? 'failed' : 'completed'
     this.trace.endTime = Date.now()
     this.trace.error = err
-
-    await this.manager.updateTrace()
+    await this.manager.flushTrace()
     await this.recomputeTraceGroupStatus()
-    await this.manager.updateTraceGroup()
+    await this.manager.flush()
   }
 
   private async recomputeTraceGroupStatus() {

@@ -27,6 +27,7 @@ const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ gr
 
   const streamGroupArgs = useMemo(() => ({ streamName: 'motia-trace', groupId }), [groupId])
   const { data } = useStreamGroup<Trace>(streamGroupArgs)
+  const sortedTraces = useMemo(() => [...(data || [])].sort((a, b) => a.startTime - b.startTime), [data])
 
   const endTime = useGetEndTime(group)
   const [zoom, setZoom] = useState(100)
@@ -64,7 +65,7 @@ const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ gr
           </div>
 
           <div className="flex flex-col h-full" style={{ width: `${zoom}%` }}>
-            {data?.map((trace) => (
+            {sortedTraces.map((trace) => (
               <TraceItem
                 key={trace.id}
                 traceId={trace.id}
