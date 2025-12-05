@@ -1,4 +1,4 @@
-import type { Metadata, ResolvingMetadata } from 'next'
+import type { Metadata } from 'next'
 import { DM_Mono, Geist } from 'next/font/google'
 import localFont from 'next/font/local'
 import './globals.css'
@@ -38,7 +38,7 @@ const metaTitle = 'Motia - Unified Backend Framework for APIs, Events and AI Age
 const metaDescription =
   'Multi-language cloud functions runtime for API endpoints, background jobs, and agentic workflows using Motia Steps. Preview them in the Workbench, ship to zero-config infrastructure, and monitor in the Cloud.'
 
-export async function generateMetadata(_props: never, _parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata(): Promise<Metadata> {
   const h = await headers()
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'motia.dev'
   const proto = host.startsWith('localhost') ? 'http' : 'https'
