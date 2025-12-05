@@ -96,11 +96,13 @@ export class Logger {
     this.listeners.push(listener)
   }
 
-  removeListener(listener: LogListener) {
+  removeListener(listener: LogListener): boolean {
     const index = this.listeners.indexOf(listener)
-    if (index > -1) {
+    if (index !== -1) {
       this.listeners.splice(index, 1)
+      return true
     }
+    return false
   }
 }
 
