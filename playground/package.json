@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "motia install",
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt && python_modules/bin/pip install -r ../packages/core/requirements.txt",
     "dev": "motia dev",
     "dev:workbench": "__MOTIA_DEV_MODE__=1 motia dev",
