@@ -102,6 +102,30 @@ jobs:
           node-version: '24.11.1'
           cache: 'pnpm'
 
+      - name: Install Redis (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y redis-server
+            redis-server --daemonize yes
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            brew install redis
+            brew services start redis
+          fi
+          sleep 2
+          redis-cli ping || echo "Redis not responding to ping"
+
+      - name: Install Memurai (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install memurai-developer -y
+          Start-Service memurai
+          Start-Sleep -Seconds 2
+          memurai-cli ping
+
       # Cache global do npm para melhor performance
       - name: Cache global npm packages
         uses: actions/cache@v4
@@ -179,6 +203,7 @@ jobs:
           echo "MOTIA_VERSION=${{ needs.prepare.outputs.version }}" >> $GITHUB_ENV
           echo "MOTIA_API_URL=http://localhost:3000" >> $GITHUB_ENV
           echo "MOTIA_TEST_TEMPLATE=${{ matrix.template }}" >> $GITHUB_ENV
+          echo "REDISMS_SYSTEM_BINARY=$(which redis-server)" >> $GITHUB_ENV
 
       - name: Set test environment variables (Windows)
         if: runner.os == 'Windows'
@@ -188,6 +213,7 @@ jobs:
           echo "MOTIA_API_URL=http://localhost:3000" >> $env:GITHUB_ENV
           echo "MOTIA_TEST_TEMPLATE=${{ matrix.template }}" >> $env:GITHUB_ENV
           echo "MOTIA_WINDOWS_FAST_MODE=true" >> $env:GITHUB_ENV
+          echo "REDISMS_SYSTEM_BINARY=C:\ProgramData\chocolatey\lib\memurai-developer\tools\memurai.exe" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Run Release E2E tests with retry

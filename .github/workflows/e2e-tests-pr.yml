@@ -255,6 +255,14 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Install Memurai (Windows)
+        shell: pwsh
+        run: |
+          choco install memurai-developer -y
+          Start-Service memurai
+          Start-Sleep -Seconds 2
+          memurai-cli ping
+
       - name: Get Playwright version
         id: playwright-version
         shell: bash
@@ -313,6 +321,7 @@ jobs:
           echo "MOTIA_API_URL=http://localhost:3000" >> $env:GITHUB_ENV
           echo "MOTIA_TEST_TEMPLATE=${{ matrix.template }}" >> $env:GITHUB_ENV
           echo "MOTIA_WINDOWS_FAST_MODE=true" >> $env:GITHUB_ENV
+          echo "REDISMS_SYSTEM_BINARY=C:\ProgramData\chocolatey\lib\memurai-developer\tools\memurai.exe" >> $env:GITHUB_ENV
 
       - name: Run PR E2E tests with built CLI (Windows)
         id: run_tests
