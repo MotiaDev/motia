@@ -99,7 +99,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4 # Versão mais recente
         with:
-          node-version: '24.11.1'
+          node-version: '22.21.1'
           cache: 'pnpm'
 
       # Cache global do npm para melhor performance
