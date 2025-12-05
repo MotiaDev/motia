@@ -122,9 +122,10 @@ jobs:
         shell: pwsh
         run: |
           choco install memurai-developer -y
+          refreshenv
           Start-Service memurai
           Start-Sleep -Seconds 2
-          memurai-cli ping
+          & "C:\Program Files\Memurai\memurai-cli.exe" ping
 
       # Cache global do npm para melhor performance
       - name: Cache global npm packages
@@ -213,7 +214,7 @@ jobs:
           echo "MOTIA_API_URL=http://localhost:3000" >> $env:GITHUB_ENV
           echo "MOTIA_TEST_TEMPLATE=${{ matrix.template }}" >> $env:GITHUB_ENV
           echo "MOTIA_WINDOWS_FAST_MODE=true" >> $env:GITHUB_ENV
-          echo "REDISMS_SYSTEM_BINARY=C:\ProgramData\chocolatey\lib\memurai-developer\tools\memurai.exe" >> $env:GITHUB_ENV
+          echo "REDISMS_SYSTEM_BINARY=C:\Program Files\Memurai\memurai.exe" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Run Release E2E tests with retry
