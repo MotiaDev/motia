@@ -84,6 +84,7 @@ jobs:
       NODE_ENV: test
     steps:
       - name: Record workflow start time
+        shell: bash
         run: echo "WORKFLOW_START_TIME=$(date +%s)" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
@@ -111,11 +112,13 @@ jobs:
             npm-global-${{ runner.os }}-
 
       - name: Install pre-release packages globally
+        shell: bash
         run: |
           npm install -g motia@${{ needs.prepare.outputs.version }} --tag pre-release
 
       - name: Get Playwright version
         id: playwright-version
+        shell: bash
         run: |
           cd packages/e2e
           echo "version=$(node -p "require('./package.json').dependencies['@playwright/test'] || require('./package.json').devDependencies['@playwright/test']")" >> $GITHUB_OUTPUT
@@ -134,6 +137,7 @@ jobs:
             playwright-${{ runner.os }}-
 
       - name: Install E2E dependencies and browsers
+        shell: bash
         run: |
           cd packages/e2e
           pnpm install
@@ -141,6 +145,7 @@ jobs:
           pnpm exec playwright install-deps
 
       - name: Clean previous test artifacts
+        shell: bash
         run: |
           cd packages/e2e
           pnpm clean
@@ -243,6 +248,7 @@ jobs:
 
       - name: Report test metrics
         if: always()
+        shell: bash
         run: |
           echo "### 📊 E2E Test Metrics - ${{ matrix.os }} - ${{ matrix.template }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
