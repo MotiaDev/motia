@@ -99,7 +99,7 @@ type MotiaPluginContext = {
 
 <Callout type="success" title="What the CLI template includes">
 - TypeScript and React configuration
-- Vite build setup
+- tsdown for fast, performant builds with React Compiler and Tailwind CSS v4
 - Example workbench UI component
 - Required dependencies pre-installed
 - Ready-to-build project structure
@@ -126,7 +126,7 @@ If you prefer to set up manually or want to understand the structure, follow the
           </Folder>
           <File name="package.json">Project metadata</File>
           <File name="tsconfig.json">TypeScript configuration</File>
-          <File name="vite.config.ts">Vite build configuration</File>
+          <File name="tsdown.config.ts">tsdown build/bundle configuration</File>
           <File name="postcss.config.js">PostCSS configuration</File>
           <File name="README.md">Plugin documentation</File>
         </Folder>
@@ -233,32 +233,21 @@ If you prefer to set up manually or want to understand the structure, follow the
     ```
   </Step>
   <Step title="Configure build tooling">
-    **Vite configuration** — Create `vite.config.ts`:
+    **tsdown configuration** — Create `tsdown.config.ts`:
 
     ```typescript
-    import tailwindcss from '@tailwindcss/vite'
-    import react from '@vitejs/plugin-react'
-    import { resolve } from 'path'
-    import { defineConfig } from 'vite'
-    import dts from 'vite-plugin-dts'
+    import { defineConfig } from 'tsdown'
 
     export default defineConfig({
-      plugins: [react(), tailwindcss(), dts({ insertTypesEntry: true })],
-      build: {
-        lib: {
-          entry: {
-            index: resolve(__dirname, 'src/index.ts'),
-            plugin: resolve(__dirname, 'src/plugin.ts'),
-          },
-          name: 'MotiaPluginExample',
-          formats: ['es', 'cjs'],
-          fileName: (format, entryName) => 
-            `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
-        },
-        rollupOptions: {
-          external: ['react', 'react-dom', '@motiadev/core', '@motiadev/ui'],
-        },
-        cssCodeSplit: false,
+      entry: ['src/index.ts', 'src/plugin.ts'],
+      format: ['esm', 'cjs'],
+      dts: true,
+      clean: true,
+      external: ['react', 'react-dom', '@motiadev/core', '@motiadev/ui'],
+      esbuildOptions: (options) => {
+        options.banner = {
+          js: '"use client";',
+        }
       },
     })
     ```
@@ -299,8 +288,8 @@ If you prefer to set up manually or want to understand the structure, follow the
     ```json
     {
       "scripts": {
-        "build": "vite build",
-        "dev": "vite build --watch",
+        "build": "tsdown",
+        "dev": "tsdown --watch",
         "clean": "rm -rf dist"
       }
     }
@@ -604,6 +593,7 @@ Use it as a starting point for your own plugins.
 - Verify the `componentName` matches your exported component
 - Ensure the plugin is built (`pnpm run build`)
 - Check browser console for errors
+- Ensure tsdown and Babel plugins are installed
 </Callout>
 
 <Callout type="warning" title="Styles not loading">
@@ -617,6 +607,7 @@ Use it as a starting point for your own plugins.
 - Make sure `@motiadev/core` and `@motiadev/ui` are listed in `peerDependencies`
 - Run `pnpm install` so TypeScript picks up the types
 - Confirm `declaration: true` is set in `tsconfig.json`
+- Check external dependencies are correctly configured in tsdown
 </Callout>
 
 ## Publishing and Contributing Plugins
