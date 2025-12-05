@@ -1,11 +1,12 @@
+import type { ApiRouteConfig, Handlers } from 'motia';
 import { z } from 'zod';
 
-export const config = {
+export const config: ApiRouteConfig = {
   name: 'HelloAPI',
   type: 'api',
   path: '/hello',
   method: 'GET',
-  description: 'Receives hello request and emits event for processing',
+  description: 'Receives hello request and emits event for Python processing',
   emits: ['process-greeting'],
   flows: ['hello-world-flow'],
   responseSchema: {
@@ -17,13 +18,13 @@ export const config = {
   }
 };
 
-export const handler = async (_, { emit, logger }) => {
+export const handler: Handlers['HelloAPI'] = async (_, { emit, logger }) => {
   const appName = process.env.APP_NAME || 'Motia App';
   const timestamp = new Date().toISOString();
   
-  logger.info('Hello API endpoint called', { appName, timestamp });
+  logger.info('Hello API endpoint called (TypeScript)', { appName, timestamp });
   
-  // Emit event for background processing
+  // Emit event for background processing in Python
   await emit({
     topic: 'process-greeting',
     data: {
@@ -37,7 +38,7 @@ export const handler = async (_, { emit, logger }) => {
   return {
     status: 200,
     body: {
-      message: 'Hello request received! Check logs for processing.',
+      message: 'Hello request received! Processing in Python...',
       status: 'processing',
       appName
     }

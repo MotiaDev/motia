@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timezone
 
 # Optional: Using Pydantic for validation (remove if not using Pydantic)
@@ -29,9 +28,9 @@ except ImportError:
 config = {
     "name": "ProcessGreeting",
     "type": "event",
-    "description": "Processes greeting in the background",
+    "description": "Processes greeting in the background (Python)",
     "subscribes": ["process-greeting"],
-    "emits": [],
+    "emits": ["greeting-processed"],
     "flows": ["hello-world-flow"],
     "input": input_schema
 }
@@ -43,7 +42,7 @@ async def handler(input_data, context):
     greeting_prefix = input_data.get("greetingPrefix")
     request_id = input_data.get("requestId")
     
-    context.logger.info("Processing greeting", {
+    context.logger.info("Processing greeting (Python)", {
         "request_id": request_id,
         "app_name": app_name
     })
@@ -55,11 +54,22 @@ async def handler(input_data, context):
     await context.state.set("greetings", request_id, {
         "greeting": greeting,
         "processedAt": datetime.now(timezone.utc).isoformat(),
-        "originalTimestamp": timestamp
+        "originalTimestamp": timestamp,
+        "processedBy": "python"
     })
     
-    context.logger.info("Greeting processed successfully", {
+    context.logger.info("Greeting processed successfully (Python)", {
         "request_id": request_id,
         "greeting": greeting,
         "stored_in_state": True
+    })
+    
+    # Emit event for JavaScript notification step
+    await context.emit({
+        "topic": "greeting-processed",
+        "data": {
+            "requestId": request_id,
+            "greeting": greeting,
+            "processedBy": "python"
+        }
     })

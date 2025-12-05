@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 const inputSchema = z.object({
   timestamp: z.string(),
@@ -7,7 +7,7 @@ const inputSchema = z.object({
   requestId: z.string()
 });
 
-const config = {
+export const config = {
   name: 'ProcessGreeting',
   type: 'event',
   description: 'Processes greeting in the background',
@@ -17,7 +17,7 @@ const config = {
   input: inputSchema
 };
 
-const handler = async (input, { logger, state }) => {
+export const handler = async (input, { logger, state }) => {
   const { timestamp, appName, greetingPrefix, requestId } = input;
   
   logger.info('Processing greeting', { requestId, appName });
@@ -38,5 +38,3 @@ const handler = async (input, { logger, state }) => {
     storedInState: true 
   });
 };
-
-module.exports = { config, handler };

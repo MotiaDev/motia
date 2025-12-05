@@ -1,0 +1,21 @@
+[
+  {
+    "id": "hello-world-flow",
+    "config": {
+      "steps/hello/log-greeting.step.js": {
+        "x": 409,
+        "y": 44
+      },
+      "steps/hello/hello-api.step.ts": {
+        "x": -409,
+        "y": 0,
+        "sourceHandlePosition": "right"
+      },
+      "steps/hello/process_greeting_step.py": {
+        "x": 0,
+        "y": 34,
+        "sourceHandlePosition": "right"
+      }
+    }
+  }
+]

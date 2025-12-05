@@ -1,10 +1,20 @@
 # {{PROJECT_NAME}}
 
-A Motia tutorial project in Python.
+A Motia project created with the **multi-language** starter template (TypeScript + Python).
 
 ## What is Motia?
 
 Motia is an open-source, unified backend framework that eliminates runtime fragmentation by bringing **APIs, background jobs, queueing, streaming, state, workflows, AI agents, observability, scaling, and deployment** into one unified system using a single core primitive, the **Step**.
+
+## Polyglot Architecture
+
+This template demonstrates Motia's polyglot capabilities by combining:
+
+- **TypeScript**: API endpoint (`hello-api.step.ts`) - handles HTTP requests
+- **Python**: Event processor (`process_greeting_step.py`) - handles background processing
+- **JavaScript**: Logger (`log-greeting.step.js`) - handles workflow completion
+
+This shows how you can use the best language for each task while keeping everything in a single unified system.
 
 ## Quick Start
 
@@ -19,9 +29,18 @@ pnpm dev
 
 This starts the Motia runtime and the **Workbench** - a powerful UI for developing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
 
-1. **Open the Workbench** in your browser at [`http://localhost:3000`](http://localhost:3000)
-2. **Click the `Tutorial`** button on the top right of the workbench
-3. **Complete the `Tutorial`** to get an understanding of the basics of Motia and using the Workbench
+```bash
+# Test your first endpoint
+curl http://localhost:3000/hello
+```
+
+## How It Works
+
+1. **TypeScript API Step** receives the HTTP request at `/hello`
+2. It emits a `process-greeting` event with the request data
+3. **Python Event Step** picks up the event, processes it, and stores the result in state
+4. Python emits a `greeting-processed` event
+5. **JavaScript Event Step** logs the completed workflow
 
 ## Step Types
 
@@ -68,22 +87,16 @@ pnpm build
 ## Project Structure
 
 ```
-steps/              # Your Step definitions (or use src/)
-src/                 # Shared services and utilities
-motia.config.ts      # Motia configuration
-requirements.txt     # Python dependencies
+steps/                           # Your Step definitions
+├── hello/
+│   ├── hello-api.step.ts       # TypeScript API endpoint
+│   ├── process_greeting_step.py # Python event processor
+│   └── log-greeting.step.js    # JavaScript logger
+motia.config.ts                  # Motia configuration
+requirements.txt                 # Python dependencies
 ```
 
-Steps are auto-discovered from your `steps/` or `src/` directories - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
-
-## Tutorial
-
-This project includes an interactive tutorial that will guide you through:
-- Understanding Steps and their types
-- Creating API endpoints
-- Building event-driven workflows
-- Using state management
-- Observing your flows in the Workbench
+Steps are auto-discovered from your `steps/` or `src/` directories - no manual registration required.
 
 ## Learn More
 
