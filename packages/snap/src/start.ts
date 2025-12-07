@@ -9,7 +9,7 @@ import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins/index'
-import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
+import { getRedisClient, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
 
@@ -35,7 +35,7 @@ export const start = async (
   const dotMotia = path.join(baseDir, motiaFileStoragePath)
   const appConfig = await loadMotiaConfig(baseDir)
 
-  const redisClient: RedisClientType = await instanceRedisMemoryServer(dotMotia)
+  const redisClient: RedisClientType = await getRedisClient(dotMotia, appConfig, true)
 
   const adapters = {
     eventAdapter:
@@ -79,13 +79,13 @@ export const start = async (
 
   process.on('SIGTERM', async () => {
     motiaServer.server.close()
-    await stopRedisMemoryServer()
+    await stopRedisConnection()
     process.exit(0)
   })
 
   process.on('SIGINT', async () => {
     motiaServer.server.close()
-    await stopRedisMemoryServer()
+    await stopRedisConnection()
     process.exit(0)
   })
 }

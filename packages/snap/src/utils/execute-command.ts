@@ -2,6 +2,7 @@ import { exec } from 'child_process'
 
 interface ExecuteCommandOptions {
   silent?: boolean
+  env?: Record<string, string>
 }
 
 export const executeCommand = async (
@@ -9,10 +10,10 @@ export const executeCommand = async (
   rootDir: string,
   options?: ExecuteCommandOptions,
 ): Promise<string> => {
-  const { silent = false } = options || {}
+  const { silent = false, env = {} } = options || {}
 
   return new Promise((resolve, reject) => {
-    exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
+    exec(command, { cwd: rootDir, env: { ...env } }, (error, stdout, stderr) => {
       if (error) {
         if (!silent) {
           console.error(`exec error: ${error}`)

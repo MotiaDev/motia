@@ -12,6 +12,12 @@ import { pullRules } from './pull-rules'
 import { setupTemplate } from './setup-template'
 import { checkIfDirectoryExists, checkIfFileExists } from './utils'
 
+const generateRedisConfig = (skipRedis: boolean): string => {
+  return skipRedis
+    ? `  redis: {\n    useMemoryServer: false,\n    host: '127.0.0.1',\n    port: 6379,\n  },\n`
+    : `  redis: {\n    useMemoryServer: true,\n  },\n`
+}
+
 const installRequiredDependencies = async (packageManager: string, rootDir: string, context: CliContext) => {
   context.log('installing-dependencies', (message: Message) => message.tag('info').append('Installing dependencies...'))
 
@@ -31,8 +37,10 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
   const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@19.1.1'].join(' ')
 
   try {
-    await executeCommand(`${installCommand} ${dependencies}`, rootDir)
-    await executeCommand(`${installCommand} -D ${devDependencies}`, rootDir)
+    await executeCommand(`${installCommand} ${dependencies}`, rootDir, { env: { REDISMS_DISABLE_POSTINSTALL: '1' } })
+    await executeCommand(`${installCommand} -D ${devDependencies}`, rootDir, {
+      env: { REDISMS_DISABLE_POSTINSTALL: '1' },
+    })
 
     context.log('dependencies-installed', (message: Message) => message.tag('success').append('Dependencies installed'))
   } catch (error) {
@@ -77,9 +85,16 @@ type Args = {
   cursorEnabled: boolean
   context: CliContext
   skipTutorialTemplates?: boolean
+  skipRedis?: boolean
 }
 
-export const create = async ({ projectName, template, cursorEnabled, context }: Args): Promise<void> => {
+export const create = async ({
+  projectName,
+  template,
+  cursorEnabled,
+  context,
+  skipRedis = false,
+}: Args): Promise<void> => {
   console.log(
     '\n\n' +
       `
@@ -222,6 +237,40 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     await setupTemplate(template, rootDir, context)
   }
 
+  if (!isPluginTemplate) {
+    const motiaConfigPath = path.join(rootDir, 'motia.config.ts')
+    const redisConfig = generateRedisConfig(skipRedis)
+
+    if (checkIfFileExists(rootDir, 'motia.config.ts')) {
+      let configContent = fs.readFileSync(motiaConfigPath, 'utf-8')
+      if (!configContent.includes('redis:')) {
+        if (configContent.includes('export default config({')) {
+          configContent = configContent.replace(/export default config\(/, `export default config({\n${redisConfig}`)
+        } else if (configContent.includes('config({')) {
+          configContent = configContent.replace(/config\(/, `config({\n${redisConfig}`)
+        } else {
+          const lines = configContent.split('\n')
+          const lastLine = lines[lines.length - 1]
+          if (lastLine.trim() === '})' || lastLine.trim() === ')') {
+            lines.splice(lines.length - 1, 0, redisConfig.trim())
+            configContent = lines.join('\n')
+          }
+        }
+        fs.writeFileSync(motiaConfigPath, configContent)
+      }
+    } else {
+      const configContent = `import { config } from '@motiadev/core'
+
+export default config({
+${redisConfig}})
+`
+      fs.writeFileSync(motiaConfigPath, configContent)
+      context.log('motia-config-created', (message: Message) =>
+        message.tag('success').append('File').append('motia.config.ts', 'cyan').append('has been created.'),
+      )
+    }
+  }
+
   let packageManager: string
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
@@ -254,6 +303,16 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   context.log('success-blank-5', (message: Message) => message.text(''))
   context.log('success-docs', (message) => message.text(`Docs: ${pc.cyan('https://www.motia.dev/docs')}`))
   context.log('success-blank-6', (message) => message.text(''))
+  if (skipRedis) {
+    context.log('redis-skip-warning', (message: Message) =>
+      message
+        .tag('warning')
+        .append(
+          '⚠️  You skipped Redis binary installation. Make sure to provide a Redis connection before running Motia.',
+        ),
+    )
+    context.log('success-blank-7', (message) => message.text(''))
+  }
   context.log('success-signoff', (message) => message.text('Happy coding! 🚀'))
-  context.log('success-blank-7', (message) => message.text(''))
+  context.log('success-blank-8', (message) => message.text(''))
 }
