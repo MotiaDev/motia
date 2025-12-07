@@ -113,6 +113,7 @@ export const create = async ({
   const rootDir = isCurrentDir ? process.cwd() : path.join(process.cwd(), projectName)
   const isPluginTemplate = template === 'plugin'
 
+  process.env.REDISMS_DISABLE_POSTINSTALL = '1'
   if (!isCurrentDir && !checkIfDirectoryExists(rootDir)) {
     fs.mkdirSync(path.join(rootDir))
     context.log('directory-created', (message: Message) =>
