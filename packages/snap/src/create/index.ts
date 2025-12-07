@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import pc from 'picocolors'
+import { fileURLToPath } from 'url'
 import type { CliContext, Message } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
@@ -12,11 +13,7 @@ import { pullRules } from './pull-rules'
 import { setupTemplate } from './setup-template'
 import { checkIfDirectoryExists, checkIfFileExists } from './utils'
 
-const generateRedisConfig = (skipRedis: boolean): string => {
-  return skipRedis
-    ? `  redis: {\n    useMemoryServer: false,\n    host: '127.0.0.1',\n    port: 6379,\n  },\n`
-    : `  redis: {\n    useMemoryServer: true,\n  },\n`
-}
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const installRequiredDependencies = async (packageManager: string, rootDir: string, context: CliContext) => {
   context.log('installing-dependencies', (message: Message) => message.tag('info').append('Installing dependencies...'))
@@ -37,10 +34,8 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
   const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@19.1.1'].join(' ')
 
   try {
-    await executeCommand(`${installCommand} ${dependencies}`, rootDir, { env: { REDISMS_DISABLE_POSTINSTALL: '1' } })
-    await executeCommand(`${installCommand} -D ${devDependencies}`, rootDir, {
-      env: { REDISMS_DISABLE_POSTINSTALL: '1' },
-    })
+    await executeCommand(`${installCommand} ${dependencies}`, rootDir)
+    await executeCommand(`${installCommand} -D ${devDependencies}`, rootDir)
 
     context.log('dependencies-installed', (message: Message) => message.tag('success').append('Dependencies installed'))
   } catch (error) {
@@ -238,38 +233,15 @@ export const create = async ({
     await setupTemplate(template, rootDir, context)
   }
 
-  if (!isPluginTemplate) {
+  if (!isPluginTemplate && skipRedis) {
     const motiaConfigPath = path.join(rootDir, 'motia.config.ts')
-    const redisConfig = generateRedisConfig(skipRedis)
 
-    if (checkIfFileExists(rootDir, 'motia.config.ts')) {
-      let configContent = fs.readFileSync(motiaConfigPath, 'utf-8')
-      if (!configContent.includes('redis:')) {
-        if (configContent.includes('export default config({')) {
-          configContent = configContent.replace(/export default config\(/, `export default config({\n${redisConfig}`)
-        } else if (configContent.includes('config({')) {
-          configContent = configContent.replace(/config\(/, `config({\n${redisConfig}`)
-        } else {
-          const lines = configContent.split('\n')
-          const lastLine = lines[lines.length - 1]
-          if (lastLine.trim() === '})' || lastLine.trim() === ')') {
-            lines.splice(lines.length - 1, 0, redisConfig.trim())
-            configContent = lines.join('\n')
-          }
-        }
-        fs.writeFileSync(motiaConfigPath, configContent)
-      }
-    } else {
-      const configContent = `import { config } from '@motiadev/core'
-
-export default config({
-${redisConfig}})
-`
-      fs.writeFileSync(motiaConfigPath, configContent)
-      context.log('motia-config-created', (message: Message) =>
-        message.tag('success').append('File').append('motia.config.ts', 'cyan').append('has been created.'),
-      )
-    }
+    const templatePath = path.join(__dirname, 'templates/motia.config.external-redis.ts.txt')
+    const templateContent = fs.readFileSync(templatePath, 'utf-8')
+    fs.writeFileSync(motiaConfigPath, templateContent)
+    context.log('motia-config-created', (message: Message) =>
+      message.tag('success').append('File').append('motia.config.ts', 'cyan').append('has been created.'),
+    )
   }
 
   let packageManager: string
