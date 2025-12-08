@@ -41,12 +41,17 @@ class RedisConnectionManager {
         connectTimeout: 10000,
       },
     })
+
+    await this.client.connect()
+
     return this.client
   }
 
   async stop(): Promise<void> {
-    if (this.client) {
-      await this.client.quit()
+    if (this.client?.isOpen) {
+      await this.client.quit().catch(() => {
+        console.error('[Redis Connection] Redis client closed')
+      })
       this.client = null
     }
   }

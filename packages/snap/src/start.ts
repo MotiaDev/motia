@@ -35,7 +35,7 @@ export const start = async (
   const dotMotia = path.join(baseDir, motiaFileStoragePath)
   const appConfig = await loadMotiaConfig(baseDir)
 
-  const redisClient: RedisClientType = await getRedisClient(dotMotia, appConfig, true)
+  const redisClient: RedisClientType = await getRedisClient(dotMotia, appConfig)
 
   const adapters = {
     eventAdapter:

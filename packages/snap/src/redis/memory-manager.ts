@@ -36,6 +36,7 @@ export class RedisMemoryManager {
         }
 
         this.server = new RedisMemoryServer({ instance })
+        console.log('Redis Memory Server started')
         this.running = true
         this.registerCleanupHandlers()
       } catch (error) {
