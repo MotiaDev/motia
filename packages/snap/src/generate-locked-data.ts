@@ -19,6 +19,7 @@ import type { RedisClientType } from 'redis'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { CompilationError } from './utils/errors/compilation.error'
 import { LockedDataGenerationError } from './utils/errors/locked-data-generation.error'
+import { validatePythonEnvironment } from './utils/validate-python-environment'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
@@ -68,6 +69,13 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
 
   const hasPythonFiles =
     stepFiles.some((file) => file.endsWith('.py')) || streamFiles.some((file) => file.endsWith('.py'))
+
+  const pythonValidation = await validatePythonEnvironment({ baseDir: projectDir, hasPythonFiles })
+  if (!pythonValidation.success) {
+    throw new LockedDataGenerationError(
+      'Python environment validation failed. Please run the install command to set up your Python environment.',
+    )
+  }
 
   if (hasPythonFiles) {
     activatePythonVenv({ baseDir: projectDir })
