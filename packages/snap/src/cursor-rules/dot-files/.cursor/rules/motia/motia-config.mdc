@@ -22,6 +22,21 @@ export default config({
 })
 ```
 
+## Creating Projects Without Embedded Redis
+
+By default, Motia includes an embedded Redis binary for easy local development. However, if you prefer to use your own external Redis instance, you can use the `--skip-redis` flag when creating a new project:
+
+```bash
+npx motia create my-app --skip-redis
+```
+
+This flag:
+- Skips the embedded Redis binary installation
+- Creates a `motia.config.ts` pre-configured for external Redis connection
+- Requires you to provide your own Redis instance before running Motia
+
+When using `--skip-redis`, you'll need to ensure Redis is running and properly configured in your `motia.config.ts` file (see Redis Configuration section below).
+
 ## Type Definitions
 
 ```typescript
@@ -51,6 +66,12 @@ export type Config = {
    * Use this to secure real-time stream subscriptions.
    */
   streamAuth?: StreamAuthConfig
+
+  /**
+   * Optional: Redis configuration.
+   * Configure Redis connection or use the built-in in-memory Redis server.
+   */
+  redis?: RedisConfig
 }
 
 export type AdapterConfig = {
@@ -78,6 +99,16 @@ export type StreamAuthConfig<TSchema extends z.ZodTypeAny = z.ZodTypeAny> = {
    */
   authenticate: (request: StreamAuthRequest) => Promise<z.infer<TSchema> | null> | (z.infer<TSchema> | null)
 }
+
+export type RedisConfig =
+  | {
+      useMemoryServer?: false
+      host: string
+      port: number
+    }
+  | {
+      useMemoryServer: true
+    }
 ```
 
 ## Plugins
@@ -299,6 +330,68 @@ export default config({
   },
 })
 ```
+
+## Redis Configuration
+
+Motia uses Redis for state management, caching, and real-time features. By default, Motia automatically starts an in-memory Redis server for local development, eliminating the need for external Redis installation.
+
+### Default Behavior (In-Memory Redis)
+
+When no `redis` configuration is provided, Motia uses an embedded in-memory Redis server:
+
+```typescript
+import { config } from 'motia'
+
+export default config({})
+```
+
+You can also explicitly enable the in-memory server:
+
+```typescript
+export default config({
+  redis: {
+    useMemoryServer: true,
+  },
+})
+```
+
+### Using External Redis
+
+To connect to an external Redis instance (useful for production or when you already have Redis running), configure the connection settings:
+
+```typescript
+import { config } from 'motia'
+
+export default config({
+  redis: {
+    useMemoryServer: false,
+    host: 'localhost',
+    port: 6379,
+  },
+})
+```
+
+For production environments:
+
+```typescript
+export default config({
+  redis: {
+    useMemoryServer: false,
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+  },
+})
+```
+
+### Creating Projects with External Redis
+
+When creating a new project, you can skip the embedded Redis binary installation using the `--skip-redis` flag:
+
+```bash
+npx motia create my-app --skip-redis
+```
+
+This will create a project with `motia.config.ts` pre-configured for external Redis, and you'll need to ensure Redis is running before starting your application.
 
 ## Complete Example
 
