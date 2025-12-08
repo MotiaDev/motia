@@ -55,10 +55,10 @@ export class RedisMemoryManager {
     if (this.server && this.running) {
       try {
         await this.server.stop()
-        this.running = false
       } catch (error: unknown) {
         console.error('[Redis Memory Server] Error stopping:', (error as Error)?.message)
       } finally {
+        this.running = false
         this.server = null
       }
     }
