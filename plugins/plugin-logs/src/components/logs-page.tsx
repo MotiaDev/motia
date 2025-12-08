@@ -19,9 +19,15 @@ export const LogsPage = () => {
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       return (
-        log.msg.toLowerCase().includes(search.toLowerCase()) ||
-        log.traceId.toLowerCase().includes(search.toLowerCase()) ||
-        log.step.toLowerCase().includes(search.toLowerCase())
+        String(log.msg || '')
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+        String(log.traceId || '')
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+        String(log.step || '')
+          .toLowerCase()
+          .includes(search.toLowerCase())
       )
     })
   }, [logs, search])
