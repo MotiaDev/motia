@@ -66,5 +66,24 @@ export async function validatePythonEnvironment({
     return { success: false, hasPythonFiles: true }
   }
 
+  try {
+    const libContents = fs.readdirSync(libPath)
+    const pythonDirs = libContents.filter((item) => item.startsWith('python3'))
+
+    if (pythonDirs.length === 0) {
+      const installCmd = getInstallCommand(baseDir)
+      internalLogger.error('Python environment is incomplete')
+      internalLogger.info('The python_modules/lib directory exists but contains no Python version directories')
+      internalLogger.info(`Run '${installCmd}' to recreate your Python environment`)
+      return { success: false, hasPythonFiles: true }
+    }
+  } catch (error: any) {
+    const installCmd = getInstallCommand(baseDir)
+    internalLogger.error('Python environment is incomplete')
+    internalLogger.info('The python_modules/lib directory cannot be read')
+    internalLogger.info(`Run '${installCmd}' to recreate your Python environment`)
+    return { success: false, hasPythonFiles: true }
+  }
+
   return { success: true, hasPythonFiles: true }
 }

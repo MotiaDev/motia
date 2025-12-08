@@ -1,9 +1,11 @@
 import { jest } from '@jest/globals'
 
 const mockExistsSync = jest.fn<(path: string) => boolean>()
+const mockReaddirSync = jest.fn<(path: string) => string[]>()
 jest.unstable_mockModule('fs', () => ({
-  default: { existsSync: mockExistsSync },
+  default: { existsSync: mockExistsSync, readdirSync: mockReaddirSync },
   existsSync: mockExistsSync,
+  readdirSync: mockReaddirSync,
 }))
 
 const mockGetPythonCommand = jest.fn<(requestedVersion: string, baseDir: string) => Promise<string>>()
@@ -110,12 +112,51 @@ describe('validatePythonEnvironment', () => {
       )
       expect(mockInternalLogger.info).toHaveBeenCalledWith("Run 'npm install' to recreate your Python environment")
     })
+
+    it('should return failure when lib directory has no Python version directories', async () => {
+      mockGetPythonCommand.mockResolvedValue('python3')
+      mockExistsSync.mockReturnValue(true)
+      mockReaddirSync.mockReturnValue(['some-other-dir'])
+
+      const result = await validatePythonEnvironment({
+        baseDir,
+        hasPythonFiles: true,
+      })
+
+      expect(result.success).toBe(false)
+      expect(result.hasPythonFiles).toBe(true)
+      expect(mockInternalLogger.error).toHaveBeenCalledWith('Python environment is incomplete')
+      expect(mockInternalLogger.info).toHaveBeenCalledWith(
+        'The python_modules/lib directory exists but contains no Python version directories',
+      )
+      expect(mockInternalLogger.info).toHaveBeenCalledWith("Run 'npm install' to recreate your Python environment")
+    })
+
+    it('should return failure when lib directory cannot be read', async () => {
+      mockGetPythonCommand.mockResolvedValue('python3')
+      mockExistsSync.mockReturnValue(true)
+      mockReaddirSync.mockImplementation(() => {
+        throw new Error('Permission denied')
+      })
+
+      const result = await validatePythonEnvironment({
+        baseDir,
+        hasPythonFiles: true,
+      })
+
+      expect(result.success).toBe(false)
+      expect(result.hasPythonFiles).toBe(true)
+      expect(mockInternalLogger.error).toHaveBeenCalledWith('Python environment is incomplete')
+      expect(mockInternalLogger.info).toHaveBeenCalledWith('The python_modules/lib directory cannot be read')
+      expect(mockInternalLogger.info).toHaveBeenCalledWith("Run 'npm install' to recreate your Python environment")
+    })
   })
 
   describe('when Python environment is properly configured', () => {
     it('should return success', async () => {
       mockGetPythonCommand.mockResolvedValue('python3')
       mockExistsSync.mockReturnValue(true)
+      mockReaddirSync.mockReturnValue(['python3.14', 'python3.13'])
 
       const result = await validatePythonEnvironment({
         baseDir,
