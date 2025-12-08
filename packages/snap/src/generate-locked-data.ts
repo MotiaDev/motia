@@ -72,9 +72,7 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
 
   const pythonValidation = await validatePythonEnvironment({ baseDir: projectDir, hasPythonFiles })
   if (!pythonValidation.success) {
-    throw new LockedDataGenerationError(
-      'Python environment validation failed. Please run the install command to set up your Python environment.',
-    )
+    throw new LockedDataGenerationError('')
   }
 
   if (hasPythonFiles) {

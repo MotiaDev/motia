@@ -33,11 +33,7 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
   const hasPython = hasPythonSteps([...stepFiles, ...streamFiles])
   const pythonValidation = await validatePythonEnvironment({ baseDir: projectDir, hasPythonFiles: hasPython })
   if (!pythonValidation.success) {
-    throw new BuildError(
-      BuildErrorType.COMPILATION,
-      undefined,
-      'Python environment validation failed. Please run the install command to set up your Python environment.',
-    )
+    throw new BuildError(BuildErrorType.COMPILATION, undefined, '')
   }
 
   if (hasPython) {
