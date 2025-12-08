@@ -44,9 +44,23 @@ export type StreamAuthConfig<TSchema extends z.ZodTypeAny = z.ZodTypeAny> = {
   authenticate: (request: StreamAuthRequest) => Promise<z.infer<TSchema> | null> | (z.infer<TSchema> | null)
 }
 
+export type RedisConfig =
+  | {
+      useMemoryServer?: false
+      host: string
+      port: number
+      password?: string
+      username?: string
+      db?: number
+    }
+  | {
+      useMemoryServer: true
+    }
+
 export type Config = {
   app?: (app: Express) => void
   plugins?: MotiaPluginBuilder[]
   adapters?: AdapterConfig
   streamAuth?: StreamAuthConfig
+  redis?: RedisConfig
 }

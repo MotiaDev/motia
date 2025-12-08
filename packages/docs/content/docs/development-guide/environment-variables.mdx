@@ -24,6 +24,10 @@ DATABASE_URL=postgresql://user:password@localhost:5432/myapp
 # App Settings
 NODE_ENV=development
 PORT=3000
+
+# Redis (optional - only needed if using external Redis)
+MOTIA_REDIS_HOST=localhost
+MOTIA_REDIS_PORT=6379
 ```
 
 ### 2. Add to `.gitignore`
@@ -95,6 +99,35 @@ async def handler(input_data, ctx):
     # Your logic here...
     return {'status': 'processed'}
 ```
+
+## Redis Configuration
+
+Motia uses Redis for internal coordination. By default, it includes an embedded in-memory Redis server for development, so you don't need to install or configure Redis separately.
+
+### Environment Variables
+
+If you want to use your own Redis instance (created with `--skip-redis` flag or for production), you can configure it using these environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MOTIA_REDIS_HOST` | Redis host | `127.0.0.1` |
+| `MOTIA_REDIS_PORT` | Redis port | `6379` |
+| `MOTIA_REDIS_PASSWORD` | Redis password | - |
+| `MOTIA_REDIS_USERNAME` | Redis username (Redis 6.0+) | - |
+| `MOTIA_REDIS_DB` | Redis database number | `0` |
+| `MOTIA_DISABLE_MEMORY_SERVER` | Disable embedded Redis | `false` |
+
+### Example: Using External Redis
+
+```bash title=".env"
+# Connect to your own Redis instance
+MOTIA_REDIS_HOST=redis.example.com
+MOTIA_REDIS_PORT=6379
+MOTIA_REDIS_PASSWORD=your-redis-password
+MOTIA_REDIS_DB=0
+```
+
+Alternatively, you can configure Redis in your `motia.config.ts` file. See the [CLI documentation](/docs/development-guide/cli#create) for more details.
 
 ## Deployment
 

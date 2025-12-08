@@ -31,6 +31,8 @@ npx motia@latest create [project-name] [options]
 
 - `--template <template-name>` (optional): The template to use for your project. 
   If not provided, you will be prompted to select one interactively.
+- `--skip-redis` (optional): Skip the embedded Redis binary installation. 
+  Use this when you have your own Redis instance or want to configure external Redis.
 
 **Available Templates:**
 
@@ -61,6 +63,11 @@ Use interactive mode (no template specified):
 ```bash
 npx motia@latest create
 # You'll be prompted to select a template from the list above
+```
+
+Create project without embedded Redis (use your own Redis):
+```bash
+npx motia@latest create my-app --skip-redis
 ```
 
 
