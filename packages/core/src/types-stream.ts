@@ -1,10 +1,13 @@
-import type { ZodObject } from 'zod'
 import type { StreamFactory } from './streams/stream-factory'
+import type { StepSchemaInput } from './types'
+
+export type StreamSubscription = { groupId: string; id?: string }
 
 export interface StreamConfig {
   name: string
-  schema: ZodObject<any>
+  schema: StepSchemaInput
   baseConfig: { storageType: 'default' } | { storageType: 'custom'; factory: () => MotiaStream<any> }
+  canAccess?: (subscription: StreamSubscription, authContext: any) => boolean | Promise<boolean>
 }
 
 export type StateStreamEventChannel = { groupId: string; id?: string }

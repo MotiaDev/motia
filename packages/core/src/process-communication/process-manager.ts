@@ -94,6 +94,7 @@ export class ProcessManager {
     if (this.child) {
       this.child.kill('SIGKILL')
     }
+    this.child = undefined
   }
 
   close(): void {
@@ -101,7 +102,6 @@ export class ProcessManager {
       this.processor.close()
     }
     this.processor = undefined
-    this.child = undefined
   }
 
   get process(): ChildProcess | undefined {

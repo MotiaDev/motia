@@ -76,7 +76,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        template: [nodejs, python]
+        template: [motia-tutorial-typescript, motia-tutorial-python]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     env:
@@ -84,6 +84,7 @@ jobs:
       NODE_ENV: test
     steps:
       - name: Record workflow start time
+        shell: bash
         run: echo "WORKFLOW_START_TIME=$(date +%s)" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
@@ -98,7 +99,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4 # Versão mais recente
         with:
-          node-version: '20.11.1'
+          node-version: '22.21.1'
           cache: 'pnpm'
 
       # Cache global do npm para melhor performance
@@ -111,11 +112,13 @@ jobs:
             npm-global-${{ runner.os }}-
 
       - name: Install pre-release packages globally
+        shell: bash
         run: |
           npm install -g motia@${{ needs.prepare.outputs.version }} --tag pre-release
 
       - name: Get Playwright version
         id: playwright-version
+        shell: bash
         run: |
           cd packages/e2e
           echo "version=$(node -p "require('./package.json').dependencies['@playwright/test'] || require('./package.json').devDependencies['@playwright/test']")" >> $GITHUB_OUTPUT
@@ -134,6 +137,7 @@ jobs:
             playwright-${{ runner.os }}-
 
       - name: Install E2E dependencies and browsers
+        shell: bash
         run: |
           cd packages/e2e
           pnpm install
@@ -141,6 +145,7 @@ jobs:
           pnpm exec playwright install-deps
 
       - name: Clean previous test artifacts
+        shell: bash
         run: |
           cd packages/e2e
           pnpm clean
@@ -196,7 +201,7 @@ jobs:
           command: |
             cd packages/e2e
             echo "Starting Release E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}"
-            if [ "${{ matrix.template }}" == "python" ]; then
+            if [ "${{ matrix.template }}" == "motia-tutorial-python" ]; then
               pnpm test:release:python --reporter=line,html,github
             else
               pnpm test:release --reporter=line,html,github
@@ -243,6 +248,7 @@ jobs:
 
       - name: Report test metrics
         if: always()
+        shell: bash
         run: |
           echo "### 📊 E2E Test Metrics - ${{ matrix.os }} - ${{ matrix.template }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY

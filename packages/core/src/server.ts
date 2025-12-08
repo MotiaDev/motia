@@ -5,7 +5,6 @@ import type { Server as WsServer } from 'ws'
 import type { CronAdapter } from './adapters/interfaces/cron-adapter.interface'
 import type { EventAdapter } from './adapters/interfaces/event-adapter.interface'
 import type { StateAdapter } from './adapters/interfaces/state-adapter.interface'
-import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
 import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
@@ -23,12 +22,19 @@ import type { Motia } from './motia'
 import type { Tracer } from './observability'
 import { createTracerFactory } from './observability/tracer'
 import { Printer } from './printer'
+import { runStreamCanAccess } from './run-stream-can-access'
 import { createSocketServer } from './socket-server'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
-import { type Log, LogsStream } from './streams/logs-stream'
+import { type Log, RedisLogsStream } from './streams/redis-logs-stream'
 import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, Step } from './types'
-import type { BaseStreamItem, MotiaStream, StateStreamEvent, StateStreamEventChannel } from './types-stream'
+import type {
+  BaseStreamItem,
+  MotiaStream,
+  StateStreamEvent,
+  StateStreamEventChannel,
+  StreamSubscription,
+} from './types-stream'
 
 export type MotiaServer = {
   printer: Printer
@@ -59,13 +65,74 @@ export const createServer = (
   state: StateAdapter,
   config: MotiaServerConfig,
   adapters: AdapterOptions,
+  configureApp?: (app: Express) => void,
 ): MotiaServer => {
   const printer = config.printer ?? new Printer(process.cwd())
   const app = express()
+  if (configureApp) {
+    configureApp(app)
+  }
   const server = http.createServer(app)
+
+  const streamAuth = lockedData.getStreamAuthConfig()
+
+  const authorizeSubscription = async (
+    subscription: { streamName: string; groupId: string; id?: string },
+    authContext?: unknown,
+  ): Promise<boolean> => {
+    const stream = lockedData.getStreamByName(subscription.streamName)
+
+    if (!stream) {
+      throw new Error(`Stream ${subscription.streamName} not found`)
+    }
+
+    const accessContext: StreamSubscription = { groupId: subscription.groupId, id: subscription.id }
+
+    if (typeof stream.config.canAccess === 'function') {
+      try {
+        const allowed = await stream.config.canAccess(accessContext, authContext)
+        return Boolean(allowed)
+      } catch (error) {
+        globalLogger.error('[Streams] Inline canAccess evaluation failed', {
+          streamName: subscription.streamName,
+          groupId: subscription.groupId,
+          error,
+        })
+        return false
+      }
+    }
+
+    // @ts-expect-error - internal property, not part of the public API
+    if (!stream.config.__motia_hasCanAccess) {
+      globalLogger.debug('[Streams] No canAccess function found, allowing access', {
+        streamName: subscription.streamName,
+        groupId: subscription.groupId,
+      })
+      return true
+    }
+
+    try {
+      const allowed = await runStreamCanAccess({
+        file: stream.filePath,
+        subscription: accessContext,
+        authContext,
+        projectRoot: lockedData.baseDir,
+      })
+      return Boolean(allowed)
+    } catch (error) {
+      globalLogger.error('[Streams] canAccess evaluation failed', {
+        streamName: subscription.streamName,
+        groupId: subscription.groupId,
+        error,
+      })
+      return false
+    }
+  }
 
   const { pushEvent, socketServer } = createSocketServer({
     server,
+    authenticate: streamAuth?.authenticate,
+    authorize: authorizeSubscription,
     onJoin: async (streamName: string, groupId: string, id: string) => {
       const streams = lockedData.getStreams()
       const stream = streams[streamName]
@@ -155,7 +222,17 @@ export const createServer = (
     hidden: true,
     config: {
       name: '__motia.logs',
-      baseConfig: { storageType: 'custom', factory: () => new LogsStream() },
+      baseConfig: {
+        storageType: 'custom',
+        factory: () => {
+          if (!lockedData.redisClient) {
+            throw new Error(
+              'Redis client is required for server operation. Please provide a redisClient when creating LockedData.',
+            )
+          }
+          return new RedisLogsStream(lockedData.redisClient)
+        },
+      },
       schema: null as never,
     },
   })()
@@ -185,11 +262,14 @@ export const createServer = (
 
       logger.debug('[API] Received request, processing step', { path: req.path })
 
+      const rawBody = req.rawBody || ''
+
       const data: ApiRequest = {
         body: req.body,
         headers: req.headers as Record<string, string | string[]>,
         pathParams: req.params,
         queryParams: req.query as Record<string, string | string[]>,
+        rawBody,
       }
 
       try {
@@ -252,8 +332,38 @@ export const createServer = (
     }
   }
 
-  app.use(bodyParser.json({ limit: '1gb' }))
-  app.use(bodyParser.urlencoded({ extended: true, limit: '1gb' }))
+  app.use((req, _, next) => {
+    req.rawBody = ''
+    next()
+  })
+
+  app.use(
+    bodyParser.json({
+      limit: '1gb',
+      verify: (req, _, buf, encoding) => {
+        req.rawBody = buf.toString((encoding as BufferEncoding) || 'utf8')
+      },
+    }),
+  )
+
+  app.use(
+    bodyParser.urlencoded({
+      extended: true,
+      limit: '1gb',
+      verify: (req, _, buf, encoding) => {
+        req.rawBody = buf.toString((encoding as BufferEncoding) || 'utf8')
+      },
+    }),
+  )
+
+  app.use(
+    bodyParser.text({
+      limit: '1gb',
+      verify: (req, _, buf, encoding) => {
+        req.rawBody = buf.toString((encoding as BufferEncoding) || 'utf8')
+      },
+    }),
+  )
 
   const router = express.Router()
 

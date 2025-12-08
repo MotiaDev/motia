@@ -1,6 +1,5 @@
 import { cn, Input } from '@motiadev/ui'
-import Search from 'lucide-react/icons/search'
-import X from 'lucide-react/icons/x'
+import { Search, X } from 'lucide-react'
 
 type EndpointsSearchProps = {
   value: string
@@ -17,7 +16,7 @@ export const EndpointsSearch = ({ value, onChange, onClear }: EndpointsSearchPro
           variant="shade"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="px-9 font-medium"
+          className="px-9! font-medium"
           placeholder="Search by Method or Path"
         />
         <X

@@ -15,7 +15,7 @@ export const validateQueueConfig = (queueConfig: unknown): QueueValidationResult
     return { success: true }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors: QueueValidationError[] = error.errors.map((err) => ({
+      const errors: QueueValidationError[] = error.issues.map((err) => ({
         path: err.path.length > 0 ? err.path.join('.') : 'queue',
         message: err.message,
       }))
@@ -44,7 +44,7 @@ export const validateInfrastructureConfig = (infrastructureConfig: unknown): Inf
     return { success: true }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors: InfrastructureValidationError[] = error.errors.map((err) => ({
+      const errors: InfrastructureValidationError[] = error.issues.map((err) => ({
         path: err.path.length > 0 ? err.path.join('.') : 'infrastructure',
         message: err.message,
       }))

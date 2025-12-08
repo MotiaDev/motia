@@ -1,23 +1,28 @@
 {
   "name": "@motiadev/adapter-redis-streams",
   "description": "Redis streams adapter for Motia framework, enabling distributed stream management with real-time updates.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "version": "0.9.6-beta.152",
+  "type": "module",
+  "main": "dist/index.mjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "version": "0.15.4-beta.169",
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "lint": "biome check .",
-    "watch": "tsc --watch"
+    "clean": "rimraf dist"
   },
   "dependencies": {
     "@motiadev/core": "workspace:*",
-    "redis": "^4.7.0"
+    "redis": "^5.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "rimraf": "^6.0.1",
+    "tsdown": "^0.16.6",
     "typescript": "^5.7.2"
   },
   "peerDependencies": {
-    "@motiadev/core": "^0.8.0"
+    "@motiadev/core": ">=0.8.0"
   }
 }

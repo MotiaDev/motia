@@ -1,12 +1,12 @@
-import colors from 'colors'
+import pc from 'picocolors'
 import readline from 'readline'
 import { table } from 'table'
 
-const progress = colors.yellow('➜ [PROGRESS]')
-const success = colors.green('✓ [SUCCESS]')
-const failed = colors.red('✘ [ERROR]')
-const warning = colors.yellow('! [WARNING]')
-const info = colors.blue('i [INFO]')
+const progress = pc.yellow('➜ [PROGRESS]')
+const success = pc.green('✓ [SUCCESS]')
+const failed = pc.red('✘ [ERROR]')
+const warning = pc.yellow('! [WARNING]')
+const info = pc.blue('i [INFO]')
 
 const tags = {
   success,
@@ -17,15 +17,15 @@ const tags = {
 } as const
 
 const colorTags = {
-  gray: colors.gray,
-  dark: colors.magenta,
-  red: colors.red,
-  green: colors.green,
-  yellow: colors.yellow,
-  blue: colors.blue,
-  magenta: colors.magenta,
-  cyan: colors.cyan,
-  white: colors.white,
+  gray: pc.gray,
+  dark: pc.magenta,
+  red: pc.red,
+  green: pc.green,
+  yellow: pc.yellow,
+  blue: pc.blue,
+  magenta: pc.magenta,
+  cyan: pc.cyan,
+  white: pc.white,
 } as const
 
 export class Message {
@@ -36,7 +36,7 @@ export class Message {
   }
 
   dark(message: string): string {
-    return colors.magenta(message)
+    return pc.magenta(message)
   }
 
   text(message: string): Message {
@@ -75,32 +75,32 @@ export class Message {
   }
 
   table(headers: string[] | undefined, rows: string[][]): Message {
-    const colouredHeaders = headers?.map((header) => colors.blue(colors.bold(header)))
+    const colouredHeaders = headers?.map((header) => pc.blue(pc.bold(header)))
     const records = [colouredHeaders, ...rows].filter((record) => record !== undefined)
 
     this.output.push(
       table(records, {
         border: {
-          topBody: colors.blue('─'),
-          topJoin: colors.blue('┬'),
-          topLeft: colors.blue('┌'),
-          topRight: colors.blue('┐'),
-          bodyLeft: colors.blue('│'),
-          bodyRight: colors.blue('│'),
-          bottomBody: colors.blue('─'),
-          bottomJoin: colors.blue('┴'),
-          bottomLeft: colors.blue('└'),
-          bottomRight: colors.blue('┘'),
-          joinLeft: colors.blue('├'),
-          joinRight: colors.blue('┤'),
-          joinMiddleDown: colors.blue('│'),
-          joinMiddleUp: colors.blue(''),
-          joinMiddleLeft: colors.blue('│'),
-          joinMiddleRight: colors.blue('│'),
-          bodyJoin: colors.blue('│'),
-          joinBody: colors.blue('─'),
-          headerJoin: colors.blue('│'),
-          joinJoin: colors.blue('┼'),
+          topBody: pc.blue('─'),
+          topJoin: pc.blue('┬'),
+          topLeft: pc.blue('┌'),
+          topRight: pc.blue('┐'),
+          bodyLeft: pc.blue('│'),
+          bodyRight: pc.blue('│'),
+          bottomBody: pc.blue('─'),
+          bottomJoin: pc.blue('┴'),
+          bottomLeft: pc.blue('└'),
+          bottomRight: pc.blue('┘'),
+          joinLeft: pc.blue('├'),
+          joinRight: pc.blue('┤'),
+          joinMiddleDown: pc.blue('│'),
+          joinMiddleUp: pc.blue(''),
+          joinMiddleLeft: pc.blue('│'),
+          joinMiddleRight: pc.blue('│'),
+          bodyJoin: pc.blue('│'),
+          joinBody: pc.blue('─'),
+          headerJoin: pc.blue('│'),
+          joinJoin: pc.blue('┼'),
         },
       }),
     )

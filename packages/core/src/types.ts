@@ -1,11 +1,14 @@
-import type { ZodAny, ZodArray, ZodObject, z } from 'zod'
+import type { ZodArray, ZodObject } from 'zod'
 import type { CronExpression } from './enums/cron-expression.enum'
 import type { Logger } from './logger'
 import type { Tracer } from './observability'
+import type { JsonSchema } from './types/schema.types'
 
 export * from './types/app-config-types'
 
 export type ZodInput = ZodObject<any> | ZodArray<any>
+
+export type StepSchemaInput = ZodInput | JsonSchema
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
@@ -39,12 +42,20 @@ export type HandlerConfig = {
   timeout: number
 }
 
-export type QueueConfig = {
-  type: 'fifo' | 'standard'
-  maxRetries: number
-  visibilityTimeout: number
-  delaySeconds: number
-}
+export type QueueConfig =
+  | {
+      type: 'fifo'
+      maxRetries: number
+      visibilityTimeout: number
+      delaySeconds: number
+    }
+  | {
+      type: 'standard'
+      maxRetries: number
+      visibilityTimeout: number
+      delaySeconds: number
+      concurrency?: number
+    }
 
 export type InfrastructureConfig = {
   handler?: Partial<HandlerConfig>
@@ -59,7 +70,7 @@ export type EventConfig = {
   emits: Emit[]
   virtualEmits?: Emit[]
   virtualSubscribes?: string[]
-  input: ZodInput
+  input?: StepSchemaInput
   flows?: string[]
   /**
    * Files to include in the step bundle.
@@ -102,8 +113,8 @@ export interface ApiRouteConfig {
   virtualSubscribes?: string[]
   flows?: string[]
   middleware?: ApiMiddleware<any, any, any>[]
-  bodySchema?: ZodInput
-  responseSchema?: Record<number, ZodInput | ZodAny>
+  bodySchema?: StepSchemaInput
+  responseSchema?: Record<number, StepSchemaInput>
   queryParams?: QueryParam[]
   /**
    * Files to include in the step bundle.
@@ -117,6 +128,11 @@ export interface ApiRequest<TBody = unknown> {
   queryParams: Record<string, string | string[]>
   body: TBody
   headers: Record<string, string | string[]>
+  /**
+   * The raw unparsed request body as a string.
+   * This is the same body that was sent but without type enforcement/parsing.
+   */
+  rawBody: string
 }
 
 export type ApiResponse<TStatus extends number = number, TBody = string | Buffer | Record<string, unknown>> = {
@@ -153,7 +169,7 @@ export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Pr
  * @deprecated Use `Handlers` instead.
  */
 export type StepHandler<T> = T extends EventConfig
-  ? EventHandler<z.infer<T['input']>, { topic: string; data: any }>
+  ? EventHandler<unknown, { topic: string; data: any }>
   : T extends ApiRouteConfig
     ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }>
     : T extends CronConfig
@@ -165,8 +181,8 @@ export type Event<TData = unknown> = {
   data: TData
   traceId: string
   flows?: string[]
-  logger: Logger
-  tracer: Tracer
+  logger?: Logger
+  tracer?: Tracer
   messageGroupId?: string
 }
 
@@ -200,3 +216,10 @@ export type Flow = {
 
 // biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface Handlers {}
+
+declare module 'http' {
+  interface IncomingMessage {
+    authContext?: unknown | null
+    rawBody?: string
+  }
+}

@@ -16,6 +16,7 @@ export const createPluginContext = (motiaServer: MotiaServer): MotiaPluginContex
     tracerFactory: motia.tracerFactory,
     state: motia.stateAdapter,
     lockedData: motia.lockedData,
+    eventAdapter: motia.eventAdapter,
     registerApi: <
       TRequestBody = unknown,
       TResponseBody extends ApiResponse<number, unknown> = ApiResponse<number, unknown>,

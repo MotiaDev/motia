@@ -1,22 +1,30 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { TraceGroup } from '../types/observability'
 
 export const useGetEndTime = (group: TraceGroup | undefined | null) => {
   const groupEndTime = group?.endTime
   const [endTime, setEndTime] = useState(() => groupEndTime || Date.now())
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (groupEndTime) {
-      if (groupEndTime !== endTime) {
-        setEndTime(groupEndTime)
-      }
-    } else {
-      interval = setInterval(() => setEndTime(Date.now()), 100)
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
     }
 
-    return () => clearInterval(interval)
-  }, [groupEndTime, endTime])
+    if (groupEndTime) {
+      setEndTime(groupEndTime)
+    } else {
+      intervalRef.current = setInterval(() => setEndTime(Date.now()), 100)
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [groupEndTime])
 
   return endTime
 }

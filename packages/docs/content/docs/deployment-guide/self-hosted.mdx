@@ -3,6 +3,10 @@ title: Self-Hosted Deployment
 description: Learn how to deploy your Motia project to production using motia-docker
 ---
 
+import VideoPlayer from '@/components/VideoPlayer';
+
+<VideoPlayer videoPath="https://assets.motia.dev/videos/mp4/site/v1/8-motia-self-hosting.mp4" gifPath="https://assets.motia.dev/images/gifs/v1/8-motia-self-hosting.gif" title="Self-Hosting & Deployment" className="mb-8" />
+
 Run your Motia app in Docker containers. Same environment everywhere - dev, staging, production.
 
 <Callout type="warn">You need motia package **0.5.2-beta.101 or higher**</Callout>
@@ -168,6 +172,36 @@ docker run -it --rm -p 3000:3000 my-motia-app
 ```
 
 Open [http://localhost:3000](http://localhost:3000) - your app should be running!
+
+---
+
+## Troubleshooting
+
+### Using Minimal Docker Images (node:24-slim)
+
+If you're using a minimal Docker image like `node:24-slim` instead of the official `motiadev/motia:latest` image, you may encounter errors when creating a new Motia project or running `motia dev`, 
+because the `redis-memory-server` package may require build tools (`make`, `gcc`, etc.) to compile Redis from source. These are not included in minimal images.
+
+**Solution:** Install the required dependencies before running Motia:
+
+```bash
+docker run --rm node:24-slim bash -c "
+  apt-get update && apt-get install -y ca-certificates git build-essential &&
+  npx motia@latest create my-app --template starter-typescript
+"
+```
+
+**Alternative:** Install Redis system package to avoid compilation:
+
+```bash
+docker run --rm node:24-slim bash -c "
+  apt-get update && apt-get install -y ca-certificates git redis-server &&
+  export REDISMS_SYSTEM_BINARY=/usr/bin/redis-server &&
+  npx motia@latest create my-app --template starter-typescript
+"
+```
+
+**Recommended:** Use the official `motiadev/motia:latest` image which includes all required dependencies, or use the full `node:24` image instead of `node:24-slim`.
 
 ---
 

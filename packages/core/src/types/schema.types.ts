@@ -1,35 +1,6 @@
-export type JsonSchemaType = 'number' | 'boolean'
+import type { JSONSchema } from 'zod/v4/core'
 
-export type JsonArray = {
-  type: 'array'
-  description?: string
-  items: JsonSchema
-}
-
-export type JsonObject = {
-  type: 'object'
-  description?: string
-  properties: Record<string, JsonSchema>
-  required?: string[]
-  additionalProperties?: JsonSchema
-}
-
-export type JsonString = {
-  type: 'string'
-  description?: string
-  enum?: string[]
-}
-
-export type JsonAnyOf = {
-  anyOf: JsonSchema[]
-}
-
-export type JsonProperty = {
-  type: JsonSchemaType
-  description?: string
-}
-
-export type JsonSchema = JsonArray | JsonObject | JsonString | JsonProperty | JsonAnyOf
+export type JsonSchema = JSONSchema.BaseSchema
 
 export class JsonSchemaError extends Error {
   constructor(message: string) {
@@ -38,6 +9,6 @@ export class JsonSchemaError extends Error {
   }
 }
 
-export const isAnyOf = (schema: JsonSchema): schema is JsonAnyOf => {
+export const isAnyOf = (schema: JsonSchema): schema is JSONSchema.BaseSchema & { anyOf: JSONSchema.BaseSchema[] } => {
   return typeof schema === 'object' && schema !== null && 'anyOf' in schema
 }

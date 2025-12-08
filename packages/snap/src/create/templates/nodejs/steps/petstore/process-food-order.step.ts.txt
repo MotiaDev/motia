@@ -10,21 +10,22 @@ export const config: EventConfig = {
   subscribes: ['process-food-order'],
   emits: ['notification'],
   input: z.object({
-    id: z.string(),
     email: z.string(),
     quantity: z.number(),
-    petId: z.number(),
+    petId: z.string(),
   }),
 }
 
 export const handler: Handlers['ProcessFoodOrder'] = async (input, { traceId, logger, state, emit }) => {
-  logger.info('Step 02 – Process food order', { input, traceId })
+  logger.info('Step 02 - Process food order', { input, traceId })
 
   const order = await petStoreService.createOrder({
     ...input,
     shipDate: new Date().toISOString(),
     status: 'placed',
   })
+
+  logger.info('Order created', { order })
 
   await state.set('orders', order.id, order)
 

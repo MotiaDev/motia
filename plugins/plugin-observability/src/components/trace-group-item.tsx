@@ -2,8 +2,8 @@ import { cn } from '@motiadev/ui'
 import { formatDistanceToNow } from 'date-fns'
 import type React from 'react'
 import { memo, useCallback, useMemo } from 'react'
-import { useObservabilityStore } from '@/stores/use-observability-store'
 import { formatDuration } from '../lib/utils'
+import { useObservabilityStore } from '../stores/use-observability-store'
 import { TraceStatusBadge } from './trace-status'
 
 interface TraceGroupItemProps {
@@ -43,7 +43,7 @@ export const TraceGroupItem: React.FC<TraceGroupItemProps> = memo(
       >
         <div className="p-3 flex flex-col gap-1">
           <div className="flex flex-row justify-between items-center gap-2">
-            <span className="font-semibold text-lg">{groupName}</span>
+            <span className="font-semibold text-lg truncate flex-1 min-w-0">{groupName}</span>
             <TraceStatusBadge status={groupStatus} duration={duration} />
           </div>
 

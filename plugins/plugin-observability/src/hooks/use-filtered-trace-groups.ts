@@ -1,6 +1,6 @@
 import { useStreamGroup } from '@motiadev/stream-client-react'
 import { useMemo } from 'react'
-import { useObservabilityStore } from '@/stores/use-observability-store'
+import { useObservabilityStore } from '../stores/use-observability-store'
 import type { TraceGroup } from '../types/observability'
 
 export const useFilteredTraceGroups = () => {

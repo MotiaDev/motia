@@ -2,6 +2,8 @@ import { flush } from '@amplitude/analytics-node'
 import { logCliError } from '../utils/analytics'
 import { CLIOutputManager, type Message } from './cli-output-manager'
 
+export type { Message }
+
 const getCommandName = (): string => {
   const args = process.argv.slice(2)
   const commandParts: string[] = []

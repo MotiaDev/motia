@@ -36,6 +36,10 @@ import { CodeFetcher } from '../../../components/CodeFetcher'
   <File name="web-search.step.ts" />
 </Folder>
 
+<Callout type="info">
+This example uses the `steps/` directory, but you can also use `src/` or both. Motia discovers step files from either location automatically.
+</Callout>
+
 <Tabs items={['finance-data', 'openai-analysis', 'query-api', 'response-coordinator', 'result-api', 'save-result', 'web-search']}>
   <CodeFetcher path="examples/finance-agent/steps" tab="finance-data" value="finance-data" />
   <CodeFetcher path="examples/finance-agent/steps" tab="openai-analysis" value="openai-analysis" />

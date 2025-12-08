@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Optional: Using Pydantic for validation (remove if not using Pydantic)
 try:
@@ -54,7 +54,7 @@ async def handler(input_data, context):
     # Note: The state.set method takes (groupId, key, value)
     await context.state.set("greetings", request_id, {
         "greeting": greeting,
-        "processedAt": datetime.utcnow().isoformat(),
+        "processedAt": datetime.now(timezone.utc).isoformat(),
         "originalTimestamp": timestamp
     })
     

@@ -1,40 +1,87 @@
-import type http from 'http'
-import { type WebSocket, Server as WsServer } from 'ws'
-
-type BaseMessage = { streamName: string; groupId: string; id?: string }
-type JoinMessage = BaseMessage & { subscriptionId: string }
-type StreamEvent<TData> =
-  | { type: 'sync'; data: TData }
-  | { type: 'create'; data: TData }
-  | { type: 'update'; data: TData }
-  | { type: 'delete'; data: TData }
-  | { type: 'event'; event: { type: string; data: any } }
-type EventMessage<TData> = BaseMessage & { timestamp: number; event: StreamEvent<TData> }
+import type { Server } from 'http'
+import { type WebSocket, WebSocketServer } from 'ws'
+import { globalLogger } from './logger'
+import {
+  type BaseMessage,
+  type EventMessage,
+  getRoom,
+  type JoinMessage,
+  sendAccessDenied,
+  sendError,
+} from './socket-server/helpers'
+import type { StreamAuthRequest } from './types/app-config-types'
 
 type Message = { type: 'join' | 'leave'; data: JoinMessage }
 
 type Props = {
-  server: http.Server
+  server: Server
   onJoin: <TData>(streamName: string, groupId: string, id: string) => Promise<TData>
   onJoinGroup: <TData>(streamName: string, groupId: string) => Promise<TData[] | undefined>
+  authenticate?: (request: StreamAuthRequest) => Promise<unknown | null> | unknown | null
+  authorize?: (
+    subscription: { streamName: string; groupId: string; id?: string },
+    authContext?: unknown,
+  ) => Promise<boolean> | boolean
 }
 
-export const createSocketServer = ({ server, onJoin, onJoinGroup }: Props) => {
-  const socketServer = new WsServer({ server })
+const AUTH_ERROR_CODE = 401
+export const createSocketServer = ({ server, onJoin, onJoinGroup, authenticate, authorize }: Props) => {
+  const socketServer = new WebSocketServer({
+    server,
+    verifyClient: async (info, callback) => {
+      if (authenticate) {
+        try {
+          const authRequest: StreamAuthRequest = {
+            headers: info.req.headers,
+            url: info.req.url,
+          }
+          info.req.authContext = await authenticate(authRequest)
+          callback(true)
+        } catch {
+          globalLogger.debug('[Socket Server] Authentication failed')
+          callback(false, AUTH_ERROR_CODE, 'Authentication failed')
+        }
+      } else {
+        callback(true)
+      }
+    },
+  })
   const rooms: Record<string, Map<string, WebSocket>> = {}
   const subscriptions: Map<WebSocket, Set<[string, string]>> = new Map()
+  const authContexts: Map<WebSocket, unknown> = new Map()
 
-  const getRoom = (message: BaseMessage): string => {
-    return message.id ? `${message.streamName}:id:${message.id}` : `${message.streamName}:group-id:${message.groupId}`
+  const isAuthorized = async (socket: WebSocket, data: BaseMessage): Promise<boolean> => {
+    if (!authorize) {
+      return true
+    }
+
+    try {
+      const authContext = authContexts.get(socket)
+      const result = await authorize(data, authContext)
+      return result !== false
+    } catch (error) {
+      sendError(socket, data, error as Error)
+      globalLogger.error('[Socket Server] Failed to authorize stream subscription')
+      return false
+    }
   }
 
-  socketServer.on('connection', (socket) => {
+  socketServer.on('connection', async (socket, request) => {
+    authContexts.set(socket, request.authContext)
+
     subscriptions.set(socket, new Set())
 
     socket.on('message', async (payload: Buffer) => {
       const message: Message = JSON.parse(payload.toString())
 
       if (message.type === 'join') {
+        const authorized = await isAuthorized(socket, message.data)
+
+        if (!authorized) {
+          sendAccessDenied(socket, message.data)
+          return
+        }
+
         const room = getRoom(message.data)
 
         if (!rooms[room]) {
@@ -86,6 +133,7 @@ export const createSocketServer = ({ server, onJoin, onJoinGroup }: Props) => {
         rooms[room]?.delete(subscriptionId)
       })
       subscriptions.delete(socket)
+      authContexts.delete(socket)
     })
   })
 
@@ -95,14 +143,18 @@ export const createSocketServer = ({ server, onJoin, onJoinGroup }: Props) => {
     const eventMessage = JSON.stringify({ timestamp: Date.now(), ...message })
 
     if (rooms[groupRoom]) {
-      rooms[groupRoom].forEach((socket) => socket.send(eventMessage))
+      rooms[groupRoom].forEach((socket) => {
+        socket.send(eventMessage)
+      })
     }
 
     if (id) {
       const itemRoom = getRoom({ groupId, streamName, id })
 
       if (rooms[itemRoom]) {
-        rooms[itemRoom].forEach((socket) => socket.send(eventMessage))
+        rooms[itemRoom].forEach((socket) => {
+          socket.send(eventMessage)
+        })
       }
     }
   }

@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import type { RedisClientType } from 'redis'
 import type { StreamAdapter } from './adapters/interfaces/stream-adapter.interface'
 import type { StreamAdapterManager } from './adapters/interfaces/stream-adapter-manager.interface'
 import { isApiStep, isCronStep, isEventStep } from './guards'
@@ -8,7 +9,10 @@ import type { Printer } from './printer'
 import { validateStep } from './step-validator'
 import type { StreamFactory } from './streams/stream-factory'
 import type { ApiRouteConfig, CronConfig, EventConfig, Flow, Step } from './types'
+import type { StreamAuthConfig } from './types/app-config-types'
+import { generateTypeFromSchema } from './types/generate-type-from-schema'
 import { generateTypesFromSteps, generateTypesFromStreams, generateTypesString } from './types/generate-types'
+import type { JsonSchema } from './types/schema.types'
 import type { Stream } from './types-stream'
 
 type FlowEvent = 'flow-created' | 'flow-removed' | 'flow-updated'
@@ -29,11 +33,14 @@ export class LockedData {
   private streams: Record<string, Stream>
 
   private streamWrapper?: StreamWrapper<any>
+  private streamAuthContextType?: string
+  private streamAuthConfig?: { authenticate: StreamAuthConfig['authenticate'] }
 
   constructor(
     public readonly baseDir: string,
     public readonly streamAdapter: StreamAdapterManager,
     private readonly printer: Printer,
+    public readonly redisClient?: RedisClientType,
   ) {
     this.flows = {}
     this.activeSteps = []
@@ -65,10 +72,19 @@ export class LockedData {
     this.streamWrapper = streamWrapper
   }
 
+  setStreamAuthConfig(config?: { authenticate: StreamAuthConfig['authenticate']; contextSchema?: JsonSchema }): void {
+    this.streamAuthConfig = config ? { authenticate: config.authenticate } : undefined
+    this.streamAuthContextType = config?.contextSchema ? generateTypeFromSchema(config.contextSchema) : undefined
+  }
+
+  getStreamAuthConfig() {
+    return this.streamAuthConfig
+  }
+
   saveTypes() {
     const types = generateTypesFromSteps(this.activeSteps, this.printer)
     const streams = generateTypesFromStreams(this.streams)
-    const typesString = generateTypesString(types, streams)
+    const typesString = generateTypesString(types, streams, this.streamAuthContextType)
     fs.writeFileSync(path.join(this.baseDir, 'types.d.ts'), typesString)
   }
 
@@ -120,6 +136,10 @@ export class LockedData {
 
   listStreams(): Stream[] {
     return Object.values(this.streams)
+  }
+
+  getStreamByName(streamName: string): Stream | undefined {
+    return this.streams[streamName]
   }
 
   findStream(path: string): Stream | undefined {

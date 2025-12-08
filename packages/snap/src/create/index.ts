@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import type { CliContext } from '../cloud/config-utils'
+import pc from 'picocolors'
+import type { CliContext, Message } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
 import { pluginDependencies } from '../plugins/plugin-dependencies'
@@ -11,13 +12,8 @@ import { pullRules } from './pull-rules'
 import { setupTemplate } from './setup-template'
 import { checkIfDirectoryExists, checkIfFileExists } from './utils'
 
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
-
 const installRequiredDependencies = async (packageManager: string, rootDir: string, context: CliContext) => {
-  context.log('installing-dependencies', (message) => message.tag('info').append('Installing dependencies...'))
+  context.log('installing-dependencies', (message: Message) => message.tag('info').append('Installing dependencies...'))
 
   const installCommand = {
     npm: 'npm install --save',
@@ -25,9 +21,12 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     pnpm: 'pnpm add',
   }[packageManager]
 
-  const dependencies = [`motia@${version}`, 'zod@3.24.4', ...pluginDependencies.map((dep) => `${dep}@${version}`)].join(
-    ' ',
-  )
+  const dependencies = [
+    `motia@${version}`,
+    'zod@4.1.12',
+    `@motiadev/adapter-bullmq-events@${version}`,
+    ...pluginDependencies.map((dep: string) => `${dep}@${version}`),
+  ].join(' ')
 
   const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@19.1.1'].join(' ')
 
@@ -35,7 +34,7 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     await executeCommand(`${installCommand} ${dependencies}`, rootDir)
     await executeCommand(`${installCommand} -D ${devDependencies}`, rootDir)
 
-    context.log('dependencies-installed', (message) => message.tag('success').append('Dependencies installed'))
+    context.log('dependencies-installed', (message: Message) => message.tag('success').append('Dependencies installed'))
   } catch (error) {
     console.error('❌ Failed to install dependencies:', error)
   }
@@ -46,12 +45,12 @@ const preparePackageManager = async (rootDir: string, context: CliContext) => {
   const detectedPackageManager = getPackageManager(rootDir)
 
   if (detectedPackageManager !== 'unknown') {
-    context.log('package-manager-detected', (message) =>
+    context.log('package-manager-detected', (message: Message) =>
       message.tag('info').append('Detected package manager').append(detectedPackageManager, 'gray'),
     )
     packageManager = detectedPackageManager
   } else {
-    context.log('package-manager-using-default', (message) =>
+    context.log('package-manager-using-default', (message: Message) =>
       message.tag('info').append('Using default package manager').append(packageManager, 'gray'),
     )
   }
@@ -63,7 +62,7 @@ const installNodeDependencies = async (rootDir: string, context: CliContext) => 
   const packageManager = await preparePackageManager(rootDir, context)
 
   await installRequiredDependencies(packageManager, rootDir, context).catch((error: unknown) => {
-    context.log('failed-to-install-dependencies', (message) =>
+    context.log('failed-to-install-dependencies', (message: Message) =>
       message.tag('failed').append('Failed to install dependencies'),
     )
     console.error(error)
@@ -84,14 +83,14 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   console.log(
     '\n\n' +
       `
-         _____   ______  ______   ______     
- /'\\_/\`\\/\\  __\`\\/\\__  _\\/\\__  _\\ /\\  _  \\    
-/\\      \\ \\ \\/\\ \\/_/\\ \\/\\/_/\\ \\/ \\ \\ \\L\\ \\   
-\\ \\ \\__\\ \\ \\ \\ \\ \\ \\ \\ \\   \\ \\ \\  \\ \\  __ \\  
- \\ \\ \\_/\\ \\ \\ \\_\\ \\ \\ \\ \\   \\_\\ \\__\\ \\ \\/\\ \\ 
-  \\ \\_\\\\ \\_\\ \\_____\\ \\ \\_\\  /\\_____\\\\ \\_\\ \\_\\
-   \\/_/ \\/_/\\/_____/  \\/_/  \\/_____/ \\/_/\\/_/
-      ` +
+           _____   ______  ______   ______
+   /'\\_/\`\\/\\  __\`\\/\\__  _\\/\\__  _\\ /\\  _  \\
+  /\\      \\ \\ \\/\\ \\/_/\\ \\/\\/_/\\ \\/ \\ \\ \\L\\ \\
+  \\ \\ \\__\\ \\ \\ \\ \\ \\ \\ \\ \\   \\ \\ \\  \\ \\  __ \\
+   \\ \\ \\_/\\ \\ \\ \\_\\ \\ \\ \\ \\   \\_\\ \\__\\ \\ \\/\\ \\
+    \\ \\_\\\\ \\_\\ \\_____\\ \\ \\_\\  /\\_____\\\\ \\_\\ \\_\\
+     \\/_/ \\/_/\\/_____/  \\/_/  \\/_____/ \\/_/\\/_/
+        ` +
       '\n\n',
   )
 
@@ -101,11 +100,11 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
 
   if (!isCurrentDir && !checkIfDirectoryExists(rootDir)) {
     fs.mkdirSync(path.join(rootDir))
-    context.log('directory-created', (message) =>
+    context.log('directory-created', (message: Message) =>
       message.tag('success').append('Directory created ').append(projectName, 'gray'),
     )
   } else {
-    context.log('directory-using', (message) => message.tag('info').append('Using current directory'))
+    context.log('directory-using', (message: Message) => message.tag('info').append('Using current directory'))
   }
 
   // Plugin template handles package.json differently (via template)
@@ -118,9 +117,11 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     const packageJsonContent = {
       name: finalProjectName,
       description: '',
+      type: 'module',
       scripts: {
         postinstall: 'motia install',
         dev: 'motia dev',
+        start: 'motia start',
         'generate-types': 'motia generate-types',
         build: 'motia build',
         clean: 'rm -rf dist node_modules python_modules .motia .mermaid',
@@ -131,7 +132,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
 
     fs.writeFileSync(path.join(rootDir, 'package.json'), JSON.stringify(packageJsonContent, null, 2))
 
-    context.log('package-json-created', (message) =>
+    context.log('package-json-created', (message: Message) =>
       message.tag('success').append('File').append('package.json', 'cyan').append('has been created.'),
     )
   } else if (!isPluginTemplate) {
@@ -147,13 +148,13 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     } else {
       packageJson.scripts.olddev = packageJson.scripts.dev
       packageJson.scripts.dev = 'motia dev'
-      context.log('dev-command-already-exists', (message) =>
+      context.log('dev-command-already-exists', (message: Message) =>
         message.tag('warning').append('dev command already exists in package.json'),
       )
     }
 
     fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-    context.log('dev-command-updated', (message) =>
+    context.log('dev-command-updated', (message: Message) =>
       message
         .tag('success')
         .append('Updated')
@@ -169,7 +170,9 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
       compilerOptions: {
         target: 'ES2020',
         module: 'ESNext',
-        moduleResolution: 'Node',
+        moduleResolution: 'bundler',
+        allowImportingTsExtensions: true,
+        noEmit: true,
         esModuleInterop: true,
         strict: true,
         skipLibCheck: true,
@@ -181,12 +184,12 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
         baseUrl: '.',
         jsx: 'react-jsx',
       },
-      include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', 'types.d.ts'],
+      include: ['**/*.ts', 'motia.config.ts', '**/*.tsx', 'types.d.ts', '**/*.jsx'],
       exclude: ['node_modules', 'dist', 'tests'],
     }
 
     fs.writeFileSync(path.join(rootDir, 'tsconfig.json'), JSON.stringify(tsconfigContent, null, 2))
-    context.log('tsconfig-json-created', (message) =>
+    context.log('tsconfig-json-created', (message: Message) =>
       message.tag('success').append('File').append('tsconfig.json', 'cyan').append('has been created.'),
     )
   }
@@ -205,7 +208,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     ].join('\n')
 
     fs.writeFileSync(path.join(rootDir, '.gitignore'), gitignoreContent)
-    context.log('gitignore-created', (message) =>
+    context.log('gitignore-created', (message: Message) =>
       message.tag('success').append('File').append('.gitignore', 'cyan').append('has been created.'),
     )
   }
@@ -223,7 +226,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
 
-    if (template.includes('python')) {
+    if (template.includes('python') || template.includes('multilang')) {
       await pythonInstall({ baseDir: rootDir })
     }
 
@@ -233,25 +236,24 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     packageManager = await preparePackageManager(rootDir, context)
   }
 
-  context.log('project-setup-completed', (message) =>
-    message.tag('success').append('All set! Your project is ready to go.'),
-  )
+  const projectDirName = path.basename(rootDir)
+  const devCommand = `${packageManager} run dev`
+  const port = 3000
+  const cdCommand = isCurrentDir ? '' : `${pc.cyan(`cd ${projectDirName}`)}\n  `
 
-  context.log('project-location', (message) =>
-    message
-      .tag('success')
-      .append('Created at')
-      .append(`./${path.basename(rootDir)}`, 'cyan')
-      .append('- happy coding!'),
+  context.log('success-blank', (message) => message.text(''))
+  context.log('success-header', (message) =>
+    message.text(`${pc.green('✨')} ${pc.bold('All set! Your project is ready to go.')}`),
   )
-
-  context.log('starting-development-server-command', (message) =>
-    message
-      .tag('info')
-      .append('Next steps:')
-      .append(`cd ${path.basename(rootDir)}`, 'gray')
-      .append('then run', 'dark')
-      .append(`${packageManager} run dev`, 'gray')
-      .append('to start the development server.', 'dark'),
-  )
+  context.log('success-blank-2', (message) => message.text(''))
+  context.log('success-get-started', (message) => message.text('Get started:'))
+  context.log('success-blank-3', (message) => message.text(''))
+  context.log('success-commands', (message) => message.text(`  ${cdCommand}${pc.cyan(devCommand)}`))
+  context.log('success-blank-4', (message) => message.text(''))
+  context.log('success-open', (message) => message.text(`Then open ${pc.cyan(`http://localhost:${port}`)}`))
+  context.log('success-blank-5', (message: Message) => message.text(''))
+  context.log('success-docs', (message) => message.text(`Docs: ${pc.cyan('https://www.motia.dev/docs')}`))
+  context.log('success-blank-6', (message) => message.text(''))
+  context.log('success-signoff', (message) => message.text('Happy coding! 🚀'))
+  context.log('success-blank-7', (message) => message.text(''))
 }

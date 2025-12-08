@@ -15,8 +15,8 @@ async function globalSetup() {
       rmSync(TEST_PROJECT_PATH, { recursive: true, force: true })
     }
 
-    const template = process.env.MOTIA_TEST_TEMPLATE || 'nodejs'
-    const cliPath = process.env.MOTIA_CLI_PATH || path.join(ROOT_PATH, 'packages/snap/dist/cjs/cli.js')
+    const template = process.env.MOTIA_TEST_TEMPLATE || 'motia-tutorial-typescript'
+    const cliPath = process.env.MOTIA_CLI_PATH || path.join(ROOT_PATH, 'packages/snap/dist/cli.mjs')
 
     if (!existsSync(cliPath)) {
       throw new Error(`Built CLI not found at ${cliPath}`)
@@ -27,7 +27,7 @@ async function globalSetup() {
     const createCommand = `node ${cliPath} create  ${TEST_PROJECT_NAME} -t ${template}`
 
     execSync(createCommand, {
-      stdio: 'pipe',
+      stdio: 'inherit',
       cwd: path.join(ROOT_PATH, 'packages'),
     })
 
@@ -36,15 +36,18 @@ async function globalSetup() {
     const packageJsonPath = path.join(TEST_PROJECT_PATH, 'package.json')
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
 
-    // Update dependencies to use workspace references
-    if (packageJson.dependencies?.motia) {
-      packageJson.dependencies['motia'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/workbench'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/core'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-logs'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-states'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-endpoint'] = 'workspace:*'
-      packageJson.dependencies['@motiadev/plugin-observability'] = 'workspace:*'
+    packageJson.dependencies = {
+      ...(packageJson.dependencies || {}),
+      motia: 'workspace:*',
+      '@motiadev/workbench': 'workspace:*',
+      '@motiadev/core': 'workspace:*',
+      '@motiadev/plugin-logs': 'workspace:*',
+      '@motiadev/plugin-states': 'workspace:*',
+      '@motiadev/plugin-endpoint': 'workspace:*',
+      '@motiadev/plugin-observability': 'workspace:*',
+      '@motiadev/plugin-bullmq': 'workspace:*',
+      '@motiadev/adapter-bullmq-events': 'workspace:*',
+      zod: '^4.1.12',
     }
 
     // Temporarily remove postinstall script to avoid running 'motia install' before dependencies are linked
@@ -58,8 +61,8 @@ async function globalSetup() {
 
     console.log('📦 Installing dependencies with pnpm...')
     // execSync('pnpm build', { cwd: ROOT_PATH, stdio: 'pipe' })
-    execSync('pnpm install', {
-      cwd: ROOT_PATH,
+    execSync(`pnpm install`, {
+      cwd: TEST_PROJECT_PATH,
       stdio: 'inherit',
       env: {
         ...process.env,
@@ -88,9 +91,9 @@ async function globalSetup() {
     const serverProcess = exec('pnpm run dev', {
       cwd: TEST_PROJECT_PATH,
       env: {
+        ...process.env,
         MOTIA_ANALYTICS_DISABLED: 'true',
         PATH: `${path.dirname(cliPath)}:${process.env.PATH}`,
-        ...process.env,
       },
     })
 

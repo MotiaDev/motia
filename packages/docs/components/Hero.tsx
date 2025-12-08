@@ -19,14 +19,15 @@ export default function Hero() {
       <div className="relative z-2 max-w-full pt-[240px] pl-[16px] max-lg:p-[24px] max-lg:pt-[100px] max-lg:pb-0">
         {/* Title and Subtitle */}
         <SectionAppearAnimation className="flex w-[590px] flex-col gap-[20px] max-lg:max-w-full">
-          <Title>Polyglot backend framework that unifies API, Background Jobs & AI Agents</Title>
+          <Title>Build production-grade backends with a single primitive</Title>
 
           <p className="w-[520px] max-w-full text-[17px] font-light text-white opacity-80">
-            Motia is the single backend runtime where API endpoints, background jobs, scheduled tasks, and AI agents{' '}
-            <span className="font-bold">written in any language</span>, are all unified in workflows, with full
-            observability, scalability and resiliency. Build, automate, and evolve all on one platform with{' '}
-            <span className="font-bold">one command line</span> to quickly <span className="font-bold">deploy</span> to
-            production.
+            Modern backends shouldn&apos;t require juggling frameworks, queues, and services. Motia is a{' '}
+            <span className="font-bold">unified framework</span> that combines{' '}
+            <span className="font-bold">API endpoints, background jobs, durable workflows, AI agents, streaming, and observability</span>{' '}
+            with a single core primitive. All{' '}
+            <span className="font-bold">written in any language</span>, with built-in{' '}
+            <span className="font-bold">state management</span>.
           </p>
         </SectionAppearAnimation>
         {/* CTAs */}

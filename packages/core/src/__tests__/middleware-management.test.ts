@@ -1,20 +1,28 @@
+import { jest } from '@jest/globals'
 import path from 'path'
 import request from 'supertest'
-import { InMemoryCronAdapter, InMemoryQueueEventAdapter } from '../adapters/defaults'
-import { MemoryStateAdapter } from '../adapters/defaults/state/memory-state-adapter'
-import { MemoryStreamAdapter } from '../adapters/defaults/stream/memory-stream-adapter'
+import { fileURLToPath } from 'url'
 import type { LockedData } from '../locked-data'
-import { Printer } from '../printer'
-import { createServer } from '../server'
 import type { ApiMiddleware, ApiRouteConfig, Step } from '../types'
+import { createMockRedisClient } from './test-helpers/redis-client'
 
-// Mock callStepFile to prevent actual file execution
-jest.mock('../call-step-file', () => ({
-  callStepFile: jest.fn().mockImplementation(async () => ({
-    status: 200,
-    body: { success: true, middlewareApplied: true },
-  })),
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Mock callStepFile
+const mockCallStepFile = jest.fn().mockImplementation(async () => ({
+  status: 200,
+  body: { success: true, middlewareApplied: true },
 }))
+
+jest.unstable_mockModule('../call-step-file', () => ({
+  callStepFile: mockCallStepFile,
+}))
+
+const { createServer } = await import('../server')
+const { InMemoryCronAdapter, InMemoryQueueEventAdapter } = await import('../adapters/defaults')
+const { MemoryStateAdapter } = await import('../adapters/defaults/state/memory-state-adapter')
+const { MemoryStreamAdapter } = await import('../adapters/defaults/stream/memory-stream-adapter')
+const { Printer } = await import('../printer')
 
 describe('Middleware Management', () => {
   let server: ReturnType<typeof createServer>
@@ -34,6 +42,7 @@ describe('Middleware Management', () => {
   beforeEach(async () => {
     // Set test mode environment variable
     process.env._MOTIA_TEST_MODE = 'true'
+    mockCallStepFile.mockClear()
 
     const baseDir = path.resolve(__dirname)
     const printer = new Printer(baseDir)
@@ -45,7 +54,12 @@ describe('Middleware Management', () => {
       onStep: () => {},
       applyStreamWrapper: () => {},
       createStream: () => () => new MemoryStreamAdapter('test-stream'),
+      setStreamAuthConfig: () => {},
+      getStreamAuthConfig: () => undefined,
+      getStreamByName: () => undefined,
+      baseDir,
       on: () => {},
+      redisClient: createMockRedisClient(),
     } as unknown as LockedData
 
     const state = new MemoryStateAdapter()
@@ -58,10 +72,18 @@ describe('Middleware Management', () => {
   })
 
   afterEach(async () => {
-    await server.close()
+    if (server) {
+      await server.close()
+    }
   })
 
   it('should apply middleware when adding a route', async () => {
+    // Reset default implementation
+    mockCallStepFile.mockImplementation(async () => ({
+      status: 200,
+      body: { success: true, middlewareApplied: true },
+    }))
+
     const step: Step<ApiRouteConfig> = {
       filePath: path.join(__dirname, 'steps', 'api-step.ts'),
       version: '1.0.0',
@@ -107,10 +129,8 @@ describe('Middleware Management', () => {
   })
 
   it('should update middleware when re-adding a route', async () => {
-    const callStepFileModule = require('../call-step-file')
-
     // First, set up normal behavior
-    callStepFileModule.callStepFile.mockImplementation(async () => ({
+    mockCallStepFile.mockImplementation(async () => ({
       status: 200,
       body: { success: true },
     }))
@@ -132,7 +152,7 @@ describe('Middleware Management', () => {
     server.removeRoute(step)
 
     // Change implementation to simulate the blocking middleware
-    callStepFileModule.callStepFile.mockImplementation(async () => ({
+    mockCallStepFile.mockImplementation(async () => ({
       status: 403,
       body: { error: 'Access denied by middleware' },
     }))

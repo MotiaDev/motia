@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 
+import 'dotenv/config'
+
 import { program } from 'commander'
-import './cloud'
-import { handler } from './cloud/config-utils'
+import { type CliContext, handler } from './cloud/config-utils'
+import './cloud/index'
+import type { RedisClientType } from 'redis'
+import { loadMotiaConfig } from './load-motia-config'
+import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
 import { wrapAction } from './utils/analytics'
 import { version } from './version'
 
 const defaultPort = 3000
 const defaultHost = '0.0.0.0'
-
-require('dotenv/config')
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
 
 program
   .command('version')
@@ -31,8 +30,8 @@ program
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
   .action((projectName, options) => {
     const mergedArgs = { ...options, name: projectName }
-    return handler(async (arg, context) => {
-      const { createInteractive } = require('./create/interactive')
+    return handler(async (arg: any, context: CliContext) => {
+      const { createInteractive } = await import('./create/interactive')
       await createInteractive(
         {
           name: arg.name,
@@ -50,8 +49,8 @@ program
   .description('Install essential AI development guides (AGENTS.md, CLAUDE.md) and optional Cursor IDE rules')
   .option('-f, --force', 'Overwrite existing files')
   .action(
-    handler(async (arg, context) => {
-      const { pullRules } = require('./create/pull-rules')
+    handler(async (arg: any, context: CliContext) => {
+      const { pullRules } = await import('./create/pull-rules')
       await pullRules({ force: arg.force, rootDir: process.cwd() }, context)
     }),
   )
@@ -61,7 +60,7 @@ program
   .description('Generate types.d.ts file for your project')
   .action(
     wrapAction(async () => {
-      const { generateTypes } = require('./generate-types')
+      const { generateTypes } = await import('./generate-types')
       await generateTypes(process.cwd())
       process.exit(0)
     }),
@@ -72,8 +71,8 @@ program
   .description('Sets up Python virtual environment and install dependencies')
   .option('-v, --verbose', 'Enable verbose logging')
   .action(
-    wrapAction(async (options) => {
-      const { install } = require('./install')
+    wrapAction(async (options: any) => {
+      const { install } = await import('./install')
       await install({ isVerbose: options.verbose })
     }),
   )
@@ -88,7 +87,7 @@ program
   .option('-m, --mermaid', 'Enable mermaid diagram generation')
   .option('--motia-dir <path>', 'Path where .motia folder will be created')
   .action(
-    wrapAction(async (arg) => {
+    wrapAction(async (arg: any) => {
       if (arg.debug) {
         console.log('🔍 Debug logging enabled')
         process.env.LOG_LEVEL = 'debug'
@@ -96,7 +95,7 @@ program
 
       const port = arg.port ? parseInt(arg.port) : defaultPort
       const host = arg.host ? arg.host : defaultHost
-      const { dev } = require('./dev')
+      const { dev } = await import('./dev')
       await dev(port, host, arg.disableVerbose, arg.mermaid, arg.motiaDir)
     }),
   )
@@ -110,7 +109,7 @@ program
   .option('-d, --debug', 'Enable debug logging')
   .option('--motia-dir <path>', 'Path where .motia folder will be created')
   .action(
-    wrapAction(async (arg) => {
+    wrapAction(async (arg: any) => {
       if (arg.debug) {
         console.log('🔍 Debug logging enabled')
         process.env.LOG_LEVEL = 'debug'
@@ -118,7 +117,7 @@ program
 
       const port = arg.port ? parseInt(arg.port) : defaultPort
       const host = arg.host ? arg.host : defaultHost
-      const { start } = require('./start')
+      const { start } = await import('./start')
       await start(port, host, arg.disableVerbose, arg.motiaDir)
     }),
   )
@@ -130,7 +129,7 @@ program
   .requiredOption('--message <message>', 'Event payload as JSON string')
   .option('-p, --port <number>', 'Port number (default: 3000)')
   .action(
-    wrapAction(async (options) => {
+    wrapAction(async (options: any) => {
       const port = options.port || 3000
       const url = `http://localhost:${port}/emit`
 
@@ -159,9 +158,9 @@ generate
   .description('Create a new step with interactive prompts')
   .option('-d, --dir <step file path>', 'The path relative to the steps directory, used to create the step file')
   .action(
-    wrapAction(async (arg) => {
-      const { createStep } = require('./create-step')
-      await createStep({
+    wrapAction(async (arg: any) => {
+      const { createStep } = await import('./create-step/index')
+      return createStep({
         stepFilePath: arg.dir,
       })
     }),
@@ -174,14 +173,26 @@ generate
   .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
   .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
   .action(
-    wrapAction(async (options) => {
-      const { generateLockedData } = require('./generate-locked-data')
-      const { generateOpenApi } = require('./openapi/generate')
+    wrapAction(async (options: any) => {
+      const { generateLockedData } = await import('./generate-locked-data')
+      const { generateOpenApi } = await import('./openapi/generate')
+      const { MemoryStreamAdapterManager } = await import('@motiadev/core')
 
-      const lockedData = await generateLockedData({ projectDir: process.cwd() })
+      const baseDir = process.cwd()
+      const appConfig = await loadMotiaConfig(baseDir)
+      const redisClient: RedisClientType = await instanceRedisMemoryServer(baseDir, true)
+
+      const lockedData = await generateLockedData({
+        projectDir: baseDir,
+        streamAdapter: new MemoryStreamAdapterManager(),
+        streamAuth: appConfig.streamAuth,
+        redisClient,
+        printerType: 'disabled',
+      })
       const apiSteps = lockedData.apiSteps()
 
       generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)
+      await stopRedisMemoryServer()
       process.exit(0)
     }),
   )
@@ -193,7 +204,7 @@ docker
   .description('Setup a motia-docker for your project')
   .action(
     wrapAction(async () => {
-      const { setup } = require('./docker/setup')
+      const { setup } = await import('./docker/setup')
       await setup()
       process.exit(0)
     }),
@@ -206,8 +217,8 @@ docker
   .option('-n, --project-name <project name>', 'The name for your project')
   .option('-s, --skip-build', 'Skip docker build')
   .action(
-    wrapAction(async (arg) => {
-      const { run } = require('./docker/run')
+    wrapAction(async (arg: any) => {
+      const { run } = await import('./docker/run')
       await run(arg.port, arg.projectName, arg.skipBuild)
       process.exit(0)
     }),
@@ -218,8 +229,8 @@ docker
   .description('Build your project in a docker container')
   .option('-n, --project-name <project name>', 'The name for your project')
   .action(
-    wrapAction(async (arg) => {
-      const { build } = require('./docker/build')
+    wrapAction(async (arg: any) => {
+      const { build } = await import('./docker/build')
       await build(arg.projectName)
       process.exit(0)
     }),

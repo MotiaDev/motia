@@ -99,9 +99,9 @@ Now follow these instructions:
 `
 
     // Add general details, adjust with project-specific info
-    llmsTxtContent += `# Motia\n\n> Motia is a code-first framework designed to empower developers to build robust, scalable, and observable event-driven workflows.  It supports JavaScript/TypeScript, Python, and Ruby.\n`
+    llmsTxtContent += `# Motia\n\n> Build production-grade backends with a single primitive. Motia unifies APIs, background jobs, queues, workflows, and AI agents in one system with built-in state management, streaming, and observability. It supports JavaScript/TypeScript, Python, and Ruby.\n`
 
-    llmsTxtContent += `\n\nImportant notes:\n\n-   Motia's Workbench provides a visual design, event monitoring and testing capabilities\n-   Mix and match workflow steps written in different languages within the same flow.\n`
+    llmsTxtContent += `\n\nImportant notes:\n\n-   Motia's Workbench provides a visual design, event monitoring and testing capabilities\n-   Mix and match workflow steps written in different languages within the same flow.\n-   Motia provides: API endpoints, background jobs, durable workflows, agentic AI support, state management, streaming, logging, and observability - all in one unified runtime.\n`
 
     //File Lists
     llmsTxtContent += `\n## Documentation\n`

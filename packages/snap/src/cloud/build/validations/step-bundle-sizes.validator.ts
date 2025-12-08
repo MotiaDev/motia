@@ -1,5 +1,5 @@
-import colors from 'colors'
 import path from 'path'
+import pc from 'picocolors'
 import { BUNDLE_SIZE_LIMITS, BYTES_TO_MB } from './constants'
 import type { Validator } from './types'
 
@@ -22,9 +22,9 @@ export const stepBundleSizesValidator: Validator = (builder) => {
           relativePath,
           message: [
             `Step bundle size exceeds ${BUNDLE_SIZE_LIMITS.STEP_MAX_MB}MB limit (uncompressed).`,
-            `  ${colors.red('➜')} Uncompressed size: ${colors.magenta(sizeMB + 'MB')}`,
-            `  ${colors.red('➜')} Compressed size: ${colors.cyan(compressedSizeMB + 'MB')}`,
-            `  ${colors.red('➜')} Maximum allowed: ${colors.blue(BUNDLE_SIZE_LIMITS.STEP_MAX_MB + 'MB')}`,
+            `  ${pc.red('➜')} Uncompressed size: ${pc.magenta(sizeMB + 'MB')}`,
+            `  ${pc.red('➜')} Compressed size: ${pc.cyan(compressedSizeMB + 'MB')}`,
+            `  ${pc.red('➜')} Maximum allowed: ${pc.blue(BUNDLE_SIZE_LIMITS.STEP_MAX_MB + 'MB')}`,
           ].join('\n'),
           step,
         })

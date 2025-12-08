@@ -38,11 +38,12 @@ Motia provides several project templates to help you get started quickly:
 
 | Template | Description | Use Case |
 |----------|-------------|----------|
-| `starter-typescript` | Starter (TypeScript) | Minimal TypeScript project with basic examples |
-| `starter-javascript` | Starter (JavaScript) | Minimal JavaScript project with basic examples |
-| `starter-python` | Starter (Python) | Minimal Python project with basic examples |
-| `motia-tutorial-typescript` | Tutorial (TypeScript) | Interactive tutorial project in TypeScript |
-| `motia-tutorial-python` | Tutorial (Python) | Interactive tutorial project in Python |
+| `motia-tutorial-typescript` | Tutorial (TypeScript only) | Interactive tutorial project in TypeScript |
+| `motia-tutorial-python` | Tutorial (Python only) | Interactive tutorial project in Python |
+| `starter-multilang` | Starter (All languages; TS/JS + Python) | Polyglot project with TypeScript API, Python event processing, and JavaScript logging |
+| `starter-typescript` | Starter (TypeScript only) | Minimal TypeScript project with basic examples |
+| `starter-javascript` | Starter (JavaScript only) | Minimal JavaScript project with basic examples |
+| `starter-python` | Starter (Python only) | Minimal Python project with basic examples |
 
 **Examples:**
 
@@ -110,7 +111,7 @@ The deployment process:
 
 ### `dev`
 
-Start the development server.
+Start the development server with hot reload and Workbench.
 
 ```bash
 npx motia dev [options]
@@ -121,6 +122,36 @@ Options:
 - `-p, --port <port>`: The port to run the server on (default: 3000).
 - `-H, --host [host]`: The host address for the server (default: localhost).
 - `-d, --debug`: Enable debug logging.
+- `-m, --mermaid`: Enable Mermaid diagram generation.
+- `--motia-dir <path>`: Custom path for `.motia` folder.
+
+### `start`
+
+Start the production server without hot reload. Workbench is included by default (can be disabled via `MOTIA_DOCKER_DISABLE_WORKBENCH` environment variable).
+
+```bash
+npx motia start [options]
+```
+
+Options:
+
+- `-p, --port <port>`: The port to run the server on (default: 3000).
+- `-H, --host [host]`: The host address for the server (default: localhost).
+- `-d, --debug`: Enable debug logging.
+- `--motia-dir <path>`: Custom path for `.motia` folder.
+
+Example:
+
+```bash
+# Start production server on port 8080
+npx motia start --port 8080
+
+# Start on a specific host
+npx motia start --host 0.0.0.0 --port 3000
+
+# Start without Workbench
+MOTIA_DOCKER_DISABLE_WORKBENCH=true npx motia start
+```
 
 ### `get-config`
 

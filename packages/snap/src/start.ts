@@ -1,23 +1,17 @@
-import {
-  createServer,
-  createStateAdapter,
-  DefaultCronAdapter,
-  DefaultQueueEventAdapter,
-  FileStreamAdapterManager,
-  type MotiaPlugin,
-} from '@motiadev/core'
+import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
+import { createServer, type MotiaPlugin } from '@motiadev/core'
 import path from 'path'
+import type { RedisClientType } from 'redis'
 import { workbenchBase } from './constants'
-import { generateLockedData, getStepFiles } from './generate-locked-data'
+import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
-import { processPlugins } from './plugins'
+import { processPlugins } from './plugins/index'
+import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
-
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
 
 export const start = async (
   port: number,
@@ -28,7 +22,7 @@ export const start = async (
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
 
-  const stepFiles = getStepFiles(baseDir)
+  const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
   if (hasPythonFiles) {
@@ -40,24 +34,37 @@ export const start = async (
 
   const dotMotia = path.join(baseDir, motiaFileStoragePath)
   const appConfig = await loadMotiaConfig(baseDir)
+
+  const redisClient: RedisClientType = await instanceRedisMemoryServer(dotMotia)
+
   const adapters = {
-    eventAdapter: appConfig.adapters?.events || new DefaultQueueEventAdapter(),
-    cronAdapter: appConfig.adapters?.cron || new DefaultCronAdapter(),
-    streamAdapter: appConfig.adapters?.streams || new FileStreamAdapterManager(baseDir),
+    eventAdapter:
+      appConfig.adapters?.events ||
+      new BullMQEventAdapter({
+        connection: {
+          host: (redisClient.options.socket as { host?: string })?.host || 'localhost',
+          port: (redisClient.options.socket as { port?: number })?.port || 6379,
+        },
+      }),
+    cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),
+    streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),
   }
   const lockedData = await generateLockedData({
     projectDir: baseDir,
     streamAdapter: adapters.streamAdapter,
+    redisClient,
+    streamAuth: appConfig.streamAuth,
   })
-  const state = appConfig.adapters?.state || createStateAdapter({ adapter: 'default', filePath: dotMotia })
+
+  const state = appConfig.adapters?.state || new RedisStateAdapter(redisClient)
 
   const config = { isVerbose, isDev: false, version }
 
-  const motiaServer = createServer(lockedData, state, config, adapters)
+  const motiaServer = createServer(lockedData, state, config, adapters, appConfig.app)
   const plugins: MotiaPlugin[] = await processPlugins(motiaServer)
 
   if (!process.env.MOTIA_DOCKER_DISABLE_WORKBENCH) {
-    const { applyMiddleware } = require('@motiadev/workbench/dist/middleware')
+    const { applyMiddleware } = await import('@motiadev/workbench/middleware')
     await applyMiddleware({
       app: motiaServer.app,
       port,
@@ -70,14 +77,15 @@ export const start = async (
   console.log('🚀 Server ready and listening on port', port)
   console.log(`🔗 Open http://${hostname}:${port}${workbenchBase} to open workbench 🛠️`)
 
-  // 6) Gracefully shut down on SIGTERM
   process.on('SIGTERM', async () => {
     motiaServer.server.close()
+    await stopRedisMemoryServer()
     process.exit(0)
   })
 
   process.on('SIGINT', async () => {
     motiaServer.server.close()
+    await stopRedisMemoryServer()
     process.exit(0)
   })
 }

@@ -1,0 +1,359 @@
+---
+description: Application configuration for Motia projects
+globs: motia.config.ts,motia.config.js
+alwaysApply: false
+---
+# Motia Configuration Guide
+
+The `motia.config.ts` file is the central configuration file for your Motia application. It allows you to customize plugins, adapters, stream authentication, and Express app settings.
+
+## Creating the Configuration File
+
+Create a `motia.config.ts` file in the root of your project:
+
+```typescript
+import { config } from 'motia'
+
+export default config({
+  plugins: [],
+  adapters: {},
+  streamAuth: undefined,
+  app: undefined,
+})
+```
+
+## Type Definitions
+
+```typescript
+import type { Express } from 'express'
+
+export type Config = {
+  /**
+   * Optional: Callback to customize the Express app instance.
+   * Use this to add custom middleware, routes, or configurations.
+   */
+  app?: (app: Express) => void
+
+  /**
+   * Optional: Array of plugin builders to extend Motia functionality.
+   * Plugins can add workbench UI components and custom steps.
+   */
+  plugins?: MotiaPluginBuilder[]
+
+  /**
+   * Optional: Custom adapters for state, events, cron, and streams.
+   * Use this for horizontal scaling or custom storage backends.
+   */
+  adapters?: AdapterConfig
+
+  /**
+   * Optional: Stream authentication configuration.
+   * Use this to secure real-time stream subscriptions.
+   */
+  streamAuth?: StreamAuthConfig
+}
+
+export type AdapterConfig = {
+  state?: StateAdapter
+  streams?: StreamAdapterManager
+  events?: EventAdapter
+  cron?: CronAdapter
+}
+
+export type StreamAuthRequest = {
+  headers: Record<string, string | string[] | undefined>
+  url?: string
+}
+
+export type StreamAuthConfig<TSchema extends z.ZodTypeAny = z.ZodTypeAny> = {
+  /**
+   * JSON Schema defining the shape of the auth context.
+   * Use z.toJSONSchema() to convert a Zod schema.
+   */
+  contextSchema: JsonSchema
+
+  /**
+   * Authentication callback that receives the request and returns
+   * the auth context or null if authentication fails.
+   */
+  authenticate: (request: StreamAuthRequest) => Promise<z.infer<TSchema> | null> | (z.infer<TSchema> | null)
+}
+```
+
+## Plugins
+
+Plugins extend Motia functionality by adding workbench UI components and custom steps.
+
+### Plugin Type Definition
+
+```typescript
+export type WorkbenchPlugin = {
+  packageName: string
+  componentName?: string
+  label?: string
+  labelIcon?: string
+  position?: 'bottom' | 'top'
+  cssImports?: string[]
+  props?: Record<string, any>
+}
+
+export type MotiaPlugin = {
+  workbench: WorkbenchPlugin[]
+  dirname?: string
+  steps?: string[]
+}
+
+export type MotiaPluginBuilder = (motia: MotiaPluginContext) => MotiaPlugin
+```
+
+### Using Built-in Plugins
+
+```typescript
+import { config } from 'motia'
+
+const statesPlugin = require('@motiadev/plugin-states/plugin')
+const endpointPlugin = require('@motiadev/plugin-endpoint/plugin')
+const logsPlugin = require('@motiadev/plugin-logs/plugin')
+const observabilityPlugin = require('@motiadev/plugin-observability/plugin')
+
+export default config({
+  plugins: [observabilityPlugin, statesPlugin, endpointPlugin, logsPlugin],
+})
+```
+
+### Creating a Local Plugin
+
+```typescript
+import path from 'node:path'
+import { config, type MotiaPlugin, type MotiaPluginContext } from 'motia'
+
+function myLocalPlugin(motia: MotiaPluginContext): MotiaPlugin {
+  motia.registerApi(
+    {
+      method: 'GET',
+      path: '/__motia/my-plugin',
+    },
+    async (_req, _ctx) => {
+      return {
+        status: 200,
+        body: { message: 'Hello from my plugin!' },
+      }
+    },
+  )
+
+  return {
+    dirname: path.join(__dirname, 'plugins'),
+    steps: ['**/*.step.ts'],
+    workbench: [
+      {
+        componentName: 'MyComponent',
+        packageName: '~/plugins/components/my-component',
+        label: 'My Plugin',
+        position: 'top',
+        labelIcon: 'toy-brick',
+      },
+    ],
+  }
+}
+
+export default config({
+  plugins: [myLocalPlugin],
+})
+```
+
+## Adapters
+
+Adapters allow you to customize the underlying infrastructure for state management, event handling, cron jobs, and streams. This is useful for horizontal scaling or using custom storage backends.
+
+### Available Adapter Packages
+
+| Package | Description |
+|---------|-------------|
+| `@motiadev/adapter-redis-state` | Redis-based state management for distributed systems |
+| `@motiadev/adapter-redis-cron` | Redis-based cron scheduling with distributed locking |
+| `@motiadev/adapter-redis-streams` | Redis Streams for real-time data |
+| `@motiadev/adapter-rabbitmq-events` | RabbitMQ for event messaging |
+| `@motiadev/adapter-bullmq-events` | BullMQ for event queue processing |
+
+### Using Custom Adapters
+
+```typescript
+import { config } from 'motia'
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
+
+export default config({
+  adapters: {
+    state: new RedisStateAdapter(
+      { url: process.env.REDIS_URL },
+      { keyPrefix: 'myapp:state:', ttl: 3600 }
+    ),
+    events: new RabbitMQEventAdapter({
+      url: process.env.RABBITMQ_URL!,
+      exchangeType: 'topic',
+      exchangeName: 'motia-events',
+    }),
+    cron: new RedisCronAdapter(
+      { url: process.env.REDIS_URL },
+      { keyPrefix: 'myapp:cron:', lockTTL: 30000 }
+    ),
+  },
+})
+```
+
+## Stream Authentication
+
+Stream authentication secures real-time stream subscriptions by validating client credentials.
+
+### Configuration
+
+```typescript
+import { config, type StreamAuthRequest } from 'motia'
+import { z } from 'zod'
+
+const authContextSchema = z.object({
+  userId: z.string(),
+  permissions: z.array(z.string()).optional(),
+})
+
+export default config({
+  streamAuth: {
+    contextSchema: z.toJSONSchema(authContextSchema),
+    authenticate: async (request: StreamAuthRequest) => {
+      const token = extractToken(request)
+      
+      if (!token) {
+        return null
+      }
+
+      const user = await validateToken(token)
+      if (!user) {
+        throw new Error('Invalid token')
+      }
+
+      return {
+        userId: user.id,
+        permissions: user.permissions,
+      }
+    },
+  },
+})
+
+function extractToken(request: StreamAuthRequest): string | undefined {
+  const protocol = request.headers['sec-websocket-protocol'] as string | undefined
+  if (protocol?.includes('Authorization')) {
+    const [, token] = protocol.split(',')
+    return token?.trim()
+  }
+
+  if (request.url) {
+    try {
+      const url = new URL(request.url)
+      return url.searchParams.get('authToken') ?? undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  return undefined
+}
+```
+
+### Using Auth Context in Streams
+
+Once configured, the auth context is available in the `canAccess` callback of stream configurations:
+
+```typescript
+import { StreamConfig } from 'motia'
+import { z } from 'zod'
+
+export const config: StreamConfig = {
+  name: 'protectedStream',
+  schema: z.object({ data: z.string() }),
+  baseConfig: { storageType: 'default' },
+  canAccess: (subscription, authContext) => {
+    if (!authContext) return false
+    return authContext.permissions?.includes('read:stream')
+  },
+}
+```
+
+## Express App Customization
+
+Use the `app` callback to customize the Express application instance:
+
+```typescript
+import { config } from 'motia'
+import cors from 'cors'
+import helmet from 'helmet'
+
+export default config({
+  app: (app) => {
+    app.use(helmet())
+    app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') }))
+    
+    app.get('/health', (_req, res) => {
+      res.json({ status: 'healthy' })
+    })
+  },
+})
+```
+
+## Complete Example
+
+```typescript
+import path from 'node:path'
+import { config, type MotiaPlugin, type MotiaPluginContext, type StreamAuthRequest } from 'motia'
+import { z } from 'zod'
+
+const statesPlugin = require('@motiadev/plugin-states/plugin')
+const logsPlugin = require('@motiadev/plugin-logs/plugin')
+
+const authContextSchema = z.object({
+  userId: z.string(),
+  role: z.enum(['admin', 'user']).optional(),
+})
+
+type AuthContext = z.infer<typeof authContextSchema>
+
+const tokens: Record<string, AuthContext> = {
+  'admin-token': { userId: 'admin-1', role: 'admin' },
+  'user-token': { userId: 'user-1', role: 'user' },
+}
+
+function extractAuthToken(request: StreamAuthRequest): string | undefined {
+  const protocol = request.headers['sec-websocket-protocol'] as string | undefined
+  if (protocol?.includes('Authorization')) {
+    const [, token] = protocol.split(',')
+    return token?.trim()
+  }
+
+  if (request.url) {
+    try {
+      const url = new URL(request.url)
+      return url.searchParams.get('authToken') ?? undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  return undefined
+}
+
+export default config({
+  plugins: [statesPlugin, logsPlugin],
+  streamAuth: {
+    contextSchema: z.toJSONSchema(authContextSchema),
+    authenticate: async (request: StreamAuthRequest) => {
+      const token = extractAuthToken(request)
+      if (!token) return null
+
+      const context = tokens[token]
+      if (!context) throw new Error(`Invalid token: ${token}`)
+
+      return context
+    },
+  },
+})
+```

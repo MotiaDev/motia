@@ -1,6 +1,5 @@
 import { Stream } from '@motiadev/stream-client-browser'
-import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MotiaStreamContext } from './motia-stream-context'
 
 type Props = React.PropsWithChildren<{
@@ -12,19 +11,21 @@ type Props = React.PropsWithChildren<{
    * <MotiaStreamProvider address="ws://localhost:3000">
    *   <App />
    * </MotiaStreamProvider>
-   */
+   * */
   address: string
+  protocols?: string | string[] | undefined
 }>
 
-export const MotiaStreamProvider: React.FC<Props> = ({ children, address }) => {
+export const MotiaStreamProvider: React.FC<Props> = ({ children, address, protocols }) => {
   const [stream, setStream] = useState<Stream | null>(null)
 
   useEffect(() => {
-    const stream = new Stream(address)
-    setStream(stream)
+    const streamInstance = new Stream(address, { protocols })
+    setStream(streamInstance)
+    return () => streamInstance.close()
+  }, [address, protocols])
 
-    return () => stream.close()
-  }, [address])
+  const contextValue = useMemo(() => ({ stream }), [stream])
 
-  return <MotiaStreamContext.Provider value={{ stream }}>{children}</MotiaStreamContext.Provider>
+  return <MotiaStreamContext.Provider value={contextValue}>{children}</MotiaStreamContext.Provider>
 }

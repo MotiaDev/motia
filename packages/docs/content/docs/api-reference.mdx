@@ -805,7 +805,7 @@ async def handler(req, context):
 ```
 
 **Parameters:**
-- `req` - Dictionary with `body`, `headers`, `pathParams`, `queryParams`
+- `req` - Dictionary with `body`, `headers`, `pathParams`, `queryParams`, `rawBody`
 - `context` - Context object with `emit`, `logger`, `state`, `streams`, `trace_id`
 
 **Returns:** `{"status": int, "body": dict, "headers": dict}`
@@ -1095,6 +1095,9 @@ export const handler: Handlers['GetUser'] = async (req, ctx) => {
   const auth = req.headers.authorization
   const userAgent = req.headers['user-agent']
   
+  // Raw body (unparsed request body as string)
+  const rawBody = req.rawBody
+  
   return { status: 200, body: { userId, name } }
 }
 ```
@@ -1104,6 +1107,7 @@ export const handler: Handlers['GetUser'] = async (req, ctx) => {
 - `queryParams` - Object with query string params (values can be string or array)
 - `body` - Parsed request body (validated against `bodySchema` if defined)
 - `headers` - Object with request headers (values can be string or array)
+- `rawBody` - The raw unparsed request body as a string (same body that was sent but without type enforcement/parsing)
 
 </Tab>
 <Tab value='JavaScript'>
@@ -1124,6 +1128,9 @@ const handler = async (req, ctx) => {
   const auth = req.headers.authorization
   const userAgent = req.headers['user-agent']
   
+  // Raw body (unparsed request body as string)
+  const rawBody = req.rawBody
+  
   return { status: 200, body: { userId, name } }
 }
 ```
@@ -1133,6 +1140,7 @@ const handler = async (req, ctx) => {
 - `queryParams` - Object with query string params (values can be string or array)
 - `body` - Parsed request body (validated against `bodySchema` if defined)
 - `headers` - Object with request headers (values can be string or array)
+- `rawBody` - The raw unparsed request body as a string (same body that was sent but without type enforcement/parsing)
 
 </Tab>
 <Tab value='Python'>
@@ -1155,6 +1163,9 @@ async def handler(req, context):
     auth = req.get("headers", {}).get("authorization")
     user_agent = req.get("headers", {}).get("user-agent")
     
+    # Raw body (unparsed request body as string)
+    raw_body = req.get("rawBody", "")
+    
     return {"status": 200, "body": {"user_id": user_id, "name": name}}
 ```
 
@@ -1163,6 +1174,7 @@ async def handler(req, context):
 - `queryParams` - Dictionary with query params (values can be str or list)
 - `body` - Dictionary with parsed request body
 - `headers` - Dictionary with request headers (values can be str or list)
+- `rawBody` - The raw unparsed request body as a string (same body that was sent but without type enforcement/parsing)
 
 </Tab>
 </Tabs>
@@ -1325,12 +1337,22 @@ Create a new Motia project.
 ```bash
 npx motia create my-app
 npx motia create .  # Use current directory
-npx motia create --template python my-python-app
+npx motia create --template motia-tutorial-python my-python-app
 ```
 
 **Options:**
 - `[name]` - Project name (or `.` for current directory)
-- `-t, --template <name>` - Template to use (`nodejs` or `python`)
+- `-t, --template <name>` - Template to use. Available options:
+
+| Template | Description | Use Case |
+|----------|-------------|----------|
+| `motia-tutorial-typescript` | Tutorial (TypeScript only) | Interactive tutorial project in TypeScript |
+| `motia-tutorial-python` | Tutorial (Python only) | Interactive tutorial project in Python |
+| `starter-multilang` | Starter (All languages; TS/JS + Python) | Polyglot project with TypeScript API, Python event processing, and JavaScript logging |
+| `starter-typescript` | Starter (TypeScript only) | Minimal TypeScript project with basic examples |
+| `starter-javascript` | Starter (JavaScript only) | Minimal JavaScript project with basic examples |
+| `starter-python` | Starter (Python only) | Minimal Python project with basic examples |
+
 - `-c, --cursor` - Add Cursor IDE rules
 
 ---
@@ -1370,7 +1392,7 @@ motia dev --port 4000 --host 0.0.0.0
 
 ### `motia start`
 
-Start production server (no Workbench, no hot reload).
+Start production server without hot reload. Workbench is included by default (can be disabled via `MOTIA_DOCKER_DISABLE_WORKBENCH` environment variable).
 
 ```bash
 motia start

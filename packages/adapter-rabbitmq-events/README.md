@@ -100,5 +100,5 @@ If messages are not being delivered:
 
 ## License
 
-MIT
+[Elastic License 2.0 (ELv2)](https://github.com/MotiaDev/motia/blob/main/LICENSE)
 

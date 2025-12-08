@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "prepare": "husky || true",
-    "dev:docs": "pnpm -r --filter=docs start",
+    "dev:docs": "pnpm -r --filter=docs dev",
     "dev": "pnpm run build && pnpm -r --filter=playground dev",
     "dev:workbench": "pnpm run build && pnpm -r --filter=playground dev:workbench",
     "build": "pnpm --filter=!docs run -r build",
@@ -18,10 +18,11 @@
     "test:e2e:ui": "pnpm --filter=@motiadev/e2e test:ui",
     "test:e2e:headed": "pnpm --filter=@motiadev/e2e test:headed",
     "e2e:install": "pnpm --filter=@motiadev/e2e install && pnpm --filter=@motiadev/e2e install:deps",
-    "clean": "rm -rf node_modules pnpm-lock.yaml dist .turbo .next"
+    "clean": "rimraf node_modules pnpm-lock.yaml dist .turbo .next"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.6",
+    "@biomejs/biome": "^2.3.6",
+    "rimraf": "^6.0.1",
     "@eslint/js": "^9.28.0",
     "@jest/globals": "^30.2.0",
     "@types/jest": "^29.5.14",
@@ -57,7 +58,14 @@
   },
   "packageManager": "pnpm@10.11.0",
   "volta": {
-    "node": "20.11.1"
+    "node": "24.11.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "axe-core": "4.10.3",
+      "dompurify": "3.2.6",
+      "@vercel/analytics": "1.5.0"
+    }
   },
   "version": "0.0.7"
 }

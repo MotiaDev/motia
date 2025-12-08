@@ -1,6 +1,6 @@
 import { Fragment, memo, useMemo } from 'react'
-import { CopyButton } from '@/components/ui/copy-button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { CopyButton } from '../../../components/ui/copy-button'
+import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover'
 import { Argument } from './argument'
 import { ClosingParenthesis } from './closing-parenthesis'
 import { FunctionCallContent } from './function-call-content'

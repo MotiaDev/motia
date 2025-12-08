@@ -13,7 +13,7 @@ runs:
     - uses: pnpm/action-setup@v4
     - uses: actions/setup-node@v3
       with:
-        node-version: '20.11.1'
+        node-version: '22.21.1'
         cache: 'pnpm'
 
     - name: Install dependencies

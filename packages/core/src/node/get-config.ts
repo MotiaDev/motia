@@ -1,45 +1,52 @@
 import path from 'node:path'
-import type { z } from 'zod'
-import zodToJsonSchema from 'zod-to-json-schema'
-
-// Add ts-node registration before dynamic imports
-
-require('ts-node').register({
-  transpileOnly: true,
-  compilerOptions: { module: 'commonjs' },
-})
-
-function isZodSchema(value: unknown): value is z.ZodType {
-  return Boolean(value && typeof (value as z.ZodType).safeParse === 'function' && (value as z.ZodType)._def)
-}
+import { pathToFileURL } from 'node:url'
+import { type SchemaInput, schemaToJsonSchema } from '../schema-utils'
 
 async function getConfig(filePath: string) {
   try {
-    const module = require(path.resolve(filePath))
-    // Check if the specified function exists in the module
-    if (!module.config) {
+    const importedModule = await import(pathToFileURL(path.resolve(filePath)).href)
+    const config = importedModule.config || importedModule.default?.config
+
+    if (!config) {
       throw new Error(`Config not found in module ${filePath}`)
     }
 
-    if (isZodSchema(module.config.input)) {
-      module.config.input = zodToJsonSchema(module.config.input, { $refStrategy: 'none' })
-    } else if (isZodSchema(module.config.bodySchema)) {
-      module.config.bodySchema = zodToJsonSchema(module.config.bodySchema, { $refStrategy: 'none' })
+    if (config.input) {
+      const converted = schemaToJsonSchema(config.input)
+      if (converted) {
+        config.input = converted
+      }
     }
 
-    if (module.config.responseSchema) {
-      for (const [status, schema] of Object.entries(module.config.responseSchema)) {
-        if (isZodSchema(schema)) {
-          module.config.responseSchema[status] = zodToJsonSchema(schema, { $refStrategy: 'none' })
+    if (config.bodySchema) {
+      const converted = schemaToJsonSchema(config.bodySchema)
+      if (converted) {
+        config.bodySchema = converted
+      }
+    }
+
+    if (config.responseSchema) {
+      for (const [status, schema] of Object.entries(config.responseSchema)) {
+        const converted = schemaToJsonSchema(schema as SchemaInput)
+        if (converted) {
+          config.responseSchema[status] = converted
         }
       }
     }
 
-    if (isZodSchema(module.config.schema)) {
-      module.config.schema = zodToJsonSchema(module.config.schema, { $refStrategy: 'none' })
+    if (config.schema) {
+      const converted = schemaToJsonSchema(config.schema)
+      if (converted) {
+        config.schema = converted
+      }
     }
 
-    process.send?.(module.config)
+    if (typeof config.canAccess === 'function') {
+      config.__motia_hasCanAccess = !!config.canAccess
+      delete config.canAccess
+    }
+
+    process.send?.(config)
 
     process.exit(0)
   } catch (error) {
@@ -51,7 +58,7 @@ async function getConfig(filePath: string) {
 const [, , filePath] = process.argv
 
 if (!filePath) {
-  console.error('Usage: node get-config.js <file-path>')
+  console.error('Usage: node get-config.mjs <file-path>')
   process.exit(1)
 }
 

@@ -1,5 +1,3 @@
-import './styles.css'
-
 export { ObservabilityPage } from './components/observability-page'
 export { ObservabilityTabLabel } from './components/observability-tab-label'
 export type {

@@ -1,12 +1,16 @@
 {
   "name": "@motiadev/test",
   "description": "A testing utility package for Motia workflows that provides tools for mocking, testing, and simulating Motia components.",
-  "version": "0.9.6-beta.152",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "version": "0.15.4-beta.169",
+  "main": "dist/index.mjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
   "scripts": {
-    "build": "rm -rf dist && tsc",
-    "lint": "eslint --config ../../eslint.config.js"
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint": "eslint --config ../../eslint.config.js",
+    "clean": "rimraf dist"
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
@@ -14,13 +18,16 @@
   },
   "dependencies": {
     "jest": "^29.7.0",
+    "redis": "^5.9.0",
     "supertest": "^7.1.4"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/supertest": "^6.0.2",
     "jest": "^29.7.0",
+    "rimraf": "^6.0.1",
     "ts-jest": "^29.2.5",
+    "tsdown": "^0.16.6",
     "typescript": "^5.7.2"
   }
 }

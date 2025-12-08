@@ -11,7 +11,7 @@ export const config: ApiRouteConfig = {
   method: 'GET',
   path: '/files/sample.pdf',
   responseSchema: {
-    200: z.any({ description: 'PDF File' }),
+    200: z.toJSONSchema(z.file()),
   },
   emits: [],
 }
@@ -19,7 +19,7 @@ export const config: ApiRouteConfig = {
 export const handler: Handlers['Download PDF'] = async (_req, { logger }) => {
   logger.info('Downloading PDF file')
 
-  const buffer = await fs.readFile(path.join(__dirname, 'sample.pdf'))
+  const buffer = await fs.readFile(path.join(import.meta.dirname, 'sample.pdf'))
 
   return {
     status: 200,

@@ -10,10 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@motiadev/ui'
-import RefreshCw from 'lucide-react/icons/refresh-cw'
-import Search from 'lucide-react/icons/search'
-import Trash from 'lucide-react/icons/trash'
-import X from 'lucide-react/icons/x'
+import { RefreshCw, Search, Trash, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useGetStateItems } from '../hooks/states-hooks'
 import { useStatesStore } from '../stores/use-states-store'
@@ -65,9 +62,13 @@ export const StatesPage = () => {
       const newSet = new Set(prev)
 
       if (checked) {
-        filteredItems.forEach((item) => newSet.add(`${item.groupId}:${item.key}`))
+        filteredItems.forEach((item) => {
+          newSet.add(`${item.groupId}:${item.key}`)
+        })
       } else {
-        filteredItems.forEach((item) => newSet.delete(`${item.groupId}:${item.key}`))
+        filteredItems.forEach((item) => {
+          newSet.delete(`${item.groupId}:${item.key}`)
+        })
       }
       return newSet
     })
@@ -83,7 +84,7 @@ export const StatesPage = () => {
               variant="shade"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="px-9 font-medium"
+              className="px-9! font-medium"
               placeholder="Search by Group ID or Key"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />

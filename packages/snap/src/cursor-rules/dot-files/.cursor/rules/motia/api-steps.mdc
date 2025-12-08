@@ -30,6 +30,9 @@ Defining an API Step is done by two elements. Configuration and Handler.
 **Python**: You need to define a `config` dictionary with the same properties as the TypeScript `ApiRouteConfig`.
 
 ```typescript
+export type ZodInput = ZodObject<any> | ZodArray<any>
+export type StepSchemaInput = ZodInput | JsonSchema
+
 export type Emit = string | { 
   /**
    * The topic name to emit to.
@@ -120,19 +123,23 @@ export interface ApiRouteConfig {
   middleware?: ApiMiddleware<any, any, any>[]
 
   /**
-   * Defined with Zod library, can be a ZodObject OR a ZodArray.
+   * Schema for the request body. Accepts either:
+   * - Zod schema (ZodObject or ZodArray)
+   * - JSON Schema object
    * 
    * Note: This is not validated automatically, you need to validate it in the handler.
    */
-  bodySchema?: ZodInput
+  bodySchema?: StepSchemaInput
 
   /**
-   * Defined with Zod library, can be a ZodObject OR a ZodArray
+   * Schema for response bodies. Accepts either:
+   * - Zod schema (ZodObject or ZodArray)
+   * - JSON Schema object
    * 
    * The key (number) is the HTTP status code this endpoint can return and
-   * for each HTTP Status Code, you need to define a Zod schema that defines the response body
+   * for each HTTP Status Code, you need to define a schema that defines the response body
    */
-  responseSchema?: Record<number, ZodInput>
+  responseSchema?: Record<number, StepSchemaInput>
 
   /**
    * Mostly for documentation purposes, it will show up in Endpoints section in Workbench
@@ -171,6 +178,15 @@ export interface ApiRequest<TBody = unknown> {
    * Key-value pairs of request headers. Values can be string or array of strings.
    */
   headers: Record<string, string | string[]>
+}
+
+export type ApiResponse<
+  TStatus extends number = number, 
+  TBody = string | Buffer | Record<string, unknown>
+> = {
+  status: TStatus
+  headers?: Record<string, string>
+  body: TBody
 }
 
 export type ApiRouteHandler<
@@ -219,7 +235,7 @@ const bodySchema = z.object({
   title: z.string().min(1, "Title cannot be empty"),
   description: z.string().optional(),
   category: z.string().min(1, "Category is required"),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 })
 
 export const config: ApiRouteConfig = {

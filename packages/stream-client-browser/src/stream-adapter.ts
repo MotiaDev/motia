@@ -7,8 +7,11 @@ export class StreamSocketAdapter implements SocketAdapter {
   private onOpenListeners: (() => void)[] = []
   private onCloseListeners: (() => void)[] = []
 
-  constructor(private address: string) {
-    this.ws = new WebSocket(this.address)
+  constructor(
+    private address: string,
+    protocols?: string | string[] | undefined,
+  ) {
+    this.ws = new WebSocket(this.address, protocols)
   }
 
   connect(): void {}

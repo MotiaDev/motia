@@ -59,6 +59,7 @@ jobs:
           pnpm publish -r --filter @motiadev/plugin-endpoint --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/plugin-logs --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/plugin-observability --no-git-checks --tag pre-release
+          pnpm publish -r --filter @motiadev/plugin-bullmq --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/plugin-states --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/plugin-example --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/workbench --no-git-checks --tag pre-release
@@ -69,6 +70,7 @@ jobs:
           pnpm publish -r --filter motia --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/test --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/adapter-rabbitmq-events --no-git-checks --tag pre-release
+          pnpm publish -r --filter @motiadev/adapter-bullmq-events --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/adapter-redis-cron --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/adapter-redis-state --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/adapter-redis-streams --no-git-checks --tag pre-release

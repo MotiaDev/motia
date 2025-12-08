@@ -50,6 +50,10 @@ async def run_python_module(file_path: str) -> None:
 
         if 'middleware' in module.config:
             del module.config['middleware']
+        
+        if 'canAccess' in module.config:
+            del module.config['canAccess']
+            module.config['__motia_hasCanAccess'] = True
 
         sendMessage(module.config)
 

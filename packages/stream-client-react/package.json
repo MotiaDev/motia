@@ -1,12 +1,15 @@
 {
   "name": "@motiadev/stream-client-react",
   "description": "Motia Stream Client React Package – Responsible for managing streams of data.",
-  "version": "0.9.6-beta.152",
-  "license": "MIT",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "version": "0.15.4-beta.169",
+  "license": "Elastic-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "lint": "eslint --config ../../eslint.config.js"
   },
   "peerDependencies": {
@@ -17,6 +20,20 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.7",
+    "tsdown": "^0.16.6",
     "typescript": "^5.7.2"
+  },
+  "exports": {
+    ".": {
+      "development": "./index.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    }
   }
 }

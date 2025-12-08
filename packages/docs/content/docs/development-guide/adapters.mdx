@@ -13,12 +13,11 @@ Configure adapters in `motia.config.ts`. If you don't specify any, Motia uses de
 import { config } from '@motiadev/core'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 
+const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:6379`
+
 export default config({
   adapters: {
-    state: new RedisStateAdapter({
-      host: process.env.REDIS_HOST,
-      port: 6379
-    })
+    state: new RedisStateAdapter({ url: redisUrl })
   }
 })
 ```
@@ -79,12 +78,14 @@ For multi-instance deployments. Shares state and events across instances.
 import { config } from '@motiadev/core'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 
+const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`
+
 export default config({
   adapters: {
-    state: new RedisStateAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379')
-    })
+    state: new RedisStateAdapter(
+      { url: redisUrl },
+      { keyPrefix: 'myapp:', ttl: 3600 }
+    )
   }
 })
 ```
@@ -96,12 +97,14 @@ export default config({
 const { config } = require('@motiadev/core')
 const { RedisStateAdapter } = require('@motiadev/adapter-redis-state')
 
+const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`
+
 module.exports = config({
   adapters: {
-    state: new RedisStateAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379')
-    })
+    state: new RedisStateAdapter(
+      { url: redisUrl },
+      { keyPrefix: 'myapp:', ttl: 3600 }
+    )
   }
 })
 ```
@@ -124,12 +127,11 @@ npm install @motiadev/adapter-redis-state
 import { config } from '@motiadev/core'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 
+const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`
+
 export default config({
   adapters: {
-    streams: new RedisStreamAdapterManager({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379')
-    })
+    streams: new RedisStreamAdapterManager({ url: redisUrl })
   }
 })
 ```
@@ -141,12 +143,11 @@ export default config({
 const { config } = require('@motiadev/core')
 const { RedisStreamAdapterManager } = require('@motiadev/adapter-redis-streams')
 
+const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`
+
 module.exports = config({
   adapters: {
-    streams: new RedisStreamAdapterManager({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379')
-    })
+    streams: new RedisStreamAdapterManager({ url: redisUrl })
   }
 })
 ```
@@ -216,12 +217,11 @@ npm install @motiadev/adapter-rabbitmq-events
 import { config } from '@motiadev/core'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 
+const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`
+
 export default config({
   adapters: {
-    cron: new RedisCronAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379')
-    })
+    cron: new RedisCronAdapter({ url: redisUrl })
   }
 })
 ```
@@ -233,12 +233,11 @@ export default config({
 const { config } = require('@motiadev/core')
 const { RedisCronAdapter } = require('@motiadev/adapter-redis-cron')
 
+const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`
+
 module.exports = config({
   adapters: {
-    cron: new RedisCronAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379')
-    })
+    cron: new RedisCronAdapter({ url: redisUrl })
   }
 })
 ```
@@ -265,25 +264,24 @@ import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 
+const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:6379`
+
 export default config({
   adapters: {
-    state: new RedisStateAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: 6379
-    }),
-    streams: new RedisStreamAdapterManager({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: 6379
-    }),
+    state: new RedisStateAdapter(
+      { url: redisUrl },
+      { keyPrefix: 'myapp:state:' }
+    ),
+    streams: new RedisStreamAdapterManager({ url: redisUrl }),
     events: new RabbitMQEventAdapter({
       url: process.env.RABBITMQ_URL || 'amqp://localhost',
       exchangeName: 'motia.events',
       exchangeType: 'topic'
     }),
-    cron: new RedisCronAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: 6379
-    })
+    cron: new RedisCronAdapter(
+      { url: redisUrl },
+      { keyPrefix: 'myapp:cron:' }
+    )
   }
 })
 ```
@@ -303,6 +301,44 @@ export default config({
 - Horizontal scaling
 - Production deployments
 - High availability
+
+---
+
+## Configuration Tips
+
+### Redis URL Format
+
+Build Redis URLs from environment variables:
+
+```typescript
+// Basic connection
+const redisUrl = `redis://localhost:6379`
+
+// With password
+const redisUrl = `redis://:password@localhost:6379`
+
+// With username and password
+const redisUrl = `redis://user:password@localhost:6379`
+
+// From environment variables
+const redisUrl = `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`
+```
+
+### Adapter Options
+
+Redis adapters accept two parameters:
+
+```typescript
+new RedisStateAdapter(
+  { url: redisUrl },              // Connection config
+  { keyPrefix: 'app:', ttl: 3600 } // Adapter options
+)
+```
+
+**Common options:**
+- `keyPrefix` - Prefix for all keys (helps organize data)
+- `ttl` - Time-to-live in seconds (auto-expire old data)
+- `lockTTL` - Lock timeout for cron jobs
 
 ---
 

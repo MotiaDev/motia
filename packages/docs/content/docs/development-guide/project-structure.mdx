@@ -18,6 +18,10 @@ Here's what a typical Motia project looks like:
     <File name="send-notification.step.js" />
     <File name="send-notification.tsx" />
   </Folder>
+  <Folder name="src" defaultOpen>
+    <File name="user-handler.step.ts" />
+    <File name="email-service_step.py" />
+  </Folder>
   <File name="package.json" />
   <File name="requirements.txt" />
   <File name="tsconfig.json" />
@@ -42,16 +46,21 @@ Here's what a typical Motia project looks like:
 | `config.yml` | Optional Motia configuration | Config | - |
 
 <Callout type="info">
-The `steps/` and `src/` directories are the heart of your Motia application - this is where all your workflow logic lives. Motia automatically discovers and registers any file following the naming pattern from both directories.
+**Flexible Step Discovery**
+
+Motia automatically discovers and registers steps from **both** `steps/` and `src/` directories. You're **not required** to use a specific directory structure - organize your code however makes sense for your project!
 </Callout>
 
-<Callout>
-<strong>Location and nesting rules</strong>
+<Callout type="success">
+<strong>Directory flexibility and organization</strong>
 
-- Both the `steps/` and `src/` directories are supported at the <em>project root</em> (e.g., `my-motia-project/steps` or `my-motia-project/src`).
-- You can freely nest steps in subfolders under either directory (e.g., `steps/aaa/a1.step.ts`, `src/bbb/ccc/c1_step.py`).
-- Discovery is recursive inside both directories, so deeper folder structures for large apps are supported.
-- You can use either `steps/`, `src/`, or both directories in your project.
+- **Both `steps/` and `src/` directories are supported** - use whichever fits your team's conventions
+- **Use one or both directories** - mix and match based on your preferences
+- **Recursive discovery** - nest steps in subfolders as deeply as you need (e.g., `steps/api/v1/users.step.ts`, `src/services/email/send_step.py`)
+- **No hierarchy or priority** - both directories are treated equally
+- **Organize freely** - structure by feature, language, team, or any pattern that works for you
+
+This means existing projects using `steps/` continue to work, while new projects can use `src/` or both directories together.
 </Callout>
 
 ## Automatic Step Discovery
@@ -59,12 +68,12 @@ The `steps/` and `src/` directories are the heart of your Motia application - th
 <Callout type="default">
 **Key Concept: Automatic Discovery** 
 
-Motia will automatically discover and register **any file** that follows the `.step.` naming pattern as a workflow step. You don't need to manually register steps - just create a file with the right naming pattern and Motia will find it.
+Motia automatically discovers and registers **any file** that follows the `.step.` naming pattern as a workflow step, **regardless of where it's located** in your `steps/` or `src/` directories. No manual registration required - just create a file with the right naming pattern and Motia will find it.
 </Callout>
 
 ### Discovery Rules
 
-Motia scans your `steps/` and `src/` directories and automatically registers files as steps based on these rules:
+Motia scans your project and automatically registers files as steps based on these simple rules:
 
 1. **File must contain `.step.` or `_step.` in the filename** (e.g., `my-task.step.ts`, `my_task_step.py`)
 2. **File must export a `config` object** defining the step configuration
@@ -72,11 +81,15 @@ Motia scans your `steps/` and `src/` directories and automatically registers fil
 4. **File extension determines the runtime** (`.ts` = TypeScript, `.py` = Python, `.js` = JavaScript)
 
 When you run `motia dev`, Motia will:
-- Scan both the `steps/` and `src/` directories recursively
-- Find all files matching `*.step.*` in both directories
+- **Recursively scan** both `steps/` and `src/` directories (if they exist)
+- **Find all files** matching `*.step.*` or `*_step.*` patterns in either directory
 - Parse their `config` exports to understand step types and connections
 - Register them in the workflow engine
 - Make them available in the Workbench
+
+<Callout type="success">
+**No directory requirement** - Steps are discoverable from anywhere within `steps/` or `src/`, regardless of folder depth or organization pattern. Both directories are treated equally with no preference or priority.
+</Callout>
 
 ## File Naming Convention
 
@@ -109,13 +122,17 @@ The `.step.` part in the filename is **required** - this is how Motia identifies
 
 ## Step Organization Patterns
 
-<Tabs items={["Sequential", "Feature-Based", "Language-Specific"]}>
+<Callout type="info">
+All examples below can use either `steps/` or `src/` as the root directory - choose what works best for your team!
+</Callout>
+
+<Tabs items={["Sequential", "Feature-Based", "Language-Specific", "Mixed Directories"]}>
 <Tab value="Sequential">
 
 ### Sequential Flow Organization
 Perfect for linear workflows where order matters:
 
-<Folder name="steps" defaultOpen>
+<Folder name="src" defaultOpen>
   <File name="01-api-start.step.ts" />
   <File name="02-validate-data_step.py" />
   <File name="03-process-payment.step.js" />
@@ -137,7 +154,7 @@ Perfect for linear workflows where order matters:
 ### Feature-Based Organization
 Organize by business domains for complex applications:
 
-<Folder name="steps" defaultOpen>
+<Folder name="src" defaultOpen>
   <Folder name="authentication" defaultOpen>
     <File name="login.step.ts" />
     <File name="verify-token_step.py" />
@@ -190,6 +207,37 @@ Group by programming language for team specialization:
 - Consistent tooling and patterns
 - Easy onboarding for language experts
 - Shared libraries and utilities
+
+</Tab>
+<Tab value="Mixed Directories">
+
+### Mixed Directory Organization
+Use both `steps/` and `src/` for maximum flexibility:
+
+<Folder name="project-root" defaultOpen>
+  <Folder name="src" defaultOpen>
+    <Folder name="api" defaultOpen>
+      <File name="users.step.ts" />
+      <File name="products.step.ts" />
+    </Folder>
+    <Folder name="services" defaultOpen>
+      <File name="email-service_step.py" />
+      <File name="payment-service.step.js" />
+    </Folder>
+  </Folder>
+  <Folder name="steps" defaultOpen>
+    <Folder name="workflows" defaultOpen>
+      <File name="onboarding.step.ts" />
+      <File name="analytics_step.py" />
+    </Folder>
+  </Folder>
+</Folder>
+
+**Benefits:**
+- Combine organizational patterns
+- Migrate gradually from one structure to another
+- Separate concerns (e.g., APIs in `src/`, workflows in `steps/`)
+- Team autonomy in different parts of the codebase
 
 </Tab>
 </Tabs>
@@ -436,9 +484,10 @@ export const handler = async (input, ctx) => {
   <Folder name="lib">
     <File name="user-handler.step.ts" />
   </Folder>
-  <Folder name="components">
+  <Folder name="utils">
     <File name="processor_step.py" />
   </Folder>
+  <File name="helper.step.js" />
 </Folder>
 </div>
 <div>
@@ -448,13 +497,15 @@ export const handler = async (input, ctx) => {
     <File name="user-handler.step.ts" />
   </Folder>
   <Folder name="src" defaultOpen>
-    <File name="processor_step.py" />
+    <Folder name="services">
+      <File name="processor_step.py" />
+    </Folder>
   </Folder>
 </Folder>
 </div>
 </div>
 
-Note: Both `steps/` and `src/` directories are supported. Files must be in one of these directories to be discovered.
+**Note:** Steps must be located within `steps/` or `src/` directories to be discovered. Both directories are treated equally - use whichever fits your project structure. Files can be nested at any depth within these directories.
 
 </Tab>
 </Tabs>

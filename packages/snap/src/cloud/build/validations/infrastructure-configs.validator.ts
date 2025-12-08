@@ -1,6 +1,6 @@
 import { type EventConfig, validateInfrastructureConfig } from '@motiadev/core'
-import colors from 'colors'
 import path from 'path'
+import pc from 'picocolors'
 import type { Validator } from './types'
 
 export const infrastructureConfigsValidator: Validator = (builder) => {
@@ -22,8 +22,8 @@ export const infrastructureConfigsValidator: Validator = (builder) => {
         errors.push({
           relativePath,
           message: [
-            `Infrastructure configuration error in step ${colors.magenta(step.config.name)}:`,
-            `  ${colors.red('➜')} ${error.path}: ${colors.red(error.message)}`,
+            `Infrastructure configuration error in step ${pc.magenta(step.config.name)}:`,
+            `  ${pc.red('➜')} ${error.path}: ${pc.red(error.message)}`,
           ].join('\n'),
           step,
         })

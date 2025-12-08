@@ -1,6 +1,7 @@
 import { constants, promises as fs, mkdirSync, statSync } from 'fs'
 import { globSync } from 'glob'
 import * as path from 'path'
+import { fileURLToPath } from 'url'
 import type { CliContext } from '../../cloud/config-utils'
 
 export type Generator = (rootDir: string, context: CliContext) => Promise<void>
@@ -9,7 +10,6 @@ const replaceTemplateVariables = (content: string, projectName: string): string 
   const replacements: Record<string, string> = {
     '{{PROJECT_NAME}}': projectName,
     '{{PLUGIN_NAME}}': toPascalCase(projectName),
-    '{{CSS_FILE_NAME}}': projectName.replace(/^@[^/]+\//, ''),
   }
 
   return Object.entries(replacements).reduce((result, [key, value]) => {
@@ -25,11 +25,13 @@ const toPascalCase = (str: string): string => {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join('')
 }
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export const generateTemplateSteps = (templateFolder: string): Generator => {
   return async (rootDir: string, context: CliContext): Promise<void> => {
     const templatePath = path.join(__dirname, templateFolder)
     const files = globSync('**/*', { absolute: false, cwd: templatePath, dot: true })
+    const projectName = path.basename(rootDir)
 
     try {
       for (const fileName of files) {
@@ -71,6 +73,8 @@ export const generateTemplateSteps = (templateFolder: string): Generator => {
           } catch {
             void 0
           }
+        } else {
+          content = replaceTemplateVariables(content, projectName)
         }
 
         // Use file descriptor for atomic write operation

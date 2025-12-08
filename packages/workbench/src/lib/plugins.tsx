@@ -1,7 +1,7 @@
 import { plugins } from 'virtual:motia-plugins'
 import { DynamicIcon, dynamicIconImports, type IconName } from 'lucide-react/dynamic'
 import { memo } from 'react'
-import { type AppTab, TabLocation, useAppTabsStore } from '@/stores/use-app-tabs-store'
+import { type AppTab, TabLocation, useAppTabsStore } from '../stores/use-app-tabs-store'
 import { isValidTabLocation } from './utils'
 
 export const registerPluginTabs = (addTab: (position: TabLocation, tab: AppTab) => void): void => {

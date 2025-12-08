@@ -51,6 +51,10 @@ The GitHub integration workflow is organized into two main components:
   </Folder>
 </Folder>
 
+<Callout type="info">
+This example uses the `steps/` directory, but you can also use `src/` or both. Motia discovers step files from either location automatically.
+</Callout>
+
 <Tabs items={['issue-webhook', 'issue-classifier', 'label-assigner', 'assignee-selector']}>
   <GitHubWorkflowTab tab="issue-webhook" value="github-webhook" folder="issue-triage" />
   <GitHubWorkflowTab tab="issue-classifier" value="issue-classifier" folder="issue-triage" />

@@ -1,9 +1,7 @@
 import { BackgroundEffect, Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import Book from 'lucide-react/icons/book'
-import X from 'lucide-react/icons/x'
+import { Book, X } from 'lucide-react'
 import { type FC, memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { usePathParams } from '@/hooks/use-path-params'
 import { EndpointPath } from '../components/endpoint-path'
 import {
   getHeadersSelector,
@@ -12,6 +10,7 @@ import {
   type UseEndpointConfiguration,
   useEndpointConfiguration,
 } from '../hooks/use-endpoint-configuration'
+import { usePathParams } from '../hooks/use-path-params'
 import { SpecSidePanel } from '../spec/spec-side-panel'
 import type { ApiEndpoint } from '../types/endpoint'
 import { SidePanelBodyTab } from './side-panel-body-tab'

@@ -1,6 +1,6 @@
-import colors from 'colors'
 import inquirer, { type QuestionCollection } from 'inquirer'
-import type { CliContext } from '../cloud/config-utils'
+import pc from 'picocolors'
+import type { CliContext, Message } from '../cloud/config-utils'
 import { create } from './index'
 
 interface InteractiveAnswers {
@@ -9,11 +9,12 @@ interface InteractiveAnswers {
 }
 
 const choices: Record<string, string> = {
-  nodejs: 'Tutorial (TypeScript)',
-  python: 'Tutorial (Python)',
-  'starter-typescript': 'Starter (TypeScript)',
-  'starter-javascript': 'Starter (JavaScript)',
-  'starter-python': 'Starter (Python)',
+  'motia-tutorial-typescript': 'Tutorial (TypeScript only)',
+  'motia-tutorial-python': 'Tutorial (Python only)',
+  'starter-multilang': 'Starter (All languages; TS/JS + Python)',
+  'starter-typescript': 'Starter (TypeScript only)',
+  'starter-javascript': 'Starter (JavaScript only)',
+  'starter-python': 'Starter (Python only)',
 }
 
 interface CreateInteractiveArgs {
@@ -23,9 +24,9 @@ interface CreateInteractiveArgs {
 }
 
 export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
-  context.log('welcome', (message) =>
+  context.log('welcome', (message: Message) =>
     message.append(
-      `\n🚀 ${colors.bold(args.plugin ? 'Welcome to Motia Plugin Creator!' : 'Welcome to Motia Project Creator!')}`,
+      `\n🚀 ${pc.bold(args.plugin ? 'Welcome to Motia Plugin Creator!' : 'Welcome to Motia Project Creator!')}`,
     ),
   )
 
@@ -36,10 +37,8 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
 
   if (args.plugin) {
     if (!args.name) {
-      context.log('failed', (message) =>
-        message
-          .tag('failed')
-          .append(`Project name is required: ${colors.bold('motia create --plugin [project-name]')}\n`),
+      context.log('failed', (message: Message) =>
+        message.tag('failed').append(`Project name is required: ${pc.bold('motia create --plugin [project-name]')}\n`),
       )
       return
     }
@@ -85,12 +84,14 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
     template = args.template || answers.template
   }
 
-  context.log('creating', (message) => message.append('\n🔨 Creating your Motia project...\n'))
+  context.log('creating', (message: Message) => message.append('\n🔨 Creating your Motia project...\n'))
 
   await create({
     projectName: name || '.',
-    template: template || 'nodejs',
+    template: template || 'motia-tutorial-typescript',
     cursorEnabled: true, // Default to true for cursor rules
     context,
   })
+
+  process.exit(0)
 }

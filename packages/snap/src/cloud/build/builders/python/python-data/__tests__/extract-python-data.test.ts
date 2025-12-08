@@ -1,8 +1,12 @@
 import { globSync } from 'glob'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { extractPythonData } from '../extract-python-data'
 import { PythonError, PythonImportNotFoundError } from '../python-errors'
 import { readRequirements } from '../read-requirements'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 describe('extractPythonData', () => {
   test('extracts python data correctly', () => {

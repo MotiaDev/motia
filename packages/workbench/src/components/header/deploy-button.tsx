@@ -1,7 +1,7 @@
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@motiadev/ui'
 import { Rocket } from 'lucide-react'
 import { useState } from 'react'
-import { motiaAnalytics } from '@/lib/motia-analytics'
+import { motiaAnalytics } from '../../lib/motia-analytics'
 
 export const DeployButton = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -56,7 +56,7 @@ export const DeployButton = () => {
             </div>
 
             <a
-              href="https://www.motia.dev/docs/concepts/deployment/motia-cloud/features"
+              href="https://www.motia.dev/docs/deployment-guide/motia-cloud/features"
               target="_blank"
               className="text-foreground text-xs font-semibold px-4 hover:underline"
               rel="noopener"

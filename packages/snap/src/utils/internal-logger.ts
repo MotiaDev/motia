@@ -1,19 +1,19 @@
-import colors from 'colors'
+import pc from 'picocolors'
 
-const infoTag = colors.blue('➜ [INFO]')
-const warnTag = colors.yellow('➜ [WARN]')
-const errorTag = colors.red('✘ [ERROR]')
+const infoTag = pc.blue('➜ [INFO]')
+const warnTag = pc.yellow('➜ [WARN]')
+const errorTag = pc.red('✘ [ERROR]')
 
 const colorMap = {
-  cyan: colors.cyan,
-  yellow: colors.yellow,
-  red: colors.red,
+  cyan: pc.cyan,
+  yellow: pc.yellow,
+  red: pc.red,
 }
 
 const extraTag = (color: 'cyan' | 'yellow' | 'red', extra?: string) => {
   const colorFn = colorMap[color as keyof typeof colorMap]
 
-  return extra ? colors.bold(colorFn(extra)) : ''
+  return extra ? pc.bold(colorFn(extra)) : ''
 }
 
 export const internalLogger = {

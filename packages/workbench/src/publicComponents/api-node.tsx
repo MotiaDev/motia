@@ -1,10 +1,10 @@
-import type { PropsWithChildren } from 'react'
+import type { JSX, PropsWithChildren } from 'react'
 import { BaseNode } from './base-node/base-node'
 import type { ApiNodeProps } from './node-props'
 
 type Props = PropsWithChildren<ApiNodeProps>
 
-export const ApiNode = ({ data, children }: Props) => {
+export const ApiNode = ({ data, children }: Props): JSX.Element => {
   return (
     <BaseNode
       data={data}

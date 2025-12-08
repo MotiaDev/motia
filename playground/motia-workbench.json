@@ -1,22 +1,5 @@
 [
   {
-    "id": "simple-python",
-    "config": {
-      "steps/simplePython/testedEvent.step.py": {
-        "x": 18,
-        "y": 425
-      },
-      "steps/simplePython/testEvent.step.py": {
-        "x": 28,
-        "y": 263
-      },
-      "steps/simplePython/apiEndpoint.step.py": {
-        "x": 0,
-        "y": 0
-      }
-    }
-  },
-  {
     "id": "open-ai",
     "config": {
       "steps/open-ai/02-prompt.step.ts": {
@@ -170,6 +153,23 @@
       "steps/parallelMergeState/stepB_step.py": {
         "x": 509,
         "y": 272
+      },
+      "steps/parallelMergeState/stepA.step.ts": {
+        "x": 509,
+        "y": 272
+      }
+    }
+  },
+  {
+    "id": "hello-world-flow",
+    "config": {
+      "steps/hello/process-greeting.step.ts": {
+        "x": 350,
+        "y": 44
+      },
+      "steps/hello/hello-api.step.ts": {
+        "x": 0,
+        "y": 0
       }
     }
   }

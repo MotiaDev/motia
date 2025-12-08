@@ -653,8 +653,8 @@ describe('Infrastructure Config Validation', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(z.ZodError)
         const zodError = error as z.ZodError
-        expect(zodError.errors.length).toBeGreaterThan(0)
-        const errorMessages = zodError.errors.map((e) => e.message)
+        expect(zodError.issues.length).toBeGreaterThan(0)
+        const errorMessages = zodError.issues.map((e) => e.message)
         expect(errorMessages).toContain('RAM must be at least 128 MB')
         expect(errorMessages).toContain('Timeout cannot exceed 900s')
         expect(errorMessages).toContain('maxRetries cannot be negative')

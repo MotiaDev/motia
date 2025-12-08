@@ -238,4 +238,4 @@ For detailed documentation on:
 
 ## License
 
-All plugins are MIT licensed. See [LICENSE](../LICENSE) for details.
+All plugins are licensed under the [Elastic License 2.0 (ELv2)](../LICENSE).
