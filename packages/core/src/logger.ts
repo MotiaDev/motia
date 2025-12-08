@@ -1,9 +1,31 @@
 import { prettyPrint } from './pretty-print'
 
-const getLogLevel = () => process.env.LOG_LEVEL ?? 'info'
-const isDebugEnabled = () => getLogLevel() === 'debug'
-const isInfoEnabled = () => ['info', 'debug'].includes(getLogLevel())
-const isWarnEnabled = () => ['warn', 'info', 'debug', 'trace'].includes(getLogLevel())
+const LEVELS = {
+  NOTSET: 0,
+  DEBUG: 10,
+  INFO: 20,
+  WARNING: 30,
+  ERROR: 40,
+  CRITICAL: 50,
+} as const
+
+const levelMap: Record<string, number> = {
+  debug: LEVELS.DEBUG,
+  info: LEVELS.INFO,
+  warn: LEVELS.WARNING,
+  warning: LEVELS.WARNING,
+  error: LEVELS.ERROR,
+  critical: LEVELS.CRITICAL,
+}
+
+const getLogLevel = (): number => {
+  const level = process.env.LOG_LEVEL ?? 'info'
+  return levelMap[level] ?? LEVELS.INFO
+}
+
+const shouldLog = (messageLevel: number): boolean => {
+  return messageLevel >= getLogLevel()
+}
 
 export type LogListener = (level: string, msg: string, args?: unknown) => void
 
@@ -38,31 +60,34 @@ export class Logger {
   }
 
   info(message: string, args?: unknown) {
-    if (isInfoEnabled()) {
+    if (shouldLog(LEVELS.INFO)) {
       this._log('info', message, args)
     }
   }
 
   error(message: string, args?: unknown) {
-    this._log('error', message, args)
+    if (shouldLog(LEVELS.ERROR)) {
+      this._log('error', message, args)
+    }
   }
 
   debug(message: string, args?: unknown) {
-    if (isDebugEnabled()) {
+    if (shouldLog(LEVELS.DEBUG)) {
       this._log('debug', message, args)
     }
   }
 
   warn(message: string, args?: unknown) {
-    if (isWarnEnabled()) {
+    if (shouldLog(LEVELS.WARNING)) {
       this._log('warn', message, args)
     }
   }
 
   log(args: any) {
     const level = args.level ?? 'info'
+    const messageLevel = levelMap[level] ?? LEVELS.INFO
 
-    if (level === 'debug' && !isDebugEnabled()) return
+    if (!shouldLog(messageLevel)) return
 
     this._log(level, args.msg, args)
   }
