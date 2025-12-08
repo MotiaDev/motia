@@ -2,6 +2,7 @@ import { isApiStep, LockedData, MemoryStreamAdapterManager, NoPrinter } from '@m
 import fs from 'fs'
 import { collectFlows, getStepFiles, getStreamFiles } from '../../generate-locked-data'
 import { BuildError, BuildErrorType } from '../../utils/errors/build.error'
+import { validatePythonEnvironment } from '../../utils/validate-python-environment'
 import { Builder, type StepsConfigFile } from '../build/builder'
 import { NodeBuilder } from '../build/builders/node/index'
 import { PythonBuilder } from '../build/builders/python/index'
@@ -29,7 +30,17 @@ export const build = async (listener: BuildListener): Promise<Builder> => {
 
   const lockedData = new LockedData(projectDir, new MemoryStreamAdapterManager(), new NoPrinter())
 
-  if (hasPythonSteps([...stepFiles, ...streamFiles])) {
+  const hasPython = hasPythonSteps([...stepFiles, ...streamFiles])
+  const pythonValidation = await validatePythonEnvironment({ baseDir: projectDir, hasPythonFiles: hasPython })
+  if (!pythonValidation.success) {
+    throw new BuildError(
+      BuildErrorType.COMPILATION,
+      undefined,
+      'Python environment validation failed. Please run the install command to set up your Python environment.',
+    )
+  }
+
+  if (hasPython) {
     builder.registerBuilder('python', new PythonBuilder(builder, listener))
   }
 
