@@ -15,38 +15,8 @@ npx motia@latest create
 
 The installer will guide you through a few questions to set up your project, including choosing a template. Once it's done, you will have a new project directory ready to go.
 
-<Callout type="info">
-**Quick Start with a Specific Template**
-
-If you already know which template you want, you can skip the interactive prompts:
-
-```bash
-# All languages (TypeScript/JavaScript + Python)
-npx motia@latest create my-app --template starter-multilang
-
-# TypeScript only
-npx motia@latest create my-app --template starter-typescript
-
-# JavaScript only
-npx motia@latest create my-app --template starter-javascript
-
-# Python only
-npx motia@latest create my-app --template starter-python
-```
-
-See the [CLI documentation](/docs/development-guide/cli#create) for all available templates.
-</Callout>
-
-<Callout type="info">
-**Using Your Own Redis?**
-
-If you already have Redis running or prefer to use an external Redis instance, use the `--skip-redis` flag:
-
-```bash
-npx motia@latest create my-app --skip-redis
-```
-
-See [CLI documentation](/docs/development-guide/cli#create) for more details.
+<Callout>
+Choose a **Tutorial** template for an interactive walkthrough, or a **Starter** template to skip the walkthrough.
 </Callout>
 
 </Step>
@@ -75,7 +45,7 @@ This command starts the Motia runtime and the Workbench, a powerful UI for devel
 <Step>
 ### 3. Run Your First Flow
 
-The starter project comes with a pre-built `basic-tutorial` flow. Let's run it.
+Tutorial projects come with a pre-built Tutorial flow. To step through the tutorial:
 
 1.  **Open the Workbench** in your browser at [`http://localhost:3000`](http://localhost:3000).
 2.  **Click the `Tutorial`** button on the top right of the workbench.
