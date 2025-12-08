@@ -105,6 +105,9 @@ export type RedisConfig =
       useMemoryServer?: false
       host: string
       port: number
+      password?: string
+      username?: string
+      db?: number
     }
   | {
       useMemoryServer: true
@@ -371,7 +374,7 @@ export default config({
 })
 ```
 
-For production environments:
+For production environments with authentication:
 
 ```typescript
 export default config({
@@ -379,9 +382,22 @@ export default config({
     useMemoryServer: false,
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379'),
+    password: process.env.REDIS_PASSWORD,
+    username: process.env.REDIS_USERNAME,
+    db: parseInt(process.env.REDIS_DB || '0'),
   },
 })
 ```
+
+The optional Redis configuration fields include:
+- `password`: Redis password for authentication
+- `username`: Redis username (Redis 6.0+)
+- `db`: Database number to select (default: 0)
+
+You can also use environment variables directly:
+- `MOTIA_REDIS_PASSWORD`: Redis password
+- `MOTIA_REDIS_USERNAME`: Redis username
+- `MOTIA_REDIS_DB`: Database number
 
 ### Creating Projects with External Redis
 

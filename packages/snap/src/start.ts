@@ -9,7 +9,7 @@ import { workbenchBase } from './constants'
 import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins/index'
-import { getRedisClient, stopRedisConnection } from './redis/connection'
+import { getRedisClient, getRedisConnectionInfo, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { version } from './version'
 
@@ -41,10 +41,7 @@ export const start = async (
     eventAdapter:
       appConfig.adapters?.events ||
       new BullMQEventAdapter({
-        connection: {
-          host: (redisClient.options.socket as { host?: string })?.host || 'localhost',
-          port: (redisClient.options.socket as { port?: number })?.port || 6379,
-        },
+        connection: getRedisConnectionInfo(),
       }),
     cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),
     streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),

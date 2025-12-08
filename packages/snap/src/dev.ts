@@ -17,7 +17,7 @@ import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins'
-import { getRedisClient, stopRedisConnection } from './redis/connection'
+import { getRedisClient, getRedisConnectionInfo, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
 import { version } from './version'
@@ -61,10 +61,7 @@ export const dev = async (
     eventAdapter:
       appConfig.adapters?.events ||
       new BullMQEventAdapter({
-        connection: {
-          host: (redisClient.options.socket as { host?: string })?.host || 'localhost',
-          port: (redisClient.options.socket as { port?: number })?.port || 6379,
-        },
+        connection: getRedisConnectionInfo(),
         prefix: 'motia:events',
       }),
     cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),

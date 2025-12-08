@@ -49,6 +49,9 @@ export type RedisConfig =
       useMemoryServer?: false
       host: string
       port: number
+      password?: string
+      username?: string
+      db?: number
     }
   | {
       useMemoryServer: true
