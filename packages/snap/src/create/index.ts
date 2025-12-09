@@ -233,29 +233,8 @@ export const create = async ({
     await pullRules({ force: true, rootDir }, context)
   }
 
-  let packageManager: string | undefined
-  if (isPluginTemplate) {
-    packageManager = await preparePackageManager(rootDir, context, true)
-  }
-
   if (template) {
     await setupTemplate(template, rootDir, context)
-  }
-
-  if (isPluginTemplate && packageManager) {
-    const packageJsonPath = path.join(rootDir, 'package.json')
-    if (checkIfFileExists(rootDir, 'package.json')) {
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
-      packageJson.packageManager = packageManager
-      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
-      context.log('package-manager-added', (message: Message) =>
-        message
-          .tag('success')
-          .append('Added packageManager field to')
-          .append('package.json', 'cyan')
-          .append(`(${packageManager})`),
-      )
-    }
   }
 
   if (!isPluginTemplate && skipRedis) {
@@ -269,6 +248,7 @@ export const create = async ({
     )
   }
 
+  let packageManager: string
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
 
@@ -278,9 +258,7 @@ export const create = async ({
 
     await generateTypes(rootDir)
   } else {
-    if (!packageManager) {
-      packageManager = await preparePackageManager(rootDir, context, true)
-    }
+    packageManager = await preparePackageManager(rootDir, context, true)
 
     context.log('installing-plugin-dependencies', (message: Message) =>
       message.tag('info').append('Installing plugin dependencies...'),
