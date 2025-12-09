@@ -1,4 +1,4 @@
-import { execSync, spawn } from 'child_process'
+import { exec, execSync } from 'child_process'
 import { existsSync, rmSync } from 'fs'
 import path from 'path'
 
@@ -27,13 +27,12 @@ async function globalSetup() {
     execSync(`npm install --save motia@${motiaVersion}`, { cwd: TEST_PROJECT_PATH })
 
     console.log('🌟 Starting test project server...')
-    const serverProcess = spawn('npm', ['run', 'dev'], {
+    const serverProcess = exec('npm run dev', {
       cwd: TEST_PROJECT_PATH,
       env: {
         MOTIA_ANALYTICS_DISABLED: 'true',
         ...process.env,
       },
-      stdio: 'inherit',
     })
 
     console.log('⏳ Waiting for server to be ready...')
@@ -69,7 +68,9 @@ async function waitForServer(url: string, timeout: number): Promise<void> {
       if (response.ok) {
         return
       }
-    } catch (error) {}
+    } catch {
+      void 0
+    }
 
     await new Promise((resolve) => setTimeout(resolve, pollInterval))
   }
