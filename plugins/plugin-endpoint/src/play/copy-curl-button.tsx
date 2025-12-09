@@ -38,7 +38,7 @@ export const CopyCurlButton = memo(({ method, path }: CopyCurlButtonProps) => {
     try {
       await navigator.clipboard.writeText(curl)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setTimeout(() => setCopied(false), 1000)
     } catch (error) {
       console.error('Failed to copy to clipboard:', error)
     }
@@ -47,8 +47,14 @@ export const CopyCurlButton = memo(({ method, path }: CopyCurlButtonProps) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="outline" size="sm" onClick={onClick} data-testid="endpoint-copy-curl-button">
-          {copied ? <Check className="text-green-500" /> : <Copy />}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={onClick}
+          data-testid="endpoint-copy-curl-button"
+        >
+          {copied ? <Check /> : <Copy />}
           <span>cURL</span>
         </Button>
       </TooltipTrigger>
