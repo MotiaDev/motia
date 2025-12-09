@@ -118,22 +118,15 @@ jobs:
           if [ "${{ runner.os }}" == "Linux" ]; then
             sudo apt-get update
             sudo apt-get install -y redis-server
-            redis-server --daemonize yes
           elif [ "${{ runner.os }}" == "macOS" ]; then
             brew install redis
-            brew services start redis
           fi
-          sleep 2
-          redis-cli ping || echo "Redis not responding to ping"
 
       - name: Install Redis (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           choco install redis-64 -y
-          Start-Service redis
-          Start-Sleep -Seconds 2
-          redis-cli ping
 
       - name: Install pre-release packages globally
         shell: bash
