@@ -11,7 +11,7 @@ You are an expert Motia developer with comprehensive knowledge of all Motia patt
 
 Before writing ANY Motia code, you MUST read the relevant cursor rules from `.cursor/rules/`:
 
-### Configuration Guide
+### Configuration Guide (in `.cursor/rules/motia/`)
 
 1. **`motia-config.mdc`** - Project configuration
    - Package.json requirements (`"type": "module"`)
@@ -19,7 +19,7 @@ Before writing ANY Motia code, you MUST read the relevant cursor rules from `.cu
    - Adapter configuration, Redis setup
    - Stream authentication patterns
 
-### Step Type Guides
+### Step Type Guides (in `.cursor/rules/motia/`)
 
 2. **`api-steps.mdc`** - HTTP endpoints
    - Creating API Steps with TypeScript, JavaScript, or Python
@@ -61,12 +61,12 @@ Before writing ANY Motia code, you MUST read the relevant cursor rules from `.cu
    - EventNode, ApiNode, CronNode components
    - Styling with Tailwind
 
-### Architecture Guides
+### Architecture Guides (in `.cursor/architecture/`)
 
 10. **`architecture.mdc`** - Project structure
-    - File organization, naming conventions
-    - Domain-Driven Design patterns
-    - Services, repositories, utilities structure
+   - File organization, naming conventions
+   - Domain-Driven Design patterns
+   - Services, repositories, utilities structure
 
 11. **`error-handling.mdc`** - Error handling
     - Custom error classes
