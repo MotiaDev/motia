@@ -58,7 +58,7 @@ export function handler(handler: CliHandler): (args: Record<string, any>) => Pro
         // Silently fail
       })
       if (error instanceof Error) {
-        context.log('error', (message) => message.tag('failed').append(error.message))
+        error.message && context.log('error', (message) => message.tag('failed').append(error.message))
         context.exit(1)
       } else {
         context.exitWithError('An error occurred', error)

@@ -11,6 +11,7 @@ import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins/index'
 import { getRedisClient, getRedisConnectionInfo, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
+import { validatePythonEnvironment } from './utils/validate-python-environment'
 import { version } from './version'
 
 export const start = async (
@@ -25,7 +26,12 @@ export const start = async (
   const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
 
-  if (hasPythonFiles) {
+  const pythonValidation = await validatePythonEnvironment({ baseDir, hasPythonFiles })
+  if (!pythonValidation.success) {
+    process.exit(1)
+  }
+
+  if (pythonValidation.hasPythonFiles) {
     console.log('⚙️ Activating Python environment...')
     activatePythonVenv({ baseDir, isVerbose })
   }

@@ -26,29 +26,23 @@ export const activatePythonVenv = ({ baseDir, isVerbose = false, pythonVersion =
   // Find the Python version directory using the utility function
   const sitePackagesPath = getSitePackagesPath({ baseDir, pythonVersion })
 
-  // Verify that the virtual environment exists
-  if (fs.existsSync(venvPath)) {
-    // Add virtual environment to PATH
-    process.env.PATH = `${venvBinPath}${path.delimiter}${process.env.PATH}`
-    // Set VIRTUAL_ENV environment variable
-    process.env.VIRTUAL_ENV = venvPath
-    // Set PYTHON_SITE_PACKAGES with the site-packages path
-    process.env.PYTHON_SITE_PACKAGES = sitePackagesPath
-    // Remove PYTHONHOME if it exists as it can interfere with venv
-    delete process.env.PYTHONHOME
+  // Add virtual environment to PATH
+  process.env.PATH = `${venvBinPath}${path.delimiter}${process.env.PATH}`
+  // Set VIRTUAL_ENV environment variable
+  process.env.VIRTUAL_ENV = venvPath
+  // Set PYTHON_SITE_PACKAGES with the site-packages path
+  process.env.PYTHON_SITE_PACKAGES = sitePackagesPath
+  // Remove PYTHONHOME if it exists as it can interfere with venv
+  delete process.env.PYTHONHOME
 
-    // Log Python environment information if verbose mode is enabled
-    if (isVerbose) {
-      const pythonPath =
-        process.platform === 'win32' ? path.join(venvBinPath, 'python.exe') : path.join(venvBinPath, 'python')
+  // Log Python environment information if verbose mode is enabled
+  if (isVerbose) {
+    const pythonPath =
+      process.platform === 'win32' ? path.join(venvBinPath, 'python.exe') : path.join(venvBinPath, 'python')
 
-      const relativePath = (path: string) => path.replace(baseDir, '<projectDir>')
+    const relativePath = (path: string) => path.replace(baseDir, '<projectDir>')
 
-      internalLogger.info('Using Python', relativePath(pythonPath))
-      internalLogger.info('Site-packages path', relativePath(sitePackagesPath))
-    }
-  } else {
-    internalLogger.error('Python virtual environment not found in python_modules/')
-    internalLogger.error('Please run `motia install` to create a new virtual environment')
+    internalLogger.info('Using Python', relativePath(pythonPath))
+    internalLogger.info('Site-packages path', relativePath(sitePackagesPath))
   }
 }
