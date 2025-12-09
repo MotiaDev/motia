@@ -1,4 +1,14 @@
-import { BackgroundEffect, Badge, Button, cn, Tabs, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
+import {
+  BackgroundEffect,
+  Badge,
+  Button,
+  cn,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  TooltipProvider,
+} from '@motiadev/ui'
 import { Book, X } from 'lucide-react'
 import { type FC, memo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -13,15 +23,17 @@ import {
 import { usePathParams } from '../hooks/use-path-params'
 import { SpecSidePanel } from '../spec/spec-side-panel'
 import type { ApiEndpoint } from '../types/endpoint'
+import { CopyCurlButton } from './copy-curl-button'
 import { SidePanelBodyTab } from './side-panel-body-tab'
 import { SidePanelHeadersTab } from './side-panel-headers-tab'
 import { SidePanelParamsTab } from './side-panel-params-tab'
+import { SidePanelRawTab } from './side-panel-raw-tab'
 import { SidePanelResponse } from './side-panel-response'
 import { TriggerButton } from './trigger-button'
 
 type EndpointSidePanelProps = { endpoint: ApiEndpoint; onClose: () => void }
 
-type ActiveTab = 'body' | 'headers' | 'params'
+type ActiveTab = 'body' | 'headers' | 'params' | 'raw'
 
 const headersCountSelector = (state: UseEndpointConfiguration) => Object.keys(getHeadersSelector(state)).length
 const hasResponseSelector = (state: UseEndpointConfiguration) => getResponseSelector(state) !== undefined
@@ -79,6 +91,9 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
               <TabsTrigger value="body" className="cursor-pointer" data-testid="endpoint-body-tab">
                 Body
               </TabsTrigger>
+              <TabsTrigger value="raw" className="cursor-pointer" data-testid="endpoint-raw-tab">
+                Raw
+              </TabsTrigger>
               <TabsTrigger
                 value="headers"
                 className="grid grid-cols-[auto_auto] gap-2 items-center cursor-pointer"
@@ -90,7 +105,12 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
                 </Badge>
               </TabsTrigger>
             </TabsList>
-            <TriggerButton method={endpoint.method} path={endpoint.path.toString()} />
+            <TooltipProvider>
+              <div className="flex items-center gap-2">
+                <CopyCurlButton method={endpoint.method} path={endpoint.path.toString()} />
+                <TriggerButton method={endpoint.method} path={endpoint.path.toString()} />
+              </div>
+            </TooltipProvider>
           </div>
 
           <TabsContent value="params">
@@ -99,7 +119,9 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           <TabsContent value="body">
             <SidePanelBodyTab schema={endpoint.bodySchema} />
           </TabsContent>
-
+          <TabsContent value="raw">
+            <SidePanelRawTab />
+          </TabsContent>
           <TabsContent value="headers">
             <SidePanelHeadersTab />
           </TabsContent>
