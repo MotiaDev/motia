@@ -4,20 +4,38 @@ import path from 'path'
 
 const COMPILED_DIR = '.motia/compiled'
 
+const TS_EXTENSIONS = ['.ts', '.tsx', '.stream.ts', '.stream']
+const EXT_TO_JS_MAP: Record<string, string> = {
+  '.stream.ts': '.stream.js',
+  '.tsx': '.js',
+  '.ts': '.js',
+  '.stream': '.stream.js',
+}
+
 interface CompileCache {
   compiledPath: string
   sourceMtime: number
 }
 
+interface ResolvedImport {
+  sourcePath: string
+  compiledImportPath: string
+}
+
+interface TransformResult {
+  code: string
+  dependencies: string[]
+}
+
 const cache = new Map<string, CompileCache>()
 
-function getCompiledPath(tsFilePath: string, projectRoot: string): string {
+const getCompiledPath = (tsFilePath: string, projectRoot: string): string => {
   const relativePath = path.relative(projectRoot, tsFilePath)
   const compiledRelativePath = relativePath.replace(/\.ts$/, '.js')
   return path.join(projectRoot, COMPILED_DIR, compiledRelativePath)
 }
 
-function getSourceMtime(filePath: string): number {
+const getSourceMtime = (filePath: string): number => {
   try {
     return statSync(filePath).mtimeMs
   } catch {
@@ -25,24 +43,99 @@ function getSourceMtime(filePath: string): number {
   }
 }
 
-function ensureCompiledDir(compiledPath: string): void {
+const ensureCompiledDir = (compiledPath: string): void => {
   const dir = path.dirname(compiledPath)
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
   }
 }
 
-export async function compile(tsFilePath: string, projectRoot: string): Promise<string> {
-  const cached = cache.get(tsFilePath)
-  const sourceMtime = getSourceMtime(tsFilePath)
-  const compiledPath = getCompiledPath(tsFilePath, projectRoot)
+const replaceExtensionWithJs = (filePath: string): string => {
+  for (const [ext, jsExt] of Object.entries(EXT_TO_JS_MAP)) {
+    if (filePath.endsWith(ext)) {
+      return filePath.replace(new RegExp(`${ext.replace('.', '\\.')}$`), jsExt)
+    }
+  }
+  return filePath
+}
 
-  if (cached && cached.sourceMtime === sourceMtime && existsSync(cached.compiledPath)) {
-    return cached.compiledPath
+const resolveImportPath = (
+  importPath: string,
+  dir: string,
+  projectRoot: string,
+  compiledPath: string,
+): ResolvedImport | null => {
+  const fullImportPath = path.resolve(dir, importPath)
+
+  for (const ext of TS_EXTENSIONS) {
+    const testPath = fullImportPath + (ext.startsWith('.') ? ext : `.${ext}`)
+    if (existsSync(testPath)) {
+      const relativeToProject = path.relative(projectRoot, testPath)
+      const compiledFileName = replaceExtensionWithJs(relativeToProject)
+      const compiledImportPath = path.join(COMPILED_DIR, compiledFileName)
+      const relativeCompiledPath = path
+        .relative(path.dirname(compiledPath), path.join(projectRoot, compiledImportPath))
+        .replace(/\\/g, '/')
+
+      return {
+        sourcePath: testPath,
+        compiledImportPath: relativeCompiledPath.startsWith('.') ? relativeCompiledPath : `./${relativeCompiledPath}`,
+      }
+    }
   }
 
-  ensureCompiledDir(compiledPath)
+  return null
+}
 
+const transformImportPaths = (
+  code: string,
+  tsFilePath: string,
+  compiledPath: string,
+  projectRoot: string,
+): TransformResult => {
+  const dir = path.dirname(tsFilePath)
+  const dependencies: string[] = []
+
+  const transformedCode = code.replace(/from\s+['"](\.\/?[^'"]+)['"]/g, (match, importPath) => {
+    if (!importPath.startsWith('.')) {
+      return match
+    }
+    if (importPath.endsWith('.js') || importPath.endsWith('.json')) {
+      return match
+    }
+
+    const resolved = resolveImportPath(importPath, dir, projectRoot, compiledPath)
+    if (resolved) {
+      dependencies.push(resolved.sourcePath)
+      return match.replace(importPath, resolved.compiledImportPath)
+    }
+
+    if (!importPath.match(/\.(ts|tsx|js|jsx|json|stream)$/)) {
+      return match.replace(importPath, `${importPath}.js`)
+    }
+
+    return match.replace(importPath, importPath.replace(/\.(ts|tsx|stream\.ts|stream)$/, '.js'))
+  })
+
+  return {
+    code: transformedCode,
+    dependencies: dependencies.filter(
+      (dep) => dep.endsWith('.ts') || dep.endsWith('.tsx') || dep.endsWith('.stream.ts'),
+    ),
+  }
+}
+
+const isCacheValid = (tsFilePath: string): boolean => {
+  const cached = cache.get(tsFilePath)
+  if (!cached) {
+    return false
+  }
+
+  const sourceMtime = getSourceMtime(tsFilePath)
+  return cached.sourceMtime === sourceMtime && existsSync(cached.compiledPath)
+}
+
+const buildWithEsbuild = async (tsFilePath: string, compiledPath: string): Promise<string> => {
   const result = await esbuild.build({
     entryPoints: [tsFilePath],
     bundle: false,
@@ -56,79 +149,52 @@ export async function compile(tsFilePath: string, projectRoot: string): Promise<
     packages: 'external',
   })
 
-  if (result.outputFiles && result.outputFiles.length > 0) {
-    let compiledCode = result.outputFiles[0].text
-
-    const dir = path.dirname(tsFilePath)
-    const relativeImports: string[] = []
-
-    compiledCode = compiledCode.replace(/from\s+['"](\.\/?[^'"]+)['"]/g, (match, importPath) => {
-      if (!importPath.startsWith('.')) {
-        return match
-      }
-      if (importPath.endsWith('.js') || importPath.endsWith('.json')) {
-        return match
-      }
-
-      const fullImportPath = path.resolve(dir, importPath)
-      const possibleExtensions = ['.ts', '.tsx', '.stream.ts', '.stream']
-
-      for (const ext of possibleExtensions) {
-        const testPath = fullImportPath + (ext.startsWith('.') ? ext : `.${ext}`)
-        if (existsSync(testPath)) {
-          const relativeToProject = path.relative(projectRoot, testPath)
-          let compiledFileName = relativeToProject
-          if (compiledFileName.endsWith('.stream.ts')) {
-            compiledFileName = compiledFileName.replace(/\.stream\.ts$/, '.stream.js')
-          } else if (compiledFileName.endsWith('.tsx')) {
-            compiledFileName = compiledFileName.replace(/\.tsx$/, '.js')
-          } else if (compiledFileName.endsWith('.ts')) {
-            compiledFileName = compiledFileName.replace(/\.ts$/, '.js')
-          } else if (compiledFileName.endsWith('.stream')) {
-            compiledFileName = compiledFileName.replace(/\.stream$/, '.stream.js')
-          }
-          const compiledImportPath = path.join(COMPILED_DIR, compiledFileName)
-          const relativeCompiledPath = path
-            .relative(path.dirname(compiledPath), path.join(projectRoot, compiledImportPath))
-            .replace(/\\/g, '/')
-          relativeImports.push(testPath)
-          return match.replace(
-            importPath,
-            relativeCompiledPath.startsWith('.') ? relativeCompiledPath : `./${relativeCompiledPath}`,
-          )
-        }
-      }
-
-      if (!importPath.match(/\.(ts|tsx|js|jsx|json|stream)$/)) {
-        return match.replace(importPath, `${importPath}.js`)
-      }
-
-      return match.replace(importPath, importPath.replace(/\.(ts|tsx|stream\.ts|stream)$/, '.js'))
-    })
-
-    for (const importPath of relativeImports) {
-      if (importPath.endsWith('.ts') || importPath.endsWith('.tsx') || importPath.endsWith('.stream.ts')) {
-        await compile(importPath, projectRoot)
-      }
-    }
-
-    writeFileSync(compiledPath, compiledCode, 'utf-8')
-  } else {
+  if (!result.outputFiles || result.outputFiles.length === 0) {
     throw new Error(`Failed to compile ${tsFilePath}`)
   }
 
+  return result.outputFiles[0].text
+}
+
+const compileDependencies = async (dependencies: string[], projectRoot: string): Promise<void> => {
+  for (const dep of dependencies) {
+    await compile(dep, projectRoot)
+  }
+}
+
+const updateCache = (tsFilePath: string, compiledPath: string): void => {
+  const sourceMtime = getSourceMtime(tsFilePath)
   cache.set(tsFilePath, {
     compiledPath,
     sourceMtime,
   })
+}
+
+export const compile = async (tsFilePath: string, projectRoot: string): Promise<string> => {
+  const compiledPath = getCompiledPath(tsFilePath, projectRoot)
+
+  if (isCacheValid(tsFilePath)) {
+    const cached = cache.get(tsFilePath)
+    if (cached) {
+      return cached.compiledPath
+    }
+  }
+
+  ensureCompiledDir(compiledPath)
+  const compiledCode = await buildWithEsbuild(tsFilePath, compiledPath)
+  const { code, dependencies } = transformImportPaths(compiledCode, tsFilePath, compiledPath, projectRoot)
+
+  await compileDependencies(dependencies, projectRoot)
+  writeFileSync(compiledPath, code, 'utf-8')
+  updateCache(tsFilePath, compiledPath)
 
   return compiledPath
 }
 
-export function invalidate(tsFilePath: string): void {
+export const invalidate = (tsFilePath: string): void => {
   cache.delete(tsFilePath)
 }
 
-export function invalidateAll(): void {
+export const invalidateAll = (): void => {
   cache.clear()
 }
