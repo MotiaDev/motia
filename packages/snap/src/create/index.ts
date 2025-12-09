@@ -46,16 +46,15 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
 
 const preparePackageManager = async (rootDir: string, context: CliContext, detectFromParent = false) => {
   const detectionDir = detectFromParent ? process.cwd() : rootDir
-  const packageManager = getPackageManager(detectionDir)
   const envPackageManager = getPackageManagerFromEnv()
+  const packageManager = getPackageManager(detectionDir)
 
-  if (envPackageManager) {
-    context.log('package-manager-detected', (message: Message) =>
-      message.tag('info').append('Detected package manager from command').append(packageManager, 'gray'),
-    )
-  } else if (detectFromParent) {
-    context.log('package-manager-detected', (message: Message) =>
-      message.tag('info').append('Detected package manager from workspace').append(packageManager, 'gray'),
+  const isFallback =
+    !envPackageManager && packageManager === 'npm' && !checkIfFileExists(detectionDir, 'package-lock.json')
+
+  if (isFallback) {
+    context.log('package-manager-using-default', (message: Message) =>
+      message.tag('info').append('Using default package manager').append(packageManager, 'gray'),
     )
   } else {
     context.log('package-manager-detected', (message: Message) =>
