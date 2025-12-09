@@ -174,12 +174,26 @@ generate
   .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
   .action(
     wrapAction(async (options: any) => {
-      const { generateLockedData } = await import('./generate-locked-data')
+      const { generateLockedData, getStepFiles, getStreamFiles } = await import('./generate-locked-data')
+      const { validatePythonEnvironment } = await import('./utils/validate-python-environment')
+      const { activatePythonVenv } = await import('./utils/activate-python-env')
       const { generateOpenApi } = await import('./openapi/generate')
       const { MemoryStreamAdapterManager } = await import('@motiadev/core')
 
       const baseDir = process.cwd()
       const appConfig = await loadMotiaConfig(baseDir)
+
+      const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
+      const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
+
+      const pythonValidation = await validatePythonEnvironment({ baseDir, hasPythonFiles })
+      if (!pythonValidation.success) {
+        process.exit(1)
+      }
+
+      if (hasPythonFiles) {
+        activatePythonVenv({ baseDir })
+      }
 
       const lockedData = await generateLockedData({
         projectDir: baseDir,

@@ -16,10 +16,8 @@ import { globSync } from 'glob'
 import path from 'path'
 import pc from 'picocolors'
 import type { RedisClientType } from 'redis'
-import { activatePythonVenv } from './utils/activate-python-env'
 import { CompilationError } from './utils/errors/compilation.error'
 import { LockedDataGenerationError } from './utils/errors/locked-data-generation.error'
-import { validatePythonEnvironment } from './utils/validate-python-environment'
 
 const version = `${randomUUID()}:${Math.floor(Date.now() / 1000)}`
 
@@ -66,18 +64,6 @@ export const collectFlows = async (projectDir: string, lockedData: LockedData): 
     ...(existsSync(stepsDir) ? globSync('**/*.step.py', { absolute: true, cwd: stepsDir }) : []),
     ...(existsSync(srcDir) ? globSync('**/*.step.py', { absolute: true, cwd: srcDir }) : []),
   ]
-
-  const hasPythonFiles =
-    stepFiles.some((file) => file.endsWith('.py')) || streamFiles.some((file) => file.endsWith('.py'))
-
-  const pythonValidation = await validatePythonEnvironment({ baseDir: projectDir, hasPythonFiles })
-  if (!pythonValidation.success) {
-    throw new LockedDataGenerationError('')
-  }
-
-  if (hasPythonFiles) {
-    activatePythonVenv({ baseDir: projectDir })
-  }
 
   for (const filePath of stepFiles) {
     try {
