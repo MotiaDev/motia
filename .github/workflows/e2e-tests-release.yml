@@ -111,6 +111,30 @@ jobs:
           restore-keys: |
             npm-global-${{ runner.os }}-
 
+      - name: Install Redis (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y redis-server
+            redis-server --daemonize yes
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            brew install redis
+            brew services start redis
+          fi
+          sleep 2
+          redis-cli ping || echo "Redis not responding to ping"
+
+      - name: Install Redis (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install redis-64 -y
+          Start-Service redis
+          Start-Sleep -Seconds 2
+          redis-cli ping
+
       - name: Install pre-release packages globally
         shell: bash
         run: |
@@ -201,6 +225,13 @@ jobs:
           command: |
             cd packages/e2e
             echo "Starting Release E2E tests - Template: ${{ matrix.template }}, OS: ${{ matrix.os }}"
+            
+            if [ "${{ runner.os }}" == "Windows" ]; then
+              export REDISMS_SYSTEM_BINARY=$(where.exe redis-server | head -n 1)
+            else
+              export REDISMS_SYSTEM_BINARY=$(which redis-server)
+            fi
+            
             if [ "${{ matrix.template }}" == "motia-tutorial-python" ]; then
               pnpm test:release:python --reporter=line,html,github
             else
