@@ -5,8 +5,9 @@ import { getResponseSelector, useEndpointConfiguration } from '../hooks/use-endp
 import { useStateStream } from '../hooks/use-state-stream'
 import { ResponseCode } from './response-code'
 import { ResponseContent } from './response-content'
+import { ResponseRawContent } from './response-raw-content'
 
-type ActiveTab = 'preview' | 'headers'
+type ActiveTab = 'preview' | 'raw' | 'headers'
 
 export const SidePanelResponse = memo(() => {
   const { setResponse } = useEndpointConfiguration()
@@ -30,6 +31,9 @@ export const SidePanelResponse = memo(() => {
         <TabsList>
           <TabsTrigger value="preview" className="cursor-pointer">
             Preview
+          </TabsTrigger>
+          <TabsTrigger value="raw" className="cursor-pointer" data-testid="endpoint-response-raw-tab">
+            Raw
           </TabsTrigger>
           <TabsTrigger value="headers" className="grid grid-cols-[auto_auto] gap-2 items-center cursor-pointer">
             Headers
@@ -57,6 +61,10 @@ export const SidePanelResponse = memo(() => {
           blob={response?.body instanceof Blob ? response.body : undefined}
           contentType={response.headers['content-type']}
         />
+      </TabsContent>
+
+      <TabsContent value="raw">
+        <ResponseRawContent rawBody={response.rawBody} />
       </TabsContent>
 
       <TabsContent value="headers">

@@ -24,6 +24,7 @@ const defaultHeaders: Headers = {
 export type ResponseData = {
   headers: Record<string, string>
   body: Record<string, any>
+  rawBody: string
   statusCode: number
   executionTime: number
 }
@@ -157,17 +158,27 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let body: any
+        let rawBody = ''
         try {
           const contentType = response?.headers.get('content-type') ?? ''
 
           if (contentType.includes('text/')) {
-            body = response ? await response.text() : undefined
+            rawBody = response ? await response.text() : ''
+            body = rawBody
           } else if (contentType.includes('application/json')) {
-            body = response ? await response.json() : undefined
+            rawBody = response ? await response.text() : ''
+            try {
+              body = JSON.parse(rawBody)
+            } catch {
+              body = rawBody
+            }
           } else {
             body = response ? await response.blob() : undefined
             // this is important to avoid the body being serialized to JSON
-            body.toJSON = () => 'Preview not available'
+            if (body) {
+              body.toJSON = () => 'Preview not available'
+            }
+            rawBody = 'Binary content - preview not available'
           }
         } catch (error) {
           console.error('Error setting response:', error)
@@ -180,6 +191,7 @@ export const useEndpointConfiguration = create<UseEndpointConfiguration>()(
               statusCode: response?.status,
               headers: response?.headers ? Object.fromEntries(response.headers.entries()) : {},
               body: body,
+              rawBody: rawBody,
             },
           },
         }))

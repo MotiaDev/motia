@@ -27,13 +27,12 @@ import { CopyCurlButton } from './copy-curl-button'
 import { SidePanelBodyTab } from './side-panel-body-tab'
 import { SidePanelHeadersTab } from './side-panel-headers-tab'
 import { SidePanelParamsTab } from './side-panel-params-tab'
-import { SidePanelRawTab } from './side-panel-raw-tab'
 import { SidePanelResponse } from './side-panel-response'
 import { TriggerButton } from './trigger-button'
 
 type EndpointSidePanelProps = { endpoint: ApiEndpoint; onClose: () => void }
 
-type ActiveTab = 'body' | 'headers' | 'params' | 'raw'
+type ActiveTab = 'body' | 'headers' | 'params'
 
 const headersCountSelector = (state: UseEndpointConfiguration) => Object.keys(getHeadersSelector(state)).length
 const hasResponseSelector = (state: UseEndpointConfiguration) => getResponseSelector(state) !== undefined
@@ -91,9 +90,6 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
               <TabsTrigger value="body" className="cursor-pointer" data-testid="endpoint-body-tab">
                 Body
               </TabsTrigger>
-              <TabsTrigger value="raw" className="cursor-pointer" data-testid="endpoint-raw-tab">
-                Raw
-              </TabsTrigger>
               <TabsTrigger
                 value="headers"
                 className="grid grid-cols-[auto_auto] gap-2 items-center cursor-pointer"
@@ -118,9 +114,6 @@ export const SidePanel: FC<EndpointSidePanelProps> = memo(({ endpoint, onClose }
           </TabsContent>
           <TabsContent value="body">
             <SidePanelBodyTab schema={endpoint.bodySchema} />
-          </TabsContent>
-          <TabsContent value="raw">
-            <SidePanelRawTab />
           </TabsContent>
           <TabsContent value="headers">
             <SidePanelHeadersTab />

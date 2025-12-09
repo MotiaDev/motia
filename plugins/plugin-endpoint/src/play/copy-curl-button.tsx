@@ -47,9 +47,9 @@ export const CopyCurlButton = memo(({ method, path }: CopyCurlButtonProps) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="sm" onClick={onClick} data-testid="endpoint-copy-curl-button" className="gap-1.5">
-          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-          <span className="hidden sm:inline">{copied ? 'Copied!' : 'cURL'}</span>
+        <Button variant="outline" size="sm" onClick={onClick} data-testid="endpoint-copy-curl-button">
+          {copied ? <Check className="text-green-500" /> : <Copy />}
+          <span>cURL</span>
         </Button>
       </TooltipTrigger>
       <TooltipContent>Copy as cURL command</TooltipContent>
