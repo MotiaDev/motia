@@ -7,7 +7,7 @@ import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
 import { pluginDependencies } from '../plugins/plugin-dependencies'
 import { executeCommand } from '../utils/execute-command'
-import { getPackageManager } from '../utils/get-package-manager'
+import { getPackageManager, getPackageManagerFromEnv } from '../utils/get-package-manager'
 import { version } from '../version'
 import { pullRules } from './pull-rules'
 import { setupTemplate } from './setup-template'
@@ -22,6 +22,7 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     npm: 'npm install --save',
     yarn: 'yarn add',
     pnpm: 'pnpm add',
+    bun: 'bun add',
   }[packageManager]
 
   const dependencies = [
@@ -43,18 +44,22 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
   }
 }
 
-const preparePackageManager = async (rootDir: string, context: CliContext) => {
-  let packageManager = 'npm'
-  const detectedPackageManager = getPackageManager(rootDir)
+const preparePackageManager = async (rootDir: string, context: CliContext, detectFromParent = false) => {
+  const detectionDir = detectFromParent ? process.cwd() : rootDir
+  const packageManager = getPackageManager(detectionDir)
+  const envPackageManager = getPackageManagerFromEnv()
 
-  if (detectedPackageManager !== 'unknown') {
+  if (envPackageManager) {
     context.log('package-manager-detected', (message: Message) =>
-      message.tag('info').append('Detected package manager').append(detectedPackageManager, 'gray'),
+      message.tag('info').append('Detected package manager from command').append(packageManager, 'gray'),
     )
-    packageManager = detectedPackageManager
+  } else if (detectFromParent) {
+    context.log('package-manager-detected', (message: Message) =>
+      message.tag('info').append('Detected package manager from workspace').append(packageManager, 'gray'),
+    )
   } else {
-    context.log('package-manager-using-default', (message: Message) =>
-      message.tag('info').append('Using default package manager').append(packageManager, 'gray'),
+    context.log('package-manager-detected', (message: Message) =>
+      message.tag('info').append('Detected package manager').append(packageManager, 'gray'),
     )
   }
 
@@ -229,8 +234,29 @@ export const create = async ({
     await pullRules({ force: true, rootDir }, context)
   }
 
+  let packageManager: string | undefined
+  if (isPluginTemplate) {
+    packageManager = await preparePackageManager(rootDir, context, true)
+  }
+
   if (template) {
     await setupTemplate(template, rootDir, context)
+  }
+
+  if (isPluginTemplate && packageManager) {
+    const packageJsonPath = path.join(rootDir, 'package.json')
+    if (checkIfFileExists(rootDir, 'package.json')) {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
+      packageJson.packageManager = packageManager
+      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
+      context.log('package-manager-added', (message: Message) =>
+        message
+          .tag('success')
+          .append('Added packageManager field to')
+          .append('package.json', 'cyan')
+          .append(`(${packageManager})`),
+      )
+    }
   }
 
   if (!isPluginTemplate && skipRedis) {
@@ -244,7 +270,6 @@ export const create = async ({
     )
   }
 
-  let packageManager: string
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
 
@@ -254,8 +279,32 @@ export const create = async ({
 
     await generateTypes(rootDir)
   } else {
-    // For plugin template, just detect the package manager
-    packageManager = await preparePackageManager(rootDir, context)
+    if (!packageManager) {
+      packageManager = await preparePackageManager(rootDir, context, true)
+    }
+
+    context.log('installing-plugin-dependencies', (message: Message) =>
+      message.tag('info').append('Installing plugin dependencies...'),
+    )
+
+    const installCommand = {
+      npm: 'npm install',
+      yarn: 'yarn',
+      pnpm: 'pnpm install',
+      bun: 'bun install',
+    }[packageManager]
+
+    try {
+      await executeCommand(installCommand!, rootDir)
+      context.log('plugin-dependencies-installed', (message: Message) =>
+        message.tag('success').append('Plugin dependencies installed'),
+      )
+    } catch (error) {
+      context.log('failed-to-install-plugin-dependencies', (message: Message) =>
+        message.tag('failed').append('Failed to install plugin dependencies'),
+      )
+      console.error(error)
+    }
   }
 
   const projectDirName = path.basename(rootDir)
