@@ -6,14 +6,7 @@ import type { StepConfig } from './types'
 import type { StreamConfig } from './types-stream'
 
 const getConfig = async <T>(file: string, projectRoot?: string): Promise<T | null> => {
-  let filePathToExecute = file
-  if (file.endsWith('.ts')) {
-    try {
-      filePathToExecute = await compile(file, projectRoot || process.cwd())
-    } catch (error) {
-      throw new Error(`Failed to compile TypeScript file: ${error}`)
-    }
-  }
+  const filePathToExecute = file.endsWith('.ts') ? await compile(file, projectRoot || process.cwd()) : file
 
   const { runner, command, args } = getLanguageBasedRunner(file, {
     python: 'get-config.py',

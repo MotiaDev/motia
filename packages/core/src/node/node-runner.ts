@@ -9,6 +9,8 @@ import { RpcStateManager } from './rpc-state-manager'
 
 dotenv.config()
 
+type FileModule = { handler?: unknown; default?: { handler?: unknown; config?: unknown }; config?: unknown }
+
 function parseArgs(arg: string) {
   try {
     return JSON.parse(arg)
@@ -17,26 +19,27 @@ function parseArgs(arg: string) {
   }
 }
 
+const importCompiledModule = async (filePath: string): Promise<FileModule> => {
+  try {
+    return import(pathToFileURL(path.resolve(filePath)).href)
+  } catch (importError: unknown) {
+    const err = importError as Error & { code?: string }
+    const error = {
+      message: `Failed to import module ${filePath}: ${err.message}`,
+      code: err.code || 'IMPORT_ERROR',
+      stack: err.stack || '',
+    }
+
+    throw error
+  }
+}
 async function runTypescriptModule(filePath: string, event: Record<string, unknown>) {
   const sender = new RpcSender(process)
 
   try {
     sender.init()
 
-    let importedModule: { handler?: unknown; default?: { handler?: unknown; config?: unknown }; config?: unknown }
-    try {
-      importedModule = await import(pathToFileURL(path.resolve(filePath)).href)
-    } catch (importError: unknown) {
-      const err = importError as Error & { code?: string }
-      const error = {
-        message: `Failed to import module ${filePath}: ${err.message}`,
-        code: err.code || 'IMPORT_ERROR',
-        stack: err.stack || '',
-      }
-      sender.sendNoWait('close', error)
-      process.exit(1)
-      return
-    }
+    const importedModule: FileModule = await importCompiledModule(filePath)
 
     const handler = importedModule.handler || importedModule.default?.handler
     const config = (importedModule.config || importedModule.default?.config || {}) as { middleware?: unknown[] }

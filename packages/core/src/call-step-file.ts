@@ -40,27 +40,9 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       const streams = Object.keys(streamConfig).map((name) => ({ name }))
       const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
 
-      let filePathToExecute = step.filePath
-      if (step.filePath.endsWith('.ts')) {
-        try {
-          filePathToExecute = await compile(step.filePath, motia.lockedData.baseDir)
-        } catch (compileError: unknown) {
-          const error = compileError as Error & { code?: string }
-          logger.error(`Failed to compile TypeScript file: ${step.filePath}`, { error })
-          await tracer.end({
-            message: `Compilation failed: ${error.message}`,
-            code: error.code,
-            stack: error.stack,
-          })
-          trackEvent('step_execution_error', {
-            stepName: step.config.name,
-            traceId,
-            code: 'COMPILATION_ERROR',
-            message: error.message,
-          })
-          throw new Error(`Failed to compile TypeScript file ${step.filePath}: ${error.message}`)
-        }
-      }
+      const filePathToExecute = step.filePath.endsWith('.ts')
+        ? await compile(step.filePath, motia.lockedData.baseDir)
+        : step.filePath
 
       const { runner, command, args } = getLanguageBasedRunner(step.filePath)
       let result: TData | undefined
