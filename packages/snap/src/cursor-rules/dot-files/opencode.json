@@ -3,6 +3,7 @@
   "description": "Motia event-driven backend framework project",
   "rules": ["AGENTS.md"],
   "context": [
+    ".cursor/rules/motia/motia-config.mdc",
     ".cursor/rules/motia/api-steps.mdc",
     ".cursor/rules/motia/event-steps.mdc",
     ".cursor/rules/motia/cron-steps.mdc",

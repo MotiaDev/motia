@@ -40,6 +40,7 @@ These guides are written in markdown and can be read by any AI coding tool. The 
 
 Read these files in `.cursor/rules/motia/` for detailed patterns:
 
+- **`motia-config.mdc`** - Essential project setup, package.json requirements, plugin naming
 - **`api-steps.mdc`** - Creating HTTP endpoints with schemas, validation, and middleware
 - **`event-steps.mdc`** - Background task processing and event-driven workflows
 - **`cron-steps.mdc`** - Scheduled tasks with cron expressions
@@ -62,29 +63,42 @@ Architecture guides in `.cursor/architecture/`:
 
 ### Project Structure
 
+Motia discovers steps from both `/src` and `/steps` folders. Modern projects typically use `/src`:
+
+**Recommended Structure (using `/src`):**
 ```
 project/
 ├── .cursor/rules/   # DETAILED GUIDES - Read these first!
-├── steps/           # All step definitions
-│   ├── api/        # API endpoints
-│   │   └── api.step.ts
-│   │   └── api.step.js
-│   │   └── api_step.py
-│   ├── events/     # Events
-│   │   └── events.step.ts
-│   │   └── events.step.js
-│   │   └── events_step.py
-│   └── cron/       # Scheduled tasks
-│   │   └── cron.step.ts
-│   │   └── cron.step.js
-│   │   └── cron_step.py
-├── middlewares/    # Reusable middleware
-│   └── middleware.middleware.ts
 ├── src/
+│   ├── api/        # API endpoints
+│   │   ├── users.step.ts
+│   │   ├── orders.step.js
+│   │   └── products_step.py
+│   ├── events/     # Event handlers
+│   │   ├── order-processing.step.ts
+│   │   └── notifications_step.py
+│   ├── cron/       # Scheduled tasks
+│   │   └── cleanup.step.ts
 │   ├── services/   # Business logic
+│   ├── repositories/ # Data access
 │   └── utils/      # Utilities
-├── config.yml      # Motia configuration
+├── middlewares/    # Reusable middleware
+│   └── auth.middleware.ts
+├── motia.config.ts # Motia configuration
 └── types.d.ts      # Auto-generated types
+```
+
+**Alternative Structure (using `/steps`):**
+```
+project/
+├── steps/          # Step definitions
+│   ├── api/
+│   ├── events/
+│   └── cron/
+├── src/
+│   ├── services/
+│   └── utils/
+└── motia.config.ts
 ```
 
 ### Step Naming Conventions
@@ -194,6 +208,7 @@ When working on Motia projects, follow this pattern:
 
 ## Critical Rules
 
+- **ALWAYS** ensure `package.json` has `"type": "module"` (read `motia-config.mdc` for details)
 - **ALWAYS** read `.cursor/rules/` guides before writing step code
 - **ALWAYS** run `npx motia generate-types` after modifying configs
 - **ALWAYS** list emits in config before using them in handlers

@@ -7,6 +7,43 @@ alwaysApply: false
 
 The `motia.config.ts` file is the central configuration file for your Motia application. It allows you to customize plugins, adapters, stream authentication, and Express app settings.
 
+## Critical Requirement: package.json Must Use ES Modules
+
+**All Motia projects MUST have `"type": "module"` in their `package.json`.**
+
+Motia uses ES modules internally and requires this setting to function correctly. Without it, you may encounter import/export errors during runtime.
+
+### Correct package.json Setup
+
+```json
+{
+  "name": "my-motia-project",
+  "description": "My Motia application",
+  "type": "module",
+  "scripts": {
+    "postinstall": "motia install",
+    "dev": "motia dev",
+    "start": "motia start",
+    "build": "motia build",
+    "generate-types": "motia generate-types"
+  }
+}
+```
+
+### Migration from Existing Projects
+
+If you have an existing Motia project, ensure you add `"type": "module"` to your `package.json`:
+
+```json
+{
+  "name": "my-project",
+  "type": "module",  // ← Add this line
+  "scripts": {
+    "dev": "motia dev"
+  }
+}
+```
+
 ## Creating the Configuration File
 
 Create a `motia.config.ts` file in the root of your project:
@@ -157,6 +194,21 @@ export default config({
 
 ### Creating a Local Plugin
 
+**Project structure:**
+```
+project/
+├── src/              # Steps can be in /src or /steps
+│   └── api/
+│       └── example.step.ts
+├── plugins/
+│   └── my-plugin/
+│       ├── components/
+│       │   └── my-plugin-panel.tsx
+│       └── index.ts
+└── motia.config.ts
+```
+
+**Plugin implementation (`plugins/my-plugin/index.ts`):**
 ```typescript
 import path from 'node:path'
 import { config, type MotiaPlugin, type MotiaPluginContext } from 'motia'
@@ -194,6 +246,20 @@ export default config({
   plugins: [myLocalPlugin],
 })
 ```
+
+### Common Plugin Errors
+
+**Error: Component not found**
+- **Cause**: `packageName` doesn't match the actual folder structure
+- **Solution**: Ensure `packageName: '~/plugins/my-plugin'` matches `plugins/my-plugin/` folder
+
+**Error: Plugin not loading in workbench**
+- **Cause**: Plugin function not exported correctly
+- **Solution**: Use `export default function` in plugin's `index.ts`
+
+**Error: Module resolution failed**
+- **Cause**: Using incorrect casing in folder/file names
+- **Solution**: Use `kebab-case` for folders/files, `PascalCase` for React components
 
 ## Adapters
 

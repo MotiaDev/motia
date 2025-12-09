@@ -12,7 +12,7 @@ This project has detailed development guides in **`.cursor/rules/`** directory. 
 
 **A pre-configured subagent is ready!** 
 
-The `motia-developer` subagent in `.claude/agents/` automatically references all 10 cursor rules when coding.
+The `motia-developer` subagent in `.claude/agents/` automatically references all 11 cursor rules when coding.
 
 Use it: `/agents` → select `motia-developer`
 
@@ -27,9 +27,12 @@ Read .cursor/rules/motia/api-steps.mdc and create an API endpoint
 for user registration following the patterns shown.
 ```
 
-## Available Guides (10 Comprehensive Files)
+## Available Guides (11 Comprehensive Files)
 
 All guides in `.cursor/rules/` with **TypeScript, JavaScript, and Python** examples:
+
+**Configuration** (`.cursor/rules/motia/`):
+- `motia-config.mdc` - Essential project setup, package.json requirements, plugin naming
 
 **Step Types** (`.cursor/rules/motia/`):
 - `api-steps.mdc`, `event-steps.mdc`, `cron-steps.mdc`
@@ -44,6 +47,8 @@ All guides in `.cursor/rules/` with **TypeScript, JavaScript, and Python** examp
 ## Quick Reference
 
 See `AGENTS.md` in this directory for a quick overview and links to specific guides.
+
+**Important**: Motia discovers steps from both `/src` and `/steps` folders. Modern projects use `/src` for a familiar structure.
 
 ## Key Commands
 
