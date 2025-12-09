@@ -23,7 +23,7 @@ Learn more: [Claude Code Subagents Docs](https://docs.claude.com/en/docs/claude-
 Explicitly reference cursor rules in your prompts:
 
 ```
-Read .cursor/rules/motia/api-steps.mdc and create an API endpoint 
+Read .cursor/rules/api-steps.mdc and create an API endpoint 
 for user registration following the patterns shown.
 ```
 
@@ -31,17 +31,17 @@ for user registration following the patterns shown.
 
 All guides in `.cursor/rules/` with **TypeScript, JavaScript, and Python** examples:
 
-**Configuration** (`.cursor/rules/motia/`):
+**Configuration:**
 - `motia-config.mdc` - Essential project setup, package.json requirements, plugin naming
 
-**Step Types** (`.cursor/rules/motia/`):
+**Step Types:**
 - `api-steps.mdc`, `event-steps.mdc`, `cron-steps.mdc`
 
-**Features** (`.cursor/rules/motia/`):
+**Features:**
 - `state-management.mdc`, `middlewares.mdc`, `realtime-streaming.mdc`
 - `virtual-steps.mdc`, `ui-steps.mdc`
 
-**Architecture** (`.cursor/architecture/`):
+**Architecture:**
 - `architecture.mdc`, `error-handling.mdc`
 
 ## Quick Reference

@@ -38,7 +38,7 @@ These guides are written in markdown and can be read by any AI coding tool. The 
 
 ### Available Guides
 
-Read these files in `.cursor/rules/motia/` for detailed patterns:
+Read these files in `.cursor/rules/` for detailed patterns:
 
 - **`motia-config.mdc`** - Essential project setup, package.json requirements, plugin naming
 - **`api-steps.mdc`** - Creating HTTP endpoints with schemas, validation, and middleware
@@ -49,9 +49,6 @@ Read these files in `.cursor/rules/motia/` for detailed patterns:
 - **`realtime-streaming.mdc`** - WebSocket and SSE patterns
 - **`virtual-steps.mdc`** - Visual flow connections in Workbench
 - **`ui-steps.mdc`** - Custom visual components for Workbench
-
-Architecture guides in `.cursor/architecture/`:
-
 - **`architecture.mdc`** - Project structure, naming conventions, DDD patterns
 - **`error-handling.mdc`** - Error handling best practices
 
@@ -106,7 +103,7 @@ project/
 **TypeScript/JavaScript:** `my-step.step.ts` (kebab-case)  
 **Python:** `my_step_step.py` (snake_case)
 
-See `.cursor/architecture/architecture.mdc` for complete naming rules.
+See `.cursor/rules/architecture.mdc` for complete naming rules.
 
 ### Creating Steps - Quick Start
 
@@ -116,63 +113,63 @@ Every step needs two exports:
 2. **`handler`** - Async function with processing logic
 
 **For complete examples and type definitions, read:**
-- `.cursor/rules/motia/api-steps.mdc` - HTTP endpoints
-- `.cursor/rules/motia/event-steps.mdc` - Background tasks
-- `.cursor/rules/motia/cron-steps.mdc` - Scheduled tasks
+- `.cursor/rules/api-steps.mdc` - HTTP endpoints
+- `.cursor/rules/event-steps.mdc` - Background tasks
+- `.cursor/rules/cron-steps.mdc` - Scheduled tasks
 
 ## Detailed Guides by Topic
 
 > **📖 Read the cursor rules for complete information**
 
 ### Step Types
-- **API Steps** → Read `.cursor/rules/motia/api-steps.mdc`
+- **API Steps** → Read `.cursor/rules/api-steps.mdc`
   - HTTP endpoints, schemas, middleware, emits
   - Complete TypeScript and Python examples
   - When to use emits vs direct processing
 
-- **Event Steps** → Read `.cursor/rules/motia/event-steps.mdc`
+- **Event Steps** → Read `.cursor/rules/event-steps.mdc`
   - Background processing, topic subscriptions
   - Retry mechanisms, error handling
   - Chaining events for complex workflows
 
-- **Cron Steps** → Read `.cursor/rules/motia/cron-steps.mdc`
+- **Cron Steps** → Read `.cursor/rules/cron-steps.mdc`
   - Scheduled tasks with cron expressions
   - Idempotent execution patterns
   - Integration with event emits
 
 ### Architecture
-- **Project Structure** → Read `.cursor/architecture/architecture.mdc`
+- **Project Structure** → Read `.cursor/rules/architecture.mdc`
   - File organization, naming conventions
   - Domain-Driven Design patterns (services, repositories)
   - Code style guidelines for TypeScript, JavaScript, Python
 
-- **Error Handling** → Read `.cursor/architecture/error-handling.mdc`
+- **Error Handling** → Read `.cursor/rules/error-handling.mdc`
   - ZodError middleware patterns
   - Logging best practices
   - HTTP status codes
 
 ### Advanced Features
-- **State Management** → Read `.cursor/rules/motia/state-management.mdc`
+- **State Management** → Read `.cursor/rules/state-management.mdc`
   - Caching strategies, TTL configuration
   - When to use state vs database
   - Complete API reference
 
-- **Middlewares** → Read `.cursor/rules/motia/middlewares.mdc`
+- **Middlewares** → Read `.cursor/rules/middlewares.mdc`
   - Authentication, validation, error handling
   - Creating reusable middleware
   - Middleware composition
 
-- **Real-time Streaming** → Read `.cursor/rules/motia/realtime-streaming.mdc`
+- **Real-time Streaming** → Read `.cursor/rules/realtime-streaming.mdc`
   - Server-Sent Events (SSE) patterns
   - WebSocket support
   - Client-side integration
 
-- **Virtual Steps** → Read `.cursor/rules/motia/virtual-steps.mdc`
+- **Virtual Steps** → Read `.cursor/rules/virtual-steps.mdc`
   - Visual flow connections in Workbench
   - Documenting API chains
   - Flow organization
 
-- **UI Steps** → Read `.cursor/rules/motia/ui-steps.mdc`
+- **UI Steps** → Read `.cursor/rules/ui-steps.mdc`
   - Custom Workbench visualizations
   - Available components (EventNode, ApiNode, etc.)
   - Styling with Tailwind
@@ -186,7 +183,7 @@ When working on Motia projects, follow this pattern:
    - Background task? Read `event-steps.mdc`
    - Scheduled job? Read `cron-steps.mdc`
 
-2. **Check the architecture guide** in `.cursor/architecture/architecture.mdc`
+2. **Check the architecture guide** in `.cursor/rules/architecture.mdc`
    - Understand project structure
    - Follow naming conventions
    - Apply DDD patterns
@@ -219,8 +216,7 @@ When working on Motia projects, follow this pattern:
 
 ## Resources
 
-- **Detailed Guides**: `.cursor/rules/motia/*.mdc` (in this project)
-- **Architecture**: `.cursor/architecture/*.mdc` (in this project)
+- **Detailed Guides**: `.cursor/rules/*.mdc` (in this project)
 - **Documentation**: [motia.dev/docs](https://motia.dev/docs)
 - **Examples**: [motia.dev/docs/examples](https://motia.dev/docs/examples)
 - **GitHub**: [github.com/MotiaDev/motia](https://github.com/MotiaDev/motia)
