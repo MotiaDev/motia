@@ -39,6 +39,8 @@ export async function validatePythonEnvironment({
     return { success: true, hasPythonFiles: false }
   }
 
+  const installCmd = getInstallCommand(baseDir)
+
   try {
     await getPythonCommand(pythonVersion, baseDir)
   } catch {
@@ -50,7 +52,6 @@ export async function validatePythonEnvironment({
 
   const venvPath = path.join(baseDir, 'python_modules')
   if (!fs.existsSync(venvPath)) {
-    const installCmd = getInstallCommand(baseDir)
     internalLogger.error('Python environment not configured')
     internalLogger.info('The python_modules directory was not found')
     internalLogger.info(`Run '${installCmd}' to set up your Python environment`)
@@ -59,7 +60,6 @@ export async function validatePythonEnvironment({
 
   const libPath = path.join(venvPath, 'lib')
   if (!fs.existsSync(libPath)) {
-    const installCmd = getInstallCommand(baseDir)
     internalLogger.error('Python environment is incomplete')
     internalLogger.info('The python_modules directory exists but appears to be corrupted')
     internalLogger.info(`Run '${installCmd}' to recreate your Python environment`)
@@ -71,14 +71,12 @@ export async function validatePythonEnvironment({
     const pythonDirs = libContents.filter((item) => item.startsWith('python3'))
 
     if (pythonDirs.length === 0) {
-      const installCmd = getInstallCommand(baseDir)
       internalLogger.error('Python environment is incomplete')
       internalLogger.info('The python_modules/lib directory exists but contains no Python version directories')
       internalLogger.info(`Run '${installCmd}' to recreate your Python environment`)
       return { success: false, hasPythonFiles: true }
     }
   } catch (error: any) {
-    const installCmd = getInstallCommand(baseDir)
     internalLogger.error('Python environment is incomplete')
     internalLogger.info('The python_modules/lib directory cannot be read')
     internalLogger.info(`Run '${installCmd}' to recreate your Python environment`)
