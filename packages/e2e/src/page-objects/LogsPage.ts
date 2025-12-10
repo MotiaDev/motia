@@ -3,18 +3,18 @@ import { MotiaApplicationPage } from './MotiaApplicationPage'
 
 export class LogsPage extends MotiaApplicationPage {
   readonly logsContainer: Locator
+  readonly scrollContainer: Locator
   readonly logEntries: Locator
   readonly clearLogsButton: Locator
-  readonly logsTable: Locator
   readonly logTableRows: Locator
 
   constructor(page: Page) {
     super(page)
-    this.logsContainer = page.locator('.overflow-y-auto.h-full.text-bold.p-4')
-    this.logsTable = page.locator('table')
-    this.logTableRows = page.locator('tbody tr')
+    this.logsContainer = page.getByTestId('logs-container')
+    this.scrollContainer = this.logsContainer.locator('.overflow-auto.h-full')
+    this.logTableRows = page.getByTestId('log-row')
     this.logEntries = this.logTableRows
-    this.clearLogsButton = page.getByRole('button', { name: 'Clear logs' })
+    this.clearLogsButton = page.getByRole('button', { name: /Clear/i })
   }
 
   async waitForLogContainingText(logText: string, timeout: number = 15000) {
@@ -46,9 +46,10 @@ export class LogsPage extends MotiaApplicationPage {
   }
 
   async waitForLogAtIndex(index: number, timeout: number = 15000) {
-    const logElement = this.page.getByTestId(`msg-${index}`)
-    await logElement.waitFor({ timeout })
-    return logElement
+    const row = this.page.locator(`[data-testid="log-row"][data-index="${index}"]`)
+    await row.waitFor({ timeout })
+    await row.scrollIntoViewIfNeeded()
+    return row.getByTestId(`msg-${index}`)
   }
 
   async waitForLogsContainingTexts(logTexts: string[], timeout: number = 15000) {
@@ -71,18 +72,24 @@ export class LogsPage extends MotiaApplicationPage {
     }
   }
 
+  async scrollToLogAtIndex(index: number) {
+    const row = this.page.locator(`[data-testid="log-row"][data-index="${index}"]`)
+    await row.scrollIntoViewIfNeeded()
+    return row
+  }
+
   async clickLogAtIndex(index: number) {
-    await this.logTableRows.nth(index).click()
+    const row = await this.scrollToLogAtIndex(index)
+    await row.click()
   }
 
   async getLogDetailsAtIndex(index: number) {
-    const row = this.logTableRows.nth(index)
+    const row = await this.scrollToLogAtIndex(index)
     const time = await row.getByTestId(`time-${index}`).textContent()
-    const traceId = await row.getByTestId(`trace-${index}`).textContent()
     const step = await row.getByTestId(`step-${index}`).textContent()
     const message = await row.getByTestId(`msg-${index}`).textContent()
 
-    return { time, traceId, step, message }
+    return { time, step, message }
   }
 
   async getAllLogDetails() {
@@ -103,19 +110,26 @@ export class LogsPage extends MotiaApplicationPage {
     }
   }
 
-  async getLogCount() {
+  async getVisibleLogCount() {
     return await this.logTableRows.count()
   }
 
-  async getAllLogMessages() {
-    const count = await this.getLogCount()
-    const logTexts = []
+  async getLogCount() {
+    return await this.getVisibleLogCount()
+  }
 
-    for (let i = 0; i < count; i++) {
-      const messageCell = this.logTableRows.nth(i).getByTestId(`msg-${i}`)
-      const logText = await messageCell.textContent()
-      if (logText) {
-        logTexts.push(logText)
+  async getAllLogMessages() {
+    const logTexts: string[] = []
+    const rows = await this.logTableRows.all()
+
+    for (const row of rows) {
+      const index = await row.getAttribute('data-index')
+      if (index !== null) {
+        const messageCell = row.getByTestId(`msg-${index}`)
+        const logText = await messageCell.textContent()
+        if (logText) {
+          logTexts.push(logText)
+        }
       }
     }
 
@@ -132,19 +146,19 @@ export class LogsPage extends MotiaApplicationPage {
     await this.waitForLogFromStep(stepName, timeout)
   }
 
-  async waitForFlowCompletion(flowName: string, timeout: number = 60000) {
+  async waitForFlowCompletion(_flowName: string, _timeout: number = 60000) {
     await this.page.waitForTimeout(1000)
-    const finalLogCount = await this.getLogCount()
+    const finalLogCount = await this.getVisibleLogCount()
     expect(finalLogCount).toBeGreaterThan(0)
   }
 
   async verifyLogStructure() {
-    await expect(this.logsTable).toBeVisible()
     await expect(this.logsContainer).toBeVisible()
+    await expect(this.scrollContainer).toBeVisible()
   }
 
   async waitForLogsToLoad(timeout: number = 10000) {
     await this.logsContainer.waitFor({ timeout })
-    await this.logsTable.waitFor({ timeout })
+    await this.scrollContainer.waitFor({ timeout })
   }
 }
