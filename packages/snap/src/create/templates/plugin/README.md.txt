@@ -81,7 +81,7 @@ export default function plugin(_motia: MotiaPluginContext): MotiaPlugin {
 ## Structure
 
 ```
-plugin-example/
+{{PROJECT_NAME}}/
 ├── src/
 │   ├── components/
 │   │   └── example-page.tsx    # Main UI component
