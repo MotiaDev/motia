@@ -31,14 +31,14 @@ async function globalTeardown() {
 
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
-    const testProjectPath = process.env.TEST_PROJECT_PATH
-    if (testProjectPath && existsSync(testProjectPath)) {
+    const testProjectRoot = process.env.TEST_PROJECT_ROOT || process.env.TEST_PROJECT_PATH
+    if (testProjectRoot && existsSync(testProjectRoot)) {
       console.log('🗑️  Removing test project directory...')
 
       if (isWindows) {
-        await removeDirectoryWithRetry(testProjectPath, 3)
+        await removeDirectoryWithRetry(testProjectRoot, 3)
       } else {
-        rmSync(testProjectPath, { recursive: true, force: true })
+        rmSync(testProjectRoot, { recursive: true, force: true })
       }
     }
 

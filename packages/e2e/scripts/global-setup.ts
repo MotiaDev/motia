@@ -1,12 +1,15 @@
 import { exec, execSync } from 'child_process'
-import { existsSync, rmSync } from 'fs'
+import { existsSync, mkdtempSync, rmSync } from 'fs'
+import { tmpdir } from 'os'
 import path from 'path'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
-const TEST_PROJECT_PATH = path.join(process.cwd(), TEST_PROJECT_NAME)
+const TEST_PROJECT_ROOT = mkdtempSync(path.join(tmpdir(), 'motia-e2e-'))
+const TEST_PROJECT_PATH = path.join(TEST_PROJECT_ROOT, TEST_PROJECT_NAME)
 
 async function globalSetup() {
   console.log('🚀 Setting up E2E test environment...')
+  console.log(`📁 Test project will be created at: ${TEST_PROJECT_PATH}`)
 
   try {
     if (existsSync(TEST_PROJECT_PATH)) {
@@ -18,13 +21,18 @@ async function globalSetup() {
     const template = process.env.TEST_TEMPLATE || 'motia-tutorial-typescript'
 
     console.log(`📦 Creating test project with Motia CLI ${motiaVersion} and template ${template}...`)
-    const createCommand = `npx motia@${motiaVersion} create  ${TEST_PROJECT_NAME} -t ${template}`
+    const createCommand = `npx motia@${motiaVersion} create ${TEST_PROJECT_NAME} -t ${template}`
 
     execSync(createCommand, {
-      stdio: 'pipe',
-      cwd: process.cwd(),
+      stdio: 'inherit',
+      cwd: TEST_PROJECT_ROOT,
     })
-    execSync(`npm install --save motia@${motiaVersion}`, { cwd: TEST_PROJECT_PATH })
+
+    console.log('📦 Installing motia package...')
+    execSync(`npm install --save motia@${motiaVersion}`, {
+      cwd: TEST_PROJECT_PATH,
+      stdio: 'inherit',
+    })
 
     console.log('🌟 Starting test project server...')
     const serverProcess = exec('npm run dev', {
@@ -43,14 +51,15 @@ async function globalSetup() {
     console.log('✅ E2E test environment setup complete!')
 
     process.env.TEST_PROJECT_PATH = TEST_PROJECT_PATH
+    process.env.TEST_PROJECT_ROOT = TEST_PROJECT_ROOT
     process.env.TEST_PROJECT_NAME = TEST_PROJECT_NAME
     process.env.TEST_TEMPLATE = template
     process.env.MOTIA_TEST_PID = serverProcess.pid?.toString() || ''
   } catch (error) {
     console.error('❌ Failed to setup E2E test environment:', error)
 
-    if (existsSync(TEST_PROJECT_PATH)) {
-      rmSync(TEST_PROJECT_PATH, { recursive: true, force: true })
+    if (existsSync(TEST_PROJECT_ROOT)) {
+      rmSync(TEST_PROJECT_ROOT, { recursive: true, force: true })
     }
 
     throw error
