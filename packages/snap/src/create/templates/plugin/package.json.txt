@@ -29,7 +29,8 @@
   },
   "peerDependencies": {
     "@motiadev/core": "{{VERSION}}",
-    "@motiadev/ui": "{{VERSION}}"
+    "@motiadev/ui": "{{VERSION}}",
+    "motia": "{{VERSION}}"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",

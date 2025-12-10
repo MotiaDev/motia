@@ -38,7 +38,8 @@
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-react": "workspace:*",
-    "@motiadev/ui": "workspace:*"
+    "@motiadev/ui": "workspace:*",
+    "motia": "workspace:*"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",
