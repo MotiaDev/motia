@@ -1,11 +1,17 @@
-import { Button, cn, Input, LevelDot, Table, TableBody, TableCell, TableRow } from '@motiadev/ui'
+import { Button, cn, Input, LevelDot } from '@motiadev/ui'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Search, Trash, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useLogsStream } from '../hooks/use-logs-stream'
 import { useLogsStore } from '../stores/use-logs-store'
 import { formatTimestamp } from '../utils/format-timestamp'
 import { LogDetail } from './log-detail'
 
+const ROW_HEIGHT = 40
+
 export const LogsPage = () => {
+  useLogsStream()
+
   const logs = useLogsStore((state) => state.logs)
   const resetLogs = useLogsStore((state) => state.resetLogs)
   const selectedLogId = useLogsStore((state) => state.selectedLogId)
@@ -32,6 +38,17 @@ export const LogsPage = () => {
     })
   }, [logs, search])
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: filteredLogs.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 5,
+  })
+
+  const virtualItems = virtualizer.getVirtualItems()
+
   return (
     <>
       <div className="grid grid-rows-[auto_1fr] h-full" data-testid="logs-container">
@@ -54,46 +71,78 @@ export const LogsPage = () => {
             <Trash /> Clear
           </Button>
         </div>
-        <Table>
-          <TableBody className="font-mono font-medium">
-            {filteredLogs.map((log, index) => (
-              <TableRow
-                data-testid="log-row"
-                className={cn('font-mono font-semibold cursor-pointer border-0', {
-                  'bg-muted-foreground/10 hover:bg-muted-foreground/20': selectedLogId === log.id,
-                  'hover:bg-muted-foreground/10': selectedLogId !== log.id,
-                })}
-                key={index}
-                onClick={() => selectLogId(log.id)}
-              >
-                <TableCell
-                  data-testid={`time-${index}`}
-                  className="whitespace-nowrap flex items-center gap-2 text-muted-foreground"
+        <div ref={scrollContainerRef} className="overflow-auto h-full">
+          <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+            {virtualItems.map((virtualRow) => {
+              const log = filteredLogs[virtualRow.index]
+              if (!log) return null
+              const index = virtualRow.index
+              return (
+                <div
+                  data-testid="log-row"
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  key={log.id}
+                  role="row"
+                  tabIndex={0}
+                  className={cn(
+                    'absolute left-0 w-full flex items-center font-mono font-semibold cursor-pointer text-sm',
+                    {
+                      'bg-muted-foreground/10 hover:bg-muted-foreground/20': selectedLogId === log.id,
+                      'hover:bg-muted-foreground/10': selectedLogId !== log.id,
+                    },
+                  )}
+                  style={{
+                    height: ROW_HEIGHT,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  onClick={() => selectLogId(log.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      selectLogId(log.id)
+                    }
+                  }}
                 >
-                  <LevelDot level={log.level} />
-                  {formatTimestamp(log.time)}
-                </TableCell>
-                <TableCell
-                  data-testid={`trace-${log.traceId}`}
-                  className="whitespace-nowrap cursor-pointer hover:text-primary text-muted-foreground"
-                  onClick={() => setSearch(log.traceId)}
-                >
-                  {log.traceId}
-                </TableCell>
-                <TableCell data-testid={`step-${index}`} aria-label={log.step} className="whitespace-nowrap">
-                  {log.step}
-                </TableCell>
-                <TableCell
-                  data-testid={`msg-${index}`}
-                  aria-label={log.msg}
-                  className="whitespace-nowrap max-w-[500px] truncate w-full"
-                >
-                  {log.msg}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  <div
+                    data-testid={`time-${index}`}
+                    role="cell"
+                    className="whitespace-nowrap flex items-center gap-2 text-muted-foreground p-2 shrink-0"
+                  >
+                    <LevelDot level={log.level} />
+                    {formatTimestamp(log.time)}
+                  </div>
+                  <button
+                    type="button"
+                    data-testid={`trace-${log.traceId}`}
+                    className="whitespace-nowrap cursor-pointer hover:text-primary text-muted-foreground p-2 shrink-0 bg-transparent border-0 text-left font-mono font-semibold text-sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSearch(log.traceId)
+                    }}
+                  >
+                    {log.traceId}
+                  </button>
+                  <div
+                    data-testid={`step-${index}`}
+                    role="cell"
+                    title={log.step}
+                    className="whitespace-nowrap p-2 shrink-0"
+                  >
+                    {log.step}
+                  </div>
+                  <div
+                    data-testid={`msg-${index}`}
+                    role="cell"
+                    title={log.msg}
+                    className="whitespace-nowrap max-w-[500px] truncate p-2 flex-1"
+                  >
+                    {log.msg}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
       <LogDetail log={selectedLog} onClose={() => selectLogId(undefined)} />
     </>
