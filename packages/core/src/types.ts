@@ -1,4 +1,5 @@
 import type { ZodArray, ZodObject } from 'zod'
+import type { CronExpression } from './enums/cron-expression.enum'
 import type { Logger } from './logger'
 import type { Tracer } from './observability'
 import type { JsonSchema } from './types/schema.types'
@@ -150,7 +151,7 @@ export type CronConfig = {
   type: 'cron'
   name: string
   description?: string
-  cron: string
+  cron: CronExpression | string
   virtualEmits?: Emit[]
   virtualSubscribes?: string[]
   emits: Emit[]

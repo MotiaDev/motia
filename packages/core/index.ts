@@ -33,6 +33,7 @@ export {
 } from './src/analytics/utils'
 export { config } from './src/config'
 export { type CronManager, setupCronHandlers } from './src/cron-handler'
+export { CronExpression } from './src/enums/cron-expression.enum'
 export { getStepConfig, getStreamConfig } from './src/get-step-config'
 export { isApiStep, isCronStep, isEventStep, isNoopStep } from './src/guards'
 export {
