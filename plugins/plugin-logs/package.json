@@ -24,6 +24,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.13.12",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
     "react18-json-view": "^0.2.9",
@@ -32,6 +33,7 @@
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-browser": "workspace:*",
+    "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*"
   },
   "devDependencies": {

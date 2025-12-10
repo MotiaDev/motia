@@ -1,5 +1,5 @@
 import type { Server } from 'http'
-import { type WebSocket, WebSocketServer } from 'ws'
+import { WebSocket, WebSocketServer } from 'ws'
 import { globalLogger } from './logger'
 import {
   type BaseMessage,
@@ -47,7 +47,7 @@ export const createSocketServer = ({ server, onJoin, onJoinGroup, authenticate, 
     },
   })
   const rooms: Record<string, Map<string, WebSocket>> = {}
-  const subscriptions: Map<WebSocket, Set<[string, string]>> = new Map()
+  const subscriptions: Map<WebSocket, Map<string, string>> = new Map()
   const authContexts: Map<WebSocket, unknown> = new Map()
 
   const isAuthorized = async (socket: WebSocket, data: BaseMessage): Promise<boolean> => {
@@ -69,11 +69,13 @@ export const createSocketServer = ({ server, onJoin, onJoinGroup, authenticate, 
   socketServer.on('connection', async (socket, request) => {
     authContexts.set(socket, request.authContext)
 
-    subscriptions.set(socket, new Set())
+    subscriptions.set(socket, new Map())
 
-    socket.on('message', async (payload: Buffer) => {
-      const message: Message = JSON.parse(payload.toString())
+    // Message queue to ensure messages are processed in order
+    // This prevents race conditions where async join handlers allow leave to overtake join
+    let messageQueue: Promise<void> = Promise.resolve()
 
+    const processMessage = async (message: Message) => {
       if (message.type === 'join') {
         const authorized = await isAuthorized(socket, message.data)
 
@@ -118,18 +120,37 @@ export const createSocketServer = ({ server, onJoin, onJoinGroup, authenticate, 
         }
 
         rooms[room].set(message.data.subscriptionId, socket)
-        subscriptions.get(socket)?.add([room, message.data.subscriptionId])
+        subscriptions.get(socket)?.set(message.data.subscriptionId, room)
       } else if (message.type === 'leave') {
-        const room = getRoom(message.data)
+        if (!message.data.subscriptionId) {
+          globalLogger.error('[Socket Server] Subscription ID is required for leave message')
+          return
+        }
 
+        const room = getRoom(message.data)
         if (rooms[room]) {
           rooms[room].delete(message.data.subscriptionId)
+          if (rooms[room].size === 0) {
+            delete rooms[room]
+          }
         }
+
+        subscriptions.get(socket)?.delete(message.data.subscriptionId)
       }
+    }
+
+    socket.on('message', (payload: Buffer) => {
+      const message: Message = JSON.parse(payload.toString())
+      // Chain messages to ensure they are processed in order
+      messageQueue = messageQueue
+        .then(() => processMessage(message))
+        .catch((error) => {
+          globalLogger.error('[Socket Server] Error processing message', error)
+        })
     })
 
     socket.on('close', () => {
-      subscriptions.get(socket)?.forEach(([room, subscriptionId]) => {
+      subscriptions.get(socket)?.forEach((room, subscriptionId) => {
         rooms[room]?.delete(subscriptionId)
 
         if (rooms[room]?.size === 0) {
@@ -146,19 +167,25 @@ export const createSocketServer = ({ server, onJoin, onJoinGroup, authenticate, 
     const groupRoom = getRoom({ streamName, groupId })
     const eventMessage = JSON.stringify({ timestamp: Date.now(), ...message })
 
+    const safeSend = (socket: WebSocket) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        try {
+          socket.send(eventMessage)
+        } catch (error) {
+          globalLogger.debug('[Socket Server] Failed to send message to socket', error)
+        }
+      }
+    }
+
     if (rooms[groupRoom]) {
-      rooms[groupRoom].forEach((socket) => {
-        socket.send(eventMessage)
-      })
+      rooms[groupRoom].forEach(safeSend)
     }
 
     if (id) {
       const itemRoom = getRoom({ groupId, streamName, id })
 
       if (rooms[itemRoom]) {
-        rooms[itemRoom].forEach((socket) => {
-          socket.send(eventMessage)
-        })
+        rooms[itemRoom].forEach(safeSend)
       }
     }
   }

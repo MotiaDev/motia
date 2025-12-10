@@ -1,4 +1,3 @@
-import { FileStreamAdapterManager } from '../adapters/defaults/stream/file-stream-adapter-manager'
 import type { LockedData } from '../locked-data'
 import type { Logger } from '../logger'
 import type { Step } from '../types'

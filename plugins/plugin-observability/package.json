@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.15",
+    "@tanstack/react-virtual": "^3.13.12",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
