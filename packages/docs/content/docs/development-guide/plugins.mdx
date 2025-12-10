@@ -425,6 +425,7 @@ The `~/` prefix in `packageName` tells Motia to load components from your local 
 workbench: [
   {
     packageName: '~/plugins',  // Loads from <project-root>/plugins
+    cssImports: ['~/plugins/dist/styles.css'], // Loads from <project-root>/plugins/dist/styles.css
     componentName: 'Plugin',
     // ...
   }
