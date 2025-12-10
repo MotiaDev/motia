@@ -68,7 +68,9 @@ async function waitForServer(url: string, timeout: number): Promise<void> {
       if (response.ok) {
         return
       }
-    } catch (error) {}
+    } catch {
+      void 0
+    }
 
     await new Promise((resolve) => setTimeout(resolve, pollInterval))
   }

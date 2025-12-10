@@ -21,6 +21,7 @@ interface CreateInteractiveArgs {
   name?: string
   template?: string
   plugin?: boolean
+  skipRedis?: boolean
 }
 
 export const createInteractive = async (args: CreateInteractiveArgs, context: CliContext): Promise<void> => {
@@ -89,8 +90,9 @@ export const createInteractive = async (args: CreateInteractiveArgs, context: Cl
   await create({
     projectName: name || '.',
     template: template || 'motia-tutorial-typescript',
-    cursorEnabled: true, // Default to true for cursor rules
+    cursorEnabled: true,
     context,
+    skipRedis: args.skipRedis,
   })
 
   process.exit(0)

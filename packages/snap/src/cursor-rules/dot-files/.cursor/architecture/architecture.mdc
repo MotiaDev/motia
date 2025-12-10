@@ -8,13 +8,61 @@ alwaysApply: true
 
 ## Overview
 
-This guide covers the architecture of a Motia project.
+This guide covers the architecture and best practices for structuring Motia projects.
+
+**Key Takeaway**: Motia automatically discovers steps from anywhere in your project. Modern projects use `/src` for a familiar structure that works seamlessly with Domain-Driven Design.
 
 ## File Structure
 
-All step files should be underneath the `steps/` folder.
+Motia automatically discovers step files from your project. You can organize steps in either:
 
-Underneath the `steps/` folder, create subfolders for Flows. Flows are used to group steps together.
+- **`/src` folder** (recommended) - Familiar pattern for most developers
+- **`/steps` folder** - Traditional Motia pattern
+- Both folders simultaneously
+
+### Recommended Structure (using `/src`)
+
+```
+project/
+├── src/
+│   ├── api/           # API endpoints
+│   │   ├── users.step.ts
+│   │   └── orders.step.ts
+│   ├── events/        # Event handlers
+│   │   ├── order-processing.step.ts
+│   │   └── notifications.step.ts
+│   ├── cron/          # Scheduled tasks
+│   │   └── cleanup.step.ts
+│   ├── services/      # Business logic
+│   ├── repositories/  # Data access
+│   └── utils/         # Utilities
+└── motia.config.ts
+```
+
+### Alternative Structure (using `/steps`)
+
+```
+project/
+├── steps/
+│   ├── api/
+│   │   └── users.step.ts
+│   ├── events/
+│   │   └── order-processing.step.ts
+│   └── cron/
+│       └── cleanup.step.ts
+├── src/
+│   ├── services/
+│   └── utils/
+└── motia.config.ts
+```
+
+Create subfolders within your chosen directory to organize related steps into logical groups (domains, features, or flows).
+
+**Why `/src` is recommended:**
+- Familiar to developers from other frameworks (Next.js, NestJS, etc.)
+- Natural co-location with services, repositories, and utilities
+- Works seamlessly with Domain-Driven Design patterns
+- Cleaner project root with fewer top-level folders
 
 ## Step Naming Conventions
 
@@ -40,49 +88,97 @@ Underneath the `steps/` folder, create subfolders for Flows. Flows are used to g
 
 ## Defining Middlewares
 
-Middleware is a powerful feature in Motia to help adding common validation, error
-handling and other common logic to your steps.
+Middleware is a powerful feature in Motia for common validation, error handling, and shared logic.
 
-- Make sure to add all the middlewares in a single folder, called `middlewares/`.
-- Create a comprehensive file name for the middleware, like `auth.middleware.ts`.
-- Follow SOLID principles with separation of concerns in middlewares, create a middleware for each responsibility.
-- Use core middleware to handle ZodError gracefully (see [Error Handling Guide](./error-handling.mdc))
-- Rate limiting and CORS are not needed to be handled in middleware since they're an infrastructure concern.
+### Middleware Organization
+
+Store middlewares in a dedicated folder:
+- `/middlewares` at project root (recommended)
+- `/src/middlewares` if using `/src` structure
+
+### Best Practices
+
+- **One responsibility per middleware** - Follow SOLID principles
+- **Descriptive naming** - Use names like `auth.middleware.ts`, `validation.middleware.ts`
+- **Handle errors gracefully** - Use core middleware for ZodError (see [Error Handling Guide](./error-handling.mdc))
+- **Avoid infrastructure concerns** - Rate limiting and CORS are handled by infrastructure, not middleware
 
 ## Domain Driven Design
 
-Make sure you follow Domain Driven Design principles in your project.
+Motia encourages Domain-Driven Design (DDD) principles for maintainable, scalable applications.
 
-- Create `/src/services` folder to store your services, this is where it holds business logic.
-- Create `/src/repositories` folder to store your repositories, this is where it holds data access logic.
-- Create `/src/utils` folder to store your utility functions.
-- Models and DTOs are not quite necessary, we can rely on zod to create the models and DTOs from the steps.
-- Controller layer is the Steps, it should have mostly logic around validation and calling services.
-- Avoid having Service methods with just a call to the Repository, it should have some logic around it, if it doesn't have, then Steps can have access to repositories directly.
+### Folder Structure for DDD
+
+When using `/src` for steps (recommended), your structure naturally supports DDD:
+
+```
+src/
+├── api/              # API Steps (Controllers)
+├── events/           # Event Steps (Controllers)
+├── cron/             # Cron Steps (Controllers)
+├── services/         # Business logic layer
+├── repositories/     # Data access layer
+├── utils/            # Utility functions
+└── types/            # Shared types (optional)
+```
+
+### Layer Responsibilities
+
+- **Steps (Controller Layer)**: Handle validation, call services, emit events
+- **Services**: Contain business logic, orchestrate repositories
+- **Repositories**: Direct data access (database, external APIs)
+- **Utils**: Pure utility functions with no side effects
+
+### Best Practices
+
+- Models and DTOs are not necessary - use Zod schemas from step configs
+- Steps should focus on validation and calling services
+- Avoid service methods that only call repositories - Steps can access repositories directly
+- Keep business logic in services, not in steps
 
 ### Services
 
-Defining services can be done in the following way:
+Services contain your business logic and should be organized by domain.
 
-- Create a folder underneath `/src/services/` folder, like `/src/services/auth/`.
-- Create a file inside the folder called `index.ts`.
-- Inside `index.ts`, export a constant with the name of the service, with the methods as properties.
-- Methods should be defined as separate files, use export named functions.
-- Use the service in the Steps.
+**Structure:**
+```
+src/
+├── services/
+│   ├── auth/
+│   │   ├── index.ts       # Export service
+│   │   ├── login.ts       # Login method
+│   │   └── register.ts    # Register method
+│   └── orders/
+│       ├── index.ts
+│       └── create-order.ts
+└── api/
+    └── auth.step.ts       # Uses authService
+```
 
-#### Example
-
+**Service Definition (`/src/services/auth/index.ts`):**
 ```typescript
 /**
- * Business logic for authentication defined in a separate file in the same folder.
+ * Business logic methods imported from separate files
  */
 import { login } from './login'
+import { register } from './register'
 
 /**
- * Constant with the name of the service, with the methods as properties.
+ * Export service with methods as properties
  */
 export const authService = {
-  login
+  login,
+  register
+}
+```
+
+**Usage in Step (`/src/api/auth.step.ts`):**
+```typescript
+import { authService } from '../services/auth'
+
+export const handler = async (req, ctx) => {
+  const user = await authService.login(req.body.email, req.body.password)
+  return { status: 200, body: { user } }
 }
 ```
 

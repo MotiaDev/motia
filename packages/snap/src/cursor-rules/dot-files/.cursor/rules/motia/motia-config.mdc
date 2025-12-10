@@ -7,6 +7,43 @@ alwaysApply: false
 
 The `motia.config.ts` file is the central configuration file for your Motia application. It allows you to customize plugins, adapters, stream authentication, and Express app settings.
 
+## Critical Requirement: package.json Must Use ES Modules
+
+**All Motia projects MUST have `"type": "module"` in their `package.json`.**
+
+Motia uses ES modules internally and requires this setting to function correctly. Without it, you may encounter import/export errors during runtime.
+
+### Correct package.json Setup
+
+```json
+{
+  "name": "my-motia-project",
+  "description": "My Motia application",
+  "type": "module",
+  "scripts": {
+    "postinstall": "motia install",
+    "dev": "motia dev",
+    "start": "motia start",
+    "build": "motia build",
+    "generate-types": "motia generate-types"
+  }
+}
+```
+
+### Migration from Existing Projects
+
+If you have an existing Motia project, ensure you add `"type": "module"` to your `package.json`:
+
+```json
+{
+  "name": "my-project",
+  "type": "module",  // ← Add this line
+  "scripts": {
+    "dev": "motia dev"
+  }
+}
+```
+
 ## Creating the Configuration File
 
 Create a `motia.config.ts` file in the root of your project:
@@ -21,6 +58,21 @@ export default config({
   app: undefined,
 })
 ```
+
+## Creating Projects Without Embedded Redis
+
+By default, Motia includes an embedded Redis binary for easy local development. However, if you prefer to use your own external Redis instance, you can use the `--skip-redis` flag when creating a new project:
+
+```bash
+npx motia create my-app --skip-redis
+```
+
+This flag:
+- Skips the embedded Redis binary installation
+- Creates a `motia.config.ts` pre-configured for external Redis connection
+- Requires you to provide your own Redis instance before running Motia
+
+When using `--skip-redis`, you'll need to ensure Redis is running and properly configured in your `motia.config.ts` file (see Redis Configuration section below).
 
 ## Type Definitions
 
@@ -51,6 +103,12 @@ export type Config = {
    * Use this to secure real-time stream subscriptions.
    */
   streamAuth?: StreamAuthConfig
+
+  /**
+   * Optional: Redis configuration.
+   * Configure Redis connection or use the built-in in-memory Redis server.
+   */
+  redis?: RedisConfig
 }
 
 export type AdapterConfig = {
@@ -78,6 +136,19 @@ export type StreamAuthConfig<TSchema extends z.ZodTypeAny = z.ZodTypeAny> = {
    */
   authenticate: (request: StreamAuthRequest) => Promise<z.infer<TSchema> | null> | (z.infer<TSchema> | null)
 }
+
+export type RedisConfig =
+  | {
+      useMemoryServer?: false
+      host: string
+      port: number
+      password?: string
+      username?: string
+      db?: number
+    }
+  | {
+      useMemoryServer: true
+    }
 ```
 
 ## Plugins
@@ -123,6 +194,21 @@ export default config({
 
 ### Creating a Local Plugin
 
+**Project structure:**
+```
+project/
+├── src/              # Steps can be in /src or /steps
+│   └── api/
+│       └── example.step.ts
+├── plugins/
+│   └── my-plugin/
+│       ├── components/
+│       │   └── my-plugin-panel.tsx
+│       └── index.ts
+└── motia.config.ts
+```
+
+**Plugin implementation (`plugins/my-plugin/index.ts`):**
 ```typescript
 import path from 'node:path'
 import { config, type MotiaPlugin, type MotiaPluginContext } from 'motia'
@@ -160,6 +246,20 @@ export default config({
   plugins: [myLocalPlugin],
 })
 ```
+
+### Common Plugin Errors
+
+**Error: Component not found**
+- **Cause**: `packageName` doesn't match the actual folder structure
+- **Solution**: Ensure `packageName: '~/plugins/my-plugin'` matches `plugins/my-plugin/` folder
+
+**Error: Plugin not loading in workbench**
+- **Cause**: Plugin function not exported correctly
+- **Solution**: Use `export default function` in plugin's `index.ts`
+
+**Error: Module resolution failed**
+- **Cause**: Using incorrect casing in folder/file names
+- **Solution**: Use `kebab-case` for folders/files, `PascalCase` for React components
 
 ## Adapters
 
@@ -299,6 +399,81 @@ export default config({
   },
 })
 ```
+
+## Redis Configuration
+
+Motia uses Redis for state management, caching, and real-time features. By default, Motia automatically starts an in-memory Redis server for local development, eliminating the need for external Redis installation.
+
+### Default Behavior (In-Memory Redis)
+
+When no `redis` configuration is provided, Motia uses an embedded in-memory Redis server:
+
+```typescript
+import { config } from 'motia'
+
+export default config({})
+```
+
+You can also explicitly enable the in-memory server:
+
+```typescript
+export default config({
+  redis: {
+    useMemoryServer: true,
+  },
+})
+```
+
+### Using External Redis
+
+To connect to an external Redis instance (useful for production or when you already have Redis running), configure the connection settings:
+
+```typescript
+import { config } from 'motia'
+
+export default config({
+  redis: {
+    useMemoryServer: false,
+    host: 'localhost',
+    port: 6379,
+  },
+})
+```
+
+For production environments with authentication:
+
+```typescript
+export default config({
+  redis: {
+    useMemoryServer: false,
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    password: process.env.REDIS_PASSWORD,
+    username: process.env.REDIS_USERNAME,
+    db: parseInt(process.env.REDIS_DB || '0'),
+  },
+})
+```
+
+The optional Redis configuration fields include:
+- `password`: Redis password for authentication
+- `username`: Redis username (Redis 6.0+)
+- `db`: Database number to select (default: 0)
+
+You can also use environment variables directly:
+- `MOTIA_REDIS_PASSWORD`: Redis password
+- `MOTIA_REDIS_USERNAME`: Redis username
+- `MOTIA_REDIS_DB`: Database number
+
+### Creating Projects with External Redis
+
+When creating a new project, you can skip the embedded Redis binary installation using the `--skip-redis` flag:
+
+```bash
+npx motia create my-app --skip-redis
+```
+
+This will create a project with `motia.config.ts` pre-configured for external Redis, and you'll need to ensure Redis is running before starting your application.
 
 ## Complete Example
 

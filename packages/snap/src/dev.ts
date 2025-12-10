@@ -17,9 +17,10 @@ import { createDevWatchers } from './dev-watchers'
 import { generateLockedData, getStepFiles, getStreamFiles } from './generate-locked-data'
 import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins'
-import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
+import { getRedisClient, getRedisConnectionInfo, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
+import { validatePythonEnvironment } from './utils/validate-python-environment'
 import { version } from './version'
 
 export const dev = async (
@@ -46,7 +47,12 @@ export const dev = async (
     project_name: getProjectIdentifier(baseDir),
   })
 
-  if (hasPythonFiles) {
+  const pythonValidation = await validatePythonEnvironment({ baseDir, hasPythonFiles })
+  if (!pythonValidation.success) {
+    process.exit(1)
+  }
+
+  if (pythonValidation.hasPythonFiles) {
     activatePythonVenv({ baseDir, isVerbose })
     trackEvent('python_environment_activated')
   }
@@ -55,16 +61,13 @@ export const dev = async (
 
   const appConfig = await loadMotiaConfig(baseDir)
 
-  const redisClient: RedisClientType = await instanceRedisMemoryServer(motiaFileStoragePath, true)
+  const redisClient: RedisClientType = await getRedisClient(motiaFileStoragePath, appConfig)
 
   const adapters = {
     eventAdapter:
       appConfig.adapters?.events ||
       new BullMQEventAdapter({
-        connection: {
-          host: (redisClient.options.socket as { host?: string })?.host || 'localhost',
-          port: (redisClient.options.socket as { port?: number })?.port || 6379,
-        },
+        connection: getRedisConnectionInfo(),
         prefix: 'motia:events',
       }),
     cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),
@@ -138,7 +141,7 @@ export const dev = async (
     trackEvent('dev_server_shutdown', { reason: 'SIGTERM' })
     motiaServer.server.close()
     await watcher.stop()
-    await stopRedisMemoryServer()
+    await stopRedisConnection()
     await flush().promise
     process.exit(0)
   })
@@ -147,7 +150,7 @@ export const dev = async (
     trackEvent('dev_server_shutdown', { reason: 'SIGINT' })
     motiaServer.server.close()
     await watcher.stop()
-    await stopRedisMemoryServer()
+    await stopRedisConnection()
     await flush().promise
     process.exit(0)
   })

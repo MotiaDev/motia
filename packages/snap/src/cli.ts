@@ -5,9 +5,7 @@ import 'dotenv/config'
 import { program } from 'commander'
 import { type CliContext, handler } from './cloud/config-utils'
 import './cloud/index'
-import type { RedisClientType } from 'redis'
 import { loadMotiaConfig } from './load-motia-config'
-import { instanceRedisMemoryServer, stopRedisMemoryServer } from './redis-memory-manager'
 import { wrapAction } from './utils/analytics'
 import { version } from './version'
 
@@ -28,6 +26,7 @@ program
   .option('-t, --template <template>', 'The template to use for your project')
   .option('-p, --plugin', 'Create a plugin project')
   .option('-i, --interactive', 'Use interactive prompts to create project') // it's default
+  .option('--skip-redis', 'Skip Redis binary installation and use external Redis')
   .action((projectName, options) => {
     const mergedArgs = { ...options, name: projectName }
     return handler(async (arg: any, context: CliContext) => {
@@ -37,6 +36,7 @@ program
           name: arg.name,
           template: arg.template,
           plugin: !!arg.plugin,
+          skipRedis: !!arg.skipRedis,
         },
         context,
       )
@@ -174,25 +174,36 @@ generate
   .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
   .action(
     wrapAction(async (options: any) => {
-      const { generateLockedData } = await import('./generate-locked-data')
+      const { generateLockedData, getStepFiles, getStreamFiles } = await import('./generate-locked-data')
+      const { validatePythonEnvironment } = await import('./utils/validate-python-environment')
+      const { activatePythonVenv } = await import('./utils/activate-python-env')
       const { generateOpenApi } = await import('./openapi/generate')
       const { MemoryStreamAdapterManager } = await import('@motiadev/core')
 
       const baseDir = process.cwd()
       const appConfig = await loadMotiaConfig(baseDir)
-      const redisClient: RedisClientType = await instanceRedisMemoryServer(baseDir, true)
+
+      const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
+      const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
+
+      const pythonValidation = await validatePythonEnvironment({ baseDir, hasPythonFiles })
+      if (!pythonValidation.success) {
+        process.exit(1)
+      }
+
+      if (hasPythonFiles) {
+        activatePythonVenv({ baseDir })
+      }
 
       const lockedData = await generateLockedData({
         projectDir: baseDir,
         streamAdapter: new MemoryStreamAdapterManager(),
         streamAuth: appConfig.streamAuth,
-        redisClient,
         printerType: 'disabled',
       })
       const apiSteps = lockedData.apiSteps()
 
       generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)
-      await stopRedisMemoryServer()
       process.exit(0)
     }),
   )

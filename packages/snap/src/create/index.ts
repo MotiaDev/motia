@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import pc from 'picocolors'
+import { fileURLToPath } from 'url'
 import type { CliContext, Message } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
@@ -11,6 +12,8 @@ import { version } from '../version'
 import { pullRules } from './pull-rules'
 import { setupTemplate } from './setup-template'
 import { checkIfDirectoryExists, checkIfFileExists } from './utils'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const installRequiredDependencies = async (packageManager: string, rootDir: string, context: CliContext) => {
   context.log('installing-dependencies', (message: Message) => message.tag('info').append('Installing dependencies...'))
@@ -77,9 +80,16 @@ type Args = {
   cursorEnabled: boolean
   context: CliContext
   skipTutorialTemplates?: boolean
+  skipRedis?: boolean
 }
 
-export const create = async ({ projectName, template, cursorEnabled, context }: Args): Promise<void> => {
+export const create = async ({
+  projectName,
+  template,
+  cursorEnabled,
+  context,
+  skipRedis = false,
+}: Args): Promise<void> => {
   console.log(
     '\n\n' +
       `
@@ -98,6 +108,7 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   const rootDir = isCurrentDir ? process.cwd() : path.join(process.cwd(), projectName)
   const isPluginTemplate = template === 'plugin'
 
+  process.env.REDISMS_DISABLE_POSTINSTALL = '1'
   if (!isCurrentDir && !checkIfDirectoryExists(rootDir)) {
     fs.mkdirSync(path.join(rootDir))
     context.log('directory-created', (message: Message) =>
@@ -222,6 +233,17 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
     await setupTemplate(template, rootDir, context)
   }
 
+  if (!isPluginTemplate && skipRedis) {
+    const motiaConfigPath = path.join(rootDir, 'motia.config.ts')
+
+    const templatePath = path.join(__dirname, 'templates/motia.config.external-redis.ts.txt')
+    const templateContent = fs.readFileSync(templatePath, 'utf-8')
+    fs.writeFileSync(motiaConfigPath, templateContent)
+    context.log('motia-config-created', (message: Message) =>
+      message.tag('success').append('File').append('motia.config.ts', 'cyan').append('has been created.'),
+    )
+  }
+
   let packageManager: string
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
@@ -254,6 +276,16 @@ export const create = async ({ projectName, template, cursorEnabled, context }: 
   context.log('success-blank-5', (message: Message) => message.text(''))
   context.log('success-docs', (message) => message.text(`Docs: ${pc.cyan('https://www.motia.dev/docs')}`))
   context.log('success-blank-6', (message) => message.text(''))
+  if (skipRedis) {
+    context.log('redis-skip-warning', (message: Message) =>
+      message
+        .tag('warning')
+        .append(
+          '⚠️  You skipped Redis binary installation. Make sure to provide a Redis connection before running Motia.',
+        ),
+    )
+    context.log('success-blank-7', (message) => message.text(''))
+  }
   context.log('success-signoff', (message) => message.text('Happy coding! 🚀'))
-  context.log('success-blank-7', (message) => message.text(''))
+  context.log('success-blank-8', (message) => message.text(''))
 }
