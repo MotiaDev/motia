@@ -11,6 +11,7 @@ import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins/index'
 import { getRedisClient, getRedisConnectionInfo, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
+import { listenWithFallback } from './utils/listen-with-fallback'
 import { validatePythonEnvironment } from './utils/validate-python-environment'
 import { version } from './version'
 
@@ -76,9 +77,12 @@ export const start = async (
     })
   }
 
-  motiaServer.server.listen(port, hostname)
-  console.log('🚀 Server ready and listening on port', port)
-  console.log(`🔗 Open http://${hostname}:${port}${workbenchBase} to open workbench 🛠️`)
+  const actualPort = await listenWithFallback(motiaServer.server, port, hostname)
+  if (actualPort !== port) {
+    console.log(`⚠️  Port ${port} was in use, using port ${actualPort} instead`)
+  }
+  console.log('🚀 Server ready and listening on port', actualPort)
+  console.log(`🔗 Open http://${hostname}:${actualPort}${workbenchBase} to open workbench 🛠️`)
 
   process.on('SIGTERM', async () => {
     motiaServer.server.close()

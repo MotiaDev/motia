@@ -432,8 +432,20 @@ export const createServer = (
   analyticsEndpoint(app, process.cwd())
   stepEndpoint(app, lockedData)
 
-  server.on('error', (error) => {
-    console.error('Server error:', error)
+  // Handle server errors - EADDRINUSE is handled by listenWithFallback for port fallback
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EADDRINUSE') {
+      console.error('Server error:', error)
+    }
+  })
+
+  // Handle WebSocketServer errors to prevent unhandled error events during port binding
+  socketServer.on('error', (error: NodeJS.ErrnoException) => {
+    // EADDRINUSE errors are handled by the port fallback logic in listenWithFallback
+    // Other errors should be logged
+    if (error.code !== 'EADDRINUSE') {
+      console.error('WebSocket server error:', error)
+    }
   })
 
   const close = async (): Promise<void> => {
