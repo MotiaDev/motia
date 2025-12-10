@@ -270,9 +270,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/create-pet.step.js"
-    const { create } = require('./js-store')
+    import { create } from './js-store.js'
 
-    exports.config = {
+    export const config = {
       type: 'api',
       name: 'JsCreatePet',
       path: '/js/pets',
@@ -281,7 +281,7 @@ View on GitHub:
       flows: ['JsPetManagement']
     }
 
-    exports.handler = async (req, context) => {
+    export const handler = async (req, context) => {
       const { emit, logger } = context || {}
       const b = req.body || {}
       const name = typeof b.name === 'string' && b.name.trim()
@@ -610,9 +610,9 @@ Keep it positive, realistic, and adoption-focused."""
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/ai-profile-enrichment.step.js"
-    const { updateProfile } = require('./js-store')
+    import { updateProfile } from './js-store.js'
 
-    exports.config = {
+    export const config = {
       type: 'event',
       name: 'JsAiProfileEnrichment',
       description: 'Agentic step that enriches pet profiles using OpenAI',
@@ -1171,15 +1171,15 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/health-review-agent.step.js"
-    const { get } = require('./js-store')
-    const { 
+    import { get } from './js-store.js'
+    import { 
       HEALTH_REVIEW_EMITS, 
       buildAgentContext, 
       callAgentDecision,
       getAgentArtifacts
-    } = require('./agent-decision-framework')
+    } from './agent-decision-framework.js'
 
-    exports.config = {
+    export const config = {
       type: 'api',
       name: 'JsHealthReviewAgent',
       path: '/js/pets/:id/health-review',
@@ -1188,7 +1188,7 @@ View on GitHub:
       flows: ['JsPetManagement']
     }
 
-    exports.handler = async (req, context) => {
+    export const handler = async (req, context) => {
       const { emit, logger } = context || {}
       const petId = req.pathParams?.id
 
@@ -1555,7 +1555,7 @@ The orchestrator configuration shows it subscribes to agentic step events:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/pet-lifecycle-orchestrator.step.js"
-    exports.config = {
+    export const config = {
       type: 'event',
       name: 'JsPetLifecycleOrchestrator',
       description: 'Pet lifecycle state management with staff interaction points',

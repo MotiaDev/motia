@@ -179,9 +179,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/pet-creation.stream.js"
-    const { z } = require('zod')
+    import { z } from 'zod'
 
-    const config = {
+    export const config = {
       name: 'petCreation',
       
       schema: z.object({ 
@@ -192,8 +192,6 @@ View on GitHub:
         storageType: 'default',
       },
     }
-
-    module.exports = { config }
     ```
   </Tab>
 </Tabs>
@@ -385,9 +383,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/create-pet.step.js"
-    const { create } = require('./js-store')
+    import { create } from './js-store.js'
 
-    exports.config = {
+    export const config = {
       type: 'api',
       name: 'JsCreatePet',
       path: '/js/pets',
@@ -396,7 +394,7 @@ View on GitHub:
       flows: ['JsPetManagement']
     }
 
-    exports.handler = async (req, context) => {
+    export const handler = async (req, context) => {
       const { emit, logger, streams, traceId } = context || {}
       const b = req.body || {}
       const name = typeof b.name === 'string' && b.name.trim()
@@ -680,9 +678,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/set-next-feeding-reminder.job.step.js"
-    const { update } = require('./js-store')
+    import { update } from './js-store.js'
 
-    exports.config = {
+    export const config = {
       type: 'event',
       name: 'JsSetNextFeedingReminder',
       description: 'Sets the next feeding reminder for a pet and updates its status',
@@ -1162,9 +1160,9 @@ Keep it positive, realistic, and adoption-focused.'''
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/ai-profile-enrichment.step.js"
     // steps/javascript/ai-profile-enrichment.step.js
-    const { updateProfile } = require('./js-store');
+    import { updateProfile } from './js-store.js'
 
-    exports.config = {
+    export const config = {
       type: 'event',
       name: 'JsAiProfileEnrichment',
       description: 'AI agent that enriches pet profiles using OpenAI',

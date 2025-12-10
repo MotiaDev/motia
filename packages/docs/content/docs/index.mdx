@@ -120,9 +120,9 @@ const handler = async (req, { emit }) => {
     data: { text: req.body.text }
   });
   return { status: 200, body: { ok: true } };
-};
+}
 
-module.exports = { config, handler };
+export { config, handler }
 ```
 
 ```js title="steps/process-message.step.js"
@@ -134,9 +134,9 @@ const config = {
 
 const handler = async (input, { logger }) => {
   logger.info('Processing message', input);
-};
+}
 
-module.exports = { config, handler };
+export { config, handler }
 ```
 </Tab>
 </Tabs>
