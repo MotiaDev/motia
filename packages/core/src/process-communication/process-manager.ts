@@ -92,6 +92,9 @@ export class ProcessManager {
 
   kill(): void {
     if (this.child) {
+      this.child.removeAllListeners()
+      this.child.stdout?.removeAllListeners()
+      this.child.stderr?.removeAllListeners()
       this.child.kill('SIGKILL')
     }
     this.child = undefined

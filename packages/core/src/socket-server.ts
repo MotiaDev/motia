@@ -131,6 +131,10 @@ export const createSocketServer = ({ server, onJoin, onJoinGroup, authenticate, 
     socket.on('close', () => {
       subscriptions.get(socket)?.forEach(([room, subscriptionId]) => {
         rooms[room]?.delete(subscriptionId)
+
+        if (rooms[room]?.size === 0) {
+          delete rooms[room]
+        }
       })
       subscriptions.delete(socket)
       authContexts.delete(socket)

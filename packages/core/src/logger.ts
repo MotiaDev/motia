@@ -95,6 +95,13 @@ export class Logger {
   addListener(listener: LogListener) {
     this.listeners.push(listener)
   }
+
+  removeListener(listener: LogListener) {
+    const index = this.listeners.indexOf(listener)
+    if (index > -1) {
+      this.listeners.splice(index, 1)
+    }
+  }
 }
 
 export const globalLogger = new Logger()
