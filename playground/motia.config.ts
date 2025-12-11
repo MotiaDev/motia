@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { config, type MotiaPlugin, type MotiaPluginContext, type StreamAuthRequest } from '@motiadev/core'
+import { defineConfig, type MotiaPlugin, type MotiaPluginContext, type StreamAuthRequest } from '@motiadev/core'
 import bullmqPlugin from '@motiadev/plugin-bullmq/plugin'
 import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
 import examplePlugin from '@motiadev/plugin-example/plugin'
@@ -86,7 +86,7 @@ const extractAuthToken = (request: StreamAuthRequest): string | undefined => {
   }
 }
 
-export default config({
+export default defineConfig({
   plugins: [
     observabilityPlugin,
     statesPlugin,
