@@ -24,9 +24,9 @@ def get_can_access(config):
 async def run_python_module(file_path: str, payload: dict) -> None:
     try:
         path = Path(file_path).resolve()
-        steps_dir = next((p for p in path.parents if p.name == "steps"), None)
+        steps_dir = next((p for p in path.parents if p.name in ("src", "steps")), None)
         if steps_dir is None:
-            raise RuntimeError("Could not find 'steps' directory in path")
+            raise RuntimeError("Could not find 'src' or 'steps' directory in path")
 
         project_root = steps_dir.parent
         project_parent = project_root.parent
