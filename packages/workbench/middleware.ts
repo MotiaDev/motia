@@ -2,6 +2,7 @@ import { Printer } from '@motiadev/core'
 import react from '@vitejs/plugin-react'
 import type { Express, NextFunction, Request, Response } from 'express'
 import fs from 'fs'
+import { createRequire } from 'module'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import type { ViteDevServer } from 'vite'
@@ -61,6 +62,7 @@ export type ApplyMiddlewareParams = {
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const require = createRequire(import.meta.url)
 
 const warmupMotiaPlugins = async (viteServer: ViteDevServer) => {
   try {
@@ -113,7 +115,7 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
     plugins: [
       react({
         babel: {
-          plugins: ['babel-plugin-react-compiler'],
+          plugins: [[require.resolve('babel-plugin-react-compiler'), {}]],
         },
       }),
       processCwdPlugin(),
