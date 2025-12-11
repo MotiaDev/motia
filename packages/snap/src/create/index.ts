@@ -32,7 +32,12 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
     ...pluginDependencies.map((dep: string) => `${dep}@${version}`),
   ].join(' ')
 
-  const devDependencies = ['ts-node@10.9.2', 'typescript@5.7.3', '@types/react@19.1.1'].join(' ')
+  const devDependencies = [
+    'ts-node@10.9.2',
+    'typescript@5.7.3',
+    '@types/react@19.1.1',
+    `@motiadev/workbench@${version}`,
+  ].join(' ')
 
   try {
     await executeCommand(`${installCommand} ${dependencies}`, rootDir)
