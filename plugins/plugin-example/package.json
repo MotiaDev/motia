@@ -29,7 +29,8 @@
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
-    "@motiadev/ui": "workspace:*"
+    "@motiadev/ui": "workspace:*",
+    "motia": "workspace:*"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",

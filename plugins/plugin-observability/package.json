@@ -36,7 +36,8 @@
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-react": "workspace:*",
-    "@motiadev/ui": "workspace:*"
+    "@motiadev/ui": "workspace:*",
+    "motia": "workspace:*"
   },
   "devDependencies": {
     "@bosh-code/tsdown-plugin-inject-css": "^2.0.0",

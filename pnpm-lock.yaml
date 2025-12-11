@@ -1074,6 +1074,9 @@ importers:
       lucide-react:
         specifier: ^0.545.0
         version: 0.545.0(react@19.2.0)
+      motia:
+        specifier: workspace:*
+        version: link:../../packages/snap
       react18-json-view:
         specifier: ^0.2.9
         version: 0.2.9(react@19.2.0)
@@ -1138,6 +1141,9 @@ importers:
       lucide-react:
         specifier: ^0.555.0
         version: 0.555.0(react@19.2.0)
+      motia:
+        specifier: workspace:*
+        version: link:../../packages/snap
       react:
         specifier: ^19.1.1
         version: 19.2.0
@@ -1205,6 +1211,9 @@ importers:
       lucide-react:
         specifier: ^0.555.0
         version: 0.555.0(react@19.2.0)
+      motia:
+        specifier: workspace:*
+        version: link:../../packages/snap
       react:
         specifier: ^19.1.1
         version: 19.2.0
@@ -1263,6 +1272,9 @@ importers:
       lucide-react:
         specifier: ^0.555.0
         version: 0.555.0(react@19.2.0)
+      motia:
+        specifier: workspace:*
+        version: link:../../packages/snap
       react:
         specifier: ^19.1.1
         version: 19.2.0
@@ -1333,6 +1345,9 @@ importers:
       lucide-react:
         specifier: ^0.555.0
         version: 0.555.0(react@19.2.0)
+      motia:
+        specifier: workspace:*
+        version: link:../../packages/snap
       react:
         specifier: ^19.1.1
         version: 19.2.0
@@ -1397,6 +1412,9 @@ importers:
       lucide-react:
         specifier: ^0.555.0
         version: 0.555.0(react@19.2.0)
+      motia:
+        specifier: workspace:*
+        version: link:../../packages/snap
       react18-json-view:
         specifier: ^0.2.9
         version: 0.2.9(react@19.2.0)
