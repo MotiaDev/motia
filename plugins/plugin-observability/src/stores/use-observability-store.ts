@@ -32,21 +32,16 @@ export const useObservabilityStore = create<ObservabilityState>()((set, get) => 
   },
   setTraces: (traces: Trace[]) => {
     const safeTraces = Array.isArray(traces) ? traces : []
-    const state = get()
-    const groupId = state.selectedTraceGroupId
-    if (groupId) {
-      set({
-        traces: safeTraces,
-        tracesByGroupId: { ...state.tracesByGroupId, [groupId]: safeTraces },
-      })
-    } else {
-      set({ traces: safeTraces })
-    }
+    set({ traces: safeTraces })
   },
   setTracesForGroup: (groupId: string, traces: Trace[]) => {
     const state = get()
+    const safeTraces = Array.isArray(traces) ? [...traces] : []
+    const newTracesByGroupId = { ...state.tracesByGroupId, [groupId]: safeTraces }
+    const newTraces = state.selectedTraceGroupId === groupId ? safeTraces : state.traces
     set({
-      tracesByGroupId: { ...state.tracesByGroupId, [groupId]: traces },
+      tracesByGroupId: newTracesByGroupId,
+      traces: newTraces,
     })
   },
   selectTraceGroupId: (groupId) => {
