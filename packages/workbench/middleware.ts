@@ -108,9 +108,11 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
         'lucide-react/dynamic': 'lucide-react/dynamic.mjs',
         'lucide-react': 'lucide-react/dist/cjs/lucide-react.js',
       },
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react/compiler-runtime'],
     },
     optimizeDeps: {
       exclude: ['@motiadev/workbench'],
+      include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react/compiler-runtime'],
     },
     plugins: [
       react({
