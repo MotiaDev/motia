@@ -1,7 +1,7 @@
 {
   "name": "motia",
   "description": "Build production-grade backends with a single primitive. APIs, background jobs, Queues, Workflows, and AI agents - unified in one system with built-in State management, Streaming, and Observability.",
-  "version": "0.17.1-beta.182",
+  "version": "0.17.2-beta.183",
   "license": "Elastic-2.0",
   "type": "module",
   "repository": {
