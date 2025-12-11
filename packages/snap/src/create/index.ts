@@ -47,7 +47,7 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
 const preparePackageManager = async (rootDir: string, context: CliContext, detectFromParent = false) => {
   const detectionDir = detectFromParent ? process.cwd() : rootDir
   const envPackageManager = getPackageManagerFromEnv()
-  const packageManager = getPackageManager(detectionDir, detectFromParent)
+  const packageManager = getPackageManager(detectionDir)
 
   const isFallback =
     !envPackageManager && packageManager === 'npm' && !checkIfFileExists(detectionDir, 'package-lock.json')

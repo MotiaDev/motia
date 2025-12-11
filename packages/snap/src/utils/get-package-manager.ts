@@ -37,7 +37,7 @@ const readPackageManagerFromPackageJson = (dir: string): string | null => {
   return null
 }
 
-export const getPackageManager = (dir: string, traverseUp = true): string => {
+export const getPackageManager = (dir: string): string => {
   const envPackageManager = getPackageManagerFromEnv()
   if (envPackageManager) {
     return envPackageManager
@@ -59,10 +59,6 @@ export const getPackageManager = (dir: string, traverseUp = true): string => {
     const packageManagerFromJson = readPackageManagerFromPackageJson(currentDir)
     if (packageManagerFromJson) {
       return packageManagerFromJson
-    }
-
-    if (!traverseUp) {
-      break
     }
 
     currentDir = path.dirname(currentDir)

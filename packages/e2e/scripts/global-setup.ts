@@ -23,8 +23,19 @@ async function globalSetup() {
     execSync(createCommand, {
       stdio: 'pipe',
       cwd: process.cwd(),
+      env: {
+        ...process.env,
+        npm_config_user_agent: 'npm/10.9.2',
+      },
     })
-    execSync(`npm install --save motia@${motiaVersion}`, { cwd: TEST_PROJECT_PATH })
+
+    execSync(`npm install --save motia@${motiaVersion}`, {
+      cwd: TEST_PROJECT_PATH,
+      env: {
+        ...process.env,
+        npm_config_user_agent: 'npm/10.9.2',
+      },
+    })
 
     console.log('🌟 Starting test project server...')
     const serverProcess = exec('npm run dev', {
@@ -32,6 +43,7 @@ async function globalSetup() {
       env: {
         MOTIA_ANALYTICS_DISABLED: 'true',
         ...process.env,
+        npm_config_user_agent: 'npm/10.9.2',
       },
     })
 
