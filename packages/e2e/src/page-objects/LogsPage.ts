@@ -7,6 +7,8 @@ export class LogsPage extends MotiaApplicationPage {
   readonly logEntries: Locator
   readonly clearLogsButton: Locator
   readonly logTableRows: Locator
+  readonly logDetailsSidebar: Locator
+  readonly searchInput: Locator
 
   constructor(page: Page) {
     super(page)
@@ -15,6 +17,8 @@ export class LogsPage extends MotiaApplicationPage {
     this.logTableRows = page.getByTestId('log-row')
     this.logEntries = this.logTableRows
     this.clearLogsButton = page.getByRole('button', { name: /Clear/i })
+    this.logDetailsSidebar = page.getByTestId('sidebar-panel')
+    this.searchInput = page.getByPlaceholder('Search by Trace ID or Message')
   }
 
   async waitForLogContainingText(logText: string, timeout: number = 15000) {
@@ -140,6 +144,55 @@ export class LogsPage extends MotiaApplicationPage {
     for (const stepName of expectedSteps) {
       await this.waitForLogFromStep(stepName)
     }
+  }
+
+  async getTraceIdElement(traceId: string) {
+    return this.page.getByTestId(`trace-${traceId}`)
+  }
+
+  async getTraceFilterButton(traceId: string) {
+    return this.page.getByTestId(`trace-filter-${traceId}`)
+  }
+
+  async filterByTraceId(traceId: string) {
+    const filterButton = await this.getTraceFilterButton(traceId)
+    await filterButton.click()
+  }
+
+  async verifyLogDetailsOpen() {
+    await expect(this.logDetailsSidebar).toBeVisible()
+    await expect(this.logDetailsSidebar).toContainText('Logs Details')
+  }
+
+  async verifyLogDetailsClosed() {
+    await expect(this.logDetailsSidebar).not.toBeVisible()
+  }
+
+  async verifyLogDetailsContainsTraceId(traceId: string) {
+    await expect(this.logDetailsSidebar).toContainText(traceId)
+  }
+
+  async getSearchValue() {
+    return await this.searchInput.inputValue()
+  }
+
+  async getFirstLogTraceId() {
+    const firstRow = this.page.locator('[data-testid="log-row"][data-index="0"]')
+    await firstRow.waitFor({ timeout: 15000 })
+    const traceElement = firstRow.locator('[data-testid^="trace-"]:not([data-testid*="filter"])')
+    return await traceElement.textContent()
+  }
+
+  async clickTraceIdAtIndex(index: number) {
+    const row = await this.scrollToLogAtIndex(index)
+    const traceElement = row.locator('[data-testid^="trace-"]:not([data-testid*="filter"])')
+    await traceElement.click()
+  }
+
+  async clickTraceFilterAtIndex(index: number) {
+    const row = await this.scrollToLogAtIndex(index)
+    const filterButton = row.locator('[data-testid^="trace-filter-"]')
+    await filterButton.click()
   }
 
   async waitForStepExecution(stepName: string, timeout: number = 30000) {
