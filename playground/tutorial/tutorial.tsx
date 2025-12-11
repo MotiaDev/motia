@@ -43,7 +43,12 @@ export const steps: TutorialStep[] = [
   {
     elementXpath: workbenchXPath.flows.previewButton('apitrigger'),
     title: 'Code Preview',
-    description: () => <p>Clicking on this icon will allow you to visualize the source code for a given Step.</p>,
+    description: () => (
+      <p>
+        Clicking on this icon will allow you to visualize the source code for a given Step. This opens a code viewer
+        with interactive feature cards that explain different parts of the code.
+      </p>
+    ),
     before: [
       {
         type: 'click',
@@ -54,142 +59,47 @@ export const steps: TutorialStep[] = [
   },
   {
     elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Step Config',
+    title: 'Explore the Code',
     description: () => (
       <div>
         <p>
-          All Steps are defined by two main components, the <b>configuration</b> and the <b>handler</b>.
-          <br />
-          <br />
-          Let's start with the configuration, the common config attributes are
-          <i> type, name, description, and flows</i>.
-          <br />
-          <br />
+          The code viewer shows the Step's source code on the right. On the left, you'll find <b>feature cards</b> that
+          explain different parts of the code.
         </p>
-        <ul>
+        <br />
+        <p>
+          <b>Click on the feature cards</b> to learn about:
+        </p>
+        <ul className="square-decoration">
           <li>
-            The <b>type</b> attribute is important since it declares the type of Step
+            <b>Step Configuration</b> - Common attributes like type, name, description, and flows
           </li>
           <li>
-            The <b>flows</b> attribute will associate your Step with a given flow or set of flows.
+            <b>API Step Configuration</b> - HTTP method and path attributes
           </li>
           <li>
-            The <b>name</b> and <b>description</b> attributes will provide context in the visualization and
-            observability tools.
+            <b>Request Body & Response Payload</b> - Zod schemas for request/response validation
+          </li>
+          <li>
+            <b>Event Driven Architecture</b> - How Steps communicate via emits and subscribes
+          </li>
+          <li>
+            <b>Step Handler</b> - The function that executes when the Step is triggered
+          </li>
+          <li>
+            <b>Logger</b> - Enhanced logging utilities for observability
+          </li>
+          <li>
+            <b>HTTP Response</b> - Returning responses that match your responseSchema
           </li>
         </ul>
+        <br />
+        <p>
+          Take your time exploring these features. Click <b>Continue</b> when you're ready to move on.
+        </p>
       </div>
     ),
-    before: [
-      { type: 'click', selector: workbenchXPath.flows.previewButton('apitrigger') },
-      { type: 'click', selector: workbenchXPath.flows.feature('step-configuration') },
-    ],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'API Step Configuration',
-    description: () => (
-      <p>
-        There are specific configuration attributes for an API Step. Let's start with the <b>method</b> attribute. This
-        will declare the type of HTTP method used to talk to your API Step.
-        <br />
-        <br />
-        Through the <b>path</b> attribute you'll declare the url path used to trigger your API Step
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('api-configuration') }],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Request Body',
-    link: 'https://zod.dev/api',
-    description: () => (
-      <p>
-        The <b>bodySchema</b> attribute will define the shape of the request body.
-        <br />
-        <br />
-        <i>💡 Both the request body and response payload are defined by zod schemas</i>
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('request-body') }],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Response Payload',
-    link: 'https://zod.dev/api',
-    description: () => (
-      <p>
-        Through the <b>responseSchema</b> attribute you can declare the different type of http responses based on the
-        http status code.
-        <br />
-        <br />
-        <i>💡 Both the request body and response payload are defined by zod schemas</i>
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('response-payload') }],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Event Driven Architecture',
-    description: () => (
-      <p>
-        Motia allows you to interact between Steps or flows through an event driven architecture.
-        <br />
-        <br />
-        In order to connect your Steps during runtime you will use the <b>emits</b> and <b>subscribes</b> attributes.
-        <br />
-        <br />
-        Through the <b>emits</b>, you can specify a list of topics that your Step emits for others to <i>subscribe</i>.
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('event-driven-architecture') }],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Step Handler',
-    description: () => (
-      <p>
-        Now that we've covered how to declare a Step, let's dive into the <b>Step Handler</b>.<br />
-        <br />
-        Handlers are essential for the execution of your Step. For API Steps, the handler will receive the request
-        object as the first argument, followed by a second argument that provides access to the <b>logger</b>,{' '}
-        <b>event emitter</b>, <b>state manager</b>, and <b>trace id</b>.<br />
-        <br />💡 We will cover these in depth further down the tutorial.
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('handler') }],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Logger',
-    description: () => (
-      <p>
-        We recommend using the provided <b>logger</b> util in order to guarantee observability through Motia's
-        ecosystem.
-        <br />
-        <br />
-        You can use logger similar to <i>console.log</i> for js or <i>print</i> for python, but with enhanced utilities,
-        such as being able to provide additional context.
-        <br />
-        <br />
-        Motia will take care of the rest to provide the best experience to visualize your logs and tie them through
-        tracing.
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('logger') }],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'HTTP Response',
-    description: () => (
-      <p>
-        Now let's wrap our API Step and return a response.
-        <br />
-        You simply need to return an object that complies with one of the <b>responseSchema</b> definitions declared in
-        your Step configuration.
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('http-response') }],
+    before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('apitrigger') }],
   },
 
   // Event Steps
@@ -217,76 +127,43 @@ export const steps: TutorialStep[] = [
   },
   {
     elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Event Step',
+    title: 'Explore the Event Step',
     link: 'https://www.motia.dev/docs/concepts/steps#triggers-event',
     description: () => (
-      <p>
-        Now that we have an entry point in our flow, let's focus on subscribing to a <b>topic</b> and performing a
-        specific task.
-        <br /> <br />
-        For this we will look at the <b>Event</b> Step.
-        <br /> <br />
-        <b> Event</b> Steps are essential for Motia's event driven architecture. Let's dive deeper into the anatomy of
-        an Event Step by taking a look at the code visualization tool.
-        <br /> <br />💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
-      </p>
+      <div>
+        <p>
+          <b>Event</b> Steps are essential for Motia's event driven architecture. They subscribe to topics and perform
+          specific tasks.
+        </p>
+        <br />
+        <p>
+          <b>Click on the feature cards</b> to learn about:
+        </p>
+        <ul className="square-decoration">
+          <li>
+            <b>Step Configuration</b> - Common attributes for Event Steps
+          </li>
+          <li>
+            <b>Input Schema</b> - The data structure provided by the topic (defined as a zod schema)
+          </li>
+          <li>
+            <b>Event Step Handler</b> - The handler receives topic data as the first argument
+          </li>
+          <li>
+            <b>State Management</b> - How to persist data in state with group IDs
+          </li>
+        </ul>
+        <br />
+        <p>
+          💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
+        </p>
+        <br />
+        <p>
+          Click <b>Continue</b> when you're ready to move on.
+        </p>
+      </div>
     ),
-    before: [
-      { type: 'click', selector: workbenchXPath.flows.previewButton('processfoodorder') },
-      { type: 'click', selector: workbenchXPath.flows.feature('step-configuration') },
-    ],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Event Step Input',
-    description: () => (
-      <p>
-        <b>Event</b> Steps, like other Steps types, are composed of a configuration and a handler.
-        <br />
-        <br />
-        <b>Event</b> Steps have a specific attribute from their config, the <b>input</b> attribute, which declares the
-        data structure provided by the topic it is subscribed to.
-        <br />
-        <br />
-        The <b>input</b> attributes is defined as a zod schema, think of the <b>input</b> attributes as a contract for
-        other Steps that emit the topics that your Step subscribes to.
-        <br />
-        <br /> 💡 <b>Multiple Steps can subscribe to the same topic, but their input schema must be the same.</b>
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('input-schema') }],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Event Step Handler',
-    description: () => (
-      <p>
-        Let's take a look at the <b>Event</b> Step Handler.
-        <br />
-        <br />
-        The handler will seem familiar to other Step handlers, but notice that the first argument holds the data
-        provided for the topic or topics your Step subscribes to.
-        <br />
-        <br />💡 The first argument will match the structure of your input schema, defined in the <b>Event</b> Step
-        config.
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('handler') }],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Storing Data in State',
-    link: 'https://www.motia.dev/docs/development-guide/state-management',
-    description: () => (
-      <p>
-        Let's take a closer look at storing data in state.
-        <br />
-        <br />
-        In this example we are persisting the result of a third party HTTP request in <b>State</b>, scoping it to a
-        group id named "orders".
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('state') }],
+    before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('processfoodorder') }],
   },
 
   // Cron Steps
@@ -309,41 +186,36 @@ export const steps: TutorialStep[] = [
   },
   {
     elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Cron Schedule',
+    title: 'Explore the Cron Step',
     link: 'https://www.motia.dev/docs/concepts/steps#triggers-cron',
     description: () => (
-      <p>
-        <b>CRON</b> Steps are similar to the other Step types, they are composed by a configuration and a handler.
+      <div>
+        <p>
+          <b>CRON</b> Steps are similar to other Step types - they have a configuration and a handler. The key
+          difference is the <b>cron</b> attribute that defines the schedule.
+        </p>
         <br />
+        <p>
+          <b>Click on the feature cards</b> to learn about:
+        </p>
+        <ul className="square-decoration">
+          <li>
+            <b>Cron Configuration</b> - How to define the cron schedule (e.g., every 5 minutes)
+          </li>
+          <li>
+            <b>Cron Step Handler</b> - Receives only the Motia context, giving access to emit topics, log, manage state,
+            and trace ID
+          </li>
+        </ul>
         <br />
-        The <b>CRON</b> Step config has a distinct attribute, the <b>cron</b> attribute, through this attribute you will
-        define the cron schedule for your Step.
+        <p>In this example, the CRON Step evaluates orders in state and emits warnings for unprocessed orders.</p>
         <br />
-        <br />
-        For instance, in this example the cron schedule is configured to execute the Step handler every 5 minutes. Let's
-        take a look at the handler definition.
-      </p>
+        <p>
+          Click <b>Continue</b> when you're ready to move on.
+        </p>
+      </div>
     ),
-    before: [
-      { type: 'click', selector: workbenchXPath.flows.previewButton('stateauditjob') },
-      { type: 'click', selector: workbenchXPath.flows.feature('cron-configuration') },
-    ],
-  },
-  {
-    elementXpath: workbenchXPath.sidebarContainer,
-    title: 'Cron Step Handler',
-    description: () => (
-      <p>
-        The <b>CRON</b> Step handler only receives one argument, which is the Motia context, if you recall the Motia
-        context gives you access to utilities to emit <i>topics</i>, <i>log</i>, <i>manage state</i>, and it provides
-        the <i>trace id</i> associated to your Step's execution.
-        <br />
-        <br />
-        In this CRON Step example we are evaluating orders persisted in state, and emitting warnings through a topic for
-        each order that hasn't been processed and has a shipping date in the past.
-      </p>
-    ),
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('handler') }],
+    before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('stateauditjob') }],
   },
 
   // Endpoints
