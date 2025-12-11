@@ -5,7 +5,7 @@
   "main": "dist/index.mjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.mts",
-  "version": "0.17.0-beta.181",
+  "version": "0.17.1-beta.182",
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
