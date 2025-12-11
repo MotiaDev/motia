@@ -1,38 +1,81 @@
 import { create } from 'zustand'
-import type { Trace, TraceGroup } from '../types/observability'
+import { deriveTraceGroup } from '../hooks/use-derive-trace-group'
+import type { Trace, TraceGroup, TraceGroupMeta } from '../types/observability'
 
 export type ObservabilityState = {
-  traceGroups: TraceGroup[]
+  traceGroupMetas: TraceGroupMeta[]
   traces: Trace[]
+  tracesByGroupId: Record<string, Trace[]>
   selectedTraceGroupId: string
   selectedTraceId?: string
   search: string
-  setTraceGroups: (groups: TraceGroup[]) => void
+  setTraceGroupMetas: (metas: TraceGroupMeta[]) => void
   setTraces: (traces: Trace[]) => void
+  setTracesForGroup: (groupId: string, traces: Trace[]) => void
   selectTraceGroupId: (groupId?: string) => void
   selectTraceId: (traceId?: string) => void
   setSearch: (search: string) => void
   clearTraces: () => void
+  getTraceGroups: () => TraceGroup[]
 }
 
-export const useObservabilityStore = create<ObservabilityState>()((set) => ({
-  traceGroups: [],
+export const useObservabilityStore = create<ObservabilityState>()((set, get) => ({
+  traceGroupMetas: [],
   traces: [],
+  tracesByGroupId: {},
   selectedTraceGroupId: '',
   selectedTraceId: undefined,
   search: '',
-  setTraceGroups: (groups: TraceGroup[]) => {
-    const safeGroups = Array.isArray(groups) ? groups : []
-    set({ traceGroups: safeGroups })
+  setTraceGroupMetas: (metas: TraceGroupMeta[]) => {
+    const safeMetas = Array.isArray(metas) ? metas : []
+    set({ traceGroupMetas: safeMetas })
   },
   setTraces: (traces: Trace[]) => {
     const safeTraces = Array.isArray(traces) ? traces : []
-    set({ traces: safeTraces })
+    const state = get()
+    const groupId = state.selectedTraceGroupId
+    if (groupId) {
+      set({
+        traces: safeTraces,
+        tracesByGroupId: { ...state.tracesByGroupId, [groupId]: safeTraces },
+      })
+    } else {
+      set({ traces: safeTraces })
+    }
   },
-  selectTraceGroupId: (groupId) => set({ selectedTraceGroupId: groupId }),
+  setTracesForGroup: (groupId: string, traces: Trace[]) => {
+    const state = get()
+    set({
+      tracesByGroupId: { ...state.tracesByGroupId, [groupId]: traces },
+    })
+  },
+  selectTraceGroupId: (groupId) => {
+    const state = get()
+    const traces = groupId ? state.tracesByGroupId[groupId] || [] : []
+    set({ selectedTraceGroupId: groupId || '', traces })
+  },
   selectTraceId: (traceId) => set({ selectedTraceId: traceId }),
   setSearch: (search) => set({ search }),
   clearTraces: () => {
     fetch('/__motia/trace/clear', { method: 'POST' })
+  },
+  getTraceGroups: () => {
+    const state = get()
+    return state.traceGroupMetas.map((meta) => {
+      const traces = state.tracesByGroupId[meta.id] || []
+      if (traces.length === 0) {
+        return {
+          ...meta,
+          status: 'running' as const,
+          lastActivity: meta.startTime,
+          metadata: {
+            completedSteps: 0,
+            activeSteps: 0,
+            totalSteps: 0,
+          },
+        }
+      }
+      return deriveTraceGroup(meta, traces)
+    })
   },
 }))

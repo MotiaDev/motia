@@ -2,6 +2,7 @@ import { Button } from '@motiadev/ui'
 import { Minus, Plus } from 'lucide-react'
 import type React from 'react'
 import { memo, useMemo, useState } from 'react'
+import { deriveTraceGroup } from '../hooks/use-derive-trace-group'
 import { useGetEndTime } from '../hooks/use-get-endtime'
 import { useTracesStream } from '../hooks/use-traces-stream'
 import { formatDuration } from '../lib/utils'
@@ -22,9 +23,25 @@ interface TraceTimelineComponentProps {
 const TraceTimelineComponent: React.FC<TraceTimelineComponentProps> = memo(({ groupId }) => {
   useTracesStream()
 
-  const traceGroups = useObservabilityStore((state) => state.traceGroups)
+  const traceGroupMetas = useObservabilityStore((state) => state.traceGroupMetas)
   const traces = useObservabilityStore((state) => state.traces)
-  const group = useMemo(() => traceGroups.find((traceGroup) => traceGroup.id === groupId), [traceGroups, groupId])
+  const group = useMemo(() => {
+    const meta = traceGroupMetas.find((m) => m.id === groupId)
+    if (!meta) return null
+    if (traces.length === 0) {
+      return {
+        ...meta,
+        status: 'running' as const,
+        lastActivity: meta.startTime,
+        metadata: {
+          completedSteps: 0,
+          activeSteps: 0,
+          totalSteps: 0,
+        },
+      }
+    }
+    return deriveTraceGroup(meta, traces)
+  }, [traceGroupMetas, traces, groupId])
 
   const endTime = useGetEndTime(group)
   const [zoom, setZoom] = useState(100)

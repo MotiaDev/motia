@@ -7,10 +7,16 @@ const streamName = 'motia-trace'
 export const useTracesStream = () => {
   const groupId = useObservabilityStore((state) => state.selectedTraceGroupId)
   const setData = useObservabilityStore((state) => state.setTraces)
+  const setTracesForGroup = useObservabilityStore((state) => state.setTracesForGroup)
 
   useStreamGroup<Trace>({
     streamName,
     groupId,
-    setData,
+    setData: (traces: Trace[]) => {
+      setData(traces)
+      if (groupId) {
+        setTracesForGroup(groupId, traces)
+      }
+    },
   })
 }

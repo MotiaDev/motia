@@ -33,39 +33,6 @@ export class StreamTracer implements Tracer {
     this.trace.error = err
 
     await this.manager.updateTrace()
-    await this.recomputeTraceGroupStatus()
-    await this.manager.updateTraceGroup()
-  }
-
-  private async recomputeTraceGroupStatus() {
-    const allTracesFromStorage = await this.manager.getAllTracesForGroup()
-
-    const currentTraceIndex = allTracesFromStorage.findIndex((t) => t.id === this.trace.id)
-    const allTraces = [...allTracesFromStorage]
-
-    if (currentTraceIndex >= 0) {
-      allTraces[currentTraceIndex] = this.trace
-    } else {
-      allTraces.push(this.trace)
-    }
-
-    const completedCount = allTraces.filter((t) => t.status === 'completed').length
-    const failedCount = allTraces.filter((t) => t.status === 'failed').length
-    const runningCount = allTraces.filter((t) => t.status === 'running').length
-
-    this.traceGroup.metadata.completedSteps = completedCount
-    this.traceGroup.metadata.activeSteps = runningCount
-
-    if (failedCount > 0) {
-      this.traceGroup.status = 'failed'
-    } else if (runningCount === 0 && completedCount > 0) {
-      this.traceGroup.status = 'completed'
-      if (!this.traceGroup.endTime) {
-        this.traceGroup.endTime = Date.now()
-      }
-    } else {
-      this.traceGroup.status = 'running'
-    }
   }
 
   async stateOperation(operation: StateOperation, input: unknown) {
@@ -106,9 +73,7 @@ export class StreamTracer implements Tracer {
         lastEvent.data.data = input.data
         lastEvent.maxTimestamp = Date.now()
 
-        this.traceGroup.lastActivity = lastEvent.maxTimestamp
         await this.manager.updateTrace()
-        await this.manager.updateTraceGroup()
 
         return
       }
@@ -133,9 +98,7 @@ export class StreamTracer implements Tracer {
 
   private async addEvent(event: TraceEvent) {
     this.trace.events.push(event)
-    this.traceGroup.lastActivity = event.timestamp
 
     await this.manager.updateTrace()
-    await this.manager.updateTraceGroup()
   }
 }
