@@ -20,6 +20,7 @@ import { processPlugins } from './plugins'
 import { getRedisClient, getRedisConnectionInfo, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { identifyUser } from './utils/analytics'
+import { listenWithFallback } from './utils/listen-with-fallback'
 import { validatePythonEnvironment } from './utils/validate-python-environment'
 import { version } from './version'
 
@@ -133,9 +134,12 @@ export const dev = async (
     plugins: plugins.flatMap((item) => item.workbench),
   })
 
-  motiaServer.server.listen(port, hostname)
-  console.log('🚀 Server ready and listening on port', port)
-  console.log(`🔗 Open http://localhost:${port}${workbenchBase} to open workbench 🛠️`)
+  const actualPort = await listenWithFallback(motiaServer.server, port, hostname)
+  if (actualPort !== port) {
+    console.log(`⚠️  Port ${port} was in use, using port ${actualPort} instead`)
+  }
+  console.log('🚀 Server ready and listening on port', actualPort)
+  console.log(`🔗 Open http://localhost:${actualPort}${workbenchBase} to open workbench 🛠️`)
 
   process.on('SIGTERM', async () => {
     trackEvent('dev_server_shutdown', { reason: 'SIGTERM' })
