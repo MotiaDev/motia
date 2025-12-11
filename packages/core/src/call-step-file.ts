@@ -70,7 +70,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
             processManager.kill()
             const errorMessage = `Step execution timed out after ${timeoutSeconds} seconds`
             logger.error(errorMessage, { step: step.config.name, timeout: timeoutSeconds })
-            await tracer.end({ message: errorMessage })
+            tracer.end({ message: errorMessage })
             trackEvent('step_execution_timeout', {
               stepName: step.config.name,
               traceId,
@@ -94,7 +94,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
                   message: err.message,
                 })
 
-                await tracer.end({
+                tracer.end({
                   message: err.message,
                   code: err.code,
                   stack: err.stack?.replace(new RegExp(`${motia.lockedData.baseDir}/`), ''),
@@ -104,7 +104,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
                 reject(error)
               } else {
-                await tracer.end()
+                tracer.end()
               }
 
               processManager.kill()
@@ -112,27 +112,27 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
             processManager.handler<unknown>('log', async (input: unknown) => logger.log(input))
 
             processManager.handler<StateGetInput, unknown>('state.get', async (input) => {
-              await tracer.stateOperation('get', input)
+              tracer.stateOperation('get', input)
               return motia.state.get(input.traceId, input.key)
             })
 
             processManager.handler<StateSetInput, unknown>('state.set', async (input) => {
-              await tracer.stateOperation('set', { traceId: input.traceId, key: input.key, value: input.value })
+              tracer.stateOperation('set', { traceId: input.traceId, key: input.key, value: input.value })
               return motia.state.set(input.traceId, input.key, input.value)
             })
 
             processManager.handler<StateDeleteInput, unknown>('state.delete', async (input) => {
-              await tracer.stateOperation('delete', input)
+              tracer.stateOperation('delete', input)
               return motia.state.delete(input.traceId, input.key)
             })
 
             processManager.handler<StateClearInput, void>('state.clear', async (input) => {
-              await tracer.stateOperation('clear', input)
+              tracer.stateOperation('clear', input)
               return motia.state.clear(input.traceId)
             })
 
             processManager.handler<StateStreamGetInput>(`state.getGroup`, async (input) => {
-              await tracer.stateOperation('getGroup', input)
+              tracer.stateOperation('getGroup', input)
               return motia.state.getGroup(input.groupId)
             })
 
@@ -149,11 +149,11 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
               const flows = step.config.flows
 
               if (!isAllowedToEmit(step, input.topic)) {
-                await tracer.emitOperation(input.topic, input.data, false)
+                tracer.emitOperation(input.topic, input.data, false)
                 return motia.printer.printInvalidEmit(step, input.topic)
               }
 
-              await tracer.emitOperation(input.topic, input.data, true)
+              tracer.emitOperation(input.topic, input.data, true)
               return motia.eventAdapter.emit({ ...input, traceId, flows, logger, tracer })
             })
 
@@ -161,27 +161,27 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
               const stateStream = streamFactory()
 
               processManager.handler<StateStreamGetInput>(`streams.${name}.get`, async (input) => {
-                await tracer.streamOperation(name, 'get', input)
+                tracer.streamOperation(name, 'get', input)
                 return stateStream.get(input.groupId, input.id)
               })
 
               processManager.handler<StateStreamMutateInput>(`streams.${name}.set`, async (input) => {
-                await tracer.streamOperation(name, 'set', { groupId: input.groupId, id: input.id, data: input.data })
+                tracer.streamOperation(name, 'set', { groupId: input.groupId, id: input.id, data: input.data })
                 return stateStream.set(input.groupId, input.id, input.data)
               })
 
               processManager.handler<StateStreamGetInput>(`streams.${name}.delete`, async (input) => {
-                await tracer.streamOperation(name, 'delete', input)
+                tracer.streamOperation(name, 'delete', input)
                 return stateStream.delete(input.groupId, input.id)
               })
 
               processManager.handler<StateStreamGetInput>(`streams.${name}.getGroup`, async (input) => {
-                await tracer.streamOperation(name, 'getGroup', input)
+                tracer.streamOperation(name, 'getGroup', input)
                 return stateStream.getGroup(input.groupId)
               })
 
               processManager.handler<StateStreamSendInput>(`streams.${name}.send`, async (input) => {
-                await tracer.streamOperation(name, 'send', input)
+                tracer.streamOperation(name, 'send', input)
                 return stateStream.send(input.channel, input.event)
               })
             })
@@ -203,11 +203,11 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
 
               if (code !== 0 && code !== null) {
                 const error = { message: `Process exited with code ${code}`, code }
-                await tracer.end(error)
+                tracer.end(error)
                 trackEvent('step_execution_error', { stepName: step.config.name, traceId, code })
                 reject(`Process exited with code ${code}`)
               } else {
-                await tracer.end()
+                tracer.end()
                 resolve(result)
               }
             })
@@ -215,7 +215,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
             processManager.onProcessError(async (error) => {
               if (timeoutId) clearTimeout(timeoutId)
               processManager.close()
-              await tracer.end({
+              tracer.end({
                 message: error.message,
                 code: error.code,
                 stack: error.stack,
@@ -236,7 +236,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
           })
           .catch(async (error) => {
             if (timeoutId) clearTimeout(timeoutId)
-            await tracer.end({
+            tracer.end({
               message: error.message,
               code: error.code,
               stack: error.stack,
@@ -253,7 +253,7 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       })
     } catch (error: unknown) {
       const err = error as Error & { code?: string }
-      await tracer.end({
+      tracer.end({
         message: err.message,
         code: err.code,
         stack: err.stack,
