@@ -1,7 +1,7 @@
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
-import { petStoreService } from '../../src/services/pet-store'
-import { petSchema } from '../../src/services/types'
+import { petStoreService } from '../services/pet-store'
+import { petSchema } from '../services/types'
 
 export const config: ApiRouteConfig = {
   type: 'api',
