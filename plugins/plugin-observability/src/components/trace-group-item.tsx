@@ -5,6 +5,7 @@ import { memo, useCallback, useMemo } from 'react'
 import { formatDuration } from '../lib/utils'
 import { useObservabilityStore } from '../stores/use-observability-store'
 import { TraceStatusBadge } from './trace-status'
+import { CopyButton } from './ui/copy-button'
 
 interface TraceGroupItemProps {
   groupId: string
@@ -31,8 +32,7 @@ export const TraceGroupItem: React.FC<TraceGroupItemProps> = memo(
     }, [groupId, selectTraceGroupId])
 
     return (
-      <button
-        type="button"
+      <div
         data-testid={`trace-${groupId}`}
         key={groupId}
         className={cn(
@@ -48,9 +48,17 @@ export const TraceGroupItem: React.FC<TraceGroupItemProps> = memo(
           </div>
 
           <div className="text-xs text-muted-foreground space-y-1">
-            <div className="flex justify-between">
-              <div data-testid="trace-id" className="text-xs text-muted-foreground font-mono tracking-[1px]">
+            <div className="flex justify-between items-center">
+              <div
+                data-testid="trace-id"
+                className="text-xs text-muted-foreground font-mono tracking-[1px] flex items-center gap-1.5 group"
+              >
                 {groupId}
+                <CopyButton
+                  textToCopy={groupId}
+                  className="w-4 h-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                  title="Copy Trace ID"
+                />
               </div>
               <span>{totalSteps} steps</span>
             </div>
@@ -58,7 +66,7 @@ export const TraceGroupItem: React.FC<TraceGroupItemProps> = memo(
             {activeSteps > 0 && <div className="text-blue-600">{activeSteps} active</div>}
           </div>
         </div>
-      </button>
+      </div>
     )
   },
 )
