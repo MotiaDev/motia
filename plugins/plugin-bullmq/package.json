@@ -34,6 +34,7 @@
     "zustand": "^5.0.8"
   },
   "peerDependencies": {
+    "react": "^19.2.0",
     "@motiadev/adapter-bullmq-events": "workspace:*",
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-react": "workspace:*",
@@ -47,7 +48,6 @@
     "@types/node": "^24.7.2",
     "@types/react": "^19.2.2",
     "babel-plugin-react-compiler": "^1.0.0",
-    "react": "^19.2.0",
     "tailwindcss": "^4.1.17",
     "tsdown": "^0.16.8",
     "tw-animate-css": "^1.2.9",
