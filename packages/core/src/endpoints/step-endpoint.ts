@@ -34,7 +34,7 @@ export const stepEndpoint = (app: Express, lockedData: LockedData) => {
     try {
       const content = await fs.readFile(step.filePath, 'utf8')
       const features = await getFeatures(
-        step.filePath.replace(`${path.sep}steps${path.sep}`, `${path.sep}tutorial${path.sep}`),
+        step.filePath.replace(`${path.sep}src${path.sep}`, `${path.sep}tutorial${path.sep}`),
       )
 
       res.status(200).send({ id, content, features })

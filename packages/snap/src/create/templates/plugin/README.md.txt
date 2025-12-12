@@ -1,4 +1,4 @@
-# @motiadev/plugin-example
+# {{PROJECT_NAME}}
 
 A minimal example plugin demonstrating the Motia plugin system.
 
@@ -37,7 +37,7 @@ pnpm run clean
 To use this plugin in your Motia project, import it in your `motia.config.ts`:
 
 ```typescript
-import examplePlugin from '@motiadev/plugin-example/plugin'
+import examplePlugin from '{{PROJECT_NAME}}/plugin'
 
 export default {
   plugins: [examplePlugin],
@@ -55,8 +55,8 @@ export default function plugin(_motia: MotiaPluginContext): MotiaPlugin {
   return {
     workbench: [
       {
-        packageName: '@motiadev/plugin-example',
-        cssImports: ['@motiadev/plugin-example/dist/index.css'],
+        packageName: '{{PROJECT_NAME}}',
+        cssImports: ['{{PROJECT_NAME}}/dist/index.css'],
         label: 'Example',
         position: 'bottom',
         componentName: 'ExamplePage',
@@ -81,7 +81,7 @@ export default function plugin(_motia: MotiaPluginContext): MotiaPlugin {
 ## Structure
 
 ```
-plugin-example/
+{{PROJECT_NAME}}/
 ├── src/
 │   ├── components/
 │   │   └── example-page.tsx    # Main UI component

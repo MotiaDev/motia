@@ -7,7 +7,6 @@ export const createTrace = (traceGroup: TraceGroup, step: Step) => {
   const trace: Trace = {
     id,
     name: step.config.name,
-    correlationId: traceGroup.correlationId,
     parentTraceId: traceGroup.id,
     status: 'running',
     startTime: Date.now(),
@@ -15,9 +14,6 @@ export const createTrace = (traceGroup: TraceGroup, step: Step) => {
     entryPoint: { type: step.config.type, stepName: step.config.name },
     events: [],
   }
-
-  traceGroup.metadata.totalSteps++
-  traceGroup.metadata.activeSteps++
 
   return trace
 }

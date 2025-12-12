@@ -10,8 +10,8 @@ export async function createStep(options: { stepFilePath?: string }) {
   try {
     const answers = await getStepAnswers()
 
-    // Create steps directory if it doesn't exist
-    const stepDir = path.join(process.cwd(), 'steps', options?.stepFilePath || '')
+    // Create src directory if it doesn't exist
+    const stepDir = path.join(process.cwd(), 'src', options?.stepFilePath || '')
     if (!fs.existsSync(stepDir)) {
       fs.mkdirSync(stepDir, { recursive: true })
     }

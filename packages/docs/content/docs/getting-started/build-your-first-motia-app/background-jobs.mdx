@@ -237,9 +237,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/create-pet.step.js"
-    const { create } = require('./js-store')
+    import { create } from './js-store.js'
 
-    const config = {
+    export const config = {
       name: 'CreatePet',
       type: 'api',
       path: '/pets',
@@ -272,8 +272,6 @@ View on GitHub:
 
       return { status: 201, body: pet }
     }
-
-    module.exports = { config, handler }
     ```
   </Tab>
 </Tabs>
@@ -422,9 +420,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/set-next-feeding-reminder.job.step.js"
-    const { update } = require('./js-store')
+    import { update } from './js-store.js'
 
-    const config = {
+    export const config = {
       type: 'event',
       name: 'JsSetNextFeedingReminder',
       description: 'Background job that sets next feeding reminder and adds welcome notes',
@@ -473,8 +471,6 @@ View on GitHub:
         }
       }
     }
-
-    module.exports = { config, handler }
     ```
   </Tab>
 </Tabs>
@@ -681,9 +677,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/deletion-reaper.cron.step.js"
-    const { findDeletedPetsReadyToPurge, remove } = require('./js-store')
+    import { findDeletedPetsReadyToPurge, remove } from './js-store.js'
 
-    const config = {
+    export const config = {
       type: 'cron',
       name: 'JsDeletionReaper',
       description: 'Daily job that permanently removes pets scheduled for deletion',
@@ -750,8 +746,6 @@ View on GitHub:
         }
       }
     }
-
-    module.exports = { config, handler }
     ```
   </Tab>
 </Tabs>

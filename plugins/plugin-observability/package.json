@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-observability",
-  "version": "0.15.5-beta.173",
+  "version": "0.17.4-beta.185",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.15",
+    "@tanstack/react-virtual": "^3.13.12",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
@@ -35,7 +36,8 @@
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-react": "workspace:*",
-    "@motiadev/ui": "workspace:*"
+    "@motiadev/ui": "workspace:*",
+    "motia": "workspace:*"
   },
   "devDependencies": {
     "@bosh-code/tsdown-plugin-inject-css": "^2.0.0",

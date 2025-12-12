@@ -1,26 +1,29 @@
 import { getLanguageBasedRunner } from './language-runner'
 import { globalLogger } from './logger'
 import { ProcessManager } from './process-communication/process-manager'
+import { compile } from './ts-compiler'
 import type { StepConfig } from './types'
 import type { StreamConfig } from './types-stream'
 
-const getConfig = <T>(file: string, projectRoot?: string): Promise<T | null> => {
+const getConfig = async <T>(file: string, projectRoot?: string): Promise<T | null> => {
+  const filePathToExecute = file.endsWith('.ts') ? await compile(file, projectRoot || process.cwd()) : file
+
   const { runner, command, args } = getLanguageBasedRunner(file, {
     python: 'get-config.py',
     ruby: 'get-config.rb',
     node: { js: 'get-config.mjs', ts: 'get-config.ts' },
   })
 
+  const processManager = new ProcessManager({
+    command,
+    args: [...args, runner, filePathToExecute],
+    logger: globalLogger,
+    context: 'Config',
+    projectRoot,
+  })
+
   return new Promise((resolve, reject) => {
     let config: T | null = null
-
-    const processManager = new ProcessManager({
-      command,
-      args: [...args, runner, file],
-      logger: globalLogger,
-      context: 'Config',
-      projectRoot,
-    })
 
     processManager
       .spawn()
@@ -68,3 +71,5 @@ export const getStepConfig = (file: string, projectRoot?: string): Promise<StepC
 export const getStreamConfig = (file: string, projectRoot?: string): Promise<StreamConfig | null> => {
   return getConfig<StreamConfig>(file, projectRoot)
 }
+
+export { invalidate } from './ts-compiler'

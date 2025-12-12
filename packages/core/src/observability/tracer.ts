@@ -1,4 +1,3 @@
-import { FileStreamAdapterManager } from '../adapters/defaults/stream/file-stream-adapter-manager'
 import type { LockedData } from '../locked-data'
 import type { Logger } from '../logger'
 import type { Step } from '../types'
@@ -41,19 +40,13 @@ export class BaseTracerFactory implements TracerFactory {
     const traceGroup: TraceGroup = {
       id: traceId,
       name: step.config.name,
-      lastActivity: Date.now(),
-      metadata: {
-        completedSteps: 0,
-        activeSteps: 0,
-        totalSteps: 0,
-      },
-      correlationId: undefined,
-      status: 'running',
       startTime: Date.now(),
     }
 
     const trace = createTrace(traceGroup, step)
     const manager = new TraceManager(this.traceStream, this.traceGroupStream, traceGroup, trace)
+
+    await manager.updateTraceGroup()
 
     return new StreamTracer(manager, traceGroup, trace, logger)
   }

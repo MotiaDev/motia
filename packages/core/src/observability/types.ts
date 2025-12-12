@@ -2,17 +2,8 @@ import type { StepConfig } from '../types'
 
 export interface TraceGroup {
   id: string
-  correlationId: string | undefined
   name: string
-  status: 'running' | 'completed' | 'failed'
   startTime: number
-  endTime?: number
-  lastActivity: number
-  metadata: {
-    completedSteps: number
-    activeSteps: number
-    totalSteps: number
-  }
 }
 
 export type TraceError = {

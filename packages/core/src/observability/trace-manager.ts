@@ -9,7 +9,6 @@ export class TraceManager {
     private readonly trace: Trace,
   ) {
     this.updateTrace().catch(() => {})
-    this.updateTraceGroup().catch(() => {})
   }
 
   async updateTrace() {

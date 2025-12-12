@@ -31,9 +31,9 @@ export {
   isAnalyticsEnabled,
   trackEvent,
 } from './src/analytics/utils'
-export { config } from './src/config'
+export { config, config as defineConfig } from './src/config'
 export { type CronManager, setupCronHandlers } from './src/cron-handler'
-export { getStepConfig, getStreamConfig } from './src/get-step-config'
+export { getStepConfig, getStreamConfig, invalidate } from './src/get-step-config'
 export { isApiStep, isCronStep, isEventStep, isNoopStep } from './src/guards'
 export {
   type InfrastructureValidationError,

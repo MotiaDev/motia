@@ -2,21 +2,21 @@
   {
     "id": "open-ai",
     "config": {
-      "steps/open-ai/02-prompt.step.ts": {
+      "src/open-ai/02-prompt.step.ts": {
         "x": 49,
         "y": 70,
         "targetHandlePosition": "left"
       },
-      "steps/open-ai/01-prompt-api.step.ts": {
+      "src/open-ai/01-prompt-api.step.ts": {
         "x": -315,
         "y": 44,
         "sourceHandlePosition": "right"
       },
-      "steps/open_ai_python/prompt_step.py": {
+      "src/open_ai_python/prompt_step.py": {
         "x": 312,
         "y": 264
       },
-      "steps/open_ai_python/prompt_api_step.py": {
+      "src/open_ai_python/prompt_api_step.py": {
         "x": 311,
         "y": 0
       }
@@ -25,11 +25,11 @@
   {
     "id": "cron-example",
     "config": {
-      "steps/cronExample/periodicJobHandled.step.ts": {
+      "src/cronExample/periodicJobHandled.step.ts": {
         "x": 0,
         "y": 260
       },
-      "steps/cronExample/handlePeriodicJob.step.ts": {
+      "src/cronExample/handlePeriodicJob.step.ts": {
         "x": 0,
         "y": 0
       }
@@ -38,19 +38,19 @@
   {
     "id": "default",
     "config": {
-      "steps/default-node/03-check-state-change.step.ts": {
+      "src/default-node/03-check-state-change.step.ts": {
         "x": 0,
         "y": 0
       },
-      "steps/default-node/02-test-state.step.ts": {
+      "src/default-node/02-test-state.step.ts": {
         "x": 0,
         "y": 0
       },
-      "steps/default-node/01-api.step.ts": {
+      "src/default-node/01-api.step.ts": {
         "x": 0,
         "y": 0
       },
-      "steps/default-node/00-noop.step.ts": {
+      "src/default-node/00-noop.step.ts": {
         "x": 0,
         "y": 0
       }
@@ -59,21 +59,21 @@
   {
     "id": "python-tutorial",
     "config": {
-      "steps/default_python/state_audit_cron_step.py": {
+      "src/default_python/state_audit_cron_step.py": {
         "x": -332,
         "y": 149,
         "sourceHandlePosition": "right"
       },
-      "steps/default_python/process_food_order_step.py": {
+      "src/default_python/process_food_order_step.py": {
         "x": 81,
         "y": -52,
         "targetHandlePosition": "left"
       },
-      "steps/default_python/notification_step.py": {
+      "src/default_python/notification_step.py": {
         "x": 142,
         "y": 175
       },
-      "steps/default_python/api_step.py": {
+      "src/default_python/api_step.py": {
         "x": -302,
         "y": -66,
         "sourceHandlePosition": "right"
@@ -83,22 +83,22 @@
   {
     "id": "basic-tutorial",
     "config": {
-      "steps/basic-tutorial/state-audit-cron.step.ts": {
+      "src/basic-tutorial/state-audit-cron.step.ts": {
         "x": -169,
         "y": 252,
         "sourceHandlePosition": "right"
       },
-      "steps/basic-tutorial/process-food-order.step.ts": {
+      "src/basic-tutorial/process-food-order.step.ts": {
         "x": 211,
         "y": 17,
         "sourceHandlePosition": "bottom",
         "targetHandlePosition": "left"
       },
-      "steps/basic-tutorial/notification.step.ts": {
+      "src/basic-tutorial/notification.step.ts": {
         "x": 307,
         "y": 258
       },
-      "steps/basic-tutorial/api.step.ts": {
+      "src/basic-tutorial/api.step.ts": {
         "x": -136,
         "y": 14,
         "sourceHandlePosition": "right",
@@ -109,15 +109,15 @@
   {
     "id": "test-state",
     "config": {
-      "steps/testState/testStateCheck.step.ts": {
+      "src/testState/testStateCheck.step.ts": {
         "x": 490,
         "y": 34
       },
-      "steps/testState/testState.api.step.ts": {
+      "src/testState/testState.api.step.ts": {
         "x": 0,
         "y": 0
       },
-      "steps/testState/test_state_step.py": {
+      "src/testState/test_state_step.py": {
         "x": 235,
         "y": 60
       }
@@ -126,35 +126,35 @@
   {
     "id": "parallel-merge",
     "config": {
-      "steps/parallelMergeState/stepA.step.ts": {
+      "src/parallelMergeState/stepA.step.ts": {
         "x": 509,
         "y": 0
       },
-      "steps/parallelMergeState/startParallelMerge.step.ts": {
+      "src/parallelMergeState/startParallelMerge.step.ts": {
         "x": 158,
         "y": 92
       },
-      "steps/parallelMergeState/noopStartButton.step.ts": {
+      "src/parallelMergeState/noopStartButton.step.ts": {
         "x": 0,
         "y": 120
       },
-      "steps/parallelMergeState/joinStep.step.ts": {
+      "src/parallelMergeState/joinStep.step.ts": {
         "x": 680,
         "y": 136
       },
-      "steps/parallelMergeState/joinComplete.step.ts": {
+      "src/parallelMergeState/joinComplete.step.ts": {
         "x": 964,
         "y": 136
       },
-      "steps/parallelMergeState/stepC_step.py": {
+      "src/parallelMergeState/stepC_step.py": {
         "x": 508,
         "y": 136
       },
-      "steps/parallelMergeState/stepB_step.py": {
+      "src/parallelMergeState/stepB_step.py": {
         "x": 509,
         "y": 272
       },
-      "steps/parallelMergeState/stepA.step.ts": {
+      "src/parallelMergeState/stepA.step.ts": {
         "x": 509,
         "y": 272
       }
@@ -163,11 +163,11 @@
   {
     "id": "hello-world-flow",
     "config": {
-      "steps/hello/process-greeting.step.ts": {
+      "src/hello/process-greeting.step.ts": {
         "x": 350,
         "y": 44
       },
-      "steps/hello/hello-api.step.ts": {
+      "src/hello/hello-api.step.ts": {
         "x": 0,
         "y": 0
       }

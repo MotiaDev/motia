@@ -139,7 +139,7 @@ If you prefer to set up manually or want to understand the structure, follow the
     ```json
     {
       "name": "@motiadev/plugin-example",
-      "version": "0.14.0-beta.164",
+      "version": "0.1.0",
       "type": "module",
       "main": "./dist/index.js",
       "types": "./dist/index.d.ts",
@@ -425,6 +425,7 @@ The `~/` prefix in `packageName` tells Motia to load components from your local 
 workbench: [
   {
     packageName: '~/plugins',  // Loads from <project-root>/plugins
+    cssImports: ['~/plugins/dist/styles.css'], // Loads from <project-root>/plugins/dist/styles.css
     componentName: 'Plugin',
     // ...
   }

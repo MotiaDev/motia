@@ -432,8 +432,16 @@ export const createServer = (
   analyticsEndpoint(app, process.cwd())
   stepEndpoint(app, lockedData)
 
-  server.on('error', (error) => {
-    console.error('Server error:', error)
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EADDRINUSE') {
+      console.error('Server error:', error)
+    }
+  })
+
+  socketServer.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EADDRINUSE') {
+      console.error('WebSocket server error:', error)
+    }
   })
 
   const close = async (): Promise<void> => {

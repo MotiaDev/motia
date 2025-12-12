@@ -3,13 +3,15 @@ import { globSync } from 'glob'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 import type { CliContext } from '../../cloud/config-utils'
+import { version } from '../../version'
 
 export type Generator = (rootDir: string, context: CliContext) => Promise<void>
 
-const replaceTemplateVariables = (content: string, projectName: string): string => {
+const replaceTemplateVariables = (content: string, projectName: string, version?: string): string => {
   const replacements: Record<string, string> = {
     '{{PROJECT_NAME}}': projectName,
     '{{PLUGIN_NAME}}': toPascalCase(projectName),
+    '{{VERSION}}': version || 'latest',
   }
 
   return Object.entries(replacements).reduce((result, [key, value]) => {
@@ -119,7 +121,7 @@ export const generatePluginTemplate = (templateFolder: string): Generator => {
         const generateFilePath = path.join(rootDir, sanitizedFileName)
         let content = await fs.readFile(filePath, 'utf8')
 
-        content = replaceTemplateVariables(content, projectName)
+        content = replaceTemplateVariables(content, projectName, version)
 
         // Use file descriptor for atomic write operation
         let fd: fs.FileHandle | null = null

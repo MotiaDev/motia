@@ -156,7 +156,7 @@ const generate = program.command('generate').description('Generate motia resourc
 generate
   .command('step')
   .description('Create a new step with interactive prompts')
-  .option('-d, --dir <step file path>', 'The path relative to the steps directory, used to create the step file')
+  .option('-d, --dir <step file path>', 'The path relative to the src directory, used to create the step file')
   .action(
     wrapAction(async (arg: any) => {
       const { createStep } = await import('./create-step/index')

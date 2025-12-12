@@ -94,14 +94,18 @@ export class ProcessManager {
     if (this.child) {
       this.child.kill('SIGKILL')
     }
-    this.child = undefined
   }
 
   close(): void {
+    if (this.child) {
+      this.child.removeAllListeners()
+      this.child.stdout?.removeAllListeners()
+      this.child.stderr?.removeAllListeners()
+    }
     if (this.processor) {
       this.processor.close()
+      this.processor = undefined
     }
-    this.processor = undefined
   }
 
   get process(): ChildProcess | undefined {
