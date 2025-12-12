@@ -156,7 +156,7 @@ export class LogsPage extends MotiaApplicationPage {
 
   async filterByTraceId(traceId: string) {
     const filterButton = await this.getTraceFilterButton(traceId)
-    await filterButton.click()
+    await filterButton.first().click()
   }
 
   async verifyLogDetailsOpen() {

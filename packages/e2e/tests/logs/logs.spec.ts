@@ -67,7 +67,7 @@ test.describe('Logs Page Tests', () => {
 
     await test.step('Click filter button should filter logs by trace ID', async () => {
       // Click on the filter button (not the trace ID text)
-      await logsPage.clickTraceFilterAtIndex(0)
+      await logsPage.filterByTraceId(expectedTraceId)
 
       // Verify the search input is populated with the trace ID
       const searchValue = await logsPage.getSearchValue()
