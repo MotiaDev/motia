@@ -100,8 +100,6 @@ export const steps: TutorialStep[] = [
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('apitrigger') }],
   },
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('http-response') }],
-  },
 
   // Event Steps
 
@@ -172,12 +170,12 @@ export const steps: TutorialStep[] = [
     link: 'https://www.motia.dev/docs/concepts/steps#triggers-cron',
     description: () => (
       <p>
-        Let's do a recap of what you've learned, thus far you've become familiar with two Step types <b>API</b>{' '}
+        Let's do a recap of what you've learned. Thus far, you've become familiar with two Step types: <b>API</b>{' '}
         and <b>Event</b> Steps.
         <br />
         <br />
         You've also started to learn how to navigate around Workbench. Let's wrap up Motia's Step types with the last
-        one the <b>CRON</b> Step. Let's take a deeper look at its definition.
+        one: the <b>CRON</b> Step. Let's take a deeper look at its definition.
       </p>
     ),
     before: [{ type: 'click', selector: workbenchXPath.closePanelButton }],

@@ -100,8 +100,6 @@ export const steps: TutorialStep[] = [
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('apitrigger') }],
   },
-    before: [{ type: 'click', selector: workbenchXPath.flows.feature('http-response') }],
-  },
 
   // Event Steps
 
