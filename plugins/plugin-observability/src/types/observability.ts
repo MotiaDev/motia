@@ -1,9 +1,11 @@
-export interface TraceGroup {
+export interface TraceGroupMeta {
   id: string
-  correlationId: string | undefined
   name: string
-  status: 'running' | 'completed' | 'failed'
   startTime: number
+}
+
+export interface TraceGroup extends TraceGroupMeta {
+  status: 'running' | 'completed' | 'failed'
   endTime?: number
   lastActivity: number
   metadata: {
