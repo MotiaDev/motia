@@ -67,9 +67,7 @@ export const steps: TutorialStep[] = [
           explain different parts of the code.
         </p>
         <br />
-        <p>
-          <b>Click on the feature cards</b> to learn about:
-        </p>
+        <p>The feature cards explain:</p>
         <ul className="square-decoration">
           <li>
             <b>Step Configuration</b> - Common attributes like type, name, description, and flows
@@ -93,10 +91,6 @@ export const steps: TutorialStep[] = [
             <b>HTTP Response</b> - Returning responses that match your responseSchema
           </li>
         </ul>
-        <br />
-        <p>
-          Take your time exploring these features. Click <b>Continue</b> when you're ready to move on.
-        </p>
       </div>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('apitrigger') }],
@@ -136,9 +130,7 @@ export const steps: TutorialStep[] = [
           specific tasks.
         </p>
         <br />
-        <p>
-          <b>Click on the feature cards</b> to learn about:
-        </p>
+        <p>The feature cards explain:</p>
         <ul className="square-decoration">
           <li>
             <b>Step Configuration</b> - Common attributes for Event Steps
@@ -156,10 +148,6 @@ export const steps: TutorialStep[] = [
         <br />
         <p>
           💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.
-        </p>
-        <br />
-        <p>
-          Click <b>Continue</b> when you're ready to move on.
         </p>
       </div>
     ),
@@ -195,9 +183,7 @@ export const steps: TutorialStep[] = [
           difference is the <b>cron</b> attribute that defines the schedule.
         </p>
         <br />
-        <p>
-          <b>Click on the feature cards</b> to learn about:
-        </p>
+        <p>The feature cards explain:</p>
         <ul className="square-decoration">
           <li>
             <b>Cron Configuration</b> - How to define the cron schedule (e.g., every 5 minutes)
@@ -209,10 +195,6 @@ export const steps: TutorialStep[] = [
         </ul>
         <br />
         <p>In this example, the CRON Step evaluates orders in state and emits warnings for unprocessed orders.</p>
-        <br />
-        <p>
-          Click <b>Continue</b> when you're ready to move on.
-        </p>
       </div>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('stateauditjob') }],

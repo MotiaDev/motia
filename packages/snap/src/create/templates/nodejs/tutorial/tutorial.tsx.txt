@@ -69,7 +69,7 @@ export const steps: TutorialStep[] = [
         </p>
         <br />
         <p>
-          <b>Click on the feature cards</b> to learn about:
+          The feature cards explain:
         </p>
         <ul className="square-decoration">
           <li>
@@ -95,7 +95,6 @@ export const steps: TutorialStep[] = [
           </li>
         </ul>
         <br />
-        <p>Take your time exploring these features. Click <b>Continue</b> when you're ready to move on.</p>
       </div>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('apitrigger') }],
@@ -137,7 +136,7 @@ export const steps: TutorialStep[] = [
         </p>
         <br />
         <p>
-          <b>Click on the feature cards</b> to learn about:
+          The feature cards explain:
         </p>
         <ul className="square-decoration">
           <li>
@@ -156,7 +155,6 @@ export const steps: TutorialStep[] = [
         <br />
         <p>💡 <b>Event</b> Steps can only be triggered internally, through topic subscriptions.</p>
         <br />
-        <p>Click <b>Continue</b> when you're ready to move on.</p>
       </div>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('processfoodorder') }],
@@ -192,7 +190,7 @@ export const steps: TutorialStep[] = [
         </p>
         <br />
         <p>
-          <b>Click on the feature cards</b> to learn about:
+          The feature cards explain:
         </p>
         <ul className="square-decoration">
           <li>
@@ -206,7 +204,6 @@ export const steps: TutorialStep[] = [
         <br />
         <p>In this example, the CRON Step evaluates orders in state and emits warnings for unprocessed orders.</p>
         <br />
-        <p>Click <b>Continue</b> when you're ready to move on.</p>
       </div>
     ),
     before: [{ type: 'click', selector: workbenchXPath.flows.previewButton('stateauditjob') }],
