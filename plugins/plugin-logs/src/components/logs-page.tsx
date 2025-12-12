@@ -1,6 +1,6 @@
 import { Button, cn, Input, LevelDot } from '@motiadev/ui'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Search, Trash, X } from 'lucide-react'
+import { Filter, Search, Trash, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { useLogsStream } from '../hooks/use-logs-stream'
 import { useLogsStore } from '../stores/use-logs-store'
@@ -111,17 +111,27 @@ export const LogsPage = () => {
                     <LevelDot level={log.level} />
                     {formatTimestamp(log.time)}
                   </div>
-                  <button
-                    type="button"
-                    data-testid={`trace-${log.traceId}`}
-                    className="whitespace-nowrap cursor-pointer hover:text-primary text-muted-foreground p-2 shrink-0 bg-transparent border-0 text-left font-mono font-semibold text-sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSearch(log.traceId)
-                    }}
-                  >
-                    {log.traceId}
-                  </button>
+                  <div className="flex items-center shrink-0">
+                    <span
+                      data-testid={`trace-${log.traceId}`}
+                      className="whitespace-nowrap text-muted-foreground p-2 font-mono font-semibold text-sm"
+                    >
+                      {log.traceId}
+                    </span>
+                    <button
+                      type="button"
+                      data-testid={`trace-filter-${log.traceId}`}
+                      aria-label={`Filter by trace ${log.traceId}`}
+                      title={`Filter by trace ${log.traceId}`}
+                      className="p-1 rounded hover:bg-muted-foreground/20 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSearch(log.traceId)
+                      }}
+                    >
+                      <Filter className="w-3 h-3" />
+                    </button>
+                  </div>
                   <div
                     data-testid={`step-${index}`}
                     role="cell"
