@@ -1,7 +1,7 @@
 {
   "name": "@motiadev/workbench",
   "description": "A web-based interface for building and managing Motia workflows.",
-  "version": "0.17.3-beta.184",
+  "version": "0.17.4-beta.185",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
