@@ -11,7 +11,7 @@
       "import": "./dist/index.mjs"
     }
   },
-  "version": "0.17.4-beta.185",
+  "version": "0.17.5-beta.186",
   "scripts": {
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
     "build": "tsdown",
