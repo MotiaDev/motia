@@ -28,7 +28,15 @@ Make sure to use [cron steps guide](./rules/motia/cron-steps.mdc) to create new 
 
 Make sure to use [virtual steps guide](./rules/motia/virtual-steps.mdc) when connecting nodes virtually and creating smooth flows in Workbench.
 
+## Custom UI Steps
+
+Make sure to use [UI steps guide](./rules/motia/ui-steps.mdc) to create custom visual representations of workflow steps in Workbench.
+
 ## Authentication
 
 If ever need to add authentication, make sure to use middleware to authenticate the request.
 Make sure to use [middlewares](./rules/motia/middlewares.mdc) to validate the requests.
+
+## Motia Configuration
+
+Make sure to use [motia config guide](./rules/motia/motia-config.mdc) to configure plugins, adapters, stream authentication, and Express app settings.
