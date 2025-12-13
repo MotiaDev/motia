@@ -25,6 +25,7 @@ motia cloud deploy --api-key <api-key> --version-name <version> [options]
 
 | Option                 | Alias | Description                                                        | Environment Variable     |
 | ---------------------- | ----- | ------------------------------------------------------------------ | ------------------------ |
+| `--project-name`       | `-p`  | Name of the project to deploy to (creates if doesn't exist)        | `MOTIA_PROJECT_NAME`     |
 | `--environment-id`     | `-s`  | Environment ID                                                     | `MOTIA_ENVIRONMENT_ID`   |
 | `--version-description`| `-d`  | Version description for the deployment                             | None                     |
 | `--env-file`           | `-e`  | Path to environment file                                           | None                     |
@@ -37,13 +38,14 @@ Deploy with a specific version:
 motia cloud deploy --api-key your-api-key-here --version-name 1.2.3
 ```
 
-Deploy to a specific environment with environment variables:
+Deploy to a specific project and environment with environment variables:
 
 ```bash
 motia cloud deploy --api-key your-api-key-here \
   --version-name 1.2.3 \
-  --env-file .env.production \
-  --environment-id env-id
+  --project-name my-production-app \
+  --environment-id env-id \
+  --env-file .env.production
 ```
 
 ## Using Web interface
