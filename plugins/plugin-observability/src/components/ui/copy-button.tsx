@@ -11,15 +11,19 @@ type CopyButtonProps = {
 export const CopyButton: React.FC<CopyButtonProps> = ({ textToCopy, className, title }) => {
   const [copied, setCopied] = useState(false)
 
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(textToCopy)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
-      console.error('Failed to copy:', error)
-    }
-  }, [textToCopy])
+  const handleCopy = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation()
+      try {
+        await navigator.clipboard.writeText(textToCopy)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (error) {
+        console.error('Failed to copy:', error)
+      }
+    },
+    [textToCopy],
+  )
 
   return (
     <Button
