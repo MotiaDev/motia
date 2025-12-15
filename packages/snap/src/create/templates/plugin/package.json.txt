@@ -24,13 +24,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "lucide-react": "^0.555.0",
-    "react": "^19.2.0"
+    "lucide-react": "^0.555.0"
   },
   "peerDependencies": {
     "@motiadev/core": "{{VERSION}}",
     "@motiadev/ui": "{{VERSION}}",
-    "motia": "{{VERSION}}"
+    "motia": "{{VERSION}}",
+    "react": "^19.2.3"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",

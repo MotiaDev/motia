@@ -37,7 +37,7 @@
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "motia": "workspace:*",
-    "react": "^19.2.0"
+    "react": "^19.2.3"
   },
   "devDependencies": {
     "@bosh-code/tsdown-plugin-inject-css": "^2.0.0",
