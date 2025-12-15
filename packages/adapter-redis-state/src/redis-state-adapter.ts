@@ -28,7 +28,9 @@ export class RedisStateAdapter implements StateAdapter {
       this.client = createClient(config) as RedisClientType
 
       this.client.on('error', (err) => {
-        console.error('[Redis State] Client error:', err)
+        if (this.connected) {
+          console.error('[Redis State] Client error:', err?.message)
+        }
       })
 
       this.client.on('connect', () => {
