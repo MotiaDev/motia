@@ -117,6 +117,14 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
     },
     optimizeDeps: {
       exclude: ['@motiadev/workbench'],
+      include: [
+        '@motiadev/stream-client-react',
+        '@motiadev/stream-client-browser',
+        '@motiadev/stream-client',
+        'react/jsx-runtime',
+        'react',
+        'react-dom',
+      ],
     },
     plugins: [
       react({

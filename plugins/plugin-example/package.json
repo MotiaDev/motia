@@ -24,8 +24,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "lucide-react": "^0.555.0",
-    "react": "^19.2.3"
+    "lucide-react": "^0.555.0"
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",

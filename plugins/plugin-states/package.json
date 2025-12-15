@@ -27,7 +27,6 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "lucide-react": "^0.555.0",
-    "react": "^19.2.3",
     "react18-json-view": "^0.2.9",
     "zustand": "^5.0.8"
   },
