@@ -646,6 +646,9 @@ importers:
       '@motiadev/stream-client-browser':
         specifier: workspace:*
         version: link:../stream-client-browser
+      react:
+        specifier: ^19.2.3
+        version: 19.2.3
     devDependencies:
       '@rollup/plugin-babel':
         specifier: ^6.1.0
@@ -653,9 +656,6 @@ importers:
       '@types/react':
         specifier: ^19.2.7
         version: 19.2.7
-      react:
-        specifier: ^19.2.3
-        version: 19.2.3
       tsdown:
         specifier: ^0.16.6
         version: 0.16.8(publint@0.3.15)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6)
@@ -1032,9 +1032,6 @@ importers:
       '@types/react':
         specifier: ^19.2.7
         version: 19.2.7
-      babel-plugin-react-compiler:
-        specifier: ^1.0.0
-        version: 1.0.0
       jest:
         specifier: ^30.2.0
         version: 30.2.0(@types/node@22.19.1)(ts-node@10.9.2(@swc/core@1.15.3(@swc/helpers@0.5.17))(@types/node@22.19.1)(typescript@5.9.3))
