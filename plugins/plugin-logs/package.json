@@ -32,7 +32,6 @@
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
-    "@motiadev/stream-client-browser": "workspace:*",
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "motia": "workspace:*",

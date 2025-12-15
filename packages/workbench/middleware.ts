@@ -100,7 +100,14 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
       },
     },
     resolve: {
-      dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+      dedupe: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        '@motiadev/stream-client-react',
+        '@motiadev/stream-client-browser',
+        '@motiadev/stream-client',
+      ],
       alias: {
         '@': path.resolve(__dirname, './src'),
         '@/assets': path.resolve(__dirname, './src/assets'),

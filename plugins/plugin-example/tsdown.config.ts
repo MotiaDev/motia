@@ -11,7 +11,13 @@ export default defineConfig([
     },
     format: 'esm',
     platform: 'browser',
-    external: [/^react($|\/)/, 'react/jsx-runtime'],
+    external: [
+      /^react($|\/)/,
+      'react/jsx-runtime',
+      '@motiadev/stream-client-react',
+      '@motiadev/stream-client-browser',
+      '@motiadev/stream-client',
+    ],
     dts: {
       build: true,
     },
