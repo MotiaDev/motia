@@ -100,6 +100,7 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
       },
     },
     resolve: {
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
       alias: {
         '@': path.resolve(__dirname, './src'),
         '@/assets': path.resolve(__dirname, './src/assets'),
