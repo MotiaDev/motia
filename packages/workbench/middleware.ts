@@ -111,11 +111,7 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
       exclude: ['@motiadev/workbench'],
     },
     plugins: [
-      react({
-        babel: {
-          plugins: ['babel-plugin-react-compiler'],
-        },
-      }),
+      react(),
       processCwdPlugin(),
       reoPlugin(),
       motiaPluginsPlugin(plugins),
