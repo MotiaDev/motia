@@ -860,8 +860,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       lucide-react:
-        specifier: ^0.554.0
-        version: 0.554.0(react@19.2.3)
+        specifier: ^0.555.0
+        version: 0.555.0(react@19.2.3)
       postcss:
         specifier: ^8.5.3
         version: 8.5.6
