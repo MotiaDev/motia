@@ -24,12 +24,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "lucide-react": "^0.555.0",
     "react": "^19.2.3"
   },
   "peerDependencies": {
     "@motiadev/core": "{{VERSION}}",
     "@motiadev/ui": "{{VERSION}}",
+    "lucide-react": "^0.554.0",
     "motia": "{{VERSION}}",
     "react": "^19.2.3"
   },

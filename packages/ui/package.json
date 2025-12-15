@@ -32,6 +32,7 @@
     "ci:test": "concurrently -k -s first -n \"SB,TEST\" -c \"magenta,blue\" \"pnpm storybook --port 6006 --no-open\" \"wait-on tcp:6006 && pnpm storybook:test\""
   },
   "peerDependencies": {
+    "lucide-react": "^0.555.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
@@ -46,7 +47,6 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.555.0",
     "react-resizable-panels": "^3.0.6",
     "react-use-resizable": "^0.2.0",
     "tailwind-merge": "^3.4.0",
