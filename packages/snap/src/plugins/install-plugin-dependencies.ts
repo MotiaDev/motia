@@ -54,7 +54,6 @@ export const installPluginDependencies = async (baseDir: string, printer: Printe
     npm: 'npm install',
     yarn: 'yarn install',
     pnpm: 'pnpm install',
-    bun: 'bun install',
   }
 
   const installCommand = installCommands[packageManager] || 'npm install'
