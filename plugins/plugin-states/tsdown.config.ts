@@ -1,3 +1,4 @@
+import pluginBabel from '@rollup/plugin-babel'
 import postcss from 'rollup-plugin-postcss'
 import { defineConfig } from 'tsdown'
 
@@ -19,6 +20,17 @@ export default defineConfig([
     },
     clean: true,
     outDir: 'dist',
+    plugins: [
+      pluginBabel({
+        babelHelpers: 'bundled',
+        parserOpts: {
+          sourceType: 'module',
+          plugins: ['jsx', 'typescript'],
+        },
+        plugins: ['babel-plugin-react-compiler'],
+        extensions: ['.js', '.jsx', '.ts', '.tsx'],
+      }),
+    ],
   },
   // Separate CSS build
   {
