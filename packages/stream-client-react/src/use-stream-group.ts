@@ -36,7 +36,10 @@ export const useStreamGroup = <TData extends { id: string }>(args?: StreamGroupA
   const { streamName, groupId, sortKey, setData: setDataCallback } = args || {}
 
   useEffect(() => {
-    if (!streamName || !groupId || !stream) return
+    if (!streamName || !groupId || !stream) {
+      console.error('useStreamGroup: streamName, groupId or stream is not defined', { streamName, groupId, stream })
+      return
+    }
 
     subscriptionRef.current = stream.subscribeGroup(streamName, groupId, sortKey)
 

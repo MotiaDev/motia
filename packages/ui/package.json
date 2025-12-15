@@ -47,6 +47,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.555.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "react-resizable-panels": "^3.0.6",
     "react-use-resizable": "^0.2.0",
     "tailwind-merge": "^3.4.0",

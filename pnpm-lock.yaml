@@ -646,13 +646,13 @@ importers:
       '@motiadev/stream-client-browser':
         specifier: workspace:*
         version: link:../stream-client-browser
-      react:
-        specifier: ^19.2.3
-        version: 19.2.3
     devDependencies:
       '@types/react':
         specifier: ^19.2.7
         version: 19.2.7
+      react:
+        specifier: ^19.2.3
+        version: 19.2.3
       tsdown:
         specifier: ^0.16.6
         version: 0.16.8(publint@0.3.15)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6)

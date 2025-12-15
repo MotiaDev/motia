@@ -21,7 +21,8 @@
   "devDependencies": {
     "@types/react": "^19.2.7",
     "tsdown": "^0.16.6",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "react": "^19.2.3"
   },
   "exports": {
     ".": {
