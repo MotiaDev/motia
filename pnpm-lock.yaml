@@ -1075,8 +1075,8 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
       lucide-react:
-        specifier: ^0.554.0
-        version: 0.554.0(react@19.2.3)
+        specifier: ^0.555.0
+        version: 0.555.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1212,8 +1212,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       lucide-react:
-        specifier: ^0.554.0
-        version: 0.554.0(react@19.2.3)
+        specifier: ^0.555.0
+        version: 0.555.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1270,8 +1270,8 @@ importers:
         specifier: ^3.13.12
         version: 3.13.12(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       lucide-react:
-        specifier: ^0.554.0
-        version: 0.554.0(react@19.2.3)
+        specifier: ^0.555.0
+        version: 0.555.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1343,8 +1343,8 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0
       lucide-react:
-        specifier: ^0.554.0
-        version: 0.554.0(react@19.2.3)
+        specifier: ^0.555.0
+        version: 0.555.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1410,8 +1410,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       lucide-react:
-        specifier: ^0.554.0
-        version: 0.554.0(react@19.2.3)
+        specifier: ^0.555.0
+        version: 0.555.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap

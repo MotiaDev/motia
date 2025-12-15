@@ -26,7 +26,7 @@
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
     "@motiadev/ui": "workspace:*",
-    "lucide-react": "^0.554.0",
+    "lucide-react": "^0.555.0",
     "motia": "workspace:*",
     "react": "^19.2.3"
   },
