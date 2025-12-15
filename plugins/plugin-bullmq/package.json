@@ -27,13 +27,13 @@
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
     "bullmq": "^5.63.0",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.1.0",
     "ioredis": "^5.8.2",
-    "react18-json-view": "^0.2.9",
-    "zustand": "^5.0.8"
+    "react18-json-view": "^0.2.9"
   },
   "peerDependencies": {
     "@motiadev/adapter-bullmq-events": "workspace:*",
+    "zustand": "^5.0.9",
     "@motiadev/core": "workspace:*",
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",

@@ -25,11 +25,11 @@
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.13.12",
-    "react18-json-view": "^0.2.9",
-    "zustand": "^5.0.8"
+    "react18-json-view": "^0.2.9"
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
+    "zustand": "^5.0.9",
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "lucide-react": "^0.554.0",

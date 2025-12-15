@@ -902,7 +902,7 @@ importers:
         specifier: ^4.1.13
         version: 4.1.13
       zustand:
-        specifier: ^5.0.8
+        specifier: ^5.0.9
         version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@rollup/plugin-babel':
@@ -1072,14 +1072,14 @@ importers:
         specifier: ^5.63.0
         version: 5.65.1
       date-fns:
-        specifier: ^3.6.0
-        version: 3.6.0
+        specifier: ^4.1.0
+        version: 4.1.0
       ioredis:
         specifier: ^5.8.2
         version: 5.8.2
       lucide-react:
-        specifier: ^0.545.0
-        version: 0.545.0(react@19.2.3)
+        specifier: ^0.554.0
+        version: 0.554.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1090,7 +1090,7 @@ importers:
         specifier: ^0.2.9
         version: 0.2.9(react@19.2.3)
       zustand:
-        specifier: ^5.0.8
+        specifier: ^5.0.9
         version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@rollup/plugin-babel':
@@ -1145,8 +1145,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       lucide-react:
-        specifier: ^0.555.0
-        version: 0.555.0(react@19.2.3)
+        specifier: ^0.554.0
+        version: 0.554.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1163,7 +1163,7 @@ importers:
         specifier: ^3.4.0
         version: 3.4.0
       zustand:
-        specifier: ^5.0.8
+        specifier: ^5.0.9
         version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@rollup/plugin-babel':
@@ -1215,8 +1215,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       lucide-react:
-        specifier: ^0.555.0
-        version: 0.555.0(react@19.2.3)
+        specifier: ^0.554.0
+        version: 0.554.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1273,8 +1273,8 @@ importers:
         specifier: ^3.13.12
         version: 3.13.12(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       lucide-react:
-        specifier: ^0.555.0
-        version: 0.555.0(react@19.2.3)
+        specifier: ^0.554.0
+        version: 0.554.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1285,7 +1285,7 @@ importers:
         specifier: ^0.2.9
         version: 0.2.9(react@19.2.3)
       zustand:
-        specifier: ^5.0.8
+        specifier: ^5.0.9
         version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@bosh-code/tsdown-plugin-inject-css':
@@ -1346,8 +1346,8 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0
       lucide-react:
-        specifier: ^0.555.0
-        version: 0.555.0(react@19.2.3)
+        specifier: ^0.554.0
+        version: 0.554.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1358,7 +1358,7 @@ importers:
         specifier: ^0.2.9
         version: 0.2.9(react@19.2.3)
       zustand:
-        specifier: ^5.0.8
+        specifier: ^5.0.9
         version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@bosh-code/tsdown-plugin-inject-css':
@@ -1413,8 +1413,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       lucide-react:
-        specifier: ^0.555.0
-        version: 0.555.0(react@19.2.3)
+        specifier: ^0.554.0
+        version: 0.554.0(react@19.2.3)
       motia:
         specifier: workspace:*
         version: link:../../packages/snap
@@ -1425,7 +1425,7 @@ importers:
         specifier: ^0.2.9
         version: 0.2.9(react@19.2.3)
       zustand:
-        specifier: ^5.0.8
+        specifier: ^5.0.9
         version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@bosh-code/tsdown-plugin-inject-css':
@@ -5446,9 +5446,6 @@ packages:
     resolution: {integrity: sha512-BS8PfmtDGnrgYdOonGZQdLZslWIeCGFP9tpan0hi1Co2Zr2NKADsvGYA8XxuG/4UWgJ6Cjtv+YJnB6MM69QGlQ==}
     engines: {node: '>= 0.4'}
 
-  date-fns@3.6.0:
-    resolution: {integrity: sha512-fRHTG8g/Gif+kSh50gaGEdToemgfj74aRX3swtiouboip5JDLAyDE9F11nHMIcvOaXeOC6D7SpNhi7uFyB7Uww==}
-
   date-fns@4.1.0:
     resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
@@ -7442,11 +7439,6 @@ packages:
 
   lucide-react@0.507.0:
     resolution: {integrity: sha512-XfgE6gvAHwAtnbUvWiTTHx4S3VGR+cUJHEc0vrh9Ogu672I1Tue2+Cp/8JJqpytgcBHAB1FVI297W4XGNwc2dQ==}
-    peerDependencies:
-      react: ^19.2.3
-
-  lucide-react@0.545.0:
-    resolution: {integrity: sha512-7r1/yUuflQDSt4f1bpn5ZAocyIxcTyVyBBChSVtBKn5M+392cPmI5YJMWOJKk/HUWGm5wg83chlAZtCcGbEZtw==}
     peerDependencies:
       react: ^19.2.3
 
@@ -14271,8 +14263,6 @@ snapshots:
       es-errors: 1.3.0
       is-data-view: 1.0.2
 
-  date-fns@3.6.0: {}
-
   date-fns@4.1.0: {}
 
   dayjs@1.11.19: {}
@@ -17006,10 +16996,6 @@ snapshots:
       yallist: 3.1.1
 
   lucide-react@0.507.0(react@19.2.3):
-    dependencies:
-      react: 19.2.3
-
-  lucide-react@0.545.0(react@19.2.3):
     dependencies:
       react: 19.2.3
 

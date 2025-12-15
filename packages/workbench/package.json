@@ -58,7 +58,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "vite": "^7.2.4",
     "zod": "^4.1.13",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",

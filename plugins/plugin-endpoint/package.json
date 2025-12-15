@@ -30,11 +30,11 @@
     "json-schema": "^0.4.0",
     "react-syntax-highlighter": "^16.1.0",
     "react18-json-view": "^0.2.9",
-    "tailwind-merge": "^3.4.0",
-    "zustand": "^5.0.8"
+    "tailwind-merge": "^3.4.0"
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
+    "zustand": "^5.0.9",
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "lucide-react": "^0.554.0",
