@@ -23,9 +23,7 @@
     "dev": "tsdown --watch",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "react": "^19.2.3"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "@motiadev/core": "{{VERSION}}",
     "@motiadev/ui": "{{VERSION}}",
