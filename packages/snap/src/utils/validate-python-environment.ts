@@ -22,8 +22,6 @@ function getInstallCommand(baseDir: string): string {
       return 'yarn install'
     case 'pnpm':
       return 'pnpm install'
-    case 'bun':
-      return 'bun install'
     case 'npm':
     default:
       return 'npm install'
