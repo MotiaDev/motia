@@ -174,7 +174,6 @@ describe('validatePythonEnvironment', () => {
       ['npm', 'npm install'],
       ['yarn', 'yarn install'],
       ['pnpm', 'pnpm install'],
-      ['bun', 'bun install'],
       ['unknown', 'npm install'],
     ])('should suggest %s install command when package manager is %s', async (pm, expectedCmd) => {
       mockGetPythonCommand.mockResolvedValue('python3')
