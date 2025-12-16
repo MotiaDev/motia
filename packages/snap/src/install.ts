@@ -1,11 +1,14 @@
 import fs from 'fs'
 import path from 'path'
+import pc from 'picocolors'
 import { getStepFiles, getStreamFiles } from './generate-locked-data'
 import { activatePythonVenv } from './utils/activate-python-env'
 import { ensureUvInstalled } from './utils/ensure-uv'
 import { executeCommand } from './utils/execute-command'
 import { installLambdaPythonPackages } from './utils/install-lambda-python-packages'
+import { internalLogger } from './utils/internal-logger'
 import { getPythonCommand } from './utils/python-version-utils'
+import { getInstallCommand } from './utils/validate-python-environment'
 
 interface InstallConfig {
   isVerbose?: boolean
@@ -63,9 +66,20 @@ export const pythonInstall = async ({
         await executeCommand(`pip install -r "${requirement}" --only-binary=:all:`, baseDir)
       }
     }
+
+    const sitePackagesPath = process.env.PYTHON_SITE_PACKAGES
+
+    if (!sitePackagesPath || !fs.existsSync(sitePackagesPath)) {
+      const installCmd = getInstallCommand(baseDir)
+      internalLogger.error('Python virtual environment was not created')
+      internalLogger.info(
+        `Please try running ${pc.cyan(installCmd)} or manually create the venv with: ${pc.cyan('python3 -m venv python_modules')}`,
+      )
+      process.exit(1)
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    console.error('❌ Installation failed:', errorMessage)
+    internalLogger.error('Installation failed:', errorMessage)
     process.exit(1)
   }
 }
