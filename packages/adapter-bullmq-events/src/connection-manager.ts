@@ -1,10 +1,10 @@
 import IORedis, { type Redis } from 'ioredis'
-import { ConnectionError } from './errors'
 import type { BullMQConnectionConfig } from './types'
 
 export class ConnectionManager {
   readonly connection: Redis
   readonly ownsConnection: boolean
+  private isClosed: boolean
 
   constructor(config: BullMQConnectionConfig) {
     if (config instanceof IORedis) {
@@ -18,16 +18,20 @@ export class ConnectionManager {
       this.ownsConnection = true
     }
 
+    this.isClosed = false
+
     this.setupEventHandlers()
   }
 
   private setupEventHandlers(): void {
     this.connection.on('error', (err: Error) => {
-      const error = new ConnectionError(err.message, err)
-      console.error('[BullMQ] Connection error:', error)
+      if (!this.isClosed) {
+        console.warn('[BullMQ] Connection error:', err?.message)
+      }
     })
 
     this.connection.on('close', () => {
+      this.isClosed = true
       console.warn('[BullMQ] Connection closed')
     })
   }
