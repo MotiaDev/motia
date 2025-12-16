@@ -70,7 +70,7 @@
     "redis-memory-server": "^0.14.0",
     "table": "^6.9.0",
     "ts-node": "^10.9.2",
-    "zod": "^4.1.12"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@amplitude/analytics-types": "^2.9.2",

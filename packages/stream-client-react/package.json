@@ -13,13 +13,14 @@
     "lint": "eslint --config ../../eslint.config.js"
   },
   "peerDependencies": {
-    "react": "^19.1.0"
+    "react": "^19.2.3"
   },
   "dependencies": {
     "@motiadev/stream-client-browser": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "^19.0.7",
+    "@rollup/plugin-babel": "^6.1.0",
+    "@types/react": "^19.2.7",
     "tsdown": "^0.16.6",
     "typescript": "^5.7.2"
   },
