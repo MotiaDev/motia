@@ -40,7 +40,9 @@ export const callStepFile = <TData>(options: CallStepFileOptions, motia: Motia):
       const streams = Object.keys(streamConfig).map((name) => ({ name }))
       const jsonData = JSON.stringify({ data, flows, traceId, contextInFirstArg, streams })
 
-      const filePathToExecute = step.filePath.endsWith('.ts') ? await compile(step.filePath) : step.filePath
+      const filePathToExecute = step.filePath.endsWith('.ts')
+        ? await compile(step.filePath, motia.lockedData.baseDir)
+        : step.filePath
 
       const { runner, command, args } = getLanguageBasedRunner(step.filePath)
       let result: TData | undefined

@@ -156,9 +156,9 @@ const buildWithEsbuild = async (tsFilePath: string, compiledPath: string): Promi
   return result.outputFiles[0].text
 }
 
-const compileDependencies = async (dependencies: string[]): Promise<void> => {
+const compileDependencies = async (dependencies: string[], projectRoot: string): Promise<void> => {
   for (const dep of dependencies) {
-    await compile(dep)
+    await compile(dep, projectRoot)
   }
 }
 
@@ -170,8 +170,8 @@ const updateCache = (tsFilePath: string, compiledPath: string): void => {
   })
 }
 
-export const compile = async (tsFilePath: string): Promise<string> => {
-  const compiledPath = getCompiledPath(tsFilePath, process.cwd())
+export const compile = async (tsFilePath: string, projectRoot: string): Promise<string> => {
+  const compiledPath = getCompiledPath(tsFilePath, projectRoot)
 
   if (isCacheValid(tsFilePath)) {
     const cached = cache.get(tsFilePath)
@@ -182,9 +182,9 @@ export const compile = async (tsFilePath: string): Promise<string> => {
 
   ensureCompiledDir(compiledPath)
   const compiledCode = await buildWithEsbuild(tsFilePath, compiledPath)
-  const { code, dependencies } = transformImportPaths(compiledCode, tsFilePath, compiledPath, process.cwd())
+  const { code, dependencies } = transformImportPaths(compiledCode, tsFilePath, compiledPath, projectRoot)
 
-  await compileDependencies(dependencies)
+  await compileDependencies(dependencies, projectRoot)
   writeFileSync(compiledPath, code, 'utf-8')
   updateCache(tsFilePath, compiledPath)
 
