@@ -86,7 +86,7 @@ describe('validatePythonEnvironment', () => {
       expect(result.hasPythonFiles).toBe(true)
       expect(mockInternalLogger.error).toHaveBeenCalledWith('Python environment not configured')
       expect(mockInternalLogger.info).toHaveBeenCalledWith('The python_modules directory was not found')
-      expect(mockInternalLogger.info).toHaveBeenCalledWith("Run 'npm install' to set up your Python environment")
+      expect(mockInternalLogger.info).toHaveBeenCalledWith('Run npm install to set up your Python environment')
     })
   })
 
@@ -110,7 +110,7 @@ describe('validatePythonEnvironment', () => {
       expect(mockInternalLogger.info).toHaveBeenCalledWith(
         'The python_modules directory exists but appears to be corrupted',
       )
-      expect(mockInternalLogger.info).toHaveBeenCalledWith("Run 'npm install' to recreate your Python environment")
+      expect(mockInternalLogger.info).toHaveBeenCalledWith('Run npm install to recreate your Python environment')
     })
 
     it('should return failure when lib directory has no Python version directories', async () => {
@@ -129,7 +129,7 @@ describe('validatePythonEnvironment', () => {
       expect(mockInternalLogger.info).toHaveBeenCalledWith(
         'The python_modules/lib directory exists but contains no Python version directories',
       )
-      expect(mockInternalLogger.info).toHaveBeenCalledWith("Run 'npm install' to recreate your Python environment")
+      expect(mockInternalLogger.info).toHaveBeenCalledWith('Run npm install to recreate your Python environment')
     })
 
     it('should return failure when lib directory cannot be read', async () => {
@@ -148,7 +148,7 @@ describe('validatePythonEnvironment', () => {
       expect(result.hasPythonFiles).toBe(true)
       expect(mockInternalLogger.error).toHaveBeenCalledWith('Python environment is incomplete')
       expect(mockInternalLogger.info).toHaveBeenCalledWith('The python_modules/lib directory cannot be read')
-      expect(mockInternalLogger.info).toHaveBeenCalledWith("Run 'npm install' to recreate your Python environment")
+      expect(mockInternalLogger.info).toHaveBeenCalledWith('Run npm install to recreate your Python environment')
     })
   })
 
@@ -185,7 +185,7 @@ describe('validatePythonEnvironment', () => {
         hasPythonFiles: true,
       })
 
-      expect(mockInternalLogger.info).toHaveBeenCalledWith(`Run '${expectedCmd}' to set up your Python environment`)
+      expect(mockInternalLogger.info).toHaveBeenCalledWith(`Run ${expectedCmd} to set up your Python environment`)
     })
   })
 
