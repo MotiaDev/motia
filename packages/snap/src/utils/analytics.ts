@@ -1,5 +1,5 @@
 import { add, flush, Identify, identify, init, setOptOut, Types } from '@amplitude/analytics-node'
-import { getProjectName, getUserIdentifier, isAnalyticsEnabled, trackEvent } from '@motiadev/core'
+import { environmentDetector, getProjectName, getUserIdentifier, isAnalyticsEnabled, trackEvent } from '@motiadev/core'
 import { version } from '../version'
 import { MotiaEnrichmentPlugin } from './amplitude/enrichment-plugin'
 import { BuildError } from './errors/build.error'
@@ -31,10 +31,22 @@ export const identifyUser = () => {
     identifyObj.postInsert('project_id', getProjectName(process.cwd()))
     identifyObj.postInsert('motia_version', version || 'unknown')
     identifyObj.postInsert('project_version', process.env.npm_package_version || 'unknown')
+
+    const envContext = environmentDetector.getEnvironmentContext()
+    identifyObj.postInsert('environment_type', envContext.environment_type)
+
+    if (envContext.is_docker) {
+      identifyObj.setOnce('is_docker_user', true)
+    }
+
+    if (envContext.is_ci) {
+      identifyObj.setOnce('is_ci_user', true)
+    }
+
     identify(identifyObj, {
       user_id: getUserIdentifier(),
     })
-  } catch (error) {
+  } catch {
     // Silently fail
   }
 }
@@ -54,7 +66,7 @@ export const logCliError = (command: string, error: BuildError) => {
       error_type: errorType,
       ...(errorStack && { error_stack: errorStack }),
     })
-  } catch (logError) {
+  } catch {
     // Silently fail to not disrupt CLI operations
   }
 }

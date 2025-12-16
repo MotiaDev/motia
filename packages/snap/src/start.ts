@@ -1,8 +1,9 @@
+import { flush } from '@amplitude/analytics-node'
 import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
-import { createServer, type MotiaPlugin } from '@motiadev/core'
+import { createServer, getProjectIdentifier, type MotiaPlugin, trackEvent } from '@motiadev/core'
 import path from 'path'
 import type { RedisClientType } from 'redis'
 import { workbenchBase } from './constants'
@@ -11,6 +12,7 @@ import { loadMotiaConfig } from './load-motia-config'
 import { processPlugins } from './plugins/index'
 import { getRedisClient, getRedisConnectionInfo, stopRedisConnection } from './redis/connection'
 import { activatePythonVenv } from './utils/activate-python-env'
+import { identifyUser } from './utils/analytics'
 import { listenWithFallback } from './utils/listen-with-fallback'
 import { validatePythonEnvironment } from './utils/validate-python-environment'
 import { version } from './version'
@@ -24,8 +26,18 @@ export const start = async (
   const baseDir = process.cwd()
   const isVerbose = !disableVerbose
 
+  identifyUser()
+
   const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
   const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
+
+  trackEvent('server_started', {
+    port,
+    verbose_mode: isVerbose,
+    has_python_files: hasPythonFiles,
+    total_step_files: stepFiles.length,
+    project_name: getProjectIdentifier(baseDir),
+  })
 
   const pythonValidation = await validatePythonEnvironment({ baseDir, hasPythonFiles })
   if (!pythonValidation.success) {
@@ -85,14 +97,18 @@ export const start = async (
   console.log(`🔗 Open http://${hostname}:${actualPort}${workbenchBase} to open workbench 🛠️`)
 
   process.on('SIGTERM', async () => {
+    trackEvent('server_shutdown', { reason: 'SIGTERM' })
     motiaServer.server.close()
     await stopRedisConnection()
+    await flush().promise
     process.exit(0)
   })
 
   process.on('SIGINT', async () => {
+    trackEvent('server_shutdown', { reason: 'SIGINT' })
     motiaServer.server.close()
     await stopRedisConnection()
+    await flush().promise
     process.exit(0)
   })
 }
