@@ -65,6 +65,7 @@ class RedisConnectionManager {
 
   async stop(): Promise<void> {
     if (this.client?.isOpen) {
+      await new RedisMemoryManager().stop()
       await this.client.quit().catch(() => {
         console.error('[Redis Connection] Redis client closed')
       })
