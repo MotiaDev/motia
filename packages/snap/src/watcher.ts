@@ -62,7 +62,7 @@ export class Watcher {
       return
     }
 
-    const config = await getStepConfig(path, this.dir).catch((err) => console.error(err))
+    const config = await getStepConfig(path, this.lockedData.baseDir).catch((err) => console.error(err))
 
     if (!config) {
       return
@@ -79,7 +79,7 @@ export class Watcher {
       invalidate(path)
     }
 
-    const config = await getStepConfig(path, this.dir).catch((err) => {
+    const config = await getStepConfig(path, this.lockedData.baseDir).catch((err) => {
       console.error(err)
     })
 
