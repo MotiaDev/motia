@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-endpoint",
-  "version": "0.17.8-beta.190",
+  "version": "0.17.9-beta.191",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
