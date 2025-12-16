@@ -8,6 +8,10 @@ jest.unstable_mockModule('fs', () => ({
   readdirSync: mockReaddirSync,
 }))
 
+jest.unstable_mockModule('picocolors', () => ({
+  default: { cyan: (str: string) => str },
+}))
+
 const mockGetPythonCommand = jest.fn<(requestedVersion: string, baseDir: string) => Promise<string>>()
 jest.unstable_mockModule('../utils/python-version-utils', () => ({
   getPythonCommand: mockGetPythonCommand,
@@ -27,7 +31,7 @@ jest.unstable_mockModule('../utils/internal-logger', () => ({
   internalLogger: mockInternalLogger,
 }))
 
-const { validatePythonEnvironment } = await import('../utils/validate-python-environment')
+const { validatePythonEnvironment, getInstallCommand } = await import('../utils/validate-python-environment')
 
 describe('validatePythonEnvironment', () => {
   const baseDir = '/test/project'
@@ -214,5 +218,27 @@ describe('validatePythonEnvironment', () => {
 
       expect(mockGetPythonCommand).toHaveBeenCalledWith('3.13', baseDir)
     })
+  })
+})
+
+describe('getInstallCommand', () => {
+  const baseDir = '/test/project'
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it.each([
+    ['npm', 'npm install'],
+    ['yarn', 'yarn install'],
+    ['pnpm', 'pnpm install'],
+    ['unknown', 'npm install'],
+  ])('should return "%s" install command for package manager "%s"', (pm, expectedCmd) => {
+    mockGetPackageManager.mockReturnValue(pm)
+
+    const result = getInstallCommand(baseDir)
+
+    expect(result).toBe(expectedCmd)
+    expect(mockGetPackageManager).toHaveBeenCalledWith(baseDir)
   })
 })
