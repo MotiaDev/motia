@@ -7,8 +7,8 @@ export const deriveTraceGroup = (meta: TraceGroupMeta, traces: Trace[]): TraceGr
 
   const status = failedCount > 0 ? 'failed' : runningCount > 0 ? 'running' : 'completed'
 
-  const endTimes = traces.filter((t) => t.endTime).map((t) => t.endTime!)
-  const endTime = status === 'completed' && endTimes.length > 0 ? Math.max(...endTimes) : undefined
+  const endTimes = traces.filter((t): t is Trace & { endTime: number } => t.endTime !== undefined).map((t) => t.endTime)
+  const endTime = runningCount === 0 && endTimes.length > 0 ? Math.max(...endTimes) : undefined
 
   const lastActivity = Math.max(
     meta.startTime,
