@@ -89,9 +89,9 @@ pnpm build
 ```
 src/                             # Your Step definitions
 ├── hello/
-│   ├── hello-api.step.ts       # TypeScript API endpoint
-│   ├── process_greeting_step.py # Python event processor
-│   └── log-greeting.step.js    # JavaScript logger
+│   ├── hello-api.step.ts
+│   ├── process_greeting_step.py
+│   └── log-greeting.step.js
 motia.config.ts                  # Motia configuration
 requirements.txt                 # Python dependencies
 ```
