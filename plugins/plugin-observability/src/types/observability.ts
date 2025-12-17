@@ -4,8 +4,10 @@ export interface TraceGroupMeta {
   startTime: number
 }
 
+export type TraceStatus = 'running' | 'completed' | 'failed'
+
 export interface TraceGroup extends TraceGroupMeta {
-  status: 'running' | 'completed' | 'failed'
+  status: TraceStatus
   endTime?: number
   lastActivity: number
   metadata: {
@@ -20,7 +22,7 @@ export interface Trace {
   name: string
   correlationId?: string
   parentTraceId?: string
-  status: 'running' | 'completed' | 'failed'
+  status: TraceStatus
   startTime: number
   endTime?: number
   entryPoint: { type: 'api' | 'event' | 'cron'; stepName: string }

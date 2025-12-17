@@ -5,6 +5,7 @@ import { deriveTraceGroup } from './use-derive-trace-group'
 export const useFilteredTraceGroups = () => {
   const traceGroupMetas = useObservabilityStore((state) => state.traceGroupMetas)
   const tracesByGroupId = useObservabilityStore((state) => state.tracesByGroupId)
+  const statusFilter = useObservabilityStore((state) => state.statusFilter)
   const search = useObservabilityStore((state) => state.search)
 
   return useMemo(() => {
@@ -25,10 +26,11 @@ export const useFilteredTraceGroups = () => {
       return deriveTraceGroup(meta, traces)
     })
 
-    return traceGroups.filter(
-      (group) =>
-        group.name.toLowerCase().includes(search.toLowerCase()) ||
-        group.id.toLowerCase().includes(search.toLowerCase()),
-    )
-  }, [traceGroupMetas, tracesByGroupId, search])
+    return traceGroups.filter((group) => {
+      const matchesSearch =
+        group.name.toLowerCase().includes(search.toLowerCase()) || group.id.toLowerCase().includes(search.toLowerCase())
+      const matchesStatus = statusFilter === 'all' || group.status === statusFilter
+      return matchesSearch && matchesStatus
+    })
+  }, [traceGroupMetas, tracesByGroupId, search, statusFilter])
 }
