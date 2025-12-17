@@ -306,75 +306,54 @@ import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
 
-// Parse Redis connection from environment
-function getRedisConfig() {
-  const redisUrl = process.env.REDIS_URL
+// Parse REDIS_URL from environment
+// Format: redis://username:password@host:port or rediss://... for TLS
+const url = new URL(process.env.REDIS_URL || 'redis://localhost:6379')
 
-  // Parse REDIS_URL if provided (works with Docker, Railway, Fly.io, etc.)
-  if (redisUrl) {
-    try {
-      const url = new URL(redisUrl)
-      return {
-        host: url.hostname,
-        port: parseInt(url.port || '6379', 10),
-        password: url.password || undefined,
-        useTls: url.protocol === 'rediss:', // rediss:// means TLS
-      }
-    } catch (e) {
-      console.error('Failed to parse REDIS_URL:', e)
-    }
-  }
-
-  // Fallback to individual env vars
-  return {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-    useTls: false,
-  }
+const redisConfig = {
+  host: url.hostname,
+  port: Number(url.port) || 6379,
+  username: url.username || undefined,
+  password: url.password || undefined,
+  tls: url.protocol === 'rediss:',
 }
 
-const redis = getRedisConfig()
-
-// USE_REDIS takes priority, otherwise check NODE_ENV
-const useRedis = process.env.USE_REDIS === 'true' || 
-  (process.env.USE_REDIS !== 'false' && process.env.NODE_ENV === 'production')
-
-// node-redis v4 format (State, Streams, Cron adapters)
-const nodeRedisConfig = {
-  socket: {
-    host: redis.host,
-    port: redis.port,
-    ...(redis.useTls && { tls: true }),
-  },
-  ...(redis.password && { password: redis.password }),
-}
-
-// ioredis format (BullMQ adapter)
-const ioRedisConfig = {
-  host: redis.host,
-  port: redis.port,
-  ...(redis.password && { password: redis.password }),
-  ...(redis.useTls && { tls: {} }),
-  maxRetriesPerRequest: null, // Required for BullMQ
-}
+// Set USE_REDIS=true in production, omit for local development
+const useRedis = process.env.USE_REDIS === 'true'
 
 export default defineConfig({
   adapters: useRedis ? {
-    state: new RedisStateAdapter(nodeRedisConfig),
-    streams: new RedisStreamAdapterManager(nodeRedisConfig),
-    events: new BullMQEventAdapter({ connection: ioRedisConfig }),
-    cron: new RedisCronAdapter(nodeRedisConfig),
-  } : undefined, // Falls back to in-memory adapters when not using Redis
+    state: new RedisStateAdapter({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+    streams: new RedisStreamAdapterManager({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+    events: new BullMQEventAdapter({
+      connection: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+        username: redisConfig.username,
+        password: redisConfig.password,
+        tls: redisConfig.tls ? {} : undefined,
+        maxRetriesPerRequest: null,
+      },
+    }),
+    cron: new RedisCronAdapter({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+  } : undefined, // Falls back to in-memory adapters for local development
 })
 ```
 
-<Callout type="warn">
-**Important:** The Redis adapters use two different client libraries:
-- `node-redis` (v4) for State, Streams, and Cron - uses `socket: { host, port }` format
-- `ioredis` for BullMQ - uses `host, port` directly
-
-Make sure you use the correct format for each!
+<Callout type="info">
+**Local vs Production:** Set `USE_REDIS=true` in your docker-compose.yml for production. Without it, Motia uses in-memory adapters (great for local development).
 </Callout>
 
 ### Install Adapter Packages

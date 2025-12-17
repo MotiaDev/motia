@@ -175,67 +175,51 @@ import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
 
-function getRedisConfig() {
-  // Fly sets REDIS_URL when you attach Upstash Redis
-  const redisUrl = process.env.REDIS_URL
+// Parse REDIS_URL (set automatically by Fly when you attach Upstash Redis)
+// Format: rediss://default:password@host:port
+const url = new URL(process.env.REDIS_URL || 'redis://localhost:6379')
 
-  if (redisUrl) {
-    try {
-      const url = new URL(redisUrl)
-      return {
-        host: url.hostname,
-        port: parseInt(url.port || '6379', 10),
-        password: url.password || undefined,
-        useTls: url.protocol === 'rediss:', // Upstash uses TLS
-      }
-    } catch (e) {
-      console.error('Failed to parse REDIS_URL:', e)
-    }
-  }
-
-  return {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD,
-    useTls: false,
-  }
-}
-
-const redis = getRedisConfig()
-const useRedis = process.env.USE_REDIS === 'true' || 
-  (process.env.USE_REDIS !== 'false' && process.env.NODE_ENV === 'production')
-
-// node-redis format
-const nodeRedisConfig = {
-  socket: {
-    host: redis.host,
-    port: redis.port,
-    ...(redis.useTls && { tls: true }),
-  },
-  ...(redis.password && { password: redis.password }),
-}
-
-// ioredis format (for BullMQ)
-const ioRedisConfig = {
-  host: redis.host,
-  port: redis.port,
-  ...(redis.password && { password: redis.password }),
-  ...(redis.useTls && { tls: {} }),
-  maxRetriesPerRequest: null,
+const redisConfig = {
+  host: url.hostname,
+  port: Number(url.port) || 6379,
+  username: url.username || undefined,
+  password: url.password || undefined,
+  tls: url.protocol === 'rediss:',  // Upstash requires TLS
 }
 
 export default defineConfig({
-  adapters: useRedis ? {
-    state: new RedisStateAdapter(nodeRedisConfig),
-    streams: new RedisStreamAdapterManager(nodeRedisConfig),
-    events: new BullMQEventAdapter({ connection: ioRedisConfig }),
-    cron: new RedisCronAdapter(nodeRedisConfig),
-  } : undefined,
+  adapters: {
+    state: new RedisStateAdapter({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+    streams: new RedisStreamAdapterManager({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+    events: new BullMQEventAdapter({
+      connection: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+        username: redisConfig.username,
+        password: redisConfig.password,
+        tls: redisConfig.tls ? {} : undefined,
+        maxRetriesPerRequest: null,
+      },
+    }),
+    cron: new RedisCronAdapter({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+  },
 })
 ```
 
 <Callout type="info">
-**Upstash uses TLS.** The config above automatically enables TLS when it detects `rediss://` in the URL.
+**That's it!** The config parses `REDIS_URL` automatically. Fly sets this when you run `flyctl redis create`.
 </Callout>
 
 ---

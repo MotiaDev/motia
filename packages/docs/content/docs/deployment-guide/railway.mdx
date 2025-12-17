@@ -163,67 +163,51 @@ import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
 
-// Parse Redis URL from environment
-function getRedisConfig() {
-  const redisUrl = process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL
+// Parse REDIS_URL (Railway sets this automatically when you add Redis)
+// Format: redis://default:password@host:port
+const url = new URL(process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL || 'redis://localhost:6379')
 
-  if (redisUrl) {
-    try {
-      const url = new URL(redisUrl)
-      return {
-        host: url.hostname,
-        port: parseInt(url.port || '6379', 10),
-        password: url.password || undefined,
-        useTls: url.protocol === 'rediss:',
-      }
-    } catch (e) {
-      console.error('Failed to parse REDIS_URL:', e)
-    }
-  }
-
-  // Fallback for local development
-  return {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-    useTls: false,
-  }
-}
-
-const redis = getRedisConfig()
-const isProduction = process.env.NODE_ENV === 'production'
-
-// node-redis format (State, Streams, Cron)
-const nodeRedisConfig = {
-  socket: {
-    host: redis.host,
-    port: redis.port,
-    ...(redis.useTls && { tls: true }),
-  },
-  ...(redis.password && { password: redis.password }),
-}
-
-// ioredis format (BullMQ)
-const ioRedisConfig = {
-  host: redis.host,
-  port: redis.port,
-  ...(redis.password && { password: redis.password }),
-  ...(redis.useTls && { tls: {} }),
-  maxRetriesPerRequest: null, // Required for BullMQ
+const redisConfig = {
+  host: url.hostname,
+  port: Number(url.port) || 6379,
+  username: url.username || undefined,
+  password: url.password || undefined,
+  tls: url.protocol === 'rediss:',
 }
 
 export default defineConfig({
-  adapters: isProduction ? {
-    state: new RedisStateAdapter(nodeRedisConfig),
-    streams: new RedisStreamAdapterManager(nodeRedisConfig),
-    events: new BullMQEventAdapter({ connection: ioRedisConfig }),
-    cron: new RedisCronAdapter(nodeRedisConfig),
-  } : undefined,
+  adapters: {
+    state: new RedisStateAdapter({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+    streams: new RedisStreamAdapterManager({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+    events: new BullMQEventAdapter({
+      connection: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+        username: redisConfig.username,
+        password: redisConfig.password,
+        tls: redisConfig.tls ? {} : undefined,
+        maxRetriesPerRequest: null,
+      },
+    }),
+    cron: new RedisCronAdapter({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+  },
 })
 ```
 
 <Callout type="info">
-**Why two config formats?** The Redis adapters use different client libraries. State, Streams, and Cron use `node-redis` (v4), while BullMQ uses `ioredis`. Each expects a slightly different config structure.
+**That's it!** Railway auto-injects `REDIS_URL` when you link the Redis plugin to your service.
 </Callout>
 
 ---
