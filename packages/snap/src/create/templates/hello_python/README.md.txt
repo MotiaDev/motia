@@ -70,6 +70,9 @@ pnpm build
 
 ```
 src/                # Your Step definitions
+├── hello/
+│   ├── hello_api_step.py
+│   └── process_greeting_step.py
 motia.config.ts     # Motia configuration
 requirements.txt    # Python dependencies
 ```

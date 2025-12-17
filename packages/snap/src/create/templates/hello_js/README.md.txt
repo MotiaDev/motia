@@ -70,10 +70,13 @@ pnpm build
 
 ```
 src/                # Your Step definitions
+├── hello/
+│   ├── hello-api.step.js
+│   └── process-greeting.step.js
 motia.config.ts     # Motia configuration
 ```
 
-Steps are auto-discovered from your `src/` directory - no manual registration required.
+Steps are auto-discovered from your `src/` directory - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
 
 ## Learn More
 

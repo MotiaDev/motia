@@ -96,7 +96,7 @@ motia.config.ts                  # Motia configuration
 requirements.txt                 # Python dependencies
 ```
 
-Steps are auto-discovered from your `src/` directory - no manual registration required.
+Steps are auto-discovered from your `src/` directory - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
 
 ## Learn More
 

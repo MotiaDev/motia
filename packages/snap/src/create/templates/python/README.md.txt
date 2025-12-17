@@ -69,6 +69,14 @@ pnpm build
 
 ```
 src/                 # Your Step definitions and shared services
+├── petstore/
+│   ├── api_step.py
+│   ├── notification_step.py
+│   ├── process_food_order_step.py
+│   └── state_audit_cron_step.py
+└── services/
+    ├── pet_store.py
+    └── types.py
 motia.config.ts      # Motia configuration
 requirements.txt     # Python dependencies
 ```
