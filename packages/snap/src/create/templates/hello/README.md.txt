@@ -69,11 +69,11 @@ pnpm build
 ## Project Structure
 
 ```
-steps/              # Your Step definitions (or use src/)
+src/                # Your Step definitions
 motia.config.ts     # Motia configuration
 ```
 
-Steps are auto-discovered from your `steps/` or `src/` directories - no manual registration required.
+Steps are auto-discovered from your `src/` directory - no manual registration required.
 
 ## Learn More
 
