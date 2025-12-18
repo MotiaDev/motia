@@ -30,7 +30,7 @@ The filename pattern tells Motia to load it, and the `name` in the `config` uniq
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
-```ts title="steps/hello.step.ts"
+```ts title="src/hello.step.ts"
 import { ApiRouteConfig, Handlers } from 'motia';
 
 export const config: ApiRouteConfig = {
@@ -49,7 +49,7 @@ export const handler: Handlers['HelloStep'] = async (req, { logger }) => {
 </Tab>
 <Tab value='Python'>
 
-```python title="steps/hello_step.py"
+```python title="src/hello_step.py"
 config = {
     "name": "HelloStep",
     "type": "api",
@@ -65,7 +65,7 @@ async def handler(req, ctx):
 </Tab>
 <Tab value='JavaScript'>
 
-```js title="steps/hello.step.js"
+```js title="src/hello.step.js"
 const config = {
   name: 'HelloStep',
   type: 'api',
@@ -99,7 +99,7 @@ This is the core of how you build backends with Motia.
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
-```ts title="steps/send-message.step.ts"
+```ts title="src/send-message.step.ts"
 import { ApiRouteConfig, Handlers } from 'motia';
 
 export const config: ApiRouteConfig = {
@@ -119,7 +119,7 @@ export const handler: Handlers['SendMessage'] = async (req, { emit }) => {
 };
 ```
 
-```ts title="steps/process-message.step.ts"
+```ts title="src/process-message.step.ts"
 import { EventConfig, Handlers } from 'motia';
 
 export const config: EventConfig = {
@@ -167,7 +167,7 @@ async def handler(input, ctx):
 
 <Tab value='JavaScript'>
 
-```js title="steps/send-message.step.js"
+```js title="src/send-message.step.js"
 const config = {
   name: 'SendMessage',
   type: 'api',
@@ -187,7 +187,7 @@ const handler = async (req, { emit }) => {
 module.exports = { config, handler };
 ```
 
-```js title="steps/process-message.step.js"
+```js title="src/process-message.step.js"
 const config = {
   name: 'ProcessMessage',
   type: 'event',
