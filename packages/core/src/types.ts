@@ -122,6 +122,15 @@ export interface ApiRouteConfig {
   includeFiles?: string[]
 }
 
+export interface UploadedFile {
+  fieldName: string
+  originalName: string
+  encoding: string
+  mimeType: string
+  buffer: Buffer
+  size: number
+}
+
 export interface ApiRequest<TBody = unknown> {
   pathParams: Record<string, string>
   queryParams: Record<string, string | string[]>
@@ -132,6 +141,10 @@ export interface ApiRequest<TBody = unknown> {
    * This is the same body that was sent but without type enforcement/parsing.
    */
   rawBody: string
+  /**
+   * Array of uploaded files from multipart/form-data requests.
+   */
+  files?: UploadedFile[]
 }
 
 export type ApiResponse<TStatus extends number = number, TBody = string | Buffer | Record<string, unknown>> = {
@@ -220,5 +233,6 @@ declare module 'http' {
   interface IncomingMessage {
     authContext?: unknown | null
     rawBody?: string
+    files?: UploadedFile[]
   }
 }

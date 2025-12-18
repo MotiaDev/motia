@@ -128,7 +128,7 @@
     "config": {
       "src/parallelMergeState/stepA.step.ts": {
         "x": 509,
-        "y": 0
+        "y": 272
       },
       "src/parallelMergeState/startParallelMerge.step.ts": {
         "x": 158,
@@ -153,10 +153,6 @@
       "src/parallelMergeState/stepB_step.py": {
         "x": 509,
         "y": 272
-      },
-      "src/parallelMergeState/stepA.step.ts": {
-        "x": 509,
-        "y": 272
       }
     }
   },
@@ -170,6 +166,19 @@
       "src/hello/hello-api.step.ts": {
         "x": 0,
         "y": 0
+      }
+    }
+  },
+  {
+    "id": "files",
+    "config": {
+      "src/test/download-pdf.step.ts": {
+        "x": 1,
+        "y": 0
+      },
+      "src/test/download-html.step.ts": {
+        "x": 0,
+        "y": 204
       }
     }
   }

@@ -1,6 +1,7 @@
 import bodyParser from 'body-parser'
 import express, { type Express, type Request, type Response } from 'express'
 import http from 'http'
+import multer from 'multer'
 import type { Server as WsServer } from 'ws'
 import type { CronAdapter } from './adapters/interfaces/cron-adapter.interface'
 import type { EventAdapter } from './adapters/interfaces/event-adapter.interface'
@@ -27,7 +28,7 @@ import { createSocketServer } from './socket-server'
 import { createStepHandlers, type MotiaEventManager } from './step-handlers'
 import { systemSteps } from './steps'
 import { type Log, RedisLogsStream } from './streams/redis-logs-stream'
-import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, Step } from './types'
+import type { ApiRequest, ApiResponse, ApiRouteConfig, ApiRouteMethod, EmitData, Step, UploadedFile } from './types'
 import type {
   BaseStreamItem,
   MotiaStream,
@@ -264,12 +265,24 @@ export const createServer = (
 
       const rawBody = req.rawBody || ''
 
+      const files = Array.isArray(req.files)
+        ? req.files.map((file) => ({
+            fieldName: file.fieldname,
+            originalName: file.originalname,
+            encoding: file.encoding,
+            mimeType: file.mimetype,
+            buffer: file.buffer,
+            size: file.size,
+          }))
+        : undefined
+
       const data: ApiRequest = {
         body: req.body,
         headers: req.headers as Record<string, string | string[]>,
         pathParams: req.params,
         queryParams: req.query as Record<string, string | string[]>,
         rawBody,
+        files,
       }
 
       try {
@@ -364,6 +377,13 @@ export const createServer = (
       },
     }),
   )
+
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 1024 * 1024 * 1024 },
+  })
+
+  app.use(upload.any())
 
   const router = express.Router()
 
