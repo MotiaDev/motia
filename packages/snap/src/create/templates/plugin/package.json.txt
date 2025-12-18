@@ -1,6 +1,6 @@
 {
   "name": "{{PROJECT_NAME}}",
-  "version": "0.14.0-beta.164",
+  "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,13 +23,13 @@
     "dev": "tsdown --watch",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "lucide-react": "^0.555.0",
-    "react": "^19.2.0"
-  },
+  "dependencies": {},
   "peerDependencies": {
-    "@motiadev/core": "latest",
-    "@motiadev/ui": "latest"
+    "@motiadev/core": "{{VERSION}}",
+    "@motiadev/ui": "{{VERSION}}",
+    "lucide-react": "^0.555.0",
+    "motia": "{{VERSION}}",
+    "react": "^19.2.3"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",

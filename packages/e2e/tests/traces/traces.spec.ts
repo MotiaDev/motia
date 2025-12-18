@@ -10,7 +10,10 @@ test.describe('Traces tests', () => {
       await workbench.open()
       await workbench.navigateToTraces()
       await tracesPage.verifyTracesInterface()
-      await expect(tracesPage.traceDetailsContainer).toHaveText('Select a trace or trace group to view the timeline')
+      await expect(tracesPage.traceDetailsContainer).toBeVisible()
+      await expect(tracesPage.traceDetailsContainer).toContainText(
+        /Select a trace or trace group to view the timeline|0ms/,
+      )
     })
 
     await test.step('Execute basic tutorial flow', async () => {

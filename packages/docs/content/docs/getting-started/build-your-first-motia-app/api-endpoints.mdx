@@ -196,9 +196,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/create-pet.step.js"
-    const { create } = require('./js-store')
+    import { create } from './js-store.js'
 
-    const config = {
+    export const config = {
       name: 'CreatePet',
       type: 'api',
       path: '/pets',
@@ -206,7 +206,7 @@ View on GitHub:
       emits: []
     }
 
-    const handler = async (req) => {
+    export const handler = async (req) => {
       const b = req.body || {}
       const name = typeof b.name === 'string' && b.name.trim()
       const speciesOk = ['dog', 'cat', 'bird', 'other'].includes(b.species)
@@ -221,8 +221,6 @@ View on GitHub:
       const pet = create({ name, species: b.species, ageMonths: Number(b.ageMonths) })
       return { status: 201, body: pet }
     }
-
-    module.exports = { config, handler }
     ```
   </Tab>
 </Tabs>
@@ -306,9 +304,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/get-pets.step.js"
-    const { list } = require('./js-store')
+    import { list } from './js-store.js'
 
-    const config = {
+    export const config = {
       name: 'GetPets',
       type: 'api',
       path: '/pets',
@@ -316,13 +314,11 @@ View on GitHub:
       emits: []
     }
 
-    const handler = async () => {
+    export const handler = async () => {
       // In a real application, this would be a database call
       // e.g., const pets = await db.pets.findAll()
       return { status: 200, body: list() }
     }
-
-    module.exports = { config, handler }
     ```
   </Tab>
 </Tabs>
@@ -405,9 +401,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/get-pet.step.js"
-    const { get } = require('./js-store')
+    import { get } from './js-store.js'
 
-    const config = {
+    export const config = {
       name: 'GetPet',
       type: 'api',
       path: '/pets/:id',
@@ -415,7 +411,7 @@ View on GitHub:
       emits: []
     }
 
-    const handler = async (req) => {
+    export const handler = async (req) => {
       // In a real application, this would be a database call
       // e.g., const pet = await db.pets.findById(req.pathParams.id)
       const pet = get(req.pathParams.id)
@@ -423,8 +419,6 @@ View on GitHub:
         ? { status: 200, body: pet } 
         : { status: 404, body: { message: 'Not found' } }
     }
-
-    module.exports = { config, handler }
     ```
   </Tab>
 </Tabs>
@@ -535,9 +529,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/update-pet.step.js"
-    const { update } = require('./js-store')
+    import { update } from './js-store.js'
 
-    const config = {
+    export const config = {
       name: 'UpdatePet',
       type: 'api',
       path: '/pets/:id',
@@ -545,7 +539,7 @@ View on GitHub:
       emits: []
     }
 
-    const handler = async (req) => {
+    export const handler = async (req) => {
       const b = req.body || {}
       const patch = {}
 
@@ -561,8 +555,6 @@ View on GitHub:
         ? { status: 200, body: updated } 
         : { status: 404, body: { message: 'Not found' } }
     }
-
-    module.exports = { config, handler }
     ```
   </Tab>
 </Tabs>
@@ -647,9 +639,9 @@ View on GitHub:
   </Tab>
   <Tab value="JavaScript">
     ```javascript title="steps/javascript/delete-pet.step.js"
-    const { remove } = require('./js-store')
+    import { remove } from './js-store.js'
 
-    const config = {
+    export const config = {
       name: 'DeletePet',
       type: 'api',
       path: '/pets/:id',
@@ -657,7 +649,7 @@ View on GitHub:
       emits: []
     }
 
-    const handler = async (req) => {
+    export const handler = async (req) => {
       // In a real application, this would be a database call
       // e.g., const ok = await db.pets.delete(req.pathParams.id)
       const ok = remove(req.pathParams.id)
@@ -665,8 +657,6 @@ View on GitHub:
         ? { status: 204, body: {} } 
         : { status: 404, body: { message: 'Not found' } }
     }
-
-    module.exports = { config, handler }
     ```
   </Tab>
 </Tabs>

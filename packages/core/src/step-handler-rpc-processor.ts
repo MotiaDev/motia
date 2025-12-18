@@ -78,5 +78,6 @@ export class RpcProcessor implements RpcProcessorInterface {
   close() {
     this.isClosed = true
     this.messageCallback = undefined
+    this.handlers = {}
   }
 }

@@ -9,6 +9,8 @@ import { RpcStateManager } from './rpc-state-manager'
 
 dotenv.config()
 
+type FileModule = { handler?: unknown; default?: { handler?: unknown; config?: unknown }; config?: unknown }
+
 function parseArgs(arg: string) {
   try {
     return JSON.parse(arg)
@@ -17,13 +19,30 @@ function parseArgs(arg: string) {
   }
 }
 
+const importCompiledModule = async (filePath: string): Promise<FileModule> => {
+  try {
+    return import(pathToFileURL(path.resolve(filePath)).href)
+  } catch (importError: unknown) {
+    const err = importError as Error & { code?: string }
+    const error = {
+      message: `Failed to import module ${filePath}: ${err.message}`,
+      code: err.code || 'IMPORT_ERROR',
+      stack: err.stack || '',
+    }
+
+    throw error
+  }
+}
 async function runTypescriptModule(filePath: string, event: Record<string, unknown>) {
   const sender = new RpcSender(process)
 
   try {
-    const importedModule = await import(pathToFileURL(path.resolve(filePath)).href)
+    sender.init()
+
+    const importedModule: FileModule = await importCompiledModule(filePath)
+
     const handler = importedModule.handler || importedModule.default?.handler
-    const config = importedModule.config || importedModule.default?.config || {}
+    const config = (importedModule.config || importedModule.default?.config || {}) as { middleware?: unknown[] }
 
     // Check if the specified function exists in the module
     if (typeof handler !== 'function') {
@@ -55,8 +74,6 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
 
     const context = { traceId, flows, logger, state, emit, streams }
 
-    sender.init()
-
     const middlewares = Array.isArray(config.middleware) ? config.middleware : []
 
     const composedMiddleware = composeMiddleware(...middlewares)
@@ -66,25 +83,29 @@ async function runTypescriptModule(filePath: string, event: Record<string, unkno
 
     const result = await composedMiddleware(event.data, context, handlerFn)
 
-    await sender.send('result', result)
-    await sender.close()
+    if (result !== undefined && result !== null) {
+      await sender.send('result', result)
+    }
 
+    sender.sendNoWait('close', undefined)
+    await sender.close()
     process.exit(0)
-  } catch (err: any) {
-    const stack: string[] = err.stack?.split('\n') ?? []
+  } catch (err: unknown) {
+    const error = err as Error & { code?: string }
+    const stack: string[] = error.stack?.split('\n') ?? []
 
     if (stack) {
       const index = stack.findIndex((line) => line.includes('src/node/node-runner'))
       stack.splice(index, stack.length - index)
-      stack.splice(0, 1) // remove first line which has the error message
+      stack.splice(0, 1)
     }
 
-    const error = {
-      message: err.message || '',
-      code: err.code || null,
+    const errorObj = {
+      message: error.message || '',
+      code: error.code || null,
       stack: stack.join('\n'),
     }
-    sender.sendNoWait('close', error)
+    sender.sendNoWait('close', errorObj)
   }
 }
 

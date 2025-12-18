@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import pc from 'picocolors'
 import { getPackageManager } from './get-package-manager'
 import { internalLogger } from './internal-logger'
 import { getPythonCommand } from './python-version-utils'
@@ -15,15 +16,13 @@ interface ValidateConfig {
   pythonVersion?: string
 }
 
-function getInstallCommand(baseDir: string): string {
+export function getInstallCommand(baseDir: string): string {
   const pm = getPackageManager(baseDir)
   switch (pm) {
     case 'yarn':
       return 'yarn install'
     case 'pnpm':
       return 'pnpm install'
-    case 'bun':
-      return 'bun install'
     case 'npm':
     default:
       return 'npm install'
@@ -54,7 +53,7 @@ export async function validatePythonEnvironment({
   if (!fs.existsSync(venvPath)) {
     internalLogger.error('Python environment not configured')
     internalLogger.info('The python_modules directory was not found')
-    internalLogger.info(`Run '${installCmd}' to set up your Python environment`)
+    internalLogger.info(`Run ${pc.cyan(installCmd)} to set up your Python environment`)
     return { success: false, hasPythonFiles: true }
   }
 
@@ -62,7 +61,7 @@ export async function validatePythonEnvironment({
   if (!fs.existsSync(libPath)) {
     internalLogger.error('Python environment is incomplete')
     internalLogger.info('The python_modules directory exists but appears to be corrupted')
-    internalLogger.info(`Run '${installCmd}' to recreate your Python environment`)
+    internalLogger.info(`Run ${pc.cyan(installCmd)} to recreate your Python environment`)
     return { success: false, hasPythonFiles: true }
   }
 
@@ -73,13 +72,13 @@ export async function validatePythonEnvironment({
     if (pythonDirs.length === 0) {
       internalLogger.error('Python environment is incomplete')
       internalLogger.info('The python_modules/lib directory exists but contains no Python version directories')
-      internalLogger.info(`Run '${installCmd}' to recreate your Python environment`)
+      internalLogger.info(`Run ${pc.cyan(installCmd)} to recreate your Python environment`)
       return { success: false, hasPythonFiles: true }
     }
   } catch (error: any) {
     internalLogger.error('Python environment is incomplete')
     internalLogger.info('The python_modules/lib directory cannot be read')
-    internalLogger.info(`Run '${installCmd}' to recreate your Python environment`)
+    internalLogger.info(`Run ${pc.cyan(installCmd)} to recreate your Python environment`)
     return { success: false, hasPythonFiles: true }
   }
 

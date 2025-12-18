@@ -30,7 +30,7 @@ export const NodeSidebar: React.FC<NodeSidebarProps> = ({
     <Sidebar
       title={title}
       subtitle={subtitle}
-      initialWidth={900}
+      initialWidth={820}
       contentClassName="p-0 h-full gap-0"
       onClose={onClose}
       actions={[{ icon: <X />, onClick: onClose, label: 'Close' }]}

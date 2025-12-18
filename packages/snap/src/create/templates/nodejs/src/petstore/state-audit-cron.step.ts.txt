@@ -1,5 +1,5 @@
 import { CronConfig, Handlers } from 'motia'
-import { Order } from '../../src/services/types'
+import { Order } from '../services/types'
 
 export const config: CronConfig = {
   type: 'cron',

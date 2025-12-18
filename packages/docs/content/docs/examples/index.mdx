@@ -108,7 +108,7 @@ All examples include complete, runnable source code with configuration files, se
             Repository
           </a>
           <a 
-            href="https://github.com/MotiaDev/motia-examples/tree/main/examples/rag-docling-weaviate-agent" 
+            href="https://github.com/MotiaDev/motia-examples/tree/main/examples/rag-and-search/rag-fundamentals/rag-docling-weaviate-agent" 
             target="_blank" 
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-md transition-colors duration-200"
@@ -116,7 +116,7 @@ All examples include complete, runnable source code with configuration files, se
             RAG Example →
           </a>
           <a 
-            href="https://github.com/MotiaDev/motia-examples/tree/main/examples/motia-uptime-monitor" 
+            href="https://github.com/MotiaDev/motia-examples/tree/main/examples/foundational/infrastructure/motia-uptime-monitor" 
             target="_blank" 
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-md transition-colors duration-200"

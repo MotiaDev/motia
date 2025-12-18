@@ -1,5 +1,5 @@
 import type { Stream } from '@motiadev/core'
-import { getStepConfig, getStreamConfig, type LockedData, type Step } from '@motiadev/core'
+import { getStepConfig, getStreamConfig, invalidate, type LockedData, type Step } from '@motiadev/core'
 import chokidar, { type FSWatcher } from 'chokidar'
 import { randomUUID } from 'crypto'
 
@@ -62,7 +62,7 @@ export class Watcher {
       return
     }
 
-    const config = await getStepConfig(path, this.dir).catch((err) => console.error(err))
+    const config = await getStepConfig(path, this.lockedData.baseDir).catch((err) => console.error(err))
 
     if (!config) {
       return
@@ -75,7 +75,11 @@ export class Watcher {
   }
 
   private async onStepFileChange(path: string): Promise<void> {
-    const config = await getStepConfig(path, this.dir).catch((err) => {
+    if (path.endsWith('.ts')) {
+      invalidate(path)
+    }
+
+    const config = await getStepConfig(path, this.lockedData.baseDir).catch((err) => {
       console.error(err)
     })
 
@@ -106,6 +110,10 @@ export class Watcher {
   }
 
   private async onStepFileDelete(path: string): Promise<void> {
+    if (path.endsWith('.ts')) {
+      invalidate(path)
+    }
+
     const step = this.findStep(path)
 
     if (!step) {

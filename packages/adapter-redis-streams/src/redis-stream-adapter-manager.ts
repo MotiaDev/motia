@@ -37,7 +37,9 @@ export class RedisStreamAdapterManager implements StreamAdapterManager {
       this.client = createClient(config) as RedisClientType
 
       this.client.on('error', (err) => {
-        console.error('[Redis Stream Manager] Client error:', err)
+        if (this.connected) {
+          console.error('[Redis Stream Manager] Client error:', err?.message)
+        }
       })
 
       this.client.on('connect', () => {

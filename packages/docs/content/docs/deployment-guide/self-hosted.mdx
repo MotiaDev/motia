@@ -207,6 +207,20 @@ docker run --rm node:24-slim bash -c "
 
 ## Deploy to Cloud
 
+Once you have Docker working locally, deploy to any cloud platform:
+
+### Railway
+
+The easiest option. Railway detects your Dockerfile automatically and provides managed Redis.
+
+👉 [Full Railway deployment guide →](/docs/deployment-guide/railway)
+
+### Fly.io
+
+Global edge deployment with Upstash Redis. Great for low-latency worldwide.
+
+👉 [Full Fly.io deployment guide →](/docs/deployment-guide/fly)
+
 ### AWS Lightsail
 
 Lightsail needs ARM. Update your Dockerfile:
@@ -217,30 +231,9 @@ FROM --platform=linux/arm64 motiadev/motia:latest
 
 Then build and deploy.
 
-### Railway
-
-Connect your GitHub repo. Railway detects the Dockerfile automatically.
-
-### Fly.io
-
-Create `fly.toml`:
-
-```toml
-app = "my-motia-app"
-
-[build]
-  dockerfile = "Dockerfile"
-
-[[services]]
-  internal_port = 3000
-  protocol = "tcp"
-```
-
-Deploy: `fly deploy`
-
 ### Render
 
-Create a Web Service, point to your repo. Render builds automatically.
+Create a Web Service, point to your repo. Render builds automatically. Add a Redis instance and set `REDIS_URL`.
 
 ---
 
@@ -262,88 +255,141 @@ When deploying multiple Motia instances, you need distributed adapters to share 
 
 ### Docker Compose with Redis
 
-For production deployments, use Docker Compose to run Motia with Redis:
+For production deployments, use Docker Compose to run Motia with Redis. This setup uses Redis for everything: state, streams, events (via BullMQ), and cron locking.
 
 ```yaml title="docker-compose.yml"
-version: '3.8'
-
 services:
   redis:
     image: redis:7-alpine
+    container_name: motia-redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
 
   motia:
     build: .
+    container_name: motia-app
     ports:
       - "3000:3000"
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - NODE_ENV=production
+      - USE_REDIS=true
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
-      - rabbitmq
-
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-
-volumes:
-  redis-data:
-  rabbitmq-data:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 ```
+
+<Callout type="info">
+**Key features of this setup:**
+- Healthcheck ensures Redis is ready before Motia starts
+- `REDIS_URL` format works across all platforms (Docker, Railway, Fly.io)
+- `USE_REDIS=true` explicitly enables Redis adapters
+- No RabbitMQ needed - BullMQ handles events using Redis
+</Callout>
 
 ### Configure Adapters in motia.config.ts
 
-Update your configuration to use distributed adapters:
+Update your configuration to use distributed adapters. This config works locally with Docker and on cloud platforms:
 
 ```typescript title="motia.config.ts"
-import { config } from '@motiadev/core'
+import { defineConfig } from '@motiadev/core'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
-import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
+import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
 
-export default config({
-  adapters: {
+// Parse REDIS_URL from environment
+// Format: redis://username:password@host:port or rediss://... for TLS
+const url = new URL(process.env.REDIS_URL || 'redis://localhost:6379')
+
+const redisConfig = {
+  host: url.hostname,
+  port: Number(url.port) || 6379,
+  username: url.username || undefined,
+  password: url.password || undefined,
+  tls: url.protocol === 'rediss:',
+}
+
+// Set USE_REDIS=true in production, omit for local development
+const useRedis = process.env.USE_REDIS === 'true'
+
+export default defineConfig({
+  adapters: useRedis ? {
     state: new RedisStateAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
     }),
     streams: new RedisStreamAdapterManager({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
     }),
-    events: new RabbitMQEventAdapter({
-      url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
-      exchangeName: process.env.RABBITMQ_EXCHANGE || 'motia.events',
-      exchangeType: 'topic',
+    events: new BullMQEventAdapter({
+      connection: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+        username: redisConfig.username,
+        password: redisConfig.password,
+        tls: redisConfig.tls ? {} : undefined,
+        maxRetriesPerRequest: null,
+      },
     }),
     cron: new RedisCronAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
     }),
-  },
+  } : undefined, // Falls back to in-memory adapters for local development
 })
 ```
 
+<Callout type="info">
+**Local vs Production:** Set `USE_REDIS=true` in your docker-compose.yml for production. Without it, Motia uses in-memory adapters (great for local development).
+</Callout>
+
 ### Install Adapter Packages
 
-Add the adapter packages to your `package.json`:
+Add the adapter packages to your project:
 
 ```bash
 npm install @motiadev/adapter-redis-state \
             @motiadev/adapter-redis-streams \
-            @motiadev/adapter-rabbitmq-events \
-            @motiadev/adapter-redis-cron
+            @motiadev/adapter-redis-cron \
+            @motiadev/adapter-bullmq-events
 ```
+
+### Test Your Setup
+
+Run Docker Compose and verify everything works:
+
+```bash
+# Build and start
+docker-compose up --build
+
+# In another terminal, test the API
+curl http://localhost:3000/todos
+
+# Create something
+curl -X POST http://localhost:3000/todos \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test Todo","priority":"high"}'
+
+# List again - your data persists in Redis
+curl http://localhost:3000/todos
+```
+
+<Callout type="info">
+This same Docker Compose setup works as a foundation for deploying to any platform. Just push to Railway, Fly.io, or your own server and configure the `REDIS_URL` environment variable.
+</Callout>
 
 ### Scaling Multiple Instances
 
@@ -351,41 +397,55 @@ With distributed adapters configured, you can scale to multiple instances:
 
 ```yaml title="docker-compose.yml"
 services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   motia-1:
     build: .
     ports:
       - "3000:3000"
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - NODE_ENV=production
+      - USE_REDIS=true
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   motia-2:
     build: .
     ports:
       - "3001:3000"
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - NODE_ENV=production
+      - USE_REDIS=true
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   motia-3:
     build: .
     ports:
       - "3002:3000"
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - NODE_ENV=production
+      - USE_REDIS=true
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 ```
 
-All instances share the same state, events, and streams through Redis and RabbitMQ.
+All instances share the same state, events, and streams through Redis. Put a load balancer in front and requests get distributed across all instances.
 
 <Callout type="warn">
-Without distributed adapters, each Motia instance has isolated state and events. Use Redis/RabbitMQ adapters for multi-instance deployments.
+Without distributed adapters, each Motia instance has isolated state and events. Use Redis adapters (with BullMQ for events) for multi-instance deployments.
 </Callout>
 
 [Learn more about adapters →](/docs/development-guide/adapters/usage)

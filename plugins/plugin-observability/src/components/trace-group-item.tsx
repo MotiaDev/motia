@@ -15,10 +15,11 @@ interface TraceGroupItemProps {
   totalSteps: number
   activeSteps: number
   isSelected: boolean
+  style?: React.CSSProperties
 }
 
 export const TraceGroupItem: React.FC<TraceGroupItemProps> = memo(
-  ({ groupId, groupName, groupStatus, groupStartTime, groupEndTime, totalSteps, activeSteps, isSelected }) => {
+  ({ groupId, groupName, groupStatus, groupStartTime, groupEndTime, totalSteps, activeSteps, isSelected, style }) => {
     const selectTraceGroupId = useObservabilityStore((state) => state.selectTraceGroupId)
 
     const duration = useMemo(
@@ -39,6 +40,7 @@ export const TraceGroupItem: React.FC<TraceGroupItemProps> = memo(
           'motia-trace-group cursor-pointer transition-colors w-full text-left',
           isSelected ? 'bg-muted-foreground/10' : 'hover:bg-muted/70',
         )}
+        style={style}
         onClick={onSelect}
       >
         <div className="p-3 flex flex-col gap-1">

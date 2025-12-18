@@ -34,7 +34,7 @@ export const workbenchXPath = {
   logs: {
     container: '//div[@data-testid="logs-container"]',
     searchContainer: '//div[@data-testid="logs-search-container"]',
-    traceColumn: (index: number) => `(//td[starts-with(@data-testid, 'trace')])[${index}]`,
+    traceColumn: (index: number) => `(//button[starts-with(@data-testid, 'trace-filter')])[${index}]`,
     row: '//div[@data-testid="log-row"]',
   },
 

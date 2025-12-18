@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-example",
-  "version": "0.15.5-beta.173",
+  "version": "0.17.9-beta.191",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,13 +23,12 @@
     "dev": "tsdown --watch",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "lucide-react": "^0.555.0",
-    "react": "^19.2.0"
-  },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
-    "@motiadev/ui": "workspace:*"
+    "@motiadev/ui": "workspace:*",
+    "lucide-react": "^0.555.0",
+    "motia": "workspace:*",
+    "react": "^19.2.3"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",

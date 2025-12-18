@@ -45,6 +45,7 @@ export const getLanguageBasedRunner = (
     return { runner: rubyRunner, command: 'ruby', args: [] }
   } else if (isNode) {
     const defaultNodeOverrides = overrides?.node
+    const isTypeScript = stepFilePath.endsWith('.ts')
 
     if (process.env._MOTIA_TEST_MODE === 'true') {
       const runnerFile = defaultNodeOverrides?.ts ?? 'node-runner.ts'
@@ -55,6 +56,11 @@ export const getLanguageBasedRunner = (
       }
     }
     const jsRunner = path.join(__dirname, 'node', defaultNodeOverrides?.js ?? 'node-runner.mjs')
+
+    if (isTypeScript) {
+      return { runner: jsRunner, command: 'node', args: [] }
+    }
+
     const tsxPath = getTsxPath()
     // When tsx resolves to a file path, run it through node (tsx CLI is an .mjs file)
     // When tsx falls back to 'tsx' string, use it directly as a command (assumes tsx is in PATH)

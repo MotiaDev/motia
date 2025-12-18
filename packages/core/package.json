@@ -11,7 +11,7 @@
       "import": "./dist/index.mjs"
     }
   },
-  "version": "0.15.5-beta.173",
+  "version": "0.17.9-beta.191",
   "scripts": {
     "python-setup": "python3 -m venv python_modules && python_modules/bin/pip install -r requirements.txt",
     "build": "tsdown",
@@ -28,6 +28,7 @@
     "body-parser": "^1.20.3",
     "picocolors": "^1.1.1",
     "dotenv": "^16.4.7",
+    "esbuild": "^0.25.0",
     "express": "^4.21.2",
     "tsx": "^4.20.6",
     "node-cron": "^3.0.3",
@@ -35,7 +36,7 @@
     "tsconfig-paths": "^4.2.0",
     "uuid": "^11.1.0",
     "ws": "^8.18.2",
-    "zod": "^4.1.12"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",
