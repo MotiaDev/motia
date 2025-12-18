@@ -14,13 +14,9 @@ This guide covers the architecture and best practices for structuring Motia proj
 
 ## File Structure
 
-Motia automatically discovers step files from your project. You can organize steps in either:
+Motia automatically discovers step files from your project.
 
-- **`/src` folder** (recommended) - Familiar pattern for most developers
-- **`/steps` folder** - Traditional Motia pattern
-- Both folders simultaneously
-
-### Recommended Structure (using `/src`)
+### Recommended Structure
 
 ```
 project/
@@ -39,24 +35,7 @@ project/
 └── motia.config.ts
 ```
 
-### Alternative Structure (using `/steps`)
-
-```
-project/
-├── steps/
-│   ├── api/
-│   │   └── users.step.ts
-│   ├── events/
-│   │   └── order-processing.step.ts
-│   └── cron/
-│       └── cleanup.step.ts
-├── src/
-│   ├── services/
-│   └── utils/
-└── motia.config.ts
-```
-
-Create subfolders within your chosen directory to organize related steps into logical groups (domains, features, or flows).
+Create subfolders within your `/src` directory to organize related steps into logical groups (domains, features, or flows).
 
 **Why `/src` is recommended:**
 - Familiar to developers from other frameworks (Next.js, NestJS, etc.)

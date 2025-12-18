@@ -1,6 +1,6 @@
 ---
 description: Connecting nodes virtually and creating a smooth flow in Workbench
-globs: steps/**/*.step.ts,steps/**/*.step.js,steps/**/*_step.py
+globs: src/**/*.step.ts,src/**/*.step.js,src/**/*_step.py
 alwaysApply: false
 ---
 
