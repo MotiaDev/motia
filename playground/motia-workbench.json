@@ -172,6 +172,10 @@
   {
     "id": "files",
     "config": {
+      "src/test/file-upload.step.ts": {
+        "x": -50,
+        "y": 404
+      },
       "src/test/download-pdf.step.ts": {
         "x": 1,
         "y": 0
