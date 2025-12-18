@@ -277,4 +277,88 @@ describe('Server', () => {
       await server.close()
     }, 20000)
   })
+
+  describe('Multipart form-data uploads', () => {
+    const baseDir = path.join(__dirname, 'steps')
+    let server: MotiaServer
+
+    beforeEach(async () => {
+      const lockedData = new LockedData(
+        baseDir,
+        new MemoryStreamAdapterManager(),
+        new NoPrinter(),
+        createMockRedisClient(),
+      )
+      const state = new MemoryStateAdapter()
+      server = createServer(lockedData, state, config, {
+        eventAdapter: new InMemoryQueueEventAdapter(),
+        cronAdapter: new InMemoryCronAdapter(),
+      })
+    })
+
+    afterEach(async () => server?.close())
+
+    it('should handle single file upload', async () => {
+      const mockApiStep: Step<ApiRouteConfig> = createApiStep(
+        { emits: [], path: '/upload', method: 'POST', name: 'file-upload-step' },
+        path.join(baseDir, 'file-upload-step.ts'),
+      )
+      server.addRoute(mockApiStep)
+
+      const response = await request(server.app).post('/upload').attach('file', Buffer.from('test content'), 'test.txt')
+
+      expect(response.status).toBe(200)
+      expect(response.body.uploaded).toBe(1)
+      expect(response.body.files[0]).toMatchObject({
+        fieldName: 'file',
+        originalName: 'test.txt',
+        mimeType: 'text/plain',
+      })
+    })
+
+    it('should handle multiple file uploads', async () => {
+      const mockApiStep: Step<ApiRouteConfig> = createApiStep(
+        { emits: [], path: '/upload', method: 'POST', name: 'file-upload-step' },
+        path.join(baseDir, 'file-upload-step.ts'),
+      )
+      server.addRoute(mockApiStep)
+
+      const response = await request(server.app)
+        .post('/upload')
+        .attach('file1', Buffer.from('content 1'), 'file1.txt')
+        .attach('file2', Buffer.from('content 2'), 'file2.txt')
+
+      expect(response.status).toBe(200)
+      expect(response.body.uploaded).toBe(2)
+      expect(response.body.files).toHaveLength(2)
+    })
+
+    it('should include correct file size in response', async () => {
+      const mockApiStep: Step<ApiRouteConfig> = createApiStep(
+        { emits: [], path: '/upload', method: 'POST', name: 'file-upload-step' },
+        path.join(baseDir, 'file-upload-step.ts'),
+      )
+      server.addRoute(mockApiStep)
+
+      const content = 'Hello, World!'
+      const response = await request(server.app).post('/upload').attach('file', Buffer.from(content), 'hello.txt')
+
+      expect(response.status).toBe(200)
+      expect(response.body.files[0].size).toBe(content.length)
+    })
+
+    it('should handle requests with no files', async () => {
+      const mockApiStep: Step<ApiRouteConfig> = createApiStep(
+        { emits: [], path: '/upload', method: 'POST', name: 'file-upload-step' },
+        path.join(baseDir, 'file-upload-step.ts'),
+      )
+      server.addRoute(mockApiStep)
+
+      const response = await request(server.app).post('/upload')
+
+      expect(response.status).toBe(200)
+      expect(response.body.uploaded).toBe(0)
+      expect(response.body.files).toHaveLength(0)
+    })
+  })
 })
