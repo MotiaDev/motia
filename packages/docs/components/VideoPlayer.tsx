@@ -3,13 +3,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { usePlausibleTracking, VideoEventProps } from '../hooks/usePlausibleTracking'
 
-// Extend Window interface for GTM dataLayer
-declare global {
-  interface Window {
-    dataLayer?: Record<string, unknown>[]
-  }
-}
-
 interface VideoPlayerProps {
   videoPath: string
   title?: string
@@ -20,11 +13,15 @@ interface VideoPlayerProps {
 
 // Push event to GTM dataLayer for Google Analytics
 const pushToDataLayer = (eventName: string, eventData: Record<string, unknown>) => {
-  if (typeof window !== 'undefined' && window.dataLayer) {
-    window.dataLayer.push({
-      event: eventName,
-      ...eventData,
-    })
+  if (typeof window !== 'undefined') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dataLayer = (window as any).dataLayer
+    if (dataLayer) {
+      dataLayer.push({
+        event: eventName,
+        ...eventData,
+      })
+    }
   }
 }
 
