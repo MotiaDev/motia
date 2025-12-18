@@ -1,0 +1,382 @@
+---
+title: Deploy to Fly.io
+description: Deploy your Motia app to Fly.io with Upstash Redis for global edge deployment
+---
+
+Fly.io runs your app on fast micro-VMs close to your users. Combined with Upstash Redis, you get a globally distributed Motia backend.
+
+This guide walks you through deploying a Motia app to Fly.io with production Redis.
+
+<Callout type="info">
+**What you'll get:** A containerized Motia app running on Fly.io with Upstash Redis for state, events, streams, and cron locking.
+</Callout>
+
+---
+
+## Prerequisites
+
+Before you start:
+
+- A [Fly.io account](https://fly.io) (free tier works)
+- [Fly CLI](https://fly.io/docs/hands-on/install-flyctl/) installed
+- Docker running locally (for testing)
+- A Motia project ready to deploy
+
+Install the Fly CLI:
+
+```bash
+# macOS
+brew install flyctl
+
+# Windows
+powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
+
+# Linux
+curl -L https://fly.io/install.sh | sh
+```
+
+Login:
+
+```bash
+flyctl auth login
+```
+
+---
+
+## Quick Start
+
+<Steps>
+<Step>
+#### Generate Docker files
+
+From your Motia project root:
+
+```bash
+npx motia@latest docker setup
+```
+
+This creates `Dockerfile` and `.dockerignore`.
+
+</Step>
+<Step>
+#### Create fly.toml
+
+```toml title="fly.toml"
+app = "my-motia-app"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+```
+
+Replace `my-motia-app` with your app name and `sjc` with your preferred [region](https://fly.io/docs/reference/regions/).
+
+</Step>
+<Step>
+#### Launch your app
+
+```bash
+flyctl launch --no-deploy
+```
+
+This creates your app on Fly without deploying yet.
+
+</Step>
+<Step>
+#### Add Upstash Redis
+
+```bash
+flyctl redis create
+```
+
+Follow the prompts to create a Redis instance. Choose a region close to your app.
+
+<Callout type="warn">
+Upstash Redis on Fly requires a credit card on file, even for free tier usage.
+</Callout>
+
+</Step>
+<Step>
+#### Set environment variables
+
+```bash
+flyctl secrets set NODE_ENV=production USE_REDIS=true
+```
+
+The Redis URL is automatically attached when you create Redis with `flyctl redis create`.
+
+</Step>
+<Step>
+#### Deploy
+
+```bash
+flyctl deploy
+```
+
+Fly builds your Docker image and deploys it globally.
+
+</Step>
+<Step>
+#### Get your URL
+
+Your app is live at: `https://my-motia-app.fly.dev`
+
+</Step>
+</Steps>
+
+---
+
+## Project Setup
+
+### Update Your Start Script
+
+Fly injects the port via environment variables. Update your `package.json`:
+
+```json title="package.json"
+{
+  "scripts": {
+    "start": "motia start --port ${PORT:-3000} --host 0.0.0.0"
+  }
+}
+```
+
+The `--host 0.0.0.0` is important - Fly needs your app to listen on all interfaces.
+
+### Configure Redis Adapters
+
+Install the adapter packages:
+
+```bash
+npm install @motiadev/adapter-redis-state \
+            @motiadev/adapter-redis-streams \
+            @motiadev/adapter-redis-cron \
+            @motiadev/adapter-bullmq-events
+```
+
+Update your `motia.config.ts`:
+
+```typescript title="motia.config.ts"
+import { defineConfig } from '@motiadev/core'
+import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
+import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
+import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
+import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
+
+// Parse REDIS_URL (set automatically by Fly when you attach Upstash Redis)
+// Format: rediss://default:password@host:port
+const url = new URL(process.env.REDIS_URL || 'redis://localhost:6379')
+
+const redisConfig = {
+  host: url.hostname,
+  port: Number(url.port) || 6379,
+  username: url.username || undefined,
+  password: url.password || undefined,
+  tls: url.protocol === 'rediss:',  // Upstash requires TLS
+}
+
+export default defineConfig({
+  adapters: {
+    state: new RedisStateAdapter({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+    streams: new RedisStreamAdapterManager({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+    events: new BullMQEventAdapter({
+      connection: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+        username: redisConfig.username,
+        password: redisConfig.password,
+        tls: redisConfig.tls ? {} : undefined,
+        maxRetriesPerRequest: null,
+      },
+    }),
+    cron: new RedisCronAdapter({
+      socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    }),
+  },
+})
+```
+
+<Callout type="info">
+**That's it!** The config parses `REDIS_URL` automatically. Fly sets this when you run `flyctl redis create`.
+</Callout>
+
+---
+
+## Fly.io vs Railway
+
+| Feature | Fly.io | Railway |
+|---------|--------|---------|
+| Global regions | 30+ regions | Limited regions |
+| Redis | Upstash (external) | Built-in Redis |
+| Pricing | Pay-per-use | Usage-based |
+| CLI | `flyctl` | `railway` |
+| Best for | Edge deployment | Simple setup |
+
+Choose Fly.io if you need low-latency responses globally. Choose Railway for simpler Redis setup.
+
+---
+
+## Common Commands
+
+```bash
+# Check app status
+flyctl status
+
+# View logs
+flyctl logs
+
+# SSH into your app
+flyctl ssh console
+
+# Scale machines
+flyctl scale count 3
+
+# List secrets
+flyctl secrets list
+
+# Destroy app
+flyctl apps destroy my-motia-app
+```
+
+---
+
+## Troubleshooting
+
+### App Not Listening on Expected Address
+
+**Symptom:** Fly warns "app is not listening on the expected address"
+
+**Fix:** Make sure your start script includes `--host 0.0.0.0`:
+
+```json
+"start": "motia start --port ${PORT:-3000} --host 0.0.0.0"
+```
+
+### Redis Connection Refused
+
+**Symptom:** Logs show `ECONNREFUSED 127.0.0.1:6379`
+
+**Cause:** App is trying to connect to local Redis instead of Upstash.
+
+**Fix:**
+1. Check if `REDIS_URL` is set: `flyctl secrets list`
+2. Create Redis if missing: `flyctl redis create`
+3. Verify your config parses the URL correctly
+
+### TLS Connection Errors
+
+**Symptom:** Redis connection fails with TLS/SSL errors
+
+**Cause:** Upstash requires TLS (`rediss://`), but your config isn't enabling it.
+
+**Fix:** Make sure your config enables TLS when the protocol is `rediss://`:
+
+```typescript
+const useTls = url.protocol === 'rediss:'
+```
+
+### Machine Keeps Restarting
+
+**Symptom:** App restarts repeatedly in logs
+
+**Common causes:**
+1. Unhandled exceptions during startup
+2. Missing environment variables
+3. Port binding issues
+
+**Debug:** Check logs for the actual error:
+
+```bash
+flyctl logs
+```
+
+---
+
+## Local Testing with Docker
+
+Test your production setup locally before deploying:
+
+```yaml title="docker-compose.yml"
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  motia:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - USE_REDIS=true
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+```
+
+Run:
+
+```bash
+docker-compose up --build
+```
+
+If it works locally, it'll work on Fly.
+
+---
+
+## Scaling Globally
+
+Fly makes global deployment easy. Add machines in different regions:
+
+```bash
+# Add a machine in Amsterdam
+flyctl machine clone --region ams
+
+# Add a machine in Sydney  
+flyctl machine clone --region syd
+```
+
+With Redis adapters configured, all machines share state automatically. Users connect to the nearest machine for lowest latency.
+
+---
+
+## What's Next?
+
+<Cards>
+  <Card href="/docs/deployment-guide/railway" title="Deploy to Railway">
+    Alternative with simpler Redis setup
+  </Card>
+  
+  <Card href="/docs/deployment-guide/self-hosted" title="Self-Hosted">
+    Full control with your own infrastructure
+  </Card>
+</Cards>
