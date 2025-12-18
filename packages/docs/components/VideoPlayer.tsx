@@ -1,6 +1,14 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { usePlausibleTracking, VideoEventProps } from '../hooks/usePlausibleTracking'
+
+// Extend Window interface for GTM dataLayer
+declare global {
+  interface Window {
+    dataLayer?: Record<string, unknown>[]
+  }
+}
 
 interface VideoPlayerProps {
   videoPath: string
@@ -8,6 +16,16 @@ interface VideoPlayerProps {
   thumbnailPath?: string
   gifPath?: string // Path to the animated GIF preview
   className?: string
+}
+
+// Push event to GTM dataLayer for Google Analytics
+const pushToDataLayer = (eventName: string, eventData: Record<string, unknown>) => {
+  if (typeof window !== 'undefined' && window.dataLayer) {
+    window.dataLayer.push({
+      event: eventName,
+      ...eventData,
+    })
+  }
 }
 
 export function VideoPlayer({ videoPath, title, thumbnailPath, gifPath, className = '' }: VideoPlayerProps) {
@@ -20,11 +38,39 @@ export function VideoPlayer({ videoPath, title, thumbnailPath, gifPath, classNam
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Track which milestones have been triggered to avoid duplicate events
+  const trackedMilestonesRef = useRef<Set<number>>(new Set())
+  const hasTrackedPlayRef = useRef(false)
+  
+  const { trackVideoPlay, trackVideoPause, trackVideoProgress, trackVideoComplete } = usePlausibleTracking()
+
+  const getVideoEventProps = useCallback((): VideoEventProps => {
+    const video = videoRef.current
+    return {
+      videoTitle: title,
+      videoPath: videoPath,
+      duration: video?.duration,
+      currentTime: video?.currentTime,
+      percentComplete: video ? Math.round((video.currentTime / video.duration) * 100) : 0,
+    }
+  }, [title, videoPath])
 
   const handlePlayClick = () => {
     setIsPlaying(true)
     setTimeout(() => {
       videoRef.current?.play()
+      // Track video play event
+      if (!hasTrackedPlayRef.current) {
+        const props = getVideoEventProps()
+        trackVideoPlay(props)
+        // Also push to GTM dataLayer for Google Analytics
+        pushToDataLayer('video_start', {
+          video_title: props.videoTitle,
+          video_url: props.videoPath,
+        })
+        hasTrackedPlayRef.current = true
+      }
     }, 100)
   }
 
@@ -33,9 +79,28 @@ export function VideoPlayer({ videoPath, title, thumbnailPath, gifPath, classNam
       if (videoRef.current.paused) {
         videoRef.current.play()
         setIsPaused(false)
+        // Track resume/play event if this is the first play
+        if (!hasTrackedPlayRef.current) {
+          const props = getVideoEventProps()
+          trackVideoPlay(props)
+          pushToDataLayer('video_start', {
+            video_title: props.videoTitle,
+            video_url: props.videoPath,
+          })
+          hasTrackedPlayRef.current = true
+        }
       } else {
         videoRef.current.pause()
         setIsPaused(true)
+        // Track pause event
+        const props = getVideoEventProps()
+        trackVideoPause(props)
+        pushToDataLayer('video_pause', {
+          video_title: props.videoTitle,
+          video_url: props.videoPath,
+          video_current_time: props.currentTime,
+          video_percent: props.percentComplete,
+        })
       }
     }
   }
@@ -65,8 +130,38 @@ export function VideoPlayer({ videoPath, title, thumbnailPath, gifPath, classNam
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      const progress = (videoRef.current.currentTime / videoRef.current.duration) * 100
-      setProgress(progress)
+      const currentProgress = (videoRef.current.currentTime / videoRef.current.duration) * 100
+      setProgress(currentProgress)
+      
+      // Track progress milestones (25%, 50%, 75%)
+      const milestones = [25, 50, 75]
+      for (const milestone of milestones) {
+        if (currentProgress >= milestone && !trackedMilestonesRef.current.has(milestone)) {
+          trackedMilestonesRef.current.add(milestone)
+          const props = getVideoEventProps()
+          trackVideoProgress(props, milestone)
+          pushToDataLayer('video_progress', {
+            video_title: props.videoTitle,
+            video_url: props.videoPath,
+            video_percent: milestone,
+          })
+        }
+      }
+    }
+  }
+
+  const handleVideoEnded = () => {
+    setIsPaused(true)
+    // Track video completion
+    if (!trackedMilestonesRef.current.has(100)) {
+      trackedMilestonesRef.current.add(100)
+      const props = getVideoEventProps()
+      trackVideoComplete(props)
+      pushToDataLayer('video_complete', {
+        video_title: props.videoTitle,
+        video_url: props.videoPath,
+        video_duration: props.duration,
+      })
     }
   }
 
@@ -155,7 +250,7 @@ export function VideoPlayer({ videoPath, title, thumbnailPath, gifPath, classNam
               preload="none"
               playsInline
               onTimeUpdate={handleTimeUpdate}
-              onEnded={() => setIsPaused(true)}
+              onEnded={handleVideoEnded}
               onClick={togglePlayPause}
             >
               <source src={videoPath} type="video/mp4" />
