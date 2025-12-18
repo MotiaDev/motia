@@ -31,12 +31,12 @@ With Motia Streams, you get all of this out of the box. Just define what data yo
 
 ## Creating a Stream
 
-Streams are just files. Create a `.stream.ts` file in your `steps/` folder and export a config.
+Streams are just files. Create a `.stream.ts` file in your `src/` folder and export a config.
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
-```typescript title="steps/chat-messages.stream.ts"
+```typescript title="src/chat-messages.stream.ts"
 import { StreamConfig } from 'motia'
 import { z } from 'zod'
 
@@ -57,7 +57,7 @@ export const config: StreamConfig = {
 </Tab>
 <Tab value='Python'>
 
-```python title="steps/chat_messages_stream.py"
+```python title="src/chat_messages_stream.py"
 from pydantic import BaseModel
 
 class ChatMessage(BaseModel):
@@ -76,7 +76,7 @@ config = {
 </Tab>
 <Tab value='JavaScript'>
 
-```javascript title="steps/chat-messages.stream.js"
+```javascript title="src/chat-messages.stream.js"
 const config = {
   name: 'chatMessage',
   schema: {
@@ -137,7 +137,7 @@ Let's build a todo app where all connected clients see updates instantly.
 
 **Step 1:** Create the stream definition
 
-```typescript title="steps/todo.stream.ts"
+```typescript title="src/todo.stream.ts"
 import { StreamConfig } from 'motia'
 import { z } from 'zod'
 
@@ -160,7 +160,7 @@ export type Todo = z.infer<typeof todoSchema>
 
 **Step 2:** Create an API endpoint that uses streams
 
-```typescript title="steps/create-todo.step.ts"
+```typescript title="src/create-todo.step.ts"
 import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
 import { Todo } from './todo.stream'
@@ -285,7 +285,7 @@ Motia uses `contextSchema` to generate the `StreamAuthContext` type inside your 
 
 Each stream can expose an optional `canAccess` function that receives the subscription info plus the `StreamAuthContext` value returned by your `authenticate` function.
 
-```typescript title="steps/chat-messages.stream.ts"
+```typescript title="src/chat-messages.stream.ts"
 export const config: StreamConfig = {
   name: 'chatMessage',
   schema: chatMessageSchema,

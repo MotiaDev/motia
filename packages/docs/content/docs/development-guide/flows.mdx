@@ -64,7 +64,7 @@ Two Steps working together in one flow.
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
-```typescript title="steps/create-resource.step.ts"
+```typescript title="src/create-resource.step.ts"
 import { ApiRouteConfig, Handlers } from 'motia'
 
 export const config: ApiRouteConfig = {
@@ -91,7 +91,7 @@ export const handler: Handlers['CreateResource'] = async (req, { emit, logger })
 </Tab>
 <Tab value='Python'>
 
-```python title="steps/create_resource_step.py"
+```python title="src/create_resource_step.py"
 config = {
     "name": "CreateResource",
     "type": "api",
@@ -115,7 +115,7 @@ async def handler(req, ctx):
 </Tab>
 <Tab value='JavaScript'>
 
-```javascript title="steps/create-resource.step.js"
+```javascript title="src/create-resource.step.js"
 const config = {
   name: 'CreateResource',
   type: 'api',
@@ -147,7 +147,7 @@ module.exports = { config, handler }
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
-```typescript title="steps/send-email.step.ts"
+```typescript title="src/send-email.step.ts"
 import { EventConfig, Handlers } from 'motia'
 
 export const config: EventConfig = {
@@ -166,7 +166,7 @@ export const handler: Handlers['SendEmail'] = async (input, { logger }) => {
 </Tab>
 <Tab value='Python'>
 
-```python title="steps/send_email_step.py"
+```python title="src/send_email_step.py"
 config = {
     "name": "SendEmail",
     "type": "event",
@@ -182,7 +182,7 @@ async def handler(input, ctx):
 </Tab>
 <Tab value='JavaScript'>
 
-```javascript title="steps/send-email.step.js"
+```javascript title="src/send-email.step.js"
 const config = {
   name: 'SendEmail',
   type: 'event',
