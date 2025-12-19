@@ -1,5 +1,5 @@
 import { CollapsiblePanel, TabsContent, TabsList, TabsTrigger } from '@motiadev/ui'
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { type AppTabsState, TabLocation, useAppTabsStore } from '../stores/use-app-tabs-store'
 import { useTabsStore } from '../stores/use-tabs-store'
@@ -12,6 +12,19 @@ export const BottomPanel = memo(() => {
   const defaultTab = useTabsStore((state) => state.tab.bottom)
   const setBottomTab = useTabsStore((state) => state.setBottomTab)
   const tabs = useAppTabsStore(useShallow(bottomTabsSelector))
+
+  useEffect(() => {
+    const handleNavigateToTrace = () => {
+      // Switch to tracing tab when trace navigation is requested
+      setBottomTab('tracing')
+    }
+
+    window.addEventListener('motia:navigate-to-trace', handleNavigateToTrace)
+
+    return () => {
+      window.removeEventListener('motia:navigate-to-trace', handleNavigateToTrace)
+    }
+  }, [setBottomTab])
 
   return (
     <CollapsiblePanel
