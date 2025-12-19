@@ -1,6 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type React from 'react'
 import { memo, useEffect, useMemo, useRef } from 'react'
+import { useAllTracesStream } from '../hooks/use-all-traces-stream'
 import { useFilteredTraceGroups } from '../hooks/use-filtered-trace-groups'
 import { useTraceGroupsStream } from '../hooks/use-trace-groups-stream'
 import { useObservabilityStore } from '../stores/use-observability-store'
@@ -10,6 +11,7 @@ const ROW_HEIGHT = 110
 
 export const TracesGroups: React.FC = memo(() => {
   useTraceGroupsStream()
+  useAllTracesStream()
 
   const groups = useFilteredTraceGroups()
   const selectedGroupId = useObservabilityStore((state) => state.selectedTraceGroupId)

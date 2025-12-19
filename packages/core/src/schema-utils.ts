@@ -49,15 +49,17 @@ export function schemaToJsonSchema(schema: SchemaInput): JsonSchema | null {
     return z.toJSONSchema(schema, { target: 'draft-7' }) as JsonSchema
   }
 
+  // Check isJsonSchema BEFORE isStandardSchema
+  // because Zod 4's toJSONSchema() output includes ~standard marker
+  if (isJsonSchema(schema)) {
+    return schema as JsonSchema
+  }
+
   if (isStandardSchema(schema)) {
     if ('toJSON' in schema && typeof schema.toJSON === 'function') {
       return schema.toJSON() as JsonSchema
     }
     return null
-  }
-
-  if (isJsonSchema(schema)) {
-    return schema as JsonSchema
   }
 
   return null

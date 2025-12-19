@@ -380,7 +380,13 @@ We welcome contributions! Check our **[Contributing Guide](https://github.com/Mo
 
 **[🚀 Get Started](https://motia.dev)** • **[📖 Docs](https://motia.dev/docs)** • **[💬 Discord](https://discord.gg/motia)**
 
-[![Star History Chart](https://api.star-history.com/svg?repos=motiadev/motia&type=Date)](https://www.star-history.com/#motiadev/motia&Date)
+<a href="https://git-history.com">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://git-history.com/api/embed/stars?repos=MotiaDev/motia&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://git-history.com/api/embed/stars?repos=MotiaDev/motia&theme=light" />
+    <img alt="Star History Chart" src="https://git-history.com/api/embed/stars?repos=MotiaDev/motia&theme=dark" width="100%" />
+  </picture>
+</a>
 
 <sub>⭐ **Star us if you find Motia useful!**</sub>
 

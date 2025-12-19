@@ -1,6 +1,7 @@
 import { APP_SIDEBAR_CONTAINER_ID, Panel } from '@motiadev/ui'
 import { memo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { TabErrorBoundary } from './components/tab-error-boundary'
 import { type AppTabsState, TabLocation, useAppTabsStore } from './stores/use-app-tabs-store'
 
 const topTabs = (state: AppTabsState) => state.tabs[TabLocation.TOP]
@@ -19,7 +20,11 @@ export const ProjectViewMode = memo(() => {
             return {
               label: tab.id,
               labelComponent: <LabelComponent />,
-              content: <Element />,
+              content: (
+                <TabErrorBoundary tabId={tab.id}>
+                  <Element />
+                </TabErrorBoundary>
+              ),
               'data-testid': tab.id,
             }
           })}

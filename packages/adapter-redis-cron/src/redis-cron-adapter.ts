@@ -37,7 +37,9 @@ export class RedisCronAdapter implements CronAdapter {
       this.client = createClient(config) as RedisClientType
 
       this.client.on('error', (err) => {
-        console.error('[Redis Cron] Client error:', err)
+        if (this.connected) {
+          console.error('[Redis Cron] Client error:', err?.message)
+        }
       })
 
       this.client.on('connect', () => {

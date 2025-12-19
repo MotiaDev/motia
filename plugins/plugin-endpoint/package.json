@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-endpoint",
-  "version": "0.17.6-beta.187",
+  "version": "0.17.9-beta.191",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,18 +28,18 @@
     "@monaco-editor/react": "^4.7.0",
     "clsx": "^2.1.1",
     "json-schema": "^0.4.0",
-    "lucide-react": "^0.555.0",
-    "react": "^19.2.0",
     "react-syntax-highlighter": "^16.1.0",
     "react18-json-view": "^0.2.9",
-    "tailwind-merge": "^3.4.0",
-    "zustand": "^5.0.8"
+    "tailwind-merge": "^3.4.0"
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
+    "zustand": "^5.0.9",
     "@motiadev/stream-client-react": "workspace:*",
     "@motiadev/ui": "workspace:*",
-    "motia": "workspace:*"
+    "lucide-react": "^0.555.0",
+    "motia": "workspace:*",
+    "react": "^19.2.3"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",

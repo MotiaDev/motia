@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-states",
-  "version": "0.17.6-beta.187",
+  "version": "0.17.9-beta.191",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -26,14 +26,15 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "lucide-react": "^0.555.0",
-    "react18-json-view": "^0.2.9",
-    "zustand": "^5.0.8"
+    "react18-json-view": "^0.2.9"
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
+    "zustand": "^5.0.9",
     "@motiadev/ui": "workspace:*",
-    "motia": "workspace:*"
+    "lucide-react": "^0.555.0",
+    "motia": "workspace:*",
+    "react": "^19.2.3"
   },
   "devDependencies": {
     "@bosh-code/tsdown-plugin-inject-css": "^2.0.0",
@@ -44,7 +45,6 @@
     "@types/react": "^19.2.7",
     "babel-plugin-react-compiler": "^1.0.0",
     "publint": "^0.3.15",
-    "react": "^19.2.0",
     "tailwindcss": "^4.1.17",
     "tsdown": "^0.16.8",
     "typescript": "^5.9.3",

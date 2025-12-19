@@ -13,7 +13,7 @@ const colorMap = {
 const extraTag = (color: 'cyan' | 'yellow' | 'red', extra?: string) => {
   const colorFn = colorMap[color as keyof typeof colorMap]
 
-  return extra ? pc.bold(colorFn(extra)) : ''
+  return extra ? colorFn(extra) : ''
 }
 
 export const internalLogger = {

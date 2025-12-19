@@ -23,14 +23,13 @@
     "dev": "tsdown --watch",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "lucide-react": "^0.555.0",
-    "react": "^19.2.0"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "@motiadev/core": "{{VERSION}}",
     "@motiadev/ui": "{{VERSION}}",
-    "motia": "{{VERSION}}"
+    "lucide-react": "^0.555.0",
+    "motia": "{{VERSION}}",
+    "react": "^19.2.3"
   },
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",
