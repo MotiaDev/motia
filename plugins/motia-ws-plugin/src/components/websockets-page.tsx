@@ -226,7 +226,7 @@ export const WebSocketsPage: React.FC = () => {
           {isConnected && connectionHealth.latency !== null && (
             <div
               className="flex items-center gap-1.5 text-xs text-muted-foreground"
-              aria-label={`Latency ${connectionHealth.latency}ms`}
+              title={`Latency ${connectionHealth.latency}ms`}
             >
               <Activity
                 className={cn(

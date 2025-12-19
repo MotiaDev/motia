@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { defineConfig, type MotiaPlugin, type MotiaPluginContext, type StreamAuthRequest } from '@motiadev/core'
+import cronPlugin from '@motiadev/cron-plugin/plugin'
 import bullmqPlugin from '@motiadev/plugin-bullmq/plugin'
 import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
 import examplePlugin from '@motiadev/plugin-example/plugin'
@@ -7,7 +8,6 @@ import logsPlugin from '@motiadev/plugin-logs/plugin'
 import observabilityPlugin from '@motiadev/plugin-observability/plugin'
 import statesPlugin from '@motiadev/plugin-states/plugin'
 import wsPlugin from '@motiadev/ws-plugin/plugin'
-import cronPlugin from '@motiadev/cron-plugin/plugin'
 import { z } from 'zod'
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname)

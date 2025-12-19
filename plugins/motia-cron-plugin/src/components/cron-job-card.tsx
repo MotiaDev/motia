@@ -100,7 +100,7 @@ export const CronJobCard: React.FC<CronJobCardProps> = ({ job, isSelected, onSel
         !job.enabled && 'opacity-60',
       )}
       onClick={onSelect}
-      role="button"
+      role="option"
       tabIndex={0}
       aria-selected={isSelected}
       aria-label={`Cron job: ${job.name}`}

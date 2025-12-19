@@ -122,7 +122,7 @@ export const MessageViewer: React.FC<MessageViewerProps> = ({
       // Find all matches
       patterns.forEach(({ regex, className }) => {
         const re = new RegExp(regex.source, 'g')
-        let match
+        let match: RegExpExecArray | null
         while ((match = re.exec(line)) !== null) {
           const capturedGroup = match[1]
           const groupStart = match.index + match[0].indexOf(capturedGroup)
