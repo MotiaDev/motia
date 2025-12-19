@@ -1,3 +1,4 @@
+import type { File } from 'multer'
 import type { ZodArray, ZodObject } from 'zod'
 import type { Logger } from './logger'
 import type { Tracer } from './observability'
@@ -233,6 +234,6 @@ declare module 'http' {
   interface IncomingMessage {
     authContext?: unknown | null
     rawBody?: string
-    files?: UploadedFile[]
+    files?: File[]
   }
 }
