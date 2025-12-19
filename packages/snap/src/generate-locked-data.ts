@@ -26,8 +26,8 @@ const getStepFilesFromDir = (dir: string): string[] => {
     return []
   }
   return [
-    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: dir }),
-    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: dir }),
+    ...globSync('**/*.step.{ts,js,rb}', { absolute: true, cwd: dir, ignore: ['**/.motia/compiled/**'] }),
+    ...globSync('**/*_step.{ts,js,py,rb}', { absolute: true, cwd: dir, ignore: ['**/.motia/compiled/**'] }),
   ]
 }
 
@@ -42,8 +42,8 @@ const getStreamFilesFromDir = (dir: string): string[] => {
     return []
   }
   return [
-    ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: dir }),
-    ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: dir }),
+    ...globSync('**/*.stream.{ts,js,rb}', { absolute: true, cwd: dir, ignore: ['**/.motia/compiled/**'] }),
+    ...globSync('**/*_stream.{ts,js,py,rb}', { absolute: true, cwd: dir, ignore: ['**/.motia/compiled/**'] }),
   ]
 }
 
