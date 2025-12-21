@@ -46,9 +46,10 @@ function copyDirectoryRecursive(src: string, dest: string): void {
  * @throws Error if copy fails after all fallback attempts
  */
 export function copyWithWSLCompat(src: string, dest: string, isDirectory: boolean): void {
-  // Ensure destination directory exists
-  const destDir = isDirectory ? dest : path.dirname(dest)
-  fs.mkdirSync(destDir, { recursive: true })
+  // Ensure the destination *parent* directory exists.
+  // - For directory copies, fs.cpSync/copyDirectoryRecursive will create `dest` as needed.
+  // - For file copies, we only need the parent directory.
+  fs.mkdirSync(path.dirname(dest), { recursive: true })
 
   try {
     // Try the standard cpSync first (faster and works in most cases)
@@ -56,10 +57,13 @@ export function copyWithWSLCompat(src: string, dest: string, isDirectory: boolea
       recursive: isDirectory,
       force: true,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If we get permission errors (common in WSL when writing to Windows paths),
     // fall back to manual copy using read/write operations
-    if (error.code === 'EPERM' || error.code === 'EACCES') {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error ? (error as NodeJS.ErrnoException).code : undefined
+
+    if (code === 'EPERM' || code === 'EACCES') {
       if (isDirectory) {
         copyDirectoryRecursive(src, dest)
       } else {

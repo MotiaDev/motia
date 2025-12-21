@@ -267,7 +267,6 @@ export const create = async ({
 
     const installCommands: Record<string, string> = {
       ...getInstallCommands(rootDir),
-      yarn: 'yarn', // yarn uses plain 'yarn' for install
     }
     const installCommand = installCommands[packageManager] || installCommands['npm']
 
