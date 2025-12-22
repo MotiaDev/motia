@@ -6,6 +6,7 @@ import type { CliContext, Message } from '../cloud/config-utils'
 import { generateTypes } from '../generate-types'
 import { pythonInstall } from '../install'
 import { pluginDependencies } from '../plugins/plugin-dependencies'
+import { getInstallCommands, getInstallSaveCommands } from '../utils/build-npm-command'
 import { executeCommand } from '../utils/execute-command'
 import { getPackageManager, getPackageManagerFromEnv } from '../utils/get-package-manager'
 import { version } from '../version'
@@ -18,12 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const installRequiredDependencies = async (packageManager: string, rootDir: string, context: CliContext) => {
   context.log('installing-dependencies', (message: Message) => message.tag('info').append('Installing dependencies...'))
 
-  const installCommand = {
-    npm: 'npm install --save',
-    yarn: 'yarn add',
-    pnpm: 'pnpm add',
-    bun: 'bun add',
-  }[packageManager]
+  const installCommand = getInstallSaveCommands(rootDir)[packageManager]
 
   const dependencies = [
     `motia@${version}`,
@@ -269,15 +265,13 @@ export const create = async ({
       message.tag('info').append('Installing plugin dependencies...'),
     )
 
-    const installCommand = {
-      npm: 'npm install',
-      yarn: 'yarn',
-      pnpm: 'pnpm install',
-      bun: 'bun install',
-    }[packageManager]
+    const installCommands: Record<string, string> = {
+      ...getInstallCommands(rootDir),
+    }
+    const installCommand = installCommands[packageManager] || installCommands['npm']
 
     try {
-      await executeCommand(installCommand!, rootDir)
+      await executeCommand(installCommand, rootDir)
       context.log('plugin-dependencies-installed', (message: Message) =>
         message.tag('success').append('Plugin dependencies installed'),
       )
