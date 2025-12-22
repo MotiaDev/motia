@@ -1,7 +1,7 @@
 {
   "name": "@motiadev/ui",
   "description": "Shared React UI components library for the Motia ecosystem",
-  "version": "0.17.9-beta.191",
+  "version": "0.17.11-beta.193",
   "license": "Elastic-2.0",
   "type": "module",
   "main": "./dist/index.js",
