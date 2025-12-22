@@ -1,6 +1,7 @@
 import { exec, execSync } from 'child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import path from 'path'
+import { configureBullMQProject } from './utils/bullmq-setup'
 
 const TEST_PROJECT_NAME = 'motia-e2e-test-project'
 const ROOT_PATH = path.join(process.cwd(), '../..')
@@ -86,6 +87,7 @@ async function globalSetup() {
         },
       })
     }
+    configureBullMQProject({ projectPath: TEST_PROJECT_PATH, workspaceRoot: ROOT_PATH })
 
     console.log('🌟 Starting test project server...')
     const serverProcess = exec('pnpm run dev', {
