@@ -46,7 +46,7 @@ Follow the prompts to pick a template, project name, and language.
 Inside your new project folder, launch the dev server:
 
 ```bash
-npx motia dev # ➜ http://localhost:3000
+npm run dev # ➜ http://localhost:3000
 ```
 
 This spins up the Motia Workbench – a local UI for building, testing & observing your backend in real-time.
@@ -245,8 +245,6 @@ npm run dev [options]
 yarn dev [options]
 # or
 pnpm dev [options]
-# or
-bun run dev  [options]
 
 # options:
   # -p, --port <port>     The port to run the server on (default: 3000)
