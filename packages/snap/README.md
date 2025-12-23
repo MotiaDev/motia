@@ -245,8 +245,6 @@ npm run dev [options]
 yarn dev [options]
 # or
 pnpm dev [options]
-# or
-bun run dev  [options]
 
 # options:
   # -p, --port <port>     The port to run the server on (default: 3000)
