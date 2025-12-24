@@ -96,6 +96,56 @@ export default {
 }
 ```
 
+### [@motiadev/ws-plugin](./motia-ws-plugin)
+
+Real-time WebSocket log monitoring and debugging tool.
+
+> **Credits**: Originally created by [@Rohithgilla12](https://github.com/Rohithgilla12) (Rohith Gilla) as [@potatocoder/ws-plugin](https://github.com/Rohithgilla12/motia-ws-plugin). Now maintained as an official Motia plugin.
+
+**Features:**
+
+- Real-time WebSocket message monitoring
+- Stream subscription management (logs, API endpoints, custom streams)
+- JSON syntax highlighting with expand/collapse for large payloads
+- Message filtering by stream
+- Connection status indicators
+- Copy-to-clipboard functionality
+
+**Usage:**
+
+```typescript
+import wsPlugin from '@motiadev/ws-plugin/plugin'
+
+export default {
+  plugins: [wsPlugin],
+}
+```
+
+### [@motiadev/cron-plugin](./motia-cron-plugin)
+
+Cron job monitoring and management tool for scheduled tasks.
+
+**Features:**
+
+- Real-time cron job monitoring
+- Human-readable cron expression descriptions
+- Next/last execution time display
+- Execution history with duration tracking
+- Manual job triggering
+- Enable/disable job controls
+- Status filtering (idle, running, completed, failed, disabled)
+- Search functionality
+
+**Usage:**
+
+```typescript
+import cronPlugin from '@motiadev/cron-plugin/plugin'
+
+export default {
+  plugins: [cronPlugin],
+}
+```
+
 ### [@motiadev/plugin-example](./plugin-example)
 
 A minimal example plugin demonstrating the plugin system architecture.
