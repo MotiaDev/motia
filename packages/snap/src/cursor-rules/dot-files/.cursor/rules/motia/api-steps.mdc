@@ -9,7 +9,7 @@ API Steps expose HTTP endpoints that can trigger workflows and emit events.
 
 ## Creating API Steps
 
-Steps need to be created in the `steps` folder, it can be in subfolders.
+Steps need to be created in the `src` folder, it can be in subfolders.
 
 - Steps in TS and JS should end with `.step.ts` and `.step.js` respectively.
 - Steps in Python should end with `_step.py`.

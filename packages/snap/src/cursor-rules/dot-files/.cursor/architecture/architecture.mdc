@@ -10,7 +10,7 @@ alwaysApply: true
 
 This guide covers the architecture and best practices for structuring Motia projects.
 
-**Key Takeaway**: Motia automatically discovers steps from anywhere in your project. Modern projects use `/src` for a familiar structure that works seamlessly with Domain-Driven Design.
+**Key Takeaway**: Motia automatically discovers steps from anywhere in the `/src` folder. Modern projects use `/src` for a familiar structure that works seamlessly with Domain-Driven Design.
 
 ## File Structure
 
@@ -88,7 +88,7 @@ Motia encourages Domain-Driven Design (DDD) principles for maintainable, scalabl
 
 ### Folder Structure for DDD
 
-When using `/src` for steps (recommended), your structure naturally supports DDD:
+When using `/src` for steps, your structure naturally supports DDD:
 
 ```
 src/
