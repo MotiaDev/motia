@@ -22,12 +22,12 @@ const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
   Registers a new trigger. A trigger is a way to invoke a function when a certain event occurs.
 
   <AccordionGroup>
-    <Accordion iconName="settings" title="Parameters" description="">
+    <Accordion iconName="Settings" title="Parameters" description="">
       <ResponseField name="trigger" type="RegisterTriggerInput" required>
         The trigger to register.
       </ResponseField>
     </Accordion>
-    <Accordion iconName="arrow-up-right" title="Returns" description="">
+    <Accordion iconName="ArrowUpRight" title="Returns" description="">
       <ResponseField name="Trigger" type="Trigger">
         A trigger object that can be used to unregister the trigger.
 
@@ -45,7 +45,7 @@ const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
   Registers a new service. A service is a collection of functions that are related to each other.
 
   <AccordionGroup>
-    <Accordion iconName="settings" title="Parameters" description="">
+    <Accordion iconName="Settings" title="Parameters" description="">
       <ResponseField name="service" type="RegisterServiceInput" required>
         The service to register.
       </ResponseField>
@@ -57,13 +57,25 @@ const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
   Registers a new function. A function is a unit of work that can be invoked by other services.
 
   <AccordionGroup>
-    <Accordion iconName="settings" title="Parameters" description="">
+    <Accordion iconName="Settings" title="Parameters" description="">
       <ResponseField name="func" type="RegisterFunctionInput" required>
         The function to register.
       </ResponseField>
       <ResponseField name="handler" type="RemoteFunctionHandler" required>
         The handler for the function.
       </ResponseField>
+    </Accordion>
+    <Accordion iconName="Code" title="Sample Code" description="">
+      ```typescript
+      function helloWorld(input: { name: string }) {
+        console.log('Hello,', input.name);
+      }
+
+      bridge.registerFunction({
+        functionPath: 'helloWorld',
+        handler: helloWorld,
+      })
+      ```
     </Accordion>
   </AccordionGroup>
 </ResponseField>
@@ -80,7 +92,7 @@ const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
         The data to pass to the function.
       </ResponseField>
     </Accordion>
-    <Accordion iconName="arrow-up-right" title="Returns" description="">
+    <Accordion iconName="ArrowUpRight" title="Returns" description="">
       <ResponseField name="result" type="Promise&lt;TOutput&gt;">
         The result of the function.
       </ResponseField>
@@ -92,7 +104,7 @@ const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
   Invokes a function asynchronously.
 
   <AccordionGroup>
-    <Accordion iconName="settings" title="Parameters" description="">
+    <Accordion iconName="Settings" title="Parameters" description="">
       <ResponseField name="function_path" type="string" required>
         The path to the function.
       </ResponseField>
@@ -107,7 +119,7 @@ const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
   Registers a new trigger type. A trigger type is a way to invoke a function when a certain event occurs.
 
   <AccordionGroup>
-    <Accordion iconName="settings" title="Parameters" description="">
+    <Accordion iconName="Settings" title="Parameters" description="">
       <ResponseField name="triggerType" type="RegisterTriggerTypeInput" required>
         The trigger type to register.
 
@@ -152,7 +164,7 @@ const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
   Unregisters a trigger type.
 
   <AccordionGroup>
-    <Accordion iconName="settings" title="Parameters" description="">
+    <Accordion iconName="Settings" title="Parameters" description="">
       <ResponseField name="triggerType" type="RegisterTriggerTypeInput" required>
         The trigger type to unregister.
 

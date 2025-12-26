@@ -1,0 +1,253 @@
+---
+title: "Streams Module"
+---
+
+Durable streams for real-time data subscriptions.
+
+```
+modules::streams::StreamModule
+```
+
+## Sample Configuration
+
+```yaml
+  - class: modules::streams::StreamModule
+    config:
+      port: ${STREAMS_PORT:31112}
+      host: 0.0.0.0
+      auth_function: motia.streams.authenticate
+      adapter:
+        class: modules::streams::adapters::RedisAdapter
+        config:
+          redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+## Configuration
+
+<ResponseField name="port" type="number">
+  The port to listen on. Defaults to `31112`.
+</ResponseField>
+
+<ResponseField name="host" type="string">
+  The host to listen on. Defaults to `0.0.0.0`.
+</ResponseField>
+
+<ResponseField name="auth_function" type="string">
+  The authentication function to use. It's a path to a function that will be used to authenticate the client.
+  You can register the function using the III SDK and then use the path to the function here.
+</ResponseField>
+
+<ResponseField name="adapter" type="Adapter">
+  The adapter to use. It's the adapter that will be used to store the streams.
+  You can register the adapter using the III SDK and then use the path to the adapter here.
+</ResponseField>
+
+## Adapters
+
+### modules::streams::adapters::RedisAdapter
+
+Uses Redis as the backend for the streams. This will use the key/value store to store the streams data and also leverage
+Redis Pub/Sub to publish and subscribe to the streams.
+
+```yaml
+  class: modules::streams::adapters::RedisAdapter
+  config:
+    redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+#### Configuration
+
+<ResponseField name="redis_url" type="string">
+  The URL of the Redis instance to use.
+</ResponseField>
+
+## Functions
+
+<ResponseField name="streams.set" type="function">
+  Sets a value in the stream.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="stream_name" type="string" required>
+        The ID of the stream to set the value in.
+      </ResponseField>
+      <ResponseField name="group_id" type="string" required>
+        The group ID of the stream to set the value in.
+      </ResponseField>
+      <ResponseField name="item_id" type="string" required>
+        The item ID of the stream to set the value in.
+      </ResponseField>
+      <ResponseField name="data" type="any" required>
+        The value to set in the stream.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="value" type="any" required>
+        The value set in the stream.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="streams.get" type="function">
+  Gets a value from the stream.
+
+  <AccordionGroup>
+    <Accordion title="Parameters">
+      <ResponseField name="stream_name" type="string" required>
+        The ID of the stream to retrieve the value from.
+      </ResponseField>
+      <ResponseField name="group_id" type="string" required>
+        The group ID in the stream to retrieve the value from.
+      </ResponseField>
+      <ResponseField name="item_id" type="string" required>
+        The item ID in the stream to retrieve.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="value" type="any" required>
+        The value retrieved from the stream.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+
+</ResponseField>
+
+
+<ResponseField name="streams.delete" type="function">
+  Deletes a value from the stream.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="stream_name" type="string" required>
+        The ID of the stream to delete the value from.
+      </ResponseField>
+      <ResponseField name="group_id" type="string" required>
+        The group ID in the stream to delete the value from.
+      </ResponseField>
+      <ResponseField name="item_id" type="string" required>
+        The item ID in the stream to delete.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="value" type="any" required>
+        The value deleted from the stream.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="streams.getGroup" type="function">
+  Retrieves a group from the stream.
+  This function will return all the items in the group.
+  
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="stream_name" type="string" required>
+        The ID of the stream to retrieve the group from.
+      </ResponseField>
+      <ResponseField name="group_id" type="string" required>
+        The group ID in the stream to retrieve the group from.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="group" type="any[]" required>
+        The group retrieved from the stream. It's an array of items in the group.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+## Authentication
+
+It's possible to implement a function to handle authentication.
+
+1. Define a function to handle the authentication. It received one single argument with the request data.
+
+<Expandable title="StreamAuthInput">
+  <ResponseField name="headers" type="Record&lt;string, string&gt;" required>
+    The HTTP headers sent with the request.
+  </ResponseField>
+  <ResponseField name="path" type="string" required>
+    The request path.
+  </ResponseField>
+  <ResponseField name="query_params" type="Record&lt;string, string[]&gt;" required>
+    Query parameters in the request, as a map from key to array of string values.
+  </ResponseField>
+  <ResponseField name="addr" type="string" required>
+    The remote address (IP) of the request.
+  </ResponseField>
+</Expandable>
+
+```typescript
+function onAuth(input: StreamAuthInput) {
+  console.log('Authenticated request', input);
+
+  return {
+    context: { name: 'John Doe' },
+  }
+}
+
+bridge.registerFunction({
+  functionPath: 'onAuth',
+  handler: onAuth,
+})
+```
+
+2. Make sure you add the function to the configuration file.
+
+```yaml
+  - class: modules::streams::StreamModule
+    config:
+      auth_function: onAuth # Same name as the function you registered
+```
+
+3. Now whenever someone opens a websocket connection, the function `onAuth` will be called with the request data.
+
+## Trigger Types
+
+Two new trigger types are added to the III SDK: `streams:join` and `streams:leave`.
+Both have the same parameters when invoked.
+
+<ResponseField name="subscription_id" type="string" required>
+  The subscription ID, mostly used for uniqueness or logging purposes.
+</ResponseField>
+<ResponseField name="stream_name" type="string" required>
+  The stream name of the subscription
+</ResponseField>
+<ResponseField name="group_id" type="string" required>
+  The Group ID of the subscription.
+</ResponseField>
+<ResponseField name="id" type="string" required>
+  The item ID of the subscription.
+</ResponseField>
+<ResponseField name="context" type="object">
+  The context generated by the authentication layer.
+</ResponseField>
+
+
+### Sample Code
+
+```typescript
+type JoinInput<TContext = object> = {
+  subscription_id: string;
+  stream_name: string;
+  group_id: string;
+  id: string;
+  context: TContext;
+}
+
+function onJoin(input: JoinInput<any>) {
+  console.log('Joined stream', input);
+}
+
+bridge.registerFunction({
+  functionPath: 'onJoin',
+  handler: onJoin,
+})
+
+bridge.registerTrigger({
+  triggerType: 'streams:join',
+  functionPath: 'onJoin',
+})
+```

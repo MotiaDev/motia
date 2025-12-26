@@ -1,0 +1,10 @@
+{
+  "title": "Core Modules",
+  "pages": [
+    "summary",
+    "module-rest-api",
+    "module-logging",
+    "module-stream",
+    "module-exec"
+  ]
+}

@@ -1,0 +1,78 @@
+---
+title: "REST API Module"
+---
+
+The REST API Module is a module that allows you to build REST APIs with ease.
+
+```
+modules::rest_api::RestApiModule
+```
+
+## Sample Configuration
+
+```yaml
+  - class: modules::api::RestApiModule
+    config:
+      port: 3111
+      host: 0.0.0.0
+      cors:
+        allowed_origins:
+          - http://localhost:3000
+          - http://localhost:5173
+        allowed_methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+```
+
+## Configuration
+
+<ResponseField name="port" type="number">
+  The port to listen on. Defaults to `3111`.
+</ResponseField>
+
+<ResponseField name="host" type="string">
+  The host to listen on. Defaults to `0.0.0.0`.
+</ResponseField>
+
+<ResponseField name="cors" type="Cors">
+  The CORS configuration.
+
+  <Expandable title="Cors">
+    <ResponseField name="allowed_origins" type="string[]" required>
+      The allowed origins.
+    </ResponseField>
+    <ResponseField name="allowed_methods" type="string[]" required>
+      The allowed methods.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+
+## Trigger Type
+
+This Module add a new Trigger Type: `api`.
+
+<Expandable title="Trigger Config">
+  <ResponseField name="api_path" type="string" required>
+    The path of the API.
+  </ResponseField>
+  <ResponseField name="http_method" type="string" required>
+    The HTTP method of the API.
+  </ResponseField>
+</Expandable>
+
+### Sample code
+
+```typescript
+bridge.registerTrigger({
+  triggerType: 'api',
+  functionPath,
+  config: {
+    api_path: '/api/v1/users',
+    http_method: 'GET',
+  },
+})
+```

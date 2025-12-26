@@ -25,12 +25,12 @@ export const Accordion: React.FC<AccordionProps> = ({
 
   return (
     <div className="flex flex-col">
-      <Icon name={iconName} />
       <div
         className="flex flex-row gap-1 items-center gap-2 px-4 hover:bg-white/5 p-2 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        <Icon name={iconName} className="size-4" />
         <h3 className="text-sm font-semibold m-1!">{title}</h3>
         {description && <p className="text-sm text-muted-foreground">{description}</p>}
       </div>

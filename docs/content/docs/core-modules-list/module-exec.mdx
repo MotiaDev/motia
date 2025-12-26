@@ -1,0 +1,36 @@
+---
+title: "Exec Module"
+---
+
+This module is used to execute commands in the shell. Add as many instances of this 
+module as you need to execute commands in the shell.
+
+```
+modules::shell::ExecModule
+```
+
+## Sample Configuration
+
+```yaml
+  - class: modules::shell::ExecModule
+    config:
+      exec:
+        - bun run --enable-source-maps index-production.js
+```
+
+## Configuration
+
+<ResponseField name="exec" type="string[]">
+  The commands to execute. It's a pipeline, it will run one after the other in the same folder. The commands are all executed in different processes.
+  Which means you cannot connect commands like 
+  
+  ```bash
+  - cd path/to/project
+  - npm run build
+  ```
+  Instead, you need to connect them under the same command line.
+
+  ```bash
+  - cd path/to/project && npm run build
+  ```
+</ResponseField>

@@ -1,0 +1,28 @@
+---
+title: "Logging Module"
+---
+
+The Logging Module is a module that allows you to log messages to the console.
+
+```
+modules::observability::LoggingModule
+```
+
+## Sample Configuration
+
+```yaml
+  - class: modules::observability::LoggingModule
+    config:
+      level: ${RUST_LOG:info}
+      format: json
+```
+
+## Configuration
+
+<ResponseField name="level" type="string">
+  The level to log. Defaults to `info`.
+</ResponseField>
+
+<ResponseField name="format" type="string">
+  The format to log. Defaults to `json`. When leaving blank, it will use the default format.
+</ResponseField>
