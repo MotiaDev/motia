@@ -1,3 +1,73 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+
+
+@theme {
+  --color-background: #fff;
+  --color-border: #e0e0e0;
+  --color-muted: #e0e0e0;
+  --color-muted-background: #f0f0f0;
+  --color-foreground: #000;
+  --color-muted-foreground: #333;
+
+  --color-fd-muted: var(--color-muted-background);
+  --color-fd-secondary: var(--color-muted);
+  --color-fd-muted-foreground: var(--color-muted-foreground);
+}
+
+:root.dark {
+  --color-background: #000000;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-muted: #333;
+  --color-muted-background: rgb(14, 14, 16);
+  --color-muted-foreground: rgb(158, 158, 158);
+  --color-foreground: #fff;
+
+  --color-fd-muted: var(--color-muted-background);
+  --color-fd-secondary: var(--color-muted);
+  --color-fd-muted-foreground: var(--color-muted-foreground);
+}
+
+.bg-fd-card {
+  background-color: var(--color-background);
+}
+
+body {
+  background-color: var(--color-background) !important;
+}
+
+/* Use @layer base to ensure it applies before utilities */
+@layer base {
+  p, li {
+    font-weight: 300;
+  }
+  strong {
+    font-weight: 600;
+  }
+}
+
+
+
+p {
+  margin-top: 0;
+  color: var(--color-muted-foreground);
+}
+
+li {
+  color: var(--color-muted-foreground);
+}
+
+p:last-child {
+  margin-bottom: 0;
+}
+
+h2 {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+h3 {
+  padding: 0;
+  margin: 1rem 0;
+}

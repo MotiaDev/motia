@@ -1,0 +1,170 @@
+---
+title: "@iii-dev/sdk"
+description: "Build with III SDK"
+---
+## Bridge
+
+This is the main class for the III SDK. It is used to register services, functions, and triggers.
+
+```typescript
+import { Bridge } from '@iii-dev/sdk';
+
+const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+```
+
+<Tip>
+  The port to III is usually `ws://localhost:49134` if you're running the III process locally.
+</Tip>
+
+### Methods
+
+<ResponseField name="registerTrigger" type="(trigger: RegisterTriggerInput) => Trigger" required>
+  Registers a new trigger. A trigger is a way to invoke a function when a certain event occurs.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters" description="">
+      <ResponseField name="trigger" type="RegisterTriggerInput" required>
+        The trigger to register.
+      </ResponseField>
+    </Accordion>
+    <Accordion iconName="arrow-up-right" title="Returns" description="">
+      <ResponseField name="Trigger" type="Trigger">
+        A trigger object that can be used to unregister the trigger.
+
+        ```typescript
+        export type Trigger = {
+          unregister(): void
+        }
+        ```
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="registerService" type="(service: RegisterServiceInput) => void" required>
+  Registers a new service. A service is a collection of functions that are related to each other.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters" description="">
+      <ResponseField name="service" type="RegisterServiceInput" required>
+        The service to register.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="registerFunction" type="(func: RegisterFunctionInput, handler: RemoteFunctionHandler) => void" required>
+  Registers a new function. A function is a unit of work that can be invoked by other services.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters" description="">
+      <ResponseField name="func" type="RegisterFunctionInput" required>
+        The function to register.
+      </ResponseField>
+      <ResponseField name="handler" type="RemoteFunctionHandler" required>
+        The handler for the function.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="invokeFunction" type="&lt;TInput, TOutput&gt;(function_path: string, data: TInput) => Promise&lt;TOutput&gt;" required>
+  Invokes a function.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters" description="">
+      <ResponseField name="function_path" type="string" required>
+        The path to the function.
+      </ResponseField>
+      <ResponseField name="data" type="TInput" required>
+        The data to pass to the function.
+      </ResponseField>
+    </Accordion>
+    <Accordion iconName="arrow-up-right" title="Returns" description="">
+      <ResponseField name="result" type="Promise&lt;TOutput&gt;">
+        The result of the function.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="invokeFunctionAsync" type="&lt;TInput&gt;(function_path: string, data: TInput) => void" required>
+  Invokes a function asynchronously.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters" description="">
+      <ResponseField name="function_path" type="string" required>
+        The path to the function.
+      </ResponseField>
+      <ResponseField name="data" type="TInput" required>
+        The data to pass to the function.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="registerTriggerType" type="&lt;TConfig&gt;(triggerType: RegisterTriggerTypeInput, handler: TriggerHandler&lt;TConfig&gt;) => void" required>
+  Registers a new trigger type. A trigger type is a way to invoke a function when a certain event occurs.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters" description="">
+      <ResponseField name="triggerType" type="RegisterTriggerTypeInput" required>
+        The trigger type to register.
+
+        <Expandable title="RegisterTriggerTypeInput">
+          <ResponseField name="id" type="string" required>
+            The id of the trigger type.
+          </ResponseField>
+          <ResponseField name="description" type="string">
+            The description of the trigger type.
+          </ResponseField>
+        </Expandable>
+      </ResponseField>
+      <ResponseField name="handler" type="TriggerHandler&lt;TConfig&gt;" required>
+        The handler for the trigger type.
+
+        ```typescript
+        export type TriggerHandler<TConfig> = {
+          registerTrigger(config: TriggerConfig<TConfig>): Promise<void>
+          unregisterTrigger(config: TriggerConfig<TConfig>): Promise<void>
+        }
+        ```
+
+        <Expandable title="TriggerConfig<TConfig>">
+        
+          <ResponseField name="id" type="string" required>
+            The id of the trigger.
+            The config of the trigger type.
+          </ResponseField>
+          <ResponseField name="function_path" type="string" required>
+            The function path of the trigger.
+          </ResponseField>
+          <ResponseField name="config" type="TConfig" required>
+            The config of the trigger type.
+          </ResponseField>
+        </Expandable>
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="unregisterTriggerType" type="(triggerType: RegisterTriggerTypeInput) => void" required>
+  Unregisters a trigger type.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters" description="">
+      <ResponseField name="triggerType" type="RegisterTriggerTypeInput" required>
+        The trigger type to unregister.
+
+        <Expandable title="RegisterTriggerTypeInput">
+          <ResponseField name="id" type="string" required>
+            The id of the trigger type.
+          </ResponseField>
+          <ResponseField name="description" type="string">
+            The description of the trigger type.
+          </ResponseField>
+        </Expandable>
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>

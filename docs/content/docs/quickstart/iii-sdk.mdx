@@ -1,0 +1,38 @@
+---
+title: "@iii-dev/sdk"
+description: "Build with III SDK"
+---
+
+## Description
+
+III SDK is the base SDK for building III applications. It provides the core functionality for building III applications.
+
+## Installation
+
+```bash
+npm install @iii-dev/sdk
+```
+
+## Usage
+
+Run `iii` command line, this will start the III process.
+
+```bash
+iii
+```
+
+```typescript
+import { Bridge } from '@iii-dev/sdk';
+
+const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+```
+
+<Tip>
+  The port to III is usually `ws://localhost:49134` if you're running the III process locally.
+</Tip>
+
+## More information
+
+<Card icon="ArrowBigDownDash" title="@iii-dev/sdk" href="/docs/api-reference/iii-sdk">
+  Check the API Reference for more information.
+</Card>

@@ -1,13 +1,48 @@
 ---
-title: Hello World
-description: Your first document
+title: "What is III"
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
 
-## What is Next?
+The Name III stands for three core primitives as described below.
 
-<Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+<Card horizontal iconName="Rocket" title="Start here" href="/docs/quickstart" description="Already know what III is? Jump to the next section to build your first III application." />
+
+
+### Infrastructure
+- **Workers**: Consumers of the III architecture and can use all features of III
+- **Core Modules**: Similar to Workers, but they live INSIDE the III Engine, can use the all features of III
+
+### Implementation
+- **Remote Functions**: Register arbitrary functions that can be executed anywhere
+
+### Invocation
+- **Trigger Types**: to configure different trigger types where triggers can be added (example: api, event, cron)
+- **Triggers**: It's a link between a Trigger Type using a specific configuration, and a Remote Function.
+
+## Understanding Architecture
+
+III is composed of a few layers
+
+- **Core Modules**: There are a lot of Core Modules, each one solves a specific problem.
+- **Adapters**: III it built with Adapters by default, modules can have adapters to integrate with external systems.
+- **Workers**: External services connected to the III Engine, can be used to trigger functions, receive events, etc.
+
+<Image src="/architecture.png" alt="Architecture Diagram" />
+
+## Concepts
+
+Check the sections below to understand the different concepts of III.
+
+<Columns cols={2}>
+  <Card iconName="Blocks" title="Core Modules" href="/core-modules" description="Core Modules are the building blocks of III." />
+  <Card iconName="Cog" title="Adapters" href="/adapters" description="Integrate with external systems." />
+  <Card iconName="Handshake" title="Workers" href="/workers" description="External services connected to the III Engine." />
+  <Card iconName="Zap" title="Trigger Types" href="/trigger-types" description="Configure different trigger types." />
+  <Card iconName="Recycle" title="Triggers" href="/triggers" description="Link a Trigger Type with a function." />
+  <Card iconName="Parentheses" title="Remote Functions" href="/remote-functions" description="Arbitrary functions that can be executed anywhere." />
+</Columns>
+
+## Need inspiration?
+
+<Card title="See complete examples" icon="stars" href="https://mintlify.com/customers" description="Browse our showcase of exceptional documentation sites." />
+  
