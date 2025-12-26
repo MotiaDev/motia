@@ -1,6 +1,6 @@
 ---
 description: How to create background tasks in Motia
-globs: steps/**/*.step.ts,steps/**/*.step.js,steps/**/*_step.py
+globs: src/**/*.step.ts,src/**/*.step.js,src/**/*_step.py
 alwaysApply: false
 ---
 # Event Steps Guide
@@ -19,7 +19,7 @@ Other applicable examples are tasks that are likely to fail, examples:
 
 ## Creating Event Steps
 
-Steps need to be created in the `steps` folder, it can be in subfolders.
+Steps need to be created in the `src` folder, it can be in subfolders.
 
 - Steps in TS and JS should end with `.step.ts` and `.step.js` respectively.
 - Steps in Python should end with `_step.py`.

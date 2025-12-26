@@ -10,17 +10,13 @@ alwaysApply: true
 
 This guide covers the architecture and best practices for structuring Motia projects.
 
-**Key Takeaway**: Motia automatically discovers steps from anywhere in your project. Modern projects use `/src` for a familiar structure that works seamlessly with Domain-Driven Design.
+**Key Takeaway**: Motia automatically discovers steps from anywhere in the `/src` folder. Modern projects use `/src` for a familiar structure that works seamlessly with Domain-Driven Design.
 
 ## File Structure
 
-Motia automatically discovers step files from your project. You can organize steps in either:
+Motia automatically discovers step files from your project.
 
-- **`/src` folder** (recommended) - Familiar pattern for most developers
-- **`/steps` folder** - Traditional Motia pattern
-- Both folders simultaneously
-
-### Recommended Structure (using `/src`)
+### Recommended Structure
 
 ```
 project/
@@ -39,24 +35,7 @@ project/
 └── motia.config.ts
 ```
 
-### Alternative Structure (using `/steps`)
-
-```
-project/
-├── steps/
-│   ├── api/
-│   │   └── users.step.ts
-│   ├── events/
-│   │   └── order-processing.step.ts
-│   └── cron/
-│       └── cleanup.step.ts
-├── src/
-│   ├── services/
-│   └── utils/
-└── motia.config.ts
-```
-
-Create subfolders within your chosen directory to organize related steps into logical groups (domains, features, or flows).
+Create subfolders within your `/src` directory to organize related steps into logical groups (domains, features, or flows).
 
 **Why `/src` is recommended:**
 - Familiar to developers from other frameworks (Next.js, NestJS, etc.)
@@ -109,7 +88,7 @@ Motia encourages Domain-Driven Design (DDD) principles for maintainable, scalabl
 
 ### Folder Structure for DDD
 
-When using `/src` for steps (recommended), your structure naturally supports DDD:
+When using `/src` for steps, your structure naturally supports DDD:
 
 ```
 src/

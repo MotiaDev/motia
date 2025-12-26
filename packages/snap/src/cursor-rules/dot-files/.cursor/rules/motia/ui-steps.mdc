@@ -1,6 +1,6 @@
 ---
 description: Overriding the UI of Steps in Motia
-globs: steps/**/*.step.tsx,steps/**/*.step.jsx,steps/**/*_step.tsx,steps/**/*_step.jsx
+globs: src/**/*.step.tsx,src/**/*.step.jsx,src/**/*_step.tsx,src/**/*_step.jsx
 alwaysApply: true
 ---
 
@@ -15,7 +15,7 @@ With UI Steps, you can enhance the user experience by designing intuitive, conte
 To create a custom UI for a step, create a .tsx or .jsx file next to your step file with the same base name:
 
 ```
-steps/ 
+src/ 
 └── myStep/ 
   ├── myStep.step.ts      # Step definition
   └── myStep.step.tsx     # Visual override

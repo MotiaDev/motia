@@ -29,7 +29,7 @@ pnpm add @motiadev/test --save-dev
 
 Here's an API Step that creates a todo and emits an event:
 
-```typescript title="steps/create-todo.step.ts"
+```typescript title="src/create-todo.step.ts"
 export const config: ApiRouteConfig = {
   type: 'api',
   name: 'CreateTodo',
@@ -50,7 +50,7 @@ export const handler: Handlers['CreateTodo'] = async (req, { emit }) => {
 
 Now let's test it:
 
-```typescript title="steps/create-todo.step.test.ts"
+```typescript title="src/create-todo.step.test.ts"
 import { createMotiaTester } from '@motiadev/test'
 import { describe, it, expect, afterAll } from 'vitest'
 
@@ -104,7 +104,7 @@ describe('CreateTodo', () => {
 
 Event Steps listen for events and do stuff in the background. Here's how to test them:
 
-```typescript title="steps/process-todo.step.ts"
+```typescript title="src/process-todo.step.ts"
 export const config: EventConfig = {
   type: 'event',
   name: 'ProcessTodo',
@@ -125,7 +125,7 @@ export const handler: Handlers['ProcessTodo'] = async (input, { emit, logger }) 
 
 **The Test:**
 
-```typescript title="steps/process-todo.step.test.ts"
+```typescript title="src/process-todo.step.test.ts"
 import { createMotiaTester } from '@motiadev/test'
 import { describe, it, expect, afterAll } from 'vitest'
 
@@ -167,7 +167,7 @@ describe('ProcessTodo', () => {
 
 Don't want to spin up the whole app? Test handler functions directly:
 
-```typescript title="steps/calculate-total.step.test.ts"
+```typescript title="src/calculate-total.step.test.ts"
 import { createMockContext } from '@motiadev/test'
 import { handler } from './calculate-total.step'
 import { describe, it, expect } from 'vitest'
@@ -225,7 +225,7 @@ pnpm test --watch
 **Single test file:**
 
 ```bash
-npm test -- steps/create-todo.step.test.ts
+npm test -- src/create-todo.step.test.ts
 ```
 
 ---

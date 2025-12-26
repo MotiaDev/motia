@@ -63,9 +63,9 @@ Architecture guides in `.cursor/architecture/`:
 
 ### Project Structure
 
-Motia discovers steps from both `/src` and `/steps` folders. Modern projects typically use `/src`:
+Motia discovers steps from the `/src` folder:
 
-**Recommended Structure (using `/src`):**
+**Recommended Structure:**
 ```
 project/
 ├── .cursor/rules/   # DETAILED GUIDES - Read these first!
@@ -86,19 +86,6 @@ project/
 │   └── auth.middleware.ts
 ├── motia.config.ts # Motia configuration
 └── types.d.ts      # Auto-generated types
-```
-
-**Alternative Structure (using `/steps`):**
-```
-project/
-├── steps/          # Step definitions
-│   ├── api/
-│   ├── events/
-│   └── cron/
-├── src/
-│   ├── services/
-│   └── utils/
-└── motia.config.ts
 ```
 
 ### Step Naming Conventions

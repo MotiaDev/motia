@@ -81,7 +81,7 @@ Here's a simple example of two Steps working together: an API Step that emits an
 <summary><b>TypeScript</b></summary>
 
 ```ts
-// steps/send-message.step.ts
+// src/send-message.step.ts
 export const config = {
   name: 'SendMessage',
   type: 'api',
@@ -100,7 +100,7 @@ export const handler = async (req, { emit }) => {
 ```
 
 ```ts
-// steps/process-message.step.ts
+// src/process-message.step.ts
 export const config = {
   name: 'ProcessMessage',
   type: 'event',
@@ -153,7 +153,7 @@ async def handler(input, context):
 <summary><b>JavaScript</b></summary>
 
 ```js
-// steps/send-message.step.js
+// src/send-message.step.js
 const config = {
   name: 'SendMessage',
   type: 'api',
@@ -174,7 +174,7 @@ module.exports = { config, handler };
 ```
 
 ```js
-// steps/process-message.step.js
+// src/process-message.step.js
 const config = {
   name: 'ProcessMessage',
   type: 'event',

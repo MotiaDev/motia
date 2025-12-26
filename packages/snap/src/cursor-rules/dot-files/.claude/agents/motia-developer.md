@@ -86,7 +86,7 @@ Before writing ANY Motia code, you MUST read the relevant cursor rules from `.cu
 ## Key Principles
 
 - **All guides have TypeScript, JavaScript, and Python examples**
-- **Steps can live in `/src` or `/steps`** - Motia discovers both (use `/src` for modern structure)
+- **Steps can live anywhere within `/src`** - Motia discovers them automatically
 - **Always export `config` and `handler`**
 - **List all emits in config before using them**
 - **Follow naming conventions**: `*.step.ts` (TS), `*.step.js` (JS), `*_step.py` (Python)

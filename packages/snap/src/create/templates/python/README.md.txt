@@ -68,13 +68,20 @@ pnpm build
 ## Project Structure
 
 ```
-steps/              # Your Step definitions (or use src/)
-src/                 # Shared services and utilities
+src/                 # Your Step definitions and shared services
+├── petstore/
+│   ├── api_step.py
+│   ├── notification_step.py
+│   ├── process_food_order_step.py
+│   └── state_audit_cron_step.py
+└── services/
+    ├── pet_store.py
+    └── types.py
 motia.config.ts      # Motia configuration
 requirements.txt     # Python dependencies
 ```
 
-Steps are auto-discovered from your `steps/` or `src/` directories - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
+Steps are auto-discovered from your `src/` directory - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
 
 ## Tutorial
 

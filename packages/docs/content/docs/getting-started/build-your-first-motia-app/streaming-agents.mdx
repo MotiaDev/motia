@@ -90,7 +90,7 @@ Your Workbench will be available at `http://localhost:3000`.
 </Folder>
 
 <Callout type="info">
-**Project organization** - This example uses the `steps/` directory, but you can also use `src/` or both directories in your project. Motia discovers step files from either location automatically.
+**Project organization** - This example uses the `src/` directory. Motia discovers step files from the `src/` directory automatically.
 
 Files like `features.json` and `tutorial/tutorial.tsx` are only for the interactive tutorial and are not part of Motia's project structure.
 </Callout>
@@ -127,14 +127,14 @@ First, define a stream configuration file. This makes the stream available in th
 
 <Callout type="info">
 View on GitHub:
-- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/typescript/pet-creation.stream.ts)
-- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/python/pet_creation.stream.py)
-- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/javascript/pet-creation.stream.js)
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/src/typescript/pet-creation.stream.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/src/python/pet_creation.stream.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/src/javascript/pet-creation.stream.js)
 </Callout>
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
-    ```typescript title="steps/typescript/pet-creation.stream.ts"
+    ```typescript title="src/typescript/pet-creation.stream.ts"
     import { StreamConfig } from 'motia'
     import { z } from 'zod'
 
@@ -161,7 +161,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="Python">
-    ```python title="steps/python/pet_creation.stream.py"
+    ```python title="src/python/pet_creation.stream.py"
     config = {
         "name": "petCreation",
         "schema": {
@@ -178,7 +178,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript title="steps/javascript/pet-creation.stream.js"
+    ```javascript title="src/javascript/pet-creation.stream.js"
     import { z } from 'zod'
 
     export const config = {
@@ -214,15 +214,15 @@ Now let's update the pet creation API to initialize a stream and return it immed
 
 <Callout type="info">
 View on GitHub:
-- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/typescript/create-pet.step.ts)
-- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/python/create_pet_step.py)
-- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/javascript/create-pet.step.js)
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/src/typescript/create-pet.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/src/python/create_pet_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/src/javascript/create-pet.step.js)
 </Callout>
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
-    ```typescript title="steps/typescript/create-pet.step.ts"
-    // steps/typescript/create-pet.step.ts
+    ```typescript title="src/typescript/create-pet.step.ts"
+    // src/typescript/create-pet.step.ts
     import { ApiRouteConfig, Handlers } from 'motia';
     import { z } from 'zod';
     import { TSStore } from './ts-store';
@@ -302,7 +302,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="Python">
-    ```python title="steps/python/create_pet_step.py"
+    ```python title="src/python/create_pet_step.py"
     import asyncio
 
     config = {
@@ -382,7 +382,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript title="steps/javascript/create-pet.step.js"
+    ```javascript title="src/javascript/create-pet.step.js"
     import { create } from './js-store.js'
 
     export const config = {
@@ -464,15 +464,15 @@ Now let's update the feeding reminder job to push real-time updates to the strea
 
 <Callout type="info">
 View on GitHub:
-- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/typescript/set-next-feeding-reminder.job.step.ts)
-- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/python/set_next_feeding_reminder.job_step.py)
-- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/javascript/set-next-feeding-reminder.job.step.js)
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/src/typescript/set-next-feeding-reminder.job.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/src/python/set_next_feeding_reminder.job_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/src/javascript/set-next-feeding-reminder.job.step.js)
 </Callout>
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
-    ```typescript title="steps/typescript/set-next-feeding-reminder.job.step.ts"
-    // steps/typescript/set-next-feeding-reminder.job.step.ts
+    ```typescript title="src/typescript/set-next-feeding-reminder.job.step.ts"
+    // src/typescript/set-next-feeding-reminder.job.step.ts
     import { EventConfig, Handlers } from 'motia';
     import { TSStore } from './ts-store';
 
@@ -571,7 +571,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="Python">
-    ```python title="steps/python/set_next_feeding_reminder.job_step.py"
+    ```python title="src/python/set_next_feeding_reminder.job_step.py"
     import asyncio
 
     config = {
@@ -677,7 +677,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript title="steps/javascript/set-next-feeding-reminder.job.step.js"
+    ```javascript title="src/javascript/set-next-feeding-reminder.job.step.js"
     import { update } from './js-store.js'
 
     export const config = {
@@ -796,15 +796,15 @@ Agentic steps can also stream progress updates as they generate content. This pr
 
 <Callout type="info">
 View on GitHub:
-- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/typescript/ai-profile-enrichment.step.ts)
-- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/python/ai_profile_enrichment_step.py)
-- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/steps/javascript/ai-profile-enrichment.step.js)
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/main/src/typescript/ai-profile-enrichment.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/main/src/python/ai_profile_enrichment_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/main/src/javascript/ai-profile-enrichment.step.js)
 </Callout>
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
-    ```typescript title="steps/typescript/ai-profile-enrichment.step.ts"
-    // steps/typescript/ai-profile-enrichment.step.ts
+    ```typescript title="src/typescript/ai-profile-enrichment.step.ts"
+    // src/typescript/ai-profile-enrichment.step.ts
     import { EventConfig, Handlers } from 'motia';
     import { TSStore, PetProfile } from './ts-store';
 
@@ -968,8 +968,8 @@ Keep it positive, realistic, and adoption-focused.`;
     ```
   </Tab>
   <Tab value="Python">
-    ```python title="steps/python/ai_profile_enrichment_step.py"
-    # steps/python/ai_profile_enrichment_step.py
+    ```python title="src/python/ai_profile_enrichment_step.py"
+    # src/python/ai_profile_enrichment_step.py
     import json
     import os
     import asyncio
@@ -1158,8 +1158,8 @@ Keep it positive, realistic, and adoption-focused.'''
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript title="steps/javascript/ai-profile-enrichment.step.js"
-    // steps/javascript/ai-profile-enrichment.step.js
+    ```javascript title="src/javascript/ai-profile-enrichment.step.js"
+    // src/javascript/ai-profile-enrichment.step.js
     import { updateProfile } from './js-store.js'
 
     export const config = {

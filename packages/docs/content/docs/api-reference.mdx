@@ -1244,7 +1244,7 @@ Define real-time data streams for your app.
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
 <Tab value='TypeScript'>
 
-```typescript title="steps/chat-messages.stream.ts"
+```typescript title="src/chat-messages.stream.ts"
 import { StreamConfig } from 'motia'
 import { z } from 'zod'
 
@@ -1264,7 +1264,7 @@ export const config: StreamConfig = {
 </Tab>
 <Tab value='JavaScript'>
 
-```javascript title="steps/chat-messages.stream.js"
+```javascript title="src/chat-messages.stream.js"
 import { z } from 'zod'
 
 export const config = {
@@ -1283,7 +1283,7 @@ export const config = {
 </Tab>
 <Tab value='Python'>
 
-```python title="steps/chat_messages_stream.py"
+```python title="src/chat_messages_stream.py"
 from pydantic import BaseModel
 
 class ChatMessage(BaseModel):
@@ -1441,7 +1441,7 @@ motia generate step --dir users/create-user
 ```
 
 **Options:**
-- `-d, --dir <path>` - Path relative to `steps/` directory
+- `-d, --dir <path>` - Path relative to `src/` directory
 
 ---
 

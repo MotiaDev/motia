@@ -39,7 +39,7 @@ import { GmailTab } from '../../../components/GmailCodeFetcher'
 </Folder>
 
 <Callout type="info">
-This example uses the `steps/` directory, but you can also use `src/` or both. Motia discovers step files from either location automatically.
+This example uses the `src/` directory. Motia discovers step files from the `src/` directory automatically.
 </Callout>
 
 <Tabs items={['webhook', 'analyze-email', 'auto-responder', 'daily-summary', 'fetch-email', 'organize-email']}>
@@ -63,30 +63,30 @@ The Gmail Account Manager workflow consists of the following steps:
 
 ### 1. Gmail Authentication (Multi-Step Flow)
 - **Files**: 
-  - `steps/gmail-get-auth-url.step.ts`: Generates OAuth2 authorization URL
-  - `steps/gmail-auth.step.ts`: Handles authorization code exchange
-  - `steps/gmail-token-status.step.ts`: Checks token validity and refreshes if needed
+  - `src/gmail-get-auth-url.step.ts`: Generates OAuth2 authorization URL
+  - `src/gmail-auth.step.ts`: Handles authorization code exchange
+  - `src/gmail-token-status.step.ts`: Checks token validity and refreshes if needed
 
 ### 2. Gmail Webhook (API Step)
-- **File**: `steps/gmail-webhook.step.ts`
+- **File**: `src/gmail-webhook.step.ts`
 - **Purpose**: Receives notifications from Gmail when new emails arrive
 - **Emits**: `gmail.new_email` event with message details
 - **Endpoint**: `POST /api/gmail-webhook`
 
 ### 3. Gmail Watch (API Step)
-- **File**: `steps/gmail-watch.step.ts`
+- **File**: `src/gmail-watch.step.ts`
 - **Purpose**: Sets up push notifications for the Gmail account
 - **Endpoint**: `GET /api/watch`
 
 ### 4. Fetch Email (Event Step)
-- **File**: `steps/fetch-email.step.ts`
+- **File**: `src/fetch-email.step.ts`
 - **Purpose**: Retrieves the full email content from Gmail API
 - **Subscribes to**: `gmail.email.received`
 - **Emits**: `gmail.email.fetched` with complete email data
 - **Key Functions**: Authenticates with Gmail API, fetches message content, parses attachments
 
 ### 5. Analyze Email (Event Step)
-- **File**: `steps/analyze-email.step.py`
+- **File**: `src/analyze-email.step.py`
 - **Purpose**: Uses Hugging Face models to analyze email content
 - **Subscribes to**: `gmail.email.fetched`
 - **Emits**: `gmail.email.analyzed` with analysis results
@@ -97,14 +97,14 @@ The Gmail Account Manager workflow consists of the following steps:
   - Key information extraction
 
 ### 6. Organize Email (Event Step)
-- **File**: `steps/organize-email.step.ts`
+- **File**: `src/organize-email.step.ts`
 - **Purpose**: Applies labels and organization based on analysis
 - **Subscribes to**: `gmail.email.analyzed`
 - **Emits**: `[gmail.email.organized, gmail.email.archived]`
 - **Actions**: Creates/applies labels, archives certain emails, marks importance
 
 ### 7. Auto-Respond to Email (Event Step)
-- **File**: `steps/auto-responder.step.ts`
+- **File**: `src/auto-responder.step.ts`
 - **Purpose**: Generates and sends appropriate responses for certain emails
 - **Subscribes to**: `gmail.email.analyzed`
 - **Emits**: `gmail.email.responded`
@@ -115,7 +115,7 @@ The Gmail Account Manager workflow consists of the following steps:
   - Follow-up scheduling
 
 ### 8. Daily Summary (Cron Step)
-- **File**: `steps/daily-summary.step.ts`
+- **File**: `src/daily-summary.step.ts`
 - **Purpose**: Compiles and sends daily email activity summary
 - **Schedule**: Runs daily at 6:00 PM
 - **Emits**: `gmail.summary.sent`
@@ -289,7 +289,7 @@ To receive daily email summaries in Discord, follow these steps to set up a webh
 
 ## 📁 Project Structure
 
-- `steps/` - Contains all workflow steps
+- `src/` - Contains all workflow steps
   - `gmail-get-auth-url.step.ts` - Generates OAuth2 URL
   - `gmail-auth.step.ts` - Handles OAuth2 flow
   - `gmail-token-status.step.ts` - Manages token refresh

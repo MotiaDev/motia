@@ -1,6 +1,6 @@
 ---
 description: Managing state across Steps
-globs: steps/**/*.step.ts,steps/**/*.step.js,steps/**/*_step.py
+globs: src/**/*.step.ts,src/**/*.step.js,src/**/*_step.py
 alwaysApply: false
 ---
 

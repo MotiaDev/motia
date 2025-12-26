@@ -44,7 +44,7 @@ Want to change how a Step looks? Create a `.tsx` or `.jsx` file next to it.
 
 Let's use the built-in `EventNode` but add an icon:
 
-```tsx title="steps/send-email.step.tsx"
+```tsx title="src/send-email.step.tsx"
 import { EventNode, EventNodeProps } from 'motia/workbench'
 import React from 'react'
 
@@ -86,7 +86,7 @@ Want complete control? Build from scratch. Here's a real example:
 
 **The Step:**
 
-```typescript title="steps/process-order.step.ts"
+```typescript title="src/process-order.step.ts"
 export const config: EventConfig = {
   type: 'event',
   name: 'ProcessFoodOrder',
@@ -98,7 +98,7 @@ export const config: EventConfig = {
 
 **Custom UI:**
 
-```tsx title="steps/process-order.step.tsx"
+```tsx title="src/process-order.step.tsx"
 import React from 'react'
 import { BaseHandle, Position } from 'motia/workbench'
 import type { EventNodeProps } from 'motia/workbench'
@@ -166,7 +166,7 @@ NOOP = "No Operation". These Steps don't actually run code. They just sit in you
 
 NOOP Steps are config-only. No handler needed.
 
-```typescript title="steps/approval-gate.step.ts"
+```typescript title="src/approval-gate.step.ts"
 import { NoopConfig } from 'motia'
 
 export const config: NoopConfig = {
@@ -183,7 +183,7 @@ export const config: NoopConfig = {
 
 **Add custom UI (optional):**
 
-```tsx title="steps/approval-gate.step.tsx"
+```tsx title="src/approval-gate.step.tsx"
 import React from 'react'
 import { BaseHandle, Position } from 'motia/workbench'
 
@@ -210,7 +210,7 @@ export default function ApprovalGate() {
 
 ### 1. Waiting for Stripe Payment
 
-```typescript title="steps/stripe-webhook.step.ts"
+```typescript title="src/stripe-webhook.step.ts"
 export const config: NoopConfig = {
   type: 'noop',
   name: 'StripeWebhook',
@@ -223,7 +223,7 @@ export const config: NoopConfig = {
 
 ### 2. Human Approval
 
-```typescript title="steps/manager-review.step.ts"
+```typescript title="src/manager-review.step.ts"
 export const config: NoopConfig = {
   type: 'noop',
   name: 'ManagerReview',
@@ -236,7 +236,7 @@ export const config: NoopConfig = {
 
 ### 3. GitHub Webhook
 
-```typescript title="steps/github-webhook.step.ts"
+```typescript title="src/github-webhook.step.ts"
 export const config: NoopConfig = {
   type: 'noop',
   name: 'GitHubWebhook',

@@ -48,7 +48,7 @@ All guides in `.cursor/rules/` with **TypeScript, JavaScript, and Python** examp
 
 See `AGENTS.md` in this directory for a quick overview and links to specific guides.
 
-**Important**: Motia discovers steps from both `/src` and `/steps` folders. Modern projects use `/src` for a familiar structure.
+**Important**: Motia discovers steps from the `/src` folder.
 
 ## Key Commands
 

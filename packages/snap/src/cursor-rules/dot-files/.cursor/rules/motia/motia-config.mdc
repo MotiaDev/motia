@@ -196,7 +196,7 @@ export default config({
 **Project structure:**
 ```
 project/
-├── src/              # Steps can be in /src or /steps
+├── src/              # Steps can be placed anywhere within /src
 │   └── api/
 │       └── example.step.ts
 ├── plugins/
