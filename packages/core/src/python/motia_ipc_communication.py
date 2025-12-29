@@ -100,7 +100,7 @@ class IpcCommunication:
     async def _read_ipc(self) -> None:
         """Read messages from IPC file descriptor in background"""
         loop = asyncio.get_event_loop()
-        buffer = ""
+        buffer = b""
         
         while self.executing:
             try:
@@ -108,14 +108,19 @@ class IpcCommunication:
                 if not data:
                     break
                 
-                buffer += data.decode('utf-8')
-                lines = buffer.split('\n')
+                buffer += data
+                lines = buffer.split(b'\n')
                 buffer = lines[-1]  # Keep incomplete line in buffer
-                
+
                 for line in lines[:-1]:
                     if line.strip():
                         try:
-                            msg = json.loads(line.strip())
+                            decoded_line = line.decode('utf-8').strip()
+                        except UnicodeDecodeError as e:
+                            print(f"WARNING: Failed to decode IPC line: {e}", file=sys.stderr)
+                            continue
+                        try:
+                            msg = json.loads(decoded_line)
                             self._handle_message(msg)
                         except json.JSONDecodeError as e:
                             print(f"WARNING: Failed to parse JSON: {e}", file=sys.stderr)
