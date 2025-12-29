@@ -31,7 +31,7 @@ const cache = new Map<string, CompileCache>()
 
 const getCompiledPath = (tsFilePath: string, projectRoot: string): string => {
   const relativePath = path.relative(projectRoot, tsFilePath)
-  const compiledRelativePath = relativePath.replace(/\.ts$/, '.js')
+  const compiledRelativePath = replaceExtensionWithJs(relativePath)
   return path.join(projectRoot, COMPILED_DIR, compiledRelativePath)
 }
 
@@ -67,6 +67,27 @@ const resolveImportPath = (
 ): ResolvedImport | null => {
   const fullImportPath = path.resolve(dir, importPath)
 
+  if (existsSync(fullImportPath)) {
+    try {
+      const stat = statSync(fullImportPath)
+      if (!stat.isDirectory()) {
+        const relativeToProject = path.relative(projectRoot, fullImportPath)
+        const compiledFileName = replaceExtensionWithJs(relativeToProject)
+        const compiledImportPath = path.join(COMPILED_DIR, compiledFileName)
+        const relativeCompiledPath = path
+          .relative(path.dirname(compiledPath), path.join(projectRoot, compiledImportPath))
+          .replace(/\\/g, '/')
+
+        return {
+          sourcePath: fullImportPath,
+          compiledImportPath: relativeCompiledPath.startsWith('.') ? relativeCompiledPath : `./${relativeCompiledPath}`,
+        }
+      }
+    } catch {
+      // statSync may fail, continue to try other options
+    }
+  }
+
   for (const ext of TS_EXTENSIONS) {
     const testPath = fullImportPath + (ext.startsWith('.') ? ext : `.${ext}`)
     if (existsSync(testPath)) {
@@ -81,6 +102,35 @@ const resolveImportPath = (
         sourcePath: testPath,
         compiledImportPath: relativeCompiledPath.startsWith('.') ? relativeCompiledPath : `./${relativeCompiledPath}`,
       }
+    }
+  }
+
+  if (existsSync(fullImportPath)) {
+    try {
+      const stat = statSync(fullImportPath)
+      if (stat.isDirectory()) {
+        for (const ext of TS_EXTENSIONS) {
+          const indexPath = path.join(fullImportPath, `index${ext.startsWith('.') ? ext : `.${ext}`}`)
+          if (existsSync(indexPath)) {
+            const relativeToProject = path.relative(projectRoot, indexPath)
+            const compiledFileName = replaceExtensionWithJs(relativeToProject)
+            const compiledImportPath = path.join(COMPILED_DIR, compiledFileName)
+            const relativeCompiledPath = path
+              .relative(path.dirname(compiledPath), path.join(projectRoot, compiledImportPath))
+              .replace(/\\/g, '/')
+
+            return {
+              sourcePath: indexPath,
+              compiledImportPath: relativeCompiledPath.startsWith('.')
+                ? relativeCompiledPath
+                : `./${relativeCompiledPath}`,
+            }
+          }
+        }
+      }
+    } catch {
+      // statSync may fail if the file is not accessible
+      // continue to return null
     }
   }
 
