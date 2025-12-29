@@ -88,10 +88,10 @@ pnpm build
 
 ```
 src/                             # Your Step definitions
-├── hello/
-│   ├── hello-api.step.ts
-│   ├── process_greeting_step.py
-│   └── log-greeting.step.js
+└── hello/
+    ├── hello-api.step.ts
+    ├── process_greeting_step.py
+    └── log-greeting.step.js
 motia.config.ts                  # Motia configuration
 requirements.txt                 # Python dependencies
 ```

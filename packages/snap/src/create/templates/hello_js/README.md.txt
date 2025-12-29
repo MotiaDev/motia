@@ -70,9 +70,9 @@ pnpm build
 
 ```
 src/                # Your Step definitions
-├── hello/
-│   ├── hello-api.step.js
-│   └── process-greeting.step.js
+└── hello/
+    ├── hello-api.step.js
+    └── process-greeting.step.js
 motia.config.ts     # Motia configuration
 ```
 
