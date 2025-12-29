@@ -12,15 +12,11 @@ Understanding how to organize your Motia project is crucial for building maintai
 Here's what a typical Motia project looks like:
 
 <Folder name="my-motia-project" defaultOpen>
-  <Folder name="steps" defaultOpen>
-    <File name="api-gateway.step.ts" />
-    <File name="data-processor_step.py" />  
-    <File name="send-notification.step.js" />
-    <File name="send-notification.tsx" />
-  </Folder>
   <Folder name="src" defaultOpen>
-    <File name="user-handler.step.ts" />
-    <File name="email-service_step.py" />
+    <File name="01-api-gateway.step.ts" />
+    <File name="02-data-processor_step.py" />  
+    <File name="03-send-notification.step.js" />
+    <File name="send-notification.tsx" />
   </Folder>
   <File name="package.json" />
   <File name="requirements.txt" />
@@ -179,7 +175,7 @@ Organize by business domains for complex applications:
 ### Language-Specific Organization
 Group by programming language for team specialization:
 
-<Folder name="steps" defaultOpen>
+<Folder name="src" defaultOpen>
   <Folder name="typescript" defaultOpen>
     <File name="api-gateway.step.ts" />
     <File name="user-management.step.ts" />
@@ -421,7 +417,7 @@ If Motia isn't discovering your steps:
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
 ❌ **Won't be discovered:**
-<Folder name="steps" defaultOpen>
+<Folder name="src" defaultOpen>
   <File name="user-handler.ts" />
   <File name="data-processor.py" />
   <File name="webhook.js" />
@@ -429,7 +425,7 @@ If Motia isn't discovering your steps:
 </div>
 <div>
 ✅ **Will be discovered:**
-<Folder name="steps" defaultOpen>
+<Folder name="src" defaultOpen>
   <File name="user-handler.step.ts" />
   <File name="data-processor_step.py" />
   <File name="webhook.step.js" />
