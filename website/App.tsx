@@ -149,12 +149,12 @@ const App: React.FC = () => {
             className={`h-6 md:h-10 ${isGodMode ? 'text-red-500' : isDarkMode ? 'text-iii-light' : 'text-iii-black'}`} 
             highlightCount={logoClickCount > 0 ? logoClickCount : undefined}
             highlightIndex={logoClickCount === 0 ? hoverAnimIndex : undefined}
-            accentColor={isGodMode ? 'fill-red-500' : isDarkMode ? 'fill-iii-accent' : 'fill-iii-black'}
+            accentColor={isGodMode ? 'fill-red-500' : isDarkMode ? 'fill-iii-accent' : 'fill-iii-accent-light'}
           />
         </div>
         <div className="flex gap-3 md:gap-6 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
           <a href="#" onClick={handleManifestoClick} className={`transition-colors hidden md:block ${isDarkMode ? 'hover:text-iii-light' : 'hover:text-iii-black'}`}>MANIFESTO</a>
-          <button onClick={() => setShowProtocol(true)} className="hover:text-iii-accent transition-colors uppercase">PROTOCOL</button>
+          <button onClick={() => setShowProtocol(true)} className={`transition-colors uppercase ${isDarkMode ? 'hover:text-iii-accent' : 'hover:text-iii-accent-light'}`}>PROTOCOL</button>
           <div className="relative group cursor-not-allowed hidden sm:block">
             <span className={`transition-colors ${isDarkMode ? 'text-iii-dark group-hover:text-iii-medium' : 'text-iii-medium/50 group-hover:text-iii-medium'}`}>DOCS</span>
             <div className={`absolute top-full right-0 mt-2 w-max px-2 py-1 border text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
@@ -187,12 +187,12 @@ const App: React.FC = () => {
                   ? 'bg-red-500/20 border-red-500 text-red-500 scale-105' 
                   : isDarkMode
                     ? 'border-iii-medium/30 bg-iii-dark/30 text-iii-accent hover:border-iii-accent/50'
-                    : 'border-iii-black/30 bg-white/50 text-iii-black hover:border-iii-black/50'
+                    : 'border-iii-accent-light/30 bg-white/50 text-iii-accent-light hover:border-iii-accent-light/50'
               }`}
             >
               <span className="relative flex h-1.5 w-1.5 md:h-2 md:w-2">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-black'}`}></span>
-                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-black'}`}></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}></span>
+                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}></span>
               </span>
               <span className="font-mono tracking-wider">{isGodMode ? 'BSL ACTIVE' : 'KERNEL ONLINE'}</span>
             </button>
@@ -221,10 +221,10 @@ const App: React.FC = () => {
                 }`}
                 onClick={copyToClipboard}
               >
-                <TerminalIcon className="w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium group-hover:text-iii-accent transition-colors flex-shrink-0" />
+                <TerminalIcon className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
                 <code className={`text-xs md:text-sm flex-1 truncate ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}>{installCmd}</code>
                 {copySuccess ? (
-                  <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-iii-accent flex-shrink-0" />
+                  <Check className={`w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`} />
                 ) : (
                   <Copy className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${isDarkMode ? 'group-hover:text-white' : 'group-hover:text-iii-black'}`} />
                 )}
@@ -232,12 +232,16 @@ const App: React.FC = () => {
 
               <form onSubmit={handleEmailSubmit} className="flex items-center w-full md:w-auto">
                 {isSubmitted ? (
-                  <div className="flex items-center gap-2 text-iii-accent text-xs md:text-sm px-3 py-2.5 md:px-4 md:py-3 bg-iii-accent/10 border border-iii-accent/20 rounded w-full justify-center">
+                  <div className={`flex items-center gap-2 text-xs md:text-sm px-3 py-2.5 md:px-4 md:py-3 border rounded w-full justify-center ${
+                    isDarkMode 
+                      ? 'text-iii-accent bg-iii-accent/10 border-iii-accent/20' 
+                      : 'text-iii-accent-light bg-iii-accent-light/10 border-iii-accent-light/20'
+                  }`}>
                     <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
                     <span className="font-mono tracking-tight">ACCESS REQUESTED</span>
                   </div>
                 ) : (
-                  <div className="flex w-full border-b border-iii-medium focus-within:border-iii-accent transition-colors relative">
+                  <div className={`flex w-full border-b border-iii-medium transition-colors relative ${isDarkMode ? 'focus-within:border-iii-accent' : 'focus-within:border-iii-accent-light'}`}>
                     <input 
                       type="email" 
                       placeholder="EMAIL_FOR_ACCESS" 
@@ -249,7 +253,7 @@ const App: React.FC = () => {
                     <button 
                       type="submit" 
                       disabled={isSubmitting}
-                      className={`absolute right-0 top-1/2 -translate-y-1/2 hover:text-iii-accent disabled:opacity-50 transition-colors p-1.5 md:p-2 ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}
+                      className={`absolute right-0 top-1/2 -translate-y-1/2 disabled:opacity-50 transition-colors p-1.5 md:p-2 ${isDarkMode ? 'text-iii-light hover:text-iii-accent' : 'text-iii-black hover:text-iii-accent-light'}`}
                     >
                       {isSubmitting ? '...' : <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />}
                     </button>
@@ -308,7 +312,7 @@ const App: React.FC = () => {
       )}
 
       {showTerminal && <Terminal onClose={() => setShowTerminal(false)} isGodMode={isGodMode} />}
-      {showProtocol && <ProtocolModal onClose={() => setShowProtocol(false)} />}
+      {showProtocol && <ProtocolModal onClose={() => setShowProtocol(false)} isDarkMode={isDarkMode} />}
     </div>
   );
 };

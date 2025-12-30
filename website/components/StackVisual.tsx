@@ -22,7 +22,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
     <div className="w-full max-w-4xl mx-auto px-4 py-12 md:py-20">
       <div className="text-center mb-8 md:mb-12">
         <h2 className={`text-2xl md:text-4xl font-bold tracking-tighter mb-3 ${textPrimary}`}>
-          EVERYTHING RUNS ON <span className={isDarkMode ? 'text-iii-accent' : 'text-iii-black font-black'}>iii</span>
+          EVERYTHING RUNS ON <span className={isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light font-black'}>iii</span>
         </h2>
         <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto">
           One engine. Infinite possibilities. Build anything on the universal runtime.
@@ -66,7 +66,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
                   ${hoveredLayer === index 
                     ? isDarkMode 
                       ? 'bg-iii-dark border-iii-accent shadow-[0_0_20px_rgba(243,247,36,0.2)]'
-                      : 'bg-white border-iii-black shadow-[0_0_20px_rgba(0,0,0,0.1)]'
+                      : 'bg-white border-iii-accent-light shadow-[0_0_20px_rgba(37,99,235,0.2)]'
                     : `${cardBg} ${cardBorder} hover:border-iii-medium/60`
                   }
                 `}
@@ -78,7 +78,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
                 <div className="flex items-center justify-between">
                   <span className={`text-[10px] md:text-xs font-bold tracking-wider ${
                     hoveredLayer === index 
-                      ? isDarkMode ? 'text-iii-accent' : 'text-iii-black'
+                      ? isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'
                       : textPrimary
                   }`}>
                     {layer.label}
@@ -91,7 +91,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
                           hoveredLayer === index
                             ? isDarkMode 
                               ? 'border-iii-accent/50 text-iii-accent bg-iii-accent/10'
-                              : 'border-iii-black/50 text-iii-black bg-iii-black/10'
+                              : 'border-iii-accent-light/50 text-iii-accent-light bg-iii-accent-light/10'
                             : `${cardBorder} text-iii-medium ${isDarkMode ? 'bg-iii-black/50' : 'bg-white/50'}`
                         }`}
                       >
@@ -112,7 +112,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
 
         {/* Arrow pointing to III */}
         <div className="relative w-full max-w-xs md:max-w-md mt-4 mb-2">
-          <svg viewBox="0 0 200 30" className={`w-full h-6 md:h-8 ${isDarkMode ? 'text-iii-accent' : 'text-iii-black'}`}>
+          <svg viewBox="0 0 200 30" className={`w-full h-6 md:h-8 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>
             <defs>
               <marker
                 id="arrowhead"
@@ -144,7 +144,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
             <div className={`relative px-6 py-6 md:px-10 md:py-8 bg-gradient-to-b border-2 rounded-sm ${
               isDarkMode 
                 ? 'from-iii-dark to-iii-black border-iii-accent shadow-[0_0_40px_rgba(243,247,36,0.15)]' 
-                : 'from-white to-iii-light border-iii-black shadow-[0_0_40px_rgba(0,0,0,0.1)]'
+                : 'from-white to-iii-light border-iii-accent-light shadow-[0_0_40px_rgba(37,99,235,0.15)]'
             }`}>
               <div className={`absolute inset-0 ${isDarkMode ? 'bg-[radial-gradient(circle_at_50%_50%,rgba(243,247,36,0.05),transparent_70%)]' : 'bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.02),transparent_70%)]'}`} />
               
@@ -152,7 +152,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
                 <div className="relative flex flex-col items-center gap-3">
                   <svg 
                     viewBox="0 0 20 18" 
-                    className={`w-16 h-14 md:w-24 md:h-20 ${isDarkMode ? 'text-iii-accent' : 'text-iii-black'}`}
+                    className={`w-16 h-14 md:w-24 md:h-20 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}
                     fill="currentColor"
                   >
                     {/* First i */}
@@ -171,10 +171,10 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
                 </div>
 
               {/* Decorative elements */}
-              <div className={`absolute top-2 left-2 w-2 h-2 border-l-2 border-t-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-black/30'}`} />
-              <div className={`absolute top-2 right-2 w-2 h-2 border-r-2 border-t-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-black/30'}`} />
-              <div className={`absolute bottom-2 left-2 w-2 h-2 border-l-2 border-b-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-black/30'}`} />
-              <div className={`absolute bottom-2 right-2 w-2 h-2 border-r-2 border-b-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-black/30'}`} />
+              <div className={`absolute top-2 left-2 w-2 h-2 border-l-2 border-t-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-accent-light/50'}`} />
+              <div className={`absolute top-2 right-2 w-2 h-2 border-r-2 border-t-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-accent-light/50'}`} />
+              <div className={`absolute bottom-2 left-2 w-2 h-2 border-l-2 border-b-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-accent-light/50'}`} />
+              <div className={`absolute bottom-2 right-2 w-2 h-2 border-r-2 border-b-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-accent-light/50'}`} />
             </div>
 
             {/* Base platform layers */}

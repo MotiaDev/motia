@@ -29,7 +29,7 @@ export const VisualArrow: React.FC<VisualArrowProps> = ({ isDarkMode = true }) =
         return (
           <div 
             key={i} 
-            className={`w-1 h-1 ${isDarkMode ? 'bg-iii-accent' : 'bg-iii-black'}`}
+            className={`w-1 h-1 ${isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}
             style={{ opacity }}
           />
         );

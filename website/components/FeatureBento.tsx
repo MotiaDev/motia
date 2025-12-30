@@ -16,7 +16,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
   const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
   const iconBg = isDarkMode ? 'bg-iii-black' : 'bg-white';
   const codeBg = isDarkMode ? 'bg-iii-black/50' : 'bg-iii-light';
-  const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-black';
+  const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-12 mt-12 md:mt-24 pb-12 md:pb-24">
@@ -57,14 +57,14 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
           <div className="hidden md:block absolute right-0 bottom-0 w-1/2 h-full opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
             <div className="grid grid-cols-8 gap-1 p-4 transform rotate-12 scale-150 origin-bottom-right">
               {Array.from({ length: 64 }).map((_, i) => (
-                <div key={i} className={`h-8 w-8 rounded-sm transition-all duration-300 ${activeCard === 'engine' ? isDarkMode ? 'bg-iii-accent scale-90' : 'bg-iii-black scale-90' : 'bg-iii-light'}`} style={{ opacity: Math.random() }} />
+                <div key={i} className={`h-8 w-8 rounded-sm transition-all duration-300 ${activeCard === 'engine' ? isDarkMode ? 'bg-iii-accent scale-90' : 'bg-iii-accent-light scale-90' : 'bg-iii-light'}`} style={{ opacity: Math.random() }} />
               ))}
             </div>
           </div>
         </div>
 
-        <div className={`col-span-1 md:col-span-2 lg:col-span-2 row-span-1 md:row-span-2 group relative p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300 flex flex-col justify-between overflow-hidden ${cardBgLight} ${cardBorder} ${isDarkMode ? 'hover:border-iii-accent/30' : 'hover:border-iii-black/30'}`}>
-          <div className={`absolute top-0 right-0 p-32 rounded-full blur-3xl -mr-16 -mt-16 transition-opacity opacity-0 group-hover:opacity-100 ${isDarkMode ? 'bg-iii-accent/5' : 'bg-iii-black/5'}`} />
+        <div className={`col-span-1 md:col-span-2 lg:col-span-2 row-span-1 md:row-span-2 group relative p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300 flex flex-col justify-between overflow-hidden ${cardBgLight} ${cardBorder} ${isDarkMode ? 'hover:border-iii-accent/30' : 'hover:border-iii-accent-light/30'}`}>
+          <div className={`absolute top-0 right-0 p-32 rounded-full blur-3xl -mr-16 -mt-16 transition-opacity opacity-0 group-hover:opacity-100 ${isDarkMode ? 'bg-iii-accent/5' : 'bg-iii-accent-light/5'}`} />
           <div className="relative z-10">
             <div className={`p-1.5 md:p-2 w-fit border rounded-lg mb-3 md:mb-6 ${iconBg} ${cardBorder}`}>
               <Share2 className={`w-4 h-4 md:w-6 md:h-6 ${textPrimary}`} />
@@ -78,7 +78,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
             {['Postgres', 'OpenAI', 'Stripe', 'Redis'].map((tech, i) => (
               <div key={tech} className={`flex items-center justify-between px-2 py-1.5 md:px-3 md:py-2 border rounded transition-colors group/item ${codeBg} ${cardBorder} ${cardHover}`}>
                 <div className="flex items-center gap-1.5 md:gap-2">
-                  <Database className={`w-2.5 h-2.5 md:w-3 md:h-3 text-iii-medium ${isDarkMode ? 'group-hover/item:text-iii-accent' : 'group-hover/item:text-iii-black'}`} />
+                  <Database className={`w-2.5 h-2.5 md:w-3 md:h-3 text-iii-medium ${isDarkMode ? 'group-hover/item:text-iii-accent' : 'group-hover/item:text-iii-accent-light'}`} />
                   <span className={`text-[10px] md:text-xs font-mono ${textPrimary}`}>{tech}</span>
                 </div>
                 <div className={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${i % 2 === 0 ? 'bg-green-500' : 'bg-iii-medium'}`} />
@@ -112,7 +112,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
         <div className={`col-span-1 md:col-span-2 lg:col-span-3 row-span-1 group relative p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300 ${cardBgLight} ${cardBorder} ${cardHover}`}>
           <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
             <div className={`p-1.5 md:p-2 border rounded-lg ${iconBg} ${cardBorder}`}>
-              <Zap className={`w-4 h-4 md:w-5 md:h-5 transition-colors ${textPrimary} ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-black'}`} />
+              <Zap className={`w-4 h-4 md:w-5 md:h-5 transition-colors ${textPrimary} ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
             </div>
             <h3 className={`text-sm md:text-lg font-semibold ${textPrimary}`}>Implementation</h3>
           </div>
