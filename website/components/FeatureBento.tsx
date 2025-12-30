@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cpu, Zap, Network, Share2, Workflow, Database, Terminal } from 'lucide-react';
+import { Cpu, Zap, Network, Share2, Workflow, Database, Terminal, MessageSquare, Search, HardDrive } from 'lucide-react';
 
 interface FeatureBentoProps {
   isDarkMode?: boolean;
@@ -23,26 +23,26 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
       <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4 auto-rows-[minmax(140px,auto)] md:auto-rows-[minmax(180px,auto)]">
         
         <div 
-          className={`col-span-1 md:col-span-4 lg:col-span-4 row-span-1 md:row-span-2 group relative p-5 md:p-8 rounded-lg md:rounded-xl border transition-all duration-500 overflow-hidden ${cardBg} ${cardBorder} ${cardHover}`}
+          className={`col-span-1 md:col-span-4 lg:col-span-4 row-span-1 group relative p-5 md:p-8 rounded-lg md:rounded-xl border transition-all duration-500 overflow-hidden ${cardBg} ${cardBorder} ${cardHover}`}
           onMouseEnter={() => setActiveCard('engine')}
           onMouseLeave={() => setActiveCard(null)}
         >
           <div className={`absolute inset-0 bg-gradient-to-br via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isDarkMode ? 'from-iii-dark/50' : 'from-white/50'}`} />
-          <div className="relative z-10 flex flex-col h-full justify-between gap-4">
+          <div className="relative z-10 flex flex-col gap-4 md:gap-6">
             <div className="flex justify-between items-start">
               <div className={`p-2 md:p-3 border rounded-lg ${iconBg} ${cardBorder}`}>
-                <Cpu className={`w-5 h-5 md:w-8 md:h-8 ${accentColor}`} />
+                <Cpu className={`w-5 h-5 md:w-7 md:h-7 ${accentColor}`} />
               </div>
               <div className={`px-2 py-0.5 md:px-3 md:py-1 rounded-full border text-[8px] md:text-[10px] uppercase tracking-widest text-iii-medium transition-colors ${cardBorder} ${codeBg} ${isDarkMode ? 'group-hover:text-iii-light' : 'group-hover:text-iii-black'}`}>
                 KERNEL
               </div>
             </div>
-            <div className="space-y-2 md:space-y-4">
-              <h3 className={`text-xl md:text-3xl font-semibold tracking-tight ${textPrimary}`}>The Universal Runtime</h3>
-              <p className={`text-xs md:text-base text-iii-medium max-w-lg leading-relaxed transition-colors ${isDarkMode ? 'group-hover:text-gray-300' : 'group-hover:text-gray-600'}`}>
+            <div className="space-y-3 md:space-y-4">
+              <h3 className={`text-xl md:text-2xl font-semibold tracking-tight ${textPrimary}`}>The Universal Runtime</h3>
+              <p className={`text-xs md:text-sm text-iii-medium max-w-lg leading-relaxed transition-colors ${isDarkMode ? 'group-hover:text-gray-300' : 'group-hover:text-gray-600'}`}>
                 The binary that manages durability, history, and scheduling. Abstracts databases, queues, and streams uniformly.
               </p>
-              <div className="pt-2 md:pt-4 flex flex-wrap gap-2 md:gap-4 text-[10px] md:text-xs font-mono text-iii-medium">
+              <div className="flex flex-wrap gap-3 md:gap-5 text-[9px] md:text-xs font-mono text-iii-medium pt-2">
                 <div className="flex items-center gap-1.5 md:gap-2">
                   <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${activeCard === 'engine' ? 'bg-green-500 animate-pulse' : 'bg-iii-medium'}`} />
                   <span>DURABLE</span>
@@ -51,37 +51,43 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
                   <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${activeCard === 'engine' ? 'bg-green-500 animate-pulse delay-75' : 'bg-iii-medium'}`} />
                   <span>POLYGLOT</span>
                 </div>
+                <div className="flex items-center gap-1.5 md:gap-2">
+                  <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${activeCard === 'engine' ? 'bg-green-500 animate-pulse delay-150' : 'bg-iii-medium'}`} />
+                  <span>SINGLE BINARY</span>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="hidden md:block absolute right-0 bottom-0 w-1/2 h-full opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
-            <div className="grid grid-cols-8 gap-1 p-4 transform rotate-12 scale-150 origin-bottom-right">
-              {Array.from({ length: 64 }).map((_, i) => (
-                <div key={i} className={`h-8 w-8 rounded-sm transition-all duration-300 ${activeCard === 'engine' ? isDarkMode ? 'bg-iii-accent scale-90' : 'bg-iii-accent-light scale-90' : 'bg-iii-light'}`} style={{ opacity: Math.random() }} />
-              ))}
             </div>
           </div>
         </div>
 
-        <div className={`col-span-1 md:col-span-2 lg:col-span-2 row-span-1 md:row-span-2 group relative p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300 flex flex-col justify-between overflow-hidden ${cardBgLight} ${cardBorder} ${isDarkMode ? 'hover:border-iii-accent/30' : 'hover:border-iii-accent-light/30'}`}>
+        <div className={`col-span-1 md:col-span-2 lg:col-span-2 row-span-1 group relative p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300 flex flex-col overflow-hidden ${cardBgLight} ${cardBorder} ${isDarkMode ? 'hover:border-iii-accent/30' : 'hover:border-iii-accent-light/30'}`}>
           <div className={`absolute top-0 right-0 p-32 rounded-full blur-3xl -mr-16 -mt-16 transition-opacity opacity-0 group-hover:opacity-100 ${isDarkMode ? 'bg-iii-accent/5' : 'bg-iii-accent-light/5'}`} />
-          <div className="relative z-10">
-            <div className={`p-1.5 md:p-2 w-fit border rounded-lg mb-3 md:mb-6 ${iconBg} ${cardBorder}`}>
-              <Share2 className={`w-4 h-4 md:w-6 md:h-6 ${textPrimary}`} />
+          <div className="relative z-10 mb-4">
+            <div className={`p-1.5 md:p-2 w-fit border rounded-lg mb-3 ${iconBg} ${cardBorder}`}>
+              <Share2 className={`w-4 h-4 md:w-5 md:h-5 ${textPrimary}`} />
             </div>
-            <h3 className={`text-base md:text-xl font-semibold mb-1 md:mb-2 ${textPrimary}`}>Adapters</h3>
-            <p className="text-[10px] md:text-sm text-iii-medium leading-relaxed mb-3 md:mb-6 hidden sm:block">
-              Community connectors for databases, LLMs, and APIs.
+            <h3 className={`text-base md:text-lg font-semibold mb-1 ${textPrimary}`}>Adapters</h3>
+            <p className="text-[9px] md:text-xs text-iii-medium hidden sm:block">
+              DBs, queues, streams, APIs
             </p>
           </div>
-          <div className="relative z-10 grid grid-cols-2 md:grid-cols-1 gap-1.5 md:gap-2">
-            {['Postgres', 'OpenAI', 'Stripe', 'Redis'].map((tech, i) => (
-              <div key={tech} className={`flex items-center justify-between px-2 py-1.5 md:px-3 md:py-2 border rounded transition-colors group/item ${codeBg} ${cardBorder} ${cardHover}`}>
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <Database className={`w-2.5 h-2.5 md:w-3 md:h-3 text-iii-medium ${isDarkMode ? 'group-hover/item:text-iii-accent' : 'group-hover/item:text-iii-accent-light'}`} />
-                  <span className={`text-[10px] md:text-xs font-mono ${textPrimary}`}>{tech}</span>
+          <div className="relative z-10 grid grid-cols-2 gap-1.5 md:gap-2">
+            {[
+              { name: 'Postgres', icon: Database, active: true },
+              { name: 'RabbitMQ', icon: MessageSquare, active: false },
+              { name: 'BullMQ', icon: MessageSquare, active: true },
+              { name: 'Redis', icon: HardDrive, active: false },
+              { name: 'MySQL', icon: Database, active: true },
+              { name: 'MongoDB', icon: Database, active: false },
+              { name: 'Elastic', icon: Search, active: true },
+              { name: 'Kafka', icon: MessageSquare, active: false },
+            ].map(({ name, icon: Icon, active }) => (
+              <div key={name} className={`flex items-center justify-between px-2 py-1.5 md:px-2.5 md:py-1.5 border rounded transition-colors group/item ${codeBg} ${cardBorder} ${cardHover}`}>
+                <div className="flex items-center gap-1.5">
+                  <Icon className={`w-2.5 h-2.5 md:w-3 md:h-3 text-iii-medium ${isDarkMode ? 'group-hover/item:text-iii-accent' : 'group-hover/item:text-iii-accent-light'}`} />
+                  <span className={`text-[9px] md:text-[10px] font-mono ${textPrimary}`}>{name}</span>
                 </div>
-                <div className={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${i % 2 === 0 ? 'bg-green-500' : 'bg-iii-medium'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-green-500' : 'bg-iii-medium'}`} />
               </div>
             ))}
           </div>
@@ -106,7 +112,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
           </div>
         </div>
 
-        <div className={`col-span-1 md:col-span-2 lg:col-span-3 row-span-1 group relative p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300 ${cardBgLight} ${cardBorder} ${cardHover}`}>
+        <div className={`col-span-1 md:col-span-2 lg:col-span-3 row-span-1 group relative p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300 overflow-hidden ${cardBgLight} ${cardBorder} ${cardHover}`}>
           <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
             <div className={`p-1.5 md:p-2 border rounded-lg ${iconBg} ${cardBorder}`}>
               <Zap className={`w-4 h-4 md:w-5 md:h-5 transition-colors ${textPrimary} ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
@@ -114,11 +120,18 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
             <h3 className={`text-sm md:text-lg font-semibold ${textPrimary}`}>Implementation</h3>
           </div>
           <p className="text-[10px] md:text-xs text-iii-medium mb-2 md:mb-3">
-            Register functions that execute anywhere.
+            Workers self-register capabilities on boot. No config files.
           </p>
+          <div className="flex flex-wrap gap-1.5 md:gap-2 mb-2 md:mb-3">
+            {['Node.js', 'Python', 'Go', 'Rust'].map(lang => (
+              <span key={lang} className={`px-1.5 py-0.5 md:px-2 md:py-1 border rounded text-[9px] md:text-[10px] font-mono ${iconBg} ${cardBorder} ${textPrimary}`}>
+                {lang}
+              </span>
+            ))}
+          </div>
           <div className="flex items-center justify-between mt-auto pt-2 border-t border-iii-medium/10">
-            <div className="text-[9px] md:text-[10px] text-iii-medium uppercase tracking-wider">Remote Functions</div>
-            <Workflow className="w-3 h-3 md:w-4 md:h-4 text-iii-medium group-hover:text-iii-light transition-colors" />
+            <div className="text-[9px] md:text-[10px] text-iii-medium uppercase tracking-wider">Polyglot Workers</div>
+            <Workflow className={`w-3 h-3 md:w-4 md:h-4 text-iii-medium transition-colors ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
           </div>
         </div>
 

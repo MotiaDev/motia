@@ -26,7 +26,6 @@ const App: React.FC = () => {
   const [hoverAnimIndex, setHoverAnimIndex] = useState(-1);
   const [showGodModeUnlock, setShowGodModeUnlock] = useState(false);
   const [showManifesto, setShowManifesto] = useState(false);
-  const clickResetTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -48,11 +47,6 @@ const App: React.FC = () => {
 
   // Click handler - each click locks another "i"
   const handleLogoClick = useCallback(() => {
-    // Clear any existing reset timer
-    if (clickResetTimerRef.current) {
-      clearTimeout(clickResetTimerRef.current);
-    }
-    
     const newCount = logoClickCount + 1;
     
     if (newCount >= 3) {
@@ -64,10 +58,7 @@ const App: React.FC = () => {
       }, 300);
     } else {
       setLogoClickCount(newCount);
-      // Reset after 2 seconds of inactivity
-      clickResetTimerRef.current = setTimeout(() => {
-        setLogoClickCount(0);
-      }, 2000);
+      // Clicks now hold forever until terminal opens
     }
   }, [logoClickCount]);
 
@@ -200,13 +191,13 @@ const App: React.FC = () => {
             </button>
 
             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95]">
-              CALL A REMOTE GPU<br />
-              <span className="text-iii-medium">LIKE A LOCAL FUNCTION</span>
+              ONE BINARY.<br />
+              <span className="text-iii-medium">INFINITE SYSTEMS.</span>
             </h1>
 
             <p className="text-xs md:text-base text-iii-medium max-w-xl leading-relaxed">
-              The Split-Stack Runtime. Run logic on cheap edge functions. Run compute on 
-              powerful bare metal. iii makes your distributed system feel like a single codebase.
+              No service mesh. No config files. No load balancers. 
+              <span className={isDarkMode ? 'text-iii-light' : 'text-iii-black'}> Workers self-assemble. Functions call remote GPUs like local imports.</span> The entire control plane in a single daemon.
             </p>
 
             <div className="hidden sm:flex items-center gap-3 py-2">
@@ -278,7 +269,7 @@ const App: React.FC = () => {
         }`}>
         <div className="max-w-sm md:max-w-md space-y-1.5 md:space-y-2">
           <p className="leading-relaxed hidden md:block">
-            Defining the universal runtime for distributed execution.
+            <span className={isDarkMode ? 'text-iii-light' : 'text-iii-black'}>Intelligent Invocation Interface</span> — Context-aware execution for distributed systems.
           </p>
         </div>
         <div className="flex flex-col items-start md:items-end gap-0.5 md:gap-1">

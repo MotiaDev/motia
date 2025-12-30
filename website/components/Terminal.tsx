@@ -61,9 +61,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
 
     switch (baseCommand) {
       case 'help':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('III ENGINE DEBUG CONSOLE - COMMAND REFERENCE', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ COMMANDS ═══', 'system');
         addLog('', 'info');
         addLog('GENERAL:', 'warning');
         addLog('  status      - Check engine status', 'info');
@@ -94,106 +92,105 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  credits     - Team credits', 'info');
         addLog('  clear       - Clear console', 'info');
         addLog('  exit        - Close terminal', 'info');
+        if (isGodMode) {
+          addLog('', 'info');
+          addLog('🔴 ROOT ACCESS COMMANDS:', 'error');
+          addLog('  protocol    - WebSocket IPC Protocol Spec', 'error');
+          addLog('  internals   - Engine internals & architecture', 'error');
+          addLog('  wake        - Universal Wake-Up mechanism', 'error');
+          addLog('  registry    - Worker & Function Registry', 'error');
+          addLog('  roadmap     - Future development plans', 'error');
+          addLog('  kill-switch - BSL enforcement demo', 'error');
+        }
         break;
         
       case 'status':
-        addLog('┌─────────────────────────────────────┐', 'system');
-        addLog('│         III ENGINE STATUS           │', 'system');
-        addLog('├─────────────────────────────────────┤', 'system');
-        addLog('│ Engine:        ████████████ ONLINE  │', 'success');
-        addLog('│ Workers:       0 connected          │', 'info');
-        addLog('│ Invocations:   0 pending            │', 'info');
-        addLog('│ Triggers:      READY                │', 'success');
-        addLog('│ Adapters:      5 loaded             │', 'info');
-        addLog('│ License:       BSL 1.1              │', 'warning');
-        addLog('└─────────────────────────────────────┘', 'system');
+        addLog('═══ ENGINE STATUS ═══', 'system');
+        addLog('', 'info');
+        addLog('Engine:      ████ ONLINE', 'success');
+        addLog('Workers:     0 connected', 'info');
+        addLog('Invocations: 0 pending', 'info');
+        addLog('Triggers:    READY', 'success');
+        addLog('Adapters:    5 loaded', 'info');
+        addLog('Version:     v0.1.0-alpha', 'warning');
         break;
 
       case 'arch':
       case 'architecture':
       case 'diagram':
-        addLog('Rendering Architecture...', 'system');
+        addLog('═══ ARCHITECTURE ═══', 'system');
         addLog('', 'info');
-        addLog('                    ┌─────────────────────────────────────────┐', 'info');
-        addLog('                    │             CORE (BSL 1.1)              │', 'info');
-        addLog('                    │                                         │', 'info');
-        addLog('                    │            ╔═══════════╗                │', 'info');
-        addLog('                    │            ║  ENGINE   ║                │', 'info');
-        addLog('                    │            ╚═════╦═════╝                │', 'info');
-        addLog('                    │                  │                      │', 'info');
-        addLog('    ┌───────────────┼──────────────────┼──────────────────────┤', 'info');
-        addLog('    │               │                  │                      │', 'info');
-        addLog('┌───▼────┐    ┌─────▼─────┐    ┌───────▼───────┐    ┌─────────▼─────────┐', 'info');
-        addLog('│Streams │    │ REST API  │    │    Events     │    │      Cron         │', 'info');
-        addLog('│ Module │    │  Module   │    │    Module     │    │     Module        │', 'info');
-        addLog('└────────┘    └───────────┘    └───────────────┘    └───────────────────┘', 'info');
-        addLog('    │               │                  │                      │', 'info');
-        addLog('    └───────────────┴──────────────────┴──────────────────────┘', 'info');
-        addLog('                    │ ADAPTER LAYER                           │', 'info');
-        addLog('         ┌──────────┴──────────┬──────────────────┐', 'info');
-        addLog('         ▼                     ▼                  ▼', 'info');
-        addLog('    ┌─────────┐          ┌──────────┐       ┌──────────┐', 'info');
-        addLog('    │  Redis  │          │ Postgres │       │  Kafka   │', 'info');
-        addLog('    └─────────┘          └──────────┘       └──────────┘', 'info');
+        addLog('┌─────────────────┐', 'warning');
+        addLog('│  III ENGINE     │ ← Rust Core', 'warning');
+        addLog('└───────┬─────────┘', 'warning');
+        addLog('        │', 'info');
+        addLog('        ▼', 'info');
+        addLog('┌─────────────────┐', 'info');
+        addLog('│ CORE MODULES    │', 'info');
+        addLog('├─────────────────┤', 'info');
+        addLog('│ • REST API      │', 'success');
+        addLog('│ • Streams       │', 'success');
+        addLog('│ • Events        │', 'success');
+        addLog('│ • Cron          │', 'success');
+        addLog('└───────┬─────────┘', 'info');
+        addLog('        │', 'info');
+        addLog('        ▼', 'info');
+        addLog('┌─────────────────┐', 'info');
+        addLog('│ ADAPTERS        │', 'info');
+        addLog('│ Redis│Postgres  │', 'info');
+        addLog('└───────┬─────────┘', 'info');
+        addLog('        │', 'info');
+        addLog('        ▼', 'info');
+        addLog('┌─────────────────┐', 'success');
+        addLog('│ WORKERS         │', 'success');
+        addLog('│ Node│Python│Go  │ ← Via Bridge', 'success');
+        addLog('└─────────────────┘', 'success');
         addLog('', 'info');
-        addLog('                    ═══════════════════════════════', 'system');
-        addLog('                          WORKERS (Polyglot)', 'system');
-        addLog('                    ═══════════════════════════════', 'system');
-        addLog('', 'info');
-        addLog('    ┌────────────────────┐        ┌────────────────────┐', 'info');
-        addLog('    │      Node.JS       │        │       Python       │', 'info');
-        addLog('    │  ┌──────────────┐  │        │  ┌──────────────┐  │', 'info');
-        addLog('    │  │ Bridge Layer │◄─┼────────┼─►│ Bridge Layer │  │', 'info');
-        addLog('    │  └──────┬───────┘  │        │  └──────┬───────┘  │', 'info');
-        addLog('    │         │          │        │         │          │', 'info');
-        addLog('    │    ┌────▼────┐     │        │    ┌────▼────┐     │', 'info');
-        addLog('    │    │ handler │     │        │    │ handler │     │', 'info');
-        addLog('    │    └─────────┘     │        │    └─────────┘     │', 'info');
-        addLog('    └────────────────────┘        └────────────────────┘', 'info');
-        addLog('', 'info');
-        addLog('Key: Engine orchestrates Modules → Adapters → External Systems', 'success');
-        addLog('     Workers connect via Bridge SDK (TypeScript, Python, Go, Rust)', 'success');
+        addLog('Flow: Engine → Modules → Adapters → Workers', 'warning');
         break;
 
       case 'modules':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('CORE MODULES (Built with Rust)', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ CORE MODULES ═══', 'system');
+        addLog('Built with Rust', 'warning');
         addLog('', 'info');
-        addLog('┌─────────────────────────────────────────────────────────────┐', 'info');
-        addLog('│ Module          │ Description                              │', 'info');
-        addLog('├─────────────────┼──────────────────────────────────────────┤', 'info');
-        addLog('│ REST API        │ Build REST APIs with automatic routing   │', 'success');
-        addLog('│ Streams         │ Durable streams for real-time data       │', 'success');
-        addLog('│ Events          │ Pub/Sub event-driven messaging           │', 'success');
-        addLog('│ Cron            │ Scheduled tasks with reliability         │', 'success');
-        addLog('│ Exec            │ Execute shell commands safely            │', 'success');
-        addLog('│ Logging         │ Centralized logging infrastructure       │', 'success');
-        addLog('└─────────────────┴──────────────────────────────────────────┘', 'info');
+        addLog('► REST API', 'success');
+        addLog('  HTTP triggers & routing', 'info');
         addLog('', 'info');
-        addLog('Each module can have its own Adapter for external integration.', 'warning');
-        addLog('Type "config" to see how to configure modules.', 'info');
+        addLog('► Streams', 'success');
+        addLog('  Real-time durable data', 'info');
+        addLog('', 'info');
+        addLog('► Events', 'success');
+        addLog('  Pub/Sub messaging', 'info');
+        addLog('', 'info');
+        addLog('► Cron', 'success');
+        addLog('  Scheduled tasks', 'info');
+        addLog('', 'info');
+        addLog('► Exec', 'success');
+        addLog('  Shell commands', 'info');
+        addLog('', 'info');
+        addLog('► Logging', 'success');
+        addLog('  Centralized logs', 'info');
+        addLog('', 'info');
+        addLog('Type "config" for module setup.', 'warning');
         break;
 
       case 'adapters':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('ADAPTER ECOSYSTEM', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ ADAPTER ECOSYSTEM ═══', 'system');
         addLog('', 'info');
-        addLog('Adapters connect modules to external systems:', 'warning');
+        addLog('Streams Module:', 'warning');
+        addLog('  ✓ Redis (Pub/Sub + KV)', 'success');
+        addLog('  ○ Kafka (coming)', 'info');
         addLog('', 'info');
-        addLog('  ┌─ Streams Module', 'info');
-        addLog('  │   └─► Redis Adapter (Pub/Sub + Key/Value)', 'success');
-        addLog('  │   └─► Kafka Adapter (Coming Soon)', 'info');
-        addLog('  │', 'info');
-        addLog('  ├─ Events Module', 'info');
-        addLog('  │   └─► Redis Adapter', 'success');
-        addLog('  │   └─► RabbitMQ Adapter', 'success');
-        addLog('  │', 'info');
-        addLog('  ├─ REST API Module', 'info');
-        addLog('  │   └─► Direct HTTP Handler', 'success');
-        addLog('  │', 'info');
-        addLog('  └─ Database (Coming)', 'info');
+        addLog('Events Module:', 'warning');
+        addLog('  ✓ Redis', 'success');
+        addLog('  ✓ RabbitMQ', 'success');
+        addLog('', 'info');
+        addLog('REST API Module:', 'warning');
+        addLog('  ✓ Direct HTTP', 'success');
+        addLog('', 'info');
+        addLog('Database:', 'warning');
+        addLog('  ○ Postgres (coming)', 'info');
+        addLog('  ○ MySQL (coming)', 'info');
         addLog('      └─► Postgres Adapter', 'info');
         addLog('      └─► MySQL Adapter', 'info');
         addLog('', 'info');
@@ -201,9 +198,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'bridge':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('BRIDGE SDK - Connect Workers to Engine', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ BRIDGE SDK ═══', 'system');
         addLog('', 'info');
         addLog('// TypeScript Example', 'warning');
         addLog('', 'info');
@@ -228,9 +223,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'triggers':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('TRIGGER TYPES', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ TRIGGERS ═══', 'system');
         addLog('', 'info');
         addLog('Triggers link EVENTS to FUNCTIONS:', 'warning');
         addLog('', 'info');
@@ -249,9 +242,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'invoke':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('INVOKING FUNCTIONS', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ INVOKE ═══', 'system');
         addLog('', 'info');
         addLog('// Synchronous invocation (wait for result)', 'warning');
         addLog('const result = await bridge.invokeFunction(', 'success');
@@ -270,9 +261,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'config':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('CONFIG.YAML - Engine Configuration', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ CONFIG.YAML ═══', 'system');
         addLog('', 'info');
         addLog('# config.yaml', 'warning');
         addLog('modules:', 'success');
@@ -294,29 +283,25 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'compare':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('III vs ALTERNATIVES', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ III vs OTHERS ═══', 'system');
         addLog('', 'info');
-        addLog('┌─────────────────┬───────┬──────────┬────────┬────────────┐', 'info');
-        addLog('│ Feature         │  iii  │ Temporal │ Dapr   │ Serverless │', 'info');
-        addLog('├─────────────────┼───────┼──────────┼────────┼────────────┤', 'info');
-        addLog('│ Durable Exec    │   ✓   │    ✓     │   ✗    │     ✗      │', 'success');
-        addLog('│ Polyglot        │   ✓   │    ~     │   ✓    │     ✗      │', 'success');
-        addLog('│ Real-time       │   ✓   │    ✗     │   ~    │     ✗      │', 'success');
-        addLog('│ Single Binary   │   ✓   │    ✗     │   ~    │     ✗      │', 'success');
-        addLog('│ Modular         │   ✓   │    ✗     │   ✓    │     ✗      │', 'success');
-        addLog('│ Self-Hosted     │   ✓   │    ✓     │   ✓    │     ✗      │', 'success');
-        addLog('│ Built in Rust   │   ✓   │    ✗     │   ✗    │     ✗      │', 'success');
-        addLog('└─────────────────┴───────┴──────────┴────────┴────────────┘', 'info');
+        addLog('vs Temporal:', 'warning');
+        addLog('  ✓ Both: Durable execution', 'info');
+        addLog('  ✓ iii: Single binary, real-time', 'success');
         addLog('', 'info');
-        addLog('iii = The kernel that unifies ALL backend patterns.', 'warning');
+        addLog('vs Dapr:', 'warning');
+        addLog('  ✓ Both: Polyglot, modular', 'info');
+        addLog('  ✓ iii: Durable exec, Rust core', 'success');
+        addLog('', 'info');
+        addLog('vs Serverless:', 'warning');
+        addLog('  ✓ iii: Self-hosted, polyglot', 'success');
+        addLog('  ✓ iii: Real-time streams', 'success');
+        addLog('', 'info');
+        addLog('iii = Unifies ALL patterns.', 'warning');
         break;
 
       case 'polyglot':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('POLYGLOT SUPPORT', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ POLYGLOT ═══', 'system');
         addLog('', 'info');
         addLog('Write workers in ANY language:', 'warning');
         addLog('', 'info');
@@ -336,9 +321,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
         
       case 'durable':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('DURABLE EXECUTION MODEL', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ DURABLE EXECUTION ═══', 'system');
         addLog('', 'info');
         addLog('What makes execution "durable"?', 'warning');
         addLog('', 'info');
@@ -358,9 +341,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'dual-mode':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('DUAL-MODE API PATTERN', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ DUAL-MODE ═══', 'system');
         addLog('', 'info');
         addLog('Your worker can be triggered TWO ways:', 'warning');
         addLog('', 'info');
@@ -380,9 +361,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'fabric':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('FABRIC ACCESS PATTERN', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ FABRIC ACCESS ═══', 'system');
         addLog('', 'info');
         addLog('Scenario: Cloudflare Worker needs GPU access', 'warning');
         addLog('', 'info');
@@ -417,9 +396,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'whereis':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('WHERE CAN WORKERS RUN?', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ WHEREIS ═══', 'system');
         addLog('', 'info');
         addLog('ANYWHERE with a network connection:', 'warning');
         addLog('', 'info');
@@ -442,9 +419,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'rust':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('WHY RUST?', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ WHY RUST? ═══', 'system');
         addLog('', 'info');
         addLog('The iii Engine is written in Rust because:', 'warning');
         addLog('', 'info');
@@ -468,27 +443,20 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'credits':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('III - INTEROPERABLE INVOCATION INTERFACE', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ CREDITS ═══', 'system');
         addLog('', 'info');
-        addLog('  ╔═══════════════════════════════════════╗', 'success');
-        addLog('  ║                                       ║', 'success');
-        addLog('  ║             iii                       ║', 'success');
-        addLog('  ║                                       ║', 'success');
-        addLog('  ║   The Universal Runtime Engine        ║', 'success');
-        addLog('  ║                                       ║', 'success');
-        addLog('  ╚═══════════════════════════════════════╝', 'success');
+        addLog('iii', 'success');
+        addLog('Intelligent Invocation Interface', 'success');
+        addLog('', 'info');
+        addLog('I - Intelligent (The Daemon)', 'info');
+        addLog('I - Invocation (The Trigger)', 'info');
+        addLog('I - Interface (The SDK)', 'info');
         addLog('', 'info');
         addLog('Built with ❤️ and Rust', 'warning');
         addLog('', 'info');
-        addLog('Protocol Spec: CC-BY-ND 4.0', 'info');
-        addLog('Engine: BSL 1.1', 'info');
-        addLog('SDKs & Adapters: Apache 2.0', 'info');
+        addLog('"Context-Aware Execution"', 'success');
         addLog('', 'info');
-        addLog('"Innovate → Implement → Iterate"', 'success');
-        addLog('', 'info');
-        addLog('© 2025 III, Inc. All rights reserved.', 'info');
+        addLog('© 2025 III, Inc.', 'info');
         break;
 
       case 'motia':
@@ -502,9 +470,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
         
       case 'faq':
-        addLog('═══════════════════════════════════════════', 'system');
-        addLog('FREQUENTLY ASKED QUESTIONS', 'system');
-        addLog('═══════════════════════════════════════════', 'system');
+        addLog('═══ FAQ ═══', 'system');
         addLog('', 'info');
         addLog('Q: What IS iii?', 'warning');
         addLog('A: A universal runtime engine that unifies APIs,', 'info');
@@ -524,6 +490,174 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('A: "The Kernel of Distributed Systems"', 'success');
         addLog('   "The V8 of Distributed Backends"', 'success');
         addLog('   "LLVM for Cloud Compute"', 'success');
+        break;
+
+      case 'protocol':
+        if (!isGodMode) {
+          addLog('ACCESS DENIED. ROOT AUTHORIZATION REQUIRED.', 'error');
+          addLog('(Hint: ↑↑↓↓←→←→BA)', 'info');
+          break;
+        }
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('🔴 IPC PROTOCOL SPECIFICATION', 'error');
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('', 'info');
+        addLog('Workers connect via WebSocket at ws://<engine>/', 'warning');
+        addLog('All messages are JSON. Key message types:', 'info');
+        addLog('', 'info');
+        addLog('► RegisterFunction', 'success');
+        addLog('  { "type": "registerfunction",', 'info');
+        addLog('    "functionPath": "myService.process",', 'info');
+        addLog('    "request_format": {...},', 'info');
+        addLog('    "response_format": {...} }', 'info');
+        addLog('', 'info');
+        addLog('► RegisterTrigger', 'success');
+        addLog('  { "type": "registertrigger",', 'info');
+        addLog('    "triggerType": "api|cron|event",', 'info');
+        addLog('    "functionPath": "...",', 'info');
+        addLog('    "config": { api_path, http_method... } }', 'info');
+        addLog('', 'info');
+        addLog('► InvokeFunction (Engine → Worker)', 'success');
+        addLog('  { "type": "invokefunction",', 'info');
+        addLog('    "invocationId": "uuid",', 'info');
+        addLog('    "data": {...} }', 'info');
+        addLog('', 'info');
+        addLog('► InvocationResult (Worker → Engine)', 'success');
+        addLog('  { "type": "invocationresult",', 'info');
+        addLog('    "invocationId": "uuid",', 'info');
+        addLog('    "result": {...} }', 'info');
+        break;
+
+      case 'internals':
+        if (!isGodMode) {
+          addLog('ACCESS DENIED. ROOT AUTHORIZATION REQUIRED.', 'error');
+          addLog('(Hint: ↑↑↓↓←→←→BA)', 'info');
+          break;
+        }
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('🔴 ENGINE INTERNALS', 'error');
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('', 'info');
+        addLog('THE CORE IDEA:', 'warning');
+        addLog('iii is an engine enabling interoperability between', 'info');
+        addLog('different systems regardless of language. It has a', 'info');
+        addLog('protocol to communicate with workers.', 'info');
+        addLog('', 'info');
+        addLog('HUB-AND-SPOKE MODEL:', 'warning');
+        addLog('  Hub (Engine): Manages state, triggers, modules', 'info');
+        addLog('  Spokes (Workers): Execute business logic', 'info');
+        addLog('', 'info');
+        addLog('KEY REGISTRIES (Arc<RwLock>):', 'warning');
+        addLog('  • WorkerRegistry - Connected workers', 'info');
+        addLog('  • FunctionsRegistry - Registered capabilities', 'info');
+        addLog('  • TriggerRegistry - Event/Cron/API mappings', 'info');
+        addLog('', 'info');
+        addLog('RUST BENEFITS:', 'success');
+        addLog('  • Memory efficient - no GC pauses', 'info');
+        addLog('  • Fast - no bottleneck for Go/Rust workers', 'info');
+        addLog('  • Single binary orchestrates everything', 'info');
+        addLog('', 'info');
+        addLog('CURRENT CONCERNS:', 'warning');
+        addLog('  • JSON serialization overhead (perf ok for now)', 'info');
+        addLog('  • Redis cron lock TTL (30s, no heartbeat yet)', 'info');
+        addLog('  • Considering binary serialization (MsgPack/Proto)', 'info');
+        break;
+
+      case 'wake':
+        if (!isGodMode) {
+          addLog('ACCESS DENIED. ROOT AUTHORIZATION REQUIRED.', 'error');
+          addLog('(Hint: ↑↑↓↓←→←→BA)', 'info');
+          break;
+        }
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('🔴 UNIVERSAL WAKE-UP MECHANISM', 'error');
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('', 'info');
+        addLog('THE INSIGHT:', 'warning');
+        addLog('Engine doesn\'t need "Ephemeral" or "Long-Living"', 'info');
+        addLog('concepts. Those are human distinctions.', 'info');
+        addLog('', 'info');
+        addLog('FROM ENGINE\'S PERSPECTIVE:', 'success');
+        addLog('  • ONLINE: Active WebSocket connection', 'info');
+        addLog('  • OFFLINE: Has a URL to make one appear', 'info');
+        addLog('', 'info');
+        addLog('THE UNIVERSAL LOOP:', 'warning');
+        addLog('  1. Task arrives', 'info');
+        addLog('  2. Compatible worker connected? → Dispatch', 'info');
+        addLog('  3. No worker? Check registry for Trigger_URL', 'info');
+        addLog('     → YES: Poke the URL, wait for connect', 'info');
+        addLog('     → NO: Queue task (wait for human)', 'info');
+        addLog('', 'info');
+        addLog('HANDLES EVERYTHING:', 'success');
+        addLog('  • Serverless: Poke → Wake → Run → Die', 'info');
+        addLog('  • Local Server: Poke → Boot → Connect', 'info');
+        addLog('  • Autoscaling: Poke → Cloud decides how', 'info');
+        addLog('', 'info');
+        addLog('Bridge decides lifecycle, NOT Engine.', 'warning');
+        break;
+
+      case 'registry':
+        if (!isGodMode) {
+          addLog('ACCESS DENIED. ROOT AUTHORIZATION REQUIRED.', 'error');
+          addLog('(Hint: ↑↑↓↓←→←→BA)', 'info');
+          break;
+        }
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('🔴 WORKER & FUNCTION REGISTRY', 'error');
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('', 'info');
+        addLog('CORE MODULES (config.yaml):', 'warning');
+        addLog('', 'info');
+        addLog('modules::api::RestApiModule', 'success');
+        addLog('  port, cors, default_timeout', 'info');
+        addLog('  Enables HTTP triggers and routing', 'info');
+        addLog('', 'info');
+        addLog('modules::cron::CronModule', 'success');
+        addLog('  adapter: Redis for distributed locking', 'info');
+        addLog('  Enables scheduled tasks', 'info');
+        addLog('', 'info');
+        addLog('modules::event::EventModule', 'success');
+        addLog('  adapter: Redis for Pub/Sub', 'info');
+        addLog('  Enables event-driven messaging', 'info');
+        addLog('', 'info');
+        addLog('modules::streams::StreamModule', 'success');
+        addLog('  Real-time WebSocket sync for clients', 'info');
+        addLog('', 'info');
+        addLog('BUILT-IN HOST FUNCTIONS:', 'warning');
+        addLog('  events.emit - Publish to global bus', 'info');
+        addLog('  logger.* - Centralized logging with tracing', 'info');
+        addLog('  streams.set/get/delete - Real-time state', 'info');
+        break;
+
+      case 'roadmap':
+        if (!isGodMode) {
+          addLog('ACCESS DENIED. ROOT AUTHORIZATION REQUIRED.', 'error');
+          addLog('(Hint: ↑↑↓↓←→←→BA)', 'info');
+          break;
+        }
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('🔴 INTERNAL ROADMAP', 'error');
+        addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+        addLog('', 'info');
+        addLog('ACTIVE DEVELOPMENT:', 'success');
+        addLog('  ✓ Built-in KV storage (PR #44)', 'info');
+        addLog('  ✓ New module registry system (PR #49)', 'info');
+        addLog('  ✓ Motia moved to separate repo (PR #50)', 'info');
+        addLog('', 'info');
+        addLog('PLANNED IMPROVEMENTS:', 'warning');
+        addLog('  • Binary serialization (MsgPack/Protobuf)', 'info');
+        addLog('  • Heartbeat for long-running cron jobs', 'info');
+        addLog('  • Bun Docker image support', 'info');
+        addLog('', 'info');
+        addLog('ARCHITECTURAL NOTES:', 'warning');
+        addLog('  • Engine struct uses Arc refs (watch for cycles)', 'info');
+        addLog('  • JSON serialization passed stress tests', 'info');
+        addLog('  • Redis SET NX PX for cron locks (30s TTL)', 'info');
+        addLog('', 'info');
+        addLog('TARGET USERS:', 'success');
+        addLog('  Framework developers building on iii', 'info');
+        addLog('  Motia users won\'t see iii directly', 'info');
+        addLog('  Core contributors only', 'info');
         break;
 
       case 'kill-switch':

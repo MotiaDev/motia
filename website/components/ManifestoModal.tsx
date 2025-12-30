@@ -18,18 +18,18 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
   const principles = [
     {
       icon: Zap,
-      title: "SPLIT THE STACK",
-      text: "Logic is ephemeral. Compute is eternal. Pay for thinking by the millisecond, pay for muscle by the hour."
+      title: "SELF-ASSEMBLING MESH",
+      text: "Workers handshake and self-register their capabilities on startup. No static config. No service discovery. The infrastructure documents itself."
     },
     {
       icon: Layers,
-      title: "VIRTUAL LOCALITY",
-      text: "Write await ctx.gpu.resize(image). The GPU is 3,000 miles away. Your code doesn't know. It doesn't care."
+      title: "STATEFUL SERVERLESS",
+      text: "Functions have amnesia. The daemon doesn't. Session state, connection pools, and context persist across invocations. FaaS without the pain."
     },
     {
       icon: Globe,
-      title: "ZERO CONFIG",
-      text: "No service registries. No load balancers. No VPNs. Deploy code. It finds itself."
+      title: "THE ATOMIC CONTROL PLANE",
+      text: "Service discovery, orchestration, and connectivity—consolidated into a single, deployable binary. Your entire distributed backend in one daemon."
     }
   ];
 
@@ -61,17 +61,18 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
           {/* Opening Statement */}
           <div className="space-y-4">
             <h3 className={`text-2xl md:text-3xl font-bold tracking-tighter ${textPrimary}`}>
-              The Universal<br />
-              <span className={accentColor}>Orchestration Fabric</span>
+              Intelligent<br />
+              <span className={accentColor}>Invocation Interface</span>
             </h3>
             <p className={`text-sm md:text-base ${textSecondary} leading-relaxed`}>
-              We built iii because distributed systems are broken. Not technically—architecturally. 
-              Teams over-provision GPUs for lightweight API calls. They expose databases to the internet 
-              just to reach them from serverless. They write glue code between services that should just work.
+              Current APIs are dumb pipes. They just pass data. 
+              iii passes <span className={textPrimary}>Context</span>, <span className={textPrimary}>State</span>, and <span className={textPrimary}>Logic</span>.
             </p>
-            <p className={`text-sm md:text-base ${accentColor} font-semibold`}>
-              iii is the missing layer.
-            </p>
+            <div className={`text-xs md:text-sm ${textSecondary} space-y-1 pt-2`}>
+              <div><span className={accentColor}>I</span>ntelligent → The Daemon. Discovery, routing, context injection.</div>
+              <div><span className={accentColor}>I</span>nvocation → The Trigger. Any event causes code to run.</div>
+              <div><span className={accentColor}>I</span>nterface → The SDK. The surface your logic plugs into.</div>
+            </div>
           </div>
 
           {/* Core Principles */}
@@ -100,12 +101,12 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
               <ArrowRight className={`w-5 h-5 ${accentColor} mt-0.5 flex-shrink-0`} />
               <div className="space-y-2">
                 <p className={`text-sm font-bold ${textPrimary}`}>
-                  THE PROMISE
+                  THE REVOLUTION
                 </p>
                 <p className={`text-sm ${textSecondary} leading-relaxed`}>
-                  Your infrastructure becomes portable. Your code becomes simple. 
-                  Your cloud bill becomes sane. This is not another framework. 
-                  This is the runtime beneath all frameworks.
+                  A Rust daemon that runs anywhere. Workers that self-register on boot. 
+                  Functions that call remote GPUs like local imports. 
+                  <span className={`${accentColor} font-semibold`}> The entire distributed backend—in one binary.</span>
                 </p>
               </div>
             </div>
@@ -113,7 +114,7 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
 
           {/* Closing */}
           <p className={`text-center text-xs ${textSecondary} tracking-widest uppercase`}>
-            Innovate <span className={accentColor}>→</span> Implement <span className={accentColor}>→</span> Iterate
+            Deploy daemon <span className={accentColor}>→</span> Spawn workers <span className={accentColor}>→</span> Build anything
           </p>
         </div>
       </div>
