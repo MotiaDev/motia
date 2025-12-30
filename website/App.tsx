@@ -81,8 +81,10 @@ const App: React.FC = () => {
     let keyBuffer: string[] = [];
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      keyBuffer.push(e.key);
-      if (keyBuffer.length > 20) keyBuffer = keyBuffer.slice(-20);
+      // Normalize key - lowercase for letters, keep arrow keys as-is
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      keyBuffer.push(key);
+      if (keyBuffer.length > 30) keyBuffer = keyBuffer.slice(-30);
 
       const recentKeys = keyBuffer.slice(-3).join('');
       if (recentKeys === KeySequence.III) setShowTerminal(true);
@@ -194,7 +196,7 @@ const App: React.FC = () => {
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}></span>
                 <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}></span>
               </span>
-              <span className="font-mono tracking-wider">{isGodMode ? 'BSL ACTIVE' : 'KERNEL ONLINE'}</span>
+              <span className="font-mono tracking-wider">{isGodMode ? 'GOD MODE' : 'KERNEL ONLINE'}</span>
             </button>
 
             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95]">

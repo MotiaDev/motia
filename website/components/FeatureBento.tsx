@@ -92,13 +92,10 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
             <div className={`p-1.5 md:p-2 border rounded-lg ${iconBg} ${cardBorder}`}>
               <Terminal className={`w-4 h-4 md:w-5 md:h-5 group-hover:text-green-400 transition-colors ${textPrimary}`} />
             </div>
-            <div className="text-[8px] md:text-[10px] text-green-400 font-mono uppercase tracking-wider border border-green-500/30 px-1.5 py-0.5 md:px-2 rounded bg-green-500/10">
-              Apache 2.0
-            </div>
           </div>
           <h3 className={`text-sm md:text-lg font-semibold mb-1 ${textPrimary}`}>SDKs & Frameworks</h3>
           <p className="text-[10px] md:text-xs text-iii-medium hidden sm:block">
-            Apache 2.0 libraries for protocol message generation.
+            Client libraries for protocol message generation.
           </p>
           <div className="mt-2 md:mt-4 flex flex-wrap gap-1.5 md:gap-2">
             {['@iii/client', 'iii-py', 'iii-go'].map(pkg => (

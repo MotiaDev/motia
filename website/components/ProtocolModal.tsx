@@ -35,14 +35,13 @@ export const ProtocolModal: React.FC<ProtocolModalProps> = ({ onClose, isDarkMod
           <div className="space-y-2">
             <div className={`flex items-center gap-2 ${textPrimary}`}>
               <Cpu className={`w-5 h-5 ${accentColor}`} />
-              <h3 className="font-bold text-lg">THE ENGINE (BSL 1.1)</h3>
+              <h3 className="font-bold text-lg">THE ENGINE</h3>
             </div>
             <div className="pl-7 space-y-2">
               <p className="text-sm text-iii-medium leading-relaxed">
                 The binary executable that manages durability, history, and scheduling. This is the "Core" that guarantees execution correctness.
               </p>
               <div className={`text-xs font-mono text-iii-medium p-2 border-l-2 ${codeBg} ${accentBorder}`}>
-                STATUS: PROPRIETARY<br/>
                 ROLE: DURABILITY & SCHEDULING
               </div>
             </div>
@@ -51,15 +50,15 @@ export const ProtocolModal: React.FC<ProtocolModalProps> = ({ onClose, isDarkMod
           <div className="space-y-2">
             <div className={`flex items-center gap-2 ${textPrimary}`}>
               <Box className="w-5 h-5 text-blue-500" />
-              <h3 className="font-bold text-lg">SDKs & FRAMEWORKS (Apache 2.0)</h3>
+              <h3 className="font-bold text-lg">SDKs & FRAMEWORKS</h3>
             </div>
             <div className="pl-7 space-y-2">
               <p className="text-sm text-iii-medium leading-relaxed">
-                Libraries for Agents and Workflows. Grants rights to generate protocol messages (Intents/Interrupts) but does not execute backend logic.
+                Libraries for Agents and Workflows. Generate protocol messages (Intents/Interrupts) with simple function calls.
               </p>
               <div className={`text-xs font-mono text-iii-medium p-2 border-l-2 border-blue-500/50 ${codeBg}`}>
                 OPEN ECOSYSTEM<br/>
-                Allows the community to adopt syntax freely.
+                Community-driven syntax and integrations.
               </div>
             </div>
           </div>
@@ -67,11 +66,11 @@ export const ProtocolModal: React.FC<ProtocolModalProps> = ({ onClose, isDarkMod
           <div className="space-y-2">
             <div className={`flex items-center gap-2 ${textPrimary}`}>
               <Layers className="w-5 h-5 text-green-500" />
-              <h3 className="font-bold text-lg">ADAPTERS (Apache 2.0)</h3>
+              <h3 className="font-bold text-lg">ADAPTERS</h3>
             </div>
             <div className="pl-7 space-y-2">
               <p className="text-sm text-iii-medium leading-relaxed">
-                Community-built connectors (Databases, LLMs, APIs). These components do not touch the Durable Execution Method.
+                Community-built connectors (Databases, LLMs, APIs). Extend the platform with powerful integrations.
               </p>
               <div className={`text-xs font-mono text-iii-medium p-2 border-l-2 border-green-500/50 ${codeBg}`}>
                 ROLE: EXTENSIBILITY LAYER<br/>
