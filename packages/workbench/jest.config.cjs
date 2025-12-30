@@ -4,13 +4,19 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^react-resizable-panels$': '<rootDir>/src/__mocks__/react-resizable-panels.tsx',
   },
   testMatch: [
-    '<rootDir>/src/**/__tests__/**/*.(ts|tsx|js)',
+    '<rootDir>/src/**/__tests__/**/*.(test|spec).(ts|tsx|js)',
     '<rootDir>/src/**/*.(test|spec).(ts|tsx|js)',
-    '<rootDir>/motia-plugin/**/__tests__/**/*.(ts|tsx|js)',
+    '<rootDir>/motia-plugin/**/__tests__/**/*.(test|spec).(ts|tsx|js)',
     '<rootDir>/motia-plugin/**/*.(test|spec).(ts|tsx|js)',
-    '<rootDir>/__tests__/**/*.(ts|tsx|js)',
+    '<rootDir>/__tests__/**/*.(test|spec).(ts|tsx|js)',
+  ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/',
+    '/__tests__/fixtures.ts',
   ],
   collectCoverageFrom: [
     'src/**/*.(ts|tsx)',
@@ -56,7 +62,9 @@ module.exports = {
       },
     ],
   },
-  transformIgnorePatterns: ['node_modules/(?!(@motiadev/stream-client-react|@motiadev/stream-client-browser)/)'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(@motiadev/stream-client-react|@motiadev/stream-client-browser|react-resizable-panels|react-syntax-highlighter|refractor)/)',
+  ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testEnvironmentOptions: {
     url: 'http://localhost',
