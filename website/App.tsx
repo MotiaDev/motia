@@ -20,12 +20,54 @@ const App: React.FC = () => {
   const [installCmd] = useState("npm install @iii/client");
   const [bslBlink, setBslBlink] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
+  const [hoverAnimIndex, setHoverAnimIndex] = useState(-1);
+  const [showGodModeUnlock, setShowGodModeUnlock] = useState(false);
+  const clickResetTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-  const handleLogoClick = useCallback((e: React.MouseEvent) => {
-    if (e.detail === 3) setShowTerminal(true);
-  }, []);
+  // Hover animation - sequential highlight
+  useEffect(() => {
+    if (!isLogoHovered || logoClickCount > 0) {
+      setHoverAnimIndex(-1);
+      return;
+    }
+    
+    let index = 0;
+    const interval = setInterval(() => {
+      setHoverAnimIndex(index % 3);
+      index++;
+    }, 200);
+    
+    return () => clearInterval(interval);
+  }, [isLogoHovered, logoClickCount]);
+
+  // Click handler - each click locks another "i"
+  const handleLogoClick = useCallback(() => {
+    // Clear any existing reset timer
+    if (clickResetTimerRef.current) {
+      clearTimeout(clickResetTimerRef.current);
+    }
+    
+    const newCount = logoClickCount + 1;
+    
+    if (newCount >= 3) {
+      // Three clicks - all lit, open terminal
+      setLogoClickCount(3);
+      setTimeout(() => {
+        setShowTerminal(true);
+        setLogoClickCount(0); // Reset after opening
+      }, 300);
+    } else {
+      setLogoClickCount(newCount);
+      // Reset after 2 seconds of inactivity
+      clickResetTimerRef.current = setTimeout(() => {
+        setLogoClickCount(0);
+      }, 2000);
+    }
+  }, [logoClickCount]);
 
   const handleBslClick = () => {
     setBslBlink(true);
@@ -46,7 +88,12 @@ const App: React.FC = () => {
       const fullHistory = keyBuffer.join('');
       if (fullHistory.includes(KeySequence.KONAMI)) {
         setIsGodMode(true);
-        setShowTerminal(true);
+        setShowGodModeUnlock(true);
+        // Show unlock animation then open terminal
+        setTimeout(() => {
+          setShowGodModeUnlock(false);
+          setShowTerminal(true);
+        }, 2000);
         keyBuffer = [];
       }
     };
@@ -92,8 +139,18 @@ const App: React.FC = () => {
             ? 'border-iii-dark/50 bg-iii-black/80' 
             : 'border-iii-medium/20 bg-iii-light/80'
         }`}>
-        <div className="cursor-pointer" onClick={handleLogoClick}>
-          <Logo className={`h-6 md:h-10 ${isGodMode ? 'text-red-500' : isDarkMode ? 'text-iii-light' : 'text-iii-black'}`} animate={true} />
+        <div 
+          className="cursor-pointer" 
+          onClick={handleLogoClick}
+          onMouseEnter={() => setIsLogoHovered(true)}
+          onMouseLeave={() => setIsLogoHovered(false)}
+        >
+          <Logo 
+            className={`h-6 md:h-10 ${isGodMode ? 'text-red-500' : isDarkMode ? 'text-iii-light' : 'text-iii-black'}`} 
+            highlightCount={logoClickCount > 0 ? logoClickCount : undefined}
+            highlightIndex={logoClickCount === 0 ? hoverAnimIndex : undefined}
+            accentColor={isGodMode ? 'fill-red-500' : isDarkMode ? 'fill-iii-accent' : 'fill-iii-black'}
+          />
         </div>
         <div className="flex gap-3 md:gap-6 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
           <a href="#" onClick={handleManifestoClick} className={`transition-colors hidden md:block ${isDarkMode ? 'hover:text-iii-light' : 'hover:text-iii-black'}`}>MANIFESTO</a>
@@ -223,6 +280,32 @@ const App: React.FC = () => {
           <span className="opacity-50">v0.1.0-alpha</span>
         </div>
       </footer>
+
+      {/* God Mode Unlock Animation */}
+      {showGodModeUnlock && (
+        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+          <div className="text-center animate-pulse">
+            <div className="text-6xl md:text-8xl font-black text-red-500 mb-4 tracking-tighter animate-bounce">
+              GOD MODE
+            </div>
+            <div className="text-xl md:text-2xl text-red-400 font-mono tracking-widest">
+              UNLOCKED
+            </div>
+            <div className="mt-8 text-sm text-red-500/50 font-mono">
+              ↑↑↓↓←→←→BA
+            </div>
+            <div className="mt-4 flex justify-center gap-2">
+              {[0, 1, 2].map(i => (
+                <div 
+                  key={i} 
+                  className="w-3 h-3 bg-red-500 rounded-full animate-ping"
+                  style={{ animationDelay: `${i * 0.2}s` }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showTerminal && <Terminal onClose={() => setShowTerminal(false)} isGodMode={isGodMode} />}
       {showProtocol && <ProtocolModal onClose={() => setShowProtocol(false)} />}
