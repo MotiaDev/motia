@@ -5,6 +5,7 @@ import { GridBackground } from './components/GridBackground';
 import { VisualArrow } from './components/VisualArrow';
 import { ProtocolModal } from './components/ProtocolModal';
 import { FeatureBento } from './components/FeatureBento';
+import { StackVisual } from './components/StackVisual';
 import { KeySequence } from './types';
 import { ArrowRight, Copy, Check, Terminal as TerminalIcon, Code2 } from 'lucide-react';
 
@@ -181,6 +182,8 @@ const App: React.FC = () => {
         </div>
 
         <FeatureBento />
+
+        <StackVisual />
       </main>
 
       <footer className="relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t border-iii-dark/30 bg-iii-black text-[9px] md:text-[10px] text-iii-medium font-mono">
