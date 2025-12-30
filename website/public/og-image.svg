@@ -30,11 +30,17 @@
   <line x1="0" y1="100" x2="1200" y2="100" stroke="#1a1a1a" stroke-width="1"/>
   <line x1="0" y1="530" x2="1200" y2="530" stroke="#1a1a1a" stroke-width="1"/>
   
-  <!-- III Logo - Large centered bars -->
-  <g filter="url(#glow)" transform="translate(400, 180)">
-    <rect x="0" y="0" width="80" height="270" fill="url(#accentGrad)" rx="4"/>
-    <rect x="160" y="0" width="80" height="270" fill="url(#accentGrad)" rx="4"/>
-    <rect x="320" y="0" width="80" height="270" fill="url(#accentGrad)" rx="4"/>
+  <!-- III Logo - Three i's with dots -->
+  <g filter="url(#glow)" transform="translate(420, 160)">
+    <!-- First i -->
+    <rect x="0" y="0" width="50" height="50" fill="url(#accentGrad)"/>
+    <rect x="0" y="70" width="50" height="180" fill="url(#accentGrad)"/>
+    <!-- Second i -->
+    <rect x="130" y="0" width="50" height="50" fill="url(#accentGrad)"/>
+    <rect x="130" y="70" width="50" height="180" fill="url(#accentGrad)"/>
+    <!-- Third i -->
+    <rect x="260" y="0" width="50" height="50" fill="url(#accentGrad)"/>
+    <rect x="260" y="70" width="50" height="180" fill="url(#accentGrad)"/>
   </g>
   
   <!-- Tagline -->

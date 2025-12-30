@@ -130,11 +130,23 @@ export const StackVisual: React.FC = () => {
             <div className="relative px-6 py-6 md:px-10 md:py-8 bg-gradient-to-b from-iii-dark to-iii-black border-2 border-iii-accent rounded-sm shadow-[0_0_40px_rgba(0,255,136,0.15)]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,255,136,0.05),transparent_70%)]" />
               
-              {/* III Logo text */}
-              <div className="relative text-center">
-                <div className="text-4xl md:text-6xl font-black tracking-tighter text-iii-accent mb-2 font-mono">
-                  III
-                </div>
+              {/* III Logo - three i's with dots */}
+              <div className="relative flex flex-col items-center gap-3">
+                <svg 
+                  viewBox="0 0 100 60" 
+                  className="w-20 h-12 md:w-28 md:h-16 text-iii-accent"
+                  fill="currentColor"
+                >
+                  {/* First i */}
+                  <rect x="15" y="0" width="10" height="10" />
+                  <rect x="15" y="16" width="10" height="44" />
+                  {/* Second i */}
+                  <rect x="45" y="0" width="10" height="10" />
+                  <rect x="45" y="16" width="10" height="44" />
+                  {/* Third i */}
+                  <rect x="75" y="0" width="10" height="10" />
+                  <rect x="75" y="16" width="10" height="44" />
+                </svg>
                 <div className="text-[10px] md:text-xs text-iii-medium tracking-[0.3em] uppercase">
                   The Universal Runtime
                 </div>

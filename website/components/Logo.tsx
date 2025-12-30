@@ -6,16 +6,26 @@ interface LogoProps {
 }
 
 export const Logo: React.FC<LogoProps> = ({ className = "h-8", animate = false }) => {
+  // III logo: three lowercase "i" letters with dots on top
+  // Based on brand guidelines: dot (square) on top, stem below, with proper spacing
   return (
     <svg 
-      viewBox="0 0 100 100" 
+      viewBox="0 0 100 60" 
       fill="currentColor" 
       className={`${className} ${animate ? 'hover:text-iii-accent transition-colors duration-300' : ''}`}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect x="20" y="10" width="15" height="80" />
-      <rect x="42.5" y="10" width="15" height="80" />
-      <rect x="65" y="10" width="15" height="80" />
+      {/* First i */}
+      <rect x="15" y="0" width="10" height="10" /> {/* dot */}
+      <rect x="15" y="16" width="10" height="44" /> {/* stem */}
+      
+      {/* Second i */}
+      <rect x="45" y="0" width="10" height="10" /> {/* dot */}
+      <rect x="45" y="16" width="10" height="44" /> {/* stem */}
+      
+      {/* Third i */}
+      <rect x="75" y="0" width="10" height="10" /> {/* dot */}
+      <rect x="75" y="16" width="10" height="44" /> {/* stem */}
     </svg>
   );
 };
