@@ -26,3 +26,4 @@ npm-debug.log*
 .cache/
 .vite/
 .vercel
+*.pdf
