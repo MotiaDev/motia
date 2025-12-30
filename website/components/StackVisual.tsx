@@ -153,6 +153,13 @@ export const StackVisual: React.FC = () => {
             <div className="mt-0.5 mx-6 h-1 md:h-1.5 bg-iii-dark/40 rounded-b-sm" />
           </div>
         </div>
+
+        {/* Tagline */}
+        <div className="mt-8 text-center">
+          <p className="text-[10px] md:text-xs text-iii-medium/70 tracking-wider">
+            APIs • JOBS • QUEUES • STREAMS • WORKFLOWS • AI AGENTS
+          </p>
+        </div>
       </div>
     </div>
   );
