@@ -4,13 +4,13 @@ The context-aware execution layer for distributed systems.
 
 ## Overview
 
-**iii** is not a dumb pipe. It passes **Context**, **State**, and **Logic** between your systems.
+**iii** is a Rust-based runtime that orchestrates distributed systems.
 
 - **I**ntelligent → The Daemon. Discovery, routing, load balancing, context injection.
 - **I**nvocation → The Trigger. HTTP, events, streams, state changes—all unified.
 - **I**nterface → The SDK. The surface your logic plugs into.
 
-One binary. Infinite systems.
+Workers self-register. Functions invoke across languages. One binary runs everything.
 
 ## Tech Stack
 

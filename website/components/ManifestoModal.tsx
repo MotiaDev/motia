@@ -18,18 +18,18 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
   const principles = [
     {
       icon: Zap,
-      title: "SELF-ASSEMBLING MESH",
-      text: "Workers handshake and self-register their capabilities on startup. No static config. No service discovery. The infrastructure documents itself."
+      title: "SELF-REGISTERING WORKERS",
+      text: "Workers connect via WebSocket and declare their capabilities. The engine maintains a live registry. Zero configuration required."
     },
     {
       icon: Layers,
-      title: "STATEFUL SERVERLESS",
-      text: "Functions have amnesia. The daemon doesn't. Session state, connection pools, and context persist across invocations. FaaS without the pain."
+      title: "PERSISTENT CONTEXT",
+      text: "The daemon maintains state, connection pools, and execution history. Functions access shared context without setup."
     },
     {
       icon: Globe,
-      title: "THE ATOMIC CONTROL PLANE",
-      text: "Service discovery, orchestration, and connectivity—consolidated into a single, deployable binary. Your entire distributed backend in one daemon."
+      title: "UNIFIED EXECUTION",
+      text: "APIs, cron, events, and streams—all handled by a single Rust binary. One deployment. One control plane."
     }
   ];
 
@@ -65,8 +65,8 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
               <span className={accentColor}>Invocation Interface</span>
             </h3>
             <p className={`text-sm md:text-base ${textSecondary} leading-relaxed`}>
-              Current APIs are dumb pipes. They just pass data. 
-              iii passes <span className={textPrimary}>Context</span>, <span className={textPrimary}>State</span>, and <span className={textPrimary}>Logic</span>.
+              A single binary that orchestrates distributed systems. 
+              Workers self-register. Functions invoke across languages. No config required.
             </p>
             <div className={`text-xs md:text-sm ${textSecondary} space-y-1 pt-2`}>
               <div><span className={accentColor}>I</span>ntelligent → The Daemon. Discovery, routing, context injection.</div>
@@ -101,12 +101,12 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
               <ArrowRight className={`w-5 h-5 ${accentColor} mt-0.5 flex-shrink-0`} />
               <div className="space-y-2">
                 <p className={`text-sm font-bold ${textPrimary}`}>
-                  THE REVOLUTION
+                  WHAT YOU GET
                 </p>
                 <p className={`text-sm ${textSecondary} leading-relaxed`}>
-                  A Rust daemon that runs anywhere. Workers that self-register on boot. 
-                  Functions that call remote GPUs like local imports. 
-                  <span className={`${accentColor} font-semibold`}> The entire distributed backend—in one binary.</span>
+                  A Rust daemon that runs anywhere. Workers in any language. 
+                  Polyglot function invocation over WebSocket. 
+                  <span className={`${accentColor} font-semibold`}> One binary. Zero config.</span>
                 </p>
               </div>
             </div>
