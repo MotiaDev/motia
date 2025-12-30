@@ -111,9 +111,7 @@ describe('validatePythonEnvironment', () => {
       expect(result.success).toBe(false)
       expect(result.hasPythonFiles).toBe(true)
       expect(mockInternalLogger.error).toHaveBeenCalledWith('Python environment is incomplete')
-      expect(mockInternalLogger.info).toHaveBeenCalledWith(
-        'The python_modules directory exists but appears to be corrupted',
-      )
+      expect(mockInternalLogger.info).toHaveBeenCalledWith('The python_modules/lib directory was not found')
       expect(mockInternalLogger.info).toHaveBeenCalledWith('Run npm install to recreate your Python environment')
     })
 

@@ -12,7 +12,7 @@ export const executeCommand = async (
   const { silent = false } = options || {}
 
   return new Promise((resolve, reject) => {
-    exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
+    exec(command, { cwd: rootDir, env: process.env }, (error, stdout, stderr) => {
       if (error) {
         if (!silent) {
           console.error(`exec error: ${error}`)

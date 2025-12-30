@@ -11,6 +11,13 @@ interface VenvConfig {
 
 export const getSitePackagesPath = ({ baseDir, pythonVersion = '3.13' }: VenvConfig): string => {
   const venvPath = path.join(baseDir, 'python_modules')
+
+  // Windows virtualenv layout uses "Lib/site-packages"
+  if (process.platform === 'win32') {
+    return path.join(venvPath, 'Lib', 'site-packages')
+  }
+
+  // Unix-like layout uses "lib/python3.x/site-packages"
   const libPath = path.join(venvPath, 'lib')
   const actualPythonVersionPath = findPythonSitePackagesDir(libPath, pythonVersion)
   return path.join(venvPath, 'lib', actualPythonVersionPath, 'site-packages')
