@@ -1,13 +1,15 @@
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <rect width="100" height="100" fill="#000000"/>
+  <!-- iii logo: 4x dot, 2x gap, 12x stem proportions -->
+  <!-- Centered in 100x100, scaled to fit with padding -->
   <!-- First i -->
-  <rect x="18" y="12" width="12" height="12" fill="#FFFFFF"/>
-  <rect x="18" y="32" width="12" height="56" fill="#FFFFFF"/>
+  <rect x="17" y="14" width="14" height="14" fill="#FFFFFF"/>
+  <rect x="17" y="35" width="14" height="51" fill="#FFFFFF"/>
   <!-- Second i -->
-  <rect x="44" y="12" width="12" height="12" fill="#FFFFFF"/>
-  <rect x="44" y="32" width="12" height="56" fill="#FFFFFF"/>
+  <rect x="43" y="14" width="14" height="14" fill="#FFFFFF"/>
+  <rect x="43" y="35" width="14" height="51" fill="#FFFFFF"/>
   <!-- Third i -->
-  <rect x="70" y="12" width="12" height="12" fill="#FFFFFF"/>
-  <rect x="70" y="32" width="12" height="56" fill="#FFFFFF"/>
+  <rect x="69" y="14" width="14" height="14" fill="#FFFFFF"/>
+  <rect x="69" y="35" width="14" height="51" fill="#FFFFFF"/>
 </svg>
 

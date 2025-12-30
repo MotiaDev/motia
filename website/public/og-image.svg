@@ -30,17 +30,18 @@
   <line x1="0" y1="100" x2="1200" y2="100" stroke="#1a1a1a" stroke-width="1"/>
   <line x1="0" y1="530" x2="1200" y2="530" stroke="#1a1a1a" stroke-width="1"/>
   
-  <!-- III Logo - Three i's with dots -->
-  <g filter="url(#glow)" transform="translate(420, 160)">
+  <!-- iii Logo - brand proportions: 4x dot, 2x gap, 12x stem -->
+  <!-- Using base unit of 20px: dot=80, gap=40, stem=240, bar width=80, spacing=80 -->
+  <g filter="url(#glow)" transform="translate(360, 130)">
     <!-- First i -->
-    <rect x="0" y="0" width="50" height="50" fill="url(#accentGrad)"/>
-    <rect x="0" y="70" width="50" height="180" fill="url(#accentGrad)"/>
+    <rect x="0" y="0" width="80" height="80" fill="url(#accentGrad)"/>
+    <rect x="0" y="120" width="80" height="240" fill="url(#accentGrad)"/>
     <!-- Second i -->
-    <rect x="130" y="0" width="50" height="50" fill="url(#accentGrad)"/>
-    <rect x="130" y="70" width="50" height="180" fill="url(#accentGrad)"/>
+    <rect x="160" y="0" width="80" height="80" fill="url(#accentGrad)"/>
+    <rect x="160" y="120" width="80" height="240" fill="url(#accentGrad)"/>
     <!-- Third i -->
-    <rect x="260" y="0" width="50" height="50" fill="url(#accentGrad)"/>
-    <rect x="260" y="70" width="50" height="180" fill="url(#accentGrad)"/>
+    <rect x="320" y="0" width="80" height="80" fill="url(#accentGrad)"/>
+    <rect x="320" y="120" width="80" height="240" fill="url(#accentGrad)"/>
   </g>
   
   <!-- Tagline -->
