@@ -181,11 +181,10 @@ export type MotiaPluginBuilder = (motia: MotiaPluginContext) => MotiaPlugin
 
 ```typescript
 import { config } from 'motia'
-
-const statesPlugin = require('@motiadev/plugin-states/plugin')
-const endpointPlugin = require('@motiadev/plugin-endpoint/plugin')
-const logsPlugin = require('@motiadev/plugin-logs/plugin')
-const observabilityPlugin = require('@motiadev/plugin-observability/plugin')
+import statesPlugin from '@motiadev/plugin-states/plugin'
+import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
+import logsPlugin from '@motiadev/plugin-logs/plugin'
+import observabilityPlugin from '@motiadev/plugin-observability/plugin'
 
 export default config({
   plugins: [observabilityPlugin, statesPlugin, endpointPlugin, logsPlugin],

@@ -1,8 +1,8 @@
-import fs from 'fs'
-import path from 'path'
+import fs from 'node:fs'
+import path from 'node:path'
 import pc from 'picocolors'
 import { getStepFiles, getStreamFiles } from './generate-locked-data'
-import { activatePythonVenv } from './utils/activate-python-env'
+import { activatePythonVenv, getSitePackagesPath } from './utils/activate-python-env'
 import { ensureUvInstalled } from './utils/ensure-uv'
 import { executeCommand } from './utils/execute-command'
 import { installLambdaPythonPackages } from './utils/install-lambda-python-packages'
@@ -39,9 +39,22 @@ export const pythonInstall = async ({
     }
 
     // Check if virtual environment exists
-    if (!fs.existsSync(venvPath)) {
-      console.log('📦 Creating Python virtual environment...')
-      await executeCommand(`${pythonCmd} -m venv python_modules`, baseDir)
+    if (fs.existsSync(venvPath)) {
+      fs.rmSync(venvPath, { recursive: true, force: true })
+    }
+
+    console.log('📦 Creating Python virtual environment...')
+    await executeCommand(`${pythonCmd} -m venv python_modules`, baseDir)
+
+    const sitePackagesPath = getSitePackagesPath({ baseDir, pythonVersion })
+
+    if (!sitePackagesPath || !fs.existsSync(sitePackagesPath)) {
+      const installCmd = getInstallCommand(baseDir)
+      internalLogger.error('Python virtual environment was not created')
+      internalLogger.info(
+        `Please try running ${pc.cyan(installCmd)} or manually create the venv with: ${pc.cyan('python3 -m venv python_modules')}`,
+      )
+      process.exit(1)
     }
 
     activatePythonVenv({ baseDir, isVerbose, pythonVersion })
@@ -65,17 +78,6 @@ export const pythonInstall = async ({
         }
         await executeCommand(`pip install -r "${requirement}" --only-binary=:all:`, baseDir)
       }
-    }
-
-    const sitePackagesPath = process.env.PYTHON_SITE_PACKAGES
-
-    if (!sitePackagesPath || !fs.existsSync(sitePackagesPath)) {
-      const installCmd = getInstallCommand(baseDir)
-      internalLogger.error('Python virtual environment was not created')
-      internalLogger.info(
-        `Please try running ${pc.cyan(installCmd)} or manually create the venv with: ${pc.cyan('python3 -m venv python_modules')}`,
-      )
-      process.exit(1)
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)

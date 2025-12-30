@@ -217,7 +217,7 @@ Follow the prompts to pick a template, project name, and language.
 Inside your new project folder, launch the dev server:
 
 ```bash
-npx motia dev # ➜ http://localhost:3000
+npm run dev # ➜ http://localhost:3000
 ```
 
 **That's it!** You have:
@@ -271,6 +271,10 @@ Pre-installed with every Motia project to enhance your workbench:
 | **[@motiadev/plugin-observability](https://github.com/motiadev/motia/tree/main/plugins/plugin-observability)** | Performance tracing and distributed monitoring | [![npm](https://img.shields.io/npm/v/@motiadev/plugin-observability?style=flat&color=CB3837)](https://www.npmjs.com/package/@motiadev/plugin-observability) |
 | **[@motiadev/plugin-states](https://github.com/motiadev/motia/tree/main/plugins/plugin-states)** | State management and inspection tool | [![npm](https://img.shields.io/npm/v/@motiadev/plugin-states?style=flat&color=CB3837)](https://www.npmjs.com/package/@motiadev/plugin-states) |
 | **[@motiadev/plugin-bullmq](https://github.com/motiadev/motia/tree/main/plugins/plugin-bullmq)** | BullMQ queue and DLQ management | [![npm](https://img.shields.io/npm/v/@motiadev/plugin-bullmq?style=flat&color=CB3837)](https://www.npmjs.com/package/@motiadev/plugin-bullmq) |
+| **[@motiadev/ws-plugin](https://github.com/motiadev/motia/tree/main/plugins/motia-ws-plugin)** | WebSocket monitoring and debugging<sup>*</sup> | [![npm](https://img.shields.io/npm/v/@motiadev/ws-plugin?style=flat&color=CB3837)](https://www.npmjs.com/package/@motiadev/ws-plugin) |
+| **[@motiadev/cron-plugin](https://github.com/motiadev/motia/tree/main/plugins/motia-cron-plugin)** | Cron job monitoring and management | [![npm](https://img.shields.io/npm/v/@motiadev/cron-plugin?style=flat&color=CB3837)](https://www.npmjs.com/package/@motiadev/cron-plugin) |
+
+<sup>*</sup> Originally created by [@Rohithgilla12](https://github.com/Rohithgilla12) as [@potatocoder/ws-plugin](https://github.com/Rohithgilla12/motia-ws-plugin)
 
 **[View all community plugins →](https://github.com/MotiaDev/awesome-plugins)**
 
@@ -376,7 +380,13 @@ We welcome contributions! Check our **[Contributing Guide](https://github.com/Mo
 
 **[🚀 Get Started](https://motia.dev)** • **[📖 Docs](https://motia.dev/docs)** • **[💬 Discord](https://discord.gg/motia)**
 
-[![Star History Chart](https://api.star-history.com/svg?repos=motiadev/motia&type=Date)](https://www.star-history.com/#motiadev/motia&Date)
+<a href="https://git-history.com">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://git-history.com/api/embed/stars?repos=MotiaDev/motia&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://git-history.com/api/embed/stars?repos=MotiaDev/motia&theme=light" />
+    <img alt="Star History Chart" src="https://git-history.com/api/embed/stars?repos=MotiaDev/motia&theme=dark" width="100%" />
+  </picture>
+</a>
 
 <sub>⭐ **Star us if you find Motia useful!**</sub>
 

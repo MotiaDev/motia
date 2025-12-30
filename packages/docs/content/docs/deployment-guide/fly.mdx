@@ -11,6 +11,10 @@ This guide walks you through deploying a Motia app to Fly.io with production Red
 **What you'll get:** A containerized Motia app running on Fly.io with Upstash Redis for state, events, streams, and cron locking.
 </Callout>
 
+<Callout type="info">
+**Example Project:** Follow along with the [Todo App example](https://github.com/MotiaDev/motia-examples/tree/main/examples/foundational/api-patterns/todo-app) - a complete deployment-ready Motia app with Redis configuration.
+</Callout>
+
 ---
 
 ## Prerequisites
@@ -155,9 +159,75 @@ Fly injects the port via environment variables. Update your `package.json`:
 
 The `--host 0.0.0.0` is important - Fly needs your app to listen on all interfaces.
 
-### Configure Redis Adapters
+### Configure Redis
 
-Install the adapter packages:
+Motia supports two approaches for production Redis configuration:
+
+#### Option 1: Simple Redis Config (Recommended)
+
+Use Motia's built-in `redis` configuration option:
+
+```typescript title="motia.config.ts"
+import { config } from 'motia'
+import statesPlugin from '@motiadev/plugin-states/plugin'
+import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
+import logsPlugin from '@motiadev/plugin-logs/plugin'
+import observabilityPlugin from '@motiadev/plugin-observability/plugin'
+import bullmqPlugin from '@motiadev/plugin-bullmq/plugin'
+
+// Determine Redis configuration based on environment
+const getRedisConfig = () => {
+  const useExternalRedis = process.env.USE_REDIS === 'true' || 
+    (process.env.USE_REDIS !== 'false' && process.env.NODE_ENV === 'production')
+
+  if (!useExternalRedis) {
+    return { useMemoryServer: true as const }
+  }
+
+  const redisUrl = process.env.REDIS_URL
+  if (redisUrl) {
+    try {
+      const url = new URL(redisUrl)
+      return {
+        useMemoryServer: false as const,
+        host: url.hostname,
+        port: parseInt(url.port || '6379', 10),
+        password: url.password || undefined,
+        username: url.username || undefined,
+      }
+    } catch (e) {
+      console.error('[motia] Failed to parse REDIS_URL:', e)
+    }
+  }
+
+  return {
+    useMemoryServer: false as const,
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    password: process.env.REDIS_PASSWORD,
+    username: process.env.REDIS_USERNAME,
+  }
+}
+
+export default config({
+  plugins: [
+    observabilityPlugin,
+    statesPlugin,
+    endpointPlugin,
+    logsPlugin,
+    bullmqPlugin,
+  ],
+  redis: getRedisConfig(),
+})
+```
+
+<Callout type="info">
+**That's it!** The config parses `REDIS_URL` automatically. Fly sets this when you run `flyctl redis create`.
+</Callout>
+
+#### Option 2: Custom Adapters (Advanced)
+
+For more control over individual adapters:
 
 ```bash
 npm install @motiadev/adapter-redis-state \
@@ -166,14 +236,16 @@ npm install @motiadev/adapter-redis-state \
             @motiadev/adapter-bullmq-events
 ```
 
-Update your `motia.config.ts`:
-
 ```typescript title="motia.config.ts"
-import { defineConfig } from '@motiadev/core'
+import { config } from 'motia'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 import { BullMQEventAdapter } from '@motiadev/adapter-bullmq-events'
+import statesPlugin from '@motiadev/plugin-states/plugin'
+import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
+import logsPlugin from '@motiadev/plugin-logs/plugin'
+import observabilityPlugin from '@motiadev/plugin-observability/plugin'
 
 // Parse REDIS_URL (set automatically by Fly when you attach Upstash Redis)
 // Format: rediss://default:password@host:port
@@ -187,8 +259,16 @@ const redisConfig = {
   tls: url.protocol === 'rediss:',  // Upstash requires TLS
 }
 
-export default defineConfig({
-  adapters: {
+const useRedis = process.env.USE_REDIS === 'true' || process.env.NODE_ENV === 'production'
+
+export default config({
+  plugins: [
+    observabilityPlugin,
+    statesPlugin,
+    endpointPlugin,
+    logsPlugin,
+  ],
+  adapters: useRedis ? {
     state: new RedisStateAdapter({
       socket: { host: redisConfig.host, port: redisConfig.port, tls: redisConfig.tls },
       username: redisConfig.username,
@@ -214,13 +294,9 @@ export default defineConfig({
       username: redisConfig.username,
       password: redisConfig.password,
     }),
-  },
+  } : undefined,
 })
 ```
-
-<Callout type="info">
-**That's it!** The config parses `REDIS_URL` automatically. Fly sets this when you run `flyctl redis create`.
-</Callout>
 
 ---
 
@@ -244,7 +320,7 @@ Choose Fly.io if you need low-latency responses globally. Choose Railway for sim
 # Check app status
 flyctl status
 
-# View logs
+# View logs (streams in real-time)
 flyctl logs
 
 # SSH into your app
@@ -297,6 +373,18 @@ flyctl apps destroy my-motia-app
 const useTls = url.protocol === 'rediss:'
 ```
 
+### Plugin Not Loading
+
+**Cause:** Plugin imports might not be resolving correctly.
+
+**Fix:** Use ESM imports (recommended for `"type": "module"` projects):
+
+```typescript
+// ✅ Correct - ESM imports
+import statesPlugin from '@motiadev/plugin-states/plugin'
+import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
+```
+
 ### Machine Keeps Restarting
 
 **Symptom:** App restarts repeatedly in logs
@@ -314,45 +402,6 @@ flyctl logs
 
 ---
 
-## Local Testing with Docker
-
-Test your production setup locally before deploying:
-
-```yaml title="docker-compose.yml"
-services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  motia:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - USE_REDIS=true
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      redis:
-        condition: service_healthy
-```
-
-Run:
-
-```bash
-docker-compose up --build
-```
-
-If it works locally, it'll work on Fly.
-
----
-
 ## Scaling Globally
 
 Fly makes global deployment easy. Add machines in different regions:
@@ -365,7 +414,7 @@ flyctl machine clone --region ams
 flyctl machine clone --region syd
 ```
 
-With Redis adapters configured, all machines share state automatically. Users connect to the nearest machine for lowest latency.
+With Redis configured, all machines share state automatically. Users connect to the nearest machine for lowest latency.
 
 ---
 
