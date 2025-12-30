@@ -14,7 +14,7 @@ export const StackVisual: React.FC = () => {
     <div className="w-full max-w-4xl mx-auto px-4 py-12 md:py-20">
       <div className="text-center mb-8 md:mb-12">
         <h2 className="text-2xl md:text-4xl font-bold tracking-tighter mb-3">
-          EVERYTHING RUNS ON <span className="text-iii-accent">III</span>
+          EVERYTHING RUNS ON <span className="text-iii-accent">iii</span>
         </h2>
         <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto">
           One engine. Infinite possibilities. Build anything on the universal runtime.
@@ -130,7 +130,7 @@ export const StackVisual: React.FC = () => {
             <div className="relative px-6 py-6 md:px-10 md:py-8 bg-gradient-to-b from-iii-dark to-iii-black border-2 border-iii-accent rounded-sm shadow-[0_0_40px_rgba(0,255,136,0.15)]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,255,136,0.05),transparent_70%)]" />
               
-              {/* III Logo - three i's with dots */}
+              {/* iii Logo - three i's with dots */}
               <div className="relative flex flex-col items-center gap-3">
                 <svg 
                   viewBox="0 0 100 60" 
