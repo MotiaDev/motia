@@ -6,7 +6,7 @@ import { VisualArrow } from './components/VisualArrow';
 import { ProtocolModal } from './components/ProtocolModal';
 import { FeatureBento } from './components/FeatureBento';
 import { KeySequence } from './types';
-import { ArrowRight, Copy, Check, Terminal as TerminalIcon, Shield } from 'lucide-react';
+import { ArrowRight, Copy, Check, Terminal as TerminalIcon, Code2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [showTerminal, setShowTerminal] = useState(false);
@@ -83,7 +83,7 @@ const App: React.FC = () => {
         <div className="cursor-pointer" onClick={handleLogoClick}>
           <Logo className={`h-6 md:h-10 ${isGodMode ? 'text-red-500' : 'text-iii-light'}`} animate={true} />
         </div>
-        <div className="flex gap-3 md:gap-6 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight">
+        <div className="flex gap-3 md:gap-6 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
           <a href="#" onClick={handleManifestoClick} className="hover:text-iii-light transition-colors hidden md:block">MANIFESTO</a>
           <button onClick={() => setShowProtocol(true)} className="hover:text-iii-accent transition-colors uppercase">PROTOCOL</button>
           <div className="relative group cursor-not-allowed hidden sm:block">
@@ -122,6 +122,14 @@ const App: React.FC = () => {
               One engine. One primitive. iii unifies APIs, jobs, queues, streams, 
               workflows, and AI agents into a single durable execution model.
             </p>
+
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-iii-dark/50 border border-iii-accent/30 rounded-full text-[10px] md:text-xs text-iii-accent">
+                <Code2 className="w-3.5 h-3.5" />
+                <span className="font-mono tracking-wider">OPEN SOURCE</span>
+              </div>
+              <span className="text-[10px] md:text-xs text-iii-medium/50 hidden sm:block">FREE FOREVER • COMMUNITY DRIVEN</span>
+            </div>
 
             <div className="hidden sm:flex items-center gap-3 py-2">
               <VisualArrow />
@@ -178,11 +186,11 @@ const App: React.FC = () => {
       <footer className="relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t border-iii-dark/30 bg-iii-black text-[9px] md:text-[10px] text-iii-medium font-mono">
         <div className="max-w-sm md:max-w-md space-y-1.5 md:space-y-2">
           <div className="flex items-center gap-1.5 md:gap-2 text-iii-light/50">
-            <Shield className="w-2.5 h-2.5 md:w-3 md:h-3" />
-            <p className="tracking-wider">III PROTOCOL CC-BY-ND 4.0</p>
+            <Code2 className="w-2.5 h-2.5 md:w-3 md:h-3" />
+            <p className="tracking-wider">OPEN SOURCE • BSL 1.1</p>
           </div>
           <p className="leading-relaxed hidden md:block">
-            Defining the universal runtime for distributed execution. 
+            Defining the universal runtime for distributed execution. Built in the open.
           </p>
         </div>
         <div className="flex flex-col items-start md:items-end gap-0.5 md:gap-1">
