@@ -7,7 +7,7 @@ import { ProtocolModal } from './components/ProtocolModal';
 import { FeatureBento } from './components/FeatureBento';
 import { StackVisual } from './components/StackVisual';
 import { KeySequence } from './types';
-import { ArrowRight, Copy, Check, Terminal as TerminalIcon, Code2 } from 'lucide-react';
+import { ArrowRight, Copy, Check, Terminal as TerminalIcon, Sun, Moon } from 'lucide-react';
 
 const App: React.FC = () => {
   const [showTerminal, setShowTerminal] = useState(false);
@@ -19,6 +19,9 @@ const App: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [installCmd] = useState("npm install @iii/client");
   const [bslBlink, setBslBlink] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
     if (e.detail === 3) setShowTerminal(true);
@@ -77,22 +80,43 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen bg-iii-black text-iii-light font-mono selection:bg-iii-accent selection:text-iii-black relative flex flex-col ${isGodMode ? 'selection:bg-red-500' : ''}`}>
-      <GridBackground />
+    <div className={`min-h-screen font-mono selection:bg-iii-accent selection:text-iii-black relative flex flex-col transition-colors duration-300 ${
+      isDarkMode 
+        ? 'bg-iii-black text-iii-light' 
+        : 'bg-iii-light text-iii-black'
+    } ${isGodMode ? 'selection:bg-red-500' : ''}`}>
+      <GridBackground isDarkMode={isDarkMode} />
 
-      <nav className="relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b border-iii-dark/50 bg-iii-black/80 backdrop-blur-sm">
+      <nav className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
+          isDarkMode 
+            ? 'border-iii-dark/50 bg-iii-black/80' 
+            : 'border-iii-medium/20 bg-iii-light/80'
+        }`}>
         <div className="cursor-pointer" onClick={handleLogoClick}>
-          <Logo className={`h-6 md:h-10 ${isGodMode ? 'text-red-500' : 'text-iii-light'}`} animate={true} />
+          <Logo className={`h-6 md:h-10 ${isGodMode ? 'text-red-500' : isDarkMode ? 'text-iii-light' : 'text-iii-black'}`} animate={true} />
         </div>
         <div className="flex gap-3 md:gap-6 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
-          <a href="#" onClick={handleManifestoClick} className="hover:text-iii-light transition-colors hidden md:block">MANIFESTO</a>
+          <a href="#" onClick={handleManifestoClick} className={`transition-colors hidden md:block ${isDarkMode ? 'hover:text-iii-light' : 'hover:text-iii-black'}`}>MANIFESTO</a>
           <button onClick={() => setShowProtocol(true)} className="hover:text-iii-accent transition-colors uppercase">PROTOCOL</button>
           <div className="relative group cursor-not-allowed hidden sm:block">
-            <span className="text-iii-dark group-hover:text-iii-medium transition-colors">DOCS</span>
-            <div className="absolute top-full right-0 mt-2 w-max px-2 py-1 bg-iii-dark border border-iii-medium text-iii-light text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <span className={`transition-colors ${isDarkMode ? 'text-iii-dark group-hover:text-iii-medium' : 'text-iii-medium/50 group-hover:text-iii-medium'}`}>DOCS</span>
+            <div className={`absolute top-full right-0 mt-2 w-max px-2 py-1 border text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
+              isDarkMode ? 'bg-iii-dark border-iii-medium text-iii-light' : 'bg-white border-iii-medium/30 text-iii-black'
+            }`}>
               EARLY ACCESS ONLY
             </div>
           </div>
+          <button 
+            onClick={toggleTheme}
+            className={`p-2 rounded-full transition-colors ${
+              isDarkMode 
+                ? 'hover:bg-iii-dark text-iii-medium hover:text-iii-light' 
+                : 'hover:bg-iii-medium/10 text-iii-medium hover:text-iii-black'
+            }`}
+            aria-label="Toggle theme"
+          >
+            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
         </div>
       </nav>
 
@@ -101,15 +125,17 @@ const App: React.FC = () => {
           <div className="flex flex-col items-start gap-4 md:gap-6 max-w-5xl">
             <button 
               onClick={handleBslClick}
-              className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-full backdrop-blur text-[10px] md:text-xs transition-all duration-300 group ${
+              className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-full backdrop-blur text-[10px] md:text-xs transition-all duration-300 group animate-fade-in-up ${
                 bslBlink 
                   ? 'bg-red-500/20 border-red-500 text-red-500 scale-105' 
-                  : 'border-iii-medium/30 bg-iii-dark/30 text-iii-accent hover:border-iii-accent/50'
-              } animate-fade-in-up`}
+                  : isDarkMode
+                    ? 'border-iii-medium/30 bg-iii-dark/30 text-iii-accent hover:border-iii-accent/50'
+                    : 'border-iii-black/30 bg-white/50 text-iii-black hover:border-iii-black/50'
+              }`}
             >
               <span className="relative flex h-1.5 w-1.5 md:h-2 md:w-2">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${bslBlink ? 'bg-red-500' : 'bg-iii-accent'}`}></span>
-                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 ${bslBlink ? 'bg-red-500' : 'bg-iii-accent'}`}></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-black'}`}></span>
+                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-black'}`}></span>
               </span>
               <span className="font-mono tracking-wider">{isGodMode ? 'BSL ACTIVE' : 'KERNEL ONLINE'}</span>
             </button>
@@ -124,30 +150,26 @@ const App: React.FC = () => {
               workflows, and AI agents into a single durable execution model.
             </p>
 
-            <div className="flex items-center gap-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-iii-dark/50 border border-iii-accent/30 rounded-full text-[10px] md:text-xs text-iii-accent">
-                <Code2 className="w-3.5 h-3.5" />
-                <span className="font-mono tracking-wider">OPEN SOURCE</span>
-              </div>
-              <span className="text-[10px] md:text-xs text-iii-medium/50 hidden sm:block">FREE FOREVER • COMMUNITY DRIVEN</span>
-            </div>
-
             <div className="hidden sm:flex items-center gap-3 py-2">
-              <VisualArrow />
+              <VisualArrow isDarkMode={isDarkMode} />
               <span className="text-[10px] md:text-xs text-iii-medium tracking-widest uppercase">Innovate &gt; Implement &gt; Iterate</span>
             </div>
 
             <div className="flex flex-col gap-4 md:gap-6 md:flex-row items-stretch md:items-center pt-2 md:pt-4 w-full">
               <div 
-                className="group relative flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 bg-iii-dark/50 border border-iii-dark rounded hover:border-iii-medium transition-colors cursor-pointer w-full md:w-auto md:min-w-[280px]"
+                className={`group relative flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 border rounded hover:border-iii-medium transition-colors cursor-pointer w-full md:w-auto md:min-w-[280px] ${
+                  isDarkMode 
+                    ? 'bg-iii-dark/50 border-iii-dark' 
+                    : 'bg-white/50 border-iii-medium/30'
+                }`}
                 onClick={copyToClipboard}
               >
                 <TerminalIcon className="w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium group-hover:text-iii-accent transition-colors flex-shrink-0" />
-                <code className="text-xs md:text-sm text-iii-light flex-1 truncate">{installCmd}</code>
+                <code className={`text-xs md:text-sm flex-1 truncate ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}>{installCmd}</code>
                 {copySuccess ? (
                   <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-iii-accent flex-shrink-0" />
                 ) : (
-                  <Copy className="w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium group-hover:text-white transition-colors flex-shrink-0" />
+                  <Copy className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${isDarkMode ? 'group-hover:text-white' : 'group-hover:text-iii-black'}`} />
                 )}
               </div>
 
@@ -162,7 +184,7 @@ const App: React.FC = () => {
                     <input 
                       type="email" 
                       placeholder="EMAIL_FOR_ACCESS" 
-                      className="bg-transparent outline-none text-xs md:text-sm py-2.5 md:py-3 px-1 w-full md:w-64 placeholder-iii-medium/50 font-mono"
+                      className={`bg-transparent outline-none text-xs md:text-sm py-2.5 md:py-3 px-1 w-full md:w-64 placeholder-iii-medium/50 font-mono ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -170,7 +192,7 @@ const App: React.FC = () => {
                     <button 
                       type="submit" 
                       disabled={isSubmitting}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 text-iii-light hover:text-iii-accent disabled:opacity-50 transition-colors p-1.5 md:p-2"
+                      className={`absolute right-0 top-1/2 -translate-y-1/2 hover:text-iii-accent disabled:opacity-50 transition-colors p-1.5 md:p-2 ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}
                     >
                       {isSubmitting ? '...' : <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />}
                     </button>
@@ -181,23 +203,23 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <FeatureBento />
+        <FeatureBento isDarkMode={isDarkMode} />
 
-        <StackVisual />
+        <StackVisual isDarkMode={isDarkMode} />
       </main>
 
-      <footer className="relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t border-iii-dark/30 bg-iii-black text-[9px] md:text-[10px] text-iii-medium font-mono">
+      <footer className={`relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t text-[9px] md:text-[10px] text-iii-medium font-mono transition-colors duration-300 ${
+          isDarkMode 
+            ? 'border-iii-dark/30 bg-iii-black' 
+            : 'border-iii-medium/20 bg-iii-light'
+        }`}>
         <div className="max-w-sm md:max-w-md space-y-1.5 md:space-y-2">
-          <div className="flex items-center gap-1.5 md:gap-2 text-iii-light/50">
-            <Code2 className="w-2.5 h-2.5 md:w-3 md:h-3" />
-            <p className="tracking-wider">OPEN SOURCE • BSL 1.1</p>
-          </div>
           <p className="leading-relaxed hidden md:block">
-            Defining the universal runtime for distributed execution. Built in the open.
+            Defining the universal runtime for distributed execution.
           </p>
         </div>
         <div className="flex flex-col items-start md:items-end gap-0.5 md:gap-1">
-          <span className="uppercase tracking-widest text-iii-light">© 2025 III, INC.</span>
+          <span className={`uppercase tracking-widest ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}>© 2025 III, INC.</span>
           <span className="opacity-50">v0.1.0-alpha</span>
         </div>
       </footer>

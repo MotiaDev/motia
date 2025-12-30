@@ -7,14 +7,22 @@ const stackLayers = [
   { label: 'SERVICES', items: ['APIs', 'Queues', 'Streams'] },
 ];
 
-export const StackVisual: React.FC = () => {
+interface StackVisualProps {
+  isDarkMode?: boolean;
+}
+
+export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) => {
   const [hoveredLayer, setHoveredLayer] = useState<number | null>(null);
+
+  const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
+  const cardBg = isDarkMode ? 'bg-iii-dark/50' : 'bg-white/50';
+  const cardBorder = isDarkMode ? 'border-iii-medium/30' : 'border-iii-medium/20';
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-12 md:py-20">
       <div className="text-center mb-8 md:mb-12">
-        <h2 className="text-2xl md:text-4xl font-bold tracking-tighter mb-3">
-          EVERYTHING RUNS ON <span className="text-iii-accent">iii</span>
+        <h2 className={`text-2xl md:text-4xl font-bold tracking-tighter mb-3 ${textPrimary}`}>
+          EVERYTHING RUNS ON <span className={isDarkMode ? 'text-iii-accent' : 'text-iii-black font-black'}>iii</span>
         </h2>
         <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto">
           One engine. Infinite possibilities. Build anything on the universal runtime.
@@ -24,7 +32,7 @@ export const StackVisual: React.FC = () => {
       <div className="relative flex flex-col items-center">
         {/* Top bracket - "YOUR SOFTWARE" */}
         <div className="relative w-full max-w-xs md:max-w-md mb-4">
-          <div className="text-center text-xs md:text-sm font-bold tracking-widest text-iii-light mb-2">
+          <div className={`text-center text-xs md:text-sm font-bold tracking-widest mb-2 ${textPrimary}`}>
             YOUR SOFTWARE
           </div>
           <svg viewBox="0 0 200 20" className="w-full h-4 md:h-6 text-iii-medium">
@@ -56,8 +64,10 @@ export const StackVisual: React.FC = () => {
                   border-2 rounded-sm
                   transition-all duration-300
                   ${hoveredLayer === index 
-                    ? 'bg-iii-dark border-iii-accent shadow-[0_0_20px_rgba(0,255,136,0.2)]' 
-                    : 'bg-iii-dark/50 border-iii-medium/30 hover:border-iii-medium/60'
+                    ? isDarkMode 
+                      ? 'bg-iii-dark border-iii-accent shadow-[0_0_20px_rgba(243,247,36,0.2)]'
+                      : 'bg-white border-iii-black shadow-[0_0_20px_rgba(0,0,0,0.1)]'
+                    : `${cardBg} ${cardBorder} hover:border-iii-medium/60`
                   }
                 `}
                 style={{
@@ -67,7 +77,9 @@ export const StackVisual: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className={`text-[10px] md:text-xs font-bold tracking-wider ${
-                    hoveredLayer === index ? 'text-iii-accent' : 'text-iii-light'
+                    hoveredLayer === index 
+                      ? isDarkMode ? 'text-iii-accent' : 'text-iii-black'
+                      : textPrimary
                   }`}>
                     {layer.label}
                   </span>
@@ -77,8 +89,10 @@ export const StackVisual: React.FC = () => {
                         key={i}
                         className={`text-[8px] md:text-[10px] px-1.5 py-0.5 rounded border ${
                           hoveredLayer === index
-                            ? 'border-iii-accent/50 text-iii-accent bg-iii-accent/10'
-                            : 'border-iii-dark text-iii-medium bg-iii-black/50'
+                            ? isDarkMode 
+                              ? 'border-iii-accent/50 text-iii-accent bg-iii-accent/10'
+                              : 'border-iii-black/50 text-iii-black bg-iii-black/10'
+                            : `${cardBorder} text-iii-medium ${isDarkMode ? 'bg-iii-black/50' : 'bg-white/50'}`
                         }`}
                       >
                         {item}
@@ -98,7 +112,7 @@ export const StackVisual: React.FC = () => {
 
         {/* Arrow pointing to III */}
         <div className="relative w-full max-w-xs md:max-w-md mt-4 mb-2">
-          <svg viewBox="0 0 200 30" className="w-full h-6 md:h-8 text-iii-accent">
+          <svg viewBox="0 0 200 30" className={`w-full h-6 md:h-8 ${isDarkMode ? 'text-iii-accent' : 'text-iii-black'}`}>
             <defs>
               <marker
                 id="arrowhead"
@@ -127,14 +141,18 @@ export const StackVisual: React.FC = () => {
         <div className="relative w-full max-w-sm md:max-w-lg">
           <div className="relative">
             {/* Main III block */}
-            <div className="relative px-6 py-6 md:px-10 md:py-8 bg-gradient-to-b from-iii-dark to-iii-black border-2 border-iii-accent rounded-sm shadow-[0_0_40px_rgba(0,255,136,0.15)]">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,255,136,0.05),transparent_70%)]" />
+            <div className={`relative px-6 py-6 md:px-10 md:py-8 bg-gradient-to-b border-2 rounded-sm ${
+              isDarkMode 
+                ? 'from-iii-dark to-iii-black border-iii-accent shadow-[0_0_40px_rgba(243,247,36,0.15)]' 
+                : 'from-white to-iii-light border-iii-black shadow-[0_0_40px_rgba(0,0,0,0.1)]'
+            }`}>
+              <div className={`absolute inset-0 ${isDarkMode ? 'bg-[radial-gradient(circle_at_50%_50%,rgba(243,247,36,0.05),transparent_70%)]' : 'bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.02),transparent_70%)]'}`} />
               
 {/* iii Logo - brand proportions: 4x dot, 2x gap, 12x stem */}
                 <div className="relative flex flex-col items-center gap-3">
                   <svg 
                     viewBox="0 0 20 18" 
-                    className="w-16 h-14 md:w-24 md:h-20 text-iii-accent"
+                    className={`w-16 h-14 md:w-24 md:h-20 ${isDarkMode ? 'text-iii-accent' : 'text-iii-black'}`}
                     fill="currentColor"
                   >
                     {/* First i */}
@@ -153,16 +171,16 @@ export const StackVisual: React.FC = () => {
                 </div>
 
               {/* Decorative elements */}
-              <div className="absolute top-2 left-2 w-2 h-2 border-l-2 border-t-2 border-iii-accent/50" />
-              <div className="absolute top-2 right-2 w-2 h-2 border-r-2 border-t-2 border-iii-accent/50" />
-              <div className="absolute bottom-2 left-2 w-2 h-2 border-l-2 border-b-2 border-iii-accent/50" />
-              <div className="absolute bottom-2 right-2 w-2 h-2 border-r-2 border-b-2 border-iii-accent/50" />
+              <div className={`absolute top-2 left-2 w-2 h-2 border-l-2 border-t-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-black/30'}`} />
+              <div className={`absolute top-2 right-2 w-2 h-2 border-r-2 border-t-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-black/30'}`} />
+              <div className={`absolute bottom-2 left-2 w-2 h-2 border-l-2 border-b-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-black/30'}`} />
+              <div className={`absolute bottom-2 right-2 w-2 h-2 border-r-2 border-b-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-black/30'}`} />
             </div>
 
             {/* Base platform layers */}
-            <div className="mt-1 mx-2 h-2 md:h-3 bg-iii-dark/80 border border-iii-medium/20 rounded-b-sm" />
-            <div className="mt-0.5 mx-4 h-1.5 md:h-2 bg-iii-dark/60 border border-iii-medium/10 rounded-b-sm" />
-            <div className="mt-0.5 mx-6 h-1 md:h-1.5 bg-iii-dark/40 rounded-b-sm" />
+            <div className={`mt-1 mx-2 h-2 md:h-3 border rounded-b-sm ${isDarkMode ? 'bg-iii-dark/80 border-iii-medium/20' : 'bg-iii-medium/20 border-iii-medium/10'}`} />
+            <div className={`mt-0.5 mx-4 h-1.5 md:h-2 border rounded-b-sm ${isDarkMode ? 'bg-iii-dark/60 border-iii-medium/10' : 'bg-iii-medium/15 border-iii-medium/5'}`} />
+            <div className={`mt-0.5 mx-6 h-1 md:h-1.5 rounded-b-sm ${isDarkMode ? 'bg-iii-dark/40' : 'bg-iii-medium/10'}`} />
           </div>
         </div>
 

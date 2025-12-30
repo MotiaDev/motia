@@ -1,6 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 
-export const GridBackground: React.FC = () => {
+interface GridBackgroundProps {
+  isDarkMode?: boolean;
+}
+
+export const GridBackground: React.FC<GridBackgroundProps> = ({ isDarkMode = true }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mousePosRef = useRef({ x: -1000, y: -1000 });
 
@@ -39,11 +43,16 @@ export const GridBackground: React.FC = () => {
     resize();
 
     const gridSize = 32;
-    const colors = {
+    const colors = isDarkMode ? {
       bg: '#000000',
       gridLine: 'rgba(255, 255, 255, 0.04)',
       arrowLight: '#555555',
       arrowHighlight: '#666666'
+    } : {
+      bg: '#F4F4F4',
+      gridLine: 'rgba(0, 0, 0, 0.06)',
+      arrowLight: '#CCCCCC',
+      arrowHighlight: '#AAAAAA'
     };
 
     const arrowPattern = [
@@ -131,12 +140,16 @@ export const GridBackground: React.FC = () => {
       window.removeEventListener('mouseleave', handleMouseLeave);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [isDarkMode]);
 
   return (
-    <div className="fixed inset-0 z-0 overflow-hidden bg-iii-black">
+    <div className={`fixed inset-0 z-0 overflow-hidden ${isDarkMode ? 'bg-iii-black' : 'bg-iii-light'}`}>
       <canvas ref={canvasRef} className="block w-full h-full" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)] pointer-events-none" />
+      <div className={`absolute inset-0 pointer-events-none ${
+        isDarkMode 
+          ? 'bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)]' 
+          : 'bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(244,244,244,0.6)_100%)]'
+      }`} />
     </div>
   );
 };

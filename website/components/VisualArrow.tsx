@@ -1,6 +1,10 @@
 import React from 'react';
 
-export const VisualArrow: React.FC = () => {
+interface VisualArrowProps {
+  isDarkMode?: boolean;
+}
+
+export const VisualArrow: React.FC<VisualArrowProps> = ({ isDarkMode = true }) => {
   const arrowShape = [
     [1,0,0,0],
     [1,1,0,0],
@@ -25,7 +29,7 @@ export const VisualArrow: React.FC = () => {
         return (
           <div 
             key={i} 
-            className="w-1 h-1 bg-iii-accent"
+            className={`w-1 h-1 ${isDarkMode ? 'bg-iii-accent' : 'bg-iii-black'}`}
             style={{ opacity }}
           />
         );
