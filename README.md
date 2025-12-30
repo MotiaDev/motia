@@ -217,7 +217,7 @@ Follow the prompts to pick a template, project name, and language.
 Inside your new project folder, launch the dev server:
 
 ```bash
-npx motia dev # ➜ http://localhost:3000
+npm run dev # ➜ http://localhost:3000
 ```
 
 **That's it!** You have:

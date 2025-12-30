@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Printer } from '@motiadev/core'
+import { getInstallCommands } from '../utils/build-npm-command'
 import { executeCommand } from '../utils/execute-command'
 import { getPackageManager } from '../utils/get-package-manager'
 import { version } from '../version'
@@ -50,13 +51,8 @@ export const installPluginDependencies = async (baseDir: string, printer: Printe
   }
   printer.printPluginLog(`Installing dependencies using ${packageManager}...`)
 
-  const installCommands: Record<string, string> = {
-    npm: 'npm install',
-    yarn: 'yarn install',
-    pnpm: 'pnpm install',
-  }
-
-  const installCommand = installCommands[packageManager] || 'npm install'
+  const installCommands = getInstallCommands(baseDir)
+  const installCommand = installCommands[packageManager] || installCommands['npm']
 
   try {
     await executeCommand(installCommand, baseDir, { silent: false })

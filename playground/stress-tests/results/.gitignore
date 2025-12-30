@@ -1,0 +1,10 @@
+# Ignore all stress test results
+*.bin
+*.json
+*.html
+*.txt
+!.gitkeep
+!.gitignore
+
+
+

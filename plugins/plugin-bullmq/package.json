@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-bullmq",
-  "version": "0.17.9-beta.191",
+  "version": "0.17.11-beta.193",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
