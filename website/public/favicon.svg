@@ -1,15 +1,19 @@
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" fill="#000000"/>
+  <style>
+    .bar { fill: #000000; }
+    @media (prefers-color-scheme: dark) {
+      .bar { fill: #FFFFFF; }
+    }
+  </style>
   <!-- iii logo: 4x dot, 2x gap, 12x stem proportions -->
-  <!-- Centered in 100x100, scaled to fit with padding -->
   <!-- First i -->
-  <rect x="17" y="14" width="14" height="14" fill="#FFFFFF"/>
-  <rect x="17" y="35" width="14" height="51" fill="#FFFFFF"/>
+  <rect class="bar" x="17" y="14" width="14" height="14"/>
+  <rect class="bar" x="17" y="35" width="14" height="51"/>
   <!-- Second i -->
-  <rect x="43" y="14" width="14" height="14" fill="#FFFFFF"/>
-  <rect x="43" y="35" width="14" height="51" fill="#FFFFFF"/>
+  <rect class="bar" x="43" y="14" width="14" height="14"/>
+  <rect class="bar" x="43" y="35" width="14" height="51"/>
   <!-- Third i -->
-  <rect x="69" y="14" width="14" height="14" fill="#FFFFFF"/>
-  <rect x="69" y="35" width="14" height="51" fill="#FFFFFF"/>
+  <rect class="bar" x="69" y="14" width="14" height="14"/>
+  <rect class="bar" x="69" y="35" width="14" height="51"/>
 </svg>
 
