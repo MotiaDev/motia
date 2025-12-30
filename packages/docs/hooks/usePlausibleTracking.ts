@@ -13,6 +13,14 @@ export interface PlausibleRevenueData {
   currency: string
 }
 
+export interface VideoEventProps {
+  videoTitle?: string
+  videoPath: string
+  duration?: number
+  currentTime?: number
+  percentComplete?: number
+}
+
 export function usePlausibleTracking() {
   const plausible = usePlausible()
 
@@ -46,12 +54,51 @@ export function usePlausibleTracking() {
     trackEvent('404', { path })
   }
 
+  // Video tracking functions
+  const trackVideoPlay = (props: VideoEventProps) => {
+    trackEvent('Video Play', {
+      videoTitle: props.videoTitle,
+      videoPath: props.videoPath,
+    })
+  }
+
+  const trackVideoPause = (props: VideoEventProps) => {
+    trackEvent('Video Pause', {
+      videoTitle: props.videoTitle,
+      videoPath: props.videoPath,
+      currentTime: props.currentTime,
+      percentComplete: props.percentComplete,
+    })
+  }
+
+  const trackVideoProgress = (props: VideoEventProps, milestone: number) => {
+    trackEvent('Video Progress', {
+      videoTitle: props.videoTitle,
+      videoPath: props.videoPath,
+      milestone: milestone,
+      percentComplete: props.percentComplete,
+    })
+  }
+
+  const trackVideoComplete = (props: VideoEventProps) => {
+    trackEvent('Video Complete', {
+      videoTitle: props.videoTitle,
+      videoPath: props.videoPath,
+      duration: props.duration,
+    })
+  }
+
   return {
     trackEvent,
     trackDownload,
     trackSignup,
     trackPurchase,
     track404Error,
+    // Video tracking
+    trackVideoPlay,
+    trackVideoPause,
+    trackVideoProgress,
+    trackVideoComplete,
     // Direct access to the plausible function if needed
     plausible,
   }
