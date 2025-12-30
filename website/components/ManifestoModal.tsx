@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Zap, Layers, Globe, ArrowRight } from 'lucide-react';
+import { X, Zap, Layers, Globe, ArrowRight, AlertTriangle } from 'lucide-react';
 
 interface ManifestoModalProps {
   onClose: () => void;
@@ -15,24 +15,6 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
   const accentBg = isDarkMode ? 'bg-iii-accent/10' : 'bg-iii-accent-light/10';
   const accentBorder = isDarkMode ? 'border-iii-accent/30' : 'border-iii-accent-light/30';
 
-  const principles = [
-    {
-      icon: Zap,
-      title: "SELF-REGISTERING WORKERS",
-      text: "Workers connect via WebSocket and declare their capabilities. The engine maintains a live registry. Zero configuration required."
-    },
-    {
-      icon: Layers,
-      title: "PERSISTENT CONTEXT",
-      text: "The daemon maintains state, connection pools, and execution history. Functions access shared context without setup."
-    },
-    {
-      icon: Globe,
-      title: "UNIFIED EXECUTION",
-      text: "APIs, cron, events, and streams—all handled by a single Rust binary. One deployment. One control plane."
-    }
-  ];
-
   return (
     <div 
       className="fixed inset-0 z-[60] flex items-center justify-center bg-iii-black/90 backdrop-blur-md p-4 animate-fade-in" 
@@ -46,7 +28,7 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
         <div className={`${accentBg} px-6 py-4 border-b ${accentBorder} flex items-center justify-between shrink-0`}>
           <div className={`flex items-center gap-3 ${accentColor}`}>
             <span className="text-xl font-black">iii</span>
-            <h2 className="font-mono font-bold tracking-wider">MANIFESTO</h2>
+            <h2 className="font-mono font-bold tracking-wider text-xs md:text-sm">TOWARD A UNIFIED PHYSICS OF COMPUTATION</h2>
           </div>
           <button 
             onClick={onClose} 
@@ -57,56 +39,80 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-8">
-          {/* Opening Statement */}
-          <div className="space-y-4">
-            <h3 className={`text-2xl md:text-3xl font-bold tracking-tighter ${textPrimary}`}>
-              Intelligent<br />
-              <span className={accentColor}>Invocation Interface</span>
-            </h3>
-            <p className={`text-sm md:text-base ${textSecondary} leading-relaxed`}>
-              A single binary that orchestrates distributed systems. 
-              Workers self-register. Functions invoke across languages. No config required.
+        <div className="p-6 overflow-y-auto space-y-6">
+          
+          {/* The Great Fracture */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className={`w-4 h-4 ${accentColor}`} />
+              <h3 className={`text-sm font-bold tracking-wider ${textPrimary}`}>THE GREAT FRACTURE</h3>
+            </div>
+            <p className={`text-sm ${textSecondary} leading-relaxed`}>
+              Software architecture has broken into shards. Servers for requests. Workers for tasks. Consumers for streams. 
+              <span className={textPrimary}> Three distinct architectures for the exact same act: Running Code.</span>
             </p>
-            <div className={`text-xs md:text-sm ${textSecondary} space-y-1 pt-2`}>
-              <div><span className={accentColor}>I</span>ntelligent → The Daemon. Discovery, routing, context injection.</div>
-              <div><span className={accentColor}>I</span>nvocation → The Trigger. Any event causes code to run.</div>
-              <div><span className={accentColor}>I</span>nterface → The SDK. The surface your logic plugs into.</div>
+            <p className={`text-sm ${textSecondary} leading-relaxed`}>
+              We've spent a decade building glue—writing YAML, managing connection pools, constructing fragile bridges between silos.
+            </p>
+          </div>
+
+          {/* The Core Truth */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Zap className={`w-4 h-4 ${accentColor}`} />
+              <h3 className={`text-sm font-bold tracking-wider ${textPrimary}`}>CAUSALITY IS UNIVERSAL</h3>
+            </div>
+            <p className={`text-sm ${textSecondary} leading-relaxed`}>
+              The distinction between an HTTP Request, a Database Mutation, and a System Timer is a lie. 
+              Mathematically, they are identical: <span className={accentColor}>An Initiation Signal.</span>
+            </p>
+            <p className={`text-sm ${textSecondary} leading-relaxed`}>
+              Code should not care <em>why</em> it is running. It should not care <em>where</em> it is running. 
+              It should only care <em>what</em> it must do.
+            </p>
+          </div>
+
+          {/* One Binary */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Layers className={`w-4 h-4 ${accentColor}`} />
+              <h3 className={`text-sm font-bold tracking-wider ${textPrimary}`}>ONE BINARY. INFINITE SYSTEMS.</h3>
+            </div>
+            <p className={`text-sm ${textSecondary} leading-relaxed`}>
+              iii is not a framework—it is a daemon. A persistent system that runs anywhere: laptop, container, or bare metal.
+            </p>
+            <div className={`text-xs ${textSecondary} space-y-1 pt-2 pl-4 border-l-2 ${accentBorder}`}>
+              <div>It holds the <span className={textPrimary}>Context</span> — Connections, State, Hardware.</div>
+              <div>It manages the <span className={textPrimary}>Initiation</span> — Triggers, Streams, Events.</div>
+              <div>It tethers the <span className={textPrimary}>Implementation</span> — Your Logic.</div>
             </div>
           </div>
 
-          {/* Core Principles */}
-          <div className="space-y-4">
-            {principles.map((principle, index) => (
-              <div 
-                key={index}
-                className={`p-4 border ${borderColor} rounded-lg space-y-2 transition-all hover:border-iii-medium/50`}
-              >
-                <div className="flex items-center gap-2">
-                  <principle.icon className={`w-4 h-4 ${accentColor}`} />
-                  <span className={`text-xs font-bold tracking-wider ${textPrimary}`}>
-                    {principle.title}
-                  </span>
-                </div>
-                <p className={`text-sm ${textSecondary} leading-relaxed`}>
-                  {principle.text}
-                </p>
-              </div>
-            ))}
+          {/* Self-Assembling */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Globe className={`w-4 h-4 ${accentColor}`} />
+              <h3 className={`text-sm font-bold tracking-wider ${textPrimary}`}>SELF-ASSEMBLING INFRASTRUCTURE</h3>
+            </div>
+            <p className={`text-sm ${textSecondary} leading-relaxed`}>
+              No cold starts. No VPC peering. No black boxes. A mesh where code discovers code, 
+              state is injected instantly, and network topology is invisible.
+            </p>
           </div>
 
-          {/* The Promise */}
+          {/* Declaration */}
           <div className={`p-4 border-2 ${accentBorder} ${accentBg} rounded-lg`}>
             <div className="flex items-start gap-3">
               <ArrowRight className={`w-5 h-5 ${accentColor} mt-0.5 flex-shrink-0`} />
               <div className="space-y-2">
                 <p className={`text-sm font-bold ${textPrimary}`}>
-                  WHAT YOU GET
+                  THE DECLARATION
                 </p>
                 <p className={`text-sm ${textSecondary} leading-relaxed`}>
-                  A Rust daemon that runs anywhere. Workers in any language. 
-                  Polyglot function invocation over WebSocket. 
-                  <span className={`${accentColor} font-semibold`}> One binary. Zero config.</span>
+                  We are building the Operating System for Causality. A single binary with the power of an infinite distributed system.
+                </p>
+                <p className={`text-sm ${accentColor} font-semibold`}>
+                  Stop building glue. Start building logic.
                 </p>
               </div>
             </div>
@@ -114,11 +120,10 @@ export const ManifestoModal: React.FC<ManifestoModalProps> = ({ onClose, isDarkM
 
           {/* Closing */}
           <p className={`text-center text-xs ${textSecondary} tracking-widest uppercase`}>
-            Deploy daemon <span className={accentColor}>→</span> Spawn workers <span className={accentColor}>→</span> Build anything
+            iii <span className={accentColor}>—</span> Context <span className={accentColor}>·</span> Trigger <span className={accentColor}>·</span> Logic
           </p>
         </div>
       </div>
     </div>
   );
 };
-
