@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 
 const stackLayers = [
-  { label: 'AI AGENTS', items: ['Copilots', 'Chatbots', 'Autonomous'] },
-  { label: 'FRAMEWORKS', items: ['Motia', 'Express', 'FastAPI'] },
-  { label: 'WORKFLOWS', items: ['ETL', 'Pipelines', 'Orchestration'] },
-  { label: 'SERVICES', items: ['APIs', 'Queues', 'Streams'] },
+  { label: 'AI AGENTS', items: ['Copilots', 'Chatbots', 'Autonomous'], before: 'Separate ML infra' },
+  { label: 'FRAMEWORKS', items: ['Motia', 'Express', 'FastAPI'], before: 'Different runtimes' },
+  { label: 'WORKFLOWS', items: ['ETL', 'Pipelines', 'Orchestration'], before: 'Custom orchestrators' },
+  { label: 'SERVICES', items: ['APIs', 'Queues', 'Streams'], before: 'Glued together' },
 ];
 
 interface StackVisualProps {
@@ -17,23 +17,28 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
   const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
   const cardBg = isDarkMode ? 'bg-iii-dark/50' : 'bg-white/50';
   const cardBorder = isDarkMode ? 'border-iii-medium/30' : 'border-iii-medium/20';
+  const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-12 md:py-20">
       <div className="text-center mb-8 md:mb-12">
-        <h2 className={`text-2xl md:text-4xl font-bold tracking-tighter mb-3 ${textPrimary}`}>
-          EVERYTHING RUNS ON <span className={isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light font-black'}>iii</span>
+        <p className="text-[10px] md:text-xs text-iii-medium tracking-[0.2em] uppercase mb-2">
+          The Great Fracture — Unified
+        </p>
+        <h2 className={`text-xl sm:text-2xl md:text-4xl font-bold tracking-tighter mb-3 ${textPrimary}`}>
+          ONE DAEMON.<br className="sm:hidden" /> <span className={accentColor}>INFINITE SYSTEMS.</span>
         </h2>
-        <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto">
-          One engine. Infinite possibilities. Build anything on the universal runtime.
+        <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto leading-relaxed">
+          Servers, workers, consumers—all just code waiting for an initiation signal. 
+          iii runs them all.
         </p>
       </div>
 
       <div className="relative flex flex-col items-center">
-        {/* Top bracket - "YOUR SOFTWARE" */}
+        {/* Top label */}
         <div className="relative w-full max-w-xs md:max-w-md mb-4">
-          <div className={`text-center text-xs md:text-sm font-bold tracking-widest mb-2 ${textPrimary}`}>
-            YOUR SOFTWARE
+          <div className={`text-center text-[10px] md:text-xs font-bold tracking-widest mb-2 ${textPrimary}`}>
+            WHAT YOU BUILD
           </div>
           <svg viewBox="0 0 200 20" className="w-full h-4 md:h-6 text-iii-medium">
             <path
@@ -78,7 +83,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
                 <div className="flex items-center justify-between">
                   <span className={`text-[10px] md:text-xs font-bold tracking-wider ${
                     hoveredLayer === index 
-                      ? isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'
+                      ? accentColor
                       : textPrimary
                   }`}>
                     {layer.label}
@@ -112,7 +117,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
 
         {/* Arrow pointing to III */}
         <div className="relative w-full max-w-xs md:max-w-md mt-4 mb-2">
-          <svg viewBox="0 0 200 30" className={`w-full h-6 md:h-8 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>
+          <svg viewBox="0 0 200 30" className={`w-full h-6 md:h-8 ${accentColor}`}>
             <defs>
               <marker
                 id="arrowhead"
@@ -148,27 +153,32 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
             }`}>
               <div className={`absolute inset-0 ${isDarkMode ? 'bg-[radial-gradient(circle_at_50%_50%,rgba(243,247,36,0.05),transparent_70%)]' : 'bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.02),transparent_70%)]'}`} />
               
-{/* iii Logo - brand proportions: 4x dot, 2x gap, 12x stem */}
-                <div className="relative flex flex-col items-center gap-3">
-                  <svg 
-                    viewBox="0 0 20 18" 
-                    className={`w-16 h-14 md:w-24 md:h-20 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}
-                    fill="currentColor"
-                  >
-                    {/* First i */}
-                    <rect x="0" y="0" width="4" height="4" />
-                    <rect x="0" y="6" width="4" height="12" />
-                    {/* Second i */}
-                    <rect x="8" y="0" width="4" height="4" />
-                    <rect x="8" y="6" width="4" height="12" />
-                    {/* Third i */}
-                    <rect x="16" y="0" width="4" height="4" />
-                    <rect x="16" y="6" width="4" height="12" />
-                  </svg>
-                  <div className="text-[10px] md:text-xs text-iii-medium tracking-[0.3em] uppercase">
-                    The Universal Runtime
+              {/* iii Logo - brand proportions: 4x dot, 2x gap, 12x stem */}
+              <div className="relative flex flex-col items-center gap-3">
+                <svg 
+                  viewBox="0 0 20 18" 
+                  className={`w-16 h-14 md:w-24 md:h-20 ${accentColor}`}
+                  fill="currentColor"
+                >
+                  {/* First i */}
+                  <rect x="0" y="0" width="4" height="4" />
+                  <rect x="0" y="6" width="4" height="12" />
+                  {/* Second i */}
+                  <rect x="8" y="0" width="4" height="4" />
+                  <rect x="8" y="6" width="4" height="12" />
+                  {/* Third i */}
+                  <rect x="16" y="0" width="4" height="4" />
+                  <rect x="16" y="6" width="4" height="12" />
+                </svg>
+                <div className="text-center">
+                  <div className={`text-[10px] md:text-xs ${accentColor} tracking-[0.2em] uppercase font-bold`}>
+                    The Daemon
+                  </div>
+                  <div className="text-[8px] md:text-[10px] text-iii-medium mt-1">
+                    One binary. Zero config.
                   </div>
                 </div>
+              </div>
 
               {/* Decorative elements */}
               <div className={`absolute top-2 left-2 w-2 h-2 border-l-2 border-t-2 ${isDarkMode ? 'border-iii-accent/50' : 'border-iii-accent-light/50'}`} />
@@ -185,13 +195,15 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
         </div>
 
         {/* Tagline */}
-        <div className="mt-8 text-center">
-          <p className="text-[10px] md:text-xs text-iii-medium/70 tracking-wider">
-            APIs • JOBS • QUEUES • STREAMS • WORKFLOWS • AI AGENTS
+        <div className="mt-8 text-center space-y-2">
+          <p className={`text-xs md:text-sm ${accentColor} font-semibold`}>
+            Stop building glue. Start building logic.
+          </p>
+          <p className="text-[10px] md:text-xs text-iii-medium/60 tracking-wider">
+            Context · Trigger · Logic
           </p>
         </div>
       </div>
     </div>
   );
 };
-

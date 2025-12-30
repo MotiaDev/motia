@@ -715,7 +715,8 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 ${isGodMode ? 'animate-pulse-fast' : ''}`}>
-      <div className={`w-full max-w-4xl ${theme.bg} border ${theme.border} shadow-2xl overflow-hidden crt relative transition-all duration-500`}>
+      <div className={`w-full max-w-4xl ${theme.bg} border ${theme.border} shadow-2xl overflow-hidden relative transition-all duration-500 rounded-lg`}>
+        {/* Header */}
         <div className={`flex items-center justify-between px-4 py-2 ${theme.header} border-b ${theme.border}`}>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500 cursor-pointer hover:bg-red-400 transition-colors" onClick={onClose} />
@@ -727,17 +728,18 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
           </span>
         </div>
         
-        <div className="h-[28rem] overflow-y-auto p-4 font-mono text-xs md:text-sm space-y-0.5">
+        {/* Content area */}
+        <div className="h-[28rem] overflow-y-auto p-4 font-mono text-xs md:text-sm space-y-1 bg-black">
           {logs.map((log) => (
             <div key={log.id} className="flex gap-2 md:gap-3">
-              <span className="text-iii-medium shrink-0 text-[10px] md:text-xs">[{log.timestamp}]</span>
-              <span className={`break-all whitespace-pre-wrap
-                ${log.type === 'error' ? 'text-red-500 font-bold' : ''}
+              <span className="text-iii-medium/60 shrink-0 text-[10px] md:text-xs">[{log.timestamp}]</span>
+              <span className={`break-all whitespace-pre-wrap leading-relaxed
+                ${log.type === 'error' ? 'text-red-400 font-bold' : ''}
                 ${log.type === 'success' ? 'text-iii-accent' : ''}
-                ${log.type === 'warning' ? 'text-orange-400' : ''}
-                ${log.type === 'system' ? 'text-blue-400' : ''}
+                ${log.type === 'warning' ? 'text-amber-400' : ''}
+                ${log.type === 'system' ? 'text-cyan-400' : ''}
                 ${log.type === 'info' ? 'text-gray-300' : ''}
-                ${log.type === 'glitch' ? 'text-red-500 animate-glitch font-bold bg-red-900/20' : ''}
+                ${log.type === 'glitch' ? 'text-red-400 animate-glitch font-bold bg-red-900/20' : ''}
               `}>
                 {log.message}
               </span>
@@ -746,7 +748,8 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
           <div ref={endRef} />
         </div>
         
-        <div className={`p-3 md:p-4 border-t ${theme.border} bg-iii-dark/50 flex items-center gap-2`}>
+        {/* Footer */}
+        <div className={`p-3 md:p-4 border-t ${theme.border} bg-iii-dark/80 flex items-center gap-2`}>
           <span className={`${theme.caret} font-bold`}>{'>'}</span>
           <input 
             type="text" 
