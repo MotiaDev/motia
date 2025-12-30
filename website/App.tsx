@@ -4,6 +4,7 @@ import { Terminal } from './components/Terminal';
 import { GridBackground } from './components/GridBackground';
 import { VisualArrow } from './components/VisualArrow';
 import { ProtocolModal } from './components/ProtocolModal';
+import { ManifestoModal } from './components/ManifestoModal';
 import { FeatureBento } from './components/FeatureBento';
 import { StackVisual } from './components/StackVisual';
 import { KeySequence } from './types';
@@ -24,6 +25,7 @@ const App: React.FC = () => {
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [hoverAnimIndex, setHoverAnimIndex] = useState(-1);
   const [showGodModeUnlock, setShowGodModeUnlock] = useState(false);
+  const [showManifesto, setShowManifesto] = useState(false);
   const clickResetTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
@@ -121,9 +123,7 @@ const App: React.FC = () => {
 
   const handleManifestoClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const el = e.currentTarget as HTMLElement;
-    el.classList.add('animate-glitch');
-    setTimeout(() => el.classList.remove('animate-glitch'), 500);
+    setShowManifesto(true);
   };
 
   return (
@@ -198,13 +198,13 @@ const App: React.FC = () => {
             </button>
 
             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95]">
-              THE RUNTIME BENEATH<br />
-              <span className="text-iii-medium">MODERN BACKENDS</span>
+              CALL A REMOTE GPU<br />
+              <span className="text-iii-medium">LIKE A LOCAL FUNCTION</span>
             </h1>
 
             <p className="text-xs md:text-base text-iii-medium max-w-xl leading-relaxed">
-              One engine. One primitive. iii unifies APIs, jobs, queues, streams, 
-              workflows, and AI agents into a single durable execution model.
+              The Split-Stack Runtime. Run logic on cheap edge functions. Run compute on 
+              powerful bare metal. iii makes your distributed system feel like a single codebase.
             </p>
 
             <div className="hidden sm:flex items-center gap-3 py-2">
@@ -313,6 +313,7 @@ const App: React.FC = () => {
 
       {showTerminal && <Terminal onClose={() => setShowTerminal(false)} isGodMode={isGodMode} />}
       {showProtocol && <ProtocolModal onClose={() => setShowProtocol(false)} isDarkMode={isDarkMode} />}
+      {showManifesto && <ManifestoModal onClose={() => setShowManifesto(false)} isDarkMode={isDarkMode} />}
     </div>
   );
 };
