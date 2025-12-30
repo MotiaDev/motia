@@ -12,6 +12,7 @@ export const EndpointPathPreview: FC<EndpointPathPreviewProps> = ({ path, baseUr
   const pathUrl = usePathUrl(path)
   const fullUrl = `${baseUrl}${pathUrl.startsWith('/') ? pathUrl : '/' + pathUrl}`
   const [copied, setCopied] = useState(false)
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(fullUrl)
