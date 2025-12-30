@@ -10,7 +10,7 @@ interface EndpointPathPreviewProps {
 
 export const EndpointPathPreview: FC<EndpointPathPreviewProps> = ({ path, baseUrl = window.location.origin }) => {
   const pathUrl = usePathUrl(path)
-  const fullUrl = `${baseUrl}${pathUrl}`
+  const fullUrl = `${baseUrl}${pathUrl.startsWith('/') ? pathUrl : '/' + pathUrl}`
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
