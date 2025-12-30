@@ -1,0 +1,60 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#000000"/>
+      <stop offset="100%" style="stop-color:#0a0a0a"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F3F724"/>
+      <stop offset="100%" style="stop-color:#c4c61d"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+    </pattern>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  
+  <!-- Grid pattern -->
+  <rect width="1200" height="630" fill="url(#grid)" opacity="0.5"/>
+  
+  <!-- Decorative lines -->
+  <line x1="0" y1="100" x2="1200" y2="100" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="0" y1="530" x2="1200" y2="530" stroke="#1a1a1a" stroke-width="1"/>
+  
+  <!-- III Logo - Large centered bars -->
+  <g filter="url(#glow)" transform="translate(400, 180)">
+    <rect x="0" y="0" width="80" height="270" fill="url(#accentGrad)" rx="4"/>
+    <rect x="160" y="0" width="80" height="270" fill="url(#accentGrad)" rx="4"/>
+    <rect x="320" y="0" width="80" height="270" fill="url(#accentGrad)" rx="4"/>
+  </g>
+  
+  <!-- Tagline -->
+  <text x="600" y="520" text-anchor="middle" font-family="monospace" font-size="24" fill="#5B5B5B" letter-spacing="8">
+    INTEROPERABLE INVOCATION INTERFACE
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="560" text-anchor="middle" font-family="monospace" font-size="16" fill="#3a3a3a" letter-spacing="4">
+    THE UNIVERSAL RUNTIME ENGINE
+  </text>
+  
+  <!-- Corner accents -->
+  <path d="M 30 30 L 30 60 M 30 30 L 60 30" stroke="#F3F724" stroke-width="2" fill="none"/>
+  <path d="M 1170 30 L 1170 60 M 1170 30 L 1140 30" stroke="#F3F724" stroke-width="2" fill="none"/>
+  <path d="M 30 600 L 30 570 M 30 600 L 60 600" stroke="#F3F724" stroke-width="2" fill="none"/>
+  <path d="M 1170 600 L 1170 570 M 1170 600 L 1140 600" stroke="#F3F724" stroke-width="2" fill="none"/>
+  
+  <!-- Status indicator -->
+  <circle cx="60" cy="80" r="6" fill="#F3F724"/>
+  <text x="80" y="85" font-family="monospace" font-size="12" fill="#F3F724" letter-spacing="2">OPEN SOURCE</text>
+</svg>
+
