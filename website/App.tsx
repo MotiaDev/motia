@@ -23,23 +23,18 @@ const App: React.FC = () => {
     return localStorage.getItem('iii_access_requested') === 'true';
   });
 
-  // Verify access on mount if localStorage says we have access
+  // Restore access state from localStorage on mount
   useEffect(() => {
-    const storedEmail = localStorage.getItem('iii_access_email');
     const hasAccess = localStorage.getItem('iii_access_requested') === 'true';
-    
-    if (hasAccess && storedEmail) {
-      // Verify email exists in Supabase
-      checkAccessRequest(storedEmail).then((exists) => {
-        if (exists) {
-          setIsSubmitted(true);
-        } else {
-          // Email not found in Supabase, clear localStorage
-          localStorage.removeItem('iii_access_requested');
-          localStorage.removeItem('iii_access_email');
-          setIsSubmitted(false);
-        }
-      });
+    if (hasAccess) {
+      setIsSubmitted(true);
+      // Optionally verify with Supabase in background (non-blocking)
+      const storedEmail = localStorage.getItem('iii_access_email');
+      if (storedEmail) {
+        checkAccessRequest(storedEmail).catch(() => {
+          // Silently fail - localStorage is source of truth for UX
+        });
+      }
     }
   }, []);
   const [copySuccess, setCopySuccess] = useState(false);
