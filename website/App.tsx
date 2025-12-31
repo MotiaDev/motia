@@ -10,7 +10,7 @@ import { StackVisual } from './components/StackVisual';
 import { FractureAnimation } from './components/FractureAnimation';
 import { KeySequence } from './types';
 import { ArrowRight, Copy, Check, Terminal as TerminalIcon, Sun, Moon } from 'lucide-react';
-import { insertAccessRequest } from './lib/supabase';
+import { insertAccessRequest, checkAccessRequest } from './lib/supabase';
 
 const App: React.FC = () => {
   const [showTerminal, setShowTerminal] = useState(false);
@@ -22,6 +22,26 @@ const App: React.FC = () => {
     // Check localStorage on initial load
     return localStorage.getItem('iii_access_requested') === 'true';
   });
+
+  // Verify access on mount if localStorage says we have access
+  useEffect(() => {
+    const storedEmail = localStorage.getItem('iii_access_email');
+    const hasAccess = localStorage.getItem('iii_access_requested') === 'true';
+    
+    if (hasAccess && storedEmail) {
+      // Verify email exists in Supabase
+      checkAccessRequest(storedEmail).then((exists) => {
+        if (exists) {
+          setIsSubmitted(true);
+        } else {
+          // Email not found in Supabase, clear localStorage
+          localStorage.removeItem('iii_access_requested');
+          localStorage.removeItem('iii_access_email');
+          setIsSubmitted(false);
+        }
+      });
+    }
+  }, []);
   const [copySuccess, setCopySuccess] = useState(false);
   const [installCmd] = useState("npm install @iii/client");
   const [bslBlink, setBslBlink] = useState(false);
@@ -114,18 +134,21 @@ const App: React.FC = () => {
       if (result.success) {
         setIsSubmitted(true);
         localStorage.setItem('iii_access_requested', 'true');
+        localStorage.setItem('iii_access_email', email);
         setEmail('');
       } else {
         // Handle error silently or show a message
         console.error('Failed to submit email:', result.error);
         setIsSubmitted(true); // Still show success to user
         localStorage.setItem('iii_access_requested', 'true');
+        localStorage.setItem('iii_access_email', email);
         setEmail('');
       }
     } catch (error) {
       console.error('Error submitting email:', error);
       setIsSubmitted(true); // Still show success to user
       localStorage.setItem('iii_access_requested', 'true');
+      localStorage.setItem('iii_access_email', email);
       setEmail('');
     } finally {
       setIsSubmitting(false);

@@ -36,3 +36,31 @@ export async function insertAccessRequest(email: string): Promise<{ success: boo
   }
 }
 
+// Check if an email exists in Supabase
+export async function checkAccessRequest(email: string): Promise<boolean> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !email) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/access_requests?email=eq.${encodeURIComponent(email)}&select=email`, {
+      method: 'GET',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Prefer': 'return=minimal'
+      }
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) && data.length > 0;
+  } catch (error) {
+    console.error('Error checking access request:', error);
+    return false;
+  }
+}
+
