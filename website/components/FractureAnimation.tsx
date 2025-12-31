@@ -2,37 +2,34 @@ import React, { useState, useEffect } from 'react';
 
 const rotatingWords = ['SYSTEMS', 'APIS', 'WORKFLOWS', 'AGENTS', 'QUEUES', 'STREAMS', 'JOBS'];
 
-// Block data with fragmented and unified positions
 const blocks = [
-  // Row 0 (dots)
   { label: 'Redis', fragX: -140, fragY: -90, fragRotate: -15, row: 0, col: 0 },
   { label: 'Express', fragX: 20, fragY: -110, fragRotate: 12, row: 0, col: 1 },
   { label: 'Temporal', fragX: 160, fragY: -70, fragRotate: -8, row: 0, col: 2 },
-  // Row 1
   { label: 'Postgres', fragX: -180, fragY: -20, fragRotate: 18, row: 1, col: 0 },
   { label: 'FastAPI', fragX: -40, fragY: 10, fragRotate: -20, row: 1, col: 1 },
   { label: 'Celery', fragX: 130, fragY: -10, fragRotate: 10, row: 1, col: 2 },
-  // Row 2
   { label: 'Kafka', fragX: -120, fragY: 60, fragRotate: -12, row: 2, col: 0 },
   { label: 'gRPC', fragX: 50, fragY: 80, fragRotate: 22, row: 2, col: 1 },
   { label: 'BullMQ', fragX: 180, fragY: 50, fragRotate: -18, row: 2, col: 2 },
-  // Row 3
   { label: 'RabbitMQ', fragX: -160, fragY: 130, fragRotate: 8, row: 3, col: 0 },
   { label: 'GraphQL', fragX: -20, fragY: 140, fragRotate: -14, row: 3, col: 1 },
   { label: 'Cron', fragX: 140, fragY: 120, fragRotate: 16, row: 3, col: 2 },
 ];
 
-// Calculate unified grid positions
-const GRID_GAP = 16; // Horizontal gap between columns
-const BLOCK_WIDTH = 95;
-const BLOCK_HEIGHT = 40;
-const ROW_GAP = 12; // Vertical gap between rows
-const DOT_GAP = 20; // Extra gap after first row (dots)
+// Grid layout constants
+const GRID_GAP = 12; // Gap between columns
+const ROW_GAP = 10;  // Gap between rows
+const DOT_ROW_GAP = 16; // Extra gap after first row (dots)
 
+// Calculate unified grid positions (centered)
 const getUnifiedPosition = (row: number, col: number) => {
-  const x = (col - 1) * (BLOCK_WIDTH + GRID_GAP);
-  const extraY = row > 0 ? DOT_GAP : 0;
-  const y = (row - 1.5) * (BLOCK_HEIGHT + ROW_GAP) + extraY;
+  const colWidth = 100; // Fixed column width
+  const rowHeight = 44; // Fixed row height
+  
+  const x = (col - 1) * (colWidth + GRID_GAP);
+  const extraY = row > 0 ? DOT_ROW_GAP : 0;
+  const y = (row - 1.5) * (rowHeight + ROW_GAP) + extraY;
   return { x, y };
 };
 
@@ -46,7 +43,6 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
   const [wordIndex, setWordIndex] = useState(0);
   const [isWordAnimating, setIsWordAnimating] = useState(false);
 
-  // Rotating word effect
   useEffect(() => {
     if (!isUnified) return;
     
@@ -61,7 +57,6 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
     return () => clearInterval(interval);
   }, [isUnified]);
 
-  // Auto-animate on scroll into view
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -83,12 +78,10 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
     return () => observer.disconnect();
   }, [hasAnimated]);
 
-  // Theme colors
   const bgColor = isDarkMode ? 'bg-iii-black' : 'bg-iii-light';
   const textColor = isDarkMode ? 'text-iii-light' : 'text-iii-black';
   const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
   
-  // Block colors - proper theme support
   const blockBg = isDarkMode ? 'bg-iii-dark/90' : 'bg-white';
   const blockBorder = isDarkMode ? 'border-iii-medium/30' : 'border-gray-300';
   const blockBorderUnified = isDarkMode ? 'border-iii-accent/50' : 'border-iii-accent-light/50';
@@ -96,10 +89,9 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
   const blockTextUnified = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
 
   return (
-    <div id="fracture-animation" className={`w-full ${bgColor} py-16 md:py-24 overflow-hidden`}>
+    <div id="fracture-animation" className={`w-full ${bgColor} py-8 md:py-12 lg:py-16 overflow-hidden`}>
       <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-12 md:mb-16">
+        <div className="text-center mb-6 md:mb-10">
           <p className="text-[10px] md:text-xs text-iii-medium tracking-[0.2em] uppercase mb-2">
             {isUnified ? 'Unified by iii' : 'The Great Fracture'}
           </p>
@@ -120,14 +112,12 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
           <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto">
             {isUnified 
               ? 'All your infrastructure, unified under a single runtime.'
-              : 'Databases, queues, APIs, jobs—all requiring different tools and glue code.'
+              : 'Databases, queues, APIs, jobs. All requiring different tools and glue code.'
             }
           </p>
         </div>
 
-        {/* Animation container */}
         <div className="relative h-[300px] md:h-[350px] flex items-center justify-center">
-          {/* Connection lines (visible when unified) */}
           <svg 
             className={`absolute inset-0 w-full h-full transition-opacity duration-700 ${isUnified ? 'opacity-30' : 'opacity-0'}`}
             style={{ pointerEvents: 'none' }}
@@ -149,7 +139,6 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
             })}
           </svg>
 
-          {/* Blocks - same elements, different positions */}
           {blocks.map((block, index) => {
             const unified = getUnifiedPosition(block.row, block.col);
             const x = isUnified ? unified.x : block.fragX;
@@ -162,10 +151,10 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
                 key={block.label}
                 className={`
                   absolute left-1/2 top-1/2 
-                  px-3 py-2 md:px-4 md:py-2.5 
+                  py-2.5 md:py-3
                   rounded-lg border shadow-sm
                   transition-all duration-700 ease-out
-                  min-w-[70px] md:min-w-[85px] text-center
+                  w-[90px] md:w-[100px] text-center
                   ${isUnified ? blockBorderUnified : blockBorder}
                   ${blockBg}
                 `}
@@ -184,7 +173,6 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
             );
           })}
 
-          {/* iii logo overlay */}
           <div 
             className={`
               absolute inset-0 flex items-center justify-center pointer-events-none
@@ -198,7 +186,6 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
           </div>
         </div>
 
-        {/* Toggle */}
         <div 
           className="text-center mt-6 cursor-pointer group"
           onClick={() => setIsUnified(!isUnified)}
@@ -208,7 +195,6 @@ export const FractureAnimation: React.FC<FractureAnimationProps> = ({ isDarkMode
           </p>
         </div>
 
-        {/* Bottom label */}
         <div className="text-center mt-8">
           <p className={`text-xs md:text-sm font-semibold transition-colors duration-500 ${isUnified ? accentColor : 'text-iii-medium'}`}>
             {isUnified ? 'Stop building glue. Start building logic.' : '12 tools. 12 configs. 12 failure points.'}

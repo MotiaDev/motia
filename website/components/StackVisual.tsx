@@ -20,16 +20,16 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
   const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-12 md:py-20">
-      <div className="text-center mb-8 md:mb-12">
+    <div className="w-full max-w-4xl mx-auto px-4 py-8 md:py-12 lg:py-16">
+      <div className="text-center mb-6 md:mb-8">
         <p className="text-[10px] md:text-xs text-iii-medium tracking-[0.2em] uppercase mb-2">
-          The Great Fracture — Unified
+          The Great Fracture / Unified
         </p>
         <h2 className={`text-xl sm:text-2xl md:text-4xl font-bold tracking-tighter mb-3 ${textPrimary}`}>
           ONE DAEMON.<br className="sm:hidden" /> <span className={accentColor}>INFINITE SYSTEMS.</span>
         </h2>
         <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto leading-relaxed">
-          Servers, workers, consumers—all just code waiting for an initiation signal. 
+          Servers, workers, consumers. All just code waiting for an initiation signal. 
           iii runs them all.
         </p>
       </div>

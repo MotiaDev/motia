@@ -126,7 +126,7 @@ const App: React.FC = () => {
         ? 'bg-iii-black text-iii-light' 
         : 'bg-iii-light text-iii-black'
     } ${isGodMode ? 'selection:bg-red-500' : ''}`}>
-      {/* <GridBackground isDarkMode={isDarkMode} /> */}
+        {/* <GridBackground isDarkMode={isDarkMode} /> */}
 
       <nav className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
           isDarkMode 
@@ -175,8 +175,8 @@ const App: React.FC = () => {
         <div className="px-4 md:px-12 max-w-7xl mx-auto w-full flex flex-col gap-4 md:gap-8">
           <div className="flex flex-col items-start gap-4 md:gap-6 max-w-5xl">
             <button 
-              onClick={handleLogoClick}
-              className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-full backdrop-blur text-[10px] md:text-xs transition-all duration-300 group animate-fade-in-up cursor-pointer ${
+              onClick={handleBslClick}
+              className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-full backdrop-blur text-[10px] md:text-xs transition-all duration-300 group animate-fade-in-up ${
                 bslBlink 
                   ? 'bg-red-500/20 border-red-500 text-red-500 scale-105' 
                   : isDarkMode
@@ -184,24 +184,9 @@ const App: React.FC = () => {
                     : 'border-iii-accent-light/30 bg-white/50 text-iii-accent-light hover:border-iii-accent-light/50'
               }`}
             >
-              {/* Three dots that sync with logo highlighting */}
-              <span className="flex items-center gap-1">
-                {[0, 1, 2].map((i) => {
-                  const isLit = logoClickCount > i || (logoClickCount === 0 && hoverAnimIndex >= i);
-                  const baseColor = bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light';
-                  const dimColor = isDarkMode ? 'bg-iii-medium/40' : 'bg-iii-medium/30';
-                  
-                  return (
-                    <span key={i} className="relative flex h-1.5 w-1.5 md:h-2 md:w-2">
-                      {isLit && (
-                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${baseColor}`} 
-                          style={{ animationDelay: `${i * 100}ms` }}
-                        />
-                      )}
-                      <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 transition-colors duration-200 ${isLit ? baseColor : dimColor}`} />
-                    </span>
-                  );
-                })}
+              <span className="relative flex h-1.5 w-1.5 md:h-2 md:w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}></span>
+                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}></span>
               </span>
               <span className="font-mono tracking-wider">{isGodMode ? 'GOD MODE' : 'KERNEL ONLINE'}</span>
             </button>
@@ -275,9 +260,17 @@ const App: React.FC = () => {
 
         <FeatureBento isDarkMode={isDarkMode} />
 
-        <FractureAnimation isDarkMode={isDarkMode} />
-
-        <StackVisual isDarkMode={isDarkMode} />
+        {/* Side by side on large screens */}
+        <div className="w-full max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:gap-8 xl:gap-12">
+            <div className="w-full lg:w-1/2">
+              <FractureAnimation isDarkMode={isDarkMode} />
+            </div>
+            <div className="w-full lg:w-1/2">
+              <StackVisual isDarkMode={isDarkMode} />
+            </div>
+          </div>
+        </div>
       </main>
 
       <footer className={`relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t text-[9px] md:text-[10px] text-iii-medium font-mono transition-colors duration-300 ${
@@ -287,7 +280,7 @@ const App: React.FC = () => {
         }`}>
         <div className="max-w-sm md:max-w-md space-y-1.5 md:space-y-2">
           <p className="leading-relaxed hidden md:block">
-            <span className={isDarkMode ? 'text-iii-light' : 'text-iii-black'}>Intelligent Invocation Interface</span> — Context-aware execution for distributed systems.
+            Defining the universal runtime for distributed execution.
           </p>
         </div>
         <div className="flex flex-col items-start md:items-end gap-0.5 md:gap-1">
