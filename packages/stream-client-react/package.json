@@ -21,6 +21,7 @@
   "devDependencies": {
     "@rollup/plugin-babel": "^6.1.0",
     "@types/react": "^19.2.7",
+    "babel-plugin-react-compiler": "^1.0.0",
     "tsdown": "^0.16.6",
     "typescript": "^5.7.2"
   },

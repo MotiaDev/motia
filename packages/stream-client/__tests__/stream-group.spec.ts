@@ -12,7 +12,7 @@ describe('StreamGroupSubscription', () => {
 
   function makeMessage(
     type: GroupEventMessage<TestData>['event']['type'],
-    data: any,
+    data: unknown,
     timestamp = Date.now(),
   ): GroupEventMessage<TestData> {
     return {

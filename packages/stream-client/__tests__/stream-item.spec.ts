@@ -12,7 +12,7 @@ describe('StreamItemSubscription', () => {
 
   function makeMessage(
     type: ItemEventMessage<TestData>['event']['type'],
-    data: any,
+    data: unknown,
     timestamp = Date.now(),
   ): ItemEventMessage<TestData> {
     return {

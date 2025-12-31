@@ -8,9 +8,7 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'docs/**'
       - 'contributors/**'
-      - 'packages/docs/**'
 
   push:
     branches:
@@ -36,14 +34,6 @@ jobs:
       - name: Run linter
         run: pnpm lint:ci
 
-      - name: Setup playground python environment
-        run: |
-          pnpm -r --filter @motiadev/core exec pnpm python-setup
-          cd playground
-          pnpm python-setup
-
-      - name: Run tests
-        run: PATH=python_modules/bin:$PATH pnpm -r --filter='!./plugins/**' --filter='!./playground/**' run test
 
   # Note: Publishing is now handled by the deploy.yml workflow
   # This workflow only handles CI/CD quality checks

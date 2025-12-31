@@ -66,9 +66,10 @@ jobs:
           echo "Generated version: ${NEW_VERSION}"
 
       - name: Set version on all packages
+#          pnpm -r --filter "@motiadev/*" exec pnpm version ${{ steps.version.outputs.version }} --no-git-tag-version
+#          pnpm -r --filter motia exec pnpm version ${{ steps.version.outputs.version }} --no-git-tag-version
         run: |
-          pnpm -r --filter "@motiadev/*" exec pnpm version ${{ steps.version.outputs.version }} --no-git-tag-version
-          pnpm -r --filter motia exec pnpm version ${{ steps.version.outputs.version }} --no-git-tag-version
+          pnpm -r --filter @iii-dev/motia exec pnpm version ${{ steps.version.outputs.version }} --no-git-tag-version
 
       - name: Setup NPM authentication
         env:
@@ -77,24 +78,11 @@ jobs:
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
       - name: Publish packages with custom tag
+#          pnpm publish -r --filter @motiadev/stream-client --no-git-checks --tag ${{ github.event.inputs.tag }}
+#          pnpm publish -r --filter @motiadev/stream-client-browser --no-git-checks --tag ${{ github.event.inputs.tag }}
+#          pnpm publish -r --filter @motiadev/stream-client-node --no-git-checks --tag ${{ github.event.inputs.tag }}
+#          pnpm publish -r --filter @motiadev/stream-client-react --no-git-checks --tag ${{ github.event.inputs.tag }}
+#          pnpm publish -r --filter motia --no-git-checks --tag ${{ github.event.inputs.tag }}
         run: |
-          pnpm publish -r --filter @motiadev/core --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/ui --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/plugin-endpoint --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/plugin-logs --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/plugin-observability --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/plugin-states --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/plugin-example --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/plugin-bullmq --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/workbench --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/stream-client --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/stream-client-browser --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/stream-client-node --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/stream-client-react --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter motia --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/test --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/adapter-rabbitmq-events --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/adapter-bullmq-events --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/adapter-redis-cron --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/adapter-redis-state --no-git-checks --tag ${{ github.event.inputs.tag }}
-          pnpm publish -r --filter @motiadev/adapter-redis-streams --no-git-checks --tag ${{ github.event.inputs.tag }}
+          pnpm publish -r --filter @iii-dev/motia --no-git-checks --tag ${{ github.event.inputs.tag }}
+
