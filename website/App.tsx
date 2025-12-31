@@ -175,8 +175,8 @@ const App: React.FC = () => {
         <div className="px-4 md:px-12 max-w-7xl mx-auto w-full flex flex-col gap-4 md:gap-8">
           <div className="flex flex-col items-start gap-4 md:gap-6 max-w-5xl">
             <button 
-              onClick={handleBslClick}
-              className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-full backdrop-blur text-[10px] md:text-xs transition-all duration-300 group animate-fade-in-up ${
+              onClick={handleLogoClick}
+              className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-full backdrop-blur text-[10px] md:text-xs transition-all duration-300 group animate-fade-in-up cursor-pointer ${
                 bslBlink 
                   ? 'bg-red-500/20 border-red-500 text-red-500 scale-105' 
                   : isDarkMode
@@ -184,9 +184,24 @@ const App: React.FC = () => {
                     : 'border-iii-accent-light/30 bg-white/50 text-iii-accent-light hover:border-iii-accent-light/50'
               }`}
             >
-              <span className="relative flex h-1.5 w-1.5 md:h-2 md:w-2">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}></span>
-                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 ${bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'}`}></span>
+              {/* Three dots that sync with logo highlighting */}
+              <span className="flex items-center gap-1">
+                {[0, 1, 2].map((i) => {
+                  const isLit = logoClickCount > i || (logoClickCount === 0 && hoverAnimIndex >= i);
+                  const baseColor = bslBlink ? 'bg-red-500' : isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light';
+                  const dimColor = isDarkMode ? 'bg-iii-medium/40' : 'bg-iii-medium/30';
+                  
+                  return (
+                    <span key={i} className="relative flex h-1.5 w-1.5 md:h-2 md:w-2">
+                      {isLit && (
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${baseColor}`} 
+                          style={{ animationDelay: `${i * 100}ms` }}
+                        />
+                      )}
+                      <span className={`relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 transition-colors duration-200 ${isLit ? baseColor : dimColor}`} />
+                    </span>
+                  );
+                })}
               </span>
               <span className="font-mono tracking-wider">{isGodMode ? 'GOD MODE' : 'KERNEL ONLINE'}</span>
             </button>
