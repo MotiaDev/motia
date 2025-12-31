@@ -43,7 +43,7 @@ async def handler(req, context):
             "topic": "process-food-order",
             "data": {
                 "quantity": food_order.get("quantity"),
-                "email": os.environ.get("SAMPLE_EMAIL"),
+                "email": os.environ.get("SAMPLE_EMAIL", "test@test.com"),
                 "pet_id": new_pet_record.get("id"),
             },
         })

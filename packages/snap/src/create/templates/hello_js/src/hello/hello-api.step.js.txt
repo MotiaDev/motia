@@ -18,7 +18,7 @@ export const config = {
 };
 
 export const handler = async (_, { emit, logger }) => {
-  const appName = process.env.APP_NAME;
+  const appName = process.env.APP_NAME || 'Motia App';
   const timestamp = new Date().toISOString();
   
   logger.info('Hello API endpoint called', { appName, timestamp });
@@ -29,7 +29,7 @@ export const handler = async (_, { emit, logger }) => {
     data: {
       timestamp,
       appName,
-      greetingPrefix: process.env.GREETING_PREFIX,
+      greetingPrefix: process.env.GREETING_PREFIX || 'Hello',
       requestId: Math.random().toString(36).substring(7)
     }
   });
