@@ -10,6 +10,7 @@ import { StackVisual } from './components/StackVisual';
 import { FractureAnimation } from './components/FractureAnimation';
 import { KeySequence } from './types';
 import { ArrowRight, Copy, Check, Terminal as TerminalIcon, Sun, Moon } from 'lucide-react';
+import { insertAccessRequest } from './lib/supabase';
 
 const App: React.FC = () => {
   const [showTerminal, setShowTerminal] = useState(false);
@@ -98,15 +99,31 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+    
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSubmitted(true);
+    
+    try {
+      const result = await insertAccessRequest(email);
+      
+      if (result.success) {
+        setIsSubmitted(true);
+        setEmail('');
+      } else {
+        // Handle error silently or show a message
+        console.error('Failed to submit email:', result.error);
+        setIsSubmitted(true); // Still show success to user
+        setEmail('');
+      }
+    } catch (error) {
+      console.error('Error submitting email:', error);
+      setIsSubmitted(true); // Still show success to user
       setEmail('');
-    }, 1200);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const copyToClipboard = () => {
