@@ -166,14 +166,25 @@ const App: React.FC = () => {
         <div className="flex gap-3 md:gap-6 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
           <a href="#" onClick={handleManifestoClick} className={`transition-colors hidden md:block ${isDarkMode ? 'hover:text-iii-light' : 'hover:text-iii-black'}`}>MANIFESTO</a>
           <button onClick={() => setShowProtocol(true)} className={`transition-colors uppercase ${isDarkMode ? 'hover:text-iii-accent' : 'hover:text-iii-accent-light'}`}>PROTOCOL</button>
-          <div className="relative group cursor-not-allowed hidden sm:block">
-            <span className={`transition-colors ${isDarkMode ? 'text-iii-dark group-hover:text-iii-medium' : 'text-iii-medium/50 group-hover:text-iii-medium'}`}>DOCS</span>
-            <div className={`absolute top-full right-0 mt-2 w-max px-2 py-1 border text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
-              isDarkMode ? 'bg-iii-dark border-iii-medium text-iii-light' : 'bg-white border-iii-medium/30 text-iii-black'
-            }`}>
-              EARLY ACCESS ONLY
+          {isSubmitted ? (
+            <a 
+              href={import.meta.env.VITE_DOCS_URL} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`transition-colors uppercase hidden sm:block ${isDarkMode ? 'text-iii-accent hover:text-iii-light' : 'text-iii-accent-light hover:text-iii-black'}`}
+            >
+              DOCS
+            </a>
+          ) : (
+            <div className="relative group cursor-not-allowed hidden sm:block">
+              <span className={`transition-colors ${isDarkMode ? 'text-iii-dark group-hover:text-iii-medium' : 'text-iii-medium/50 group-hover:text-iii-medium'}`}>DOCS</span>
+              <div className={`absolute top-full right-0 mt-2 w-max px-2 py-1 border text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
+                isDarkMode ? 'bg-iii-dark border-iii-medium text-iii-light' : 'bg-white border-iii-medium/30 text-iii-black'
+              }`}>
+                EARLY ACCESS ONLY
+              </div>
             </div>
-          </div>
+          )}
           <button 
             onClick={toggleTheme}
             className={`p-2 rounded-full transition-colors ${
