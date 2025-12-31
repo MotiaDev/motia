@@ -54,7 +54,7 @@ Your Workbench will be available at `http://localhost:3000`.
 ## Project Structure
 
 <Folder name="my-pet-api" defaultOpen>
-  <Folder name="steps" defaultOpen>
+  <Folder name="src" defaultOpen>
     <Folder name="typescript">
       <File name="create-pet.step.ts" />
       <File name="ai-profile-enrichment.step.ts" />
@@ -80,10 +80,10 @@ Your Workbench will be available at `http://localhost:3000`.
       <File name="adoption_review_agent_step.py" />
       <File name="pet_lifecycle_orchestrator_step.py" />
     </Folder>
-  </Folder>
-  <Folder name="services">
-    <File name="pet_store.py" />
-    <File name="types.py" />
+    <Folder name="services">
+      <File name="pet_store.py" />
+      <File name="types.py" />
+    </Folder>
   </Folder>
   <File name=".env" />
   <File name="package.json" />
@@ -92,7 +92,7 @@ Your Workbench will be available at `http://localhost:3000`.
 </Folder>
 
 <Callout type="info">
-**Project organization** - This example uses the `steps/` directory, but you can also use `src/` or both directories in your project. Motia discovers step files from either location automatically.
+**Project organization** - This example uses the `src/` directory. Motia discovers step files from the `src/` directory automatically.
 
 Files like `features.json` and `tutorial/tutorial.tsx` are only for the interactive tutorial and are not part of Motia's project structure.
 </Callout>
@@ -132,14 +132,14 @@ First, update your pet creation endpoint to emit events that will trigger the ag
 
 <Callout type="info">
 View on GitHub:
-- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/typescript/create-pet.step.ts)
-- [Python](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/python/create_pet_step.py)
-- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/javascript/create-pet.step.js)
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/typescript/create-pet.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/python/create_pet_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/javascript/create-pet.step.js)
 </Callout>
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
-    ```typescript title="steps/typescript/create-pet.step.ts"
+    ```typescript title="src/typescript/create-pet.step.ts"
     import { ApiRouteConfig, Handlers } from 'motia'
     import { z } from 'zod'
     import { TSStore } from './ts-store'
@@ -207,7 +207,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="Python">
-    ```python title="steps/python/create_pet_step.py"
+    ```python title="src/python/create_pet_step.py"
     config = {
         "type": "api",
         "name": "PyCreatePet",
@@ -269,7 +269,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript title="steps/javascript/create-pet.step.js"
+    ```javascript title="src/javascript/create-pet.step.js"
     import { create } from './js-store.js'
 
     export const config = {
@@ -326,15 +326,15 @@ Now let's create the agentic step that listens for new pets and enriches their p
 
 <Callout type="info">
 View on GitHub:
-- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/typescript/ai-profile-enrichment.step.ts)
-- [Python](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/python/ai_profile_enrichment_step.py)
-- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/javascript/ai-profile-enrichment.step.js)
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/typescript/ai-profile-enrichment.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/python/ai_profile_enrichment_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/javascript/ai-profile-enrichment.step.js)
 </Callout>
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
-    ```typescript title="steps/typescript/ai-profile-enrichment.step.ts"
-    // steps/typescript/ai-profile-enrichment.step.ts
+    ```typescript title="src/typescript/ai-profile-enrichment.step.ts"
+    // src/typescript/ai-profile-enrichment.step.ts
     import { EventConfig, Handlers } from 'motia';
     import { TSStore, PetProfile } from './ts-store';
 
@@ -461,7 +461,7 @@ Keep it positive, realistic, and adoption-focused.`;
     ```
   </Tab>
   <Tab value="Python">
-    ```python title="steps/python/ai_profile_enrichment_step.py"
+    ```python title="src/python/ai_profile_enrichment_step.py"
     import json
     import os
     import asyncio
@@ -609,7 +609,7 @@ Keep it positive, realistic, and adoption-focused."""
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript title="steps/javascript/ai-profile-enrichment.step.js"
+    ```javascript title="src/javascript/ai-profile-enrichment.step.js"
     import { updateProfile } from './js-store.js'
 
     export const config = {
@@ -806,15 +806,15 @@ This agentic step analyzes pet symptoms and decides if treatment is needed. Inst
 
 <Callout type="info">
 View on GitHub:
-- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/typescript/health-review-agent.step.ts)
-- [Python](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/python/health_review_agent_step.py)
-- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/steps/javascript/health-review-agent.step.js)
+- [TypeScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/typescript/health-review-agent.step.ts)
+- [Python](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/python/health_review_agent_step.py)
+- [JavaScript](https://github.com/MotiaDev/build-your-first-app/blob/ai-agents/src/javascript/health-review-agent.step.js)
 </Callout>
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
-    ```typescript title="steps/typescript/health-review-agent.step.ts"
-    // steps/typescript/health-review-agent.step.ts
+    ```typescript title="src/typescript/health-review-agent.step.ts"
+    // src/typescript/health-review-agent.step.ts
     import { ApiRouteConfig, Handlers } from 'motia';
     import { TSStore } from './ts-store';
     import { 
@@ -1001,7 +1001,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="Python">
-    ```python title="steps/python/health_review_agent_step.py"
+    ```python title="src/python/health_review_agent_step.py"
     import sys
     import os
     import time
@@ -1170,7 +1170,7 @@ View on GitHub:
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript title="steps/javascript/health-review-agent.step.js"
+    ```javascript title="src/javascript/health-review-agent.step.js"
     import { get } from './js-store.js'
     import { 
       HEALTH_REVIEW_EMITS, 
@@ -1440,7 +1440,7 @@ The orchestrator configuration shows it subscribes to agentic step events:
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
-    ```typescript title="steps/typescript/pet-lifecycle-orchestrator.step.ts"
+    ```typescript title="src/typescript/pet-lifecycle-orchestrator.step.ts"
     export const config = {
       type: 'event',
       name: 'TsPetLifecycleOrchestrator',
@@ -1497,7 +1497,7 @@ The orchestrator configuration shows it subscribes to agentic step events:
     ```
   </Tab>
   <Tab value="Python">
-    ```python title="steps/python/pet_lifecycle_orchestrator_step.py"
+    ```python title="src/python/pet_lifecycle_orchestrator_step.py"
     config = {
         "type": "event",
         "name": "PyPetLifecycleOrchestrator",
@@ -1554,7 +1554,7 @@ The orchestrator configuration shows it subscribes to agentic step events:
     ```
   </Tab>
   <Tab value="JavaScript">
-    ```javascript title="steps/javascript/pet-lifecycle-orchestrator.step.js"
+    ```javascript title="src/javascript/pet-lifecycle-orchestrator.step.js"
     export const config = {
       type: 'event',
       name: 'JsPetLifecycleOrchestrator',

@@ -1,6 +1,6 @@
 ---
 description: Middlewares are used to execute code before and after the handler is called
-globs: steps/**/*.step.ts,steps/**/*.step.js,steps/**/*_step.py,middlewares/**/*.middleware.ts,middlewares/**/*.middleware.js,middlewares/**/*_middleware.py
+globs: src/**/*.step.ts,src/**/*.step.js,src/**/*_step.py,middlewares/**/*.middleware.ts,middlewares/**/*.middleware.js,middlewares/**/*_middleware.py
 alwaysApply: false
 ---
 # Middlewares Guide

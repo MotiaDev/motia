@@ -27,7 +27,7 @@ Every Step is just a file with two parts:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
-```typescript title="steps/my-step.step.ts"
+```typescript title="src/my-step.step.ts"
 import { ApiRouteConfig, Handlers } from 'motia'
 
 // Config - when it runs
@@ -55,7 +55,7 @@ export const handler: Handlers['MyStep'] = async (req, { emit, logger }) => {
 </Tab>
 <Tab value='Python'>
 
-```python title="steps/my_step.py"
+```python title="src/my_step.py"
 # Config - when it runs
 config = {
     "name": "MyStep",
@@ -80,7 +80,7 @@ async def handler(req, context):
 </Tab>
 <Tab value='JavaScript'>
 
-```javascript title="steps/my-step.step.js"
+```javascript title="src/my-step.step.js"
 // Config - when it runs
 const config = {
   name: 'MyStep',
@@ -108,7 +108,7 @@ module.exports = { config, handler }
 </Tab>
 </Tabs>
 
-👉 Drop this file in your `steps/` folder and Motia finds it automatically. No registration, no imports, no setup.
+👉 Drop this file in your `src/` folder and Motia finds it automatically. No registration, no imports, no setup.
 
 [Learn more about Steps →](/docs/concepts/steps)
 
@@ -149,7 +149,7 @@ Motia automatically discovers Steps - no manual registration required.
 
 <Files>
 <Folder name="my-project" defaultOpen>
-  <Folder name="steps" defaultOpen>
+  <Folder name="src" defaultOpen>
     <Folder name="api">
       <File name="create-user.step.ts" />
       <File name="get-user.step.ts" />
@@ -174,12 +174,12 @@ Motia automatically discovers Steps - no manual registration required.
 </Files>
 
 <Callout type="info">
-The `steps/` directory is the heart of your Motia application. All your workflow logic lives here, and Motia automatically discovers any file following the naming pattern.
+The `src/` directory is the heart of your Motia application. All your workflow logic lives here, and Motia automatically discovers any file following the naming pattern.
 </Callout>
 
 ### Auto-Discovery Rules
 
-Motia scans the `steps/` directory and automatically registers files that:
+Motia scans the `src/` directory and automatically registers files that:
 
 1. ✅ **Match naming pattern:**
    - TypeScript: `.step.ts`
@@ -213,7 +213,7 @@ Every Step can be in a different language. They all run in the same process and 
 
 <Files>
 <Folder name="my-app" defaultOpen>
-  <Folder name="steps" defaultOpen>
+  <Folder name="src" defaultOpen>
     <File name="api-endpoint.step.ts" />
     <File name="ml-inference_step.py" />
     <File name="send-email.step.js" />
