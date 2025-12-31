@@ -18,7 +18,10 @@ const App: React.FC = () => {
   const [isGodMode, setIsGodMode] = useState(false);
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(() => {
+    // Check localStorage on initial load
+    return localStorage.getItem('iii_access_requested') === 'true';
+  });
   const [copySuccess, setCopySuccess] = useState(false);
   const [installCmd] = useState("npm install @iii/client");
   const [bslBlink, setBslBlink] = useState(false);
@@ -110,16 +113,19 @@ const App: React.FC = () => {
       
       if (result.success) {
         setIsSubmitted(true);
+        localStorage.setItem('iii_access_requested', 'true');
         setEmail('');
       } else {
         // Handle error silently or show a message
         console.error('Failed to submit email:', result.error);
         setIsSubmitted(true); // Still show success to user
+        localStorage.setItem('iii_access_requested', 'true');
         setEmail('');
       }
     } catch (error) {
       console.error('Error submitting email:', error);
       setIsSubmitted(true); // Still show success to user
+      localStorage.setItem('iii_access_requested', 'true');
       setEmail('');
     } finally {
       setIsSubmitting(false);
