@@ -1,3 +1,4 @@
+import os
 import httpx
 from typing import Dict, Any
 from .types import Order, Pet
@@ -12,7 +13,7 @@ class PetStoreService:
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                'https://xnigaj-xtnawg.motiahub.com/pet',
+                os.environ.get("API_URL", ""),
                 json=pet_data,
                 headers={'Content-Type': 'application/json'}
             )
@@ -28,7 +29,7 @@ class PetStoreService:
             }
             
             response = await client.post(
-                'https://xnigaj-xtnawg.motiahub.com/store/order',
+                os.environ.get("API_URL", ""),
                 json=order_data,
                 headers={'Content-Type': 'application/json'}
             )

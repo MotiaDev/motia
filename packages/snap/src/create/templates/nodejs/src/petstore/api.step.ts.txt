@@ -38,7 +38,7 @@ export const handler: Handlers['ApiTrigger'] = async (req, { logger, traceId, em
       topic: 'process-food-order',
       data: {
         quantity: foodOrder.quantity,
-        email: 'test@test.com', // sample email
+        email: process.env.EMAIL,
         petId: newPetRecord.id,
       },
     })
