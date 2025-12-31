@@ -28,7 +28,7 @@ async def handler(context):
             await context.emit({
                 "topic": "notification",
                 "data": {
-                    "email": os.environ.get("EMAIL", "test@test.com"),
+                    "email": os.environ.get("SAMPLE_EMAIL"),
                     "template_id": "order-audit-warning",
                     "template_data": {
                         "order_id": item.get("id"),

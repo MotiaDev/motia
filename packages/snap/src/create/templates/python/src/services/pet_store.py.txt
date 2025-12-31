@@ -13,7 +13,7 @@ class PetStoreService:
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                os.environ.get("API_URL", ""),
+                f"{os.environ.get('API_URL')}/pet",
                 json=pet_data,
                 headers={'Content-Type': 'application/json'}
             )
@@ -29,7 +29,7 @@ class PetStoreService:
             }
             
             response = await client.post(
-                os.environ.get("API_URL", ""),
+                f"{os.environ.get('API_URL')}/store/order",
                 json=order_data,
                 headers={'Content-Type': 'application/json'}
             )
