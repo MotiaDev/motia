@@ -87,16 +87,16 @@ pnpm build
 ## Project Structure
 
 ```
-steps/                           # Your Step definitions
-├── hello/
-│   ├── hello-api.step.ts       # TypeScript API endpoint
-│   ├── process_greeting_step.py # Python event processor
-│   └── log-greeting.step.js    # JavaScript logger
+src/                             # Your Step definitions
+└── hello/
+    ├── hello-api.step.ts
+    ├── process_greeting_step.py
+    └── log-greeting.step.js
 motia.config.ts                  # Motia configuration
 requirements.txt                 # Python dependencies
 ```
 
-Steps are auto-discovered from your `steps/` or `src/` directories - no manual registration required.
+Steps are auto-discovered from your `src/` directory - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
 
 ## Learn More
 

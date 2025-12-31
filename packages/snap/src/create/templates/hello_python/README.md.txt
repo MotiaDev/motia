@@ -69,12 +69,15 @@ pnpm build
 ## Project Structure
 
 ```
-steps/              # Your Step definitions (or use src/)
+src/                # Your Step definitions
+└── hello/
+    ├── hello_api_step.py
+    └── process_greeting_step.py
 motia.config.ts     # Motia configuration
 requirements.txt    # Python dependencies
 ```
 
-Steps are auto-discovered from your `steps/` or `src/` directories - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
+Steps are auto-discovered from your `src/` directory - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
 
 ## Learn More
 
