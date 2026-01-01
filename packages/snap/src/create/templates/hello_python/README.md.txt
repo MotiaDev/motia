@@ -1,10 +1,8 @@
 # {{PROJECT_NAME}}
 
-A Motia project created with the starter template.
+This is a **Motia** project bootstrapped with the Motia CLI.
 
-## What is Motia?
-
-Motia is an open-source, unified backend framework that eliminates runtime fragmentation by bringing **APIs, background jobs, queueing, streaming, state, workflows, AI agents, observability, scaling, and deployment** into one unified system using a single core primitive, the **Step**.
+Motia lets you build APIs, background jobs, workflows, and event-driven systems in a single unified backend.
 
 ## Quick Start
 
@@ -17,71 +15,19 @@ yarn dev
 pnpm dev
 ```
 
-This starts the Motia runtime and the **Workbench** - a powerful UI for developing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
+This starts the Motia runtime and **Workbench**. Workbench is a visualizing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
 
-```bash
-# Test your first endpoint
-curl http://localhost:3000/hello
-```
+You can start editing the project by making changes to `src/hello/hello_api` as well as produce your own `.step.ts`, `.step.js`, or `_step.py` files within the `src/` directory.
 
-## Step Types
+Motia auto-discovers all step files and executes them as defined in each step's configuration. Learn more about the power and simplicity of steps in the [Step Docs](https://motia.dev/docs/concepts/steps).
 
-Every Step has a `type` that defines how it triggers:
+## Project Config
 
-| Type | When it runs | Use case |
-|------|--------------|----------|
-| **`api`** | HTTP request | REST APIs, webhooks |
-| **`event`** | Event emitted | Background jobs, workflows |
-| **`cron`** | Schedule | Cleanup, reports, reminders |
-
-## Development Commands
-
-```bash
-# Start Workbench and development server
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-
-# Start production server (without hot reload)
-npm run start
-# or
-yarn start
-# or
-pnpm start
-
-# Generate TypeScript types from Step configs
-npm run generate-types
-# or
-yarn generate-types
-# or
-pnpm generate-types
-
-# Build project for deployment
-npm run build
-# or
-yarn build
-# or
-pnpm build
-```
-
-## Project Structure
-
-```
-src/                # Your Step definitions
-└── hello/
-    ├── hello_api_step.py
-    └── process_greeting_step.py
-motia.config.ts     # Motia configuration
-requirements.txt    # Python dependencies
-```
-
-Steps are auto-discovered from your `src/` directory - no manual registration required. You can write Steps in Python, TypeScript, or JavaScript, all in the same project.
+The `motia.config.ts` file is the central configuration for your Motia application. Here you can customize Express, configure Redis, add security middleware, handle file uploads, set up stream authentication, and more.
 
 ## Learn More
 
-- [Documentation](https://motia.dev/docs) - Complete guides and API reference
-- [Quick Start Guide](https://motia.dev/docs/getting-started/quick-start) - Detailed getting started tutorial
-- [Core Concepts](https://motia.dev/docs/concepts/overview) - Learn about Steps and Motia architecture
+- [Docs](https://motia.dev/docs) - Complete guides and API reference
+- [Quick Start Tutorial](https://motia.dev/docs/getting-started/quick-start) - Detailed getting started tutorial
+- [Core Concepts](https://motia.dev/docs/concepts/overview) - Learn about Steps and Motia's architecture
 - [Discord Community](https://discord.gg/motia) - Get help and connect with other developers
