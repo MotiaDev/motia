@@ -15,7 +15,7 @@ yarn dev
 pnpm dev
 ```
 
-This starts the Motia runtime and **Workbench**. Workbench is a visualizing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
+This starts the Motia runtime and **Workbench**. Workbench is a tool for visualizing and debugging your workflows. By default, it's available at [`http://localhost:3000`](http://localhost:3000).
 
 You can start editing the project by making changes to `src/hello/hello_api` as well as produce your own `.step.ts`, `.step.js`, or `_step.py` files within the `src/` directory.
 
