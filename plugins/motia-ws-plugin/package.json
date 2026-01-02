@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/ws-plugin",
-  "version": "0.17.6-beta.187",
+  "version": "0.17.12-beta.194",
   "description": "A Motia workbench plugin for real-time WebSocket log monitoring and debugging. Originally created by @potatocoder (Rohith Gilla).",
   "license": "MIT",
   "type": "module",
