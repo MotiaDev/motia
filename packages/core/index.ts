@@ -24,6 +24,7 @@ export type {
 } from './src/adapters/interfaces/state-adapter.interface'
 export { StreamAdapter, type StreamQueryFilter } from './src/adapters/interfaces/stream-adapter.interface'
 export type { StreamAdapterManager } from './src/adapters/interfaces/stream-adapter-manager.interface'
+export { type EnvironmentType, type ExecutionContext, environmentDetector } from './src/analytics/environment-detector'
 export {
   getProjectIdentifier,
   getProjectName,

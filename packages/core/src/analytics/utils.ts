@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import { environmentDetector } from './environment-detector'
 
 export const getProjectName = (baseDir: string): string => {
   const packageJsonPath = path.join(baseDir, 'package.json')
@@ -22,7 +23,7 @@ export const getUserIdentifier = (): string => {
 export const getProjectIdentifier = (baseDir: string): string => {
   try {
     return crypto.createHash('sha256').update(getProjectName(baseDir)).digest('hex').substring(0, 16)
-  } catch (error) {
+  } catch {
     return 'unknown'
   }
 }
@@ -31,14 +32,24 @@ export const isAnalyticsEnabled = (): boolean => {
   return process.env.MOTIA_ANALYTICS_DISABLED !== 'true'
 }
 
-export const trackEvent = (eventName: string, properties: Record<string, any> = {}) => {
+export const trackEvent = (eventName: string, properties: Record<string, unknown> = {}) => {
   try {
     if (isAnalyticsEnabled()) {
-      track(eventName, properties, {
+      const envContext = environmentDetector.getEnvironmentContext()
+      const enrichedProperties = {
+        ...properties,
+        is_docker: envContext.is_docker,
+        is_ci: envContext.is_ci,
+        is_test: envContext.is_test,
+        environment_type: envContext.environment_type,
+        execution_context: envContext.execution_context,
+      }
+
+      track(eventName, enrichedProperties, {
         user_id: getUserIdentifier() || 'unknown',
       })
     }
-  } catch (error) {
+  } catch {
     // Silently fail to not disrupt dev server
   }
 }
