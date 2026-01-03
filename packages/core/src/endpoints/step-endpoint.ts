@@ -1,8 +1,10 @@
 import path from 'node:path'
 import type { Express } from 'express'
 import fs from 'fs/promises'
+import { isApiStep, isCronStep, isEventStep } from '../guards'
 import { generateStepId } from '../helper/flows-helper'
 import type { LockedData } from '../locked-data'
+import { schemaToJsonSchema } from '../schema-utils'
 
 const getFeatures = async (filePath: string) => {
   const stat = await fs.stat(`${filePath}-features.json`).catch(() => null)
@@ -37,7 +39,34 @@ export const stepEndpoint = (app: Express, lockedData: LockedData) => {
         step.filePath.replace(`${path.sep}src${path.sep}`, `${path.sep}tutorial${path.sep}`),
       )
 
-      res.status(200).send({ id, content, features })
+      // Extract config information for trigger UI
+      const config: {
+        type: string
+        bodySchema?: unknown
+        path?: string
+        method?: string
+        subscribes?: string[]
+        cron?: string
+      } = {
+        type: step.config.type,
+      }
+
+      if (isApiStep(step)) {
+        config.path = step.config.path
+        config.method = step.config.method
+        if (step.config.bodySchema) {
+          config.bodySchema = schemaToJsonSchema(step.config.bodySchema)
+        }
+      } else if (isEventStep(step)) {
+        config.subscribes = step.config.subscribes
+        if (step.config.input) {
+          config.bodySchema = schemaToJsonSchema(step.config.input)
+        }
+      } else if (isCronStep(step)) {
+        config.cron = step.config.cron
+      }
+
+      res.status(200).send({ id, content, features, config })
     } catch (error) {
       console.error('Error reading step file:', error)
       res.status(500).send({

@@ -10,6 +10,7 @@ import { trackEvent } from './analytics/utils'
 import { callStepFile } from './call-step-file'
 import { type CronManager, setupCronHandlers } from './cron-handler'
 import { analyticsEndpoint } from './endpoints/analytics-endpoint'
+import { cronTriggerEndpoint } from './endpoints/cron-trigger-endpoint'
 import { flowsConfigEndpoint } from './endpoints/flows-config-endpoint'
 import { flowsEndpoint } from './endpoints/flows-endpoint'
 import { stepEndpoint } from './endpoints/step-endpoint'
@@ -431,6 +432,7 @@ export const createServer = (
   flowsConfigEndpoint(app, process.cwd(), lockedData)
   analyticsEndpoint(app, process.cwd())
   stepEndpoint(app, lockedData)
+  cronTriggerEndpoint(app, lockedData, motia)
 
   server.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code !== 'EADDRINUSE') {
