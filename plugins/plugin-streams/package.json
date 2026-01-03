@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-streams",
-  "version": "0.15.5-beta.173",
+  "version": "0.17.12-beta.194",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
