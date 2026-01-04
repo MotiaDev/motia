@@ -1,18 +1,21 @@
+import os
 import httpx
 from typing import Dict, Any
 from .types import Order, Pet
+
+api_url = os.environ.get("API_URL", "https://xnigaj-xtnawg.motiahub.com")
 
 class PetStoreService:
     async def create_pet(self, pet: Dict[str, Any]) -> Pet:
         pet_data = {
             "name": pet.get("name", ""),
-            "photoUrls": [pet.get("photo_url", "")],
+            "photoUrls": [pet.get("photoUrl", "")],
             "status": "available"
         }
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                'https://xnigaj-xtnawg.motiahub.com/pet',
+                f"{api_url}/pet",
                 json=pet_data,
                 headers={'Content-Type': 'application/json'}
             )
@@ -28,7 +31,7 @@ class PetStoreService:
             }
             
             response = await client.post(
-                'https://xnigaj-xtnawg.motiahub.com/store/order',
+                f"{api_url}/store/order",
                 json=order_data,
                 headers={'Content-Type': 'application/json'}
             )
