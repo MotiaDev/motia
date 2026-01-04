@@ -1,6 +1,7 @@
 import { execSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import path from 'path'
+import { getCliCommand } from '@/src/cli-helpers'
 import { expect, test } from '@/src/motia-fixtures'
 
 test.describe('CLI Validation', () => {
@@ -64,8 +65,9 @@ test.describe('CLI Validation', () => {
     const openapiPath = path.join(testProjectPath, 'openapi.json')
 
     try {
-      console.log(`Running 'npx motia generate openapi' in ${testProjectPath}`)
-      execSync('npx motia generate openapi', {
+      const cliCmd = getCliCommand('generate openapi')
+      console.log(`Running '${cliCmd}' in ${testProjectPath}`)
+      execSync(cliCmd, {
         cwd: testProjectPath,
         stdio: 'inherit',
       })
