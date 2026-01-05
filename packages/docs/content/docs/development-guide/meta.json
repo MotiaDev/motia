@@ -12,7 +12,6 @@
     "customizing-flows",
     "plugins",
     "middleware",
-    "long-running-workflows",
     "testing",
     "environment-variables",
     "cli",
