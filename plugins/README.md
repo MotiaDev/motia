@@ -96,6 +96,29 @@ export default {
 }
 ```
 
+### [@motiadev/plugin-streams](./plugin-streams)
+
+Stream visualization and management plugin for Motia Workbench.
+
+**Features:**
+
+- Stream discovery and listing
+- Group management with item counts
+- Real-time data inspection with JSON viewer
+- Schema visualization for typed streams
+- Search and filter capabilities
+- Support for hidden/internal streams toggle
+
+**Usage:**
+
+```typescript
+import streamsPlugin from '@motiadev/plugin-streams/plugin'
+
+export default {
+  plugins: [streamsPlugin],
+}
+```
+
 ### [@motiadev/ws-plugin](./motia-ws-plugin)
 
 Real-time WebSocket log monitoring and debugging tool.
