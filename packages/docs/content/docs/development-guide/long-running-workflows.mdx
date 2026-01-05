@@ -90,7 +90,7 @@ export const handler: Handlers['CreateOrder'] = async (req, { state, emit, logge
 </Tab>
 <Tab value='Python'>
 
-```python title="src/create_order.step.py"
+```python title="src/create_order_step.py"
 import uuid
 from datetime import datetime
 
@@ -103,7 +103,7 @@ config = {
     "flows": ["orders"]
 }
 
-async def handler(req, ctx):
+async def handler(req, context):
     order_id = str(uuid.uuid4())
     
     order = {
@@ -117,12 +117,12 @@ async def handler(req, ctx):
     }
     
     # Save immediately - this is our first checkpoint
-    await ctx.state.set("orders", order_id, order)
+    await context.state.set("orders", order_id, order)
     
-    ctx.logger.info("Order created", {"orderId": order_id})
+    context.logger.info("Order created", {"orderId": order_id})
     
     # Kick off the next step
-    await ctx.emit({
+    await context.emit({
         "topic": "order.created",
         "data": {"orderId": order_id}
     })
@@ -134,7 +134,7 @@ async def handler(req, ctx):
 <Tab value='JavaScript'>
 
 ```javascript title="src/create-order.step.js"
-const config = {
+export const config = {
   name: 'CreateOrder',
   type: 'api',
   path: '/orders',
@@ -143,7 +143,7 @@ const config = {
   flows: ['orders']
 }
 
-const handler = async (req, { state, emit, logger }) => {
+export const handler = async (req, { state, emit, logger }) => {
   const orderId = crypto.randomUUID()
   
   const order = {
@@ -169,8 +169,6 @@ const handler = async (req, { state, emit, logger }) => {
   
   return { status: 201, body: order }
 }
-
-module.exports = { config, handler }
 ```
 
 </Tab>
@@ -250,7 +248,7 @@ async function processPayment(order) {
 </Tab>
 <Tab value='Python'>
 
-```python title="src/process_payment.step.py"
+```python title="src/process_payment_step.py"
 import time
 
 config = {
@@ -261,23 +259,23 @@ config = {
     "flows": ["orders"]
 }
 
-async def handler(input, ctx):
-    order_id = input["orderId"]
+async def handler(input_data, context):
+    order_id = input_data["orderId"]
     
-    order = await ctx.state.get("orders", order_id)
+    order = await context.state.get("orders", order_id)
     
     if not order:
-        ctx.logger.error("Order not found", {"orderId": order_id})
+        context.logger.error("Order not found", {"orderId": order_id})
         return
     
     # Skip if we already did this (makes it safe to retry)
     if "payment" in order["completed_steps"]:
-        ctx.logger.info("Payment already done", {"orderId": order_id})
+        context.logger.info("Payment already done", {"orderId": order_id})
         return
     
     # Update state before processing
     order["current_step"] = "payment"
-    await ctx.state.set("orders", order_id, order)
+    await context.state.set("orders", order_id, order)
     
     try:
         # Process payment (this might take a while)
@@ -288,26 +286,26 @@ async def handler(input, ctx):
         order["payment_id"] = payment_id
         order["completed_steps"].append("payment")
         order["current_step"] = "awaiting_shipment"
-        await ctx.state.set("orders", order_id, order)
+        await context.state.set("orders", order_id, order)
         
-        ctx.logger.info("Payment completed", {"orderId": order_id, "paymentId": payment_id})
+        context.logger.info("Payment completed", {"orderId": order_id, "paymentId": payment_id})
         
-        await ctx.emit({
+        await context.emit({
             "topic": "payment.completed",
             "data": {"orderId": order_id}
         })
         
     except Exception as e:
         order["last_error"] = str(e)
-        await ctx.state.set("orders", order_id, order)
-        ctx.logger.error("Payment failed", {"orderId": order_id, "error": str(e)})
+        await context.state.set("orders", order_id, order)
+        context.logger.error("Payment failed", {"orderId": order_id, "error": str(e)})
 ```
 
 </Tab>
 <Tab value='JavaScript'>
 
 ```javascript title="src/process-payment.step.js"
-const config = {
+export const config = {
   name: 'ProcessPayment',
   type: 'event',
   subscribes: ['order.created'],
@@ -315,7 +313,7 @@ const config = {
   flows: ['orders']
 }
 
-const handler = async (input, { state, emit, logger }) => {
+export const handler = async (input, { state, emit, logger }) => {
   const { orderId } = input
   
   const order = await state.get('orders', orderId)
@@ -359,8 +357,6 @@ const handler = async (input, { state, emit, logger }) => {
     logger.error('Payment failed', { orderId, error: error.message })
   }
 }
-
-module.exports = { config, handler }
 ```
 
 </Tab>
@@ -437,7 +433,7 @@ export const handler: Handlers['ShippingWebhook'] = async (req, { state, emit, l
 </Tab>
 <Tab value='Python'>
 
-```python title="src/shipping_webhook.step.py"
+```python title="src/shipping_webhook_step.py"
 from datetime import datetime
 
 config = {
@@ -449,21 +445,21 @@ config = {
     "flows": ["orders"]
 }
 
-async def handler(req, ctx):
+async def handler(req, context):
     body = req["body"]
     order_id = body["orderId"]
     tracking_number = body["trackingNumber"]
     carrier = body["carrier"]
     
     # Load the order
-    order = await ctx.state.get("orders", order_id)
+    order = await context.state.get("orders", order_id)
     
     if not order:
         return {"status": 404, "body": {"error": "Order not found"}}
     
     # Make sure we're at the right step
     if order["current_step"] != "awaiting_shipment":
-        ctx.logger.warn("Order not ready for shipping", {
+        context.logger.warn("Order not ready for shipping", {
             "orderId": order_id,
             "currentStep": order["current_step"]
         })
@@ -477,12 +473,12 @@ async def handler(req, ctx):
     order["completed_steps"].append("shipped")
     order["current_step"] = "complete"
     
-    await ctx.state.set("orders", order_id, order)
+    await context.state.set("orders", order_id, order)
     
-    ctx.logger.info("Order shipped", {"orderId": order_id, "trackingNumber": tracking_number})
+    context.logger.info("Order shipped", {"orderId": order_id, "trackingNumber": tracking_number})
     
     # Continue the workflow
-    await ctx.emit({
+    await context.emit({
         "topic": "order.shipped",
         "data": {"orderId": order_id}
     })
@@ -494,7 +490,7 @@ async def handler(req, ctx):
 <Tab value='JavaScript'>
 
 ```javascript title="src/shipping-webhook.step.js"
-const config = {
+export const config = {
   name: 'ShippingWebhook',
   type: 'api',
   path: '/webhooks/shipping',
@@ -503,7 +499,7 @@ const config = {
   flows: ['orders']
 }
 
-const handler = async (req, { state, emit, logger }) => {
+export const handler = async (req, { state, emit, logger }) => {
   const { orderId, trackingNumber, carrier } = req.body
   
   // Load the order
@@ -542,8 +538,6 @@ const handler = async (req, { state, emit, logger }) => {
   
   return { status: 200, body: { success: true } }
 }
-
-module.exports = { config, handler }
 ```
 
 </Tab>
@@ -571,6 +565,7 @@ export const config: CronConfig = {
   name: 'RecoverOrders',
   type: 'cron',
   cron: '*/10 * * * *', // Every 10 minutes
+  emits: ['order.created'],
   flows: ['orders']
 }
 
@@ -603,18 +598,19 @@ export const handler: Handlers['RecoverOrders'] = async (_, { state, emit, logge
 </Tab>
 <Tab value='Python'>
 
-```python title="src/recover_orders.step.py"
+```python title="src/recover_orders_step.py"
 from datetime import datetime
 
 config = {
     "name": "RecoverOrders",
     "type": "cron",
     "cron": "*/10 * * * *",  # Every 10 minutes
+    "emits": ["order.created"],
     "flows": ["orders"]
 }
 
-async def handler(_, ctx):
-    orders = await ctx.state.get_group("orders")
+async def handler(context):
+    orders = await context.state.get_group("orders")
     now = datetime.now().timestamp() * 1000
     stuck_time = 30 * 60 * 1000  # 30 minutes
     
@@ -626,14 +622,14 @@ async def handler(_, ctx):
             ).timestamp() * 1000
             
             if now - last_update > stuck_time:
-                ctx.logger.warn("Found stuck order, retrying", {
+                context.logger.warn("Found stuck order, retrying", {
                     "orderId": order["id"],
                     "currentStep": order["current_step"]
                 })
                 
                 # Re-trigger based on where it's stuck
                 if order["current_step"] == "payment":
-                    await ctx.emit({
+                    await context.emit({
                         "topic": "order.created",
                         "data": {"orderId": order["id"]}
                     })
