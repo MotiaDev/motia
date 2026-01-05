@@ -138,6 +138,8 @@ jobs:
 
       - name: Generate enhanced changelog
         id: changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Get the previous tag
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ needs.prepare.outputs.tag_name }}^)
@@ -147,8 +149,22 @@ jobs:
           mkdir -p /tmp/changelog
           touch /tmp/changelog/{features,fixes,performance,docs,deps,refactor,tests,build,ci,chores,reverts,other}.md
 
+          # Function to get GitHub username from commit hash
+          get_github_username() {
+            local commit_hash=$1
+            local username=$(gh api repos/${{ github.repository }}/commits/${commit_hash} --jq '.author.login // .commit.author.name' 2>/dev/null)
+            if [ -z "$username" ] || [ "$username" = "null" ]; then
+              # Fallback to commit author name if GitHub username not available
+              username=$(git show -s --format='%an' ${commit_hash})
+            fi
+            echo "$username"
+          }
+
           # Process commits and categorize them
-          git log $PREVIOUS_TAG..${{ needs.prepare.outputs.tag_name }} --pretty=format:"%s|%h|%an" --no-merges | while IFS='|' read -r subject hash author; do
+          git log $PREVIOUS_TAG..${{ needs.prepare.outputs.tag_name }} --pretty=format:"%s|%h" --no-merges | while IFS='|' read -r subject hash; do
+            # Get GitHub username for this commit
+            author=$(get_github_username "$hash")
+            
             # Extract conventional commit type
             if [[ $subject =~ ^(feat|feature)(\(.+\))?!?:(.+) ]]; then
               echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/features.md
