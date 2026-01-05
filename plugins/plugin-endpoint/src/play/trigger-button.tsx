@@ -23,18 +23,28 @@ export const TriggerButton = memo(({ method, path }: TriggerButtonProps) => {
       setIsLoading(true)
 
       const _headers = Object.values(headers)
-        .filter((header) => header.active && header.name !== '' && header.value !== '')
+        .filter((header) => header.active && header.name.trim() !== '' && header.value.trim() !== '')
         .reduce(
           (acc, header) => {
-            acc[header.name.toLowerCase()] = header.value
+            let value = header.value.trim()
+
+            if (header.name === 'Authorization' && !value.startsWith('Bearer ')) {
+              value = `Bearer ${value}`
+            }
+
+            acc[header.name] = value
             return acc
           },
           {} as Record<string, string>,
         )
 
+      // 🧪 Debug if needed
+      // console.log('Request Headers:', _headers)
+
       const startTime = Date.now()
+
       const response = await fetch(pathUrl, {
-        method: method,
+        method,
         headers: _headers,
         body: ['GET', 'DELETE', 'HEAD', 'OPTIONS'].includes(method) ? null : body,
       })
