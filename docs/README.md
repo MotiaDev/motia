@@ -3,7 +3,16 @@
 This is a Next.js application generated with
 [Create Fumadocs](https://github.com/fuma-nama/fumadocs).
 
+
 Run development server:
+
+```bash
+npm install
+# or
+pnpm install
+# or
+yarn install
+```
 
 ```bash
 npm run dev
