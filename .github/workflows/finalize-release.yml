@@ -83,6 +83,7 @@ jobs:
           npm dist-tag add @motiadev/plugin-states@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/plugin-example@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/plugin-bullmq@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-streams@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/cron-plugin@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/ws-plugin@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/adapter-rabbitmq-events@${{ needs.prepare.outputs.version }} latest
@@ -108,6 +109,7 @@ jobs:
           npm dist-tag rm @motiadev/plugin-states pre-release || true
           npm dist-tag rm @motiadev/plugin-example pre-release || true
           npm dist-tag rm @motiadev/plugin-bullmq pre-release || true
+          npm dist-tag rm @motiadev/plugin-streams pre-release || true
           npm dist-tag rm @motiadev/cron-plugin pre-release || true
           npm dist-tag rm @motiadev/ws-plugin pre-release || true
           npm dist-tag rm @motiadev/adapter-rabbitmq-events pre-release || true
@@ -288,6 +290,7 @@ jobs:
           - **@motiadev/plugin-observability**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/plugin-states**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/plugin-bullmq**: ${{ needs.prepare.outputs.version }}
+          - **@motiadev/plugin-streams**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/cron-plugin**: ${{ needs.prepare.outputs.version }}
           - **@motiadev/ws-plugin**: ${{ needs.prepare.outputs.version }}
           

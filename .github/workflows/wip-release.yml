@@ -86,6 +86,7 @@ jobs:
           pnpm publish -r --filter @motiadev/plugin-states --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/plugin-example --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/plugin-bullmq --no-git-checks --tag ${{ github.event.inputs.tag }}
+          pnpm publish -r --filter @motiadev/plugin-streams --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/cron-plugin --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/ws-plugin --no-git-checks --tag ${{ github.event.inputs.tag }}
           pnpm publish -r --filter @motiadev/workbench --no-git-checks --tag ${{ github.event.inputs.tag }}

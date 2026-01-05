@@ -62,6 +62,7 @@ jobs:
           pnpm publish -r --filter @motiadev/plugin-bullmq --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/plugin-states --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/plugin-example --no-git-checks --tag pre-release
+          pnpm publish -r --filter @motiadev/plugin-streams --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/cron-plugin --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/ws-plugin --no-git-checks --tag pre-release
           pnpm publish -r --filter @motiadev/workbench --no-git-checks --tag pre-release
