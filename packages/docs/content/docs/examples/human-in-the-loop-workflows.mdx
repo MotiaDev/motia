@@ -719,6 +719,217 @@ export const handler = async (input, { state, logger }) => {
 
 ---
 
+## Recovery Pattern: Timeout Detection
+
+What happens if a human never responds? In production, you need a safety mechanism to detect and escalate stuck workflows.
+
+### Step 6: Timeout Detection (Cron)
+
+A scheduled job periodically scans for orders stuck in approval:
+
+<Tabs items={['TypeScript', 'Python', 'JavaScript']}>
+<Tab value='TypeScript'>
+
+```typescript title="src/06-detect-timeouts.step.ts"
+import { CronConfig, Handlers } from 'motia'
+
+export const config: CronConfig = {
+  type: 'cron',
+  name: 'DetectTimeouts',
+  description: 'Find orders stuck awaiting approval and escalate',
+  cron: '*/5 * * * *',  // Every 5 minutes (for demo - use hourly in production)
+  flows: ['order-approval'],
+  emits: []
+}
+
+export const handler: Handlers['DetectTimeouts'] = async ({ state, logger }) => {
+  const orders = await state.getGroup('orders')
+  const now = Date.now()
+  const timeoutMs = 10 * 60 * 1000  // 10 minutes (demo - use 24 hours in production)
+  
+  let stuckCount = 0
+  
+  for (const order of orders) {
+    // Find orders stuck in awaiting_approval
+    if (order.status === 'awaiting_approval') {
+      const lastUpdate = new Date(order.updatedAt || order.createdAt).getTime()
+      const age = now - lastUpdate
+      
+      if (age > timeoutMs) {
+        stuckCount++
+        
+        logger.warn('Approval timeout detected', {
+          orderId: order.id,
+          ageMinutes: Math.round(age / (60 * 1000)),
+          riskScore: order.riskScore,
+          total: order.total
+        })
+        
+        // Mark as timed out
+        order.status = 'timeout'
+        order.timeoutAt = new Date().toISOString()
+        order.timeoutReason = `No approval within ${Math.round(timeoutMs / (60 * 1000))} min`
+        await state.set('orders', order.id, order)
+        
+        // In production, take action:
+        // 1. Send escalation notification (Slack, email)
+        // 2. Auto-reject if too old
+        // 3. Assign to different manager
+        // 4. Create support ticket
+        
+        logger.info('Escalation triggered', {
+          orderId: order.id,
+          action: 'timeout_escalation',
+          notifyChannel: '#urgent-approvals'
+        })
+      }
+    }
+  }
+  
+  if (stuckCount > 0) {
+    logger.info('Timeout detection complete', { 
+      stuckCount,
+      totalOrders: orders.length 
+    })
+  }
+}
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="src/detect_timeouts_step.py"
+from datetime import datetime, timezone
+import time
+
+config = {
+    "type": "cron",
+    "name": "DetectTimeouts",
+    "description": "Find orders stuck awaiting approval and escalate",
+    "cron": "*/5 * * * *",  # Every 5 minutes (demo - use hourly in production)
+    "flows": ["order-approval"],
+    "emits": []
+}
+
+async def handler(context):
+    orders = await context.state.get_group("orders")
+    now = time.time() * 1000  # Convert to milliseconds
+    timeout_ms = 10 * 60 * 1000  # 10 minutes (demo - use 24 hours in production)
+    
+    stuck_count = 0
+    
+    for order in orders:
+        # Find orders stuck in awaiting_approval
+        if order.get("status") == "awaiting_approval":
+            last_update_str = order.get("updated_at") or order.get("created_at")
+            last_update = datetime.fromisoformat(last_update_str.replace("Z", "+00:00"))
+            last_update_ms = last_update.timestamp() * 1000
+            age = now - last_update_ms
+            
+            if age > timeout_ms:
+                stuck_count += 1
+                
+                context.logger.warn("Approval timeout detected", {
+                    "orderId": order["id"],
+                    "ageMinutes": round(age / (60 * 1000)),
+                    "riskScore": order.get("risk_score"),
+                    "total": order.get("total")
+                })
+                
+                # Mark as timed out
+                order["status"] = "timeout"
+                order["timeout_at"] = datetime.now(timezone.utc).isoformat()
+                order["timeout_reason"] = f"No approval within {round(timeout_ms / (60 * 1000))} min"
+                await context.state.set("orders", order["id"], order)
+                
+                # Escalate
+                context.logger.info("Escalation triggered", {
+                    "orderId": order["id"],
+                    "action": "timeout_escalation",
+                    "notifyChannel": "#urgent-approvals"
+                })
+    
+    if stuck_count > 0:
+        context.logger.info("Timeout detection complete", {
+            "stuckCount": stuck_count,
+            "totalOrders": len(orders)
+        })
+```
+
+</Tab>
+<Tab value='JavaScript'>
+
+```javascript title="src/detect-timeouts.step.js"
+export const config = {
+  type: 'cron',
+  name: 'DetectTimeouts',
+  description: 'Find orders stuck awaiting approval and escalate',
+  cron: '*/5 * * * *',  // Every 5 minutes (demo - use hourly in production)
+  flows: ['order-approval'],
+  emits: []
+}
+
+export const handler = async ({ state, logger }) => {
+  const orders = await state.getGroup('orders')
+  const now = Date.now()
+  const timeoutMs = 10 * 60 * 1000  // 10 minutes (demo - use 24 hours in production)
+  
+  let stuckCount = 0
+  
+  for (const order of orders) {
+    // Find orders stuck in awaiting_approval
+    if (order.status === 'awaiting_approval') {
+      const lastUpdate = new Date(order.updatedAt || order.createdAt).getTime()
+      const age = now - lastUpdate
+      
+      if (age > timeoutMs) {
+        stuckCount++
+        
+        logger.warn('Approval timeout detected', {
+          orderId: order.id,
+          ageMinutes: Math.round(age / (60 * 1000)),
+          riskScore: order.riskScore,
+          total: order.total
+        })
+        
+        // Mark as timed out
+        order.status = 'timeout'
+        order.timeoutAt = new Date().toISOString()
+        order.timeoutReason = `No approval within ${Math.round(timeoutMs / (60 * 1000))} min`
+        await state.set('orders', order.id, order)
+        
+        // Escalate
+        logger.info('Escalation triggered', {
+          orderId: order.id,
+          action: 'timeout_escalation',
+          notifyChannel: '#urgent-approvals'
+        })
+      }
+    }
+  }
+  
+  if (stuckCount > 0) {
+    logger.info('Timeout detection complete', { 
+      stuckCount,
+      totalOrders: orders.length 
+    })
+  }
+}
+```
+
+</Tab>
+</Tabs>
+
+👉 **Why this matters:** Without timeout detection, orders could be stuck forever. This cron job acts as a safety net, ensuring no workflow is forgotten.
+
+**Production actions:**
+- 📧 Send escalation emails/Slack messages
+- 🔄 Reassign to different approvers
+- ⏰ Auto-reject after threshold
+- 🎫 Create support tickets for investigation
+
+---
+
 ## 🎨 Visual Flow in Workbench
 
 When you open the example in Workbench, you'll see **5 nodes**:
