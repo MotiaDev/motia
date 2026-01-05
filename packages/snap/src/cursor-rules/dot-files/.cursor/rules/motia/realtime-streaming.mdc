@@ -1,6 +1,6 @@
 ---
 description: Real-time streaming
-globs: steps/**/*.step.ts,steps/**/*.step.js,steps/**/*_step.py,steps/**/*.stream.ts,steps/**/*.stream.js,steps/**/*_stream.py
+globs: src/**/*.step.ts,src/**/*.step.js,src/**/*_step.py,src/**/*.stream.ts,src/**/*.stream.js,src/**/*_stream.py
 alwaysApply: false
 ---
 # Real-time Streaming
@@ -56,7 +56,7 @@ export interface StreamConfig {
 ### TypeScript Example
 
 ```typescript
-// steps/streams/chat-messages.stream.ts
+// src/streams/chat-messages.stream.ts
 import { StreamConfig } from 'motia'
 import { z } from 'zod'
 
@@ -81,7 +81,7 @@ export const config: StreamConfig = {
 #### With Pydantic (Optional)
 
 ```python
-# steps/streams/chat_messages_stream.py
+# src/streams/chat_messages_stream.py
 from pydantic import BaseModel
 
 class ChatMessage(BaseModel):
@@ -100,7 +100,7 @@ config = {
 #### Without Pydantic (Pure JSON Schema)
 
 ```python
-# steps/streams/chat_messages_stream.py
+# src/streams/chat_messages_stream.py
 
 config = {
     "name": "chatMessage",

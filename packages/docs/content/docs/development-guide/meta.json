@@ -14,6 +14,7 @@
     "middleware",
     "testing",
     "environment-variables",
-    "cli"
+    "cli",
+    "motia-config"
   ]
 }

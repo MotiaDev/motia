@@ -49,6 +49,7 @@ export const start = async (
       appConfig.adapters?.events ||
       new BullMQEventAdapter({
         connection: getRedisConnectionInfo(),
+        prefix: 'motia-prod',
       }),
     cronAdapter: appConfig.adapters?.cron || new RedisCronAdapter(redisClient),
     streamAdapter: appConfig.adapters?.streams || new RedisStreamAdapterManager(redisClient),

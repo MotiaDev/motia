@@ -118,7 +118,7 @@ motia:cron:lock:send-notifications
 ## Example Cron Step
 
 ```typescript
-// steps/dailyReport/dailyReport.step.ts
+// src/dailyReport/dailyReport.step.ts
 import { type Handlers } from './types'
 
 export const config = {

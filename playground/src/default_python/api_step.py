@@ -1,3 +1,4 @@
+import os
 from pydantic import BaseModel
 from typing import Optional
 from .services.pet_store import pet_store_service
@@ -42,7 +43,7 @@ async def handler(req, context):
             "topic": "python-process-food-order",
             "data": {
                 "quantity": food_order.get("quantity"),
-                "email": "test@test.com",  # sample email
+                "email": os.environ.get("SAMPLE_EMAIL", "test@test.com"),
                 "pet_id": new_pet_record.get("id"),
             },
         })

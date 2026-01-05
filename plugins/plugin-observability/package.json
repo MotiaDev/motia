@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-observability",
-  "version": "0.17.9-beta.191",
+  "version": "0.17.12-beta.194",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
