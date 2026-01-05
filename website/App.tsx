@@ -8,6 +8,8 @@ import { ManifestoModal } from './components/ManifestoModal';
 import { FeatureBento } from './components/FeatureBento';
 import { StackVisual } from './components/StackVisual';
 import { FractureAnimation } from './components/FractureAnimation';
+import { ModeToggle } from './components/ModeToggle';
+import { MachineView } from './components/MachineView';
 import { KeySequence } from './types';
 import { ArrowRight, Copy, Check, Terminal as TerminalIcon, Sun, Moon } from 'lucide-react';
 import { insertAccessRequest, checkAccessRequest } from './lib/supabase';
@@ -38,7 +40,7 @@ const App: React.FC = () => {
     }
   }, []);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [installCmd] = useState("npm install @iii/client");
+  const [installCmd] = useState("curl -fsSL https://raw.githubusercontent.com/MotiaDev/iii-engine/main/install.sh | sh");
   const [bslBlink, setBslBlink] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [logoClickCount, setLogoClickCount] = useState(0);
@@ -46,8 +48,10 @@ const App: React.FC = () => {
   const [hoverAnimIndex, setHoverAnimIndex] = useState(-1);
   const [showGodModeUnlock, setShowGodModeUnlock] = useState(false);
   const [showManifesto, setShowManifesto] = useState(false);
+  const [isHumanMode, setIsHumanMode] = useState(true);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
+  const toggleMode = () => setIsHumanMode(!isHumanMode);
 
   // Hover animation - sequential highlight
   useEffect(() => {
@@ -161,6 +165,36 @@ const App: React.FC = () => {
     setShowManifesto(true);
   };
 
+  // Machine mode - raw markdown/text dump for AI consumption
+  // Easter eggs still work: Konami code, terminal access
+  if (!isHumanMode) {
+    return (
+      <>
+        <MachineView 
+          onToggleMode={toggleMode} 
+          onOpenTerminal={() => setShowTerminal(true)}
+          isGodMode={isGodMode}
+        />
+        {showTerminal && <Terminal onClose={() => setShowTerminal(false)} isGodMode={isGodMode} />}
+        {showGodModeUnlock && (
+          <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+            <div className="text-center animate-pulse">
+              <div className="text-6xl md:text-8xl font-black text-red-500 mb-4 tracking-tighter animate-bounce">
+                GOD MODE
+              </div>
+              <div className="text-xl md:text-2xl text-red-400 font-mono tracking-widest">
+                UNLOCKED
+              </div>
+              <div className="mt-8 text-sm text-red-500/50 font-mono">
+                ↑↑↓↓←→←→BA
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className={`min-h-screen font-mono selection:bg-iii-accent selection:text-iii-black relative flex flex-col transition-colors duration-300 ${
       isDarkMode 
@@ -187,7 +221,9 @@ const App: React.FC = () => {
             accentColor={isGodMode ? 'fill-red-500' : isDarkMode ? 'fill-iii-accent' : 'fill-iii-accent-light'}
           />
         </div>
-        <div className="flex gap-3 md:gap-6 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
+        <div className="flex gap-2 md:gap-4 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
+          <ModeToggle isHumanMode={isHumanMode} onToggle={toggleMode} isDarkMode={isDarkMode} />
+          <div className="hidden md:block w-px h-4 bg-iii-medium/30" />
           <a href="#" onClick={handleManifestoClick} className={`transition-colors hidden md:block ${isDarkMode ? 'hover:text-iii-light' : 'hover:text-iii-black'}`}>MANIFESTO</a>
           <button onClick={() => setShowProtocol(true)} className={`transition-colors uppercase ${isDarkMode ? 'hover:text-iii-accent' : 'hover:text-iii-accent-light'}`}>PROTOCOL</button>
           {isSubmitted ? (
