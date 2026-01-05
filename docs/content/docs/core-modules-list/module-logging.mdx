@@ -15,6 +15,11 @@ modules::observability::LoggingModule
     config:
       level: ${RUST_LOG:info}
       format: json
+      adapter:
+        class: modules::observability::adapters::FileLogger
+        config:
+          file_path: app.log
+          save_interval_ms: 5000
 ```
 
 ## Configuration
@@ -23,6 +28,51 @@ modules::observability::LoggingModule
   The level to log. Defaults to `info`.
 </ResponseField>
 
+<ResponseField name="adapter" type="Adapter">
+  The adapter to use. It's the adapter that will be used to store logs.
+</ResponseField>
+
 <ResponseField name="format" type="string">
   The format to log. Defaults to `json`. When leaving blank, it will use the default format.
+</ResponseField>
+
+## Adapters
+
+### modules::observability::adapters::RedisLogger
+
+Uses Redis to store logs 
+
+```yaml
+  class: modules::observability::adapters::RedisLogger
+  config:
+    redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+#### Configuration
+
+<ResponseField name="redis_url" type="string">
+  The URL of the Redis instance to use.
+</ResponseField>
+
+
+### modules::observability::adapters::FileLogger
+
+Uses builtin file logger for store logs
+
+```yaml
+  class: modules::observability::adapters::FileLogger
+  config:
+    file_path: app.log
+    save_interval_ms: 5000
+```
+
+#### Configuration
+
+<ResponseField name="file_path" type="string">
+  path containing the file, where the engine should save
+</ResponseField>
+
+<ResponseField name="save_interval_ms" type="string">
+  Interval to store logs. Important, this will only be called if 
+  there is additional logs pending to save.
 </ResponseField>
