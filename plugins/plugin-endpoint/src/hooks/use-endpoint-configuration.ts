@@ -19,7 +19,6 @@ const defaultHeaders: Headers = {
   CONTENT_TYPE: { name: 'Content-Type', value: 'application/json', active: true },
   USER_AGENT: { name: 'User-Agent', value: 'Motia/1.0', active: true },
   ACCEPT: { name: 'Accept', value: 'application/json', active: true },
-  AUTHORIZATION: { name: 'Authorization Token', value: 'Bearer <token>', active: true },
 }
 
 export type ResponseData = {
