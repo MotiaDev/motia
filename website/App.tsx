@@ -48,10 +48,30 @@ const App: React.FC = () => {
   const [hoverAnimIndex, setHoverAnimIndex] = useState(-1);
   const [showGodModeUnlock, setShowGodModeUnlock] = useState(false);
   const [showManifesto, setShowManifesto] = useState(false);
-  const [isHumanMode, setIsHumanMode] = useState(true);
+  
+  // URL-based mode detection: /ai = machine mode, / = human mode
+  const [isHumanMode, setIsHumanMode] = useState(() => {
+    return window.location.pathname !== '/ai';
+  });
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
-  const toggleMode = () => setIsHumanMode(!isHumanMode);
+  
+  const toggleMode = () => {
+    const newMode = !isHumanMode;
+    setIsHumanMode(newMode);
+    // Update URL without reload
+    const newPath = newMode ? '/' : '/ai';
+    window.history.pushState({}, '', newPath);
+  };
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const handlePopState = () => {
+      setIsHumanMode(window.location.pathname !== '/ai');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Hover animation - sequential highlight
   useEffect(() => {
