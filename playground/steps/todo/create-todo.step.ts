@@ -18,10 +18,12 @@ export const config: ApiRouteConfig = {
 
   method: 'POST',
   path: '/todo',
-  bodySchema: z.object({
-    description: z.string(),
-    dueDate: z.string().optional(),
-  }),
+  bodySchema: z.toJSONSchema(
+    z.object({
+      description: z.string(),
+      dueDate: z.string().optional(),
+    }),
+  ),
   responseSchema: {
     200: todoSchema,
     400: z.object({ error: z.string() }),
@@ -30,7 +32,7 @@ export const config: ApiRouteConfig = {
   virtualEmits: ['todo-created'],
 }
 
-export const handler: Handlers['CreateTodo'] = async (req, { logger, streams }) => {
+export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
   logger.info('Creating new todo', { body: req.body })
 
   const { description, dueDate } = req.body

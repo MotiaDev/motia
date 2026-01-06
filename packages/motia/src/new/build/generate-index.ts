@@ -57,10 +57,11 @@ export const generateIndex = () => {
 
   const steps = stepFiles.map((file) => {
     const constName = toSnakeCaseConst(file)
+    const filePath = file.replace(process.cwd(), '.')
 
     return {
       importStatement: `import * as ${constName} from '${file}';`,
-      content: `motia.addStep(${constName}.config, '${file}', ${constName}.handler);`,
+      content: `motia.addStep(${constName}.config, '${file}', ${constName}.handler, '${filePath}');`,
     }
   })
 

@@ -23,7 +23,7 @@ export const config: ApiRouteConfig = {
   virtualSubscribes: ['todo-created'],
 }
 
-export const handler: Handlers['UpdateTodo'] = async (req, { logger, streams }) => {
+export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
   const { todoId } = req.pathParams
   logger.info('Updating todo', { todoId, body: req.body })
 

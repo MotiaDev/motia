@@ -21,6 +21,7 @@ import type {
 } from '../../types'
 import type { AuthenticateStream, StreamAuthInput as MotiaStreamAuthInput, StreamConfig } from '../../types-stream'
 import { bridge } from '../bridge'
+import { setupStepEndpoint } from '../setup-step-endpoint'
 import { StateManager } from '../state'
 import { Stream } from '../streams'
 
@@ -54,14 +55,16 @@ export class Motia {
   public streams: Record<string, Stream<any>> = {}
   private authenticateStream: AuthenticateStream | undefined
 
-  public addStep(config: StepConfig, stepPath: string, handler: StepHandler<any>) {
+  public addStep(config: StepConfig, stepPath: string, handler: StepHandler<any>, filePath: string) {
     const step: StepWithHandler = { config, handler, filePath: stepPath }
     const function_path = `steps.${step.config.name}`
 
     printer.printStepCreated(step)
 
+    const metadata = { ...(step.config as Record<string, any>), filePath }
+
     if (isApiStep(step)) {
-      bridge.registerFunction({ function_path }, async (req: IIIApiRequest<any>): Promise<IIIApiResponse> => {
+      bridge.registerFunction({ function_path, metadata }, async (req: IIIApiRequest<any>): Promise<IIIApiResponse> => {
         const context = flowContext(this)
 
         const motiaReq: MotiaApiRequest<any> = {
@@ -86,11 +89,11 @@ export class Motia {
         }
       })
     } else if (isCronStep(step)) {
-      bridge.registerFunction({ function_path }, async () => {
+      bridge.registerFunction({ function_path, metadata }, async () => {
         return (step.handler as CronHandler<any>)(flowContext(this))
       })
     } else {
-      bridge.registerFunction({ function_path }, async (req) => {
+      bridge.registerFunction({ function_path, metadata }, async (req) => {
         return step.handler(req, flowContext(this))
       })
     }
@@ -101,21 +104,28 @@ export class Motia {
       bridge.registerTrigger({
         trigger_type: 'api',
         function_path,
-        config: { api_path: apiPath, http_method: step.config.method },
+        config: {
+          api_path: apiPath,
+          http_method: step.config.method,
+          metadata,
+        },
       })
     } else if (isEventStep(step)) {
       step.config.subscribes.forEach((topic) => {
         bridge.registerTrigger({
           trigger_type: 'event',
           function_path,
-          config: { topic },
+          config: { topic, metadata },
         })
       })
     } else if (isCronStep(step)) {
       bridge.registerTrigger({
         trigger_type: 'cron',
         function_path,
-        config: { expression: step.config.cron },
+        config: {
+          expression: step.config.cron,
+          metadata,
+        },
       })
     }
   }
@@ -128,6 +138,8 @@ export class Motia {
   public initialize() {
     const hasJoin = Object.values(this.streams).some((stream) => stream.config.onJoin)
     const hasLeave = Object.values(this.streams).some((stream) => stream.config.onLeave)
+
+    setupStepEndpoint(bridge)
 
     if (this.authenticateStream) {
       const function_path = 'motia.streams.authenticate'
