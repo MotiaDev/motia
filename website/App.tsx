@@ -194,6 +194,8 @@ const App: React.FC = () => {
           onToggleMode={toggleMode} 
           onOpenTerminal={() => setShowTerminal(true)}
           isGodMode={isGodMode}
+          isDarkMode={isDarkMode}
+          onLogoClick={handleLogoClick}
         />
         {showTerminal && <Terminal onClose={() => setShowTerminal(false)} isGodMode={isGodMode} />}
         {showGodModeUnlock && (

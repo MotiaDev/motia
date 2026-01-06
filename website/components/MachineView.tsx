@@ -1,16 +1,64 @@
 import React from 'react';
 import { ModeToggle } from './ModeToggle';
+import { Logo } from './Logo';
 
 interface MachineViewProps {
   onToggleMode: () => void;
   onOpenTerminal: () => void;
   isGodMode: boolean;
+  isDarkMode?: boolean;
+  onLogoClick?: () => void;
 }
 
-export const MachineView: React.FC<MachineViewProps> = ({ onToggleMode, onOpenTerminal, isGodMode }) => {
+export const MachineView: React.FC<MachineViewProps> = ({ 
+  onToggleMode, 
+  onOpenTerminal, 
+  isGodMode,
+  isDarkMode = true,
+  onLogoClick
+}) => {
   return (
-    <div className="min-h-screen bg-[#1a1a1a] text-[#e0e0e0] font-mono text-sm leading-relaxed p-6 md:p-12">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className={`min-h-screen font-mono relative flex flex-col transition-colors duration-300 ${
+      isDarkMode 
+        ? 'bg-iii-black text-iii-light' 
+        : 'bg-iii-light text-iii-black'
+    }`}>
+      {/* Matching nav bar */}
+      <nav className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
+          isDarkMode 
+            ? 'border-iii-dark/50 bg-iii-black/80' 
+            : 'border-iii-medium/20 bg-iii-light/80'
+        }`}>
+        <div 
+          className="cursor-pointer" 
+          onClick={onLogoClick}
+        >
+          <Logo 
+            className={`h-6 md:h-10 ${isGodMode ? 'text-red-500' : isDarkMode ? 'text-iii-light' : 'text-iii-black'}`} 
+            accentColor={isGodMode ? 'fill-red-500' : isDarkMode ? 'fill-iii-accent' : 'fill-iii-accent-light'}
+          />
+        </div>
+        <div className="flex gap-2 md:gap-4 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
+          <ModeToggle isHumanMode={false} onToggle={onToggleMode} isDarkMode={isDarkMode} />
+          <div className="hidden md:block w-px h-4 bg-iii-medium/30" />
+          <button 
+            onClick={onOpenTerminal}
+            className={`px-2 py-1 md:px-3 md:py-1.5 rounded transition-colors uppercase text-[10px] md:text-xs font-medium ${
+              isGodMode 
+                ? 'bg-red-500/20 border border-red-500 text-red-400 hover:bg-red-500/30' 
+                : isDarkMode
+                  ? 'bg-iii-dark/50 border border-iii-medium/30 text-iii-medium hover:text-iii-light hover:border-iii-medium'
+                  : 'bg-iii-medium/10 border border-iii-medium/30 text-iii-medium hover:text-iii-black hover:border-iii-medium'
+            }`}
+          >
+            {isGodMode ? '> TERMINAL' : 'TERMINAL'}
+          </button>
+        </div>
+      </nav>
+
+      {/* Content */}
+      <div className="flex-1 text-sm leading-relaxed p-6 md:p-12">
+        <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header */}
         <pre className="whitespace-pre-wrap">{`III
@@ -185,20 +233,6 @@ const result = await ctx.invoke('image.resize', {
 © 2025 III, Inc.
 Version: 0.1.0-alpha
 License: BSL-1.1 → Apache-2.0 (2028)`}</pre>
-
-        {/* Toggle and Terminal button at bottom */}
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3">
-          <button
-            onClick={onOpenTerminal}
-            className={`px-3 py-1.5 bg-black border text-xs font-mono rounded transition-colors ${
-              isGodMode 
-                ? 'border-red-500 text-red-400 hover:border-red-400 hover:text-red-300' 
-                : 'border-gray-600 text-gray-300 hover:border-gray-400 hover:text-white'
-            }`}
-          >
-            {isGodMode ? '> TERMINAL' : 'OPEN TERMINAL'}
-          </button>
-          <ModeToggle isHumanMode={false} onToggle={onToggleMode} isDarkMode={true} />
         </div>
       </div>
     </div>
