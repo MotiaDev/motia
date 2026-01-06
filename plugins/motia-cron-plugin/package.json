@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/cron-plugin",
-  "version": "0.17.12-beta.194",
+  "version": "0.17.13-beta.195",
   "description": "A Motia workbench plugin for monitoring and managing cron jobs.",
   "license": "MIT",
   "type": "module",
