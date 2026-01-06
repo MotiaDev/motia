@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+const rotatingWords = ['SYSTEMS', 'APIS', 'WORKFLOWS', 'AGENTS', 'QUEUES', 'STREAMS', 'JOBS'];
 
 const stackLayers = [
   { label: 'AI AGENTS', items: ['Copilots', 'Chatbots', 'Autonomous'], before: 'Separate ML infra' },
@@ -13,6 +15,21 @@ interface StackVisualProps {
 
 export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) => {
   const [hoveredLayer, setHoveredLayer] = useState<number | null>(null);
+  const [wordIndex, setWordIndex] = useState(0);
+  const [isWordAnimating, setIsWordAnimating] = useState(false);
+
+  // Rotating word animation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsWordAnimating(true);
+      setTimeout(() => {
+        setWordIndex((prev) => (prev + 1) % rotatingWords.length);
+        setIsWordAnimating(false);
+      }, 200);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
   const cardBg = isDarkMode ? 'bg-iii-dark/50' : 'bg-white/50';
@@ -21,16 +38,21 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-8 md:py-12 lg:py-16">
-      <div className="text-center mb-6 md:mb-8">
+      {/* Animated Heading */}
+      <div className="text-center mb-6 md:mb-10">
         <p className="text-[10px] md:text-xs text-iii-medium tracking-[0.2em] uppercase mb-2">
-          The Great Fracture / Unified
+          Unified by iii
         </p>
-        <h2 className={`text-xl sm:text-2xl md:text-4xl font-bold tracking-tighter mb-3 ${textPrimary}`}>
-          ONE DAEMON.<br className="sm:hidden" /> <span className={accentColor}>INFINITE SYSTEMS.</span>
+        <h2 className={`text-xl sm:text-2xl md:text-3xl font-bold tracking-tighter mb-3 ${textPrimary}`}>
+          ONE DAEMON. <span className={accentColor}>INFINITE</span>{' '}
+          <span className={`inline-block w-[100px] sm:w-[120px] md:w-[160px] text-left ${accentColor}`}>
+            <span className={`inline-block transition-all duration-200 ${isWordAnimating ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}>
+              {rotatingWords[wordIndex]}.
+            </span>
+          </span>
         </h2>
-        <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto leading-relaxed">
-          Servers, workers, consumers. All just code waiting for an initiation signal. 
-          iii runs them all.
+        <p className="text-xs md:text-sm text-iii-medium max-w-md mx-auto">
+          All your infrastructure, unified under a single runtime.
         </p>
       </div>
 

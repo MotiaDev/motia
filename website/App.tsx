@@ -7,7 +7,7 @@ import { ProtocolModal } from './components/ProtocolModal';
 import { ManifestoModal } from './components/ManifestoModal';
 import { FeatureBento } from './components/FeatureBento';
 import { StackVisual } from './components/StackVisual';
-import { FractureAnimation } from './components/FractureAnimation';
+// FractureAnimation removed - using StackVisual only
 import { ModeToggle } from './components/ModeToggle';
 import { MachineView } from './components/MachineView';
 import { KeySequence } from './types';
@@ -387,14 +387,7 @@ const App: React.FC = () => {
 
         {/* Side by side on large screens */}
         <div className="w-full max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:gap-8 xl:gap-12">
-            <div className="w-full lg:w-1/2">
-              <FractureAnimation isDarkMode={isDarkMode} />
-            </div>
-            <div className="w-full lg:w-1/2">
-              <StackVisual isDarkMode={isDarkMode} />
-            </div>
-          </div>
+          <StackVisual isDarkMode={isDarkMode} />
         </div>
       </main>
 
