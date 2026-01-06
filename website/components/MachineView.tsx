@@ -82,26 +82,27 @@ command -v iii && iii --version
         {/* What is iii */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## What is iii?
 
-iii (Intelligent Invocation Interface) is a universal execution kernel that unifies:
-- APIs
-- Jobs  
-- Queues
-- Streams
-- Workflows
-- AI Agents
+iii stands for three core primitives:
 
-Into a single durable execution model.`}</pre>
+| Primitive      | Description                                           |
+|----------------|-------------------------------------------------------|
+| Infrastructure | Workers, Core Modules living inside the III Engine    |
+| Implementation | Remote Functions that can be executed anywhere        |
+| Invocation     | Trigger Types and Triggers linking events to functions|
+
+Built with Rust for speed and memory efficiency.`}</pre>
 
         {/* Core Concepts */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Core Concepts
 
-| Concept              | Description                                      |
-|----------------------|--------------------------------------------------|
-| Kernel               | Persistent daemon with WAL-backed state          |
-| Adapters             | Protocol bridges (Postgres, Redis, Kafka, etc.)  |
-| Workers              | Auto-discovery via WebSocket handshake           |
-| Triggers             | HTTP, WS, DB mutations, Cron, Events             |
-| Context              | Distributed state injection                      |`}</pre>
+| Concept        | Description                                      |
+|----------------|--------------------------------------------------|
+| Engine         | Orchestration layer connecting modules to workers|
+| Core Modules   | REST API, Streams, Queues, Cron, Logging, Exec   |
+| Adapters       | Connect modules to external systems (Redis, etc.)|
+| Workers        | External services connected via WebSocket bridge |
+| Triggers       | Link trigger types to remote functions           |
+| Remote Funcs   | Arbitrary functions executable anywhere          |`}</pre>
 
         {/* Capabilities */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Capabilities
@@ -132,60 +133,66 @@ Into a single durable execution model.`}</pre>
 | Elastic   | search   | https://        |`}</pre>
 
         {/* SDKs */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Client SDKs
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## SDK
 
-Optional client libraries for interacting with the iii daemon:
-
-| Language   | Package           | Install Command                       |
-|------------|-------------------|---------------------------------------|
-| JavaScript | @iii/client       | npm install @iii/client               |
-| Python     | iii-py            | pip install iii-py                    |
-| Go         | iii-go            | go get github.com/MotiaDev/iii-go     |
-| Rust       | iii-rs            | cargo add iii-rs                      |`}</pre>
+| Language   | Package      | Install Command          |
+|------------|--------------|--------------------------|
+| JavaScript | @iii-dev/sdk | npm install @iii-dev/sdk |`}</pre>
 
         {/* Usage Example */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Usage Example
 
 \`\`\`typescript
-import { iii } from '@iii/client';
+import { Bridge } from '@iii-dev/sdk';
 
-// Define a capability
-const resizeImage = iii.capability('image.resize', async (ctx, { url, width }) => {
-  const image = await ctx.fetch(url);
-  return ctx.gpu.resize(image, { width });
+const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
+
+// Register a function
+bridge.registerFunction({
+  functionPath: 'helloWorld',
+  handler: (input) => {
+    console.log('Hello,', input.name);
+    return { message: 'Hello ' + input.name };
+  }
 });
 
-// Invoke from anywhere
-const result = await ctx.invoke('image.resize', { 
-  url: 'https://example.com/photo.jpg', 
-  width: 800 
+// Register a trigger (e.g., API endpoint)
+bridge.registerTrigger({
+  triggerType: 'api',
+  functionPath: 'helloWorld',
+  config: {
+    api_path: '/api/hello',
+    http_method: 'POST',
+  },
 });
+
+// Invoke functions from anywhere
+const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
 \`\`\``}</pre>
 
         {/* Architecture */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Architecture
 
 \`\`\`
-                    ┌─────────────────────┐
-                    │   TRIGGER SOURCES   │
-                    │  HTTP/WS/DB/Cron    │
-                    └──────────┬──────────┘
-                               │
-                    ┌──────────▼──────────┐
-                    │    iii KERNEL       │
-                    │  ┌───────────────┐  │
-                    │  │ Event Router  │  │
-                    │  │ State Store   │  │
-                    │  │ Worker Pool   │  │
-                    │  └───────────────┘  │
-                    └──────────┬──────────┘
-                               │
-          ┌────────────────────┼────────────────────┐
-          │                    │                    │
-    ┌─────▼─────┐        ┌─────▼─────┐        ┌─────▼─────┐
-    │  WORKER   │        │  WORKER   │        │  WORKER   │
-    │  Node.js  │        │  Python   │        │   Rust    │
-    └───────────┘        └───────────┘        └───────────┘
+┌──────────────────────────────────────────────────┐
+│                   III ENGINE                     │
+│  ┌────────────────────────────────────────────┐  │
+│  │              CORE MODULES                  │  │
+│  │  RestAPI │ Streams │ Cron │ Exec │ Logging │  │
+│  └────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────┐  │
+│  │               ADAPTERS                     │  │
+│  │     Redis │ RabbitMQ │ FileLogger          │  │
+│  └────────────────────────────────────────────┘  │
+└───────────────────────┬──────────────────────────┘
+                        │ WebSocket (ws://localhost:49134)
+          ┌─────────────┼─────────────┐
+          │             │             │
+    ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼─────┐
+    │  WORKER   │ │  WORKER   │ │  WORKER   │
+    │  Node.js  │ │  Python   │ │  Custom   │
+    │ @iii-dev  │ │  iii-py   │ │  Bridge   │
+    └───────────┘ └───────────┘ └───────────┘
 \`\`\``}</pre>
 
         {/* Value Propositions */}
@@ -205,87 +212,66 @@ const result = await ctx.invoke('image.resize', {
         {/* Technical Deep Dive (for AI context) */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Technical Deep Dive
 
-### Dual-Mode Execution Pattern
-Workers can run in two modes:
-- Ephemeral Mode: Serverless-style, scale-to-zero, triggered on demand
-- Managed Mode: Long-running processes with persistent connections
+### Core Modules (Built-in Rust)
+- modules::api::RestApiModule - REST API endpoints
+- modules::streams::StreamModule - Durable real-time streams
+- modules::cron::CronModule - Scheduled tasks
+- modules::shell::ExecModule - Shell command execution
+- modules::observability::LoggingModule - Logging with adapters
 
-### Worker Deployment Options
-Workers can run on:
-- Edge Functions (Cloudflare Workers, Vercel Edge, Deno Deploy)
-- Container Platforms (Docker, Kubernetes, Railway, Fly.io)
-- Bare Metal (Hetzner, home servers, Raspberry Pi)
-- Local Development (your laptop)
-
-### WebSocket IPC Protocol
-The iii daemon communicates via WebSocket with structured message types:
-- REGISTER: Worker announces capabilities to kernel
-- INVOKE: Kernel requests capability execution
-- RESULT: Worker returns execution result
-- HEARTBEAT: Connection health monitoring
-
-### Configuration Schema (YAML)
+### Configuration (config.yaml)
 \`\`\`yaml
-kernel:
-  port: 8080
-  state_dir: ./data
-  
-adapters:
-  postgres:
-    connection: postgresql://localhost:5432/db
-  redis:
-    connection: redis://localhost:6379
-    
-workers:
-  discovery: auto  # auto | manual
-  timeout: 30s
-  
-triggers:
-  - type: http
-    path: /api/*
-  - type: cron
-    schedule: "0 * * * *"
-  - type: postgres
-    table: events
-    event: INSERT
+modules:
+  - class: modules::api::RestApiModule
+    config:
+      port: 3111
+      host: 0.0.0.0
+
+  - class: modules::streams::StreamModule
+    config:
+      port: 31112
+      adapter:
+        class: modules::streams::adapters::RedisAdapter
+        config:
+          redis_url: redis://localhost:6379
+
+  - class: modules::shell::ExecModule
+    config:
+      exec:
+        - bun run index.js
 \`\`\`
 
-### Bridge SDK Pattern
+### Bridge SDK Methods
 \`\`\`typescript
-import { Bridge } from '@iii/bridge';
+import { Bridge } from '@iii-dev/sdk';
+const bridge = new Bridge('ws://localhost:49134');
 
-const bridge = new Bridge({ kernel: 'ws://localhost:8080' });
+// Register function
+bridge.registerFunction({ functionPath, handler });
 
-// Register a capability
-bridge.register('image.resize', async (ctx, params) => {
-  const { url, width } = params;
-  // Access heavy resources via context
-  const result = await ctx.gpu.resize(url, { width });
-  return result;
-});
+// Register trigger (api, cron, streams:join, streams:leave)
+bridge.registerTrigger({ triggerType, functionPath, config });
 
-// Start the worker
-await bridge.connect();
+// Invoke function
+await bridge.invokeFunction(functionPath, data);
+
+// Async invoke (fire and forget)
+bridge.invokeFunctionAsync(functionPath, data);
 \`\`\`
 
-### Trigger System
-All triggers normalize to a unified event schema:
-- HTTP Request → { type: 'http', method, path, body, headers }
-- Database Mutation → { type: 'db', table, operation, record }
-- Cron Schedule → { type: 'cron', schedule, timestamp }
-- WebSocket Message → { type: 'ws', channel, payload }
-- Custom Event → { type: 'custom', name, data }
+### Trigger Types
+| Type          | Config                                  |
+|---------------|-----------------------------------------|
+| api           | api_path, http_method                   |
+| cron          | schedule (cron expression)              |
+| streams:join  | subscription_id, stream_name, group_id  |
+| streams:leave | subscription_id, stream_name, group_id  |
 
-### Comparison with Alternatives
-
-| Feature         | iii | Temporal | AWS Step Functions |
-|-----------------|:---:|:--------:|:------------------:|
-| Self-hosted     |  ✓  |    ✓     |         ✗          |
-| Zero config     |  ✓  |    ✗     |         ✗          |
-| Polyglot        |  ✓  |    ✓     |         ✓          |
-| Edge-native     |  ✓  |    ✗     |         ✗          |
-| Single binary   |  ✓  |    ✗     |         ✗          |
-| Auto-discovery  |  ✓  |    ✗     |         ✗          |
+### Adapters
+| Module   | Adapter Class                              |
+|----------|--------------------------------------------|
+| Streams  | modules::streams::adapters::RedisAdapter   |
+| Logging  | modules::observability::adapters::FileLogger |
 `}</pre>
 
         {/* Links */}
