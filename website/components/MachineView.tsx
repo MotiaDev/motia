@@ -4,7 +4,7 @@ import { Logo } from './Logo';
 
 interface MachineViewProps {
   onToggleMode: () => void;
-  onOpenTerminal: () => void;
+  onOpenTerminal?: () => void; // Optional - terminal is easter egg only
   isGodMode: boolean;
   isDarkMode?: boolean;
   onLogoClick?: () => void;
@@ -12,7 +12,6 @@ interface MachineViewProps {
 
 export const MachineView: React.FC<MachineViewProps> = ({ 
   onToggleMode, 
-  onOpenTerminal, 
   isGodMode,
   isDarkMode = true,
   onLogoClick
@@ -38,30 +37,14 @@ export const MachineView: React.FC<MachineViewProps> = ({
             accentColor={isGodMode ? 'fill-red-500' : isDarkMode ? 'fill-iii-accent' : 'fill-iii-accent-light'}
           />
         </div>
-        <div className="flex gap-2 md:gap-4 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
-          <ModeToggle isHumanMode={false} onToggle={onToggleMode} isDarkMode={isDarkMode} />
-          <div className="hidden md:block w-px h-4 bg-iii-medium/30" />
-          <button 
-            onClick={onOpenTerminal}
-            className={`px-2 py-1 md:px-3 md:py-1.5 rounded transition-colors uppercase text-[10px] md:text-xs font-medium ${
-              isGodMode 
-                ? 'bg-red-500/20 border border-red-500 text-red-400 hover:bg-red-500/30' 
-                : isDarkMode
-                  ? 'bg-iii-dark/50 border border-iii-medium/30 text-iii-medium hover:text-iii-light hover:border-iii-medium'
-                  : 'bg-iii-medium/10 border border-iii-medium/30 text-iii-medium hover:text-iii-black hover:border-iii-medium'
-            }`}
-          >
-            {isGodMode ? '> TERMINAL' : 'TERMINAL'}
-          </button>
-        </div>
       </nav>
 
-      {/* Content */}
-      <div className="flex-1 text-sm leading-relaxed p-6 md:p-12">
-        <div className="max-w-4xl mx-auto space-y-6">
+      {/* Content - Machine readable markdown */}
+      <div className="flex-1 text-xs md:text-sm leading-relaxed p-4 md:p-8 lg:p-12 pb-20 overflow-x-hidden">
+        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 break-words">
         
         {/* Header */}
-        <pre className="whitespace-pre-wrap">{`III
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`III
 
 [Manifesto](#manifesto)
 [Protocol](#protocol)
@@ -69,14 +52,14 @@ export const MachineView: React.FC<MachineViewProps> = ({
 [GitHub](https://github.com/MotiaDev/iii-engine)`}</pre>
 
         {/* Hero */}
-        <pre className="whitespace-pre-wrap">{`# ONE BINARY. INFINITE SYSTEMS.
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# ONE BINARY. INFINITE SYSTEMS.
 
 The universal execution kernel for distributed systems.
 
 No service mesh. No config files. No load balancers. Workers self-assemble. Functions call remote GPUs like local imports. The entire control plane in a single daemon.`}</pre>
 
         {/* Install */}
-        <pre className="whitespace-pre-wrap">{`## Installation (Prebuilt Binary)
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Installation (Prebuilt Binary)
 
 Supports macOS and Linux. Install the latest release:
 
@@ -97,7 +80,7 @@ command -v iii && iii --version
 \`\`\``}</pre>
 
         {/* What is iii */}
-        <pre className="whitespace-pre-wrap">{`## What is iii?
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## What is iii?
 
 iii (Intelligent Invocation Interface) is a universal execution kernel that unifies:
 - APIs
@@ -110,7 +93,7 @@ iii (Intelligent Invocation Interface) is a universal execution kernel that unif
 Into a single durable execution model.`}</pre>
 
         {/* Core Concepts */}
-        <pre className="whitespace-pre-wrap">{`## Core Concepts
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Core Concepts
 
 | Concept              | Description                                      |
 |----------------------|--------------------------------------------------|
@@ -121,7 +104,7 @@ Into a single durable execution model.`}</pre>
 | Context              | Distributed state injection                      |`}</pre>
 
         {/* Capabilities */}
-        <pre className="whitespace-pre-wrap">{`## Capabilities
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Capabilities
 
 | Capability                | Status | Description                           |
 |---------------------------|--------|---------------------------------------|
@@ -135,7 +118,7 @@ Into a single durable execution model.`}</pre>
 | distributed_tracing       | ✓      | Aggregated logs, traces, metrics      |`}</pre>
 
         {/* Adapters */}
-        <pre className="whitespace-pre-wrap">{`## Supported Adapters
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Supported Adapters
 
 | Adapter   | Type     | Protocol        |
 |-----------|----------|-----------------|
@@ -149,7 +132,7 @@ Into a single durable execution model.`}</pre>
 | Elastic   | search   | https://        |`}</pre>
 
         {/* SDKs */}
-        <pre className="whitespace-pre-wrap">{`## Client SDKs
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Client SDKs
 
 Optional client libraries for interacting with the iii daemon:
 
@@ -161,7 +144,7 @@ Optional client libraries for interacting with the iii daemon:
 | Rust       | iii-rs            | cargo add iii-rs                      |`}</pre>
 
         {/* Usage Example */}
-        <pre className="whitespace-pre-wrap">{`## Usage Example
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Usage Example
 
 \`\`\`typescript
 import { iii } from '@iii/client';
@@ -180,7 +163,7 @@ const result = await ctx.invoke('image.resize', {
 \`\`\``}</pre>
 
         {/* Architecture */}
-        <pre className="whitespace-pre-wrap">{`## Architecture
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Architecture
 
 \`\`\`
                     ┌─────────────────────┐
@@ -206,7 +189,7 @@ const result = await ctx.invoke('image.resize', {
 \`\`\``}</pre>
 
         {/* Value Propositions */}
-        <pre className="whitespace-pre-wrap">{`## Value Propositions
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Value Propositions
 
 1. Self-Assembling Mesh: Workers automatically handshake and self-register capabilities
 2. Unified Hybrid Topology: Orchestrates local processes and remote functions in one namespace
@@ -219,8 +202,94 @@ const result = await ctx.invoke('image.resize', {
 9. Protocol-Agnostic Bridging: Code interacts via data primitives regardless of transport
 10. Atomic Control Plane: Service discovery, orchestration, connectivity in single binary`}</pre>
 
+        {/* Technical Deep Dive (for AI context) */}
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Technical Deep Dive
+
+### Dual-Mode Execution Pattern
+Workers can run in two modes:
+- Ephemeral Mode: Serverless-style, scale-to-zero, triggered on demand
+- Managed Mode: Long-running processes with persistent connections
+
+### Worker Deployment Options
+Workers can run on:
+- Edge Functions (Cloudflare Workers, Vercel Edge, Deno Deploy)
+- Container Platforms (Docker, Kubernetes, Railway, Fly.io)
+- Bare Metal (Hetzner, home servers, Raspberry Pi)
+- Local Development (your laptop)
+
+### WebSocket IPC Protocol
+The iii daemon communicates via WebSocket with structured message types:
+- REGISTER: Worker announces capabilities to kernel
+- INVOKE: Kernel requests capability execution
+- RESULT: Worker returns execution result
+- HEARTBEAT: Connection health monitoring
+
+### Configuration Schema (YAML)
+\`\`\`yaml
+kernel:
+  port: 8080
+  state_dir: ./data
+  
+adapters:
+  postgres:
+    connection: postgresql://localhost:5432/db
+  redis:
+    connection: redis://localhost:6379
+    
+workers:
+  discovery: auto  # auto | manual
+  timeout: 30s
+  
+triggers:
+  - type: http
+    path: /api/*
+  - type: cron
+    schedule: "0 * * * *"
+  - type: postgres
+    table: events
+    event: INSERT
+\`\`\`
+
+### Bridge SDK Pattern
+\`\`\`typescript
+import { Bridge } from '@iii/bridge';
+
+const bridge = new Bridge({ kernel: 'ws://localhost:8080' });
+
+// Register a capability
+bridge.register('image.resize', async (ctx, params) => {
+  const { url, width } = params;
+  // Access heavy resources via context
+  const result = await ctx.gpu.resize(url, { width });
+  return result;
+});
+
+// Start the worker
+await bridge.connect();
+\`\`\`
+
+### Trigger System
+All triggers normalize to a unified event schema:
+- HTTP Request → { type: 'http', method, path, body, headers }
+- Database Mutation → { type: 'db', table, operation, record }
+- Cron Schedule → { type: 'cron', schedule, timestamp }
+- WebSocket Message → { type: 'ws', channel, payload }
+- Custom Event → { type: 'custom', name, data }
+
+### Comparison with Alternatives
+
+| Feature         | iii | Temporal | AWS Step Functions |
+|-----------------|:---:|:--------:|:------------------:|
+| Self-hosted     |  ✓  |    ✓     |         ✗          |
+| Zero config     |  ✓  |    ✗     |         ✗          |
+| Polyglot        |  ✓  |    ✓     |         ✓          |
+| Edge-native     |  ✓  |    ✗     |         ✗          |
+| Single binary   |  ✓  |    ✗     |         ✗          |
+| Auto-discovery  |  ✓  |    ✗     |         ✗          |
+`}</pre>
+
         {/* Links */}
-        <pre className="whitespace-pre-wrap">{`## Resources
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Resources
 
 [Documentation](https://iii-docs.vercel.app)
 [GitHub Repository](https://github.com/MotiaDev/iii-engine)
@@ -228,12 +297,27 @@ const result = await ctx.invoke('image.resize', {
 [Discord Community](https://discord.gg/iii)`}</pre>
 
         {/* Footer */}
-        <pre className="whitespace-pre-wrap text-gray-500">{`---
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto text-gray-500">{`---
 
 © 2025 III, Inc.
-Version: 0.1.0-alpha
-License: BSL-1.1 → Apache-2.0 (2028)`}</pre>
+Version: 0.1.0-alpha`}</pre>
+
         </div>
+      </div>
+
+      {/* Floating footer with toggle only */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+        <div className="flex justify-center pb-6">
+          <div className="pointer-events-auto">
+            <ModeToggle isHumanMode={false} onToggle={onToggleMode} isDarkMode={isDarkMode} />
+          </div>
+        </div>
+        {/* Gradient fade for elegance */}
+        <div className={`absolute inset-0 -z-10 ${
+          isDarkMode 
+            ? 'bg-gradient-to-t from-iii-black/80 via-iii-black/40 to-transparent' 
+            : 'bg-gradient-to-t from-iii-light/80 via-iii-light/40 to-transparent'
+        }`} />
       </div>
     </div>
   );

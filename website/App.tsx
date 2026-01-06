@@ -192,7 +192,6 @@ const App: React.FC = () => {
       <>
         <MachineView 
           onToggleMode={toggleMode} 
-          onOpenTerminal={() => setShowTerminal(true)}
           isGodMode={isGodMode}
           isDarkMode={isDarkMode}
           onLogoClick={handleLogoClick}
@@ -244,8 +243,6 @@ const App: React.FC = () => {
           />
         </div>
         <div className="flex gap-2 md:gap-4 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
-          <ModeToggle isHumanMode={isHumanMode} onToggle={toggleMode} isDarkMode={isDarkMode} />
-          <div className="hidden md:block w-px h-4 bg-iii-medium/30" />
           <a href="#" onClick={handleManifestoClick} className={`transition-colors hidden md:block ${isDarkMode ? 'hover:text-iii-light' : 'hover:text-iii-black'}`}>MANIFESTO</a>
           <button onClick={() => setShowProtocol(true)} className={`transition-colors uppercase ${isDarkMode ? 'hover:text-iii-accent' : 'hover:text-iii-accent-light'}`}>PROTOCOL</button>
           {isSubmitted ? (
@@ -406,6 +403,21 @@ const App: React.FC = () => {
           <span className="opacity-50">v0.1.0-alpha</span>
         </div>
       </footer>
+
+      {/* Floating footer with toggle */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+        <div className="flex justify-center pb-6">
+          <div className="pointer-events-auto">
+            <ModeToggle isHumanMode={isHumanMode} onToggle={toggleMode} isDarkMode={isDarkMode} />
+          </div>
+        </div>
+        {/* Gradient fade for elegance */}
+        <div className={`absolute inset-0 -z-10 ${
+          isDarkMode 
+            ? 'bg-gradient-to-t from-iii-black/80 via-iii-black/40 to-transparent' 
+            : 'bg-gradient-to-t from-iii-light/80 via-iii-light/40 to-transparent'
+        }`} />
+      </div>
 
       {/* God Mode Unlock Animation */}
       {showGodModeUnlock && (
