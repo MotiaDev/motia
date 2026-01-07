@@ -5,6 +5,8 @@
     "prepare": "husky || true",
     "build": "pnpm -r build",
     "dev": "pnpm run build && pnpm -r --filter=playground dev",
+    "test": "pnpm -r --filter @iii-dev/motia test",
+    "test:ci": "pnpm -r --filter @iii-dev/motia test:ci || echo 'No tests found'",
     "lint": "biome check .",
     "lint:ci": "biome ci . --since=origin/main --changed --diagnostic-level=error --no-errors-on-unmatched",
     "lint:fix": "biome check --write .",

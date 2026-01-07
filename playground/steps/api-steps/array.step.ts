@@ -1,9 +1,9 @@
-import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
+import { type ApiRouteConfig, type Handlers, jsonSchema } from '@iii-dev/motia'
 import { z } from 'zod'
 import { petStoreService } from '../basic-tutorial/services/pet-store'
 import { petSchema } from '../basic-tutorial/services/types'
 
-export const config: ApiRouteConfig = {
+export const config = {
   type: 'api',
   name: 'ArrayStep',
   description: 'Basic API Example step with Array in Body and in Response',
@@ -11,7 +11,7 @@ export const config: ApiRouteConfig = {
 
   method: 'POST',
   path: '/array',
-  bodySchema: z.toJSONSchema(
+  bodySchema: jsonSchema(
     z.array(
       z.object({
         pet: z.object({
@@ -27,10 +27,10 @@ export const config: ApiRouteConfig = {
     ),
   ),
   responseSchema: {
-    200: z.toJSONSchema(z.array(petSchema)),
+    200: jsonSchema(z.array(petSchema)),
   },
   emits: ['process-food-order'],
-}
+} as const satisfies ApiRouteConfig
 
 export const handler: Handlers<typeof config> = async (req, { logger, emit }) => {
   logger.info('Step 01 - Processing API Step', { body: req.body })

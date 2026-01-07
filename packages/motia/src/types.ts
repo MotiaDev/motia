@@ -1,11 +1,18 @@
 import type { Logger } from '@iii-dev/sdk'
 import type { ZodArray, ZodObject } from 'zod'
+import * as z from 'zod'
 import type { JsonSchema } from './types/schema.types'
 
 // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
 export type ZodInput = ZodObject<any> | ZodArray<any>
 
-export type StepSchemaInput = ZodInput | JsonSchema
+export type TypedJsonSchema<T = unknown> = JsonSchema & { readonly __phantomType?: T }
+
+export type StepSchemaInput = ZodInput | JsonSchema | TypedJsonSchema<unknown>
+
+export function jsonSchema<T extends z.ZodType>(schema: T): TypedJsonSchema<z.output<T>> {
+  return z.toJSONSchema(schema, { target: 'draft-7' }) as TypedJsonSchema<z.output<T>>
+}
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
@@ -188,7 +195,13 @@ export interface Emits {}
 
 type HasOutput = { _output: unknown }
 
-type InferSchema<T, TFallback = unknown> = T extends HasOutput ? T['_output'] : [T] extends [object] ? T : TFallback
+type InferSchema<T, TFallback = unknown> = T extends TypedJsonSchema<infer O>
+  ? O
+  : T extends HasOutput
+    ? T['_output']
+    : [T] extends [object]
+      ? T
+      : TFallback
 
 type InferBody<T> = T extends { bodySchema: infer B }
   ? InferSchema<B, Record<string, unknown>>

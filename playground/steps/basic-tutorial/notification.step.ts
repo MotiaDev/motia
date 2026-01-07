@@ -1,21 +1,21 @@
-import type { EventConfig, Handlers } from '@iii-dev/motia'
+import { type EventConfig, type Handlers, jsonSchema } from '@iii-dev/motia'
 import { z } from 'zod'
 
-export const config: EventConfig = {
+export const config = {
   type: 'event',
   name: 'Notification',
   description: 'Sends notifications to users',
   flows: ['basic-tutorial'],
   subscribes: ['notification'],
   emits: [],
-  input: z.toJSONSchema(
+  input: jsonSchema(
     z.object({
       templateId: z.string(),
       email: z.string(),
       templateData: z.record(z.string(), z.any()),
     }),
   ),
-}
+} as const satisfies EventConfig
 
 export const handler: Handlers<typeof config> = async (input, { traceId, logger }) => {
   const { email, ...data } = input

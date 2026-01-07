@@ -2,7 +2,7 @@ import type { EventConfig, Handlers } from '@iii-dev/motia'
 import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 
-export const config: EventConfig = {
+export const config = {
   type: 'event',
   name: 'ProcessFoodOrder',
   description: 'basic-tutorial event step, demonstrates how to consume an event from a topic and persist data in state',
@@ -14,7 +14,7 @@ export const config: EventConfig = {
     quantity: z.number(),
     petId: z.string(),
   }),
-}
+} as const satisfies EventConfig
 
 export const handler: Handlers<typeof config> = async (input, { traceId, logger, state, emit }) => {
   logger.info('Step 02 - Process food order', { input, traceId })

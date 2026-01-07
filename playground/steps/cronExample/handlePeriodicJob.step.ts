@@ -9,7 +9,7 @@ export const config: CronConfig = {
   flows: ['cron-example'],
 }
 
-export const handler: Handlers['HandlePeriodicJob'] = async ({ logger, emit }) => {
+export const handler: Handlers<typeof config> = async ({ logger, emit }) => {
   logger.info('Periodic job executed')
 
   await emit({

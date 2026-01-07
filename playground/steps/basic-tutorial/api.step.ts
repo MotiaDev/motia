@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 import { petSchema } from './services/types'
 
-export const config: ApiRouteConfig = {
+export const config = {
   type: 'api',
   name: 'ApiTrigger',
   description: 'basic-tutorial api trigger',
@@ -25,9 +25,9 @@ export const config: ApiRouteConfig = {
     200: petSchema,
   },
   emits: ['process-food-order'],
-}
+} as const satisfies ApiRouteConfig
 
-export const handler: Handlers['ApiTrigger'] = async (req, { logger, traceId, emit }) => {
+export const handler: Handlers<typeof config> = async (req, { logger, traceId, emit }) => {
   logger.info('Step 01 - Processing API Step', { body: req.body })
 
   const { pet, foodOrder } = req.body

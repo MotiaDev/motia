@@ -34,9 +34,9 @@ jobs:
       - name: Run linter
         run: pnpm lint:ci
 
+      - name: Run tests
+        run: pnpm test:ci
 
-  # Note: Publishing is now handled by the deploy.yml workflow
-  # This workflow only handles CI/CD quality checks
   quality-on-tags:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}

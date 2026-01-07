@@ -4,6 +4,7 @@ permissions:
   contents: write
   packages: write
   actions: write
+  id-token: write
 
 on:
   push:
@@ -11,14 +12,85 @@ on:
       - 'v*'
     paths-ignore:
       - 'docs/**'
-      - 'packages/docs/**'
+      - 'contributors/**'
 
 jobs:
-  pre-release:
+  ci-checks:
+    name: CI Checks
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract_version.outputs.version }}
       tag_name: ${{ steps.extract_version.outputs.tag_name }}
+      is_prerelease: ${{ steps.detect_prerelease.outputs.is_prerelease }}
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.MOTIA_CI_APP_ID }}
+          private-key: ${{ secrets.MOTIA_CI_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "📦 Version: ${GITHUB_REF#refs/tags/v}"
+
+      - name: Detect pre-release
+        id: detect_prerelease
+        run: |
+          VERSION="${{ steps.extract_version.outputs.version }}"
+          if [[ $VERSION =~ -beta || $VERSION =~ -alpha || $VERSION =~ -rc ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "🧪 Detected pre-release version"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "✅ Detected stable release version"
+          fi
+
+      - name: Run linter
+        run: pnpm lint:ci
+
+      - name: Run tests
+        run: pnpm test:ci
+
+      - name: CI Summary
+        run: |
+          echo "### ✅ CI Checks Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.extract_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ steps.extract_version.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pre-release**: ${{ steps.detect_prerelease.outputs.is_prerelease }}" >> $GITHUB_STEP_SUMMARY
+
+  approval-gate:
+    name: Approval Gate (Stable Release)
+    runs-on: ubuntu-latest
+    needs: [ci-checks]
+    if: needs.ci-checks.outputs.is_prerelease == 'false'
+    environment: production
+    steps:
+      - name: Approval required
+        run: |
+          echo "🔐 Manual approval required for stable release"
+          echo "Version: ${{ needs.ci-checks.outputs.version }}"
+
+  publish-npm:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    needs: [ci-checks, approval-gate]
+    if: |
+      always() &&
+      needs.ci-checks.result == 'success' &&
+      (needs.approval-gate.result == 'success' || needs.approval-gate.result == 'skipped')
     steps:
       - name: Generate token
         id: generate_token
@@ -34,18 +106,27 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: Extract version from tag
-        id: extract_version
+      - name: Determine NPM tag
+        id: npm_tag
         run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          VERSION="${{ needs.ci-checks.outputs.version }}"
+          
+          if [[ $VERSION =~ -beta ]]; then
+            NPM_TAG="beta"
+          elif [[ $VERSION =~ -alpha ]]; then
+            NPM_TAG="alpha"
+          elif [[ $VERSION =~ -rc ]]; then
+            NPM_TAG="rc"
+          else
+            NPM_TAG="latest"
+          fi
+          
+          echo "tag=$NPM_TAG" >> $GITHUB_OUTPUT
+          echo "📌 NPM dist-tag: $NPM_TAG"
 
-      - name: Set version on all packages
-#          pnpm -r --filter "@motiadev/*" exec pnpm version $VERSION --no-git-tag-version
-#          pnpm -r --filter motia exec pnpm version $VERSION --no-git-tag-version
+      - name: Set version on package
         run: |
-          pnpm -r --filter @iii-dev/motia exec pnpm version $VERSION --no-git-tag-version
+          pnpm -r --filter @iii-dev/motia exec pnpm version ${{ needs.ci-checks.outputs.version }} --no-git-tag-version
 
       - name: Setup NPM authentication
         env:
@@ -53,12 +134,226 @@ jobs:
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
-      - name: Publish packages with pre-release tag
-#          pnpm publish -r --filter @motiadev/stream-client --no-git-checks --tag pre-release
-#          pnpm publish -r --filter @motiadev/stream-client-browser --no-git-checks --tag pre-release
-#          pnpm publish -r --filter @motiadev/stream-client-node --no-git-checks --tag pre-release
-#          pnpm publish -r --filter @motiadev/stream-client-react --no-git-checks --tag pre-release
-#          pnpm publish -r --filter motia --no-git-checks --tag pre-release
+      - name: Publish to NPM with provenance
         run: |
-          pnpm publish -r --filter @iii-dev/motia --no-git-checks --tag pre-release
+          pnpm publish -r --filter @iii-dev/motia --no-git-checks --tag ${{ steps.npm_tag.outputs.tag }} --provenance
+        env:
+          NPM_CONFIG_PROVENANCE: true
 
+      - name: Publish Summary
+        run: |
+          echo "### 📦 Published to NPM" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: @iii-dev/motia@${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **NPM Tag**: ${{ steps.npm_tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Install**: \`npm install @iii-dev/motia@${{ steps.npm_tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [ci-checks, publish-npm]
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.MOTIA_CI_APP_ID }}
+          private-key: ${{ secrets.MOTIA_CI_APP_PRIVATE_KEY }}
+          permissions: >-
+            {
+              "contents": "write",
+              "metadata": "read"
+            }
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Get previous tag
+        id: previous_tag
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ needs.ci-checks.outputs.tag_name }}^ 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          echo "Previous tag: $PREVIOUS_TAG"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          mkdir -p /tmp/changelog
+          touch /tmp/changelog/{features,fixes,performance,docs,deps,refactor,tests,build,ci,chores,other}.md
+
+          git log ${{ steps.previous_tag.outputs.tag }}..${{ needs.ci-checks.outputs.tag_name }} --pretty=format:"%s|%h|%an" --no-merges | while IFS='|' read -r subject hash author; do
+            if [[ $subject =~ ^(feat|feature)(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/features.md
+            elif [[ $subject =~ ^(fix|bugfix)(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/fixes.md
+            elif [[ $subject =~ ^perf(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/performance.md
+            elif [[ $subject =~ ^docs(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/docs.md
+            elif [[ $subject =~ ^(deps|dependencies)(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/deps.md
+            elif [[ $subject =~ ^refactor(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/refactor.md
+            elif [[ $subject =~ ^test(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/tests.md
+            elif [[ $subject =~ ^build(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/build.md
+            elif [[ $subject =~ ^ci(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/ci.md
+            elif [[ $subject =~ ^chore(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/chores.md
+            else
+              echo "- ${subject} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/other.md
+            fi
+          done
+
+          cat > release_notes.md << 'EOF'
+          ## What's Changed
+
+          EOF
+
+          if [ -s /tmp/changelog/features.md ]; then
+            echo -e "\n### ✨ New Features" >> release_notes.md
+            cat /tmp/changelog/features.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/fixes.md ]; then
+            echo -e "\n### 🐛 Bug Fixes" >> release_notes.md
+            cat /tmp/changelog/fixes.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/performance.md ]; then
+            echo -e "\n### ⚡ Performance Improvements" >> release_notes.md
+            cat /tmp/changelog/performance.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/docs.md ]; then
+            echo -e "\n### 📝 Documentation" >> release_notes.md
+            cat /tmp/changelog/docs.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/deps.md ]; then
+            echo -e "\n### 📦 Dependencies" >> release_notes.md
+            cat /tmp/changelog/deps.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/refactor.md ]; then
+            echo -e "\n### ♻️ Code Refactoring" >> release_notes.md
+            cat /tmp/changelog/refactor.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/tests.md ]; then
+            echo -e "\n### ✅ Tests" >> release_notes.md
+            cat /tmp/changelog/tests.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/build.md ]; then
+            echo -e "\n### 🔨 Build System" >> release_notes.md
+            cat /tmp/changelog/build.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/ci.md ]; then
+            echo -e "\n### 👷 CI/CD" >> release_notes.md
+            cat /tmp/changelog/ci.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/chores.md ]; then
+            echo -e "\n### 🧹 Maintenance" >> release_notes.md
+            cat /tmp/changelog/chores.md >> release_notes.md
+          fi
+
+          if [ -s /tmp/changelog/other.md ]; then
+            echo -e "\n### 🔧 Other Changes" >> release_notes.md
+            cat /tmp/changelog/other.md >> release_notes.md
+          fi
+
+          cat >> release_notes.md << 'FOOTER'
+
+          ## 📦 Installation
+
+          ```bash
+          npm install @iii-dev/motia@${{ needs.ci-checks.outputs.version }}
+          ```
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.previous_tag.outputs.tag }}...${{ needs.ci-checks.outputs.tag_name }}
+          FOOTER
+
+          rm -rf /tmp/changelog
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.generate_token.outputs.token }}
+          script: |
+            const fs = require('fs');
+            const releaseNotes = fs.readFileSync('release_notes.md', 'utf8');
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: '${{ needs.ci-checks.outputs.tag_name }}',
+              name: '@iii-dev/motia ${{ needs.ci-checks.outputs.version }}',
+              body: releaseNotes,
+              draft: false,
+              prerelease: ${{ needs.ci-checks.outputs.is_prerelease }}
+            });
+
+            console.log('✅ Release created:', release.data.html_url);
+            core.summary.addHeading('🎉 GitHub Release Created', 3);
+            core.summary.addLink('View Release', release.data.html_url);
+            await core.summary.write();
+
+  commit-version:
+    name: Commit Version Back
+    runs-on: ubuntu-latest
+    needs: [ci-checks, create-github-release]
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.MOTIA_CI_APP_ID }}
+          private-key: ${{ secrets.MOTIA_CI_APP_PRIVATE_KEY }}
+          permissions: >-
+            {
+              "contents": "write",
+              "metadata": "read"
+            }
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          ref: main
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Update package version
+        run: |
+          pnpm -r --filter @iii-dev/motia exec pnpm version ${{ needs.ci-checks.outputs.version }} --no-git-tag-version
+
+      - name: Commit version changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: release version ${{ needs.ci-checks.outputs.version }} [skip ci]"
+            git push origin main
+            echo "✅ Version committed to main"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+
+      - name: Summary
+        run: |
+          echo "### ✅ Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **NPM**: https://www.npmjs.com/package/@iii-dev/motia/v/${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub**: https://github.com/${{ github.repository }}/releases/tag/${{ needs.ci-checks.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY

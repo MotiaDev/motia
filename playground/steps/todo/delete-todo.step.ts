@@ -1,7 +1,7 @@
 import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
 import { z } from 'zod'
 
-export const config: ApiRouteConfig = {
+export const config = {
   type: 'api',
   name: 'DeleteTodo',
   description: 'Delete a todo item',
@@ -15,7 +15,7 @@ export const config: ApiRouteConfig = {
   },
   emits: [],
   virtualSubscribes: ['todo-created'],
-}
+} as const satisfies ApiRouteConfig
 
 export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
   const { todoId } = req.pathParams

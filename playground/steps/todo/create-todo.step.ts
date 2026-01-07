@@ -1,4 +1,4 @@
-import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
+import { type ApiRouteConfig, type Handlers, jsonSchema } from '@iii-dev/motia'
 import { z } from 'zod'
 import type { Todo } from './todo.stream'
 
@@ -10,7 +10,7 @@ export const todoSchema = z.object({
   completedAt: z.string().optional(),
 })
 
-export const config: ApiRouteConfig = {
+export const config = {
   type: 'api',
   name: 'CreateTodo',
   description: 'Create a new todo item',
@@ -18,19 +18,17 @@ export const config: ApiRouteConfig = {
 
   method: 'POST',
   path: '/todo',
-  bodySchema: z.toJSONSchema(
-    z.object({
-      description: z.string(),
-      dueDate: z.string().optional(),
-    }),
-  ),
+  bodySchema: z.object({
+    description: z.string(),
+    dueDate: z.string().optional(),
+  }),
   responseSchema: {
     200: todoSchema,
     400: z.object({ error: z.string() }),
   },
   emits: [],
   virtualEmits: ['todo-created'],
-}
+} as const satisfies ApiRouteConfig
 
 export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
   logger.info('Creating new todo', { body: req.body })
@@ -46,8 +44,7 @@ export const handler: Handlers<typeof config> = async (req, { logger, streams })
     id: todoId,
     description,
     createdAt: new Date().toISOString(),
-    dueDate: dueDate,
-    completedAt: undefined,
+    dueDate,
   }
 
   const todo = await streams.todo.set('inbox', todoId, newTodo)

@@ -8,7 +8,7 @@ const inputSchema = z.object({
   requestId: z.string(),
 })
 
-export const config: EventConfig = {
+export const config = {
   name: 'ProcessGreeting',
   type: 'event',
   description: 'Processes greeting in the background',
@@ -16,7 +16,7 @@ export const config: EventConfig = {
   emits: [],
   flows: ['hello-world-flow'],
   input: inputSchema,
-}
+} as const satisfies EventConfig
 
 export const handler: Handlers<typeof config> = async (input, { logger, state }) => {
   const { timestamp, appName, greetingPrefix, requestId } = input
