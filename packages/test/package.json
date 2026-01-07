@@ -2,7 +2,7 @@
   "name": "@motiadev/test",
   "description": "A testing utility package for Motia workflows that provides tools for mocking, testing, and simulating Motia components.",
   "type": "module",
-  "version": "0.17.11-beta.193",
+  "version": "0.17.13-beta.195",
   "main": "dist/index.mjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.mts",

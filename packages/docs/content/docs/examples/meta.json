@@ -13,6 +13,7 @@
     "gmail-automation",
     "finance-agent",
     "ai-deep-research-agent",
-    "adapter-configuration"
+    "adapter-configuration",
+    "human-in-the-loop-workflows"
   ]
 }

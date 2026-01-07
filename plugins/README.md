@@ -96,7 +96,30 @@ export default {
 }
 ```
 
-### [@motiadev/ws-plugin](./motia-ws-plugin)
+### [@motiadev/plugin-streams](./plugin-streams)
+
+Stream visualization and management plugin for Motia Workbench.
+
+**Features:**
+
+- Stream discovery and listing
+- Group management with item counts
+- Real-time data inspection with JSON viewer
+- Schema visualization for typed streams
+- Search and filter capabilities
+- Support for hidden/internal streams toggle
+
+**Usage:**
+
+```typescript
+import streamsPlugin from '@motiadev/plugin-streams/plugin'
+
+export default {
+  plugins: [streamsPlugin],
+}
+```
+
+### [@motiadev/plugin-ws](./plugin-ws)
 
 Real-time WebSocket log monitoring and debugging tool.
 
@@ -114,14 +137,14 @@ Real-time WebSocket log monitoring and debugging tool.
 **Usage:**
 
 ```typescript
-import wsPlugin from '@motiadev/ws-plugin/plugin'
+import wsPlugin from '@motiadev/plugin-ws/plugin'
 
 export default {
   plugins: [wsPlugin],
 }
 ```
 
-### [@motiadev/cron-plugin](./motia-cron-plugin)
+### [@motiadev/plugin-cron](./plugin-cron)
 
 Cron job monitoring and management tool for scheduled tasks.
 
@@ -139,7 +162,7 @@ Cron job monitoring and management tool for scheduled tasks.
 **Usage:**
 
 ```typescript
-import cronPlugin from '@motiadev/cron-plugin/plugin'
+import cronPlugin from '@motiadev/plugin-cron/plugin'
 
 export default {
   plugins: [cronPlugin],

@@ -28,7 +28,7 @@ export const handler: Handlers['StateAuditJob'] = async ({ logger, state, emit }
       await emit({
         topic: 'notification',
         data: {
-          email: 'test@test.com',
+          email: process.env.SAMPLE_EMAIL || 'test@test.com',
           templateId: 'order-audit-warning',
           templateData: {
             orderId: item.id,

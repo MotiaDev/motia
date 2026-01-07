@@ -1,6 +1,6 @@
 {
   "name": "@motiadev/plugin-example",
-  "version": "0.17.11-beta.193",
+  "version": "0.17.13-beta.195",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,7 +27,6 @@
     "@motiadev/core": "workspace:*",
     "@motiadev/ui": "workspace:*",
     "lucide-react": "^0.555.0",
-    "motia": "workspace:*",
     "react": "^19.2.3"
   },
   "devDependencies": {
