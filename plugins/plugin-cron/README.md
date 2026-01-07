@@ -1,4 +1,4 @@
-# @motiadev/cron-plugin
+# @motiadev/plugin-cron
 
 A Motia workbench plugin for monitoring and managing cron jobs (scheduled tasks).
 
@@ -18,9 +18,9 @@ This plugin adds a "Cron Jobs" tab to the Motia workbench bottom panel, providin
 ## Installation
 
 ```bash
-npm install @motiadev/cron-plugin
+npm install @motiadev/plugin-cron
 # or
-pnpm add @motiadev/cron-plugin
+pnpm add @motiadev/plugin-cron
 ```
 
 ## Usage
@@ -28,7 +28,7 @@ pnpm add @motiadev/cron-plugin
 Add the plugin to your `motia.config.ts`:
 
 ```typescript
-import cronPlugin from '@motiadev/cron-plugin/plugin'
+import cronPlugin from '@motiadev/plugin-cron/plugin'
 
 export default {
   plugins: [cronPlugin],
@@ -67,16 +67,16 @@ The plugin will automatically appear as a "Cron Jobs" tab in the bottom panel of
 
 ```typescript
 // Main component
-export { CronJobsPage, CronJobCard } from '@motiadev/cron-plugin'
+export { CronJobsPage, CronJobCard } from '@motiadev/plugin-cron'
 
 // Types
-export type { CronJob, CronExecution, CronStats, CronFilter } from '@motiadev/cron-plugin'
+export type { CronJob, CronExecution, CronStats, CronFilter } from '@motiadev/plugin-cron'
 
 // Zustand store
-export { useCronStore } from '@motiadev/cron-plugin'
+export { useCronStore } from '@motiadev/plugin-cron'
 
 // Hooks
-export { useCronMonitor, useCronJobs, useJobExecutions, useCronStats } from '@motiadev/cron-plugin'
+export { useCronMonitor, useCronJobs, useJobExecutions, useCronStats } from '@motiadev/plugin-cron'
 ```
 
 ## Development

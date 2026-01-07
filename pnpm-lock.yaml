@@ -1048,119 +1048,6 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  plugins/motia-cron-plugin:
-    dependencies:
-      '@motiadev/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@motiadev/stream-client-react':
-        specifier: workspace:*
-        version: link:../../packages/stream-client-react
-      '@motiadev/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      lucide-react:
-        specifier: ^0.555.0
-        version: 0.555.0(react@19.2.3)
-      react:
-        specifier: ^19.2.3
-        version: 19.2.3
-      zustand:
-        specifier: ^5.0.8
-        version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
-    devDependencies:
-      '@bosh-code/tsdown-plugin-inject-css':
-        specifier: ^2.0.0
-        version: 2.0.0(tsdown@0.16.8(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6))
-      '@rollup/plugin-babel':
-        specifier: ^6.1.0
-        version: 6.1.0(@babel/core@7.28.5)(@types/babel__core@7.20.5)(rollup@4.53.5)
-      '@tailwindcss/postcss':
-        specifier: ^4.1.17
-        version: 4.1.18
-      '@types/node':
-        specifier: ^22.15.18
-        version: 22.19.3
-      '@types/react':
-        specifier: ^19.2.7
-        version: 19.2.7
-      babel-plugin-react-compiler:
-        specifier: ^1.0.0
-        version: 1.0.0
-      publint:
-        specifier: ^0.3.15
-        version: 0.3.16
-      rollup-plugin-postcss:
-        specifier: ^4.0.2
-        version: 4.0.2(postcss@8.5.6)(ts-node@10.9.2(@swc/core@1.15.5(@swc/helpers@0.5.17))(@types/node@22.19.3)(typescript@5.9.3))
-      tailwindcss:
-        specifier: ^4.1.17
-        version: 4.1.18
-      tsdown:
-        specifier: ^0.16.8
-        version: 0.16.8(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6)
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-      unplugin-unused:
-        specifier: ^0.5.6
-        version: 0.5.6
-
-  plugins/motia-ws-plugin:
-    dependencies:
-      '@motiadev/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@motiadev/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      lucide-react:
-        specifier: ^0.555.0
-        version: 0.555.0(react@19.2.3)
-      react:
-        specifier: ^19.2.3
-        version: 19.2.3
-      zustand:
-        specifier: ^5.0.8
-        version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
-    devDependencies:
-      '@bosh-code/tsdown-plugin-inject-css':
-        specifier: ^2.0.0
-        version: 2.0.0(tsdown@0.16.8(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6))
-      '@rollup/plugin-babel':
-        specifier: ^6.1.0
-        version: 6.1.0(@babel/core@7.28.5)(@types/babel__core@7.20.5)(rollup@4.53.5)
-      '@tailwindcss/postcss':
-        specifier: ^4.1.17
-        version: 4.1.18
-      '@types/node':
-        specifier: ^22.15.18
-        version: 22.19.3
-      '@types/react':
-        specifier: ^19.2.7
-        version: 19.2.7
-      babel-plugin-react-compiler:
-        specifier: ^1.0.0
-        version: 1.0.0
-      publint:
-        specifier: ^0.3.15
-        version: 0.3.16
-      rollup-plugin-postcss:
-        specifier: ^4.0.2
-        version: 4.0.2(postcss@8.5.6)(ts-node@10.9.2(@swc/core@1.15.5(@swc/helpers@0.5.17))(@types/node@22.19.3)(typescript@5.9.3))
-      tailwindcss:
-        specifier: ^4.1.17
-        version: 4.1.18
-      tsdown:
-        specifier: ^0.16.8
-        version: 0.16.8(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6)
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-      unplugin-unused:
-        specifier: ^0.5.6
-        version: 0.5.6
-
   plugins/plugin-bullmq:
     dependencies:
       '@motiadev/adapter-bullmq-events':
@@ -1233,6 +1120,64 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
+
+  plugins/plugin-cron:
+    dependencies:
+      '@motiadev/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@motiadev/stream-client-react':
+        specifier: workspace:*
+        version: link:../../packages/stream-client-react
+      '@motiadev/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: ^0.555.0
+        version: 0.555.0(react@19.2.3)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.3
+      zustand:
+        specifier: ^5.0.8
+        version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
+    devDependencies:
+      '@bosh-code/tsdown-plugin-inject-css':
+        specifier: ^2.0.0
+        version: 2.0.0(tsdown@0.16.8(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6))
+      '@rollup/plugin-babel':
+        specifier: ^6.1.0
+        version: 6.1.0(@babel/core@7.28.5)(@types/babel__core@7.20.5)(rollup@4.53.5)
+      '@tailwindcss/postcss':
+        specifier: ^4.1.17
+        version: 4.1.18
+      '@types/node':
+        specifier: ^22.15.18
+        version: 22.19.3
+      '@types/react':
+        specifier: ^19.2.7
+        version: 19.2.7
+      babel-plugin-react-compiler:
+        specifier: ^1.0.0
+        version: 1.0.0
+      publint:
+        specifier: ^0.3.15
+        version: 0.3.16
+      rollup-plugin-postcss:
+        specifier: ^4.0.2
+        version: 4.0.2(postcss@8.5.6)(ts-node@10.9.2(@swc/core@1.15.5(@swc/helpers@0.5.17))(@types/node@22.19.3)(typescript@5.9.3))
+      tailwindcss:
+        specifier: ^4.1.17
+        version: 4.1.18
+      tsdown:
+        specifier: ^0.16.8
+        version: 0.16.8(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      unplugin-unused:
+        specifier: ^0.5.6
+        version: 0.5.6
 
   plugins/plugin-endpoint:
     dependencies:
@@ -1638,6 +1583,61 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
+
+  plugins/plugin-ws:
+    dependencies:
+      '@motiadev/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@motiadev/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: ^0.555.0
+        version: 0.555.0(react@19.2.3)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.3
+      zustand:
+        specifier: ^5.0.8
+        version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
+    devDependencies:
+      '@bosh-code/tsdown-plugin-inject-css':
+        specifier: ^2.0.0
+        version: 2.0.0(tsdown@0.16.8(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6))
+      '@rollup/plugin-babel':
+        specifier: ^6.1.0
+        version: 6.1.0(@babel/core@7.28.5)(@types/babel__core@7.20.5)(rollup@4.53.5)
+      '@tailwindcss/postcss':
+        specifier: ^4.1.17
+        version: 4.1.18
+      '@types/node':
+        specifier: ^22.15.18
+        version: 22.19.3
+      '@types/react':
+        specifier: ^19.2.7
+        version: 19.2.7
+      babel-plugin-react-compiler:
+        specifier: ^1.0.0
+        version: 1.0.0
+      publint:
+        specifier: ^0.3.15
+        version: 0.3.16
+      rollup-plugin-postcss:
+        specifier: ^4.0.2
+        version: 4.0.2(postcss@8.5.6)(ts-node@10.9.2(@swc/core@1.15.5(@swc/helpers@0.5.17))(@types/node@22.19.3)(typescript@5.9.3))
+      tailwindcss:
+        specifier: ^4.1.17
+        version: 4.1.18
+      tsdown:
+        specifier: ^0.16.8
+        version: 0.16.8(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(unplugin-unused@0.5.6)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      unplugin-unused:
+        specifier: ^0.5.6
+        version: 0.5.6
 
 packages:
 

@@ -1,7 +1,7 @@
 {
-  "name": "@motiadev/ws-plugin",
+  "name": "@motiadev/plugin-cron",
   "version": "0.17.13-beta.195",
-  "description": "A Motia workbench plugin for real-time WebSocket log monitoring and debugging. Originally created by @potatocoder (Rohith Gilla).",
+  "description": "A Motia workbench plugin for monitoring and managing cron jobs.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -32,17 +32,18 @@
   },
   "peerDependencies": {
     "@motiadev/core": "workspace:*",
-    "@motiadev/ui": "workspace:*"
+    "@motiadev/ui": "workspace:*",
+    "@motiadev/stream-client-react": "workspace:*"
   },
   "devDependencies": {
     "@bosh-code/tsdown-plugin-inject-css": "^2.0.0",
     "@rollup/plugin-babel": "^6.1.0",
     "@tailwindcss/postcss": "^4.1.17",
-    "rollup-plugin-postcss": "^4.0.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "babel-plugin-react-compiler": "^1.0.0",
     "publint": "^0.3.15",
+    "rollup-plugin-postcss": "^4.0.2",
     "tailwindcss": "^4.1.17",
     "tsdown": "^0.16.8",
     "typescript": "^5.9.3",
@@ -60,25 +61,18 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/motia-org/motia.git",
-    "directory": "plugins/motia-ws-plugin"
+    "directory": "plugins/plugin-cron"
   },
   "bugs": {
     "url": "https://github.com/motia-org/motia/issues"
   },
-  "homepage": "https://github.com/motia-org/motia/tree/main/plugins/motia-ws-plugin#readme",
+  "homepage": "https://github.com/motia-org/motia/tree/main/plugins/plugin-cron#readme",
   "keywords": [
     "motia",
-    "websocket",
+    "cron",
+    "scheduler",
     "plugin",
-    "devtools",
-    "debugging"
+    "devtools"
   ],
-  "author": "Motia Team",
-  "contributors": [
-    {
-      "name": "Rohith Gilla",
-      "url": "https://github.com/Rohithgilla12",
-      "note": "Original plugin creator (@potatocoder/ws-plugin)"
-    }
-  ]
+  "author": "Motia Team"
 }

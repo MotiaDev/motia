@@ -96,8 +96,8 @@ jobs:
           npm unpublish @motiadev/ui@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
           npm unpublish @motiadev/plugin-bullmq@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
           npm unpublish @motiadev/plugin-streams@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
-          npm unpublish @motiadev/cron-plugin@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
-          npm unpublish @motiadev/ws-plugin@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
+          npm unpublish @motiadev/plugin-cron@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
+          npm unpublish @motiadev/plugin-ws@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
           npm unpublish @motiadev/adapter-rabbitmq-events@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
           npm unpublish @motiadev/adapter-bullmq-events@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
           npm unpublish @motiadev/adapter-redis-cron@${{ needs.prepare.outputs.version }} --force || echo "Package not found or already removed"
@@ -117,8 +117,8 @@ jobs:
           npm dist-tag rm @motiadev/ui pre-release || true
           npm dist-tag rm @motiadev/plugin-bullmq pre-release || true
           npm dist-tag rm @motiadev/plugin-streams pre-release || true
-          npm dist-tag rm @motiadev/cron-plugin pre-release || true
-          npm dist-tag rm @motiadev/ws-plugin pre-release || true
+          npm dist-tag rm @motiadev/plugin-cron pre-release || true
+          npm dist-tag rm @motiadev/plugin-ws pre-release || true
           npm dist-tag rm @motiadev/adapter-rabbitmq-events pre-release || true
           npm dist-tag rm @motiadev/adapter-bullmq-events pre-release || true
           npm dist-tag rm @motiadev/adapter-redis-cron pre-release || true
