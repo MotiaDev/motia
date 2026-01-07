@@ -4,8 +4,8 @@ export default function plugin(_motia: MotiaPluginContext): MotiaPlugin {
   return {
     workbench: [
       {
-        packageName: '@motiadev/cron-plugin',
-        cssImports: ['@motiadev/cron-plugin/dist/styles.css'],
+        packageName: '@motiadev/plugin-cron',
+        cssImports: ['@motiadev/plugin-cron/dist/styles.css'],
         label: 'Cron Jobs',
         position: 'top',
         componentName: 'CronJobsPage',

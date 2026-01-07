@@ -84,8 +84,8 @@ jobs:
           npm dist-tag add @motiadev/plugin-example@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/plugin-bullmq@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/plugin-streams@${{ needs.prepare.outputs.version }} latest
-          npm dist-tag add @motiadev/cron-plugin@${{ needs.prepare.outputs.version }} latest
-          npm dist-tag add @motiadev/ws-plugin@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-cron@${{ needs.prepare.outputs.version }} latest
+          npm dist-tag add @motiadev/plugin-ws@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/adapter-rabbitmq-events@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/adapter-bullmq-events@${{ needs.prepare.outputs.version }} latest
           npm dist-tag add @motiadev/adapter-redis-cron@${{ needs.prepare.outputs.version }} latest

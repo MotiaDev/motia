@@ -119,7 +119,7 @@ export default {
 }
 ```
 
-### [@motiadev/ws-plugin](./motia-ws-plugin)
+### [@motiadev/plugin-ws](./plugin-ws)
 
 Real-time WebSocket log monitoring and debugging tool.
 
@@ -137,14 +137,14 @@ Real-time WebSocket log monitoring and debugging tool.
 **Usage:**
 
 ```typescript
-import wsPlugin from '@motiadev/ws-plugin/plugin'
+import wsPlugin from '@motiadev/plugin-ws/plugin'
 
 export default {
   plugins: [wsPlugin],
 }
 ```
 
-### [@motiadev/cron-plugin](./motia-cron-plugin)
+### [@motiadev/plugin-cron](./plugin-cron)
 
 Cron job monitoring and management tool for scheduled tasks.
 
@@ -162,7 +162,7 @@ Cron job monitoring and management tool for scheduled tasks.
 **Usage:**
 
 ```typescript
-import cronPlugin from '@motiadev/cron-plugin/plugin'
+import cronPlugin from '@motiadev/plugin-cron/plugin'
 
 export default {
   plugins: [cronPlugin],
