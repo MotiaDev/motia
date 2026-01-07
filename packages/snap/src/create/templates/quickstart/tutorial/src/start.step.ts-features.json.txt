@@ -1,0 +1,38 @@
+[
+  {
+    "id": "step-configuration",
+    "title": "Step Configuration",
+    "description": "All steps should have a defined configuration. This is how you define the step's behavior and how it will be triggered.",
+    "lines": ["4-14"]
+  },
+  {
+    "id": "api-configuration",
+    "title": "API Step",
+    "description": "Definition of an API endpoint with method and path",
+    "lines": ["5-7"]
+  },
+  {
+    "id": "event-driven-architecture",
+    "title": "Emits",
+    "description": "We can define the events that this step will emit. This is how we can trigger other Motia steps.",
+    "lines": ["8"]
+  },
+  {
+    "id": "virtual-events",
+    "title": "Virtual Events",
+    "description": "Virtual emits and subscribes are visual indicators in Workbench only - they don't impact code execution.",
+    "lines": ["12-13"]
+  },
+  {
+    "id": "handler",
+    "title": "Handler",
+    "description": "The handler is the function that will be executed when the step is triggered. This one receives the request and emits events.",
+    "lines": ["17-24"]
+  },
+  {
+    "id": "event-emitter",
+    "title": "Event Emitter",
+    "description": "The emit function allows you to publish events to topics. Pass any data to subscribing events with the data property.",
+    "lines": ["18-23"]
+  }
+]

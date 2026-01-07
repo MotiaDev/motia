@@ -1,0 +1,32 @@
+[
+  {
+    "id": "step-configuration",
+    "title": "Step Configuration",
+    "description": "All steps should have a defined configuration. This is how you define the step's behavior and how it will be triggered.",
+    "lines": ["5-15"]
+  },
+  {
+    "id": "event-subscriptions",
+    "title": "Event Subscriptions",
+    "description": "Event steps subscribe to specific topics to receive events from other steps.",
+    "lines": ["7"]
+  },
+  {
+    "id": "input-schema",
+    "title": "Input Schema",
+    "description": "Definition of the expected input data structure from the subscribed topic. Motia will automatically generate types based on this schema.",
+    "lines": ["8"]
+  },
+  {
+    "id": "handler",
+    "title": "Handler",
+    "description": "The handler is the function that will be executed when the step receives an event from its subscribed topic.",
+    "lines": ["18-22"]
+  },
+  {
+    "id": "logger",
+    "title": "Logger",
+    "description": "The logger is a utility that allows you to log messages to the console. It is available in the handler function and automatically ties to the trace id of the request.",
+    "lines": ["21"]
+  }
+]

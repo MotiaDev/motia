@@ -1,0 +1,34 @@
+[
+  {
+    "id": "hello-world-flow",
+    "config": {
+      "src/hello/log-greeting.step.js": {
+        "x": 409,
+        "y": 44
+      },
+      "src/hello/hello-api.step.ts": {
+        "x": -409,
+        "y": 0,
+        "sourceHandlePosition": "right"
+      },
+      "src/hello/process_greeting_step.py": {
+        "x": 0,
+        "y": 34,
+        "sourceHandlePosition": "right"
+      }
+    }
+  },
+  {
+    "id": "hello",
+    "config": {
+      "src/typescript.step.ts": {
+        "x": 351,
+        "y": -74
+      },
+      "src/start.step.ts": {
+        "x": -145,
+        "y": -66
+      }
+    }
+  }
+]

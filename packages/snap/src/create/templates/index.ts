@@ -1,6 +1,7 @@
 import { type Generator, generatePluginTemplate, generateTemplateSteps } from './generate'
 
 export const templates: Record<string, Generator> = {
+  quickstart: generateTemplateSteps('quickstart'),
   'motia-tutorial-typescript': generateTemplateSteps('nodejs'),
   'motia-tutorial-python': generateTemplateSteps('python'),
   plugin: generatePluginTemplate('plugin'),
