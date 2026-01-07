@@ -27,8 +27,8 @@ importers:
   packages/motia:
     dependencies:
       '@iii-dev/sdk':
-        specifier: ^0.0.9
-        version: 0.0.9
+        specifier: ^0.0.10
+        version: 0.0.10
       '@standard-schema/spec':
         specifier: ^1.0.0
         version: 1.1.0
@@ -41,6 +41,9 @@ importers:
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
+      uuid:
+        specifier: ^13.0.0
+        version: 13.0.0
       zod:
         specifier: ^4.1.13
         version: 4.2.1
@@ -565,8 +568,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@iii-dev/sdk@0.0.9':
-    resolution: {integrity: sha512-kcT3y2+29knK7v50oBZH6irS4sEd66/Rufh1zO7n8J0p4LZkdwDgCpQysLa6dGlyZ6MRX3Hd+JfBV9+ZOriP4g==}
+  '@iii-dev/sdk@0.0.10':
+    resolution: {integrity: sha512-JUy985vhdkKnHHojc7vghnCoaXJvKskWiJJXrgP6S7zQtgSSC5zB/tHrYrK7c7th76WRmzxZpEyF80nfZG+vxw==}
 
   '@isaacs/balanced-match@4.0.1':
     resolution: {integrity: sha512-yzMTt9lEb8Gv7zRioUilSglI0c0smZ9k5D65677DLWLtWJaXIS3CqcGyUFByYKlnUj6TkjLVs54fBl6+TiGQDQ==}
@@ -2735,7 +2738,7 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
-  '@iii-dev/sdk@0.0.9':
+  '@iii-dev/sdk@0.0.10':
     dependencies:
       async_hooks: 1.0.0
       ws: 8.18.3
