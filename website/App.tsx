@@ -131,7 +131,7 @@ const App: React.FC = () => {
         // Show unlock animation then open terminal
         setTimeout(() => {
           setShowGodModeUnlock(false);
-          setShowTerminal(true);
+        setShowTerminal(true);
         }, 2000);
         keyBuffer = [];
       }
@@ -151,7 +151,7 @@ const App: React.FC = () => {
       const result = await insertAccessRequest(email);
       
       if (result.success) {
-        setIsSubmitted(true);
+      setIsSubmitted(true);
         localStorage.setItem('iii_access_requested', 'true');
         localStorage.setItem('iii_access_email', email);
         setEmail('');
@@ -255,14 +255,14 @@ const App: React.FC = () => {
               DOCS
             </a>
           ) : (
-            <div className="relative group cursor-not-allowed hidden sm:block">
+          <div className="relative group cursor-not-allowed hidden sm:block">
               <span className={`transition-colors ${isDarkMode ? 'text-iii-dark group-hover:text-iii-medium' : 'text-iii-medium/50 group-hover:text-iii-medium'}`}>DOCS</span>
               <div className={`absolute top-full right-0 mt-2 w-max px-2 py-1 border text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
                 isDarkMode ? 'bg-iii-dark border-iii-medium text-iii-light' : 'bg-white border-iii-medium/30 text-iii-black'
               }`}>
-                EARLY ACCESS ONLY
-              </div>
+              EARLY ACCESS ONLY
             </div>
+          </div>
           )}
           <button 
             onClick={toggleTheme}
@@ -319,7 +319,7 @@ const App: React.FC = () => {
             </h1>
 
             <p className="text-xs md:text-base text-iii-medium max-w-xl leading-relaxed">
-              No service mesh. No config files. No load balancers. 
+              No service mesh. No load balancers. 
               <span className={isDarkMode ? 'text-iii-light' : 'text-iii-black'}> Workers self-assemble. Functions call remote GPUs like local imports.</span> The entire control plane in a single daemon.
             </p>
 
@@ -395,7 +395,7 @@ const App: React.FC = () => {
         }`}>
         <div className="max-w-sm md:max-w-md space-y-1.5 md:space-y-2">
           <p className="leading-relaxed hidden md:block">
-            Defining the universal runtime for distributed execution.
+            Defining the universal runtime for distributed execution. 
           </p>
         </div>
         <div className="flex flex-col items-start md:items-end gap-0.5 md:gap-1">

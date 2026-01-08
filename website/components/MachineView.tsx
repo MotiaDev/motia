@@ -56,7 +56,7 @@ export const MachineView: React.FC<MachineViewProps> = ({
 
 The universal execution kernel for distributed systems.
 
-No service mesh. No config files. No load balancers. Workers self-assemble. Functions call remote GPUs like local imports. The entire control plane in a single daemon.`}</pre>
+No service mesh. No load balancers. Workers self-assemble via config.yaml. Functions call remote GPUs like local imports. The entire control plane in a single daemon.`}</pre>
 
         {/* Install */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Installation (Prebuilt Binary)
@@ -115,7 +115,7 @@ Built with Rust for speed and memory efficiency.`}</pre>
 | zero_latency_hot_path     | ✓      | Child processes in daemon context     |
 | dynamic_routing           | ✓      | Route by availability + intent        |
 | protocol_agnostic         | ✓      | HTTP, WS, gRPC, custom protocols      |
-| polyglot_workers          | ✓      | Node.js, Python, Go, Rust             |
+| language_agnostic         | ✓      | Node.js, Python, Rust (Go: Coming Soon) |
 | distributed_tracing       | ✓      | Aggregated logs, traces, metrics      |`}</pre>
 
         {/* Adapters */}
@@ -191,7 +191,7 @@ const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
     ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼─────┐
     │  WORKER   │ │  WORKER   │ │  WORKER   │
     │  Node.js  │ │  Python   │ │  Custom   │
-    │ @iii-dev  │ │  iii-py   │ │  Bridge   │
+    │@iii-dev  │ │  iii-py   │ │  Bridge   │
     └───────────┘ └───────────┘ └───────────┘
 \`\`\``}</pre>
 
@@ -279,7 +279,7 @@ bridge.invokeFunctionAsync(functionPath, data);
 
 [Documentation](https://iii-docs.vercel.app)
 [GitHub Repository](https://github.com/MotiaDev/iii-engine)
-[npm Package](https://npmjs.com/package/@iii/client)
+[npm Package](https://npmjs.com/package/@iii-dev/sdk)
 [Discord Community](https://discord.gg/iii)`}</pre>
 
         {/* Footer */}

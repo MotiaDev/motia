@@ -78,7 +78,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('CONCEPTS:', 'warning');
         addLog('  faq         - Core knowledge base', 'info');
         addLog('  compare     - iii vs alternatives', 'info');
-        addLog('  polyglot    - Multi-language support', 'info');
+        addLog('  lang        - Language agnostic support', 'info');
         addLog('  durable     - Durable execution explained', 'info');
         addLog('', 'info');
         addLog('ADVANCED:', 'warning');
@@ -209,7 +209,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  config: { api_path: "/greet", http_method: "POST" }', 'success');
         addLog('});', 'success');
         addLog('', 'info');
-        addLog('Available SDKs: @iii-dev/sdk (TS), iii-py, iii-go, iii-rs', 'warning');
+        addLog('Available SDKs: @iii-dev/sdk (TS), iii-py', 'warning');
         break;
 
       case 'triggers':
@@ -279,17 +279,18 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  ✓ iii: Single binary, real-time', 'success');
         addLog('', 'info');
         addLog('vs Dapr:', 'warning');
-        addLog('  ✓ Both: Polyglot, modular', 'info');
+        addLog('  ✓ Both: Language agnostic, modular', 'info');
         addLog('  ✓ iii: Durable exec, Rust core', 'success');
         addLog('', 'info');
         addLog('vs Serverless:', 'warning');
-        addLog('  ✓ iii: Self-hosted, polyglot', 'success');
+        addLog('  ✓ iii: Self-hosted, language agnostic', 'success');
         addLog('  ✓ iii: Real-time streams', 'success');
         addLog('', 'info');
         addLog('iii = Unifies ALL patterns.', 'warning');
         break;
 
-      case 'polyglot':
+      case 'lang':
+      case 'polyglot': // Legacy alias
         addLog('═══ POLYGLOT ═══', 'system');
         addLog('', 'info');
         addLog('Write workers in ANY language:', 'warning');
@@ -299,7 +300,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  ├────────────────┼────────────────────────────────────┤', 'info');
         addLog('  │ TypeScript/JS  │ npm install @iii-dev/sdk           │', 'success');
         addLog('  │ Python         │ pip install iii-py                 │', 'success');
-        addLog('  │ Go             │ go get github.com/MotiaDev/iii-go  │', 'success');
+        addLog('  │ Go             │ Coming Soon                        │', 'warning');
         addLog('  │ Rust           │ cargo add iii-rs                   │', 'success');
         addLog('  └────────────────┴────────────────────────────────────┘', 'info');
         addLog('', 'info');

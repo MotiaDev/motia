@@ -179,7 +179,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
               <div className="relative flex flex-col items-center gap-3">
                 <svg 
                   viewBox="0 0 20 18" 
-                  className={`w-16 h-14 md:w-24 md:h-20 ${accentColor}`}
+                  className={`w-16 h-14 md:w-24 md:h-20 ${textPrimary}`}
                   fill="currentColor"
                 >
                   {/* First i */}
@@ -197,7 +197,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
                     The Daemon
                   </div>
                   <div className="text-[8px] md:text-[10px] text-iii-medium mt-1">
-                    One binary. Zero config.
+                    One binary. One daemon.
                   </div>
                 </div>
               </div>

@@ -49,7 +49,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
                 </div>
                 <div className="flex items-center gap-1.5 md:gap-2">
                   <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${activeCard === 'engine' ? 'bg-green-500 animate-pulse delay-75' : 'bg-iii-medium'}`} />
-                  <span>POLYGLOT</span>
+                  <span>LANGUAGE AGNOSTIC</span>
                 </div>
                 <div className="flex items-center gap-1.5 md:gap-2">
                   <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${activeCard === 'engine' ? 'bg-green-500 animate-pulse delay-150' : 'bg-iii-medium'}`} />
@@ -73,21 +73,21 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
           </div>
           <div className="relative z-10 grid grid-cols-2 gap-1.5 md:gap-2">
             {[
-              { name: 'Postgres', icon: Database, active: true },
-              { name: 'RabbitMQ', icon: MessageSquare, active: false },
-              { name: 'BullMQ', icon: MessageSquare, active: true },
-              { name: 'Redis', icon: HardDrive, active: false },
-              { name: 'MySQL', icon: Database, active: true },
-              { name: 'MongoDB', icon: Database, active: false },
-              { name: 'Elastic', icon: Search, active: true },
-              { name: 'Kafka', icon: MessageSquare, active: false },
-            ].map(({ name, icon: Icon, active }) => (
-              <div key={name} className={`flex items-center justify-between px-2 py-1.5 md:px-2.5 md:py-1.5 border rounded transition-colors group/item ${codeBg} ${cardBorder} ${cardHover}`}>
+              { name: 'Redis', icon: HardDrive, available: true },
+              { name: 'Postgres', icon: Database, available: false },
+              { name: 'Kafka', icon: MessageSquare, available: false },
+              { name: 'RabbitMQ', icon: MessageSquare, available: false },
+            ].map(({ name, icon: Icon, available }) => (
+              <div key={name} className={`flex items-center justify-between px-2 py-1.5 md:px-2.5 md:py-1.5 border rounded transition-colors group/item ${available ? '' : 'opacity-50'} ${codeBg} ${cardBorder} ${available ? cardHover : ''}`}>
                 <div className="flex items-center gap-1.5">
-                  <Icon className={`w-2.5 h-2.5 md:w-3 md:h-3 text-iii-medium ${isDarkMode ? 'group-hover/item:text-iii-accent' : 'group-hover/item:text-iii-accent-light'}`} />
+                  <Icon className={`w-2.5 h-2.5 md:w-3 md:h-3 text-iii-medium ${available && isDarkMode ? 'group-hover/item:text-iii-accent' : ''} ${available && !isDarkMode ? 'group-hover/item:text-iii-accent-light' : ''}`} />
                   <span className={`text-[9px] md:text-[10px] font-mono ${textPrimary}`}>{name}</span>
                 </div>
-                <div className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-green-500' : 'bg-iii-medium'}`} />
+                {available ? (
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                ) : (
+                  <span className="text-[6px] md:text-[7px] text-iii-medium uppercase">Soon</span>
+                )}
               </div>
             ))}
           </div>
@@ -104,9 +104,18 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
             Client libraries for protocol message generation.
           </p>
           <div className="mt-2 md:mt-4 flex flex-wrap gap-1.5 md:gap-2">
-            {['@iii/client', 'iii-py', 'iii-go'].map(pkg => (
-              <code key={pkg} className={`px-1.5 py-0.5 md:px-2 md:py-1 border rounded text-[9px] md:text-[10px] font-mono cursor-pointer ${iconBg} ${cardBorder} ${textPrimary} ${cardHover}`}>
-                {pkg}
+            {[
+              { name: '@iii-dev/sdk', available: true },
+              { name: 'iii-py', available: true },
+              { name: 'iii-go', available: false }
+            ].map(({ name, available }) => (
+              <code key={name} className={`px-1.5 py-0.5 md:px-2 md:py-1 border rounded text-[9px] md:text-[10px] font-mono ${available ? 'cursor-pointer' : 'opacity-50'} ${iconBg} ${cardBorder} ${textPrimary} ${available ? cardHover : ''} relative group/sdk`}>
+                {name}
+                {!available && (
+                  <span className={`absolute -top-1 -right-1 text-[6px] md:text-[7px] px-1 py-0.5 rounded border ${isDarkMode ? 'bg-iii-black border-iii-medium text-iii-medium' : 'bg-white border-iii-medium text-iii-medium'}`}>
+                    SOON
+                  </span>
+                )}
               </code>
             ))}
           </div>
@@ -120,17 +129,27 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
             <h3 className={`text-sm md:text-lg font-semibold ${textPrimary}`}>Implementation</h3>
           </div>
           <p className="text-[10px] md:text-xs text-iii-medium mb-2 md:mb-3">
-            Workers self-register capabilities on boot. No config files.
+            Workers self-register capabilities on boot via Bridge SDK.
           </p>
           <div className="flex flex-wrap gap-1.5 md:gap-2 mb-2 md:mb-3">
-            {['Node.js', 'Python', 'Go', 'Rust'].map(lang => (
-              <span key={lang} className={`px-1.5 py-0.5 md:px-2 md:py-1 border rounded text-[9px] md:text-[10px] font-mono ${iconBg} ${cardBorder} ${textPrimary}`}>
-                {lang}
+            {[
+              { name: 'Node.js', available: true },
+              { name: 'Python', available: true },
+              { name: 'Go', available: false },
+              { name: 'Rust', available: false }
+            ].map(({ name, available }) => (
+              <span key={name} className={`px-1.5 py-0.5 md:px-2 md:py-1 border rounded text-[9px] md:text-[10px] font-mono relative ${available ? '' : 'opacity-50'} ${iconBg} ${cardBorder} ${textPrimary}`}>
+                {name}
+                {!available && (
+                  <span className={`absolute -top-1 -right-1 text-[5px] md:text-[6px] px-0.5 py-0.5 rounded border ${isDarkMode ? 'bg-iii-black border-iii-medium text-iii-medium' : 'bg-white border-iii-medium text-iii-medium'}`}>
+                    SOON
+                  </span>
+                )}
               </span>
             ))}
           </div>
           <div className="flex items-center justify-between mt-auto pt-2 border-t border-iii-medium/10">
-            <div className="text-[9px] md:text-[10px] text-iii-medium uppercase tracking-wider">Polyglot Workers</div>
+            <div className="text-[9px] md:text-[10px] text-iii-medium uppercase tracking-wider">Language Agnostic</div>
             <Workflow className={`w-3 h-3 md:w-4 md:h-4 text-iii-medium transition-colors ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
           </div>
         </div>
