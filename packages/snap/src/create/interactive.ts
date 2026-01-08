@@ -9,6 +9,7 @@ interface InteractiveAnswers {
 }
 
 const choices: Record<string, string> = {
+  quickstart: 'Quickstart',
   'motia-tutorial-typescript': 'Tutorial (TypeScript only)',
   'motia-tutorial-python': 'Tutorial (Python only)',
   'starter-multilang': 'Starter (All languages; TS/JS + Python)',

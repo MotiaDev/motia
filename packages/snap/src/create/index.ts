@@ -253,7 +253,7 @@ export const create = async ({
   if (!isPluginTemplate) {
     packageManager = await installNodeDependencies(rootDir, context)
 
-    if (template.includes('python') || template.includes('multilang')) {
+    if (template.includes('python') || template.includes('multilang') || template.includes('quickstart')) {
       await pythonInstall({ baseDir: rootDir })
     }
 

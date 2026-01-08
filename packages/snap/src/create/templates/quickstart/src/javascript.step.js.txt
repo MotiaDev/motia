@@ -15,6 +15,6 @@ export const config = {
   virtualSubscribes: [],
 }
 
-export const handler = async (input, { emit, logger }) => {
+export const handler = async (input, { emit, logger, state }) => {
   logger.info('Hello from JavaScript!')
 }

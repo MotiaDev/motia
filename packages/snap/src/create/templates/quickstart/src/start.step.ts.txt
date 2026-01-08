@@ -16,7 +16,7 @@ export const config: ApiRouteConfig = {
   virtualSubscribes: [], // They don't have any impact on code execution.
 }
 
-export const handler: Handlers['PostHello'] = async (req, { emit, logger }) => {
+export const handler: Handlers['PostHello'] = async (req, { emit, logger, state }) => {
   emit({
     topic: 'hello',
     data: {

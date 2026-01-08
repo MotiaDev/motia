@@ -167,6 +167,12 @@ export const useTutorialEngine = () => {
         // Tutorial file is optional, so we don't need to throw an error
         console.log('Tutorial file not found or could not be loaded:', error.message)
       })
+
+    // Also try to load the walkthrough file
+    importFile('tutorial/walkthrough.tsx').catch((error) => {
+      // Walkthrough file is optional
+      console.log('Walkthrough file not found or could not be loaded:', error.message)
+    })
   }, [])
 
   useEffect(() => {

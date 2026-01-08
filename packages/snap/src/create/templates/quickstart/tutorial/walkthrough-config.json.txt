@@ -1,0 +1,133 @@
+{
+  "autoStart": true,
+  "file": "src/typescript.step.ts",
+  "welcome": {
+    "title": "Welcome to Motia",
+    "subtitle": "Build production-grade backends with a single primitive",
+    "description": "Motia unifies APIs, background jobs, queues, workflows, and AI agents in one system with built-in state management, streaming, and observability.\n\nThis quickstart will walk you through the anatomy of a Step - the core building block of Motia.",
+    "image": {
+      "src": "https://github.com/MotiaDev/motia/raw/main/packages/docs/public/github-readme-banner.png",
+      "height": 200
+    }
+  },
+  "steps": [
+    {
+      "id": "intro",
+      "title": "The Anatomy of a Step",
+      "description": "Every Motia step is composed of two main parts: a <b>config</b> object that defines how the step behaves, and a <b>handler</b> function that contains the logic to execute.",
+      "focusLines": [4, 5, 6],
+      "collapseComments": ["config-intro", "config-options", "type-comment", "subscribes-comment", "handler-comment"]
+    },
+    {
+      "id": "config-overview",
+      "title": "The Config Object",
+      "description": "The config object tells Motia everything it needs to know about your step: when to trigger it, what events it emits, and which flows it belongs to.<br/><br/>There are three main config types:<ul><li><b>ApiRouteConfig</b> - Create HTTP routes</li><li><b>EventConfig</b> - React to events</li><li><b>CronConfig</b> - Run on a schedule</li></ul>",
+      "focusLines": [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35],
+      "expandComments": ["config-options"],
+      "collapseComments": ["config-intro", "type-comment", "subscribes-comment", "handler-comment"]
+    },
+    {
+      "id": "config-type",
+      "title": "Step Type",
+      "description": "The <b>type</b> field determines how this step is triggered. Setting it to <code>'event'</code> means this step will be activated when specific events occur.<br/><br/>Other types include <code>'api'</code> for HTTP endpoints and <code>'cron'</code> for scheduled tasks.",
+      "focusLines": [18, 19, 20],
+      "expandComments": ["type-comment"],
+      "collapseComments": ["config-intro", "config-options", "subscribes-comment", "handler-comment"]
+    },
+    {
+      "id": "subscribes",
+      "title": "Event Subscriptions",
+      "description": "The <b>subscribes</b> array lists the event topics this step listens to. When any step in your system emits a <code>'hello'</code> event, this handler will execute.<br/><br/>This is the foundation of Motia's event-driven architecture.",
+      "focusLines": [21, 22],
+      "expandComments": ["subscribes-comment"],
+      "collapseComments": ["config-intro", "config-options", "type-comment", "handler-comment"]
+    },
+    {
+      "id": "input-schema",
+      "title": "Input Validation",
+      "description": "The <b>input</b> field uses Zod schemas to define and validate the expected payload structure. Motia automatically generates TypeScript types from this schema.<br/><br/>Invalid payloads will be rejected before reaching your handler.",
+      "focusLines": [23],
+      "collapseComments": ["config-intro", "config-options", "type-comment", "subscribes-comment", "handler-comment"]
+    },
+    {
+      "id": "emits",
+      "title": "Event Emissions",
+      "description": "The <b>emits</b> array declares which events this step can publish. This creates a clear contract of the step's outputs and enables Motia to visualize event flows in the Workbench.",
+      "focusLines": [24],
+      "collapseComments": ["config-intro", "config-options", "type-comment", "subscribes-comment", "handler-comment"]
+    },
+    {
+      "id": "flows",
+      "title": "Flow Organization",
+      "description": "The <b>flows</b> field groups related steps together for visual organization in the Workbench. Steps in the same flow are displayed together, making complex workflows easier to understand.",
+      "focusLines": [31, 32, 33, 34],
+      "expandComments": ["flows-comment"],
+      "collapseComments": ["config-intro", "config-options", "type-comment", "subscribes-comment", "handler-comment"]
+    },
+    {
+      "id": "handler",
+      "title": "The Handler Function",
+      "description": "The <b>handler</b> is where your business logic lives. It executes when the conditions defined in your config are met.<br/><br/>Every handler receives two arguments:<ul><li><b>payload</b> - The incoming data</li><li><b>context</b> - Utilities like emit, logger, and state</li></ul>",
+      "focusLines": [41, 42],
+      "expandComments": ["handler-comment"],
+      "collapseComments": ["config-intro", "config-options", "type-comment", "subscribes-comment"]
+    },
+    {
+      "id": "context-utilities",
+      "title": "Context Utilities",
+      "description": "The context object provides powerful utilities:<ul><li><b>emit()</b> - Publish events to topics</li><li><b>logger</b> - Structured logging tied to trace IDs</li><li><b>state</b> - Shared state management</li></ul><br/>These utilities are automatically injected and handle all the complex infrastructure for you.",
+      "focusLines": [41, 42],
+      "expandComments": ["handler-comment"],
+      "collapseComments": ["config-intro", "config-options", "type-comment", "subscribes-comment"]
+    }
+  ],
+  "comments": {
+    "config-intro": {
+      "startLine": 1,
+      "endLine": 1,
+      "collapsedText": "// TypeScript step example"
+    },
+    "config-options": {
+      "startLine": 8,
+      "endLine": 16,
+      "collapsedText": "// Config types: ApiRouteConfig | EventConfig | CronConfig"
+    },
+    "type-comment": {
+      "startLine": 18,
+      "endLine": 19,
+      "collapsedText": "// type: determines trigger method"
+    },
+    "subscribes-comment": {
+      "startLine": 22,
+      "endLine": 22,
+      "collapsedText": "// subscribes: event topics to listen for"
+    },
+    "flows-comment": {
+      "startLine": 26,
+      "endLine": 30,
+      "collapsedText": "// Optional metadata fields"
+    },
+    "handler-comment": {
+      "startLine": 37,
+      "endLine": 40,
+      "collapsedText": "// Handler: executes when triggered"
+    }
+  },
+  "completion": {
+    "title": "You're Ready!",
+    "description": "You now understand the core building blocks of a Motia step. The config defines the 'what' and 'when', while the handler defines the 'how'.<br/><br/>Explore the other example steps to see API routes, Python handlers, and more complex patterns.",
+    "links": [
+      {
+        "label": "Read the Docs",
+        "url": "https://www.motia.dev/docs"
+      },
+      {
+        "label": "Join Discord",
+        "url": "https://discord.com/invite/nJFfsH5d6v"
+      }
+    ]
+  },
+  "codeStyles": {
+    "fadeOpacity": 0.4
+  }
+}

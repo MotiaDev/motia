@@ -53,8 +53,8 @@
           return await import(/* @vite-ignore */ importPath)
         } catch (error) {
           console.error(`Failed to import ${path}:`, error)
-          // Return empty module if tutorial.tsx doesn't exist
-          if (path === 'tutorial/tutorial.tsx') {
+          // Return empty module if tutorial files don't exist
+          if (path === 'tutorial/tutorial.tsx' || path === 'tutorial/walkthrough.tsx') {
             return { steps: [] }
           }
           throw error

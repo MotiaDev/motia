@@ -8,6 +8,7 @@ import motiaLogoLight from '../../assets/motia-light.png'
 import { useMotiaConfigStore } from '../../stores/use-motia-config-store'
 import { Tutorial } from '../tutorial/tutorial'
 import { TutorialButton } from '../tutorial/tutorial-button'
+import { WalkthroughContainer } from '../tutorial/walkthrough-container'
 import { ThemeToggle } from '../ui/theme-toggle'
 import { DeployButton } from './deploy-button'
 
@@ -33,6 +34,7 @@ export const Header: React.FC = memo(() => {
       {isDevMode && !isTutorialDisabled && <TutorialButton />}
       {isDevMode && <DeployButton />}
       {!isTutorialDisabled && <Tutorial />}
+      <WalkthroughContainer />
     </header>
   )
 })

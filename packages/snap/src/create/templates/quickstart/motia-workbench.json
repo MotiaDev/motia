@@ -1,32 +1,21 @@
 [
   {
-    "id": "hello-world-flow",
-    "config": {
-      "src/hello/log-greeting.step.js": {
-        "x": 409,
-        "y": 44
-      },
-      "src/hello/hello-api.step.ts": {
-        "x": -409,
-        "y": 0,
-        "sourceHandlePosition": "right"
-      },
-      "src/hello/process_greeting_step.py": {
-        "x": 0,
-        "y": 34,
-        "sourceHandlePosition": "right"
-      }
-    }
-  },
-  {
     "id": "hello",
     "config": {
       "src/typescript.step.ts": {
-        "x": 351,
-        "y": -74
+        "x": 352,
+        "y": 80
       },
       "src/start.step.ts": {
-        "x": -145,
+        "x": -69,
+        "y": 19
+      },
+      "src/javascript.step.js": {
+        "x": 350,
+        "y": 223
+      },
+      "src/python_step.py": {
+        "x": 350,
         "y": -66
       }
     }

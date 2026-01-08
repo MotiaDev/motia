@@ -1,0 +1,43 @@
+// This is an example of a TypeScript step.
+
+// 1. Every step is composed of a config, and a handler function.
+import type { Handlers } from '@motiadev/core'
+import type { EventConfig } from 'motia'
+import * as z from 'zod'
+
+// 2. This is a config object, every Step has one.
+//    Configs tell Motia how a Step is triggered,
+//    what events it emits, and what flows it's part of
+//
+//    There are many configuration options available:
+//
+//    ApiRouteConfig = Create routes that trigger your step
+//    EventConfig = Have specific events trigger your step
+//    CronConfig = Have specific times trigger your step
+export const config: EventConfig = {
+  // 3. While configs vary a little bit each one has a type,
+  // a name, a
+  type: 'event',
+  name: 'HelloFromTypeScript',
+  // 4. When a 'hello' event occurs the handler defined below will run.
+  subscribes: ['hello'],
+  input: z.object({ extra: z.string() }),
+  emits: ['hello.response.typescript'],
+
+  // 4. These fields are optional but the flow field is very useful
+  // for visual organization inside this Workbench.
+  // If you have a series of Steps that all complete one big task or workflow
+  // then adding them to the same flow makes visualizing them in Workbench easier.
+  description: 'Says hello in the logs',
+  flows: ['hello'],
+  virtualEmits: [],
+  virtualSubscribes: [],
+}
+
+// 5. This is a handler, it's the code that will run when the conditions
+// defined in the config are met. Every handler gets a payload and
+// a context that contains useful functions to emit events, create logs,
+// modify state, and other useful things.
+export const handler: Handlers['HelloFromTypeScript'] = async (payload, { emit, logger, state }) => {
+  logger.info('Hello from TypeScript!')
+}
