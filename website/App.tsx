@@ -7,6 +7,9 @@ import { ProtocolModal } from './components/ProtocolModal';
 import { ManifestoModal } from './components/ManifestoModal';
 import { FeatureBento } from './components/FeatureBento';
 import { StackVisual } from './components/StackVisual';
+import { CodeComparison } from './components/CodeComparison';
+import { TechLogos } from './components/TechLogos';
+import { Features } from './components/Features';
 // FractureAnimation removed - using StackVisual only
 import { ModeToggle } from './components/ModeToggle';
 import { MachineView } from './components/MachineView';
@@ -325,7 +328,7 @@ const App: React.FC = () => {
 
             <div className="hidden sm:flex items-center gap-3 py-2">
               <VisualArrow isDarkMode={isDarkMode} />
-              <span className="text-[10px] md:text-xs text-iii-medium tracking-widest uppercase">Innovate &gt; Implement &gt; Iterate</span>
+              <span className="text-[10px] md:text-xs text-iii-medium tracking-widest uppercase">infrastructure → implementation → invocation</span>
             </div>
 
             <div className="flex flex-col gap-4 md:gap-6 md:flex-row items-stretch md:items-center pt-2 md:pt-4 w-full">
@@ -382,7 +385,16 @@ const App: React.FC = () => {
 
         <FeatureBento isDarkMode={isDarkMode} />
 
-        {/* Side by side on large screens */}
+        {/* Tech Logos - "iii runs everywhere" */}
+        <TechLogos isDarkMode={isDarkMode} />
+
+        {/* Code Comparison - Before/After */}
+        <CodeComparison isDarkMode={isDarkMode} />
+
+        {/* Features Section with Checklists */}
+        <Features isDarkMode={isDarkMode} />
+
+        {/* Stack Visual */}
         <div className="w-full max-w-7xl mx-auto px-4 lg:px-8">
           <StackVisual isDarkMode={isDarkMode} />
         </div>
