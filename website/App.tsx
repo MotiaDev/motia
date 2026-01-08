@@ -528,8 +528,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <FeatureBento isDarkMode={isDarkMode} />
-
         {/* Tech Logos - "iii runs everywhere" */}
         <TechLogos isDarkMode={isDarkMode} />
 
