@@ -367,6 +367,7 @@ jobs:
         with:
           token: ${{ steps.generate_token.outputs.token }}
           ref: main
+          fetch-depth: 0
 
       - name: Setup
         uses: ./.github/actions/setup
