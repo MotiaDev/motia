@@ -27,11 +27,6 @@ on:
         description: 'Custom version (optional, overrides version_type)'
         required: false
         type: string
-      dry_run:
-        description: 'Dry run - show what would be tagged without creating'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -60,144 +55,96 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.generate_token.outputs.token }}
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
       - name: Setup Git
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Get latest tag
-        id: latest_tag
+      - name: Create .npmrc
         run: |
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag: $latest_tag"
-          echo "tag=$latest_tag" >> $GITHUB_OUTPUT
+          echo "tag-version-prefix=v" > .npmrc
 
-      - name: Calculate new version
-        id: new_version
+      - name: Get current version
+        id: current_version
         run: |
-          latest_tag="${{ steps.latest_tag.outputs.tag }}"
+          current_version=$(node -p "require('./packages/motia/package.json').version")
+          echo "Current version: v$current_version"
+          echo "version=v$current_version" >> $GITHUB_OUTPUT
+
+      - name: Build and execute version command
+        id: version_command
+        run: |
+          version_type="${{ github.event.inputs.version_type }}"
+          preid="${{ github.event.inputs.prerelease_identifier }}"
+          custom="${{ github.event.inputs.custom_version }}"
           
-          if [[ "${{ github.event.inputs.custom_version }}" != "" ]]; then
-            new_version="${{ github.event.inputs.custom_version }}"
-            if [[ ! $new_version =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
+          cmd="pnpm version"
+          
+          if [[ -n "$custom" ]]; then
+            if [[ ! $custom =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
               echo "❌ Invalid version format. Use semantic versioning (e.g., 1.2.3, v1.2.3, 1.2.3-beta.1)"
               exit 1
             fi
-            if [[ ! $new_version =~ ^v ]]; then
-              new_version="v$new_version"
-            fi
+            custom_clean=$(echo "$custom" | sed 's/^v//')
+            cmd="$cmd $custom_clean"
+          elif [[ "$version_type" == "prerelease-bump" ]]; then
+            cmd="$cmd prerelease"
+          elif [[ "$version_type" == "prerelease" ]]; then
+            cmd="$cmd prepatch"
           else
-            version_type="${{ github.event.inputs.version_type }}"
-            prerelease_id="${{ github.event.inputs.prerelease_identifier }}"
-            
-            version_number=$(echo $latest_tag | sed 's/^v//')
-            
-            if [[ $version_number =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-([a-zA-Z0-9]+)\.?([0-9]+)?)?$ ]]; then
-              major=${BASH_REMATCH[1]:-0}
-              minor=${BASH_REMATCH[2]:-0}
-              patch=${BASH_REMATCH[3]:-0}
-              prerelease_part=${BASH_REMATCH[5]:-}
-              prerelease_num=${BASH_REMATCH[6]:-0}
-            else
-              major=0
-              minor=0
-              patch=0
-              prerelease_part=""
-              prerelease_num=0
-            fi
-            
-            case $version_type in
-              major)
-                major=$((major + 1))
-                minor=0
-                patch=0
-                new_version="v${major}.${minor}.${patch}"
-                ;;
-              minor)
-                minor=$((minor + 1))
-                patch=0
-                new_version="v${major}.${minor}.${patch}"
-                ;;
-              patch)
-                patch=$((patch + 1))
-                new_version="v${major}.${minor}.${patch}"
-                ;;
-              prerelease)
-                if [[ -n "$prerelease_part" ]]; then
-                  new_version="v${major}.${minor}.${patch}-${prerelease_id}.1"
-                else
-                  patch=$((patch + 1))
-                  new_version="v${major}.${minor}.${patch}-${prerelease_id}.1"
-                fi
-                ;;
-              prerelease-bump)
-                if [[ -n "$prerelease_part" ]]; then
-                  prerelease_num=$((prerelease_num + 1))
-                  new_version="v${major}.${minor}.${patch}-${prerelease_part}.${prerelease_num}"
-                else
-                  echo "❌ Cannot bump pre-release on a stable version. Use 'prerelease' type instead."
-                  exit 1
-                fi
-                ;;
-            esac
+            cmd="$cmd $version_type"
           fi
           
-          echo "New version: $new_version"
-          echo "version=$new_version" >> $GITHUB_OUTPUT
-
-      - name: Check if tag exists
-        id: check_tag
-        run: |
-          new_version="${{ steps.new_version.outputs.version }}"
-          if git rev-parse "$new_version" >/dev/null 2>&1; then
-            echo "❌ Tag $new_version already exists!"
-            echo "exists=true" >> $GITHUB_OUTPUT
-            exit 1
-          else
-            echo "✅ Tag $new_version is available"
-            echo "exists=false" >> $GITHUB_OUTPUT
+          cmd="$cmd --workspace=@iii-dev/motia"
+          
+          if [[ "$version_type" == "prerelease" || "$version_type" == "prerelease-bump" ]]; then
+            cmd="$cmd --preid $preid"
           fi
+          
+          cmd="$cmd --message 'Release v%s'"
+          
+          echo "Executing: $cmd"
+          eval $cmd
+          
+          new_version=$(node -p "require('./packages/motia/package.json').version")
+          echo "New version: v$new_version"
+          echo "version=v$new_version" >> $GITHUB_OUTPUT
 
-      - name: Show tag information
+      - name: Show version information
         run: |
-          echo "### Tag Information" >> $GITHUB_STEP_SUMMARY
-          echo "- **Current latest tag:** ${{ steps.latest_tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **New tag:** ${{ steps.new_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Version Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Current version:** ${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New version:** ${{ steps.version_command.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Version type:** ${{ github.event.inputs.version_type }}" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event.inputs.version_type }}" == "prerelease" ]]; then
+          if [[ "${{ github.event.inputs.version_type }}" =~ "prerelease" ]]; then
             echo "- **Pre-release identifier:** ${{ github.event.inputs.prerelease_identifier }}" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "- **Dry run:** ${{ github.event.inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
 
-      - name: Create tag (dry run)
-        if: ${{ github.event.inputs.dry_run == 'true' }}
+      - name: Push commit and tag
         run: |
-          echo "🔍 DRY RUN MODE - No tag will be created"
-          echo "Would create tag: ${{ steps.new_version.outputs.version }}"
-          echo "On commit: ${{ github.sha }}"
-          echo "### 🔍 Dry Run Results" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Tag ${{ steps.new_version.outputs.version }} would be created successfully" >> $GITHUB_STEP_SUMMARY
-
-      - name: Create and push tag
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: |
-          new_version="${{ steps.new_version.outputs.version }}"
-          echo "🏷️ Creating tag: $new_version"
+          new_version="${{ steps.version_command.outputs.version }}"
+          echo "🏷️ Pushing commit and tag: $new_version"
           
-          git tag -a "$new_version" -m "Release $new_version"
-          git push origin "$new_version"
+          git push --follow-tags
           
-          echo "✅ Tag $new_version created and pushed successfully!"
-          echo "### ✅ Tag Created Successfully" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag:** $new_version" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          commit_sha=$(git rev-parse HEAD)
+          echo "✅ Version $new_version created and pushed successfully!"
+          echo "### ✅ Version Created Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** $new_version" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** $commit_sha" >> $GITHUB_STEP_SUMMARY
           echo "- **View tag:** https://github.com/${{ github.repository }}/releases/tag/$new_version" >> $GITHUB_STEP_SUMMARY
+          
+          echo "commit=$commit_sha" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
 
       - name: Set outputs
         id: outputs
         run: |
-          echo "tag=${{ steps.new_version.outputs.version }}" >> $GITHUB_OUTPUT
-          echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT 
+          echo "tag=${{ steps.version_command.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT 

@@ -30,6 +30,8 @@ jobs:
           fetch-depth: 0
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
 
       - name: Run linter
         run: pnpm lint:ci

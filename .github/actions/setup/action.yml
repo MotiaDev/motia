@@ -1,20 +1,26 @@
 name: 'Setup'
 
+inputs:
+  npm-token:
+    description: 'NPM token for authentication'
+    required: false
+
 runs:
   using: 'composite'
   steps:
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-    - uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.3.6'
-
     - uses: pnpm/action-setup@v4
     - uses: actions/setup-node@v3
       with:
         node-version: '22.21.1'
         cache: 'pnpm'
+
+    - name: Setup NPM authentication
+      if: inputs.npm-token != ''
+      shell: bash
+      env:
+        NPM_TOKEN: ${{ inputs.npm-token }}
+      run: |
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
     - name: Install dependencies
       shell: bash
@@ -22,9 +28,5 @@ runs:
 
     - name: Build packages
       shell: bash
-      run: pnpm build
+      run: pnpm --filter=@iii-dev/motia build
 
-    # We need to run install again to set bin (from build)
-    - name: Install dependencies
-      shell: bash
-      run: pnpm install

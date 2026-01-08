@@ -44,39 +44,40 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
 
-      - name: Generate version with build number
+      - name: Setup Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Get current version
+        id: current_version
+        run: |
+          current_version=$(node -p "require('./packages/motia/package.json').version")
+          echo "Current version: $current_version"
+          echo "version=$current_version" >> $GITHUB_OUTPUT
+
+      - name: Bump version with prepatch
         id: version
         run: |
-          CURRENT_VERSION=$(node -p "require('./packages/motia/package.json').version")
-          echo "Current version: ${CURRENT_VERSION}"
+          tag="${{ github.event.inputs.tag }}"
+          
+          echo "Executing: pnpm --filter=@iii-dev/motia exec pnpm version prerelease --preid $tag --no-git-tag-version"
+          pnpm --filter=@iii-dev/motia exec pnpm version prerelease --preid $tag --no-git-tag-version
+          
+          new_version=$(node -p "require('./packages/motia/package.json').version")
+          echo "New version: $new_version"
+          echo "version=$new_version" >> $GITHUB_OUTPUT
 
-          NEW_VERSION=$(node -e "
-            const version = require('./packages/motia/package.json').version;
-            const parts = version.split('-');
-            const baseVersion = parts[0];
-            
-            if (parts.length > 1 && parts[1].startsWith('beta.')) {
-              const betaNumber = parseInt(parts[1].split('.')[1]);
-              const newBetaNumber = betaNumber + 1;
-              const timestamp = new Date().getTime().toString().slice(-6);
-              console.log(\`\${baseVersion}-beta.\${newBetaNumber}-\${timestamp}\`);
-            } else if (parts.length > 1 && parts[1].startsWith('alpha.')) {
-              const alphaNumber = parseInt(parts[1].split('.')[1]);
-              const newAlphaNumber = alphaNumber + 1;
-              console.log(\`\${baseVersion}-alpha.\${newAlphaNumber}\`);
-            } else {
-              const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-              console.log(\`\${baseVersion}-build.\${timestamp}\`);
-            }
-          ")
-
-          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
-          echo "Generated version: ${NEW_VERSION}"
-
-      - name: Set version on all packages
+      - name: Show version information
         run: |
-          pnpm -r --filter @iii-dev/motia exec pnpm version ${{ steps.version.outputs.version }} --no-git-tag-version
+          echo "### Version Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Current version:** ${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **NPM distribution tag:** ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.event.inputs.branch }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Setup NPM authentication
         env:

@@ -37,6 +37,8 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
 
       - name: Extract version from tag
         id: extract_version
@@ -105,6 +107,8 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
 
       - name: Determine NPM tag
         id: npm_tag
@@ -331,6 +335,8 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
 
       - name: Update package version
         run: |
