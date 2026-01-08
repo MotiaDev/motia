@@ -139,11 +139,9 @@ jobs:
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
 
-      - name: Publish to NPM with provenance
+      - name: Publish to NPM
         run: |
           pnpm publish -r --filter @iii-dev/motia --no-git-checks --tag ${{ steps.npm_tag.outputs.tag }} --provenance
-        env:
-          NPM_CONFIG_PROVENANCE: true
 
       - name: Publish Summary
         run: |
