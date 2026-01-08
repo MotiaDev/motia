@@ -182,42 +182,57 @@ jobs:
           echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
           echo "Previous tag: $PREVIOUS_TAG"
 
-      - name: Generate changelog
+      - name: Generate enhanced changelog
         id: changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/changelog
-          touch /tmp/changelog/{features,fixes,performance,docs,deps,refactor,tests,build,ci,chores,other}.md
+          touch /tmp/changelog/{features,fixes,performance,docs,deps,refactor,tests,build,ci,chores,reverts,other}.md
 
-          git log ${{ steps.previous_tag.outputs.tag }}..${{ needs.ci-checks.outputs.tag_name }} --pretty=format:"%s|%h|%an" --no-merges | while IFS='|' read -r subject hash author; do
+          get_github_username() {
+            local commit_hash=$1
+            local username=$(gh api repos/${{ github.repository }}/commits/${commit_hash} --jq '.author.login // .commit.author.name' 2>/dev/null)
+            if [ -z "$username" ] || [ "$username" = "null" ]; then
+              username=$(git show -s --format='%an' ${commit_hash})
+            fi
+            echo "$username"
+          }
+
+          git log ${{ steps.previous_tag.outputs.tag }}..${{ needs.ci-checks.outputs.tag_name }} --pretty=format:"%s|%h" --no-merges | while IFS='|' read -r subject hash; do
+            author=$(get_github_username "$hash")
+            
             if [[ $subject =~ ^(feat|feature)(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/features.md
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/features.md
             elif [[ $subject =~ ^(fix|bugfix)(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/fixes.md
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/fixes.md
             elif [[ $subject =~ ^perf(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/performance.md
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/performance.md
             elif [[ $subject =~ ^docs(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/docs.md
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/docs.md
             elif [[ $subject =~ ^(deps|dependencies)(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/deps.md
+              echo "- ${BASH_REMATCH[3]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/deps.md
             elif [[ $subject =~ ^refactor(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/refactor.md
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/refactor.md
             elif [[ $subject =~ ^test(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/tests.md
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/tests.md
             elif [[ $subject =~ ^build(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/build.md
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/build.md
             elif [[ $subject =~ ^ci(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/ci.md
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/ci.md
             elif [[ $subject =~ ^chore(\(.+\))?!?:(.+) ]]; then
-              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/chores.md
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/chores.md
+            elif [[ $subject =~ ^revert(\(.+\))?!?:(.+) ]]; then
+              echo "- ${BASH_REMATCH[2]} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/reverts.md
             else
-              echo "- ${subject} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash}))" >> /tmp/changelog/other.md
+              echo "- ${subject} ([${hash}](https://github.com/${{ github.repository }}/commit/${hash})) by @${author}" >> /tmp/changelog/other.md
             fi
           done
 
-          cat > release_notes.md << 'EOF'
-          ## What's Changed
+          cat > release_notes.md << 'CHANGELOG_EOF'
+          ## 🚀 What's New in @iii-dev/motia ${{ needs.ci-checks.outputs.version }}
 
-          EOF
+          CHANGELOG_EOF
 
           if [ -s /tmp/changelog/features.md ]; then
             echo -e "\n### ✨ New Features" >> release_notes.md
@@ -235,12 +250,12 @@ jobs:
           fi
 
           if [ -s /tmp/changelog/docs.md ]; then
-            echo -e "\n### 📝 Documentation" >> release_notes.md
+            echo -e "\n### 📝 Documentation Updates" >> release_notes.md
             cat /tmp/changelog/docs.md >> release_notes.md
           fi
 
           if [ -s /tmp/changelog/deps.md ]; then
-            echo -e "\n### 📦 Dependencies" >> release_notes.md
+            echo -e "\n### 📦 Dependency Updates" >> release_notes.md
             cat /tmp/changelog/deps.md >> release_notes.md
           fi
 
@@ -260,7 +275,7 @@ jobs:
           fi
 
           if [ -s /tmp/changelog/ci.md ]; then
-            echo -e "\n### 👷 CI/CD" >> release_notes.md
+            echo -e "\n### 👷 CI/CD Improvements" >> release_notes.md
             cat /tmp/changelog/ci.md >> release_notes.md
           fi
 
@@ -269,21 +284,42 @@ jobs:
             cat /tmp/changelog/chores.md >> release_notes.md
           fi
 
+          if [ -s /tmp/changelog/reverts.md ]; then
+            echo -e "\n### ⏪ Reverts" >> release_notes.md
+            cat /tmp/changelog/reverts.md >> release_notes.md
+          fi
+
           if [ -s /tmp/changelog/other.md ]; then
             echo -e "\n### 🔧 Other Changes" >> release_notes.md
             cat /tmp/changelog/other.md >> release_notes.md
           fi
 
-          cat >> release_notes.md << 'FOOTER'
+          cat >> release_notes.md << 'FOOTER_EOF'
 
-          ## 📦 Installation
+          ## 🚀 Installation & Upgrade
 
+          ### NPM
           ```bash
           npm install @iii-dev/motia@${{ needs.ci-checks.outputs.version }}
           ```
 
+          ### Yarn
+          ```bash
+          yarn add @iii-dev/motia@${{ needs.ci-checks.outputs.version }}
+          ```
+
+          ### PNPM
+          ```bash
+          pnpm add @iii-dev/motia@${{ needs.ci-checks.outputs.version }}
+          ```
+
+          ## 🔗 Links
+          - 📖 [Documentation](https://motia.dev)
+          - 💬 [Community Discussions](https://github.com/${{ github.repository }}/discussions)
+          - 🐛 [Report Issues](https://github.com/${{ github.repository }}/issues)
+
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.previous_tag.outputs.tag }}...${{ needs.ci-checks.outputs.tag_name }}
-          FOOTER
+          FOOTER_EOF
 
           rm -rf /tmp/changelog
 
