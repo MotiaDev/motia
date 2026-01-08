@@ -80,7 +80,9 @@ jobs:
           preid="${{ github.event.inputs.prerelease_identifier }}"
           custom="${{ github.event.inputs.custom_version }}"
           
-          cmd="pnpm --filter=@iii-dev/motia exec pnpm version"
+          cd packages/motia
+          
+          cmd="pnpm version"
           
           if [[ -n "$custom" ]]; then
             if [[ ! $custom =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
@@ -101,12 +103,12 @@ jobs:
             cmd="$cmd --preid $preid"
           fi
           
-          cmd="$cmd --message 'Release v%s'"
+          cmd="$cmd --message 'chore(release): v%s' --tag-version-prefix=v"
           
           echo "Executing: $cmd"
           eval $cmd
           
-          new_version=$(node -p "require('./packages/motia/package.json').version")
+          new_version=$(node -p "require('./package.json').version")
           echo "New version: v$new_version"
           echo "version=v$new_version" >> $GITHUB_OUTPUT
 
@@ -125,7 +127,8 @@ jobs:
           new_version="${{ steps.version_command.outputs.version }}"
           echo "🏷️ Pushing commit and tag: $new_version"
           
-          git push --follow-tags
+          git push origin HEAD:main
+          git push origin "$new_version"
           
           commit_sha=$(git rev-parse HEAD)
           echo "✅ Version $new_version created and pushed successfully!"
