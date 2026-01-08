@@ -127,8 +127,7 @@ jobs:
           new_version="${{ steps.version_command.outputs.version }}"
           echo "🏷️ Pushing commit and tag: $new_version"
           
-          git push origin HEAD:main
-          git push origin "$new_version"
+          git push origin HEAD:main --follow-tags
           
           commit_sha=$(git rev-parse HEAD)
           echo "✅ Version $new_version created and pushed successfully!"
