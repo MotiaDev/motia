@@ -128,9 +128,10 @@ jobs:
           echo "tag=$NPM_TAG" >> $GITHUB_OUTPUT
           echo "📌 NPM dist-tag: $NPM_TAG"
 
-      - name: Set version on package
+      - name: Set version from git tag
         run: |
-          pnpm -r --filter @iii-dev/motia exec pnpm version ${{ needs.ci-checks.outputs.version }} --no-git-tag-version
+          cd packages/motia
+          pnpm version from-git --no-git-tag-version
 
       - name: Setup NPM authentication
         env:
@@ -338,9 +339,11 @@ jobs:
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
 
-      - name: Update package version
+      - name: Update package versions from git tag
         run: |
-          pnpm -r --filter @iii-dev/motia exec pnpm version ${{ needs.ci-checks.outputs.version }} --no-git-tag-version
+          pnpm version from-git --no-git-tag-version
+          cd packages/motia
+          pnpm version from-git --no-git-tag-version
 
       - name: Commit version changes
         run: |

@@ -55,20 +55,27 @@ jobs:
       - name: Get current version
         id: current_version
         run: |
-          current_version=$(node -p "require('./packages/motia/package.json').version")
+          current_version=$(node -p "require('./package.json').version")
           echo "Current version: $current_version"
           echo "version=$current_version" >> $GITHUB_OUTPUT
 
-      - name: Bump version with prepatch
+      - name: Bump version with timestamp
         id: version
         run: |
           tag="${{ github.event.inputs.tag }}"
+          current_version=$(node -p "require('./package.json').version")
           
-          echo "Executing: pnpm --filter=@iii-dev/motia exec pnpm version prerelease --preid $tag --no-git-tag-version"
-          pnpm --filter=@iii-dev/motia exec pnpm version prerelease --preid $tag --no-git-tag-version
+          base_version=$(echo $current_version | cut -d'-' -f1)
           
-          new_version=$(node -p "require('./packages/motia/package.json').version")
-          echo "New version: $new_version"
+          IFS='.' read -r major minor patch <<< "$base_version"
+          next_patch=$((patch + 1))
+          
+          timestamp=$(date +%Y%m%d%H%M%S)
+          new_version="${major}.${minor}.${next_patch}-${tag}.${timestamp}"
+          
+          echo "Setting version to: $new_version"
+          pnpm version $new_version --no-git-tag-version
+          
           echo "version=$new_version" >> $GITHUB_OUTPUT
 
       - name: Show version information

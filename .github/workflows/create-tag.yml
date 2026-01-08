@@ -69,12 +69,14 @@ jobs:
       - name: Get current version
         id: current_version
         run: |
-          current_version=$(node -p "require('./packages/motia/package.json').version")
+          current_version=$(node -p "require('./package.json').version")
           echo "Current version: v$current_version"
           echo "version=v$current_version" >> $GITHUB_OUTPUT
 
       - name: Build and execute version command
         id: version_command
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           version_type="${{ github.event.inputs.version_type }}"
           preid="${{ github.event.inputs.prerelease_identifier }}"
@@ -101,24 +103,23 @@ jobs:
             cmd="$cmd --preid $preid"
           fi
           
-          cmd="$cmd --no-git-tag-version"
-          
-          echo "Updating root package.json"
+          echo "Executing: $cmd"
           eval $cmd
-          
-          echo "Updating packages/motia/package.json"
-          cd packages/motia
-          eval $cmd
-          cd ../..
           
           new_version=$(node -p "require('./package.json').version")
           echo "New version: v$new_version"
           
-          git add package.json packages/motia/package.json
-          git commit -m "chore(release): v$new_version"
-          git tag -a "v$new_version" -m "Release v$new_version"
-          
+          git push origin main --follow-tags
+          commit_sha=$(git rev-parse HEAD)
           echo "version=v$new_version" >> $GITHUB_OUTPUT
+          echo "✅ Version $new_version created and pushed successfully!"
+          echo "### ✅ Version Created Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** $new_version" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** $commit_sha" >> $GITHUB_STEP_SUMMARY
+          echo "- **View tag:** https://github.com/${{ github.repository }}/releases/tag/$new_version" >> $GITHUB_STEP_SUMMARY
+          
+          echo "commit=$commit_sha" >> $GITHUB_OUTPUT
+
 
       - name: Show version information
         run: |
@@ -129,24 +130,6 @@ jobs:
           if [[ "${{ github.event.inputs.version_type }}" =~ "prerelease" ]]; then
             echo "- **Pre-release identifier:** ${{ github.event.inputs.prerelease_identifier }}" >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Push commit and tag
-        run: |
-          new_version="${{ steps.version_command.outputs.version }}"
-          echo "🏷️ Pushing commit and tag: $new_version"
-          
-          git push origin HEAD:main --follow-tags
-          
-          commit_sha=$(git rev-parse HEAD)
-          echo "✅ Version $new_version created and pushed successfully!"
-          echo "### ✅ Version Created Successfully" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** $new_version" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** $commit_sha" >> $GITHUB_STEP_SUMMARY
-          echo "- **View tag:** https://github.com/${{ github.repository }}/releases/tag/$new_version" >> $GITHUB_STEP_SUMMARY
-          
-          echo "commit=$commit_sha" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
 
       - name: Set outputs
         id: outputs
