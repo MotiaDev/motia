@@ -78,29 +78,38 @@ export const Features: React.FC<FeaturesProps> = ({ isDarkMode = true }) => {
         ))}
       </div>
 
-      {/* Checklist */}
+      {/* Checklist - Replaced with "Terminal Log" for uniqueness */}
       <div className="mt-16 max-w-2xl mx-auto">
         <h3 className={`text-center text-lg font-semibold mb-6 ${textPrimary}`}>
-          What iii Eliminates
+          System Optimization Log
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            'Service mesh configuration',
-            'Connection pool management',
-            'Manual service discovery',
-            'Separate queue consumers',
-            'Complex YAML orchestration',
-            'Scattered logging setup',
-          ].map((item, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                isDarkMode ? 'bg-iii-accent/20' : 'bg-iii-accent-light/20'
-              }`}>
-                <Check className={`w-3 h-3 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`} />
+        <div className={`p-6 rounded-xl border font-mono text-xs md:text-sm ${isDarkMode ? 'bg-black border-iii-dark' : 'bg-white border-iii-medium/30'}`}>
+          <div className="flex flex-col gap-3">
+            {[
+              'Service mesh configuration',
+              'Connection pool management',
+              'Manual service discovery',
+              'Separate queue consumers',
+              'Complex YAML orchestration',
+              'Scattered logging setup',
+            ].map((item, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <span className="text-red-500 font-bold">[-]</span>
+                <span className={`${isDarkMode ? 'text-iii-medium' : 'text-iii-medium'} line-through opacity-70`}>
+                  Removing {item.toLowerCase()}...
+                </span>
+                <span className={`ml-auto ${isDarkMode ? 'text-iii-dark' : 'text-iii-medium/30'}`}>DONE</span>
               </div>
-              <span className={`text-sm ${textSecondary}`}>{item}</span>
+            ))}
+            <div className="h-px bg-iii-dark/50 my-2" />
+            <div className="flex items-center gap-3">
+              <span className={isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}>[+]</span>
+              <span className={textPrimary}>
+                Installing iii kernel...
+              </span>
+              <span className={`ml-auto font-bold ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>ONLINE</span>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </section>

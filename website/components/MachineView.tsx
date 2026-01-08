@@ -56,7 +56,7 @@ export const MachineView: React.FC<MachineViewProps> = ({
 
 The universal execution kernel for distributed systems.
 
-No service mesh. No load balancers. Workers self-assemble via config.yaml. Functions call remote GPUs like local imports. The entire control plane in a single daemon.`}</pre>
+No service mesh. No load balancers. Workers self-assemble via Bridge SDK. Functions call remote GPUs like local imports. The entire control plane in a single daemon configured by one YAML file.`}</pre>
 
         {/* Install */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Installation (Prebuilt Binary)
@@ -137,13 +137,13 @@ Built with Rust for speed and memory efficiency.`}</pre>
 
 | Language   | Package      | Install Command          |
 |------------|--------------|--------------------------|
-| JavaScript | @iii-dev/sdk | npm install @iii-dev/sdk |`}</pre>
+| JavaScript | @iii/sdk     | npm install @iii/sdk     |`}</pre>
 
         {/* Usage Example */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Usage Example
 
 \`\`\`typescript
-import { Bridge } from '@iii-dev/sdk';
+import { Bridge } from '@iii/sdk';
 
 const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
 
@@ -243,7 +243,7 @@ modules:
 
 ### Bridge SDK Methods
 \`\`\`typescript
-import { Bridge } from '@iii-dev/sdk';
+import { Bridge } from '@iii/sdk';
 const bridge = new Bridge('ws://localhost:49134');
 
 // Register function
@@ -279,7 +279,7 @@ bridge.invokeFunctionAsync(functionPath, data);
 
 [Documentation](https://iii-docs.vercel.app)
 [GitHub Repository](https://github.com/MotiaDev/iii-engine)
-[npm Package](https://npmjs.com/package/@iii-dev/sdk)
+[npm Package](https://npmjs.com/package/@iii/sdk)
 [Discord Community](https://discord.gg/iii)`}</pre>
 
         {/* Footer */}

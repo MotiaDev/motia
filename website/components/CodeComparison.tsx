@@ -350,114 +350,61 @@ export const CodeComparison: React.FC<CodeComparisonProps> = ({ isDarkMode = tru
         {content.text}
       </p>
 
-      {/* Complexity Graph + Feature Checkboxes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-8 gap-x-12 items-end mb-12">
-        {/* Complexity Graph */}
-        <div className="relative text-sm max-w-lg mx-auto lg:mx-0">
-          <svg viewBox="0 0 400 150" className="w-full" fill="none">
-            {/* Baseline */}
-            <rect x="0" y="130" width="400" height="1" fill="url(#baseline)" />
-            
-            {/* Without iii line (red, grows exponentially) */}
-            <path
-              d={`M 0 120 Q ${100 * ((currentIndex + 1) / content.features.length)} ${120 - (currentIndex + 1) * 25} ${400 * ((currentIndex + 1) / content.features.length)} ${Math.max(10, 120 - (currentIndex + 1) * 30)}`}
-              stroke="#f87171"
-              strokeWidth="2"
-              fill="none"
-              style={{
-                transition: 'all 0.5s ease-out',
-              }}
-            />
-            
-            {/* With iii line (yellow accent, stays flat) */}
-            <path
-              d={`M 0 115 L ${400 * ((currentIndex + 1) / content.features.length)} ${115 - (currentIndex + 1) * 3}`}
-              stroke={isDarkMode ? '#F3F724' : '#2563eb'}
-              strokeWidth="2"
-              fill="none"
-              style={{
-                transition: 'all 0.5s ease-out',
-              }}
-            />
-            
-            <defs>
-              <linearGradient id="baseline" x1="0" y1="0" x2="400" y2="0">
-                <stop offset="0%" stopColor={isDarkMode ? '#27272a' : '#e4e4e7'} />
-                <stop offset="50%" stopColor={isDarkMode ? '#71717a' : '#a1a1aa'} />
-                <stop offset="100%" stopColor={isDarkMode ? '#27272a' : '#e4e4e7'} />
-              </linearGradient>
-            </defs>
-          </svg>
-          
-          {/* Labels */}
-          <div className={`absolute left-0 top-0 text-xs ${textSecondary}`}>
-            <span className="flex items-center gap-1">
-              <span>Complexity</span>
-              <ArrowUpRight className="w-3 h-3" />
-            </span>
-            <span className="text-[10px]">(Lower is better)</span>
-            <div className="mt-2 space-y-1">
-              <span className="flex gap-1.5 items-center">
-                <span className="text-red-400">—</span>
-                <span>Without iii</span>
-              </span>
-              <span className="flex gap-1.5 items-center">
-                <span className={isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}>—</span>
-                <span>With iii</span>
-              </span>
-            </div>
+      {/* Impact Metrics - Replacing the Complexity Graph to be unique */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-12 gap-x-12 items-start mb-12">
+        {/* Metric Cards */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className={`p-6 rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
+            <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>90%</div>
+            <div className={`text-sm ${textSecondary}`}>Less Boilerplate</div>
           </div>
-          
-          <div className={`absolute right-0 bottom-2 flex items-center gap-1 text-xs ${textSecondary}`}>
-            <span>Features</span>
-            <ArrowRight className="w-3 h-3" />
+          <div className={`p-6 rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
+            <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>1</div>
+            <div className={`text-sm ${textSecondary}`}>Binary to Deploy</div>
+          </div>
+          <div className={`p-6 rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
+            <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>1</div>
+            <div className={`text-sm ${textSecondary}`}>Central Config</div>
+          </div>
+          <div className={`p-6 rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
+            <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>&lt;1ms</div>
+            <div className={`text-sm ${textSecondary}`}>Added Latency</div>
           </div>
         </div>
 
-        {/* Feature Checkboxes */}
+        {/* Feature Selectors */}
         <div className="lg:pr-8">
-          <ul className="space-y-1">
+          <ul className="space-y-3">
             {content.features.map((feature, index) => (
               <li key={index}>
-                {index > 0 && (
-                  <ArrowDown className={`w-3 h-3 ml-2 my-1 ${isDarkMode ? 'text-zinc-600' : 'text-zinc-400'}`} />
-                )}
                 <button
                   onClick={() => setCurrentIndex(index)}
-                  className={`flex gap-4 items-start text-left relative group w-full p-2 rounded-lg transition-all ${
-                    currentIndex >= index 
-                      ? (isDarkMode ? 'bg-zinc-800/50' : 'bg-zinc-100') 
-                      : ''
+                  className={`flex gap-4 items-center text-left relative group w-full p-4 rounded-lg border transition-all duration-300 ${
+                    currentIndex === index 
+                      ? `${borderColor} ${isDarkMode ? 'bg-iii-medium/10' : 'bg-iii-medium/5'}` 
+                      : `border-transparent ${isDarkMode ? 'hover:bg-iii-medium/5' : 'hover:bg-iii-medium/5'}`
                   }`}
                 >
-                  {/* Ping animation for next item */}
-                  {isInView && currentIndex + 1 === index && (
-                    <div
-                      className="absolute left-1 top-1 w-8 h-8 rounded-xl animate-ping opacity-30"
-                      style={{ backgroundColor: feature.color }}
-                    />
-                  )}
-                  
-                  {/* Checkbox */}
-                  <div className={`relative w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
-                    currentIndex >= index
-                      ? 'bg-white border-white'
-                      : (isDarkMode ? 'border-zinc-600 bg-zinc-900' : 'border-zinc-300 bg-white')
-                  }`}>
-                    {currentIndex >= index && (
-                      <Check className="w-3.5 h-3.5 text-black" />
-                    )}
-                  </div>
+                  {/* Status Light */}
+                  <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    currentIndex === index
+                      ? (isDarkMode ? 'bg-iii-accent shadow-[0_0_8px_rgba(243,247,36,0.6)]' : 'bg-iii-accent-light shadow-[0_0_8px_rgba(37,99,235,0.6)]')
+                      : 'bg-iii-medium/30'
+                  }`} />
                   
                   {/* Text */}
-                  <div>
-                    <div className={`font-medium ${currentIndex >= index ? textPrimary : textSecondary}`}>
-                      {feature.name}
+                  <div className="flex-1">
+                    <div className={`font-mono text-sm tracking-tight mb-1 ${currentIndex === index ? textPrimary : textSecondary}`}>
+                      {feature.name.toUpperCase()}
                     </div>
-                    <div className={`text-xs ${textSecondary}`}>
+                    <div className={`text-xs ${textSecondary} line-clamp-1`}>
                       {feature.description}
                     </div>
                   </div>
+
+                  {currentIndex === index && (
+                    <ArrowRight className={`w-4 h-4 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`} />
+                  )}
                 </button>
               </li>
             ))}

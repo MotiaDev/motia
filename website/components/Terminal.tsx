@@ -143,7 +143,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('        ▼', 'info');
         addLog('┌─────────────────┐', 'success');
         addLog('│ WORKERS         │', 'success');
-        addLog('│ Node│Python│Go  │ ← Via Bridge', 'success');
+        addLog('│ Node│Python│Rust│ ← Via Bridge', 'success');
         addLog('└─────────────────┘', 'success');
         addLog('', 'info');
         addLog('Flow: Engine → Modules → Adapters → Workers', 'warning');
@@ -192,7 +192,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('// TypeScript Example', 'warning');
         addLog('', 'info');
-        addLog('import { Bridge } from "@iii-dev/sdk";', 'success');
+        addLog('import { Bridge } from "@iii/sdk";', 'success');
         addLog('', 'info');
         addLog('const bridge = new Bridge("ws://localhost:49134");', 'success');
         addLog('', 'info');
@@ -209,7 +209,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  config: { api_path: "/greet", http_method: "POST" }', 'success');
         addLog('});', 'success');
         addLog('', 'info');
-        addLog('Available SDKs: @iii-dev/sdk (TS), iii-py', 'warning');
+        addLog('Available SDKs: @iii/sdk (TS), iii-py', 'warning');
         break;
 
       case 'triggers':
@@ -298,7 +298,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  ┌────────────────┬────────────────────────────────────┐', 'info');
         addLog('  │ Language       │ SDK Package                        │', 'info');
         addLog('  ├────────────────┼────────────────────────────────────┤', 'info');
-        addLog('  │ TypeScript/JS  │ npm install @iii-dev/sdk           │', 'success');
+        addLog('  │ TypeScript/JS  │ npm install @iii/sdk           │', 'success');
         addLog('  │ Python         │ pip install iii-py                 │', 'success');
         addLog('  │ Go             │ Coming Soon                        │', 'warning');
         addLog('  │ Rust           │ cargo add iii-rs                   │', 'success');

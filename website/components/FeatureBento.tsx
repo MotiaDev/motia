@@ -108,7 +108,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
             </p>
             <div className="mt-2 md:mt-4 flex flex-wrap gap-1.5 md:gap-2">
             {[
-              { name: '@iii-dev/sdk', available: true },
+              { name: '@iii/sdk', available: true },
               { name: 'iii-py', available: true },
               { name: 'iii-go', available: false }
             ].map(({ name, available }) => (
