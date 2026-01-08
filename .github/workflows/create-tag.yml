@@ -80,8 +80,6 @@ jobs:
           preid="${{ github.event.inputs.prerelease_identifier }}"
           custom="${{ github.event.inputs.custom_version }}"
           
-          cd packages/motia
-          
           cmd="pnpm version"
           
           if [[ -n "$custom" ]]; then
@@ -103,13 +101,23 @@ jobs:
             cmd="$cmd --preid $preid"
           fi
           
-          cmd="$cmd --message 'chore(release): v%s' --tag-version-prefix=v"
+          cmd="$cmd --no-git-tag-version"
           
-          echo "Executing: $cmd"
+          echo "Updating root package.json"
           eval $cmd
+          
+          echo "Updating packages/motia/package.json"
+          cd packages/motia
+          eval $cmd
+          cd ../..
           
           new_version=$(node -p "require('./package.json').version")
           echo "New version: v$new_version"
+          
+          git add package.json packages/motia/package.json
+          git commit -m "chore(release): v$new_version"
+          git tag -a "v$new_version" -m "Release v$new_version"
+          
           echo "version=v$new_version" >> $GITHUB_OUTPUT
 
       - name: Show version information
