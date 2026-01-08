@@ -17,7 +17,6 @@ on:
       prerelease_identifier:
         description: 'Pre-release identifier (alpha, beta, rc) - only used with prerelease type'
         required: false
-        default: 'beta'
         type: choice
         options:
           - alpha
@@ -57,8 +56,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.19.0
 
       - name: Setup Git
         run: |
@@ -102,7 +99,7 @@ jobs:
           
           cmd="$cmd --workspace=@iii-dev/motia"
           
-          if [[ "$version_type" == "prerelease" || "$version_type" == "prerelease-bump" ]]; then
+          if [[ "$version_type" == "prerelease" || "$version_type" == "prerelease-bump" ]] && [[ -n "$preid" ]]; then
             cmd="$cmd --preid $preid"
           fi
           
