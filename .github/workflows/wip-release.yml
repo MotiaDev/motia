@@ -86,6 +86,12 @@ jobs:
           echo "- **NPM distribution tag:** ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** ${{ github.event.inputs.branch }}" >> $GITHUB_STEP_SUMMARY
 
+      - name: Sync version to motia package
+        run: |
+          new_version=$(node -p "require('./package.json').version")
+          cd packages/motia
+          pnpm version $new_version --no-git-tag-version
+
       - name: Setup NPM authentication
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
