@@ -6,6 +6,7 @@ import motiaLogoDark from '../../assets/motia-dark.png'
 // @ts-expect-error
 import motiaLogoLight from '../../assets/motia-light.png'
 import { useMotiaConfigStore } from '../../stores/use-motia-config-store'
+import { QuickstartPanel } from '../quickstart/quickstart-panel'
 import { Tutorial } from '../tutorial/tutorial'
 import { TutorialButton } from '../tutorial/tutorial-button'
 import { WalkthroughContainer } from '../tutorial/walkthrough-container'
@@ -35,6 +36,7 @@ export const Header: React.FC = memo(() => {
       {isDevMode && <DeployButton />}
       {!isTutorialDisabled && <Tutorial />}
       <WalkthroughContainer />
+      <QuickstartPanel />
     </header>
   )
 })

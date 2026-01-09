@@ -15,4 +15,23 @@ class QuickstartEngine {
   }
 }
 
-export const MotiaQuickstart: QuickstartEngine = new QuickstartEngine()
+// Use a global singleton to ensure dynamically loaded UI steps share the same instance
+const GLOBAL_KEY = '__MOTIA_QUICKSTART__'
+
+declare global {
+  interface Window {
+    [GLOBAL_KEY]?: QuickstartEngine
+  }
+}
+
+function getOrCreateQuickstartEngine(): QuickstartEngine {
+  if (typeof window !== 'undefined') {
+    if (!window[GLOBAL_KEY]) {
+      window[GLOBAL_KEY] = new QuickstartEngine()
+    }
+    return window[GLOBAL_KEY]
+  }
+  return new QuickstartEngine()
+}
+
+export const MotiaQuickstart: QuickstartEngine = getOrCreateQuickstartEngine()
