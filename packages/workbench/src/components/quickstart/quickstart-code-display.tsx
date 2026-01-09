@@ -171,50 +171,47 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
     })
   }, [firstActiveLineNumber])
 
+  const bgColor = isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'
+
   return (
     <div
       ref={containerRef}
-      className="flex-1 h-full overflow-y-auto overflow-x-hidden font-mono"
+      className={`flex-1 h-full overflow-y-auto overflow-x-hidden font-mono ${bgColor}`}
       style={{ fontSize: `${fontSize}px` }}
     >
-      <div className={`min-h-full ${isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'}`}>
+      <div className="min-h-full">
         {visibleLines.map((item) => {
           if ('isCollapsed' in item) {
             // Render collapsed indicator
             return (
               <div
                 key={`collapsed-${item.stepId}`}
-                className={`flex items-center gap-2 px-4 py-1 ${isDark ? 'bg-[#21252b] text-gray-500' : 'bg-gray-100 text-gray-400'} text-xs italic`}
+                className={`flex items-center gap-2 px-4 py-1 ${isDark ? 'text-gray-500' : 'text-gray-400'} text-xs italic opacity-80`}
               >
                 <span className="select-none">⋯</span>
-                {/* <span>{item.lineCount} lines collapsed</span> */}
               </div>
             )
           }
 
           const isHighlighted = item.isActiveComment || item.isActiveCode
-          const isGrayed = !isHighlighted && activeStepId !== null
+          const isInactive = !isHighlighted && activeStepId !== null
           const isFirstActiveLine = item.lineNumber === firstActiveLineNumber
 
           return (
             <div
               key={item.lineNumber}
               ref={isFirstActiveLine ? activeStepRef : undefined}
-              className={`flex transition-opacity duration-200 ${isGrayed ? 'opacity-30' : 'opacity-100'}`}
+              className={`flex transition-opacity duration-200 ${isInactive ? 'opacity-80' : 'opacity-100'}`}
             >
               {/* Line number */}
               <div
-                className={`select-none px-4 py-0.5 text-right min-w-10 shrink-0 ${isDark ? 'text-gray-500 bg-[#282c34]' : 'text-gray-400 bg-gray-50'}`}
+                className={`select-none px-4 py-0.5 text-right min-w-10 shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
                 style={{ fontSize: `${fontSize}px` }}
               >
                 {item.lineNumber}
               </div>
               {/* Code content with syntax highlighting */}
-              <div
-                className={`flex-1 min-w-0 py-0.5 ${
-                  isHighlighted ? (isDark ? 'bg-[#3e4451]' : 'bg-blue-50') : isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'
-                }`}
-              >
+              <div className="flex-1 min-w-0 py-0.5">
                 <SyntaxHighlighter
                   language={language}
                   style={syntaxTheme}
