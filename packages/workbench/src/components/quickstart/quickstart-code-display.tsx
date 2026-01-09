@@ -1,7 +1,7 @@
 import { useThemeStore } from '@motiadev/ui'
 import { type FC, useEffect, useMemo, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { TutorialStepConfig } from './quickstart-store'
 
 type QuickstartCodeDisplayProps = {
@@ -34,7 +34,7 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
   const [fontSize, setFontSize] = useState(FONT_SIZES[0])
 
   const isDark = theme === 'dark'
-  const syntaxTheme = isDark ? oneDark : oneLight
+  const syntaxTheme = isDark ? vscDarkPlus : oneLight
 
   // Calculate optimal font size based on container width and longest line
   useEffect(() => {
@@ -146,7 +146,8 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
     return () => clearTimeout(timeoutId)
   }, [firstActiveLineNumber])
 
-  const bgColor = isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'
+  // VS Code dark+ background: #1e1e1e
+  const bgColor = isDark ? 'bg-[#1e1e1e]' : 'bg-[#ffffff]'
 
   return (
     <div

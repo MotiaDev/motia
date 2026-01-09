@@ -1,11 +1,13 @@
-// This is an example of a TypeScript step.
+// 1. Woah did you see that? You just executed your first
+// function in multiple languages!
 
-// 1. Every step is composed of a config, and a handler function.
-import type { Handlers } from '@motiadev/core'
-import type { EventConfig } from 'motia'
-import * as z from 'zod'
+// 2. This is an example of a TypeScript step.
+// Every step is composed of a config, and a handler function.
+import type { Handlers } from "@motiadev/core";
+import type { EventConfig } from "motia";
+import * as z from "zod";
 
-// 2. This is a config object, every Step has one.
+// 3. This is a config object, every Step has one.
 //    Configs tell Motia how a Step is triggered,
 //    what events it emits, and what flows it's part of
 //
@@ -15,29 +17,33 @@ import * as z from 'zod'
 //    EventConfig = Have specific events trigger your step
 //    CronConfig = Have specific times trigger your step
 export const config: EventConfig = {
-  // 3. While configs vary a little bit each one has a type,
-  // a name, a
-  type: 'event',
-  name: 'HelloFromTypeScript',
-  // 4. When a 'hello' event occurs the handler defined below will run.
-  subscribes: ['hello'],
+  // 4. While configs vary a little bit each one has a type,
+  // a name, a type, some definition of what triggers it,
+  // what its input schema is, and what events it might emit.
+  type: "event",
+  name: "HelloFromTypeScript",
+  // 5. When a 'hello' event occurs the handler defined below will run.
+  subscribes: ["hello"],
   input: z.object({ extra: z.string() }),
-  emits: ['hello.response.typescript'],
+  emits: ["hello.response.typescript"],
 
-  // 5. These fields are optional but the flow field is very useful
+  // 6. These fields are optional but the flow field is very useful
   // for visual organization inside this Workbench.
   // If you have a series of Steps that all complete one big task or workflow
   // then adding them to the same flow makes visualizing them in Workbench easier.
-  description: 'Says hello in the logs',
-  flows: ['hello'],
+  description: "Says hello in the logs",
+  flows: ["hello"],
   virtualEmits: [],
   virtualSubscribes: [],
-}
+};
 
-// 6. This is a handler, it's the code that will run when the conditions
+// 7. This is a handler, it's the code that will run when the conditions
 // defined in the config are met. Every handler gets a payload and
 // a context that contains useful functions to emit events, create logs,
 // modify state, and other useful things.
-export const handler: Handlers['HelloFromTypeScript'] = async (payload, { emit, logger, state }) => {
-  logger.info('Hello from TypeScript!')
-}
+export const handler: Handlers["HelloFromTypeScript"] = async (
+  payload,
+  { emit, logger, state }
+) => {
+  logger.info("Hello from TypeScript!");
+};
