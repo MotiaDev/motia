@@ -1,10 +1,14 @@
-import { NoopNode, type NoopNodeProps } from 'motia/workbench'
+import { NoopNode, type NoopNodeProps, useQuickstart } from 'motia/workbench'
 
 export const Node: React.FC<NoopNodeProps> = (props) => {
+  const { start } = useQuickstart()
+
   const handleStart = async () => {
     const response = await fetch('/hello', {
       method: 'GET',
     })
+
+    start()
   }
 
   return (

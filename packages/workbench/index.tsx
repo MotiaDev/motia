@@ -1,12 +1,14 @@
 export { Position } from '@xyflow/react'
+export { MotiaQuickstart } from './src/components/quickstart/quickstart-engine'
+export { useQuickstart } from './src/components/quickstart/use-quickstart'
 export type { TutorialStep } from './src/components/tutorial/engine/tutorial-types'
+export { MotiaWalkthrough } from './src/components/tutorial/engine/walkthrough-engine'
 export type {
+  WalkthroughCommentConfig,
   WalkthroughConfig,
   WalkthroughStepConfig,
-  WalkthroughCommentConfig,
 } from './src/components/tutorial/engine/walkthrough-types'
 export { workbenchXPath } from './src/components/tutorial/engine/workbench-xpath'
-export { MotiaWalkthrough } from './src/components/tutorial/engine/walkthrough-engine'
 export { WalkthroughContainer } from './src/components/tutorial/walkthrough-container'
 export { ApiNode } from './src/publicComponents/api-node'
 export { BaseHandle } from './src/publicComponents/base-node/base-handle'
