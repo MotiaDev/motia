@@ -1,11 +1,14 @@
 import { useThemeStore } from '@motiadev/ui'
-import { type FC, useMemo } from 'react'
+import { type FC, useEffect, useMemo, useRef } from 'react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { TutorialStepConfig } from './quickstart-store'
 
 type QuickstartCodeDisplayProps = {
   code: string
   steps: TutorialStepConfig[]
   activeStepId: string | null
+  language?: string
 }
 
 type LineInfo = {
@@ -17,8 +20,18 @@ type LineInfo = {
   isComment: boolean
 }
 
-export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({ code, steps, activeStepId }) => {
+export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
+  code,
+  steps,
+  activeStepId,
+  language = 'typescript',
+}) => {
   const theme = useThemeStore((state) => state.theme)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const activeStepRef = useRef<HTMLDivElement>(null)
+
+  const isDark = theme === 'dark'
+  const syntaxTheme = isDark ? oneDark : oneLight
 
   const activeStep = useMemo(() => steps.find((s) => s.id === activeStepId), [steps, activeStepId])
 
@@ -95,47 +108,94 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({ code, st
     return result
   }, [processedLines, steps, activeStepId])
 
-  const isDark = theme === 'dark'
+  // Find the first line of the active step for the ref
+  const firstActiveLineNumber = activeStep?.comment.start ?? null
+
+  // Auto-scroll to center active step when it changes
+  useEffect(() => {
+    if (!activeStepRef.current || !containerRef.current) return
+
+    const container = containerRef.current
+    const activeElement = activeStepRef.current
+
+    // Get positions
+    const containerRect = container.getBoundingClientRect()
+    const activeRect = activeElement.getBoundingClientRect()
+
+    // Calculate the scroll position to center the active element
+    const activeMiddle = activeElement.offsetTop + activeRect.height / 2
+    const containerMiddle = containerRect.height / 2
+    const targetScroll = activeMiddle - containerMiddle
+
+    // Clamp to valid scroll range (don't overscroll)
+    const maxScroll = container.scrollHeight - container.clientHeight
+    const clampedScroll = Math.max(0, Math.min(targetScroll, maxScroll))
+
+    container.scrollTo({
+      top: clampedScroll,
+      behavior: 'smooth',
+    })
+  }, [firstActiveLineNumber])
 
   return (
-    <div className="flex-1 h-full overflow-auto font-mono text-sm">
-      <div className={`min-h-full ${isDark ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+    <div ref={containerRef} className="flex-1 h-full overflow-auto font-mono text-sm">
+      <div className={`min-h-full ${isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'}`}>
         {visibleLines.map((item) => {
           if ('isCollapsed' in item) {
             // Render collapsed indicator
             return (
               <div
                 key={`collapsed-${item.stepId}`}
-                className={`flex items-center gap-2 px-4 py-1 ${isDark ? 'bg-[#2d2d2d] text-gray-500' : 'bg-gray-100 text-gray-400'} text-xs italic`}
+                className={`flex items-center gap-2 px-4 py-1 ${isDark ? 'bg-[#21252b] text-gray-500' : 'bg-gray-100 text-gray-400'} text-xs italic`}
               >
                 <span className="select-none">⋯</span>
-                <span>{item.lineCount} lines collapsed</span>
+                {/* <span>{item.lineCount} lines collapsed</span> */}
               </div>
             )
           }
 
           const isHighlighted = item.isActiveComment || item.isActiveCode
           const isGrayed = !isHighlighted && activeStepId !== null
+          const isFirstActiveLine = item.lineNumber === firstActiveLineNumber
 
           return (
             <div
               key={item.lineNumber}
+              ref={isFirstActiveLine ? activeStepRef : undefined}
               className={`flex transition-opacity duration-200 ${isGrayed ? 'opacity-30' : 'opacity-100'}`}
             >
               {/* Line number */}
               <div
-                className={`select-none px-4 py-0.5 text-right min-w-12 shrink-0 ${isDark ? 'text-gray-500 bg-[#1e1e1e]' : 'text-gray-400 bg-gray-50'}`}
+                className={`select-none px-4 py-0.5 text-right min-w-12 shrink-0 ${isDark ? 'text-gray-500 bg-[#282c34]' : 'text-gray-400 bg-gray-50'}`}
               >
                 {item.lineNumber}
               </div>
-              {/* Code content */}
-              <pre
-                className={`flex-1 px-4 py-0.5 whitespace-pre-wrap break-words overflow-hidden ${
-                  isHighlighted ? (isDark ? 'bg-[#264f78]/30' : 'bg-blue-50') : isDark ? 'bg-[#1e1e1e]' : 'bg-white'
-                } ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+              {/* Code content with syntax highlighting */}
+              <div
+                className={`flex-1 py-0.5 whitespace-pre-wrap overflow-hidden ${
+                  isHighlighted ? (isDark ? 'bg-[#3e4451]' : 'bg-blue-50') : isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'
+                }`}
+                style={{ overflowWrap: 'break-word' }}
               >
-                <code className="break-words">{item.content || ' '}</code>
-              </pre>
+                <SyntaxHighlighter
+                  language={language}
+                  style={syntaxTheme}
+                  customStyle={{
+                    margin: 0,
+                    padding: '0 1rem',
+                    background: 'transparent',
+                    fontSize: 'inherit',
+                    lineHeight: 'inherit',
+                  }}
+                  codeTagProps={{
+                    style: {
+                      fontFamily: 'inherit',
+                    },
+                  }}
+                >
+                  {item.content || ' '}
+                </SyntaxHighlighter>
+              </div>
             </div>
           )
         })}
