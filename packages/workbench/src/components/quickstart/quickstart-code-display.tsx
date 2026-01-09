@@ -1,5 +1,5 @@
 import { useThemeStore } from '@motiadev/ui'
-import { type FC, useEffect, useMemo, useRef } from 'react'
+import { type FC, useEffect, useMemo, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { TutorialStepConfig } from './quickstart-store'
@@ -20,6 +20,8 @@ type LineInfo = {
   isComment: boolean
 }
 
+const FONT_SIZES = [14, 13, 12] // Prefer smaller font before wrapping (min 12pt)
+
 export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
   code,
   steps,
@@ -29,9 +31,41 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
   const theme = useThemeStore((state) => state.theme)
   const containerRef = useRef<HTMLDivElement>(null)
   const activeStepRef = useRef<HTMLDivElement>(null)
+  const [fontSize, setFontSize] = useState(FONT_SIZES[0])
 
   const isDark = theme === 'dark'
   const syntaxTheme = isDark ? oneDark : oneLight
+
+  // Calculate optimal font size based on container width and longest line
+  useEffect(() => {
+    if (!containerRef.current || !code) return
+
+    const container = containerRef.current
+    const lines = code.split('\n')
+    const maxLineLength = Math.max(...lines.map((line) => line.length))
+
+    const checkFontSize = () => {
+      const availableWidth = container.clientWidth - 100 // Account for line numbers and padding
+
+      // Estimate character width (roughly 0.6 * fontSize for monospace)
+      for (const size of FONT_SIZES) {
+        const estimatedLineWidth = maxLineLength * size * 0.6
+        if (estimatedLineWidth <= availableWidth) {
+          setFontSize(size)
+          return
+        }
+      }
+      // Use smallest font if none fit
+      setFontSize(FONT_SIZES[FONT_SIZES.length - 1])
+    }
+
+    checkFontSize()
+
+    const resizeObserver = new ResizeObserver(checkFontSize)
+    resizeObserver.observe(container)
+
+    return () => resizeObserver.disconnect()
+  }, [code])
 
   const activeStep = useMemo(() => steps.find((s) => s.id === activeStepId), [steps, activeStepId])
 
@@ -138,7 +172,11 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
   }, [firstActiveLineNumber])
 
   return (
-    <div ref={containerRef} className="flex-1 h-full overflow-auto font-mono text-sm">
+    <div
+      ref={containerRef}
+      className="flex-1 h-full overflow-y-auto overflow-x-hidden font-mono"
+      style={{ fontSize: `${fontSize}px` }}
+    >
       <div className={`min-h-full ${isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'}`}>
         {visibleLines.map((item) => {
           if ('isCollapsed' in item) {
@@ -166,16 +204,16 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
             >
               {/* Line number */}
               <div
-                className={`select-none px-4 py-0.5 text-right min-w-12 shrink-0 ${isDark ? 'text-gray-500 bg-[#282c34]' : 'text-gray-400 bg-gray-50'}`}
+                className={`select-none px-4 py-0.5 text-right min-w-10 shrink-0 ${isDark ? 'text-gray-500 bg-[#282c34]' : 'text-gray-400 bg-gray-50'}`}
+                style={{ fontSize: `${fontSize}px` }}
               >
                 {item.lineNumber}
               </div>
               {/* Code content with syntax highlighting */}
               <div
-                className={`flex-1 py-0.5 whitespace-pre-wrap overflow-hidden ${
+                className={`flex-1 min-w-0 py-0.5 ${
                   isHighlighted ? (isDark ? 'bg-[#3e4451]' : 'bg-blue-50') : isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'
                 }`}
-                style={{ overflowWrap: 'break-word' }}
               >
                 <SyntaxHighlighter
                   language={language}
@@ -184,14 +222,21 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
                     margin: 0,
                     padding: '0 1rem',
                     background: 'transparent',
-                    fontSize: 'inherit',
-                    lineHeight: 'inherit',
+                    fontSize: `${fontSize}px`,
+                    lineHeight: '1.5',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
                   }}
                   codeTagProps={{
                     style: {
                       fontFamily: 'inherit',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
                     },
                   }}
+                  wrapLines
+                  wrapLongLines
                 >
                   {item.content || ' '}
                 </SyntaxHighlighter>
