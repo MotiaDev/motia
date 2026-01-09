@@ -16,8 +16,8 @@ type LineInfo = {
   content: string
   isActiveComment: boolean
   isActiveCode: boolean
-  isInactiveStep: boolean
-  isComment: boolean
+  isInactiveStepComment: boolean
+  stepId: string | null // Which step's comment this belongs to (if any)
 }
 
 const FONT_SIZES = [14, 13, 12] // Prefer smaller font before wrapping (min 12pt)
@@ -74,7 +74,6 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
 
     return lines.map((content, index) => {
       const lineNumber = index + 1
-      const isComment = content.trimStart().startsWith('//')
 
       // Check if this line belongs to the active step
       let isActiveComment = false
@@ -85,15 +84,18 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
         isActiveCode = lineNumber >= activeStep.code.start && lineNumber <= activeStep.code.end
       }
 
-      // Check if this line belongs to any inactive step's comment (should be hidden)
-      let isInactiveStep = false
+      // Check if this line belongs to any inactive step's comment
+      let isInactiveStepComment = false
+      let stepId: string | null = null
+
       for (const step of steps) {
-        if (step.id !== activeStepId) {
-          const isInComment = lineNumber >= step.comment.start && lineNumber <= step.comment.end
-          if (isInComment) {
-            isInactiveStep = true
-            break
+        const isInComment = lineNumber >= step.comment.start && lineNumber <= step.comment.end
+        if (isInComment) {
+          stepId = step.id
+          if (step.id !== activeStepId) {
+            isInactiveStepComment = true
           }
+          break
         }
       }
 
@@ -102,73 +104,46 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
         content,
         isActiveComment,
         isActiveCode,
-        isInactiveStep,
-        isComment,
+        isInactiveStepComment,
+        stepId,
       }
     })
   }, [code, steps, activeStep, activeStepId])
 
-  // Filter out inactive step comments (collapsed)
-  const visibleLines = useMemo(() => {
-    const result: (LineInfo | { isCollapsed: true; stepId: string; lineCount: number })[] = []
-    let i = 0
-
-    while (i < processedLines.length) {
-      const line = processedLines[i]
-
-      if (line.isInactiveStep) {
-        // Find the step this belongs to
-        const step = steps.find(
-          (s) => s.id !== activeStepId && line.lineNumber >= s.comment.start && line.lineNumber <= s.comment.end,
-        )
-
-        if (step) {
-          // Count consecutive lines in this step's comment
-          const commentLineCount = step.comment.end - step.comment.start + 1
-          result.push({ isCollapsed: true, stepId: step.id, lineCount: commentLineCount })
-
-          // Skip all lines in this comment block
-          while (i < processedLines.length && processedLines[i].lineNumber <= step.comment.end) {
-            i++
-          }
-          continue
-        }
-      }
-
-      result.push(line)
-      i++
-    }
-
-    return result
-  }, [processedLines, steps, activeStepId])
-
   // Find the first line of the active step for the ref
   const firstActiveLineNumber = activeStep?.comment.start ?? null
 
-  // Auto-scroll to center active step when it changes
+  // Auto-scroll to center active step when it changes (with delay to allow animation)
   useEffect(() => {
     if (!activeStepRef.current || !containerRef.current) return
 
-    const container = containerRef.current
-    const activeElement = activeStepRef.current
+    // Delay scroll to allow collapse/expand animation to complete
+    const timeoutId = setTimeout(() => {
+      if (!activeStepRef.current || !containerRef.current) return
 
-    // Get positions
-    const containerRect = container.getBoundingClientRect()
-    const activeRect = activeElement.getBoundingClientRect()
+      const container = containerRef.current
+      const activeElement = activeStepRef.current
 
-    // Calculate the scroll position to center the active element
-    const activeMiddle = activeElement.offsetTop + activeRect.height / 2
-    const containerMiddle = containerRect.height / 2
-    const targetScroll = activeMiddle - containerMiddle
+      // Get positions
+      const containerRect = container.getBoundingClientRect()
+      const activeRect = activeElement.getBoundingClientRect()
 
-    // Clamp to valid scroll range (don't overscroll)
-    const maxScroll = container.scrollHeight - container.clientHeight
-    const clampedScroll = Math.max(0, Math.min(targetScroll, maxScroll))
+      // Calculate the scroll position to center the active element
+      const activeMiddle = activeElement.offsetTop + activeRect.height / 2
+      const containerMiddle = containerRect.height / 2
+      const targetScroll = activeMiddle - containerMiddle
 
-    container.scrollTo({
-      top: clampedScroll,
-      behavior: 'smooth',
-    })
+      // Clamp to valid scroll range (don't overscroll)
+      const maxScroll = container.scrollHeight - container.clientHeight
+      const clampedScroll = Math.max(0, Math.min(targetScroll, maxScroll))
+
+      container.scrollTo({
+        top: clampedScroll,
+        behavior: 'smooth',
+      })
+    }, 350) // Wait for animation to complete
+
+    return () => clearTimeout(timeoutId)
   }, [firstActiveLineNumber])
 
   const bgColor = isDark ? 'bg-[#282c34]' : 'bg-[#fafafa]'
@@ -180,63 +155,58 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
       style={{ fontSize: `${fontSize}px` }}
     >
       <div className="min-h-full">
-        {visibleLines.map((item) => {
-          if ('isCollapsed' in item) {
-            // Render collapsed indicator
-            return (
-              <div
-                key={`collapsed-${item.stepId}`}
-                className={`flex items-center gap-2 px-4 py-1 ${isDark ? 'text-gray-500' : 'text-gray-400'} text-xs italic opacity-80`}
-              >
-                <span className="select-none">⋯</span>
-              </div>
-            )
-          }
-
+        {processedLines.map((item) => {
           const isHighlighted = item.isActiveComment || item.isActiveCode
           const isInactive = !isHighlighted && activeStepId !== null
           const isFirstActiveLine = item.lineNumber === firstActiveLineNumber
+          const isCollapsed = item.isInactiveStepComment
 
           return (
             <div
               key={item.lineNumber}
               ref={isFirstActiveLine ? activeStepRef : undefined}
-              className={`flex transition-opacity duration-200 ${isInactive ? 'opacity-80' : 'opacity-100'}`}
+              className="transition-all duration-300 ease-in-out overflow-hidden"
+              style={{
+                maxHeight: isCollapsed ? 0 : '100px',
+                opacity: isCollapsed ? 0 : isInactive ? 0.8 : 1,
+              }}
             >
-              {/* Line number */}
-              <div
-                className={`select-none px-4 py-0.5 text-right min-w-10 shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
-                style={{ fontSize: `${fontSize}px` }}
-              >
-                {item.lineNumber}
-              </div>
-              {/* Code content with syntax highlighting */}
-              <div className="flex-1 min-w-0 py-0.5">
-                <SyntaxHighlighter
-                  language={language}
-                  style={syntaxTheme}
-                  customStyle={{
-                    margin: 0,
-                    padding: '0 1rem',
-                    background: 'transparent',
-                    fontSize: `${fontSize}px`,
-                    lineHeight: '1.5',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    overflowWrap: 'break-word',
-                  }}
-                  codeTagProps={{
-                    style: {
-                      fontFamily: 'inherit',
+              <div className="flex">
+                {/* Line number */}
+                <div
+                  className={`select-none px-4 py-0.5 text-right min-w-10 shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
+                  style={{ fontSize: `${fontSize}px` }}
+                >
+                  {item.lineNumber}
+                </div>
+                {/* Code content with syntax highlighting */}
+                <div className="flex-1 min-w-0 py-0.5">
+                  <SyntaxHighlighter
+                    language={language}
+                    style={syntaxTheme}
+                    customStyle={{
+                      margin: 0,
+                      padding: '0 1rem',
+                      background: 'transparent',
+                      fontSize: `${fontSize}px`,
+                      lineHeight: '1.5',
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
-                    },
-                  }}
-                  wrapLines
-                  wrapLongLines
-                >
-                  {item.content || ' '}
-                </SyntaxHighlighter>
+                      overflowWrap: 'break-word',
+                    }}
+                    codeTagProps={{
+                      style: {
+                        fontFamily: 'inherit',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      },
+                    }}
+                    wrapLines
+                    wrapLongLines
+                  >
+                    {item.content || ' '}
+                  </SyntaxHighlighter>
+                </div>
               </div>
             </div>
           )
