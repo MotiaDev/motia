@@ -142,6 +142,32 @@ export const applyMiddleware = async ({ app, port, workbenchBase, plugins }: App
 
   await warmupMotiaPlugins(vite)
 
+  // API endpoint to serve raw file contents for quickstart tutorial
+  app.get(`${workbenchBase}/__raw-file`, (req: Request, res: Response) => {
+    const filePath = req.query.path as string
+
+    if (!filePath) {
+      res.status(400).json({ error: 'Missing path query parameter' })
+      return
+    }
+
+    // Security: only allow files within src directory
+    const resolvedPath = path.resolve(process.cwd(), filePath)
+    const srcDir = path.resolve(process.cwd(), 'src')
+
+    if (!resolvedPath.startsWith(srcDir)) {
+      res.status(403).json({ error: 'Access denied: path must be within src directory' })
+      return
+    }
+
+    try {
+      const content = fs.readFileSync(resolvedPath, 'utf-8')
+      res.status(200).set({ 'Content-Type': 'text/plain' }).send(content)
+    } catch (error) {
+      res.status(404).json({ error: 'File not found' })
+    }
+  })
+
   app.use(workbenchBase, vite.middlewares)
   app.use(`${workbenchBase}/*`, async (req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl

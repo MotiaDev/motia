@@ -1,27 +1,47 @@
-import { BookOpen, Code, Play, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { type FC, useEffect } from 'react'
 import { QuickstartCodeDisplay } from './quickstart-code-display'
 import { MotiaQuickstart } from './quickstart-engine'
-import { QuickstartNav, type QuickstartNavItem } from './quickstart-nav'
-import { useQuickstartStore } from './quickstart-store'
+import { QuickstartNav } from './quickstart-nav'
+import { type TutorialStepConfig, useQuickstartStore } from './quickstart-store'
 
 export const QuickstartPanel: FC = () => {
-  const { isOpen, code, close, open } = useQuickstartStore()
+  const { isOpen, code, steps, activeStepId, close, open, setActiveStep } = useQuickstartStore()
 
   useEffect(() => {
     const unsubscribe = MotiaQuickstart.onStart(async () => {
       try {
-        // Fetch the raw code from typescript.step.ts
-        const processCwd = (window as { processCwd?: string }).processCwd
-        const response = await fetch(`/@fs${processCwd}/src/typescript.step.ts`)
-        if (response.ok) {
-          const code = await response.text()
-          open(code)
-        } else {
-          console.error('Failed to load typescript.step.ts:', response.status)
+        const workbenchBase = (window as { workbenchBase?: string }).workbenchBase ?? ''
+
+        // Fetch the code file via the raw file API endpoint
+        const codeResponse = await fetch(`${workbenchBase}/__raw-file?path=src/typescript.step.ts`)
+        if (!codeResponse.ok) {
+          console.error('Failed to load typescript.step.ts:', codeResponse.status)
+          return
         }
+        const code = await codeResponse.text()
+
+        // Fetch the tutorial config via the raw file API endpoint
+        const configResponse = await fetch(`${workbenchBase}/__raw-file?path=src/tutorial.config.ts`)
+        let steps: TutorialStepConfig[] = []
+
+        if (configResponse.ok) {
+          const configText = await configResponse.text()
+          // Parse the config - extract the tutorialConfig array
+          const configMatch = configText.match(/export const tutorialConfig[^=]*=\s*(\[[\s\S]*?\n\])/)
+          if (configMatch) {
+            try {
+              // Evaluate the config (it's a simple array of objects)
+              steps = new Function(`return ${configMatch[1]}`)()
+            } catch (e) {
+              console.error('Failed to parse tutorial config:', e)
+            }
+          }
+        }
+
+        open(code, steps)
       } catch (error) {
-        console.error('Error loading quickstart code:', error)
+        console.error('Error loading quickstart:', error)
       }
     })
 
@@ -31,29 +51,6 @@ export const QuickstartPanel: FC = () => {
   if (!isOpen || !code) {
     return null
   }
-
-  // Scaffold navigation items for future use
-  const navItems: QuickstartNavItem[] = [
-    {
-      id: 'code',
-      icon: <Code className="w-5 h-5" />,
-      label: 'Code',
-      onClick: () => {},
-      isActive: true,
-    },
-    {
-      id: 'tutorial',
-      icon: <BookOpen className="w-5 h-5" />,
-      label: 'Tutorial',
-      onClick: () => {},
-    },
-    {
-      id: 'run',
-      icon: <Play className="w-5 h-5" />,
-      label: 'Run',
-      onClick: () => {},
-    },
-  ]
 
   return (
     <div className="fixed top-0 right-0 w-1/2 h-screen bg-background border-l border-border z-50 flex flex-col shadow-xl">
@@ -67,8 +64,8 @@ export const QuickstartPanel: FC = () => {
 
       {/* Content area with navigation */}
       <div className="flex flex-1 overflow-hidden">
-        <QuickstartNav items={navItems} />
-        <QuickstartCodeDisplay code={code} />
+        <QuickstartNav steps={steps} activeStepId={activeStepId} onStepClick={setActiveStep} />
+        <QuickstartCodeDisplay code={code} steps={steps} activeStepId={activeStepId} />
       </div>
     </div>
   )

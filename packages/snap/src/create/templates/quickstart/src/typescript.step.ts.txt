@@ -24,7 +24,7 @@ export const config: EventConfig = {
   input: z.object({ extra: z.string() }),
   emits: ['hello.response.typescript'],
 
-  // 4. These fields are optional but the flow field is very useful
+  // 5. These fields are optional but the flow field is very useful
   // for visual organization inside this Workbench.
   // If you have a series of Steps that all complete one big task or workflow
   // then adding them to the same flow makes visualizing them in Workbench easier.
@@ -34,7 +34,7 @@ export const config: EventConfig = {
   virtualSubscribes: [],
 }
 
-// 5. This is a handler, it's the code that will run when the conditions
+// 6. This is a handler, it's the code that will run when the conditions
 // defined in the config are met. Every handler gets a payload and
 // a context that contains useful functions to emit events, create logs,
 // modify state, and other useful things.
