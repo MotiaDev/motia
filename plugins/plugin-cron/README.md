@@ -23,20 +23,6 @@ npm install @motiadev/plugin-cron
 pnpm add @motiadev/plugin-cron
 ```
 
-## Usage
-
-Add the plugin to your `motia.config.ts`:
-
-```typescript
-import cronPlugin from '@motiadev/plugin-cron/plugin'
-
-export default {
-  plugins: [cronPlugin],
-}
-```
-
-The plugin will automatically appear as a "Cron Jobs" tab in the bottom panel of your Motia workbench.
-
 ## Features
 
 ### Job Monitoring

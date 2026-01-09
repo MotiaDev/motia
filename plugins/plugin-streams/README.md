@@ -16,21 +16,9 @@ A Motia Workbench plugin for visualizing and managing streams in your applicatio
 npm install @motiadev/plugin-streams
 ```
 
-## Configuration
-
-Add the plugin to your `motia.config.ts`:
-
-```typescript
-import { defineConfig } from 'motia'
-
-export default defineConfig({
-  plugins: ['@motiadev/plugin-streams/plugin'],
-})
-```
-
 ## Usage
 
-Once installed, the Streams tab will appear in the Motia Workbench. Click on any stream to view its groups and items.
+The Streams tab will appear in the Motia Workbench. Click on any stream to view its groups and items.
 
 ### Stream Panel
 
