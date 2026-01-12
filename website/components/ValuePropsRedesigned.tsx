@@ -223,9 +223,9 @@ const getSizeClasses = (size: string) => {
   return {
     small: 'col-span-1 row-span-1',
     medium: 'col-span-1 md:col-span-1 row-span-1',
-    large: 'col-span-1 md:col-span-2 row-span-2',
+    large: 'col-span-1 md:col-span-2 md:row-span-2',
     wide: 'col-span-1 md:col-span-2 row-span-1',
-    tall: 'col-span-1 row-span-2',
+    tall: 'col-span-1 md:row-span-2',
   }[size];
 };
 
@@ -246,11 +246,11 @@ export const ValueProps: React.FC<ValuePropsProps> = ({ isDarkMode = true }) => 
   const filteredFeatures = features.filter(f => !activeCategory || f.category === activeCategory);
 
   return (
-    <section className={`w-full ${bgBase} py-8 md:py-24`}>
+    <section className={`w-full ${bgBase} py-8 md:py-12`}>
       <div className="max-w-[1400px] mx-auto px-4 md:px-8">
         {/* Header */}
-        <div className="mb-8 md:mb-16">
-          <div className="flex flex-col gap-4 md:gap-6 mb-6 md:mb-8">
+        <div className="mb-6 md:mb-10">
+          <div className="flex flex-col gap-3 md:gap-4 mb-4 md:mb-6">
             <div>
               <p className={`text-[10px] tracking-[0.3em] uppercase mb-2 md:mb-3 font-mono ${textSecondary}`}>
                 /infrastructure/primitives
@@ -301,7 +301,7 @@ export const ValueProps: React.FC<ValuePropsProps> = ({ isDarkMode = true }) => 
         </div>
 
         {/* Bento Grid - Compact on Mobile */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4 auto-rows-[120px] md:auto-rows-[180px]">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-3 auto-rows-[100px] md:auto-rows-[110px]">
           {filteredFeatures.map((feature) => {
               const Icon = feature.icon;
               const isHovered = hoveredId === feature.id;
@@ -333,18 +333,20 @@ export const ValueProps: React.FC<ValuePropsProps> = ({ isDarkMode = true }) => 
                   </div>
 
                   {/* Content */}
-                  <div className="relative h-full p-3 md:p-6 flex flex-col">
+                  <div className={`relative h-full flex flex-col ${
+                    isHighlight ? 'p-3 md:p-5' : 'p-3 md:p-4'
+                  }`}>
                     {/* Category & Icon */}
-                    <div className="flex items-start justify-between mb-2 md:mb-4">
-                      <span className={`text-[8px] md:text-[9px] tracking-[0.2em] font-mono ${textSecondary} opacity-70`}>
+                    <div className="flex items-start justify-between mb-1.5 md:mb-2">
+                      <span className={`text-[7px] md:text-[8px] tracking-[0.2em] font-mono ${textSecondary} opacity-70`}>
                         {feature.category}
                       </span>
-                      <div className={`p-1.5 md:p-2 rounded-lg transition-all ${
+                      <div className={`p-1 md:p-1.5 rounded-lg transition-all ${
                         isHovered
                           ? isDarkMode ? 'bg-iii-accent/20' : 'bg-iii-accent-light/20'
                           : 'bg-transparent'
                       }`}>
-                        <Icon className={`w-4 h-4 md:w-5 md:h-5 transition-colors ${
+                        <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 transition-colors ${
                           isHovered ? accentColor : textSecondary
                         }`} />
                       </div>
@@ -352,25 +354,25 @@ export const ValueProps: React.FC<ValuePropsProps> = ({ isDarkMode = true }) => 
 
                     {/* Title & Description */}
                     <div className="flex-1 overflow-hidden">
-                      <h3 className={`text-xs md:text-lg font-bold mb-1 md:mb-2 line-clamp-2 transition-colors ${
-                        isHovered ? accentColor : textPrimary
-                      }`}>
+                      <h3 className={`font-bold line-clamp-2 transition-colors ${
+                        isHighlight ? 'text-sm md:text-base' : 'text-xs md:text-sm'
+                      } ${isHovered ? accentColor : textPrimary}`}>
                         {feature.name}
                       </h3>
 
                       {/* Description - Only show on large cards */}
                       {isHighlight && (
-                        <p className={`text-[10px] md:text-xs leading-relaxed line-clamp-3 md:line-clamp-4 ${textSecondary}`}>
+                        <p className={`text-[9px] md:text-[11px] leading-snug mt-1.5 md:mt-2 line-clamp-2 md:line-clamp-3 ${textSecondary}`}>
                           {feature.description}
                         </p>
                       )}
                     </div>
 
                     {/* Hover indicator */}
-                    <div className={`absolute bottom-2 md:bottom-4 right-2 md:right-4 transition-opacity ${
+                    <div className={`absolute bottom-2 md:bottom-3 right-2 md:right-3 transition-opacity ${
                       isHovered ? 'opacity-100' : 'opacity-0'
                     }`}>
-                      <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${
+                      <div className={`w-1.5 h-1.5 rounded-full ${
                         isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'
                       } animate-pulse`} />
                     </div>
@@ -388,7 +390,7 @@ export const ValueProps: React.FC<ValuePropsProps> = ({ isDarkMode = true }) => 
         </div>
 
         {/* Footer - Compact on Mobile */}
-        <div className={`mt-6 md:mt-12 p-4 md:p-6 border ${borderColor} rounded-lg md:rounded-xl ${bgCard}`}>
+        <div className={`mt-4 md:mt-8 p-3 md:p-4 border ${borderColor} rounded-lg md:rounded-xl ${bgCard}`}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
             <p className={`text-xs md:text-sm font-mono ${textSecondary}`}>
               {features.length} infrastructure primitives. Single daemon. No external orchestration.
