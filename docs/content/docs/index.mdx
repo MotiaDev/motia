@@ -1,15 +1,15 @@
 ---
-title: "What is III"
+title: "What is iii"
 ---
 
 
-The Name III stands for three core primitives as described below.
+The Name iii stands for three core primitives as described below.
 
-<Card horizontal iconName="Rocket" title="Start here" href="/docs/quickstart" description="Already know what III is? Jump to the next section to build your first III application." />
+<Card horizontal iconName="Rocket" title="Start here" href="/docs/quickstart" description="Already know what iii is? Jump to the next section to build your first iii application." />
 
 ### Infrastructure
-- **Workers**: Consumers of the III architecture and can use all features of III
-- **Core Modules**: Similar to Workers, but they live INSIDE the III Engine, can use the all features of III
+- **Workers**: Consumers of the iii architecture and can use all features of iii
+- **Core Modules**: Similar to Workers, but they live INSIDE the iii Engine, can use the all features of iii
 
 ### Implementation
 - **Remote Functions**: Register arbitrary functions that can be executed anywhere
@@ -20,22 +20,66 @@ The Name III stands for three core primitives as described below.
 
 ## Understanding Architecture
 
-III is composed of a few layers
+iii is composed of a few layers
 
 - **Core Modules**: There are a lot of Core Modules, each one solves a specific problem.
-- **Adapters**: III it built with Adapters by default, modules can have adapters to integrate with external systems.
-- **Workers**: External services connected to the III Engine, can be used to trigger functions, receive events, etc.
+- **Adapters**: iii it built with Adapters by default, modules can have adapters to integrate with external systems.
+- **Workers**: External services connected to the iii Engine, can be used to trigger functions, receive events, etc.
 
-<Image src="/architecture.png" alt="Architecture Diagram" />
+```mermaid
+flowchart LR
+    subgraph Core["CORE"]
+        Engine["ENGINE"]
+        Streams["Streams Module"]
+        REST["REST API Module"]
+        Events["Events Module"]
+        
+        subgraph AdapterLayer["Adapter Layer"]
+            RA1["Redis Adapter"]
+            RA2["Redis Adapter"]
+        end
+        
+        Engine --> Streams
+        Engine --> REST
+        Engine --> Events
+        Streams --> RA1
+        Events --> RA2
+    end
+    
+    subgraph NodeJS["Node.JS"]
+        BridgeNode["bridge layer"]
+        HandlerN1["handler1"]
+        HandlerN2["handler2"]
+        
+        BridgeNode --> HandlerN1
+        BridgeNode --> HandlerN2
+    end
+    
+    subgraph Python["Python"]
+        BridgePy["bridge layer"]
+        HandlerP1["handler1"]
+        HandlerP2["handler2"]
+        
+        BridgePy --> HandlerP1
+        BridgePy --> HandlerP2
+    end
+    
+    Redis["Redis"]
+    
+    RA1 --> Redis
+    RA2 --> Redis
+    Engine -.->|calls| BridgeNode
+    Engine -.->|calls| BridgePy
+```
 
 ## Concepts
 
-Check the sections below to understand the different concepts of III.
+Check the sections below to understand the different concepts of iii.
 
 <Columns cols={2}>
-  <Card iconName="Blocks" title="Core Modules" href="/docs/core-modules" description="Core Modules are the building blocks of III." />
+  <Card iconName="Blocks" title="Core Modules" href="/docs/core-modules" description="Core Modules are the building blocks of iii." />
   <Card iconName="Cog" title="Adapters" href="/docs/adapters" description="Integrate with external systems." />
-  <Card iconName="Handshake" title="Workers" href="/docs/workers" description="External services connected to the III Engine." />
+  <Card iconName="Handshake" title="Workers" href="/docs/workers" description="External services connected to the iii Engine." />
   <Card iconName="Zap" title="Trigger Types" href="/docs/trigger-types" description="Configure different trigger types." />
   <Card iconName="Recycle" title="Triggers" href="/docs/triggers" description="Link a Trigger Type with a function." />
   <Card iconName="Parentheses" title="Remote Functions" href="/docs/remote-functions" description="Arbitrary functions that can be executed anywhere." />
