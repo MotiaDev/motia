@@ -2,14 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Logo } from './components/Logo';
 import { Terminal } from './components/Terminal';
 import { GridBackground } from './components/GridBackground';
-import { VisualArrow } from './components/VisualArrow';
 import { ProtocolModal } from './components/ProtocolModal';
 import { ManifestoModal } from './components/ManifestoModal';
 import { FeatureBento } from './components/FeatureBento';
 import { StackVisual } from './components/StackVisual';
 import { CodeComparison } from './components/CodeComparison';
 import { TechLogos } from './components/TechLogos';
-import { Features } from './components/Features';
+import { ValueProps } from './components/ValuePropsRedesigned';
+import { PersonaValueProps } from './components/PersonaValuePropsRedesigned';
+import { VisualArrow } from './components/VisualArrow';
 // FractureAnimation removed - using StackVisual only
 import { ModeToggle } from './components/ModeToggle';
 import { MachineView } from './components/MachineView';
@@ -58,6 +59,11 @@ const App: React.FC = () => {
   });
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  // Update body class for CSS variables
+  useEffect(() => {
+    document.body.className = isDarkMode ? 'dark-mode' : 'light-mode';
+  }, [isDarkMode]);
   
   const toggleMode = () => {
     const newMode = !isHumanMode;
@@ -245,7 +251,7 @@ const App: React.FC = () => {
             accentColor={isGodMode ? 'fill-red-500' : isDarkMode ? 'fill-iii-accent' : 'fill-iii-accent-light'}
           />
         </div>
-        <div className="flex gap-2 md:gap-4 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
+        <div className={`flex gap-2 md:gap-4 text-[10px] md:text-sm ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} font-semibold tracking-tight items-center`}>
           <a href="#" onClick={handleManifestoClick} className={`transition-colors hidden md:block ${isDarkMode ? 'hover:text-iii-light' : 'hover:text-iii-black'}`}>MANIFESTO</a>
           <button onClick={() => setShowProtocol(true)} className={`transition-colors uppercase ${isDarkMode ? 'hover:text-iii-accent' : 'hover:text-iii-accent-light'}`}>PROTOCOL</button>
           {isSubmitted ? (
@@ -259,7 +265,7 @@ const App: React.FC = () => {
             </a>
           ) : (
           <div className="relative group cursor-not-allowed hidden sm:block">
-              <span className={`transition-colors ${isDarkMode ? 'text-iii-dark group-hover:text-iii-medium' : 'text-iii-medium/50 group-hover:text-iii-medium'}`}>DOCS</span>
+              <span className={`transition-colors ${isDarkMode ? 'text-iii-dark group-hover:text-iii-medium-dark' : 'text-iii-medium-light/50 group-hover:text-iii-medium-light'}`}>DOCS</span>
               <div className={`absolute top-full right-0 mt-2 w-max px-2 py-1 border text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
                 isDarkMode ? 'bg-iii-dark border-iii-medium text-iii-light' : 'bg-white border-iii-medium/30 text-iii-black'
               }`}>
@@ -271,8 +277,8 @@ const App: React.FC = () => {
             onClick={toggleTheme}
             className={`p-2 rounded-full transition-colors ${
               isDarkMode 
-                ? 'hover:bg-iii-dark text-iii-medium hover:text-iii-light' 
-                : 'hover:bg-iii-medium/10 text-iii-medium hover:text-iii-black'
+                ? 'hover:bg-iii-dark text-iii-medium-dark hover:text-iii-light'
+                : 'hover:bg-iii-medium-light/10 text-iii-medium-light hover:text-iii-black'
             }`}
             aria-label="Toggle theme"
           >
@@ -318,17 +324,19 @@ const App: React.FC = () => {
 
             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95]">
               ONE BINARY.<br />
-              <span className="text-iii-medium">INFINITE SYSTEMS.</span>
+              <span className={isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'}>INFINITE SYSTEMS.</span>
             </h1>
 
-            <p className="text-xs md:text-base text-iii-medium max-w-xl leading-relaxed">
+            <p className={`text-xs md:text-base ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} max-w-xl leading-relaxed`}>
               No service mesh. No load balancers. 
               <span className={isDarkMode ? 'text-iii-light' : 'text-iii-black'}> Workers self-assemble. Functions call remote GPUs like local imports.</span> The entire control plane in a single daemon.
             </p>
 
             <div className="hidden sm:flex items-center gap-3 py-2">
               <VisualArrow isDarkMode={isDarkMode} />
-              <span className="text-[10px] md:text-xs text-iii-medium tracking-widest uppercase">infrastructure → implementation → invocation</span>
+              <span className={`text-sm md:text-base tracking-widest uppercase font-mono ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'}`}>
+                INFRASTRUCTURE <span className={isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}>&gt;</span> IMPLEMENTATION <span className={isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}>&gt;</span> INVOCATION
+              </span>
             </div>
 
             <div className="flex flex-col gap-4 md:gap-6 md:flex-row items-stretch md:items-center pt-2 md:pt-4 w-full">
@@ -340,12 +348,12 @@ const App: React.FC = () => {
                 }`}
                 onClick={copyToClipboard}
               >
-                <TerminalIcon className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
+                <TerminalIcon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} transition-colors flex-shrink-0 ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
                 <code className={`text-xs md:text-sm flex-1 truncate ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}>{installCmd}</code>
                 {copySuccess ? (
                   <Check className={`w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`} />
                 ) : (
-                  <Copy className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${isDarkMode ? 'group-hover:text-white' : 'group-hover:text-iii-black'}`} />
+                  <Copy className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} transition-colors flex-shrink-0 ${isDarkMode ? 'group-hover:text-white' : 'group-hover:text-iii-black'}`} />
                 )}
               </div>
 
@@ -360,11 +368,11 @@ const App: React.FC = () => {
                     <span className="font-mono tracking-tight">ACCESS REQUESTED</span>
                   </div>
                 ) : (
-                  <div className={`flex w-full border-b border-iii-medium transition-colors relative ${isDarkMode ? 'focus-within:border-iii-accent' : 'focus-within:border-iii-accent-light'}`}>
+                  <div className={`flex w-full border-b ${isDarkMode ? 'border-iii-medium-dark' : 'border-iii-medium-light'} transition-colors relative ${isDarkMode ? 'focus-within:border-iii-accent' : 'focus-within:border-iii-accent-light'}`}>
                     <input 
                       type="email" 
                       placeholder="EMAIL_FOR_ACCESS" 
-                      className={`bg-transparent outline-none text-xs md:text-sm py-2.5 md:py-3 px-1 w-full md:w-64 placeholder-iii-medium/50 font-mono ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}
+                      className={`bg-transparent outline-none text-xs md:text-sm py-2.5 md:py-3 px-1 w-full md:w-64 ${isDarkMode ? 'placeholder-iii-medium-dark/50' : 'placeholder-iii-medium-light/50'} font-mono ${isDarkMode ? 'text-iii-light' : 'text-iii-black'}`}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -382,17 +390,22 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-
-        <FeatureBento isDarkMode={isDarkMode} />
-
+        
         {/* Tech Logos - "iii runs everywhere" */}
         <TechLogos isDarkMode={isDarkMode} />
+
+        <FeatureBento isDarkMode={isDarkMode} />
 
         {/* Code Comparison - Before/After */}
         <CodeComparison isDarkMode={isDarkMode} />
 
-        {/* Features Section with Checklists */}
-        <Features isDarkMode={isDarkMode} />
+        {/* Value Props - Core Features (Hidden on mobile to reduce scrolling) */}
+        <div className="hidden md:block">
+          <ValueProps isDarkMode={isDarkMode} />
+        </div>
+
+        {/* Persona-Based Value Props */}
+        <PersonaValueProps isDarkMode={isDarkMode} />
 
         {/* Stack Visual */}
         <div className="w-full max-w-7xl mx-auto px-4 lg:px-8">
@@ -400,7 +413,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className={`relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t text-[9px] md:text-[10px] text-iii-medium font-mono transition-colors duration-300 ${
+      <footer className={`relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t text-[9px] md:text-[10px] ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} font-mono transition-colors duration-300 ${
           isDarkMode 
             ? 'border-iii-dark/30 bg-iii-black' 
             : 'border-iii-medium/20 bg-iii-light'

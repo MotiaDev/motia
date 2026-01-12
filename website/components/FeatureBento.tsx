@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cpu, Zap, Network, Share2, Workflow, Database, Terminal, MessageSquare, Search, HardDrive } from 'lucide-react';
+import { Cpu, Zap, Network, Share2, Terminal, Database, MessageSquare, HardDrive } from 'lucide-react';
 
 interface FeatureBentoProps {
   isDarkMode?: boolean;
@@ -20,9 +20,23 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-12 mt-12 md:mt-24 pb-12 md:pb-24">
+      {/* Architecture Overview Title */}
+      <div className="mb-8 md:mb-12">
+        <p className={`text-[10px] tracking-[0.3em] uppercase mb-2 md:mb-3 font-mono ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'}`}>
+          /architecture
+        </p>
+        <h2 className={`text-2xl md:text-4xl font-black tracking-tight font-mono ${textPrimary} flex flex-wrap items-center gap-2 md:gap-3`}>
+          <span>DAEMON</span>
+          <span className={`${accentColor} text-xl md:text-3xl`}>&gt;</span>
+          <span className={accentColor}>BRIDGE</span>
+          <span className={`${accentColor} text-xl md:text-3xl`}>&gt;</span>
+          <span className={isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'}>WORKERS</span>
+        </h2>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4 auto-rows-[minmax(140px,auto)] md:auto-rows-[minmax(180px,auto)]">
-        
-        <div 
+
+        <div
           className={`col-span-1 md:col-span-4 lg:col-span-4 row-span-1 group relative p-5 md:p-8 rounded-lg md:rounded-xl border transition-all duration-500 overflow-hidden ${cardBg} ${cardBorder} ${cardHover}`}
           onMouseEnter={() => setActiveCard('engine')}
           onMouseLeave={() => setActiveCard(null)}
@@ -34,29 +48,15 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
               <div className={`p-2 md:p-3 border rounded-lg ${iconBg} ${cardBorder}`}>
                 <Cpu className={`w-5 h-5 md:w-7 md:h-7 ${accentColor}`} />
               </div>
-              <div className={`px-2 py-0.5 md:px-3 md:py-1 rounded-full border text-[8px] md:text-[10px] uppercase tracking-widest text-iii-medium transition-colors ${cardBorder} ${codeBg} ${isDarkMode ? 'group-hover:text-iii-light' : 'group-hover:text-iii-black'}`}>
-                KERNEL
+              <div className={`px-2 py-0.5 md:px-3 md:py-1 rounded-full border text-[8px] md:text-[10px] uppercase tracking-widest transition-colors ${cardBorder} ${codeBg} ${activeCard === 'engine' ? accentColor : isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'}`}>
+                DAEMON
               </div>
             </div>
             <div className="space-y-3 md:space-y-4">
-              <h3 className={`text-xl md:text-2xl font-semibold tracking-tight ${textPrimary}`}>The Universal Runtime</h3>
-              <p className={`text-xs md:text-sm text-iii-medium max-w-lg leading-relaxed transition-colors ${isDarkMode ? 'group-hover:text-gray-300' : 'group-hover:text-gray-600'}`}>
-                The binary that manages durability, history, and scheduling. Abstracts databases, queues, and streams uniformly.
+              <h3 className={`text-xl md:text-2xl font-semibold tracking-tight ${textPrimary}`}>Runtime Daemon</h3>
+              <p className={`text-xs md:text-sm ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} max-w-lg leading-relaxed transition-colors ${isDarkMode ? 'group-hover:text-gray-300' : 'group-hover:text-gray-600'}`}>
+                Persistent process managing execution state, resource pooling, and worker coordination. Compiles with custom adapters for infrastructure extension.
               </p>
-              <div className="flex flex-wrap gap-3 md:gap-5 text-[9px] md:text-xs font-mono text-iii-medium pt-2">
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${activeCard === 'engine' ? 'bg-green-500 animate-pulse' : 'bg-iii-medium'}`} />
-                  <span>DURABLE</span>
-                </div>
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${activeCard === 'engine' ? 'bg-green-500 animate-pulse delay-75' : 'bg-iii-medium'}`} />
-                  <span>LANGUAGE AGNOSTIC</span>
-                </div>
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${activeCard === 'engine' ? 'bg-green-500 animate-pulse delay-150' : 'bg-iii-medium'}`} />
-                  <span>SINGLE BINARY</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -68,7 +68,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
               <Share2 className={`w-4 h-4 md:w-5 md:h-5 ${textPrimary}`} />
             </div>
             <h3 className={`text-base md:text-lg font-semibold mb-1 ${textPrimary}`}>Adapters</h3>
-            <p className="text-[9px] md:text-xs text-iii-medium hidden sm:block">
+            <p className={`text-[9px] md:text-xs ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} hidden sm:block`}>
               DBs, queues, streams, APIs
             </p>
           </div>
@@ -81,45 +81,46 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
             ].map(({ name, icon: Icon, available }) => (
               <div key={name} className={`flex items-center justify-between px-2 py-1.5 md:px-2.5 md:py-1.5 border rounded transition-colors group/item ${available ? '' : 'opacity-50'} ${codeBg} ${cardBorder} ${available ? cardHover : ''}`}>
                 <div className="flex items-center gap-1.5">
-                  <Icon className={`w-2.5 h-2.5 md:w-3 md:h-3 text-iii-medium ${available && isDarkMode ? 'group-hover/item:text-iii-accent' : ''} ${available && !isDarkMode ? 'group-hover/item:text-iii-accent-light' : ''}`} />
+                  <Icon className={`w-2.5 h-2.5 md:w-3 md:h-3 ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} ${available && isDarkMode ? 'group-hover/item:text-iii-accent' : ''} ${available && !isDarkMode ? 'group-hover/item:text-iii-accent-light' : ''}`} />
                   <span className={`text-[9px] md:text-[10px] font-mono ${textPrimary}`}>{name}</span>
                 </div>
                 {available ? (
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                 ) : (
-                  <span className="text-[6px] md:text-[7px] text-iii-medium uppercase">Soon</span>
+                  <span className={`text-[6px] md:text-[7px] ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} uppercase`}>Soon</span>
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        <div className={`col-span-1 md:col-span-2 lg:col-span-3 row-span-1 group relative p-4 md:p-6 rounded-lg md:rounded-xl border hover:border-green-500/30 transition-all duration-300 overflow-hidden ${cardBgLight} ${cardBorder}`}>
+        <div className={`col-span-1 md:col-span-2 lg:col-span-3 row-span-1 group relative p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300 overflow-hidden ${cardBgLight} ${cardBorder} ${cardHover}`}>
           <div className={`absolute top-0 right-0 p-32 rounded-full blur-3xl -mr-16 -mt-16 transition-opacity opacity-0 group-hover:opacity-100 ${isDarkMode ? 'bg-iii-accent/5' : 'bg-iii-accent-light/5'}`} />
-          <div className="relative z-10 flex justify-between items-start mb-2 md:mb-4">
+          <div className="relative z-10 flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
             <div className={`p-1.5 md:p-2 border rounded-lg ${iconBg} ${cardBorder}`}>
-              <Terminal className={`w-4 h-4 md:w-5 md:h-5 group-hover:text-green-400 transition-colors ${textPrimary}`} />
+              <Terminal className={`w-4 h-4 md:w-5 md:h-5 transition-colors ${textPrimary} ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
             </div>
+            <h3 className={`text-sm md:text-lg font-semibold ${textPrimary}`}>Bridge SDK</h3>
           </div>
           <div className="relative z-10">
-            <h3 className={`text-sm md:text-lg font-semibold mb-1 ${textPrimary}`}>SDKs & Frameworks</h3>
-            <p className="text-[10px] md:text-xs text-iii-medium hidden sm:block">
-              Client libraries for protocol message generation.
+            <p className={`text-[10px] md:text-xs ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} mb-2 md:mb-3`}>
+              Worker-side library for capability registration and function invocation.
             </p>
-            <div className="mt-2 md:mt-4 flex flex-wrap gap-1.5 md:gap-2">
+            <div className="flex flex-wrap gap-1.5 md:gap-2">
             {[
-              { name: '@iii/sdk', available: true },
-              { name: 'iii-py', available: true },
-              { name: 'iii-go', available: false }
-            ].map(({ name, available }) => (
-              <code key={name} className={`px-1.5 py-0.5 md:px-2 md:py-1 border rounded text-[9px] md:text-[10px] font-mono ${available ? 'cursor-pointer' : 'opacity-50'} ${iconBg} ${cardBorder} ${textPrimary} ${available ? cardHover : ''} relative group/sdk`}>
-                {name}
+              { name: '@iii/sdk', lang: 'Node.js', available: true },
+              { name: 'iii-py', lang: 'Python', available: true },
+              { name: 'iii-rs', lang: 'Rust', available: false }
+            ].map(({ name, lang, available }) => (
+              <div key={name} className={`px-2 py-1.5 md:px-3 md:py-2 border rounded relative ${available ? '' : 'opacity-50'} ${iconBg} ${cardBorder}`}>
+                <div className={`text-[9px] md:text-[10px] font-mono ${textPrimary} mb-0.5`}>{name}</div>
+                <div className={`text-[7px] md:text-[8px] ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'}`}>{lang}</div>
                 {!available && (
-                  <span className={`absolute -top-1 -right-1 text-[6px] md:text-[7px] px-1 py-0.5 rounded border ${isDarkMode ? 'bg-iii-black border-iii-medium text-iii-medium' : 'bg-white border-iii-medium text-iii-medium'}`}>
+                  <span className={`absolute -top-1 -right-1 text-[5px] md:text-[6px] px-1 py-0.5 rounded border ${isDarkMode ? 'bg-iii-black border-iii-medium-dark text-iii-medium-dark' : 'bg-white border-iii-medium-light text-iii-medium-light'}`}>
                     SOON
                   </span>
                 )}
-              </code>
+              </div>
             ))}
             </div>
           </div>
@@ -131,32 +132,29 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
             <div className={`p-1.5 md:p-2 border rounded-lg ${iconBg} ${cardBorder}`}>
               <Zap className={`w-4 h-4 md:w-5 md:h-5 transition-colors ${textPrimary} ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
             </div>
-            <h3 className={`text-sm md:text-lg font-semibold ${textPrimary}`}>Implementation</h3>
+            <h3 className={`text-sm md:text-lg font-semibold ${textPrimary}`}>Worker Process</h3>
           </div>
           <div className="relative z-10">
-            <p className="text-[10px] md:text-xs text-iii-medium mb-2 md:mb-3">
-              Workers self-register capabilities on boot via Bridge SDK.
+            <p className={`text-[10px] md:text-xs ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'} mb-2 md:mb-3`}>
+              Application code connecting to daemon. Registers functions and handles invocations.
             </p>
             <div className="flex flex-wrap gap-1.5 md:gap-2 mb-2 md:mb-3">
             {[
-              { name: 'Node.js', available: true },
-              { name: 'Python', available: true },
-              { name: 'Go', available: false },
-              { name: 'Rust', available: false }
-            ].map(({ name, available }) => (
-              <span key={name} className={`px-1.5 py-0.5 md:px-2 md:py-1 border rounded text-[9px] md:text-[10px] font-mono relative ${available ? '' : 'opacity-50'} ${iconBg} ${cardBorder} ${textPrimary}`}>
+              { name: 'Express', framework: true, available: true },
+              { name: 'Flask', framework: true, available: true },
+              { name: 'FastAPI', framework: true, available: false },
+              { name: 'Standalone', framework: false, available: true }
+            ].map(({ name, framework, available }) => (
+              <span key={name} className={`px-2 py-1 border rounded text-[9px] md:text-[10px] font-mono relative ${available ? '' : 'opacity-50'} ${iconBg} ${cardBorder} ${textPrimary}`}>
                 {name}
+                {framework && <span className={`ml-1 text-[7px] ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'}`}>FW</span>}
                 {!available && (
-                  <span className={`absolute -top-1 -right-1 text-[5px] md:text-[6px] px-0.5 py-0.5 rounded border ${isDarkMode ? 'bg-iii-black border-iii-medium text-iii-medium' : 'bg-white border-iii-medium text-iii-medium'}`}>
+                  <span className={`absolute -top-1 -right-1 text-[5px] md:text-[6px] px-0.5 py-0.5 rounded border ${isDarkMode ? 'bg-iii-black border-iii-medium-dark text-iii-medium-dark' : 'bg-white border-iii-medium-light text-iii-medium-light'}`}>
                     SOON
                   </span>
                 )}
               </span>
             ))}
-            </div>
-            <div className="flex items-center justify-between mt-auto pt-2 border-t border-iii-medium/10">
-              <div className="text-[9px] md:text-[10px] text-iii-medium uppercase tracking-wider">Language Agnostic</div>
-              <Workflow className={`w-3 h-3 md:w-4 md:h-4 text-iii-medium transition-colors ${isDarkMode ? 'group-hover:text-iii-accent' : 'group-hover:text-iii-accent-light'}`} />
             </div>
           </div>
         </div>
@@ -170,7 +168,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
               </div>
               <h3 className={`text-sm md:text-lg font-semibold ${textPrimary}`}>Invocation Layer</h3>
             </div>
-            <p className="text-[10px] md:text-sm text-iii-medium">
+            <p className={`text-[10px] md:text-sm ${isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light'}`}>
               Configure triggers (API, Event, Cron) and link them to functions.
             </p>
           </div>

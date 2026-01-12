@@ -115,7 +115,7 @@ Built with Rust for speed and memory efficiency.`}</pre>
 | zero_latency_hot_path     | ✓      | Child processes in daemon context     |
 | dynamic_routing           | ✓      | Route by availability + intent        |
 | protocol_agnostic         | ✓      | HTTP, WS, gRPC, custom protocols      |
-| language_agnostic         | ✓      | Node.js, Python, Rust (Go: Coming Soon) |
+| language_agnostic         | ✓      | Node.js, Python (Rust: Coming Soon)  |
 | distributed_tracing       | ✓      | Aggregated logs, traces, metrics      |`}</pre>
 
         {/* Adapters */}
@@ -191,7 +191,7 @@ const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
     ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼─────┐
     │  WORKER   │ │  WORKER   │ │  WORKER   │
     │  Node.js  │ │  Python   │ │  Custom   │
-    │@iii-dev  │ │  iii-py   │ │  Bridge   │
+    │ @iii/sdk  │ │  iii-py   │ │  Bridge   │
     └───────────┘ └───────────┘ └───────────┘
 \`\`\``}</pre>
 
@@ -208,6 +208,228 @@ const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
 8. Tethered Observability: Aggregates logs, traces, metrics from distributed environments
 9. Protocol-Agnostic Bridging: Code interacts via data primitives regardless of transport
 10. Atomic Control Plane: Service discovery, orchestration, connectivity in single binary`}</pre>
+
+        {/* Persona-Specific Value Propositions */}
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Role-Specific Benefits
+
+### Backend Engineer
+- Stack Unification: Triggers and functions abstraction. Reduces context switching across tooling.
+- Observability: Call stack error tracing. Record, modify, and replay execution paths.
+- Orchestration: Business logic focus. Eliminates integration layer development.
+- Runtime Context: Sandboxed execution. Cross-language function calls without API layers.
+
+### System Architect
+- Stack Unification: Centralized dependency management. Single control plane for system coordination.
+- Observability: Zero-instrumentation distributed tracing. Request lifecycle visualization.
+- Orchestration: Vendor-agnostic architecture. Hot deployments without downtime.
+- Runtime Context: Function-level language selection. Component migration without system impact.
+
+### CTO
+- Stack Unification: Consolidated subscription view. Unified cost tracking across infrastructure.
+- Observability: TTR optimization. SLA monitoring with behavioral analytics.
+- Orchestration: Operational consolidation. Single orchestration provider.
+- Runtime Context: Architectural flexibility. Rapid response to requirement changes.`}</pre>
+
+        {/* Problems Solved */}
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Problems Solved
+
+### Infrastructure Complexity
+- Problem: Multiple services, load balancers, service meshes, API gateways
+- Solution: Single daemon with built-in service discovery and routing
+- Impact: Reduced operational overhead, simplified deployment
+
+### Integration Hell
+- Problem: Glue code for connecting services, databases, message queues
+- Solution: Universal bridge SDK with adapter pattern
+- Impact: Focus on business logic, not plumbing
+
+### Observability Gaps
+- Problem: Distributed tracing requires instrumentation, log aggregation complex
+- Solution: Built-in tracing and logging at the runtime level
+- Impact: Zero-config observability, faster debugging
+
+### Language Lock-in
+- Problem: Stuck with one language/framework for entire application
+- Solution: Language-agnostic workers communicate via WebSocket protocol
+- Impact: Use best tool for each task, gradual migration paths
+
+### Vendor Lock-in
+- Problem: Cloud-specific services, proprietary APIs
+- Solution: Adapter-based architecture, runs anywhere
+- Impact: Portable across clouds, on-premise, or hybrid`}</pre>
+
+        {/* Code Examples */}
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Code Examples
+
+### HTTP API Handler - Before vs After
+
+#### WITHOUT iii (Express.js - 30 lines)
+\`\`\`typescript
+import express from 'express';
+import cors from 'cors';
+
+const app = express();
+app.use(cors({ origin: ['http://localhost:3000'] }));
+app.use(express.json());
+
+app.post('/todo', async (req, res) => {
+  const { description, dueDate } = req.body;
+
+  if (!description) {
+    return res.status(400).json({
+      error: 'Description is required'
+    });
+  }
+
+  const todoId = \`todo-\${Date.now()}\`;
+  const newTodo = {
+    id: todoId,
+    description,
+    dueDate,
+    createdAt: new Date().toISOString(),
+  };
+
+  await db.todos.insert(newTodo);
+  res.status(201).json(newTodo);
+});
+
+app.listen(3111);
+\`\`\`
+
+#### WITH iii (@iii/sdk - 15 lines, 50% reduction)
+\`\`\`typescript
+import { useApi } from './hooks';
+import { streams } from './streams';
+
+useApi(
+  {
+    api_path: 'todo',
+    http_method: 'POST',
+    description: 'Create a new todo'
+  },
+  async (req, { logger }) => {
+    const { description, dueDate } = req.body;
+
+    if (!description) {
+      return {
+        status_code: 400,
+        body: { error: 'Description is required' }
+      };
+    }
+
+    const todoId = \`todo-\${Date.now()}\`;
+    const todo = await streams.set('todo', 'inbox', todoId, { description, dueDate });
+
+    return { status_code: 201, body: todo };
+  }
+);
+\`\`\`
+
+### WebSocket State Sync - Before vs After
+
+#### WITHOUT iii (ws + Redis - 45 lines)
+\`\`\`typescript
+import { WebSocketServer } from 'ws';
+import Redis from 'ioredis';
+
+const wss = new WebSocketServer({ port: 31112 });
+const redis = new Redis();
+const pubsub = new Redis();
+const clients = new Map<string, Set<WebSocket>>();
+
+pubsub.subscribe('todo:*');
+pubsub.on('message', (channel, message) => {
+  const [, groupId] = channel.split(':');
+  const sockets = clients.get(groupId);
+  sockets?.forEach(ws => ws.send(message));
+});
+
+wss.on('connection', (ws) => {
+  ws.on('message', async (data) => {
+    const { action, groupId, itemId, payload } = JSON.parse(data.toString());
+
+    if (action === 'subscribe') {
+      if (!clients.has(groupId)) clients.set(groupId, new Set());
+      clients.get(groupId)!.add(ws);
+    }
+
+    if (action === 'set') {
+      await redis.hset(\`todo:\${groupId}\`, itemId, JSON.stringify(payload));
+      redis.publish(\`todo:\${groupId}\`, JSON.stringify({ itemId, payload }));
+    }
+  });
+});
+\`\`\`
+
+#### WITH iii (@iii/sdk - 8 lines, 82% reduction)
+\`\`\`typescript
+import { bridge } from './bridge';
+
+bridge.onJoin('todo', async ({ groupId, client }) => {
+  const state = await bridge.streams.getAll('todo', groupId);
+  client.send({ type: 'state', data: state });
+});
+
+bridge.onSet('todo', async ({ groupId, itemId, payload }) => {
+  await bridge.streams.set('todo', groupId, itemId, payload);
+});
+\`\`\`
+
+### Cron Job - Before vs After
+
+#### WITHOUT iii (node-cron + distributed locking - 35 lines)
+\`\`\`typescript
+import cron from 'node-cron';
+import Redis from 'ioredis';
+import { sendEmail } from './email';
+
+const redis = new Redis();
+
+cron.schedule('0 9 * * *', async () => {
+  const lock = await redis.set('reminder-lock', '1', 'EX', 60, 'NX');
+  if (!lock) return; // Another instance is running
+
+  try {
+    const users = await db.users.findAll({ reminderEnabled: true });
+
+    for (const user of users) {
+      const tasks = await db.tasks.findAll({
+        userId: user.id,
+        dueDate: new Date().toISOString().split('T')[0],
+      });
+
+      if (tasks.length > 0) {
+        await sendEmail(user.email, {
+          subject: 'Daily Task Reminder',
+          tasks: tasks.map(t => t.title),
+        });
+      }
+    }
+  } finally {
+    await redis.del('reminder-lock');
+  }
+});
+\`\`\`
+
+#### WITH iii (@iii/sdk - 12 lines, 66% reduction)
+\`\`\`typescript
+import { useCron } from './hooks';
+import { sendEmail } from './email';
+
+useCron(
+  { schedule: '0 9 * * *' },
+  async ({ logger }) => {
+    const users = await db.users.findAll({ reminderEnabled: true });
+
+    for (const user of users) {
+      const tasks = await db.tasks.findDueToday(user.id);
+      if (tasks.length > 0) {
+        await sendEmail(user.email, { subject: 'Daily Task Reminder', tasks });
+      }
+    }
+  }
+);
+\`\`\``}</pre>
 
         {/* Technical Deep Dive (for AI context) */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Technical Deep Dive
@@ -273,6 +495,249 @@ bridge.invokeFunctionAsync(functionPath, data);
 | Streams  | modules::streams::adapters::RedisAdapter   |
 | Logging  | modules::observability::adapters::FileLogger |
 `}</pre>
+
+        {/* Use Cases */}
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Use Cases
+
+### Real-time Collaboration Apps
+- Use iii's built-in WebSocket streams for real-time state sync
+- Automatic pub/sub without Redis setup
+- Client subscription management handled by runtime
+- Example: Todo apps, collaborative editors, dashboards
+
+### Microservices Migration
+- Gradually migrate monolith to distributed services
+- Different services in different languages
+- Single daemon orchestrates all services
+- No service mesh complexity
+
+### Background Job Processing
+- Distributed cron with automatic locking
+- Job queues with retry logic
+- Progress tracking and cancellation
+- No need for separate job processor services
+
+### API Gateway Replacement
+- Single entry point for all services
+- Automatic routing to available workers
+- Built-in load balancing
+- No nginx or API gateway needed
+
+### Event-Driven Architecture
+- Normalize all events (HTTP, DB, cron, custom) into triggers
+- Function invocation from any event source
+- Distributed event sourcing
+- Automatic retry and dead letter queues`}</pre>
+
+        {/* Detailed Features */}
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Detailed Features
+
+### Self-Assembling Mesh
+- Workers connect via WebSocket to daemon on boot
+- Automatic capability registration (functions, triggers)
+- Real-time health checks and reconnection
+- No manual service discovery configuration
+- Dynamic routing based on worker availability
+
+### Unified Runtime
+- Single binary runs on any platform (macOS, Linux, Windows planned)
+- Configuration via single YAML file
+- Compile with custom adapters for specific needs
+- Hot reload configuration without restart
+- Manages worker lifecycle (spawn, monitor, restart)
+
+### Language Agnostic
+- Bridge SDK available for Node.js, Python
+- Rust SDK in development
+- Protocol is language-independent (JSON over WebSocket)
+- Mix languages in same application
+- Call Python ML models from Node.js API handlers seamlessly
+
+### Built-in Observability
+- Structured logging with automatic trace context
+- Request ID propagation across services
+- Aggregate logs from all workers in single stream
+- Performance metrics (latency, throughput, errors)
+- No external APM required for basic observability
+
+### Adapter System
+- Pluggable backends for modules
+- Redis adapter for streams, cron, events
+- File-based adapter for local development
+- Custom adapters via Rust traits
+- Swap adapters without code changes (config only)
+
+### Hot Deployments
+- Update worker code without downtime
+- In-flight requests complete before shutdown
+- New workers start in parallel
+- Atomic cutover when ready
+- Rollback on error detection`}</pre>
+
+        {/* Protocol Specifications */}
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Protocol Specifications
+
+### WebSocket Messages (Engine ↔ Worker)
+
+#### Worker Registration
+\`\`\`json
+{
+  "type": "register",
+  "payload": {
+    "worker_id": "worker-node-1",
+    "capabilities": ["http", "cron", "streams"]
+  }
+}
+\`\`\`
+
+#### Function Registration
+\`\`\`json
+{
+  "type": "register_function",
+  "payload": {
+    "function_path": "users.create",
+    "metadata": {
+      "language": "typescript",
+      "runtime": "node-20"
+    }
+  }
+}
+\`\`\`
+
+#### Trigger Registration
+\`\`\`json
+{
+  "type": "register_trigger",
+  "payload": {
+    "trigger_type": "api",
+    "function_path": "users.create",
+    "config": {
+      "api_path": "/api/users",
+      "http_method": "POST"
+    }
+  }
+}
+\`\`\`
+
+#### Function Invocation Request (Engine → Worker)
+\`\`\`json
+{
+  "type": "invoke",
+  "payload": {
+    "invocation_id": "inv-123",
+    "function_path": "users.create",
+    "data": { "email": "user@example.com" },
+    "context": {
+      "request_id": "req-456",
+      "trigger_type": "api"
+    }
+  }
+}
+\`\`\`
+
+#### Function Response (Worker → Engine)
+\`\`\`json
+{
+  "type": "invoke_response",
+  "payload": {
+    "invocation_id": "inv-123",
+    "success": true,
+    "data": { "id": "user-789", "email": "user@example.com" },
+    "duration_ms": 45
+  }
+}
+\`\`\`
+
+#### Stream Event (Engine → Worker)
+\`\`\`json
+{
+  "type": "stream_event",
+  "payload": {
+    "stream_name": "todo",
+    "group_id": "inbox",
+    "event_type": "set",
+    "item_id": "todo-123",
+    "data": { "description": "Buy milk" }
+  }
+}
+\`\`\`
+
+### REST API Endpoints (Engine)
+
+#### Health Check
+\`\`\`
+GET /health
+Response: { "status": "healthy", "uptime_seconds": 3600 }
+\`\`\`
+
+#### List Workers
+\`\`\`
+GET /api/_internal/workers
+Response: {
+  "workers": [
+    {
+      "worker_id": "worker-node-1",
+      "connected_at": "2025-01-12T10:00:00Z",
+      "capabilities": ["http", "cron"],
+      "functions": ["users.create", "users.update"]
+    }
+  ]
+}
+\`\`\`
+
+#### List Functions
+\`\`\`
+GET /api/_internal/functions
+Response: {
+  "functions": [
+    {
+      "function_path": "users.create",
+      "worker_id": "worker-node-1",
+      "triggers": [
+        { "type": "api", "config": { "api_path": "/api/users", "http_method": "POST" } }
+      ]
+    }
+  ]
+}
+\`\`\``}</pre>
+
+        {/* Comparison with Alternatives */}
+        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Comparison with Alternatives
+
+### vs. Kubernetes + Service Mesh (Istio/Linkerd)
+| Aspect               | iii                                | K8s + Service Mesh                                  |
+|----------------------|------------------------------------|-----------------------------------------------------|
+| Setup Complexity     | Single binary + YAML               | Cluster setup, service mesh install, sidecar injection |
+| Operational Overhead | Minimal (one daemon)               | High (control plane, data plane, proxies)           |
+| Resource Usage       | Low (native binary)                | High (control plane + sidecars per pod)             |
+| Learning Curve       | Hours                              | Weeks to months                                     |
+| Best For             | Microservices, APIs, background jobs | Large-scale container orchestration               |
+
+### vs. AWS Lambda / Serverless
+| Aspect            | iii                                     | Lambda                                   |
+|-------------------|-----------------------------------------|------------------------------------------|
+| Cold Starts       | None (persistent daemon)                | 100ms-1s+                                |
+| Vendor Lock-in    | None (runs anywhere)                    | AWS-specific                             |
+| Cost Model        | Fixed (infrastructure cost)             | Per-invocation + GB-second               |
+| Local Development | Full feature parity                     | Emulation only (SAM/LocalStack)          |
+| Best For          | Low-latency, stateful, cost-predictable | Event-driven, variable load, pay-per-use |
+
+### vs. Temporal / Conductor
+| Aspect     | iii                        | Temporal                       |
+|------------|----------------------------|--------------------------------|
+| Use Case   | Runtime orchestration      | Workflow orchestration         |
+| Complexity | Simple (daemon + SDK)      | Complex (server, workers, DB)  |
+| Durability | Optional (via adapters)    | Built-in (DB-backed)           |
+| Best For   | Service orchestration, APIs | Long-running workflows, sagas |
+
+### vs. Node.js + Express
+| Aspect         | iii                                | Express                           |
+|----------------|------------------------------------|-----------------------------------|
+| Setup          | SDK + config                       | Framework setup, middleware       |
+| Multi-language | Yes (Node, Python, Rust)           | No (Node.js only)                 |
+| Real-time      | Built-in streams                   | Requires Socket.io or similar     |
+| Observability  | Built-in                           | Requires instrumentation          |
+| Best For       | Distributed systems, multi-language | Simple Node.js APIs              |`}</pre>
 
         {/* Links */}
         <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Resources

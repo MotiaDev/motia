@@ -70,7 +70,7 @@ interface Logo {
 const workerLogos: Logo[] = [
   { name: 'Node.js', icon: NodeIcon, hoverColor: 'hover:text-[#68A063]' },      // Node.js green
   { name: 'Python', icon: PythonIcon, hoverColor: 'hover:text-[#3776AB]' },     // Python blue
-  { name: 'Rust', icon: RustIcon, comingSoon: true, hoverColor: 'hover:text-[#CE422B]' }, // Rust orange
+  { name: 'Rust', icon: RustIcon, hoverColor: 'hover:text-[#CE422B]' }, // Rust orange
 ];
 
 const deployLogos: Logo[] = [
@@ -84,8 +84,8 @@ const deployLogos: Logo[] = [
 export const TechLogos: React.FC<TechLogosProps> = ({ isDarkMode = true }) => {
   // iii Brand Colors
   const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
-  const textSecondary = isDarkMode ? 'text-iii-medium' : 'text-iii-medium';
-  const iconBase = isDarkMode ? 'text-iii-medium' : 'text-iii-medium';
+  const textSecondary = isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light';
+  const iconBase = isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light';
 
   return (
     <section className="w-full max-w-5xl mx-auto px-4 md:px-8 py-12 md:py-16">

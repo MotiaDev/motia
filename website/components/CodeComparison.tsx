@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Check, ArrowUpRight, ArrowRight, ArrowDown } from 'lucide-react';
+import React, { useState, useRef } from 'react';
 
 interface CodeComparisonProps {
   isDarkMode?: boolean;
@@ -22,12 +21,12 @@ interface Feature {
 }
 
 const content = {
-  heading: "Production-grade Infrastructure",
-  text: "As your backend grows, iii scales with it. One pattern for APIs, events, streams, and cron.",
+  heading: "Runtime Abstraction",
+  text: "Unified interface for HTTP handlers, event consumers, stateful streams, and scheduled execution.",
   features: [
     {
-      name: "API Endpoints",
-      description: "Define REST endpoints with automatic routing and CORS.",
+      name: "HTTP Handler Registration",
+      description: "Path-based routing with method dispatch. CORS and request validation handled by runtime.",
       color: "#283413",
       withoutIII: {
         fileName: "server.ts",
@@ -98,8 +97,8 @@ useApi(
       },
     },
     {
-      name: "Real-time Streams",
-      description: "Sync state across clients with WebSocket streams.",
+      name: "WebSocket State Synchronization",
+      description: "Bidirectional streams with automatic client subscription and state propagation. Built-in pub/sub without external message broker.",
       color: "#39300D",
       withoutIII: {
         fileName: "realtime.ts",
@@ -238,8 +237,8 @@ app.post('/todo', async (req, res) => {
       },
     },
     {
-      name: "Service Discovery",
-      description: "Call any registered function without knowing where it runs.",
+      name: "Function Registry & Invocation",
+      description: "Direct function-to-function calls with automatic service discovery. Runtime handles load balancing and request routing.",
       color: "#10322E",
       withoutIII: {
         fileName: "microservices.ts",
@@ -320,81 +319,93 @@ const processCode = (code: string, highlightedLines: number[]) => {
 export const CodeComparison: React.FC<CodeComparisonProps> = ({ isDarkMode = true }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const sectionRef = useRef<HTMLDivElement>(null);
-  const [isInView, setIsInView] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsInView(entry.isIntersecting),
-      { threshold: 0.3 }
-    );
-    if (sectionRef.current) observer.observe(sectionRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   // iii Brand Colors
   const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
-  const textSecondary = isDarkMode ? 'text-iii-medium' : 'text-iii-medium';
+  const textSecondary = isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light';
+  const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
+  const accentBg = isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light';
   const borderColor = isDarkMode ? 'border-iii-dark' : 'border-iii-medium/30';
   const cardBg = isDarkMode ? 'bg-iii-dark/50' : 'bg-white';
-  const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
 
   const currentFeature = content.features[currentIndex];
 
+  const metrics = [
+    { value: '90%', label: 'Code Reduction' },
+    { value: '1', label: 'Runtime Binary' },
+    { value: '1', label: 'Config Source' },
+    { value: '<1ms', label: 'Invocation Overhead' },
+  ];
+
   return (
-    <section ref={sectionRef} className="relative w-full max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-24">
+    <section ref={sectionRef} className="relative w-full max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
       {/* Header */}
-      <h2 className={`font-bold mb-4 text-2xl sm:text-3xl lg:text-4xl text-center ${textPrimary}`}>
+      <h2 className={`font-bold mb-3 md:mb-4 text-2xl sm:text-3xl lg:text-4xl text-center ${textPrimary}`}>
         {content.heading}
       </h2>
-      <p className={`mb-12 text-center max-w-xl mx-auto ${textSecondary}`}>
+      <p className={`mb-8 md:mb-12 text-xs md:text-base text-center max-w-xl mx-auto ${textSecondary}`}>
         {content.text}
       </p>
 
-      {/* Impact Metrics - Replacing the Complexity Graph to be unique */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-12 gap-x-12 items-start mb-12">
-        {/* Metric Cards */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className={`p-6 rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
-            <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>90%</div>
-            <div className={`text-sm ${textSecondary}`}>Less Boilerplate</div>
+      {/* Impact Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8 md:mb-12 max-w-4xl mx-auto">
+        {metrics.map((metric) => (
+          <div key={metric.label} className={`p-4 md:p-6 rounded-lg md:rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
+            <div className={`text-2xl md:text-4xl font-bold mb-1 md:mb-2 ${accentColor}`}>
+              {metric.value}
+            </div>
+            <div className={`text-[10px] md:text-sm ${textSecondary}`}>
+              {metric.label}
+            </div>
           </div>
-          <div className={`p-6 rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
-            <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>1</div>
-            <div className={`text-sm ${textSecondary}`}>Binary to Deploy</div>
-          </div>
-          <div className={`p-6 rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
-            <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>1</div>
-            <div className={`text-sm ${textSecondary}`}>Central Config</div>
-          </div>
-          <div className={`p-6 rounded-xl border ${borderColor} ${cardBg} flex flex-col items-center text-center`}>
-            <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`}>&lt;1ms</div>
-            <div className={`text-sm ${textSecondary}`}>Added Latency</div>
-          </div>
-        </div>
+        ))}
+      </div>
 
-        {/* Feature Selectors */}
-        <div className="lg:pr-8">
-          <ul className="space-y-3">
+      {/* Mobile: Simplified feature list */}
+      <div className="lg:hidden mb-6">
+        <div className={`p-4 rounded-lg border ${borderColor} ${cardBg}`}>
+          <h3 className={`text-sm font-bold mb-3 ${textPrimary}`}>Key Abstractions:</h3>
+          <ul className="space-y-2">
             {content.features.map((feature, index) => (
+              <li key={index} className="flex items-start gap-2">
+                <div className={`w-1 h-1 rounded-full mt-1.5 flex-shrink-0 ${accentBg}`} />
+                <div>
+                  <div className={`text-xs font-mono ${textPrimary}`}>{feature.name}</div>
+                  <div className={`text-[10px] ${textSecondary} leading-relaxed`}>{feature.description}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Desktop: Interactive layout */}
+      <div className="hidden lg:block mb-12">
+        <ul className="space-y-3 max-w-2xl mx-auto">
+          {content.features.map((feature, index) => {
+            const isActive = currentIndex === index;
+            const bgActiveClass = isDarkMode ? 'bg-iii-medium/10' : 'bg-iii-medium/5';
+            const bgHoverClass = isDarkMode ? 'hover:bg-iii-medium/5' : 'hover:bg-iii-medium/5';
+            const accentShadow = isDarkMode
+              ? 'shadow-[0_0_8px_rgba(243,247,36,0.6)]'
+              : 'shadow-[0_0_8px_rgba(37,99,235,0.6)]';
+
+            return (
               <li key={index}>
                 <button
                   onClick={() => setCurrentIndex(index)}
                   className={`flex gap-4 items-center text-left relative group w-full p-4 rounded-lg border transition-all duration-300 ${
-                    currentIndex === index 
-                      ? `${borderColor} ${isDarkMode ? 'bg-iii-medium/10' : 'bg-iii-medium/5'}` 
-                      : `border-transparent ${isDarkMode ? 'hover:bg-iii-medium/5' : 'hover:bg-iii-medium/5'}`
+                    isActive
+                      ? `${borderColor} ${bgActiveClass}`
+                      : `border-transparent ${bgHoverClass}`
                   }`}
                 >
-                  {/* Status Light */}
                   <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    currentIndex === index
-                      ? (isDarkMode ? 'bg-iii-accent shadow-[0_0_8px_rgba(243,247,36,0.6)]' : 'bg-iii-accent-light shadow-[0_0_8px_rgba(37,99,235,0.6)]')
-                      : 'bg-iii-medium/30'
+                    isActive ? `${accentBg} ${accentShadow}` : 'bg-iii-medium/30'
                   }`} />
-                  
-                  {/* Text */}
+
                   <div className="flex-1">
-                    <div className={`font-mono text-sm tracking-tight mb-1 ${currentIndex === index ? textPrimary : textSecondary}`}>
+                    <div className={`font-mono text-sm tracking-tight mb-1 ${isActive ? textPrimary : textSecondary}`}>
                       {feature.name.toUpperCase()}
                     </div>
                     <div className={`text-xs ${textSecondary} line-clamp-1`}>
@@ -402,18 +413,18 @@ export const CodeComparison: React.FC<CodeComparisonProps> = ({ isDarkMode = tru
                     </div>
                   </div>
 
-                  {currentIndex === index && (
-                    <ArrowRight className={`w-4 h-4 ${isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light'}`} />
+                  {isActive && (
+                    <span className={`text-lg font-mono font-bold ${accentColor}`}>&gt;</span>
                   )}
                 </button>
               </li>
-            ))}
-          </ul>
-        </div>
+            );
+          })}
+        </ul>
       </div>
 
-      {/* Code Blocks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Code Blocks - Desktop Only */}
+      <div className="hidden lg:grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Without iii */}
         <div className="flex flex-col">
           <h3 className={`text-center text-xl font-semibold mb-4 ${textPrimary}`}>
