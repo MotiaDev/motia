@@ -57,6 +57,12 @@
   --color-fd-destructive: #ef4444;
   --color-fd-destructive-foreground: #ffffff;
   --color-fd-ring: var(--color-iii-black);
+
+  /* Mermaid Diagram Colors - Light Mode */
+  --color-mermaid-fill: #f4f4f4;
+  --color-mermaid-stroke: #000000;
+  --color-mermaid-text: #000000;
+  --color-mermaid-cluster-fill: #F4F4F4;
 }
 
 /* Dark Mode Configuration */
@@ -79,6 +85,12 @@
   --color-fd-destructive: #7f1d1d;
   --color-fd-destructive-foreground: #ffffff;
   --color-fd-ring: var(--color-iii-accent);
+
+  /* Mermaid Diagram Colors - Dark Mode */
+  --color-mermaid-fill: #000000;
+  --color-mermaid-stroke: #ffffff;
+  --color-mermaid-text: #ffffff;
+  --color-mermaid-cluster-fill: transparent;
 }
 
 /* Base Styles */

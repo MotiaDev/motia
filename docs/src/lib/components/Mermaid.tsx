@@ -61,10 +61,12 @@ export function Mermaid({ chart }: { chart: string }) {
 
       const svgElement = containerRef.current.querySelector('svg');
       if (svgElement) {
-        const fillColor = isDark ? '#000000' : '#f4f4f4';
-        const strokeColor = isDark ? '#ffffff' : '#000000';
-        const textColor = isDark ? '#ffffff' : '#000000';
-        const clusterFill = isDark ? 'transparent' : '#F4F4F4';
+        // Read colors from CSS variables
+        const style = getComputedStyle(document.documentElement);
+        const fillColor = style.getPropertyValue('--color-mermaid-fill').trim();
+        const strokeColor = style.getPropertyValue('--color-mermaid-stroke').trim();
+        const textColor = style.getPropertyValue('--color-mermaid-text').trim();
+        const clusterFill = style.getPropertyValue('--color-mermaid-cluster-fill').trim();
 
         // Update all rects
         svgElement.querySelectorAll('rect').forEach((el) => {
