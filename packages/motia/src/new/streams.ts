@@ -35,4 +35,10 @@ export class Stream<TData> {
       group_id: groupId,
     })
   }
+
+  async listGroups(): Promise<string[]> {
+    return bridge.invokeFunction('streams.listGroups', {
+      stream_name: this.config.name,
+    })
+  }
 }

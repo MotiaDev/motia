@@ -30,7 +30,7 @@ export const config = {
   virtualEmits: ['todo-created'],
 } as const satisfies ApiRouteConfig
 
-export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
+export const handler: Handlers<typeof config> = async (req, { logger, streams, state }) => {
   logger.info('Creating new todo', { body: req.body })
 
   const { description, dueDate } = req.body
@@ -48,6 +48,8 @@ export const handler: Handlers<typeof config> = async (req, { logger, streams })
   }
 
   const todo = await streams.todo.set('inbox', todoId, newTodo)
+
+  await state.set('todos', todoId, newTodo)
 
   logger.info('Todo created successfully', { todoId })
 

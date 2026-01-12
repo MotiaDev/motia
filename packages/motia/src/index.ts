@@ -2,6 +2,7 @@ export type { StreamAuthInput, StreamAuthResult, StreamContext } from '@iii-dev/
 export { generateStepId } from './new/build/loader'
 export { Motia } from './new/build/utils'
 export { setupStepEndpoint } from './new/setup-step-endpoint'
+export { StateManager } from './new/state'
 export { Stream } from './new/streams'
 export * from './types'
 export * from './types-stream'

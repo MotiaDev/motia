@@ -36,6 +36,12 @@ export class StateManager implements InternalStateManager {
     })
   }
 
+  async listGroups(): Promise<string[]> {
+    return bridge.invokeFunction('streams.listGroups', {
+      stream_name: STREAM_NAME,
+    })
+  }
+
   async clear(groupId: string): Promise<void> {
     const items = await this.getGroup<{ id: string }>(groupId)
 
