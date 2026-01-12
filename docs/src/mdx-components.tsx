@@ -8,6 +8,7 @@ import { Expandable } from './lib/components/Expandable'
 import { ResponseField } from './lib/components/ResponseField'
 import { Warning } from './lib/components/Warning'
 import { Image } from './lib/components/Image'
+import { Mermaid } from './lib/components/Mermaid'
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
@@ -22,5 +23,6 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ResponseField: ResponseField,
     Warning: Warning,
     Image: Image,
+    Mermaid: Mermaid,
   }
 }

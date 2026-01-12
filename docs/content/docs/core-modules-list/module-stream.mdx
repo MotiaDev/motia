@@ -34,12 +34,12 @@ modules::streams::StreamModule
 
 <ResponseField name="auth_function" type="string">
   The authentication function to use. It's a path to a function that will be used to authenticate the client.
-  You can register the function using the III SDK and then use the path to the function here.
+  You can register the function using the iii SDK and then use the path to the function here.
 </ResponseField>
 
 <ResponseField name="adapter" type="Adapter">
   The adapter to use. It's the adapter that will be used to store the streams.
-  You can register the adapter using the III SDK and then use the path to the adapter here.
+  You can register the adapter using the iii SDK and then use the path to the adapter here.
 </ResponseField>
 
 ## Adapters
@@ -206,7 +206,7 @@ bridge.registerFunction({
 
 ## Trigger Types
 
-Two new trigger types are added to the III SDK: `streams:join` and `streams:leave`.
+Two new trigger types are added to the iii SDK: `streams:join` and `streams:leave`.
 Both have the same parameters when invoked.
 
 <ResponseField name="subscription_id" type="string" required>
