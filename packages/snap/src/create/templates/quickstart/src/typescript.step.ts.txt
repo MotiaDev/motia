@@ -1,49 +1,51 @@
-// 1. Woah did you see that? You just executed your first
-// function in multiple languages!
-
-// 2. This is an example of a TypeScript step.
+// This is an example of a TypeScript step.
 // Every step is composed of a config, and a handler function.
-import type { Handlers } from "@motiadev/core";
-import type { EventConfig } from "motia";
+import type { EventConfig, Handlers } from "motia";
 import * as z from "zod";
 
-// 3. This is a config object, every Step has one.
-//    Configs tell Motia how a Step is triggered,
-//    what events it emits, and what flows it's part of
+// Every Step has a config that describes how a step is triggered,
+// what events it emits, and what "flows" it's part of
 //
-//    There are many configuration options available:
+// There are a few different types of config:
 //
-//    ApiRouteConfig = Create routes that trigger your step
-//    EventConfig = Have specific events trigger your step
-//    CronConfig = Have specific times trigger your step
+// ApiRouteConfig = Create routes (ex. /hello) that trigger your step
+// EventConfig = Have specific events trigger your step
+// CronConfig = Have specific times trigger your step
 export const config: EventConfig = {
-  // 4. While configs vary a little bit each one has a type,
-  // a name, a type, some definition of what triggers it,
+  // While configs vary a little bit each one has a type,
+  // a name, some definition of what triggers it,
   // what its input schema is, and what events it might emit.
   type: "event",
   name: "HelloFromTypeScript",
-  // 5. When a 'hello' event occurs the handler defined below will run.
+  // EventConfigs subscribe to events, when another Step emits
+  // a "hello" event then the handler below will run.
+  // This "subscribes" can be easily swaped out with the equivalents
+  // for ApiRouteConfig (ie. path:'/hello/ts', method: 'GET')
+  // or CronConfig (ie. cron: '0 * * * *')
+  // So an Event can quickly become an ApiRoute and an ApiRoute
+  // can trivially turn into a Cron job.
   subscribes: ["hello"],
   input: z.object({ extra: z.string() }),
   emits: ["hello.response.typescript"],
 
-  // 6. These fields are optional but the flow field is very useful
+  // These fields are optional but the flow field is very useful
   // for visual organization inside this Workbench.
   // If you have a series of Steps that all complete one big task or workflow
   // then adding them to the same flow makes visualizing them in Workbench easier.
-  description: "Says hello in the logs",
   flows: ["hello"],
+  description: "Say hello from TypeScript!",
   virtualEmits: [],
   virtualSubscribes: [],
 };
 
-// 7. This is a handler, it's the code that will run when the conditions
+// This is a handler, it's the code that will run when the conditions
 // defined in the config are met. Every handler gets a payload and
 // a context that contains useful functions to emit events, create logs,
-// modify state, and other useful things.
+// modify state, etc. Checkout the docs to see all that the context can do!
 export const handler: Handlers["HelloFromTypeScript"] = async (
   payload,
-  { emit, logger, state }
+  { emit, logger, state } // context object
 ) => {
   logger.info("Hello from TypeScript!");
+  emit({ topic: "hello.response.typescript", data: "ts" });
 };

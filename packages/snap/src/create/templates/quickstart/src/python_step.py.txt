@@ -12,11 +12,12 @@ config = {
     "emits": ["hello.response.python"],
 
     # Some optional fields. Full list here: https://www.motia.dev/docs/api-reference#eventconfig
-    "description": "Says hello in the logs",
     "flows": ["hello"],
+    "description": "Say hello from Python!",
     "virtualEmits": [],
     "virtualSubscribes": [],
 }
 
 async def handler(input: Input, ctx):
     ctx.logger.info("Hello from Python!")
+    await ctx.emit({"topic": "hello.response.python", "data": "py"})

@@ -1,5 +1,6 @@
 // Tutorial configuration for the quickstart flow
 // Each step defines a title and line ranges for comments and code
+// You can safely ignore and delete this file if you're done with the quickstart
 
 export type TutorialStepConfig = {
   id: string
@@ -13,42 +14,42 @@ export const tutorialConfig: TutorialStepConfig[] = [
     id: 'intro',
     title: 'First Execution',
     comment: { start: 1, end: 2 },
-    code: { start: 4, end: 5 },
+    code: { start: 3, end: 4 },
   },
   {
     id: 'step-overview',
     title: 'Step Overview',
-    comment: { start: 4, end: 5 },
-    code: { start: 6, end: 8 },
+    comment: { start: 6, end: 7 },
+    code: { start: 14, end: 14 },
   },
   {
     id: 'config-overview',
     title: 'Config Object',
-    comment: { start: 10, end: 18 },
-    code: { start: 19, end: 19 },
+    comment: { start: 8, end: 13 },
+    code: { start: 14, end: 14 },
   },
   {
     id: 'config-fields',
     title: 'Config Fields',
-    comment: { start: 20, end: 22 },
-    code: { start: 23, end: 24 },
+    comment: { start: 15, end: 17 },
+    code: { start: 18, end: 19 },
   },
   {
     id: 'config-events',
     title: 'Events',
-    comment: { start: 25, end: 25 },
-    code: { start: 26, end: 28 },
+    comment: { start: 20, end: 26 },
+    code: { start: 27, end: 29 },
   },
   {
     id: 'config-optional',
     title: 'Optional Fields',
-    comment: { start: 30, end: 33 },
-    code: { start: 34, end: 38 },
+    comment: { start: 31, end: 34 },
+    code: { start: 35, end: 39 },
   },
   {
     id: 'handler',
     title: 'Handler Function',
-    comment: { start: 40, end: 43 },
-    code: { start: 44, end: 49 },
+    comment: { start: 41, end: 44 },
+    code: { start: 45, end: 51 },
   },
 ]
