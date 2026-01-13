@@ -10,6 +10,8 @@ import { StackVisual } from "./components/StackVisual";
 import { CodeComparison } from "./components/CodeComparison";
 import { ExampleCodeSection } from "./components/sections/ExampleCodeSection";
 import { HeroSection } from "./components/sections/HeroSection";
+import { FAQSection } from "./components/sections/FAQSection";
+import { CommunitySection } from "./components/sections/CommunitySection";
 import { TechLogos } from "./components/TechLogos";
 import { Features } from "./components/Features";
 // FractureAnimation removed - using StackVisual only
@@ -355,6 +357,12 @@ const App: React.FC = () => {
 
         {/* Features Section with Checklists */}
         <Features isDarkMode={isDarkMode} />
+
+        {/* FAQ Section */}
+        <FAQSection isDarkMode={isDarkMode} />
+
+        {/* Community Section */}
+        <CommunitySection isDarkMode={isDarkMode} />
       </main>
 
       <footer
