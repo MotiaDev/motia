@@ -20,4 +20,4 @@ config = {
 
 async def handler(input: Input, ctx):
     ctx.logger.info("Hello from Python!")
-    await ctx.emit({"topic": "hello.response.python", "data": "py"})
+    await ctx.emit({"topic": "hello.response.python", "data": {"extra": "py"}})

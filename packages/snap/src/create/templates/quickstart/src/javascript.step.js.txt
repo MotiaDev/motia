@@ -20,5 +20,5 @@ export const handler = async (
   { emit, logger, state } //context object
 ) => {
   logger.info("Hello from JavaScript!");
-  emit({ topic: "hello.response.javascript", data: "js" });
+  emit({ topic: "hello.response.javascript", data: { extra: "js" } });
 };

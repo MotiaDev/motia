@@ -42,10 +42,14 @@ export const config: EventConfig = {
 // defined in the config are met. Every handler gets a payload and
 // a context that contains useful functions to emit events, create logs,
 // modify state, etc. Checkout the docs to see all that the context can do!
+
+// Now click the Run button to run this code. Then look at the Tracing tab
+// at the bottom of the screen to see what happened.
+// Motia makes it easy to follow the flow of your program.
 export const handler: Handlers["HelloFromTypeScript"] = async (
   payload,
   { emit, logger, state } // context object
 ) => {
   logger.info("Hello from TypeScript!");
-  emit({ topic: "hello.response.typescript", data: "ts" });
+  emit({ topic: "hello.response.typescript", data: { extra: "ts" } });
 };

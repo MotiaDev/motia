@@ -12,25 +12,25 @@ export type TutorialStepConfig = {
 export const tutorialConfig: TutorialStepConfig[] = [
   {
     id: 'intro',
-    title: 'First Execution',
+    title: 'What are Steps?',
     comment: { start: 1, end: 2 },
     code: { start: 3, end: 4 },
   },
   {
-    id: 'step-overview',
-    title: 'Step Overview',
+    id: 'config-object',
+    title: 'Config Object',
     comment: { start: 6, end: 7 },
     code: { start: 14, end: 14 },
   },
   {
-    id: 'config-overview',
-    title: 'Config Object',
+    id: 'config-types',
+    title: 'Types of Configs',
     comment: { start: 8, end: 13 },
     code: { start: 14, end: 14 },
   },
   {
     id: 'config-fields',
-    title: 'Config Fields',
+    title: 'Required Fields',
     comment: { start: 15, end: 17 },
     code: { start: 18, end: 19 },
   },
@@ -48,8 +48,14 @@ export const tutorialConfig: TutorialStepConfig[] = [
   },
   {
     id: 'handler',
-    title: 'Handler Function',
+    title: 'Handlers',
     comment: { start: 41, end: 44 },
-    code: { start: 45, end: 51 },
+    code: { start: 48, end: 56 },
+  },
+  {
+    id: 'done',
+    title: 'Done',
+    comment: { start: 45, end: 47 },
+    code: { start: 48, end: 56 },
   },
 ]

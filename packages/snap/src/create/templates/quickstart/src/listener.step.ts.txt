@@ -23,5 +23,7 @@ export const handler: Handlers["ListensToMultipleEvents"] = async (
   payload,
   { emit, logger, state } // context object
 ) => {
-  logger.info(`I heard an event, it had the payload: ${payload}`);
+  logger.info(
+    `I heard an event, it had the payload: ${JSON.stringify(payload)}`
+  );
 };
