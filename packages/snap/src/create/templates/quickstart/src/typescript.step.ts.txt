@@ -3,11 +3,11 @@
 import type { EventConfig, Handlers } from "motia";
 import * as z from "zod";
 
-// Every Step has a config that describes how a step is triggered,
+// Every Step has a trigger config that describes how a step is triggered,
 // what events it emits, and what "flows" it's part of
 
 // There are a few different types of config:
-//
+
 // ApiRouteConfig = Create routes (ex. /hello) that trigger your step
 // EventConfig = Have specific events trigger your step
 // CronConfig = Have specific times trigger your step
