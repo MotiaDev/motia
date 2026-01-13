@@ -73,9 +73,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
 
   // Install command state
   const [copySuccess, setCopySuccess] = useState(false);
-  const [installCmd] = useState(
-    "curl -fsSL https://raw.githubusercontent.com/MotiaDev/iii-engine/main/install.sh | sh"
-  );
+  const [installCmd] = useState("curl -fsSL iii.sh/install.sh | sh");
 
   // Email form state
   const [email, setEmail] = useState("");
@@ -205,71 +203,71 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
               ))}
             </ul>
 
-            {/* CTA Button */}
-            <div className="pt-4">
-              <button
-                className={`group inline-flex items-center gap-2 font-semibold px-6 py-3 rounded-lg transition-colors ${
-                  isDarkMode
-                    ? "bg-iii-light text-iii-black hover:bg-iii-medium"
-                    : "bg-iii-black text-iii-light hover:bg-iii-dark"
-                }`}
-              >
-                Get Started
-                <svg
-                  className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-
             {/* Install Command & Email Form */}
-            <div className="flex flex-col gap-4 md:gap-6 md:flex-row items-stretch md:items-center pt-2 md:pt-4 w-full max-w-2xl">
-              <div
-                className={`group relative flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 border rounded hover:border-iii-medium transition-colors cursor-pointer w-full md:w-auto md:min-w-[280px] ${
-                  isDarkMode
-                    ? "bg-iii-dark/50 border-iii-dark"
-                    : "bg-white/50 border-iii-medium/30"
-                }`}
-                onClick={copyToClipboard}
-              >
-                <TerminalIcon
-                  className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${
+            <div className="flex flex-col gap-4 md:gap-6 md:flex-row items-stretch md:items-start pt-2 md:pt-4 w-full max-w-2xl">
+              <div className="flex flex-col gap-1.5">
+                <div
+                  className={`group relative flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 border rounded hover:border-iii-medium transition-colors cursor-pointer w-full md:w-auto md:min-w-[280px] ${
                     isDarkMode
-                      ? "group-hover:text-iii-accent"
-                      : "group-hover:text-iii-accent-light"
+                      ? "bg-iii-dark/50 border-iii-dark"
+                      : "bg-white/50 border-iii-medium/30"
                   }`}
-                />
-                <code
-                  className={`text-xs md:text-sm flex-1 truncate ${
-                    isDarkMode ? "text-iii-light" : "text-iii-black"
-                  }`}
+                  onClick={copyToClipboard}
                 >
-                  {installCmd}
-                </code>
-                {copySuccess ? (
-                  <Check
-                    className={`w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 ${
-                      isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-                    }`}
-                  />
-                ) : (
-                  <Copy
+                  <TerminalIcon
                     className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${
                       isDarkMode
-                        ? "group-hover:text-white"
-                        : "group-hover:text-iii-black"
+                        ? "group-hover:text-iii-accent"
+                        : "group-hover:text-iii-accent-light"
                     }`}
                   />
-                )}
+                  <code
+                    className={`text-xs md:text-sm flex-1 truncate ${
+                      isDarkMode ? "text-iii-light" : "text-iii-black"
+                    }`}
+                  >
+                    {installCmd}
+                  </code>
+                  {copySuccess ? (
+                    <Check
+                      className={`w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 ${
+                        isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+                      }`}
+                    />
+                  ) : (
+                    <Copy
+                      className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${
+                        isDarkMode
+                          ? "group-hover:text-white"
+                          : "group-hover:text-iii-black"
+                      }`}
+                    />
+                  )}
+                </div>
+                <a
+                  href="https://motia.dev/docs"
+                  target="_blank"
+                  className={`inline-flex items-center gap-1.5 text-[14px] md:text-md transition-colors ${
+                    isDarkMode
+                      ? "text-iii-medium hover:text-iii-accent"
+                      : "text-iii-medium hover:text-iii-accent-light"
+                  }`}
+                >
+                  Learn more
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
               </div>
 
               <form

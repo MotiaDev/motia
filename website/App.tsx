@@ -57,9 +57,6 @@ const App: React.FC = () => {
     }
   }, []);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [installCmd] = useState(
-    "curl -fsSL https://raw.githubusercontent.com/MotiaDev/iii-engine/main/install.sh | sh"
-  );
   const [bslBlink, setBslBlink] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [logoClickCount, setLogoClickCount] = useState(0);
@@ -191,12 +188,6 @@ const App: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(installCmd);
-    setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 2000);
   };
 
   const handleManifestoClick = (e: React.MouseEvent) => {

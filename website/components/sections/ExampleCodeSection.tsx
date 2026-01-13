@@ -864,11 +864,8 @@ function CodeBlock({
           code={code.trim()}
           language="tsx"
         >
-          {({ className, style, tokens, getLineProps, getTokenProps }) => (
-            <pre
-              className={`${className} text-sm font-mono leading-relaxed`}
-              style={{ ...style, background: "transparent" }}
-            >
+          {({ tokens, getLineProps, getTokenProps }) => (
+            <pre className="text-sm font-mono leading-relaxed background-gray-900">
               {tokens.map((line, i) => (
                 <div key={i} {...getLineProps({ line })}>
                   {line.map((token, key) => (
