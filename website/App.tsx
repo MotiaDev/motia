@@ -8,6 +8,7 @@ import { ManifestoModal } from "./components/ManifestoModal";
 import { FeatureBento } from "./components/FeatureBento";
 import { StackVisual } from "./components/StackVisual";
 import { CodeComparison } from "./components/CodeComparison";
+import { ExampleCodeSection } from "./components/sections/ExampleCodeSection";
 import { TechLogos } from "./components/TechLogos";
 import { Features } from "./components/Features";
 // FractureAnimation removed - using StackVisual only
@@ -531,8 +532,8 @@ const App: React.FC = () => {
         {/* Tech Logos - "iii runs everywhere" */}
         <TechLogos isDarkMode={isDarkMode} />
 
-        {/* Code Comparison - Before/After */}
-        <CodeComparison isDarkMode={isDarkMode} />
+        {/* Code Examples Section - Before/After */}
+        <ExampleCodeSection isDarkMode={isDarkMode} />
 
         {/* Features Section with Checklists */}
         <Features isDarkMode={isDarkMode} />

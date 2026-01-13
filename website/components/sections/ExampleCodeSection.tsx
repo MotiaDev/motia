@@ -820,24 +820,50 @@ export const handler = async (input, { emit, logger }) => {
 function CodeBlock({
   code,
   variant,
+  isDarkMode,
 }: {
   code: string;
   variant: "without" | "with";
+  isDarkMode: boolean;
 }) {
   return (
-    <div className="rounded-xl overflow-hidden border border-neutral-800 bg-neutral-950 h-full flex flex-col">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-800 bg-neutral-900/50">
+    <div
+      className={`rounded-xl overflow-hidden border h-full flex flex-col transition-colors duration-300 ${
+        isDarkMode
+          ? "border-iii-dark bg-iii-black"
+          : "border-iii-medium/30 bg-white"
+      }`}
+    >
+      <div
+        className={`flex items-center gap-2 px-4 py-3 border-b transition-colors duration-300 ${
+          isDarkMode
+            ? "border-iii-dark bg-iii-dark/50"
+            : "border-iii-medium/20 bg-iii-light/50"
+        }`}
+      >
         <div
           className={`w-2 h-2 rounded-full ${
-            variant === "with" ? "bg-green-500" : "bg-red-500"
+            variant === "with"
+              ? isDarkMode
+                ? "bg-iii-accent"
+                : "bg-iii-accent-light"
+              : "bg-red-500"
           }`}
         />
-        <span className="text-sm text-neutral-400">
+        <span
+          className={`text-sm transition-colors duration-300 ${
+            isDarkMode ? "text-iii-medium" : "text-iii-medium"
+          }`}
+        >
           {variant === "with" ? "With iii" : "Without iii"}
         </span>
       </div>
       <div className="p-4 overflow-x-auto flex-1">
-        <Highlight theme={themes.nightOwl} code={code.trim()} language="tsx">
+        <Highlight
+          theme={isDarkMode ? themes.nightOwl : themes.github}
+          code={code.trim()}
+          language="tsx"
+        >
           {({ className, style, tokens, getLineProps, getTokenProps }) => (
             <pre
               className={`${className} text-sm font-mono leading-relaxed`}
@@ -858,7 +884,13 @@ function CodeBlock({
   );
 }
 
-export function ExampleCodeSection() {
+interface ExampleCodeSectionProps {
+  isDarkMode?: boolean;
+}
+
+export function ExampleCodeSection({
+  isDarkMode = true,
+}: ExampleCodeSectionProps) {
   const [activeTab, setActiveTab] = useState<"ecosystem" | "protocol">(
     "ecosystem"
   );
@@ -873,22 +905,48 @@ export function ExampleCodeSection() {
   };
 
   return (
-    <section className="relative bg-black text-white py-24 overflow-hidden">
+    <section
+      className={`relative py-24 overflow-hidden font-mono transition-colors duration-300 ${
+        isDarkMode
+          ? "bg-iii-black text-iii-light"
+          : "bg-iii-light text-iii-black"
+      }`}
+    >
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-black to-neutral-950" />
-      <div className="absolute top-1/2 left-0 w-96 h-96 bg-green-500/5 rounded-full blur-3xl -translate-y-1/2" />
-      <div className="absolute top-1/2 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2" />
+      <div
+        className={`absolute inset-0 transition-colors duration-300 ${
+          isDarkMode
+            ? "bg-gradient-to-b from-iii-dark/50 via-iii-black to-iii-dark/50"
+            : "bg-gradient-to-b from-iii-light via-white to-iii-light"
+        }`}
+      />
+      <div
+        className={`absolute top-1/2 left-0 w-96 h-96 rounded-full blur-3xl -translate-y-1/2 ${
+          isDarkMode ? "bg-iii-accent/5" : "bg-iii-accent-light/5"
+        }`}
+      />
+      <div
+        className={`absolute top-1/2 right-0 w-96 h-96 rounded-full blur-3xl -translate-y-1/2 ${
+          isDarkMode ? "bg-iii-accent/5" : "bg-iii-accent-light/5"
+        }`}
+      />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-12 space-y-4">
-          <h2 className="text-4xl md:text-5xl font-bold">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
             Let's see some{" "}
-            <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+            <span
+              className={`bg-clip-text text-transparent ${
+                isDarkMode
+                  ? "bg-gradient-to-r from-iii-accent to-iii-accent/70"
+                  : "bg-gradient-to-r from-iii-accent-light to-blue-400"
+              }`}
+            >
               code
             </span>
           </h2>
-          <p className="text-neutral-400 text-lg max-w-2xl mx-auto">
+          <p className="text-iii-medium text-lg max-w-2xl mx-auto">
             This is how application code is when it's backed by iii. Notice
             anything?
           </p>
@@ -896,7 +954,13 @@ export function ExampleCodeSection() {
 
         {/* Main tabs */}
         <div className="flex justify-center mb-6">
-          <div className="inline-flex rounded-lg border border-neutral-800 bg-neutral-900/50 p-1">
+          <div
+            className={`inline-flex rounded-lg border p-1 transition-colors duration-300 ${
+              isDarkMode
+                ? "border-iii-dark bg-iii-dark/50"
+                : "border-iii-medium/30 bg-white/50"
+            }`}
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -905,8 +969,12 @@ export function ExampleCodeSection() {
                 }
                 className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
                   activeTab === tab.id
-                    ? "bg-white text-black"
-                    : "text-neutral-400 hover:text-white"
+                    ? isDarkMode
+                      ? "bg-iii-light text-iii-black"
+                      : "bg-iii-black text-iii-light"
+                    : isDarkMode
+                    ? "text-iii-medium hover:text-iii-light"
+                    : "text-iii-medium hover:text-iii-black"
                 }`}
               >
                 {tab.label}
@@ -924,8 +992,12 @@ export function ExampleCodeSection() {
                 onClick={() => setActiveSubTab(tab.id)}
                 className={`px-4 py-1.5 rounded-full text-sm transition-colors ${
                   activeSubTab === tab.id
-                    ? "bg-neutral-800 text-white"
-                    : "text-neutral-500 hover:text-neutral-300"
+                    ? isDarkMode
+                      ? "bg-iii-dark text-iii-light"
+                      : "bg-iii-medium/20 text-iii-black"
+                    : isDarkMode
+                    ? "text-iii-medium hover:text-iii-light"
+                    : "text-iii-medium hover:text-iii-black"
                 }`}
               >
                 {tab.label}
@@ -937,7 +1009,7 @@ export function ExampleCodeSection() {
         {/* Description */}
         {currentExample && (
           <div className="h-[4.5rem] mb-8 max-w-2xl mx-auto flex items-center justify-center">
-            <p className="text-center text-neutral-400 line-clamp-3 text-base leading-6 [&]:has-[.overflow]:text-sm">
+            <p className="text-center text-iii-medium line-clamp-3 text-base leading-6 [&]:has-[.overflow]:text-sm">
               {currentExample.description}
             </p>
           </div>
@@ -946,8 +1018,16 @@ export function ExampleCodeSection() {
         {/* Code comparison */}
         {currentExample && (
           <div className="grid md:grid-cols-2 gap-6">
-            <CodeBlock code={currentExample.without} variant="without" />
-            <CodeBlock code={currentExample.with} variant="with" />
+            <CodeBlock
+              code={currentExample.without}
+              variant="without"
+              isDarkMode={isDarkMode}
+            />
+            <CodeBlock
+              code={currentExample.with}
+              variant="with"
+              isDarkMode={isDarkMode}
+            />
           </div>
         )}
       </div>
