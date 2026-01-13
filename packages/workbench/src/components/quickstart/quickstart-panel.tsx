@@ -11,7 +11,8 @@ const DEFAULT_WIDTH_PERCENT = 66
 const DEFAULT_HEIGHT_PERCENT = 66
 
 export const QuickstartPanel: FC = () => {
-  const { isOpen, code, steps, activeStepId, close, open, setActiveStep } = useQuickstartStore()
+  const { isOpen, code, steps, activeStepId, visitedStepIds, close, open, setActiveStep, visitStep, run } =
+    useQuickstartStore()
   const panelRef = useRef<HTMLDivElement>(null)
   const [dimensions, setDimensions] = useState({ width: DEFAULT_WIDTH_PERCENT, height: DEFAULT_HEIGHT_PERCENT })
   const [isResizingWidth, setIsResizingWidth] = useState(false)
@@ -148,7 +149,16 @@ export const QuickstartPanel: FC = () => {
 
       {/* Content area with navigation */}
       <div className="flex flex-1 overflow-hidden min-h-0">
-        <QuickstartNav steps={steps} activeStepId={activeStepId} onStepClick={setActiveStep} />
+        <QuickstartNav
+          steps={steps}
+          activeStepId={activeStepId}
+          visitedStepIds={visitedStepIds}
+          onStepClick={(stepId) => {
+            visitStep(stepId)
+            setActiveStep(stepId)
+          }}
+          onRun={run}
+        />
         <QuickstartCodeDisplay code={code} steps={steps} activeStepId={activeStepId} />
       </div>
     </div>

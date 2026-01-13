@@ -3,20 +3,12 @@ import { NoopNode, type NoopNodeProps, useQuickstart } from 'motia/workbench'
 export const Node: React.FC<NoopNodeProps> = (props) => {
   const { start } = useQuickstart()
 
-  const handleStart = async () => {
-    const response = await fetch('/hello', {
-      method: 'GET',
-    })
-
-    start()
-  }
-
   return (
     <NoopNode {...props}>
       <div className="flex flex-col gap-3 p-2 min-w-[280px]">
-        <button onClick={handleStart} className="px-4 py-2 rounded-lg font-medium transition-colors">
-          Say hello
-        </button>
+        <p className="text-sm text-muted-foreground">
+          Complete the tutorial steps to run the example.
+        </p>
       </div>
     </NoopNode>
   )
