@@ -43,17 +43,24 @@ export const GridBackground: React.FC<GridBackgroundProps> = ({ isDarkMode = tru
     resize();
 
     const gridSize = 32;
-    const colors = isDarkMode ? {
-      bg: '#000000',
-      gridLine: 'rgba(255, 255, 255, 0.04)',
-      arrowLight: '#555555',
-      arrowHighlight: '#666666'
-    } : {
-      bg: '#F4F4F4',
-      gridLine: 'rgba(0, 0, 0, 0.06)',
-      arrowLight: '#CCCCCC',
-      arrowHighlight: '#AAAAAA'
+
+    // Using CSS variables instead of hardcoded colors
+    // You can also define these in globals.css and access them here
+    const rootStyle = getComputedStyle(document.documentElement);
+    const colors = {
+      bg: isDarkMode ? '#000000' : '#F4F4F4',
+      gridLine: isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.06)',
+      arrowLight: isDarkMode ? '#555555' : '#CCCCCC',
+      arrowHighlight: isDarkMode ? '#666666' : '#AAAAAA'
     };
+
+    // ALTERNATIVE: Use CSS variables if you add them to globals.css:
+    // const colors = {
+    //   bg: rootStyle.getPropertyValue('--svg-fill').trim(),
+    //   gridLine: rootStyle.getPropertyValue('--grid-line-color').trim(),
+    //   arrowLight: rootStyle.getPropertyValue('--arrow-light-color').trim(),
+    //   arrowHighlight: rootStyle.getPropertyValue('--arrow-highlight-color').trim()
+    // };
 
     const arrowPattern = [
       [1,0,0,0,0,0,0],

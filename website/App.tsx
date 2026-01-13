@@ -14,6 +14,8 @@ import { FAQSection } from "./components/sections/FAQSection";
 import { CommunitySection } from "./components/sections/CommunitySection";
 import { TechLogos } from "./components/TechLogos";
 import { Features } from "./components/Features";
+import { ValueProps } from "./components/ValuePropsRedesigned";
+import { PersonaValueProps } from "./components/PersonaValuePropsRedesigned";
 // FractureAnimation removed - using StackVisual only
 import { ModeToggle } from "./components/ModeToggle";
 import { MachineView } from "./components/MachineView";
@@ -275,7 +277,11 @@ const App: React.FC = () => {
             }
           />
         </div>
-        <div className="flex gap-2 md:gap-4 text-[10px] md:text-sm text-iii-medium font-semibold tracking-tight items-center">
+        <div
+          className={`flex gap-2 md:gap-4 text-[10px] md:text-sm ${
+            isDarkMode ? "text-iii-medium-dark" : "text-iii-medium-light"
+          } font-semibold tracking-tight items-center`}
+        >
           <a
             href="#"
             onClick={handleManifestoClick}
@@ -313,8 +319,8 @@ const App: React.FC = () => {
               <span
                 className={`transition-colors ${
                   isDarkMode
-                    ? "text-iii-dark group-hover:text-iii-medium"
-                    : "text-iii-medium/50 group-hover:text-iii-medium"
+                    ? "text-iii-dark group-hover:text-iii-medium-dark"
+                    : "text-iii-medium-light/50 group-hover:text-iii-medium-light"
                 }`}
               >
                 DOCS
@@ -334,8 +340,8 @@ const App: React.FC = () => {
             onClick={toggleTheme}
             className={`p-2 rounded-full transition-colors ${
               isDarkMode
-                ? "hover:bg-iii-dark text-iii-medium hover:text-iii-light"
-                : "hover:bg-iii-medium/10 text-iii-medium hover:text-iii-black"
+                ? "hover:bg-iii-dark text-iii-medium-dark hover:text-iii-light"
+                : "hover:bg-iii-medium-light/10 text-iii-medium-light hover:text-iii-black"
             }`}
             aria-label="Toggle theme"
           >
@@ -355,8 +361,13 @@ const App: React.FC = () => {
         {/* Code Examples Section - Before/After */}
         <ExampleCodeSection isDarkMode={isDarkMode} />
 
-        {/* Features Section with Checklists */}
-        <Features isDarkMode={isDarkMode} />
+        {/* Value Props - Core Features (Hidden on mobile to reduce scrolling) */}
+        <div className="hidden md:block">
+          <ValueProps isDarkMode={isDarkMode} />
+        </div>
+
+        {/* Persona-Based Value Props */}
+        <PersonaValueProps isDarkMode={isDarkMode} />
 
         {/* FAQ Section */}
         <FAQSection isDarkMode={isDarkMode} />

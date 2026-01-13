@@ -3,6 +3,7 @@ export interface TerminalLog {
   type: 'info' | 'success' | 'warning' | 'error' | 'system' | 'glitch';
   message: string;
   timestamp: string;
+  clickableCommand?: string;
 }
 
 export enum KeySequence {
