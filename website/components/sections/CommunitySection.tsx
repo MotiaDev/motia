@@ -47,11 +47,7 @@ function CommunityCard({
 
 export function CommunitySection() {
   return (
-    <section className="relative bg-black text-white py-24 overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-black to-neutral-950" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
-
+    <section className="relative text-white py-24 overflow-hidden">
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-16 space-y-4">

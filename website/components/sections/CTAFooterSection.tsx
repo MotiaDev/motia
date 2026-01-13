@@ -1,14 +1,6 @@
 export function CTAFooterSection() {
   return (
-    <section className="relative bg-black text-white py-32 overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-black to-neutral-900" />
-
-      {/* Gradient orbs */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-green-500/10 rounded-full blur-3xl" />
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-500/5 rounded-full blur-3xl" />
-
+    <section className="relative text-white py-32 overflow-hidden">
       <div className="relative z-10 max-w-4xl mx-auto px-6">
         {/* Main headline */}
         <div className="text-center space-y-8">

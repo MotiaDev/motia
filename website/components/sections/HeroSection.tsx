@@ -1,4 +1,10 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  ArrowRight,
+  Copy,
+  Check,
+  Terminal as TerminalIcon,
+} from "lucide-react";
 
 const rotatingWords = [
   "ship faster",
@@ -65,6 +71,41 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isContextAnimating, setIsContextAnimating] = useState(false);
 
+  // Install command state
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [installCmd] = useState(
+    "curl -fsSL https://raw.githubusercontent.com/MotiaDev/iii-engine/main/install.sh | sh"
+  );
+
+  // Email form state
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(() => {
+    return localStorage.getItem("iii_access_requested") === "true";
+  });
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(installCmd);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setIsSubmitting(true);
+
+    // Simulate submission - in real app this would call the API
+    setTimeout(() => {
+      setIsSubmitted(true);
+      localStorage.setItem("iii_access_requested", "true");
+      localStorage.setItem("iii_access_email", email);
+      setEmail("");
+      setIsSubmitting(false);
+    }, 500);
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
       setIsAnimating(true);
@@ -92,22 +133,9 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
   return (
     <section
       className={`relative min-h-[70vh] overflow-hidden font-mono transition-colors duration-300 ${
-        isDarkMode
-          ? "bg-iii-black text-iii-light"
-          : "bg-iii-light text-iii-black"
+        isDarkMode ? "text-iii-light" : "text-iii-black"
       }`}
     >
-      {/* Background gradient effects */}
-      <div
-        className={`absolute inset-0 transition-colors duration-300 ${
-          isDarkMode
-            ? "bg-gradient-to-b from-iii-black via-iii-black to-iii-dark/50"
-            : "bg-gradient-to-b from-iii-light via-iii-light to-white"
-        }`}
-      />
-      <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl bg-green-500/10" />
-      <div className="absolute top-1/4 right-1/4 w-64 h-64 rounded-full blur-3xl bg-emerald-500/5" />
-
       <div className="relative z-10 max-w-7xl mx-auto px-6 pt-16 md:pt-24 pb-16">
         <div className="flex flex-col items-center text-center">
           {/* Content */}
@@ -201,6 +229,102 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                   />
                 </svg>
               </button>
+            </div>
+
+            {/* Install Command & Email Form */}
+            <div className="flex flex-col gap-4 md:gap-6 md:flex-row items-stretch md:items-center pt-2 md:pt-4 w-full max-w-2xl">
+              <div
+                className={`group relative flex items-center gap-3 px-3 py-2.5 md:px-4 md:py-3 border rounded hover:border-iii-medium transition-colors cursor-pointer w-full md:w-auto md:min-w-[280px] ${
+                  isDarkMode
+                    ? "bg-iii-dark/50 border-iii-dark"
+                    : "bg-white/50 border-iii-medium/30"
+                }`}
+                onClick={copyToClipboard}
+              >
+                <TerminalIcon
+                  className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${
+                    isDarkMode
+                      ? "group-hover:text-iii-accent"
+                      : "group-hover:text-iii-accent-light"
+                  }`}
+                />
+                <code
+                  className={`text-xs md:text-sm flex-1 truncate ${
+                    isDarkMode ? "text-iii-light" : "text-iii-black"
+                  }`}
+                >
+                  {installCmd}
+                </code>
+                {copySuccess ? (
+                  <Check
+                    className={`w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 ${
+                      isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+                    }`}
+                  />
+                ) : (
+                  <Copy
+                    className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${
+                      isDarkMode
+                        ? "group-hover:text-white"
+                        : "group-hover:text-iii-black"
+                    }`}
+                  />
+                )}
+              </div>
+
+              <form
+                onSubmit={handleEmailSubmit}
+                className="flex items-center w-full md:w-auto"
+              >
+                {isSubmitted ? (
+                  <div
+                    className={`flex items-center gap-2 text-xs md:text-sm px-3 py-2.5 md:px-4 md:py-3 border rounded w-full justify-center ${
+                      isDarkMode
+                        ? "text-iii-accent bg-iii-accent/10 border-iii-accent/20"
+                        : "text-iii-accent-light bg-iii-accent-light/10 border-iii-accent-light/20"
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <span className="font-mono tracking-tight">
+                      ACCESS REQUESTED
+                    </span>
+                  </div>
+                ) : (
+                  <div
+                    className={`flex w-full border-b border-iii-medium transition-colors relative ${
+                      isDarkMode
+                        ? "focus-within:border-iii-accent"
+                        : "focus-within:border-iii-accent-light"
+                    }`}
+                  >
+                    <input
+                      type="email"
+                      placeholder="EMAIL_FOR_ACCESS"
+                      className={`bg-transparent outline-none text-xs md:text-sm py-2.5 md:py-3 px-1 w-full md:w-64 placeholder-iii-medium/50 font-mono ${
+                        isDarkMode ? "text-iii-light" : "text-iii-black"
+                      }`}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className={`absolute right-0 top-1/2 -translate-y-1/2 disabled:opacity-50 transition-colors p-1.5 md:p-2 ${
+                        isDarkMode
+                          ? "text-iii-light hover:text-iii-accent"
+                          : "text-iii-black hover:text-iii-accent-light"
+                      }`}
+                    >
+                      {isSubmitting ? (
+                        "..."
+                      ) : (
+                        <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
+                      )}
+                    </button>
+                  </div>
+                )}
+              </form>
             </div>
 
             {/* Tech logos section */}

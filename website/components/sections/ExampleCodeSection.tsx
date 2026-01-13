@@ -907,30 +907,9 @@ export function ExampleCodeSection({
   return (
     <section
       className={`relative py-24 overflow-hidden font-mono transition-colors duration-300 ${
-        isDarkMode
-          ? "bg-iii-black text-iii-light"
-          : "bg-iii-light text-iii-black"
+        isDarkMode ? "text-iii-light" : "text-iii-black"
       }`}
     >
-      {/* Background */}
-      <div
-        className={`absolute inset-0 transition-colors duration-300 ${
-          isDarkMode
-            ? "bg-gradient-to-b from-iii-dark/50 via-iii-black to-iii-dark/50"
-            : "bg-gradient-to-b from-iii-light via-white to-iii-light"
-        }`}
-      />
-      <div
-        className={`absolute top-1/2 left-0 w-96 h-96 rounded-full blur-3xl -translate-y-1/2 ${
-          isDarkMode ? "bg-iii-accent/5" : "bg-iii-accent-light/5"
-        }`}
-      />
-      <div
-        className={`absolute top-1/2 right-0 w-96 h-96 rounded-full blur-3xl -translate-y-1/2 ${
-          isDarkMode ? "bg-iii-accent/5" : "bg-iii-accent-light/5"
-        }`}
-      />
-
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-12 space-y-4">
