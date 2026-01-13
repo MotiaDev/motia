@@ -31,7 +31,6 @@ export function SectionsPreview() {
         <WhatsCatchSection />
         <FAQSection />
         <CommunitySection />
-        <CTAFooterSection />
       </div>
     </div>
   );
