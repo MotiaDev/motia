@@ -124,7 +124,7 @@ export const QuickstartPanel: FC = () => {
         className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize group hover:bg-primary/20 transition-colors"
         onMouseDown={handleWidthMouseDown}
       >
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-background border border-border opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-background border border-border opacity-60 group-hover:opacity-100 transition-opacity">
           <Equal className="h-4 w-4 text-muted-foreground rotate-90" />
         </div>
       </div>
@@ -134,7 +134,7 @@ export const QuickstartPanel: FC = () => {
         className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize group hover:bg-primary/20 transition-colors"
         onMouseDown={handleHeightMouseDown}
       >
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-background border border-border opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-background border border-border opacity-60 group-hover:opacity-100 transition-opacity">
           <Equal className="h-4 w-4 text-muted-foreground" />
         </div>
       </div>
