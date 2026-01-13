@@ -914,9 +914,7 @@ export function ExampleCodeSection({
             Let's see some{" "}
             <span
               className={`bg-clip-text text-transparent ${
-                isDarkMode
-                  ? "bg-gradient-to-r from-iii-accent to-iii-accent/70"
-                  : "bg-gradient-to-r from-iii-accent-light to-blue-400"
+                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light "
               }`}
             >
               code

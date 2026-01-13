@@ -355,11 +355,6 @@ const App: React.FC = () => {
 
         {/* Features Section with Checklists */}
         <Features isDarkMode={isDarkMode} />
-
-        {/* Stack Visual */}
-        <div className="w-full max-w-7xl mx-auto px-4 lg:px-8">
-          <StackVisual isDarkMode={isDarkMode} />
-        </div>
       </main>
 
       <footer
