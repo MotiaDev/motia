@@ -5,7 +5,7 @@ import * as z from "zod";
 
 // Every Step has a config that describes how a step is triggered,
 // what events it emits, and what "flows" it's part of
-//
+
 // There are a few different types of config:
 //
 // ApiRouteConfig = Create routes (ex. /hello) that trigger your step
@@ -19,11 +19,11 @@ export const config: EventConfig = {
   name: "HelloFromTypeScript",
   // EventConfigs subscribe to events, when another Step emits
   // a "hello" event then the handler below will run.
-  // This "subscribes" can be easily swaped out with the equivalents
+  // This "subscribes" can be easily swapped out with the equivalents
   // for ApiRouteConfig (ie. path:'/hello/ts', method: 'GET')
   // or CronConfig (ie. cron: '0 * * * *')
   // So an Event can quickly become an ApiRoute and an ApiRoute
-  // can trivially turn into a Cron job.
+  // can easily turn into a Cron job.
   subscribes: ["hello"],
   input: z.object({ extra: z.string() }),
   emits: ["hello.response.typescript"],

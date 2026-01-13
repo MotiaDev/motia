@@ -169,7 +169,12 @@ export const QuickstartCodeDisplay: FC<QuickstartCodeDisplayProps> = ({
               className="transition-all duration-300 ease-in-out overflow-hidden"
               style={{
                 maxHeight: isCollapsed ? 0 : '100px',
-                opacity: isCollapsed ? 0 : isInactive ? 0.8 : 1,
+                opacity: isCollapsed ? 0 : isInactive ? 0.35 : 1,
+                backgroundColor: isHighlighted
+                  ? isDark
+                    ? 'rgba(40, 98, 254, 0.15)'
+                    : 'rgba(40, 98, 254, 0.1)'
+                  : 'transparent',
               }}
             >
               <div className="flex">
