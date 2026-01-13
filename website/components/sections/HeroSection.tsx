@@ -55,7 +55,11 @@ const cloudLogos = [
   { name: "Fly.io", icon: "🪁" },
 ];
 
-export function HeroSection() {
+interface HeroSectionProps {
+  isDarkMode?: boolean;
+}
+
+export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [currentContextIndex, setCurrentContextIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -86,20 +90,36 @@ export function HeroSection() {
   }, []);
 
   return (
-    <section className="relative min-h-screen bg-black text-white overflow-hidden">
+    <section
+      className={`relative min-h-[70vh] overflow-hidden font-mono transition-colors duration-300 ${
+        isDarkMode
+          ? "bg-iii-black text-iii-light"
+          : "bg-iii-light text-iii-black"
+      }`}
+    >
       {/* Background gradient effects */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-black to-neutral-950" />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl" />
-      <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl" />
+      <div
+        className={`absolute inset-0 transition-colors duration-300 ${
+          isDarkMode
+            ? "bg-gradient-to-b from-iii-black via-iii-black to-iii-dark/50"
+            : "bg-gradient-to-b from-iii-light via-iii-light to-white"
+        }`}
+      />
+      <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl bg-green-500/10" />
+      <div className="absolute top-1/4 right-1/4 w-64 h-64 rounded-full blur-3xl bg-emerald-500/5" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-20">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 pt-16 md:pt-24 pb-16">
         <div className="flex flex-col items-center text-center">
           {/* Content */}
           <div className="space-y-8 max-w-4xl">
             {/* Main headline */}
             <div className="space-y-2">
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
-                <span className="text-white">The best way to</span>
+              <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold leading-tight tracking-tighter">
+                <span
+                  className={isDarkMode ? "text-iii-light" : "text-iii-black"}
+                >
+                  The best way to
+                </span>
                 <br />
                 <span
                   className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
@@ -129,9 +149,15 @@ export function HeroSection() {
             <ul className="space-y-3 text-left inline-block">
               {features.map((feature, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center mt-0.5">
+                  <span
+                    className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
+                      isDarkMode ? "bg-iii-accent/20" : "bg-iii-accent-light/20"
+                    }`}
+                  >
                     <svg
-                      className="w-3 h-3 text-green-400"
+                      className={`w-3 h-3 ${
+                        isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+                      }`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -144,7 +170,7 @@ export function HeroSection() {
                       />
                     </svg>
                   </span>
-                  <span className="text-neutral-300 text-sm md:text-base">
+                  <span className="text-iii-medium text-sm md:text-base">
                     {feature.text}
                   </span>
                 </li>
@@ -153,7 +179,13 @@ export function HeroSection() {
 
             {/* CTA Button */}
             <div className="pt-4">
-              <button className="group inline-flex items-center gap-2 bg-white text-black font-semibold px-6 py-3 rounded-lg hover:bg-neutral-200 transition-colors">
+              <button
+                className={`group inline-flex items-center gap-2 font-semibold px-6 py-3 rounded-lg transition-colors ${
+                  isDarkMode
+                    ? "bg-iii-light text-iii-black hover:bg-iii-medium"
+                    : "bg-iii-black text-iii-light hover:bg-iii-dark"
+                }`}
+              >
                 Get Started
                 <svg
                   className="w-4 h-4 group-hover:translate-x-1 transition-transform"
@@ -177,14 +209,18 @@ export function HeroSection() {
               <div className="grid grid-cols-2 gap-8">
                 {/* Languages - Left */}
                 <div className="space-y-3">
-                  <span className="text-xs text-neutral-500 tracking-wider block text-center">
+                  <span className="text-xs text-iii-medium tracking-wider block text-center uppercase">
                     Any language
                   </span>
                   <div className="flex items-center justify-center gap-3 flex-wrap">
                     {languageLogos.map((logo, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition-colors"
+                        className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+                          isDarkMode
+                            ? "bg-iii-dark border-iii-dark hover:border-iii-medium"
+                            : "bg-white border-iii-medium/30 hover:border-iii-medium"
+                        }`}
                         title={logo.name}
                       >
                         <span className="text-lg">{logo.icon}</span>
@@ -195,14 +231,18 @@ export function HeroSection() {
 
                 {/* Components - Right */}
                 <div className="space-y-3">
-                  <span className="text-xs text-neutral-500 tracking-wider block text-center">
+                  <span className="text-xs text-iii-medium tracking-wider block text-center uppercase">
                     Every integration
                   </span>
                   <div className="flex items-center justify-center gap-3 flex-wrap">
                     {componentLogos.map((logo, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition-colors"
+                        className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+                          isDarkMode
+                            ? "bg-iii-dark border-iii-dark hover:border-iii-medium"
+                            : "bg-white border-iii-medium/30 hover:border-iii-medium"
+                        }`}
                         title={logo.name}
                       >
                         <span className="text-lg">{logo.icon}</span>
@@ -215,20 +255,32 @@ export function HeroSection() {
               {/* Cloud providers - Center */}
               <div className="space-y-3 pt-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex-1 h-px bg-neutral-800" />
-                  <span className="text-xs text-neutral-500 tracking-wider">
+                  <div
+                    className={`flex-1 h-px ${
+                      isDarkMode ? "bg-iii-dark" : "bg-iii-medium/30"
+                    }`}
+                  />
+                  <span className="text-xs text-iii-medium tracking-wider max-w-md text-center">
                     Any cloud, any compute, anything, you understand, we run
                     anything anywhere our engine doesn't care just use the right
                     adapter or write your own and it just works across your
                     entire application i cannot make this clearer.
                   </span>
-                  <div className="flex-1 h-px bg-neutral-800" />
+                  <div
+                    className={`flex-1 h-px ${
+                      isDarkMode ? "bg-iii-dark" : "bg-iii-medium/30"
+                    }`}
+                  />
                 </div>
                 <div className="flex items-center justify-center gap-4 flex-wrap">
                   {cloudLogos.map((logo, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition-colors"
+                      className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+                        isDarkMode
+                          ? "bg-iii-dark border-iii-dark hover:border-iii-medium"
+                          : "bg-white border-iii-medium/30 hover:border-iii-medium"
+                      }`}
                       title={logo.name}
                     >
                       <span className="text-lg">{logo.icon}</span>
