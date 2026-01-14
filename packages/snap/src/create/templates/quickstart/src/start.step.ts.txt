@@ -23,8 +23,8 @@ export const handler: Handlers["StartTheTutorial"] = async (
     topic: "hello",
     data: {
       extra: `Pass any data to subscribing events with the data property. 
-Use primitive types, don't pass objects or functions.
-This data will be serialized and passed to JavaScript or Python handler functions.`,
+Use primitive types, and simple objects. Don't pass functions.
+This data will be serialized and passed to handler functions in multiple languages.`,
     },
   });
 };
