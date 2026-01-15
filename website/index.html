@@ -4,114 +4,133 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>iii | Interoperable Invocation Interface</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
-    
+
     <!-- SEO Meta Tags -->
-    <meta name="description" content="The universal runtime engine for distributed systems. iii unifies APIs, jobs, queues, streams, workflows, and AI agents into a single durable execution model." />
-    <meta name="keywords" content="iii, runtime, distributed systems, APIs, workflows, AI agents, open source, backend, execution engine" />
+    <meta
+      name="description"
+      content="The universal runtime engine for distributed systems. iii unifies APIs, jobs, queues, streams, workflows, and AI agents into a single durable execution model."
+    />
+    <meta
+      name="keywords"
+      content="iii, runtime, distributed systems, APIs, workflows, AI agents, open source, backend, execution engine"
+    />
     <meta name="author" content="III, Inc." />
     <meta name="theme-color" content="#000000" />
-    
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://iii.dev/" />
     <meta property="og:title" content="iii | The Universal Runtime Engine" />
-    <meta property="og:description" content="One engine. One primitive. iii unifies APIs, jobs, queues, streams, workflows, and AI agents into a single durable execution model. Open Source." />
+    <meta
+      property="og:description"
+      content="One engine. One primitive. iii unifies APIs, jobs, queues, streams, workflows, and AI agents into a single durable execution model. Open Source."
+    />
     <meta property="og:image" content="/og-image.svg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    
+
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://iii.dev/" />
     <meta name="twitter:title" content="iii | The Universal Runtime Engine" />
-    <meta name="twitter:description" content="One engine. One primitive. iii unifies APIs, jobs, queues, streams, workflows, and AI agents into a single durable execution model. Open Source." />
+    <meta
+      name="twitter:description"
+      content="One engine. One primitive. iii unifies APIs, jobs, queues, streams, workflows, and AI agents into a single durable execution model. Open Source."
+    />
     <meta name="twitter:image" content="/og-image.svg" />
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Global Styles -->
-    <link rel="stylesheet" href="/globals.css">
+    <link rel="stylesheet" href="/globals.css" />
 
     <!-- Fonts: JetBrains Mono -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap"
+      rel="stylesheet"
+    />
 
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              mono: ['"JetBrains Mono"', 'monospace'],
+              mono: ['"JetBrains Mono"', "monospace"],
             },
             colors: {
               iii: {
-                black: '#000000',
-                dark: '#1D1D1D',
-                medium: '#8B8B8B', // Legacy - use medium-dark or medium-light instead
-                'medium-dark': '#8B8B8B', // For dark backgrounds (6.48:1 on black)
-                'medium-light': '#616161', // For light backgrounds (5.39:1 on white) - WCAG AA compliant
-                light: '#F4F4F4',
-                accent: '#F3F724',
-                'accent-light': '#1d4ed8', // Darker blue for better contrast: was #2563eb
-              }
+                black: "#000000",
+                dark: "#1D1D1D",
+                medium: "#8B8B8B", // Legacy - use medium-dark or medium-light instead
+                "medium-dark": "#8B8B8B", // For dark backgrounds (6.48:1 on black)
+                "medium-light": "#616161", // For light backgrounds (5.39:1 on white) - WCAG AA compliant
+                light: "#F4F4F4",
+                accent: "#F3F724",
+                "accent-light": "#1d4ed8", // Darker blue for better contrast: was #2563eb
+                info: "#42E7E7",
+                warn: "#F3943D",
+                alert: "#E52E61",
+                success: "#1CE669",
+              },
             },
             animation: {
-              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'glitch': 'glitch 1s linear infinite',
-              'flow': 'flow 20s linear infinite',
-              'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
-              'fade-in': 'fadeIn 0.5s ease-out forwards',
+              "pulse-fast": "pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              glitch: "glitch 1s linear infinite",
+              flow: "flow 20s linear infinite",
+              "fade-in-up": "fadeInUp 0.8s ease-out forwards",
+              "fade-in": "fadeIn 0.5s ease-out forwards",
             },
             keyframes: {
               fadeInUp: {
-                '0%': { opacity: '0', transform: 'translateY(20px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
+                "0%": { opacity: "0", transform: "translateY(20px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
               },
               fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
+                "0%": { opacity: "0" },
+                "100%": { opacity: "1" },
               },
               glitch: {
-                '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
-                '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
-                '62%': { transform: 'translate(0,0) skew(5deg)' },
+                "2%, 64%": { transform: "translate(2px,0) skew(0deg)" },
+                "4%, 60%": { transform: "translate(-2px,0) skew(0deg)" },
+                "62%": { transform: "translate(0,0) skew(5deg)" },
               },
               flow: {
-                '0%': { backgroundPosition: '0 0' },
-                '100%': { backgroundPosition: '0 100%' },
-              }
-            }
+                "0%": { backgroundPosition: "0 0" },
+                "100%": { backgroundPosition: "0 100%" },
+              },
+            },
           },
         },
-      }
+      };
     </script>
     <style>
       body {
         background-color: #000000;
-        color: #F4F4F4;
-        font-family: 'JetBrains Mono', monospace;
+        color: #f4f4f4;
+        font-family: "JetBrains Mono", monospace;
         overflow-x: hidden;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
-</head>
+    <script type="importmap">
+      {
+        "imports": {
+          "react/": "https://esm.sh/react@^19.2.3/",
+          "react": "https://esm.sh/react@^19.2.3",
+          "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+          "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+        }
+      }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>

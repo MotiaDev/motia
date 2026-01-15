@@ -4,23 +4,29 @@
   --svg-fill: #f4f4f4;
   --svg-stroke: #000000;
   --svg-text: #000000;
-  --svg-cluster-fill: #F4F4F4;
+  --svg-cluster-fill: #f4f4f4;
 
   /* Light mode Grid/Canvas colors */
-  --grid-bg: #F4F4F4;
+  --grid-bg: #f4f4f4;
   --grid-line-color: rgba(0, 0, 0, 0.06);
-  --arrow-light-color: #CCCCCC;
-  --arrow-highlight-color: #AAAAAA;
+  --arrow-light-color: #cccccc;
+  --arrow-highlight-color: #aaaaaa;
 
   /* Base colors */
   --color-black: #000000;
-  --color-dark: #1D1D1D;
-  --color-medium: #8B8B8B; /* Legacy - use medium-dark or medium-light */
-  --color-medium-dark: #8B8B8B; /* For dark backgrounds */
+  --color-dark: #1d1d1d;
+  --color-medium: #8b8b8b; /* Legacy - use medium-dark or medium-light */
+  --color-medium-dark: #8b8b8b; /* For dark backgrounds */
   --color-medium-light: #616161; /* For light backgrounds - WCAG AA compliant */
-  --color-light: #F4F4F4;
-  --color-accent: #F3F724;
+  --color-light: #f4f4f4;
+  --color-accent: #f3f724;
   --color-accent-light: #1d4ed8;
+
+  /* Semantic colors */
+  --color-info: #42e7e7;
+  --color-warn: #f3943d;
+  --color-alert: #e52e61;
+  --color-success: #1ce669;
 }
 
 /* Dark mode colors */
@@ -53,12 +59,12 @@ body.light-mode {
   --svg-fill: #f4f4f4;
   --svg-stroke: #000000;
   --svg-text: #000000;
-  --svg-cluster-fill: #F4F4F4;
+  --svg-cluster-fill: #f4f4f4;
 
-  --grid-bg: #F4F4F4;
+  --grid-bg: #f4f4f4;
   --grid-line-color: rgba(0, 0, 0, 0.06);
-  --arrow-light-color: #CCCCCC;
-  --arrow-highlight-color: #AAAAAA;
+  --arrow-light-color: #cccccc;
+  --arrow-highlight-color: #aaaaaa;
 }
 
 /* Scrollbar styles */
@@ -75,7 +81,7 @@ body.light-mode {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #F3F724;
+  background: #f3f724;
 }
 
 /* CRT Effect for Terminal */
@@ -88,7 +94,12 @@ body.light-mode {
   bottom: 0;
   right: 0;
   background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-              linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.06),
+      rgba(0, 255, 0, 0.02),
+      rgba(0, 0, 255, 0.06)
+    );
   z-index: 2;
   background-size: 100% 2px, 3px 100%;
   pointer-events: none;

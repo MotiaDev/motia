@@ -148,7 +148,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                 </span>
                 <br />
                 <span
-                  className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
+                  className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-iii-warn via-iii-warn to-iii-alert bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
                     isAnimating
                       ? "opacity-0 translate-y-5 scale-80"
                       : "opacity-100 translate-y-0 scale-100"
@@ -159,7 +159,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                 </span>
                 <br />
                 <span
-                  className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-teal-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
+                  className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-iii-success via-iii-info to-iii-success bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
                     isContextAnimating
                       ? "opacity-0 -translate-y-3 scale-90"
                       : "opacity-100 translate-y-0 scale-100"
