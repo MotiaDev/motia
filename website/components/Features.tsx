@@ -1,5 +1,5 @@
-import React from 'react';
-import { Check, Zap, Globe, Shield, Layers, Radio, Clock } from 'lucide-react';
+import React from "react";
+import { Check, Zap, Globe, Shield, Layers, Radio, Clock } from "lucide-react";
 
 interface FeaturesProps {
   isDarkMode?: boolean;
@@ -8,43 +8,44 @@ interface FeaturesProps {
 const features = [
   {
     icon: Layers,
-    title: 'Unified Runtime',
-    description: 'APIs, streams, cron, events. One binary handles them all.',
+    title: "Unified Runtime",
+    description: "APIs, streams, cron, events. One binary handles them all.",
   },
   {
     icon: Globe,
-    title: 'Language Agnostic',
-    description: 'Write workers in Node.js, Python, or Rust. Same protocol.',
+    title: "Language Agnostic",
+    description: "Write workers in Node.js, Python, or Rust. Same protocol.",
   },
   {
     icon: Radio,
-    title: 'Real-time Streams',
-    description: 'WebSocket sync with automatic pub/sub and state management.',
+    title: "Real-time Streams",
+    description: "WebSocket sync with automatic pub/sub and state management.",
   },
   {
     icon: Zap,
-    title: 'Service Discovery',
-    description: 'Workers find each other. No service mesh required.',
+    title: "Service Discovery",
+    description: "Workers find each other. No service mesh required.",
   },
   {
     icon: Clock,
-    title: 'Distributed Cron',
-    description: 'Scheduled jobs with Redis-backed distributed locking.',
+    title: "Distributed Execution",
+    description:
+      "Run anywhere, from serverless to durable execution to anything in-between.",
   },
   {
     icon: Shield,
-    title: 'Built-in Observability',
-    description: 'Structured logging with automatic trace context.',
+    title: "Built-in Observability",
+    description: "Structured logging with automatic trace context.",
   },
 ];
 
 export const Features: React.FC<FeaturesProps> = ({ isDarkMode = true }) => {
   // iii Brand Colors
-  const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
-  const textSecondary = isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light';
-  const cardBg = isDarkMode ? 'bg-iii-dark/50' : 'bg-white';
-  const cardBorder = isDarkMode ? 'border-iii-dark' : 'border-iii-medium/30';
-  const iconColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
+  const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
+  const textSecondary = isDarkMode ? "text-iii-medium" : "text-iii-medium";
+  const cardBg = isDarkMode ? "bg-iii-dark/50" : "bg-white";
+  const cardBorder = isDarkMode ? "border-iii-dark" : "border-iii-medium/30";
+  const iconColor = isDarkMode ? "text-iii-accent" : "text-iii-accent-light";
 
   return (
     <section className="w-full max-w-6xl mx-auto px-4 md:px-8 py-16 md:py-24">
@@ -66,7 +67,11 @@ export const Features: React.FC<FeaturesProps> = ({ isDarkMode = true }) => {
             className={`group p-6 rounded-xl border transition-all hover:scale-[1.02] ${cardBg} ${cardBorder}`}
           >
             <div className="flex items-start gap-4">
-              <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-iii-accent/10' : 'bg-iii-accent-light/10'}`}>
+              <div
+                className={`p-2 rounded-lg ${
+                  isDarkMode ? "bg-iii-accent/10" : "bg-iii-accent-light/10"
+                }`}
+              >
                 <Icon className={`w-5 h-5 ${iconColor}`} />
               </div>
               <div>
@@ -76,6 +81,67 @@ export const Features: React.FC<FeaturesProps> = ({ isDarkMode = true }) => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Checklist - Replaced with "Terminal Log" for uniqueness */}
+      <div className="mt-16 max-w-2xl mx-auto">
+        <h3 className={`text-center text-lg font-semibold mb-6 ${textPrimary}`}>
+          System Optimization Log
+        </h3>
+        <div
+          className={`p-6 rounded-xl border font-mono text-xs md:text-sm ${
+            isDarkMode
+              ? "bg-black border-iii-dark"
+              : "bg-white border-iii-medium/30"
+          }`}
+        >
+          <div className="flex flex-col gap-3">
+            {[
+              "Service mesh configuration",
+              "Connection pool management",
+              "Manual service discovery",
+              "Separate queue consumers",
+              "Complex YAML orchestration",
+              "Scattered logging setup",
+            ].map((item, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <span className="text-red-500 font-bold">[-]</span>
+                <span
+                  className={`${
+                    isDarkMode ? "text-iii-medium" : "text-iii-medium"
+                  } line-through opacity-70`}
+                >
+                  {item}...
+                </span>
+                <span
+                  className={`ml-auto ${
+                    isDarkMode ? "text-iii-dark" : "text-iii-medium/30"
+                  }`}
+                >
+                  DONE
+                </span>
+              </div>
+            ))}
+            <div className="h-px bg-iii-dark/50 my-2" />
+            <div className="flex items-center gap-3">
+              <span
+                className={
+                  isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+                }
+              >
+                [+]
+              </span>
+              <span className={textPrimary}>iii managing it all</span>
+              <span
+                className={`ml-auto font-bold ${
+                  isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+                }`}
+              >
+                ONLINE
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

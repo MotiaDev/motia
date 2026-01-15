@@ -1,6 +1,6 @@
-import React from 'react';
-import { ModeToggle } from './ModeToggle';
-import { Logo } from './Logo';
+import React from "react";
+import { ModeToggle } from "./ModeToggle";
+import { Logo } from "./Logo";
 
 interface MachineViewProps {
   onToggleMode: () => void;
@@ -10,31 +10,44 @@ interface MachineViewProps {
   onLogoClick?: () => void;
 }
 
-export const MachineView: React.FC<MachineViewProps> = ({ 
-  onToggleMode, 
+export const MachineView: React.FC<MachineViewProps> = ({
+  onToggleMode,
   isGodMode,
   isDarkMode = true,
-  onLogoClick
+  onLogoClick,
 }) => {
   return (
-    <div className={`min-h-screen font-mono relative flex flex-col transition-colors duration-300 ${
-      isDarkMode 
-        ? 'bg-iii-black text-iii-light' 
-        : 'bg-iii-light text-iii-black'
-    }`}>
+    <div
+      className={`min-h-screen font-mono relative flex flex-col transition-colors duration-300 ${
+        isDarkMode
+          ? "bg-iii-black text-iii-light"
+          : "bg-iii-light text-iii-black"
+      }`}
+    >
       {/* Matching nav bar */}
-      <nav className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
-          isDarkMode 
-            ? 'border-iii-dark/50 bg-iii-black/80' 
-            : 'border-iii-medium/20 bg-iii-light/80'
-        }`}>
-        <div 
-          className="cursor-pointer" 
-          onClick={onLogoClick}
-        >
-          <Logo 
-            className={`h-6 md:h-10 ${isGodMode ? 'text-red-500' : isDarkMode ? 'text-iii-light' : 'text-iii-black'}`} 
-            accentColor={isGodMode ? 'fill-red-500' : isDarkMode ? 'fill-iii-accent' : 'fill-iii-accent-light'}
+      <nav
+        className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
+          isDarkMode
+            ? "border-iii-dark/50 bg-iii-black/80"
+            : "border-iii-medium/20 bg-iii-light/80"
+        }`}
+      >
+        <div className="cursor-pointer" onClick={onLogoClick}>
+          <Logo
+            className={`h-6 md:h-10 ${
+              isGodMode
+                ? "text-red-500"
+                : isDarkMode
+                ? "text-iii-light"
+                : "text-iii-black"
+            }`}
+            accentColor={
+              isGodMode
+                ? "fill-red-500"
+                : isDarkMode
+                ? "fill-iii-accent"
+                : "fill-iii-accent-light"
+            }
           />
         </div>
       </nav>
@@ -42,35 +55,28 @@ export const MachineView: React.FC<MachineViewProps> = ({
       {/* Content - Machine readable markdown */}
       <div className="flex-1 text-xs md:text-sm leading-relaxed p-4 md:p-8 lg:p-12 pb-20 overflow-x-hidden">
         <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 break-words">
-        
-        {/* Header */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`III
+          {/* Header */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`III
 
 [Manifesto](#manifesto)
 [Protocol](#protocol)
 [Docs](https://iii-docs.vercel.app)
 [GitHub](https://github.com/MotiaDev/iii-engine)`}</pre>
 
-        {/* Hero */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# ONE BINARY. INFINITE SYSTEMS.
+          {/* Hero */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# ONE BINARY. INFINITE SYSTEMS.
 
 The universal execution kernel for distributed systems.
 
 No service mesh. No load balancers. Workers self-assemble via Bridge SDK. Functions call remote GPUs like local imports. The entire control plane in a single daemon configured by one YAML file.`}</pre>
 
-        {/* Install */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Installation (Prebuilt Binary)
+          {/* Install */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Installation (Prebuilt Binary)
 
 Supports macOS and Linux. Install the latest release:
 
 \`\`\`bash
-curl -fsSL https://raw.githubusercontent.com/MotiaDev/iii-engine/main/install.sh | sh
-\`\`\`
-
-Custom install directory:
-
-\`\`\`bash
-BIN_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/MotiaDev/iii-engine/main/install.sh | sh
+curl -fsSL https://iii.sh/install.sh | sh
 \`\`\`
 
 Verify installation:
@@ -79,8 +85,8 @@ Verify installation:
 command -v iii && iii --version
 \`\`\``}</pre>
 
-        {/* What is iii */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## What is iii?
+          {/* What is iii */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## What is iii?
 
 iii stands for three core primitives:
 
@@ -92,8 +98,8 @@ iii stands for three core primitives:
 
 Built with Rust for speed and memory efficiency.`}</pre>
 
-        {/* Core Concepts */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Core Concepts
+          {/* Core Concepts */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Core Concepts
 
 | Concept        | Description                                      |
 |----------------|--------------------------------------------------|
@@ -104,8 +110,8 @@ Built with Rust for speed and memory efficiency.`}</pre>
 | Triggers       | Link trigger types to remote functions           |
 | Remote Funcs   | Arbitrary functions executable anywhere          |`}</pre>
 
-        {/* Capabilities */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Capabilities
+          {/* Capabilities */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Capabilities
 
 | Capability                | Status | Description                           |
 |---------------------------|--------|---------------------------------------|
@@ -118,8 +124,8 @@ Built with Rust for speed and memory efficiency.`}</pre>
 | language_agnostic         | ✓      | Node.js, Python (Rust: Coming Soon)  |
 | distributed_tracing       | ✓      | Aggregated logs, traces, metrics      |`}</pre>
 
-        {/* Adapters */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Supported Adapters
+          {/* Adapters */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Supported Adapters
 
 | Adapter   | Type     | Protocol        |
 |-----------|----------|-----------------|
@@ -132,15 +138,15 @@ Built with Rust for speed and memory efficiency.`}</pre>
 | Kafka     | stream   | kafka://        |
 | Elastic   | search   | https://        |`}</pre>
 
-        {/* SDKs */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## SDK
+          {/* SDKs */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## SDK
 
 | Language   | Package      | Install Command          |
 |------------|--------------|--------------------------|
 | JavaScript | @iii/sdk     | npm install @iii/sdk     |`}</pre>
 
-        {/* Usage Example */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Usage Example
+          {/* Usage Example */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Usage Example
 
 \`\`\`typescript
 import { Bridge } from '@iii/sdk';
@@ -170,8 +176,8 @@ bridge.registerTrigger({
 const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
 \`\`\``}</pre>
 
-        {/* Architecture */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Architecture
+          {/* Architecture */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Architecture
 
 \`\`\`
 ┌──────────────────────────────────────────────────┐
@@ -195,8 +201,8 @@ const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
     └───────────┘ └───────────┘ └───────────┘
 \`\`\``}</pre>
 
-        {/* Value Propositions */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Value Propositions
+          {/* Value Propositions */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Value Propositions
 
 1. Self-Assembling Mesh: Workers automatically handshake and self-register capabilities
 2. Unified Hybrid Topology: Orchestrates local processes and remote functions in one namespace
@@ -209,8 +215,8 @@ const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
 9. Protocol-Agnostic Bridging: Code interacts via data primitives regardless of transport
 10. Atomic Control Plane: Service discovery, orchestration, connectivity in single binary`}</pre>
 
-        {/* Persona-Specific Value Propositions */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Role-Specific Benefits
+          {/* Persona-Specific Value Propositions */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Role-Specific Benefits
 
 ### Backend Engineer
 - Stack Unification: Triggers and functions abstraction. Reduces context switching across tooling.
@@ -230,8 +236,8 @@ const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
 - Orchestration: Operational consolidation. Single orchestration provider.
 - Runtime Context: Architectural flexibility. Rapid response to requirement changes.`}</pre>
 
-        {/* Problems Solved */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Problems Solved
+          {/* Problems Solved */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Problems Solved
 
 ### Infrastructure Complexity
 - Problem: Multiple services, load balancers, service meshes, API gateways
@@ -258,8 +264,8 @@ const result = await bridge.invokeFunction('helloWorld', { name: 'World' });
 - Solution: Adapter-based architecture, runs anywhere
 - Impact: Portable across clouds, on-premise, or hybrid`}</pre>
 
-        {/* Code Examples */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Code Examples
+          {/* Code Examples */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Code Examples
 
 ### HTTP API Handler - Before vs After
 
@@ -431,8 +437,8 @@ useCron(
 );
 \`\`\``}</pre>
 
-        {/* Technical Deep Dive (for AI context) */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Technical Deep Dive
+          {/* Technical Deep Dive (for AI context) */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Technical Deep Dive
 
 ### Core Modules (Built-in Rust)
 - modules::api::RestApiModule - REST API endpoints
@@ -496,8 +502,8 @@ bridge.invokeFunctionAsync(functionPath, data);
 | Logging  | modules::observability::adapters::FileLogger |
 `}</pre>
 
-        {/* Use Cases */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Use Cases
+          {/* Use Cases */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Use Cases
 
 ### Real-time Collaboration Apps
 - Use iii's built-in WebSocket streams for real-time state sync
@@ -529,8 +535,8 @@ bridge.invokeFunctionAsync(functionPath, data);
 - Distributed event sourcing
 - Automatic retry and dead letter queues`}</pre>
 
-        {/* Detailed Features */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Detailed Features
+          {/* Detailed Features */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Detailed Features
 
 ### Self-Assembling Mesh
 - Workers connect via WebSocket to daemon on boot
@@ -574,8 +580,8 @@ bridge.invokeFunctionAsync(functionPath, data);
 - Atomic cutover when ready
 - Rollback on error detection`}</pre>
 
-        {/* Protocol Specifications */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Protocol Specifications
+          {/* Protocol Specifications */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Protocol Specifications
 
 ### WebSocket Messages (Engine ↔ Worker)
 
@@ -701,8 +707,8 @@ Response: {
 }
 \`\`\``}</pre>
 
-        {/* Comparison with Alternatives */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Comparison with Alternatives
+          {/* Comparison with Alternatives */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Comparison with Alternatives
 
 ### vs. Kubernetes + Service Mesh (Istio/Linkerd)
 | Aspect               | iii                                | K8s + Service Mesh                                  |
@@ -739,20 +745,19 @@ Response: {
 | Observability  | Built-in                           | Requires instrumentation          |
 | Best For       | Distributed systems, multi-language | Simple Node.js APIs              |`}</pre>
 
-        {/* Links */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Resources
+          {/* Links */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Resources
 
 [Documentation](https://iii-docs.vercel.app)
 [GitHub Repository](https://github.com/MotiaDev/iii-engine)
 [npm Package](https://npmjs.com/package/@iii/sdk)
 [Discord Community](https://discord.gg/iii)`}</pre>
 
-        {/* Footer */}
-        <pre className="whitespace-pre-wrap break-words overflow-x-auto text-gray-500">{`---
+          {/* Footer */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto text-gray-500">{`---
 
 © 2025 III, Inc.
 Version: 0.1.0-alpha`}</pre>
-
         </div>
       </div>
 
@@ -760,17 +765,22 @@ Version: 0.1.0-alpha`}</pre>
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
         <div className="flex justify-center pb-6">
           <div className="pointer-events-auto">
-            <ModeToggle isHumanMode={false} onToggle={onToggleMode} isDarkMode={isDarkMode} />
+            <ModeToggle
+              isHumanMode={false}
+              onToggle={onToggleMode}
+              isDarkMode={isDarkMode}
+            />
           </div>
         </div>
         {/* Gradient fade for elegance */}
-        <div className={`absolute inset-0 -z-10 ${
-          isDarkMode 
-            ? 'bg-gradient-to-t from-iii-black/80 via-iii-black/40 to-transparent' 
-            : 'bg-gradient-to-t from-iii-light/80 via-iii-light/40 to-transparent'
-        }`} />
+        <div
+          className={`absolute inset-0 -z-10 ${
+            isDarkMode
+              ? "bg-gradient-to-t from-iii-black/80 via-iii-black/40 to-transparent"
+              : "bg-gradient-to-t from-iii-light/80 via-iii-light/40 to-transparent"
+          }`}
+        />
       </div>
     </div>
   );
 };
-

@@ -1,12 +1,16 @@
-import path from 'path';
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import path from "path";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
-    }
-  }
+      "@": path.resolve(__dirname, "."),
+    },
+  },
+  server: {
+    // Enable SPA fallback for client-side routing
+    historyApiFallback: true,
+  },
 });
