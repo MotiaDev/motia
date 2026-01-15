@@ -68,11 +68,99 @@ This Module add a new Trigger Type: `api`.
 
 ```typescript
 bridge.registerTrigger({
-  triggerType: 'api',
+  trigger_type: 'api',
   functionPath,
   config: {
     api_path: '/api/v1/users',
     http_method: 'GET',
   },
 })
+```
+
+## Request & Response Objects
+
+### ApiRequest
+
+When an API trigger fires, the function receives an `ApiRequest` object:
+
+<ResponseField name="path_params" type="Record&lt;string, string&gt;">
+  Variables extracted from the URL path (e.g., `/users/:id`).
+</ResponseField>
+
+<ResponseField name="query_params" type="Record&lt;string, string | string[]&gt;">
+  URL query string parameters.
+</ResponseField>
+
+<ResponseField name="body" type="any">
+  The parsed request body (JSON).
+</ResponseField>
+
+<ResponseField name="headers" type="Record&lt;string, string | string[]&gt;">
+  HTTP request headers.
+</ResponseField>
+
+### ApiResponse
+
+Functions must return an `ApiResponse` object:
+
+<ResponseField name="status" type="number">
+  HTTP status code (e.g., 200, 404, 500).
+</ResponseField>
+
+<ResponseField name="body" type="any">
+  The response payload.
+</ResponseField>
+
+<ResponseField name="headers" type="Record&lt;string, string&gt;">
+  HTTP response headers (optional).
+</ResponseField>
+
+## Request Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Engine
+    participant Worker
+
+    Client->>+Engine: HTTP Request (GET /users/123)
+    Note over Engine: Match route<br/>in registry
+    Engine->>+Worker: Invoke Function (JSON)
+    Note over Worker: Execute handler
+
+    Worker-->>-Engine: Return {status, body, headers}
+    Engine-->>-Client: HTTP Response
+```
+
+## Example Handler
+
+```typescript
+import { ApiRequest, ApiResponse } from '@iii-dev/sdk';
+
+async function getUser(req: ApiRequest) {
+  const userId = req.path_params.id;
+  const user = await database.findUser(userId);
+
+  return {
+    status: 200,
+    body: { user },
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+}
+
+bridge.registerFunction({
+  function_path: 'api.getUser',
+  handler: getUser,
+});
+
+bridge.registerTrigger({
+  trigger_type: 'api',
+  function_path: 'api.getUser',
+  config: {
+    api_path: '/users/:id',
+    http_method: 'GET',
+  },
+});
 ```

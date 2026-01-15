@@ -1,0 +1,123 @@
+---
+title: "Cron Module"
+---
+
+Schedule functions to execute at specific times using cron expressions.
+
+```
+modules::cron::CronModule
+```
+
+## Sample Configuration
+
+```yaml
+  - class: modules::cron::CronModule
+    config:
+      adapter:
+        class: modules::cron::adapters::RedisAdapter
+        config:
+          redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+## Configuration
+
+<ResponseField name="adapter" type="Adapter">
+  The adapter to use for distributed locking and job persistence. Redis adapter is recommended for multi-instance deployments.
+</ResponseField>
+
+## Adapters
+
+### modules::cron::adapters::RedisAdapter
+
+Uses Redis for distributed locking to prevent duplicate job execution across multiple engine instances.
+
+```yaml
+  class: modules::cron::adapters::RedisAdapter
+  config:
+    redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+#### Configuration
+
+<ResponseField name="redis_url" type="string">
+  The URL of the Redis instance to use for distributed locking.
+</ResponseField>
+
+## Trigger Type
+
+This Module adds a new Trigger Type: `cron`.
+
+<Expandable title="Trigger Config">
+  <ResponseField name="cron" type="string" required>
+    Standard cron expression defining the schedule. Supports the following format:
+
+    ```
+    * * * * *
+    │ │ │ │ │
+    │ │ │ │ └─── Day of week (0-7, where 0 and 7 are Sunday)
+    │ │ │ └───── Month (1-12)
+    │ │ └─────── Day of month (1-31)
+    │ └───────── Hour (0-23)
+    └─────────── Minute (0-59)
+    ```
+  </ResponseField>
+</Expandable>
+
+### Sample Code
+
+```typescript
+import { logger } from '@iii-dev/sdk';
+
+// Register a function to run on a schedule
+bridge.registerFunction({
+  function_path: 'jobs.cleanupOldData',
+  handler: async () => {
+    logger.info('Running scheduled cleanup...');
+    // Perform cleanup tasks
+  },
+});
+
+// Schedule to run every day at 2 AM
+bridge.registerTrigger({
+  trigger_type: 'cron',
+  function_path: 'jobs.cleanupOldData',
+  config: {
+    cron: '0 2 * * *',
+  },
+});
+```
+
+## Common Cron Expressions
+
+| Expression | Description |
+|------------|-------------|
+| `* * * * *` | Every minute |
+| `0 * * * *` | Every hour |
+| `0 0 * * *` | Every day at midnight |
+| `0 0 * * 0` | Every Sunday at midnight |
+| `0 2 * * *` | Every day at 2 AM |
+| `*/5 * * * *` | Every 5 minutes |
+| `0 9-17 * * 1-5` | Every hour from 9 AM to 5 PM, Monday to Friday |
+
+## Distributed Execution
+
+When running multiple iii Engine instances, the Cron Module uses distributed locking to ensure jobs execute only once:
+
+```mermaid
+sequenceDiagram
+    participant E1 as Engine1
+    participant R as Redis
+    participant E2 as Engine2
+
+    Note over E1,E2: Cron trigger fires at<br/>scheduled time
+
+    E1->>R: Try acquire lock
+    E2->>R: Try acquire lock
+    R-->>E1: Lock acquired
+    R-->>E2: Lock unavailable
+
+    E1->>E1: Execute job
+    E1->>R: Release lock
+
+    Note over E2: Skip execution<br/>(lock not acquired)
+```

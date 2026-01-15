@@ -189,7 +189,7 @@ function onAuth(input: StreamAuthInput) {
 }
 
 bridge.registerFunction({
-  functionPath: 'onAuth',
+  function_path: 'onAuth',
   handler: onAuth,
 })
 ```
@@ -242,12 +242,12 @@ function onJoin(input: JoinInput<any>) {
 }
 
 bridge.registerFunction({
-  functionPath: 'onJoin',
+  function_path: 'onJoin',
   handler: onJoin,
 })
 
 bridge.registerTrigger({
-  triggerType: 'streams:join',
-  functionPath: 'onJoin',
+  trigger_type: 'streams:join',
+  function_path: 'onJoin',
 })
 ```

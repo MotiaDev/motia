@@ -73,6 +73,62 @@ Uses builtin file logger for store logs
 </ResponseField>
 
 <ResponseField name="save_interval_ms" type="string">
-  Interval to store logs. Important, this will only be called if 
+  Interval to store logs. Important, this will only be called if
   there is additional logs pending to save.
+</ResponseField>
+
+## Trigger Type
+
+This Module adds a new Trigger Type: `log`.
+
+<Expandable title="Trigger Config">
+  <ResponseField name="level" type="string">
+    The log level to subscribe to. Options: `info`, `warn`, `error`, `debug`. When not specified, receives all log levels.
+  </ResponseField>
+</Expandable>
+
+### Sample Code
+
+```typescript
+// Register a function to handle log events
+bridge.registerFunction({
+  function_path: 'monitoring.onError',
+  handler: async (logEntry) => {
+    console.log('Error logged:', logEntry);
+    // Send alert, store in database, etc.
+  },
+});
+
+// Subscribe to error logs
+bridge.registerTrigger({
+  trigger_type: 'log',
+  function_path: 'monitoring.onError',
+  config: {
+    level: 'error',
+  },
+});
+```
+
+## Log Entry Structure
+
+When a log trigger fires, the function receives a log entry object:
+
+<ResponseField name="trace_id" type="string">
+  Distributed tracing identifier for correlating logs across services.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  The log message content.
+</ResponseField>
+
+<ResponseField name="level" type="string">
+  Log severity level (info, warn, error, debug).
+</ResponseField>
+
+<ResponseField name="function_name" type="string">
+  The function that generated the log entry.
+</ResponseField>
+
+<ResponseField name="date" type="string">
+  ISO 8601 timestamp of when the log was created.
 </ResponseField>

@@ -25,8 +25,9 @@ Examples of Modules:
 
 - **REST API Module**: Build REST APIs with ease.
 - **Streams Module**: Build durable streams for real-time data subscriptions.
-- **Queues Module**: Build queues for asynchronous task processing.
-- **Cron Module**: Build cron jobs for scheduled tasks.
+- **Event Module**: Redis-backed pub/sub for asynchronous messaging.
+- **Cron Module**: Schedule functions with cron expressions.
+- **Logging Module**: System observability and log management.
 
 Within these modules, there's an Adapter Layer, where we can configure external services to be used as their backend.
 For example: in Queues Module, we can configure Redis to be used as BullMQ, or we can configure RabbitMQ to manage queues.

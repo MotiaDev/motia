@@ -1,8 +1,10 @@
 {
   "title": "Core Modules",
   "pages": [
-    "summary",
+    "index",
     "module-rest-api",
+    "module-event",
+    "module-cron",
     "module-logging",
     "module-stream",
     "module-exec"

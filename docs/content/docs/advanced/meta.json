@@ -1,0 +1,10 @@
+{
+  "title": "Advanced",
+  "pages": [
+    "architecture",
+    "deployment",
+    "protocol",
+    "sdk-implementation",
+    "custom-modules"
+  ]
+}
