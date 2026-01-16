@@ -111,6 +111,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
           addLog('  internals   - Engine internals & architecture', 'error', 'internals');
           addLog('  roadmap     - Internal development roadmap', 'error', 'roadmap');
           addLog('  wake        - Universal wake-up mechanism', 'error', 'wake');
+          addLog('  builtins    - Built-in host functions', 'error', 'builtins');
           addLog('  registry    - View internal registries state', 'error', 'registry');
           addLog('  perf        - Performance metrics & bottlenecks', 'error', 'perf');
           addLog('  debug       - Debug mode & tracing config', 'error', 'debug');
@@ -798,37 +799,35 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('Bridge decides lifecycle, NOT Engine.', 'warning');
         break;
 
-      case 'registry':
+      case 'builtins':
         if (!isGodMode) {
           addLog('ACCESS DENIED. ROOT AUTHORIZATION REQUIRED.', 'error');
           addLog('(Hint: ↑↑↓↓←→←→BA)', 'info');
           break;
         }
         addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
-        addLog('🔴 WORKER & FUNCTION REGISTRY', 'error');
+        addLog('🔴 BUILT-IN HOST FUNCTIONS', 'error');
         addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
         addLog('', 'info');
-        addLog('CORE MODULES (config.yaml):', 'warning');
+        addLog('HOST FUNCTIONS (registered by modules):', 'warning');
         addLog('', 'info');
-        addLog('modules::api::RestApiModule', 'success');
-        addLog('  port, cors, default_timeout', 'info');
-        addLog('  Enables HTTP triggers and routing', 'info');
+        addLog('events.emit', 'success');
+        addLog('  Publish to global event bus', 'info');
+        addLog('  Backed by EventModule adapter', 'info');
         addLog('', 'info');
-        addLog('modules::cron::CronModule', 'success');
-        addLog('  adapter: Redis for distributed locking', 'info');
-        addLog('  Enables scheduled tasks', 'info');
+        addLog('logger.info/warn/error', 'success');
+        addLog('  Centralized logging with trace context', 'info');
+        addLog('  Backed by LoggingModule adapter', 'info');
         addLog('', 'info');
-        addLog('modules::event::EventModule', 'success');
-        addLog('  adapter: Redis for Pub/Sub', 'info');
-        addLog('  Enables event-driven messaging', 'info');
+        addLog('streams.get/set/delete/getGroup', 'success');
+        addLog('  Real-time state with WebSocket sync', 'info');
+        addLog('  Backed by StreamModule adapter', 'info');
         addLog('', 'info');
-        addLog('modules::streams::StreamModule', 'success');
-        addLog('  Real-time WebSocket sync for clients', 'info');
+        addLog('state.get/set/delete', 'success');
+        addLog('  Key-value storage (no real-time sync)', 'info');
+        addLog('  Backed by StateModule adapter', 'info');
         addLog('', 'info');
-        addLog('BUILT-IN HOST FUNCTIONS:', 'warning');
-        addLog('  events.emit - Publish to global bus', 'info');
-        addLog('  logger.* - Centralized logging with tracing', 'info');
-        addLog('  streams.set/get/delete - Real-time state', 'info');
+        addLog('These are invokable via bridge.invokeFunction()', 'warning');
         break;
 
       case 'roadmap':

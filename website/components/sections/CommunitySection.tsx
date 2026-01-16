@@ -1,8 +1,47 @@
-const communityStats = [
-  { label: "Active Users", value: "..." },
-  { label: "Chats", value: "..." },
-  { label: "Daily messages", value: "..." },
-];
+import { useState, useEffect } from "react";
+
+// Discord Widget API
+const DISCORD_GUILD_ID = "1322278831184281721";
+const DISCORD_WIDGET_URL = `https://discord.com/api/guilds/${DISCORD_GUILD_ID}/widget.json`;
+const DISCORD_INVITE_URL = "https://discord.gg/iii"; // Fallback invite link
+
+interface DiscordWidget {
+  id: string;
+  name: string;
+  instant_invite: string | null;
+  presence_count: number;
+  members: Array<{
+    id: string;
+    username: string;
+    avatar_url: string;
+    status: string;
+  }>;
+}
+
+interface DiscordStats {
+  memberCount: string;
+  onlineCount: number;
+  members: Array<{
+    id: string;
+    username: string;
+    avatar_url: string;
+    status: string;
+  }>;
+  inviteUrl: string | null;
+  serverName: string;
+  isLoading: boolean;
+  error: string | null;
+}
+
+const defaultStats: DiscordStats = {
+  memberCount: "...",
+  onlineCount: 0,
+  members: [],
+  inviteUrl: null,
+  serverName: "iii Community",
+  isLoading: true,
+  error: null,
+};
 
 const communityHighlights = [
   {
@@ -12,20 +51,53 @@ const communityHighlights = [
   },
 ];
 
-const memberAvatars = [
-  "👨‍💻",
-  "👩‍💼",
-  "👨‍🔬",
-  "👩‍💻",
-  "👨‍💼",
-  "👩‍🔬",
-  "👨‍🎓",
-  "👩‍🎓",
-  "👨‍💻",
-  "👩‍💼",
-  "👨‍🔬",
-  "👩‍💻",
-];
+const fallbackAvatars = ["👨‍💻", "👩‍💼", "👨‍🔬", "👩‍💻", "👨‍💼", "👩‍🔬", "👨‍🎓", "👩‍🎓"];
+
+function useDiscordWidget(): DiscordStats {
+  const [stats, setStats] = useState<DiscordStats>(defaultStats);
+
+  useEffect(() => {
+    const fetchDiscordData = async () => {
+      try {
+        const response = await fetch(DISCORD_WIDGET_URL);
+        
+        if (!response.ok) {
+          throw new Error(
+            response.status === 403
+              ? "Widget is disabled for this server"
+              : `Failed to fetch: ${response.status}`
+          );
+        }
+
+        const data: DiscordWidget = await response.json();
+
+        setStats({
+          memberCount: `${data.presence_count}+`,
+          onlineCount: data.presence_count,
+          members: data.members.slice(0, 12), // Show up to 12 members
+          inviteUrl: data.instant_invite || DISCORD_INVITE_URL,
+          serverName: data.name,
+          isLoading: false,
+          error: null,
+        });
+      } catch (err) {
+        setStats({
+          ...defaultStats,
+          isLoading: false,
+          error: err instanceof Error ? err.message : "Failed to fetch Discord data",
+          inviteUrl: DISCORD_INVITE_URL,
+        });
+      }
+    };
+
+    fetchDiscordData();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchDiscordData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return stats;
+}
 
 function CommunityCard({
   icon,
@@ -64,6 +136,44 @@ interface CommunitySectionProps {
 }
 
 export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
+  const discord = useDiscordWidget();
+
+  // Build stats from Discord data
+  const communityStats = [
+    {
+      label: "Online Now",
+      value: discord.isLoading ? "..." : discord.onlineCount.toString(),
+      icon: "🟢",
+    },
+    {
+      label: "Channels",
+      value: "10+",
+      icon: "#",
+    },
+    {
+      label: "Status",
+      value: discord.isLoading ? "..." : discord.error ? "Offline" : "Live",
+      icon: discord.error ? "🔴" : "✓",
+    },
+  ];
+
+  // Use Discord member avatars or fallback
+  const displayMembers =
+    discord.members.length > 0 ? discord.members : fallbackAvatars.map((emoji, i) => ({
+      id: `fallback-${i}`,
+      username: `Member ${i + 1}`,
+      avatar_url: "",
+      status: "online",
+      emoji,
+    }));
+
+  const handleJoinClick = () => {
+    const url = discord.inviteUrl || DISCORD_INVITE_URL;
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <section
       className={`relative py-24 overflow-hidden font-mono transition-colors duration-300 ${
@@ -85,62 +195,75 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
             </span>
           </h2>
           <p className="text-iii-medium text-lg max-w-2xl mx-auto">
-            Connect with ... of developers using iii. Share ideas, ask
+            Connect with developers building with iii. Share ideas, ask
             questions, and learn together.
           </p>
         </div>
 
         {/* Community preview card */}
         <div
-          className={`mb-16 p-8 rounded-xl border ${
+          className={`mb-16 p-4 sm:p-6 md:p-8 rounded-xl border ${
             isDarkMode
               ? "border-iii-dark bg-gradient-to-br from-iii-dark/50 to-iii-black/50"
               : "border-iii-medium/30 bg-gradient-to-br from-white/50 to-iii-light/50"
           }`}
         >
           {/* Discord header */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row items-center gap-3 mb-6 text-center sm:text-left">
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
+              className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                isDarkMode ? "bg-[#5865F2]" : "bg-[#5865F2]"
               }`}
             >
-              <span
-                className={`font-bold ${
-                  isDarkMode ? "text-iii-black" : "text-white"
-                }`}
+              <svg
+                className="w-7 h-7 text-white"
+                fill="currentColor"
+                viewBox="0 0 127.14 96.36"
               >
-                #
-              </span>
+                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+              </svg>
             </div>
             <div>
               <h3
-                className={`font-semibold ${
+                className={`font-semibold text-lg ${
                   isDarkMode ? "text-iii-light" : "text-iii-black"
                 }`}
               >
-                iii Community
+                {discord.serverName}
               </h3>
-              <p className="text-sm text-iii-medium">...K+ members</p>
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${
+                    discord.error ? "bg-red-500" : "bg-green-500"
+                  } ${discord.isLoading ? "animate-pulse" : ""}`}
+                />
+                <p className="text-sm text-iii-medium">
+                  {discord.isLoading
+                    ? "Connecting..."
+                    : discord.error
+                    ? "Widget unavailable"
+                    : `${discord.onlineCount} members online now`}
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
             {communityStats.map((stat, index) => (
               <div
                 key={index}
-                className={`p-3 rounded-lg border ${
+                className={`p-3 sm:p-4 rounded-lg border transition-all text-center ${
                   isDarkMode
-                    ? "bg-iii-dark/50 border-iii-dark"
-                    : "bg-white/50 border-iii-medium/30"
+                    ? "bg-iii-dark/50 border-iii-dark hover:border-iii-medium"
+                    : "bg-white/50 border-iii-medium/30 hover:border-iii-medium"
                 }`}
               >
-                <p className="text-sm text-iii-medium">{stat.label}</p>
+                <p className="text-xs sm:text-sm text-iii-medium mb-1">{stat.label}</p>
                 <p
-                  className={`text-xl font-bold ${
+                  className={`text-xl sm:text-2xl font-bold ${
                     isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-                  }`}
+                  } ${discord.isLoading ? "animate-pulse" : ""}`}
                 >
                   {stat.value}
                 </p>
@@ -149,41 +272,88 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
           </div>
 
           {/* Member avatars */}
-          <div className="mb-6">
-            <p className="text-sm text-iii-medium mb-3">Active members</p>
-            <div className="flex items-center gap-1">
-              {memberAvatars.map((avatar, index) => (
+          <div className="mb-8">
+            <p className="text-xs sm:text-sm text-iii-medium mb-3 text-center sm:text-left">
+              {discord.members.length > 0 ? "Online members" : "Active members"}
+            </p>
+            <div className="flex items-center gap-1 flex-wrap justify-center sm:justify-start">
+              {displayMembers.slice(0, 12).map((member, index) => (
                 <div
-                  key={index}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold border-2 hover:scale-110 transition-transform ${
+                  key={"id" in member ? member.id : index}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold border-2 hover:scale-110 transition-transform cursor-pointer relative group ${
                     isDarkMode
-                      ? "bg-gradient-to-br from-iii-accent to-iii-accent/70 border-iii-black"
-                      : "bg-gradient-to-br from-iii-accent-light to-blue-400 border-iii-light"
+                      ? "border-iii-black"
+                      : "border-iii-light"
                   }`}
-                  title={`Member ${index + 1}`}
+                  style={{
+                    background:
+                      "avatar_url" in member && member.avatar_url
+                        ? `url(${member.avatar_url}) center/cover`
+                        : isDarkMode
+                        ? "linear-gradient(135deg, var(--iii-accent), var(--iii-accent-light))"
+                        : "linear-gradient(135deg, var(--iii-accent-light), #60a5fa)",
+                  }}
+                  title={"username" in member ? member.username : `Member ${index + 1}`}
                 >
-                  {avatar}
+                  {!("avatar_url" in member && member.avatar_url) && (
+                    <span className="text-white text-sm">
+                      {"emoji" in member
+                        ? member.emoji
+                        : member.username?.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  {/* Status indicator */}
+                  {"status" in member && member.status && (
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 ${
+                        isDarkMode ? "border-iii-black" : "border-white"
+                      } ${
+                        member.status === "online"
+                          ? "bg-green-500"
+                          : member.status === "idle"
+                          ? "bg-yellow-500"
+                          : member.status === "dnd"
+                          ? "bg-red-500"
+                          : "bg-gray-500"
+                      }`}
+                    />
+                  )}
+                  {/* Tooltip */}
+                  {"username" in member && (
+                    <span
+                      className={`absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap ${
+                        isDarkMode
+                          ? "bg-iii-black text-iii-light"
+                          : "bg-white text-iii-black shadow-lg"
+                      }`}
+                    >
+                      {member.username}
+                    </span>
+                  )}
                 </div>
               ))}
-              <div
-                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xs ${
-                  isDarkMode
-                    ? "bg-iii-dark border-iii-medium text-iii-medium"
-                    : "bg-white border-iii-medium/50 text-iii-medium"
-                }`}
-              >
-                +
-              </div>
+              {discord.onlineCount > 12 && (
+                <div
+                  className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xs font-medium ${
+                    isDarkMode
+                      ? "bg-iii-dark border-iii-medium text-iii-medium"
+                      : "bg-white border-iii-medium/50 text-iii-medium"
+                  }`}
+                >
+                  +{discord.onlineCount - 12}
+                </div>
+              )}
             </div>
           </div>
 
           {/* CTA */}
-          <div className="flex justify-end">
+          <div className="flex justify-center sm:justify-end">
             <button
-              className={`font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+              onClick={handleJoinClick}
+              className={`font-semibold py-3 px-6 sm:px-8 rounded-lg transition-all flex items-center justify-center gap-2 sm:gap-3 hover:scale-105 active:scale-95 w-full sm:w-auto ${
                 isDarkMode
-                  ? "bg-iii-accent text-iii-black hover:bg-iii-accent/90"
-                  : "bg-iii-accent-light text-white hover:bg-iii-accent-light/90"
+                  ? "bg-[#5865F2] text-white hover:bg-[#4752C4]"
+                  : "bg-[#5865F2] text-white hover:bg-[#4752C4]"
               }`}
             >
               <svg

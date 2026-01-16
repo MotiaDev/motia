@@ -1,3 +1,9 @@
+/* Prevent horizontal scroll on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 /* CSS Variables for theme colors */
 :root {
   /* Light mode SVG colors */
@@ -15,9 +21,9 @@
   /* Base colors */
   --color-black: #000000;
   --color-dark: #1d1d1d;
-  --color-medium: #8b8b8b; /* Legacy - use medium-dark or medium-light */
-  --color-medium-dark: #8b8b8b; /* For dark backgrounds */
-  --color-medium-light: #616161; /* For light backgrounds - WCAG AA compliant */
+  --color-medium: #5B5B5B; /* Brand medium gray */
+  --color-medium-dark: #5B5B5B; /* For dark backgrounds */
+  --color-medium-light: #5B5B5B; /* For light backgrounds */
   --color-light: #f4f4f4;
   --color-accent: #f3f724;
   --color-accent-light: #1d4ed8;
@@ -27,6 +33,11 @@
   --color-warn: #f3943d;
   --color-alert: #e52e61;
   --color-success: #1ce669;
+
+  /* Scrollbar colors (Light Default) */
+  --scrollbar-track: #f4f4f4;
+  --scrollbar-thumb: #cccccc;
+  --scrollbar-thumb-hover: #1d4ed8;
 }
 
 /* Dark mode colors */
@@ -40,6 +51,11 @@
   --grid-line-color: rgba(255, 255, 255, 0.04);
   --arrow-light-color: #555555;
   --arrow-highlight-color: #666666;
+
+  /* Scrollbar colors (Dark) */
+  --scrollbar-track: #000000;
+  --scrollbar-thumb: #333333;
+  --scrollbar-thumb-hover: #f3f724;
 }
 
 /* Apply to body based on isDarkMode */
@@ -53,6 +69,11 @@ body.dark-mode {
   --grid-line-color: rgba(255, 255, 255, 0.04);
   --arrow-light-color: #555555;
   --arrow-highlight-color: #666666;
+
+  /* Scrollbar colors (Dark) */
+  --scrollbar-track: #000000;
+  --scrollbar-thumb: #333333;
+  --scrollbar-thumb-hover: #f3f724;
 }
 
 body.light-mode {
@@ -65,23 +86,30 @@ body.light-mode {
   --grid-line-color: rgba(0, 0, 0, 0.06);
   --arrow-light-color: #cccccc;
   --arrow-highlight-color: #aaaaaa;
+
+  /* Scrollbar colors (Light) */
+  --scrollbar-track: #f4f4f4;
+  --scrollbar-thumb: #cccccc;
+  --scrollbar-thumb-hover: #1d4ed8;
 }
 
 /* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #000;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #f3f724;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* CRT Effect for Terminal */
@@ -103,4 +131,14 @@ body.light-mode {
   z-index: 2;
   background-size: 100% 2px, 3px 100%;
   pointer-events: none;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

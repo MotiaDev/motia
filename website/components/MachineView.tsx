@@ -64,8 +64,16 @@ export const MachineView: React.FC<MachineViewProps> = ({
 [GitHub](https://github.com/MotiaDev/iii-engine)`}</pre>
 
           {/* Hero */}
-          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# ONE BINARY. INFINITE SYSTEMS.
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# The best way to ship faster, write better, scale easily, debug quickly, observe anything, and integrate - in any language, on any cloud, with any stack.
 
+## Key Features
+- A single control plane for your entire backend.
+- A single engine that manages your entire stack, and scales effortlessly.
+- Instant observability throughout your entire backend.
+- Makes it impossible to ignore problems.
+- Anything you want it to be.
+
+## Summary
 The universal execution kernel for distributed systems.
 
 No service mesh. No load balancers. Workers self-assemble via Bridge SDK. Functions call remote GPUs like local imports. The entire control plane in a single daemon configured by one YAML file.`}</pre>
@@ -745,13 +753,95 @@ Response: {
 | Observability  | Built-in                           | Requires instrumentation          |
 | Best For       | Distributed systems, multi-language | Simple Node.js APIs              |`}</pre>
 
+          {/* FAQ Section */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Frequently Asked Questions
+
+### Is iii production-ready?
+Yes! iii is used in production by companies of all sizes. It has been thoroughly tested and has a stable API. We follow semantic versioning and are committed to backward compatibility.
+
+### Can I use iii with existing code?
+Absolutely. iii is designed to interop with your existing codebase. You can gradually adopt iii without rewriting everything at once.
+
+### Does iii have overhead?
+iii has minimal overhead. The runtime is highly optimized. The benefits in observability, orchestration, and stack unification far outweigh any small performance cost.
+
+### What platforms does iii support?
+iii runs anywhere. Deploy to any cloud provider, on-premise, or edge. We provide platform-specific integrations for seamless deployment.
+
+### How does iii compare to other infrastructure solutions?
+iii provides a unified model for infrastructure, implementation, and invocation. Unlike point solutions that address only one piece, iii gives you complete stack unification with observability built in.
+
+### Is there a community? Where can I get help?
+Yes! We have an active Discord community with thousands of members. The documentation is extensive with tutorials, examples, and best practices. You can also find discussions and examples on GitHub.`}</pre>
+
+          {/* Technology Support */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Supported Technologies
+
+### Programming Languages
+| Language   | SDK Available | Status     |
+|------------|---------------|------------|
+| TypeScript | @iii/sdk      | Stable     |
+| Python     | iii-py        | Stable     |
+| Rust       | iii-rs        | Coming Soon|
+| Go         | iii-go        | Planned    |
+
+### Integrations (Adapters)
+| Integration | Type     | Protocol        |
+|-------------|----------|-----------------|
+| PostgreSQL  | database | postgresql://   |
+| MongoDB     | database | mongodb://      |
+| Redis       | cache    | redis://        |
+| Kafka       | stream   | kafka://        |
+| GraphQL     | api      | https://        |
+| gRPC        | rpc      | grpc://         |
+
+### Cloud Platforms
+| Provider    | Support  | Features                    |
+|-------------|----------|-----------------------------|
+| AWS         | Full     | EC2, Lambda, ECS, Fargate   |
+| Google Cloud| Full     | GCE, Cloud Run, GKE         |
+| Azure       | Full     | VMs, AKS, Container Apps    |
+| Cloudflare  | Full     | Workers, Pages, D1          |
+| Vercel      | Full     | Functions, Edge             |
+| Fly.io      | Full     | Machines, Apps              |
+| Docker      | Full     | Any Docker environment      |
+| Kubernetes  | Full     | Any K8s cluster             |`}</pre>
+
+          {/* Community Section */}
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Community
+
+Join our engineering community to connect with developers building with iii.
+
+### Discord
+- Server: iii Community
+- Invite: https://discord.gg/iii
+- Channels: 10+
+- Features: Get help, share ideas, learn together
+
+### GitHub
+- Repository: https://github.com/MotiaDev/iii-engine
+- Issues: Bug reports and feature requests
+- Discussions: Community Q&A`}</pre>
+
           {/* Links */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`## Resources
 
 [Documentation](https://iii-docs.vercel.app)
 [GitHub Repository](https://github.com/MotiaDev/iii-engine)
 [npm Package](https://npmjs.com/package/@iii/sdk)
-[Discord Community](https://discord.gg/iii)`}</pre>
+[Discord Community](https://discord.gg/iii)
+
+## Installation
+
+\`\`\`bash
+curl -fsSL iii.sh/install.sh | sh
+\`\`\`
+
+Verify installation:
+
+\`\`\`bash
+command -v iii && iii --version
+\`\`\``}</pre>
 
           {/* Footer */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto text-gray-500">{`---
