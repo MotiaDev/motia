@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
 interface Box {
   id: number;
@@ -7,15 +7,30 @@ interface Box {
   // Position in the xkcd dependency stack (center point for rendering)
   stackX: number;
   stackY: number;
-  // Position in the uniform grid (center point)
-  gridX: number;
-  gridY: number;
+  // Position in the final layout (center point)
+  endX: number;
+  endY: number;
+  // Target size in final layout
+  endWidth: number;
+  endHeight: number;
+  // Which container this box belongs to in end state: 'left' | 'right'
+  endContainer: "left" | "right";
 }
 
-// Grid configuration for the final uniform square
-const GRID_SIZE = 6; // 6x6 grid = 36 boxes
-const BOX_SIZE = 70;
-const BOX_GAP = 12;
+// Layout configuration for the final 3-box layout
+const CONTAINER_WIDTH = 160; // Left and right container size
+const CONTAINER_HEIGHT = 160;
+const CENTER_BOX_SIZE = 80; // Smaller center "iii" box
+const CONTAINER_GAP = 60; // Gap between containers (for dashed lines)
+
+// Left container: fewer, larger boxes (e.g., 3x3 = 9 boxes)
+const LEFT_GRID_SIZE = 3;
+const LEFT_BOX_SIZE = 42;
+const LEFT_BOX_GAP = 8;
+
+// Right container: more, smaller boxes (e.g., 5x5 = 25 boxes, but we'll use remaining boxes)
+const RIGHT_BOX_SIZE = 24;
+const RIGHT_BOX_GAP = 4;
 
 // Variant configurations
 export type DependencyStackVariant = "fullscreen" | "corner" | "splash";
@@ -37,7 +52,7 @@ interface DependencyStackProps {
   scale?: number;
 }
 
-// Create boxes that form the dependency stack, then rearrange into a grid
+// Create boxes that form the dependency stack, then rearrange into the 3-container layout
 // Using BOTTOM-LEFT positioning: (left, bottom) with width extending right, height extending UP
 // In SVG, Y increases downward, so "up" means smaller Y values
 // bottom = Y coordinate of bottom edge, top = bottom - height
@@ -119,20 +134,68 @@ const createBoxes = (): Box[] => {
     { left: 66, bottom: -287, w: 14, h: 20 },
   ];
 
-  // Calculate grid positions for uniform square (grid uses center positioning)
-  const totalGridWidth = GRID_SIZE * BOX_SIZE + (GRID_SIZE - 1) * BOX_GAP;
-  const totalGridHeight = GRID_SIZE * BOX_SIZE + (GRID_SIZE - 1) * BOX_GAP;
-  const gridStartX = -totalGridWidth / 2;
-  const gridStartY = -totalGridHeight / 2;
+  // Calculate total width of the 3-container layout
+  const totalWidth = CONTAINER_WIDTH * 2 + CENTER_BOX_SIZE + CONTAINER_GAP * 2;
+  const leftContainerCenterX = -totalWidth / 2 + CONTAINER_WIDTH / 2;
+  const centerBoxCenterX = 0;
+  const rightContainerCenterX = totalWidth / 2 - CONTAINER_WIDTH / 2;
+
+  // Assign boxes to left (first 9) and right (remaining) containers
+  const leftBoxCount = LEFT_GRID_SIZE * LEFT_GRID_SIZE; // 9 boxes for left
 
   for (let i = 0; i < stackPositions.length; i++) {
     const stack = stackPositions[i];
-    const gridRow = Math.floor(i / GRID_SIZE);
-    const gridCol = i % GRID_SIZE;
+    const isLeft = i < leftBoxCount;
 
     // Convert bottom-left to center for consistent rendering
     const centerX = stack.left + stack.w / 2;
-    const centerY = stack.bottom - stack.h / 2; // center Y (remember: up is negative)
+    const centerY = stack.bottom - stack.h / 2;
+
+    let endX: number, endY: number, endWidth: number, endHeight: number;
+
+    if (isLeft) {
+      // Left container: 3x3 grid of larger boxes
+      const gridRow = Math.floor(i / LEFT_GRID_SIZE);
+      const gridCol = i % LEFT_GRID_SIZE;
+      const gridWidth =
+        LEFT_GRID_SIZE * LEFT_BOX_SIZE + (LEFT_GRID_SIZE - 1) * LEFT_BOX_GAP;
+      const gridHeight = gridWidth;
+      const startX = leftContainerCenterX - gridWidth / 2;
+      const startY = -gridHeight / 2;
+
+      endX =
+        startX + gridCol * (LEFT_BOX_SIZE + LEFT_BOX_GAP) + LEFT_BOX_SIZE / 2;
+      endY =
+        startY + gridRow * (LEFT_BOX_SIZE + LEFT_BOX_GAP) + LEFT_BOX_SIZE / 2;
+      endWidth = LEFT_BOX_SIZE;
+      endHeight = LEFT_BOX_SIZE;
+    } else {
+      // Right container: dynamic grid of smaller boxes
+      const rightIndex = i - leftBoxCount;
+      const rightBoxCount = stackPositions.length - leftBoxCount;
+      const rightGridCols = Math.ceil(Math.sqrt(rightBoxCount));
+      const rightGridRows = Math.ceil(rightBoxCount / rightGridCols);
+
+      const gridRow = Math.floor(rightIndex / rightGridCols);
+      const gridCol = rightIndex % rightGridCols;
+      const gridWidth =
+        rightGridCols * RIGHT_BOX_SIZE + (rightGridCols - 1) * RIGHT_BOX_GAP;
+      const gridHeight =
+        rightGridRows * RIGHT_BOX_SIZE + (rightGridRows - 1) * RIGHT_BOX_GAP;
+      const startX = rightContainerCenterX - gridWidth / 2;
+      const startY = -gridHeight / 2;
+
+      endX =
+        startX +
+        gridCol * (RIGHT_BOX_SIZE + RIGHT_BOX_GAP) +
+        RIGHT_BOX_SIZE / 2;
+      endY =
+        startY +
+        gridRow * (RIGHT_BOX_SIZE + RIGHT_BOX_GAP) +
+        RIGHT_BOX_SIZE / 2;
+      endWidth = RIGHT_BOX_SIZE;
+      endHeight = RIGHT_BOX_SIZE;
+    }
 
     boxes.push({
       id: i,
@@ -140,8 +203,11 @@ const createBoxes = (): Box[] => {
       height: stack.h,
       stackX: centerX,
       stackY: centerY,
-      gridX: gridStartX + gridCol * (BOX_SIZE + BOX_GAP) + BOX_SIZE / 2,
-      gridY: gridStartY + gridRow * (BOX_SIZE + BOX_GAP) + BOX_SIZE / 2,
+      endX,
+      endY,
+      endWidth,
+      endHeight,
+      endContainer: isLeft ? "left" : "right",
     });
   }
 
@@ -240,12 +306,18 @@ export function DependencyStack({
 
   const progress = easeInOutCubic(scrollProgress);
 
+  // Calculate layout positions for the 3-container end state
+  const totalWidth = CONTAINER_WIDTH * 2 + CENTER_BOX_SIZE + CONTAINER_GAP * 2;
+  const leftContainerCenterX = -totalWidth / 2 + CONTAINER_WIDTH / 2;
+  const rightContainerCenterX = totalWidth / 2 - CONTAINER_WIDTH / 2;
+
   // Calculate viewBox based on scale and variant
-  // For corner variant, shift viewBox so the base of the structure aligns to bottom-left
+  // For corner variant, shift viewBox so the base of the structure aligns to bottom-right
+  // ViewBox needs to accommodate both the stack (tall) and the 3-container layout (wide)
   const baseViewBox =
     variant === "corner"
-      ? { x: -200, y: -420, w: 400, h: 820 } // Tighter crop, structure at left
-      : { x: -250, y: -420, w: 500, h: 820 };
+      ? { x: -300, y: -420, w: 600, h: 820 } // Wider to fit 3-container layout
+      : { x: -350, y: -420, w: 700, h: 820 }; // Wider default for 3-container
   const scaledViewBox = {
     x: baseViewBox.x / scale,
     y: baseViewBox.y / scale,
@@ -286,13 +358,15 @@ export function DependencyStack({
         )}
 
         {boxes.map((box) => {
-          // Interpolate from stack position to grid position
-          const currentX = box.stackX + (box.gridX - box.stackX) * progress;
-          const currentY = box.stackY + (box.gridY - box.stackY) * progress;
+          // Interpolate from stack position to end position
+          const currentX = box.stackX + (box.endX - box.stackX) * progress;
+          const currentY = box.stackY + (box.endY - box.stackY) * progress;
 
-          // Interpolate size from original to uniform
-          const currentWidth = box.width + (BOX_SIZE - box.width) * progress;
-          const currentHeight = box.height + (BOX_SIZE - box.height) * progress;
+          // Interpolate size from original to target
+          const currentWidth =
+            box.width + (box.endWidth - box.width) * progress;
+          const currentHeight =
+            box.height + (box.endHeight - box.height) * progress;
 
           // Nebraska block (id 5) gets the alert/error color
           const isNebraskaBlock = box.id === 5;
@@ -319,6 +393,289 @@ export function DependencyStack({
             />
           );
         })}
+
+        {/* Center "iii" logo box - fades in as progress increases */}
+        <g style={{ opacity: progress }}>
+          {/* Center box border */}
+          <rect
+            x={-CENTER_BOX_SIZE / 2}
+            y={-CENTER_BOX_SIZE / 2}
+            width={CENTER_BOX_SIZE}
+            height={CENTER_BOX_SIZE}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5 / scale}
+            className="text-neutral-300"
+            rx={6 / scale}
+            ry={6 / scale}
+          />
+          {/* iii logo inside center box */}
+          <g transform={`translate(0, 0) scale(${2.2 / scale})`}>
+            {/* First i */}
+            <rect
+              className="fill-current text-neutral-400"
+              x={-10}
+              y={-9}
+              width={4}
+              height={4}
+            />
+            <rect
+              className="fill-current text-neutral-400"
+              x={-10}
+              y={-3}
+              width={4}
+              height={12}
+            />
+            {/* Second i */}
+            <rect
+              className="fill-current text-neutral-400"
+              x={-2}
+              y={-9}
+              width={4}
+              height={4}
+            />
+            <rect
+              className="fill-current text-neutral-400"
+              x={-2}
+              y={-3}
+              width={4}
+              height={12}
+            />
+            {/* Third i */}
+            <rect
+              className="fill-current text-neutral-400"
+              x={6}
+              y={-9}
+              width={4}
+              height={4}
+            />
+            <rect
+              className="fill-current text-neutral-400"
+              x={6}
+              y={-3}
+              width={4}
+              height={12}
+            />
+          </g>
+        </g>
+
+        {/* Left container outline - fades in as progress increases */}
+        <rect
+          x={leftContainerCenterX - CONTAINER_WIDTH / 2}
+          y={-CONTAINER_HEIGHT / 2}
+          width={CONTAINER_WIDTH}
+          height={CONTAINER_HEIGHT}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5 / scale}
+          className="text-neutral-300"
+          rx={8 / scale}
+          ry={8 / scale}
+          style={{ opacity: progress * 0.5 }}
+        />
+
+        {/* Right container outline - fades in as progress increases */}
+        <rect
+          x={rightContainerCenterX - CONTAINER_WIDTH / 2}
+          y={-CONTAINER_HEIGHT / 2}
+          width={CONTAINER_WIDTH}
+          height={CONTAINER_HEIGHT}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5 / scale}
+          className="text-neutral-300"
+          rx={8 / scale}
+          ry={8 / scale}
+          style={{ opacity: progress * 0.5 }}
+        />
+
+        {/* Animated dashed connection lines */}
+        <defs>
+          {/* Info color (outward from iii) */}
+          <linearGradient id="gradientInfo" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#42e7e7" stopOpacity="0.2" />
+            <stop offset="40%" stopColor="#42e7e7" stopOpacity="1" />
+            <stop offset="60%" stopColor="#42e7e7" stopOpacity="1" />
+            <stop offset="100%" stopColor="#42e7e7" stopOpacity="0.2" />
+          </linearGradient>
+          {/* Success color (inward to iii) */}
+          <linearGradient
+            id="gradientSuccess"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="0%"
+          >
+            <stop offset="0%" stopColor="#1ce669" stopOpacity="0.2" />
+            <stop offset="40%" stopColor="#1ce669" stopOpacity="1" />
+            <stop offset="60%" stopColor="#1ce669" stopOpacity="1" />
+            <stop offset="100%" stopColor="#1ce669" stopOpacity="0.2" />
+          </linearGradient>
+        </defs>
+
+        {/* 11 Animated connection lines */}
+        <g style={{ opacity: progress }}>
+          {/* === LEFT SIDE LINES (6 lines) === */}
+
+          {/* Line 1: From left container edge, top area - INWARD (success/green) */}
+          <line
+            x1={leftContainerCenterX + CONTAINER_WIDTH / 2}
+            y1={-45}
+            x2={-CENTER_BOX_SIZE / 2}
+            y2={-25}
+            stroke="url(#gradientSuccess)"
+            strokeWidth={2 / scale}
+            strokeDasharray={`${10 / scale} ${20 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowRight 1.8s linear infinite" }}
+          />
+
+          {/* Line 2: From a left box (box 2) - OUTWARD (info/cyan) */}
+          <line
+            x1={boxes[2]?.endX ?? leftContainerCenterX + 40}
+            y1={boxes[2]?.endY ?? -30}
+            x2={-CENTER_BOX_SIZE / 2}
+            y2={-8}
+            stroke="url(#gradientInfo)"
+            strokeWidth={2 / scale}
+            strokeDasharray={`${8 / scale} ${25 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowLeft 2.2s linear infinite" }}
+          />
+
+          {/* Line 3: From left container center - INWARD (success/green) */}
+          <line
+            x1={leftContainerCenterX + CONTAINER_WIDTH / 2}
+            y1={0}
+            x2={-CENTER_BOX_SIZE / 2}
+            y2={0}
+            stroke="url(#gradientSuccess)"
+            strokeWidth={2.5 / scale}
+            strokeDasharray={`${12 / scale} ${18 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowRight 2.5s linear infinite" }}
+          />
+
+          {/* Line 4: From a left box (box 5) - OUTWARD (info/cyan) */}
+          <line
+            x1={boxes[5]?.endX ?? leftContainerCenterX + 30}
+            y1={boxes[5]?.endY ?? 20}
+            x2={-CENTER_BOX_SIZE / 2}
+            y2={10}
+            stroke="url(#gradientInfo)"
+            strokeWidth={1.5 / scale}
+            strokeDasharray={`${6 / scale} ${22 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowLeft 1.6s linear infinite" }}
+          />
+
+          {/* Line 5: From left container edge, bottom area - INWARD (success/green) */}
+          <line
+            x1={leftContainerCenterX + CONTAINER_WIDTH / 2}
+            y1={40}
+            x2={-CENTER_BOX_SIZE / 2}
+            y2={22}
+            stroke="url(#gradientSuccess)"
+            strokeWidth={2 / scale}
+            strokeDasharray={`${9 / scale} ${24 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowRight 2.1s linear infinite" }}
+          />
+
+          {/* Line 6: From a left box (box 7) - INWARD (success/green) - switches direction */}
+          <line
+            x1={boxes[7]?.endX ?? leftContainerCenterX + 50}
+            y1={boxes[7]?.endY ?? 50}
+            x2={-CENTER_BOX_SIZE / 2}
+            y2={35}
+            stroke="url(#gradientSuccess)"
+            strokeWidth={1.5 / scale}
+            strokeDasharray={`${7 / scale} ${28 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowRight 2.8s linear infinite" }}
+          />
+
+          {/* === RIGHT SIDE LINES (5 lines) === */}
+
+          {/* Line 7: To right container edge, top area - OUTWARD (info/cyan) */}
+          <line
+            x1={CENTER_BOX_SIZE / 2}
+            y1={-28}
+            x2={rightContainerCenterX - CONTAINER_WIDTH / 2}
+            y2={-50}
+            stroke="url(#gradientInfo)"
+            strokeWidth={2 / scale}
+            strokeDasharray={`${10 / scale} ${20 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowRight 1.9s linear infinite" }}
+          />
+
+          {/* Line 8: To a right box (box 12) - INWARD (success/green) */}
+          <line
+            x1={CENTER_BOX_SIZE / 2}
+            y1={-10}
+            x2={boxes[12]?.endX ?? rightContainerCenterX - 35}
+            y2={boxes[12]?.endY ?? -25}
+            stroke="url(#gradientSuccess)"
+            strokeWidth={1.5 / scale}
+            strokeDasharray={`${8 / scale} ${22 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowLeft 2.4s linear infinite" }}
+          />
+
+          {/* Line 9: To right container center - OUTWARD (info/cyan) */}
+          <line
+            x1={CENTER_BOX_SIZE / 2}
+            y1={5}
+            x2={rightContainerCenterX - CONTAINER_WIDTH / 2}
+            y2={0}
+            stroke="url(#gradientInfo)"
+            strokeWidth={2.5 / scale}
+            strokeDasharray={`${12 / scale} ${18 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowRight 2.0s linear infinite" }}
+          />
+
+          {/* Line 10: To a right box (box 18) - OUTWARD (info/cyan) */}
+          <line
+            x1={CENTER_BOX_SIZE / 2}
+            y1={18}
+            x2={boxes[18]?.endX ?? rightContainerCenterX - 20}
+            y2={boxes[18]?.endY ?? 30}
+            stroke="url(#gradientInfo)"
+            strokeWidth={1.5 / scale}
+            strokeDasharray={`${6 / scale} ${26 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowRight 1.7s linear infinite" }}
+          />
+
+          {/* Line 11: To right container edge, bottom - INWARD (success/green) - switches direction */}
+          <line
+            x1={CENTER_BOX_SIZE / 2}
+            y1={32}
+            x2={rightContainerCenterX - CONTAINER_WIDTH / 2}
+            y2={45}
+            stroke="url(#gradientSuccess)"
+            strokeWidth={2 / scale}
+            strokeDasharray={`${9 / scale} ${21 / scale}`}
+            strokeLinecap="round"
+            style={{ animation: "dashFlowLeft 2.6s linear infinite" }}
+          />
+        </g>
+
+        {/* CSS animations for dash flow */}
+        <style>
+          {`
+            @keyframes dashFlowRight {
+              0% { stroke-dashoffset: ${80 / scale}; }
+              100% { stroke-dashoffset: ${-80 / scale}; }
+            }
+            @keyframes dashFlowLeft {
+              0% { stroke-dashoffset: ${-80 / scale}; }
+              100% { stroke-dashoffset: ${80 / scale}; }
+            }
+          `}
+        </style>
       </svg>
     </div>
   );
