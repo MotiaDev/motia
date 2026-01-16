@@ -7,10 +7,14 @@ import { WhatsCatchSection } from "../components/sections/WhatsCatchSection";
 import { FAQSection } from "../components/sections/FAQSection";
 import { CommunitySection } from "../components/sections/CommunitySection";
 import { CTAFooterSection } from "../components/sections/CTAFooterSection";
+import { DependencyStack } from "../components/DependencyStack";
 
 export function SectionsPreview() {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black relative">
+      {/* Scroll-animated dependency stack background */}
+      <DependencyStack />
+
       {/* Navigation for preview */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur border-b border-neutral-800">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
