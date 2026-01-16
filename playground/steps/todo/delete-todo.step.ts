@@ -1,24 +1,27 @@
-import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from '@iii-dev/motia'
 import { z } from 'zod'
 
 export const config = {
-  type: 'api',
   name: 'DeleteTodo',
   description: 'Delete a todo item',
   flows: ['todo-app'],
-
-  method: 'DELETE',
-  path: '/todo/:todoId',
-  responseSchema: {
-    200: z.object({ id: z.string() }),
-    404: z.object({ error: z.string() }),
-  },
+  triggers: [
+    {
+      type: 'api',
+      method: 'DELETE',
+      path: '/todo/:todoId',
+      responseSchema: {
+        200: z.object({ id: z.string() }),
+        404: z.object({ error: z.string() }),
+      },
+    },
+  ],
   emits: [],
   virtualSubscribes: ['todo-created'],
-} as const satisfies ApiRouteConfig
+} as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
-  const { todoId } = req.pathParams
+export const handler: Handlers<typeof config> = async (request, { logger, streams }) => {
+  const { todoId } = request.pathParams || {}
 
   logger.info('Deleting todo', { todoId })
 

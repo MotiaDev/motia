@@ -22,7 +22,7 @@ export type InternalStateManager = {
   clear(groupId: string): Promise<void>
 }
 
-export type EmitData = { topic: ''; data: unknown; messageGroupId?: string }
+export type EmitData<T = unknown> = { topic: string; data: T; messageGroupId?: string }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
 export interface FlowContext<TEmitData = never> {
@@ -31,11 +31,32 @@ export interface FlowContext<TEmitData = never> {
   state: InternalStateManager
   logger: Logger
   streams: Streams
+  trigger: TriggerInfo
 }
 
-export type EventHandler<TInput, TEmitData> = (input: TInput, ctx: FlowContext<TEmitData>) => Promise<void>
-
 export type Emit = string | { topic: string; label?: string; conditional?: boolean }
+
+export type TriggerInfo = {
+  type: 'api' | 'event' | 'cron'
+  index?: number
+  path?: string
+  method?: string
+  topic?: string
+  expression?: string
+}
+
+type EventTriggerInput<T> = T
+
+type ApiTriggerInput<T> = ApiRequest<T>
+
+type CronTriggerInput = undefined
+
+export type TriggerInput<T> = EventTriggerInput<T> | ApiTriggerInput<T> | CronTriggerInput
+
+export type TriggerCondition<TInput = unknown> = (
+  input: TriggerInput<TInput>,
+  ctx: Omit<FlowContext, 'emit'>,
+) => boolean | Promise<boolean>
 
 export type HandlerConfig = {
   ram: number
@@ -55,29 +76,6 @@ export type InfrastructureConfig = {
   queue?: Partial<QueueConfig>
 }
 
-export type EventConfig = {
-  type: 'event'
-  name: string
-  description?: string
-  subscribes: readonly string[]
-  emits: readonly Emit[]
-  virtualEmits?: readonly Emit[]
-  virtualSubscribes?: readonly string[]
-  input?: StepSchemaInput
-  flows?: readonly string[]
-  includeFiles?: readonly string[]
-  infrastructure?: Partial<InfrastructureConfig>
-}
-
-export type NoopConfig = {
-  type: 'noop'
-  name: string
-  description?: string
-  virtualEmits: readonly Emit[]
-  virtualSubscribes: readonly string[]
-  flows?: readonly string[]
-}
-
 export type ApiRouteMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
 export type ApiMiddleware<TBody = unknown, TEmitData = never, TResult = unknown> = (
@@ -91,22 +89,44 @@ export interface QueryParam {
   description: string
 }
 
-export interface ApiRouteConfig {
+export type EventTrigger<TSchema extends StepSchemaInput | undefined = any> = {
+  type: 'event'
+  topic: string
+  input?: TSchema
+  condition?: TriggerCondition<InferSchema<TSchema>>
+}
+
+export type ApiTrigger<TSchema extends StepSchemaInput | undefined = any> = {
   type: 'api'
-  name: string
-  description?: string
   path: string
   method: ApiRouteMethod
-  emits: readonly Emit[]
+  bodySchema?: TSchema
+  responseSchema?: Record<number, StepSchemaInput>
+  queryParams?: readonly QueryParam[]
+  // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
+  middleware?: readonly ApiMiddleware<any, any, any>[]
+  condition?: TriggerCondition<InferSchema<TSchema>>
+}
+
+export type CronTrigger<TSchema extends StepSchemaInput | undefined = any> = {
+  type: 'cron'
+  expression: string
+  input?: never
+  condition?: TriggerCondition<InferSchema<TSchema>>
+}
+
+export type TriggerConfig = EventTrigger | ApiTrigger | CronTrigger
+
+export type StepConfig<TTriggers extends readonly any[] = readonly TriggerConfig[]> = {
+  name: string
+  description?: string
+  triggers: TTriggers
+  emits?: readonly Emit[]
   virtualEmits?: readonly Emit[]
   virtualSubscribes?: readonly string[]
   flows?: readonly string[]
-  // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
-  middleware?: readonly ApiMiddleware<any, any, any>[]
-  bodySchema?: StepSchemaInput
-  responseSchema?: Record<number, StepSchemaInput>
-  queryParams?: readonly QueryParam[]
   includeFiles?: readonly string[]
+  infrastructure?: Partial<InfrastructureConfig>
 }
 
 export interface ApiRequest<TBody = unknown> {
@@ -116,39 +136,16 @@ export interface ApiRequest<TBody = unknown> {
   headers: Record<string, string | string[]>
 }
 
-export type ApiResponse<TStatus extends number = number, TBody = string | Buffer | Record<string, unknown>> = {
+export type ApiResponse<TStatus extends number = number, TBody = any> = {
   status: TStatus
   headers?: Record<string, string>
   body: TBody
 }
 
-export type ApiRouteHandler<
-  TRequestBody = unknown,
-  TResponseBody extends ApiResponse<number, unknown> = ApiResponse<number, unknown>,
-  TEmitData = never,
-> = (req: ApiRequest<TRequestBody>, ctx: FlowContext<TEmitData>) => Promise<TResponseBody>
-
-export type CronConfig = {
-  type: 'cron'
-  name: string
-  description?: string
-  cron: string
-  virtualEmits?: readonly Emit[]
-  virtualSubscribes?: readonly string[]
-  emits: readonly Emit[]
-  flows?: readonly string[]
-  includeFiles?: readonly string[]
-}
-
-export type CronHandler<TEmitData = never> = (ctx: FlowContext<TEmitData>) => Promise<void>
-
-export type StepHandler<T> = T extends EventConfig
-  ? EventHandler<unknown, { topic: string; data: any }>
-  : T extends ApiRouteConfig
-    ? ApiRouteHandler<any, ApiResponse<number, any>, { topic: string; data: any }>
-    : T extends CronConfig
-      ? CronHandler<{ topic: string; data: any }>
-      : never
+export type StepHandler<TInput = any, TEmitData = never> = (
+  input: TriggerInput<TInput>,
+  ctx: FlowContext<TEmitData>,
+) => Promise<ApiResponse | void>
 
 export type Event<TData = unknown> = {
   topic: string
@@ -173,12 +170,10 @@ export type UnsubscribeConfig = {
   event: string
 }
 
-export type StepConfig = EventConfig | NoopConfig | ApiRouteConfig | CronConfig
+export type Step = { filePath: string; config: StepConfig<any> }
 
-export type Step<TConfig extends StepConfig = StepConfig> = { filePath: string; config: TConfig }
-
-export type PluginStep<TConfig extends StepConfig = ApiRouteConfig> = Step<TConfig> & {
-  handler?: ApiRouteHandler<any, any, any>
+export type PluginStep = Step & {
+  handler?: StepHandler<any, any>
 }
 
 export type Flow = {
@@ -199,15 +194,25 @@ type InferSchema<T, TFallback = unknown> = T extends TypedJsonSchema<infer O>
   ? O
   : T extends HasOutput
     ? T['_output']
-    : [T] extends [object]
-      ? T
+    : T extends undefined
+      ? unknown
       : TFallback
 
-type InferBody<T> = T extends { bodySchema: infer B }
-  ? InferSchema<B, Record<string, unknown>>
-  : Record<string, unknown>
+type TriggerToInput<TTrigger> = TTrigger extends { type: 'event'; input?: infer S }
+  ? S extends StepSchemaInput
+    ? InferSchema<S>
+    : unknown
+  : TTrigger extends { type: 'api'; bodySchema?: infer S }
+    ? ApiRequest<S extends StepSchemaInput ? InferSchema<S> : unknown>
+    : TTrigger extends { type: 'cron'; input?: never }
+      ? undefined
+      : never
 
-type InferInput<T> = T extends { input: infer I } ? InferSchema<I> : unknown
+type InferHandlerInput<TConfig extends StepConfig<any>> = TConfig['triggers'][number] extends infer T
+  ? TriggerToInput<T>
+  : never
+
+type InferReturnType = Promise<ApiResponse | void>
 
 type EmitTopic<T extends string> = T extends keyof Emits ? Emits[T] : unknown
 
@@ -222,21 +227,7 @@ type EmitElement<E> =
 
 type InferEmits<T> = T extends { emits: readonly unknown[] } ? EmitElement<T['emits'][number]> : never
 
-type StatusCode<T> = Extract<keyof T, number>
-
-type InferResponse<T> = T extends { responseSchema: infer R extends Record<number, unknown> }
-  ? { [K in StatusCode<R>]: ApiResponse<K, InferSchema<R[K]>> }[StatusCode<R>]
-  : ApiResponse<number, unknown>
-
-type InvalidConfigType = {
-  __brand: 'InvalidConfigType'
-  message: 'Config type must be "api", "event", or "cron"'
-}
-
-export type Handlers<TConfig> = TConfig extends { type: 'api' }
-  ? ApiRouteHandler<InferBody<TConfig>, InferResponse<TConfig>, InferEmits<TConfig>>
-  : TConfig extends { type: 'event' }
-    ? EventHandler<InferInput<TConfig>, InferEmits<TConfig>>
-    : TConfig extends { type: 'cron' }
-      ? CronHandler<InferEmits<TConfig>>
-      : InvalidConfigType
+export type Handlers<TConfig extends StepConfig<any>> = (
+  input: InferHandlerInput<TConfig>,
+  ctx: FlowContext<InferEmits<TConfig>>,
+) => InferReturnType

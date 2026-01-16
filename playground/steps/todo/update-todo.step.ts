@@ -1,31 +1,36 @@
-import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from '@iii-dev/motia'
 import { z } from 'zod'
 import { todoSchema } from './create-todo.step'
 
 export const config = {
-  type: 'api',
   name: 'UpdateTodo',
   description: 'Update an existing todo item',
   flows: ['todo-app'],
-
-  method: 'PUT',
-  path: '/todo/:todoId',
-  bodySchema: z.object({
-    description: z.string().optional(),
-    dueDate: z.string().optional(),
-    checked: z.boolean().optional(),
-  }),
-  responseSchema: {
-    200: todoSchema,
-    404: z.object({ error: z.string() }),
-  },
+  triggers: [
+    {
+      type: 'api',
+      method: 'PUT',
+      path: '/todo/:todoId',
+      bodySchema: z.object({
+        description: z.string().optional(),
+        dueDate: z.string().optional(),
+        checked: z.boolean().optional(),
+      }),
+      responseSchema: {
+        200: todoSchema,
+        404: z.object({ error: z.string() }),
+      },
+    },
+  ],
   emits: [],
   virtualSubscribes: ['todo-created'],
-} as const satisfies ApiRouteConfig
+} as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
-  const { todoId } = req.pathParams
-  logger.info('Updating todo', { todoId, body: req.body })
+export const handler: Handlers<typeof config> = async (request, { logger, streams }) => {
+  const { todoId } = request.pathParams || {}
+  const body = request.body || {}
+
+  logger.info('Updating todo', { todoId, body })
 
   const existingTodo = await streams.todo.get('inbox', todoId)
 
@@ -40,16 +45,16 @@ export const handler: Handlers<typeof config> = async (req, { logger, streams })
 
   const updatedTodo = { ...existingTodo }
 
-  if (req.body.checked !== undefined) {
-    updatedTodo.completedAt = req.body.checked ? new Date().toISOString() : undefined
+  if (body.checked !== undefined) {
+    updatedTodo.completedAt = body.checked ? new Date().toISOString() : undefined
   }
 
-  if (req.body.description !== undefined) {
-    updatedTodo.description = req.body.description
+  if (body.description !== undefined) {
+    updatedTodo.description = body.description
   }
 
-  if (req.body.dueDate !== undefined) {
-    updatedTodo.dueDate = req.body.dueDate
+  if (body.dueDate !== undefined) {
+    updatedTodo.dueDate = body.dueDate
   }
 
   const result = await streams.todo.set('inbox', todoId, updatedTodo)

@@ -19,7 +19,7 @@ export const generateEmitsInterface = (steps: Step[]): string => {
   const emitTypes: Record<string, string> = {}
 
   for (const step of steps) {
-    if ('emits' in step.config) {
+    if (step.config.emits) {
       step.config.emits.forEach((emit) => {
         const topic = typeof emit === 'string' ? emit : emit.topic
         if (!emitTypes[topic]) {
@@ -27,14 +27,16 @@ export const generateEmitsInterface = (steps: Step[]): string => {
         }
       })
     }
-    if ('subscribes' in step.config && step.config.subscribes) {
-      step.config.subscribes.forEach((topic) => {
-        if (!emitTypes[topic] && 'input' in step.config && step.config.input) {
-          const jsonSchema = schemaToJsonSchema(step.config.input)
+
+    for (const trigger of step.config.triggers) {
+      if (trigger.type === 'event') {
+        const topic = trigger.topic
+        if (!emitTypes[topic] && trigger.input) {
+          const jsonSchema = schemaToJsonSchema(trigger.input)
           const type = jsonSchema ? generateTypeFromSchema(jsonSchema) : 'unknown'
           emitTypes[topic] = type
         }
-      })
+      }
     }
   }
 

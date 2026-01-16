@@ -1,6 +1,13 @@
-import type { ApiRouteConfig, CronConfig, EventConfig, NoopConfig, Step } from './types'
+import type { ApiTrigger, CronTrigger, EventTrigger, Step, TriggerConfig } from './types'
 
-export const isApiStep = (step: Step): step is Step<ApiRouteConfig> => step.config.type === 'api'
-export const isEventStep = (step: Step): step is Step<EventConfig> => step.config.type === 'event'
-export const isNoopStep = (step: Step): step is Step<NoopConfig> => step.config.type === 'noop'
-export const isCronStep = (step: Step): step is Step<CronConfig> => step.config.type === 'cron'
+export const isApiTrigger = (trigger: TriggerConfig): trigger is ApiTrigger => trigger.type === 'api'
+
+export const isEventTrigger = (trigger: TriggerConfig): trigger is EventTrigger => trigger.type === 'event'
+
+export const isCronTrigger = (trigger: TriggerConfig): trigger is CronTrigger => trigger.type === 'cron'
+
+export const getApiTriggers = (step: Step): ApiTrigger[] => step.config.triggers.filter(isApiTrigger)
+
+export const getEventTriggers = (step: Step): EventTrigger[] => step.config.triggers.filter(isEventTrigger)
+
+export const getCronTriggers = (step: Step): CronTrigger[] => step.config.triggers.filter(isCronTrigger)

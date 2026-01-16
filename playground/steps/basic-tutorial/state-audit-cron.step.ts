@@ -1,20 +1,23 @@
-import type { CronConfig, Handlers } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from '@iii-dev/motia'
 import type { Order } from './services/types'
 
-export const config: CronConfig = {
-  type: 'cron',
-  cron: '*/5 * * * *', // run every 5 minutes
+export const config = {
   name: 'StateAuditJob',
   description: 'Checks the state for orders that are not complete and have a ship date in the past',
+  triggers: [
+    {
+      type: 'cron',
+      expression: '*/5 * * * *',
+    },
+  ],
   emits: ['notification'],
   flows: ['basic-tutorial'],
-}
+} as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ logger, state, emit }) => {
+export const handler: Handlers<typeof config> = async (input, { logger, state, emit }) => {
   const stateValue = await state.getGroup<Order>('orders')
 
   for (const item of stateValue) {
-    // check if current date is after item.shipDate
     const currentDate = new Date()
     const shipDate = new Date(item.shipDate)
 

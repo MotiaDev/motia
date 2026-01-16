@@ -1,4 +1,4 @@
-import { type ApiRouteConfig, type Handlers, jsonSchema } from '@iii-dev/motia'
+import { type Handlers, jsonSchema, type StepConfig } from '@iii-dev/motia'
 import { z } from 'zod'
 import type { Todo } from './todo.stream'
 
@@ -11,29 +11,32 @@ export const todoSchema = z.object({
 })
 
 export const config = {
-  type: 'api',
   name: 'CreateTodo',
   description: 'Create a new todo item',
   flows: ['todo-app'],
-
-  method: 'POST',
-  path: '/todo',
-  bodySchema: z.object({
-    description: z.string(),
-    dueDate: z.string().optional(),
-  }),
-  responseSchema: {
-    200: todoSchema,
-    400: z.object({ error: z.string() }),
-  },
+  triggers: [
+    {
+      type: 'api',
+      method: 'POST',
+      path: '/todo',
+      bodySchema: z.object({
+        description: z.string(),
+        dueDate: z.string().optional(),
+      }),
+      responseSchema: {
+        200: todoSchema,
+        400: z.object({ error: z.string() }),
+      },
+    },
+  ],
   emits: [],
   virtualEmits: ['todo-created'],
-} as const satisfies ApiRouteConfig
+} as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { logger, streams, state }) => {
-  logger.info('Creating new todo', { body: req.body })
+export const handler: Handlers<typeof config> = async (request, { logger, streams, state }) => {
+  logger.info('Creating new todo', { body: request.body })
 
-  const { description, dueDate } = req.body
+  const { description, dueDate } = request.body || {}
   const todoId = `todo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 
   if (!description) {

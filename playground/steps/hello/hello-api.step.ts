@@ -1,22 +1,26 @@
-import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from '@iii-dev/motia'
 import { z } from 'zod'
 
-export const config: ApiRouteConfig = {
+export const config = {
   name: 'HelloAPI',
-  type: 'api',
-  path: '/hello',
-  method: 'GET',
   description: 'Receives hello request and emits event for processing',
+  triggers: [
+    {
+      type: 'api',
+      path: '/hello',
+      method: 'GET',
+      responseSchema: {
+        200: z.object({
+          message: z.string(),
+          status: z.string(),
+          appName: z.string(),
+        }),
+      },
+    },
+  ],
   emits: ['process-greeting'],
   flows: ['hello-world-flow'],
-  responseSchema: {
-    200: z.object({
-      message: z.string(),
-      status: z.string(),
-      appName: z.string(),
-    }),
-  },
-}
+} as const satisfies StepConfig
 
 export const handler: Handlers<typeof config> = async (_, { emit, logger }) => {
   const appName = 'III App'
@@ -24,7 +28,6 @@ export const handler: Handlers<typeof config> = async (_, { emit, logger }) => {
 
   logger.info('Hello API endpoint called', { appName, timestamp })
 
-  // Emit event for background processing
   await emit({
     topic: 'process-greeting',
     data: {

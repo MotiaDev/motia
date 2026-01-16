@@ -1,4 +1,4 @@
-import type { EventConfig, Handlers } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from '@iii-dev/motia'
 import { z } from 'zod'
 
 const inputSchema = z.object({
@@ -10,13 +10,17 @@ const inputSchema = z.object({
 
 export const config = {
   name: 'ProcessGreeting',
-  type: 'event',
   description: 'Processes greeting in the background',
-  subscribes: ['process-greeting'],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'process-greeting',
+      input: inputSchema,
+    },
+  ],
   emits: [],
   flows: ['hello-world-flow'],
-  input: inputSchema,
-} as const satisfies EventConfig
+} as const satisfies StepConfig
 
 export const handler: Handlers<typeof config> = async (input, { logger, state }) => {
   const { timestamp, appName, greetingPrefix, requestId } = input
@@ -25,8 +29,6 @@ export const handler: Handlers<typeof config> = async (input, { logger, state })
 
   const greeting = `${greetingPrefix} ${appName}!`
 
-  // Store result in state (demonstrates state usage)
-  // Note: The state.set method takes (groupId, key, value)
   await state.set('greetings', requestId, {
     greeting,
     processedAt: new Date().toISOString(),

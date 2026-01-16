@@ -11,7 +11,7 @@ export const petStoreService = {
       }),
       headers: { 'Content-Type': 'application/json' },
     })
-    return response.json()
+    return response.json() as Promise<Pet>
   },
   createOrder: async (order: Omit<Order, 'id' | 'complete'>): Promise<Order> => {
     const response = await fetch('https://xnigaj-xtnawg.motiahub.com/store/order', {
@@ -24,6 +24,6 @@ export const petStoreService = {
       }),
       headers: { 'Content-Type': 'application/json' },
     })
-    return response.json()
+    return response.json() as Promise<Order>
   },
 }

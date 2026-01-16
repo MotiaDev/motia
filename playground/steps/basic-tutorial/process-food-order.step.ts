@@ -1,24 +1,27 @@
-import type { EventConfig, Handlers } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from '@iii-dev/motia'
 import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 
 export const config = {
-  type: 'event',
   name: 'ProcessFoodOrder',
   description: 'basic-tutorial event step, demonstrates how to consume an event from a topic and persist data in state',
   flows: ['basic-tutorial'],
-  subscribes: ['process-food-order'],
+  triggers: [
+    {
+      type: 'event',
+      topic: 'process-food-order',
+      input: z.object({
+        email: z.string(),
+        quantity: z.number(),
+        petId: z.string(),
+      }),
+    },
+  ],
   emits: ['notification'],
-  input: z.object({
-    email: z.string(),
-    quantity: z.number(),
-    petId: z.string(),
-  }),
-} as const satisfies EventConfig
+} as const satisfies StepConfig
 
 export const handler: Handlers<typeof config> = async (input, { traceId, logger, state, emit }) => {
-  logger.info('Step 02 - Process food order', { input, traceId })
-
+  logger.info('Step 02 - Process food order', { input: eventData, traceId })
   const order = await petStoreService.createOrder({
     ...input,
     shipDate: new Date().toISOString(),

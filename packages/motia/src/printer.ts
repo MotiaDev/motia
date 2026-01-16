@@ -1,6 +1,5 @@
 import path from 'path'
 import pc from 'picocolors'
-import { isApiStep, isCronStep, isEventStep, isNoopStep } from './guards'
 import type { ValidationError } from './step-validator'
 import type { Step } from './types'
 import type { Stream } from './types-stream'
@@ -64,22 +63,22 @@ export class Printer {
 
   printInvalidEmit(step: Step, emit: string) {
     console.log(
-      `${invalidEmit} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(
+      `${invalidEmit} ${stepTag} ${this.getStepPath(
         step,
       )} tried to emit an event not defined in the step config: ${pc.yellow(emit)}`,
     )
   }
 
   printStepCreated(step: Step) {
-    console.log(`${registered} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} registered`)
+    console.log(`${registered} ${stepTag} ${this.getStepPath(step)} registered`)
   }
 
   printStepUpdated(step: Step) {
-    console.log(`${updated} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} updated`)
+    console.log(`${updated} ${stepTag} ${this.getStepPath(step)} updated`)
   }
 
   printStepRemoved(step: Step) {
-    console.log(`${removed} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} removed`)
+    console.log(`${removed} ${stepTag} ${this.getStepPath(step)} removed`)
   }
 
   printFlowCreated(flowName: string) {
@@ -108,7 +107,7 @@ export class Printer {
 
   printInvalidEmitConfiguration(step: Step, emit: string) {
     console.log(
-      `${warnIcon} ${warning} ${stepTag} ${this.getStepType(step)} ${this.getStepPath(step)} emits to ${pc.yellow(
+      `${warnIcon} ${warning} ${stepTag} ${this.getStepPath(step)} emits to ${pc.yellow(
         emit,
       )}, but there is no subscriber defined`,
     )
@@ -137,15 +136,6 @@ export class Printer {
 
   getRelativePath(filePath: string) {
     return path.relative(this.baseDir, filePath)
-  }
-
-  getStepType(step: Step) {
-    if (isApiStep(step)) return pc.gray('(API)')
-    if (isEventStep(step)) return pc.gray('(Event)')
-    if (isCronStep(step)) return pc.gray('(Cron)')
-    if (isNoopStep(step)) return pc.gray('(Noop)')
-
-    return pc.gray('(Unknown)')
   }
 
   getStepPath(step: Step) {
