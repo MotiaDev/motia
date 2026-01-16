@@ -71,6 +71,9 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isContextAnimating, setIsContextAnimating] = useState(false);
 
+  // Intro animation state
+  const [introRotating, setIntroRotating] = useState(false);
+
   // Install command state
   const [copySuccess, setCopySuccess] = useState(false);
   const [installCmd] = useState("curl -fsSL iii.sh/install.sh | sh");
@@ -104,29 +107,59 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
     }, 500);
   };
 
+  // Intro animation sequence
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentWordIndex((prev) => (prev + 1) % rotatingWords.length);
-        setIsAnimating(false);
-      }, 400);
-    }, 3000);
+    // Start rotating at 2 seconds
+    const rotateTimer = setTimeout(() => {
+      setIntroRotating(true);
+    }, 2000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(rotateTimer);
+    };
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIsContextAnimating(true);
-      setTimeout(() => {
-        setCurrentContextIndex((prev) => (prev + 1) % rotatingContexts.length);
-        setIsContextAnimating(false);
-      }, 400);
-    }, 4200);
+    // Don't start word rotation until cube has rotated
+    if (!introRotating) return;
 
-    return () => clearInterval(interval);
-  }, []);
+    // Wait for the cube rotation to finish before starting word cycling
+    const startDelay = setTimeout(() => {
+      const interval = setInterval(() => {
+        setIsAnimating(true);
+        setTimeout(() => {
+          setCurrentWordIndex((prev) => (prev + 1) % rotatingWords.length);
+          setIsAnimating(false);
+        }, 400);
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }, 2500);
+
+    return () => clearTimeout(startDelay);
+  }, [introRotating]);
+
+  useEffect(() => {
+    // Don't start context rotation until cube has rotated
+    if (!introRotating) return;
+
+    // Wait for the cube rotation to finish before starting context cycling
+    const startDelay = setTimeout(() => {
+      const interval = setInterval(() => {
+        setIsContextAnimating(true);
+        setTimeout(() => {
+          setCurrentContextIndex(
+            (prev) => (prev + 1) % rotatingContexts.length
+          );
+          setIsContextAnimating(false);
+        }, 400);
+      }, 4200);
+
+      return () => clearInterval(interval);
+    }, 2500);
+
+    return () => clearTimeout(startDelay);
+  }, [introRotating]);
 
   return (
     <section
@@ -141,33 +174,55 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
             {/* Main headline */}
             <div className="space-y-2">
               <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold leading-tight tracking-tighter">
-                <span
-                  className={isDarkMode ? "text-iii-light" : "text-iii-black"}
-                >
-                  The best way to
-                </span>
-                <br />
-                <span
-                  className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-iii-warn via-iii-warn to-iii-alert bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
-                    isAnimating
-                      ? "opacity-0 translate-y-5 scale-80"
-                      : "opacity-100 translate-y-0 scale-100"
-                  }`}
-                  style={{ fontSize: "clamp(2rem, 5vw, inherit)" }}
-                >
-                  {rotatingWords[currentWordIndex]}
-                </span>
-                <br />
-                <span
-                  className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-iii-success via-iii-info to-iii-success bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
-                    isContextAnimating
-                      ? "opacity-0 -translate-y-3 scale-90"
-                      : "opacity-100 translate-y-0 scale-100"
-                  }`}
-                  style={{ fontSize: "clamp(2rem, 5vw, inherit)" }}
-                >
-                  {rotatingContexts[currentContextIndex]}
-                </span>
+                <div className="relative min-h-[200px] flex items-center justify-center">
+                  {/* Intro text */}
+                  <span
+                    className={`absolute bg-gradient-to-r from-iii-warn via-iii-alert to-iii-warn bg-clip-text text-transparent transition-all duration-1000 ${
+                      introRotating
+                        ? "opacity-0 -translate-y-8"
+                        : "opacity-100 translate-y-0"
+                    }`}
+                  >
+                    The React to backend's jQuery
+                  </span>
+
+                  {/* Main rotating content */}
+                  <span
+                    className={`flex flex-col items-center justify-center transition-all duration-1000 ${
+                      introRotating
+                        ? "opacity-100 translate-y-0"
+                        : "opacity-0 translate-y-8"
+                    }`}
+                  >
+                    <span
+                      className={
+                        isDarkMode ? "text-iii-light" : "text-iii-black"
+                      }
+                    >
+                      The best way to
+                    </span>
+                    <span
+                      className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-iii-warn via-iii-warn to-iii-alert bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
+                        isAnimating
+                          ? "opacity-0 translate-y-5 scale-80"
+                          : "opacity-100 translate-y-0 scale-100"
+                      }`}
+                      style={{ fontSize: "clamp(2rem, 5vw, inherit)" }}
+                    >
+                      {rotatingWords[currentWordIndex]}
+                    </span>
+                    <span
+                      className={`inline-block whitespace-nowrap min-w-[280px] md:min-w-[360px] lg:min-w-[440px] bg-gradient-to-r from-iii-success via-iii-info to-iii-success bg-clip-text text-transparent transition-all duration-500 ease-in-out ${
+                        isContextAnimating
+                          ? "opacity-0 -translate-y-3 scale-90"
+                          : "opacity-100 translate-y-0 scale-100"
+                      }`}
+                      style={{ fontSize: "clamp(2rem, 5vw, inherit)" }}
+                    >
+                      {rotatingContexts[currentContextIndex]}
+                    </span>
+                  </span>
+                </div>
               </h1>
             </div>
 
