@@ -167,10 +167,10 @@ const variantStyles: Record<
     defaultShowBracket: true,
   },
   corner: {
-    containerClass: "fixed bottom-0 left-0 w-[50vw] h-[50vh]",
-    svgClass: "absolute left-0 bottom-0",
-    svgStyle: { width: "100%", height: "100%" },
-    defaultOpacity: 0.2,
+    containerClass: "fixed bottom-0 right-0 w-[35vw] h-[50vh]",
+    svgClass: "w-full h-full",
+    svgStyle: {},
+    defaultOpacity: 0.25,
     defaultShowBracket: false,
   },
   splash: {
@@ -240,8 +240,12 @@ export function DependencyStack({
 
   const progress = easeInOutCubic(scrollProgress);
 
-  // Calculate viewBox based on scale
-  const baseViewBox = { x: -250, y: -420, w: 500, h: 820 };
+  // Calculate viewBox based on scale and variant
+  // For corner variant, shift viewBox so the base of the structure aligns to bottom-left
+  const baseViewBox =
+    variant === "corner"
+      ? { x: -200, y: -420, w: 400, h: 820 } // Tighter crop, structure at left
+      : { x: -250, y: -420, w: 500, h: 820 };
   const scaledViewBox = {
     x: baseViewBox.x / scale,
     y: baseViewBox.y / scale,
@@ -258,7 +262,9 @@ export function DependencyStack({
     >
       <svg
         className={styles.svgClass}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio={
+          variant === "corner" ? "xMaxYMax meet" : "xMidYMid meet"
+        }
         viewBox={viewBox}
         style={{ ...styles.svgStyle, opacity: finalOpacity }}
       >
