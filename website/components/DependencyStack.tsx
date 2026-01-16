@@ -4,10 +4,10 @@ interface Box {
   id: number;
   width: number;
   height: number;
-  // Position in the xkcd dependency stack
+  // Position in the xkcd dependency stack (center point for rendering)
   stackX: number;
   stackY: number;
-  // Position in the uniform grid
+  // Position in the uniform grid (center point)
   gridX: number;
   gridY: number;
 }
@@ -18,85 +18,108 @@ const BOX_SIZE = 70;
 const BOX_GAP = 12;
 
 // Create boxes that form the dependency stack, then rearrange into a grid
-// Y coordinates: positive = down, negative = up (SVG standard)
-// The structure is centered at x=0, with base around y=300 and top around y=-200
+// Using BOTTOM-LEFT positioning: (left, bottom) with width extending right, height extending UP
+// In SVG, Y increases downward, so "up" means smaller Y values
+// bottom = Y coordinate of bottom edge, top = bottom - height
 const createBoxes = (): Box[] => {
   const boxes: Box[] = [];
 
+  // Ground level (bottom of the structure)
+  const GROUND = 360;
+
+  // Positions use: left (x of left edge), bottom (y of bottom edge), w (width), h (height)
+  // Block stacks upward, so top of block = bottom - height
   const stackPositions = [
     // === BOTTOM BASE PLATFORMS (3 wide horizontal layers) ===
-    { x: 0, y: 340, w: 340, h: 28 }, // Widest base
-    { x: 0, y: 308, w: 300, h: 26 }, // Second base
-    { x: 0, y: 278, w: 260, h: 24 }, // Third base
+    // Ground level platform
+    { left: -170, bottom: GROUND, w: 340, h: 28 },
+    // Stacks on top: bottom = previous.bottom - previous.h
+    { left: -150, bottom: GROUND - 28, w: 300, h: 26 },
+    { left: -130, bottom: GROUND - 28 - 26, w: 260, h: 24 },
 
     // === PEDESTAL ===
-    { x: 0, y: 248, w: 140, h: 28 },
+    { left: -70, bottom: GROUND - 28 - 26 - 24, w: 140, h: 30 },
 
-    // === MAIN FOUNDATION BLOCK (large square-ish) — BELOW NEBRASKA ===
-    { x: 0, y: 185, w: 200, h: 115 },
+    // === MAIN FOUNDATION BLOCK (large) — BELOW NEBRASKA ===
+    { left: -100, bottom: GROUND - 28 - 26 - 24 - 30, w: 200, h: 110 },
+    // Top of this block = 360 - 28 - 26 - 24 - 30 - 110 = 142
 
     // === THE CRITICAL "NEBRASKA" BLOCK (tall and skinny) ===
-    { x: 25, y: 108, w: 28, h: 50 },
+    // Rests on top of foundation block, so bottom = 142
+    { left: 10, bottom: 142, w: 28, h: 55 },
+    // Top of Nebraska = 142 - 55 = 87
 
-    // === MIDDLE SUPPORT LAYERS — ABOVE NEBRASKA ===
-    { x: 10, y: 72, w: 175, h: 50 }, // <-- First block resting on Nebraska
-    { x: -5, y: 25, w: 145, h: 45 },
+    // === COMPANION BLOCK (to the left of Nebraska, same level) ===
+    { left: -55, bottom: 142, w: 35, h: 55 },
+
+    // === MIDDLE SUPPORT LAYER — ABOVE NEBRASKA ===
+    // This wide block rests on Nebraska and companion (and hangs over edges)
+    { left: -85, bottom: 87, w: 175, h: 50 },
+    // Top = 87 - 50 = 37
+
+    // === SECOND MIDDLE LAYER ===
+    { left: -70, bottom: 37, w: 145, h: 42 },
+    // Top = 37 - 42 = -5
 
     // === LEFT TOWER (stacked vertically) ===
-    { x: -68, y: -25, w: 42, h: 52 },
-    { x: -70, y: -75, w: 36, h: 46 },
-    { x: -66, y: -118, w: 30, h: 40 },
-    { x: -68, y: -155, w: 26, h: 34 },
-    { x: -66, y: -185, w: 22, h: 28 },
-    { x: -67, y: -210, w: 18, h: 24 },
+    { left: -90, bottom: -5, w: 42, h: 52 },
+    { left: -88, bottom: -57, w: 36, h: 46 },
+    { left: -84, bottom: -103, w: 30, h: 40 },
+    { left: -82, bottom: -143, w: 26, h: 34 },
+    { left: -80, bottom: -177, w: 22, h: 28 },
+    { left: -78, bottom: -205, w: 18, h: 24 },
 
     // === MIDDLE TOWER (tallest) ===
-    { x: 5, y: -30, w: 52, h: 62 },
-    { x: 7, y: -88, w: 45, h: 55 },
-    { x: 4, y: -140, w: 40, h: 50 },
-    { x: 6, y: -185, w: 34, h: 42 },
-    { x: 4, y: -224, w: 28, h: 36 },
-    { x: 5, y: -258, w: 24, h: 32 },
-    { x: 4, y: -288, w: 20, h: 28 },
+    { left: -24, bottom: -5, w: 52, h: 65 },
+    { left: -20, bottom: -70, w: 45, h: 55 },
+    { left: -18, bottom: -125, w: 40, h: 50 },
+    { left: -15, bottom: -175, w: 34, h: 45 },
+    { left: -12, bottom: -220, w: 28, h: 40 },
+    { left: -10, bottom: -260, w: 24, h: 35 },
+    { left: -8, bottom: -295, w: 20, h: 30 },
 
     // === RIGHT TOWER ===
-    { x: 72, y: -28, w: 48, h: 58 },
-    { x: 75, y: -82, w: 42, h: 50 },
-    { x: 72, y: -128, w: 36, h: 44 },
-    { x: 74, y: -168, w: 30, h: 36 },
-    { x: 72, y: -202, w: 26, h: 32 },
+    { left: 50, bottom: -5, w: 48, h: 58 },
+    { left: 54, bottom: -63, w: 42, h: 52 },
+    { left: 56, bottom: -115, w: 36, h: 46 },
+    { left: 58, bottom: -161, w: 30, h: 40 },
+    { left: 60, bottom: -201, w: 26, h: 34 },
 
     // === SMALL TOP BLOCKS ===
-    { x: -64, y: -232, w: 16, h: 20 },
-    { x: -66, y: -252, w: 14, h: 18 },
-    { x: 6, y: -314, w: 18, h: 24 },
-    { x: 4, y: -338, w: 14, h: 20 },
-    { x: 74, y: -230, w: 22, h: 26 },
-    { x: 72, y: -256, w: 18, h: 22 },
+    { left: -76, bottom: -229, w: 16, h: 20 },
+    { left: -74, bottom: -249, w: 14, h: 18 },
+    { left: -6, bottom: -325, w: 18, h: 26 },
+    { left: -5, bottom: -351, w: 14, h: 22 },
+    { left: 62, bottom: -235, w: 22, h: 28 },
+    { left: 64, bottom: -263, w: 18, h: 24 },
 
     // === TINY ACCENT BLOCKS ===
-    { x: -62, y: -268, w: 12, h: 14 },
-    { x: 5, y: -356, w: 12, h: 14 },
-    { x: 76, y: -276, w: 14, h: 18 },
+    { left: -72, bottom: -267, w: 12, h: 14 },
+    { left: -4, bottom: -373, w: 12, h: 18 },
+    { left: 66, bottom: -287, w: 14, h: 20 },
   ];
 
-  // Calculate grid positions for uniform square
+  // Calculate grid positions for uniform square (grid uses center positioning)
   const totalGridWidth = GRID_SIZE * BOX_SIZE + (GRID_SIZE - 1) * BOX_GAP;
   const totalGridHeight = GRID_SIZE * BOX_SIZE + (GRID_SIZE - 1) * BOX_GAP;
   const gridStartX = -totalGridWidth / 2;
-  const gridStartY = -totalGridHeight / 2; // Centered in view
+  const gridStartY = -totalGridHeight / 2;
 
   for (let i = 0; i < stackPositions.length; i++) {
     const stack = stackPositions[i];
     const gridRow = Math.floor(i / GRID_SIZE);
     const gridCol = i % GRID_SIZE;
 
+    // Convert bottom-left to center for consistent rendering
+    const centerX = stack.left + stack.w / 2;
+    const centerY = stack.bottom - stack.h / 2; // center Y (remember: up is negative)
+
     boxes.push({
       id: i,
       width: stack.w,
       height: stack.h,
-      stackX: stack.x,
-      stackY: stack.y,
+      stackX: centerX,
+      stackY: centerY,
       gridX: gridStartX + gridCol * (BOX_SIZE + BOX_GAP) + BOX_SIZE / 2,
       gridY: gridStartY + gridRow * (BOX_SIZE + BOX_GAP) + BOX_SIZE / 2,
     });
@@ -141,15 +164,15 @@ export function DependencyStack() {
       <svg
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
         preserveAspectRatio="xMidYMid slice"
-        viewBox="-300 -400 600 800"
+        viewBox="-250 -420 500 820"
         style={{ opacity: 0.15, width: "100vw", height: "100vh" }}
       >
         {/* Bracket at top - fades out as boxes transform */}
         <path
-          d={`M -100 -380 
-              Q -100 -400 -70 -400
-              L 70 -400
-              Q 100 -400 100 -380`}
+          d={`M -80 -400 
+              Q -80 -415 -50 -415
+              L 50 -415
+              Q 80 -415 80 -400`}
           fill="none"
           stroke="currentColor"
           strokeWidth={3}
@@ -184,7 +207,7 @@ export function DependencyStack() {
               height={currentHeight}
               fill={fillColor}
               stroke={strokeColor}
-              strokeWidth={isNebraskaBlock ? 3 : 2.5}
+              strokeWidth={1}
               className={isNebraskaBlock ? "" : "text-neutral-300"}
               rx={progress * 6} // Slightly round corners as it becomes a grid
               ry={progress * 6}
