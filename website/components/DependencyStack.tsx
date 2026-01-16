@@ -17,6 +17,26 @@ const GRID_SIZE = 6; // 6x6 grid = 36 boxes
 const BOX_SIZE = 70;
 const BOX_GAP = 12;
 
+// Variant configurations
+export type DependencyStackVariant = "fullscreen" | "corner" | "splash";
+
+interface DependencyStackProps {
+  /** Visual variant of the component */
+  variant?: DependencyStackVariant;
+  /** Override opacity (0-1) */
+  opacity?: number;
+  /** Custom class name for the container */
+  className?: string;
+  /** Whether to animate based on scroll (true) or use fixed progress */
+  animateOnScroll?: boolean;
+  /** Fixed progress value (0-1) when animateOnScroll is false */
+  progress?: number;
+  /** Show the bracket at top */
+  showBracket?: boolean;
+  /** Scale multiplier for the entire visualization */
+  scale?: number;
+}
+
 // Create boxes that form the dependency stack, then rearrange into a grid
 // Using BOTTOM-LEFT positioning: (left, bottom) with width extending right, height extending UP
 // In SVG, Y increases downward, so "up" means smaller Y values
@@ -128,12 +148,72 @@ const createBoxes = (): Box[] => {
   return boxes;
 };
 
-export function DependencyStack() {
-  const [scrollProgress, setScrollProgress] = useState(0);
+// Variant style configurations
+const variantStyles: Record<
+  DependencyStackVariant,
+  {
+    containerClass: string;
+    svgClass: string;
+    svgStyle: React.CSSProperties;
+    defaultOpacity: number;
+    defaultShowBracket: boolean;
+  }
+> = {
+  fullscreen: {
+    containerClass: "fixed inset-0 w-screen h-screen",
+    svgClass: "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+    svgStyle: { width: "100vw", height: "100vh" },
+    defaultOpacity: 0.15,
+    defaultShowBracket: true,
+  },
+  corner: {
+    containerClass: "fixed bottom-0 left-0 w-[50vw] h-[50vh]",
+    svgClass: "absolute left-0 bottom-0",
+    svgStyle: { width: "100%", height: "100%" },
+    defaultOpacity: 0.2,
+    defaultShowBracket: false,
+  },
+  splash: {
+    containerClass: "relative w-full h-full min-h-[400px]",
+    svgClass: "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+    svgStyle: {
+      width: "100%",
+      height: "100%",
+      maxWidth: "800px",
+      maxHeight: "800px",
+    },
+    defaultOpacity: 0.25,
+    defaultShowBracket: true,
+  },
+};
+
+// Easing function for smoother animation
+const easeInOutCubic = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+export function DependencyStack({
+  variant = "fullscreen",
+  opacity,
+  className = "",
+  animateOnScroll = true,
+  progress: fixedProgress = 0,
+  showBracket,
+  scale = 1,
+}: DependencyStackProps) {
+  const [scrollProgress, setScrollProgress] = useState(fixedProgress);
   const containerRef = useRef<HTMLDivElement>(null);
   const boxes = useRef(createBoxes()).current;
 
+  const styles = variantStyles[variant];
+  const finalOpacity = opacity ?? styles.defaultOpacity;
+  const finalShowBracket = showBracket ?? styles.defaultShowBracket;
+
   useEffect(() => {
+    if (!animateOnScroll) {
+      setScrollProgress(fixedProgress);
+      return;
+    }
+
     const handleScroll = () => {
       const scrollTop = window.scrollY;
       const docHeight =
@@ -149,42 +229,57 @@ export function DependencyStack() {
     handleScroll();
 
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [animateOnScroll, fixedProgress]);
 
-  // Easing function for smoother animation
-  const easeInOutCubic = (t: number) =>
-    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  // Update progress when fixedProgress prop changes
+  useEffect(() => {
+    if (!animateOnScroll) {
+      setScrollProgress(fixedProgress);
+    }
+  }, [fixedProgress, animateOnScroll]);
+
+  const progress = easeInOutCubic(scrollProgress);
+
+  // Calculate viewBox based on scale
+  const baseViewBox = { x: -250, y: -420, w: 500, h: 820 };
+  const scaledViewBox = {
+    x: baseViewBox.x / scale,
+    y: baseViewBox.y / scale,
+    w: baseViewBox.w / scale,
+    h: baseViewBox.h / scale,
+  };
+  const viewBox = `${scaledViewBox.x} ${scaledViewBox.y} ${scaledViewBox.w} ${scaledViewBox.h}`;
 
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 overflow-hidden pointer-events-none w-screen h-screen"
+      className={`overflow-hidden pointer-events-none ${styles.containerClass} ${className}`}
       style={{ zIndex: 0 }}
     >
       <svg
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-        preserveAspectRatio="xMidYMid slice"
-        viewBox="-250 -420 500 820"
-        style={{ opacity: 0.15, width: "100vw", height: "100vh" }}
+        className={styles.svgClass}
+        preserveAspectRatio="xMidYMid meet"
+        viewBox={viewBox}
+        style={{ ...styles.svgStyle, opacity: finalOpacity }}
       >
         {/* Bracket at top - fades out as boxes transform */}
-        <path
-          d={`M -80 -400 
-              Q -80 -415 -50 -415
-              L 50 -415
-              Q 80 -415 80 -400`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={3}
-          className="text-neutral-300"
-          style={{
-            opacity: 1 - easeInOutCubic(scrollProgress),
-          }}
-        />
+        {finalShowBracket && (
+          <path
+            d={`M -80 -400 
+                Q -80 -415 -50 -415
+                L 50 -415
+                Q 80 -415 80 -400`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={3 / scale}
+            className="text-neutral-300"
+            style={{
+              opacity: 1 - progress,
+            }}
+          />
+        )}
 
         {boxes.map((box) => {
-          const progress = easeInOutCubic(scrollProgress);
-
           // Interpolate from stack position to grid position
           const currentX = box.stackX + (box.gridX - box.stackX) * progress;
           const currentY = box.stackY + (box.gridY - box.stackY) * progress;
@@ -207,10 +302,10 @@ export function DependencyStack() {
               height={currentHeight}
               fill={fillColor}
               stroke={strokeColor}
-              strokeWidth={1}
+              strokeWidth={(isNebraskaBlock ? 1.5 : 1) / scale}
               className={isNebraskaBlock ? "" : "text-neutral-300"}
-              rx={progress * 6} // Slightly round corners as it becomes a grid
-              ry={progress * 6}
+              rx={(progress * 6) / scale}
+              ry={(progress * 6) / scale}
               style={{
                 transform: `translate(${currentX}px, ${currentY}px)`,
                 transformOrigin: "center",
@@ -221,4 +316,27 @@ export function DependencyStack() {
       </svg>
     </div>
   );
+}
+
+// Pre-configured variants for easy use
+
+/** Full-screen background that animates on scroll */
+export function DependencyStackBackground(
+  props: Omit<DependencyStackProps, "variant">
+) {
+  return <DependencyStack variant="fullscreen" {...props} />;
+}
+
+/** Small corner decoration in bottom-left */
+export function DependencyStackCorner(
+  props: Omit<DependencyStackProps, "variant">
+) {
+  return <DependencyStack variant="corner" scale={0.6} {...props} />;
+}
+
+/** Centered splash/hero element */
+export function DependencyStackSplash(
+  props: Omit<DependencyStackProps, "variant">
+) {
+  return <DependencyStack variant="splash" {...props} />;
 }
