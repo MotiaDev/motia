@@ -61,6 +61,30 @@ Redis Pub/Sub to publish and subscribe to the streams.
   The URL of the Redis instance to use.
 </ResponseField>
 
+### modules::streams::adapters::KvStore
+
+Uses Redis as the backend for the streams. This will use the key/value store to store the streams data and also leverage
+Redis Pub/Sub to publish and subscribe to the streams.
+
+```yaml
+  class: modules::streams::adapters::KvStore
+  config:
+    store_method: file_based 
+    file_path: ./data/streams_store.db
+```
+
+#### Configuration
+
+<ResponseField name="store_method" type="string">
+    This will discribe what store_method you want, the options are:
+    - in_memory
+    - file_based
+</ResponseField>
+
+<ResponseField name="file_path" type="string">
+  if you choose file_base method of storage, we can provide the file with path
+  where you want to save and read it.
+</ResponseField>
 ## Functions
 
 <ResponseField name="streams.set" type="function">
