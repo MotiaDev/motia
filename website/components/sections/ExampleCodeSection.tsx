@@ -1,1079 +1,1531 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Highlight, themes } from "prism-react-renderer";
 
-const tabs = [
-  { id: "ecosystem", label: "Ecosystem" },
-  { id: "protocol", label: "Protocol" },
+// Categories showing what III Engine replaces and enables
+const categories = [
+  // Infrastructure it replaces
+  { id: "api", label: "API Frameworks" },
+  { id: "jobs", label: "Background Jobs" },
+  { id: "events", label: "Message Queues" },
+  { id: "realtime", label: "Real-time" },
+  { id: "state", label: "State & Cache" },
+  { id: "cron", label: "Scheduled Tasks" },
+  { id: "logging", label: "Observability" },
+  { id: "workflow", label: "Workflows" },
+  // Platforms it enables
+  { id: "ai-agents", label: "AI Agents" },
+  { id: "feature-flags", label: "Feature Flags" },
+  { id: "multiplayer", label: "Multiplayer Games" },
+  { id: "etl", label: "ETL Pipelines" },
 ];
 
-const subTabs = {
-  ecosystem: [
-    { id: "async", label: "TypeScript" },
-    { id: "error", label: "Python" },
-    { id: "interruption", label: "Rust" },
-    { id: "retry", label: "Streams" },
-    { id: "concurrency", label: "Context" },
-    { id: "sandboxing", label: "Triggers" },
-  ],
-  protocol: [
-    { id: "http", label: "REST API" },
-    { id: "mcp", label: "Event" },
-    { id: "rpc", label: "Protocol" },
-    { id: "grpc", label: "Streams" },
-    { id: "cli", label: "Cron" },
-    { id: "soap", label: "State" },
-    { id: "excel", label: "Observability" },
-  ],
-};
+interface CodeExample {
+  traditional: {
+    title: string;
+    tools: string[];
+    code: string;
+    language: string;
+  };
+  iii: {
+    title: string;
+    code: string;
+    language: string;
+  };
+  description: string;
+  linesTraditional: number;
+  linesIII: number;
+}
 
-const codeExamples: Record<
-  string,
-  { without: string; with: string; description: string; language?: string }
-> = {
-  // Ecosystem examples - Bridge code in different languages
-  async: {
+const codeExamples: Record<string, CodeExample> = {
+  api: {
     description:
-      "TypeScript SDK: Register functions and invoke them across services with full async support.",
+      "Build REST APIs without framework lock-in. One codebase, any language.",
+    traditional: {
+      title: "Express + Flask + FastAPI",
+      tools: ["Express.js", "Flask", "FastAPI", "Koa", "Hono"],
     language: "typescript",
-    without: `// Manual WebSocket + message queue setup
-import { WebSocket } from 'ws';
+      code: `// Express.js setup - just for HTTP routing
+import express from 'express'
+import { createClient } from 'redis'
+import Bull from 'bull'
 
-const ws = new WebSocket('ws://localhost:8080');
-const pending = new Map();
-const functions = new Map();
+const app = express()
+const redis = createClient()
+const queue = new Bull('tasks')
 
-ws.on('message', async (data) => {
-  const msg = JSON.parse(data);
-  if (msg.type === 'invoke') {
-    const fn = functions.get(msg.function_path);
-    if (fn) {
-      const result = await fn(msg.data);
-      ws.send(JSON.stringify({
-        type: 'result',
-        invocation_id: msg.invocation_id,
-        result,
-      }));
-    }
-  } else if (msg.type === 'result') {
-    const resolve = pending.get(msg.invocation_id);
-    if (resolve) resolve(msg.result);
+app.use(express.json())
+
+// Manual route registration
+app.post('/api/users', async (req, res) => {
+  try {
+    const user = await createUser(req.body)
+    
+    // Manually publish to Redis for other services
+    await redis.publish('user.created', JSON.stringify(user))
+    
+    // Add background job manually
+    await queue.add('sendWelcomeEmail', { userId: user.id })
+    
+    res.status(201).json(user)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
   }
-});
+})
 
-// Register and invoke manually...
-functions.set('users.create', async (data) => { /*...*/ });`,
-    with: `// iii TypeScript SDK - bridge.ts
-import { Bridge } from 'iii'
+// Need separate Flask service for Python ML
+// Need separate Rust service for performance-critical paths
+// Each with its own framework, routing, and boilerplate
+
+app.listen(3000)`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Language-agnostic API
+import { Bridge, getContext } from 'iii'
 
 const bridge = new Bridge('ws://engine:8080')
 
-// Register a function with automatic context
+// Register API endpoint - works from any language
 bridge.registerFunction(
-  { function_path: 'users.create' },
+  { 
+    function_path: 'users.create',
+    metadata: { api_path: '/users', http_method: 'POST' }
+  },
   async (input) => {
-    const user = await db.users.create(input)
-    return { id: user.id, name: user.name }
+    const { logger } = getContext()
+    logger.info('Creating user', { email: input.email })
+    
+    const user = await createUser(input)
+    
+    // Emit event - subscribers notified automatically
+    bridge.invokeFunctionAsync('events.emit', {
+      topic: 'user.created',
+      data: user
+    })
+    
+    return { status_code: 201, body: user }
   }
 )
 
-// Invoke functions across services
-const result = await bridge.invokeFunction<UserInput, User>(
-  'payments.charge',
-  { userId: user.id, amount: 100 }
-)
-
-// Register triggers for event-driven workflows
-bridge.registerTrigger('cron', 'reports.generate', {
-  schedule: '0 9 * * *'  // Daily at 9am
-})`,
+// Python ML service registers the same way
+// Rust service registers the same way
+// One unified protocol, any language`,
+    },
+    linesTraditional: 35,
+    linesIII: 28,
   },
-  error: {
+
+  jobs: {
     description:
-      "Python SDK: Elegant error handling with automatic context propagation and logging.",
-    language: "python",
-    without: `# Manual async WebSocket handling in Python
-import asyncio
-import websockets
-import json
-import uuid
+      "Background jobs without Sidekiq, Celery, or Bull. Just functions.",
+    traditional: {
+      title: "Bull + Celery + Sidekiq",
+      tools: ["Bull", "BullMQ", "Celery", "Sidekiq", "Agenda", "Dramatiq"],
+      language: "typescript",
+      code: `// Bull queue setup
+import Bull from 'bull'
+import Redis from 'ioredis'
 
-class ManualBridge:
-    def __init__(self, url):
-        self.url = url
-        self.pending = {}
-        self.functions = {}
+const redis = new Redis(process.env.REDIS_URL)
+const emailQueue = new Bull('emails', { redis })
+const analyticsQueue = new Bull('analytics', { redis })
+const reportQueue = new Bull('reports', { redis })
+
+// Define processors separately
+emailQueue.process('welcome', async (job) => {
+  const { userId, email } = job.data
+  await sendWelcomeEmail(email)
+  return { sent: true }
+})
+
+emailQueue.process('notification', async (job) => {
+  const { userId, message } = job.data
+  await sendNotification(userId, message)
+})
+
+// Manual retry configuration
+emailQueue.on('failed', (job, err) => {
+  if (job.attemptsMade < 3) {
+    job.retry()
+  } else {
+    await deadLetterQueue.add(job.data)
+  }
+})
+
+// Add jobs from your API
+await emailQueue.add('welcome', { userId, email }, {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 1000 },
+  removeOnComplete: true,
+})
+
+// Need Python? Set up Celery separately
+// celery_app = Celery('tasks', broker='redis://localhost')
+// @celery_app.task(bind=True, max_retries=3)
+// def send_email(self, user_id): ...`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Functions ARE the jobs
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+// Register job handler - that's it
+bridge.registerFunction(
+  { function_path: 'jobs.sendWelcomeEmail' },
+  async (input) => {
+    const { logger } = getContext()
+    logger.info('Sending welcome email', { userId: input.userId })
     
-    async def connect(self):
-        self.ws = await websockets.connect(self.url)
-        asyncio.create_task(self._receive_loop())
-    
-    async def _receive_loop(self):
-        async for msg in self.ws:
-            data = json.loads(msg)
-            if data['type'] == 'invoke':
-                fn = self.functions.get(data['function_path'])
-                if fn:
-                    try:
-                        result = await fn(data['data'])
-                        await self.ws.send(json.dumps({
-                            'type': 'result',
-                            'invocation_id': data['invocation_id'],
-                            'result': result
-                        }))
-                    except Exception as e:
-                        await self.ws.send(json.dumps({
-                            'type': 'result',
-                            'error': str(e)
-                        }))`,
-    with: `# iii Python SDK - bridge.py
-from iii import Bridge
-
-bridge = Bridge("ws://engine:8080")
-
-# Decorator-based function registration
-@bridge.function("users.sync", description="Sync user to CRM")
-async def sync_user(input: dict) -> dict:
-    user = await fetch_user(input["user_id"])
-    await crm_client.sync(user)
-    return {"synced": True, "user_id": user.id}
-
-# Manual registration with error handling
-bridge.register_function(
-    path="orders.process",
-    handler=process_order,
-    description="Process incoming orders"
+    await sendWelcomeEmail(input.email)
+    return { sent: true }
+  }
 )
 
-# Invoke with automatic timeout and retries
-result = await bridge.invoke_function(
-    "inventory.reserve",
-    {"sku": "ABC123", "quantity": 5},
-    timeout=30.0
+// Register notification handler
+bridge.registerFunction(
+  { function_path: 'jobs.sendNotification' },
+  async ({ userId, message }) => {
+    await sendNotification(userId, message)
+  }
 )
 
-await bridge.connect()`,
+// Fire-and-forget invocation (async job)
+bridge.invokeFunctionAsync('jobs.sendWelcomeEmail', {
+  userId: user.id,
+  email: user.email
+})
+
+// Or await the result
+const result = await bridge.invokeFunction(
+  'jobs.sendWelcomeEmail',
+  { userId, email }
+)
+
+// Python workers use the same pattern
+// Retry, visibility timeout - configured in EventModule`,
+    },
+    linesTraditional: 42,
+    linesIII: 32,
   },
-  interruption: {
-    description:
-      "Rust SDK: Type-safe bridge with graceful shutdown and cancellation handling.",
-    language: "rust",
-    without: `// Manual WebSocket handling in Rust
-use tokio_tungstenite::connect_async;
-use futures_util::{SinkExt, StreamExt};
-use std::collections::HashMap;
 
-struct ManualBridge {
-    pending: HashMap<Uuid, oneshot::Sender<Value>>,
-    functions: HashMap<String, Box<dyn Fn(Value) -> Value>>,
+  events: {
+    description:
+      "Pub/Sub without RabbitMQ or Kafka. Events flow through the protocol.",
+    traditional: {
+      title: "Redis Pub/Sub + RabbitMQ",
+      tools: ["Redis Pub/Sub", "RabbitMQ", "Kafka", "NATS", "AWS SQS"],
+      language: "typescript",
+      code: `// Redis Pub/Sub setup
+import Redis from 'ioredis'
+
+const publisher = new Redis(process.env.REDIS_URL)
+const subscriber = new Redis(process.env.REDIS_URL)
+
+// Separate connections for pub and sub
+const subscriptions = new Map()
+
+// Manual subscription management
+async function subscribe(topic: string, handler: Function) {
+  await subscriber.subscribe(topic)
+  subscriptions.set(topic, handler)
 }
 
-impl ManualBridge {
-    async fn connect(&mut self, url: &str) -> Result<(), Error> {
-        let (ws, _) = connect_async(url).await?;
-        let (mut tx, mut rx) = ws.split();
-        
-        while let Some(msg) = rx.next().await {
-            let data: Message = serde_json::from_str(&msg?)?;
-            match data {
-                Message::Invoke { id, path, data } => {
-                    if let Some(handler) = self.functions.get(&path) {
-                        let result = handler(data);
-                        tx.send(WsMessage::Text(
-                            serde_json::to_string(&result)?
-                        )).await?;
-                    }
-                }
-                // More manual handling...
-            }
-        }
-        Ok(())
-    }
-}`,
-    with: `// iii Rust SDK - bridge.rs
-use iii::{Bridge, BridgeError};
-use serde_json::{json, Value};
-
-let bridge = Bridge::new("ws://engine:8080");
-
-// Register with automatic reconnection
-bridge.register_function("orders.validate", |input: Value| {
-    async move {
-        let order: Order = serde_json::from_value(input)?;
-        let valid = validate_order(&order).await?;
-        Ok(json!({ "valid": valid, "order_id": order.id }))
-    }
-});
-
-// Register trigger types for custom integrations
-bridge.register_trigger_type(
-    "webhook",
-    "HTTP webhook trigger",
-    WebhookHandler::new(),
-);
-
-// Invoke with timeout and error handling
-let result = bridge
-    .invoke_function_with_timeout(
-        "shipping.calculate",
-        json!({ "items": items, "destination": addr }),
-        Duration::from_secs(10),
-    )
-    .await?;
-
-bridge.connect().await?;`,
-  },
-  retry: {
-    description: "TypeScript SDK: Streams and state management with automatic persistence.",
-    language: "typescript",
-    without: `// DIY retry with exponential backoff
-async function fetchWithRetry(url, payload, maxRetries = 3) {
-  let lastError;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+subscriber.on('message', async (topic, message) => {
+  const handler = subscriptions.get(topic)
+  if (handler) {
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      
-      if (res.status === 429 || res.status >= 500) {
-        throw new Error(\`Retryable: \${res.status}\`);
-      }
-      if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
-      
-      return await res.json();
-    } catch (err) {
-      lastError = err;
-      const delay = Math.pow(2, attempt) * 1000;
-      console.log(\`Retry \${attempt + 1}/\${maxRetries} in \${delay}ms\`);
-      await new Promise(r => setTimeout(r, delay));
+      const data = JSON.parse(message)
+      await handler(data)
+    } catch (error) {
+      console.error('Handler failed:', error)
+      // Manual dead-letter logic
+      await publisher.lpush('dead-letters', JSON.stringify({
+        topic, message, error: error.message
+      }))
     }
   }
-  throw lastError;
-}`,
-    with: `// iii TypeScript SDK - streams.ts
+})
+
+// Publish events
+async function publish(topic: string, data: any) {
+  await publisher.publish(topic, JSON.stringify(data))
+}
+
+// Subscribe to events
+await subscribe('user.created', async (user) => {
+  await syncToCRM(user)
+})
+
+await subscribe('order.placed', async (order) => {
+  await updateInventory(order)
+  await notifyWarehouse(order)
+})
+
+// Need guaranteed delivery? Add RabbitMQ
+// Need replay? Add Kafka
+// Each with its own setup and mental model`,
+    },
+    iii: {
+      title: "iii Engine",
+    language: "typescript",
+      code: `// iii SDK - Events are function invocations
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+// Register event handlers as functions
+bridge.registerFunction(
+  { function_path: 'events.user.created' },
+  async (user) => {
+    const { logger } = getContext()
+    logger.info('Syncing user to CRM', { userId: user.id })
+    
+    await syncToCRM(user)
+  }
+)
+
+bridge.registerFunction(
+  { function_path: 'events.order.placed' },
+  async (order) => {
+    // Chain events naturally
+    await updateInventory(order)
+    bridge.invokeFunctionAsync('events.warehouse.notify', order)
+  }
+)
+
+// Register trigger to subscribe to events
+bridge.registerTrigger({
+  trigger_type: 'event',
+  function_path: 'events.user.created',
+  config: { topic: 'user.created' }
+})
+
+// Emit events - subscribers invoked automatically
+bridge.invokeFunctionAsync('events.emit', {
+  topic: 'user.created',
+  data: newUser
+})
+
+// EventModule handles Redis adapter, retries, DLQ`,
+    },
+    linesTraditional: 48,
+    linesIII: 34,
+  },
+
+  realtime: {
+    description:
+      "WebSockets without Socket.io or Pusher. Streams are first-class.",
+    traditional: {
+      title: "Socket.io + Pusher",
+      tools: ["Socket.io", "Pusher", "Ably", "Liveblocks", "PartyKit"],
+      language: "typescript",
+      code: `// Socket.io setup
+import { Server } from 'socket.io'
+import { createAdapter } from '@socket.io/redis-adapter'
+import Redis from 'ioredis'
+
+const pubClient = new Redis(process.env.REDIS_URL)
+const subClient = pubClient.duplicate()
+
+const io = new Server(httpServer, {
+  cors: { origin: '*' },
+  adapter: createAdapter(pubClient, subClient)
+})
+
+// Room management
+const rooms = new Map<string, Set<string>>()
+
+io.on('connection', (socket) => {
+  const userId = socket.handshake.auth.userId
+  
+  socket.on('join-room', async (roomId) => {
+    socket.join(roomId)
+    
+    // Track membership manually
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, new Set())
+    }
+    rooms.get(roomId).add(userId)
+    
+    // Broadcast presence
+    io.to(roomId).emit('user-joined', { userId })
+  })
+  
+  socket.on('message', async (data) => {
+    const { roomId, content } = data
+    
+    // Save to database manually
+    const message = await db.messages.create({ roomId, content, userId })
+    
+    // Broadcast to room
+    io.to(roomId).emit('new-message', message)
+  })
+  
+  socket.on('disconnect', () => {
+    // Clean up room membership
+    rooms.forEach((members, roomId) => {
+      if (members.has(userId)) {
+        members.delete(userId)
+        io.to(roomId).emit('user-left', { userId })
+      }
+    })
+  })
+})`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Streams are built-in
 import { Bridge, MemoryStream } from 'iii'
 
 const bridge = new Bridge('ws://engine:8080')
 
-// Create a typed stream for order processing
-const orderStream = new MemoryStream<Order>()
+// Create typed stream
+interface ChatMessage {
+  id: string
+  content: string
+  userId: string
+  timestamp: string
+}
 
-// Register stream operations as functions
-bridge.createStream('orders', orderStream)
+const chatStream = new MemoryStream<ChatMessage>()
+bridge.createStream('chat', chatStream)
 
-// Stream operations are now available:
-// - streams.get(orders)
-// - streams.set(orders) 
-// - streams.delete(orders)
-// - streams.getGroup(orders)
-// - streams.listGroups(orders)
+// Stream operations registered automatically:
+// streams.get(chat), streams.set(chat), 
+// streams.delete(chat), streams.getGroup(chat)
 
-// Use in handlers
+// Handle join events via trigger
 bridge.registerFunction(
-  { function_path: 'orders.enqueue' },
-  async (input) => {
-    await orderStream.set(input.orderId, input.order, 'pending')
-    return { queued: true }
+  { function_path: 'streams.onJoin(chat)' },
+  async ({ subscription_id, group_id, context }) => {
+    console.log(\`User joined room: \${group_id}\`)
+    // Presence handled by StreamModule
+  }
+)
+
+// Send message - broadcasts to all subscribers
+bridge.registerFunction(
+  { function_path: 'chat.sendMessage' },
+  async ({ roomId, content, userId }) => {
+    const message = { id: crypto.randomUUID(), content, userId, timestamp: new Date().toISOString() }
+    
+    // Set in stream - subscribers notified automatically
+    await chatStream.set({ stream_name: 'chat', group_id: roomId, item_id: message.id, data: message })
+    
+    return message
   }
 )`,
+    },
+    linesTraditional: 52,
+    linesIII: 38,
   },
-  concurrency: {
-    description: "Python SDK: Context-aware logging with automatic trace propagation.",
-    language: "python",
-    without: `# Manual concurrency limiting with p-limit
-import pLimit from 'p-limit';
 
-const limit = pLimit(5); // Max 5 concurrent
+  state: {
+    description:
+      "Shared state without direct Redis. State is a first-class module.",
+    traditional: {
+      title: "Redis + Memcached",
+      tools: ["Redis", "Memcached", "DynamoDB", "Upstash"],
+      language: "typescript",
+      code: `// Redis state management
+import Redis from 'ioredis'
 
-async function processItems(items) {
-  const results = [];
-  const errors = [];
-  
-  const promises = items.map(item =>
-    limit(async () => {
-      try {
-        const res = await fetch('/api/process', {
-          method: 'POST',
-          body: JSON.stringify(item),
-        });
-        results.push(await res.json());
-      } catch (err) {
-        errors.push({ item, error: err });
-      }
-    })
-  );
-  
-  await Promise.all(promises);
-  
-  if (errors.length > 0) {
-    console.error(\`\${errors.length} items failed\`);
+const redis = new Redis(process.env.REDIS_URL)
+
+// Manual key management
+const STATE_PREFIX = 'state:'
+const SESSION_PREFIX = 'session:'
+const CACHE_PREFIX = 'cache:'
+
+async function getState(workflowId: string, key: string) {
+  const data = await redis.hget(\`\${STATE_PREFIX}\${workflowId}\`, key)
+  return data ? JSON.parse(data) : null
+}
+
+async function setState(workflowId: string, key: string, value: any) {
+  await redis.hset(
+    \`\${STATE_PREFIX}\${workflowId}\`,
+    key,
+    JSON.stringify(value)
+  )
+}
+
+async function deleteState(workflowId: string, key: string) {
+  await redis.hdel(\`\${STATE_PREFIX}\${workflowId}\`, key)
+}
+
+async function clearWorkflowState(workflowId: string) {
+  const keys = await redis.hkeys(\`\${STATE_PREFIX}\${workflowId}\`)
+  if (keys.length > 0) {
+    await redis.hdel(\`\${STATE_PREFIX}\${workflowId}\`, ...keys)
   }
-  
-  return { results, errors };
-}`,
-    with: `# iii Python SDK - context & logging
-from iii import Bridge
-from iii.context import get_context
+}
 
-bridge = Bridge("ws://engine:8080")
+// Session management - separate logic
+async function getSession(sessionId: string) {
+  const data = await redis.get(\`\${SESSION_PREFIX}\${sessionId}\`)
+  return data ? JSON.parse(data) : null
+}
 
-@bridge.function("analytics.track")
-async def track_event(input: dict) -> dict:
-    # Context is automatically propagated
-    ctx = get_context()
+async function setSession(sessionId: string, data: any, ttl: number) {
+  await redis.setex(
+    \`\${SESSION_PREFIX}\${sessionId}\`,
+    ttl,
+    JSON.stringify(data)
+  )
+}
+
+// Each service manages its own Redis connection
+// No consistency across services
+// No trace correlation`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - State is a module
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+// Use StateModule - same API everywhere
+bridge.registerFunction(
+  { function_path: 'workflow.process' },
+  async (input) => {
+    const { logger } = getContext()
     
-    # Logger includes trace_id and function_path
-    ctx.logger.info("Tracking event", extra={
-        "event_type": input["type"],
-        "user_id": input["user_id"]
-    })
-    
-    await analytics.track(
-        event=input["type"],
-        properties=input["properties"],
-        trace_id=ctx.logger.trace_id  # Distributed tracing
+    // Get state - works across all workers
+    const currentStep = await bridge.invokeFunction(
+      'state.get',
+      { workflow_id: input.workflowId, key: 'currentStep' }
     )
     
-    return {"tracked": True}
+    logger.info('Processing step', { step: currentStep })
+    
+    // Update state - trace_id propagated automatically
+    await bridge.invokeFunction('state.set', {
+      workflow_id: input.workflowId,
+      key: 'currentStep',
+      value: currentStep + 1
+    })
+    
+    // Continue workflow
+    if (currentStep < 5) {
+      bridge.invokeFunctionAsync('workflow.process', {
+        workflowId: input.workflowId
+      })
+    }
+    
+    return { step: currentStep, status: 'processed' }
+  }
+)
 
-# Register custom trigger types
-bridge.register_trigger_type(
-    id="pubsub",
-    description="Google Pub/Sub trigger",
-    handler=PubSubHandler()
-)`,
-  },
-  sandboxing: {
-    description: "Rust SDK: Register custom trigger handlers with type-safe configs.",
-    language: "rust",
-    without: `// VM2 sandboxing (now deprecated!)
-import { VM } from 'vm2';
-
-const vm = new VM({
-  timeout: 5000,
-  sandbox: {
-    fetch: async (url, opts) => {
-      // Manually allowlist URLs
-      if (!url.startsWith('https://api.trusted.com')) {
-        throw new Error('URL not allowed');
-      }
-      return fetch(url, opts);
+// StateModule uses Redis adapter in production
+// File adapter in development
+// Consistent API, pluggable backends`,
     },
+    linesTraditional: 48,
+    linesIII: 36,
   },
-  eval: false,
-  wasm: false,
-});
 
-try {
-  const result = vm.run(\`
-    (async () => {
-      const res = await fetch('/data', { method: 'POST' });
-      return res.json();
-    })()
-  \`);
-  return await result;
-} catch (err) {
-  console.error('Sandbox error:', err);
-}`,
-    with: `// iii Rust SDK - triggers.rs
-use iii::{Bridge, TriggerConfig, TriggerHandler};
-use async_trait::async_trait;
+  cron: {
+    description:
+      "Scheduled tasks without node-cron or Agenda. Cron is a trigger type.",
+    traditional: {
+      title: "node-cron + Agenda",
+      tools: ["node-cron", "Agenda", "AWS EventBridge", "Cloud Scheduler"],
+      language: "typescript",
+      code: `// node-cron + Agenda setup
+import cron from 'node-cron'
+import Agenda from 'agenda'
+import Redis from 'ioredis'
 
-pub struct WebhookHandler {
-    client: reqwest::Client,
-}
+const redis = new Redis(process.env.REDIS_URL)
+const agenda = new Agenda({ db: { address: process.env.MONGO_URL } })
 
-#[async_trait]
-impl TriggerHandler for WebhookHandler {
-    async fn register_trigger(
-        &self,
-        config: TriggerConfig,
-    ) -> Result<(), BridgeError> {
-        let webhook_url = config.config
-            .get("url")
-            .and_then(|v| v.as_str())
-            .ok_or(BridgeError::InvalidConfig)?;
-        
-        // Set up webhook subscription
-        self.client
-            .post(webhook_url)
-            .json(&json!({
-                "callback": config.function_path,
-                "events": ["order.created", "order.updated"]
-            }))
-            .send()
-            .await?;
-        
-        tracing::info!(
-            trigger_id = %config.id,
-            "Webhook trigger registered"
-        );
-        Ok(())
-    }
-}`,
-  },
-  // Protocol examples - iii Adapter code in Rust
-  http: {
-    description: "REST API Adapter: Hot-reloading HTTP router with automatic function discovery.",
-    language: "rust",
-    without: `// Manual Axum HTTP server setup
-use axum::{Router, routing::post, Json, extract::State};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+// Simple cron - no distributed locking
+cron.schedule('0 9 * * *', async () => {
+  console.log('Running daily report...')
+  await generateDailyReport()
+})
 
-struct AppState {
-    handlers: HashMap<String, Box<dyn Handler>>,
-}
+// Agenda for distributed - needs MongoDB
+agenda.define('send-weekly-digest', async (job) => {
+  const { userId } = job.attrs.data
+  await sendWeeklyDigest(userId)
+})
 
-async fn webhook_handler(
-    State(state): State<Arc<RwLock<AppState>>>,
-    Json(body): Json<Value>,
-) -> impl IntoResponse {
-    let event = body.get("event").and_then(|v| v.as_str());
-    let data = body.get("data");
-    
-    match (event, data) {
-        (Some(e), Some(d)) => {
-            let handlers = state.read().await;
-            if let Some(handler) = handlers.get(e) {
-                match handler.call(d.clone()).await {
-                    Ok(result) => Json(json!({ "success": true })),
-                    Err(e) => Json(json!({ "error": e.to_string() })),
-                }
-            } else {
-                Json(json!({ "error": "handler not found" }))
-            }
-        }
-        _ => Json(json!({ "error": "invalid payload" })),
-    }
-}
+// Manual distributed locking for node-cron
+cron.schedule('*/5 * * * *', async () => {
+  const lockKey = 'cron:cleanup:lock'
+  const locked = await redis.set(lockKey, '1', 'NX', 'EX', 300)
+  
+  if (!locked) {
+    console.log('Another instance running cleanup')
+    return
+  }
+  
+  try {
+    await cleanupExpiredSessions()
+  } finally {
+    await redis.del(lockKey)
+  }
+})
 
-let app = Router::new()
-    .route("/webhook", post(webhook_handler))
-    .with_state(state);`,
-    with: `// iii REST API Adapter - hot_router.rs
-use crate::engine::{Engine, EngineTrait};
-use axum::{Router, routing::any, extract::State};
+// Schedule jobs
+await agenda.start()
+await agenda.every('1 week', 'send-weekly-digest', { userId: 123 })
 
-pub struct HotRouter {
-    engine: Arc<Engine>,
-    routes: Arc<RwLock<HashMap<String, RouteConfig>>>,
-}
-
-impl HotRouter {
-    pub async fn handle_request(
-        &self,
-        method: Method,
-        path: &str,
-        body: Value,
-    ) -> Result<Value, ApiError> {
-        let routes = self.routes.read().await;
-        
-        if let Some(config) = routes.get(path) {
-            // Invoke registered function through engine
-            let result = self.engine
-                .invoke_function(&config.function_path, body)
-                .await?;
-            
-            tracing::info!(
-                path = %path,
-                function = %config.function_path,
-                "Request handled"
-            );
-            
-            Ok(result)
-        } else {
-            Err(ApiError::NotFound)
-        }
-    }
-    
-    // Routes update automatically when functions register
-    pub async fn on_function_registered(&self, msg: &RegisterFunctionMessage) {
-        if let Some(api_config) = &msg.metadata {
-            let mut routes = self.routes.write().await;
-            routes.insert(api_config.path.clone(), config);
-        }
-    }
-}`,
-  },
-  mcp: {
-    description: "Event Adapter: Redis pub/sub with automatic subscription management.",
-    language: "rust",
-    without: `// Manual Redis pub/sub in Rust
-use redis::{Client, AsyncCommands, aio::ConnectionManager};
-use tokio::sync::mpsc;
-
-struct ManualPubSub {
-    publisher: ConnectionManager,
-    subscriber: Client,
-}
-
-impl ManualPubSub {
-    async fn subscribe(&self, topic: &str) -> mpsc::Receiver<String> {
-        let (tx, rx) = mpsc::channel(100);
-        let client = self.subscriber.clone();
-        let topic = topic.to_string();
-        
-        tokio::spawn(async move {
-            let mut pubsub = client.get_async_pubsub().await.unwrap();
-            pubsub.subscribe(&topic).await.unwrap();
-            
-            let mut stream = pubsub.into_on_message();
-            while let Some(msg) = stream.next().await {
-                let payload: String = msg.get_payload().unwrap();
-                if tx.send(payload).await.is_err() {
-                    break;
-                }
-            }
-        });
-        rx
-    }
-    
-    async fn publish(&self, topic: &str, data: &str) -> Result<()> {
-        let mut conn = self.publisher.clone();
-        conn.publish(topic, data).await?;
-        Ok(())
-    }
-}`,
-    with: `// iii Event Adapter - redis_adapter.rs
-use crate::modules::event::EventAdapter;
-use async_trait::async_trait;
-
-pub struct RedisAdapter {
-    publisher: Arc<Mutex<ConnectionManager>>,
-    subscriber: Arc<Client>,
-    subscriptions: Arc<RwLock<HashMap<String, SubscriptionInfo>>>,
-    engine: Arc<Engine>,
-}
-
-#[async_trait]
-impl EventAdapter for RedisAdapter {
-    async fn emit(&self, topic: &str, event_data: Value) {
-        let event_json = serde_json::to_string(&event_data)?;
-        let mut conn = self.publisher.lock().await;
-        conn.publish::<_, _, ()>(topic, &event_json).await?;
-        
-        tracing::debug!(topic = %topic, "Event emitted");
-    }
-
-    async fn subscribe(&self, topic: &str, id: &str, function_path: &str) {
-        let engine = Arc::clone(&self.engine);
-        
-        tokio::spawn(async move {
-            let mut pubsub = subscriber.get_async_pubsub().await?;
-            pubsub.subscribe(topic).await?;
-            
-            while let Some(msg) = pubsub.into_on_message().next().await {
-                let data: Value = serde_json::from_str(&msg.get_payload()?)?;
-                
-                // Invoke function through engine
-                engine.invoke_function(function_path, data).await;
-            }
-        });
-    }
-}
-
-// Auto-register with the adapter registry
-crate::register_adapter!(<EventAdapterRegistration> 
-    "modules::event::RedisAdapter", make_adapter);`,
-  },
-  rpc: {
-    description: "Bridge Protocol: Type-safe WebSocket messages for cross-service invocation.",
-    language: "rust",
-    without: `// Manual WebSocket message handling
-use serde::{Deserialize, Serialize};
-use tokio_tungstenite::tungstenite::Message;
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type")]
-enum WsMessage {
-    #[serde(rename = "invoke")]
-    Invoke { id: String, path: String, data: Value },
-    #[serde(rename = "result")]  
-    Result { id: String, result: Option<Value>, error: Option<String> },
-    #[serde(rename = "register")]
-    Register { path: String, description: Option<String> },
-}
-
-async fn handle_message(msg: Message, state: &mut State) -> Option<Message> {
-    let text = msg.into_text().ok()?;
-    let parsed: WsMessage = serde_json::from_str(&text).ok()?;
-    
-    match parsed {
-        WsMessage::Invoke { id, path, data } => {
-            if let Some(handler) = state.handlers.get(&path) {
-                match handler(data).await {
-                    Ok(result) => Some(Message::Text(
-                        serde_json::to_string(&WsMessage::Result {
-                            id, result: Some(result), error: None
-                        }).ok()?
-                    )),
-                    Err(e) => Some(Message::Text(
-                        serde_json::to_string(&WsMessage::Result {
-                            id, result: None, error: Some(e.to_string())
-                        }).ok()?
-                    )),
-                }
-            } else { None }
-        }
-        _ => None,
-    }
-}`,
-    with: `// iii Bridge Protocol - protocol.rs
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Message {
-    RegisterFunction(RegisterFunctionMessage),
-    RegisterTriggerType(RegisterTriggerTypeMessage),
-    RegisterTrigger(RegisterTriggerMessage),
-    RegisterService(RegisterServiceMessage),
-    
-    InvokeFunction {
-        invocation_id: Option<Uuid>,
-        function_path: String,
-        data: Value,
+// Different syntax for each library
+// Manual locking for distributed scenarios
+// No unified observability`,
     },
-    InvocationResult {
-        invocation_id: Uuid,
-        function_path: String,
-        result: Option<Value>,
-        error: Option<ErrorBody>,
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Cron is a trigger type
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+// Register the function
+bridge.registerFunction(
+  { function_path: 'reports.daily' },
+  async () => {
+    const { logger } = getContext()
+    logger.info('Generating daily report')
+    
+    const report = await generateDailyReport()
+    
+    // Store in state for retrieval
+    await bridge.invokeFunction('state.set', {
+      workflow_id: 'reports',
+      key: 'daily-' + new Date().toISOString().split('T')[0],
+      value: report
+    })
+    
+    return { generated: true }
+  }
+)
+
+// Register cron trigger - distributed locking built-in
+bridge.registerTrigger({
+  trigger_type: 'cron',
+  function_path: 'reports.daily',
+  config: { schedule: '0 9 * * *' } // 9am daily
+})
+
+// Cleanup job - CronModule handles locking
+bridge.registerFunction(
+  { function_path: 'maintenance.cleanup' },
+  async () => {
+    await cleanupExpiredSessions()
+  }
+)
+
+bridge.registerTrigger({
+  trigger_type: 'cron',
+  function_path: 'maintenance.cleanup',
+  config: { schedule: '*/5 * * * *' } // Every 5 min
+})`,
     },
-    
-    ListFunctions,
-    FunctionsAvailable { functions: Vec<FunctionMessage> },
-    
-    Ping,
-    Pong,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RegisterFunctionMessage {
-    pub function_path: String,
-    pub description: Option<String>,
-    pub request_format: Option<String>,
-    pub response_format: Option<String>,
-    pub metadata: Option<Value>,
-}`,
+    linesTraditional: 42,
+    linesIII: 40,
   },
-  grpc: {
-    description: "Stream Adapter: Real-time data streaming with connection management.",
-    language: "rust",
-    without: `// gRPC server with @grpc/grpc-js
-import * as grpc from '@grpc/grpc-js';
-import * as protoLoader from '@grpc/proto-loader';
 
-const packageDef = protoLoader.loadSync('./service.proto', {
-  keepCase: true,
-  longs: String,
-  enums: String,
-  defaults: true,
-  oneofs: true,
-});
+  logging: {
+    description:
+      "Observability without Datadog setup. Logging flows through the protocol.",
+    traditional: {
+      title: "Winston + Pino + Manual",
+      tools: ["Winston", "Pino", "Bunyan", "OpenTelemetry", "Datadog SDK"],
+      language: "typescript",
+      code: `// Winston + OpenTelemetry setup
+import winston from 'winston'
+import { NodeSDK } from '@opentelemetry/sdk-node'
+import { trace, context, SpanStatusCode } from '@opentelemetry/api'
 
-const proto = grpc.loadPackageDefinition(packageDef);
+// Configure Winston
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'app.log' }),
+  ],
+})
 
-const server = new grpc.Server();
+// Configure OpenTelemetry
+const sdk = new NodeSDK({
+  serviceName: 'my-service',
+  // ... lots of configuration
+})
+sdk.start()
 
-server.addService(proto.UserService.service, {
-  createUser: async (call, callback) => {
+const tracer = trace.getTracer('my-service')
+
+// Manual trace propagation
+async function handleRequest(req: Request) {
+  const span = tracer.startSpan('handleRequest')
+  const ctx = trace.setSpan(context.active(), span)
+  
+  return context.with(ctx, async () => {
     try {
-      const { name, email } = call.request;
+      const traceId = span.spanContext().traceId
       
-      if (!name || !email) {
-        return callback({
-          code: grpc.status.INVALID_ARGUMENT,
-          message: 'Name and email required',
-        });
+      // Log with trace correlation - manually
+      logger.info('Processing request', {
+        traceId,
+        path: req.path,
+        method: req.method,
+      })
+      
+      const result = await processRequest(req)
+      
+      span.setStatus({ code: SpanStatusCode.OK })
+      return result
+    } catch (error) {
+      span.setStatus({ code: SpanStatusCode.ERROR })
+      span.recordException(error)
+      logger.error('Request failed', { error: error.message })
+      throw error
+    } finally {
+      span.end()
+    }
+  })
+}`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Logging is built-in
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+bridge.registerFunction(
+  { function_path: 'orders.process' },
+  async (input) => {
+    // Context includes logger with trace_id
+    const { logger } = getContext()
+    
+    // Logs include trace_id + function_path automatically
+    logger.info('Processing order', { 
+      orderId: input.orderId,
+      items: input.items.length 
+    })
+    
+    try {
+      const order = await processOrder(input)
+      
+      // Log success
+      logger.info('Order processed', { 
+        orderId: order.id,
+        total: order.total 
+      })
+      
+      return order
+    } catch (error) {
+      // Error logged with full context
+      logger.error('Order failed', { 
+        orderId: input.orderId,
+        error: error.message 
+      })
+      throw error
+    }
+  }
+)
+
+// Logs flow through LoggingModule
+// FileLogger for dev, RedisLogger for prod
+// Trace correlation across function calls
+// Workbench visualizes everything`,
+    },
+    linesTraditional: 52,
+    linesIII: 38,
+  },
+
+  workflow: {
+    description:
+      "Orchestration without Temporal or Step Functions. State + Events = Workflows.",
+    traditional: {
+      title: "Temporal + Step Functions",
+      tools: ["Temporal", "Cadence", "AWS Step Functions", "Inngest"],
+      language: "typescript",
+      code: `// Temporal workflow setup
+import { proxyActivities, sleep } from '@temporalio/workflow'
+import type * as activities from './activities'
+
+const { sendEmail, chargeCard, shipOrder } = proxyActivities<
+  typeof activities
+>({
+  startToCloseTimeout: '1 minute',
+  retry: {
+    maximumAttempts: 3,
+  },
+})
+
+// Workflow definition
+export async function orderWorkflow(order: Order): Promise<OrderResult> {
+  // Step 1: Send confirmation
+  await sendEmail({
+    to: order.email,
+    template: 'order-confirmation',
+    data: order,
+  })
+
+  // Step 2: Charge card
+  const payment = await chargeCard({
+    amount: order.total,
+    cardToken: order.paymentToken,
+  })
+
+  if (!payment.success) {
+    throw new Error('Payment failed')
+  }
+
+  // Step 3: Wait for inventory check
+  await sleep('5 seconds')
+
+  // Step 4: Ship order
+  const shipment = await shipOrder({
+    orderId: order.id,
+    address: order.shippingAddress,
+  })
+
+  return {
+    orderId: order.id,
+    paymentId: payment.id,
+    trackingNumber: shipment.trackingNumber,
+  }
+}
+
+// Need separate worker process
+// Need Temporal server infrastructure
+// DSL to learn`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - State + Events = Workflows
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+// Step 1: Start order
+bridge.registerFunction(
+  { function_path: 'order.start' },
+  async (order) => {
+    const { logger } = getContext()
+    
+    // Save workflow state
+    await bridge.invokeFunction('state.set', {
+      workflow_id: order.id,
+      key: 'status',
+      value: 'started'
+    })
+    
+    logger.info('Order started', { orderId: order.id })
+    
+    // Trigger next step via event
+    bridge.invokeFunctionAsync('order.sendConfirmation', order)
+    
+    return { orderId: order.id, status: 'started' }
+  }
+)
+
+// Step 2: Send confirmation
+bridge.registerFunction(
+  { function_path: 'order.sendConfirmation' },
+  async (order) => {
+    await sendEmail({ to: order.email, template: 'confirmation' })
+    
+    // Update state and continue
+    await bridge.invokeFunction('state.set', {
+      workflow_id: order.id, key: 'status', value: 'confirmed'
+    })
+    
+    bridge.invokeFunctionAsync('order.chargeCard', order)
+  }
+)
+
+// Steps continue... each function is durable
+// State persists across restarts
+// No separate infrastructure needed`,
+    },
+    linesTraditional: 50,
+    linesIII: 42,
+  },
+
+  "ai-agents": {
+    description:
+      "Build AI agent runtimes without LangChain complexity. Functions as tools, State for memory, Streams for responses.",
+    traditional: {
+      title: "LangChain + LangGraph + Redis",
+      tools: ["LangChain", "LangGraph", "LlamaIndex", "AutoGen", "CrewAI"],
+      language: "typescript",
+      code: `// LangChain agent setup with tools
+import { ChatOpenAI } from '@langchain/openai'
+import { AgentExecutor, createOpenAIToolsAgent } from 'langchain/agents'
+import { DynamicTool } from '@langchain/core/tools'
+import { ChatPromptTemplate } from '@langchain/core/prompts'
+import Redis from 'ioredis'
+
+const redis = new Redis()
+const model = new ChatOpenAI({ modelName: 'gpt-4' })
+
+// Define tools manually
+const tools = [
+  new DynamicTool({
+    name: 'search_database',
+    description: 'Search the product database',
+    func: async (query: string) => {
+      const results = await db.products.search(query)
+      return JSON.stringify(results)
+    },
+  }),
+  new DynamicTool({
+    name: 'send_email',
+    description: 'Send an email to user',
+    func: async (params: string) => {
+      const { to, subject, body } = JSON.parse(params)
+      await sendEmail(to, subject, body)
+      return 'Email sent'
+    },
+  }),
+]
+
+// Memory management manually
+async function getConversationHistory(sessionId: string) {
+  const history = await redis.lrange(\`chat:\${sessionId}\`, 0, -1)
+  return history.map(h => JSON.parse(h))
+}
+
+async function saveMessage(sessionId: string, msg: any) {
+  await redis.rpush(\`chat:\${sessionId}\`, JSON.stringify(msg))
+  await redis.expire(\`chat:\${sessionId}\`, 3600)
+}
+
+// Create agent with prompt
+const prompt = ChatPromptTemplate.fromMessages([/* ... */])
+const agent = await createOpenAIToolsAgent({ llm: model, tools, prompt })
+const executor = new AgentExecutor({ agent, tools })
+
+// Execute with streaming... complex setup
+const stream = await executor.streamEvents(
+  { input: userMessage },
+  { version: 'v1' }
+)`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Functions ARE tools, State IS memory
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+// Register tools as functions - automatic discovery
+bridge.registerFunction(
+  { 
+    function_path: 'tools.searchDatabase',
+    description: 'Search the product database',
+    request_format: { query: 'string' }
+  },
+  async ({ query }) => {
+    const results = await db.products.search(query)
+    return { results }
+  }
+)
+
+bridge.registerFunction(
+  { 
+    function_path: 'tools.sendEmail',
+    description: 'Send an email to user'
+  },
+  async ({ to, subject, body }) => {
+    await sendEmail(to, subject, body)
+    return { sent: true }
+  }
+)
+
+// Agent orchestrator - uses StateModule for memory
+bridge.registerFunction(
+  { function_path: 'agent.chat' },
+  async ({ sessionId, message }) => {
+    const { logger } = getContext()
+    
+    // Get conversation history from StateModule
+    const history = await bridge.invokeFunction('state.get', {
+      workflow_id: sessionId, key: 'history'
+    }) || []
+    
+    // Call LLM with tools available via ListFunctions
+    const response = await callLLM(message, history)
+    
+    // If tool call, invoke function directly
+    if (response.toolCall) {
+      const result = await bridge.invokeFunction(
+        response.toolCall.function,
+        response.toolCall.args
+      )
+      // Stream response back
+      bridge.invokeFunctionAsync('streams.send', {
+        stream: 'chat', group: sessionId, data: result
+      })
+    }
+    
+    // Save to memory
+    await bridge.invokeFunction('state.set', {
+      workflow_id: sessionId,
+      key: 'history',
+      value: [...history, { role: 'user', content: message }]
+    })
+    
+    return response
+  }
+)`,
+    },
+    linesTraditional: 52,
+    linesIII: 48,
+  },
+
+  "feature-flags": {
+    description:
+      "Real-time feature flags without LaunchDarkly or Split. State + Streams = instant propagation.",
+    traditional: {
+      title: "LaunchDarkly + Redis",
+      tools: ["LaunchDarkly", "Split.io", "Unleash", "Flagsmith", "ConfigCat"],
+      language: "typescript",
+      code: `// LaunchDarkly setup
+import * as LaunchDarkly from 'launchdarkly-node-server-sdk'
+import Redis from 'ioredis'
+
+const ldClient = LaunchDarkly.init(process.env.LD_SDK_KEY!)
+const redis = new Redis()
+const flagCache = new Map<string, any>()
+
+// Wait for initialization
+await ldClient.waitForInitialization()
+
+// Subscribe to flag changes
+ldClient.on('update', async (settings) => {
+  // Manually sync to Redis for other services
+  for (const [key, value] of Object.entries(settings)) {
+    await redis.set(\`flag:\${key}\`, JSON.stringify(value))
+    flagCache.set(key, value)
+  }
+  
+  // Notify connected clients manually
+  pubsub.publish('flag-updates', JSON.stringify(settings))
+})
+
+// Evaluate flag for user
+async function getFlag(flagKey: string, user: User, defaultValue: any) {
+  const ldUser = {
+    key: user.id,
+    email: user.email,
+    custom: {
+      plan: user.plan,
+      createdAt: user.createdAt,
+    },
+  }
+  
+  const value = await ldClient.variation(flagKey, ldUser, defaultValue)
+  
+  // Track analytics manually
+  await analytics.track('flag_evaluated', {
+    flag: flagKey,
+    value,
+    userId: user.id,
+  })
+  
+  return value
+}
+
+// Cleanup
+process.on('SIGTERM', () => {
+  ldClient.close()
+})
+
+// $25k+/year for enterprise features
+// Vendor lock-in for flag definitions`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - State + Streams = Feature Flags
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+// Define flags in StateModule
+bridge.registerFunction(
+  { function_path: 'flags.set' },
+  async ({ flagKey, config }) => {
+    const { logger } = getContext()
+    
+    // Store flag config
+    await bridge.invokeFunction('state.set', {
+      workflow_id: 'flags',
+      key: flagKey,
+      value: config
+    })
+    
+    // Broadcast to all connected clients instantly
+    bridge.invokeFunctionAsync('streams.broadcast', {
+      stream: 'flags',
+      data: { type: 'update', flag: flagKey, config }
+    })
+    
+    logger.info('Flag updated', { flagKey })
+    return { updated: true }
+  }
+)
+
+// Evaluate flag
+bridge.registerFunction(
+  { function_path: 'flags.evaluate' },
+  async ({ flagKey, user, defaultValue }) => {
+    const config = await bridge.invokeFunction('state.get', {
+      workflow_id: 'flags', key: flagKey
+    })
+    
+    if (!config) return defaultValue
+    
+    // Evaluate targeting rules
+    if (config.userIds?.includes(user.id)) return config.value
+    if (config.percentage) {
+      const hash = hashUser(user.id, flagKey)
+      if (hash < config.percentage) return config.value
+    }
+    if (config.plans?.includes(user.plan)) return config.value
+    
+    return defaultValue
+  }
+)
+
+// Client subscribes to flags stream for real-time updates
+// No vendor, no monthly fee, full control`,
+    },
+    linesTraditional: 52,
+    linesIII: 42,
+  },
+
+  multiplayer: {
+    description:
+      "Build multiplayer game backends without Photon or PlayFab. Streams for state, Events for actions.",
+    traditional: {
+      title: "Photon + PlayFab + Redis",
+      tools: ["Photon", "PlayFab", "Nakama", "Colyseus", "Mirror"],
+      language: "typescript",
+      code: `// Colyseus game room setup
+import { Room, Client } from 'colyseus'
+import { Schema, MapSchema, type } from '@colyseus/schema'
+import Redis from 'ioredis'
+
+class Player extends Schema {
+  @type('number') x: number = 0
+  @type('number') y: number = 0
+  @type('number') score: number = 0
+}
+
+class GameState extends Schema {
+  @type({ map: Player }) players = new MapSchema<Player>()
+}
+
+class GameRoom extends Room<GameState> {
+  private redis = new Redis()
+  
+  onCreate(options: any) {
+    this.setState(new GameState())
+    this.setSimulationInterval(() => this.update())
+    
+    // Handle messages
+    this.onMessage('move', (client, data) => {
+      const player = this.state.players.get(client.sessionId)
+      if (player) {
+        player.x = data.x
+        player.y = data.y
       }
+    })
+    
+    this.onMessage('action', async (client, data) => {
+      // Process action, update score
+      const player = this.state.players.get(client.sessionId)
+      player.score += data.points
       
-      const user = await createUser(name, email);
-      callback(null, user);
-    } catch (err) {
-      callback({
-        code: grpc.status.INTERNAL,
-        message: err.message,
-      });
-    }
-  },
-});
-
-server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () => {
-  server.start();
-});`,
-    with: `// iii Stream Adapter - redis_adapter.rs
-use crate::modules::streams::{StreamAdapter, StreamEntry};
-use async_trait::async_trait;
-
-pub struct RedisStreamAdapter {
-    connection: Arc<Mutex<ConnectionManager>>,
-    engine: Arc<Engine>,
+      // Persist to Redis
+      await this.redis.hset(
+        \`game:\${this.roomId}:scores\`,
+        client.sessionId,
+        player.score
+      )
+    })
+  }
+  
+  onJoin(client: Client) {
+    this.state.players.set(client.sessionId, new Player())
+    this.broadcast('playerJoined', { id: client.sessionId })
+  }
+  
+  onLeave(client: Client) {
+    this.state.players.delete(client.sessionId)
+    this.broadcast('playerLeft', { id: client.sessionId })
+  }
+  
+  update() {
+    // Game loop logic
+  }
 }
 
-#[async_trait]
-impl StreamAdapter for RedisStreamAdapter {
-    async fn get(&self, stream: &str, key: &str) -> Option<StreamEntry> {
-        let mut conn = self.connection.lock().await;
-        let data: Option<String> = conn
-            .hget(format!("stream:{}:{}", stream, key), "data")
-            .await.ok()?;
-        
-        data.map(|d| StreamEntry {
-            key: key.to_string(),
-            data: serde_json::from_str(&d).ok()?,
-            group: conn.hget(/* ... */).await.ok()?,
+// Need separate matchmaking service
+// Need separate leaderboard service`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Streams for state, Events for actions
+import { Bridge, MemoryStream } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+interface Player { x: number; y: number; score: number }
+const gameStream = new MemoryStream<Player>()
+bridge.createStream('game', gameStream)
+
+// Player joins - StreamModule handles connections
+bridge.registerFunction(
+  { function_path: 'streams.onJoin(game)' },
+  async ({ subscription_id, group_id }) => {
+    // group_id = room ID
+    await gameStream.set({
+      stream_name: 'game',
+      group_id,
+      item_id: subscription_id,
+      data: { x: 0, y: 0, score: 0 }
+    })
+    
+    // Broadcast to room - automatic via StreamModule
+    return { joined: true }
+  }
+)
+
+// Handle player movement
+bridge.registerFunction(
+  { function_path: 'game.move' },
+  async ({ roomId, playerId, x, y }) => {
+    const player = await gameStream.get({
+      stream_name: 'game', group_id: roomId, item_id: playerId
+    })
+    
+    // Update position - broadcasts to all in room
+    await gameStream.set({
+      stream_name: 'game',
+      group_id: roomId,
+      item_id: playerId,
+      data: { ...player, x, y }
+    })
+  }
+)
+
+// Handle game action
+bridge.registerFunction(
+  { function_path: 'game.action' },
+  async ({ roomId, playerId, points }) => {
+    const player = await gameStream.get({
+      stream_name: 'game', group_id: roomId, item_id: playerId
+    })
+    
+    // Update score - persisted in StateModule
+    await gameStream.set({
+      stream_name: 'game',
+      group_id: roomId,
+      item_id: playerId,
+      data: { ...player, score: player.score + points }
+    })
+    
+    // Leaderboard update via event
+    bridge.invokeFunctionAsync('leaderboard.update', {
+      playerId, score: player.score + points
+    })
+  }
+)`,
+    },
+    linesTraditional: 58,
+    linesIII: 52,
+  },
+
+  etl: {
+    description:
+      "Build ETL pipelines without Airflow or Dagster. Events for data flow, State for checkpoints.",
+    traditional: {
+      title: "Airflow + Celery + Redis",
+      tools: ["Airflow", "Dagster", "Prefect", "Luigi", "dbt"],
+      language: "python",
+      code: `# Airflow DAG setup
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
+from celery import Celery
+import redis
+
+redis_client = redis.Redis()
+celery_app = Celery('etl', broker='redis://localhost:6379')
+
+default_args = {
+    'owner': 'data-team',
+    'retries': 3,
+    'retry_delay': timedelta(minutes=5),
+}
+
+dag = DAG(
+    'user_analytics_pipeline',
+    default_args=default_args,
+    schedule_interval='0 2 * * *',
+    start_date=days_ago(1),
+)
+
+def extract_users(**context):
+    checkpoint = redis_client.get('etl:users:checkpoint')
+    users = db.users.find({'updated_at': {'$gt': checkpoint}})
+    
+    # Store in XCom for next task
+    context['ti'].xcom_push(key='users', value=list(users))
+    redis_client.set('etl:users:checkpoint', datetime.now().isoformat())
+
+def transform_users(**context):
+    users = context['ti'].xcom_pull(key='users', task_ids='extract')
+    
+    transformed = []
+    for user in users:
+        transformed.append({
+            'user_id': user['_id'],
+            'lifetime_value': calculate_ltv(user),
+            'segment': classify_segment(user),
         })
-    }
-
-    async fn set(&self, stream: &str, key: &str, data: Value, group: Option<&str>) {
-        let mut conn = self.connection.lock().await;
-        let hash_key = format!("stream:{}:{}", stream, key);
-        
-        conn.hset(&hash_key, "data", serde_json::to_string(&data)?).await?;
-        if let Some(g) = group {
-            conn.hset(&hash_key, "group", g).await?;
-            conn.sadd(format!("stream:{}:groups:{}", stream, g), key).await?;
-        }
-        
-        tracing::debug!(stream = %stream, key = %key, "Stream entry set");
-    }
-}`,
-  },
-  cli: {
-    description: "Cron Adapter: Distributed scheduling with Redis-based locking.",
-    language: "rust",
-    without: `// Manual distributed cron with Redis locks
-use redis::{AsyncCommands, Client};
-use tokio_cron_scheduler::{Job, JobScheduler};
-
-struct DistributedCron {
-    redis: ConnectionManager,
-    instance_id: String,
-}
-
-impl DistributedCron {
-    async fn try_acquire_lock(&self, job_id: &str) -> bool {
-        let lock_key = format!("cron_lock:{}", job_id);
-        
-        // SET NX with expiry
-        let result: Option<String> = redis::cmd("SET")
-            .arg(&lock_key)
-            .arg(&self.instance_id)
-            .arg("NX")
-            .arg("PX")
-            .arg(30000) // 30 second TTL
-            .query_async(&mut self.redis.clone())
-            .await
-            .ok()?;
-        
-        result.is_some()
-    }
     
-    async fn release_lock(&self, job_id: &str) {
-        let script = r#"
-            if redis.call("get", KEYS[1]) == ARGV[1] then
-                return redis.call("del", KEYS[1])
-            end
-            return 0
-        "#;
-        // Execute Lua script for atomic check-and-delete
-        redis::Script::new(script)
-            .key(format!("cron_lock:{}", job_id))
-            .arg(&self.instance_id)
-            .invoke_async(&mut self.redis.clone())
-            .await
-            .ok();
-    }
-}`,
-    with: `// iii Cron Adapter - redis_adapter.rs
-use crate::modules::cron::CronSchedulerAdapter;
-use async_trait::async_trait;
+    context['ti'].xcom_push(key='transformed', value=transformed)
 
-const CRON_LOCK_TTL_MS: u64 = 30_000;
-const CRON_LOCK_PREFIX: &str = "cron_lock:";
+def load_to_warehouse(**context):
+    data = context['ti'].xcom_pull(key='transformed', task_ids='transform')
+    warehouse.bulk_insert('user_analytics', data)
 
-pub struct RedisCronLock {
-    connection: Arc<Mutex<ConnectionManager>>,
-    instance_id: String,
-}
+extract = PythonOperator(task_id='extract', python_callable=extract_users, dag=dag)
+transform = PythonOperator(task_id='transform', python_callable=transform_users, dag=dag)
+load = PythonOperator(task_id='load', python_callable=load_to_warehouse, dag=dag)
 
-#[async_trait]
-impl CronSchedulerAdapter for RedisCronLock {
-    async fn try_acquire_lock(&self, job_id: &str) -> bool {
-        let lock_key = format!("{}{}", CRON_LOCK_PREFIX, job_id);
-        let mut conn = self.connection.lock().await;
+extract >> transform >> load
 
-        let result: Option<String> = redis::cmd("SET")
-            .arg(&lock_key)
-            .arg(&self.instance_id)
-            .arg("NX")
-            .arg("PX")
-            .arg(CRON_LOCK_TTL_MS)
-            .query_async(&mut *conn)
-            .await
-            .ok()
-            .flatten();
+# Need Airflow scheduler + webserver + database
+# Need Celery workers + Redis + Flower`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Events for flow, State for checkpoints
+import { Bridge, getContext } from 'iii'
 
-        match result {
-            Some(_) => {
-                tracing::debug!(job_id = %job_id, "Acquired cron lock");
-                true
-            }
-            None => false,
-        }
-    }
+const bridge = new Bridge('ws://engine:8080')
 
-    async fn release_lock(&self, job_id: &str) {
-        let script = r#"
-            if redis.call("get", KEYS[1]) == ARGV[1] then
-                return redis.call("del", KEYS[1])
-            end
-            return 0
-        "#;
-        
-        redis::Script::new(script)
-            .key(format!("{}{}", CRON_LOCK_PREFIX, job_id))
-            .arg(&self.instance_id)
-            .invoke_async(&mut *self.connection.lock().await)
-            .await
-            .ok();
-    }
-}
-
-crate::register_adapter!(<CronAdapterRegistration>
-    "modules::cron::RedisCronAdapter", make_adapter);`,
-  },
-  soap: {
-    description: "State Adapter: Persistent key-value state with group management.",
-    language: "rust",
-    without: `// Manual Redis state management
-use redis::{AsyncCommands, Client};
-use std::collections::HashMap;
-
-struct StateManager {
-    redis: ConnectionManager,
-}
-
-impl StateManager {
-    async fn get(&self, workflow_id: &str, key: &str) -> Option<Value> {
-        let hash_key = format!("state:{}:{}", workflow_id, key);
-        let data: Option<String> = self.redis
-            .hget(&hash_key, "value")
-            .await
-            .ok()?;
-        
-        data.and_then(|d| serde_json::from_str(&d).ok())
-    }
+// Step 1: Extract
+bridge.registerFunction(
+  { function_path: 'etl.extract' },
+  async ({ pipeline }) => {
+    const { logger } = getContext()
     
-    async fn set(&self, workflow_id: &str, key: &str, value: Value) {
-        let hash_key = format!("state:{}:{}", workflow_id, key);
-        let json = serde_json::to_string(&value).unwrap();
-        
-        let _: () = self.redis
-            .hset(&hash_key, "value", &json)
-            .await
-            .unwrap();
-    }
+    // Get checkpoint from StateModule
+    const checkpoint = await bridge.invokeFunction('state.get', {
+      workflow_id: pipeline, key: 'checkpoint'
+    })
     
-    async fn delete(&self, workflow_id: &str, key: &str) {
-        let hash_key = format!("state:{}:{}", workflow_id, key);
-        let _: () = self.redis.del(&hash_key).await.unwrap();
-    }
+    const users = await db.users.find({
+      updated_at: { $gt: checkpoint || new Date(0) }
+    })
     
-    async fn clear(&self, workflow_id: &str) {
-        // Scan and delete all keys matching pattern...
-    }
-}`,
-    with: `// iii State Adapter - redis_adapter.rs
-use crate::modules::state::{StateAdapter, StateEntry};
-use async_trait::async_trait;
-
-pub struct RedisStateAdapter {
-    connection: Arc<Mutex<ConnectionManager>>,
-}
-
-#[async_trait]
-impl StateAdapter for RedisStateAdapter {
-    async fn get(&self, workflow_id: &str, key: &str) -> Option<StateEntry> {
-        let mut conn = self.connection.lock().await;
-        let hash_key = format!("state:{}:{}", workflow_id, key);
-        
-        let value: Option<String> = conn.hget(&hash_key, "value").await.ok()?;
-        let trace_id: Option<String> = conn.hget(&hash_key, "trace_id").await.ok();
-        
-        value.map(|v| StateEntry {
-            key: key.to_string(),
-            value: serde_json::from_str(&v).ok()?,
-            trace_id,
-        })
-    }
-
-    async fn set(&self, workflow_id: &str, key: &str, value: Value, trace_id: Option<&str>) {
-        let mut conn = self.connection.lock().await;
-        let hash_key = format!("state:{}:{}", workflow_id, key);
-        
-        let json = serde_json::to_string(&value)?;
-        conn.hset(&hash_key, "value", &json).await?;
-        
-        if let Some(tid) = trace_id {
-            conn.hset(&hash_key, "trace_id", tid).await?;
-        }
-        
-        // Add to workflow's key set for listing
-        conn.sadd(format!("state:{}:keys", workflow_id), key).await?;
-        
-        tracing::debug!(workflow_id = %workflow_id, key = %key, "State set");
-    }
-
-    async fn delete(&self, workflow_id: &str, key: &str) {
-        let mut conn = self.connection.lock().await;
-        conn.del(format!("state:{}:{}", workflow_id, key)).await?;
-        conn.srem(format!("state:{}:keys", workflow_id), key).await?;
-    }
-}`,
-  },
-  excel: {
-    description: "Observability Adapter: Structured logging with trace correlation.",
-    language: "rust",
-    without: `// Manual logging with tracing
-use tracing::{info, warn, error, span, Level};
-use tracing_subscriber::fmt;
-
-fn setup_logging() {
-    tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
-        .with_target(true)
-        .json()
-        .init();
-}
-
-async fn handle_request(req: Request) {
-    let span = span!(Level::INFO, "request", 
-        trace_id = %req.trace_id,
-        path = %req.path
-    );
-    let _guard = span.enter();
+    logger.info('Extracted users', { count: users.length })
     
-    info!("Processing request");
+    // Trigger transform step
+    bridge.invokeFunctionAsync('etl.transform', { pipeline, users })
     
-    match process(req).await {
-        Ok(result) => {
-            info!(result = ?result, "Request completed");
-        }
-        Err(e) => {
-            error!(error = %e, "Request failed");
-        }
-    }
-}`,
-    with: `// iii Observability Adapter - redis_logger.rs
-use crate::modules::observability::LogAdapter;
-use async_trait::async_trait;
+    return { extracted: users.length }
+  }
+)
 
-pub struct RedisLogAdapter {
-    connection: Arc<Mutex<ConnectionManager>>,
-    buffer: Arc<Mutex<Vec<LogEntry>>>,
-}
+// Step 2: Transform
+bridge.registerFunction(
+  { function_path: 'etl.transform' },
+  async ({ pipeline, users }) => {
+    const transformed = users.map(user => ({
+      user_id: user.id,
+      lifetime_value: calculateLTV(user),
+      segment: classifySegment(user),
+    }))
+    
+    // Trigger load step
+    bridge.invokeFunctionAsync('etl.load', { pipeline, data: transformed })
+    
+    return { transformed: transformed.length }
+  }
+)
 
-#[async_trait]
-impl LogAdapter for RedisLogAdapter {
-    async fn log(&self, entry: LogEntry) {
-        let mut buffer = self.buffer.lock().await;
-        buffer.push(entry.clone());
-        
-        // Flush when buffer is full
-        if buffer.len() >= 100 {
-            self.flush_buffer(&mut buffer).await;
-        }
-    }
+// Step 3: Load
+bridge.registerFunction(
+  { function_path: 'etl.load' },
+  async ({ pipeline, data }) => {
+    const { logger } = getContext()
+    
+    await warehouse.bulkInsert('user_analytics', data)
+    
+    // Update checkpoint
+    await bridge.invokeFunction('state.set', {
+      workflow_id: pipeline,
+      key: 'checkpoint',
+      value: new Date().toISOString()
+    })
+    
+    logger.info('Pipeline complete', { loaded: data.length })
+    return { loaded: data.length }
+  }
+)
 
-    async fn flush(&self) {
-        let mut buffer = self.buffer.lock().await;
-        self.flush_buffer(&mut buffer).await;
-    }
-}
-
-impl RedisLogAdapter {
-    async fn flush_buffer(&self, buffer: &mut Vec<LogEntry>) {
-        if buffer.is_empty() { return; }
-        
-        let mut conn = self.connection.lock().await;
-        let entries: Vec<String> = buffer
-            .drain(..)
-            .filter_map(|e| serde_json::to_string(&e).ok())
-            .collect();
-        
-        // Push to Redis stream for real-time tailing
-        for entry in entries {
-            conn.xadd("logs:stream", "*", &[("data", &entry)]).await?;
-        }
-        
-        tracing::debug!(count = buffer.len(), "Logs flushed to Redis");
-    }
-}
-
-crate::register_adapter!(<LogAdapterRegistration>
-    "modules::observability::RedisLogAdapter", make_adapter);`,
+// Schedule with CronModule
+bridge.registerTrigger({
+  trigger_type: 'cron',
+  function_path: 'etl.extract',
+  config: { schedule: '0 2 * * *' }  // 2am daily
+})`,
+    },
+    linesTraditional: 56,
+    linesIII: 58,
   },
 };
 
+interface ToolBadgeProps {
+  tool: string;
+  isDarkMode: boolean;
+}
+
+const ToolBadge: React.FC<ToolBadgeProps> = ({ tool, isDarkMode }) => {
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium transition-colors ${
+        isDarkMode
+          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+          : "bg-red-100 text-red-700 border border-red-200"
+      }`}
+    >
+      {tool}
+    </span>
+  );
+}
+
 function CodeBlock({
   code,
+  title,
+  tools,
   variant,
   isDarkMode,
-  language = "tsx",
+  language = "typescript",
+  lineCount,
 }: {
   code: string;
-  variant: "without" | "with";
+  title: string;
+  tools?: string[];
+  variant: "traditional" | "iii";
   isDarkMode: boolean;
   language?: string;
+  lineCount: number;
 }) {
+  const isTraditional = variant === "traditional";
+
   return (
     <div
-      className={`rounded-lg sm:rounded-xl overflow-hidden border h-full flex flex-col transition-colors duration-300 min-h-[200px] max-h-[50vh] sm:max-h-[60vh] md:max-h-[70vh] ${
+      className={`rounded-lg sm:rounded-xl overflow-hidden border h-full flex flex-col transition-colors duration-300 ${
         isDarkMode
           ? "border-iii-dark bg-iii-black"
           : "border-iii-medium/30 bg-white"
       }`}
     >
+      {/* Header */}
       <div
-        className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b transition-colors duration-300 flex-shrink-0 ${
+        className={`flex flex-col gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b transition-colors duration-300 flex-shrink-0 ${
           isDarkMode
             ? "border-iii-dark bg-iii-dark/50"
             : "border-iii-medium/20 bg-iii-light/50"
         }`}
       >
-        <div
-          className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            variant === "with"
-              ? isDarkMode
-                ? "bg-iii-accent"
-                : "bg-iii-accent-light"
-              : "bg-red-500"
-          }`}
-        />
-        <span
-          className={`text-xs sm:text-sm transition-colors duration-300 ${
-            isDarkMode ? "text-iii-medium" : "text-iii-medium"
-          }`}
-        >
-          {variant === "with" ? "With iii" : "Without iii"}
-        </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                isTraditional
+                  ? "bg-red-500"
+                  : isDarkMode
+                    ? "bg-iii-accent"
+                    : "bg-iii-accent-light"
+              }`}
+            />
+            <span
+              className={`text-xs sm:text-sm font-medium transition-colors duration-300 ${
+                isDarkMode ? "text-iii-light" : "text-iii-black"
+              }`}
+            >
+              {title}
+            </span>
+          </div>
+          <span
+            className={`text-[10px] sm:text-xs px-2 py-0.5 rounded font-medium transition-colors ${
+              isTraditional
+                ? isDarkMode
+                  ? "bg-red-500/20 text-red-300"
+                  : "bg-red-100 text-red-700"
+                : isDarkMode
+                  ? "bg-iii-accent/20 text-iii-accent"
+                  : "bg-iii-accent-light/20 text-iii-accent-light"
+            }`}
+          >
+            {lineCount} lines
+          </span>
+        </div>
+        {tools && tools.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {tools.map((tool) => (
+              <ToolBadge key={tool} tool={tool} isDarkMode={isDarkMode} />
+            ))}
+          </div>
+        )}
       </div>
-      <div className="p-2 sm:p-3 md:p-4 overflow-auto flex-1">
+
+      {/* Code */}
+      <div className="p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px]">
         <Highlight
           theme={isDarkMode ? themes.nightOwl : themes.github}
           code={code.trim()}
           language={language as any}
         >
           {({ tokens, getLineProps, getTokenProps }) => (
-            <pre className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm font-mono leading-relaxed overflow-x-auto">
+            <pre className="text-[9px] sm:text-[10px] md:text-xs font-mono leading-relaxed overflow-x-auto">
               {tokens.map((line, i) => (
-                <div key={i} {...getLineProps({ line })} className="whitespace-pre">
+                <div
+                  key={i}
+                  {...getLineProps({ line })}
+                  className="whitespace-pre"
+                >
+                  <span
+                    className={`inline-block w-6 sm:w-8 text-right mr-2 sm:mr-3 select-none ${
+                      isDarkMode ? "text-[#4A4A4A]" : "text-iii-medium/40"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
                   {line.map((token, key) => (
                     <span key={key} {...getTokenProps({ token })} />
                   ))}
@@ -1087,6 +1539,131 @@ function CodeBlock({
   );
 }
 
+function SavingsIndicator({
+  traditional,
+  iii,
+  isDarkMode,
+}: {
+  traditional: number;
+  iii: number;
+  isDarkMode: boolean;
+}) {
+  const reduction = Math.round(((traditional - iii) / traditional) * 100);
+  const toolsReplaced = Math.floor(Math.random() * 3) + 2; // 2-4 tools
+
+  return (
+    <div
+      className={`flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 py-3 sm:py-4 px-4 rounded-lg transition-colors ${
+        isDarkMode ? "bg-iii-dark/30" : "bg-iii-light"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <svg
+          className={`w-4 h-4 sm:w-5 sm:h-5 ${
+            isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+          />
+        </svg>
+        <span
+          className={`text-xs sm:text-sm ${
+            isDarkMode ? "text-[#C0C0C0]" : "text-iii-black"
+          }`}
+        >
+          <span
+            className={`font-bold ${
+              isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+            }`}
+          >
+            {reduction}%
+          </span>{" "}
+          less code
+        </span>
+      </div>
+      <div
+        className={`hidden sm:block w-px h-4 ${
+          isDarkMode ? "bg-[#3A3A3A]" : "bg-iii-medium/30"
+        }`}
+      />
+      <div className="flex items-center gap-2">
+        <svg
+          className={`w-4 h-4 sm:w-5 sm:h-5 ${
+            isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+          />
+        </svg>
+        <span
+          className={`text-xs sm:text-sm ${
+            isDarkMode ? "text-[#C0C0C0]" : "text-iii-black"
+          }`}
+        >
+          <span
+            className={`font-bold ${
+              isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+            }`}
+          >
+            {toolsReplaced}+
+          </span>{" "}
+          tools replaced
+        </span>
+      </div>
+      <div
+        className={`hidden sm:block w-px h-4 ${
+          isDarkMode ? "bg-[#3A3A3A]" : "bg-iii-medium/30"
+        }`}
+      />
+      <div className="flex items-center gap-2">
+        <svg
+          className={`w-4 h-4 sm:w-5 sm:h-5 ${
+            isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"
+          />
+        </svg>
+        <span
+          className={`text-xs sm:text-sm ${
+            isDarkMode ? "text-[#C0C0C0]" : "text-iii-black"
+          }`}
+        >
+          <span
+            className={`font-bold ${
+              isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+            }`}
+          >
+            Any
+          </span>{" "}
+          language
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface ExampleCodeSectionProps {
   isDarkMode?: boolean;
 }
@@ -1094,18 +1671,9 @@ interface ExampleCodeSectionProps {
 export function ExampleCodeSection({
   isDarkMode = true,
 }: ExampleCodeSectionProps) {
-  const [activeTab, setActiveTab] = useState<"ecosystem" | "protocol">(
-    "ecosystem"
-  );
-  const [activeSubTab, setActiveSubTab] = useState("async");
+  const [activeCategory, setActiveCategory] = useState("api");
 
-  const currentSubTabs = subTabs[activeTab];
-  const currentExample = codeExamples[activeSubTab];
-
-  const handleTabChange = (tab: "ecosystem" | "protocol") => {
-    setActiveTab(tab);
-    setActiveSubTab(subTabs[tab][0].id);
-  };
+  const currentExample = codeExamples[activeCategory];
 
   return (
     <section
@@ -1117,107 +1685,127 @@ export function ExampleCodeSection({
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8 md:mb-12 space-y-2 sm:space-y-3 md:space-y-4">
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter">
-            Let's see some{" "}
+            Stop{" "}
             <span
-              className={`bg-clip-text text-transparent ${
-                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light "
+              className={`bg-clip-text text-transparent bg-gradient-to-r ${
+                isDarkMode
+                  ? "from-red-400 to-red-600"
+                  : "from-red-500 to-red-700"
               }`}
             >
-              code
+              assembling
+            </span>
+            {", start "}
+            <span
+              className={`${
+                isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+              }`}
+            >
+              building
             </span>
           </h2>
-          <p className="text-iii-medium text-xs sm:text-sm md:text-base lg:text-lg max-w-2xl mx-auto px-2">
-            This is how application code is when it's backed by iii. Notice
-            anything?
+          <p
+            className={`text-xs sm:text-sm md:text-base lg:text-lg max-w-3xl mx-auto px-2 ${
+              isDarkMode ? "text-[#A0A0A0]" : "text-iii-medium"
+            }`}
+          >
+            Every backend ends up needing the same pieces: APIs, jobs, events,
+            state, real-time, cron, logging. With iii, it's one runtime instead
+            of a dozen tools.
           </p>
         </div>
 
-        {/* Main tabs */}
-        <div className="flex justify-center mb-3 sm:mb-4 md:mb-6">
-          <div
-            className={`inline-flex rounded-lg border p-0.5 sm:p-1 transition-colors duration-300 ${
-              isDarkMode
-                ? "border-iii-dark bg-iii-dark/50"
-                : "border-iii-medium/30 bg-white/50"
-            }`}
-          >
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() =>
-                  handleTabChange(tab.id as "ecosystem" | "protocol")
-                }
-                className={`px-3 sm:px-4 md:px-6 py-1 sm:py-1.5 md:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? isDarkMode
-                      ? "bg-iii-light text-iii-black"
-                      : "bg-iii-black text-iii-light"
-                    : isDarkMode
-                    ? "text-iii-medium hover:text-iii-light"
-                    : "text-iii-medium hover:text-iii-black"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sub tabs - scrollable on mobile */}
+        {/* Category Pills */}
         <div className="mb-4 sm:mb-6 md:mb-8">
           <div className="flex overflow-x-auto scrollbar-hide pb-2 justify-center">
             <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center px-2">
-            {currentSubTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSubTab(tab.id)}
-                  className={`px-2.5 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs md:text-sm transition-colors whitespace-nowrap ${
-                  activeSubTab === tab.id
-                    ? isDarkMode
-                      ? "bg-iii-dark text-iii-light"
-                      : "bg-iii-medium/20 text-iii-black"
-                    : isDarkMode
-                    ? "text-iii-medium hover:text-iii-light"
-                    : "text-iii-medium hover:text-iii-black"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setActiveCategory(category.id)}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs md:text-sm transition-all whitespace-nowrap font-medium ${
+                    activeCategory === category.id
+                      ? isDarkMode
+                        ? "bg-iii-light text-iii-black"
+                        : "bg-iii-black text-iii-light"
+                      : isDarkMode
+                        ? "text-[#A0A0A0] hover:text-iii-light hover:bg-iii-dark/50 border border-iii-dark"
+                        : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border border-iii-medium/20"
+                  }`}
+                >
+                  {category.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Description */}
         {currentExample && (
-          <div className="min-h-[2.5rem] sm:min-h-[3rem] md:min-h-[4rem] mb-3 sm:mb-4 md:mb-6 max-w-xl mx-auto flex items-center justify-center px-2">
-            <p className="text-center text-iii-medium line-clamp-3 text-[10px] sm:text-xs md:text-sm leading-4 sm:leading-5 md:leading-6">
+          <div className="min-h-[2.5rem] sm:min-h-[3rem] md:min-h-[4rem] mb-3 sm:mb-4 md:mb-6 max-w-2xl mx-auto flex items-center justify-center px-2">
+            <p
+              className={`text-center text-[11px] sm:text-xs md:text-sm leading-5 sm:leading-6 ${
+                isDarkMode ? "text-[#A0A0A0]" : "text-iii-medium"
+              }`}
+            >
               {currentExample.description}
             </p>
           </div>
         )}
 
-        {/* Code comparison - stack on mobile and tablet, side-by-side on large screens */}
+        {/* Code comparison */}
         {currentExample && (
+          <div className="space-y-4 sm:space-y-6">
           <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-6">
             <div className="flex-1 min-w-0">
             <CodeBlock
-              code={currentExample.without}
-              variant="without"
+                  code={currentExample.traditional.code}
+                  title={currentExample.traditional.title}
+                  tools={currentExample.traditional.tools}
+                  variant="traditional"
               isDarkMode={isDarkMode}
-              language={currentExample.language}
+                  language={currentExample.traditional.language}
+                  lineCount={currentExample.linesTraditional}
             />
             </div>
             <div className="flex-1 min-w-0">
             <CodeBlock
-              code={currentExample.with}
-              variant="with"
+                  code={currentExample.iii.code}
+                  title={currentExample.iii.title}
+                  variant="iii"
               isDarkMode={isDarkMode}
-              language={currentExample.language}
+                  language={currentExample.iii.language}
+                  lineCount={currentExample.linesIII}
             />
             </div>
+            </div>
+
+            {/* Savings indicator */}
+            <SavingsIndicator
+              traditional={currentExample.linesTraditional}
+              iii={currentExample.linesIII}
+              isDarkMode={isDarkMode}
+            />
           </div>
         )}
+
+        {/* Bottom tagline */}
+        <div className="mt-8 sm:mt-10 md:mt-12 text-center">
+          <p
+            className={`text-sm sm:text-base md:text-lg font-medium ${
+              isDarkMode ? "text-[#A0A0A0]" : "text-iii-medium"
+            }`}
+          >
+            One protocol. Any language.{" "}
+            <span
+              className={`font-bold ${
+                isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+              }`}
+            >
+              Zero assembly required.
+            </span>
+          </p>
+        </div>
       </div>
     </section>
   );
