@@ -142,3 +142,53 @@ body.light-mode {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Brand scrollbar for dark mode (yellow accent) */
+.scrollbar-brand-dark {
+  scrollbar-width: thin;
+  scrollbar-color: #333333 #000000;
+}
+
+.scrollbar-brand-dark::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-brand-dark::-webkit-scrollbar-track {
+  background: #1d1d1d;
+  border-radius: 3px;
+}
+
+.scrollbar-brand-dark::-webkit-scrollbar-thumb {
+  background: #444444;
+  border-radius: 3px;
+}
+
+.scrollbar-brand-dark::-webkit-scrollbar-thumb:hover {
+  background: #f3f724;
+}
+
+/* Brand scrollbar for light mode (blue accent) */
+.scrollbar-brand-light {
+  scrollbar-width: thin;
+  scrollbar-color: #cccccc #f4f4f4;
+}
+
+.scrollbar-brand-light::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-brand-light::-webkit-scrollbar-track {
+  background: #e8e8e8;
+  border-radius: 3px;
+}
+
+.scrollbar-brand-light::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 3px;
+}
+
+.scrollbar-brand-light::-webkit-scrollbar-thumb:hover {
+  background: #1d4ed8;
+}
