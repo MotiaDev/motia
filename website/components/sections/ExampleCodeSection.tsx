@@ -1505,7 +1505,11 @@ function CodeBlock({
       </div>
 
       {/* Code */}
-      <div className="p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px]">
+      <div
+        className={`p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] ${
+          isDarkMode ? "scrollbar-brand-dark" : "scrollbar-brand-light"
+        }`}
+      >
         <Highlight
           theme={isDarkMode ? themes.nightOwl : themes.github}
           code={code.trim()}
