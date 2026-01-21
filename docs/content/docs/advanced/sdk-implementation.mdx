@@ -29,21 +29,28 @@ sequenceDiagram
     participant Bridge
     participant Engine
 
-    Worker->>Bridge: Register Function/Trigger
+    Worker->>Bridge: Register Function/Triggers
+    Note over Bridge: Step has 3 triggers
     Bridge->>Bridge: Store in Local Registry
 
     Worker->>Bridge: Connect()
     Bridge->>Engine: WebSocket Handshake
     activate Engine
 
-    Note over Bridge, Engine: On Open
+    Note over Bridge, Engine: On Open - Register All
     Bridge->>Engine: Send RegisterTriggerType
     Bridge->>Engine: Send RegisterService
-    Bridge->>Engine: Send RegisterFunction
-    Bridge->>Engine: Send RegisterTrigger
+    Bridge->>Engine: Send RegisterFunction (handler)
+    Bridge->>Engine: Send RegisterTrigger (index:0)
+    Bridge->>Engine: Send RegisterCondition (index:0)
+    Bridge->>Engine: Send RegisterTrigger (index:1)
+    Bridge->>Engine: Send RegisterCondition (index:1)
+    Bridge->>Engine: Send RegisterTrigger (index:2)
 
     Engine-->>Bridge: Acknowledge (Implicit)
     deactivate Engine
+    
+    Note over Engine: Triggers registered:<br/>steps.StepName:trigger:0<br/>steps.StepName:trigger:1<br/>steps.StepName:trigger:2
 ```
 
 ### Message Types and Protocol
@@ -54,8 +61,146 @@ The SDKs implement specific message types to communicate with the engine. These 
 |--------------|-------------|------------|
 | `RegisterFunction` | Registers a callable function with the engine | `function_path`, `description` |
 | `RegisterTrigger` | Binds a specific configuration to a trigger type | `trigger_type`, `function_path`, `config` |
+| `RegisterCondition` | Registers a condition function for conditional trigger execution | `function_path`, `condition_function_path` |
 | `InvokeFunction` | Requests the engine to execute a function | `function_path`, `data` |
 | `InvocationResult` | Returns the result of a function execution | `invocation_id`, `result`, `error` |
+
+### Multi-Trigger Architecture
+
+Steps can have multiple triggers of different types (API, Event, Cron), all routing to the same handler function. The engine assigns each trigger a unique indexed function path.
+
+#### Trigger Indexing
+
+Each trigger in a step gets a unique function path using the format: `steps.{StepName}:trigger:{index}`
+
+```mermaid
+graph LR
+    Step[Step: ProcessOrder] --> Trigger0[Trigger 0: API POST /orders]
+    Step --> Trigger1[Trigger 1: Event order.created]
+    Step --> Trigger2[Trigger 2: Cron 0 * * * *]
+    
+    Trigger0 --> Path0[steps.ProcessOrder:trigger:0]
+    Trigger1 --> Path1[steps.ProcessOrder:trigger:1]
+    Trigger2 --> Path2[steps.ProcessOrder:trigger:2]
+    
+    Path0 --> Handler[Handler Function]
+    Path1 --> Handler
+    Path2 --> Handler
+```
+
+**Index**: Corresponds to the trigger's position in the `triggers` array (0-based).
+
+#### TriggerInput Normalization
+
+All triggers normalize their input to a unified `TriggerInput` structure before invoking the handler:
+
+```typescript
+interface TriggerInput {
+  trigger: TriggerMetadata
+  request: ApiRequest | null  // Only for API triggers
+  data: any                   // Payload data
+}
+
+interface TriggerMetadata {
+  type: 'api' | 'event' | 'cron'
+  index: number
+  // Type-specific fields
+  path?: string        // API only
+  method?: string      // API only
+  topic?: string       // Event only
+  expression?: string  // Cron only
+}
+```
+
+**Example Flow**:
+
+```mermaid
+sequenceDiagram
+    participant Engine
+    participant Module as Event Module
+    participant Worker
+    
+    Note over Engine: Event "order.created" received
+    Module->>Engine: Route to trigger index 1
+    Engine->>Worker: Invoke steps.ProcessOrder:trigger:1
+    Note over Worker: Normalize to TriggerInput
+    Worker->>Worker: Check condition (if any)
+    Worker->>Worker: Execute handler
+    Worker-->>Engine: Return result
+```
+
+**Benefits**:
+- One handler serves multiple trigger types
+- Access trigger metadata via `ctx.trigger` or `trigger` parameter
+- Consistent input structure across all trigger types
+
+### Condition Evaluation
+
+Conditions are functions that run before the handler to determine if execution should proceed. They receive the same `TriggerInput` as the handler.
+
+#### Condition Flow
+
+```mermaid
+sequenceDiagram
+    participant Engine
+    participant Worker
+    participant Condition
+    participant Handler
+    
+    Engine->>Worker: Invoke steps.Order:trigger:0
+    Worker->>Condition: Evaluate condition(input, ctx)
+    
+    alt Condition returns false
+        Condition-->>Worker: false
+        Worker-->>Engine: Skip (no execution)
+    else Condition returns true
+        Condition-->>Worker: true
+        Worker->>Handler: Execute handler(input, ctx)
+        Handler-->>Worker: Result
+        Worker-->>Engine: Result
+    end
+```
+
+#### Condition Function Signature
+
+**Python**:
+```python
+def condition_name(input: Any, ctx: FlowContext) -> bool:
+    # Evaluate based on input data
+    return input.get("amount", 0) > 1000
+
+# Or async
+async def async_condition(input: Any, ctx: FlowContext) -> bool:
+    user = await fetch_user(input.get("user_id"))
+    return user.is_verified
+```
+
+**TypeScript**:
+```typescript
+const conditionName = (input: any, ctx: FlowContext): boolean => {
+  // Evaluate based on input data
+  return input?.amount > 1000
+}
+
+// Or async
+const asyncCondition = async (input: any, ctx: FlowContext): Promise<boolean> => {
+  const user = await fetchUser(input?.userId)
+  return user.isVerified
+}
+```
+
+#### Condition Registration
+
+Conditions are registered separately from the main handler:
+
+1. **Handler Registration**: `steps.{StepName}:trigger:{index}`
+2. **Condition Registration**: `steps.{StepName}:trigger:{index}:condition`
+
+The engine evaluates the condition before invoking the handler. If the condition returns `false`, the handler is never called.
+
+**Short-Circuit Behavior**: The first `false` condition stops execution immediately.
+
+> **See Examples**: For practical examples of multi-trigger steps and conditions in action, see [Motia SDK - Multiple Triggers](/docs/quickstart/motia-sdk#multiple-triggers) and [Trigger Conditions](/docs/quickstart/motia-sdk#trigger-conditions).
 
 ## Python Implementation
 
@@ -185,6 +330,7 @@ classDiagram
 
     class FlowContext {
         +Emitter emit
+        +TriggerMetadata trigger
         +String trace_id
         +StateManager state
         +Logger logger
@@ -206,6 +352,25 @@ The `FlowContext` passed to handlers provides access to:
   ```python
   await ctx.emit("user.created", {"id": "123"})
   ```
+</ResponseField>
+
+<ResponseField name="trigger" type="TriggerMetadata">
+  Metadata about which trigger invoked the handler.
+
+  ```python
+  # Access trigger information
+  if ctx.trigger.type == "api":
+      print(f"API {ctx.trigger.method} {ctx.trigger.path}")
+  elif ctx.trigger.type == "event":
+      print(f"Event {ctx.trigger.topic}")
+  elif ctx.trigger.type == "cron":
+      print(f"Cron {ctx.trigger.expression}")
+  
+  # Access trigger index
+  print(f"Trigger index: {ctx.trigger.index}")
+  ```
+
+  **Fields**: `type`, `index`, `path`, `method`, `topic`, `expression` (type-specific)
 </ResponseField>
 
 <ResponseField name="state" type="InternalStateManager">
@@ -489,7 +654,7 @@ The `_compose_middleware` function recursively wraps handlers, creating an execu
 ### Example Middleware
 
 ```python
-from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, step_wrapper
+from motia import StepConfig, ApiTrigger, ApiRequest, ApiResponse, FlowContext, step_wrapper
 
 # Define middleware
 async def auth_middleware(req: ApiRequest, ctx: FlowContext, next_handler):
@@ -515,12 +680,15 @@ async def auth_middleware(req: ApiRequest, ctx: FlowContext, next_handler):
     return response
 
 # Use middleware in step
-config = ApiRouteConfig(
-    type="api",
+config = StepConfig(
     name="protected-route",
-    path="/protected",
-    method="GET",
-    middleware=[auth_middleware]
+    triggers=[
+        ApiTrigger(
+            path="/protected",
+            method="GET",
+            middleware=[auth_middleware]
+        )
+    ]
 )
 
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
@@ -650,7 +818,7 @@ await bridge.connect();
 
     ```python
     # Prefer Motia
-    from motia import step_wrapper, ApiRouteConfig
+    from motia import step_wrapper, StepConfig, ApiTrigger
 
     # Over raw Bridge
     from iii import Bridge
