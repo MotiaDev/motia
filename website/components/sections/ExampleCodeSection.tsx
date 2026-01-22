@@ -413,10 +413,20 @@ bridge.registerFunction(
 bridge.registerFunction(
   { function_path: 'chat.sendMessage' },
   async ({ roomId, content, userId }) => {
-    const message = { id: crypto.randomUUID(), content, userId, timestamp: new Date().toISOString() }
+    const message = {
+      id: crypto.randomUUID(),
+      content,
+      userId,
+      timestamp: new Date().toISOString()
+    }
     
-    // Set in stream - subscribers notified automatically
-    await chatStream.set({ stream_name: 'chat', group_id: roomId, item_id: message.id, data: message })
+    // Set in stream - subscribers notified
+    await chatStream.set({
+      stream_name: 'chat',
+      group_id: roomId,
+      item_id: message.id,
+      data: message
+    })
     
     return message
   }
@@ -1316,12 +1326,26 @@ def transform_users(**context):
     context['ti'].xcom_push(key='transformed', value=transformed)
 
 def load_to_warehouse(**context):
-    data = context['ti'].xcom_pull(key='transformed', task_ids='transform')
+    data = context['ti'].xcom_pull(
+        key='transformed', task_ids='transform'
+    )
     warehouse.bulk_insert('user_analytics', data)
 
-extract = PythonOperator(task_id='extract', python_callable=extract_users, dag=dag)
-transform = PythonOperator(task_id='transform', python_callable=transform_users, dag=dag)
-load = PythonOperator(task_id='load', python_callable=load_to_warehouse, dag=dag)
+extract = PythonOperator(
+    task_id='extract',
+    python_callable=extract_users,
+    dag=dag
+)
+transform = PythonOperator(
+    task_id='transform',
+    python_callable=transform_users,
+    dag=dag
+)
+load = PythonOperator(
+    task_id='load',
+    python_callable=load_to_warehouse,
+    dag=dag
+)
 
 extract >> transform >> load
 
@@ -1371,7 +1395,10 @@ bridge.registerFunction(
     }))
     
     // Trigger load step
-    bridge.invokeFunctionAsync('etl.load', { pipeline, data: transformed })
+    bridge.invokeFunctionAsync('etl.load', {
+      pipeline,
+      data: transformed
+    })
     
     return { transformed: transformed.length }
   }
@@ -1981,9 +2008,9 @@ export function ExampleCodeSection({
 
         {/* Code comparison */}
         {currentExample && (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-6 lg:max-w-[90%] lg:mx-auto">
             <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-6">
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 lg:w-[calc(50%-0.75rem)]">
                 <CodeBlock
                   code={currentExample.traditional.code}
                   title={currentExample.traditional.title}
@@ -1993,7 +2020,7 @@ export function ExampleCodeSection({
                   language={currentExample.traditional.language}
                 />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 lg:w-[calc(50%-0.75rem)]">
                 <CodeBlock
                   code={currentExample.iii.code}
                   title={currentExample.iii.title}
