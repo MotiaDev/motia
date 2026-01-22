@@ -26,34 +26,42 @@ export const MachineView: React.FC<MachineViewProps> = ({
     >
       {/* Matching nav bar */}
       <nav
-        className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
           isDarkMode
-            ? "border-iii-dark/50 bg-iii-black/80"
-            : "border-iii-medium/20 bg-iii-light/80"
+            ? "border-iii-light bg-iii-black/90"
+            : "border-iii-dark bg-iii-light/90"
         }`}
       >
-        <div className="cursor-pointer" onClick={onLogoClick}>
-          <Logo
-            className={`h-6 md:h-10 ${
-              isGodMode
-                ? "text-red-500"
-                : isDarkMode
-                ? "text-iii-light"
-                : "text-iii-black"
-            }`}
-            accentColor={
-              isGodMode
-                ? "fill-red-500"
-                : isDarkMode
-                ? "fill-iii-accent"
-                : "fill-iii-accent-light"
-            }
+        <div className="flex items-center gap-4">
+          <div className="cursor-pointer" onClick={onLogoClick}>
+            <Logo
+              className={`h-6 md:h-10 ${
+                isGodMode
+                  ? "text-red-500"
+                  : isDarkMode
+                  ? "text-iii-light"
+                  : "text-iii-black"
+              }`}
+              accentColor={
+                isGodMode
+                  ? "fill-red-500"
+                  : isDarkMode
+                  ? "fill-iii-accent"
+                  : "fill-iii-accent-light"
+              }
+            />
+          </div>
+          {/* Human/Machine Toggle */}
+          <ModeToggle
+            isHumanMode={false}
+            onToggle={onToggleMode}
+            isDarkMode={isDarkMode}
           />
         </div>
       </nav>
 
       {/* Content - Machine readable markdown */}
-      <div className="flex-1 text-xs md:text-sm leading-relaxed p-4 md:p-8 lg:p-12 pb-20 overflow-x-hidden">
+      <div className="flex-1 text-xs md:text-sm leading-relaxed p-4 md:p-8 lg:p-12 pt-20 md:pt-24 pb-8 overflow-x-hidden">
         <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 break-words">
           {/* Header */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`III
@@ -1360,27 +1368,6 @@ command -v iii && iii --version
 © 2025 III, Inc.
 Version: 0.1.0-alpha`}</pre>
         </div>
-      </div>
-
-      {/* Floating footer with toggle only */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-        <div className="flex justify-center pb-6">
-          <div className="pointer-events-auto">
-            <ModeToggle
-              isHumanMode={false}
-              onToggle={onToggleMode}
-              isDarkMode={isDarkMode}
-            />
-          </div>
-        </div>
-        {/* Gradient fade for elegance */}
-        <div
-          className={`absolute inset-0 -z-10 ${
-            isDarkMode
-              ? "bg-gradient-to-t from-iii-black/80 via-iii-black/40 to-transparent"
-              : "bg-gradient-to-t from-iii-light/80 via-iii-light/40 to-transparent"
-          }`}
-        />
       </div>
     </div>
   );

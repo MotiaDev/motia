@@ -46,6 +46,26 @@ const App: React.FC = () => {
     return localStorage.getItem("iii_access_requested") === "true";
   });
 
+  // Navbar scroll state
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [installCopied, setInstallCopied] = useState(false);
+  const installCmd = "curl -fsSL iii.sh/install.sh | sh";
+
+  // Track scroll position for navbar shrinking
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleInstallClick = () => {
+    navigator.clipboard.writeText(installCmd);
+    setInstallCopied(true);
+    setTimeout(() => setInstallCopied(false), 3000);
+  };
+
   // Restore access state from localStorage on mount
   useEffect(() => {
     const hasAccess = localStorage.getItem("iii_access_requested") === "true";
@@ -246,42 +266,81 @@ const App: React.FC = () => {
       {/* <GridBackground isDarkMode={isDarkMode} /> */}
 
       <nav
-        className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 w-full px-4 md:px-12 flex justify-between items-center border-b backdrop-blur-lg transition-all duration-300 ${
+          isScrolled ? "py-2 md:py-2" : "py-4 md:py-6"
+        } ${
           isDarkMode
-            ? "border-iii-light bg-iii-black/80"
-            : "border-iii-dark bg-iii-light/80"
+            ? "border-iii-light bg-iii-black/90"
+            : "border-iii-dark bg-iii-light/90"
         }`}
       >
-        <div
-          className="cursor-pointer"
-          onClick={handleLogoClick}
-          onMouseEnter={() => setIsLogoHovered(true)}
-          onMouseLeave={() => setIsLogoHovered(false)}
-        >
-          <Logo
-            className={`h-6 md:h-10 ${
-              isGodMode
-                ? "text-red-500"
-                : isDarkMode
-                ? "text-iii-light"
-                : "text-iii-black"
-            }`}
-            highlightCount={logoClickCount > 0 ? logoClickCount : undefined}
-            highlightIndex={logoClickCount === 0 ? hoverAnimIndex : undefined}
-            accentColor={
-              isGodMode
-                ? "fill-red-500"
-                : isDarkMode
-                ? "fill-iii-accent"
-                : "fill-iii-accent-light"
-            }
-          />
+        <div className="flex items-center gap-4">
+          <div
+            className="cursor-pointer"
+            onClick={handleLogoClick}
+            onMouseEnter={() => setIsLogoHovered(true)}
+            onMouseLeave={() => setIsLogoHovered(false)}
+          >
+            <Logo
+              className={`transition-all duration-300 ${
+                isScrolled ? "h-5 md:h-7" : "h-6 md:h-10"
+              } ${
+                isGodMode
+                  ? "text-red-500"
+                  : isDarkMode
+                  ? "text-iii-light"
+                  : "text-iii-black"
+              }`}
+              highlightCount={logoClickCount > 0 ? logoClickCount : undefined}
+              highlightIndex={logoClickCount === 0 ? hoverAnimIndex : undefined}
+              accentColor={
+                isGodMode
+                  ? "fill-red-500"
+                  : isDarkMode
+                  ? "fill-iii-accent"
+                  : "fill-iii-accent-light"
+              }
+            />
+          </div>
+          {/* Human/Machine Toggle */}
+          <div className="hidden sm:block">
+            <ModeToggle
+              isHumanMode={isHumanMode}
+              onToggle={toggleMode}
+              isDarkMode={isDarkMode}
+            />
+          </div>
         </div>
         <div
           className={`flex gap-2 md:gap-4 text-[10px] md:text-sm ${
-            isDarkMode ? "text-iii-medium-dark" : "text-iii-medium-light"
+            isDarkMode ? "text-iii-light" : "text-iii-black"
           } font-semibold tracking-tight items-center`}
         >
+          {/* Install CTA - medium/large screens only */}
+          <button
+            onClick={handleInstallClick}
+            className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded border transition-all duration-300 font-mono text-xs ${
+              installCopied
+                ? isDarkMode
+                  ? "bg-iii-accent/20 border-iii-accent text-iii-accent"
+                  : "bg-iii-accent-light/20 border-iii-accent-light text-iii-accent-light"
+                : isDarkMode
+                ? "border-iii-light hover:bg-iii-light hover:text-iii-black"
+                : "border-iii-dark hover:bg-iii-dark hover:text-iii-light"
+            }`}
+          >
+            {installCopied ? (
+              <>
+                <Check className="w-3 h-3" />
+                <span className="whitespace-nowrap">{installCmd}</span>
+              </>
+            ) : (
+              <>
+                <TerminalIcon className="w-3 h-3" />
+                <span>install.sh</span>
+              </>
+            )}
+          </button>
           <a
             href="#"
             onClick={handleManifestoClick}
@@ -354,7 +413,7 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main className="flex-1 relative z-10 flex flex-col items-center w-full">
+      <main className="flex-1 relative z-10 flex flex-col items-center w-full pt-16 md:pt-20">
         {/* Hero Section */}
         <div className="w-full">
           <HeroSection isDarkMode={isDarkMode} />
@@ -409,27 +468,6 @@ const App: React.FC = () => {
           <span className="opacity-50">v0.1.0-alpha</span>
         </div>
       </footer>
-
-      {/* Floating footer with toggle */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex justify-center pb-6">
-          <div className="pointer-events-auto">
-            <ModeToggle
-              isHumanMode={isHumanMode}
-              onToggle={toggleMode}
-              isDarkMode={isDarkMode}
-            />
-          </div>
-        </div>
-        {/* Gradient fade for elegance */}
-        <div
-          className={`absolute inset-0 -z-10 ${
-            isDarkMode
-              ? "bg-gradient-to-t from-iii-black/80 via-iii-black/40 to-transparent"
-              : "bg-gradient-to-t from-iii-light/80 via-iii-light/40 to-transparent"
-          }`}
-        />
-      </div>
 
       {/* God Mode Unlock Animation */}
       {showGodModeUnlock && (
