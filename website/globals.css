@@ -193,3 +193,45 @@ body.light-mode {
 .scrollbar-brand-light::-webkit-scrollbar-thumb:hover {
   background: var(--color-accent-light);
 }
+
+/* Energy flow animations for dependency connection lines */
+@keyframes flowDown {
+  0% {
+    background-position: 0% -100%;
+  }
+  100% {
+    background-position: 0% 200%;
+  }
+}
+
+@keyframes orbTravel {
+  0% {
+    top: -8px;
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    top: calc(100% + 8px);
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+}
+
+/* Pulsing glow effect on connected elements */
+@keyframes connectedGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px 2px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 15px 5px currentColor;
+  }
+}

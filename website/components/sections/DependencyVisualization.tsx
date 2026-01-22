@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Highlight, themes } from "prism-react-renderer";
 import { RefreshCw } from "lucide-react";
 
-type AnimationPhase = "idle" | "highlighting" | "moving" | "linking" | "connected";
+type AnimationPhase =
+  | "idle"
+  | "highlighting"
+  | "moving"
+  | "linking"
+  | "connected";
 
 interface DependencyBoxProps {
   name: string;
@@ -25,9 +30,12 @@ const DependencyBox: React.FC<DependencyBoxProps> = ({
   // During connected: boxes are accent colored and fully connected
 
   const isVisible =
-    animationPhase === "moving" || animationPhase === "linking" || animationPhase === "connected";
+    animationPhase === "moving" ||
+    animationPhase === "linking" ||
+    animationPhase === "connected";
   const isMoving = animationPhase === "moving";
-  const isLinkedOrConnected = animationPhase === "linking" || animationPhase === "connected";
+  const isLinkedOrConnected =
+    animationPhase === "linking" || animationPhase === "connected";
 
   // Stagger vertical positions to simulate coming from different lines
   const verticalOffset = index * 8; // Slight vertical stagger
@@ -79,25 +87,88 @@ interface IIIEngineHubProps {
   isDarkMode: boolean;
 }
 
+// Animated connection line with flowing energy effect
+const ConnectionLine: React.FC<{
+  isVisible: boolean;
+  isActive: boolean;
+  height: string;
+  delay: number;
+  index: number;
+  isDarkMode: boolean;
+}> = ({ isVisible, isActive, height, delay, index, isDarkMode }) => {
+  const accentColor = isDarkMode ? "#00ffff" : "#1d4ed8";
+
+  return (
+    <div
+      className={`
+        relative transition-all duration-700 ease-out
+        ${isVisible ? `${height} opacity-100` : "h-0 opacity-0"}
+      `}
+      style={{
+        transitionDelay: `${delay}ms`,
+        width: "2px",
+      }}
+    >
+      {/* Base line */}
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: isDarkMode
+            ? "rgba(0, 255, 255, 0.3)"
+            : "rgba(29, 78, 216, 0.3)",
+        }}
+      />
+
+      {/* Animated flowing gradient */}
+      {isActive && (
+        <>
+          <div
+            className="absolute inset-0 rounded-full overflow-hidden"
+            style={{
+              background: `linear-gradient(180deg, 
+                transparent 0%, 
+                ${accentColor} 30%, 
+                ${accentColor} 70%, 
+                transparent 100%
+              )`,
+              backgroundSize: "100% 300%",
+              animation: `flowDown 1.5s ease-in-out infinite`,
+              animationDelay: `${index * 200}ms`,
+            }}
+          />
+          {/* Glowing orb that travels */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full"
+            style={{
+              background: accentColor,
+              boxShadow: `0 0 10px 3px ${accentColor}, 0 0 20px 6px ${accentColor}40`,
+              animation: `orbTravel 2s ease-in-out infinite`,
+              animationDelay: `${index * 300}ms`,
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+};
+
 const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
   tools,
   animationPhase,
   isDarkMode,
 }) => {
   const showDependencies =
-    animationPhase === "moving" || animationPhase === "linking" || animationPhase === "connected";
-  const isLinking = animationPhase === "linking" || animationPhase === "connected";
+    animationPhase === "moving" ||
+    animationPhase === "linking" ||
+    animationPhase === "connected";
+  const isLinking =
+    animationPhase === "linking" || animationPhase === "connected";
   const isConnected = animationPhase === "connected";
 
   // Split tools into top and bottom halves
   const midpoint = Math.ceil(tools.length / 2);
   const topTools = tools.slice(0, midpoint);
   const bottomTools = tools.slice(midpoint);
-
-  const lineColor = isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light";
-  const lineColorMuted = isDarkMode
-    ? "bg-iii-accent/50"
-    : "bg-iii-accent-light/50";
 
   return (
     <div className="flex flex-col items-center justify-center h-full py-4 min-h-[400px] overflow-visible">
@@ -113,26 +184,26 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
               totalTools={tools.length}
             />
             {/* Connection line from this dependency */}
-            <div
-              className={`
-                w-0.5 transition-all duration-700 ease-out
-                ${isLinking ? "h-6 opacity-100" : "h-0 opacity-0"}
-                ${lineColor}
-              `}
-              style={{ transitionDelay: `${i * 120}ms` }}
+            <ConnectionLine
+              isVisible={isLinking}
+              isActive={isConnected}
+              height="h-6"
+              delay={i * 120}
+              index={i}
+              isDarkMode={isDarkMode}
             />
           </div>
         ))}
       </div>
 
       {/* Converging lines to engine - top */}
-      <div
-        className={`
-          w-0.5 transition-all duration-700
-          ${isLinking ? "h-4 opacity-100" : "h-0 opacity-0"}
-          ${lineColor}
-        `}
-        style={{ transitionDelay: `${topTools.length * 120 + 100}ms` }}
+      <ConnectionLine
+        isVisible={isLinking}
+        isActive={isConnected}
+        height="h-4"
+        delay={topTools.length * 120 + 100}
+        index={topTools.length}
+        isDarkMode={isDarkMode}
       />
 
       {/* III Engine Core */}
@@ -178,13 +249,13 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
       </div>
 
       {/* Converging lines from engine - bottom */}
-      <div
-        className={`
-          w-0.5 transition-all duration-700
-          ${isLinking ? "h-4 opacity-100" : "h-0 opacity-0"}
-          ${lineColor}
-        `}
-        style={{ transitionDelay: `${topTools.length * 120 + 200}ms` }}
+      <ConnectionLine
+        isVisible={isLinking}
+        isActive={isConnected}
+        height="h-4"
+        delay={topTools.length * 120 + 200}
+        index={topTools.length + 1}
+        isDarkMode={isDarkMode}
       />
 
       {/* Bottom dependencies with connection lines */}
@@ -192,13 +263,13 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
         {bottomTools.map((tool, i) => (
           <div key={tool} className="flex flex-col items-center">
             {/* Connection line to this dependency */}
-            <div
-              className={`
-                w-0.5 transition-all duration-700 ease-out
-                ${isLinking ? "h-6 opacity-100" : "h-0 opacity-0"}
-                ${lineColor}
-              `}
-              style={{ transitionDelay: `${(i + midpoint) * 120}ms` }}
+            <ConnectionLine
+              isVisible={isLinking}
+              isActive={isConnected}
+              height="h-6"
+              delay={(i + midpoint) * 120}
+              index={i + midpoint + 2}
+              isDarkMode={isDarkMode}
             />
             <DependencyBox
               name={tool}
