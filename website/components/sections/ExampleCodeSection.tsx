@@ -1954,17 +1954,15 @@ export function ExampleCodeSection({
         {/* Header */}
         <div className="text-center mb-3 sm:mb-4 md:mb-6 space-y-2 sm:space-y-3 md:space-y-4">
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter">
-            Stop <span className="text-iii-alert">assembling</span>
-            {", start "}
-            <span className="text-iii-success">building</span>
+            <p>Services, frameworks, integrations,</p>
+            <p>all become design patterns.</p>
           </h2>
           <p
             className={`text-xs sm:text-sm md:text-base lg:text-lg max-w-3xl mx-auto px-2 ${
               isDarkMode ? "text-iii-light/70" : "text-iii-medium"
             }`}
           >
-            Services, frameworks, integrations, these all become design
-            patterns.
+            Stop assembling, start building.
           </p>
         </div>
 
