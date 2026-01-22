@@ -57,8 +57,8 @@ function FAQItem({
       onClick={onToggle}
       className={`w-full text-left p-6 rounded-lg border transition-all ${
         isDarkMode
-          ? "border-iii-light/20 bg-iii-dark/30 hover:border-iii-light/40 hover:bg-iii-dark/50"
-          : "border-iii-black/20 bg-white/30 hover:border-iii-black/40 hover:bg-white/50"
+          ? "border-iii-light bg-iii-dark/30 hover:border-iii-light hover:bg-iii-dark/50"
+          : "border-iii-dark bg-white/30 hover:border-iii-dark hover:bg-white/50"
       }`}
     >
       {/* Question */}
@@ -77,8 +77,8 @@ function FAQItem({
                 ? "rotate-180 border-iii-accent text-iii-accent"
                 : "rotate-180 border-iii-accent-light text-iii-accent-light"
               : isDarkMode
-              ? "border-iii-light/50 text-iii-light/50"
-              : "border-iii-black/50 text-iii-black/50"
+              ? "border-iii-light text-iii-light/50"
+              : "border-iii-dark text-iii-black/50"
           }`}
         >
           <svg
@@ -177,8 +177,8 @@ export function FAQSection({ isDarkMode = true }: FAQSectionProps) {
             <button
               className={`inline-flex items-center gap-2 border px-6 py-3 rounded-lg transition-colors ${
                 isDarkMode
-                  ? "border-iii-light/30 text-iii-light hover:border-iii-light/60"
-                  : "border-iii-black/30 text-iii-black hover:border-iii-black/60"
+                  ? "border-iii-light text-iii-light hover:border-iii-light"
+                  : "border-iii-dark text-iii-black hover:border-iii-dark"
               }`}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

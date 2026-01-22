@@ -207,8 +207,8 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
         <div
           className={`mb-16 p-4 sm:p-6 md:p-8 rounded-xl border ${
             isDarkMode
-              ? "border-iii-light/20 bg-gradient-to-br from-iii-dark/50 to-iii-black/50"
-              : "border-iii-black/20 bg-gradient-to-br from-white/50 to-iii-light/50"
+              ? "border-iii-light bg-gradient-to-br from-iii-dark/50 to-iii-black/50"
+              : "border-iii-dark bg-gradient-to-br from-white/50 to-iii-light/50"
           }`}
         >
           {/* Discord header */}
@@ -262,8 +262,8 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                 key={index}
                 className={`p-3 sm:p-4 rounded-lg border transition-all text-center ${
                   isDarkMode
-                    ? "bg-iii-dark/50 border-iii-light/20 hover:border-iii-light/40"
-                    : "bg-white/50 border-iii-black/20 hover:border-iii-black/40"
+                    ? "bg-iii-dark/50 border-iii-light hover:border-iii-light"
+                    : "bg-white/50 border-iii-dark hover:border-iii-dark"
                 }`}
               >
                 <p
@@ -298,7 +298,7 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                 <div
                   key={"id" in member ? member.id : index}
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold border-2 hover:scale-110 transition-transform cursor-pointer relative group ${
-                    isDarkMode ? "border-iii-black" : "border-iii-light"
+                    isDarkMode ? "border-iii-dark" : "border-iii-light"
                   }`}
                   style={{
                     background:
@@ -325,7 +325,7 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                   {"status" in member && member.status && (
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 ${
-                        isDarkMode ? "border-iii-black" : "border-white"
+                        isDarkMode ? "border-iii-dark" : "border-white"
                       } ${
                         member.status === "online"
                           ? "bg-green-500"
@@ -355,8 +355,8 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                 <div
                   className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xs font-medium ${
                     isDarkMode
-                      ? "bg-iii-dark border-iii-light/30 text-iii-light/70"
-                      : "bg-white border-iii-black/30 text-iii-black/70"
+                      ? "bg-iii-dark border-iii-light text-iii-light/70"
+                      : "bg-white border-iii-dark text-iii-black/70"
                   }`}
                 >
                   +{discord.onlineCount - 12}

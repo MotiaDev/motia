@@ -435,7 +435,11 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                       />
                     </svg>
                   </span>
-                  <span className="text-iii-medium text-xs sm:text-sm md:text-base leading-tight">
+                  <span
+                    className={`text-xs sm:text-sm md:text-base leading-tight ${
+                      isDarkMode ? "text-iii-light/80" : "text-iii-black/80"
+                    }`}
+                  >
                     {feature.text}
                   </span>
                 </li>
@@ -446,18 +450,18 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
             <div className="flex flex-col gap-3 sm:gap-4 md:gap-6 sm:flex-row items-stretch sm:items-start pt-2 md:pt-4 w-full max-w-2xl mx-auto px-2 sm:px-0">
               <div className="flex flex-col gap-1.5 w-full sm:w-auto">
                 <div
-                  className={`group relative flex items-center gap-2 px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 border rounded hover:border-iii-medium transition-colors cursor-pointer w-full sm:min-w-[220px] md:min-w-[280px] ${
+                  className={`group relative flex items-center gap-2 px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 border rounded transition-colors cursor-pointer w-full sm:min-w-[220px] md:min-w-[280px] ${
                     isDarkMode
-                      ? "bg-iii-dark/50 border-iii-dark"
-                      : "bg-white/50 border-iii-medium/30"
+                      ? "bg-iii-dark/50 border-iii-light hover:border-iii-light"
+                      : "bg-white/50 border-iii-dark hover:border-iii-dark"
                   }`}
                   onClick={copyToClipboard}
                 >
                   <TerminalIcon
-                    className={`w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${
+                    className={`w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-colors flex-shrink-0 ${
                       isDarkMode
-                        ? "group-hover:text-iii-accent"
-                        : "group-hover:text-iii-accent-light"
+                        ? "text-iii-light/50 group-hover:text-iii-accent"
+                        : "text-iii-dark/50 group-hover:text-iii-accent-light"
                     }`}
                   />
                   <code
@@ -475,10 +479,10 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                     />
                   ) : (
                     <Copy
-                      className={`w-3.5 h-3.5 md:w-4 md:h-4 text-iii-medium transition-colors flex-shrink-0 ${
+                      className={`w-3.5 h-3.5 md:w-4 md:h-4 transition-colors flex-shrink-0 ${
                         isDarkMode
-                          ? "group-hover:text-white"
-                          : "group-hover:text-iii-black"
+                          ? "text-iii-light/50 group-hover:text-white"
+                          : "text-iii-dark/50 group-hover:text-iii-black"
                       }`}
                     />
                   )}
@@ -504,10 +508,10 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                   </div>
                 ) : (
                   <div
-                    className={`flex w-full border-b border-iii-medium transition-colors relative ${
+                    className={`flex w-full border-b transition-colors relative ${
                       isDarkMode
-                        ? "focus-within:border-iii-accent"
-                        : "focus-within:border-iii-accent-light"
+                        ? "border-iii-light focus-within:border-iii-accent"
+                        : "border-iii-dark focus-within:border-iii-accent-light"
                     }`}
                   >
                     <input
@@ -546,7 +550,11 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                 {/* Languages - Left on desktop, top on mobile */}
                 <div className="space-y-3">
-                  <span className="text-[10px] sm:text-xs text-iii-medium tracking-wider block text-center uppercase">
+                  <span
+                    className={`text-[10px] sm:text-xs tracking-wider block text-center uppercase ${
+                      isDarkMode ? "text-iii-light/70" : "text-iii-black/70"
+                    }`}
+                  >
                     Any language
                   </span>
                   <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
@@ -555,14 +563,16 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                         key={index}
                         className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg border transition-colors group ${
                           isDarkMode
-                            ? "bg-iii-dark border-iii-dark hover:border-iii-medium"
-                            : "bg-white border-iii-medium/30 hover:border-iii-medium"
+                            ? "bg-iii-dark border-iii-light hover:border-iii-light"
+                            : "bg-white border-iii-dark hover:border-iii-dark"
                         }`}
                         title={logo.name}
                       >
                         <div
                           className={`${
-                            isDarkMode ? "text-iii-medium" : "text-iii-medium"
+                            isDarkMode
+                              ? "text-iii-light/60"
+                              : "text-iii-black/60"
                           } transition-colors ${
                             logo.hoverColor
                           } [&_svg]:w-5 [&_svg]:h-5 sm:[&_svg]:w-6 sm:[&_svg]:h-6`}
@@ -576,7 +586,11 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
 
                 {/* Integrations - Right on desktop, bottom on mobile */}
                 <div className="space-y-3">
-                  <span className="text-[10px] sm:text-xs text-iii-medium tracking-wider block text-center uppercase">
+                  <span
+                    className={`text-[10px] sm:text-xs tracking-wider block text-center uppercase ${
+                      isDarkMode ? "text-iii-light/70" : "text-iii-black/70"
+                    }`}
+                  >
                     Every integration
                   </span>
                   <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
@@ -585,14 +599,16 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                         key={index}
                         className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg border transition-colors group ${
                           isDarkMode
-                            ? "bg-iii-dark border-iii-dark hover:border-iii-medium"
-                            : "bg-white border-iii-medium/30 hover:border-iii-medium"
+                            ? "bg-iii-dark border-iii-light hover:border-iii-light"
+                            : "bg-white border-iii-dark hover:border-iii-dark"
                         }`}
                         title={logo.name}
                       >
                         <div
                           className={`${
-                            isDarkMode ? "text-iii-medium" : "text-iii-medium"
+                            isDarkMode
+                              ? "text-iii-light/60"
+                              : "text-iii-black/60"
                           } transition-colors ${
                             logo.hoverColor
                           } [&_svg]:w-5 [&_svg]:h-5 sm:[&_svg]:w-6 sm:[&_svg]:h-6`}
@@ -610,16 +626,20 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                 <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
                   <div
                     className={`hidden sm:block flex-1 h-px ${
-                      isDarkMode ? "bg-iii-dark" : "bg-iii-medium/30"
+                      isDarkMode ? "bg-iii-light/20" : "bg-iii-black/20"
                     }`}
                   />
-                  <span className="text-[10px] sm:text-xs text-iii-medium tracking-wider max-w-xs sm:max-w-md text-center px-4">
+                  <span
+                    className={`text-[10px] sm:text-xs tracking-wider max-w-xs sm:max-w-md text-center px-4 ${
+                      isDarkMode ? "text-iii-light/70" : "text-iii-black/70"
+                    }`}
+                  >
                     Any cloud, any compute — our engine runs anything anywhere
                     with the right adapter.
                   </span>
                   <div
                     className={`hidden sm:block flex-1 h-px ${
-                      isDarkMode ? "bg-iii-dark" : "bg-iii-medium/30"
+                      isDarkMode ? "bg-iii-light/20" : "bg-iii-black/20"
                     }`}
                   />
                 </div>
@@ -629,14 +649,14 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                       key={index}
                       className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg border transition-colors group ${
                         isDarkMode
-                          ? "bg-iii-dark border-iii-dark hover:border-iii-medium"
-                          : "bg-white border-iii-medium/30 hover:border-iii-medium"
+                          ? "bg-iii-dark border-iii-light hover:border-iii-light"
+                          : "bg-white border-iii-dark hover:border-iii-dark"
                       }`}
                       title={logo.name}
                     >
                       <div
                         className={`${
-                          isDarkMode ? "text-iii-medium" : "text-iii-medium"
+                          isDarkMode ? "text-iii-light/60" : "text-iii-black/60"
                         } transition-colors ${
                           logo.hoverColor
                         } [&_svg]:w-5 [&_svg]:h-5 sm:[&_svg]:w-6 sm:[&_svg]:h-6`}
