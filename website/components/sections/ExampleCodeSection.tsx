@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Highlight, themes } from "prism-react-renderer";
 import { codeExamples } from "./codeExamples";
+import { DependencyVisualization } from "./DependencyVisualization";
 
 // Categories showing what III Engine replaces and enables
 const categories = [
@@ -461,38 +462,18 @@ export function ExampleCodeSection({
           </div>
         )}
 
-        {/* Code comparison */}
+        {/* Code comparison with dependency visualization */}
         {currentExample && (
-          <div className="space-y-4 sm:space-y-6 lg:max-w-[90%] lg:mx-auto">
-            <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-6">
-              <div className="flex-1 min-w-0 lg:w-[calc(50%-0.75rem)]">
-                <CodeBlock
-                  code={currentExample.traditional.code}
-                  title={currentExample.traditional.title}
-                  tools={currentExample.traditional.tools}
-                  variant="traditional"
-                  isDarkMode={isDarkMode}
-                  language={currentExample.traditional.language}
-                />
-              </div>
-              <div className="flex-1 min-w-0 lg:w-[calc(50%-0.75rem)]">
-                <CodeBlock
-                  code={currentExample.iii.code}
-                  title={currentExample.iii.title}
-                  variant="iii"
-                  isDarkMode={isDarkMode}
-                  language={currentExample.iii.language}
-                />
-              </div>
-            </div>
-
-            {/* Savings indicator */}
-            <SavingsIndicator
+          <div className="lg:max-w-[95%] lg:mx-auto">
+            <DependencyVisualization
               traditionalCode={currentExample.traditional.code}
-              iiiCode={currentExample.iii.code}
+              traditionalTitle={currentExample.traditional.title}
+              traditionalTools={currentExample.traditional.tools}
               traditionalLanguage={currentExample.traditional.language}
+              iiiCode={currentExample.iii.code}
+              iiiTitle={currentExample.iii.title}
               iiiLanguage={currentExample.iii.language}
-              toolsCount={currentExample.traditional.tools?.length ?? 0}
+              categoryId={activeCategory}
               isDarkMode={isDarkMode}
             />
           </div>
