@@ -1556,6 +1556,64 @@ const ToolBadge: React.FC<ToolBadgeProps> = ({ tool, isDarkMode }) => {
   );
 };
 
+// Helper function to count actual lines of code (excluding comments, empty lines)
+function countLinesOfCode(code: string, language: string): number {
+  const lines = code.split("\n");
+  let count = 0;
+  let inBlockComment = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Skip empty lines
+    if (!trimmed) continue;
+
+    // Handle block comments
+    if (language === "python") {
+      // Python uses ''' or """ for block comments/docstrings
+      if (trimmed.startsWith('"""') || trimmed.startsWith("'''")) {
+        if (trimmed.endsWith('"""') || trimmed.endsWith("'''")) {
+          // Single-line docstring, skip it
+          if (trimmed.length > 3) continue;
+        }
+        inBlockComment = !inBlockComment;
+        continue;
+      }
+    } else {
+      // JS/TS block comments
+      if (trimmed.startsWith("/*")) {
+        inBlockComment = true;
+        if (trimmed.endsWith("*/")) {
+          inBlockComment = false;
+        }
+        continue;
+      }
+      if (inBlockComment) {
+        if (trimmed.endsWith("*/")) {
+          inBlockComment = false;
+        }
+        continue;
+      }
+    }
+
+    if (inBlockComment) continue;
+
+    // Skip single-line comments
+    if (language === "python") {
+      if (trimmed.startsWith("#")) continue;
+    } else {
+      if (trimmed.startsWith("//")) continue;
+    }
+
+    // Skip lines that are only braces/brackets
+    if (/^[\{\}\[\]\(\)]+$/.test(trimmed)) continue;
+
+    count++;
+  }
+
+  return count;
+}
+
 function CodeBlock({
   code,
   title,
@@ -1563,7 +1621,6 @@ function CodeBlock({
   variant,
   isDarkMode,
   language = "typescript",
-  lineCount,
 }: {
   code: string;
   title: string;
@@ -1571,9 +1628,9 @@ function CodeBlock({
   variant: "traditional" | "iii";
   isDarkMode: boolean;
   language?: string;
-  lineCount: number;
 }) {
   const isTraditional = variant === "traditional";
+  const lineCount = countLinesOfCode(code, language);
 
   return (
     <div
@@ -1673,16 +1730,33 @@ function CodeBlock({
 }
 
 function SavingsIndicator({
-  traditional,
-  iii,
+  traditionalCode,
+  iiiCode,
+  traditionalLanguage,
+  iiiLanguage,
+  toolsCount,
   isDarkMode,
 }: {
-  traditional: number;
-  iii: number;
+  traditionalCode: string;
+  iiiCode: string;
+  traditionalLanguage: string;
+  iiiLanguage: string;
+  toolsCount: number;
   isDarkMode: boolean;
 }) {
-  const reduction = Math.round(((traditional - iii) / traditional) * 100);
-  const toolsReplaced = Math.floor(Math.random() * 3) + 2; // 2-4 tools
+  const traditional = countLinesOfCode(traditionalCode, traditionalLanguage);
+  const iii = countLinesOfCode(iiiCode, iiiLanguage);
+  const difference = traditional - iii;
+  const isLess = difference > 0;
+  const isSame = difference === 0;
+  const percentage = Math.round((Math.abs(difference) / traditional) * 100);
+
+  // Different colors for each state
+  const codeComparisonColor = isSame
+    ? "text-iii-info"
+    : isLess
+    ? "text-iii-success"
+    : "text-iii-warn";
 
   return (
     <div
@@ -1691,34 +1765,69 @@ function SavingsIndicator({
       }`}
     >
       <div className="flex items-center gap-2">
-        <svg
-          className={`w-4 h-4 sm:w-5 sm:h-5 ${
-            isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-          }`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-          />
-        </svg>
+        {isSame ? (
+          // Equals icon for same
+          <svg
+            className={`w-4 h-4 sm:w-5 sm:h-5 ${codeComparisonColor}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 9h14M5 15h14"
+            />
+          </svg>
+        ) : isLess ? (
+          // Downward trend icon for less code (good)
+          <svg
+            className={`w-4 h-4 sm:w-5 sm:h-5 ${codeComparisonColor}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"
+            />
+          </svg>
+        ) : (
+          // Upward trend icon for more code (warning)
+          <svg
+            className={`w-4 h-4 sm:w-5 sm:h-5 ${codeComparisonColor}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+            />
+          </svg>
+        )}
         <span
           className={`text-xs sm:text-sm ${
             isDarkMode ? "text-[#C0C0C0]" : "text-iii-black"
           }`}
         >
-          <span
-            className={`font-bold ${
-              isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-            }`}
-          >
-            {reduction}%
-          </span>{" "}
-          less code
+          {isSame ? (
+            <span className={`font-bold ${codeComparisonColor}`}>
+              Same amount of code
+            </span>
+          ) : (
+            <>
+              <span className={`font-bold ${codeComparisonColor}`}>
+                {percentage}%
+              </span>{" "}
+              {isLess ? "less" : "more"} code
+            </>
+          )}
         </span>
       </div>
       <div
@@ -1752,7 +1861,7 @@ function SavingsIndicator({
               isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
             }`}
           >
-            {toolsReplaced}+
+            {toolsCount}+
           </span>{" "}
           tools replaced
         </span>
@@ -1882,7 +1991,6 @@ export function ExampleCodeSection({
                   variant="traditional"
                   isDarkMode={isDarkMode}
                   language={currentExample.traditional.language}
-                  lineCount={currentExample.linesTraditional}
                 />
               </div>
               <div className="flex-1 min-w-0">
@@ -1892,15 +2000,17 @@ export function ExampleCodeSection({
                   variant="iii"
                   isDarkMode={isDarkMode}
                   language={currentExample.iii.language}
-                  lineCount={currentExample.linesIII}
                 />
               </div>
             </div>
 
             {/* Savings indicator */}
             <SavingsIndicator
-              traditional={currentExample.linesTraditional}
-              iii={currentExample.linesIII}
+              traditionalCode={currentExample.traditional.code}
+              iiiCode={currentExample.iii.code}
+              traditionalLanguage={currentExample.traditional.language}
+              iiiLanguage={currentExample.iii.language}
+              toolsCount={currentExample.traditional.tools?.length ?? 0}
               isDarkMode={isDarkMode}
             />
           </div>
