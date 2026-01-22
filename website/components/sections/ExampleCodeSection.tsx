@@ -1663,16 +1663,16 @@ function CodeBlock({
     <div
       className={`rounded-lg sm:rounded-xl overflow-hidden border h-full flex flex-col transition-colors duration-300 ${
         isDarkMode
-          ? "border-iii-dark bg-iii-black"
-          : "border-iii-medium/30 bg-white"
+          ? "border-iii-light/20 bg-iii-black"
+          : "border-iii-black/20 bg-white"
       }`}
     >
       {/* Header */}
       <div
         className={`flex flex-col gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b transition-colors duration-300 flex-shrink-0 ${
           isDarkMode
-            ? "border-iii-dark bg-iii-dark/50"
-            : "border-iii-medium/20 bg-iii-light/50"
+            ? "border-iii-light/20 bg-iii-dark/50"
+            : "border-iii-black/20 bg-iii-light/50"
         }`}
       >
         <div className="flex items-center justify-between">
@@ -1982,8 +1982,8 @@ export function ExampleCodeSection({
                         ? "bg-iii-accent text-iii-black"
                         : "bg-iii-accent-light text-iii-light"
                       : isDarkMode
-                      ? "text-iii-light/70 hover:text-iii-light hover:bg-iii-dark/50 border border-iii-dark"
-                      : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border border-iii-medium/20"
+                      ? "text-iii-light/70 hover:text-iii-light hover:bg-iii-dark/50 border border-iii-light/20"
+                      : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border border-iii-black/20"
                   }`}
                 >
                   {category.label}

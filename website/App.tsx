@@ -15,7 +15,7 @@ import { CommunitySection } from "./components/sections/CommunitySection";
 import { TechLogos } from "./components/TechLogos";
 import { Features } from "./components/Features";
 import { ValueProps } from "./components/ValuePropsRedesigned";
-import { PersonaValueProps } from "./components/PersonaValuePropsRedesigned";
+import { PersonaValueProps } from "./components/PersonaValueProps";
 // FractureAnimation removed - using StackVisual only
 import { ModeToggle } from "./components/ModeToggle";
 import { MachineView } from "./components/MachineView";
@@ -248,8 +248,8 @@ const App: React.FC = () => {
       <nav
         className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
           isDarkMode
-            ? "border-iii-dark/50 bg-iii-black/80"
-            : "border-iii-medium/20 bg-iii-light/80"
+            ? "border-iii-light/20 bg-iii-black/80"
+            : "border-iii-black/20 bg-iii-light/80"
         }`}
       >
         <div
@@ -328,8 +328,8 @@ const App: React.FC = () => {
               <div
                 className={`absolute top-full right-0 mt-2 w-max px-2 py-1 border text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
                   isDarkMode
-                    ? "bg-iii-dark border-iii-medium text-iii-light"
-                    : "bg-white border-iii-medium/30 text-iii-black"
+                    ? "bg-iii-dark border-iii-light/30 text-iii-light"
+                    : "bg-white border-iii-black/30 text-iii-black"
                 }`}
               >
                 EARLY ACCESS ONLY
@@ -389,8 +389,8 @@ const App: React.FC = () => {
       <footer
         className={`relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t text-[9px] md:text-[10px] text-iii-medium font-mono transition-colors duration-300 ${
           isDarkMode
-            ? "border-iii-dark/30 bg-iii-black"
-            : "border-iii-medium/20 bg-iii-light"
+            ? "border-iii-light/20 bg-iii-black"
+            : "border-iii-black/20 bg-iii-light"
         }`}
       >
         <div className="max-w-sm md:max-w-md space-y-1.5 md:space-y-2">

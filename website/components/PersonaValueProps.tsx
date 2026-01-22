@@ -1,210 +1,528 @@
-import React, { useState } from 'react';
-import { Code, Boxes, Briefcase } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Code, Boxes, Briefcase } from "lucide-react";
 
 interface PersonaValuePropsProps {
   isDarkMode?: boolean;
 }
 
-interface PersonaValue {
-  category: string;
-  engineerValue: string;
-  architectValue: string;
-  ctoValue: string;
+interface Benefit {
+  title: string;
+  engineer: string;
+  architect: string;
+  cto: string;
 }
 
-const personaValues: PersonaValue[] = [
+const benefits: Benefit[] = [
   {
-    category: 'Stack Unification',
-    engineerValue: 'Your entire stack abstracted to triggers and functions. Avoid context overload.',
-    architectValue: 'Simplifying and centralizing your dependencies and services.',
-    ctoValue: 'Reduce costs with a single view of all your subscriptions and how much you\'re paying for them.',
+    title: "Stack Unification",
+    engineer:
+      "Triggers and functions abstraction. Reduces context switching across tooling.",
+    architect:
+      "Centralized dependency management. Single control plane for system coordination.",
+    cto: "Consolidated subscription view. Unified cost tracking across infrastructure.",
   },
   {
-    category: 'Observability',
-    engineerValue: 'Logs and traces everywhere, for free. Instantly pinpoint error origins in your call stack. Record, modify, and replay anything.',
-    architectValue: 'Instant observability, trace anything anywhere.',
-    ctoValue: 'Operational efficiency, SLAs, TTR, and prioritization with full visibility into how users are actually using your service.',
+    title: "Observability",
+    engineer:
+      "Call stack error tracing. Record, modify, and replay execution paths.",
+    architect:
+      "Zero-instrumentation distributed tracing. Request lifecycle visualization.",
+    cto: "TTR optimization. SLA monitoring with behavioral analytics.",
   },
   {
-    category: 'Orchestration',
-    engineerValue: 'Focus 100% on your business logic. Stop gluing and architecting inside your application layer.',
-    architectValue: 'Avoid lock-in. Freely choose any stack. Single point of integration. Hot deployments with no downtime.',
-    ctoValue: 'Avoid unnecessary operational weight. One provider that covers all your orchestration needs.',
+    title: "Orchestration",
+    engineer: "Business logic focus. Eliminates integration layer development.",
+    architect:
+      "Vendor-agnostic architecture. Hot deployments without downtime.",
+    cto: "Operational consolidation. Single orchestration provider.",
   },
   {
-    category: 'Context',
-    engineerValue: 'Fully informed agents, no sketchy MCP servers running code on your machine, fully sandboxed development if you need it. Frictionless cross-process communication.',
-    architectValue: 'Freedom to choose the right language for the task at hand. Function-level migrations, painlessly swap out components of your application without affecting anything else.',
-    ctoValue: 'Future proof flexibility. Needs change. Respond quicker than anyone else.',
+    title: "Runtime Context",
+    engineer:
+      "Sandboxed execution. Cross-language function calls without API layers.",
+    architect:
+      "Function-level language selection. Component migration without system impact.",
+    cto: "Architectural flexibility. Rapid response to requirement changes.",
   },
 ];
 
 const personas = [
   {
-    id: 'engineer',
-    name: 'Backend Engineer',
+    id: "engineer",
+    name: "Backend Engineer",
     icon: Code,
-    tagline: 'Write logic, not glue code',
-    description: 'Focus on building features while iii handles infrastructure complexity',
+    description: "Application logic development",
   },
   {
-    id: 'architect',
-    name: 'System Architect',
+    id: "architect",
+    name: "System Architect",
     icon: Boxes,
-    tagline: 'Design without constraints',
-    description: 'Choose the right tool for each task without lock-in or integration overhead',
+    description: "Infrastructure design and integration",
   },
   {
-    id: 'cto',
-    name: 'CTO',
+    id: "cto",
+    name: "CTO",
     icon: Briefcase,
-    tagline: 'Scale smart, not hard',
-    description: 'Reduce operational costs while improving visibility and team velocity',
+    description: "Technical strategy and operations",
   },
 ] as const;
 
-type PersonaId = typeof personas[number]['id'];
+type PersonaId = (typeof personas)[number]["id"];
 
-export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({ isDarkMode = true }) => {
-  const [selectedPersona, setSelectedPersona] = useState<PersonaId>('engineer');
+const technicalBenefits = [
+  "Framework agnostic",
+  "Language agnostic",
+  "Cloud agnostic",
+  "Protocol agnostic",
+  "Zero vendor lock-in",
+  "Zero-downtime deployments",
+];
 
-  const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
-  const textSecondary = isDarkMode ? 'text-iii-medium-dark' : 'text-iii-medium-light';
-  const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
-  const cardBg = isDarkMode ? 'bg-iii-dark/50' : 'bg-white/50';
-  const cardBorder = isDarkMode ? 'border-iii-medium/30' : 'border-iii-medium/20';
-  const selectedBg = isDarkMode ? 'bg-iii-dark border-iii-accent' : 'bg-white border-iii-accent-light';
-  const hoverBg = isDarkMode ? 'hover:bg-iii-dark/80' : 'hover:bg-white/80';
+// Rotating headline parts: "Keep your {role1} and {role2} {adjective}"
+// Each rotates independently at different speeds
+const rotatingRole1s = [
+  "Developers",
+  "Vibe coders",
+  "Juniors",
+  "Frontend",
+  "Teams",
+];
+const rotatingRole2s = [
+  "Architects",
+  "Senior Engineers",
+  "CTOs",
+  "Backend",
+  "Leadership",
+];
+const rotatingAdjectives = [
+  "productive",
+  "happy",
+  "aligned",
+  "connected",
+  "in sync",
+];
 
-  const getValueForPersona = (value: PersonaValue): string => {
+// Rotating text box component - defined outside to prevent recreation
+function RotatingTextBox({
+  items,
+  currentIndex,
+  isAnimating,
+  colorClass,
+  borderColorClass,
+  animateUp = false,
+  isDarkMode,
+}: {
+  items: string[];
+  currentIndex: number;
+  isAnimating: boolean;
+  colorClass?: string;
+  borderColorClass?: string;
+  animateUp?: boolean;
+  isDarkMode: boolean;
+}) {
+  const boxBg = isDarkMode ? "bg-iii-dark/40" : "bg-iii-medium/10";
+  const accentColor = isDarkMode ? "text-iii-accent" : "text-iii-accent-light";
+  const accentBorder = isDarkMode
+    ? "border-iii-accent"
+    : "border-iii-accent-light";
+  const textColor = colorClass || accentColor;
+  const borderColor = borderColorClass || accentBorder;
+
+  return (
+    <span
+      className={`relative inline-block px-2 md:px-3 py-0.5 md:py-1 rounded-t border-b-2 ${boxBg} ${borderColor}`}
+    >
+      {/* Invisible text to set width based on longest item */}
+      <span className="invisible whitespace-nowrap" aria-hidden="true">
+        {items.reduce((a, b) => (a.length > b.length ? a : b))}
+      </span>
+      {/* Visible animated text positioned absolutely */}
+      <span
+        className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${textColor} ${
+          isAnimating
+            ? `opacity-0 ${
+                animateUp ? "-translate-y-3" : "translate-y-3"
+              } scale-95`
+            : "opacity-100 translate-y-0 scale-100"
+        }`}
+      >
+        {items[currentIndex]}
+      </span>
+    </span>
+  );
+}
+
+export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
+  isDarkMode = true,
+}) => {
+  const [selectedPersona, setSelectedPersona] = useState<PersonaId>("engineer");
+  const [hoveredBenefit, setHoveredBenefit] = useState<number | null>(null);
+
+  // Rotating text state - separate index and animation state for each
+  const [role1Index, setRole1Index] = useState(0);
+  const [role1Animating, setRole1Animating] = useState(false);
+  const [role2Index, setRole2Index] = useState(0);
+  const [role2Animating, setRole2Animating] = useState(false);
+  const [adjIndex, setAdjIndex] = useState(0);
+  const [adjAnimating, setAdjAnimating] = useState(false);
+
+  // Role1 rotation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRole1Animating(true);
+      setTimeout(() => {
+        setRole1Index((prev) => (prev + 1) % rotatingRole1s.length);
+        setRole1Animating(false);
+      }, 400);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Role2 rotation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRole2Animating(true);
+      setTimeout(() => {
+        setRole2Index((prev) => (prev + 1) % rotatingRole2s.length);
+        setRole2Animating(false);
+      }, 400);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Adjective rotation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAdjAnimating(true);
+      setTimeout(() => {
+        setAdjIndex((prev) => (prev + 1) % rotatingAdjectives.length);
+        setAdjAnimating(false);
+      }, 400);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
+  const textSecondary = isDarkMode
+    ? "text-iii-light/70"
+    : "text-iii-medium-light";
+  const accentColor = isDarkMode ? "text-iii-accent" : "text-iii-accent-light";
+  const accentBg = isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light";
+  const accentBgLight = isDarkMode
+    ? "bg-iii-accent/20"
+    : "bg-iii-accent-light/20";
+  const accentBgLighter = isDarkMode
+    ? "bg-iii-accent/5"
+    : "bg-iii-accent-light/5";
+  const accentBorder = isDarkMode
+    ? "border-iii-accent/50"
+    : "border-iii-accent-light/50";
+  const accentBorderLight = isDarkMode
+    ? "border-iii-accent/30"
+    : "border-iii-accent-light/30";
+  const borderColor = isDarkMode
+    ? "border-iii-medium/20"
+    : "border-iii-medium/20";
+  const bgBase = isDarkMode ? "bg-iii-black" : "bg-iii-light";
+  const bgCard = isDarkMode ? "bg-iii-dark/30" : "bg-white/30";
+  const bgCardHover = isDarkMode ? "bg-iii-dark/60" : "bg-white/60";
+
+  const getValueForPersona = (benefit: Benefit): string => {
     switch (selectedPersona) {
-      case 'engineer':
-        return value.engineerValue;
-      case 'architect':
-        return value.architectValue;
-      case 'cto':
-        return value.ctoValue;
+      case "engineer":
+        return benefit.engineer;
+      case "architect":
+        return benefit.architect;
+      case "cto":
+        return benefit.cto;
     }
   };
 
+  const selectedPersonaData = personas.find((p) => p.id === selectedPersona)!;
+
   return (
-    <section className="w-full max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20">
-      {/* Header */}
-      <div className="text-center mb-12 md:mb-16">
-        <p className="text-[10px] md:text-xs text-iii-medium tracking-[0.2em] uppercase mb-3">
-          Choose your fighter
-        </p>
-        <h2 className={`text-2xl sm:text-3xl md:text-4xl font-bold tracking-tighter mb-4 ${textPrimary}`}>
-          BUILT FOR <span className={accentColor}>YOUR ROLE</span>
-        </h2>
-        <p className={`text-sm md:text-base ${textSecondary} max-w-2xl mx-auto`}>
-          Different problems, one solution. See how iii empowers each role in your organization.
-        </p>
-      </div>
-
-      {/* Persona Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-        {personas.map((persona) => {
-          const Icon = persona.icon;
-          const isSelected = selectedPersona === persona.id;
-
-          return (
-            <button
-              key={persona.id}
-              onClick={() => setSelectedPersona(persona.id)}
-              className={`
-                relative p-6 rounded-lg border-2 transition-all duration-300 text-left
-                ${isSelected ? selectedBg : `${cardBg} ${cardBorder} ${hoverBg}`}
-                ${isSelected ? 'scale-105 shadow-lg' : 'hover:scale-102'}
-              `}
-            >
-              <div className={`inline-flex p-3 rounded-lg mb-4 transition-colors ${
-                isSelected
-                  ? isDarkMode ? 'bg-iii-accent/20' : 'bg-iii-accent-light/20'
-                  : isDarkMode ? 'bg-iii-black/50' : 'bg-iii-light/50'
-              }`}>
-                <Icon className={`w-6 h-6 ${isSelected ? accentColor : textSecondary}`} />
-              </div>
-
-              <h3 className={`text-base md:text-lg font-bold mb-2 transition-colors ${
-                isSelected ? accentColor : textPrimary
-              }`}>
-                {persona.name}
-              </h3>
-
-              <p className={`text-xs md:text-sm font-semibold mb-2 ${
-                isSelected ? textPrimary : textSecondary
-              }`}>
-                {persona.tagline}
-              </p>
-
-              <p className={`text-xs ${isSelected ? textSecondary : `${textSecondary} opacity-70`}`}>
-                {persona.description}
-              </p>
-
-              {/* Selection indicator */}
-              {isSelected && (
-                <div className={`absolute top-3 right-3 w-3 h-3 rounded-full ${
-                  isDarkMode ? 'bg-iii-accent' : 'bg-iii-accent-light'
-                } animate-pulse`} />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Value Propositions for Selected Persona */}
-      <div className="space-y-4">
-        {personaValues.map((value, index) => (
-          <div
-            key={value.category}
-            className={`
-              p-6 rounded-lg border transition-all duration-300
-              ${cardBg} ${cardBorder}
-              hover:border-iii-accent/50
-              animate-fade-in
-            `}
-            style={{ animationDelay: `${index * 100}ms` }}
+    <section className={`w-full ${bgBase}`}>
+      <div>
+        {/* Header */}
+        <div className="text-center mb-6 md:mb-16">
+          <h2
+            className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tighter mb-3 md:mb-4 ${textPrimary}`}
           >
-            <div className="flex items-start gap-4">
-              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                isDarkMode ? 'bg-iii-accent/20 text-iii-accent' : 'bg-iii-accent-light/20 text-iii-accent-light'
-              }`}>
-                {index + 1}
-              </div>
+            <span className="md:whitespace-nowrap inline-flex flex-wrap md:flex-nowrap items-baseline justify-center gap-x-2 gap-y-1">
+              <span>Keep your</span>
+              <RotatingTextBox
+                items={rotatingRole1s}
+                currentIndex={role1Index}
+                isAnimating={role1Animating}
+                isDarkMode={isDarkMode}
+              />
+              <span>and</span>
+              <RotatingTextBox
+                items={rotatingRole2s}
+                currentIndex={role2Index}
+                isAnimating={role2Animating}
+                isDarkMode={isDarkMode}
+              />
+              <RotatingTextBox
+                items={rotatingAdjectives}
+                currentIndex={adjIndex}
+                isAnimating={adjAnimating}
+                colorClass="text-iii-success"
+                borderColorClass="border-iii-success"
+                animateUp
+                isDarkMode={isDarkMode}
+              />
+            </span>
+          </h2>
+          <p
+            className={`text-xs md:text-base max-w-2xl mx-auto ${textSecondary}`}
+          >
+            Infrastructure abstraction for engineers, architects, and technical
+            leadership.
+          </p>
+        </div>
 
-              <div className="flex-1">
-                <h4 className={`text-sm md:text-base font-bold mb-2 ${accentColor}`}>
-                  {value.category}
-                </h4>
-                <p className={`text-xs md:text-sm leading-relaxed ${textPrimary}`}>
-                  {getValueForPersona(value)}
-                </p>
+        {/* Mobile: Simplified static view - all roles visible */}
+        <div className="md:hidden space-y-4">
+          {personas.map((persona) => {
+            const Icon = persona.icon;
+            return (
+              <div
+                key={persona.id}
+                className={`p-4 rounded-lg border ${borderColor} ${bgCard}`}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`p-2 rounded-lg ${accentBgLight}`}>
+                    <Icon className={`w-5 h-5 ${accentColor}`} />
+                  </div>
+                  <div>
+                    <h3 className={`text-sm font-bold ${textPrimary}`}>
+                      {persona.name}
+                    </h3>
+                    <p className={`text-[10px] font-mono ${textSecondary}`}>
+                      {persona.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div
+                    className={`text-[11px] leading-relaxed ${textSecondary}`}
+                  >
+                    <span className={`font-bold ${textPrimary}`}>Stack:</span>{" "}
+                    {benefits[0][persona.id as PersonaId]}
+                  </div>
+                  <div
+                    className={`text-[11px] leading-relaxed ${textSecondary}`}
+                  >
+                    <span className={`font-bold ${textPrimary}`}>
+                      Observability:
+                    </span>{" "}
+                    {benefits[1][persona.id as PersonaId]}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Universal Benefits - Mobile */}
+          <div className={`p-4 rounded-lg border ${borderColor} ${bgCard}`}>
+            <h4 className={`text-xs font-mono mb-3 ${textSecondary}`}>
+              UNIVERSAL:
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {technicalBenefits.map((benefit, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <div className={`w-1 h-1 rounded-full ${accentBg}`} />
+                  <span className={`text-[10px] font-mono ${textSecondary}`}>
+                    {benefit}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop: Interactive role-switching layout */}
+        <div className="hidden md:grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8">
+          {/* Persona Selector */}
+          <div className="lg:col-span-4 space-y-2 md:space-y-3">
+            {personas.map((persona) => {
+              const Icon = persona.icon;
+              const isSelected = selectedPersona === persona.id;
+              const bgInactive = isDarkMode
+                ? "bg-iii-black/50"
+                : "bg-iii-light/50";
+              const iconBgClass = isSelected ? accentBgLight : bgInactive;
+
+              return (
+                <button
+                  key={persona.id}
+                  onClick={() => setSelectedPersona(persona.id)}
+                  className={`
+                    w-full text-left p-4 md:p-6 rounded-lg md:rounded-xl border-2 transition-all duration-300
+                    ${
+                      isSelected
+                        ? `${borderColor.replace("/20", "/100")} ${bgCardHover}`
+                        : `${borderColor} ${bgCard} hover:${bgCardHover}`
+                    }
+                  `}
+                >
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div
+                      className={`p-2 md:p-3 rounded-lg transition-all ${iconBgClass}`}
+                    >
+                      <Icon
+                        className={`w-6 h-6 transition-colors ${
+                          isSelected ? accentColor : textSecondary
+                        }`}
+                      />
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3
+                          className={`text-base font-bold transition-colors ${
+                            isSelected ? accentColor : textPrimary
+                          }`}
+                        >
+                          {persona.name}
+                        </h3>
+                        {isSelected && (
+                          <div
+                            className={`w-2 h-2 rounded-full ${accentBg} animate-pulse`}
+                          />
+                        )}
+                      </div>
+
+                      <p
+                        className={`text-xs font-mono ${
+                          isSelected
+                            ? textSecondary
+                            : `${textSecondary} opacity-70`
+                        }`}
+                      >
+                        {persona.description}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            {/* Technical Benefits */}
+            <div className={`p-6 rounded-xl border ${borderColor} ${bgCard}`}>
+              <h4 className={`text-xs font-mono mb-3 ${textSecondary}`}>
+                UNIVERSAL:
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {technicalBenefits.map((benefit, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <div className={`w-1 h-1 rounded-full ${accentBg}`} />
+                    <span className={`text-[10px] font-mono ${textSecondary}`}>
+                      {benefit}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Additional Benefits */}
-      <div className={`mt-12 p-6 rounded-lg border ${cardBg} ${cardBorder}`}>
-        <h4 className={`text-sm md:text-base font-bold mb-4 text-center ${textPrimary}`}>
-          Universal Benefits
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs md:text-sm">
-          {[
-            'Lock-in free. Framework agnostic.',
-            'Language agnostic. Stack agnostic.',
-            'Cloud agnostic. Protocol agnostic.',
-            'Hot deployments. No downtime.',
-            'Single point of integration.',
-            'Change agnostic. Future proof.',
-          ].map((benefit, i) => (
-            <div key={i} className={`flex items-center gap-2 ${textSecondary}`}>
-              <span className={`text-lg ${accentColor}`}>✓</span>
-              <span>{benefit}</span>
+          {/* Benefits Content */}
+          <div className="lg:col-span-8 space-y-3 md:space-y-4">
+            {/* Active Persona Banner */}
+            <div
+              className={`p-4 md:p-6 rounded-lg md:rounded-xl border-2 ${accentBorder} ${accentBgLighter}`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-xs font-mono mb-1 ${textSecondary}`}>
+                    CONTEXT:
+                  </p>
+                  <h3
+                    className={`text-xl md:text-2xl font-bold ${accentColor}`}
+                  >
+                    {selectedPersonaData.name}
+                  </h3>
+                </div>
+                <span
+                  className={`text-3xl md:text-4xl font-mono font-bold ${accentColor}`}
+                >
+                  &gt;
+                </span>
+              </div>
             </div>
-          ))}
+
+            {/* Benefit Cards */}
+            {benefits.map((benefit, index) => {
+              const isHovered = hoveredBenefit === index;
+              const accentBgVeryLight = isDarkMode
+                ? "bg-iii-accent/10"
+                : "bg-iii-accent-light/10";
+              const badgeBorder = isDarkMode
+                ? "border-iii-accent/50"
+                : "border-iii-accent-light/50";
+              const badgeClasses = isHovered
+                ? `${badgeBorder} ${accentColor} ${accentBgVeryLight}`
+                : `${borderColor} ${textSecondary}`;
+
+              return (
+                <div
+                  key={benefit.title}
+                  className={`
+                    p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300
+                    ${borderColor} ${isHovered ? bgCardHover : bgCard}
+                    hover:border-iii-accent/30
+                  `}
+                  onMouseEnter={() => setHoveredBenefit(index)}
+                  onMouseLeave={() => setHoveredBenefit(null)}
+                >
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
+                        <div
+                          className={`px-2 md:px-3 py-0.5 md:py-1 rounded-full border text-[10px] md:text-xs font-mono ${badgeClasses}`}
+                        >
+                          {String(index + 1).padStart(2, "0")}
+                        </div>
+                        <h4
+                          className={`text-sm md:text-lg font-bold ${
+                            isHovered ? accentColor : textPrimary
+                          }`}
+                        >
+                          {benefit.title}
+                        </h4>
+                      </div>
+
+                      <p
+                        className={`text-xs md:text-sm leading-relaxed ${textPrimary}`}
+                      >
+                        {getValueForPersona(benefit)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Footer CTA */}
+            <div
+              className={`p-6 rounded-xl border-2 ${accentBorderLight} ${bgCard}`}
+            >
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <p className={`text-sm font-bold mb-1 ${textPrimary}`}>
+                    Single integration point
+                  </p>
+                  <p className={`text-xs font-mono ${textSecondary}`}>
+                    Runtime daemon + SDK
+                  </p>
+                </div>
+                <div className={`text-2xl font-black font-mono ${accentColor}`}>
+                  iii
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
