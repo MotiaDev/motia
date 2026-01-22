@@ -108,6 +108,7 @@ function RotatingTextBox({
   currentIndex,
   isAnimating,
   colorClass,
+  borderColorClass,
   animateUp = false,
   isDarkMode,
 }: {
@@ -115,19 +116,20 @@ function RotatingTextBox({
   currentIndex: number;
   isAnimating: boolean;
   colorClass?: string;
+  borderColorClass?: string;
   animateUp?: boolean;
   isDarkMode: boolean;
 }) {
   const boxBg = isDarkMode ? "bg-iii-dark/40" : "bg-iii-medium/10";
-  const borderBottom = isDarkMode
-    ? "border-b-2 border-iii-accent/50"
-    : "border-b-2 border-iii-accent-light/50";
   const accentColor = isDarkMode ? "text-iii-accent" : "text-iii-accent-light";
   const textColor = colorClass || accentColor;
+  const borderColor =
+    borderColorClass ||
+    (isDarkMode ? "border-iii-accent/50" : "border-iii-accent-light/50");
 
   return (
     <span
-      className={`relative inline-block px-2 md:px-3 py-0.5 md:py-1 rounded-t ${boxBg} ${borderBottom}`}
+      className={`relative inline-block px-2 md:px-3 py-0.5 md:py-1 rounded-t border-b-2 ${boxBg} ${borderColor}`}
     >
       {/* Invisible text to set width based on longest item */}
       <span className="invisible whitespace-nowrap" aria-hidden="true">
@@ -265,6 +267,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
                 currentIndex={adjIndex}
                 isAnimating={adjAnimating}
                 colorClass="text-iii-success"
+                borderColorClass="border-iii-success"
                 animateUp
                 isDarkMode={isDarkMode}
               />

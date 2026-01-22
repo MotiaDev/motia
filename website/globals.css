@@ -1,5 +1,6 @@
 /* Prevent horizontal scroll on mobile */
-html, body {
+html,
+body {
   overflow-x: hidden;
   max-width: 100vw;
 }
@@ -21,9 +22,9 @@ html, body {
   /* Base colors */
   --color-black: #000000;
   --color-dark: #1d1d1d;
-  --color-medium: #5B5B5B; /* Brand medium gray */
-  --color-medium-dark: #5B5B5B; /* For dark backgrounds */
-  --color-medium-light: #5B5B5B; /* For light backgrounds */
+  --color-medium: #5b5b5b; /* Brand medium gray */
+  --color-medium-dark: #5b5b5b; /* For dark backgrounds */
+  --color-medium-light: #5b5b5b; /* For light backgrounds */
   --color-light: #f4f4f4;
   --color-accent: #f3f724;
   --color-accent-light: #1d4ed8;
