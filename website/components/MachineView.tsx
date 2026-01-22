@@ -1,21 +1,30 @@
-import React from "react";
-import { ModeToggle } from "./ModeToggle";
-import { Logo } from "./Logo";
+import React, { useState } from "react";
+import { Navbar } from "./Navbar";
 
 interface MachineViewProps {
   onToggleMode: () => void;
+  onToggleTheme: () => void;
   onOpenTerminal?: () => void; // Optional - terminal is easter egg only
   isGodMode: boolean;
   isDarkMode?: boolean;
+  isSubmitted?: boolean;
   onLogoClick?: () => void;
+  onManifestoClick?: (e: React.MouseEvent) => void;
+  onProtocolClick?: () => void;
 }
 
 export const MachineView: React.FC<MachineViewProps> = ({
   onToggleMode,
+  onToggleTheme,
   isGodMode,
   isDarkMode = true,
+  isSubmitted = false,
   onLogoClick,
+  onManifestoClick,
+  onProtocolClick,
 }) => {
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
+
   return (
     <div
       className={`min-h-screen font-mono relative flex flex-col transition-colors duration-300 ${
@@ -24,41 +33,19 @@ export const MachineView: React.FC<MachineViewProps> = ({
           : "bg-iii-light text-iii-black"
       }`}
     >
-      {/* Matching nav bar */}
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
-          isDarkMode
-            ? "border-iii-light bg-iii-black/90"
-            : "border-iii-dark bg-iii-light/90"
-        }`}
-      >
-        <div className="flex items-center gap-4">
-          <div className="cursor-pointer" onClick={onLogoClick}>
-            <Logo
-              className={`h-6 md:h-10 ${
-                isGodMode
-                  ? "text-red-500"
-                  : isDarkMode
-                  ? "text-iii-light"
-                  : "text-iii-black"
-              }`}
-              accentColor={
-                isGodMode
-                  ? "fill-red-500"
-                  : isDarkMode
-                  ? "fill-iii-accent"
-                  : "fill-iii-accent-light"
-              }
-            />
-          </div>
-          {/* Human/Machine Toggle */}
-          <ModeToggle
-            isHumanMode={false}
-            onToggle={onToggleMode}
-            isDarkMode={isDarkMode}
-          />
-        </div>
-      </nav>
+      <Navbar
+        isDarkMode={isDarkMode}
+        isGodMode={isGodMode}
+        isHumanMode={false}
+        isSubmitted={isSubmitted}
+        onToggleTheme={onToggleTheme}
+        onToggleMode={onToggleMode}
+        onLogoClick={onLogoClick}
+        onManifestoClick={onManifestoClick}
+        onProtocolClick={onProtocolClick}
+        onLogoMouseEnter={() => setIsLogoHovered(true)}
+        onLogoMouseLeave={() => setIsLogoHovered(false)}
+      />
 
       {/* Content - Machine readable markdown */}
       <div className="flex-1 text-xs md:text-sm leading-relaxed p-4 md:p-8 lg:p-12 pt-20 md:pt-24 pb-8 overflow-x-hidden">
