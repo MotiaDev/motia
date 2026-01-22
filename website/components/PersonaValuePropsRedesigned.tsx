@@ -203,7 +203,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
 
   const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
   const textSecondary = isDarkMode
-    ? "text-iii-medium-dark"
+    ? "text-iii-light/70"
     : "text-iii-medium-light";
   const accentColor = isDarkMode ? "text-iii-accent" : "text-iii-accent-light";
   const accentBg = isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light";

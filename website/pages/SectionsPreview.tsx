@@ -102,7 +102,7 @@ function DependencyStackDemo() {
             max="100"
             value={progress * 100}
             onChange={(e) => setProgress(Number(e.target.value) / 100)}
-            className="w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-[#e52e61]"
+            className="w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-iii-alert"
           />
           <div className="flex justify-between text-sm text-neutral-500 mt-2">
             <span>Stack (0%)</span>

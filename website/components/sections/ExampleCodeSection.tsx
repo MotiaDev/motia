@@ -1574,7 +1574,7 @@ const ToolBadge: React.FC<ToolBadgeProps> = ({ tool, isDarkMode }) => {
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium transition-colors ${
         isDarkMode
-          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+          ? "bg-iii-alert/20 text-iii-alert border border-iii-alert/30"
           : "bg-red-100 text-red-700 border border-red-200"
       }`}
     >
@@ -1680,7 +1680,7 @@ function CodeBlock({
             <div
               className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                 isTraditional
-                  ? "bg-red-500"
+                  ? "bg-iii-alert"
                   : isDarkMode
                   ? "bg-iii-accent"
                   : "bg-iii-accent-light"
@@ -1698,7 +1698,7 @@ function CodeBlock({
             className={`text-[10px] sm:text-xs px-2 py-0.5 rounded font-medium transition-colors ${
               isTraditional
                 ? isDarkMode
-                  ? "bg-red-500/20 text-red-300"
+                  ? "bg-iii-alert/20 text-iii-alert"
                   : "bg-red-100 text-red-700"
                 : isDarkMode
                 ? "bg-iii-accent/20 text-iii-accent"
@@ -1738,7 +1738,7 @@ function CodeBlock({
                 >
                   <span
                     className={`inline-block w-6 sm:w-8 text-right mr-2 sm:mr-3 select-none ${
-                      isDarkMode ? "text-[#4A4A4A]" : "text-iii-medium/40"
+                      isDarkMode ? "text-iii-light/30" : "text-iii-medium/40"
                     }`}
                   >
                     {i + 1}
@@ -1960,7 +1960,7 @@ export function ExampleCodeSection({
           </h2>
           <p
             className={`text-xs sm:text-sm md:text-base lg:text-lg max-w-3xl mx-auto px-2 ${
-              isDarkMode ? "text-[#A0A0A0]" : "text-iii-medium"
+              isDarkMode ? "text-iii-light/70" : "text-iii-medium"
             }`}
           >
             Services, frameworks, integrations, these all become design
@@ -1979,10 +1979,10 @@ export function ExampleCodeSection({
                   className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs md:text-sm transition-all whitespace-nowrap font-medium ${
                     activeCategory === category.id
                       ? isDarkMode
-                        ? "bg-iii-light text-iii-black"
-                        : "bg-iii-black text-iii-light"
+                        ? "bg-iii-accent text-iii-black"
+                        : "bg-iii-accent-light text-iii-light"
                       : isDarkMode
-                      ? "text-[#A0A0A0] hover:text-iii-light hover:bg-iii-dark/50 border border-iii-dark"
+                      ? "text-iii-light/70 hover:text-iii-light hover:bg-iii-dark/50 border border-iii-dark"
                       : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border border-iii-medium/20"
                   }`}
                 >
@@ -1998,7 +1998,7 @@ export function ExampleCodeSection({
           <div className="min-h-[2.5rem] sm:min-h-[3rem] md:min-h-[4rem] mb-3 sm:mb-4 md:mb-6 max-w-2xl mx-auto flex items-center justify-center px-2">
             <p
               className={`text-center text-[11px] sm:text-xs md:text-sm leading-5 sm:leading-6 ${
-                isDarkMode ? "text-[#A0A0A0]" : "text-iii-medium"
+                isDarkMode ? "text-iii-light/70" : "text-iii-medium"
               }`}
             >
               {currentExample.description}

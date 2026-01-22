@@ -36,9 +36,9 @@ body {
   --color-success: #1ce669;
 
   /* Scrollbar colors (Light Default) */
-  --scrollbar-track: #f4f4f4;
+  --scrollbar-track: var(--color-light);
   --scrollbar-thumb: #cccccc;
-  --scrollbar-thumb-hover: #1d4ed8;
+  --scrollbar-thumb-hover: var(--color-accent-light);
 }
 
 /* Dark mode colors */
@@ -54,9 +54,9 @@ body {
   --arrow-highlight-color: #666666;
 
   /* Scrollbar colors (Dark) */
-  --scrollbar-track: #000000;
+  --scrollbar-track: var(--color-black);
   --scrollbar-thumb: #333333;
-  --scrollbar-thumb-hover: #f3f724;
+  --scrollbar-thumb-hover: var(--color-accent);
 }
 
 /* Apply to body based on isDarkMode */
@@ -72,26 +72,26 @@ body.dark-mode {
   --arrow-highlight-color: #666666;
 
   /* Scrollbar colors (Dark) */
-  --scrollbar-track: #000000;
+  --scrollbar-track: var(--color-black);
   --scrollbar-thumb: #333333;
-  --scrollbar-thumb-hover: #f3f724;
+  --scrollbar-thumb-hover: var(--color-accent);
 }
 
 body.light-mode {
-  --svg-fill: #f4f4f4;
-  --svg-stroke: #000000;
-  --svg-text: #000000;
-  --svg-cluster-fill: #f4f4f4;
+  --svg-fill: var(--color-light);
+  --svg-stroke: var(--color-black);
+  --svg-text: var(--color-black);
+  --svg-cluster-fill: var(--color-light);
 
-  --grid-bg: #f4f4f4;
+  --grid-bg: var(--color-light);
   --grid-line-color: rgba(0, 0, 0, 0.06);
   --arrow-light-color: #cccccc;
   --arrow-highlight-color: #aaaaaa;
 
   /* Scrollbar colors (Light) */
-  --scrollbar-track: #f4f4f4;
+  --scrollbar-track: var(--color-light);
   --scrollbar-thumb: #cccccc;
-  --scrollbar-thumb-hover: #1d4ed8;
+  --scrollbar-thumb-hover: var(--color-accent-light);
 }
 
 /* Scrollbar styles */
@@ -147,7 +147,7 @@ body.light-mode {
 /* Brand scrollbar for dark mode (yellow accent) */
 .scrollbar-brand-dark {
   scrollbar-width: thin;
-  scrollbar-color: #333333 #000000;
+  scrollbar-color: #333333 var(--color-black);
 }
 
 .scrollbar-brand-dark::-webkit-scrollbar {
@@ -156,7 +156,7 @@ body.light-mode {
 }
 
 .scrollbar-brand-dark::-webkit-scrollbar-track {
-  background: #1d1d1d;
+  background: var(--color-dark);
   border-radius: 3px;
 }
 
@@ -166,13 +166,13 @@ body.light-mode {
 }
 
 .scrollbar-brand-dark::-webkit-scrollbar-thumb:hover {
-  background: #f3f724;
+  background: var(--color-accent);
 }
 
 /* Brand scrollbar for light mode (blue accent) */
 .scrollbar-brand-light {
   scrollbar-width: thin;
-  scrollbar-color: #cccccc #f4f4f4;
+  scrollbar-color: #cccccc var(--color-light);
 }
 
 .scrollbar-brand-light::-webkit-scrollbar {
@@ -191,5 +191,5 @@ body.light-mode {
 }
 
 .scrollbar-brand-light::-webkit-scrollbar-thumb:hover {
-  background: #1d4ed8;
+  background: var(--color-accent-light);
 }

@@ -101,7 +101,7 @@ function FAQItem({
       {isOpen && (
         <p
           className={`text-base leading-relaxed mt-4 ${
-            isDarkMode ? "text-iii-medium" : "text-iii-medium"
+            isDarkMode ? "text-iii-light/80" : "text-iii-medium"
           }`}
         >
           {answer}
@@ -130,7 +130,11 @@ export function FAQSection({ isDarkMode = true }: FAQSectionProps) {
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
             Frequently asked questions
           </h2>
-          <p className="text-iii-medium text-lg">
+          <p
+            className={`text-lg ${
+              isDarkMode ? "text-iii-light/70" : "text-iii-medium"
+            }`}
+          >
             Got questions? We've got answers. Can't find what you're looking
             for?{" "}
             <button
@@ -161,7 +165,11 @@ export function FAQSection({ isDarkMode = true }: FAQSectionProps) {
 
         {/* Bottom CTA */}
         <div className="mt-12 text-center">
-          <p className="text-iii-medium mb-6">
+          <p
+            className={`mb-6 ${
+              isDarkMode ? "text-iii-light/70" : "text-iii-medium"
+            }`}
+          >
             Still have questions? Check out our full documentation or join our
             community.
           </p>
