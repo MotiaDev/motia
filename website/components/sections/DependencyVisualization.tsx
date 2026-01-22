@@ -7,7 +7,8 @@ type AnimationPhase =
   | "highlighting"
   | "moving"
   | "linking"
-  | "connected";
+  | "connected"
+  | "outputting";
 
 interface DependencyBoxProps {
   name: string;
@@ -27,15 +28,18 @@ const DependencyBox: React.FC<DependencyBoxProps> = ({
   // During idle/highlighting: boxes are invisible, positioned far left (in the code)
   // During moving: boxes animate from left into the center hub
   // During linking: lines extend, boxes start transitioning color
-  // During connected: boxes are accent colored and fully connected
+  // During connected/outputting: boxes are accent colored and fully connected
 
   const isVisible =
     animationPhase === "moving" ||
     animationPhase === "linking" ||
-    animationPhase === "connected";
+    animationPhase === "connected" ||
+    animationPhase === "outputting";
   const isMoving = animationPhase === "moving";
   const isLinkedOrConnected =
-    animationPhase === "linking" || animationPhase === "connected";
+    animationPhase === "linking" ||
+    animationPhase === "connected" ||
+    animationPhase === "outputting";
 
   // Stagger vertical positions to simulate coming from different lines
   const verticalOffset = index * 8; // Slight vertical stagger
@@ -96,7 +100,10 @@ const ConnectionLine: React.FC<{
   index: number;
   isDarkMode: boolean;
 }> = ({ isVisible, isActive, height, delay, index, isDarkMode }) => {
-  const accentColor = isDarkMode ? "#00ffff" : "#1d4ed8";
+  // Use CSS variables for colors
+  const accentVar = isDarkMode
+    ? "var(--color-info)"
+    : "var(--color-accent-light)";
 
   return (
     <div
@@ -111,12 +118,9 @@ const ConnectionLine: React.FC<{
     >
       {/* Base line */}
       <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: isDarkMode
-            ? "rgba(0, 255, 255, 0.3)"
-            : "rgba(29, 78, 216, 0.3)",
-        }}
+        className={`absolute inset-0 rounded-full ${
+          isDarkMode ? "bg-iii-info/30" : "bg-iii-accent-light/30"
+        }`}
       />
 
       {/* Animated flowing gradient */}
@@ -127,8 +131,8 @@ const ConnectionLine: React.FC<{
             style={{
               background: `linear-gradient(180deg, 
                 transparent 0%, 
-                ${accentColor} 30%, 
-                ${accentColor} 70%, 
+                ${accentVar} 30%, 
+                ${accentVar} 70%, 
                 transparent 100%
               )`,
               backgroundSize: "100% 300%",
@@ -138,16 +142,139 @@ const ConnectionLine: React.FC<{
           />
           {/* Glowing orb that travels */}
           <div
-            className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full"
+            className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full ${
+              isDarkMode ? "bg-iii-info" : "bg-iii-accent-light"
+            }`}
             style={{
-              background: accentColor,
-              boxShadow: `0 0 10px 3px ${accentColor}, 0 0 20px 6px ${accentColor}40`,
+              boxShadow: `0 0 10px 3px ${accentVar}, 0 0 20px 6px ${accentVar}`,
               animation: `orbTravel 2s ease-in-out infinite`,
               animationDelay: `${index * 300}ms`,
             }}
           />
         </>
       )}
+    </div>
+  );
+};
+
+// Horizontal bidirectional connection line to the code output with creative endpoint
+const OutputConnectionLine: React.FC<{
+  isVisible: boolean;
+  isDarkMode: boolean;
+}> = ({ isVisible, isDarkMode }) => {
+  // Use CSS variables for colors
+  const accentVar = isDarkMode
+    ? "var(--color-accent)"
+    : "var(--color-accent-light)";
+
+  return (
+    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full flex items-center">
+      {/* Solid accent line */}
+      <div
+        className={`
+          h-0.5 transition-all duration-1000 ease-out overflow-visible relative
+          ${isVisible ? "w-[60px] opacity-100" : "w-0 opacity-0"}
+          ${isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"}
+        `}
+      >
+        {/* Orb traveling right (engine -> code) */}
+        {isVisible && (
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 h-2 w-2 rounded-full ${
+              isDarkMode ? "bg-iii-info" : "bg-iii-accent-light"
+            }`}
+            style={{
+              boxShadow: `0 0 10px 3px ${accentVar}, 0 0 20px 6px ${accentVar}`,
+              animation: "orbTravelRight 2s ease-in-out infinite",
+            }}
+          />
+        )}
+        {/* Orb traveling left (code -> engine) */}
+        {isVisible && (
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 h-2 w-2 rounded-full ${
+              isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
+            }`}
+            style={{
+              boxShadow: `0 0 10px 3px ${accentVar}, 0 0 20px 6px ${accentVar}`,
+              animation: "orbTravelLeft 2s ease-in-out infinite",
+              animationDelay: "1s",
+            }}
+          />
+        )}
+      </div>
+
+      {/* Connection port/socket that overlaps with the code border */}
+      <div
+        className={`
+          relative transition-all duration-700
+          ${isVisible ? "opacity-100 scale-100" : "opacity-0 scale-0"}
+        `}
+        style={{ transitionDelay: isVisible ? "600ms" : "0ms" }}
+      >
+        {/* Outer pulsing ring */}
+        <div
+          className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 ${
+            isDarkMode ? "border-iii-accent" : "border-iii-accent-light"
+          }`}
+          style={{
+            animation: isVisible
+              ? "socketPulse 2s ease-in-out infinite"
+              : "none",
+          }}
+        />
+        {/* Middle ring */}
+        <div
+          className={`absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-[1.5px] ${
+            isDarkMode
+              ? "bg-iii-accent/30 border-iii-info"
+              : "bg-iii-accent-light/30 border-iii-accent-light"
+          }`}
+        />
+        {/* Inner glowing core */}
+        <div
+          className={`absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${
+            isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
+          }`}
+          style={{
+            boxShadow: `0 0 8px 2px ${accentVar}, 0 0 16px 4px ${accentVar}`,
+            animation: isVisible
+              ? "coreGlow 1.5s ease-in-out infinite"
+              : "none",
+          }}
+        />
+        {/* Data stream particles */}
+        {isVisible && (
+          <>
+            <div
+              className={`absolute -left-3 top-1/2 w-1 h-1 rounded-full ${
+                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
+              }`}
+              style={{
+                animation: "particleOrbit 3s linear infinite",
+              }}
+            />
+            <div
+              className={`absolute -left-3 top-1/2 w-1 h-1 rounded-full ${
+                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
+              }`}
+              style={{
+                animation: "particleOrbit 3s linear infinite",
+                animationDelay: "1s",
+              }}
+            />
+            <div
+              className={`absolute -left-3 top-1/2 w-1 h-1 rounded-full ${
+                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
+              }`}
+              style={{
+                animation: "particleOrbit 3s linear infinite",
+                animationDelay: "2s",
+              }}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 };
@@ -160,10 +287,15 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
   const showDependencies =
     animationPhase === "moving" ||
     animationPhase === "linking" ||
-    animationPhase === "connected";
+    animationPhase === "connected" ||
+    animationPhase === "outputting";
   const isLinking =
-    animationPhase === "linking" || animationPhase === "connected";
-  const isConnected = animationPhase === "connected";
+    animationPhase === "linking" ||
+    animationPhase === "connected" ||
+    animationPhase === "outputting";
+  const isConnected =
+    animationPhase === "connected" || animationPhase === "outputting";
+  const isOutputting = animationPhase === "outputting";
 
   // Split tools into top and bottom halves
   const midpoint = Math.ceil(tools.length / 2);
@@ -246,6 +378,12 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
         >
           engine
         </div>
+
+        {/* Horizontal output connection to iii code */}
+        <OutputConnectionLine
+          isVisible={isOutputting}
+          isDarkMode={isDarkMode}
+        />
       </div>
 
       {/* Converging lines from engine - bottom */}
@@ -359,6 +497,8 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
   animationPhase,
 }) => {
   const isTraditional = variant === "traditional";
+  const isIII = variant === "iii";
+  const isOutputting = animationPhase === "outputting";
 
   // Pre-compute which lines should be highlighted (for traditional code only)
   const lines = code.trim().split("\n");
@@ -378,12 +518,26 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
     (animationPhase === "highlighting" || animationPhase === "moving");
   const shouldShowExtracted = isTraditional && animationPhase === "moving";
 
+  // Border styling for iii code block - transforms to dashed accent when outputting
+  const getBorderClasses = () => {
+    if (isIII && isOutputting) {
+      return isDarkMode
+        ? "border-iii-accent border-dashed"
+        : "border-iii-accent-light border-dashed";
+    }
+    return isDarkMode ? "border-iii-light" : "border-iii-dark";
+  };
+
   return (
     <div
-      className={`rounded-lg sm:rounded-xl overflow-hidden border h-full flex flex-col transition-colors duration-300 ${
-        isDarkMode
-          ? "border-iii-light bg-iii-black"
-          : "border-iii-dark bg-white"
+      className={`rounded-lg sm:rounded-xl overflow-hidden border-2 h-full flex flex-col transition-all duration-700 ${getBorderClasses()} ${
+        isDarkMode ? "bg-iii-black" : "bg-white"
+      } ${
+        isIII && isOutputting
+          ? isDarkMode
+            ? "shadow-lg shadow-iii-accent/20"
+            : "shadow-lg shadow-iii-accent-light/20"
+          : ""
       }`}
     >
       {/* Header */}
@@ -541,11 +695,15 @@ export const DependencyVisualization: React.FC<
     // Phase 4: Show fully connected state (color change completes)
     const timer4 = setTimeout(() => setAnimationPhase("connected"), 4500);
 
+    // Phase 5: Output to iii code (decoupled connection)
+    const timer5 = setTimeout(() => setAnimationPhase("outputting"), 5800);
+
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
       clearTimeout(timer4);
+      clearTimeout(timer5);
     };
   }, []);
 

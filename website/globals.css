@@ -235,3 +235,123 @@ body.light-mode {
     box-shadow: 0 0 15px 5px currentColor;
   }
 }
+
+/* Horizontal orb travel for output connection */
+@keyframes orbTravelHorizontal {
+  0% {
+    left: -8px;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    left: calc(100% - 8px);
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+/* Bidirectional orb travel - right direction */
+@keyframes orbTravelRight {
+  0% {
+    left: -4px;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  100% {
+    left: calc(100% - 4px);
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+  }
+}
+
+/* Bidirectional orb travel - left direction */
+@keyframes orbTravelLeft {
+  0% {
+    left: calc(100% - 4px);
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  100% {
+    left: -4px;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+  }
+}
+
+/* Socket/port pulsing animation */
+@keyframes socketPulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 0.2;
+  }
+}
+
+/* Core glow breathing animation */
+@keyframes coreGlow {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    filter: brightness(1.5);
+  }
+}
+
+/* Particles orbiting around the socket */
+@keyframes particleOrbit {
+  0% {
+    transform: rotate(0deg) translateX(10px) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(360deg) translateX(10px) rotate(-360deg);
+    opacity: 0;
+  }
+}
+
+/* Dashed border animation for decoupled elements */
+@keyframes dashMove {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 24;
+  }
+}
