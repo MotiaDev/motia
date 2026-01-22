@@ -122,23 +122,19 @@ function RotatingTextBox({
 }) {
   const boxBg = isDarkMode ? "bg-iii-dark/40" : "bg-iii-medium/10";
   const accentColor = isDarkMode ? "text-iii-accent" : "text-iii-accent-light";
-  const accentBorder = isDarkMode
-    ? "border-iii-accent"
-    : "border-iii-accent-light";
+  // const accentBorder = isDarkMode
+  //   ? "border-iii-accent"
+  //   : "border-iii-accent-light";
   const textColor = colorClass || accentColor;
-  const borderColor = borderColorClass || accentBorder;
+  const borderColor = borderColorClass;
 
   return (
     <span
-      className={`relative inline-block px-2 md:px-3 py-0.5 md:py-1 rounded-t border-b-2 ${boxBg} ${borderColor}`}
+      className={`relative inline-block px-2 md:px-3 py-0.5 md:py-1 rounded-t`}
     >
-      {/* Invisible text to set width based on longest item */}
-      <span className="invisible whitespace-nowrap" aria-hidden="true">
-        {items.reduce((a, b) => (a.length > b.length ? a : b))}
-      </span>
       {/* Visible animated text positioned absolutely */}
       <span
-        className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${textColor} ${
+        className={`inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${textColor} ${
           isAnimating
             ? `opacity-0 ${
                 animateUp ? "-translate-y-3" : "translate-y-3"
@@ -174,7 +170,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
         setRole1Index((prev) => (prev + 1) % rotatingRole1s.length);
         setRole1Animating(false);
       }, 400);
-    }, 4000);
+    }, 4200);
     return () => clearInterval(interval);
   }, []);
 
@@ -186,7 +182,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
         setRole2Index((prev) => (prev + 1) % rotatingRole2s.length);
         setRole2Animating(false);
       }, 400);
-    }, 6000);
+    }, 5100);
     return () => clearInterval(interval);
   }, []);
 
@@ -198,7 +194,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
         setAdjIndex((prev) => (prev + 1) % rotatingAdjectives.length);
         setAdjAnimating(false);
       }, 400);
-    }, 8000);
+    }, 5200);
     return () => clearInterval(interval);
   }, []);
 
@@ -248,30 +244,34 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
           <h2
             className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tighter mb-3 md:mb-4 ${textPrimary}`}
           >
-            <span className="md:whitespace-nowrap inline-flex flex-wrap md:flex-nowrap items-baseline justify-center gap-x-2 gap-y-1">
-              <span>Keep your</span>
-              <RotatingTextBox
-                items={rotatingRole1s}
-                currentIndex={role1Index}
-                isAnimating={role1Animating}
-                isDarkMode={isDarkMode}
-              />
-              <span>and</span>
-              <RotatingTextBox
-                items={rotatingRole2s}
-                currentIndex={role2Index}
-                isAnimating={role2Animating}
-                isDarkMode={isDarkMode}
-              />
-              <RotatingTextBox
-                items={rotatingAdjectives}
-                currentIndex={adjIndex}
-                isAnimating={adjAnimating}
-                colorClass="text-iii-success"
-                borderColorClass="border-iii-success"
-                animateUp
-                isDarkMode={isDarkMode}
-              />
+            <span className="flex flex-col items-center gap-y-1 md:gap-y-2">
+              <span className="inline-flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+                <span>Keep your</span>
+                <RotatingTextBox
+                  items={rotatingRole1s}
+                  currentIndex={role1Index}
+                  isAnimating={role1Animating}
+                  isDarkMode={isDarkMode}
+                />
+              </span>
+              <span className="inline-flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+                <span>and</span>
+                <RotatingTextBox
+                  items={rotatingRole2s}
+                  currentIndex={role2Index}
+                  isAnimating={role2Animating}
+                  isDarkMode={isDarkMode}
+                />
+                <RotatingTextBox
+                  items={rotatingAdjectives}
+                  currentIndex={adjIndex}
+                  isAnimating={adjAnimating}
+                  colorClass="text-iii-success"
+                  borderColorClass="border-iii-success"
+                  animateUp
+                  isDarkMode={isDarkMode}
+                />
+              </span>
             </span>
           </h2>
           <p
