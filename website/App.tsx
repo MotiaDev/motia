@@ -354,12 +354,16 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main className="flex-1 relative z-10 flex flex-col items-center pb-8 md:pb-12 w-full">
+      <main className="flex-1 relative z-10 flex flex-col items-center w-full">
         {/* Hero Section */}
-        <HeroSection isDarkMode={isDarkMode} />
+        <div className="w-full">
+          <HeroSection isDarkMode={isDarkMode} />
+        </div>
 
         {/* Code Examples Section - Before/After */}
-        <ExampleCodeSection isDarkMode={isDarkMode} />
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <ExampleCodeSection isDarkMode={isDarkMode} />
+        </div>
 
         {/* Value Props - Core Features (Hidden on mobile to reduce scrolling) */}
         {/* <div className="hidden md:block">
@@ -367,13 +371,19 @@ const App: React.FC = () => {
         </div> */}
 
         {/* Persona-Based Value Props */}
-        <PersonaValueProps isDarkMode={isDarkMode} />
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <PersonaValueProps isDarkMode={isDarkMode} />
+        </div>
 
         {/* FAQ Section */}
-        <FAQSection isDarkMode={isDarkMode} />
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-4xl py-12 md:py-16 lg:py-24">
+          <FAQSection isDarkMode={isDarkMode} />
+        </div>
 
         {/* Community Section */}
-        <CommunitySection isDarkMode={isDarkMode} />
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <CommunitySection isDarkMode={isDarkMode} />
+        </div>
       </main>
 
       <footer

@@ -179,11 +179,11 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
 
   return (
     <section
-      className={`relative py-24 overflow-hidden font-mono transition-colors duration-300 ${
+      className={`relative overflow-hidden font-mono transition-colors duration-300 ${
         isDarkMode ? "text-iii-light" : "text-iii-black"
       }`}
     >
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
+      <div className="relative z-10">
         {/* Header */}
         <div className="text-center mb-16 space-y-4">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">

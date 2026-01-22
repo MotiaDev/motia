@@ -240,8 +240,8 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
   const selectedPersonaData = personas.find((p) => p.id === selectedPersona)!;
 
   return (
-    <section className={`w-full ${bgBase} border-t ${borderColor}`}>
-      <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+    <section className={`w-full ${bgBase}`}>
+      <div>
         {/* Header */}
         <div className="text-center mb-6 md:mb-16">
           <h2

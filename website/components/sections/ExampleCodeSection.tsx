@@ -1946,11 +1946,11 @@ export function ExampleCodeSection({
 
   return (
     <section
-      className={`relative pb-8 sm:pb-12 md:pb-16 lg:pb-24 overflow-hidden font-mono transition-colors duration-300 ${
+      className={`relative overflow-hidden font-mono transition-colors duration-300 ${
         isDarkMode ? "text-iii-light" : "text-iii-black"
       }`}
     >
-      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+      <div className="relative z-10">
         {/* Header */}
         <div className="text-center mb-3 sm:mb-4 md:mb-6 space-y-2 sm:space-y-3 md:space-y-4">
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter">

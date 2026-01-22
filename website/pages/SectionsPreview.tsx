@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { HeroSection } from "../components/sections/HeroSection";
-import { PersonaValueProps } from "../components/sections/PersonaValueProps";
-import { CodeComparisonSection } from "../components/sections/CodeComparisonSection";
 import { ExampleCodeSection } from "../components/sections/ExampleCodeSection";
 import { TestimonialsSection } from "../components/sections/TestimonialsSection";
 import { WhatsCatchSection } from "../components/sections/WhatsCatchSection";
 import { FAQSection } from "../components/sections/FAQSection";
 import { CommunitySection } from "../components/sections/CommunitySection";
-import { CTAFooterSection } from "../components/sections/CTAFooterSection";
 import {
   DependencyStack,
   DependencyStackBackground,
