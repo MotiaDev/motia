@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Code, Boxes, Briefcase } from "lucide-react";
+import { useRotatingText } from "../lib/useRotatingText";
 
 interface PersonaValuePropsProps {
   isDarkMode?: boolean;
@@ -78,11 +79,52 @@ const technicalBenefits = [
   "Zero-downtime deployments",
 ];
 
+// Rotating headline parts: "Keep your {role1} and {role2} {adjective}"
+// Each rotates independently at different speeds
+const rotatingRole1s = [
+  "Developers",
+  "Vibe coders",
+  "Juniors",
+  "Frontend",
+  "Teams",
+];
+const rotatingRole2s = [
+  "Architects",
+  "Senior Engineers",
+  "CTOs",
+  "Backend",
+  "Leadership",
+];
+const rotatingAdjectives = [
+  "productive",
+  "happy",
+  "aligned",
+  "connected",
+  "in sync",
+];
+
 export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
   isDarkMode = true,
 }) => {
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>("engineer");
   const [hoveredBenefit, setHoveredBenefit] = useState<number | null>(null);
+
+  // Rotating headline animations - different timings so they don't sync
+  const { currentItem: currentRole1, isAnimating: isRole1Animating } =
+    useRotatingText({
+      items: rotatingRole1s,
+      intervalMs: 4000,
+    });
+  const { currentItem: currentRole2, isAnimating: isRole2Animating } =
+    useRotatingText({
+      items: rotatingRole2s,
+      intervalMs: 6000,
+    });
+  const { currentItem: currentAdjective, isAnimating: isAdjectiveAnimating } =
+    useRotatingText({
+      items: rotatingAdjectives,
+      intervalMs: 8000,
+    });
 
   const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
   const textSecondary = isDarkMode
@@ -128,11 +170,42 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
         {/* Header */}
         <div className="text-center mb-6 md:mb-16">
           <h2
-            className={`text-2xl md:text-5xl font-black tracking-tighter mb-3 md:mb-4 ${textPrimary}`}
+            className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tighter mb-3 md:mb-4 ${textPrimary}`}
           >
-            ROLE-SPECIFIC.
-            <br />
-            <span className={accentColor}>IMPLEMENTATION.</span>
+            <span className="md:whitespace-nowrap">
+              Keep your{" "}
+              <span
+                className={`inline-block transition-all duration-500 ease-in-out ${accentColor} ${
+                  isRole1Animating
+                    ? "opacity-0 translate-y-3 scale-95"
+                    : "opacity-100 translate-y-0 scale-100"
+                }`}
+              >
+                {currentRole1}
+              </span>
+              <br className="md:hidden" />
+              <span className="hidden md:inline"> </span>and{" "}
+              <span
+                className={`inline-block transition-all duration-500 ease-in-out ${accentColor} ${
+                  isRole2Animating
+                    ? "opacity-0 translate-y-3 scale-95"
+                    : "opacity-100 translate-y-0 scale-100"
+                }`}
+              >
+                {currentRole2}
+              </span>
+              <br className="md:hidden" />
+              <span className="hidden md:inline"> </span>
+              <span
+                className={`inline-block transition-all duration-500 ease-in-out ${
+                  isAdjectiveAnimating
+                    ? "opacity-0 -translate-y-2 scale-95"
+                    : "opacity-100 translate-y-0 scale-100"
+                }`}
+              >
+                {currentAdjective}
+              </span>
+            </span>
           </h2>
           <p
             className={`text-xs md:text-base max-w-2xl mx-auto ${textSecondary}`}

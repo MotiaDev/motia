@@ -5,6 +5,7 @@ import {
   Check,
   Terminal as TerminalIcon,
 } from "lucide-react";
+import { useRotatingText } from "../../lib/useRotatingText";
 // AUTHENTIC SVG LOGOS - Official & Community Verified Paths
 // Sources: Official branding pages, vectorlogo.zone, svgl.app, simpleicons.org
 
@@ -318,10 +319,18 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
-  const [currentWordIndex, setCurrentWordIndex] = useState(0);
-  const [currentContextIndex, setCurrentContextIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [isContextAnimating, setIsContextAnimating] = useState(false);
+  // Use shared rotating text hook for words
+  const { currentItem: currentWord, isAnimating } = useRotatingText({
+    items: rotatingWords,
+    intervalMs: 3000,
+  });
+
+  // Use shared rotating text hook for contexts
+  const { currentItem: currentContext, isAnimating: isContextAnimating } =
+    useRotatingText({
+      items: rotatingContexts,
+      intervalMs: 4200,
+    });
 
   // Install command state
   const [copySuccess, setCopySuccess] = useState(false);
@@ -356,32 +365,6 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
     }, 500);
   };
 
-  // Word rotation effect
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentWordIndex((prev) => (prev + 1) % rotatingWords.length);
-        setIsAnimating(false);
-      }, 400);
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Context rotation effect
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsContextAnimating(true);
-      setTimeout(() => {
-        setCurrentContextIndex((prev) => (prev + 1) % rotatingContexts.length);
-        setIsContextAnimating(false);
-      }, 400);
-    }, 4200);
-
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <section
       className={`relative min-h-[60vh] sm:min-h-[70vh] overflow-x-hidden font-mono transition-colors duration-300 ${
@@ -410,7 +393,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                       : "opacity-100 translate-y-0 scale-100"
                   }`}
                 >
-                  {rotatingWords[currentWordIndex]}
+                  {currentWord}
                 </span>
                 <br />
                 <span
@@ -422,7 +405,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                       : "opacity-100 translate-y-0 scale-100"
                   }`}
                 >
-                  {rotatingContexts[currentContextIndex]}
+                  {currentContext}
                 </span>
               </h1>
             </div>
