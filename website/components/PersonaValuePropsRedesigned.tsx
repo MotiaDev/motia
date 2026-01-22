@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Code, Boxes, Briefcase } from "lucide-react";
-import { useRotatingText } from "../lib/useRotatingText";
 
 interface PersonaValuePropsProps {
   isDarkMode?: boolean;
@@ -103,28 +102,102 @@ const rotatingAdjectives = [
   "in sync",
 ];
 
+// Rotating text box component - defined outside to prevent recreation
+function RotatingTextBox({
+  items,
+  currentIndex,
+  isAnimating,
+  colorClass,
+  animateUp = false,
+  isDarkMode,
+}: {
+  items: string[];
+  currentIndex: number;
+  isAnimating: boolean;
+  colorClass?: string;
+  animateUp?: boolean;
+  isDarkMode: boolean;
+}) {
+  const boxBg = isDarkMode ? "bg-iii-dark/40" : "bg-iii-medium/10";
+  const borderBottom = isDarkMode
+    ? "border-b-2 border-iii-accent/50"
+    : "border-b-2 border-iii-accent-light/50";
+  const accentColor = isDarkMode ? "text-iii-accent" : "text-iii-accent-light";
+  const textColor = colorClass || accentColor;
+
+  return (
+    <span
+      className={`relative inline-block px-2 md:px-3 py-0.5 md:py-1 rounded-t ${boxBg} ${borderBottom}`}
+    >
+      {/* Invisible text to set width based on longest item */}
+      <span className="invisible whitespace-nowrap" aria-hidden="true">
+        {items.reduce((a, b) => (a.length > b.length ? a : b))}
+      </span>
+      {/* Visible animated text positioned absolutely */}
+      <span
+        className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${textColor} ${
+          isAnimating
+            ? `opacity-0 ${
+                animateUp ? "-translate-y-3" : "translate-y-3"
+              } scale-95`
+            : "opacity-100 translate-y-0 scale-100"
+        }`}
+      >
+        {items[currentIndex]}
+      </span>
+    </span>
+  );
+}
+
 export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
   isDarkMode = true,
 }) => {
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>("engineer");
   const [hoveredBenefit, setHoveredBenefit] = useState<number | null>(null);
 
-  // Rotating headline animations - different timings so they don't sync
-  const { currentItem: currentRole1, isAnimating: isRole1Animating } =
-    useRotatingText({
-      items: rotatingRole1s,
-      intervalMs: 4000,
-    });
-  const { currentItem: currentRole2, isAnimating: isRole2Animating } =
-    useRotatingText({
-      items: rotatingRole2s,
-      intervalMs: 6000,
-    });
-  const { currentItem: currentAdjective, isAnimating: isAdjectiveAnimating } =
-    useRotatingText({
-      items: rotatingAdjectives,
-      intervalMs: 8000,
-    });
+  // Rotating text state - separate index and animation state for each
+  const [role1Index, setRole1Index] = useState(0);
+  const [role1Animating, setRole1Animating] = useState(false);
+  const [role2Index, setRole2Index] = useState(0);
+  const [role2Animating, setRole2Animating] = useState(false);
+  const [adjIndex, setAdjIndex] = useState(0);
+  const [adjAnimating, setAdjAnimating] = useState(false);
+
+  // Role1 rotation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRole1Animating(true);
+      setTimeout(() => {
+        setRole1Index((prev) => (prev + 1) % rotatingRole1s.length);
+        setRole1Animating(false);
+      }, 400);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Role2 rotation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRole2Animating(true);
+      setTimeout(() => {
+        setRole2Index((prev) => (prev + 1) % rotatingRole2s.length);
+        setRole2Animating(false);
+      }, 400);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Adjective rotation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAdjAnimating(true);
+      setTimeout(() => {
+        setAdjIndex((prev) => (prev + 1) % rotatingAdjectives.length);
+        setAdjAnimating(false);
+      }, 400);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
 
   const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
   const textSecondary = isDarkMode
@@ -172,39 +245,29 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
           <h2
             className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tighter mb-3 md:mb-4 ${textPrimary}`}
           >
-            <span className="md:whitespace-nowrap">
-              Keep your{" "}
-              <span
-                className={`inline-block transition-all duration-500 ease-in-out ${accentColor} ${
-                  isRole1Animating
-                    ? "opacity-0 translate-y-3 scale-95"
-                    : "opacity-100 translate-y-0 scale-100"
-                }`}
-              >
-                {currentRole1}
-              </span>
-              <br className="md:hidden" />
-              <span className="hidden md:inline"> </span>and{" "}
-              <span
-                className={`inline-block transition-all duration-500 ease-in-out ${accentColor} ${
-                  isRole2Animating
-                    ? "opacity-0 translate-y-3 scale-95"
-                    : "opacity-100 translate-y-0 scale-100"
-                }`}
-              >
-                {currentRole2}
-              </span>
-              <br className="md:hidden" />
-              <span className="hidden md:inline"> </span>
-              <span
-                className={`inline-block transition-all duration-500 ease-in-out ${
-                  isAdjectiveAnimating
-                    ? "opacity-0 -translate-y-2 scale-95"
-                    : "opacity-100 translate-y-0 scale-100"
-                }`}
-              >
-                {currentAdjective}
-              </span>
+            <span className="md:whitespace-nowrap inline-flex flex-wrap md:flex-nowrap items-baseline justify-center gap-x-2 gap-y-1">
+              <span>Keep your</span>
+              <RotatingTextBox
+                items={rotatingRole1s}
+                currentIndex={role1Index}
+                isAnimating={role1Animating}
+                isDarkMode={isDarkMode}
+              />
+              <span>and</span>
+              <RotatingTextBox
+                items={rotatingRole2s}
+                currentIndex={role2Index}
+                isAnimating={role2Animating}
+                isDarkMode={isDarkMode}
+              />
+              <RotatingTextBox
+                items={rotatingAdjectives}
+                currentIndex={adjIndex}
+                isAnimating={adjAnimating}
+                colorClass="text-iii-success"
+                animateUp
+                isDarkMode={isDarkMode}
+              />
             </span>
           </h2>
           <p
