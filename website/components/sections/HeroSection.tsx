@@ -323,9 +323,6 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isContextAnimating, setIsContextAnimating] = useState(false);
 
-  // Intro animation state
-  const [introRotating, setIntroRotating] = useState(false);
-
   // Install command state
   const [copySuccess, setCopySuccess] = useState(false);
   const [installCmd] = useState("curl -fsSL iii.sh/install.sh | sh");
@@ -359,59 +356,31 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
     }, 500);
   };
 
-  // Intro animation sequence
+  // Word rotation effect
   useEffect(() => {
-    // Start rotating at 2 seconds
-    const rotateTimer = setTimeout(() => {
-      setIntroRotating(true);
-    }, 2000);
+    const interval = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentWordIndex((prev) => (prev + 1) % rotatingWords.length);
+        setIsAnimating(false);
+      }, 400);
+    }, 3000);
 
-    return () => {
-      clearTimeout(rotateTimer);
-    };
+    return () => clearInterval(interval);
   }, []);
 
+  // Context rotation effect
   useEffect(() => {
-    // Don't start word rotation until cube has rotated
-    if (!introRotating) return;
+    const interval = setInterval(() => {
+      setIsContextAnimating(true);
+      setTimeout(() => {
+        setCurrentContextIndex((prev) => (prev + 1) % rotatingContexts.length);
+        setIsContextAnimating(false);
+      }, 400);
+    }, 4200);
 
-    // Wait for the cube rotation to finish before starting word cycling
-    const startDelay = setTimeout(() => {
-      const interval = setInterval(() => {
-        setIsAnimating(true);
-        setTimeout(() => {
-          setCurrentWordIndex((prev) => (prev + 1) % rotatingWords.length);
-          setIsAnimating(false);
-        }, 400);
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }, 2500);
-
-    return () => clearTimeout(startDelay);
-  }, [introRotating]);
-
-  useEffect(() => {
-    // Don't start context rotation until cube has rotated
-    if (!introRotating) return;
-
-    // Wait for the cube rotation to finish before starting context cycling
-    const startDelay = setTimeout(() => {
-      const interval = setInterval(() => {
-        setIsContextAnimating(true);
-        setTimeout(() => {
-          setCurrentContextIndex(
-            (prev) => (prev + 1) % rotatingContexts.length
-          );
-          setIsContextAnimating(false);
-        }, 400);
-      }, 4200);
-
-      return () => clearInterval(interval);
-    }, 2500);
-
-    return () => clearTimeout(startDelay);
-  }, [introRotating]);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <section
