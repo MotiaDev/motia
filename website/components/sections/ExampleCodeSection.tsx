@@ -2042,24 +2042,6 @@ export function ExampleCodeSection({
             />
           </div>
         )}
-
-        {/* Bottom tagline */}
-        <div className="mt-8 sm:mt-10 md:mt-12 text-center">
-          <p
-            className={`text-sm sm:text-base md:text-lg font-medium ${
-              isDarkMode ? "text-[#A0A0A0]" : "text-iii-medium"
-            }`}
-          >
-            One protocol. Any language.{" "}
-            <span
-              className={`font-bold ${
-                isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-              }`}
-            >
-              Zero assembly required.
-            </span>
-          </p>
-        </div>
       </div>
     </section>
   );

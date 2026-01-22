@@ -362,9 +362,9 @@ const App: React.FC = () => {
         <ExampleCodeSection isDarkMode={isDarkMode} />
 
         {/* Value Props - Core Features (Hidden on mobile to reduce scrolling) */}
-        <div className="hidden md:block">
+        {/* <div className="hidden md:block">
           <ValueProps isDarkMode={isDarkMode} />
-        </div>
+        </div> */}
 
         {/* Persona-Based Value Props */}
         <PersonaValueProps isDarkMode={isDarkMode} />
