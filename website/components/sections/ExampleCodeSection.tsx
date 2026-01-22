@@ -17,6 +17,7 @@ const categories = [
   { id: "feature-flags", label: "Feature Flags" },
   { id: "multiplayer", label: "Multiplayer Games" },
   { id: "etl", label: "ETL Pipelines" },
+  { id: "reactive", label: "Reactive Backend" },
 ];
 
 interface CodeExample {
@@ -43,7 +44,7 @@ const codeExamples: Record<string, CodeExample> = {
     traditional: {
       title: "Express + Flask + FastAPI",
       tools: ["Express.js", "Flask", "FastAPI", "Koa", "Hono"],
-    language: "typescript",
+      language: "typescript",
       code: `// Express.js setup - just for HTTP routing
 import express from 'express'
 import { createClient } from 'redis'
@@ -271,7 +272,7 @@ await subscribe('order.placed', async (order) => {
     },
     iii: {
       title: "iii Engine",
-    language: "typescript",
+      language: "typescript",
       code: `// iii SDK - Events are function invocations
 import { Bridge, getContext } from 'iii'
 
@@ -1397,14 +1398,142 @@ bridge.registerFunction(
 )
 
 // Schedule with CronModule
-bridge.registerTrigger({
-  trigger_type: 'cron',
-  function_path: 'etl.extract',
-  config: { schedule: '0 2 * * *' }  // 2am daily
-})`,
+bridge.registerTrigger({   
+  type: 'cron',
+  path: 'etl.extract',
+  schedule: '0 2 * * *', // Daily at 2 AM
+  payload: { pipeline: 'user_analytics' }
+})
+
+// No scheduler. No Redis. No workers.
+// Just functions and events.`,
     },
-    linesTraditional: 56,
-    linesIII: 58,
+    linesTraditional: 58,
+    linesIII: 65,
+  },
+
+  reactive: {
+    description:
+      "Build reactive backends without Convex lock-in. Real-time subscriptions + state that just works.",
+    traditional: {
+      title: "Convex",
+      tools: ["Convex", "Firebase", "Supabase Realtime"],
+      language: "typescript",
+      code: `// Convex - proprietary reactive backend
+import { mutation, query } from "./_generated/server"
+import { v } from "convex/values"
+
+// Locked into Convex's hosting
+// Locked into Convex's database
+// Locked into Convex's pricing
+
+export const sendMessage = mutation({
+  args: {
+    channelId: v.id("channels"),
+    content: v.string(),
+  },
+  handler: async (ctx, { channelId, content }) => {
+    const user = await ctx.auth.getUserIdentity()
+    if (!user) throw new Error("Not authenticated")
+    
+    // Insert into Convex's proprietary database
+    const messageId = await ctx.db.insert("messages", {
+      channelId,
+      content,
+      authorId: user.subject,
+      createdAt: Date.now(),
+    })
+    
+    return messageId
+  },
+})
+
+export const getMessages = query({
+  args: { channelId: v.id("channels") },
+  handler: async (ctx, { channelId }) => {
+    // Convex auto-subscribes clients
+    // But you can't use your own database
+    // Can't run on your infrastructure
+    return await ctx.db
+      .query("messages")
+      .withIndex("by_channel", q => q.eq("channelId", channelId))
+      .order("desc")
+      .take(50)
+  },
+})
+
+// Client subscribes reactively
+// useQuery(api.messages.getMessages, { channelId })
+// Real-time updates work, but you're locked in`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Reactive backend, your infrastructure
+import { Bridge, getContext } from 'iii'
+
+const bridge = new Bridge('ws://engine:8080')
+
+// Send message - triggers reactive update
+bridge.registerFunction(
+  {
+    function_path: 'chat.sendMessage',
+    metadata: { api_path: '/messages', http_method: 'POST' }
+  },
+  async ({ channelId, content }) => {
+    const { logger, user } = getContext()
+    
+    // Use YOUR database (Postgres, Mongo, whatever)
+    const message = await db.messages.create({
+      channelId,
+      content,
+      authorId: user.id,
+      createdAt: new Date()
+    })
+    
+    // Emit to reactive subscribers
+    bridge.invokeFunctionAsync('realtime.publish', {
+      channel: \`messages:\${channelId}\`,
+      event: 'message.created',
+      data: message
+    })
+    
+    logger.info('Message sent', { channelId, messageId: message.id })
+    return message
+  }
+)
+
+// Query messages - clients can subscribe
+bridge.registerFunction(
+  {
+    function_path: 'chat.getMessages',
+    metadata: { 
+      api_path: '/channels/:channelId/messages',
+      http_method: 'GET',
+      subscribable: true  // Enable reactive subscriptions
+    }
+  },
+  async ({ channelId }) => {
+    // Query YOUR database
+    const messages = await db.messages.findMany({
+      where: { channelId },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    })
+    
+    return messages
+  }
+)
+
+// Client subscribes:
+// bridge.subscribe('chat.getMessages', { channelId }, (messages) => {
+//   setMessages(messages)
+// })
+//
+// Real-time updates. Your database. Your infrastructure.`,
+    },
+    linesTraditional: 45,
+    linesIII: 55,
   },
 };
 
@@ -1425,7 +1554,7 @@ const ToolBadge: React.FC<ToolBadgeProps> = ({ tool, isDarkMode }) => {
       {tool}
     </span>
   );
-}
+};
 
 function CodeBlock({
   code,
@@ -1469,8 +1598,8 @@ function CodeBlock({
                 isTraditional
                   ? "bg-red-500"
                   : isDarkMode
-                    ? "bg-iii-accent"
-                    : "bg-iii-accent-light"
+                  ? "bg-iii-accent"
+                  : "bg-iii-accent-light"
               }`}
             />
             <span
@@ -1488,8 +1617,8 @@ function CodeBlock({
                   ? "bg-red-500/20 text-red-300"
                   : "bg-red-100 text-red-700"
                 : isDarkMode
-                  ? "bg-iii-accent/20 text-iii-accent"
-                  : "bg-iii-accent-light/20 text-iii-accent-light"
+                ? "bg-iii-accent/20 text-iii-accent"
+                : "bg-iii-accent-light/20 text-iii-accent-light"
             }`}
           >
             {lineCount} lines
@@ -1681,46 +1810,30 @@ export function ExampleCodeSection({
 
   return (
     <section
-      className={`relative py-8 sm:py-12 md:py-16 lg:py-24 overflow-hidden font-mono transition-colors duration-300 ${
+      className={`relative pb-8 sm:pb-12 md:pb-16 lg:pb-24 overflow-hidden font-mono transition-colors duration-300 ${
         isDarkMode ? "text-iii-light" : "text-iii-black"
       }`}
     >
       <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
         {/* Header */}
-        <div className="text-center mb-6 sm:mb-8 md:mb-12 space-y-2 sm:space-y-3 md:space-y-4">
+        <div className="text-center mb-3 sm:mb-4 md:mb-6 space-y-2 sm:space-y-3 md:space-y-4">
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter">
-            Stop{" "}
-            <span
-              className={`bg-clip-text text-transparent bg-gradient-to-r ${
-                isDarkMode
-                  ? "from-red-400 to-red-600"
-                  : "from-red-500 to-red-700"
-              }`}
-            >
-              assembling
-            </span>
+            Stop <span className="text-iii-alert">assembling</span>
             {", start "}
-            <span
-              className={`${
-                isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-              }`}
-            >
-              building
-            </span>
+            <span className="text-iii-success">building</span>
           </h2>
           <p
             className={`text-xs sm:text-sm md:text-base lg:text-lg max-w-3xl mx-auto px-2 ${
               isDarkMode ? "text-[#A0A0A0]" : "text-iii-medium"
             }`}
           >
-            Every backend ends up needing the same pieces: APIs, jobs, events,
-            state, real-time, cron, logging. With iii, it's one runtime instead
-            of a dozen tools.
+            Services, frameworks, integrations, these all become design
+            patterns.
           </p>
         </div>
 
         {/* Category Pills */}
-        <div className="mb-4 sm:mb-6 md:mb-8">
+        <div className="mb-2 sm:mb-3 md:mb-4">
           <div className="flex overflow-x-auto scrollbar-hide pb-2 justify-center">
             <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center px-2">
               {categories.map((category) => (
@@ -1733,8 +1846,8 @@ export function ExampleCodeSection({
                         ? "bg-iii-light text-iii-black"
                         : "bg-iii-black text-iii-light"
                       : isDarkMode
-                        ? "text-[#A0A0A0] hover:text-iii-light hover:bg-iii-dark/50 border border-iii-dark"
-                        : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border border-iii-medium/20"
+                      ? "text-[#A0A0A0] hover:text-iii-light hover:bg-iii-dark/50 border border-iii-dark"
+                      : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border border-iii-medium/20"
                   }`}
                 >
                   {category.label}
@@ -1760,28 +1873,28 @@ export function ExampleCodeSection({
         {/* Code comparison */}
         {currentExample && (
           <div className="space-y-4 sm:space-y-6">
-          <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-6">
-            <div className="flex-1 min-w-0">
-            <CodeBlock
+            <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-6">
+              <div className="flex-1 min-w-0">
+                <CodeBlock
                   code={currentExample.traditional.code}
                   title={currentExample.traditional.title}
                   tools={currentExample.traditional.tools}
                   variant="traditional"
-              isDarkMode={isDarkMode}
+                  isDarkMode={isDarkMode}
                   language={currentExample.traditional.language}
                   lineCount={currentExample.linesTraditional}
-            />
-            </div>
-            <div className="flex-1 min-w-0">
-            <CodeBlock
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <CodeBlock
                   code={currentExample.iii.code}
                   title={currentExample.iii.title}
                   variant="iii"
-              isDarkMode={isDarkMode}
+                  isDarkMode={isDarkMode}
                   language={currentExample.iii.language}
                   lineCount={currentExample.linesIII}
-            />
-            </div>
+                />
+              </div>
             </div>
 
             {/* Savings indicator */}
