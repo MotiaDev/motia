@@ -960,7 +960,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
             <div
               className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                 isTraditional
-                  ? "bg-iii-alert"
+                  ? "bg-iii-light"
                   : isDarkMode
                   ? "bg-iii-accent"
                   : "bg-iii-accent-light"
