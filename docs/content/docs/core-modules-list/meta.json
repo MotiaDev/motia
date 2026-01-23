@@ -7,6 +7,7 @@
     "module-cron",
     "module-logging",
     "module-stream",
+    "module-kv-server",
     "module-exec",
     "module-bridge"
   ]
