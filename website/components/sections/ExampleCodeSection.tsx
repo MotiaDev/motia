@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Highlight, themes } from "prism-react-renderer";
-import { codeExamples } from "./codeExamples";
+import { codeExamples } from "./CodeExamples";
 import { DependencyVisualization } from "./DependencyVisualization";
 
 // Categories showing what III Engine replaces and enables
