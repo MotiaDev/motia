@@ -355,3 +355,16 @@ body.light-mode {
     stroke-dashoffset: 24;
   }
 }
+
+/* Legend item pulse animation */
+@keyframes legendPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 12px 4px currentColor;
+  }
+}
