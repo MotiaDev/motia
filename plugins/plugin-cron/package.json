@@ -1,6 +1,6 @@
 {
-  "name": "@motiadev/cron-plugin",
-  "version": "0.17.12-beta.194",
+  "name": "@motiadev/plugin-cron",
+  "version": "0.17.14-beta.196",
   "description": "A Motia workbench plugin for monitoring and managing cron jobs.",
   "license": "MIT",
   "type": "module",
@@ -61,12 +61,12 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/motia-org/motia.git",
-    "directory": "plugins/motia-cron-plugin"
+    "directory": "plugins/plugin-cron"
   },
   "bugs": {
     "url": "https://github.com/motia-org/motia/issues"
   },
-  "homepage": "https://github.com/motia-org/motia/tree/main/plugins/motia-cron-plugin#readme",
+  "homepage": "https://github.com/motia-org/motia/tree/main/plugins/plugin-cron#readme",
   "keywords": [
     "motia",
     "cron",

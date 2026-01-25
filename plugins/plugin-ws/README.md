@@ -1,4 +1,4 @@
-# @motiadev/ws-plugin
+# @motiadev/plugin-ws
 
 A Motia workbench plugin for real-time WebSocket log monitoring and debugging.
 
@@ -20,24 +20,10 @@ This plugin adds a "WebSockets" tab to the Motia workbench bottom panel, providi
 ## Installation
 
 ```bash
-npm install @motiadev/ws-plugin
+npm install @motiadev/plugin-ws
 # or
-pnpm add @motiadev/ws-plugin
+pnpm add @motiadev/plugin-ws
 ```
-
-## Usage
-
-Add the plugin to your `motia.config.ts`:
-
-```typescript
-import wsPlugin from '@motiadev/ws-plugin/plugin'
-
-export default {
-  plugins: [wsPlugin],
-}
-```
-
-The plugin will automatically appear as a "WebSockets" tab in the bottom panel of your Motia workbench.
 
 ## Features
 
@@ -61,16 +47,16 @@ Messages are color-coded by type:
 
 ```typescript
 // Main component
-export { WebSocketsPage } from '@motiadev/ws-plugin'
+export { WebSocketsPage } from '@motiadev/plugin-ws'
 
 // Types
-export type { WebSocketConnection, WebSocketMessage, WebSocketStats } from '@motiadev/ws-plugin'
+export type { WebSocketConnection, WebSocketMessage, WebSocketStats } from '@motiadev/plugin-ws'
 
 // Zustand store for external state access
-export { useWebSocketStore } from '@motiadev/ws-plugin'
+export { useWebSocketStore } from '@motiadev/plugin-ws'
 
 // Hooks
-export { useWebSocketConnections, useWebSocketMessages } from '@motiadev/ws-plugin'
+export { useWebSocketConnections, useWebSocketMessages } from '@motiadev/plugin-ws'
 ```
 
 ## Development

@@ -23,7 +23,7 @@ const installRequiredDependencies = async (packageManager: string, rootDir: stri
 
   const dependencies = [
     `motia@${version}`,
-    'zod@4.1.12',
+    'zod@^4.1.13',
     `@motiadev/adapter-bullmq-events@${version}`,
     ...pluginDependencies.map((dep: string) => `${dep}@${version}`),
   ].join(' ')
