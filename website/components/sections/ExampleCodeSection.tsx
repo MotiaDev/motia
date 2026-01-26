@@ -435,11 +435,11 @@ export function ExampleCodeSection({
                   className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs md:text-sm transition-all whitespace-nowrap font-medium ${
                     activeCategory === category.id
                       ? isDarkMode
-                        ? "bg-iii-accent text-iii-black"
-                        : "bg-iii-accent-light text-iii-light"
+                        ? "bg-iii-accent text-iii-black border-2 border-iii-accent"
+                        : "bg-iii-accent-light text-iii-light border-2 border-iii-accent-light"
                       : isDarkMode
-                      ? "text-iii-light/70 hover:text-iii-light hover:bg-iii-dark/50 border border-iii-light"
-                      : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border border-iii-dark"
+                      ? "text-iii-light/70 hover:text-iii-light hover:bg-iii-dark/50 border-2 border-iii-light"
+                      : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border-2 border-iii-dark"
                   }`}
                 >
                   {category.label}

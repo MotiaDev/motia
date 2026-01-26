@@ -219,6 +219,9 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
   const borderColor = isDarkMode
     ? "border-iii-medium/20"
     : "border-iii-medium/20";
+  const borderColorSelected = isDarkMode
+    ? "border-iii-medium"
+    : "border-iii-medium";
   const bgBase = isDarkMode ? "bg-iii-black" : "bg-iii-light";
   const bgCard = isDarkMode ? "bg-iii-dark/30" : "bg-white/30";
   const bgCardHover = isDarkMode ? "bg-iii-dark/60" : "bg-white/60";
@@ -289,7 +292,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
             return (
               <div
                 key={persona.id}
-                className={`p-4 rounded-lg border ${borderColor} ${bgCard}`}
+                className={`p-4 rounded-lg border-2 ${borderColor} ${bgCard}`}
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className={`p-2 rounded-lg ${accentBgLight}`}>
@@ -325,7 +328,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
           })}
 
           {/* Universal Benefits - Mobile */}
-          <div className={`p-4 rounded-lg border ${borderColor} ${bgCard}`}>
+          <div className={`p-4 rounded-lg border-2 ${borderColor} ${bgCard}`}>
             <h4 className={`text-xs font-mono mb-3 ${textSecondary}`}>
               UNIVERSAL:
             </h4>
@@ -362,7 +365,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
                     w-full text-left p-4 md:p-6 rounded-lg md:rounded-xl border-2 transition-all duration-300
                     ${
                       isSelected
-                        ? `${borderColor.replace("/20", "/100")} ${bgCardHover}`
+                        ? `${borderColorSelected} ${bgCardHover}`
                         : `${borderColor} ${bgCard} hover:${bgCardHover}`
                     }
                   `}
@@ -410,7 +413,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
             })}
 
             {/* Technical Benefits */}
-            <div className={`p-6 rounded-xl border ${borderColor} ${bgCard}`}>
+            <div className={`p-6 rounded-xl border-2 ${borderColor} ${bgCard}`}>
               <h4 className={`text-xs font-mono mb-3 ${textSecondary}`}>
                 UNIVERSAL:
               </h4>
@@ -469,7 +472,7 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
                 <div
                   key={benefit.title}
                   className={`
-                    p-4 md:p-6 rounded-lg md:rounded-xl border transition-all duration-300
+                    p-4 md:p-6 rounded-lg md:rounded-xl border-2 transition-all duration-300
                     ${borderColor} ${isHovered ? bgCardHover : bgCard}
                     hover:border-iii-accent/30
                   `}

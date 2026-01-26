@@ -18,7 +18,7 @@ export const ModeToggle: React.FC<ModeToggleProps> = ({
 
   return (
     <div
-      className={`flex items-center rounded-full p-0.5 border ${bgColor} ${borderColor}`}
+      className={`flex items-center rounded-full p-0.5 border-2 ${bgColor} ${borderColor}`}
     >
       <button
         onClick={() => !isHumanMode && onToggle()}
