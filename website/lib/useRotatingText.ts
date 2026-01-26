@@ -34,7 +34,7 @@ export function useRotatingText({
     }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [items.length, intervalMs, animationDurationMs]);
+  }, [items, intervalMs, animationDurationMs]);
 
   return {
     currentIndex,
