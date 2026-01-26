@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Code, Boxes, Briefcase } from "lucide-react";
+import { useRotatingText } from "../lib/useRotatingText";
 
 interface PersonaValuePropsProps {
   isDarkMode?: boolean;
@@ -154,49 +155,30 @@ export const PersonaValueProps: React.FC<PersonaValuePropsProps> = ({
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>("engineer");
   const [hoveredBenefit, setHoveredBenefit] = useState<number | null>(null);
 
-  // Rotating text state - separate index and animation state for each
-  const [role1Index, setRole1Index] = useState(0);
-  const [role1Animating, setRole1Animating] = useState(false);
-  const [role2Index, setRole2Index] = useState(0);
-  const [role2Animating, setRole2Animating] = useState(false);
-  const [adjIndex, setAdjIndex] = useState(0);
-  const [adjAnimating, setAdjAnimating] = useState(false);
+  // Rotating text using shared hook
+  const {
+    currentIndex: role1Index,
+    isAnimating: role1Animating,
+  } = useRotatingText({
+    items: rotatingRole1s,
+    intervalMs: 4200,
+  });
 
-  // Role1 rotation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRole1Animating(true);
-      setTimeout(() => {
-        setRole1Index((prev) => (prev + 1) % rotatingRole1s.length);
-        setRole1Animating(false);
-      }, 400);
-    }, 4200);
-    return () => clearInterval(interval);
-  }, []);
+  const {
+    currentIndex: role2Index,
+    isAnimating: role2Animating,
+  } = useRotatingText({
+    items: rotatingRole2s,
+    intervalMs: 5100,
+  });
 
-  // Role2 rotation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRole2Animating(true);
-      setTimeout(() => {
-        setRole2Index((prev) => (prev + 1) % rotatingRole2s.length);
-        setRole2Animating(false);
-      }, 400);
-    }, 5100);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Adjective rotation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAdjAnimating(true);
-      setTimeout(() => {
-        setAdjIndex((prev) => (prev + 1) % rotatingAdjectives.length);
-        setAdjAnimating(false);
-      }, 400);
-    }, 5200);
-    return () => clearInterval(interval);
-  }, []);
+  const {
+    currentIndex: adjIndex,
+    isAnimating: adjAnimating,
+  } = useRotatingText({
+    items: rotatingAdjectives,
+    intervalMs: 5200,
+  });
 
   const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
   const textSecondary = isDarkMode
