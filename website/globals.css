@@ -1,5 +1,6 @@
 /* Prevent horizontal scroll on mobile */
-html, body {
+html,
+body {
   overflow-x: hidden;
   max-width: 100vw;
 }
@@ -21,10 +22,10 @@ html, body {
   /* Base colors */
   --color-black: #000000;
   --color-dark: #1d1d1d;
-  --color-medium: #5B5B5B; /* Brand medium gray */
-  --color-medium-dark: #5B5B5B; /* For dark backgrounds */
-  --color-medium-light: #5B5B5B; /* For light backgrounds */
-  --color-light: #f4f4f4;
+  --color-medium: #5b5b5b; /* Brand medium gray */
+  --color-medium-dark: #5b5b5b; /* For dark backgrounds */
+  --color-medium-light: #5b5b5b; /* For light backgrounds */
+  --color-light: #ffffff;
   --color-accent: #f3f724;
   --color-accent-light: #1d4ed8;
 
@@ -35,9 +36,9 @@ html, body {
   --color-success: #1ce669;
 
   /* Scrollbar colors (Light Default) */
-  --scrollbar-track: #f4f4f4;
+  --scrollbar-track: var(--color-light);
   --scrollbar-thumb: #cccccc;
-  --scrollbar-thumb-hover: #1d4ed8;
+  --scrollbar-thumb-hover: var(--color-accent-light);
 }
 
 /* Dark mode colors */
@@ -53,9 +54,9 @@ html, body {
   --arrow-highlight-color: #666666;
 
   /* Scrollbar colors (Dark) */
-  --scrollbar-track: #000000;
+  --scrollbar-track: var(--color-black);
   --scrollbar-thumb: #333333;
-  --scrollbar-thumb-hover: #f3f724;
+  --scrollbar-thumb-hover: var(--color-accent);
 }
 
 /* Apply to body based on isDarkMode */
@@ -71,26 +72,26 @@ body.dark-mode {
   --arrow-highlight-color: #666666;
 
   /* Scrollbar colors (Dark) */
-  --scrollbar-track: #000000;
+  --scrollbar-track: var(--color-black);
   --scrollbar-thumb: #333333;
-  --scrollbar-thumb-hover: #f3f724;
+  --scrollbar-thumb-hover: var(--color-accent);
 }
 
 body.light-mode {
-  --svg-fill: #f4f4f4;
-  --svg-stroke: #000000;
-  --svg-text: #000000;
-  --svg-cluster-fill: #f4f4f4;
+  --svg-fill: var(--color-light);
+  --svg-stroke: var(--color-black);
+  --svg-text: var(--color-black);
+  --svg-cluster-fill: var(--color-light);
 
-  --grid-bg: #f4f4f4;
+  --grid-bg: var(--color-light);
   --grid-line-color: rgba(0, 0, 0, 0.06);
   --arrow-light-color: #cccccc;
   --arrow-highlight-color: #aaaaaa;
 
   /* Scrollbar colors (Light) */
-  --scrollbar-track: #f4f4f4;
+  --scrollbar-track: var(--color-light);
   --scrollbar-thumb: #cccccc;
-  --scrollbar-thumb-hover: #1d4ed8;
+  --scrollbar-thumb-hover: var(--color-accent-light);
 }
 
 /* Scrollbar styles */
@@ -146,7 +147,7 @@ body.light-mode {
 /* Brand scrollbar for dark mode (yellow accent) */
 .scrollbar-brand-dark {
   scrollbar-width: thin;
-  scrollbar-color: #333333 #000000;
+  scrollbar-color: #333333 var(--color-black);
 }
 
 .scrollbar-brand-dark::-webkit-scrollbar {
@@ -155,7 +156,7 @@ body.light-mode {
 }
 
 .scrollbar-brand-dark::-webkit-scrollbar-track {
-  background: #1d1d1d;
+  background: var(--color-dark);
   border-radius: 3px;
 }
 
@@ -165,13 +166,13 @@ body.light-mode {
 }
 
 .scrollbar-brand-dark::-webkit-scrollbar-thumb:hover {
-  background: #f3f724;
+  background: var(--color-accent);
 }
 
 /* Brand scrollbar for light mode (blue accent) */
 .scrollbar-brand-light {
   scrollbar-width: thin;
-  scrollbar-color: #cccccc #f4f4f4;
+  scrollbar-color: #cccccc var(--color-light);
 }
 
 .scrollbar-brand-light::-webkit-scrollbar {
@@ -190,5 +191,180 @@ body.light-mode {
 }
 
 .scrollbar-brand-light::-webkit-scrollbar-thumb:hover {
-  background: #1d4ed8;
+  background: var(--color-accent-light);
+}
+
+/* Energy flow animations for dependency connection lines */
+@keyframes flowDown {
+  0% {
+    background-position: 0% -100%;
+  }
+  100% {
+    background-position: 0% 200%;
+  }
+}
+
+@keyframes orbTravel {
+  0% {
+    top: -8px;
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    top: calc(100% + 8px);
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+}
+
+/* Pulsing glow effect on connected elements */
+@keyframes connectedGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px 2px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 15px 5px currentColor;
+  }
+}
+
+/* Horizontal orb travel for output connection */
+@keyframes orbTravelHorizontal {
+  0% {
+    left: -8px;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    left: calc(100% - 8px);
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+/* Bidirectional orb travel - right direction */
+@keyframes orbTravelRight {
+  0% {
+    left: -4px;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  100% {
+    left: calc(100% - 4px);
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+  }
+}
+
+/* Bidirectional orb travel - left direction */
+@keyframes orbTravelLeft {
+  0% {
+    left: calc(100% - 4px);
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  100% {
+    left: -4px;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+  }
+}
+
+/* Socket/port pulsing animation */
+@keyframes socketPulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 0.2;
+  }
+}
+
+/* Core glow breathing animation */
+@keyframes coreGlow {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    filter: brightness(1.5);
+  }
+}
+
+/* Particles orbiting around the socket */
+@keyframes particleOrbit {
+  0% {
+    transform: rotate(0deg) translateX(10px) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(360deg) translateX(10px) rotate(-360deg);
+    opacity: 0;
+  }
+}
+
+/* Dashed border animation for decoupled elements */
+@keyframes dashMove {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 24;
+  }
+}
+
+/* Legend item pulse animation */
+@keyframes legendPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 12px 4px currentColor;
+  }
 }

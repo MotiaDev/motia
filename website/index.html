@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -49,11 +49,11 @@
     <!-- Global Styles -->
     <link rel="stylesheet" href="/globals.css" />
 
-    <!-- Fonts: JetBrains Mono + Chivo -->
+    <!-- Fonts: Chivo -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Chivo:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Chivo:wght@100..900t@100..800"
       rel="stylesheet"
     />
 
@@ -62,23 +62,22 @@
         theme: {
           extend: {
             fontFamily: {
-              mono: ['"JetBrains Mono"', "monospace"],
-              chivo: ['"Chivo"', "sans-serif"],
+              chivo: ['"Chivo Mono"', "monospace"],
             },
             colors: {
               iii: {
-                black: "#000000",
-                dark: "#1D1D1D",
-                medium: "#5B5B5B", // Brand medium gray
-                "medium-dark": "#5B5B5B", // For dark backgrounds
-                "medium-light": "#5B5B5B", // For light backgrounds
-                light: "#F4F4F4",
-                accent: "#F3F724",
-                "accent-light": "#1d4ed8", // Darker blue for better contrast: was #2563eb
-                info: "#42E7E7",
-                warn: "#F3943D",
-                alert: "#E52E61",
-                success: "#1CE669",
+                black: "var(--color-black)",
+                dark: "var(--color-dark)",
+                medium: "var(--color-medium)",
+                "medium-dark": "var(--color-medium-dark)",
+                "medium-light": "var(--color-medium-light)",
+                light: "var(--color-light)",
+                accent: "var(--color-accent)",
+                "accent-light": "var(--color-accent-light)",
+                info: "var(--color-info)",
+                warn: "var(--color-warn)",
+                alert: "var(--color-alert)",
+                success: "var(--color-success)",
               },
             },
             animation: {
@@ -113,9 +112,9 @@
     </script>
     <style>
       body {
-        background-color: #000000;
-        color: #f4f4f4;
-        font-family: "JetBrains Mono", monospace;
+        background-color: var(--color-black);
+        color: var(--color-light);
+        font-family: "Chivo Mono", monospace;
         overflow-x: hidden;
       }
     </style>

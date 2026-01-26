@@ -57,8 +57,8 @@ function FAQItem({
       onClick={onToggle}
       className={`w-full text-left p-6 rounded-lg border transition-all ${
         isDarkMode
-          ? "border-iii-dark bg-iii-dark/30 hover:border-iii-medium hover:bg-iii-dark/50"
-          : "border-iii-medium/30 bg-white/30 hover:border-iii-medium hover:bg-white/50"
+          ? "border-iii-light bg-iii-dark/30 hover:border-iii-light hover:bg-iii-dark/50"
+          : "border-iii-dark bg-white/30 hover:border-iii-dark hover:bg-white/50"
       }`}
     >
       {/* Question */}
@@ -77,8 +77,8 @@ function FAQItem({
                 ? "rotate-180 border-iii-accent text-iii-accent"
                 : "rotate-180 border-iii-accent-light text-iii-accent-light"
               : isDarkMode
-              ? "border-iii-medium text-iii-medium"
-              : "border-iii-medium text-iii-medium"
+              ? "border-iii-light text-iii-light/50"
+              : "border-iii-dark text-iii-black/50"
           }`}
         >
           <svg
@@ -101,7 +101,7 @@ function FAQItem({
       {isOpen && (
         <p
           className={`text-base leading-relaxed mt-4 ${
-            isDarkMode ? "text-iii-medium" : "text-iii-medium"
+            isDarkMode ? "text-iii-light/80" : "text-iii-medium"
           }`}
         >
           {answer}
@@ -120,17 +120,21 @@ export function FAQSection({ isDarkMode = true }: FAQSectionProps) {
 
   return (
     <section
-      className={`relative py-24 overflow-hidden font-mono transition-colors duration-300 ${
+      className={`relative overflow-hidden font-mono transition-colors duration-300 ${
         isDarkMode ? "text-iii-light" : "text-iii-black"
       }`}
     >
-      <div className="relative z-10 max-w-4xl mx-auto px-6">
+      <div className="relative z-10">
         {/* Header */}
         <div className="text-center mb-16 space-y-4">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
             Frequently asked questions
           </h2>
-          <p className="text-iii-medium text-lg">
+          <p
+            className={`text-lg ${
+              isDarkMode ? "text-iii-light/70" : "text-iii-medium"
+            }`}
+          >
             Got questions? We've got answers. Can't find what you're looking
             for?{" "}
             <button
@@ -161,7 +165,11 @@ export function FAQSection({ isDarkMode = true }: FAQSectionProps) {
 
         {/* Bottom CTA */}
         <div className="mt-12 text-center">
-          <p className="text-iii-medium mb-6">
+          <p
+            className={`mb-6 ${
+              isDarkMode ? "text-iii-light/70" : "text-iii-medium"
+            }`}
+          >
             Still have questions? Check out our full documentation or join our
             community.
           </p>
@@ -169,8 +177,8 @@ export function FAQSection({ isDarkMode = true }: FAQSectionProps) {
             <button
               className={`inline-flex items-center gap-2 border px-6 py-3 rounded-lg transition-colors ${
                 isDarkMode
-                  ? "border-iii-dark text-iii-light hover:border-iii-medium"
-                  : "border-iii-medium/30 text-iii-black hover:border-iii-medium"
+                  ? "border-iii-light text-iii-light hover:border-iii-light"
+                  : "border-iii-dark text-iii-black hover:border-iii-dark"
               }`}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

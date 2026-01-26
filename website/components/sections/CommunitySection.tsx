@@ -60,7 +60,7 @@ function useDiscordWidget(): DiscordStats {
     const fetchDiscordData = async () => {
       try {
         const response = await fetch(DISCORD_WIDGET_URL);
-        
+
         if (!response.ok) {
           throw new Error(
             response.status === 403
@@ -84,7 +84,8 @@ function useDiscordWidget(): DiscordStats {
         setStats({
           ...defaultStats,
           isLoading: false,
-          error: err instanceof Error ? err.message : "Failed to fetch Discord data",
+          error:
+            err instanceof Error ? err.message : "Failed to fetch Discord data",
           inviteUrl: DISCORD_INVITE_URL,
         });
       }
@@ -159,13 +160,15 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
 
   // Use Discord member avatars or fallback
   const displayMembers =
-    discord.members.length > 0 ? discord.members : fallbackAvatars.map((emoji, i) => ({
-      id: `fallback-${i}`,
-      username: `Member ${i + 1}`,
-      avatar_url: "",
-      status: "online",
-      emoji,
-    }));
+    discord.members.length > 0
+      ? discord.members
+      : fallbackAvatars.map((emoji, i) => ({
+          id: `fallback-${i}`,
+          username: `Member ${i + 1}`,
+          avatar_url: "",
+          status: "online",
+          emoji,
+        }));
 
   const handleJoinClick = () => {
     const url = discord.inviteUrl || DISCORD_INVITE_URL;
@@ -176,11 +179,11 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
 
   return (
     <section
-      className={`relative py-24 overflow-hidden font-mono transition-colors duration-300 ${
+      className={`relative overflow-hidden font-mono transition-colors duration-300 ${
         isDarkMode ? "text-iii-light" : "text-iii-black"
       }`}
     >
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
+      <div className="relative z-10">
         {/* Header */}
         <div className="text-center mb-16 space-y-4">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
@@ -204,8 +207,8 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
         <div
           className={`mb-16 p-4 sm:p-6 md:p-8 rounded-xl border ${
             isDarkMode
-              ? "border-iii-dark bg-gradient-to-br from-iii-dark/50 to-iii-black/50"
-              : "border-iii-medium/30 bg-gradient-to-br from-white/50 to-iii-light/50"
+              ? "border-iii-light bg-gradient-to-br from-iii-dark/50 to-iii-black/50"
+              : "border-iii-dark bg-gradient-to-br from-white/50 to-iii-light/50"
           }`}
         >
           {/* Discord header */}
@@ -237,7 +240,11 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                     discord.error ? "bg-red-500" : "bg-green-500"
                   } ${discord.isLoading ? "animate-pulse" : ""}`}
                 />
-                <p className="text-sm text-iii-medium">
+                <p
+                  className={`text-sm ${
+                    isDarkMode ? "text-iii-light/70" : "text-iii-medium"
+                  }`}
+                >
                   {discord.isLoading
                     ? "Connecting..."
                     : discord.error
@@ -255,11 +262,17 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                 key={index}
                 className={`p-3 sm:p-4 rounded-lg border transition-all text-center ${
                   isDarkMode
-                    ? "bg-iii-dark/50 border-iii-dark hover:border-iii-medium"
-                    : "bg-white/50 border-iii-medium/30 hover:border-iii-medium"
+                    ? "bg-iii-dark/50 border-iii-light hover:border-iii-light"
+                    : "bg-white/50 border-iii-dark hover:border-iii-dark"
                 }`}
               >
-                <p className="text-xs sm:text-sm text-iii-medium mb-1">{stat.label}</p>
+                <p
+                  className={`text-xs sm:text-sm mb-1 ${
+                    isDarkMode ? "text-iii-light/70" : "text-iii-medium"
+                  }`}
+                >
+                  {stat.label}
+                </p>
                 <p
                   className={`text-xl sm:text-2xl font-bold ${
                     isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
@@ -273,7 +286,11 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
 
           {/* Member avatars */}
           <div className="mb-8">
-            <p className="text-xs sm:text-sm text-iii-medium mb-3 text-center sm:text-left">
+            <p
+              className={`text-xs sm:text-sm mb-3 text-center sm:text-left ${
+                isDarkMode ? "text-iii-light/70" : "text-iii-medium"
+              }`}
+            >
               {discord.members.length > 0 ? "Online members" : "Active members"}
             </p>
             <div className="flex items-center gap-1 flex-wrap justify-center sm:justify-start">
@@ -281,9 +298,7 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                 <div
                   key={"id" in member ? member.id : index}
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold border-2 hover:scale-110 transition-transform cursor-pointer relative group ${
-                    isDarkMode
-                      ? "border-iii-black"
-                      : "border-iii-light"
+                    isDarkMode ? "border-iii-dark" : "border-iii-light"
                   }`}
                   style={{
                     background:
@@ -293,7 +308,11 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                         ? "linear-gradient(135deg, var(--iii-accent), var(--iii-accent-light))"
                         : "linear-gradient(135deg, var(--iii-accent-light), #60a5fa)",
                   }}
-                  title={"username" in member ? member.username : `Member ${index + 1}`}
+                  title={
+                    "username" in member
+                      ? member.username
+                      : `Member ${index + 1}`
+                  }
                 >
                   {!("avatar_url" in member && member.avatar_url) && (
                     <span className="text-white text-sm">
@@ -306,7 +325,7 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                   {"status" in member && member.status && (
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 ${
-                        isDarkMode ? "border-iii-black" : "border-white"
+                        isDarkMode ? "border-iii-dark" : "border-white"
                       } ${
                         member.status === "online"
                           ? "bg-green-500"
@@ -336,8 +355,8 @@ export function CommunitySection({ isDarkMode = true }: CommunitySectionProps) {
                 <div
                   className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xs font-medium ${
                     isDarkMode
-                      ? "bg-iii-dark border-iii-medium text-iii-medium"
-                      : "bg-white border-iii-medium/50 text-iii-medium"
+                      ? "bg-iii-dark border-iii-light text-iii-light/70"
+                      : "bg-white border-iii-dark text-iii-black/70"
                   }`}
                 >
                   +{discord.onlineCount - 12}

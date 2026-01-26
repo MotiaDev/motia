@@ -9,9 +9,9 @@ interface ProtocolModalProps {
 export const ProtocolModal: React.FC<ProtocolModalProps> = ({ onClose, isDarkMode = true }) => {
   const bgOverlay = isDarkMode ? 'bg-iii-black/90' : 'bg-white/90';
   const bgCard = isDarkMode ? 'bg-iii-dark' : 'bg-white';
-  const borderColor = isDarkMode ? 'border-iii-accent/30' : 'border-iii-black/20';
+  const borderColor = isDarkMode ? 'border-iii-accent/30' : 'border-iii-dark/20';
   const headerBg = isDarkMode ? 'bg-iii-accent/10' : 'bg-iii-light';
-  const headerBorder = isDarkMode ? 'border-iii-accent/20' : 'border-iii-black/10';
+  const headerBorder = isDarkMode ? 'border-iii-accent/20' : 'border-iii-dark/10';
   const accentColor = isDarkMode ? 'text-iii-accent' : 'text-iii-accent-light';
   const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
   const codeBg = isDarkMode ? 'bg-black/30' : 'bg-iii-light';

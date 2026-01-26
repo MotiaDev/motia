@@ -15,9 +15,10 @@ import { CommunitySection } from "./components/sections/CommunitySection";
 import { TechLogos } from "./components/TechLogos";
 import { Features } from "./components/Features";
 import { ValueProps } from "./components/ValuePropsRedesigned";
-import { PersonaValueProps } from "./components/PersonaValuePropsRedesigned";
+import { PersonaValueProps } from "./components/PersonaValueProps";
 // FractureAnimation removed - using StackVisual only
 import { ModeToggle } from "./components/ModeToggle";
+import { Navbar } from "./components/Navbar";
 import { MachineView } from "./components/MachineView";
 import { SectionsPreview } from "./pages/SectionsPreview";
 import { KeySequence } from "./types";
@@ -206,14 +207,30 @@ const App: React.FC = () => {
       <>
         <MachineView
           onToggleMode={toggleMode}
+          onToggleTheme={toggleTheme}
           isGodMode={isGodMode}
           isDarkMode={isDarkMode}
+          isSubmitted={isSubmitted}
           onLogoClick={handleLogoClick}
+          onManifestoClick={handleManifestoClick}
+          onProtocolClick={() => setShowProtocol(true)}
         />
         {showTerminal && (
           <Terminal
             onClose={() => setShowTerminal(false)}
             isGodMode={isGodMode}
+          />
+        )}
+        {showProtocol && (
+          <ProtocolModal
+            onClose={() => setShowProtocol(false)}
+            isDarkMode={isDarkMode}
+          />
+        )}
+        {showManifesto && (
+          <ManifestoModal
+            onClose={() => setShowManifesto(false)}
+            isDarkMode={isDarkMode}
           />
         )}
         {showGodModeUnlock && (
@@ -245,142 +262,60 @@ const App: React.FC = () => {
     >
       {/* <GridBackground isDarkMode={isDarkMode} /> */}
 
-      <nav
-        className={`relative z-10 w-full px-4 py-4 md:px-12 md:py-6 flex justify-between items-center border-b backdrop-blur-sm transition-colors duration-300 ${
-          isDarkMode
-            ? "border-iii-dark/50 bg-iii-black/80"
-            : "border-iii-medium/20 bg-iii-light/80"
-        }`}
-      >
-        <div
-          className="cursor-pointer"
-          onClick={handleLogoClick}
-          onMouseEnter={() => setIsLogoHovered(true)}
-          onMouseLeave={() => setIsLogoHovered(false)}
-        >
-          <Logo
-            className={`h-6 md:h-10 ${
-              isGodMode
-                ? "text-red-500"
-                : isDarkMode
-                ? "text-iii-light"
-                : "text-iii-black"
-            }`}
-            highlightCount={logoClickCount > 0 ? logoClickCount : undefined}
-            highlightIndex={logoClickCount === 0 ? hoverAnimIndex : undefined}
-            accentColor={
-              isGodMode
-                ? "fill-red-500"
-                : isDarkMode
-                ? "fill-iii-accent"
-                : "fill-iii-accent-light"
-            }
-          />
-        </div>
-        <div
-          className={`flex gap-2 md:gap-4 text-[10px] md:text-sm ${
-            isDarkMode ? "text-iii-medium-dark" : "text-iii-medium-light"
-          } font-semibold tracking-tight items-center`}
-        >
-          <a
-            href="#"
-            onClick={handleManifestoClick}
-            className={`transition-colors hidden md:block ${
-              isDarkMode ? "hover:text-iii-light" : "hover:text-iii-black"
-            }`}
-          >
-            MANIFESTO
-          </a>
-          <button
-            onClick={() => setShowProtocol(true)}
-            className={`transition-colors uppercase ${
-              isDarkMode
-                ? "hover:text-iii-accent"
-                : "hover:text-iii-accent-light"
-            }`}
-          >
-            PROTOCOL
-          </button>
-          {isSubmitted ? (
-            <a
-              href={import.meta.env.VITE_DOCS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`transition-colors uppercase hidden sm:block ${
-                isDarkMode
-                  ? "text-iii-accent hover:text-iii-light"
-                  : "text-iii-accent-light hover:text-iii-black"
-              }`}
-            >
-              DOCS
-            </a>
-          ) : (
-            <div className="relative group cursor-not-allowed hidden sm:block">
-              <span
-                className={`transition-colors ${
-                  isDarkMode
-                    ? "text-iii-dark group-hover:text-iii-medium-dark"
-                    : "text-iii-medium-light/50 group-hover:text-iii-medium-light"
-                }`}
-              >
-                DOCS
-              </span>
-              <div
-                className={`absolute top-full right-0 mt-2 w-max px-2 py-1 border text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
-                  isDarkMode
-                    ? "bg-iii-dark border-iii-medium text-iii-light"
-                    : "bg-white border-iii-medium/30 text-iii-black"
-                }`}
-              >
-                EARLY ACCESS ONLY
-              </div>
-            </div>
-          )}
-          <button
-            onClick={toggleTheme}
-            className={`p-2 rounded-full transition-colors ${
-              isDarkMode
-                ? "hover:bg-iii-dark text-iii-medium-dark hover:text-iii-light"
-                : "hover:bg-iii-medium-light/10 text-iii-medium-light hover:text-iii-black"
-            }`}
-            aria-label="Toggle theme"
-          >
-            {isDarkMode ? (
-              <Sun className="w-4 h-4" />
-            ) : (
-              <Moon className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-      </nav>
+      <Navbar
+        isDarkMode={isDarkMode}
+        isGodMode={isGodMode}
+        isHumanMode={isHumanMode}
+        isSubmitted={isSubmitted}
+        onToggleTheme={toggleTheme}
+        onToggleMode={toggleMode}
+        onLogoClick={handleLogoClick}
+        onManifestoClick={handleManifestoClick}
+        onProtocolClick={() => setShowProtocol(true)}
+        logoClickCount={logoClickCount}
+        isLogoHovered={isLogoHovered}
+        hoverAnimIndex={hoverAnimIndex}
+        onLogoMouseEnter={() => setIsLogoHovered(true)}
+        onLogoMouseLeave={() => setIsLogoHovered(false)}
+      />
 
-      <main className="flex-1 relative z-10 flex flex-col items-center pb-8 md:pb-12 w-full">
+      <main className="flex-1 relative z-10 flex flex-col items-center w-full pt-16 md:pt-20">
         {/* Hero Section */}
-        <HeroSection isDarkMode={isDarkMode} />
+        <div className="w-full">
+          <HeroSection isDarkMode={isDarkMode} />
+        </div>
 
         {/* Code Examples Section - Before/After */}
-        <ExampleCodeSection isDarkMode={isDarkMode} />
-
-        {/* Value Props - Core Features (Hidden on mobile to reduce scrolling) */}
-        <div className="hidden md:block">
-          <ValueProps isDarkMode={isDarkMode} />
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <ExampleCodeSection isDarkMode={isDarkMode} />
         </div>
 
+        {/* Value Props - Core Features (Hidden on mobile to reduce scrolling) */}
+        {/* <div className="hidden md:block">
+          <ValueProps isDarkMode={isDarkMode} />
+        </div> */}
+
         {/* Persona-Based Value Props */}
-        <PersonaValueProps isDarkMode={isDarkMode} />
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <PersonaValueProps isDarkMode={isDarkMode} />
+        </div>
 
         {/* FAQ Section */}
-        <FAQSection isDarkMode={isDarkMode} />
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-4xl py-12 md:py-16 lg:py-24">
+          <FAQSection isDarkMode={isDarkMode} />
+        </div>
 
         {/* Community Section */}
-        <CommunitySection isDarkMode={isDarkMode} />
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <CommunitySection isDarkMode={isDarkMode} />
+        </div>
       </main>
 
       <footer
         className={`relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t text-[9px] md:text-[10px] text-iii-medium font-mono transition-colors duration-300 ${
           isDarkMode
-            ? "border-iii-dark/30 bg-iii-black"
-            : "border-iii-medium/20 bg-iii-light"
+            ? "border-iii-light bg-iii-black"
+            : "border-iii-dark bg-iii-light"
         }`}
       >
         <div className="max-w-sm md:max-w-md space-y-1.5 md:space-y-2">
@@ -399,27 +334,6 @@ const App: React.FC = () => {
           <span className="opacity-50">v0.1.0-alpha</span>
         </div>
       </footer>
-
-      {/* Floating footer with toggle */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex justify-center pb-6">
-          <div className="pointer-events-auto">
-            <ModeToggle
-              isHumanMode={isHumanMode}
-              onToggle={toggleMode}
-              isDarkMode={isDarkMode}
-            />
-          </div>
-        </div>
-        {/* Gradient fade for elegance */}
-        <div
-          className={`absolute inset-0 -z-10 ${
-            isDarkMode
-              ? "bg-gradient-to-t from-iii-black/80 via-iii-black/40 to-transparent"
-              : "bg-gradient-to-t from-iii-light/80 via-iii-light/40 to-transparent"
-          }`}
-        />
-      </div>
 
       {/* God Mode Unlock Animation */}
       {showGodModeUnlock && (

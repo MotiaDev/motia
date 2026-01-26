@@ -12,7 +12,7 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({ isDarkMode = true })
   const cardBg = isDarkMode ? 'bg-iii-dark/30' : 'bg-white/50';
   const cardBgLight = isDarkMode ? 'bg-iii-dark/20' : 'bg-white/30';
   const cardBorder = isDarkMode ? 'border-iii-medium/30' : 'border-iii-medium/20';
-  const cardHover = isDarkMode ? 'hover:border-iii-light/50' : 'hover:border-iii-black/30';
+  const cardHover = isDarkMode ? 'hover:border-iii-light/50' : 'hover:border-iii-dark/30';
   const textPrimary = isDarkMode ? 'text-iii-light' : 'text-iii-black';
   const iconBg = isDarkMode ? 'bg-iii-black' : 'bg-white';
   const codeBg = isDarkMode ? 'bg-iii-black/50' : 'bg-iii-light';
