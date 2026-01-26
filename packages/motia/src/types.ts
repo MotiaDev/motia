@@ -1,10 +1,11 @@
 import type { Logger } from '@iii-dev/sdk'
-import type { ZodArray, ZodObject } from 'zod'
+import type { FromSchema } from 'json-schema-to-ts'
+import type { ZodType } from 'zod'
 import * as z from 'zod'
 import type { JsonSchema } from './types/schema.types'
 
 // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
-export type ZodInput = ZodObject<any> | ZodArray<any>
+export type ZodInput = ZodType<any, any, any>
 
 export type TypedJsonSchema<T = unknown> = JsonSchema & { readonly __phantomType?: T }
 
@@ -25,19 +26,59 @@ export type InternalStateManager = {
 export type EmitData<T = unknown> = { topic: string; data: T; messageGroupId?: string }
 export type Emitter<TData> = (event: TData) => Promise<void>
 
-export interface FlowContext<TEmitData = never> {
+export type ExtractEventInput<TInput> = Exclude<Exclude<TInput, ApiRequest>, undefined>
+export type ExtractApiInput<TInput> = Extract<TInput, ApiRequest>
+export type ExtractDataPayload<TInput> =
+  TInput extends ApiRequest<infer TBody> ? TBody : TInput extends undefined ? undefined : TInput
+
+export type MatchHandlers<TInput, TEmitData, TResult> = {
+  event?: (input: ExtractEventInput<TInput>) => Promise<void>
+
+  api?: (request: ExtractApiInput<TInput>) => Promise<TResult>
+
+  cron?: () => Promise<void>
+
+  default?: (input: TInput) => Promise<TResult | void>
+}
+
+export interface FlowContext<TEmitData = never, TInput = unknown> {
   emit: Emitter<TEmitData>
   traceId: string
   state: InternalStateManager
   logger: Logger
   streams: Streams
   trigger: TriggerInfo
+
+  is: {
+    event: (input: TInput) => input is ExtractEventInput<TInput>
+    api: (input: TInput) => input is ExtractApiInput<TInput>
+    cron: (input: TInput) => input is never
+  }
+
+  /**
+   * Extracts the data payload from the input, regardless of trigger type.
+   * Useful when multiple triggers (e.g., event and API) share the same data schema.
+   *
+   * - For API triggers: returns `request.body`
+   * - For event triggers: returns the event data directly
+   * - For cron triggers: returns `undefined`
+   *
+   * @example
+   * ```ts
+   * // When event and API triggers have the same schema
+   * const orderData = ctx.getData() // Works for both triggers
+   * ```
+   */
+  getData: () => ExtractDataPayload<TInput>
+
+  match: <TResult = any>(handlers: MatchHandlers<TInput, TEmitData, TResult>) => Promise<TResult | void>
 }
 
 export type Emit = string | { topic: string; label?: string; conditional?: boolean }
 
+type TriggerType = 'api' | 'event' | 'cron'
 export type TriggerInfo = {
-  type: 'api' | 'event' | 'cron'
+  type: TriggerType
   index?: number
   path?: string
   method?: string
@@ -55,7 +96,7 @@ export type TriggerInput<T> = EventTriggerInput<T> | ApiTriggerInput<T> | CronTr
 
 export type TriggerCondition<TInput = unknown> = (
   input: TriggerInput<TInput>,
-  ctx: Omit<FlowContext, 'emit'>,
+  ctx: Omit<FlowContext<never, TriggerInput<TInput>>, 'emit'>,
 ) => boolean | Promise<boolean>
 
 export type HandlerConfig = {
@@ -80,7 +121,7 @@ export type ApiRouteMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTI
 
 export type ApiMiddleware<TBody = unknown, TEmitData = never, TResult = unknown> = (
   req: ApiRequest<TBody>,
-  ctx: FlowContext<TEmitData>,
+  ctx: FlowContext<TEmitData, ApiRequest<TBody>>,
   next: () => Promise<ApiResponse<number, TResult>>,
 ) => Promise<ApiResponse<number, TResult>>
 
@@ -89,13 +130,16 @@ export interface QueryParam {
   description: string
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: we need any to allow trigger assignment to TriggerConfig
 export type EventTrigger<TSchema extends StepSchemaInput | undefined = any> = {
   type: 'event'
   topic: string
   input?: TSchema
-  condition?: TriggerCondition<InferSchema<TSchema>>
+  condition?: TriggerCondition<TSchema extends ZodInput ? z.infer<TSchema> : unknown>
+  infrastructure?: Partial<InfrastructureConfig>
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: we need any to allow trigger assignment to TriggerConfig
 export type ApiTrigger<TSchema extends StepSchemaInput | undefined = any> = {
   type: 'api'
   path: string
@@ -105,28 +149,27 @@ export type ApiTrigger<TSchema extends StepSchemaInput | undefined = any> = {
   queryParams?: readonly QueryParam[]
   // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
   middleware?: readonly ApiMiddleware<any, any, any>[]
-  condition?: TriggerCondition<InferSchema<TSchema>>
+  condition?: TriggerCondition<TSchema extends ZodInput ? z.infer<TSchema> : unknown>
 }
 
-export type CronTrigger<TSchema extends StepSchemaInput | undefined = any> = {
+export type CronTrigger = {
   type: 'cron'
   expression: string
   input?: never
-  condition?: TriggerCondition<InferSchema<TSchema>>
+  condition?: TriggerCondition
 }
 
 export type TriggerConfig = EventTrigger | ApiTrigger | CronTrigger
 
-export type StepConfig<TTriggers extends readonly any[] = readonly TriggerConfig[]> = {
+export type StepConfig = {
   name: string
   description?: string
-  triggers: TTriggers
+  triggers: readonly TriggerConfig[]
   emits?: readonly Emit[]
   virtualEmits?: readonly Emit[]
   virtualSubscribes?: readonly string[]
   flows?: readonly string[]
   includeFiles?: readonly string[]
-  infrastructure?: Partial<InfrastructureConfig>
 }
 
 export interface ApiRequest<TBody = unknown> {
@@ -144,7 +187,7 @@ export type ApiResponse<TStatus extends number = number, TBody = any> = {
 
 export type StepHandler<TInput = any, TEmitData = never> = (
   input: TriggerInput<TInput>,
-  ctx: FlowContext<TEmitData>,
+  ctx: FlowContext<TEmitData, TriggerInput<TInput>>,
 ) => Promise<ApiResponse | void>
 
 export type Event<TData = unknown> = {
@@ -170,7 +213,7 @@ export type UnsubscribeConfig = {
   event: string
 }
 
-export type Step = { filePath: string; config: StepConfig<any> }
+export type Step = { filePath: string; config: StepConfig }
 
 export type PluginStep = Step & {
   handler?: StepHandler<any, any>
@@ -188,29 +231,36 @@ export interface Streams {}
 // biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface Emits {}
 
-type HasOutput = { _output: unknown }
-
+// biome-ignore lint/suspicious/noExplicitAny: FromSchema requires flexible casting for JSON Schema inference
 type InferSchema<T, TFallback = unknown> = T extends TypedJsonSchema<infer O>
   ? O
-  : T extends HasOutput
-    ? T['_output']
-    : T extends undefined
-      ? unknown
-      : TFallback
+  : T extends ZodInput
+    ? z.infer<T>
+    : T extends { readonly type: string }
+      ? FromSchema<T & { type: any }>
+      : T extends { readonly anyOf: readonly any[] }
+        ? FromSchema<T & { anyOf: any }>
+        : T extends { readonly allOf: readonly any[] }
+          ? FromSchema<T & { allOf: any }>
+          : T extends { readonly oneOf: readonly any[] }
+            ? FromSchema<T & { oneOf: any }>
+            : T extends undefined
+              ? unknown
+              : TFallback
 
 type TriggerToInput<TTrigger> = TTrigger extends { type: 'event'; input?: infer S }
-  ? S extends StepSchemaInput
-    ? InferSchema<S>
-    : unknown
+  ? S extends ZodInput
+    ? z.infer<S>
+    : S extends StepSchemaInput
+      ? InferSchema<S>
+      : unknown
   : TTrigger extends { type: 'api'; bodySchema?: infer S }
-    ? ApiRequest<S extends StepSchemaInput ? InferSchema<S> : unknown>
-    : TTrigger extends { type: 'cron'; input?: never }
+    ? ApiRequest<S extends ZodInput ? z.infer<S> : S extends StepSchemaInput ? InferSchema<S> : unknown>
+    : TTrigger extends { type: 'cron' }
       ? undefined
       : never
 
-type InferHandlerInput<TConfig extends StepConfig<any>> = TConfig['triggers'][number] extends infer T
-  ? TriggerToInput<T>
-  : never
+type InferHandlerInput<TConfig extends StepConfig> = TriggerToInput<TConfig['triggers'][number]>
 
 type InferReturnType = Promise<ApiResponse | void>
 
@@ -227,7 +277,7 @@ type EmitElement<E> =
 
 type InferEmits<T> = T extends { emits: readonly unknown[] } ? EmitElement<T['emits'][number]> : never
 
-export type Handlers<TConfig extends StepConfig<any>> = (
+export type Handlers<TConfig extends StepConfig> = (
   input: InferHandlerInput<TConfig>,
-  ctx: FlowContext<InferEmits<TConfig>>,
+  ctx: FlowContext<InferEmits<TConfig>, InferHandlerInput<TConfig>>,
 ) => InferReturnType

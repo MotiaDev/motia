@@ -48,6 +48,7 @@ const eventTriggerSchema = z
     topic: z.string(),
     input: z.union([jsonSchema, z.object({}), z.null()]).optional(),
     condition: z.any().optional(),
+    infrastructure: z.any().optional(),
   })
   .strict()
 
@@ -91,7 +92,6 @@ const stepConfigSchema = z
     virtualSubscribes: z.array(z.string()).optional(),
     flows: z.array(z.string()).optional(),
     includeFiles: z.array(z.string()).optional(),
-    infrastructure: z.any().optional(),
   })
   .strict()
 

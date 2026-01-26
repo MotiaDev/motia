@@ -13,7 +13,11 @@ import type {
   CronTrigger,
   Emitter,
   EventTrigger,
+  ExtractApiInput,
+  ExtractDataPayload,
+  ExtractEventInput,
   FlowContext,
+  MatchHandlers,
   ApiRequest as MotiaApiRequest,
   ApiResponse as MotiaApiResponse,
   Step,
@@ -31,12 +35,30 @@ const printer = new Printer(process.cwd())
 
 type StepWithHandler = Step & { handler: StepHandler<unknown> }
 
+type TriggerConfigBase = {
+  metadata: StepConfig & { filePath: string }
+  _condition_path?: string
+}
+
+type ApiTriggerConfig = TriggerConfigBase & {
+  api_path: string
+  http_method: string
+}
+
+type EventTriggerConfig = TriggerConfigBase & {
+  topic: string
+}
+
+type CronTriggerConfig = TriggerConfigBase & {
+  expression: string
+}
+
 const composeMiddleware = <TRequestBody = unknown, TEmitData = never, TResponseBody = unknown>(
   ...middlewares: ApiMiddleware<TRequestBody, TEmitData, TResponseBody>[]
 ) => {
   return async (
     req: MotiaApiRequest<TRequestBody>,
-    ctx: FlowContext<TEmitData>,
+    ctx: FlowContext<TEmitData, MotiaApiRequest<TRequestBody>>,
     handler: () => Promise<MotiaApiResponse<number, TResponseBody>>,
   ): Promise<MotiaApiResponse<number, TResponseBody>> => {
     const composedHandler = middlewares.reduceRight<() => Promise<MotiaApiResponse<number, TResponseBody>>>(
@@ -48,13 +70,63 @@ const composeMiddleware = <TRequestBody = unknown, TEmitData = never, TResponseB
   }
 }
 
-const flowContext = <EmitData>(streamManager: Motia, trigger: TriggerInfo): FlowContext<EmitData> => {
+const flowContext = <EmitData, TInput = unknown>(
+  streamManager: Motia,
+  trigger: TriggerInfo,
+  input?: TInput,
+): FlowContext<EmitData, TInput> => {
   const traceId = crypto.randomUUID()
   const { logger } = getContext()
   const emit: Emitter<EmitData> = async (event: EmitData): Promise<void> => bridge.invokeFunction('emit', event)
   const state = new StateManager()
 
-  return { emit, traceId, state, logger, streams: streamManager.streams, trigger }
+  const context: FlowContext<EmitData, TInput> = {
+    emit,
+    traceId,
+    state,
+    logger,
+    streams: streamManager.streams,
+    trigger,
+
+    is: {
+      event: (inp: TInput): inp is ExtractEventInput<TInput> => trigger.type === 'event',
+      api: (inp: TInput): inp is ExtractApiInput<TInput> => trigger.type === 'api',
+      cron: (inp: TInput): inp is never => trigger.type === 'cron',
+    },
+
+    getData: (): ExtractDataPayload<TInput> => {
+      if (trigger.type === 'api') {
+        return (input as Extract<TInput, MotiaApiRequest>).body as ExtractDataPayload<TInput>
+      }
+      return input as ExtractDataPayload<TInput>
+    },
+
+    match: async <TResult = unknown>(handlers: MatchHandlers<TInput, EmitData, TResult>): Promise<TResult | void> => {
+      if (trigger.type === 'event' && handlers.event) {
+        return await handlers.event(input as ExtractEventInput<TInput>)
+      }
+      if (trigger.type === 'api' && handlers.api) {
+        return await handlers.api(input as ExtractApiInput<TInput>)
+      }
+      if (trigger.type === 'cron' && handlers.cron) {
+        return await handlers.cron()
+      }
+      if (handlers.default) {
+        return await handlers.default(input as TInput)
+      }
+
+      logger.warn(`No handler matched for trigger type: ${trigger.type}`, {
+        availableHandlers: Object.keys(handlers).filter((k) => k !== 'default'),
+        triggerType: trigger.type,
+      })
+
+      throw new Error(
+        `No handler matched for trigger type: ${trigger.type}. Available handlers: ${Object.keys(handlers).join(', ')}`,
+      )
+    },
+  }
+
+  return context
 }
 
 export class Motia {
@@ -74,21 +146,24 @@ export class Motia {
       if (isApiTrigger(trigger)) {
         bridge.registerFunction(
           { function_path, metadata },
-          async (req: IIIApiRequest<any>): Promise<IIIApiResponse> => {
+          async (req: IIIApiRequest<unknown>): Promise<IIIApiResponse> => {
             const triggerInfo: TriggerInfo = { type: 'api', index }
-            const context = flowContext(this, triggerInfo)
             const motiaRequest: MotiaApiRequest<unknown> = {
               pathParams: req.path_params || {},
               queryParams: req.query_params || {},
               body: req.body,
               headers: req.headers || {},
             }
+            const context = flowContext(this, triggerInfo, motiaRequest)
 
             const middlewares = Array.isArray(trigger?.middleware) ? trigger.middleware : []
 
             const composedMiddleware = composeMiddleware(...middlewares)
-            const handlerFn = async () => step.handler(motiaRequest, context)
-            const response: MotiaApiResponse = await composedMiddleware(motiaRequest, context, handlerFn)
+            const handlerFn = async (): Promise<MotiaApiResponse> => {
+              const result = await step.handler(motiaRequest, context as any)
+              return result || { status: 200, body: null }
+            }
+            const response: MotiaApiResponse = await composedMiddleware(motiaRequest, context as any, handlerFn)
 
             return {
               status_code: response.status,
@@ -99,7 +174,7 @@ export class Motia {
         )
 
         const apiPath = trigger.path.startsWith('/') ? trigger.path.substring(1) : trigger.path
-        const triggerConfig: Record<string, any> = {
+        const triggerConfig: ApiTriggerConfig = {
           api_path: apiPath,
           http_method: trigger.method,
           metadata,
@@ -110,19 +185,17 @@ export class Motia {
 
           bridge.registerFunction(
             { function_path: conditionPath },
-            async (req: IIIApiRequest<any>): Promise<unknown> => {
+            async (req: IIIApiRequest<unknown>): Promise<unknown> => {
               const triggerInfo: TriggerInfo = { type: 'api', index }
-              const context = flowContext(this, triggerInfo)
-              delete (context as any).emit
-
               const motiaRequest: MotiaApiRequest<unknown> = {
                 pathParams: req.path_params || {},
                 queryParams: req.query_params || {},
                 body: req.body,
                 headers: req.headers || {},
               }
+              const { emit, ...contextWithoutEmit } = flowContext(this, triggerInfo, motiaRequest)
 
-              return trigger.condition!(motiaRequest, context)
+              return trigger.condition?.(motiaRequest, contextWithoutEmit as any)
             },
           )
 
@@ -137,11 +210,11 @@ export class Motia {
       } else if (isEventTrigger(trigger)) {
         bridge.registerFunction({ function_path, metadata }, async (req) => {
           const triggerInfo: TriggerInfo = { type: 'event', index }
-          const context = flowContext(this, triggerInfo)
+          const context = flowContext(this, triggerInfo, req)
           return step.handler(req, context)
         })
 
-        const triggerConfig: Record<string, any> = {
+        const triggerConfig: EventTriggerConfig = {
           topic: trigger.topic,
           metadata,
         }
@@ -149,11 +222,11 @@ export class Motia {
         if (trigger.condition) {
           const conditionPath = `${function_path}.conditions:${index}`
 
-          bridge.registerFunction({ function_path: conditionPath }, async (input) => {
+          bridge.registerFunction({ function_path: conditionPath }, async (input: unknown) => {
             const triggerInfo: TriggerInfo = { type: 'event', index }
-            const { emit, ...context } = flowContext(this, triggerInfo)
+            const { emit, ...context } = flowContext(this, triggerInfo, input)
 
-            return trigger.condition!(input, context as FlowContext<unknown>)
+            return trigger.condition?.(input, context as any)
           })
 
           triggerConfig._condition_path = conditionPath
@@ -167,11 +240,11 @@ export class Motia {
       } else if (isCronTrigger(trigger)) {
         bridge.registerFunction({ function_path, metadata }, async (_req): Promise<unknown> => {
           const triggerInfo: TriggerInfo = { type: 'cron', index }
-          const context = flowContext(this, triggerInfo)
-          return step.handler(undefined, context)
+          const context = flowContext(this, triggerInfo, undefined)
+          return step.handler(undefined, context as any)
         })
 
-        const triggerConfig: Record<string, any> = {
+        const triggerConfig: CronTriggerConfig = {
           expression: trigger.expression,
           metadata,
         }
@@ -181,8 +254,8 @@ export class Motia {
 
           bridge.registerFunction({ function_path: conditionPath }, async () => {
             const triggerInfo: TriggerInfo = { type: 'cron', index }
-            const { emit, ...context } = flowContext(this, triggerInfo)
-            return trigger.condition!(undefined, context as FlowContext<unknown>)
+            const { emit, ...contextWithoutEmit } = flowContext(this, triggerInfo, undefined)
+            return trigger.condition?.(undefined, contextWithoutEmit as any)
           })
 
           triggerConfig._condition_path = conditionPath

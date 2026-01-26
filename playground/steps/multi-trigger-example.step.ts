@@ -1,11 +1,6 @@
 import type { ApiRequest, Handlers, StepConfig, TriggerCondition } from '@iii-dev/motia'
 import { z } from 'zod'
 
-const isBusinessHours: TriggerCondition = (input, ctx) => {
-  const hour = new Date().getHours()
-  return hour >= 9 && hour < 17
-}
-
 const isHighValue: TriggerCondition<{ amount: number; description: string }> = (input, ctx) => {
   if (!input || typeof input !== 'object') return false
   return (input as { amount: number }).amount > 1000
@@ -67,94 +62,92 @@ export const config = {
   emits: ['order.processed'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, ctx): Promise<any> => {
-  const { logger, emit, state, trigger } = ctx
-
-  logger.info('Processing order')
+export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => {
+  ctx.logger.info('Processing order')
 
   const orderId = `order-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
-  if (trigger.type === 'api') {
-    const request = input as any
-    if (!request) return
-    const body = request.body
+  return ctx.match({
+    api: async (request) => {
+      const body = request.body
 
-    logger.info('Processing manual order via API', {
-      amount: body.amount,
-      user: body.user,
-    })
-
-    await state.set('orders', orderId, {
-      id: orderId,
-      amount: body.amount,
-      description: body.description,
-      source: 'manual-api',
-      createdAt: new Date().toISOString(),
-    })
-
-    await emit({
-      topic: 'order.processed',
-      data: {
-        orderId,
+      ctx.logger.info('Processing manual order via API', {
         amount: body.amount,
+        user: body.user,
+      })
+
+      await ctx.state.set('orders', orderId, {
+        id: orderId,
+        amount: body.amount,
+        description: body.description,
         source: 'manual-api',
-      },
-    })
+        createdAt: new Date().toISOString(),
+      })
 
-    return {
-      status: 200,
-      body: {
-        message: 'Order processed successfully',
-        orderId,
-        processedBy: 'manual-api',
-      },
-    }
-  }
-
-  if (trigger.type === 'event') {
-    const eventData = input as { amount: number; description: string }
-
-    logger.info('Processing order from event', {
-      amount: eventData.amount,
-      description: eventData.description,
-    })
-
-    await state.set('orders', orderId, {
-      id: orderId,
-      amount: eventData.amount,
-      description: eventData.description,
-      source: 'event',
-      createdAt: new Date().toISOString(),
-    })
-
-    await emit({
-      topic: 'order.processed',
-      data: {
-        orderId,
-        amount: eventData.amount,
-        source: 'event',
-      },
-    })
-  }
-
-  if (trigger.type === 'cron') {
-    logger.info('Processing scheduled order batch')
-
-    const pendingOrders = await state.getGroup<{ id: string; amount: number }>('pending-orders')
-
-    for (const order of pendingOrders) {
-      await emit({
+      await ctx.emit({
         topic: 'order.processed',
         data: {
-          orderId: order.id,
-          amount: order.amount,
-          source: 'cron-batch',
+          orderId,
+          amount: body.amount,
+          source: 'manual-api',
         },
       })
-    }
 
-    logger.info('Scheduled batch processing complete', {
-      processedCount: pendingOrders.length,
-    })
-  }
+      return {
+        status: 200,
+        body: {
+          message: 'Order processed successfully',
+          orderId,
+          processedBy: 'manual-api',
+        },
+      }
+    },
+
+    event: async (eventInput) => {
+      const { amount, description } = eventInput
+
+      ctx.logger.info('Processing order from event', {
+        amount,
+        description,
+      })
+
+      await ctx.state.set('orders', orderId, {
+        id: orderId,
+        amount,
+        description,
+        source: 'event',
+        createdAt: new Date().toISOString(),
+      })
+
+      await ctx.emit({
+        topic: 'order.processed',
+        data: {
+          orderId,
+          amount,
+          source: 'event',
+        },
+      })
+    },
+
+    cron: async () => {
+      ctx.logger.info('Processing scheduled order batch')
+
+      const pendingOrders = await ctx.state.getGroup<{ id: string; amount: number }>('pending-orders')
+
+      for (const order of pendingOrders) {
+        await ctx.emit({
+          topic: 'order.processed',
+          data: {
+            orderId: order.id,
+            amount: order.amount,
+            source: 'cron-batch',
+          },
+        })
+      }
+
+      ctx.logger.info('Scheduled batch processing complete', {
+        processedCount: pendingOrders.length,
+      })
+    },
+  })
 }

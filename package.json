@@ -5,7 +5,7 @@
   "scripts": {
     "prepare": "husky || true",
     "build": "pnpm -r build",
-    "dev": "pnpm run build && pnpm -r --filter=playground dev",
+    "dev": "pnpm run build && pnpm --filter=@iii/motia-example dev",
     "test": "pnpm -r --filter @iii-dev/motia test",
     "test:ci": "pnpm -r --filter @iii-dev/motia test:ci || echo 'No tests found'",
     "lint": "biome check .",
