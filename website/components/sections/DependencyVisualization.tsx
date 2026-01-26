@@ -1142,7 +1142,6 @@ export const DependencyVisualization: React.FC<
         entries.forEach((entry) => {
           if (entry.isIntersecting && !hasAnimatedOnScroll) {
             setHasAnimatedOnScroll(true);
-            runAnimation();
           }
         });
       },
@@ -1154,14 +1153,17 @@ export const DependencyVisualization: React.FC<
     }
 
     return () => observer.disconnect();
-  }, [hasAnimatedOnScroll, runAnimation]);
+  }, [hasAnimatedOnScroll]);
 
   // Re-run animation when category changes
   useEffect(() => {
-    // Small delay then run animation
+    if (!hasAnimatedOnScroll) {
+      return;
+    }
+
     const cleanup = runAnimation();
     return cleanup;
-  }, [categoryId, runAnimation]);
+  }, [categoryId, hasAnimatedOnScroll, runAnimation]);
 
   const handleReplay = () => {
     runAnimation();
