@@ -405,7 +405,7 @@ const ConnectionLine: React.FC<{
       {isActive && (
         <>
           <div
-            className="absolute inset-0 rounded-full overflow-hidden"
+            className="absolute inset-0 rounded-full overflow-hidden opacity-60"
             style={{
               background: `linear-gradient(180deg, 
                 transparent 0%, 
@@ -414,18 +414,17 @@ const ConnectionLine: React.FC<{
                 transparent 100%
               )`,
               backgroundSize: "100% 300%",
-              animation: `flowDown 1.5s ease-in-out infinite`,
+              animation: `flowDown 2.5s ease-in-out infinite`,
               animationDelay: `${index * 200}ms`,
             }}
           />
           {/* Glowing orb that travels */}
           <div
-            className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full ${
+            className={`absolute left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full opacity-60 ${
               isDarkMode ? "bg-iii-info" : "bg-iii-accent-light"
             }`}
             style={{
-              boxShadow: `0 0 10px 3px ${accentVar}, 0 0 20px 6px ${accentVar}`,
-              animation: `orbTravel 2s ease-in-out infinite`,
+              animation: `orbTravel 3s ease-in-out infinite`,
               animationDelay: `${index * 300}ms`,
             }}
           />
@@ -462,7 +461,6 @@ const OutputConnectionLine: React.FC<{
               isDarkMode ? "bg-iii-info" : "bg-iii-accent-light"
             }`}
             style={{
-              boxShadow: `0 0 10px 3px ${accentVar}, 0 0 20px 6px ${accentVar}`,
               animation: "orbTravelRight 2s ease-in-out infinite",
             }}
           />
@@ -474,7 +472,6 @@ const OutputConnectionLine: React.FC<{
               isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
             }`}
             style={{
-              boxShadow: `0 0 10px 3px ${accentVar}, 0 0 20px 6px ${accentVar}`,
               animation: "orbTravelLeft 2s ease-in-out infinite",
               animationDelay: "1s",
             }}
@@ -490,68 +487,12 @@ const OutputConnectionLine: React.FC<{
         `}
         style={{ transitionDelay: isVisible ? "600ms" : "0ms" }}
       >
-        {/* Outer pulsing ring */}
+        {/* Inner glowing core (stronger and more visible) */}
         <div
-          className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 ${
-            isDarkMode ? "border-iii-accent" : "border-iii-accent-light"
-          }`}
-          style={{
-            animation: isVisible
-              ? "socketPulse 2s ease-in-out infinite"
-              : "none",
-          }}
-        />
-        {/* Middle ring */}
-        <div
-          className={`absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-[1.5px] ${
-            isDarkMode
-              ? "bg-iii-accent/30 border-iii-accent"
-              : "bg-iii-accent-light/30 border-iii-accent-light"
-          }`}
-        />
-        {/* Inner glowing core */}
-        <div
-          className={`absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${
+          className={`absolute -right-2 top-1/2 -translate-y-1/2 w-2 h-5 ${
             isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
           }`}
-          style={{
-            boxShadow: `0 0 8px 2px ${accentVar}, 0 0 16px 4px ${accentVar}`,
-            animation: isVisible
-              ? "coreGlow 1.5s ease-in-out infinite"
-              : "none",
-          }}
         />
-        {/* Data stream particles */}
-        {isVisible && (
-          <>
-            <div
-              className={`absolute -left-3 top-1/2 w-1 h-1 rounded-full ${
-                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
-              }`}
-              style={{
-                animation: "particleOrbit 3s linear infinite",
-              }}
-            />
-            <div
-              className={`absolute -left-3 top-1/2 w-1 h-1 rounded-full ${
-                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
-              }`}
-              style={{
-                animation: "particleOrbit 3s linear infinite",
-                animationDelay: "1s",
-              }}
-            />
-            <div
-              className={`absolute -left-3 top-1/2 w-1 h-1 rounded-full ${
-                isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
-              }`}
-              style={{
-                animation: "particleOrbit 3s linear infinite",
-                animationDelay: "2s",
-              }}
-            />
-          </>
-        )}
       </div>
     </div>
   );
@@ -628,20 +569,40 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
               ? "border-iii-accent bg-iii-accent/10 shadow-lg shadow-iii-accent/20"
               : "border-iii-accent-light bg-iii-accent-light/10 shadow-lg shadow-iii-accent-light/20"
             : isDarkMode
-            ? "border-iii-light/30 bg-iii-dark/50"
-            : "border-iii-dark/30 bg-white/50"
+              ? "border-iii-light/30 bg-iii-dark/50"
+              : "border-iii-dark/30 bg-white/50"
         }
       `}
       >
         {/* Pulse effect when connected */}
         {isConnected && (
           <div
-            className={`absolute inset-0 rounded-xl animate-ping opacity-20 ${
+            className={`absolute inset-0 rounded-xl opacity-90 transition-none ${
               isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
             }`}
-            style={{ animationDuration: "2s" }}
+            style={{
+              animation: "ping-once 2s cubic-bezier(0, 0, 0.2, 1)",
+              animationFillMode: "forwards",
+            }}
           />
         )}
+        {/* Ping once animation */}
+        <style jsx>{`
+          @keyframes ping-once {
+            0% {
+              transform: scale(1);
+              opacity: 0.5;
+            }
+            75% {
+              transform: scale(1.25);
+              opacity: 0.05;
+            }
+            100% {
+              transform: scale(1.5);
+              opacity: 0;
+            }
+          }
+        `}</style>
         <div
           className={`
           text-2xl font-black tracking-tight text-center relative z-10
@@ -786,7 +747,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
 
   // Animation phases
   const isOutputting = ["outputting", "legendVisible", "spotlight"].includes(
-    animationPhase
+    animationPhase,
   );
   const isSpotlight = animationPhase === "spotlight";
 
@@ -842,12 +803,12 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
 
     // Check if line contains architecture keywords
     const isArchitecture = architectureKeywords.some((kw) =>
-      lowerLine.includes(kw.toLowerCase())
+      lowerLine.includes(kw.toLowerCase()),
     );
 
     // Check if line contains business logic keywords
     const hasBusinessLogic = businessLogicKeywords.some((kw) =>
-      lowerLine.includes(kw.toLowerCase())
+      lowerLine.includes(kw.toLowerCase()),
     );
 
     // Strong architecture indicators (these always win)
@@ -962,8 +923,8 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
                 isTraditional
                   ? "bg-iii-light"
                   : isDarkMode
-                  ? "bg-iii-accent"
-                  : "bg-iii-accent-light"
+                    ? "bg-iii-accent"
+                    : "bg-iii-accent-light"
               }`}
             />
             <span
@@ -1013,9 +974,6 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
                 background: isDarkMode
                   ? "var(--color-accent)"
                   : "var(--color-accent-light)",
-                boxShadow: isDarkMode
-                  ? "0 0 8px 2px var(--color-accent), 0 0 16px 4px var(--color-accent)"
-                  : "0 0 8px 2px var(--color-accent-light), 0 0 16px 4px var(--color-accent-light)",
               }}
             />
           )}
@@ -1188,7 +1146,7 @@ export const DependencyVisualization: React.FC<
           }
         });
       },
-      { threshold: 0.2 }
+      { threshold: 0.2 },
     );
 
     if (containerRef.current) {
