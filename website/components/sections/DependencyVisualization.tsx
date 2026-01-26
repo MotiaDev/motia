@@ -489,7 +489,7 @@ const OutputConnectionLine: React.FC<{
       >
         {/* Inner glowing core (stronger and more visible) */}
         <div
-          className={`absolute -right-2 top-1/2 -translate-y-1/2 w-2 h-5 ${
+          className={`absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-5 ${
             isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
           }`}
         />
