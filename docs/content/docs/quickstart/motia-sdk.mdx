@@ -36,7 +36,9 @@ yarn add @iii-dev/motia
 ### Python
 
 ```bash
-pip install motia
+uv pip install iii-motia
+# or
+pip install iii-motia
 ```
 
 ## Quick Start
@@ -86,29 +88,21 @@ export const handler: Handlers<typeof config> = async (req, { logger }) => {
 **Python Example** (`steps/hello.step.py`):
 
 ```python
-from motia import StepConfig, ApiTrigger, ApiRequest, ApiResponse, FlowContext, step_wrapper
+from motia import ApiRequest, ApiResponse, FlowContext, api
 
-# Define step configuration
-config = StepConfig(
-    name="hello",
-    triggers=[
-        ApiTrigger(path="/hello/:name", method="GET")
-    ]
-)
+config = {
+    "name": "hello",
+    "description": "Return a greeting",
+    "triggers": [api("GET", "/hello/:name")],
+    "emits": [],
+}
 
-# Define handler
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
     name = req.path_params.get("name", "World")
 
     ctx.logger.info(f"Greeting {name}")
 
-    return ApiResponse(
-        status=200,
-        body={"message": f"Hello, {name}!"}
-    )
-
-# Register step
-step_wrapper(config, __file__, handler)
+    return ApiResponse(status=200, body={"message": f"Hello, {name}!"})
 ```
 
 ### 2. Run Your Application
@@ -117,7 +111,10 @@ step_wrapper(config, __file__, handler)
 # Start iii engine (in another terminal)
 iii
 
-# Run Motia
+# Run Motia (defaults to ./steps)
+motia run
+
+# Optional: specify directory
 motia run --dir steps
 ```
 
@@ -814,7 +811,8 @@ my-app/
 │   └── cron/
 │       └── cleanup.step.py
 ├── config.yaml          # Engine configuration
-└── requirements.txt
+├── pyproject.toml
+└── uv.lock
 ```
 
 ## Complete Example: Todo API

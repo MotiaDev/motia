@@ -9,8 +9,18 @@ iii SDK is the base SDK for building iii applications. It provides the core func
 
 ## Installation
 
+### JavaScript/TypeScript
+
 ```bash
 npm install @iii-dev/sdk
+```
+
+### Python
+
+```bash
+uv pip install iii-sdk
+# or
+pip install iii-sdk
 ```
 
 ## Usage
@@ -21,10 +31,34 @@ Run `iii` command line, this will start the iii process.
 iii
 ```
 
+### JavaScript/TypeScript
+
 ```typescript
 import { Bridge } from '@iii-dev/sdk';
 
 const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+```
+
+### Python
+
+```python
+import asyncio
+import os
+from iii import Bridge
+
+async def main() -> None:
+    bridge = Bridge(os.getenv("III_BRIDGE_URL", "ws://localhost:49134"))
+
+    @bridge.function("greet.hello")
+    async def hello(data):
+        name = data.get("name", "World")
+        return {"message": f"Hello, {name}!"}
+
+    await bridge.connect()
+    await asyncio.Event().wait()
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 <Tip>
