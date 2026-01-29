@@ -27,8 +27,11 @@ importers:
   packages/motia:
     dependencies:
       '@iii-dev/sdk':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: ^0.2.0
+        version: 0.2.0
+      '@standard-schema/spec':
+        specifier: ^1.0.0
+        version: 1.1.0
       esbuild:
         specifier: ^0.27.0
         version: 0.27.2
@@ -572,8 +575,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@iii-dev/sdk@0.1.0':
-    resolution: {integrity: sha512-r7xWp0xs6+ND9sMZonQbExFtJEMuKDGZ0RM2JOXMx2LLmnco0ZnkwyRx291TAyF060ELoDh3ZoSPwhFFaG6WHQ==}
+  '@iii-dev/sdk@0.2.0':
+    resolution: {integrity: sha512-w6Z3y0OUz/Bj3MxVQgvwCC49gflNepNHRrLIzfMXr2Zr8uUmFASkP2uKilaVd8lmmdJXF2qJjuFReEzrxON3bg==}
 
   '@isaacs/balanced-match@4.0.1':
     resolution: {integrity: sha512-yzMTt9lEb8Gv7zRioUilSglI0c0smZ9k5D65677DLWLtWJaXIS3CqcGyUFByYKlnUj6TkjLVs54fBl6+TiGQDQ==}
@@ -995,6 +998,9 @@ packages:
 
   '@sinonjs/fake-timers@13.0.5':
     resolution: {integrity: sha512-36/hTbH2uaWuGVERyC6da9YwGWnzUZXuPro/F2LfsdOsLnCojz/iSH8MxUt/FD2S5XBSVPhmArFUXcpCQ2Hkiw==}
+
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -2748,7 +2754,7 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
-  '@iii-dev/sdk@0.1.0':
+  '@iii-dev/sdk@0.2.0':
     dependencies:
       async_hooks: 1.0.0
       ws: 8.18.3
@@ -3165,6 +3171,8 @@ snapshots:
   '@sinonjs/fake-timers@13.0.5':
     dependencies:
       '@sinonjs/commons': 3.0.1
+
+  '@standard-schema/spec@1.1.0': {}
 
   '@tybys/wasm-util@0.10.1':
     dependencies:

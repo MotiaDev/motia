@@ -1,6 +1,7 @@
-import type { StreamAuthResult, StreamContext, StreamJoinResult } from '@iii-dev/sdk'
+import type { StreamAuthResult, StreamContext, StreamJoinResult, StreamSetResult, UpdateOp } from '@iii-dev/sdk'
 import type { FlowContext, StepSchemaInput } from './types'
 
+export type { StreamSetInput, StreamSetResult, UpdateOp } from '@iii-dev/sdk'
 export type StreamSubscription = { groupId: string; id?: string }
 
 export interface StreamAuthInput {
@@ -43,9 +44,10 @@ export type Stream<TConfig extends StreamConfig = StreamConfig> = {
 
 export interface MotiaStream<TData> {
   get(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
-  set(groupId: string, id: string, data: TData): Promise<BaseStreamItem<TData>>
+  set(groupId: string, id: string, data: TData): Promise<StreamSetResult<BaseStreamItem<TData>>>
   delete(groupId: string, id: string): Promise<BaseStreamItem<TData> | null>
   getGroup(groupId: string): Promise<BaseStreamItem<TData>[]>
+  update(groupId: string, id: string, data: UpdateOp[]): Promise<StreamSetResult<BaseStreamItem<TData>>>
 
   send<T>(channel: StateStreamEventChannel, event: StateStreamEvent<T>): Promise<void>
 }

@@ -1,4 +1,4 @@
-import { type Handlers, jsonSchema, type StepConfig } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from '@iii-dev/motia'
 import { z } from 'zod'
 import type { Todo } from './todo.stream'
 
@@ -56,5 +56,5 @@ export const handler: Handlers<typeof config> = async (request, { logger, stream
 
   logger.info('Todo created successfully', { todoId })
 
-  return { status: 200, body: todo }
+  return { status: 200, body: todo.new_value }
 }

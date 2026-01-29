@@ -97,3 +97,4 @@ agents/**/components/
 playground/motia-workbench.json
 playground/openapi.json
 playground/types.d.ts
+playground/data

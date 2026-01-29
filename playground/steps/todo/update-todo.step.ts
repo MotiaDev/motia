@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from '@iii-dev/motia'
+import type { Handlers, StepConfig, UpdateOp } from '@iii-dev/motia'
 import { z } from 'zod'
 import { todoSchema } from './create-todo.step'
 
@@ -32,34 +32,31 @@ export const handler: Handlers<typeof config> = async (request, { logger, stream
 
   logger.info('Updating todo', { todoId, body })
 
-  const existingTodo = await streams.todo.get('inbox', todoId)
-
-  if (!existingTodo) {
-    logger.warn('Todo not found', { todoId })
-
-    return {
-      status: 404,
-      body: { error: `Todo with id ${todoId} not found` },
-    }
-  }
-
-  const updatedTodo = { ...existingTodo }
+  const updateOps: UpdateOp[] = []
 
   if (body.checked !== undefined) {
-    updatedTodo.completedAt = body.checked ? new Date().toISOString() : undefined
+    updateOps.push({ type: 'set', path: 'completedAt', value: body.checked ? new Date().toISOString() : undefined })
   }
 
   if (body.description !== undefined) {
-    updatedTodo.description = body.description
+    updateOps.push({ type: 'set', path: 'description', value: body.description })
   }
 
   if (body.dueDate !== undefined) {
-    updatedTodo.dueDate = body.dueDate
+    updateOps.push({ type: 'set', path: 'dueDate', value: body.dueDate })
   }
 
-  const result = await streams.todo.set('inbox', todoId, updatedTodo)
+  if (updateOps.length === 0) {
+    return { status: 400, body: { error: 'No fields to update' } }
+  }
+
+  const result = await streams.todo.update('inbox', todoId, updateOps)
+
+  if (!result.old_value) {
+    return { status: 404, body: { error: `Todo with id ${todoId} not found` } }
+  }
 
   logger.info('Todo updated successfully', { todoId })
 
-  return { status: 200, body: result }
+  return { status: 200, body: result.new_value }
 }

@@ -30,7 +30,8 @@
     "motia-iii": "./dist/new/cli.mjs"
   },
   "dependencies": {
-    "@iii-dev/sdk": "0.1.0",
+    "@iii-dev/sdk": "^0.2.0",
+    "@standard-schema/spec": "^1.0.0",
     "esbuild": "^0.27.0",
     "glob": "^13.0.0",
     "json-schema-to-ts": "^3.1.1",

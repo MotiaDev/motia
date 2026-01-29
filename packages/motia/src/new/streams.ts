@@ -1,3 +1,4 @@
+import type { StreamSetResult, UpdateOp } from '@iii-dev/sdk'
 import type { StreamConfig } from '../types-stream'
 import { bridge } from './bridge'
 
@@ -12,7 +13,7 @@ export class Stream<TData> {
     })
   }
 
-  async set(groupId: string, itemId: string, data: TData): Promise<TData> {
+  async set(groupId: string, itemId: string, data: TData): Promise<StreamSetResult<TData> | null> {
     return bridge.invokeFunction('streams.set', {
       stream_name: this.config.name,
       group_id: groupId,
@@ -29,10 +30,19 @@ export class Stream<TData> {
     })
   }
 
-  async getGroup(groupId: string): Promise<TData[]> {
-    return bridge.invokeFunction('streams.getGroup', {
+  async list(groupId: string): Promise<TData[]> {
+    return bridge.invokeFunction('streams.list', {
       stream_name: this.config.name,
       group_id: groupId,
+    })
+  }
+
+  async update(groupId: string, itemId: string, ops: UpdateOp[]): Promise<StreamSetResult<TData> | null> {
+    return bridge.invokeFunction('streams.update', {
+      stream_name: this.config.name,
+      group_id: groupId,
+      item_id: itemId,
+      ops,
     })
   }
 

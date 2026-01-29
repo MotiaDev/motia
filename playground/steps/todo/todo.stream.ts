@@ -15,18 +15,18 @@ export const config: StreamConfig = {
   schema: todoSchema,
 
   onJoin: async (subscription, context, authContext) => {
-    const inbox = (await context.streams.inbox.get('watching', subscription.groupId)) ?? { watching: 0 }
-    inbox.watching++
-    await context.streams.inbox.set('watching', subscription.groupId, inbox)
+    await context.streams.inbox.update('watching', subscription.groupId, [
+      { type: 'increment', path: 'watching', by: 1 },
+    ])
 
     context.logger.info('Todo stream joined', { subscription, authContext })
     return { unauthorized: false }
   },
 
   onLeave: async (subscription, context, authContext) => {
-    const inbox = (await context.streams.inbox.get('watching', subscription.groupId)) ?? { watching: 1 }
-    inbox.watching--
-    await context.streams.inbox.set('watching', subscription.groupId, inbox)
+    await context.streams.inbox.update('watching', subscription.groupId, [
+      { type: 'decrement', path: 'watching', by: 1 },
+    ])
 
     context.logger.info('Todo stream left', { subscription, authContext })
   },

@@ -1,4 +1,4 @@
-import type { Logger } from '@iii-dev/sdk'
+import type { Logger, StreamSetResult, UpdateOp } from '@iii-dev/sdk'
 import type { FromSchema } from 'json-schema-to-ts'
 import type { ZodType } from 'zod'
 import * as z from 'zod'
@@ -17,7 +17,8 @@ export function jsonSchema<T extends z.ZodType>(schema: T): TypedJsonSchema<z.ou
 
 export type InternalStateManager = {
   get<T>(groupId: string, key: string): Promise<T | null>
-  set<T>(groupId: string, key: string, value: T): Promise<T>
+  set<T>(groupId: string, key: string, value: T): Promise<StreamSetResult<T> | null>
+  update<T>(groupId: string, key: string, ops: UpdateOp[]): Promise<StreamSetResult<T> | null>
   delete<T>(groupId: string, key: string): Promise<T | null>
   getGroup<T>(groupId: string): Promise<T[]>
   clear(groupId: string): Promise<void>
@@ -28,6 +29,7 @@ export type Emitter<TData> = (event: TData) => Promise<void>
 
 export type ExtractEventInput<TInput> = Exclude<Exclude<TInput, ApiRequest>, undefined>
 export type ExtractApiInput<TInput> = Extract<TInput, ApiRequest>
+export type ExtractStateInput<TInput> = Extract<TInput, StateTriggerInput<unknown>>
 export type ExtractDataPayload<TInput> =
   TInput extends ApiRequest<infer TBody> ? TBody : TInput extends undefined ? undefined : TInput
 
@@ -37,6 +39,8 @@ export type MatchHandlers<TInput, TEmitData, TResult> = {
   api?: (request: ExtractApiInput<TInput>) => Promise<TResult>
 
   cron?: () => Promise<void>
+
+  state?: (input: ExtractStateInput<TInput>) => Promise<TResult>
 
   default?: (input: TInput) => Promise<TResult | void>
 }
@@ -53,6 +57,7 @@ export interface FlowContext<TEmitData = never, TInput = unknown> {
     event: (input: TInput) => input is ExtractEventInput<TInput>
     api: (input: TInput) => input is ExtractApiInput<TInput>
     cron: (input: TInput) => input is never
+    state: (input: TInput) => input is ExtractStateInput<TInput>
   }
 
   /**
@@ -76,7 +81,8 @@ export interface FlowContext<TEmitData = never, TInput = unknown> {
 
 export type Emit = string | { topic: string; label?: string; conditional?: boolean }
 
-type TriggerType = 'api' | 'event' | 'cron'
+type TriggerType = 'api' | 'event' | 'cron' | 'state'
+
 export type TriggerInfo = {
   type: TriggerType
   index?: number
@@ -92,11 +98,19 @@ type ApiTriggerInput<T> = ApiRequest<T>
 
 type CronTriggerInput = undefined
 
-export type TriggerInput<T> = EventTriggerInput<T> | ApiTriggerInput<T> | CronTriggerInput
+export type StateTriggerInput<T> = {
+  type: 'state'
+  group_id: string
+  item_id: string
+  old_value?: T
+  new_value?: T
+}
+
+export type TriggerInput<T> = EventTriggerInput<T> | ApiTriggerInput<T> | CronTriggerInput | StateTriggerInput<T>
 
 export type TriggerCondition<TInput = unknown> = (
   input: TriggerInput<TInput>,
-  ctx: Omit<FlowContext<never, TriggerInput<TInput>>, 'emit'>,
+  ctx: FlowContext<never, TriggerInput<TInput>>,
 ) => boolean | Promise<boolean>
 
 export type HandlerConfig = {
@@ -131,6 +145,12 @@ export interface QueryParam {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to allow trigger assignment to TriggerConfig
+export type StateTrigger<TSchema extends StepSchemaInput | undefined = any> = {
+  type: 'state'
+  condition?: TriggerCondition<InferSchema<TSchema>>
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: we need any to allow trigger assignment to TriggerConfig
 export type EventTrigger<TSchema extends StepSchemaInput | undefined = any> = {
   type: 'event'
   topic: string
@@ -159,7 +179,7 @@ export type CronTrigger = {
   condition?: TriggerCondition
 }
 
-export type TriggerConfig = EventTrigger | ApiTrigger | CronTrigger
+export type TriggerConfig = EventTrigger | ApiTrigger | CronTrigger | StateTrigger
 
 export type StepConfig = {
   name: string
@@ -256,9 +276,11 @@ type TriggerToInput<TTrigger> = TTrigger extends { type: 'event'; input?: infer 
       : unknown
   : TTrigger extends { type: 'api'; bodySchema?: infer S }
     ? ApiRequest<S extends ZodInput ? z.infer<S> : S extends StepSchemaInput ? InferSchema<S> : unknown>
-    : TTrigger extends { type: 'cron' }
-      ? undefined
-      : never
+    : TTrigger extends { type: 'state' }
+      ? StateTriggerInput<unknown>
+      : TTrigger extends { type: 'cron' }
+        ? undefined
+        : never
 
 type InferHandlerInput<TConfig extends StepConfig> = TriggerToInput<TConfig['triggers'][number]>
 
