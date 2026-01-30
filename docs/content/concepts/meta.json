@@ -1,8 +1,4 @@
 {
   "title": "Concepts",
-  "pages": [
-    "index",
-    "quickstart",
-    "test"
-  ]
+  "pages": ["index", "quickstart", "test"]
 }

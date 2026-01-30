@@ -1,5 +1,5 @@
 ---
-title: "Workers"
+title: 'Workers'
 ---
 
 Workers are external processes that connect to the iii Engine via WebSocket to execute business logic.
@@ -39,13 +39,13 @@ graph LR
 Worker establishes WebSocket connection to the Engine:
 
 ```typescript
-import { createBridge } from '@iii-dev/sdk';
+import { createBridge } from '@iii-dev/sdk'
 
 const bridge = createBridge({
   url: 'ws://127.0.0.1:49134',
-});
+})
 
-await bridge.connect();
+await bridge.connect()
 ```
 
 ### 2. Registration
@@ -57,16 +57,16 @@ Worker registers services, functions, and triggers:
 bridge.registerService({
   id: 'users',
   name: 'User Management',
-});
+})
 
 // Register a function
 bridge.registerFunction({
   function_path: 'users.create',
   handler: async (data) => {
     // Business logic here
-    return { id: '123', ...data };
+    return { id: '123', ...data }
   },
-});
+})
 
 // Register a trigger
 bridge.registerTrigger({
@@ -76,7 +76,7 @@ bridge.registerTrigger({
     api_path: '/users',
     http_method: 'POST',
   },
-});
+})
 ```
 
 ### 3. Execution
@@ -102,12 +102,12 @@ sequenceDiagram
 
 The Engine maintains a registry of connected workers:
 
-| Component | Description |
-|-----------|-------------|
-| `WorkerRegistry` | Thread-safe map storing active workers by UUID |
-| `Worker` | Represents a connected client with WebSocket channel |
-| `function_paths` | Set of functions the worker can execute |
-| `invocations` | Active request IDs being processed |
+| Component        | Description                                          |
+| ---------------- | ---------------------------------------------------- |
+| `WorkerRegistry` | Thread-safe map storing active workers by UUID       |
+| `Worker`         | Represents a connected client with WebSocket channel |
+| `function_paths` | Set of functions the worker can execute              |
+| `invocations`    | Active request IDs being processed                   |
 
 ### Worker State
 
@@ -139,6 +139,7 @@ graph TD
 ```
 
 **Benefits:**
+
 - **Language Diversity**: Use different languages for different services
 - **Service Isolation**: Separate concerns across workers
 - **Scalability**: Scale specific workers independently
@@ -149,17 +150,17 @@ graph TD
 ### Node.js
 
 ```typescript
-import { createBridge } from '@iii-dev/sdk';
+import { createBridge } from '@iii-dev/sdk'
 
-const bridge = createBridge();
+const bridge = createBridge()
 
 // Register functions
 bridge.registerFunction({
   function_path: 'greet.hello',
   handler: async ({ name }) => {
-    return { message: `Hello, ${name}!` };
+    return { message: `Hello, ${name}!` }
   },
-});
+})
 
 // Register API trigger
 bridge.registerTrigger({
@@ -169,11 +170,11 @@ bridge.registerTrigger({
     api_path: '/greet/:name',
     http_method: 'GET',
   },
-});
+})
 
 // Connect to engine
-await bridge.connect();
-logger.info('Worker connected!');
+await bridge.connect()
+logger.info('Worker connected!')
 ```
 
 ### Python (iii SDK)
@@ -214,6 +215,7 @@ bridge.connect()
     - `users.update`
     - `auth.login`
     - `payments.process`
+
   </Accordion>
 
   <Accordion title="Error Handling">
@@ -238,6 +240,7 @@ bridge.connect()
       },
     });
     ```
+
   </Accordion>
 
   <Accordion title="Connection Management">
@@ -252,6 +255,7 @@ bridge.connect()
       console.log('Connected to engine');
     });
     ```
+
   </Accordion>
 
   <Accordion title="Service Organization">
@@ -269,16 +273,17 @@ bridge.connect()
     bridge.registerFunction({ function_path: 'auth.login', ... });
     bridge.registerFunction({ function_path: 'auth.logout', ... });
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <Columns cols={2}>
-  <Card icon="Code" title="SDK Quick Start" href="/docs/quickstart/iii-sdk">
+  <Card icon={<Code />} title="SDK Quick Start" href="/quickstart/iii-sdk">
     Learn how to build your first worker with the iii SDK
   </Card>
-  <Card icon="Zap" title="Trigger Types" href="/docs/trigger-types">
+  <Card icon={<Zap />} title="Trigger Types" href="/trigger-types">
     Understand different ways to trigger functions
   </Card>
 </Columns>

@@ -1,5 +1,5 @@
 ---
-title: "Developing Custom Modules"
+title: 'Developing Custom Modules'
 ---
 
 Custom modules in the iii Engine allow developers to extend the core functionality of the system. A module acts as a container for logic that can register functions, triggers, and integrate with external systems.
@@ -28,10 +28,10 @@ The module system is built around two primary traits: `CoreModule` and `Configur
 
 ### Core Traits
 
-| Trait | Description | Key Methods |
-|-------|-------------|-------------|
-| **CoreModule** | The base trait for all modules. Handles lifecycle, identification, and function registration. | `name()`, `create()`, `initialize()`, `register_functions()` |
-| **ConfigurableModule** | Extends `CoreModule` to support typed configuration and pluggable adapters. | `build()`, `registry()`, `adapter_class_from_config()` |
+| Trait                  | Description                                                                                   | Key Methods                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **CoreModule**         | The base trait for all modules. Handles lifecycle, identification, and function registration. | `name()`, `create()`, `initialize()`, `register_functions()` |
+| **ConfigurableModule** | Extends `CoreModule` to support typed configuration and pluggable adapters.                   | `build()`, `registry()`, `adapter_class_from_config()`       |
 
 ### Lifecycle Flow
 
@@ -205,6 +205,7 @@ Create the actual adapter implementations.
         }
     }
     ```
+
   </Accordion>
 
   <Accordion title="Logging Wrapper Adapter" icon="file-text">
@@ -237,6 +238,7 @@ Create the actual adapter implementations.
         }
     }
     ```
+
   </Accordion>
 </AccordionGroup>
 
@@ -300,12 +302,12 @@ Modules expose functionality to the engine (and thus to workers) by registering 
 
 When registering a function, you must provide a `RegisterFunctionRequest`.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `function_path` | `String` | Unique dot-notation path (e.g., "custom_emit") |
-| `description` | `Option<String>` | Human-readable description of the function |
-| `request_format` | `Option<Value>` | JSON Schema defining the expected input |
-| `response_format` | `Option<Value>` | JSON Schema defining the expected output |
+| Field             | Type             | Description                                    |
+| ----------------- | ---------------- | ---------------------------------------------- |
+| `function_path`   | `String`         | Unique dot-notation path (e.g., "custom_emit") |
+| `description`     | `Option<String>` | Human-readable description of the function     |
+| `request_format`  | `Option<Value>`  | JSON Schema defining the expected input        |
+| `response_format` | `Option<Value>`  | JSON Schema defining the expected output       |
 
 ### Example Registration
 
@@ -666,6 +668,7 @@ modules:
         redis: RedisClient,  // Tightly coupled
     }
     ```
+
   </Accordion>
 
   <Accordion title="Implement Graceful Shutdown">
@@ -679,6 +682,7 @@ modules:
         }
     }
     ```
+
   </Accordion>
 
   <Accordion title="Provide JSON Schemas">
@@ -694,6 +698,7 @@ modules:
         "required": ["email"]
     }))
     ```
+
   </Accordion>
 
   <Accordion title="Use Structured Logging">
@@ -706,16 +711,17 @@ modules:
         "Emitting event to subscribers"
     );
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <Columns cols={2}>
-  <Card icon="Blocks" title="Core Modules" href="/docs/core-modules">
+  <Card icon={<Blocks />} title="Core Modules" href="/core-modules">
     Explore built-in core modules
   </Card>
-  <Card icon="Settings" title="Adapters" href="/docs/adapters">
+  <Card icon={<Settings />} title="Adapters" href="/adapters">
     Learn more about the adapter pattern
   </Card>
 </Columns>

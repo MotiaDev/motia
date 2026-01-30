@@ -1,20 +1,28 @@
 ---
-title: "What is iii"
+title: 'What is iii'
 ---
-
 
 The Name iii stands for three core primitives as described below.
 
-<Card horizontal iconName="Rocket" title="Start here" href="/docs/quickstart" description="Already know what iii is? Jump to the next section to build your first iii application." />
+<Card
+  horizontal
+  icon={<Rocket />}
+  title="Start here"
+  href="/quickstart"
+  description="Already know what iii is? Jump to the next section to build your first iii application."
+/>
 
 ### Infrastructure
+
 - **Workers**: Consumers of the iii architecture and can use all features of iii
 - **Core Modules**: Similar to Workers, but they live INSIDE the iii Engine, can use the all features of iii
 
 ### Implementation
+
 - **Remote Functions**: Register arbitrary functions that can be executed anywhere
 
 ### Invocation
+
 - **Trigger Types**: to configure different trigger types where triggers can be added (example: api, event, cron)
 - **Triggers**: It's a link between a Trigger Type using a specific configuration, and a Remote Function.
 
@@ -77,10 +85,30 @@ flowchart LR
 Check the sections below to understand the different concepts of iii.
 
 <Columns cols={2}>
-  <Card iconName="Blocks" title="Core Modules" href="/docs/core-modules" description="Core Modules are the building blocks of iii." />
-  <Card iconName="Cog" title="Adapters" href="/docs/adapters" description="Integrate with external systems." />
-  <Card iconName="Handshake" title="Workers" href="/docs/workers" description="External services connected to the iii Engine." />
-  <Card iconName="Zap" title="Trigger Types" href="/docs/trigger-types" description="Configure different trigger types." />
-  <Card iconName="Recycle" title="Triggers" href="/docs/triggers" description="Link a Trigger Type with a function." />
-  <Card iconName="Parentheses" title="Remote Functions" href="/docs/remote-functions" description="Arbitrary functions that can be executed anywhere." />
+  <Card
+    icon={<Blocks />}
+    title="Core Modules"
+    href="/core-modules"
+    description="Core Modules are the building blocks of iii."
+  />
+  <Card icon={<Cog />} title="Adapters" href="/adapters" description="Integrate with external systems." />
+  <Card
+    icon={<Handshake />}
+    title="Workers"
+    href="/workers"
+    description="External services connected to the iii Engine."
+  />
+  <Card
+    icon={<Zap />}
+    title="Trigger Types"
+    href="/trigger-types"
+    description="Configure different trigger types."
+  />
+  <Card icon={<Recycle />} title="Triggers" href="/triggers" description="Link a Trigger Type with a function." />
+  <Card
+    icon={<Parentheses />}
+    title="Remote Functions"
+    href="/remote-functions"
+    description="Arbitrary functions that can be executed anywhere."
+  />
 </Columns>

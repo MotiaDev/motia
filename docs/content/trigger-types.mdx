@@ -1,5 +1,5 @@
 ---
-title: "Trigger Types"
+title: 'Trigger Types'
 ---
 
 Trigger Types define different ways to invoke functions in the iii Engine.
@@ -8,11 +8,11 @@ Trigger Types define different ways to invoke functions in the iii Engine.
 
 A Trigger Type is a mechanism that can initiate function execution. The iii Engine supports multiple trigger types, each serving different use cases:
 
-- **[API](/docs/core-modules-list/module-rest-api)**: HTTP requests
-- **[Event](/docs/core-modules-list/module-event)**: Published events on topics
-- **[Cron](/docs/core-modules-list/module-cron)**: Scheduled time-based execution
-- **[Log](/docs/core-modules-list/module-logging)**: System log events
-- **[Streams](/docs/core-modules-list/module-stream)**: Stream connection lifecycle (join/leave)
+- **[API](/core-modules-list/module-rest-api)**: HTTP requests
+- **[Event](/core-modules-list/module-event)**: Published events on topics
+- **[Cron](/core-modules-list/module-cron)**: Scheduled time-based execution
+- **[Log](/core-modules-list/module-logging)**: System log events
+- **[Streams](/core-modules-list/module-stream)**: Stream connection lifecycle (join/leave)
 
 ```mermaid
 graph LR
@@ -31,7 +31,7 @@ graph LR
 
 Executes functions in response to HTTP requests.
 
-**Provided by**: [REST API Module](/docs/core-modules-list/module-rest-api)
+**Provided by**: [REST API Module](/core-modules-list/module-rest-api)
 
 **Configuration:**
 
@@ -49,7 +49,7 @@ Executes functions in response to HTTP requests.
 
 **Output**: `ApiResponse` with status, body, headers
 
-<Card icon="Globe" title="REST API Module" href="/docs/core-modules-list/module-rest-api">
+<Card icon={<Globe />} title="REST API Module" href="/core-modules-list/module-rest-api">
   Learn more about the API trigger
 </Card>
 
@@ -59,7 +59,7 @@ Executes functions in response to HTTP requests.
 
 Executes functions when events are published to subscribed topics.
 
-**Provided by**: [Event Module](/docs/core-modules-list/module-event)
+**Provided by**: [Event Module](/core-modules-list/module-event)
 
 **Configuration:**
 
@@ -76,7 +76,7 @@ Executes functions when events are published to subscribed topics.
 
 **Output**: Function result (optional, fire-and-forget pattern supported)
 
-<Card icon="Zap" title="Event Module" href="/docs/core-modules-list/module-event">
+<Card icon={<Zap />} title="Event Module" href="/core-modules-list/module-event">
   Learn more about the Event trigger
 </Card>
 
@@ -86,7 +86,7 @@ Executes functions when events are published to subscribed topics.
 
 Executes functions on a time-based schedule using cron expressions.
 
-**Provided by**: [Cron Module](/docs/core-modules-list/module-cron)
+**Provided by**: [Cron Module](/core-modules-list/module-cron)
 
 **Configuration:**
 
@@ -103,7 +103,7 @@ Executes functions on a time-based schedule using cron expressions.
 
 **Output**: Function result
 
-<Card icon="Clock" title="Cron Module" href="/docs/core-modules-list/module-cron">
+<Card icon={<Clock />} title="Cron Module" href="/core-modules-list/module-cron">
   Learn more about the Cron trigger
 </Card>
 
@@ -113,7 +113,7 @@ Executes functions on a time-based schedule using cron expressions.
 
 Executes functions when log entries match specified criteria.
 
-**Provided by**: [Logging Module](/docs/core-modules-list/module-logging)
+**Provided by**: [Logging Module](/core-modules-list/module-logging)
 
 **Configuration:**
 
@@ -130,7 +130,7 @@ Executes functions when log entries match specified criteria.
 
 **Output**: Function result (useful for alerting, metrics)
 
-<Card icon="FileText" title="Logging Module" href="/docs/core-modules-list/module-logging">
+<Card icon={<FileText />} title="Logging Module" href="/core-modules-list/module-logging">
   Learn more about the Log trigger
 </Card>
 
@@ -140,7 +140,7 @@ Executes functions when log entries match specified criteria.
 
 Executes functions when clients connect to or disconnect from streams.
 
-**Provided by**: [Stream Module](/docs/core-modules-list/module-stream)
+**Provided by**: [Stream Module](/core-modules-list/module-stream)
 
 **Configuration:**
 
@@ -162,20 +162,20 @@ Executes functions when clients connect to or disconnect from streams.
 
 **Output**: Function result (useful for access control, analytics)
 
-<Card icon="Activity" title="Stream Module" href="/docs/core-modules-list/module-stream">
+<Card icon={<Activity />} title="Stream Module" href="/core-modules-list/module-stream">
   Learn more about Stream triggers
 </Card>
 
 ## Trigger Type Comparison
 
-| Trigger Type | Use Case | Synchronous | Multiple Subscribers |
-|--------------|----------|-------------|---------------------|
-| **api** | HTTP endpoints | ✓ Yes | ✗ No (1:1 mapping) |
-| **event** | Pub/sub messaging | ✗ No | ✓ Yes |
-| **cron** | Scheduled tasks | ✗ No | ✗ No (distributed lock) |
-| **log** | Log monitoring | ✗ No | ✓ Yes |
-| **streams:join** | Stream connections | ✗ No | ✓ Yes |
-| **streams:leave** | Stream disconnections | ✗ No | ✓ Yes |
+| Trigger Type      | Use Case              | Synchronous | Multiple Subscribers    |
+| ----------------- | --------------------- | ----------- | ----------------------- |
+| **api**           | HTTP endpoints        | ✓ Yes       | ✗ No (1:1 mapping)      |
+| **event**         | Pub/sub messaging     | ✗ No        | ✓ Yes                   |
+| **cron**          | Scheduled tasks       | ✗ No        | ✗ No (distributed lock) |
+| **log**           | Log monitoring        | ✗ No        | ✓ Yes                   |
+| **streams:join**  | Stream connections    | ✗ No        | ✓ Yes                   |
+| **streams:leave** | Stream disconnections | ✗ No        | ✓ Yes                   |
 
 ## Registering Trigger Types
 
@@ -199,10 +199,12 @@ Workers can then register triggers using these types:
 
 ```typescript
 bridge.registerTrigger({
-  trigger_type: 'api',  // Must be a registered trigger type
+  trigger_type: 'api', // Must be a registered trigger type
   function_path: 'users.create',
-  config: { /* trigger-specific config */ }
-});
+  config: {
+    /* trigger-specific config */
+  },
+})
 ```
 
 ## Custom Trigger Types
@@ -235,9 +237,9 @@ bridge.registerFunction({
   function_path: 'api.getUser',
   handler: async (req) => ({
     status: 200,
-    body: { user: { id: req.path_params.id } }
-  })
-});
+    body: { user: { id: req.path_params.id } },
+  }),
+})
 
 // Register API trigger
 bridge.registerTrigger({
@@ -245,9 +247,9 @@ bridge.registerTrigger({
   function_path: 'api.getUser',
   config: {
     api_path: '/users/:id',
-    http_method: 'GET'
-  }
-});
+    http_method: 'GET',
+  },
+})
 ```
 
 ### Event-Driven Workflows
@@ -258,25 +260,25 @@ await bridge.invokeFunction({
   function_path: 'event.emit',
   data: {
     topic: 'order.placed',
-    data: { orderId: '123', amount: 99.99 }
-  }
-});
+    data: { orderId: '123', amount: 99.99 },
+  },
+})
 
 // Subscribe to events
 bridge.registerFunction({
   function_path: 'notifications.sendOrderEmail',
   handler: async (data) => {
-    await sendEmail(data);
-  }
-});
+    await sendEmail(data)
+  },
+})
 
 bridge.registerTrigger({
   trigger_type: 'event',
   function_path: 'notifications.sendOrderEmail',
   config: {
-    subscribes: ['order.placed']
-  }
-});
+    subscribes: ['order.placed'],
+  },
+})
 ```
 
 ### Scheduled Jobs
@@ -285,27 +287,27 @@ bridge.registerTrigger({
 bridge.registerFunction({
   function_path: 'jobs.dailyReport',
   handler: async () => {
-    const report = await generateReport();
-    await sendReport(report);
-  }
-});
+    const report = await generateReport()
+    await sendReport(report)
+  },
+})
 
 bridge.registerTrigger({
   trigger_type: 'cron',
   function_path: 'jobs.dailyReport',
   config: {
-    cron: '0 9 * * *'  // Every day at 9 AM
-  }
-});
+    cron: '0 9 * * *', // Every day at 9 AM
+  },
+})
 ```
 
 ## Next Steps
 
 <Columns cols={2}>
-  <Card icon="Recycle" title="Triggers" href="/docs/triggers">
+  <Card icon={<Recycle />} title="Triggers" href="/triggers">
     Learn how to register and configure triggers
   </Card>
-  <Card icon="Blocks" title="Core Modules" href="/docs/core-modules">
+  <Card icon={<Blocks />} title="Core Modules" href="/core-modules">
     Explore modules that provide trigger types
   </Card>
 </Columns>

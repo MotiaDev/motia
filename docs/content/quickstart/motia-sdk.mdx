@@ -1,6 +1,6 @@
 ---
-title: "@iii-dev/motia"
-description: "Build with Motia iii"
+title: '@iii-dev/motia'
+description: 'Build with Motia iii'
 ---
 
 Motia is a high-level polyglot framework built on top of the iii SDK that provides type safety, declarative configuration, and structured workflows. Steps can be written in JavaScript, TypeScript, or Python.
@@ -64,11 +64,11 @@ export const config: StepConfig = {
       method: 'GET',
       responseSchema: {
         200: z.object({
-          message: z.string()
-        })
-      }
-    }
-  ]
+          message: z.string(),
+        }),
+      },
+    },
+  ],
 }
 
 export const handler: Handlers<typeof config> = async (req, { logger }) => {
@@ -78,7 +78,7 @@ export const handler: Handlers<typeof config> = async (req, { logger }) => {
 
   return {
     status: 200,
-    body: { message: `Hello, ${name}!` }
+    body: { message: `Hello, ${name}!` },
   }
 }
 ```
@@ -146,18 +146,18 @@ export const config: StepConfig = {
       method: 'POST',
       bodySchema: z.object({
         name: z.string(),
-        email: z.string().email()
+        email: z.string().email(),
       }),
       responseSchema: {
         201: z.object({
           id: z.string(),
           name: z.string(),
-          email: z.string()
-        })
-      }
-    }
+          email: z.string(),
+        }),
+      },
+    },
   ],
-  emits: ['user-created']
+  emits: ['user-created'],
 }
 
 export const handler: Handlers<typeof config> = async (req, { emit, logger }) => {
@@ -226,10 +226,10 @@ export const config: StepConfig = {
       input: z.object({
         id: z.string(),
         name: z.string(),
-        email: z.string()
-      })
-    }
-  ]
+        email: z.string(),
+      }),
+    },
+  ],
 }
 
 export const handler: Handlers<typeof config> = async (data, { logger }) => {
@@ -271,10 +271,10 @@ export const config: StepConfig = {
   triggers: [
     {
       type: 'cron',
-      cron: '0 9 * * *' // Every day at 9 AM
-    }
+      cron: '0 9 * * *', // Every day at 9 AM
+    },
   ],
-  emits: ['report-generated']
+  emits: ['report-generated'],
 }
 
 export const handler: Handlers<typeof config> = async (data, { emit, logger }) => {
@@ -321,14 +321,14 @@ export const config: StepConfig = {
     {
       type: 'api',
       path: '/orders/manual',
-      method: 'POST'
+      method: 'POST',
     },
     {
       type: 'event',
-      subscribes: ['order.created']
-    }
+      subscribes: ['order.created'],
+    },
   ],
-  emits: ['order.processed']
+  emits: ['order.processed'],
 }
 
 export const handler: Handlers<typeof config> = async (input, { trigger, logger, emit }) => {
@@ -409,10 +409,10 @@ export const config: StepConfig = {
       condition: isHighValue,
       bodySchema: z.object({
         amount: z.number(),
-        currency: z.string()
-      })
-    }
-  ]
+        currency: z.string(),
+      }),
+    },
+  ],
 }
 
 export const handler: Handlers<typeof config> = async (req, { logger }) => {
@@ -489,12 +489,13 @@ step_wrapper(config, __file__, handler)
 ```
 
 **How Conditions Work**:
+
 - Conditions receive the same input as the handler
 - They must return a boolean (`True` to execute, `False` to skip)
 - Conditions can be sync or async functions
 - If a condition returns `False`, the handler is never invoked
 
-> **Learn More**: For technical details on trigger indexing, TriggerInput normalization, and condition evaluation flow, see [SDK Implementation](/docs/advanced/sdk-implementation#multi-trigger-architecture).
+> **Learn More**: For technical details on trigger indexing, TriggerInput normalization, and condition evaluation flow, see [SDK Implementation](/advanced/sdk-implementation#multi-trigger-architecture).
 
 ## Flow Context
 
@@ -505,99 +506,117 @@ Every handler receives a `FlowContext` with runtime utilities:
 <ResponseField name="emit" type="function">
   Emit events to the event bus.
 
-  **TypeScript:**
-  ```typescript
-  await emit({ topic: 'topic-name', data: { key: 'value' } })
-  ```
+**TypeScript:**
 
-  **Python:**
-  ```python
-  await ctx.emit("topic.name", {"key": "value"})
-  ```
+```typescript
+await emit({ topic: 'topic-name', data: { key: 'value' } })
+```
+
+**Python:**
+
+```python
+await ctx.emit("topic.name", {"key": "value"})
+```
+
 </ResponseField>
 
 <ResponseField name="trigger" type="TriggerMetadata">
   Metadata about which trigger invoked the handler. Useful for multi-trigger steps.
 
-  **TypeScript:**
-  ```typescript
-  if (trigger.type === 'api') {
-    console.log(`API ${trigger.method} ${trigger.path}`)
-  } else if (trigger.type === 'event') {
-    console.log(`Event ${trigger.topic}`)
-  }
-  ```
+**TypeScript:**
 
-  **Python:**
-  ```python
-  if ctx.trigger.type == "api":
-    ctx.logger.info(f"API {ctx.trigger.method} {ctx.trigger.path}")
-  elif ctx.trigger.type == "event":
-    ctx.logger.info(f"Event {ctx.trigger.topic}")
-  ```
+```typescript
+if (trigger.type === 'api') {
+  console.log(`API ${trigger.method} ${trigger.path}`)
+} else if (trigger.type === 'event') {
+  console.log(`Event ${trigger.topic}`)
+}
+```
 
-  **Fields**: `type` (api/event/cron), `index` (trigger position), plus type-specific fields like `path`, `method`, `topic`, or `expression`.
+**Python:**
+
+```python
+if ctx.trigger.type == "api":
+  ctx.logger.info(f"API {ctx.trigger.method} {ctx.trigger.path}")
+elif ctx.trigger.type == "event":
+  ctx.logger.info(f"Event {ctx.trigger.topic}")
+```
+
+**Fields**: `type` (api/event/cron), `index` (trigger position), plus type-specific fields like `path`, `method`, `topic`, or `expression`.
+
 </ResponseField>
 
 <ResponseField name="traceId / trace_id" type="string">
   Distributed tracing identifier for correlating logs.
 
-  **TypeScript:**
-  ```typescript
-  logger.info(`[${traceId}] Processing request`)
-  ```
+**TypeScript:**
 
-  **Python:**
-  ```python
-  ctx.logger.info(f"[{ctx.trace_id}] Processing request")
-  ```
+```typescript
+logger.info(`[${traceId}] Processing request`)
+```
+
+**Python:**
+
+```python
+ctx.logger.info(f"[{ctx.trace_id}] Processing request")
+```
+
 </ResponseField>
 
 <ResponseField name="state" type="InternalStateManager">
   Internal state management (uses `$$internal-state` stream).
 
-  **TypeScript:**
-  ```typescript
-  await state.set("config", "theme", "dark")
-  const theme = await state.get("config", "theme")
-  ```
+**TypeScript:**
 
-  **Python:**
-  ```python
-  await ctx.state.set("config", "theme", "dark")
-  theme = await ctx.state.get("config", "theme")
-  ```
+```typescript
+await state.set('config', 'theme', 'dark')
+const theme = await state.get('config', 'theme')
+```
+
+**Python:**
+
+```python
+await ctx.state.set("config", "theme", "dark")
+theme = await ctx.state.get("config", "theme")
+```
+
 </ResponseField>
 
 <ResponseField name="streams" type="Streams">
   Access to stream instances.
 
-  **TypeScript:**
-  ```typescript
-  await streams.todos.set("inbox", "item-1", { title: "Buy milk" })
-  ```
+**TypeScript:**
 
-  **Python:**
-  ```python
-  todo_stream = Stream("todos")
-  await todo_stream.set("inbox", "item-1", {"title": "Buy milk"})
-  ```
+```typescript
+await streams.todos.set('inbox', 'item-1', { title: 'Buy milk' })
+```
+
+**Python:**
+
+```python
+todo_stream = Stream("todos")
+await todo_stream.set("inbox", "item-1", {"title": "Buy milk"})
+```
+
 </ResponseField>
 
 <ResponseField name="logger" type="Logger">
   Context-aware logger with trace ID.
 
-  **TypeScript:**
-  ```typescript
-  logger.info("Processing started")
-  logger.error("An error occurred")
-  ```
+**TypeScript:**
 
-  **Python:**
-  ```python
-  ctx.logger.info("Processing started")
-  ctx.logger.error("An error occurred", exc_info=True)
-  ```
+```typescript
+logger.info('Processing started')
+logger.error('An error occurred')
+```
+
+**Python:**
+
+```python
+ctx.logger.info("Processing started")
+ctx.logger.error("An error occurred", exc_info=True)
+```
+
 </ResponseField>
 
 ## Streams and State
@@ -632,6 +651,7 @@ async def get_todos(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
 ```
 
 **Stream Hierarchy:**
+
 - **Stream Name**: `todos` (top-level namespace)
 - **Group ID**: `inbox` (partition within stream)
 - **Item ID**: `todo-123` (unique identifier)
@@ -741,6 +761,7 @@ step_wrapper(config, __file__, handler)
 ```
 
 **Queue Configuration Notes**:
+
 - Queue configuration applies to **event triggers only** (not API or Cron)
 - Settings are **per-subscription**, meaning each event topic can have different queue behavior
 - `backoff_type`: Controls retry delay strategy - `"fixed"` for constant delays or `"exponential"` for increasing delays
@@ -766,6 +787,7 @@ step_wrapper(config, __file__, handler)
     # Verbose logging
     motia run --verbose
     ```
+
   </Accordion>
 
   <Accordion title="motia build">
@@ -774,6 +796,7 @@ step_wrapper(config, __file__, handler)
     ```bash
     motia build
     ```
+
   </Accordion>
 </AccordionGroup>
 
@@ -782,6 +805,7 @@ step_wrapper(config, __file__, handler)
 Organize your Motia project. Steps can use `.ts`, `.js`, or `.py` extensions:
 
 **TypeScript/JavaScript Project:**
+
 ```
 my-app/
 ├── steps/
@@ -799,6 +823,7 @@ my-app/
 ```
 
 **Python Project:**
+
 ```
 my-app/
 ├── steps/
@@ -830,7 +855,7 @@ import { z } from 'zod'
 const todoSchema = z.object({
   id: z.string(),
   title: z.string(),
-  completed: z.boolean()
+  completed: z.boolean(),
 })
 
 export const config: StepConfig = {
@@ -841,14 +866,14 @@ export const config: StepConfig = {
       path: '/todos',
       method: 'POST',
       bodySchema: z.object({
-        title: z.string()
+        title: z.string(),
       }),
       responseSchema: {
-        201: todoSchema
-      }
-    }
+        201: todoSchema,
+      },
+    },
   ],
-  emits: ['todo-created']
+  emits: ['todo-created'],
 }
 
 export const handler: Handlers<typeof config> = async (req, { streams, emit, logger }) => {
@@ -857,7 +882,7 @@ export const handler: Handlers<typeof config> = async (req, { streams, emit, log
   const todo = {
     id: todoId,
     title: req.body.title,
-    completed: false
+    completed: false,
   }
 
   await streams.todos.set('default', todoId, todo)
@@ -883,14 +908,16 @@ export const config: StepConfig = {
       path: '/todos',
       method: 'GET',
       responseSchema: {
-        200: z.array(z.object({
-          id: z.string(),
-          title: z.string(),
-          completed: z.boolean()
-        }))
-      }
-    }
-  ]
+        200: z.array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            completed: z.boolean(),
+          }),
+        ),
+      },
+    },
+  ],
 }
 
 export const handler: Handlers<typeof config> = async (req, { streams }) => {
@@ -914,10 +941,10 @@ export const config: StepConfig = {
       input: z.object({
         id: z.string(),
         title: z.string(),
-        completed: z.boolean()
-      })
-    }
-  ]
+        completed: z.boolean(),
+      }),
+    },
+  ],
 }
 
 export const handler: Handlers<typeof config> = async (data, { logger }) => {
@@ -1019,6 +1046,7 @@ step_wrapper(config, __file__, handler)
         ├── create.step.py
         └── process.step.py
     ```
+
   </Accordion>
 
   <Accordion title="Use Type Hints">
@@ -1033,6 +1061,7 @@ step_wrapper(config, __file__, handler)
     ) -> ApiResponse[Dict[str, Any]]:
         ...
     ```
+
   </Accordion>
 
   <Accordion title="Error Handling">
@@ -1050,6 +1079,7 @@ step_wrapper(config, __file__, handler)
             ctx.logger.error(f"Unexpected error: {e}", exc_info=True)
             return ApiResponse(status=500, body={"error": "Internal error"})
     ```
+
   </Accordion>
 
   <Accordion title="Emit Events for Workflows">
@@ -1062,16 +1092,17 @@ step_wrapper(config, __file__, handler)
     # Step 2: Process payment (separate step listening to order.created)
     # Step 3: Send confirmation (separate step listening to payment.completed)
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <Columns cols={2}>
-  <Card icon="Code" title="Base SDK" href="/docs/quickstart/iii-sdk">
+  <Card icon={<Code />} title="Base SDK" href="/quickstart/iii-sdk">
     Learn about the low-level iii SDK
   </Card>
-  <Card icon="Activity" title="Streams" href="/docs/core-modules-list/module-stream">
+  <Card icon={<Activity />} title="Streams" href="/core-modules-list/module-stream">
     Deep dive into state management
   </Card>
 </Columns>

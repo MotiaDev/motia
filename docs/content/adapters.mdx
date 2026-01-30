@@ -1,5 +1,5 @@
 ---
-title: "Adapters"
+title: 'Adapters'
 ---
 
 Adapters allow iii Core Modules to integrate with external systems and swap implementations without changing module logic.
@@ -27,15 +27,18 @@ graph TD
 ## Why Adapters?
 
 **Flexibility**: Swap implementations without code changes
+
 - Development: Use in-memory adapters for fast local testing
 - Production: Use Redis adapters for distributed deployments
 
 **Integration**: Connect to your existing infrastructure
+
 - Use your existing Redis cluster
 - Integrate with custom message brokers
 - Store data in your preferred database
 
 **Extensibility**: Build custom adapters for specific needs
+
 - Integrate proprietary systems
 - Implement custom caching strategies
 - Add specialized logging backends
@@ -56,6 +59,7 @@ graph TD
     ```
 
     **Best for**: Production, distributed systems
+
   </Accordion>
 
   <Accordion title="InMemoryAdapter" icon="memory-stick">
@@ -67,6 +71,7 @@ graph TD
     ```
 
     **Best for**: Development, testing, single-instance deployments
+
   </Accordion>
 </AccordionGroup>
 
@@ -84,6 +89,7 @@ graph TD
     ```
 
     **Best for**: Production, persistent state, real-time features
+
   </Accordion>
 </AccordionGroup>
 
@@ -101,6 +107,7 @@ graph TD
     ```
 
     **Best for**: Multi-instance deployments
+
   </Accordion>
 </AccordionGroup>
 
@@ -118,6 +125,7 @@ graph TD
     ```
 
     **Best for**: Centralized logging, log analysis
+
   </Accordion>
 
   <Accordion title="FileLogger" icon="file-text">
@@ -132,6 +140,7 @@ graph TD
     ```
 
     **Best for**: Simple deployments, local development
+
   </Accordion>
 </AccordionGroup>
 
@@ -150,6 +159,7 @@ modules:
 ```
 
 **Configuration Pattern:**
+
 1. **class**: Full path to the adapter implementation
 2. **config**: Adapter-specific configuration object
 
@@ -202,14 +212,15 @@ impl EventAdapter for LoggingEventAdapter {
 
 ## Adapter Selection Guide
 
-| Module | Development | Production (Single) | Production (Multi-Instance) |
-|--------|-------------|---------------------|----------------------------|
-| **Event** | InMemory | Redis | Redis |
-| **Stream** | Redis | Redis | Redis |
-| **Cron** | N/A | N/A | Redis |
-| **Logging** | File | File / Redis | Redis |
+| Module      | Development | Production (Single) | Production (Multi-Instance) |
+| ----------- | ----------- | ------------------- | --------------------------- |
+| **Event**   | InMemory    | Redis               | Redis                       |
+| **Stream**  | Redis       | Redis               | Redis                       |
+| **Cron**    | N/A         | N/A                 | Redis                       |
+| **Logging** | File        | File / Redis        | Redis                       |
 
 **Notes:**
+
 - **Development**: Fast, simple, no external dependencies
 - **Single Instance**: One engine instance, may need persistence
 - **Multi-Instance**: Multiple engine instances, requires distributed coordination
@@ -243,10 +254,10 @@ iii
 ## Next Steps
 
 <Columns cols={2}>
-  <Card icon="Blocks" title="Core Modules" href="/docs/core-modules">
+  <Card icon={<Blocks />} title="Core Modules" href="/core-modules">
     Learn about modules that use adapters
   </Card>
-  <Card icon="Settings" title="Deployment" href="/docs/advanced/deployment">
+  <Card icon={<Settings />} title="Deployment" href="/advanced/deployment">
     Configure adapters for production
   </Card>
 </Columns>

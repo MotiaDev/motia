@@ -1,5 +1,5 @@
 ---
-title: "SDK Implementation"
+title: 'SDK Implementation'
 ---
 
 The iii SDK is available in both Python and Node.js, providing a bridge between your application and the iii Engine via WebSocket communication.
@@ -49,7 +49,7 @@ sequenceDiagram
 
     Engine-->>Bridge: Acknowledge (Implicit)
     deactivate Engine
-    
+
     Note over Engine: Triggers registered:<br/>steps.StepName:trigger:0<br/>steps.StepName:trigger:1<br/>steps.StepName:trigger:2
 ```
 
@@ -57,13 +57,13 @@ sequenceDiagram
 
 The SDKs implement specific message types to communicate with the engine. These are defined as Pydantic models in Python and TypeScript interfaces in Node.js.
 
-| Message Type | Description | Key Fields |
-|--------------|-------------|------------|
-| `RegisterFunction` | Registers a callable function with the engine | `function_path`, `description` |
-| `RegisterTrigger` | Binds a specific configuration to a trigger type | `trigger_type`, `function_path`, `config` |
+| Message Type        | Description                                                      | Key Fields                                 |
+| ------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
+| `RegisterFunction`  | Registers a callable function with the engine                    | `function_path`, `description`             |
+| `RegisterTrigger`   | Binds a specific configuration to a trigger type                 | `trigger_type`, `function_path`, `config`  |
 | `RegisterCondition` | Registers a condition function for conditional trigger execution | `function_path`, `condition_function_path` |
-| `InvokeFunction` | Requests the engine to execute a function | `function_path`, `data` |
-| `InvocationResult` | Returns the result of a function execution | `invocation_id`, `result`, `error` |
+| `InvokeFunction`    | Requests the engine to execute a function                        | `function_path`, `data`                    |
+| `InvocationResult`  | Returns the result of a function execution                       | `invocation_id`, `result`, `error`         |
 
 ### Multi-Trigger Architecture
 
@@ -78,11 +78,11 @@ graph LR
     Step[Step: ProcessOrder] --> Trigger0[Trigger 0: API POST /orders]
     Step --> Trigger1[Trigger 1: Event order.created]
     Step --> Trigger2[Trigger 2: Cron 0 * * * *]
-    
+
     Trigger0 --> Path0[steps.ProcessOrder:trigger:0]
     Trigger1 --> Path1[steps.ProcessOrder:trigger:1]
     Trigger2 --> Path2[steps.ProcessOrder:trigger:2]
-    
+
     Path0 --> Handler[Handler Function]
     Path1 --> Handler
     Path2 --> Handler
@@ -97,18 +97,18 @@ All triggers normalize their input to a unified `TriggerInput` structure before 
 ```typescript
 interface TriggerInput {
   trigger: TriggerMetadata
-  request: ApiRequest | null  // Only for API triggers
-  data: any                   // Payload data
+  request: ApiRequest | null // Only for API triggers
+  data: any // Payload data
 }
 
 interface TriggerMetadata {
   type: 'api' | 'event' | 'cron'
   index: number
   // Type-specific fields
-  path?: string        // API only
-  method?: string      // API only
-  topic?: string       // Event only
-  expression?: string  // Cron only
+  path?: string // API only
+  method?: string // API only
+  topic?: string // Event only
+  expression?: string // Cron only
 }
 ```
 
@@ -119,7 +119,7 @@ sequenceDiagram
     participant Engine
     participant Module as Event Module
     participant Worker
-    
+
     Note over Engine: Event "order.created" received
     Module->>Engine: Route to trigger index 1
     Engine->>Worker: Invoke steps.ProcessOrder:trigger:1
@@ -130,6 +130,7 @@ sequenceDiagram
 ```
 
 **Benefits**:
+
 - One handler serves multiple trigger types
 - Access trigger metadata via `ctx.trigger` or `trigger` parameter
 - Consistent input structure across all trigger types
@@ -146,10 +147,10 @@ sequenceDiagram
     participant Worker
     participant Condition
     participant Handler
-    
+
     Engine->>Worker: Invoke steps.Order:trigger:0
     Worker->>Condition: Evaluate condition(input, ctx)
-    
+
     alt Condition returns false
         Condition-->>Worker: false
         Worker-->>Engine: Skip (no execution)
@@ -164,6 +165,7 @@ sequenceDiagram
 #### Condition Function Signature
 
 **Python**:
+
 ```python
 def condition_name(input: Any, ctx: FlowContext) -> bool:
     # Evaluate based on input data
@@ -176,6 +178,7 @@ async def async_condition(input: Any, ctx: FlowContext) -> bool:
 ```
 
 **TypeScript**:
+
 ```typescript
 const conditionName = (input: any, ctx: FlowContext): boolean => {
   // Evaluate based on input data
@@ -200,7 +203,7 @@ The engine evaluates the condition before invoking the handler. If the condition
 
 **Short-Circuit Behavior**: The first `false` condition stops execution immediately.
 
-> **See Examples**: For practical examples of multi-trigger steps and conditions in action, see [Motia SDK - Multiple Triggers](/docs/quickstart/motia-sdk#multiple-triggers) and [Trigger Conditions](/docs/quickstart/motia-sdk#trigger-conditions).
+> **See Examples**: For practical examples of multi-trigger steps and conditions in action, see [Motia SDK - Multiple Triggers](/quickstart/motia-sdk#multiple-triggers) and [Trigger Conditions](/quickstart/motia-sdk#trigger-conditions).
 
 ## Python Implementation
 
@@ -231,6 +234,7 @@ pip install iii
     # Connect to engine
     await bridge.connect()
     ```
+
   </Accordion>
 
   <Accordion title="Logger" icon="file-text">
@@ -243,6 +247,7 @@ pip install iii
     logger.info("Processing started")
     logger.error("An error occurred", exc_info=True)
     ```
+
   </Accordion>
 
   <Accordion title="Types" icon="code">
@@ -255,6 +260,7 @@ pip install iii
     TInput = TypeVar('TInput')
     TOutput = TypeVar('TOutput')
     ```
+
   </Accordion>
 </AccordionGroup>
 
@@ -349,55 +355,60 @@ The `FlowContext` passed to handlers provides access to:
 <ResponseField name="emit" type="function">
   A function to publish events to topics.
 
-  ```python
-  await ctx.emit("user.created", {"id": "123"})
-  ```
+```python
+await ctx.emit("user.created", {"id": "123"})
+```
+
 </ResponseField>
 
 <ResponseField name="trigger" type="TriggerMetadata">
   Metadata about which trigger invoked the handler.
 
-  ```python
-  # Access trigger information
-  if ctx.trigger.type == "api":
-      print(f"API {ctx.trigger.method} {ctx.trigger.path}")
-  elif ctx.trigger.type == "event":
-      print(f"Event {ctx.trigger.topic}")
-  elif ctx.trigger.type == "cron":
-      print(f"Cron {ctx.trigger.expression}")
-  
-  # Access trigger index
-  print(f"Trigger index: {ctx.trigger.index}")
-  ```
+```python
+# Access trigger information
+if ctx.trigger.type == "api":
+    print(f"API {ctx.trigger.method} {ctx.trigger.path}")
+elif ctx.trigger.type == "event":
+    print(f"Event {ctx.trigger.topic}")
+elif ctx.trigger.type == "cron":
+    print(f"Cron {ctx.trigger.expression}")
 
-  **Fields**: `type`, `index`, `path`, `method`, `topic`, `expression` (type-specific)
+# Access trigger index
+print(f"Trigger index: {ctx.trigger.index}")
+```
+
+**Fields**: `type`, `index`, `path`, `method`, `topic`, `expression` (type-specific)
+
 </ResponseField>
 
 <ResponseField name="state" type="InternalStateManager">
   An internal state manager for configuration and internal data.
 
-  ```python
-  await ctx.state.set("config", "theme", "dark")
-  theme = await ctx.state.get("config", "theme")
-  ```
+```python
+await ctx.state.set("config", "theme", "dark")
+theme = await ctx.state.get("config", "theme")
+```
+
 </ResponseField>
 
 <ResponseField name="streams" type="dict[str, Stream]">
   Access to distributed streams (get/set/delete).
 
-  ```python
-  todo_stream = Stream("todos")
-  await todo_stream.set("inbox", "item-1", {"title": "Buy milk"})
-  ```
+```python
+todo_stream = Stream("todos")
+await todo_stream.set("inbox", "item-1", {"title": "Buy milk"})
+```
+
 </ResponseField>
 
 <ResponseField name="logger" type="Logger">
   Context-aware logging with trace ID.
 
-  ```python
-  ctx.logger.info("Processing started")
-  ctx.logger.error("An error occurred", exc_info=True)
-  ```
+```python
+ctx.logger.info("Processing started")
+ctx.logger.error("An error occurred", exc_info=True)
+```
+
 </ResponseField>
 
 ## Node.js Implementation
@@ -415,24 +426,24 @@ npm install @iii-dev/sdk
 The Node.js `Bridge` class uses the `ws` library. It maintains queues for messages sent before the socket is open (`messagesToSend`) and handles automatic reconnection intervals.
 
 ```typescript
-import { createBridge } from '@iii-dev/sdk';
+import { createBridge } from '@iii-dev/sdk'
 
 // Create bridge instance
 const bridge = createBridge({
-  url: 'ws://127.0.0.1:49134'
-});
+  url: 'ws://127.0.0.1:49134',
+})
 
 // Connect to engine
-await bridge.connect();
+await bridge.connect()
 
 // Register a function
 bridge.registerFunction({
   function_path: 'service.action',
   handler: async (data) => {
-    return { result: 'success' };
+    return { result: 'success' }
   },
-  description: 'My custom function'
-});
+  description: 'My custom function',
+})
 
 // Register a trigger
 bridge.registerTrigger({
@@ -440,9 +451,9 @@ bridge.registerTrigger({
   function_path: 'service.action',
   config: {
     api_path: '/my-endpoint',
-    http_method: 'POST'
-  }
-});
+    http_method: 'POST',
+  },
+})
 ```
 
 #### Conceptual Structure
@@ -483,6 +494,7 @@ The Node ecosystem includes higher-level abstractions that mimic React hooks for
       }
     });
     ```
+
   </Accordion>
 
   <Accordion title="useOnLog" icon="file-text">
@@ -498,6 +510,7 @@ The Node ecosystem includes higher-level abstractions that mimic React hooks for
       }
     });
     ```
+
   </Accordion>
 </AccordionGroup>
 
@@ -509,12 +522,12 @@ Both SDKs provide abstractions for interacting with the Engine's Stream module, 
 
 Streams are accessed via the `streams.` namespace functions invoked over the bridge.
 
-| Operation | SDK Function | Bridge Target | Description |
-|-----------|-------------|---------------|-------------|
-| **Get** | `stream.get(group, id)` | `streams.get` | Retrieves an item from a group |
-| **Set** | `stream.set(group, id, val)` | `streams.set` | Saves an item to a group |
-| **Delete** | `stream.delete(group, id)` | `streams.delete` | Removes an item |
-| **Get Group** | `stream.get_group(group)` | `streams.getGroup` | Retrieves all items in a group |
+| Operation     | SDK Function                 | Bridge Target      | Description                    |
+| ------------- | ---------------------------- | ------------------ | ------------------------------ |
+| **Get**       | `stream.get(group, id)`      | `streams.get`      | Retrieves an item from a group |
+| **Set**       | `stream.set(group, id, val)` | `streams.set`      | Saves an item to a group       |
+| **Delete**    | `stream.delete(group, id)`   | `streams.delete`   | Removes an item                |
+| **Get Group** | `stream.get_group(group)`    | `streams.getGroup` | Retrieves all items in a group |
 
 ### Python Stream Class
 
@@ -541,22 +554,22 @@ async def get(self, group_id: str, item_id: str) -> TData | None:
 ### Node.js Stream Usage
 
 ```typescript
-import { Stream } from '@iii-dev/sdk';
+import { Stream } from '@iii-dev/sdk'
 
 // Define stream
-const todoStream = new Stream('todos');
+const todoStream = new Stream('todos')
 
 // Set item
 await todoStream.set('inbox', 'item-1', {
   title: 'Buy milk',
-  completed: false
-});
+  completed: false,
+})
 
 // Get item
-const item = await todoStream.get('inbox', 'item-1');
+const item = await todoStream.get('inbox', 'item-1')
 
 // Get all items in group
-const allItems = await todoStream.getGroup('inbox');
+const allItems = await todoStream.getGroup('inbox')
 ```
 
 ## Request and Response Models
@@ -570,37 +583,41 @@ The `ApiRequest` model normalizes incoming HTTP data.
 <ResponseField name="path_params" type="dict">
   Dictionary of URL path parameters.
 
-  ```python
-  # Route: /users/:userId/posts/:postId
-  # Request: GET /users/123/posts/456
-  req.path_params  # {"userId": "123", "postId": "456"}
-  ```
+```python
+# Route: /users/:userId/posts/:postId
+# Request: GET /users/123/posts/456
+req.path_params  # {"userId": "123", "postId": "456"}
+```
+
 </ResponseField>
 
 <ResponseField name="query_params" type="dict">
   Dictionary of query string arguments.
 
-  ```python
-  # Request: GET /users?status=active&limit=10
-  req.query_params  # {"status": "active", "limit": "10"}
-  ```
+```python
+# Request: GET /users?status=active&limit=10
+req.query_params  # {"status": "active", "limit": "10"}
+```
+
 </ResponseField>
 
 <ResponseField name="body" type="Any">
   The request payload (parsed JSON).
 
-  ```python
-  # POST /users with {"name": "Alice"}
-  req.body  # {"name": "Alice"}
-  ```
+```python
+# POST /users with {"name": "Alice"}
+req.body  # {"name": "Alice"}
+```
+
 </ResponseField>
 
 <ResponseField name="headers" type="dict">
   Request headers.
 
-  ```python
-  req.headers.get("authorization")
-  ```
+```python
+req.headers.get("authorization")
+```
+
 </ResponseField>
 
 ### API Response
@@ -610,29 +627,32 @@ The `ApiResponse` model dictates how handlers should return data to the engine t
 <ResponseField name="status" type="int">
   HTTP status code.
 
-  ```python
-  return ApiResponse(status=200, body={...})
-  ```
+```python
+return ApiResponse(status=200, body={...})
+```
+
 </ResponseField>
 
 <ResponseField name="body" type="Any">
   Response payload (will be serialized to JSON).
 
-  ```python
-  return ApiResponse(status=200, body={"message": "Success"})
-  ```
+```python
+return ApiResponse(status=200, body={"message": "Success"})
+```
+
 </ResponseField>
 
 <ResponseField name="headers" type="dict">
   Response headers (optional).
 
-  ```python
-  return ApiResponse(
-      status=200,
-      body={...},
-      headers={"X-Custom-Header": "value"}
-  )
-  ```
+```python
+return ApiResponse(
+    status=200,
+    body={...},
+    headers={"X-Custom-Header": "value"}
+)
+```
+
 </ResponseField>
 
 ## Middleware Composition (Python)
@@ -738,18 +758,18 @@ await bridge.connect()
 ### Node.js Example
 
 ```typescript
-import { createBridge } from '@iii-dev/sdk';
+import { createBridge } from '@iii-dev/sdk'
 
-const bridge = createBridge();
+const bridge = createBridge()
 
 // Register function
 bridge.registerFunction({
   function_path: 'users.create',
   handler: async (data) => {
-    const user = { id: '123', ...data };
-    return { status: 201, body: user };
-  }
-});
+    const user = { id: '123', ...data }
+    return { status: 201, body: user }
+  },
+})
 
 // Register API trigger
 bridge.registerTrigger({
@@ -757,12 +777,12 @@ bridge.registerTrigger({
   function_path: 'users.create',
   config: {
     api_path: '/users',
-    http_method: 'POST'
-  }
-});
+    http_method: 'POST',
+  },
+})
 
 // Connect and run
-await bridge.connect();
+await bridge.connect()
 ```
 
 ## Best Practices
@@ -782,6 +802,7 @@ await bridge.connect();
         # Type-safe implementation
         return ApiResponse(status=200, body={...})
     ```
+
   </Accordion>
 
   <Accordion title="Error Handling">
@@ -799,6 +820,7 @@ await bridge.connect();
             ctx.logger.error(f"Unexpected error: {e}", exc_info=True)
             return ApiResponse(status=500, body={"error": "Internal error"})
     ```
+
   </Accordion>
 
   <Accordion title="Connection Management">
@@ -811,6 +833,7 @@ await bridge.connect();
     finally:
         await bridge.close()
     ```
+
   </Accordion>
 
   <Accordion title="Use High-Level Frameworks">
@@ -823,16 +846,17 @@ await bridge.connect();
     # Over raw Bridge
     from iii import Bridge
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <Columns cols={2}>
-  <Card icon="Code" title="Motia Framework" href="/docs/quickstart/motia-framework">
+  <Card icon={<Code />} title="Motia Framework" href="/quickstart/motia-framework">
     Learn about the high-level Python framework
   </Card>
-  <Card icon="Zap" title="Remote Functions" href="/docs/remote-functions">
+  <Card icon={<Zap />} title="Remote Functions" href="/remote-functions">
     Understand function registration and invocation
   </Card>
 </Columns>

@@ -1,5 +1,5 @@
 ---
-title: "Triggers"
+title: 'Triggers'
 ---
 
 Triggers connect Trigger Types to Functions, creating the link between events and execution.
@@ -14,7 +14,7 @@ graph LR
     Trigger -->|Routes to| Function[Function<br/>users.create]
 ```
 
-**Key Concept**: Triggers decouple *what initiates an action* (Trigger Type) from *what logic runs* (Function).
+**Key Concept**: Triggers decouple _what initiates an action_ (Trigger Type) from _what logic runs_ (Function).
 
 ## Trigger Components
 
@@ -26,13 +26,14 @@ A trigger consists of three parts:
 
 ```typescript
 bridge.registerTrigger({
-  trigger_type: 'api',           // 1. Trigger Type
-  config: {                      // 2. Configuration
+  trigger_type: 'api', // 1. Trigger Type
+  config: {
+    // 2. Configuration
     api_path: '/users',
-    http_method: 'POST'
+    http_method: 'POST',
   },
-  function_path: 'users.create'  // 3. Function Path
-});
+  function_path: 'users.create', // 3. Function Path
+})
 ```
 
 ## Registering Triggers
@@ -64,9 +65,9 @@ bridge.registerFunction({
   function_path: 'users.create',
   handler: async (data) => {
     // Function logic
-    return { id: '123', ...data };
-  }
-});
+    return { id: '123', ...data }
+  },
+})
 ```
 
 **Step 2: Register Trigger**
@@ -76,12 +77,12 @@ Then, register a trigger that routes to that function:
 ```typescript
 bridge.registerTrigger({
   trigger_type: 'api',
-  function_path: 'users.create',  // Must match registered function
+  function_path: 'users.create', // Must match registered function
   config: {
     api_path: '/users',
-    http_method: 'POST'
-  }
-});
+    http_method: 'POST',
+  },
+})
 ```
 
 **Step 3: Trigger Active**
@@ -104,6 +105,7 @@ The engine sets up the trigger in the appropriate module. Now when an HTTP POST 
 ```
 
 **Path Parameters**: Extract values from URL
+
 ```typescript
 // Trigger: api_path: '/users/:userId/posts/:postId'
 // Request: GET /users/123/posts/456
@@ -175,30 +177,30 @@ A single function can have multiple triggers:
 bridge.registerFunction({
   function_path: 'users.notify',
   handler: async (data) => {
-    await sendNotification(data);
-  }
-});
+    await sendNotification(data)
+  },
+})
 
 // Trigger from API
 bridge.registerTrigger({
   trigger_type: 'api',
   function_path: 'users.notify',
-  config: { api_path: '/notify', http_method: 'POST' }
-});
+  config: { api_path: '/notify', http_method: 'POST' },
+})
 
 // Trigger from events
 bridge.registerTrigger({
   trigger_type: 'event',
   function_path: 'users.notify',
-  config: { subscribes: ['user.created', 'order.placed'] }
-});
+  config: { subscribes: ['user.created', 'order.placed'] },
+})
 
 // Trigger from cron
 bridge.registerTrigger({
   trigger_type: 'cron',
   function_path: 'users.notify',
-  config: { cron: '0 9 * * *' }
-});
+  config: { cron: '0 9 * * *' },
+})
 ```
 
 **Use Case**: Send notifications via API calls, events, or scheduled jobs using the same logic.
@@ -220,17 +222,17 @@ stateDiagram-v2
 Remove triggers dynamically:
 
 ```typescript
-const triggerId = 'unique-trigger-id';
+const triggerId = 'unique-trigger-id'
 
 bridge.registerTrigger({
   id: triggerId,
   trigger_type: 'api',
   function_path: 'api.temp',
-  config: { api_path: '/temp', http_method: 'GET' }
-});
+  config: { api_path: '/temp', http_method: 'GET' },
+})
 
 // Later...
-bridge.unregisterTrigger(triggerId);
+bridge.unregisterTrigger(triggerId)
 ```
 
 ## Trigger Patterns
@@ -241,23 +243,23 @@ bridge.unregisterTrigger(triggerId);
 bridge.registerFunction({
   function_path: 'webhooks.github',
   handler: async (req) => {
-    const event = req.headers['x-github-event'];
-    const payload = req.body;
+    const event = req.headers['x-github-event']
+    const payload = req.body
 
-    await processGitHubWebhook(event, payload);
+    await processGitHubWebhook(event, payload)
 
-    return { status: 200, body: { received: true } };
-  }
-});
+    return { status: 200, body: { received: true } }
+  },
+})
 
 bridge.registerTrigger({
   trigger_type: 'api',
   function_path: 'webhooks.github',
   config: {
     api_path: '/webhooks/github',
-    http_method: 'POST'
-  }
-});
+    http_method: 'POST',
+  },
+})
 ```
 
 ### Event Chain
@@ -267,37 +269,37 @@ bridge.registerTrigger({
 bridge.registerFunction({
   function_path: 'orders.process',
   handler: async (order) => {
-    await saveOrder(order);
+    await saveOrder(order)
     // Emit next event in chain
     await bridge.invokeFunction({
       function_path: 'event.emit',
       data: {
         topic: 'order.processed',
-        data: order
-      }
-    });
-  }
-});
+        data: order,
+      },
+    })
+  },
+})
 
 bridge.registerTrigger({
   trigger_type: 'event',
   function_path: 'orders.process',
-  config: { subscribes: ['order.placed'] }
-});
+  config: { subscribes: ['order.placed'] },
+})
 
 // Step 2: Send confirmation
 bridge.registerFunction({
   function_path: 'orders.sendConfirmation',
   handler: async (order) => {
-    await sendEmail(order.email, 'Order confirmed');
-  }
-});
+    await sendEmail(order.email, 'Order confirmed')
+  },
+})
 
 bridge.registerTrigger({
   trigger_type: 'event',
   function_path: 'orders.sendConfirmation',
-  config: { subscribes: ['order.processed'] }
-});
+  config: { subscribes: ['order.processed'] },
+})
 ```
 
 ### Scheduled Cleanup
@@ -306,18 +308,18 @@ bridge.registerTrigger({
 bridge.registerFunction({
   function_path: 'maintenance.cleanup',
   handler: async () => {
-    const deleted = await deleteOldRecords();
-    logger.info(`Deleted ${deleted} old records`);
-  }
-});
+    const deleted = await deleteOldRecords()
+    logger.info(`Deleted ${deleted} old records`)
+  },
+})
 
 bridge.registerTrigger({
   trigger_type: 'cron',
   function_path: 'maintenance.cleanup',
   config: {
-    cron: '0 3 * * *'  // Every day at 3 AM
-  }
-});
+    cron: '0 3 * * *', // Every day at 3 AM
+  },
+})
 ```
 
 ## Best Practices
@@ -334,6 +336,7 @@ bridge.registerTrigger({
       config: { api_path: '/users', http_method: 'POST' }
     });
     ```
+
   </Accordion>
 
   <Accordion title="Match Function Capabilities">
@@ -353,6 +356,7 @@ bridge.registerTrigger({
       config: { http_method: 'POST' }  // Not GET
     });
     ```
+
   </Accordion>
 
   <Accordion title="Namespace Your Paths">
@@ -367,6 +371,7 @@ bridge.registerTrigger({
     api_path: '/getUsers'
     api_path: '/order-list'
     ```
+
   </Accordion>
 
   <Accordion title="Handle Trigger Errors">
@@ -388,16 +393,17 @@ bridge.registerTrigger({
       }
     });
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <Columns cols={2}>
-  <Card icon="Zap" title="Trigger Types" href="/docs/trigger-types">
+  <Card icon={<Zap />} title="Trigger Types" href="/trigger-types">
     Learn about available trigger types
   </Card>
-  <Card icon="Parentheses" title="Remote Functions" href="/docs/remote-functions">
+  <Card icon={<Parentheses />} title="Remote Functions" href="/remote-functions">
     Understand how to write functions
   </Card>
 </Columns>

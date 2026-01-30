@@ -1,7 +1,6 @@
 ---
-title: "Core Modules"
+title: 'Core Modules'
 ---
-
 
 iii Architecture is very modular. Composed of a few Layers: Engine, Modules, Adapters.
 
@@ -11,7 +10,13 @@ Let's break down each layer:
 - **Modules**: The core modules that make up the iii architecture.
 - **Adapters**: The adapters that connect the iii architecture to the outside world.
 
-<Card horizontal iconName="Blocks" title="Summary" href="/docs/core-modules-list/summary" description="Summary of all the core modules." />
+<Card
+  horizontal
+  icon={<Blocks />}
+  title="Summary"
+  href="/core-modules-list/summary"
+  description="Summary of all the core modules."
+/>
 
 ## Engine
 
@@ -55,4 +60,3 @@ We can configure the port to listen on, the host to listen on, and the authentic
 
 We're also configuring the adapter to use for the Streams Module. In this case, we're using the `modules::streams::adapters::RedisAdapter`.
 We can configure the Redis URL to use for the RedisAdapter.
-

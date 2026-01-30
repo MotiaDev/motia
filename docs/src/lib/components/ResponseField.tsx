@@ -1,24 +1,30 @@
-import { Link, LinkIcon } from 'lucide-react'
-import React, { type PropsWithChildren } from 'react'
+import { Link, LinkIcon } from "lucide-react";
+import type React from "react";
+import type { PropsWithChildren } from "react";
 
 type ResponseFieldProps = PropsWithChildren<{
-  name: string
-  type: string
-  required?: boolean
-}>
+  name: string;
+  type: string;
+  required?: boolean;
+}>;
 
-export const ResponseField: React.FC<ResponseFieldProps> = ({ name, type, children, required = false }) => {
+export const ResponseField: React.FC<ResponseFieldProps> = ({
+  name,
+  type,
+  children,
+  required = false,
+}) => {
   return (
     <div className="field pt-2.5 first:pt-0 pb-5 last:pb-0 my-2.5 border-border border-b last:border-b-0">
       <div
         className="flex font-mono text-sm group/param-head param-head break-all relative"
-        id={`param-${name.replace(/\s+/g, '-').toLowerCase()}`}
+        id={`param-${name.replace(/\s+/g, "-").toLowerCase()}`}
       >
         <div className="flex-1 flex flex-col content-start py-0.5 mr-5">
           <div className="flex items-center flex-wrap gap-2">
             <div className="absolute -top-1.5">
               <a
-                href={`#param-${name.replace(/\s+/g, '-').toLowerCase()}`}
+                href={`#param-${name.replace(/\s+/g, "-").toLowerCase()}`}
                 className="-ml-8 mt-[4px] flex items-center opacity-0 border-0 group-hover/param-head:opacity-100 focus:opacity-100 focus:outline-0 py-2 [.expandable-content_&]:-ml-[2.1rem] group/link bg-muted-background rounded-md px-2"
                 aria-label="Navigate to header"
               >
@@ -60,5 +66,5 @@ export const ResponseField: React.FC<ResponseFieldProps> = ({ name, type, childr
         {children}
       </div>
     </div>
-  )
-}
+  );
+};

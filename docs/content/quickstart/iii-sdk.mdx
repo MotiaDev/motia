@@ -1,6 +1,6 @@
 ---
-title: "@iii-dev/sdk"
-description: "Build with iii SDK"
+title: '@iii-dev/sdk'
+description: 'Build with iii SDK'
 ---
 
 ## Description
@@ -34,7 +34,7 @@ iii
 ### JavaScript/TypeScript
 
 ```typescript
-import { Bridge } from '@iii-dev/sdk';
+import { Bridge } from '@iii-dev/sdk'
 
 const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 ```
@@ -61,12 +61,10 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-<Tip>
-  The port to iii is usually `ws://localhost:49134` if you're running the iii process locally.
-</Tip>
+<Tip>The port to iii is usually `ws://localhost:49134` if you're running the iii process locally.</Tip>
 
 ## More information
 
-<Card icon="ArrowBigDownDash" title="@iii-dev/sdk" href="/docs/api-reference/iii-sdk">
+<Card icon={<ArrowBigDownDash />} title="@iii-dev/sdk" href="/api-reference/iii-sdk">
   Check the API Reference for more information.
 </Card>

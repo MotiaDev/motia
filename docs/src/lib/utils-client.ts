@@ -1,24 +1,27 @@
-'use client'
-import { useEffect, useState } from 'react'
+"use client";
+import { useEffect, useState } from "react";
 
 export function useMode() {
   const getMode = () =>
-    typeof document !== 'undefined' && document.querySelector('html')?.classList.contains('dark') ? 'dark' : 'light'
+    typeof document !== "undefined" &&
+    document.querySelector("html")?.classList.contains("dark")
+      ? "dark"
+      : "light";
 
-  const [mode, setMode] = useState(getMode)
+  const [mode, setMode] = useState(getMode);
 
   useEffect(() => {
-    const html = document.querySelector('html')
-    if (!html) return
+    const html = document.querySelector("html");
+    if (!html) return;
 
     const observer = new MutationObserver(() => {
-      setMode(getMode())
-    })
+      setMode(getMode());
+    });
 
-    observer.observe(html, { attributes: true, attributeFilter: ['class'] })
+    observer.observe(html, { attributes: true, attributeFilter: ["class"] });
 
-    return () => observer.disconnect()
-  }, [])
+    return () => observer.disconnect();
+  }, []);
 
-  return mode
+  return mode;
 }

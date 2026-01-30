@@ -3,14 +3,14 @@
 @import 'fumadocs-ui/css/preset.css';
 
 @theme {
-  /* III Design Tokens */
-  --font-mono: "JetBrains Mono", monospace;
-  
+  /* iii Design Tokens */
+  --font-mono: 'Chivo Mono', monospace;
+
   --color-iii-black: #000000;
-  --color-iii-dark: #1D1D1D;
-  --color-iii-medium: #8B8B8B;
-  --color-iii-light: #F4F4F4;
-  --color-iii-accent: #F3F724;
+  --color-iii-dark: #1d1d1d;
+  --color-iii-medium: #8b8b8b;
+  --color-iii-light: #f4f4f4;
+  --color-iii-accent: #f3f724;
   --color-iii-accent-light: #1d4ed8;
 
   /* Animations */
@@ -21,21 +21,43 @@
   --animate-fade-in: fadeIn 0.5s ease-out forwards;
 
   @keyframes fadeInUp {
-    0% { opacity: 0; transform: translateY(20px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   @keyframes fadeIn {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
   }
   @keyframes glitch {
-    2%, 64% { transform: translate(2px,0) skew(0deg); }
-    4%, 60% { transform: translate(-2px,0) skew(0deg); }
-    62% { transform: translate(0,0) skew(5deg); }
+    2%,
+    64% {
+      transform: translate(2px, 0) skew(0deg);
+    }
+    4%,
+    60% {
+      transform: translate(-2px, 0) skew(0deg);
+    }
+    62% {
+      transform: translate(0, 0) skew(5deg);
+    }
   }
   @keyframes flow {
-    0% { background-position: 0 0; }
-    100% { background-position: 0 100%; }
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 0 100%;
+    }
   }
 
   /* Light Mode Configuration (Default) */
@@ -62,7 +84,7 @@
   --color-mermaid-fill: #f4f4f4;
   --color-mermaid-stroke: #000000;
   --color-mermaid-text: #000000;
-  --color-mermaid-cluster-fill: #F4F4F4;
+  --color-mermaid-cluster-fill: #f4f4f4;
 }
 
 /* Dark Mode Configuration */
@@ -101,9 +123,20 @@ body {
 }
 
 /* Typography Enhancements */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: 600;
   letter-spacing: -0.02em;
+}
+
+/* Ensure bold text is visible */
+strong,
+b {
+  font-weight: bold;
 }
 
 /* III Specific Overrides */
@@ -115,20 +148,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Code Blocks */
-:root.dark pre {
-  background-color: var(--color-iii-black) !important;
-  border: 1px solid var(--color-iii-dark);
+figure[data-rehype-pretty-code-figure] {
+  border-color: var(--color-fd-secondary);
 }
 
-:root.dark code {
-  background-color: var(--color-iii-dark);
-  color: var(--color-iii-accent);
-}
-
-/* Light Mode Code Blocks - clean look */
-pre {
-  background-color: #ffffff !important;
-  border: 1px solid #e0e0e0;
+:root.dark figure[data-rehype-pretty-code-figure] {
+  border-color: var(--color-iii-dark);
 }
 
 code {
@@ -138,6 +163,11 @@ code {
   border-radius: 4px;
 }
 
+:root.dark code {
+  background-color: var(--color-iii-dark);
+  color: var(--color-iii-accent);
+}
+
 pre code {
   background-color: transparent;
   color: inherit;
@@ -145,12 +175,11 @@ pre code {
 }
 
 /* Logo Fixes */
-/* Ensure logo is black in light mode and white in dark mode */
-nav a:first-child, 
+nav a:first-child,
 [data-nav] a:first-child,
 aside a:first-child,
 [data-sidebar] a:first-child {
-  color: var(--color-fd-foreground) !important;
+  color: var(--color-fd-foreground);
 }
 
 /* Sidebar Borders */
@@ -159,11 +188,11 @@ aside a:first-child,
 }
 
 /* Search Input */
-button[aria-label="Search"], 
-input[type="search"] {
-  background-color: var(--color-fd-muted) !important;
-  border: 1px solid var(--color-fd-border) !important;
-  color: var(--color-fd-foreground) !important;
+button[aria-label='Search'],
+input[type='search'] {
+  background-color: var(--color-fd-muted);
+  border: 1px solid var(--color-fd-border);
+  color: var(--color-fd-foreground);
 }
 
 /* Links */
