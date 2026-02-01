@@ -1,7 +1,7 @@
 import { LevelDot, Sidebar } from '@motiadev/ui'
 import { X } from 'lucide-react'
 import type React from 'react'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import ReactJson from 'react18-json-view'
 import 'react18-json-view/src/dark.css'
 import 'react18-json-view/src/style.css'
@@ -35,6 +35,17 @@ export const LogDetail: React.FC<Props> = ({ log, onClose }) => {
     )
   }, [log])
 
+  const handleTraceIdClick = useCallback(() => {
+    if (!log?.traceId) return
+
+    // Use window event to communicate with other plugins
+    window.dispatchEvent(
+      new CustomEvent('motia:navigate-to-trace', {
+        detail: { traceId: log.traceId },
+      }),
+    )
+  }, [log])
+
   if (!log) {
     return null
   }
@@ -58,7 +69,19 @@ export const LogDetail: React.FC<Props> = ({ log, onClose }) => {
         { label: 'Time', value: formatTimestamp(log.time) },
         { label: 'Step', value: log.step },
         { label: 'Flows', value: log.flows.join(', ') },
-        { label: 'Trace ID', value: log.traceId },
+        {
+          label: 'Trace ID',
+          value: (
+            <button
+              type="button"
+              onClick={handleTraceIdClick}
+              className="font-mono text-sm text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-left"
+              title="Click to view trace in Tracing tab"
+            >
+              {log.traceId}
+            </button>
+          ),
+        },
       ]}
     >
       {hasOtherProps && <ReactJson src={otherPropsObject} theme="default" enableClipboard />}
