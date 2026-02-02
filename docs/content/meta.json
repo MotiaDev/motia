@@ -1,18 +1,4 @@
 {
   "title": "iii",
-  "pages": [
-    "what-is-iii",
-    "---Concepts---",
-    "workers",
-    "remote-functions",
-    "triggers",
-    "trigger-types",
-    "adapters",
-    "---Modules---",
-    "core-modules",
-    "core-modules-list",
-    "quickstart",
-    "api-reference",
-    "advanced"
-  ]
+  "pages": ["index", "what-is-iii", "concepts", "using"]
 }

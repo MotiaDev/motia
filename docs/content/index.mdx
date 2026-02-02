@@ -1,3 +1,53 @@
 ---
-title: 'Welcome'
+title: Welcome to iii
+description: The way to unify your backend and not think about it.
 ---
+
+**iii** (pronounced "three eye") is a backend engine that unifies your entire infrastructure—APIs, background jobs, workflows, queues, state, and everything else—into a single, durable runtime.
+
+The engine model creates a "Modular Monolith" that scales like microservices but removes their architectural complexity which makes your application feel and behave like a cohesive whole no matter where it is running.
+
+It creates this experience by transforming every backend operation into two core primitives: Triggers and Functions. These primitives are the mechanism by which most architectural complexity is removed.
+
+<Callout title="The Paradigm Shift" type="info">
+  If React revolutionized the frontend with the Component and Context then iii intends to do the same on the backend
+  with Triggers and Functions.
+</Callout>
+
+## Getting Started
+
+The best way to understand the implications of this model is to try it out:
+
+### 1. Install iii
+
+Get the toolchain installed on your machine.
+
+```bash
+curl -fsSL iii.sh/install.sh | sh
+```
+
+### 2. Initialize a Project
+
+```bash
+iii init --template quickstart my-new-backend
+cd my-new-backend
+```
+
+### 3. Run the Engine
+
+Start iii.
+
+```bash
+iii --config dev.yaml
+```
+
+## Next Steps
+
+<Cards>
+  <Card icon={<Terminal />} title="Deploy" href="https://iii.dev/cloud">
+    Get a free account on iii cloud.
+  </Card>
+  <Card icon={<LayoutTemplate />} title="Learn More" href={`/concepts`}>
+    Learn how Triggers, Functions, and the Engine work together.
+  </Card>
+</Cards>

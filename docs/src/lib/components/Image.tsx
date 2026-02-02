@@ -18,7 +18,9 @@ export const Image: React.FC<ImageProps> = ({
   const [isZoomed, setIsZoomed] = useState(false);
   const [isGrow, setIsGrow] = useState(false);
   const isDark = useMode() === "dark";
-  const [imageName, extension] = defaultSrc.split(".");
+  const lastDotIndex = defaultSrc.lastIndexOf(".");
+  const imageName = defaultSrc.slice(0, lastDotIndex);
+  const extension = defaultSrc.slice(lastDotIndex + 1);
   const src = isDark
     ? `${imageName}-dark.${extension}`
     : `${imageName}-light.${extension}`;

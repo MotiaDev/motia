@@ -91,7 +91,7 @@ export function ArticleActions({ markdown, title }: ArticleActionsProps) {
     if (option.copyFirst) {
       await navigator.clipboard.writeText(content);
     }
-    window.open(option.getUrl(content), "_blank");
+    window.open(option.getUrl(content), "_blank", "noopener,noreferrer");
     setIsOpen(false);
   };
 

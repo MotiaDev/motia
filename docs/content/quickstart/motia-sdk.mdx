@@ -157,14 +157,14 @@ export const config: StepConfig = {
       },
     },
   ],
-  emits: ['user-created'],
+  emits: ['user.created'],
 }
 
 export const handler: Handlers<typeof config> = async (req, { emit, logger }) => {
   const user = await createUser(req.body)
 
   // Emit event
-  await emit({ topic: 'user-created', data: user })
+  await emit({ topic: 'user.created', data: user })
 
   logger.info('User created', { userId: user.id })
 
@@ -222,7 +222,7 @@ export const config: StepConfig = {
   triggers: [
     {
       type: 'event',
-      subscribes: ['user-created'],
+      subscribes: ['user.created'],
       input: z.object({
         id: z.string(),
         name: z.string(),
@@ -274,12 +274,12 @@ export const config: StepConfig = {
       cron: '0 9 * * *', // Every day at 9 AM
     },
   ],
-  emits: ['report-generated'],
+  emits: ['report.generated'],
 }
 
 export const handler: Handlers<typeof config> = async (data, { emit, logger }) => {
   const report = await generateDailyReport()
-  await emit({ topic: 'report-generated', data: report })
+  await emit({ topic: 'report.generated', data: report })
   logger.info('Daily report generated')
 }
 ```
@@ -509,7 +509,7 @@ Every handler receives a `FlowContext` with runtime utilities:
 **TypeScript:**
 
 ```typescript
-await emit({ topic: 'topic-name', data: { key: 'value' } })
+await emit({ topic: 'topic.name', data: { key: 'value' } })
 ```
 
 **Python:**
@@ -873,7 +873,7 @@ export const config: StepConfig = {
       },
     },
   ],
-  emits: ['todo-created'],
+  emits: ['todo.created'],
 }
 
 export const handler: Handlers<typeof config> = async (req, { streams, emit, logger }) => {
@@ -886,7 +886,7 @@ export const handler: Handlers<typeof config> = async (req, { streams, emit, log
   }
 
   await streams.todos.set('default', todoId, todo)
-  await emit({ topic: 'todo-created', data: todo })
+  await emit({ topic: 'todo.created', data: todo })
 
   logger.info('Created todo', { todoId })
 
@@ -937,7 +937,7 @@ export const config: StepConfig = {
   triggers: [
     {
       type: 'event',
-      subscribes: ['todo-created'],
+      subscribes: ['todo.created'],
       input: z.object({
         id: z.string(),
         title: z.string(),

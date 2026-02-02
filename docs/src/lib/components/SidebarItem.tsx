@@ -1,6 +1,5 @@
 "use client";
 import type { Item } from "fumadocs-core/page-tree";
-import { Icon } from "lucide-react";
 import Link from "next/link";
 
 // To determine whether a Fumadocs sidebar item is active, we need to know the current route.
