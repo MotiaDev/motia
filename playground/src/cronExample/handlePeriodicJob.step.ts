@@ -1,10 +1,13 @@
 import type { CronConfig, Handlers } from 'motia'
+import { CronExpression } from 'motia'
 
 export const config: CronConfig = {
   type: 'cron',
   name: 'HandlePeriodicJob',
   description: 'Handles the periodic job event',
-  cron: '0 */1 * * *',
+  //Cron expression can be string or CronExpression enum
+  //cron: "*/1 * * * *" or cron: CronExpression.EVERY_MINUTE
+  cron: CronExpression.EVERY_MINUTE,
   emits: ['periodic-job-handled'],
   flows: ['cron-example'],
 }
