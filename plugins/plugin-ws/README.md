@@ -25,20 +25,6 @@ npm install @motiadev/plugin-ws
 pnpm add @motiadev/plugin-ws
 ```
 
-## Usage
-
-Add the plugin to your `motia.config.ts`:
-
-```typescript
-import wsPlugin from '@motiadev/plugin-ws/plugin'
-
-export default {
-  plugins: [wsPlugin],
-}
-```
-
-The plugin will automatically appear as a "WebSockets" tab in the bottom panel of your Motia workbench.
-
 ## Features
 
 ### Stream Subscriptions

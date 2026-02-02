@@ -7,6 +7,7 @@ import examplePlugin from '@motiadev/plugin-example/plugin'
 import logsPlugin from '@motiadev/plugin-logs/plugin'
 import observabilityPlugin from '@motiadev/plugin-observability/plugin'
 import statesPlugin from '@motiadev/plugin-states/plugin'
+import streamsPlugin from '@motiadev/plugin-streams/plugin'
 import wsPlugin from '@motiadev/plugin-ws/plugin'
 import { z } from 'zod'
 
@@ -97,6 +98,7 @@ export default defineConfig({
     examplePlugin,
     bullmqPlugin,
     wsPlugin,
+    streamsPlugin,
     cronPlugin,
     localPluginExample,
   ],
