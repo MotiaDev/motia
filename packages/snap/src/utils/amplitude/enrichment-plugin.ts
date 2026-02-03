@@ -1,4 +1,5 @@
 import type { EnrichmentPlugin, Event } from '@amplitude/analytics-types'
+import { environmentDetector } from '@motiadev/core'
 import os from 'os'
 
 export class MotiaEnrichmentPlugin implements EnrichmentPlugin {
@@ -24,6 +25,13 @@ export class MotiaEnrichmentPlugin implements EnrichmentPlugin {
     event.device_model = os.type()
     event.device_manufacturer = os.machine()
     event.device_brand = os.platform() === 'darwin' ? 'Apple' : os.platform() === 'win32' ? 'Microsoft' : 'Unknown'
+
+    const envContext = environmentDetector.getEnvironmentContext()
+    event.extra.is_docker = envContext.is_docker
+    event.extra.is_ci = envContext.is_ci
+    event.extra.is_test = envContext.is_test
+    event.extra.environment_type = envContext.environment_type
+    event.extra.execution_context = envContext.execution_context
 
     return event
   }
