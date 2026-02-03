@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { deriveTraceGroup } from '../hooks/use-derive-trace-group'
-import type { Trace, TraceGroup, TraceGroupMeta } from '../types/observability'
+import type { Trace, TraceGroup, TraceGroupMeta, TraceStatus } from '../types/observability'
 
 export type ObservabilityState = {
   traceGroupMetas: TraceGroupMeta[]
@@ -9,12 +9,14 @@ export type ObservabilityState = {
   selectedTraceGroupId: string
   selectedTraceId?: string
   search: string
+  statusFilter: TraceStatus | 'all'
   setTraceGroupMetas: (metas: TraceGroupMeta[]) => void
   setTraces: (traces: Trace[]) => void
   setTracesForGroup: (groupId: string, traces: Trace[]) => void
   selectTraceGroupId: (groupId?: string) => void
   selectTraceId: (traceId?: string) => void
   setSearch: (search: string) => void
+  setStatusFilter: (status: TraceStatus | 'all') => void
   clearTraces: () => void
   getTraceGroups: () => TraceGroup[]
 }
@@ -26,6 +28,7 @@ export const useObservabilityStore = create<ObservabilityState>()((set, get) => 
   selectedTraceGroupId: '',
   selectedTraceId: undefined,
   search: '',
+  statusFilter: 'all',
   setTraceGroupMetas: (metas: TraceGroupMeta[]) => {
     const safeMetas = Array.isArray(metas) ? metas : []
     set({ traceGroupMetas: safeMetas })
@@ -51,8 +54,10 @@ export const useObservabilityStore = create<ObservabilityState>()((set, get) => 
   },
   selectTraceId: (traceId) => set({ selectedTraceId: traceId }),
   setSearch: (search) => set({ search }),
+  setStatusFilter: (statusFilter) => set({ statusFilter }),
   clearTraces: () => {
     fetch('/__motia/trace/clear', { method: 'POST' })
+    set({ statusFilter: 'all', search: '' })
   },
   getTraceGroups: () => {
     const state = get()
