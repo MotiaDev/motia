@@ -35,12 +35,21 @@ export const BaseNode: React.FC<Props> = ({
 
   const [content, setContent] = useState<string | null>(null)
   const [features, setFeatures] = useState<Feature[]>([])
+  const [config, setConfig] = useState<{
+    type: string
+    bodySchema?: unknown
+    path?: string
+    method?: string
+    subscribes?: string[]
+    cron?: string
+  } | null>(null)
 
   const fetchContent = useCallback(async () => {
     const response = await fetch(`/__motia/step/${data.id}`)
     const responseData = await response.json()
     setContent(responseData.content)
     setFeatures(responseData.features)
+    setConfig(responseData.config || null)
   }, [data.id])
 
   useEffect(() => {
@@ -107,6 +116,8 @@ export const BaseNode: React.FC<Props> = ({
           language={language}
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
+          stepId={data.id}
+          config={config}
         />
       )}
     </div>
