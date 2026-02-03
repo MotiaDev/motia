@@ -120,6 +120,8 @@ body {
   background-color: var(--color-fd-background);
   color: var(--color-fd-foreground);
   font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0, 'clig' 0;
 }
 
 /* Typography Enhancements */

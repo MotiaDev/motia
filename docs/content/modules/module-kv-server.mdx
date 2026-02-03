@@ -1,5 +1,6 @@
 ---
-title: "KV Server Module"
+title: 'KV Server'
+description: 'Key-Value storage server for persistent data storage'
 ---
 
 Key-Value storage server for persistent data storage with support for in-memory and file-based backends.
@@ -11,23 +12,23 @@ modules::kv_server::KvServer
 ## Sample Configuration
 
 ```yaml
-  - class: modules::kv_server::KvServer
-    config:
-      store_method: file_based
-      file_path: ./data/kv_store
-      save_interval_ms: 5000
+- class: modules::kv_server::KvServer
+  config:
+    store_method: file_based
+    file_path: ./data/kv_store
+    save_interval_ms: 5000
 ```
 
 ## Configuration
 
 <ResponseField name="store_method" type="string">
-  The storage method to use. Options are:
-  - `in_memory` - Data is stored only in memory (lost on restart)
-  - `file_based` - Data is stored in memory and periodically persisted to disk (survives restart)
+  The storage method to use. Options are: - `in_memory` - Data is stored only in memory (lost on restart) - `file_based`
+  - Data is stored in memory and periodically persisted to disk (survives restart)
 </ResponseField>
 
 <ResponseField name="file_path" type="string">
-  The directory path where data files will be stored when using `file_based` storage method. Each index is stored as a separate file within this directory.
+  The directory path where data files will be stored when using `file_based` storage method. Each index is stored as a
+  separate file within this directory.
 </ResponseField>
 
 <ResponseField name="save_interval_ms" type="number">
@@ -141,40 +142,40 @@ modules::kv_server::KvServer
 ### Basic Key-Value Operations
 
 ```typescript
-import { bridge } from 'iii';
+import { bridge } from 'iii'
 
 // Set a value
-await bridge.invoke('kv_server.set', { 
+await bridge.invoke('kv_server.set', {
   index: 'default',
-  key: 'user:123', 
-  value: { name: 'John', email: 'john@example.com' } 
-});
+  key: 'user:123',
+  value: { name: 'John', email: 'john@example.com' },
+})
 
 // Get a value
-const user = await bridge.invoke('kv_server.get', { 
+const user = await bridge.invoke('kv_server.get', {
   index: 'default',
-  key: 'user:123' 
-});
-console.log(user); // { name: 'John', email: 'john@example.com' }
+  key: 'user:123',
+})
+console.log(user) // { name: 'John', email: 'john@example.com' }
 
 // Delete a value
-await bridge.invoke('kv_server.delete', { 
+await bridge.invoke('kv_server.delete', {
   index: 'default',
-  key: 'user:123' 
-});
+  key: 'user:123',
+})
 ```
 
 ### Listing Keys with Prefix
 
 ```typescript
 // Store some users
-await bridge.invoke('kv_server.set', { index: 'default', key: 'user:1', value: { name: 'Alice' } });
-await bridge.invoke('kv_server.set', { index: 'default', key: 'user:2', value: { name: 'Bob' } });
-await bridge.invoke('kv_server.set', { index: 'default', key: 'product:1', value: { name: 'Widget' } });
+await bridge.invoke('kv_server.set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
+await bridge.invoke('kv_server.set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
+await bridge.invoke('kv_server.set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
 
 // List all user keys
-const userKeys = await bridge.invoke('kv_server.list_keys_with_prefix', { 
-  prefix: 'user:' 
-});
-console.log(userKeys); // ['user:1', 'user:2']
+const userKeys = await bridge.invoke('kv_server.list_keys_with_prefix', {
+  prefix: 'user:',
+})
+console.log(userKeys) // ['user:1', 'user:2']
 ```

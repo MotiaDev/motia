@@ -1,27 +1,30 @@
 ---
-title: '@iii-dev/sdk'
-description: 'Build with iii SDK'
+title: 'Quickstart'
+description: 'Learn everything you need to start building with iii'
 ---
 
-## Description
+The iii SDK is the base SDK for building iii applications. It provides the core functionality for building iii applications.
 
-iii SDK is the base SDK for building iii applications. It provides the core functionality for building iii applications.
+## Install the SDK
 
-## Installation
-
-### JavaScript/TypeScript
+<Tabs items={['Node', 'Python']} groupId="language" persist>
+  <Tab value="Node">
 
 ```bash
 npm install @iii-dev/sdk
 ```
 
-### Python
+  </Tab>
+  <Tab value="Python">
 
 ```bash
 uv pip install iii-sdk
 # or
 pip install iii-sdk
 ```
+
+  </Tab>
+</Tabs>
 
 ## Usage
 
@@ -31,7 +34,8 @@ Run `iii` command line, this will start the iii process.
 iii
 ```
 
-### JavaScript/TypeScript
+<Tabs items={['Node', 'Python']} groupId="language" persist>
+  <Tab value="Node">
 
 ```typescript
 import { Bridge } from '@iii-dev/sdk'
@@ -39,7 +43,8 @@ import { Bridge } from '@iii-dev/sdk'
 const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 ```
 
-### Python
+  </Tab>
+  <Tab value="Python">
 
 ```python
 import asyncio
@@ -60,6 +65,9 @@ async def main() -> None:
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+  </Tab>
+</Tabs>
 
 <Tip>The port to iii is usually `ws://localhost:49134` if you're running the iii process locally.</Tip>
 

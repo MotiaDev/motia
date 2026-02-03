@@ -1,5 +1,6 @@
 ---
-title: "Cron Module"
+title: 'Cron'
+description: 'Schedule functions with cron expressions.'
 ---
 
 Schedule functions to execute at specific times using cron expressions.
@@ -11,18 +12,19 @@ modules::cron::CronModule
 ## Sample Configuration
 
 ```yaml
-  - class: modules::cron::CronModule
-    config:
-      adapter:
-        class: modules::cron::adapters::RedisAdapter
-        config:
-          redis_url: ${REDIS_URL:redis://localhost:6379}
+- class: modules::cron::CronModule
+  config:
+    adapter:
+      class: modules::cron::adapters::RedisAdapter
+      config:
+        redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
 ## Configuration
 
 <ResponseField name="adapter" type="Adapter">
-  The adapter to use for distributed locking and job persistence. Redis adapter is recommended for multi-instance deployments.
+  The adapter to use for distributed locking and job persistence. Redis adapter is recommended for multi-instance
+  deployments.
 </ResponseField>
 
 ## Adapters
@@ -32,9 +34,9 @@ modules::cron::CronModule
 Uses Redis for distributed locking to prevent duplicate job execution across multiple engine instances.
 
 ```yaml
-  class: modules::cron::adapters::RedisAdapter
-  config:
-    redis_url: ${REDIS_URL:redis://localhost:6379}
+class: modules::cron::adapters::RedisAdapter
+config:
+  redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
 #### Configuration
@@ -60,22 +62,23 @@ This Module adds a new Trigger Type: `cron`.
     │ └───────── Hour (0-23)
     └─────────── Minute (0-59)
     ```
+
   </ResponseField>
 </Expandable>
 
 ### Sample Code
 
 ```typescript
-import { logger } from '@iii-dev/sdk';
+import { logger } from '@iii-dev/sdk'
 
 // Register a function to run on a schedule
 bridge.registerFunction({
   function_path: 'jobs.cleanupOldData',
   handler: async () => {
-    logger.info('Running scheduled cleanup...');
+    logger.info('Running scheduled cleanup...')
     // Perform cleanup tasks
   },
-});
+})
 
 // Schedule to run every day at 2 AM
 bridge.registerTrigger({
@@ -84,19 +87,19 @@ bridge.registerTrigger({
   config: {
     cron: '0 2 * * *',
   },
-});
+})
 ```
 
 ## Common Cron Expressions
 
-| Expression | Description |
-|------------|-------------|
-| `* * * * *` | Every minute |
-| `0 * * * *` | Every hour |
-| `0 0 * * *` | Every day at midnight |
-| `0 0 * * 0` | Every Sunday at midnight |
-| `0 2 * * *` | Every day at 2 AM |
-| `*/5 * * * *` | Every 5 minutes |
+| Expression       | Description                                    |
+| ---------------- | ---------------------------------------------- |
+| `* * * * *`      | Every minute                                   |
+| `0 * * * *`      | Every hour                                     |
+| `0 0 * * *`      | Every day at midnight                          |
+| `0 0 * * 0`      | Every Sunday at midnight                       |
+| `0 2 * * *`      | Every day at 2 AM                              |
+| `*/5 * * * *`    | Every 5 minutes                                |
 | `0 9-17 * * 1-5` | Every hour from 9 AM to 5 PM, Monday to Friday |
 
 ## Distributed Execution

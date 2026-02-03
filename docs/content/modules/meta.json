@@ -1,7 +1,6 @@
 {
-  "title": "Core Modules",
+  "title": "Modules",
   "pages": [
-    "index",
     "module-rest-api",
     "module-event",
     "module-cron",

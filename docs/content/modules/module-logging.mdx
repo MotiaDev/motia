@@ -1,5 +1,6 @@
 ---
-title: "Logging Module"
+title: 'Logging'
+description: 'System observability and log management.'
 ---
 
 The Logging Module is a module that allows you to log messages to the console.
@@ -11,15 +12,15 @@ modules::observability::LoggingModule
 ## Sample Configuration
 
 ```yaml
-  - class: modules::observability::LoggingModule
-    config:
-      level: ${RUST_LOG:info}
-      format: json
-      adapter:
-        class: modules::observability::adapters::FileLogger
-        config:
-          file_path: app.log
-          save_interval_ms: 5000
+- class: modules::observability::LoggingModule
+  config:
+    level: ${RUST_LOG:info}
+    format: json
+    adapter:
+      class: modules::observability::adapters::FileLogger
+      config:
+        file_path: app.log
+        save_interval_ms: 5000
 ```
 
 ## Configuration
@@ -40,12 +41,12 @@ modules::observability::LoggingModule
 
 ### modules::observability::adapters::RedisLogger
 
-Uses Redis to store logs 
+Uses Redis to store logs
 
 ```yaml
-  class: modules::observability::adapters::RedisLogger
-  config:
-    redis_url: ${REDIS_URL:redis://localhost:6379}
+class: modules::observability::adapters::RedisLogger
+config:
+  redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
 #### Configuration
@@ -54,16 +55,15 @@ Uses Redis to store logs
   The URL of the Redis instance to use.
 </ResponseField>
 
-
 ### modules::observability::adapters::FileLogger
 
 Uses builtin file logger for store logs
 
 ```yaml
-  class: modules::observability::adapters::FileLogger
-  config:
-    file_path: app.log
-    save_interval_ms: 5000
+class: modules::observability::adapters::FileLogger
+config:
+  file_path: app.log
+  save_interval_ms: 5000
 ```
 
 #### Configuration
@@ -73,8 +73,7 @@ Uses builtin file logger for store logs
 </ResponseField>
 
 <ResponseField name="save_interval_ms" type="string">
-  Interval to store logs. Important, this will only be called if
-  there is additional logs pending to save.
+  Interval to store logs. Important, this will only be called if there is additional logs pending to save.
 </ResponseField>
 
 ## Trigger Type
@@ -83,7 +82,8 @@ This Module adds a new Trigger Type: `log`.
 
 <Expandable title="Trigger Config">
   <ResponseField name="level" type="string">
-    The log level to subscribe to. Options: `info`, `warn`, `error`, `debug`. When not specified, receives all log levels.
+    The log level to subscribe to. Options: `info`, `warn`, `error`, `debug`. When not specified, receives all log
+    levels.
   </ResponseField>
 </Expandable>
 
@@ -94,10 +94,10 @@ This Module adds a new Trigger Type: `log`.
 bridge.registerFunction({
   function_path: 'monitoring.onError',
   handler: async (logEntry) => {
-    console.log('Error logged:', logEntry);
+    console.log('Error logged:', logEntry)
     // Send alert, store in database, etc.
   },
-});
+})
 
 // Subscribe to error logs
 bridge.registerTrigger({
@@ -106,7 +106,7 @@ bridge.registerTrigger({
   config: {
     level: 'error',
   },
-});
+})
 ```
 
 ## Log Entry Structure

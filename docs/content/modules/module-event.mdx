@@ -1,8 +1,9 @@
 ---
-title: "Event Module"
+title: 'Event'
+description: 'Event bus for pub/sub messaging.'
 ---
 
-Redis-backed event bus for publish-subscribe messaging patterns.
+An event bus for publish-subscribe messaging patterns.
 
 ```
 modules::event::EventModule
@@ -11,12 +12,12 @@ modules::event::EventModule
 ## Sample Configuration
 
 ```yaml
-  - class: modules::event::EventModule
-    config:
-      adapter:
-        class: modules::event::adapters::RedisAdapter
-        config:
-          redis_url: ${REDIS_URL:redis://localhost:6379}
+- class: modules::event::EventModule
+  config:
+    adapter:
+      class: modules::event::adapters::RedisAdapter
+      config:
+        redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
 ## Configuration
@@ -32,9 +33,9 @@ modules::event::EventModule
 Uses Redis Pub/Sub to handle event distribution across workers. This adapter ensures reliable message delivery in distributed environments.
 
 ```yaml
-  class: modules::event::adapters::RedisAdapter
-  config:
-    redis_url: ${REDIS_URL:redis://localhost:6379}
+class: modules::event::adapters::RedisAdapter
+config:
+  redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
 #### Configuration
@@ -82,10 +83,10 @@ This Module adds a new Trigger Type: `event`.
 bridge.registerFunction({
   function_path: 'events.onUserCreated',
   handler: async (data) => {
-    console.log('User created:', data);
+    console.log('User created:', data)
     // Process the event
   },
-});
+})
 
 // Subscribe to the 'user.created' topic
 bridge.registerTrigger({
@@ -94,7 +95,7 @@ bridge.registerTrigger({
   config: {
     subscribes: ['user.created'],
   },
-});
+})
 
 // Emit an event
 await bridge.invokeFunction({
@@ -103,7 +104,7 @@ await bridge.invokeFunction({
     topic: 'user.created',
     data: { id: '123', email: 'user@example.com' },
   },
-});
+})
 ```
 
 ## Event Flow

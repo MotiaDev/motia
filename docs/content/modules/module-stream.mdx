@@ -1,5 +1,6 @@
 ---
-title: "Streams Module"
+title: 'Streams'
+description: 'Build durable streams for real-time data subscriptions.'
 ---
 
 Durable streams for real-time data subscriptions.
@@ -11,15 +12,15 @@ modules::streams::StreamModule
 ## Sample Configuration
 
 ```yaml
-  - class: modules::streams::StreamModule
-    config:
-      port: ${STREAMS_PORT:31112}
-      host: 0.0.0.0
-      auth_function: motia.streams.authenticate
-      adapter:
-        class: modules::streams::adapters::RedisAdapter
-        config:
-          redis_url: ${REDIS_URL:redis://localhost:6379}
+- class: modules::streams::StreamModule
+  config:
+    port: ${STREAMS_PORT:31112}
+    host: 0.0.0.0
+    auth_function: motia.streams.authenticate
+    adapter:
+      class: modules::streams::adapters::RedisAdapter
+      config:
+        redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
 ## Configuration
@@ -33,13 +34,13 @@ modules::streams::StreamModule
 </ResponseField>
 
 <ResponseField name="auth_function" type="string">
-  The authentication function to use. It's a path to a function that will be used to authenticate the client.
-  You can register the function using the iii SDK and then use the path to the function here.
+  The authentication function to use. It's a path to a function that will be used to authenticate the client. You can
+  register the function using the iii SDK and then use the path to the function here.
 </ResponseField>
 
 <ResponseField name="adapter" type="Adapter">
-  The adapter to use. It's the adapter that will be used to store the streams.
-  You can register the adapter using the iii SDK and then use the path to the adapter here.
+  The adapter to use. It's the adapter that will be used to store the streams. You can register the adapter using the
+  iii SDK and then use the path to the adapter here.
 </ResponseField>
 
 ## Adapters
@@ -50,9 +51,9 @@ Uses Redis as the backend for the streams. This will use the key/value store to 
 Redis Pub/Sub to publish and subscribe to the streams.
 
 ```yaml
-  class: modules::streams::adapters::RedisAdapter
-  config:
-    redis_url: ${REDIS_URL:redis://localhost:6379}
+class: modules::streams::adapters::RedisAdapter
+config:
+  redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
 #### Configuration
@@ -67,23 +68,20 @@ Uses Redis as the backend for the streams. This will use the key/value store to 
 Redis Pub/Sub to publish and subscribe to the streams.
 
 ```yaml
-  class: modules::streams::adapters::KvStore
-  config:
-    store_method: file_based 
-    file_path: ./data/streams_store.db
+class: modules::streams::adapters::KvStore
+config:
+  store_method: file_based
+  file_path: ./data/streams_store.db
 ```
 
 #### Configuration
 
 <ResponseField name="store_method" type="string">
-    This will discribe what store_method you want, the options are:
-    - in_memory
-    - file_based
+  This will discribe what store_method you want, the options are: - in_memory - file_based
 </ResponseField>
 
 <ResponseField name="file_path" type="string">
-  if you choose file_base method of storage, we can provide the file with path
-  where you want to save and read it.
+  if you choose file_base method of storage, we can provide the file with path where you want to save and read it.
 </ResponseField>
 ## Functions
 
@@ -116,27 +114,28 @@ Redis Pub/Sub to publish and subscribe to the streams.
 <ResponseField name="streams.get" type="function">
   Gets a value from the stream.
 
-  <AccordionGroup>
-    <Accordion title="Parameters">
-      <ResponseField name="stream_name" type="string" required>
-        The ID of the stream to retrieve the value from.
-      </ResponseField>
-      <ResponseField name="group_id" type="string" required>
-        The group ID in the stream to retrieve the value from.
-      </ResponseField>
-      <ResponseField name="item_id" type="string" required>
-        The item ID in the stream to retrieve.
-      </ResponseField>
-    </Accordion>
-    <Accordion title="Returns">
-      <ResponseField name="value" type="any" required>
-        The value retrieved from the stream.
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
+{' '}
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ResponseField name="stream_name" type="string" required>
+      The ID of the stream to retrieve the value from.
+    </ResponseField>
+    <ResponseField name="group_id" type="string" required>
+      The group ID in the stream to retrieve the value from.
+    </ResponseField>
+    <ResponseField name="item_id" type="string" required>
+      The item ID in the stream to retrieve.
+    </ResponseField>
+  </Accordion>
+  <Accordion title="Returns">
+    <ResponseField name="value" type="any" required>
+      The value retrieved from the stream.
+    </ResponseField>
+  </Accordion>
+</AccordionGroup>
 
 </ResponseField>
-
 
 <ResponseField name="streams.delete" type="function">
   Deletes a value from the stream.
@@ -162,9 +161,7 @@ Redis Pub/Sub to publish and subscribe to the streams.
 </ResponseField>
 
 <ResponseField name="streams.getGroup" type="function">
-  Retrieves a group from the stream.
-  This function will return all the items in the group.
-  
+  Retrieves a group from the stream. This function will return all the items in the group.
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
       <ResponseField name="stream_name" type="string" required>
@@ -205,7 +202,7 @@ It's possible to implement a function to handle authentication.
 
 ```typescript
 function onAuth(input: StreamAuthInput) {
-  console.log('Authenticated request', input);
+  console.log('Authenticated request', input)
 
   return {
     context: { name: 'John Doe' },
@@ -221,9 +218,9 @@ bridge.registerFunction({
 2. Make sure you add the function to the configuration file.
 
 ```yaml
-  - class: modules::streams::StreamModule
-    config:
-      auth_function: onAuth # Same name as the function you registered
+- class: modules::streams::StreamModule
+  config:
+    auth_function: onAuth # Same name as the function you registered
 ```
 
 3. Now whenever someone opens a websocket connection, the function `onAuth` will be called with the request data.
@@ -249,20 +246,19 @@ Both have the same parameters when invoked.
   The context generated by the authentication layer.
 </ResponseField>
 
-
 ### Sample Code
 
 ```typescript
 type JoinInput<TContext = object> = {
-  subscription_id: string;
-  stream_name: string;
-  group_id: string;
-  id: string;
-  context: TContext;
+  subscription_id: string
+  stream_name: string
+  group_id: string
+  id: string
+  context: TContext
 }
 
 function onJoin(input: JoinInput<any>) {
-  console.log('Joined stream', input);
+  console.log('Joined stream', input)
 }
 
 bridge.registerFunction({

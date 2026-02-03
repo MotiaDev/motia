@@ -8,11 +8,11 @@ Trigger Types define different ways to invoke functions in the iii Engine.
 
 A Trigger Type is a mechanism that can initiate function execution. The iii Engine supports multiple trigger types, each serving different use cases:
 
-- **[API](/core-modules-list/module-rest-api)**: HTTP requests
-- **[Event](/core-modules-list/module-event)**: Published events on topics
-- **[Cron](/core-modules-list/module-cron)**: Scheduled time-based execution
-- **[Log](/core-modules-list/module-logging)**: System log events
-- **[Streams](/core-modules-list/module-stream)**: Stream connection lifecycle (join/leave)
+- **[API](/modules/module-rest-api)**: HTTP requests
+- **[Event](/modules/module-event)**: Published events on topics
+- **[Cron](/modules/module-cron)**: Scheduled time-based execution
+- **[Log](/modules/module-logging)**: System log events
+- **[Streams](/modules/module-stream)**: Stream connection lifecycle (join/leave)
 
 ```mermaid
 graph LR
@@ -31,7 +31,7 @@ graph LR
 
 Executes functions in response to HTTP requests.
 
-**Provided by**: [REST API Module](/core-modules-list/module-rest-api)
+**Provided by**: [REST API Module](/modules/module-rest-api)
 
 **Configuration:**
 
@@ -49,7 +49,7 @@ Executes functions in response to HTTP requests.
 
 **Output**: `ApiResponse` with status, body, headers
 
-<Card icon={<Globe />} title="REST API Module" href="/core-modules-list/module-rest-api">
+<Card icon={<Globe />} title="REST API Module" href="/modules/module-rest-api">
   Learn more about the API trigger
 </Card>
 
@@ -59,7 +59,7 @@ Executes functions in response to HTTP requests.
 
 Executes functions when events are published to subscribed topics.
 
-**Provided by**: [Event Module](/core-modules-list/module-event)
+**Provided by**: [Event Module](/modules/module-event)
 
 **Configuration:**
 
@@ -76,7 +76,7 @@ Executes functions when events are published to subscribed topics.
 
 **Output**: Function result (optional, fire-and-forget pattern supported)
 
-<Card icon={<Zap />} title="Event Module" href="/core-modules-list/module-event">
+<Card icon={<Zap />} title="Event Module" href="/modules/module-event">
   Learn more about the Event trigger
 </Card>
 
@@ -86,7 +86,7 @@ Executes functions when events are published to subscribed topics.
 
 Executes functions on a time-based schedule using cron expressions.
 
-**Provided by**: [Cron Module](/core-modules-list/module-cron)
+**Provided by**: [Cron Module](/modules/module-cron)
 
 **Configuration:**
 
@@ -103,7 +103,7 @@ Executes functions on a time-based schedule using cron expressions.
 
 **Output**: Function result
 
-<Card icon={<Clock />} title="Cron Module" href="/core-modules-list/module-cron">
+<Card icon={<Clock />} title="Cron Module" href="/modules/module-cron">
   Learn more about the Cron trigger
 </Card>
 
@@ -113,7 +113,7 @@ Executes functions on a time-based schedule using cron expressions.
 
 Executes functions when log entries match specified criteria.
 
-**Provided by**: [Logging Module](/core-modules-list/module-logging)
+**Provided by**: [Logging Module](/modules/module-logging)
 
 **Configuration:**
 
@@ -130,7 +130,7 @@ Executes functions when log entries match specified criteria.
 
 **Output**: Function result (useful for alerting, metrics)
 
-<Card icon={<FileText />} title="Logging Module" href="/core-modules-list/module-logging">
+<Card icon={<FileText />} title="Logging Module" href="/modules/module-logging">
   Learn more about the Log trigger
 </Card>
 
@@ -140,7 +140,7 @@ Executes functions when log entries match specified criteria.
 
 Executes functions when clients connect to or disconnect from streams.
 
-**Provided by**: [Stream Module](/core-modules-list/module-stream)
+**Provided by**: [Stream Module](/modules/module-stream)
 
 **Configuration:**
 
@@ -162,7 +162,7 @@ Executes functions when clients connect to or disconnect from streams.
 
 **Output**: Function result (useful for access control, analytics)
 
-<Card icon={<Activity />} title="Stream Module" href="/core-modules-list/module-stream">
+<Card icon={<Activity />} title="Stream Module" href="/modules/module-stream">
   Learn more about Stream triggers
 </Card>
 

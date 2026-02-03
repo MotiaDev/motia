@@ -1,5 +1,6 @@
 ---
-title: "Bridge Module"
+title: 'Bridge'
+description: 'Connect to another iii instance'
 ---
 
 Connects this III Engine instance to another III instance over WebSocket so you can expose local functions and forward calls to remote functions.
@@ -11,27 +12,27 @@ modules::bridge_client::BridgeClientModule
 ## Sample Configuration
 
 ```yaml
-  - class: modules::bridge_client::BridgeClientModule
-    config:
-      url: ${REMOTE_III_URL:ws://127.0.0.1:49134}
-      service_id: bridge-client
-      service_name: bridge-client
-      expose:
-        - local_function: logger.info
-          remote_function: logger.info
+- class: modules::bridge_client::BridgeClientModule
+  config:
+    url: ${REMOTE_III_URL:ws://127.0.0.1:49134}
+    service_id: bridge-client
+    service_name: bridge-client
+    expose:
+      - local_function: logger.info
+        remote_function: logger.info
 
-      forward:
-        - local_function: remote.kv.get
-          remote_function: kv_server.get
-          timeout_ms: 5000
+    forward:
+      - local_function: remote.kv.get
+        remote_function: kv_server.get
+        timeout_ms: 5000
 
-        - local_function: remote.kv.set
-          remote_function: kv_server.set
-          timeout_ms: 5000
+      - local_function: remote.kv.set
+        remote_function: kv_server.set
+        timeout_ms: 5000
 
-        - local_function: remote.kv.delete
-          remote_function: kv_server.delete
-          timeout_ms: 5000
+      - local_function: remote.kv.delete
+        remote_function: kv_server.delete
+        timeout_ms: 5000
 ```
 
 ## Configuration

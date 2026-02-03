@@ -1,6 +1,5 @@
 ---
-title: '@iii-dev/motia'
-description: 'Build with Motia iii'
+title: 'Motia Framework'
 ---
 
 Motia is a high-level polyglot framework built on top of the iii SDK that provides type safety, declarative configuration, and structured workflows. Steps can be written in JavaScript, TypeScript, or Python.
@@ -36,9 +35,7 @@ yarn add @iii-dev/motia
 ### Python
 
 ```bash
-uv pip install iii-motia
-# or
-pip install iii-motia
+pip install motia
 ```
 
 ## Quick Start
@@ -52,23 +49,19 @@ Steps are the building blocks of Motia, and can be written in JavaScript, TypeSc
 **TypeScript Example** (`steps/hello.step.ts`):
 
 ```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
+import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
 import { z } from 'zod'
 
-export const config: StepConfig = {
+export const config: ApiRouteConfig = {
+  type: 'api',
   name: 'hello',
-  triggers: [
-    {
-      type: 'api',
-      path: '/hello/:name',
-      method: 'GET',
-      responseSchema: {
-        200: z.object({
-          message: z.string(),
-        }),
-      },
-    },
-  ],
+  path: '/hello/:name',
+  method: 'GET',
+  responseSchema: {
+    200: z.object({
+      message: z.string(),
+    }),
+  },
 }
 
 export const handler: Handlers<typeof config> = async (req, { logger }) => {
@@ -88,21 +81,29 @@ export const handler: Handlers<typeof config> = async (req, { logger }) => {
 **Python Example** (`steps/hello.step.py`):
 
 ```python
-from motia import ApiRequest, ApiResponse, FlowContext, api
+from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, step_wrapper
 
-config = {
-    "name": "hello",
-    "description": "Return a greeting",
-    "triggers": [api("GET", "/hello/:name")],
-    "emits": [],
-}
+# Define step configuration
+config = ApiRouteConfig(
+    type="api",
+    name="hello",
+    path="/hello/:name",
+    method="GET"
+)
 
+# Define handler
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
     name = req.path_params.get("name", "World")
 
     ctx.logger.info(f"Greeting {name}")
 
-    return ApiResponse(status=200, body={"message": f"Hello, {name}!"})
+    return ApiResponse(
+        status=200,
+        body={"message": f"Hello, {name}!"}
+    )
+
+# Register step
+step_wrapper(config, __file__, handler)
 ```
 
 ### 2. Run Your Application
@@ -111,10 +112,7 @@ async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
 # Start iii engine (in another terminal)
 iii
 
-# Run Motia (defaults to ./steps)
-motia run
-
-# Optional: specify directory
+# Run Motia
 motia run --dir steps
 ```
 
@@ -134,37 +132,33 @@ Handle HTTP requests with validation and type safety.
 ### TypeScript
 
 ```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
+import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
 import { z } from 'zod'
 
-export const config: StepConfig = {
+export const config: ApiRouteConfig = {
+  type: 'api',
   name: 'create-user',
-  triggers: [
-    {
-      type: 'api',
-      path: '/users',
-      method: 'POST',
-      bodySchema: z.object({
-        name: z.string(),
-        email: z.string().email(),
-      }),
-      responseSchema: {
-        201: z.object({
-          id: z.string(),
-          name: z.string(),
-          email: z.string(),
-        }),
-      },
-    },
-  ],
-  emits: ['user.created'],
+  path: '/users',
+  method: 'POST',
+  bodySchema: z.object({
+    name: z.string(),
+    email: z.string().email(),
+  }),
+  responseSchema: {
+    201: z.object({
+      id: z.string(),
+      name: z.string(),
+      email: z.string(),
+    }),
+  },
+  emits: ['user-created'],
 }
 
 export const handler: Handlers<typeof config> = async (req, { emit, logger }) => {
   const user = await createUser(req.body)
 
   // Emit event
-  await emit({ topic: 'user.created', data: user })
+  await emit({ topic: 'user-created', data: user })
 
   logger.info('User created', { userId: user.id })
 
@@ -175,25 +169,21 @@ export const handler: Handlers<typeof config> = async (req, { emit, logger }) =>
 ### Python
 
 ```python
-from motia import StepConfig, ApiTrigger, ApiRequest, ApiResponse, FlowContext, step_wrapper
+from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, step_wrapper
 
-config = StepConfig(
+config = ApiRouteConfig(
+    type="api",
     name="create-user",
-    triggers=[
-        ApiTrigger(
-            path="/users",
-            method="POST",
-            body_schema={
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "email": {"type": "string", "format": "email"}
-                },
-                "required": ["name", "email"]
-            }
-        )
-    ],
-    emits=["user.created"]
+    path="/users",
+    method="POST",
+    body_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"}
+        },
+        "required": ["name", "email"]
+    }
 )
 
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
@@ -214,22 +204,18 @@ React to events from the event bus.
 ### TypeScript
 
 ```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
+import type { EventConfig, Handlers } from '@iii-dev/motia'
 import { z } from 'zod'
 
-export const config: StepConfig = {
+export const config: EventConfig = {
+  type: 'event',
   name: 'send-welcome-email',
-  triggers: [
-    {
-      type: 'event',
-      subscribes: ['user.created'],
-      input: z.object({
-        id: z.string(),
-        name: z.string(),
-        email: z.string(),
-      }),
-    },
-  ],
+  subscribes: ['user-created'],
+  input: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+  }),
 }
 
 export const handler: Handlers<typeof config> = async (data, { logger }) => {
@@ -241,13 +227,12 @@ export const handler: Handlers<typeof config> = async (data, { logger }) => {
 ### Python
 
 ```python
-from motia import StepConfig, EventTrigger, FlowContext, step_wrapper
+from motia import EventConfig, FlowContext, step_wrapper
 
-config = StepConfig(
+config = EventConfig(
+    type="event",
     name="send-welcome-email",
-    triggers=[
-        EventTrigger(subscribes=["user.created"])
-    ]
+    subscribes=["user.created"]
 )
 
 async def handler(data, ctx: FlowContext):
@@ -264,22 +249,18 @@ Run tasks on a schedule using cron expressions.
 ### TypeScript
 
 ```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
+import type { CronConfig, Handlers } from '@iii-dev/motia'
 
-export const config: StepConfig = {
+export const config: CronConfig = {
+  type: 'cron',
   name: 'daily-report',
-  triggers: [
-    {
-      type: 'cron',
-      cron: '0 9 * * *', // Every day at 9 AM
-    },
-  ],
-  emits: ['report.generated'],
+  cron: '0 9 * * *', // Every day at 9 AM
+  emits: ['report-generated'],
 }
 
-export const handler: Handlers<typeof config> = async (data, { emit, logger }) => {
+export const handler: Handlers<typeof config> = async ({ emit, logger }) => {
   const report = await generateDailyReport()
-  await emit({ topic: 'report.generated', data: report })
+  await emit({ topic: 'report-generated', data: report })
   logger.info('Daily report generated')
 }
 ```
@@ -287,13 +268,12 @@ export const handler: Handlers<typeof config> = async (data, { emit, logger }) =
 ### Python
 
 ```python
-from motia import StepConfig, CronTrigger, FlowContext, step_wrapper
+from motia import CronConfig, FlowContext, step_wrapper
 
-config = StepConfig(
+config = CronConfig(
+    type="cron",
     name="daily-report",
-    triggers=[
-        CronTrigger(cron="0 9 * * *")  # Every day at 9 AM
-    ],
+    cron="0 9 * * *",  # Every day at 9 AM
     emits=["report.generated"]
 )
 
@@ -304,198 +284,6 @@ async def handler(data, ctx: FlowContext):
 
 step_wrapper(config, __file__, handler)
 ```
-
-## Multiple Triggers
-
-A single step can respond to multiple trigger types, allowing one handler to process requests from different sources.
-
-### TypeScript
-
-```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
-import { z } from 'zod'
-
-export const config: StepConfig = {
-  name: 'process-order',
-  triggers: [
-    {
-      type: 'api',
-      path: '/orders/manual',
-      method: 'POST',
-    },
-    {
-      type: 'event',
-      subscribes: ['order.created'],
-    },
-  ],
-  emits: ['order.processed'],
-}
-
-export const handler: Handlers<typeof config> = async (input, { trigger, logger, emit }) => {
-  let orderData
-
-  if (trigger.type === 'api') {
-    logger.info('Order received via API')
-    orderData = input.body
-  } else if (trigger.type === 'event') {
-    logger.info('Order received via event')
-    orderData = input
-  }
-
-  await processOrder(orderData)
-  await emit({ topic: 'order.processed', data: orderData })
-
-  if (trigger.type === 'api') {
-    return { status: 200, body: { success: true } }
-  }
-}
-```
-
-### Python
-
-```python
-from motia import StepConfig, ApiTrigger, EventTrigger, ApiRequest, ApiResponse, FlowContext, step_wrapper
-
-config = StepConfig(
-    name="process-order",
-    triggers=[
-        ApiTrigger(path="/orders/manual", method="POST"),
-        EventTrigger(subscribes=["order.created"])
-    ],
-    emits=["order.processed"]
-)
-
-async def handler(input, ctx: FlowContext):
-    if ctx.trigger.type == "api":
-        ctx.logger.info("Order received via API")
-        order_data = input.body
-    elif ctx.trigger.type == "event":
-        ctx.logger.info("Order received via event")
-        order_data = input
-
-    await process_order(order_data)
-    await ctx.emit("order.processed", order_data)
-
-    if ctx.trigger.type == "api":
-        return ApiResponse(status=200, body={"success": True})
-
-step_wrapper(config, __file__, handler)
-```
-
-**Trigger Metadata**: Access `trigger.type`, `trigger.index`, and type-specific fields like `trigger.path`, `trigger.method`, or `trigger.topic` to determine which trigger invoked the handler.
-
-## Trigger Conditions
-
-Conditions allow you to filter trigger executions based on input data. Conditions are evaluated before the handler runs, and if they return `false`, the handler is skipped.
-
-### TypeScript
-
-```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
-import { z } from 'zod'
-
-const isHighValue = (input: any, { trigger }: any) => {
-  const amount = input?.body?.amount || input?.amount || 0
-  return amount > 1000
-}
-
-export const config: StepConfig = {
-  name: 'process-payment',
-  triggers: [
-    {
-      type: 'api',
-      path: '/payments',
-      method: 'POST',
-      condition: isHighValue,
-      bodySchema: z.object({
-        amount: z.number(),
-        currency: z.string(),
-      }),
-    },
-  ],
-}
-
-export const handler: Handlers<typeof config> = async (req, { logger }) => {
-  logger.info(`Processing high-value payment: ${req.body.amount}`)
-  await processPayment(req.body)
-  return { status: 200, body: { processed: true } }
-}
-```
-
-### Python
-
-```python
-from motia import StepConfig, EventTrigger, FlowContext, step_wrapper
-
-def is_high_value(input, ctx: FlowContext) -> bool:
-    amount = input.get("amount", 0) if isinstance(input, dict) else 0
-    return amount > 1000
-
-config = StepConfig(
-    name="process-high-value-order",
-    triggers=[
-        EventTrigger(
-            subscribes=["order.created"],
-            condition=is_high_value
-        )
-    ]
-)
-
-async def handler(data, ctx: FlowContext):
-    ctx.logger.info(f"Processing high-value order: {data['amount']}")
-    await process_order(data)
-
-step_wrapper(config, __file__, handler)
-```
-
-### Conditions with Multiple Triggers
-
-Each trigger in a multi-trigger step can have its own condition:
-
-```python
-from motia import StepConfig, ApiTrigger, EventTrigger, FlowContext, step_wrapper
-
-def is_verified_user(input, ctx: FlowContext) -> bool:
-    if ctx.trigger.type == "api":
-        return input.headers.get("x-verified") == "true"
-    return True
-
-def is_high_value(input, ctx: FlowContext) -> bool:
-    amount = input.get("amount", 0) if isinstance(input, dict) else 0
-    return amount > 1000
-
-config = StepConfig(
-    name="process-order",
-    triggers=[
-        ApiTrigger(
-            path="/orders/manual",
-            method="POST",
-            condition=is_verified_user
-        ),
-        EventTrigger(
-            subscribes=["order.created"],
-            condition=is_high_value
-        )
-    ],
-    emits=["order.processed"]
-)
-
-async def handler(input, ctx: FlowContext):
-    ctx.logger.info(f"Processing order via {ctx.trigger.type}")
-    await process_order(input)
-    await ctx.emit("order.processed", input)
-
-step_wrapper(config, __file__, handler)
-```
-
-**How Conditions Work**:
-
-- Conditions receive the same input as the handler
-- They must return a boolean (`True` to execute, `False` to skip)
-- Conditions can be sync or async functions
-- If a condition returns `False`, the handler is never invoked
-
-> **Learn More**: For technical details on trigger indexing, TriggerInput normalization, and condition evaluation flow, see [SDK Implementation](/advanced/sdk-implementation#multi-trigger-architecture).
 
 ## Flow Context
 
@@ -509,7 +297,7 @@ Every handler receives a `FlowContext` with runtime utilities:
 **TypeScript:**
 
 ```typescript
-await emit({ topic: 'topic.name', data: { key: 'value' } })
+await emit({ topic: 'topic-name', data: { key: 'value' } })
 ```
 
 **Python:**
@@ -517,32 +305,6 @@ await emit({ topic: 'topic.name', data: { key: 'value' } })
 ```python
 await ctx.emit("topic.name", {"key": "value"})
 ```
-
-</ResponseField>
-
-<ResponseField name="trigger" type="TriggerMetadata">
-  Metadata about which trigger invoked the handler. Useful for multi-trigger steps.
-
-**TypeScript:**
-
-```typescript
-if (trigger.type === 'api') {
-  console.log(`API ${trigger.method} ${trigger.path}`)
-} else if (trigger.type === 'event') {
-  console.log(`Event ${trigger.topic}`)
-}
-```
-
-**Python:**
-
-```python
-if ctx.trigger.type == "api":
-  ctx.logger.info(f"API {ctx.trigger.method} {ctx.trigger.path}")
-elif ctx.trigger.type == "event":
-  ctx.logger.info(f"Event {ctx.trigger.topic}")
-```
-
-**Fields**: `type` (api/event/cron), `index` (trigger position), plus type-specific fields like `path`, `method`, `topic`, or `expression`.
 
 </ResponseField>
 
@@ -681,7 +443,7 @@ async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
 Add middleware for authentication, logging, or validation:
 
 ```python
-from motia import StepConfig, ApiTrigger, ApiRequest, ApiResponse, FlowContext, step_wrapper
+from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, step_wrapper
 
 # Define middleware
 async def auth_middleware(req: ApiRequest, ctx: FlowContext, next_handler):
@@ -702,15 +464,12 @@ async def auth_middleware(req: ApiRequest, ctx: FlowContext, next_handler):
     return await next_handler(req, ctx)
 
 # Use middleware in step
-config = StepConfig(
+config = ApiRouteConfig(
+    type="api",
     name="protected-route",
-    triggers=[
-        ApiTrigger(
-            path="/protected",
-            method="GET",
-            middleware=[auth_middleware]  # Add middleware
-        )
-    ]
+    path="/protected",
+    method="GET",
+    middleware=[auth_middleware]  # Add middleware
 )
 
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
@@ -728,13 +487,12 @@ step_wrapper(config, __file__, handler)
 Define compute resources and queue behavior for your steps:
 
 ```python
-from motia import StepConfig, EventTrigger, InfrastructureConfig, HandlerConfig, QueueConfig, FlowContext, step_wrapper
+from motia import EventConfig, InfrastructureConfig, HandlerConfig, QueueConfig, step_wrapper
 
-config = StepConfig(
+config = EventConfig(
+    type="event",
     name="heavy-processing",
-    triggers=[
-        EventTrigger(subscribes=["data.uploaded"])
-    ],
+    subscribes=["data.uploaded"],
     infrastructure=InfrastructureConfig(
         handler=HandlerConfig(
             ram=512,      # 512 MB memory
@@ -742,13 +500,10 @@ config = StepConfig(
             timeout=300   # 5 minute timeout
         ),
         queue=QueueConfig(
-            type="fifo",                  # FIFO queue (or "standard")
-            max_retries=5,                # Retry 5 times on failure
-            concurrency=10,               # Process 10 messages concurrently
-            backoff_type="exponential",   # "fixed" or "exponential" retry backoff
-            backoff_delay_ms=1000,        # Initial backoff delay (1 second)
-            visibility_timeout=60,        # 1 minute visibility timeout
-            delay_seconds=10              # 10 second initial delay
+            type="fifo",            # FIFO queue
+            max_retries=5,          # Retry 5 times
+            visibility_timeout=60,  # 1 minute visibility
+            delay_seconds=10        # 10 second delay
         )
     )
 )
@@ -759,14 +514,6 @@ async def handler(data, ctx: FlowContext):
 
 step_wrapper(config, __file__, handler)
 ```
-
-**Queue Configuration Notes**:
-
-- Queue configuration applies to **event triggers only** (not API or Cron)
-- Settings are **per-subscription**, meaning each event topic can have different queue behavior
-- `backoff_type`: Controls retry delay strategy - `"fixed"` for constant delays or `"exponential"` for increasing delays
-- `concurrency`: Maximum number of messages processed simultaneously for this subscription
-- Queue settings override adapter defaults when specified
 
 ## CLI Commands
 
@@ -836,8 +583,7 @@ my-app/
 │   └── cron/
 │       └── cleanup.step.py
 ├── config.yaml          # Engine configuration
-├── pyproject.toml
-└── uv.lock
+└── requirements.txt
 ```
 
 ## Complete Example: Todo API
@@ -849,7 +595,7 @@ This example shows a simple Todo API with create, list, and notification functio
 **steps/create_todo.step.ts**
 
 ```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
+import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
 import { z } from 'zod'
 
 const todoSchema = z.object({
@@ -858,22 +604,18 @@ const todoSchema = z.object({
   completed: z.boolean(),
 })
 
-export const config: StepConfig = {
+export const config: ApiRouteConfig = {
+  type: 'api',
   name: 'create-todo',
-  triggers: [
-    {
-      type: 'api',
-      path: '/todos',
-      method: 'POST',
-      bodySchema: z.object({
-        title: z.string(),
-      }),
-      responseSchema: {
-        201: todoSchema,
-      },
-    },
-  ],
-  emits: ['todo.created'],
+  path: '/todos',
+  method: 'POST',
+  bodySchema: z.object({
+    title: z.string(),
+  }),
+  responseSchema: {
+    201: todoSchema,
+  },
+  emits: ['todo-created'],
 }
 
 export const handler: Handlers<typeof config> = async (req, { streams, emit, logger }) => {
@@ -886,7 +628,7 @@ export const handler: Handlers<typeof config> = async (req, { streams, emit, log
   }
 
   await streams.todos.set('default', todoId, todo)
-  await emit({ topic: 'todo.created', data: todo })
+  await emit({ topic: 'todo-created', data: todo })
 
   logger.info('Created todo', { todoId })
 
@@ -897,27 +639,23 @@ export const handler: Handlers<typeof config> = async (req, { streams, emit, log
 **steps/list_todos.step.ts**
 
 ```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
+import type { ApiRouteConfig, Handlers } from '@iii-dev/motia'
 import { z } from 'zod'
 
-export const config: StepConfig = {
+export const config: ApiRouteConfig = {
+  type: 'api',
   name: 'list-todos',
-  triggers: [
-    {
-      type: 'api',
-      path: '/todos',
-      method: 'GET',
-      responseSchema: {
-        200: z.array(
-          z.object({
-            id: z.string(),
-            title: z.string(),
-            completed: z.boolean(),
-          }),
-        ),
-      },
-    },
-  ],
+  path: '/todos',
+  method: 'GET',
+  responseSchema: {
+    200: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        completed: z.boolean(),
+      }),
+    ),
+  },
 }
 
 export const handler: Handlers<typeof config> = async (req, { streams }) => {
@@ -929,22 +667,18 @@ export const handler: Handlers<typeof config> = async (req, { streams }) => {
 **steps/notify_todo.step.ts**
 
 ```typescript
-import type { StepConfig, Handlers } from '@iii-dev/motia'
+import type { EventConfig, Handlers } from '@iii-dev/motia'
 import { z } from 'zod'
 
-export const config: StepConfig = {
+export const config: EventConfig = {
+  type: 'event',
   name: 'notify-todo-created',
-  triggers: [
-    {
-      type: 'event',
-      subscribes: ['todo.created'],
-      input: z.object({
-        id: z.string(),
-        title: z.string(),
-        completed: z.boolean(),
-      }),
-    },
-  ],
+  subscribes: ['todo-created'],
+  input: z.object({
+    id: z.string(),
+    title: z.string(),
+    completed: z.boolean(),
+  }),
 }
 
 export const handler: Handlers<typeof config> = async (data, { logger }) => {
@@ -958,16 +692,15 @@ export const handler: Handlers<typeof config> = async (data, { logger }) => {
 **steps/create_todo.step.py**
 
 ```python
-from motia import StepConfig, ApiTrigger, ApiRequest, ApiResponse, FlowContext, Stream, step_wrapper
+from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, Stream, step_wrapper
 
 todo_stream = Stream("todos")
 
-config = StepConfig(
+config = ApiRouteConfig(
+    type="api",
     name="create-todo",
-    triggers=[
-        ApiTrigger(path="/todos", method="POST")
-    ],
-    emits=["todo.created"]
+    path="/todos",
+    method="POST"
 )
 
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
@@ -993,15 +726,15 @@ step_wrapper(config, __file__, handler)
 **steps/list_todos.step.py**
 
 ```python
-from motia import StepConfig, ApiTrigger, ApiRequest, ApiResponse, FlowContext, Stream, step_wrapper
+from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, Stream, step_wrapper
 
 todo_stream = Stream("todos")
 
-config = StepConfig(
+config = ApiRouteConfig(
+    type="api",
     name="list-todos",
-    triggers=[
-        ApiTrigger(path="/todos", method="GET")
-    ]
+    path="/todos",
+    method="GET"
 )
 
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
@@ -1014,13 +747,12 @@ step_wrapper(config, __file__, handler)
 **steps/notify_todo.step.py**
 
 ```python
-from motia import StepConfig, EventTrigger, FlowContext, step_wrapper
+from motia import EventConfig, FlowContext, step_wrapper
 
-config = StepConfig(
+config = EventConfig(
+    type="event",
     name="notify-todo-created",
-    triggers=[
-        EventTrigger(subscribes=["todo.created"])
-    ]
+    subscribes=["todo.created"]
 )
 
 async def handler(data, ctx: FlowContext):
@@ -1102,7 +834,7 @@ step_wrapper(config, __file__, handler)
   <Card icon={<Code />} title="Base SDK" href="/quickstart/iii-sdk">
     Learn about the low-level iii SDK
   </Card>
-  <Card icon={<Activity />} title="Streams" href="/core-modules-list/module-stream">
+  <Card icon={<Activity />} title="Streams" href="/modules/module-stream">
     Deep dive into state management
   </Card>
 </Columns>
