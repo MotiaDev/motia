@@ -6,7 +6,7 @@ export const config = {
   triggers: [
     {
       type: 'cron',
-      expression: '0 */1 * * *',
+      expression: '* 1 * * * * *',
     },
   ],
   emits: ['periodic-job-handled'],
