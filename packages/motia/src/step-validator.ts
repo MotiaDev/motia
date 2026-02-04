@@ -80,7 +80,28 @@ const cronTriggerSchema = z
   })
   .strict()
 
-const triggerSchema = z.discriminatedUnion('type', [eventTriggerSchema, apiTriggerSchema, cronTriggerSchema])
+const stateTriggerSchema = z
+  .object({
+    type: z.literal('state'),
+    condition: z.any().optional(),
+  })
+  .strict()
+
+const streamTriggerSchema = z
+  .object({
+    type: z.literal('stream'),
+    stream: z.string(),
+    condition: z.any().optional(),
+  })
+  .strict()
+
+const triggerSchema = z.discriminatedUnion('type', [
+  eventTriggerSchema,
+  apiTriggerSchema,
+  cronTriggerSchema,
+  stateTriggerSchema,
+  streamTriggerSchema,
+])
 
 const stepConfigSchema = z
   .object({

@@ -1,0 +1,71 @@
+import type { Handlers, StepConfig } from '@iii-dev/motia'
+import { z } from 'zod'
+import { randomNumber } from './utils'
+
+const bodySchema = z.object({
+  traceId: z
+    .string()
+    .optional()
+    .default(() => crypto.randomUUID()),
+  totalSteps: z.number().optional().default(3),
+  waitTime: z.boolean().optional().default(false),
+  waitTimeMin: z.number().optional().default(1_000),
+  waitTimeMax: z.number().optional().default(3_000),
+  useEmit: z.boolean().optional().default(true),
+})
+
+export const config = {
+  name: 'start-stream-parallel-merge',
+  description: 'Initiates a parallel merge workflow using streams, triggering multiple step processing events',
+  triggers: [
+    {
+      type: 'api',
+      method: 'POST',
+      path: '/api/stream-parallel-merge',
+      bodySchema,
+    },
+  ],
+  emits: ['spms.step.process'],
+  flows: ['stream-parallel-merge'],
+} as const satisfies StepConfig
+
+export const handler: Handlers<typeof config> = async (request, { logger, emit, streams }) => {
+  const body = bodySchema.parse(request.body ?? {})
+  const { traceId, totalSteps, waitTimeMin, waitTimeMax } = body
+
+  logger.info('Starting stream parallel merge', { body })
+
+  await streams.parallelMerge.set('merge-groups', traceId, {
+    totalSteps,
+    startedAt: Date.now(),
+    completedSteps: 0,
+  })
+
+  const waitTime = () => (body.waitTime ? randomNumber(waitTimeMin, waitTimeMax) : undefined)
+
+  if (body.useEmit) {
+    logger.info('Using emit to trigger step process')
+
+    await Promise.all(
+      Array.from({ length: body.totalSteps }, (_, stepIndex) =>
+        emit({
+          topic: 'spms.step.process',
+          data: { traceId, stepIndex, waitTime: waitTime() },
+        }),
+      ),
+    )
+  } else {
+    logger.info('Using stream updates to trigger step process')
+
+    await Promise.all(
+      Array.from({ length: totalSteps }, () =>
+        streams.parallelMerge.update('merge-groups', traceId, [{ type: 'increment', path: 'completedSteps', by: 1 }]),
+      ),
+    )
+  }
+
+  return {
+    status: 200,
+    body: { message: 'Started stream parallel merge', traceId },
+  }
+}

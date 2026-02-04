@@ -5,7 +5,7 @@ import type {
   StreamJoinLeaveEvent,
 } from '@iii-dev/sdk'
 import { getContext } from '@iii-dev/sdk'
-import { isApiTrigger, isCronTrigger, isEventTrigger, isStateTrigger } from '../../guards'
+import { isApiTrigger, isCronTrigger, isEventTrigger, isStateTrigger, isStreamTrigger } from '../../guards'
 import { Printer } from '../../printer'
 import type {
   ApiMiddleware,
@@ -14,6 +14,7 @@ import type {
   ExtractDataPayload,
   ExtractEventInput,
   ExtractStateInput,
+  ExtractStreamInput,
   FlowContext,
   MatchHandlers,
   ApiRequest as MotiaApiRequest,
@@ -92,6 +93,7 @@ const flowContext = <EmitData, TInput = unknown>(
       api: (inp: TInput): inp is ExtractApiInput<TInput> => trigger.type === 'api',
       cron: (inp: TInput): inp is never => trigger.type === 'cron',
       state: (inp: TInput): inp is ExtractStateInput<TInput> => trigger.type === 'state',
+      stream: (inp: TInput): inp is ExtractStreamInput<TInput> => trigger.type === 'stream',
     },
 
     getData: (): ExtractDataPayload<TInput> => {
@@ -113,6 +115,9 @@ const flowContext = <EmitData, TInput = unknown>(
       }
       if (trigger.type === 'state' && handlers.state) {
         return await handlers.state(input as ExtractStateInput<TInput>)
+      }
+      if (trigger.type === 'stream' && handlers.stream) {
+        return await handlers.stream(input as ExtractStreamInput<TInput>)
       }
       if (handlers.default) {
         return await handlers.default(input as TInput)
@@ -287,6 +292,44 @@ export class Motia {
 
         bridge.registerTrigger({
           trigger_type: 'state',
+          function_path,
+          config: triggerConfig,
+        })
+      } else if (isStreamTrigger(trigger)) {
+        bridge.registerFunction({ function_path, metadata }, async (req) => {
+          const triggerInfo: TriggerInfo = { type: 'stream', index }
+          const context = flowContext(this, triggerInfo)
+          return step.handler(req, context)
+        })
+
+        type StreamTriggerConfig = {
+          metadata: StepConfig
+          stream_name: string
+          group_id?: string
+          item_id?: string
+          condition_function_path?: string
+        }
+
+        const triggerConfig: StreamTriggerConfig = {
+          metadata,
+          stream_name: trigger.streamName,
+          group_id: trigger.groupId,
+          item_id: trigger.itemId,
+        }
+
+        if (trigger.condition) {
+          const conditionPath = `${function_path}.conditions:${index}`
+
+          bridge.registerFunction({ function_path: conditionPath }, async (input) => {
+            const triggerInfo: TriggerInfo = { type: 'stream', index }
+            return trigger.condition?.(input, flowContext(this, triggerInfo))
+          })
+
+          triggerConfig.condition_function_path = conditionPath
+        }
+
+        bridge.registerTrigger({
+          trigger_type: 'stream',
           function_path,
           config: triggerConfig,
         })
