@@ -1,5 +1,5 @@
 > [!IMPORTANT]
-> 🚀 **A brand new engine is coming to Motia that will supercharge its speed & stability.**
+> 🚀 **A brand new engine is coming to Motia that will supercharge its speed & scalability.**
 > 
 > **[📬 Signup to be the first to get notified when it's released](https://forms.gle/24iCHL9yAk1i6LDc6) → https://forms.gle/24iCHL9yAk1i6LDc6**
 >
