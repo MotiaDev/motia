@@ -2,7 +2,7 @@
 
 import 'dotenv/config'
 
-import { program } from 'commander'
+import { CommanderError, program } from 'commander'
 import { type CliContext, handler } from './cloud/config-utils'
 import './cloud/index'
 import { loadMotiaConfig } from './load-motia-config'
@@ -166,45 +166,58 @@ generate
     }),
   )
 
+const runGenerateOpenApi = async (options: any) => {
+  const { generateLockedData, getStepFiles, getStreamFiles } = await import('./generate-locked-data')
+  const { validatePythonEnvironment } = await import('./utils/validate-python-environment')
+  const { activatePythonVenv } = await import('./utils/activate-python-env')
+  const { generateOpenApi } = await import('./openapi/generate')
+  const { MemoryStreamAdapterManager } = await import('@motiadev/core')
+
+  const baseDir = process.cwd()
+  const appConfig = await loadMotiaConfig(baseDir)
+
+  const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
+  const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
+
+  const pythonValidation = await validatePythonEnvironment({ baseDir, hasPythonFiles })
+  if (!pythonValidation.success) {
+    process.exit(1)
+  }
+
+  if (hasPythonFiles) {
+    activatePythonVenv({ baseDir })
+  }
+
+  const lockedData = await generateLockedData({
+    projectDir: baseDir,
+    streamAdapter: new MemoryStreamAdapterManager(),
+    streamAuth: appConfig.streamAuth,
+    printerType: 'disabled',
+  })
+  const apiSteps = lockedData.apiSteps()
+
+  generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)
+  process.exit(0)
+}
+
 generate
   .command('openapi')
   .description('Generate OpenAPI spec for your project')
   .option('-t, --title <title>', 'Title for the OpenAPI document. Defaults to project name')
   .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
   .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
+  .action(wrapAction(runGenerateOpenApi))
+
+program
+  .command('generate-openapi')
+  .description('Generate OpenAPI spec for your project')
+  .option('-t, --title <title>', 'Title for the OpenAPI document. Defaults to project name')
+  .option('-v, --version <version>', 'Version for the OpenAPI document. Defaults to 1.0.0', '1.0.0')
+  .option('-o, --output <output>', 'Output file for the OpenAPI document. Defaults to openapi.json', 'openapi.json')
   .action(
     wrapAction(async (options: any) => {
-      const { generateLockedData, getStepFiles, getStreamFiles } = await import('./generate-locked-data')
-      const { validatePythonEnvironment } = await import('./utils/validate-python-environment')
-      const { activatePythonVenv } = await import('./utils/activate-python-env')
-      const { generateOpenApi } = await import('./openapi/generate')
-      const { MemoryStreamAdapterManager } = await import('@motiadev/core')
-
-      const baseDir = process.cwd()
-      const appConfig = await loadMotiaConfig(baseDir)
-
-      const stepFiles = [...getStepFiles(baseDir), ...getStreamFiles(baseDir)]
-      const hasPythonFiles = stepFiles.some((file) => file.endsWith('.py'))
-
-      const pythonValidation = await validatePythonEnvironment({ baseDir, hasPythonFiles })
-      if (!pythonValidation.success) {
-        process.exit(1)
-      }
-
-      if (hasPythonFiles) {
-        activatePythonVenv({ baseDir })
-      }
-
-      const lockedData = await generateLockedData({
-        projectDir: baseDir,
-        streamAdapter: new MemoryStreamAdapterManager(),
-        streamAuth: appConfig.streamAuth,
-        printerType: 'disabled',
-      })
-      const apiSteps = lockedData.apiSteps()
-
-      generateOpenApi(process.cwd(), apiSteps, options.title, options.version, options.output)
-      process.exit(0)
+      console.warn('⚠ [WARNING] `generate-openapi` is deprecated. Use `motia generate openapi` instead.')
+      await runGenerateOpenApi(options)
     }),
   )
 
@@ -248,6 +261,9 @@ docker
   )
 
 program.version(version, '-V, --version', 'Output the current version')
-program.parseAsync(process.argv).catch(() => {
+program.parseAsync(process.argv).catch((error: unknown) => {
+  if (!(error instanceof CommanderError)) {
+    console.error(error)
+  }
   process.exit(1)
 })
