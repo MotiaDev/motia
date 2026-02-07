@@ -7,16 +7,16 @@ description: The way to unify your backend and not think about it.
 
 The engine model creates a "Modular Monolith" that scales like microservices but removes their architectural complexity which makes your application feel and behave like a cohesive whole no matter where it is running.
 
-It creates this experience by transforming every backend operation into two core primitives: Triggers and Functions. These primitives are the mechanism by which most architectural complexity is removed.
+It creates this experience by transforming every backend operation into two core concepts: Call and Register. These concepts are the mechanism by which most architectural complexity is removed.
 
 <Callout title="The Paradigm Shift" type="info">
-  If React revolutionized the frontend with the Component and Context then iii intends to do the same on the backend
-  with Triggers and Functions.
+  React revolutionized the frontend with the Component and Context. Rust revolutionized systems programming with
+  Ownership and Borrowing. iii hopes to do the same on the backend with Call and Register.
 </Callout>
 
 ## Getting Started
 
-The best way to understand the implications of this model is to try it out:
+The best way to understand iii is to try it out:
 
 ### 1. Install iii
 
@@ -44,10 +44,10 @@ iii --config dev.yaml
 ## Next Steps
 
 <Cards>
-  <Card icon={<Terminal />} title="Deploy" href="https://iii.dev/cloud">
-    Get a free account on iii cloud.
+  <Card icon={<Terminal />} title="Start building" href={`/tutorials/quickstart`}>
+    Try the Quickstart Tutorial and start building right away.
   </Card>
-  <Card icon={<LayoutTemplate />} title="Learn More" href={`/concepts`}>
-    Learn how Triggers, Functions, and the Engine work together.
+  <Card icon={<LayoutTemplate />} title="Learn more" href={`/concepts`}>
+    Learn how Call and Register simplify backend application development.
   </Card>
 </Cards>

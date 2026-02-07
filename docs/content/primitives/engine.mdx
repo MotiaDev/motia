@@ -5,9 +5,9 @@ description: 'The Engine is primarily responsible for routing requests.'
 
 The Engine is primarily responsible for routing requests. When a trigger invokes a Function the Engine itself handles the routing and sends that message to a Worker that contains that Function.
 
-The iii Engine is the central orchestrator of a iii powered application. It knows where every part of your application lives and routes requests to those parts.
+The iii Engine is the central orchestrator of a iii system. It knows where every part of your infrastructure lives and routes requests to those parts.
 
-This architecture is what enables your application code to be decoupled from the architecture it runs on. iii is completely architecture agnostic and it makes no distinction between an cloud providers, colocated servers, serverless functions, domains, databases, and already existing architecture.
+This architecture is what enables application code to be decoupled from the infrastructure it runs on. iii is completely architecture agnostic and makes no distinction between cloud providers, colocated servers, serverless functions, domains, databases, and existing infrastructure.
 
 ```mermaid
 graph TB
@@ -29,6 +29,6 @@ Engine -->|"(create_user, payload)"| Worker
 ```
 
 <Callout title="Context" type="info">
-  In addition to orchestration the Engine also keeps track of the system's Context. This is what enables application
-  developers to have a shared context and access anything that the Engine has access to.
+  In addition to orchestration the Engine also keeps track of the system's Context. This enables a shared context where
+  any Function can access anything that the Engine has access to.
 </Callout>

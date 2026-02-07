@@ -1,4 +1,4 @@
 {
   "title": "Concepts",
-  "pages": ["triggers", "functions", "engine", "workers", "modules", "context"]
+  "pages": ["call", "register"]
 }

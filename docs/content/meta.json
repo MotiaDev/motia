@@ -1,4 +1,4 @@
 {
   "title": "iii",
-  "pages": ["index", "what-is-iii", "concepts", "tutorials", "modules", "using", "advanced", "api-reference"]
+  "pages": ["index", "tutorials", "concepts", "primitives", "modules", "using", "advanced", "api-reference"]
 }

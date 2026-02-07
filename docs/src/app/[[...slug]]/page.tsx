@@ -43,12 +43,18 @@ export default async function Page(props: {
   const markdown = await getLLMText(page);
   const isIndex = isIndexPage(params.slug);
 
+  const isRootIndex = !params.slug || params.slug.length === 0;
+
   return (
     <DocsPage
       toc={page.data.toc}
       full={page.data.full}
       tableOfContent={{ style: "clerk" }}
-      footer={{ enabled: !isIndex }}
+      footer={
+        isRootIndex
+          ? { items: { next: { name: 'Quickstart', url: '/tutorials/quickstart' } } }
+          : { enabled: !isIndex }
+      }
     >
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
