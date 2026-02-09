@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from 'motia'
 
 export const config = {
   name: 'HandlePeriodicJob',

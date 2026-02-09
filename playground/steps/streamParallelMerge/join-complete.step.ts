@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig, StreamTriggerInput } from '@iii-dev/motia'
+import type { Handlers, StepConfig, StreamTriggerInput } from 'motia'
 import type { ParallelMergeStreamItem } from './parallel-merge.stream'
 
 export const config = {

@@ -1,4 +1,4 @@
-import { api, queue, step } from '@iii-dev/motia'
+import { api, queue, step } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 

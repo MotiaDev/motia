@@ -1,4 +1,4 @@
-import { type Handlers, jsonSchema, type StepConfig } from '@iii-dev/motia'
+import { type Handlers, jsonSchema, type StepConfig } from 'motia'
 import { z } from 'zod'
 
 export const config = {

@@ -28,5 +28,5 @@ runs:
 
     - name: Build packages
       shell: bash
-      run: pnpm --filter=@iii-dev/motia build
+      run: pnpm --filter=motia build
 

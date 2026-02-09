@@ -100,5 +100,5 @@ jobs:
 
       - name: Publish packages with custom tag
         run: |
-          pnpm publish -r --filter @iii-dev/motia --no-git-checks --tag ${{ github.event.inputs.tag }}
+          pnpm publish -r --filter motia --no-git-checks --tag ${{ github.event.inputs.tag }}
 

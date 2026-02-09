@@ -1,4 +1,4 @@
-import { type Handlers, jsonSchema, type StepConfig } from '@iii-dev/motia'
+import { type Handlers, jsonSchema, type StepConfig } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from '../basic-tutorial/services/pet-store'
 import { petSchema } from '../basic-tutorial/services/types'

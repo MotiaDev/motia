@@ -1,4 +1,4 @@
-import type { Handlers, StateTriggerInput, StepConfig } from '@iii-dev/motia'
+import type { Handlers, StateTriggerInput, StepConfig } from 'motia'
 import type { ParallelMergeResult } from './parallel-merge.types'
 
 export const config = {

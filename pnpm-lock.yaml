@@ -172,7 +172,7 @@ importers:
 
   playground:
     dependencies:
-      '@iii-dev/motia':
+      'motia':
         specifier: workspace:*
         version: link:../packages/motia
       zod:

@@ -7,7 +7,7 @@ Motia with superpowers!
 1. Install Motia III Package and Nodemon
 
 ```bash
-npm install @iii-dev/motia --save-dev
+npm install motia --save-dev
 ```
 
 2. Install Bun if you haven't already

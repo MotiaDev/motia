@@ -1,4 +1,4 @@
-import type { StreamConfig } from '@iii-dev/motia'
+import type { StreamConfig } from 'motia'
 import { z } from 'zod'
 
 const inbox = z.object({

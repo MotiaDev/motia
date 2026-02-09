@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig, UpdateOp } from '@iii-dev/motia'
+import type { Handlers, StepConfig, UpdateOp } from 'motia'
 import { z } from 'zod'
 import { todoSchema } from './create-todo.step'
 

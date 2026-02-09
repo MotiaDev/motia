@@ -66,7 +66,7 @@ export const generateIndex = () => {
   })
 
   return [
-    "import { Motia } from '@iii-dev/motia'",
+    "import { Motia } from 'motia'",
     hasMotiaConfig ? `import * as motiaConfig from './motia.config';` : '// No motia.config.ts found',
 
     ...streams.map((stream) => stream.importStatement),

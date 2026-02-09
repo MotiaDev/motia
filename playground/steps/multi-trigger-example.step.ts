@@ -1,4 +1,4 @@
-import type { ApiRequest, Handlers, StepConfig, TriggerCondition } from '@iii-dev/motia'
+import type { ApiRequest, Handlers, StepConfig, TriggerCondition } from 'motia'
 import { z } from 'zod'
 
 const isHighValue: TriggerCondition<{ amount: number; description: string }> = (input, ctx) => {

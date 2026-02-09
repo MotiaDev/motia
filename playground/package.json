@@ -10,7 +10,7 @@
     "start": "bun run --enable-source-maps dist/index-production.js"
   },
   "dependencies": {
-    "@iii-dev/motia": "workspace:*",
+    "motia": "workspace:*",
     "zod": "^4.1.13"
   },
   "devDependencies": {

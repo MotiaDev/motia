@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from '@iii-dev/motia'
+import type { Handlers, StepConfig } from 'motia'
 import { z } from 'zod'
 import type { ParallelMergeResult } from './parallel-merge.types'
 import { randomNumber } from './utils'

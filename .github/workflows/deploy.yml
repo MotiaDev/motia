@@ -141,14 +141,14 @@ jobs:
 
       - name: Publish to NPM
         run: |
-          pnpm publish -r --filter @iii-dev/motia --no-git-checks --tag ${{ steps.npm_tag.outputs.tag }} --provenance
+          pnpm publish -r --filter motia --no-git-checks --tag ${{ steps.npm_tag.outputs.tag }} --provenance
 
       - name: Publish Summary
         run: |
           echo "### 📦 Published to NPM" >> $GITHUB_STEP_SUMMARY
-          echo "- **Package**: @iii-dev/motia@${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: motia@${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **NPM Tag**: ${{ steps.npm_tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Install**: \`npm install @iii-dev/motia@${{ steps.npm_tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Install**: \`npm install motia@${{ steps.npm_tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
 
   create-github-release:
     name: Create GitHub Release
@@ -230,7 +230,7 @@ jobs:
           done
 
           cat > release_notes.md << 'CHANGELOG_EOF'
-          ## 🚀 What's New in @iii-dev/motia ${{ needs.ci-checks.outputs.version }}
+          ## 🚀 What's New in motia ${{ needs.ci-checks.outputs.version }}
 
           CHANGELOG_EOF
 
@@ -300,17 +300,17 @@ jobs:
 
           ### NPM
           ```bash
-          npm install @iii-dev/motia@${{ needs.ci-checks.outputs.version }}
+          npm install motia@${{ needs.ci-checks.outputs.version }}
           ```
 
           ### Yarn
           ```bash
-          yarn add @iii-dev/motia@${{ needs.ci-checks.outputs.version }}
+          yarn add motia@${{ needs.ci-checks.outputs.version }}
           ```
 
           ### PNPM
           ```bash
-          pnpm add @iii-dev/motia@${{ needs.ci-checks.outputs.version }}
+          pnpm add motia@${{ needs.ci-checks.outputs.version }}
           ```
 
           ## 🔗 Links
@@ -335,7 +335,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: '${{ needs.ci-checks.outputs.tag_name }}',
-              name: '@iii-dev/motia ${{ needs.ci-checks.outputs.version }}',
+              name: 'motia ${{ needs.ci-checks.outputs.version }}',
               body: releaseNotes,
               draft: false,
               prerelease: ${{ needs.ci-checks.outputs.is_prerelease }}
@@ -399,5 +399,5 @@ jobs:
         run: |
           echo "### ✅ Release Complete" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **NPM**: https://www.npmjs.com/package/@iii-dev/motia/v/${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **NPM**: https://www.npmjs.com/package/motia/v/${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **GitHub**: https://github.com/${{ github.repository }}/releases/tag/${{ needs.ci-checks.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
