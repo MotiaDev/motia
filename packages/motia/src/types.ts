@@ -1,4 +1,5 @@
-import type { Logger, StreamSetResult, UpdateOp } from '@iii-dev/sdk'
+import type { Logger } from '@iii-dev/sdk'
+import type { StreamSetResult, UpdateOp } from '@iii-dev/sdk/streams'
 import type { FromSchema } from 'json-schema-to-ts'
 import type { ZodType } from 'zod'
 import * as z from 'zod'
@@ -20,22 +21,22 @@ export type InternalStateManager = {
   set<T>(groupId: string, key: string, value: T): Promise<StreamSetResult<T> | null>
   update<T>(groupId: string, key: string, ops: UpdateOp[]): Promise<StreamSetResult<T> | null>
   delete<T>(groupId: string, key: string): Promise<T | null>
-  getGroup<T>(groupId: string): Promise<T[]>
+  list<T>(groupId: string): Promise<T[]>
   clear(groupId: string): Promise<void>
 }
 
-export type EmitData<T = unknown> = { topic: string; data: T; messageGroupId?: string }
-export type Emitter<TData> = (event: TData) => Promise<void>
+export type EnqueueData<T = unknown> = { topic: string; data: T; messageGroupId?: string }
+export type Enqueuer<TData> = (event: TData) => Promise<void>
 
-export type ExtractEventInput<TInput> = Exclude<Exclude<TInput, ApiRequest>, undefined>
+export type ExtractQueueInput<TInput> = Exclude<Exclude<TInput, ApiRequest>, undefined>
 export type ExtractApiInput<TInput> = Extract<TInput, ApiRequest>
 export type ExtractStateInput<TInput> = Extract<TInput, StateTriggerInput<unknown>>
 export type ExtractStreamInput<TInput> = Extract<TInput, StreamTriggerInput<unknown>>
 export type ExtractDataPayload<TInput> =
   TInput extends ApiRequest<infer TBody> ? TBody : TInput extends undefined ? undefined : TInput
 
-export type MatchHandlers<TInput, TEmitData, TResult> = {
-  event?: (input: ExtractEventInput<TInput>) => Promise<void>
+export type MatchHandlers<TInput, TEnqueueData, TResult> = {
+  queue?: (input: ExtractQueueInput<TInput>) => Promise<void>
 
   api?: (request: ExtractApiInput<TInput>) => Promise<TResult>
 
@@ -48,8 +49,8 @@ export type MatchHandlers<TInput, TEmitData, TResult> = {
   default?: (input: TInput) => Promise<TResult | void>
 }
 
-export interface FlowContext<TEmitData = never, TInput = unknown> {
-  emit: Emitter<TEmitData>
+export interface FlowContext<TEnqueueData = never, TInput = unknown> {
+  enqueue: Enqueuer<TEnqueueData>
   traceId: string
   state: InternalStateManager
   logger: Logger
@@ -57,7 +58,7 @@ export interface FlowContext<TEmitData = never, TInput = unknown> {
   trigger: TriggerInfo
 
   is: {
-    event: (input: TInput) => input is ExtractEventInput<TInput>
+    queue: (input: TInput) => input is ExtractQueueInput<TInput>
     api: (input: TInput) => input is ExtractApiInput<TInput>
     cron: (input: TInput) => input is never
     state: (input: TInput) => input is ExtractStateInput<TInput>
@@ -66,26 +67,26 @@ export interface FlowContext<TEmitData = never, TInput = unknown> {
 
   /**
    * Extracts the data payload from the input, regardless of trigger type.
-   * Useful when multiple triggers (e.g., event and API) share the same data schema.
+   * Useful when multiple triggers (e.g., queue and API) share the same data schema.
    *
    * - For API triggers: returns `request.body`
-   * - For event triggers: returns the event data directly
+   * - For queue triggers: returns the queue data directly
    * - For cron triggers: returns `undefined`
    *
    * @example
    * ```ts
-   * // When event and API triggers have the same schema
+   * // When queue and API triggers have the same schema
    * const orderData = ctx.getData() // Works for both triggers
    * ```
    */
   getData: () => ExtractDataPayload<TInput>
 
-  match: <TResult = any>(handlers: MatchHandlers<TInput, TEmitData, TResult>) => Promise<TResult | void>
+  match: <TResult = any>(handlers: MatchHandlers<TInput, TEnqueueData, TResult>) => Promise<TResult | void>
 }
 
-export type Emit = string | { topic: string; label?: string; conditional?: boolean }
+export type Enqueue = string | { topic: string; label?: string; conditional?: boolean }
 
-type TriggerType = 'api' | 'event' | 'cron' | 'state' | 'stream'
+type TriggerType = 'api' | 'queue' | 'cron' | 'state' | 'stream'
 
 export type TriggerInfo = {
   type: TriggerType
@@ -96,7 +97,7 @@ export type TriggerInfo = {
   expression?: string
 }
 
-type EventTriggerInput<T> = T
+type QueueTriggerInput<T> = T
 
 type ApiTriggerInput<T> = ApiRequest<T>
 
@@ -125,7 +126,7 @@ export type StreamTriggerInput<T> = {
 }
 
 export type TriggerInput<T> =
-  | EventTriggerInput<T>
+  | QueueTriggerInput<T>
   | ApiTriggerInput<T>
   | CronTriggerInput
   | StateTriggerInput<T>
@@ -156,9 +157,9 @@ export type InfrastructureConfig = {
 
 export type ApiRouteMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
-export type ApiMiddleware<TBody = unknown, TEmitData = never, TResult = unknown> = (
+export type ApiMiddleware<TBody = unknown, TEnqueueData = never, TResult = unknown> = (
   req: ApiRequest<TBody>,
-  ctx: FlowContext<TEmitData, ApiRequest<TBody>>,
+  ctx: FlowContext<TEnqueueData, ApiRequest<TBody>>,
   next: () => Promise<ApiResponse<number, TResult>>,
 ) => Promise<ApiResponse<number, TResult>>
 
@@ -183,8 +184,8 @@ export type StreamTrigger<TSchema extends StepSchemaInput | undefined = any> = {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to allow trigger assignment to TriggerConfig
-export type EventTrigger<TSchema extends StepSchemaInput | undefined = any> = {
-  type: 'event'
+export type QueueTrigger<TSchema extends StepSchemaInput | undefined = any> = {
+  type: 'queue'
   topic: string
   input?: TSchema
   condition?: TriggerCondition<TSchema extends ZodInput ? z.infer<TSchema> : unknown>
@@ -211,14 +212,14 @@ export type CronTrigger = {
   condition?: TriggerCondition
 }
 
-export type TriggerConfig = EventTrigger | ApiTrigger | CronTrigger | StateTrigger | StreamTrigger
+export type TriggerConfig = QueueTrigger | ApiTrigger | CronTrigger | StateTrigger | StreamTrigger
 
 export type StepConfig = {
   name: string
   description?: string
   triggers: readonly TriggerConfig[]
-  emits?: readonly Emit[]
-  virtualEmits?: readonly Emit[]
+  enqueues?: readonly Enqueue[]
+  virtualEnqueues?: readonly Enqueue[]
   virtualSubscribes?: readonly string[]
   flows?: readonly string[]
   includeFiles?: readonly string[]
@@ -237,9 +238,9 @@ export type ApiResponse<TStatus extends number = number, TBody = any> = {
   body: TBody
 }
 
-export type StepHandler<TInput = any, TEmitData = never> = (
+export type StepHandler<TInput = any, TEnqueueData = never> = (
   input: TriggerInput<TInput>,
-  ctx: FlowContext<TEmitData, TriggerInput<TInput>>,
+  ctx: FlowContext<TEnqueueData, TriggerInput<TInput>>,
 ) => Promise<ApiResponse | void>
 
 export type Event<TData = unknown> = {
@@ -254,7 +255,7 @@ export type Event<TData = unknown> = {
 export type Handler<TData = unknown> = (event: Event<TData>) => Promise<void>
 
 export type SubscribeConfig<TData> = {
-  event: string
+  queue: string
   handlerName: string
   filePath: string
   handler: Handler<TData>
@@ -262,7 +263,7 @@ export type SubscribeConfig<TData> = {
 
 export type UnsubscribeConfig = {
   filePath: string
-  event: string
+  queue: string
 }
 
 export type Step = { filePath: string; config: StepConfig }
@@ -281,7 +282,7 @@ export type Flow = {
 export interface Streams {}
 
 // biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
-export interface Emits {}
+export interface Enqueues {}
 
 // biome-ignore lint/suspicious/noExplicitAny: FromSchema requires flexible casting for JSON Schema inference
 type InferSchema<T, TFallback = unknown> = T extends TypedJsonSchema<infer O>
@@ -300,7 +301,7 @@ type InferSchema<T, TFallback = unknown> = T extends TypedJsonSchema<infer O>
               ? unknown
               : TFallback
 
-type TriggerToInput<TTrigger> = TTrigger extends { type: 'event'; input?: infer S }
+type TriggerToInput<TTrigger> = TTrigger extends { type: 'queue'; input?: infer S }
   ? S extends ZodInput
     ? z.infer<S>
     : S extends StepSchemaInput
@@ -320,20 +321,20 @@ type InferHandlerInput<TConfig extends StepConfig> = TriggerToInput<TConfig['tri
 
 type InferReturnType = Promise<ApiResponse | void>
 
-type EmitTopic<T extends string> = T extends keyof Emits ? Emits[T] : unknown
+type EnqueueTopic<T extends string> = T extends keyof Enqueues ? Enqueues[T] : unknown
 
-type NormalizeEmit<E> = E extends string
+type NormalizeEnqueue<E> = E extends string
   ? { topic: E }
   : E extends { topic: infer T extends string }
     ? { topic: T }
     : never
 
-type EmitElement<E> =
-  NormalizeEmit<E> extends { topic: infer T extends string } ? { topic: T; data: EmitTopic<T> } : never
+type EnqueueElement<E> =
+  NormalizeEnqueue<E> extends { topic: infer T extends string } ? { topic: T; data: EnqueueTopic<T> } : never
 
-type InferEmits<T> = T extends { emits: readonly unknown[] } ? EmitElement<T['emits'][number]> : never
+type InferEnqueues<T> = T extends { enqueues: readonly unknown[] } ? EnqueueElement<T['enqueues'][number]> : never
 
 export type Handlers<TConfig extends StepConfig> = (
   input: InferHandlerInput<TConfig>,
-  ctx: FlowContext<InferEmits<TConfig>, InferHandlerInput<TConfig>>,
+  ctx: FlowContext<InferEnqueues<TConfig>, InferHandlerInput<TConfig>>,
 ) => InferReturnType

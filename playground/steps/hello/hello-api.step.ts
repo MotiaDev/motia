@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 export const config = {
   name: 'HelloAPI',
-  description: 'Receives hello request and emits event for processing',
+  description: 'Receives hello request and enqueues event for processing',
   triggers: [
     {
       type: 'api',
@@ -18,17 +18,17 @@ export const config = {
       },
     },
   ],
-  emits: ['process-greeting'],
+  enqueues: ['process-greeting'],
   flows: ['hello-world-flow'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (_, { emit, logger }) => {
+export const handler: Handlers<typeof config> = async (_, { enqueue, logger }) => {
   const appName = 'III App'
   const timestamp = new Date().toISOString()
 
   logger.info('Hello API endpoint called', { appName, timestamp })
 
-  await emit({
+  await enqueue({
     topic: 'process-greeting',
     data: {
       timestamp,

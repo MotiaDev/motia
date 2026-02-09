@@ -11,7 +11,7 @@ const bodySchema = z.object({
   waitTime: z.boolean().optional().default(false),
   waitTimeMin: z.number().optional().default(1_000),
   waitTimeMax: z.number().optional().default(3_000),
-  useEmit: z.boolean().optional().default(true),
+  useEnqueue: z.boolean().optional().default(true),
 })
 
 export const config = {
@@ -25,11 +25,11 @@ export const config = {
       bodySchema,
     },
   ],
-  emits: ['spms.step.process'],
+  enqueues: ['spms.step.process'],
   flows: ['stream-parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger, emit, streams }) => {
+export const handler: Handlers<typeof config> = async (request, { logger, enqueue, streams }) => {
   const body = bodySchema.parse(request.body ?? {})
   const { traceId, totalSteps, waitTimeMin, waitTimeMax } = body
 
@@ -43,12 +43,12 @@ export const handler: Handlers<typeof config> = async (request, { logger, emit, 
 
   const waitTime = () => (body.waitTime ? randomNumber(waitTimeMin, waitTimeMax) : undefined)
 
-  if (body.useEmit) {
-    logger.info('Using emit to trigger step process')
+  if (body.useEnqueue) {
+    logger.info('Using enqueue to trigger step process')
 
     await Promise.all(
       Array.from({ length: body.totalSteps }, (_, stepIndex) =>
-        emit({
+        enqueue({
           topic: 'spms.step.process',
           data: { traceId, stepIndex, waitTime: waitTime() },
         }),

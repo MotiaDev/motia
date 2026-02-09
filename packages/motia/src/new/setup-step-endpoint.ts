@@ -1,4 +1,4 @@
-import type { Bridge } from '@iii-dev/sdk'
+import type { ISdk } from '@iii-dev/sdk'
 import fs from 'fs/promises'
 import path from 'path'
 import { getStepFilesFromDir } from './build/generate-index'
@@ -19,8 +19,10 @@ const getFeatures = async (filePath: string) => {
   }
 }
 
-export function setupStepEndpoint(bridge: Bridge): void {
-  bridge.registerFunction({ function_path: 'motia_step_get' }, async (req) => {
+export function setupStepEndpoint(iii: ISdk): void {
+  const function_id = 'motia_step_get'
+
+  iii.registerFunction({ id: function_id }, async (req) => {
     const id = req.path_params.stepId
 
     const stepFiles = [
@@ -53,9 +55,9 @@ export function setupStepEndpoint(bridge: Bridge): void {
     }
   })
 
-  bridge.registerTrigger({
+  iii.registerTrigger({
     trigger_type: 'api',
-    function_path: 'motia_step_get',
+    function_id,
     config: { api_path: '__motia/step/:stepId', http_method: 'GET', description: 'Get a step' },
   })
 }

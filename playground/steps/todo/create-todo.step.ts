@@ -29,8 +29,8 @@ export const config = {
       },
     },
   ],
-  emits: [],
-  virtualEmits: ['todo-created'],
+  enqueues: [],
+  virtualenqueues: ['todo-created'],
 } as const satisfies StepConfig
 
 export const handler: Handlers<typeof config> = async (request, { logger, streams, state }) => {

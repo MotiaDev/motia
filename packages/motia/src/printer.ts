@@ -12,7 +12,6 @@ const building = pc.yellow('⚡ [BUILDING]')
 const built = pc.green('✓ [BUILT]')
 const updated = pc.yellow('➜ [UPDATED]')
 const removed = pc.red('➜ [REMOVED]')
-const invalidEmit = pc.red('➜ [INVALID EMIT]')
 const error = pc.red('[ERROR]')
 const warning = pc.yellow('[WARNING]')
 const warnIcon = pc.yellow('⚠')
@@ -29,45 +28,6 @@ export class Printer {
   built = built
   updated = updated
   removed = removed
-
-  printEventInputValidationError(
-    emit: { topic: string },
-    details: { missingFields?: string[]; extraFields?: string[]; typeMismatches?: string[] },
-  ) {
-    const emitPath = pc.bold(pc.cyan(`Emit ${emit.topic}`))
-
-    console.log(`${warnIcon} ${warning} ${emitPath} validation issues:`)
-
-    const hasAny = details.missingFields?.length || details.extraFields?.length || details.typeMismatches?.length
-
-    if (!hasAny) {
-      console.log(`${pc.yellow('│')} No issues found.`)
-      console.log(`${pc.yellow('└─')} Validation passed.`)
-      return
-    }
-
-    if (details.missingFields?.length) {
-      console.log(`${pc.yellow('│')} ${pc.yellow(`⚠ Missing fields: ${details.missingFields.join(', ')}`)}`)
-    }
-
-    if (details.extraFields?.length) {
-      console.log(`${pc.yellow('│')} ${pc.yellow(`⚠ Extra fields: ${details.extraFields.join(', ')}`)}`)
-    }
-
-    if (details.typeMismatches?.length) {
-      console.log(`${pc.yellow('│')} ${pc.yellow(`⚠ Type mismatches: ${details.typeMismatches.join(', ')}`)}`)
-    }
-
-    console.log(`${pc.yellow('└─')} ${pc.yellow('Payload does not match schema.')}`)
-  }
-
-  printInvalidEmit(step: Step, emit: string) {
-    console.log(
-      `${invalidEmit} ${stepTag} ${this.getStepPath(
-        step,
-      )} tried to emit an event not defined in the step config: ${pc.yellow(emit)}`,
-    )
-  }
 
   printStepCreated(step: Step) {
     console.log(`${registered} ${stepTag} ${this.getStepPath(step)} registered`)
@@ -103,14 +63,6 @@ export class Printer {
 
   printStreamRemoved(stream: Stream) {
     console.log(`${removed} ${streamTag} ${this.getStreamPath(stream)} removed`)
-  }
-
-  printInvalidEmitConfiguration(step: Step, emit: string) {
-    console.log(
-      `${warnIcon} ${warning} ${stepTag} ${this.getStepPath(step)} emits to ${pc.yellow(
-        emit,
-      )}, but there is no subscriber defined`,
-    )
   }
 
   printInvalidSchema(topic: string, step: Step[]) {

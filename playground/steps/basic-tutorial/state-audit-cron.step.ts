@@ -10,12 +10,12 @@ export const config = {
       expression: '0/5 * * * * * *', // Every 5 seconds
     },
   ],
-  emits: ['notification'],
+  enqueues: ['notification'],
   flows: ['basic-tutorial'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, state, emit }) => {
-  const stateValue = await state.getGroup<Order>('orders')
+export const handler: Handlers<typeof config> = async (input, { logger, state, enqueue }) => {
+  const stateValue = await state.list<Order>('orders')
 
   for (const item of stateValue) {
     const currentDate = new Date()
@@ -28,7 +28,7 @@ export const handler: Handlers<typeof config> = async (input, { logger, state, e
         complete: item.complete,
       })
 
-      await emit({
+      await enqueue({
         topic: 'notification',
         data: {
           email: 'test@test.com',

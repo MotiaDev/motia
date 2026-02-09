@@ -3,10 +3,12 @@ import type {
   ApiRouteMethod,
   ApiTrigger,
   CronTrigger,
-  EventTrigger,
   InfrastructureConfig,
   QueryParam,
+  QueueTrigger,
+  StateTrigger,
   StepSchemaInput,
+  StreamTrigger,
   TriggerCondition,
 } from './types'
 
@@ -18,7 +20,7 @@ type ApiOptions<TSchema extends StepSchemaInput | undefined = undefined> = {
   middleware?: readonly ApiMiddleware<any, any, any>[]
 }
 
-type EventOptions<TSchema extends StepSchemaInput | undefined = undefined> = {
+type QueueOptions<TSchema extends StepSchemaInput | undefined = undefined> = {
   input?: TSchema
   infrastructure?: Partial<InfrastructureConfig>
 }
@@ -35,15 +37,23 @@ export function api<TOptions extends ApiOptions<any> | undefined = undefined>(
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to accept all schema types
-export function event<TOptions extends EventOptions<any> | undefined = undefined>(
+export function queue<TOptions extends QueueOptions<any> | undefined = undefined>(
   topic: string,
   options?: TOptions,
   condition?: TriggerCondition,
-): EventTrigger<TOptions extends EventOptions<infer S> ? S : undefined> {
+): QueueTrigger<TOptions extends QueueOptions<infer S> ? S : undefined> {
   // biome-ignore lint/suspicious/noExplicitAny: runtime return is correct, cast needed for flexible type
-  return { type: 'event', topic, ...options, condition } as any
+  return { type: 'queue', topic, ...options, condition } as any
 }
 
 export function cron(expression: string, condition?: TriggerCondition): CronTrigger {
   return { type: 'cron', expression, condition }
+}
+
+export function state(condition?: TriggerCondition): StateTrigger {
+  return { type: 'state', condition }
+}
+
+export function stream(streamName: string, condition?: TriggerCondition): StreamTrigger {
+  return { type: 'stream', streamName, condition }
 }

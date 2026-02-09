@@ -23,7 +23,7 @@
     <img src="https://img.shields.io/npm/v/motia?style=flat&logo=npm&logoColor=white&color=CB3837&labelColor=000000" alt="npm version">
   </a>
   <a href="https://github.com/MotiaDev/motia/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-ELv2-blue?style=flat&logo=opensourceinitiative&logoColor=white&labelColor=000000" alt="license">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat&logo=apache&logoColor=white&labelColor=000000" alt="Apache 2.0 License">
   </a>
   <a href="https://github.com/MotiaDev/motia">
     <img src="https://img.shields.io/github/stars/MotiaDev/motia?style=flat&logo=github&logoColor=white&color=yellow&labelColor=000000" alt="GitHub stars">

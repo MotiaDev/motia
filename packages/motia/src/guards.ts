@@ -2,14 +2,14 @@ import type { Step, TriggerConfig } from './types'
 
 // Type aliases to avoid deep type instantiation
 type ApiTriggerType = Extract<TriggerConfig, { type: 'api' }>
-type EventTriggerType = Extract<TriggerConfig, { type: 'event' }>
+type QueueTriggerType = Extract<TriggerConfig, { type: 'queue' }>
 type CronTriggerType = Extract<TriggerConfig, { type: 'cron' }>
 type StateTriggerType = Extract<TriggerConfig, { type: 'state' }>
 type StreamTriggerType = Extract<TriggerConfig, { type: 'stream' }>
 
 export const isApiTrigger = (trigger: TriggerConfig): trigger is ApiTriggerType => trigger.type === 'api'
 
-export const isEventTrigger = (trigger: TriggerConfig): trigger is EventTriggerType => trigger.type === 'event'
+export const isQueueTrigger = (trigger: TriggerConfig): trigger is QueueTriggerType => trigger.type === 'queue'
 
 export const isCronTrigger = (trigger: TriggerConfig): trigger is CronTriggerType => trigger.type === 'cron'
 
@@ -19,6 +19,6 @@ export const isStreamTrigger = (trigger: TriggerConfig): trigger is StreamTrigge
 
 export const getApiTriggers = (step: Step): ApiTriggerType[] => step.config.triggers.filter(isApiTrigger)
 
-export const getEventTriggers = (step: Step): EventTriggerType[] => step.config.triggers.filter(isEventTrigger)
+export const getQueueTriggers = (step: Step): QueueTriggerType[] => step.config.triggers.filter(isQueueTrigger)
 
 export const getCronTriggers = (step: Step): CronTriggerType[] => step.config.triggers.filter(isCronTrigger)

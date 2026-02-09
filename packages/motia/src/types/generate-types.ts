@@ -15,39 +15,39 @@ export const generateStreamsInterface = (streams: Record<string, Stream>): strin
   return entries.length > 0 ? `  interface Streams {\n${entries.join('\n')}\n  }` : `  interface Streams {}`
 }
 
-export const generateEmitsInterface = (steps: Step[]): string => {
-  const emitTypes: Record<string, string> = {}
+export const generateEnqueuesInterface = (steps: Step[]): string => {
+  const enqueueTypes: Record<string, string> = {}
 
   for (const step of steps) {
-    if (step.config.emits) {
-      step.config.emits.forEach((emit) => {
-        const topic = typeof emit === 'string' ? emit : emit.topic
-        if (!emitTypes[topic]) {
-          emitTypes[topic] = 'unknown'
+    if (step.config.enqueues) {
+      step.config.enqueues.forEach((enqueue) => {
+        const topic = typeof enqueue === 'string' ? enqueue : enqueue.topic
+        if (!enqueueTypes[topic]) {
+          enqueueTypes[topic] = 'unknown'
         }
       })
     }
 
     for (const trigger of step.config.triggers) {
-      if (trigger.type === 'event') {
+      if (trigger.type === 'queue') {
         const topic = trigger.topic
-        if (!emitTypes[topic] && trigger.input) {
+        if (!enqueueTypes[topic] && trigger.input) {
           const jsonSchema = schemaToJsonSchema(trigger.input)
           const type = jsonSchema ? generateTypeFromSchema(jsonSchema) : 'unknown'
-          emitTypes[topic] = type
+          enqueueTypes[topic] = type
         }
       }
     }
   }
 
-  const entries = Object.entries(emitTypes).map(([topic, type]) => `    '${topic}': ${type}`)
+  const entries = Object.entries(enqueueTypes).map(([topic, type]) => `    '${topic}': ${type}`)
 
-  return entries.length > 0 ? `  interface Emits {\n${entries.join('\n')}\n  }` : `  interface Emits {}`
+  return entries.length > 0 ? `  interface Enqueues {\n${entries.join('\n')}\n  }` : `  interface Enqueues {}`
 }
 
 export const generateTypesString = (steps: Step[], streams: Record<string, Stream>): string => {
   const streamsInterface = generateStreamsInterface(streams)
-  const emitsInterface = generateEmitsInterface(steps)
+  const enqueuesInterface = generateEnqueuesInterface(steps)
 
   return `/**
  * Automatically generated types for motia
@@ -58,7 +58,7 @@ import { MotiaStream } from '@iii-dev/motia'
 declare module '@iii-dev/motia' {
 ${streamsInterface}
 
-${emitsInterface}
+${enqueuesInterface}
 }
 `
 }

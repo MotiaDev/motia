@@ -21,11 +21,11 @@ export const config = {
       bodySchema,
     },
   ],
-  emits: ['pms.step.process'],
+  enqueues: ['pms.step.process'],
   flows: ['parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger, emit, state }) => {
+export const handler: Handlers<typeof config> = async (request, { logger, enqueue, state }) => {
   logger.info('Starting parallel merge')
 
   const body = bodySchema.parse(request.body ?? {})
@@ -41,7 +41,7 @@ export const handler: Handlers<typeof config> = async (request, { logger, emit, 
 
   await Promise.all(
     Array.from({ length: body.totalSteps }, (_, stepIndex) =>
-      emit({
+      enqueue({
         topic: 'pms.step.process',
         data: { traceId, stepIndex, waitTime: waitTime() },
       }),

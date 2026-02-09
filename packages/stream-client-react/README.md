@@ -218,4 +218,4 @@ export default function App() {
 
 ## License
 
-[Elastic License 2.0 (ELv2)](https://github.com/MotiaDev/motia/blob/main/LICENSE)
+[Apache License 2.0](https://github.com/MotiaDev/motia/blob/main/LICENSE)

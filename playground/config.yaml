@@ -54,10 +54,10 @@ modules:
       logs_retention_seconds: ${OTEL_LOGS_RETENTION_SECONDS:3600}
       logs_sampling_ratio: ${OTEL_LOGS_SAMPLING_RATIO:1.0}
 
-  - class: modules::event::EventModule
+  - class: modules::queue::QueueModule
     config:
       adapter:
-        class: modules::event::BuiltinQueueAdapter
+        class: modules::queue::BuiltinQueueAdapter
 
   - class: modules::pubsub::PubSubModule
     config:

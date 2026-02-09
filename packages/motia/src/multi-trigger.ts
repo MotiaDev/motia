@@ -1,4 +1,4 @@
-import type { ApiRequest, ExtractApiInput, ExtractEventInput, FlowContext, Handlers, StepConfig } from './types'
+import type { ExtractApiInput, ExtractQueueInput, FlowContext, Handlers, StepConfig } from './types'
 
 type StepDefinition<TConfig extends StepConfig> = {
   config: TConfig
@@ -10,8 +10,8 @@ type InferHandlerInput<TConfig extends StepConfig> = TConfig extends StepConfig
   : never
 
 type TriggerHandlers<TConfig extends StepConfig> = {
-  event?: (
-    input: ExtractEventInput<InferHandlerInput<TConfig>>,
+  queue?: (
+    input: ExtractQueueInput<InferHandlerInput<TConfig>>,
     ctx: Omit<FlowContext<any, any>, 'match'>,
   ) => Promise<void>
   api?: (
@@ -26,8 +26,8 @@ type MultiTriggerStepBuilder<TConfig extends StepConfig> = {
   handlers: (handlers: TriggerHandlers<TConfig>) => StepDefinition<TConfig>
 
   // Chainable methods
-  onEvent: (
-    handler: TriggerHandlers<TConfig>['event'],
+  onQueue: (
+    handler: TriggerHandlers<TConfig>['queue'],
   ) => MultiTriggerStepBuilder<TConfig> & { handlers: () => StepDefinition<TConfig> }
   onApi: (
     handler: TriggerHandlers<TConfig>['api'],
@@ -42,8 +42,8 @@ export function multiTriggerStep<const TConfig extends StepConfig>(config: TConf
 
   const createUnifiedHandler = (): Handlers<TConfig> => {
     return (async (input: any, ctx: any) => {
-      if (ctx.trigger.type === 'event' && collectedHandlers.event) {
-        return collectedHandlers.event(input, ctx)
+      if (ctx.trigger.type === 'queue' && collectedHandlers.queue) {
+        return collectedHandlers.queue(input, ctx)
       }
       if (ctx.trigger.type === 'api' && collectedHandlers.api) {
         return collectedHandlers.api(input, ctx)
@@ -66,8 +66,8 @@ export function multiTriggerStep<const TConfig extends StepConfig>(config: TConf
   const builder: any = {
     config,
 
-    onEvent(handler: TriggerHandlers<TConfig>['event']) {
-      collectedHandlers.event = handler
+    onQueue(handler: TriggerHandlers<TConfig>['queue']) {
+      collectedHandlers.queue = handler
       return {
         ...builder,
         handlers: () => ({ config, handler: createUnifiedHandler() }),

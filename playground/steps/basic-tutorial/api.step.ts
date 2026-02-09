@@ -28,17 +28,17 @@ export const config = {
       },
     },
   ],
-  emits: ['process-food-order'],
+  enqueues: ['process-food-order'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger, traceId, emit }) => {
+export const handler: Handlers<typeof config> = async (request, { logger, traceId, enqueue }) => {
   logger.info('Step 01 - Processing API Step', { body: request.body })
 
   const { pet, foodOrder } = request.body || {}
   const newPetRecord = await petStoreService.createPet(pet)
 
   if (foodOrder) {
-    await emit({
+    await enqueue({
       topic: 'process-food-order',
       data: {
         quantity: foodOrder.quantity,

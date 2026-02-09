@@ -29,7 +29,7 @@ const jsonSchema = z.any().refine((data) => {
   return true
 })
 
-const emits = z.array(
+const enqueues = z.array(
   z.union([
     z.string(),
     z
@@ -42,9 +42,9 @@ const emits = z.array(
   ]),
 )
 
-const eventTriggerSchema = z
+const queueTriggerSchema = z
   .object({
-    type: z.literal('event'),
+    type: z.literal('queue'),
     topic: z.string(),
     input: z.union([jsonSchema, z.object({}), z.null()]).optional(),
     condition: z.any().optional(),
@@ -96,7 +96,7 @@ const streamTriggerSchema = z
   .strict()
 
 const triggerSchema = z.discriminatedUnion('type', [
-  eventTriggerSchema,
+  queueTriggerSchema,
   apiTriggerSchema,
   cronTriggerSchema,
   stateTriggerSchema,
@@ -108,8 +108,8 @@ const stepConfigSchema = z
     name: z.string(),
     description: z.string().optional(),
     triggers: z.array(triggerSchema).min(1),
-    emits: emits.optional(),
-    virtualEmits: emits.optional(),
+    enqueues: enqueues.optional(),
+    virtualEnqueues: enqueues.optional(),
     virtualSubscribes: z.array(z.string()).optional(),
     flows: z.array(z.string()).optional(),
     includeFiles: z.array(z.string()).optional(),

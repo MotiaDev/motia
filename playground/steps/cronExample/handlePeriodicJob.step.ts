@@ -9,14 +9,14 @@ export const config = {
       expression: '* 1 * * * * *',
     },
   ],
-  emits: ['periodic-job-handled'],
+  enqueues: ['periodic-job-handled'],
   flows: ['cron-example'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, emit }) => {
+export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
   logger.info('Periodic job executed')
 
-  await emit({
+  await enqueue({
     topic: 'periodic-job-handled',
     data: { message: 'Periodic job executed' },
   })

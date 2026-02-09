@@ -6,7 +6,7 @@ export const config = {
   description: 'Handles the periodic job event',
   triggers: [
     {
-      type: 'event',
+      type: 'queue',
       topic: 'periodic-job-handled',
       input: jsonSchema(
         z.object({
@@ -15,7 +15,7 @@ export const config = {
       ),
     },
   ],
-  emits: ['tested'],
+  enqueues: ['tested'],
   flows: ['cron-example'],
 } as const satisfies StepConfig
 

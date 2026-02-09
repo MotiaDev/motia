@@ -7,7 +7,7 @@ export const config = {
   flows: ['basic-tutorial'],
   triggers: [
     {
-      type: 'event',
+      type: 'queue',
       topic: 'notification',
       input: jsonSchema(
         z.object({
@@ -18,7 +18,7 @@ export const config = {
       ),
     },
   ],
-  emits: [],
+  enqueues: [],
 } as const satisfies StepConfig
 
 export const handler: Handlers<typeof config> = async (input, { traceId, logger }) => {

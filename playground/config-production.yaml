@@ -30,10 +30,10 @@ modules:
       level: ${RUST_LOG:info}
       format: json
 
-  - class: modules::event::EventModule
+  - class: modules::queue::QueueModule
     config:
       adapter:
-        class: modules::event::RedisAdapter
+        class: modules::queue::RedisAdapter
         config:
           redis_url: ${REDIS_URL:redis://localhost:6379}
 

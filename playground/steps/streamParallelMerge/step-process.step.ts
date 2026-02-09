@@ -6,7 +6,7 @@ export const config = {
   description: 'Processes individual steps in the stream parallel merge workflow',
   triggers: [
     {
-      type: 'event',
+      type: 'queue',
       topic: 'spms.step.process',
       input: z.object({ traceId: z.string(), stepIndex: z.number(), waitTime: z.number().optional() }),
     },

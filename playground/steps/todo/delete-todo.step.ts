@@ -16,7 +16,7 @@ export const config = {
       },
     },
   ],
-  emits: [],
+  enqueues: [],
   virtualSubscribes: ['todo-created'],
 } as const satisfies StepConfig
 

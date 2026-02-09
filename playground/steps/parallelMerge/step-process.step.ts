@@ -7,7 +7,7 @@ export const config = {
   description: 'Processes a step in the parallel merge',
   triggers: [
     {
-      type: 'event',
+      type: 'queue',
       topic: 'pms.step.process',
       input: z.object({ traceId: z.string(), stepIndex: z.number(), waitTime: z.number().optional() }),
     },

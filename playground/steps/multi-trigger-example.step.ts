@@ -21,7 +21,7 @@ export const config = {
   flows: ['multi-trigger-demo'],
   triggers: [
     {
-      type: 'event',
+      type: 'queue',
       topic: 'order.created',
       input: z.object({
         amount: z.number(),
@@ -59,7 +59,7 @@ export const config = {
       expression: '* * * * *', //
     },
   ],
-  emits: ['order.processed'],
+  enqueues: ['order.processed'],
 } as const satisfies StepConfig
 
 export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => {
@@ -84,7 +84,7 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
         createdAt: new Date().toISOString(),
       })
 
-      await ctx.emit({
+      await ctx.enqueue({
         topic: 'order.processed',
         data: {
           orderId,
@@ -103,10 +103,10 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
       }
     },
 
-    event: async (eventInput) => {
-      const { amount, description } = eventInput
+    queue: async (queueInput) => {
+      const { amount, description } = queueInput
 
-      ctx.logger.info('Processing order from event', {
+      ctx.logger.info('Processing order from queue', {
         amount,
         description,
       })
@@ -119,7 +119,7 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
         createdAt: new Date().toISOString(),
       })
 
-      await ctx.emit({
+      await ctx.enqueue({
         topic: 'order.processed',
         data: {
           orderId,
@@ -132,10 +132,10 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
     cron: async () => {
       ctx.logger.info('Processing scheduled order batch')
 
-      const pendingOrders = await ctx.state.getGroup<{ id: string; amount: number }>('pending-orders')
+      const pendingOrders = await ctx.state.list<{ id: string; amount: number }>('pending-orders')
 
       for (const order of pendingOrders) {
-        await ctx.emit({
+        await ctx.enqueue({
           topic: 'order.processed',
           data: {
             orderId: order.id,

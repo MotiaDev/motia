@@ -13,12 +13,12 @@ export const config = {
   description: 'Processes greeting in the background',
   triggers: [
     {
-      type: 'event',
+      type: 'queue',
       topic: 'process-greeting',
       input: inputSchema,
     },
   ],
-  emits: [],
+  enqueues: [],
   flows: ['hello-world-flow'],
 } as const satisfies StepConfig
 

@@ -1,4 +1,4 @@
-import { api, event, step } from '@iii-dev/motia'
+import { api, queue, step } from '@iii-dev/motia'
 import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 
@@ -13,14 +13,10 @@ export const stepConfig = {
   description: 'basic-tutorial event step, demonstrates how to consume an event from a topic and persist data in state',
   flows: ['basic-tutorial'],
   triggers: [
-    event('process-food-order', {
-      input: orderSchema,
-    }),
-    api('POST', '/process-food-order', {
-      bodySchema: orderSchema,
-    }),
+    queue('process-food-order', { input: orderSchema }),
+    api('POST', '/process-food-order', { bodySchema: orderSchema }),
   ],
-  emits: ['notification'],
+  enqueues: ['notification'],
 }
 
 export const { config, handler } = step(stepConfig, async (input, ctx) => {
@@ -42,7 +38,7 @@ export const { config, handler } = step(stepConfig, async (input, ctx) => {
 
   await ctx.state.set('orders', order.id, order)
 
-  await ctx.emit({
+  await ctx.enqueue({
     topic: 'notification',
     data: {
       email: data.email,
