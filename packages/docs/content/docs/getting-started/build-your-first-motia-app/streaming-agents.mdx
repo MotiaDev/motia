@@ -756,11 +756,11 @@ View on GitHub:
           }
         }
 
-        if (emit) {
-          await emit({
+        if (enqueue) {
+          await enqueue({
             topic: 'js.feeding.reminder.completed',
-            data: { 
-              petId, 
+            data: {
+              petId,
               event: 'feeding.reminder.completed',
               completedAt: Date.now(),
               processingTimeMs: Date.now() - enqueuedAt
@@ -805,20 +805,20 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="src/typescript/ai-profile-enrichment.step.ts"
-    // src/typescript/ai-profile-enrichment.step.ts
-    import { EventConfig, Handlers } from 'motia';
-    import { TSStore, PetProfile } from './ts-store';
+    import { type Handlers, type StepConfig } from 'motia'
+    import { TSStore, PetProfile } from './ts-store'
 
     export const config = {
-      type: 'event',
       name: 'TsAiProfileEnrichment',
       description: 'Agentic step that enriches pet profiles using OpenAI',
-      subscribes: ['ts.pet.created'],
-      emits: [],
-      flows: ['TsPetManagement']
-    };
+      triggers: [
+        { type: 'queue', topic: 'ts.pet.created' },
+      ],
+      enqueues: [],
+      flows: ['TsPetManagement'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['TsAiProfileEnrichment'] = async (input, { logger, streams, traceId }) => {
+    export const handler: Handlers<typeof config> = async (input, { logger, streams, traceId }) => {
       const { petId, name, species } = input;
 
       if (logger) {
@@ -980,20 +980,21 @@ Keep it positive, realistic, and adoption-focused.`;
     import time
 
     config = {
-        "type": "event",
         "name": "PyAiProfileEnrichment",
         "description": "AI agent that enriches pet profiles using OpenAI",
-        "subscribes": ["py.pet.created"],
-        "emits": [],
+        "triggers": [
+            {"type": "queue", "topic": "py.pet.created"}
+        ],
+        "enqueues": [],
         "flows": ["PyPetManagement"]
     }
 
     async def handler(input_data, ctx=None):
         logger = getattr(ctx, 'logger', None) if ctx else None
-        emit = getattr(ctx, 'emit', None) if ctx else None
+        enqueue = getattr(ctx, 'enqueue', None) if ctx else None
         streams = getattr(ctx, 'streams', None) if ctx else None
         trace_id = getattr(ctx, 'traceId', None) if ctx else None
-        
+
         pet_id = input_data.get('petId')
         name = input_data.get('name')
         species = input_data.get('species')
@@ -1164,15 +1165,16 @@ Keep it positive, realistic, and adoption-focused.'''
     import { updateProfile } from './js-store.js'
 
     export const config = {
-      type: 'event',
       name: 'JsAiProfileEnrichment',
       description: 'AI agent that enriches pet profiles using OpenAI',
-      subscribes: ['js.pet.created'],
-      emits: [],
-      flows: ['JsPetManagement']
-    };
+      triggers: [
+        { type: 'queue', topic: 'js.pet.created' },
+      ],
+      enqueues: [],
+      flows: ['JsPetManagement'],
+    }
 
-    exports.handler = async (input, context) => {
+    export const handler = async (input, context) => {
       const { logger, streams, traceId } = context || {};
       const { petId, name, species } = input;
 
@@ -1338,11 +1340,11 @@ This transforms a potentially slow AI operation into an engaging real-time exper
 
 ## Testing Streaming in Action
 
-The best way to test streams is through **Workbench**.
+The best way to test streams is through **iii console**.
 
 ### Test 1: Create a Pet with Streaming
 
-Open Workbench and navigate to the Endpoints section, then test the Pet Creation endpoint:
+Open iii console and navigate to the Endpoints section, then test the Pet Creation endpoint:
 
 <Callout type="tip">
 **Prefer using curl?**
@@ -1361,9 +1363,9 @@ curl -X POST http://localhost:3000/ts/pets \
 
 You'll get an immediate response with the stream result. The API returns right away while background jobs process asynchronously.
 
-### Test 2: Monitor Stream Updates in Workbench
+### Test 2: Monitor Stream Updates in iii console
 
-After creating a pet, check the Tracing view in Workbench:
+After creating a pet, check the Tracing view in iii console:
 
 1. Automatically switched to the **Tracing** tab so you can see the stream updates in real-time
 2. Click on the most recent trace
@@ -1413,7 +1415,7 @@ The stream will show health check passed messages instead of treatment needed me
 
 ### Observing Stream Updates
 
-Watch the Workbench console logs to see the real-time stream updates as they're pushed:
+Watch the iii console console logs to see the real-time stream updates as they're pushed:
 
 ```
 🐾 Pet created { petId: '1', name: 'Max', species: 'dog', status: 'new' }

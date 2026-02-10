@@ -118,7 +118,7 @@ This mix of automatic progressions and human decision points is what makes workf
 
 ## Creating the Workflow
 
-The workflow orchestrator is a single Event Step that manages all pet lifecycle transitions. Here's the complete implementation:
+The workflow orchestrator is a single Queue Step that manages all pet lifecycle transitions. Here's the complete implementation:
 
 <Callout type="info">
 View on GitHub:
@@ -776,8 +776,8 @@ View on GitHub:
             });
           }
           
-          if (emit) {
-            await emit({
+          if (enqueue) {
+            await enqueue({
               topic: 'js.lifecycle.transition.rejected',
               data: {
                 petId,
@@ -787,7 +787,7 @@ View on GitHub:
                 reason,
                 timestamp: Date.now()
               }
-            });
+            })
           }
           return;
         }
