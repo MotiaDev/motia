@@ -261,8 +261,8 @@ View on GitHub:
                 'topic': 'py.pet.created',
                 'data': {'petId': pet['id'], 'event': 'pet.created', 'name': pet['name'], 'species': pet['species']}
             })
-            
-            await emit({
+
+            await enqueue({
                 'topic': 'py.feeding.reminder.enqueued',
                 'data': {'petId': pet['id'], 'enqueuedAt': int(time.time() * 1000)}
             })
@@ -306,8 +306,8 @@ View on GitHub:
           topic: 'js.pet.created',
           data: { petId: pet.id, event: 'pet.created', name: pet.name, species: pet.species }
         })
-        
-        await emit({
+
+        await enqueue({
           topic: 'js.feeding.reminder.enqueued',
           data: { petId: pet.id, enqueuedAt: Date.now() }
         })
@@ -319,7 +319,7 @@ View on GitHub:
   </Tab>
 </Tabs>
 
-The API endpoint now emits an event after creating a pet. The response returns immediately while the agentic step processes asynchronously in the background.
+The API endpoint now enqueues an event after creating a pet. The response returns immediately while the agentic step processes asynchronously in the background.
 
 ---
 
@@ -747,7 +747,7 @@ Keep it positive, realistic, and adoption-focused.`
 
 This is a **content generation agentic step** - it enriches data without making workflow decisions:
 
-- **Subscribes** to `pet.created` events
+- **Listens** for `pet.created` events via queue trigger
 - **Calls OpenAI** with a carefully crafted prompt
 - **Parses the response** into structured data
 - **Updates the pet** with AI-generated content
@@ -820,26 +820,26 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="src/typescript/health-review-agent.step.ts"
-    // src/typescript/health-review-agent.step.ts
-    import { ApiRouteConfig, Handlers } from 'motia';
-    import { TSStore } from './ts-store';
-    import { 
-      HEALTH_REVIEW_EMITS, 
-      buildAgentContext, 
+    import { type Handlers, type StepConfig } from 'motia'
+    import { TSStore } from './ts-store'
+    import {
+      HEALTH_REVIEW_EMITS,
+      buildAgentContext,
       callAgentDecision,
       getAgentArtifacts
-    } from './agent-decision-framework';
+    } from './agent-decision-framework'
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config = {
       name: 'TsHealthReviewAgent',
-      path: '/ts/pets/:id/health-review',
-      method: 'POST',
-      emits: ['ts.health.treatment_required', 'ts.health.no_treatment_needed'],
-      flows: ['TsPetManagement']
-    };
+      description: 'Health review agent for pets',
+      triggers: [
+        { type: 'api', path: '/ts/pets/:id/health-review', method: 'POST' },
+      ],
+      enqueues: ['ts.health.treatment_required', 'ts.health.no_treatment_needed'],
+      flows: ['TsPetManagement'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['TsHealthReviewAgent'] = async (req, { emit, logger }) => {
+    export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
       const petId = req.pathParams?.id;
 
       if (!petId) {
@@ -949,8 +949,8 @@ View on GitHub:
           };
         }
 
-        if (emit) {
-          (emit as any)({
+        if (enqueue) {
+          await enqueue({
             topic: chosenEmitDef.topic as 'ts.health.treatment_required' | 'ts.health.no_treatment_needed',
             data: {
               petId,
@@ -1016,11 +1016,12 @@ View on GitHub:
     from services import pet_store
 
     config = {
-        "type": "api",
         "name": "PyHealthReviewAgent",
-        "path": "/py/pets/:id/health-review",
-        "method": "POST",
-        "emits": ["py.health.treatment_required", "py.health.no_treatment_needed"],
+        "description": "Health review agent for pets",
+        "triggers": [
+            {"type": "api", "path": "/py/pets/:id/health-review", "method": "POST"}
+        ],
+        "enqueues": ["py.health.treatment_required", "py.health.no_treatment_needed"],
         "flows": ["PyPetManagement"]
     }
 
@@ -1061,7 +1062,7 @@ View on GitHub:
 
     async def handler(req, ctx=None):
         logger = getattr(ctx, 'logger', None) if ctx else None
-        emit = getattr(ctx, 'emit', None) if ctx else None
+        enqueue = getattr(ctx, 'enqueue', None) if ctx else None
         pet_id = req.get("pathParams", {}).get("id")
 
         if not pet_id:
@@ -1123,8 +1124,8 @@ View on GitHub:
                     }
                 }
 
-            if emit:
-                await emit({
+            if enqueue:
+                await enqueue({
                     "topic": chosen_emit_def["topic"],
                     "data": {
                         "petId": pet_id,
@@ -1186,12 +1187,13 @@ View on GitHub:
     } from './agent-decision-framework.js'
 
     export const config = {
-      type: 'api',
       name: 'JsHealthReviewAgent',
-      path: '/js/pets/:id/health-review',
-      method: 'POST',
-      emits: ['js.health.treatment_required', 'js.health.no_treatment_needed'],
-      flows: ['JsPetManagement']
+      description: 'Health review agent for pets',
+      triggers: [
+        { type: 'api', path: '/js/pets/:id/health-review', method: 'POST' },
+      ],
+      enqueues: ['js.health.treatment_required', 'js.health.no_treatment_needed'],
+      flows: ['JsPetManagement'],
     }
 
     export const handler = async (req, context) => {
@@ -1289,8 +1291,8 @@ View on GitHub:
           }
         }
 
-        if (emit) {
-          await emit({
+        if (enqueue) {
+          await enqueue({
             topic: chosenEmitDef.topic,
             data: {
               petId,
@@ -1301,7 +1303,7 @@ View on GitHub:
           })
 
         if (logger) {
-            logger.info('✅ Health review emit fired', {
+            logger.info('✅ Health review enqueue fired', {
             petId,
               chosenEmit: artifact.parsedDecision.chosenEmit,
               topic: chosenEmitDef.topic,

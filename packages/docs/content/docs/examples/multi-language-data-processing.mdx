@@ -288,22 +288,22 @@ import { z } from 'zod'
 
 // Final step to complete the app - TypeScript
 export const config = {
-  type: 'event',
   name: 'AppFinalizer',
   description: 'Complete the basic app and log final results',
-  subscribes: ['notification.sent'],
-  emits: ['app.completed'],
-  input: z.object({
-    id: z.number(),
-    message: z.string(),
-    processed_by: z.array(z.string()),
-    sent_at: z.string(),
-    processing_time: z.number()
-  }),
-  flows: ['data-processing']
+  triggers: [
+    { type: 'queue', topic: 'notification.sent', input: z.object({
+      id: z.number(),
+      message: z.string(),
+      processed_by: z.array(z.string()),
+      sent_at: z.string(),
+      processing_time: z.number()
+    }) },
+  ],
+  enqueues: ['app.completed'],
+  flows: ['data-processing'],
 } as const
 
-export const handler = async (input: any, { logger, emit }: any) => {
+export const handler = async (input: any, { logger, enqueue }: any) => {
   logger.info('🏁 Finalizing app', { 
     notificationId: input.id,
     message: input.message 
@@ -325,7 +325,7 @@ export const handler = async (input: any, { logger, emit }: any) => {
   }
 
   // Send to JavaScript summary generator
-  await emit({
+  await enqueue({
     topic: 'app.completed',
     data: {
       ...summary,
@@ -347,12 +347,13 @@ export const handler = async (input: any, { logger, emit }: any) => {
 ```javascript
 // Final summary step - JavaScript
 export const config = {
-  type: 'event',
   name: 'summaryGenerator',
   description: 'Generate final summary in JavaScript',
-  subscribes: ['app.completed'],
-  emits: [], // Final step - no further processing needed
-  flows: ['data-processing']
+  triggers: [
+    { type: 'queue', topic: 'app.completed' },
+  ],
+  enqueues: [],
+  flows: ['data-processing'],
 }
 
 export const handler = async (input, { logger }) => {
@@ -456,7 +457,7 @@ The pipeline follows a clear event-driven flow that connects all languages seaml
 4. **`notification.sent`** - TypeScript Notification → TypeScript Finalizer
 5. **`app.completed`** - TypeScript Finalizer → JavaScript Summary Generator
 
-Each step only needs to know the events it subscribes to and emits, creating loose coupling while maintaining strong data flow guarantees.
+Each step only needs to know the topics it triggers on and enqueues, creating loose coupling while maintaining strong data flow guarantees.
 
 ---
 
