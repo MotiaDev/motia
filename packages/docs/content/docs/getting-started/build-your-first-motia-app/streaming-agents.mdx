@@ -317,10 +317,10 @@ View on GitHub:
 
     async def handler(req, ctx=None):
         logger = getattr(ctx, 'logger', None) if ctx else None
-        emit = getattr(ctx, 'emit', None) if ctx else None
+        enqueue = getattr(ctx, 'enqueue', None) if ctx else None
         streams = getattr(ctx, 'streams', None) if ctx else None
         trace_id = getattr(ctx, 'traceId', None) if ctx else None
-        
+
         try:
             import sys
             import os
@@ -328,7 +328,6 @@ View on GitHub:
             sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
             from services import pet_store
         except ImportError:
-            # Fallback for import issues
             return {"status": 500, "body": {"message": "Import error"}}
         
         b = (req.get("body") or {})
@@ -363,19 +362,18 @@ View on GitHub:
             'message': f"Pet {pet['name']} (ID: {pet['id']}) created successfully - Species: {pet['species']}, Age: {pet['ageMonths']} months, Status: {pet['status']}"
         })
         
-        if emit:
-            await emit({
+        if enqueue:
+            await enqueue({
                 'topic': 'py.pet.created',
                 'data': {'petId': pet['id'], 'event': 'pet.created', 'name': pet['name'], 'species': pet['species'], 'traceId': trace_id}
             })
-            
-            # Enqueue feeding reminder background job
-            await emit({
+
+            await enqueue({
                 'topic': 'py.feeding.reminder.enqueued',
                 'data': {'petId': pet['id'], 'enqueuedAt': int(time.time() * 1000), 'traceId': trace_id}
             })
-        
-        # Return the stream result so it can be tracked in Workbench
+
+        # Return the stream result so it can be tracked in the iii console
         return {
             "status": 201,
             "body": result
@@ -387,16 +385,17 @@ View on GitHub:
     import { create } from './js-store.js'
 
     export const config = {
-      type: 'api',
       name: 'JsCreatePet',
-      path: '/js/pets',
-      method: 'POST',
-      emits: ['js.pet.created', 'js.feeding.reminder.enqueued'],
-      flows: ['JsPetManagement']
+      description: 'Creates a new pet',
+      triggers: [
+        { type: 'api', path: '/js/pets', method: 'POST' },
+      ],
+      enqueues: ['js.pet.created', 'js.feeding.reminder.enqueued'],
+      flows: ['JsPetManagement'],
     }
 
     export const handler = async (req, context) => {
-      const { emit, logger, streams, traceId } = context || {}
+      const { enqueue, logger, streams, traceId } = context || {}
       const b = req.body || {}
       const name = typeof b.name === 'string' && b.name.trim()
       const speciesOk = ['dog','cat','bird','other'].includes(b.species)
@@ -424,14 +423,13 @@ View on GitHub:
         message: `Pet ${pet.name} (ID: ${pet.id}) created successfully - Species: ${pet.species}, Age: ${pet.ageMonths} months, Status: ${pet.status}` 
       })
 
-      if (emit) {
-        await emit({
+      if (enqueue) {
+        await enqueue({
           topic: 'js.pet.created',
           data: { petId: pet.id, event: 'pet.created', name: pet.name, species: pet.species, traceId }
         })
-        
-        // Enqueue feeding reminder background job
-        await emit({
+
+        await enqueue({
           topic: 'js.feeding.reminder.enqueued',
           data: { petId: pet.id, enqueuedAt: Date.now(), traceId }
         })
@@ -473,20 +471,20 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="src/typescript/set-next-feeding-reminder.job.step.ts"
-    // src/typescript/set-next-feeding-reminder.job.step.ts
-    import { EventConfig, Handlers } from 'motia';
-    import { TSStore } from './ts-store';
+    import { type Handlers, type StepConfig } from 'motia'
+    import { TSStore } from './ts-store'
 
     export const config = {
-      type: 'event',
       name: 'TsSetNextFeedingReminder',
       description: 'Background job that sets next feeding reminder and adds welcome notes',
-      subscribes: ['ts.feeding.reminder.enqueued'],
-      emits: ['ts.feeding.reminder.completed'],
-      flows: ['TsPetManagement']
-    };
+      triggers: [
+        { type: 'queue', topic: 'ts.feeding.reminder.enqueued' },
+      ],
+      enqueues: ['ts.feeding.reminder.completed'],
+      flows: ['TsPetManagement'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['TsSetNextFeedingReminder'] = async (input, { emit, logger, streams, traceId }) => {
+    export const handler: Handlers<typeof config> = async (input, { enqueue, logger, streams, traceId }) => {
       const { petId, enqueuedAt } = input;
 
       if (logger) {
@@ -551,16 +549,16 @@ View on GitHub:
           }
         }
 
-        if (emit) {
-          (emit as any)({
+        if (enqueue) {
+          await enqueue({
             topic: 'ts.feeding.reminder.completed',
-            data: { 
-              petId, 
+            data: {
+              petId,
               event: 'feeding.reminder.completed',
               completedAt: Date.now(),
               processingTimeMs: Date.now() - enqueuedAt
             }
-          });
+          })
         }
 
       } catch (error: any) {
@@ -576,20 +574,21 @@ View on GitHub:
     import asyncio
 
     config = {
-        "type": "event",
         "name": "PySetNextFeedingReminder",
         "description": "Sets the next feeding reminder for a pet and updates its status",
-        "subscribes": ["py.feeding.reminder.enqueued"],
-        "emits": ["py.feeding.reminder.completed"],
+        "triggers": [
+            {"type": "queue", "topic": "py.feeding.reminder.enqueued"}
+        ],
+        "enqueues": ["py.feeding.reminder.completed"],
         "flows": ["PyPetManagement"]
     }
 
     async def handler(input_data, ctx=None):
         logger = getattr(ctx, 'logger', None) if ctx else None
-        emit = getattr(ctx, 'emit', None) if ctx else None
+        enqueue = getattr(ctx, 'enqueue', None) if ctx else None
         streams = getattr(ctx, 'streams', None) if ctx else None
         trace_id = getattr(ctx, 'traceId', None) if ctx else None
-        
+
         try:
             import sys
             import os
@@ -661,8 +660,8 @@ View on GitHub:
                         'message': f"{updated_pet['name']} needs medical treatment ❌" 
                     })
 
-            if emit:
-                await emit({
+            if enqueue:
+                await enqueue({
                     'topic': 'py.feeding.reminder.completed',
                     'data': {
                         'petId': pet_id,
@@ -682,16 +681,17 @@ View on GitHub:
     import { update } from './js-store.js'
 
     export const config = {
-      type: 'event',
       name: 'JsSetNextFeedingReminder',
       description: 'Sets the next feeding reminder for a pet and updates its status',
-      subscribes: ['js.feeding.reminder.enqueued'],
-      emits: ['js.feeding.reminder.completed'],
-      flows: ['JsPetManagement']
+      triggers: [
+        { type: 'queue', topic: 'js.feeding.reminder.enqueued' },
+      ],
+      enqueues: ['js.feeding.reminder.completed'],
+      flows: ['JsPetManagement'],
     }
 
-    exports.handler = async (input, context) => {
-      const { emit, logger, streams, traceId } = context || {}
+    export const handler = async (input, context) => {
+      const { enqueue, logger, streams, traceId } = context || {}
       const { petId, enqueuedAt } = input
 
       if (logger) {
