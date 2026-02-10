@@ -126,9 +126,9 @@ When a pet arrives with "coughing, lethargy, loss of appetite" - the AI evaluate
 
 Let's start with a content generation agentic step that automatically enriches pet profiles when they're created.
 
-### Step 1: Set Up Pet Creation to Emit Events
+### Step 1: Set Up Pet Creation to Enqueue Events
 
-First, update your pet creation endpoint to emit events that will trigger the agentic step.
+First, update your pet creation endpoint to enqueue events that will trigger the agentic step.
 
 <Callout type="info">
 View on GitHub:
@@ -221,8 +221,8 @@ View on GitHub:
 
     async def handler(req, ctx=None):
         logger = getattr(ctx, 'logger', None) if ctx else None
-        emit = getattr(ctx, 'emit', None) if ctx else None
-        
+        enqueue = getattr(ctx, 'enqueue', None) if ctx else None
+
         try:
             import sys
             import os
@@ -486,8 +486,8 @@ Keep it positive, realistic, and adoption-focused.`;
 
     async def handler(input_data, ctx=None):
         logger = getattr(ctx, 'logger', None) if ctx else None
-        emit = getattr(ctx, 'emit', None) if ctx else None
-        
+        enqueue = getattr(ctx, 'enqueue', None) if ctx else None
+
         pet_id = input_data.get('petId')
         name = input_data.get('name')
         species = input_data.get('species')
@@ -1354,9 +1354,9 @@ View on GitHub:
 This agentic step is fundamentally different from the enrichment agentic step:
 
 1. **It's an API Step** - Staff trigger it explicitly when they need a decision
-2. **It defines an emits registry** - Lists all possible actions the AI can choose from (in `agent-decision-framework.ts/js`)
+2. **It defines an enqueues registry** - Lists all possible actions the AI can choose from (in `agent-decision-framework.ts/js`)
 3. **It calls the AI with context + options** - The AI evaluates and picks one
-4. **It fires the chosen emit** - This emit goes to the orchestrator, changing workflow state
+4. **It fires the chosen enqueue** - This enqueue goes to the orchestrator, changing workflow state
 5. **It uses idempotency checking** - Caches recent decisions to prevent duplicate AI calls
 
 The framework functions (`buildAgentContext`, `callAgentDecision`, `getAgentArtifacts`) handle the OpenAI call and ensure the AI picks from valid options.
@@ -1420,7 +1420,7 @@ You'll get a response like:
 ```
 ![ai-health-review-reqd](../../img/build-your-first-app/health-treatment-reqd.png)
 
-The AI evaluates the pet's data and makes a decision. The emit it fires will trigger the orchestrator to handle the appropriate state transition.
+The AI evaluates the pet's data and makes a decision. The enqueue it fires will trigger the orchestrator to handle the appropriate state transition.
 
 ### Verify the Status Change
 
@@ -1442,32 +1442,31 @@ The pet's status has automatically changed based on the AI's decision!
 
 ## Connecting Agentic Steps to the Orchestrator
 
-The real power comes when your agentic steps integrate with a workflow orchestrator. The orchestrator subscribes to the events emitted by agentic steps and handles the actual state transitions.
+The real power comes when your agentic steps integrate with a workflow orchestrator. The orchestrator listens for events enqueued by agentic steps via queue triggers and handles the actual state transitions.
 
-The orchestrator configuration shows it subscribes to agentic step events:
+The orchestrator configuration shows it listens for agentic step events via queue triggers:
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="src/typescript/pet-lifecycle-orchestrator.step.ts"
     export const config = {
-      type: 'event',
       name: 'TsPetLifecycleOrchestrator',
       description: 'Pet lifecycle state management with staff interaction points',
-      subscribes: [
-        'ts.feeding.reminder.completed',
-        'ts.pet.status.update.requested',
-        'ts.health.treatment_required',       // From Health Review Agentic Step
-        'ts.health.no_treatment_needed',      // From Health Review Agentic Step
-        'ts.adoption.needs_data',             // From Adoption Review Agentic Step
-        'ts.adoption.ready'                   // From Adoption Review Agentic Step
+      triggers: [
+        { type: 'queue', topic: 'ts.feeding.reminder.completed' },
+        { type: 'queue', topic: 'ts.pet.status.update.requested' },
+        { type: 'queue', topic: 'ts.health.treatment_required' },
+        { type: 'queue', topic: 'ts.health.no_treatment_needed' },
+        { type: 'queue', topic: 'ts.adoption.needs_data' },
+        { type: 'queue', topic: 'ts.adoption.ready' },
       ],
-      emits: [
+      enqueues: [
         'ts.treatment.required',
         'ts.adoption.ready',
         'ts.treatment.completed'
       ],
-      flows: ['TsPetManagement']
-    }
+      flows: ['TsPetManagement'],
+    } as const satisfies StepConfig
 
     // The orchestrator has transition rules that handle agentic step events
     const TRANSITION_RULES: TransitionRule[] = [
@@ -1507,18 +1506,17 @@ The orchestrator configuration shows it subscribes to agentic step events:
   <Tab value="Python">
     ```python title="src/python/pet_lifecycle_orchestrator_step.py"
     config = {
-        "type": "event",
         "name": "PyPetLifecycleOrchestrator",
         "description": "Pet lifecycle state management with staff interaction points",
-        "subscribes": [
-            "py.feeding.reminder.completed",
-            "py.pet.status.update.requested",
-            "py.health.treatment_required",       # From Health Review Agentic Step
-            "py.health.no_treatment_needed",      # From Health Review Agentic Step
-            "py.adoption.needs_data",             # From Adoption Review Agentic Step
-            "py.adoption.ready"                   # From Adoption Review Agentic Step
+        "triggers": [
+            {"type": "queue", "topic": "py.feeding.reminder.completed"},
+            {"type": "queue", "topic": "py.pet.status.update.requested"},
+            {"type": "queue", "topic": "py.health.treatment_required"},
+            {"type": "queue", "topic": "py.health.no_treatment_needed"},
+            {"type": "queue", "topic": "py.adoption.needs_data"},
+            {"type": "queue", "topic": "py.adoption.ready"}
         ],
-        "emits": [
+        "enqueues": [
             "py.treatment.required",
             "py.adoption.ready",
             "py.treatment.completed"
@@ -1564,23 +1562,22 @@ The orchestrator configuration shows it subscribes to agentic step events:
   <Tab value="JavaScript">
     ```javascript title="src/javascript/pet-lifecycle-orchestrator.step.js"
     export const config = {
-      type: 'event',
       name: 'JsPetLifecycleOrchestrator',
       description: 'Pet lifecycle state management with staff interaction points',
-      subscribes: [
-        'js.feeding.reminder.completed',
-        'js.pet.status.update.requested',
-        'js.health.treatment_required',       // From Health Review Agentic Step
-        'js.health.no_treatment_needed',      // From Health Review Agentic Step
-        'js.adoption.needs_data',             // From Adoption Review Agentic Step
-        'js.adoption.ready'                   // From Adoption Review Agentic Step
+      triggers: [
+        { type: 'queue', topic: 'js.feeding.reminder.completed' },
+        { type: 'queue', topic: 'js.pet.status.update.requested' },
+        { type: 'queue', topic: 'js.health.treatment_required' },
+        { type: 'queue', topic: 'js.health.no_treatment_needed' },
+        { type: 'queue', topic: 'js.adoption.needs_data' },
+        { type: 'queue', topic: 'js.adoption.ready' },
       ],
-      emits: [
+      enqueues: [
         'js.treatment.required',
         'js.adoption.ready',
         'js.treatment.completed'
       ],
-      flows: ['JsPetManagement']
+      flows: ['JsPetManagement'],
     }
 
     // Transition rules that handle agentic step events

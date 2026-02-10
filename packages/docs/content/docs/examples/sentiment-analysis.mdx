@@ -152,13 +152,13 @@ Our application will be composed of four steps. Let's explore each one.
         // 6) Decide how to route the event
         if (parsed.sentiment) {
           if (parsed.sentiment.toLowerCase() === 'positive') {
-            await emit({
+            await enqueue({
               topic: 'openai.positiveSentiment',
               data: { ...parsed, sentiment: parsed.sentiment },
             })
           } else {
             // default to negative
-            await emit({
+            await enqueue({
               topic: 'openai.negativeSentiment',
               data: { ...parsed, sentiment: parsed.sentiment },
             })
@@ -181,23 +181,23 @@ Our application will be composed of four steps. Let's explore each one.
 
     ```ts
     // Handles "openai.positiveSentiment"
-    import { Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { z } from 'zod'
 
     export const config = {
-      type: 'event',
       name: 'handlePositive',
       description: 'Handles positive sentiment responses.',
-      subscribes: ['openai.positiveSentiment'],
-      emits: [],
-      input: z.object({
-        sentiment: z.string(),
-        analysis: z.string().optional(),
-      }),
+      triggers: [
+        { type: 'queue', topic: 'openai.positiveSentiment', input: z.object({
+          sentiment: z.string(),
+          analysis: z.string().optional(),
+        }) },
+      ],
+      enqueues: [],
       flows: ['sentiment-demo'],
-    } as const
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['handlePositive'] = async (input, { logger }) => {
+    export const handler: Handlers<typeof config> = async (input, { logger }) => {
       logger.info('[Positive Responder] The sentiment is positive!', { analysis: input.analysis })
       // Maybe notify a Slack channel: "All good vibes here!"
     }
@@ -209,23 +209,23 @@ Our application will be composed of four steps. Let's explore each one.
 
     ```ts
     // Handles "openai.negativeSentiment"
-    import { Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { z } from 'zod'
 
     export const config = {
-      type: 'event',
       name: 'handleNegative',
       description: 'Handles negative or unknown sentiment responses.',
-      subscribes: ['openai.negativeSentiment'],
-      emits: [],
-      input: z.object({
-        sentiment: z.string(),
-        analysis: z.string().optional(),
-      }),
+      triggers: [
+        { type: 'queue', topic: 'openai.negativeSentiment', input: z.object({
+          sentiment: z.string(),
+          analysis: z.string().optional(),
+        }) },
+      ],
+      enqueues: [],
       flows: ['sentiment-demo'],
-    } as const
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['handleNegative'] = async (input, { logger }) => {
+    export const handler: Handlers<typeof config> = async (input, { logger }) => {
       logger.info('[Negative Responder] The sentiment is negative or unknown.', { analysis: input.analysis })
       // Could escalate to a service, or respond gently, etc.
     }

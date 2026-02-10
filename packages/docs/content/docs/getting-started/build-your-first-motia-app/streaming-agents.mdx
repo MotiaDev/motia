@@ -38,13 +38,13 @@ Set up your OpenAI API key in `.env`:
 OPENAI_API_KEY=your_api_key_here
 ```
 
-Start the Workbench:
+Start the iii console:
 
 ```bash
 npm run dev
 ```
 
-Your Workbench will be available at `http://localhost:3000`.
+Your iii console will be available at `http://localhost:3000`.
 
 ---
 
@@ -97,7 +97,7 @@ Files like `features.json` and `tutorial/tutorial.tsx` are only for the interact
 
 All code examples in this guide are available in the [build-your-first-app](https://github.com/MotiaDev/build-your-first-app/tree/main) repository.
 
-You can follow this guide to learn how to build real-time streaming with Motia step by step, or you can clone the repository and dive into our Interactive Tutorial to learn by doing directly in the Workbench.
+You can follow this guide to learn how to build real-time streaming with Motia step by step, or you can clone the repository and dive into our Interactive Tutorial to learn by doing directly in the iii console.
 
 ![interactive-tutorial](../../img/build-your-first-app/interactive-tutorial-streaming.png)
 
@@ -115,7 +115,7 @@ In our pet shelter example:
 - Agentic steps stream enrichment progress (bio generation, breed analysis)
 - Clients get live feedback throughout the entire workflow
 
-The power is in the simplicity - `streams` is available in your handler's context, just like `emit`, `logger`, and `state`. Any step can update any stream, creating a unified real-time experience without complex orchestration.
+The power is in the simplicity - `streams` is available in your handler's context, just like `enqueue`, `logger`, and `state`. Any step can update any stream, creating a unified real-time experience without complex orchestration.
 
 ---
 
@@ -204,7 +204,7 @@ Stream configuration is simple:
 - **schema** - Zod schema defining what data can be pushed to the stream
 - **baseConfig** - Storage settings (default uses in-memory storage)
 
-Once you create this configuration file, the stream is automatically available as `streams.petCreation` in the context of any step handler. It's just like `emit`, `logger`, or `state` - part of the tools available in your handler.
+Once you create this configuration file, the stream is automatically available as `streams.petCreation` in the context of any step handler. It's just like `enqueue`, `logger`, or `state` - part of the tools available in your handler.
 
 ---
 
@@ -222,10 +222,9 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="src/typescript/create-pet.step.ts"
-    // src/typescript/create-pet.step.ts
-    import { ApiRouteConfig, Handlers } from 'motia';
-    import { z } from 'zod';
-    import { TSStore } from './ts-store';
+    import { type Handlers, type StepConfig } from 'motia'
+    import { z } from 'zod'
+    import { TSStore } from './ts-store'
 
     const createPetSchema = z.object({
       name: z.string().min(1, 'Name is required').trim(),
@@ -233,18 +232,19 @@ View on GitHub:
       ageMonths: z.number().int().min(0, 'Age must be a positive number'),
       weightKg: z.number().positive().optional(),
       symptoms: z.array(z.string()).optional()
-    });
+    })
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config = {
       name: 'TsCreatePet',
-      path: '/ts/pets',
-      method: 'POST',
-      emits: ['ts.pet.created', 'ts.feeding.reminder.enqueued'],
-      flows: ['TsPetManagement']
-    };
+      description: 'Creates a new pet',
+      triggers: [
+        { type: 'api', path: '/ts/pets', method: 'POST' },
+      ],
+      enqueues: ['ts.pet.created', 'ts.feeding.reminder.enqueued'],
+      flows: ['TsPetManagement'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['TsCreatePet'] = async (req, { emit, logger, streams, traceId }) => {
+    export const handler: Handlers<typeof config> = async (req, { enqueue, logger, streams, traceId }) => {
       try {
         const validatedData = createPetSchema.parse(req.body);
 
@@ -265,16 +265,16 @@ View on GitHub:
           message: `Pet ${pet.name} (ID: ${pet.id}) created successfully - Species: ${pet.species}, Age: ${pet.ageMonths} months, Status: ${pet.status}` 
         });
 
-        if (emit) {
-          await emit({
+        if (enqueue) {
+          await enqueue({
             topic: 'ts.pet.created',
             data: { petId: pet.id, event: 'pet.created', name: pet.name, species: validatedData.species, traceId }
-          } as any);
+          })
 
-          await emit({
+          await enqueue({
             topic: 'ts.feeding.reminder.enqueued',
             data: { petId: pet.id, enqueuedAt: Date.now(), traceId }
-          } as any);
+          })
         }
 
         return { 
@@ -306,11 +306,12 @@ View on GitHub:
     import asyncio
 
     config = {
-        "type": "api",
         "name": "PyCreatePet",
-        "path": "/py/pets",
-        "method": "POST",
-        "emits": ["py.pet.created", "py.feeding.reminder.enqueued"],
+        "description": "Creates a new pet",
+        "triggers": [
+            {"type": "api", "path": "/py/pets", "method": "POST"}
+        ],
+        "enqueues": ["py.pet.created", "py.feeding.reminder.enqueued"],
         "flows": ["PyPetManagement"]
     }
 

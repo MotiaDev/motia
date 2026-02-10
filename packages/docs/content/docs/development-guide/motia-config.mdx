@@ -1,23 +1,40 @@
 ---
-title: iii Configuration (config.yml)
-description: Configure your application with iii config.yml - the central configuration file for your project.
+title: iii Configuration (config.yaml)
+description: Configure your iii application with config.yaml - the central configuration file using a modular architecture.
 ---
 
-The `config.yml` file is the central configuration for your application. It replaces the previous `motia.config.ts` file.
+The `config.yaml` file is the central configuration for your iii application. It uses a modular architecture where each concern (API, queues, state, streams, etc.) is configured as a separate module.
 
 <Callout type="info">
-**Migration Note**: The `motia.config.ts` file has been replaced by `config.yml`. If you are upgrading from an older version, you will need to migrate your configuration to the new YAML format.
+**Migration Note**: The `motia.config.ts` file has been replaced by `config.yaml`. If you are upgrading from an older version, migrate your configuration to the new YAML-based modular format.
 </Callout>
 
 ## Quick Start
 
-Create a `config.yml` file in your project root:
+Create a `config.yaml` file in your project root:
 
-```yaml title="config.yml"
-# All configuration is optional - sensible defaults are used
+```yaml title="config.yaml"
+modules:
+  - class: modules::api::RestApiModule
+    config:
+      port: 3111
+      host: 127.0.0.1
+
+  - class: modules::queue::QueueModule
+    config:
+      adapter:
+        class: modules::queue::BuiltinQueueAdapter
+
+  - class: modules::state::StateModule
+    config:
+      adapter:
+        class: modules::state::adapters::KvStore
+        config:
+          store_method: file_based
+          file_path: ./data/state_store.db
 ```
 
-That's it. The application works out of the box with sensible defaults.
+Each module is independently configured. You only need to include the modules your application uses.
 
 ---
 
@@ -43,83 +60,380 @@ The framework uses ES modules internally. Without this setting, you'll get impor
 
 ---
 
-## Configuration Options
+## Module Architecture
 
-The `config.yml` file supports the following top-level keys:
+The `config.yaml` file contains a single top-level `modules` array. Each entry defines a module with its `class` and optional `config`:
+
+```yaml
+modules:
+  - class: modules::module_name::ClassName
+    config:
+      key: value
+```
+
+### Available Modules
+
+| Module | Class | Purpose |
+|--------|-------|---------|
+| **REST API** | `modules::api::RestApiModule` | HTTP endpoints, CORS, timeouts |
+| **Queue** | `modules::queue::QueueModule` | Background job processing |
+| **State** | `modules::state::StateModule` | Persistent key-value state |
+| **Streams** | `modules::streams::StreamModule` | Real-time WebSocket streams |
+| **PubSub** | `modules::pubsub::PubSubModule` | Publish/subscribe messaging |
+| **Cron** | `modules::cron::CronModule` | Scheduled tasks |
+| **Observability** | `modules::observability::OtelModule` | OpenTelemetry tracing and metrics |
+| **Shell Exec** | `modules::shell::ExecModule` | File watching and command execution |
+
+---
+
+## Environment Variable Interpolation
+
+All config values support environment variable interpolation with optional defaults:
+
+```yaml
+config:
+  port: ${STREAMS_PORT:3112}
+  host: ${HOST:127.0.0.1}
+  redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+The syntax is `${VARIABLE_NAME:default_value}`. If the environment variable is not set, the default value after `:` is used.
+
+---
+
+## Full Development Configuration
+
+Here's a complete development configuration with all modules:
+
+```yaml title="config.yaml"
+modules:
+  - class: modules::streams::StreamModule
+    config:
+      port: ${STREAMS_PORT:3112}
+      host: 127.0.0.1
+      adapter:
+        class: modules::streams::adapters::KvStore
+        config:
+          store_method: file_based
+          file_path: ./data/streams_store
+
+  - class: modules::state::StateModule
+    config:
+      adapter:
+        class: modules::state::adapters::KvStore
+        config:
+          store_method: file_based
+          file_path: ./data/state_store.db
+
+  - class: modules::api::RestApiModule
+    config:
+      port: 3111
+      host: 127.0.0.1
+      default_timeout: 30000
+      concurrency_request_limit: 1024
+      cors:
+        allowed_origins:
+          - http://localhost:3000
+          - http://localhost:5173
+        allowed_methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+
+  - class: modules::observability::OtelModule
+    config:
+      enabled: ${OTEL_ENABLED:true}
+      service_name: ${OTEL_SERVICE_NAME:iii-engine}
+      exporter: ${OTEL_EXPORTER_TYPE:memory}
+
+  - class: modules::queue::QueueModule
+    config:
+      adapter:
+        class: modules::queue::BuiltinQueueAdapter
+
+  - class: modules::pubsub::PubSubModule
+    config:
+      adapter:
+        class: modules::pubsub::LocalAdapter
+
+  - class: modules::cron::CronModule
+    config:
+      adapter:
+        class: modules::cron::KvCronAdapter
+
+  - class: modules::shell::ExecModule
+    config:
+      watch:
+        - steps/**/*.ts
+        - motia.config.ts
+      exec:
+        - npx motia dev
+```
+
+---
+
+## Module Reference
+
+### REST API Module
+
+Configures HTTP endpoints, CORS, timeouts, and concurrency.
+
+```yaml
+- class: modules::api::RestApiModule
+  config:
+    port: 3111
+    host: 127.0.0.1
+    default_timeout: 30000
+    concurrency_request_limit: 1024
+    cors:
+      allowed_origins:
+        - http://localhost:3000
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+```
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `port` | `number` | Server port (default: 3000) |
-| `host` | `string` | Server host (default: localhost) |
-| `redis` | `object` | Redis connection settings |
-| `streamAuth` | `object` | Secure real-time streams |
+| `port` | `number` | Server port (default: `3111`) |
+| `host` | `string` | Server host (default: `127.0.0.1`) |
+| `default_timeout` | `number` | Request timeout in ms (default: `30000`) |
+| `concurrency_request_limit` | `number` | Max concurrent requests (default: `1024`) |
+| `cors.allowed_origins` | `string[]` | Origins allowed for CORS |
+| `cors.allowed_methods` | `string[]` | HTTP methods allowed for CORS |
 
----
+### Queue Module
 
-## Redis Configuration
+Handles background job processing. Uses a built-in adapter for development and Redis for production.
 
-The application uses Redis for internal coordination. By default, it includes an embedded in-memory Redis server - no installation required.
+<Tabs items={['Development', 'Production']}>
+<Tab value='Development'>
 
-### Default: In-Memory Redis
-
-```yaml title="config.yml"
-# Uses embedded Redis by default - no configuration needed
+```yaml
+- class: modules::queue::QueueModule
+  config:
+    adapter:
+      class: modules::queue::BuiltinQueueAdapter
 ```
 
-### External Redis
+</Tab>
+<Tab value='Production'>
 
-For production or when you have your own Redis instance:
-
-```yaml title="config.yml"
-redis:
-  useMemoryServer: false
-  host: ${REDIS_HOST:-localhost}
-  port: ${REDIS_PORT:-6379}
-  password: ${REDIS_PASSWORD}
-  username: ${REDIS_USERNAME}
-  db: 0
+```yaml
+- class: modules::queue::QueueModule
+  config:
+    adapter:
+      class: modules::queue::RedisAdapter
+      config:
+        redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
-### Skip Embedded Redis
+</Tab>
+</Tabs>
 
-When creating a new project, skip the embedded Redis binary:
+### State Module
 
-```bash
-npx motia create my-app --skip-redis
+Persistent key-value state storage. Uses file-based storage for development and Redis for production.
+
+<Tabs items={['Development', 'Production']}>
+<Tab value='Development'>
+
+```yaml
+- class: modules::state::StateModule
+  config:
+    adapter:
+      class: modules::state::adapters::KvStore
+      config:
+        store_method: file_based
+        file_path: ./data/state_store.db
 ```
 
-This creates a project configured for external Redis from the start.
+</Tab>
+<Tab value='Production'>
 
-### Redis Options
+```yaml
+- class: modules::state::StateModule
+  config:
+    adapter:
+      class: modules::state::adapters::RedisAdapter
+      config:
+        redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+</Tab>
+</Tabs>
+
+### Streams Module
+
+Real-time WebSocket streams for live data. Supports authentication in production.
+
+<Tabs items={['Development', 'Production']}>
+<Tab value='Development'>
+
+```yaml
+- class: modules::streams::StreamModule
+  config:
+    port: ${STREAMS_PORT:3112}
+    host: 127.0.0.1
+    adapter:
+      class: modules::streams::adapters::KvStore
+      config:
+        store_method: file_based
+        file_path: ./data/streams_store
+```
+
+</Tab>
+<Tab value='Production'>
+
+```yaml
+- class: modules::streams::StreamModule
+  config:
+    port: ${STREAMS_PORT:31112}
+    host: 0.0.0.0
+    auth_function: motia.streams.authenticate
+    adapter:
+      class: modules::streams::adapters::RedisAdapter
+      config:
+        redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+</Tab>
+</Tabs>
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `useMemoryServer` | `boolean` | Use embedded Redis (default: `true`) |
-| `host` | `string` | Redis host |
-| `port` | `number` | Redis port |
-| `password` | `string` | Redis password |
-| `username` | `string` | Redis username (Redis 6.0+) |
-| `db` | `number` | Database number (default: `0`) |
+| `port` | `number` | WebSocket port (default: `3112`) |
+| `host` | `string` | Bind host |
+| `auth_function` | `string` | Function path for stream authentication |
+
+### Observability Module
+
+OpenTelemetry integration for tracing and metrics.
+
+```yaml
+- class: modules::observability::OtelModule
+  config:
+    enabled: ${OTEL_ENABLED:true}
+    service_name: ${OTEL_SERVICE_NAME:iii-engine}
+    exporter: ${OTEL_EXPORTER_TYPE:memory}
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `enabled` | `boolean` | Enable/disable tracing (default: `true`) |
+| `service_name` | `string` | Service name in traces (default: `iii-engine`) |
+| `exporter` | `string` | Exporter type (`memory`, `otlp`, etc.) |
+
+### PubSub Module
+
+Publish/subscribe messaging between Steps.
+
+```yaml
+- class: modules::pubsub::PubSubModule
+  config:
+    adapter:
+      class: modules::pubsub::LocalAdapter
+```
+
+### Cron Module
+
+Scheduled task execution.
+
+```yaml
+- class: modules::cron::CronModule
+  config:
+    adapter:
+      class: modules::cron::KvCronAdapter
+```
+
+### Shell Exec Module
+
+File watching and command execution for development.
+
+```yaml
+- class: modules::shell::ExecModule
+  config:
+    watch:
+      - steps/**/*.ts
+      - motia.config.ts
+    exec:
+      - npx motia dev
+```
 
 ---
 
-## Stream Authentication
+## Production Configuration
 
-Secure your real-time streams by authenticating WebSocket connections. Stream authentication is configured in your stream files and application code rather than in `config.yml`.
+For production, swap file-based adapters for Redis:
 
-See [Real-time Streams](/docs/development-guide/streams) for details on configuring stream authentication.
+```yaml title="config-production.yaml"
+modules:
+  - class: modules::streams::StreamModule
+    config:
+      port: ${STREAMS_PORT:31112}
+      host: 0.0.0.0
+      auth_function: motia.streams.authenticate
+      adapter:
+        class: modules::streams::adapters::RedisAdapter
+        config:
+          redis_url: ${REDIS_URL:redis://localhost:6379}
+
+  - class: modules::state::StateModule
+    config:
+      adapter:
+        class: modules::state::adapters::RedisAdapter
+        config:
+          redis_url: ${REDIS_URL:redis://localhost:6379}
+
+  - class: modules::api::RestApiModule
+    config:
+      port: ${PORT:3111}
+      host: 0.0.0.0
+      default_timeout: 30000
+      concurrency_request_limit: 1024
+
+  - class: modules::queue::QueueModule
+    config:
+      adapter:
+        class: modules::queue::RedisAdapter
+        config:
+          redis_url: ${REDIS_URL:redis://localhost:6379}
+
+  - class: modules::observability::OtelModule
+    config:
+      enabled: true
+      service_name: ${OTEL_SERVICE_NAME:my-app}
+      exporter: otlp
+
+  - class: modules::pubsub::PubSubModule
+    config:
+      adapter:
+        class: modules::pubsub::RedisAdapter
+        config:
+          redis_url: ${REDIS_URL:redis://localhost:6379}
+
+  - class: modules::cron::CronModule
+    config:
+      adapter:
+        class: modules::cron::KvCronAdapter
+```
+
+Key differences from development:
+- **Host**: `0.0.0.0` instead of `127.0.0.1` (accept external connections)
+- **Adapters**: Redis instead of file-based KvStore
+- **Stream auth**: `auth_function` enabled for secure WebSocket connections
+- **Observability**: OTLP exporter instead of memory
 
 ---
 
-## Built-in Features
+## Raw Body Access
 
-### Body Parsers
-
-The framework automatically parses JSON, URL-encoded, and text request bodies with a 1GB limit.
-
-### Raw Body Access
-
-The raw request body is available as `req.rawBody`. Useful for webhook signature verification:
+The raw request body is available as `req.rawBody` in API Steps. Useful for webhook signature verification:
 
 <Tabs items={['TypeScript', 'JavaScript']}>
 <Tab value='TypeScript'>
