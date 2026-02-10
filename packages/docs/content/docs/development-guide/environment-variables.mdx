@@ -18,7 +18,7 @@ Create a `.env` file in your project root:
 OPENAI_API_KEY=sk-your-api-key-here
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook
 
-# Database  
+# Database
 DATABASE_URL=postgresql://user:password@localhost:5432/myapp
 
 # App Settings
@@ -52,25 +52,27 @@ DATABASE_URL=postgresql://user:password@localhost:5432/myapp
 ### TypeScript/JavaScript
 
 ```typescript title="my-step.step.ts"
-export const config = {
-  type: 'api',
-  name: 'chat-with-ai',
-  path: '/chat',
-  method: 'POST'
-}
+import { type Handlers, type StepConfig } from 'motia'
 
-export const handler = async (req, { logger }) => {
-  // Use environment variables with process.env
+export const config = {
+  name: 'chat-with-ai',
+  description: 'Chat endpoint using OpenAI',
+  triggers: [
+    { type: 'api', path: '/chat', method: 'POST' },
+  ],
+  flows: ['ai-chat'],
+} as const satisfies StepConfig
+
+export const handler: Handlers<typeof config> = async (req, { logger }) => {
   const apiKey = process.env.OPENAI_API_KEY
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL
-  
+
   if (!apiKey) {
     return { status: 400, body: { error: 'Missing API key' } }
   }
-  
+
   logger.info('Using OpenAI API', { hasKey: !!apiKey })
-  
-  // Your logic here...
+
   return { status: 200, body: { message: 'Success!' } }
 }
 ```
@@ -81,22 +83,23 @@ export const handler = async (req, { logger }) => {
 import os
 
 config = {
-    'type': 'event', 
-    'name': 'process-data',
-    'subscribes': ['data.received']
+    "name": "process-data",
+    "description": "Process incoming data",
+    "triggers": [
+        {"type": "queue", "topic": "data.received"}
+    ],
+    "flows": ["data-pipeline"]
 }
 
 async def handler(input_data, ctx):
-    # Use environment variables with os.environ
     api_key = os.environ.get('OPENAI_API_KEY')
     database_url = os.environ.get('DATABASE_URL')
-    
+
     if not api_key:
         raise ValueError('Missing OPENAI_API_KEY')
-    
+
     ctx.logger.info('Processing with API key', {'has_key': bool(api_key)})
-    
-    # Your logic here...
+
     return {'status': 'processed'}
 ```
 
@@ -120,14 +123,13 @@ If you want to use your own Redis instance (created with `--skip-redis` flag or 
 ### Example: Using External Redis
 
 ```bash title=".env"
-# Connect to your own Redis instance
 MOTIA_REDIS_HOST=redis.example.com
 MOTIA_REDIS_PORT=6379
 MOTIA_REDIS_PASSWORD=your-redis-password
 MOTIA_REDIS_DB=0
 ```
 
-Alternatively, you can configure Redis in your `motia.config.ts` file. See the [CLI documentation](/docs/development-guide/cli#create) for more details.
+Alternatively, you can configure Redis in your `config.yml` file. See the [iii Configuration](/docs/development-guide/motia-config) for more details.
 
 ## Deployment
 
@@ -142,10 +144,10 @@ motia env set NODE_ENV=production
 ## Important Security Tips
 
 <Callout type="warning">
-**🔒 Keep Your Keys Safe**
+**Keep Your Keys Safe**
 
 - Never commit `.env` files to git
-- Use different API keys for development and production  
+- Use different API keys for development and production
 - Don't share API keys in code or messages
 </Callout>
 

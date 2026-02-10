@@ -14,7 +14,7 @@ Here's what a typical Motia project looks like:
 <Folder name="my-motia-project" defaultOpen>
   <Folder name="src" defaultOpen>
     <File name="01-api-gateway.step.ts" />
-    <File name="02-data-processor_step.py" />  
+    <File name="02-data-processor_step.py" />
     <File name="03-send-notification.step.js" />
     <File name="send-notification.tsx" />
   </Folder>
@@ -37,9 +37,9 @@ Here's what a typical Motia project looks like:
 | `package.json` | Node.js dependencies (if using JS/TS) | Config | - |
 | `requirements.txt` | Python dependencies (if using Python) | Config | - |
 | `tsconfig.json` | TypeScript config (if using TypeScript) | Config | - |
-| `types.d.ts` | **Type definitions for your project** | **Generated** | **✅ By TypeScript** |
-| `motia-workbench.json` | **🤖 Visual workflow positioning** | **Generated** | **✅ By Motia** |
-| `config.yml` | Optional Motia configuration | Config | - |
+| `types.d.ts` | **Type definitions for your project** | **Generated** | **By TypeScript** |
+| `motia-workbench.json` | **Visual workflow positioning** | **Generated** | **By Motia** |
+| `config.yml` | iii configuration | Config | - |
 
 <Callout type="info">
 **Flexible Step Discovery**
@@ -57,7 +57,7 @@ Motia automatically discovers and registers steps from your `src/` directory. Yo
 ## Automatic Step Discovery
 
 <Callout type="default">
-**Key Concept: Automatic Discovery** 
+**Key Concept: Automatic Discovery**
 
 Motia automatically discovers and registers **any file** that follows the `.step.` naming pattern as a workflow step, **regardless of where it's located** in your `src/` directory. No manual registration required - just create a file with the right naming pattern and Motia will find it.
 </Callout>
@@ -76,7 +76,7 @@ When you run `motia dev`, Motia will:
 - **Find all files** matching `*.step.*` or `*_step.*` patterns in the `src/` directory
 - Parse their `config` exports to understand step types and connections
 - Register them in the workflow engine
-- Make them available in the Workbench
+- Make them available in the iii console
 
 <Callout type="success">
 **No directory requirement** - Steps are discoverable from anywhere within `src/`, regardless of folder depth or organization pattern.
@@ -107,7 +107,7 @@ The `.step.` part in the filename is **required** - this is how Motia identifies
 | Step Type | TypeScript | Python | JavaScript |
 |-----------|------------|---------|-----------|
 | **API Endpoint** | `01-auth-api.step.ts` | `01-auth-api_step.py` or `auth_api_step.py` | `01-auth-api.step.js` |
-| **Event Handler** | `process-order.step.ts` | `process-order_step.py` or `process_order_step.py` | `process-order.step.js` |
+| **Queue Handler** | `process-order.step.ts` | `process-order_step.py` or `process_order_step.py` | `process-order.step.js` |
 | **Cron Job** | `daily-report.step.ts` | `daily-report_step.py` or `daily_report_step.py` | `daily-report.step.js` |
 | **Data Processing** | `transform-data.step.ts` | `ml-analysis_step.py` or `ml_analysis_step.py` | `data-cleanup.step.js` |
 
@@ -276,7 +276,7 @@ For Node.js-based steps, you'll need:
 For Python-based steps:
 
 ```text title="requirements.txt"
-# Core Motia dependency
+# Core Motia dependency (install via pip install motia-python)
 motia>=0.5.12
 
 # Common dependencies
@@ -295,28 +295,24 @@ Let's see how Motia discovers different step types:
 ### Example 1: TypeScript API Step
 
 ```typescript title="src/user-api.step.ts"
-import { ApiRouteConfig, Handlers } from 'motia'
-import { z } from 'zod'
+import { type Handlers, type StepConfig } from 'motia'
 
-// Motia discovers this file because:
-// 1. Filename contains '.step.'
-// 2. Exports 'config' object
-// 3. Has .ts extension -> uses TypeScript runtime
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config = {
   name: 'user-api',
-  path: '/users',
-  method: 'GET',
-  emits: ['users.fetched'],
-  flows: ['user-management']
-}
+  description: 'Fetch users and enqueue event',
+  triggers: [
+    { type: 'api', path: '/users', method: 'GET' },
+  ],
+  enqueues: ['users.fetched'],
+  flows: ['user-management'],
+} as const satisfies StepConfig
 
-export const handler: Handlers['user-api'] = async (req, { emit }) => {
-  await emit({
-    topic: 'users.fetched', 
+export const handler: Handlers<typeof config> = async (req, { enqueue }) => {
+  await enqueue({
+    topic: 'users.fetched',
     data: { users: [] }
   })
-  
+
   return {
     status: 200,
     body: { message: 'Users retrieved' }
@@ -324,32 +320,27 @@ export const handler: Handlers['user-api'] = async (req, { emit }) => {
 }
 ```
 
-### Example 2: Python Event Step
+### Example 2: Python Queue Step
 
 ```python title="src/data-processor_step.py"
-# Motia discovers this file because:
-# 1. Filename contains '.step.'  
-# 2. Exports 'config' dict
-# 3. Has .py extension -> uses Python runtime
-
 config = {
-    "type": "event",
     "name": "data-processor",
     "description": "Process incoming data with Python",
-    "subscribes": ["users.fetched"],
-    "emits": ["data.processed"],
+    "triggers": [
+        {"type": "queue", "topic": "users.fetched"}
+    ],
+    "enqueues": ["data.processed"],
     "flows": ["user-management"]
 }
 
 async def handler(input_data, ctx):
-    """Process the data"""
     processed_data = {
         "original": input_data,
         "processed_at": ctx.utils.dates.now().isoformat(),
         "count": len(input_data.get("users", []))
     }
-    
-    await ctx.emit({
+
+    await ctx.enqueue({
         "topic": "data.processed",
         "data": processed_data
     })
@@ -358,41 +349,36 @@ async def handler(input_data, ctx):
 ### Example 3: JavaScript Automation Step
 
 ```javascript title="src/send-notifications.step.js"
-// Motia discovers this file because:
-// 1. Filename contains '.step.'
-// 2. Exports 'config' object  
-// 3. Has .js extension -> uses Node.js runtime
-
 export const config = {
-  type: 'event',
   name: 'send-notifications',
   description: 'Send notifications via multiple channels',
-  subscribes: ['data.processed'],
-  emits: ['notifications.sent'],
+  triggers: [
+    { type: 'queue', topic: 'data.processed' },
+  ],
+  enqueues: ['notifications.sent'],
   flows: ['user-management']
 }
 
-export const handler = async (input, { emit, logger }) => {
+export const handler = async (input, { enqueue, logger }) => {
   logger.info('Sending notifications', { data: input })
-  
-  // Send email, SMS, push notifications, etc.
+
   const results = await Promise.all([
     sendEmail(input),
     sendSMS(input),
     sendPush(input)
   ])
-  
-  await emit({
+
+  await enqueue({
     topic: 'notifications.sent',
-    data: { 
+    data: {
       results,
-      sent_at: new Date().toISOString() 
+      sent_at: new Date().toISOString()
     }
   })
 }
 
 async function sendEmail(data) { /* implementation */ }
-async function sendSMS(data) { /* implementation */ }  
+async function sendSMS(data) { /* implementation */ }
 async function sendPush(data) { /* implementation */ }
 ```
 
@@ -401,7 +387,7 @@ async function sendPush(data) { /* implementation */ }
 Some files in your Motia project are automatically generated:
 
 - `types.d.ts` - TypeScript generates this for type definitions
-- `motia-workbench.json` - Motia manages visual node positions in the Workbench
+- `motia-workbench.json` - Motia manages visual node positions in the iii console
 
 ## Discovery Troubleshooting
 
@@ -416,7 +402,7 @@ If Motia isn't discovering your steps:
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
-❌ **Won't be discovered:**
+Won't be discovered:
 <Folder name="src" defaultOpen>
   <File name="user-handler.ts" />
   <File name="data-processor.py" />
@@ -424,7 +410,7 @@ If Motia isn't discovering your steps:
 </Folder>
 </div>
 <div>
-✅ **Will be discovered:**
+Will be discovered:
 <Folder name="src" defaultOpen>
   <File name="user-handler.step.ts" />
   <File name="data-processor_step.py" />
@@ -438,24 +424,26 @@ If Motia isn't discovering your steps:
 
 **Missing config export**
 
-```typescript title="❌ Won't be discovered"
-// No config export
+```typescript title="Won't be discovered"
 export const handler = async () => {
   console.log('This won't be found by Motia')
 }
 ```
 
-```typescript title="✅ Will be discovered"
-// Proper exports
-export const config = {
-  type: 'event',
-  name: 'my-step',
-  subscribes: ['my-topic'],
-  emits: ['my-output'],
-  flows: ['my-flow']
-}
+```typescript title="Will be discovered"
+import { type Handlers, type StepConfig } from 'motia'
 
-export const handler = async (input, ctx) => {
+export const config = {
+  name: 'my-step',
+  description: 'A queue handler step',
+  triggers: [
+    { type: 'queue', topic: 'my-topic' },
+  ],
+  enqueues: ['my-output'],
+  flows: ['my-flow'],
+} as const satisfies StepConfig
+
+export const handler: Handlers<typeof config> = async (input, ctx) => {
   // Motia will discover and register this step
 }
 ```
@@ -467,7 +455,7 @@ export const handler = async (input, ctx) => {
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
-❌ **Won't be discovered:**
+Won't be discovered:
 <Folder name="project-root" defaultOpen>
   <Folder name="lib">
     <File name="user-handler.step.ts" />
@@ -479,7 +467,7 @@ export const handler = async (input, ctx) => {
 </Folder>
 </div>
 <div>
-✅ **Will be discovered:**
+Will be discovered:
 <Folder name="project-root" defaultOpen>
   <Folder name="src" defaultOpen>
     <File name="user-handler.step.ts" />
@@ -501,14 +489,13 @@ export const handler = async (input, ctx) => {
 Check if your steps are discovered:
 
 ```bash
-# Run Motia in development mode
 motia dev
 
-# Look step creation in your console console:
-➜ [CREATED] Step (Cron) src/petstore/state-audit-cron.step.ts created
-➜ [CREATED] Step (Event) src/petstore/process-food-order.step.ts created
-➜ [CREATED] Step (Event) src/petstore/notification.step.ts created
-➜ [CREATED] Step (API) src/petstore/api.step.ts created
+# Look for step creation in your console:
+# [CREATED] Step (Cron) src/petstore/state-audit-cron.step.ts created
+# [CREATED] Step (Queue) src/petstore/process-food-order.step.ts created
+# [CREATED] Step (Queue) src/petstore/notification.step.ts created
+# [CREATED] Step (API) src/petstore/api.step.ts created
 ```
 
 ## Next Steps
@@ -517,4 +504,4 @@ Now that you understand how Motia discovers and organizes steps:
 
 - Learn about [Core Concepts](/docs/concepts) to understand how steps work together
 - Explore [Defining Steps](/docs/concepts/steps) for detailed step creation
-- Check out [Triggers](/docs/concepts/steps#triggers) for API, Event, and Cron steps
+- Check out [Triggers](/docs/concepts/steps#triggers) for API, Queue, and Cron steps

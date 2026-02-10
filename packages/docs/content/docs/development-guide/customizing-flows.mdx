@@ -1,14 +1,14 @@
 ---
 title: Customizing Flows
-description: Make your Workbench flows look exactly how you want
+description: Make your iii console flows look exactly how you want
 ---
 
-By default, Workbench shows your Steps with their code. Great for developers. But what if you're sharing with:
+By default, the iii console shows your Steps with their code. Great for developers. But what if you're sharing with:
 - Frontend developers who just need to know the API
 - Product managers who want to see the big picture
 - Designers who care about the flow, not the code
 
-You can override how Steps look in Workbench with custom React components.
+You can override how Steps look in the iii console with custom React components.
 
 ---
 
@@ -18,7 +18,7 @@ Want to change how a Step looks? Create a `.tsx` or `.jsx` file next to it.
 **File structure:**
 
 <Tabs items={['TypeScript', 'JavaScript']}>
-  <Tab value="TypeScript"> 
+  <Tab value="TypeScript">
 <Folder name="src" defaultOpen>
   <Folder name="create-order" defaultOpen>
     <File name="create-order.step.ts" />
@@ -36,7 +36,7 @@ Want to change how a Step looks? Create a `.tsx` or `.jsx` file next to it.
   </Tab>
 </Tabs>
 
-👉 Same name, different extension. Motia connects them automatically.
+Same name, different extension. Motia connects them automatically.
 
 ---
 
@@ -73,7 +73,7 @@ Motia gives you ready-made components for different Step types:
 
 | Component   | For which Steps | What you get |
 | ----------- | --------------- | ------------ |
-| `EventNode` | Event triggers  | Styled box with connection points |
+| `EventNode` | Queue triggers  | Styled box with connection points |
 | `ApiNode`   | API triggers    | Box with request/response info |
 | `CronNode`  | Cron triggers   | Box with schedule info |
 | `NoopNode`  | NOOP steps      | Different color for visual distinction |
@@ -87,13 +87,17 @@ Want complete control? Build from scratch. Here's a real example:
 **The Step:**
 
 ```typescript title="src/process-order.step.ts"
-export const config: EventConfig = {
-  type: 'event',
+import { type Handlers, type StepConfig } from 'motia'
+
+export const config = {
   name: 'ProcessFoodOrder',
-  subscribes: ['process-food-order'],
-  emits: ['notification'],
-  flows: ['basic-tutorial']
-}
+  description: 'Process incoming food orders',
+  triggers: [
+    { type: 'queue', topic: 'process-food-order' },
+  ],
+  enqueues: ['notification'],
+  flows: ['basic-tutorial'],
+} as const satisfies StepConfig
 ```
 
 **Custom UI:**
@@ -104,7 +108,6 @@ import { BaseHandle, Position } from 'motia/workbench'
 import type { EventNodeProps } from 'motia/workbench'
 
 export default function ProcessOrderUI({ data }: EventNodeProps) {
-  // Prevent code viewer from opening when clicked
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
@@ -118,10 +121,10 @@ export default function ProcessOrderUI({ data }: EventNodeProps) {
       style={{ pointerEvents: 'auto' }}
     >
       <BaseHandle type="target" position={Position.Top} />
-      
+
       <div className="text-center">
         <div className="font-semibold text-blue-700">
-          🍽️ Process Order
+          Process Order
         </div>
         <div className="text-sm text-gray-600 mt-1">
           {data.name}
@@ -130,7 +133,7 @@ export default function ProcessOrderUI({ data }: EventNodeProps) {
           Handles food orders
         </div>
       </div>
-      
+
       <BaseHandle type="source" position={Position.Bottom} />
     </div>
   )
@@ -144,10 +147,10 @@ export default function ProcessOrderUI({ data }: EventNodeProps) {
 - Uses your brand colors (blue border here)
 
 **Important parts:**
-- ✅ `BaseHandle` components - These are the connection dots
-- ✅ `onClick={handleClick}` - Stops the code viewer from opening
-- ✅ `Position.Top` and `Position.Bottom` - Where connections attach
-- ✅ Export as `default function` - Required for Motia to find it
+- `BaseHandle` components - These are the connection dots
+- `onClick={handleClick}` - Stops the code viewer from opening
+- `Position.Top` and `Position.Bottom` - Where connections attach
+- Export as `default function` - Required for Motia to find it
 
 ---
 
@@ -155,10 +158,10 @@ export default function ProcessOrderUI({ data }: EventNodeProps) {
 
 NOOP = "No Operation". These Steps don't actually run code. They just sit in your flow diagram to represent:
 
-- **External stuff** → Webhooks, third-party APIs, manual processes
-- **Human actions** → Approval gates, manual reviews
-- **Testing** → Placeholder nodes while building flows
-- **Documentation** → Show the complete picture visually
+- **External stuff** - Webhooks, third-party APIs, manual processes
+- **Human actions** - Approval gates, manual reviews
+- **Testing** - Placeholder nodes while building flows
+- **Documentation** - Show the complete picture visually
 
 ---
 
@@ -174,11 +177,9 @@ export const config: NoopConfig = {
   name: 'ApprovalGate',
   description: 'Manager reviews and approves',
   virtualSubscribes: ['order.created'],
-  virtualEmits: ['order.approved', 'order.rejected'],
+  virtualEnqueues: ['order.approved', 'order.rejected'],
   flows: ['order-flow']
 }
-
-// No handler! NOOP steps don't run code
 ```
 
 **Add custom UI (optional):**
@@ -191,13 +192,12 @@ export default function ApprovalGate() {
   return (
     <div className="p-4 bg-yellow-50 rounded-lg border-2 border-yellow-400">
       <BaseHandle type="target" position={Position.Top} />
-      
+
       <div className="text-center">
-        <div className="text-lg">⏸️</div>
         <div className="font-medium">Waiting for approval</div>
         <div className="text-xs text-gray-600">Manager review required</div>
       </div>
-      
+
       <BaseHandle type="source" position={Position.Bottom} />
     </div>
   )
@@ -216,7 +216,7 @@ export const config: NoopConfig = {
   name: 'StripeWebhook',
   description: 'Waits for payment confirmation from Stripe',
   virtualSubscribes: ['payment.initiated'],
-  virtualEmits: ['/api/stripe/webhook'],
+  virtualEnqueues: ['/api/stripe/webhook'],
   flows: ['payment']
 }
 ```
@@ -229,7 +229,7 @@ export const config: NoopConfig = {
   name: 'ManagerReview',
   description: 'Manager reviews the request',
   virtualSubscribes: ['approval.requested'],
-  virtualEmits: ['/api/approvals/submit'],
+  virtualEnqueues: ['/api/approvals/submit'],
   flows: ['approval']
 }
 ```
@@ -242,7 +242,7 @@ export const config: NoopConfig = {
   name: 'GitHubWebhook',
   description: 'Waits for repo events from GitHub',
   virtualSubscribes: ['repo.watched'],
-  virtualEmits: ['/api/github/webhook'],
+  virtualEnqueues: ['/api/github/webhook'],
   flows: ['ci-cd']
 }
 ```
@@ -252,17 +252,17 @@ export const config: NoopConfig = {
 ## Tips
 
 **For Custom UIs:**
-- ✅ Start with built-in components (`EventNode`, `ApiNode`)
-- ✅ Keep it simple - focus on clarity
-- ✅ Use Tailwind for styling
-- ✅ Add `BaseHandle` for connections
-- ❌ Don't overthink it - simple cards work great
+- Start with built-in components (`EventNode`, `ApiNode`)
+- Keep it simple - focus on clarity
+- Use Tailwind for styling
+- Add `BaseHandle` for connections
+- Don't overthink it - simple cards work great
 
 **For NOOP Steps:**
-- ✅ Always include `virtualSubscribes` (even if empty `[]`)
-- ✅ Use clear, descriptive names
-- ✅ Explain what happens externally in the description
-- ✅ Connect them to your flow with virtual emits/subscribes
+- Always include `virtualSubscribes` (even if empty `[]`)
+- Use clear, descriptive names
+- Explain what happens externally in the description
+- Connect them to your flow with virtual enqueues/subscribes
 
 ---
 
@@ -278,8 +278,8 @@ import type { EventNodeProps } from 'motia/workbench'
 
 ### Where Handles Go
 
-- **Top** (`Position.Top`) → For inputs (things coming in)
-- **Bottom** (`Position.Bottom`) → For outputs (things going out)
+- **Top** (`Position.Top`) - For inputs (things coming in)
+- **Bottom** (`Position.Bottom`) - For outputs (things going out)
 - Flows go top to bottom
 
 ### Export Format

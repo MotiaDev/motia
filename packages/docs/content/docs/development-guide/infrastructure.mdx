@@ -1,27 +1,32 @@
 ---
 title: Infrastructure
-description: Configure queue behavior, retries, and timeouts for Event Steps
+description: Configure queue behavior, retries, and timeouts for Queue Steps
 ---
 
-Infrastructure settings let you control how Event Steps handle queues, retries, and timeouts. Motia provides sensible defaults, so you only configure what you need.
+Infrastructure settings let you control how Queue Steps handle queues, retries, and timeouts. Motia provides sensible defaults, so you only configure what you need.
 
 ## How It Works
 
-Add `infrastructure` to your Event Step config:
+Add `infrastructure` to your Step config that uses a queue trigger:
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
 ```typescript
-export const config: EventConfig = {
+import { type Handlers, type StepConfig } from 'motia'
+
+export const config = {
   name: 'SendEmail',
-  type: 'event',
-  subscribes: ['email.requested'],
+  description: 'Send email with retry support',
+  triggers: [
+    { type: 'queue', topic: 'email.requested' },
+  ],
   infrastructure: {
     handler: { timeout: 10 },
     queue: { maxRetries: 5, visibilityTimeout: 60 }
-  }
-}
+  },
+  flows: ['notifications'],
+} as const satisfies StepConfig
 ```
 
 </Tab>
@@ -30,12 +35,15 @@ export const config: EventConfig = {
 ```python
 config = {
     "name": "SendEmail",
-    "type": "event",
-    "subscribes": ["email.requested"],
+    "description": "Send email with retry support",
+    "triggers": [
+        {"type": "queue", "topic": "email.requested"}
+    ],
     "infrastructure": {
         "handler": {"timeout": 10},
         "queue": {"maxRetries": 5, "visibilityTimeout": 60}
-    }
+    },
+    "flows": ["notifications"]
 }
 ```
 
@@ -45,12 +53,15 @@ config = {
 ```javascript
 const config = {
   name: 'SendEmail',
-  type: 'event',
-  subscribes: ['email.requested'],
+  description: 'Send email with retry support',
+  triggers: [
+    { type: 'queue', topic: 'email.requested' },
+  ],
   infrastructure: {
     handler: { timeout: 10 },
     queue: { maxRetries: 5, visibilityTimeout: 60 }
-  }
+  },
+  flows: ['notifications']
 }
 ```
 
@@ -86,16 +97,21 @@ FIFO queues guarantee exactly-once processing and maintain message order within 
 <Tab value='TypeScript'>
 
 ```typescript
-export const config: EventConfig = {
+import { type Handlers, type StepConfig } from 'motia'
+
+export const config = {
   name: 'ProcessOrder',
-  type: 'event',
-  subscribes: ['order.created'],
+  description: 'Process orders in FIFO order',
+  triggers: [
+    { type: 'queue', topic: 'order.created' },
+  ],
   infrastructure: {
     queue: {
       type: 'fifo'
     }
-  }
-}
+  },
+  flows: ['orders'],
+} as const satisfies StepConfig
 ```
 
 </Tab>
@@ -104,13 +120,16 @@ export const config: EventConfig = {
 ```python
 config = {
     "name": "ProcessOrder",
-    "type": "event",
-    "subscribes": ["order.created"],
+    "description": "Process orders in FIFO order",
+    "triggers": [
+        {"type": "queue", "topic": "order.created"}
+    ],
     "infrastructure": {
         "queue": {
             "type": "fifo"
         }
-    }
+    },
+    "flows": ["orders"]
 }
 ```
 
@@ -120,13 +139,16 @@ config = {
 ```javascript
 const config = {
   name: 'ProcessOrder',
-  type: 'event',
-  subscribes: ['order.created'],
+  description: 'Process orders in FIFO order',
+  triggers: [
+    { type: 'queue', topic: 'order.created' },
+  ],
   infrastructure: {
     queue: {
       type: 'fifo'
     }
-  }
+  },
+  flows: ['orders']
 }
 ```
 
@@ -135,19 +157,19 @@ const config = {
 
 ### Message Group ID
 
-When emitting to FIFO queues, pass a `messageGroupId`:
+When enqueuing to FIFO queues, pass a `messageGroupId`:
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
 ```typescript
-export const handler: Handlers['CreateOrder'] = async (req, { emit }) => {
+export const handler: Handlers<typeof config> = async (req, { enqueue }) => {
   const { orderId, customerId } = req.body
-  
-  await emit({
+
+  await enqueue({
     topic: 'order.created',
     data: { orderId, customerId },
-    messageGroupId: customerId  // Required for FIFO
+    messageGroupId: customerId
   })
 }
 ```
@@ -159,11 +181,11 @@ export const handler: Handlers['CreateOrder'] = async (req, { emit }) => {
 async def handler(req, ctx):
     order_id = req.body["orderId"]
     customer_id = req.body["customerId"]
-    
-    await ctx.emit({
+
+    await ctx.enqueue({
         "topic": "order.created",
         "data": {"orderId": order_id, "customerId": customer_id},
-        "messageGroupId": customer_id  # Required for FIFO
+        "messageGroupId": customer_id
     })
 ```
 
@@ -171,13 +193,13 @@ async def handler(req, ctx):
 <Tab value='JavaScript'>
 
 ```javascript
-const handler = async (req, { emit }) => {
+const handler = async (req, { enqueue }) => {
   const { orderId, customerId } = req.body
-  
-  await emit({
+
+  await enqueue({
     topic: 'order.created',
     data: { orderId, customerId },
-    messageGroupId: customerId  // Required for FIFO
+    messageGroupId: customerId
   })
 }
 ```
@@ -208,4 +230,3 @@ If you don't specify infrastructure settings, Motia uses these defaults:
 ```
 
 ---
-

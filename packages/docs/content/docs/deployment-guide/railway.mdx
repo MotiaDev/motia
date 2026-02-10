@@ -165,7 +165,7 @@ Create a `railway.json` in your project root:
 ```
 
 <Callout type="warn">
-**Healthchecks:** Railway's default healthcheck expects a `200` response on `/`. Motia's Workbench serves the root path, so this should work out of the box.
+**Healthchecks:** Railway's default healthcheck expects a `200` response on `/`. Motia's iii console serves the root path, so this should work out of the box.
 </Callout>
 
 ---
@@ -178,7 +178,7 @@ Motia supports two approaches for production Redis configuration:
 
 The simplest approach uses Motia's built-in `redis` configuration option:
 
-```typescript title="motia.config.ts"
+```typescript title="config.yaml"
 import { config } from 'motia'
 import statesPlugin from '@motiadev/plugin-states/plugin'
 import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
@@ -251,7 +251,7 @@ npm install @motiadev/adapter-redis-state \
             @motiadev/adapter-bullmq-events
 ```
 
-```typescript title="motia.config.ts"
+```typescript title="config.yaml"
 import { config } from 'motia'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
@@ -454,7 +454,7 @@ import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
 
 **Options:**
 1. Remove healthcheck settings from `railway.json`
-2. Motia Workbench serves `/` by default which returns 200
+2. Motia iii console serves `/` by default which returns 200
 3. Increase the healthcheck timeout
 
 ### Still Seeing "Redis Memory Server Started"

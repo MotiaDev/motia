@@ -18,7 +18,7 @@ middleware(req, ctx, next)
 ```
 
 - **req** - The incoming request (same as handler)
-- **ctx** - The context object (same as handler)  
+- **ctx** - The context object (same as handler)
 - **next()** - Call this to continue to the handler
 
 If you don't call `next()`, the request stops. The handler never runs.
@@ -30,7 +30,7 @@ If you don't call `next()`, the request stops. The handler never runs.
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-    import { ApiMiddleware } from 'motia'
+    import { ApiMiddleware, type Handlers, type StepConfig } from 'motia'
 
     const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
       if (!req.headers.authorization) {
@@ -41,13 +41,14 @@ If you don't call `next()`, the request stops. The handler never runs.
 
     export const config = {
       name: 'ProtectedEndpoint',
-      type: 'api',
-      path: '/protected',
-      method: 'GET',
-      middleware: [authMiddleware]
-    }
+      description: 'A protected API endpoint',
+      triggers: [
+        { type: 'api', path: '/protected', method: 'GET' },
+      ],
+      middleware: [authMiddleware],
+    } as const satisfies StepConfig
 
-    export const handler = async (req, ctx) => {
+    export const handler: Handlers<typeof config> = async (req, ctx) => {
       return { status: 200, body: { message: 'Success' } }
     }
     ```
@@ -63,9 +64,10 @@ If you don't call `next()`, the request stops. The handler never runs.
 
     const config = {
       name: 'ProtectedEndpoint',
-      type: 'api',
-      path: '/protected',
-      method: 'GET',
+      description: 'A protected API endpoint',
+      triggers: [
+        { type: 'api', path: '/protected', method: 'GET' },
+      ],
       middleware: [authMiddleware]
     }
 
@@ -85,9 +87,10 @@ If you don't call `next()`, the request stops. The handler never runs.
 
     config = {
         "name": "ProtectedEndpoint",
-        "type": "api",
-        "path": "/protected",
-        "method": "GET",
+        "description": "A protected API endpoint",
+        "triggers": [
+            {"type": "api", "path": "/protected", "method": "GET"}
+        ],
         "middleware": [auth_middleware]
     }
 
@@ -106,15 +109,16 @@ Middleware runs in the order you list them:
 ```typescript
 export const config = {
   name: 'MyEndpoint',
-  type: 'api',
-  path: '/endpoint',
-  method: 'POST',
+  description: 'Endpoint with multiple middleware',
+  triggers: [
+    { type: 'api', path: '/endpoint', method: 'POST' },
+  ],
   middleware: [
-    loggingMiddleware,  // Runs first
-    authMiddleware,     // Runs second  
-    errorMiddleware     // Runs third
+    loggingMiddleware,
+    authMiddleware,
+    errorMiddleware
   ]
-}
+} as const satisfies StepConfig
 ```
 
 ---
@@ -128,7 +132,7 @@ Await `next()` to get the response, then modify it:
     ```typescript
     const addHeadersMiddleware = async (req, ctx, next) => {
       const response = await next()
-      
+
       return {
         ...response,
         headers: {
@@ -143,7 +147,7 @@ Await `next()` to get the response, then modify it:
     ```javascript
     const addHeadersMiddleware = async (req, ctx, next) => {
       const response = await next()
-      
+
       return {
         ...response,
         headers: {
@@ -158,10 +162,10 @@ Await `next()` to get the response, then modify it:
     ```python
     async def add_headers_middleware(req, context, next_fn):
         response = await next_fn()
-        
+
         headers = response.get("headers", {})
         headers["X-Request-Id"] = context.trace_id
-        
+
         return {**response, "headers": headers}
     ```
   </Tab>
@@ -171,14 +175,13 @@ Await `next()` to get the response, then modify it:
 
 ## Passing Data to Handlers
 
-Middleware can attach data to the `req` object, making it available to your handler. This is perfect for authentication—verify the user once in middleware, then use their details in the handler.
+Middleware can attach data to the `req` object, making it available to your handler. This is perfect for authentication - verify the user once in middleware, then use their details in the handler.
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     First, extend the request type in `api.d.ts`:
 
     ```typescript
-    // api.d.ts
     import 'motia'
 
     declare module 'motia' {
@@ -192,7 +195,6 @@ Middleware can attach data to the `req` object, making it available to your hand
 
     ```typescript
     const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
-      // Verify token...
       req.user = { id: '123', role: 'admin' }
       return next()
     }
@@ -201,8 +203,7 @@ Middleware can attach data to the `req` object, making it available to your hand
     Now use it in your handler:
 
     ```typescript
-    export const handler = async (req, ctx) => {
-      // req.user is typed and ready to use
+    export const handler: Handlers<typeof config> = async (req, ctx) => {
       if (req.user?.role === 'admin') {
         return { status: 200, body: { message: 'Welcome Admin' } }
       }
@@ -327,14 +328,16 @@ Import and use across steps:
 
 ```typescript title="src/user.step.ts"
 import { coreMiddleware } from '../middlewares/core.middleware'
+import { type Handlers, type StepConfig } from 'motia'
 
 export const config = {
   name: 'GetUser',
-  type: 'api',
-  path: '/users/:id',
-  method: 'GET',
-  middleware: [coreMiddleware]
-}
+  description: 'Get user by ID',
+  triggers: [
+    { type: 'api', path: '/users/:id', method: 'GET' },
+  ],
+  middleware: [coreMiddleware],
+} as const satisfies StepConfig
 ```
 
 ---
@@ -345,7 +348,7 @@ export const config = {
   <Card href="/docs/concepts/steps#triggers" title="Triggers">
     Learn more about Triggers
   </Card>
-  
+
   <Card href="/docs/development-guide/testing" title="Testing">
     Learn more about testing your Motia Steps
   </Card>

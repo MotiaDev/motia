@@ -15,7 +15,7 @@ Human-in-the-Loop workflows in Motia work like this:
 
 1. **Process automatically when possible** - Let the system handle what it can
 2. **Save "awaiting" state when human needed** - Mark the pause point clearly
-3. **Stop emitting** - The workflow naturally pauses
+3. **Stop enqueuing** - The workflow naturally pauses
 4. **Webhook resumes the flow** - External systems call an API to continue
 
 No special "pause" or "wait" commands. Just save state and use API steps as re-entry points.
@@ -29,7 +29,7 @@ No special "pause" or "wait" commands. Just save state and use API steps as re-e
 | **Workflows don't sleep** | They don't "wait." They save state and stop processing. |
 | **API steps are re-entry points** | External systems call webhooks to restart the flow |
 | **State checkpointing** | Every `state.set()` is a save point you can resume from |
-| **Virtual connections** | Use `virtualSubscribes` to show how webhooks fit in the flow visually |
+| **Virtual connections** | Use `virtualSubscribes` and `virtualEnqueues` to show how webhooks fit in the flow visually |
 
 <Callout type="info">
 The workflow doesn't have a concept of time. It only knows: "Is the right state present? Has the right step been triggered?"
@@ -58,18 +58,19 @@ An API receives the order and saves it immediately:
 <Tab value='TypeScript'>
 
 ```typescript title="src/01-submit-order.step.ts"
-import { ApiRouteConfig, Handlers } from 'motia'
+import { type Handlers, type StepConfig } from 'motia'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config = {
   name: 'SubmitOrder',
-  path: '/orders',
-  method: 'POST',
-  emits: ['order.submitted'],
-  flows: ['order-approval']
-}
+  description: 'Submit an order for processing',
+  triggers: [
+    { type: 'api', path: '/orders', method: 'POST' },
+  ],
+  enqueues: ['order.submitted'],
+  flows: ['order-approval'],
+} as const satisfies StepConfig
 
-export const handler: Handlers['SubmitOrder'] = async (req, { state, emit, logger }) => {
+export const handler: Handlers<typeof config> = async (req, { state, enqueue, logger }) => {
   const orderId = crypto.randomUUID()
   
   const order = {
@@ -88,11 +89,11 @@ export const handler: Handlers['SubmitOrder'] = async (req, { state, emit, logge
   logger.info('Order submitted', { orderId })
   
   // Kick off risk analysis
-  await emit({ 
-    topic: 'order.submitted', 
-    data: { orderId } 
+  await enqueue({
+    topic: 'order.submitted',
+    data: { orderId }
   })
-  
+
   return { status: 201, body: { orderId, status: order.status } }
 }
 ```
@@ -105,11 +106,12 @@ import uuid
 from datetime import datetime
 
 config = {
-    "type": "api",
     "name": "SubmitOrder",
-    "path": "/orders",
-    "method": "POST",
-    "emits": ["order.submitted"],
+    "description": "Submit an order for processing",
+    "triggers": [
+        {"type": "api", "path": "/orders", "method": "POST"}
+    ],
+    "enqueues": ["order.submitted"],
     "flows": ["order-approval"]
 }
 
@@ -135,11 +137,11 @@ async def handler(req, context):
     context.logger.info("Order submitted", {"orderId": order_id})
     
     # Kick off risk analysis
-    await context.emit({
+    await context.enqueue({
         "topic": "order.submitted",
         "data": {"orderId": order_id}
     })
-    
+
     return {"status": 201, "body": {"orderId": order_id, "status": order["status"]}}
 ```
 
@@ -150,18 +152,19 @@ async def handler(req, context):
 import crypto from 'crypto'
 
 export const config = {
-  type: 'api',
   name: 'SubmitOrder',
-  path: '/orders',
-  method: 'POST',
-  emits: ['order.submitted'],
-  flows: ['order-approval']
+  description: 'Submit an order for processing',
+  triggers: [
+    { type: 'api', path: '/orders', method: 'POST' },
+  ],
+  enqueues: ['order.submitted'],
+  flows: ['order-approval'],
 }
 
-export const handler = async (req, { state, emit, logger }) => {
+export const handler = async (req, { state, enqueue, logger }) => {
   const orderId = crypto.randomUUID()
   const { items, total } = req.body
-  
+
   const order = {
     id: orderId,
     items,
@@ -171,17 +174,17 @@ export const handler = async (req, { state, emit, logger }) => {
     completedSteps: ['submitted'],
     createdAt: new Date().toISOString()
   }
-  
+
   // Save immediately - first checkpoint
   await state.set('orders', orderId, order)
-  
+
   logger.info('Order submitted', { orderId })
-  
-  await emit({ 
-    topic: 'order.submitted', 
-    data: { orderId } 
+
+  await enqueue({
+    topic: 'order.submitted',
+    data: { orderId }
   })
-  
+
   return { status: 201, body: { orderId, status: order.status } }
 }
 ```
@@ -199,18 +202,20 @@ This step decides whether to auto-approve or pause for human review:
 <Tab value='TypeScript'>
 
 ```typescript title="src/02-analyze-risk.step.ts"
-import { EventConfig, Handlers } from 'motia'
+import { type Handlers, type StepConfig } from 'motia'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config = {
   name: 'AnalyzeRisk',
-  subscribes: ['order.submitted'],
+  description: 'Analyze order risk and route accordingly',
+  triggers: [
+    { type: 'queue', topic: 'order.submitted' },
+  ],
+  enqueues: ['order.auto_approved'],
+  virtualEnqueues: [{ topic: 'approval.required', label: 'Requires human approval' }],
   flows: ['order-approval'],
-  emits: ['order.auto_approved'],
-  virtualEmits: [{ topic: 'approval.required', label: 'Requires human approval' }]
-}
+} as const satisfies StepConfig
 
-export const handler: Handlers['AnalyzeRisk'] = async (input, { state, emit, logger }) => {
+export const handler: Handlers<typeof config> = async (input, { state, enqueue, logger }) => {
   const { orderId } = input
   const order = await state.get('orders', orderId)
   
@@ -245,7 +250,7 @@ export const handler: Handlers['AnalyzeRisk'] = async (input, { state, emit, log
     logger.info('Order auto-approved', { orderId, riskScore })
     
     // Continue immediately
-    await emit({ topic: 'order.auto_approved', data: { orderId } })
+    await enqueue({ topic: 'order.auto_approved', data: { orderId } })
   }
 }
 
@@ -269,12 +274,14 @@ function calculateRiskScore(order: any): number {
 import random
 
 config = {
-    "type": "event",
     "name": "AnalyzeRisk",
-    "subscribes": ["order.submitted"],
-    "flows": ["order-approval"],
-    "emits": ["order.auto_approved"],
-    "virtualEmits": [{"topic": "approval.required", "label": "Requires human approval"}]
+    "description": "Analyze order risk and route accordingly",
+    "triggers": [
+        {"type": "queue", "topic": "order.submitted"}
+    ],
+    "enqueues": ["order.auto_approved"],
+    "virtualEnqueues": [{"topic": "approval.required", "label": "Requires human approval"}],
+    "flows": ["order-approval"]
 }
 
 async def handler(input_data, context):
@@ -310,7 +317,7 @@ async def handler(input_data, context):
         context.logger.info("Order auto-approved", 
                            {"orderId": order_id, "riskScore": risk_score})
         
-        await context.emit({
+        await context.enqueue({
             "topic": "order.auto_approved",
             "data": {"orderId": order_id}
         })
@@ -337,15 +344,17 @@ def calculate_risk_score(order):
 
 ```javascript title="src/analyze-risk.step.js"
 export const config = {
-  type: 'event',
   name: 'AnalyzeRisk',
-  subscribes: ['order.submitted'],
+  description: 'Analyze order risk and route accordingly',
+  triggers: [
+    { type: 'queue', topic: 'order.submitted' },
+  ],
+  enqueues: ['order.auto_approved'],
+  virtualEnqueues: [{ topic: 'approval.required', label: 'Requires human approval' }],
   flows: ['order-approval'],
-  emits: ['order.auto_approved'],
-  virtualEmits: [{ topic: 'approval.required', label: 'Requires human approval' }]
 }
 
-export const handler = async (input, { state, emit, logger }) => {
+export const handler = async (input, { state, enqueue, logger }) => {
   const { orderId } = input
   const order = await state.get('orders', orderId)
   
@@ -375,7 +384,7 @@ export const handler = async (input, { state, emit, logger }) => {
     await state.set('orders', orderId, order)
     
     logger.info('Order auto-approved', { orderId, riskScore })
-    await emit({ topic: 'order.auto_approved', data: { orderId } })
+    await enqueue({ topic: 'order.auto_approved', data: { orderId } })
   }
 }
 
@@ -401,7 +410,7 @@ function calculateRiskScore(order) {
 
 ### Step 3: Human Approval Gate (Visual Noop)
 
-This creates a visual node in Workbench showing where the workflow pauses:
+This creates a visual node in iii console showing where the workflow pauses:
 
 ```typescript title="src/03-human-approval-gate.step.ts"
 import type { NoopConfig } from 'motia'
@@ -416,10 +425,10 @@ export const config: NoopConfig = {
   virtualSubscribes: ['approval.required'],
   
   // Shows connection to webhook that continues flow
-  virtualEmits: ['human.decision'],
+  virtualEnqueues: ['human.decision'],
 }
 ```
-👉 **In Workbench:** This Noop appears between AnalyzeRisk and ApprovalWebhook.
+👉 **In iii console:** This Noop appears between AnalyzeRisk and ApprovalWebhook.
 
 
 ### Step 4: Approval Webhook (Re-Entry Point)
@@ -430,19 +439,20 @@ External systems (UI, Slack, etc.) call this webhook to provide the human decisi
 <Tab value='TypeScript'>
 
 ```typescript title="src/04-approval-webhook.step.ts"
-import { ApiRouteConfig, Handlers } from 'motia'
+import { type Handlers, type StepConfig } from 'motia'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config = {
   name: 'ApprovalWebhook',
-  path: '/webhooks/orders/:orderId/approve',
-  method: 'POST',
-  emits: ['order.approved'],
-  virtualSubscribes: ['human.decision'],  // Shows connection from Noop
-  flows: ['order-approval']
-}
+  description: 'Webhook for human approval decisions',
+  triggers: [
+    { type: 'api', path: '/webhooks/orders/:orderId/approve', method: 'POST' },
+  ],
+  enqueues: ['order.approved'],
+  virtualSubscribes: ['human.decision'],
+  flows: ['order-approval'],
+} as const satisfies StepConfig
 
-export const handler: Handlers['ApprovalWebhook'] = async (req, { state, emit, logger }) => {
+export const handler: Handlers<typeof config> = async (req, { state, enqueue, logger }) => {
   const { orderId } = req.pathParams
   const { approved, approvedBy, notes } = req.body
   
@@ -469,8 +479,8 @@ export const handler: Handlers['ApprovalWebhook'] = async (req, { state, emit, l
     logger.info('Order approved - resuming workflow', { orderId, approvedBy })
     
     // Resume the workflow
-    await emit({ topic: 'order.approved', data: { orderId } })
-    
+    await enqueue({ topic: 'order.approved', data: { orderId } })
+
     return { status: 200, body: { success: true, message: 'Order approved' } }
   } else {
     // Rejected - workflow ends
@@ -492,11 +502,12 @@ export const handler: Handlers['ApprovalWebhook'] = async (req, { state, emit, l
 from datetime import datetime
 
 config = {
-    "type": "api",
     "name": "ApprovalWebhook",
-    "path": "/webhooks/orders/:orderId/approve",
-    "method": "POST",
-    "emits": ["order.approved"],
+    "description": "Webhook for human approval decisions",
+    "triggers": [
+        {"type": "api", "path": "/webhooks/orders/:orderId/approve", "method": "POST"}
+    ],
+    "enqueues": ["order.approved"],
     "virtualSubscribes": ["human.decision"],
     "flows": ["order-approval"]
 }
@@ -532,7 +543,7 @@ async def handler(req, context):
         context.logger.info("Order approved - resuming workflow", 
                            {"orderId": order_id, "approvedBy": approved_by})
         
-        await context.emit({
+        await context.enqueue({
             "topic": "order.approved",
             "data": {"orderId": order_id}
         })
@@ -552,16 +563,17 @@ async def handler(req, context):
 
 ```javascript title="src/approval-webhook.step.js"
 export const config = {
-  type: 'api',
   name: 'ApprovalWebhook',
-  path: '/webhooks/orders/:orderId/approve',
-  method: 'POST',
-  emits: ['order.approved'],
+  description: 'Webhook for human approval decisions',
+  triggers: [
+    { type: 'api', path: '/webhooks/orders/:orderId/approve', method: 'POST' },
+  ],
+  enqueues: ['order.approved'],
   virtualSubscribes: ['human.decision'],
-  flows: ['order-approval']
+  flows: ['order-approval'],
 }
 
-export const handler = async (req, { state, emit, logger }) => {
+export const handler = async (req, { state, enqueue, logger }) => {
   const { orderId } = req.pathParams
   const { approved, approvedBy, notes } = req.body
   
@@ -587,14 +599,14 @@ export const handler = async (req, { state, emit, logger }) => {
     
     logger.info('Order approved - resuming', { orderId, approvedBy })
     
-    await emit({ topic: 'order.approved', data: { orderId } })
+    await enqueue({ topic: 'order.approved', data: { orderId } })
     return { status: 200, body: { success: true } }
   } else {
     // Rejected - end workflow
     order.status = 'rejected'
     order.rejectedBy = approvedBy
     await state.set('orders', orderId, order)
-    
+
     logger.info('Order rejected', { orderId })
     return { status: 200, body: { success: true } }
   }
@@ -614,17 +626,20 @@ Final step that runs after approval:
 <Tab value='TypeScript'>
 
 ```typescript title="src/05-complete-order.step.ts"
-import { EventConfig, Handlers } from 'motia'
+import { type Handlers, type StepConfig } from 'motia'
 
-export const config: EventConfig = {
-  type: 'event',
+export const config = {
   name: 'CompleteOrder',
-  subscribes: ['order.approved', 'order.auto_approved'],
+  description: 'Complete an approved order',
+  triggers: [
+    { type: 'queue', topic: 'order.approved' },
+    { type: 'queue', topic: 'order.auto_approved' },
+  ],
+  enqueues: [],
   flows: ['order-approval'],
-  emits: []
-}
+} as const satisfies StepConfig
 
-export const handler: Handlers['CompleteOrder'] = async (input, { state, logger }) => {
+export const handler: Handlers<typeof config> = async (input, { state, logger }) => {
   const { orderId } = input
   const order = await state.get('orders', orderId)
   
@@ -657,11 +672,14 @@ async function simulateFulfillment(order: any) {
 import asyncio
 
 config = {
-    "type": "event",
     "name": "CompleteOrder",
-    "subscribes": ["order.approved", "order.auto_approved"],
-    "flows": ["order-approval"],
-    "emits": []
+    "description": "Complete an approved order",
+    "triggers": [
+        {"type": "queue", "topic": "order.approved"},
+        {"type": "queue", "topic": "order.auto_approved"}
+    ],
+    "enqueues": [],
+    "flows": ["order-approval"]
 }
 
 async def handler(input_data, context):
@@ -687,11 +705,14 @@ async def handler(input_data, context):
 
 ```javascript title="src/complete-order.step.js"
 export const config = {
-  type: 'event',
   name: 'CompleteOrder',
-  subscribes: ['order.approved', 'order.auto_approved'],
+  description: 'Complete an approved order',
+  triggers: [
+    { type: 'queue', topic: 'order.approved' },
+    { type: 'queue', topic: 'order.auto_approved' },
+  ],
+  enqueues: [],
   flows: ['order-approval'],
-  emits: []
 }
 
 export const handler = async (input, { state, logger }) => {
@@ -731,18 +752,19 @@ A scheduled job periodically scans for orders stuck in approval:
 <Tab value='TypeScript'>
 
 ```typescript title="src/06-detect-timeouts.step.ts"
-import { CronConfig, Handlers } from 'motia'
+import { type Handlers, type StepConfig } from 'motia'
 
-export const config: CronConfig = {
-  type: 'cron',
+export const config = {
   name: 'DetectTimeouts',
   description: 'Find orders stuck awaiting approval and escalate',
-  cron: '*/5 * * * *',  // Every 5 minutes (for demo - use hourly in production)
+  triggers: [
+    { type: 'cron', cron: '*/5 * * * *' },
+  ],
+  enqueues: [],
   flows: ['order-approval'],
-  emits: []
-}
+} as const satisfies StepConfig
 
-export const handler: Handlers['DetectTimeouts'] = async ({ state, logger }) => {
+export const handler: Handlers<typeof config> = async ({ state, logger }) => {
   const orders = await state.getGroup('orders')
   const now = Date.now()
   const timeoutMs = 10 * 60 * 1000  // 10 minutes (demo - use 24 hours in production)
@@ -803,12 +825,13 @@ from datetime import datetime, timezone
 import time
 
 config = {
-    "type": "cron",
     "name": "DetectTimeouts",
     "description": "Find orders stuck awaiting approval and escalate",
-    "cron": "*/5 * * * *",  # Every 5 minutes (demo - use hourly in production)
-    "flows": ["order-approval"],
-    "emits": []
+    "triggers": [
+        {"type": "cron", "cron": "*/5 * * * *"}
+    ],
+    "enqueues": [],
+    "flows": ["order-approval"]
 }
 
 async def handler(context):
@@ -861,12 +884,13 @@ async def handler(context):
 
 ```javascript title="src/detect-timeouts.step.js"
 export const config = {
-  type: 'cron',
   name: 'DetectTimeouts',
   description: 'Find orders stuck awaiting approval and escalate',
-  cron: '*/5 * * * *',  // Every 5 minutes (demo - use hourly in production)
+  triggers: [
+    { type: 'cron', cron: '*/5 * * * *' },
+  ],
+  enqueues: [],
   flows: ['order-approval'],
-  emits: []
 }
 
 export const handler = async ({ state, logger }) => {
@@ -930,9 +954,9 @@ export const handler = async ({ state, logger }) => {
 
 ---
 
-## 🎨 Visual Flow in Workbench
+## 🎨 Visual Flow in iii console
 
-When you open the example in Workbench, you'll see **5 nodes**:
+When you open the example in iii console, you'll see **5 nodes**:
 
 ![HTL Example](../img/htl-example.png)
 
@@ -976,7 +1000,7 @@ Start the Motia development server.
 npm run dev
 ```
 
-Open [`http://localhost:3000`](http://localhost:3000) in your browser to access the Workbench. You'll see the **HumanApprovalGate** (Noop node) showing where the workflow pauses for human decisions.
+Open [`http://localhost:3000`](http://localhost:3000) in your browser to access the iii console. You'll see the **HumanApprovalGate** (Noop node) showing where the workflow pauses for human decisions.
 
 ### Test High-Risk Order (Will Pause)
 
@@ -1000,7 +1024,7 @@ curl -X POST http://localhost:3000/orders \
 }
 ```
 
-**Check Workbench:** The flow stops at HumanApprovalGate. No more steps run. The workflow is **paused** and waiting for human decision.
+**Check iii console:** The flow stops at HumanApprovalGate. No more steps run. The workflow is **paused** and waiting for human decision.
 
 ### Resume via Webhook (Hours/Days Later)
 
@@ -1017,7 +1041,7 @@ curl -X POST http://localhost:3000/webhooks/orders/abc-123/approve \
   }'
 ```
 
-**Check Workbench:** Flow resumes! It loads state, emits `order.approved`, and CompleteOrder runs to fulfill the order.
+**Check iii console:** Flow resumes! It loads state, emits `order.approved`, and CompleteOrder runs to fulfill the order.
 
 ### Test Low-Risk Order (Bypasses Gate)
 
@@ -1033,7 +1057,7 @@ curl -X POST http://localhost:3000/orders \
   }'
 ```
 
-**Check Workbench:** Flows straight through SubmitOrder → AnalyzeRisk → CompleteOrder. The HumanApprovalGate is completely bypassed!
+**Check iii console:** Flows straight through SubmitOrder → AnalyzeRisk → CompleteOrder. The HumanApprovalGate is completely bypassed!
 
 </Steps>
 
@@ -1121,9 +1145,9 @@ Want to explore the complete implementation? Check out the full source code and 
 Building Human-in-the-Loop workflows in Motia:
 
 1. **Save state when pausing** - Mark clearly with `status: 'awaiting_something'`
-2. **Don't emit** - Workflow stops naturally
+2. **Don't enqueue** - Workflow stops naturally
 3. **Create webhook API** - This is your re-entry point
-4. **Use virtual connections** - Show the pause visually in Workbench with Noops
+4. **Use virtual connections** - Show the pause visually in iii console with Noops
 5. **External systems call webhook** - UI, Slack, etc. restart the flow
 6. **Idempotent steps** - Always check `completedSteps` before doing work
 

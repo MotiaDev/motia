@@ -16,7 +16,7 @@ Let's build a content moderation system that scales intelligently.
 
 ---
 
-## Explore the Workbench
+## Explore the iii console
 
 <div className="my-8">![AI Content Moderation Workflow](./../img/ai-content-moderation-workflow.png)</div>
 
@@ -60,7 +60,7 @@ Our application consists of six specialized steps, each handling a specific part
 
     ```typescript
     import { z } from "zod";
-    import { ApiRouteConfig, Handlers } from "motia";
+    import { type Handlers, type StepConfig } from "motia";
 
     const ContentSubmitInputSchema = z.object({
       text: z.string().optional(),
@@ -69,20 +69,19 @@ Our application consists of six specialized steps, each handling a specific part
       platform: z.string(),
     });
 
-    export const config: ApiRouteConfig = {
-      type: "api",
+    export const config = {
       name: "ContentSubmitAPI",
       description: "Receives user-generated content for moderation",
-      path: "/content/submit",
-      method: "POST",
-      bodySchema: ContentSubmitInputSchema,
-      emits: ["content.submitted"],
+      triggers: [
+        { type: "api", path: "/content/submit", method: "POST", bodySchema: ContentSubmitInputSchema },
+      ],
+      enqueues: ["content.submitted"],
       flows: ["content-moderation"],
-    };
+    } as const satisfies StepConfig;
 
-    export const handler: Handlers["ContentSubmitAPI"] = async (
+    export const handler: Handlers<typeof config> = async (
       req,
-      { logger, emit }
+      { logger, enqueue }
     ) => {
       const { text, imageUrl, userId, platform } = req.body;
       const submissionId = `sub_${Date.now()}_${Math.random()
@@ -97,7 +96,7 @@ Our application consists of six specialized steps, each handling a specific part
         platform,
       });
 
-      await emit({
+      await enqueue({
         topic: "content.submitted",
         data: {
           submissionId,
@@ -125,33 +124,33 @@ Our application consists of six specialized steps, each handling a specific part
 
     ```typescript
     import { z } from "zod";
-    import { EventConfig, Handlers } from "motia";
+    import { type Handlers, type StepConfig } from "motia";
     import OpenAI from "openai";
 
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    export const config: EventConfig = {
-      type: "event",
+    export const config = {
       name: "ContentAnalyzer",
       description: "Analyzes content using OpenAI for toxicity and safety",
-      subscribes: ["content.submitted"],
-      emits: ["content.analyzed"],
-      input: z.object({
-        submissionId: z.string(),
-        text: z.string().optional(),
-        imageUrl: z.string().optional(),
-        userId: z.string(),
-        platform: z.string(),
-        timestamp: z.string(),
-      }),
+      triggers: [
+        { type: "queue", topic: "content.submitted", input: z.object({
+          submissionId: z.string(),
+          text: z.string().optional(),
+          imageUrl: z.string().optional(),
+          userId: z.string(),
+          platform: z.string(),
+          timestamp: z.string(),
+        }) },
+      ],
+      enqueues: ["content.analyzed"],
       flows: ["content-moderation"],
-    };
+    } as const satisfies StepConfig;
 
-    export const handler: Handlers["ContentAnalyzer"] = async (
+    export const handler: Handlers<typeof config> = async (
       input,
-      { logger, emit }
+      { logger, enqueue }
     ) => {
       const { submissionId, text, imageUrl, userId } = input;
       
@@ -252,7 +251,7 @@ Our application consists of six specialized steps, each handling a specific part
         imageScore,
       });
 
-      await emit({
+      await enqueue({
         topic: "content.analyzed",
         data: analysisResult,
       });
@@ -265,30 +264,30 @@ Our application consists of six specialized steps, each handling a specific part
 
     ```typescript
     import { z } from "zod";
-    import { EventConfig, Handlers } from "motia";
+    import { type Handlers, type StepConfig } from "motia";
 
-    export const config: EventConfig = {
-      type: "event",
+    export const config = {
       name: "ContentRouter",
       description: "Routes content based on AI analysis confidence scores",
-      subscribes: ["content.analyzed"],
-      emits: ["content.auto.approved", "content.auto.rejected", "content.needs.review"],
-      input: z.object({
-        submissionId: z.string(),
-        userId: z.string(),
-        textScore: z.number(),
-        imageScore: z.number(),
-        overallScore: z.number(),
-        textAnalysis: z.string(),
-        imageAnalysis: z.string(),
-        analyzedAt: z.string(),
-      }),
+      triggers: [
+        { type: "queue", topic: "content.analyzed", input: z.object({
+          submissionId: z.string(),
+          userId: z.string(),
+          textScore: z.number(),
+          imageScore: z.number(),
+          overallScore: z.number(),
+          textAnalysis: z.string(),
+          imageAnalysis: z.string(),
+          analyzedAt: z.string(),
+        }) },
+      ],
+      enqueues: ["content.auto.approved", "content.auto.rejected", "content.needs.review"],
       flows: ["content-moderation"],
-    };
+    } as const satisfies StepConfig;
 
-    export const handler: Handlers["ContentRouter"] = async (
+    export const handler: Handlers<typeof config> = async (
       input,
-      { logger, emit }
+      { logger, enqueue }
     ) => {
       const { submissionId, userId, overallScore, textAnalysis, imageAnalysis } = input;
       
@@ -314,7 +313,7 @@ Our application consists of six specialized steps, each handling a specific part
         decision = "approved";
         logger.info("Content auto-approved", { submissionId, overallScore });
         
-        await emit({
+        await enqueue({
           topic: "content.auto.approved",
           data: {
             ...routingData,
@@ -328,7 +327,7 @@ Our application consists of six specialized steps, each handling a specific part
         decision = "rejected";
         logger.info("Content auto-rejected", { submissionId, overallScore });
         
-        await emit({
+        await enqueue({
           topic: "content.auto.rejected",
           data: {
             ...routingData,
@@ -342,7 +341,7 @@ Our application consists of six specialized steps, each handling a specific part
         decision = "review";
         logger.info("Content needs human review", { submissionId, overallScore });
         
-        await emit({
+        await enqueue({
           topic: "content.needs.review",
           data: {
             ...routingData,
@@ -361,34 +360,34 @@ Our application consists of six specialized steps, each handling a specific part
 
     ```typescript
     import { z } from "zod";
-    import { EventConfig, Handlers } from "motia";
+    import { type Handlers, type StepConfig } from "motia";
     import { WebClient } from "@slack/web-api";
 
     const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
-    export const config: EventConfig = {
-      type: "event",
+    export const config = {
       name: "SlackNotifier",
       description: "Sends interactive Slack messages for human review",
-      subscribes: ["content.needs.review"],
-      emits: ["slack.notification.sent"],
-      input: z.object({
-        submissionId: z.string(),
-        userId: z.string(),
-        overallScore: z.number(),
-        textAnalysis: z.string(),
-        imageAnalysis: z.string(),
-        decision: z.string(),
-        reason: z.string(),
-        priority: z.enum(["low", "medium", "high"]),
-        routedAt: z.string(),
-      }),
+      triggers: [
+        { type: "queue", topic: "content.needs.review", input: z.object({
+          submissionId: z.string(),
+          userId: z.string(),
+          overallScore: z.number(),
+          textAnalysis: z.string(),
+          imageAnalysis: z.string(),
+          decision: z.string(),
+          reason: z.string(),
+          priority: z.enum(["low", "medium", "high"]),
+          routedAt: z.string(),
+        }) },
+      ],
+      enqueues: ["slack.notification.sent"],
       flows: ["content-moderation"],
-    };
+    } as const satisfies StepConfig;
 
-    export const handler: Handlers["SlackNotifier"] = async (
+    export const handler: Handlers<typeof config> = async (
       input,
-      { logger, emit }
+      { logger, enqueue }
     ) => {
       const { submissionId, userId, overallScore, textAnalysis, imageAnalysis, priority } = input;
       
@@ -497,7 +496,7 @@ Our application consists of six specialized steps, each handling a specific part
           messageTs: result.ts,
         });
 
-        await emit({
+        await enqueue({
           topic: "slack.notification.sent",
           data: {
             submissionId,
@@ -526,22 +525,22 @@ Our application consists of six specialized steps, each handling a specific part
 
     ```typescript
     import { z } from "zod";
-    import { ApiRouteConfig, Handlers } from "motia";
+    import { type Handlers, type StepConfig } from "motia";
     import { createHmac } from "crypto";
 
-    export const config: ApiRouteConfig = {
-      type: "api",
+    export const config = {
       name: "SlackWebhook",
       description: "Handles Slack interactive button responses",
-      path: "/slack/webhook",
-      method: "POST",
-      emits: ["slack.decision.received"],
+      triggers: [
+        { type: "api", path: "/slack/webhook", method: "POST" },
+      ],
+      enqueues: ["slack.decision.received"],
       flows: ["content-moderation"],
-    };
+    } as const satisfies StepConfig;
 
-    export const handler: Handlers["SlackWebhook"] = async (
+    export const handler: Handlers<typeof config> = async (
       req,
-      { logger, emit }
+      { logger, enqueue }
     ) => {
       // Verify Slack signature
       const signature = req.headers["x-slack-signature"] as string;
@@ -573,7 +572,7 @@ Our application consists of six specialized steps, each handling a specific part
         moderatorName,
       });
 
-      await emit({
+      await enqueue({
         topic: "slack.decision.received",
         data: {
           submissionId,
@@ -614,28 +613,30 @@ Our application consists of six specialized steps, each handling a specific part
 
     ```typescript
     import { z } from "zod";
-    import { EventConfig, Handlers } from "motia";
+    import { type Handlers, type StepConfig } from "motia";
 
-    export const config: EventConfig = {
-      type: "event",
+    export const config = {
       name: "ActionExecutor",
       description: "Executes final moderation decisions",
-      subscribes: ["content.auto.approved", "content.auto.rejected", "slack.decision.received"],
-      emits: ["content.moderation.completed"],
-      input: z.object({
-        submissionId: z.string(),
-        decision: z.enum(["approved", "rejected", "escalated"]),
-        reason: z.string(),
-        moderatorId: z.string().optional(),
-        moderatorName: z.string().optional(),
-        decidedAt: z.string(),
-      }),
+      triggers: [
+        { type: "queue", topic: "content.auto.approved" },
+        { type: "queue", topic: "content.auto.rejected" },
+        { type: "queue", topic: "slack.decision.received", input: z.object({
+          submissionId: z.string(),
+          decision: z.enum(["approved", "rejected", "escalated"]),
+          reason: z.string(),
+          moderatorId: z.string().optional(),
+          moderatorName: z.string().optional(),
+          decidedAt: z.string(),
+        }) },
+      ],
+      enqueues: ["content.moderation.completed"],
       flows: ["content-moderation"],
-    };
+    } as const satisfies StepConfig;
 
-    export const handler: Handlers["ActionExecutor"] = async (
+    export const handler: Handlers<typeof config> = async (
       input,
-      { logger, emit, state }
+      { logger, enqueue, state }
     ) => {
       const { submissionId, decision, reason, moderatorId, moderatorName, decidedAt } = input;
       
@@ -686,7 +687,7 @@ Our application consists of six specialized steps, each handling a specific part
           break;
       }
 
-      await emit({
+      await enqueue({
         topic: "content.moderation.completed",
         data: moderationRecord,
       });
@@ -704,13 +705,13 @@ Our application consists of six specialized steps, each handling a specific part
 
 ---
 
-## Explore the Workbench
+## Explore the iii console
 
-The Motia Workbench provides a visual representation of your content moderation pipeline, making it easy to understand the flow and monitor moderation decisions in real-time.
+The Motia iii console provides a visual representation of your content moderation pipeline, making it easy to understand the flow and monitor moderation decisions in real-time.
 
 <div className="my-8">![AI Content Moderation Workflow](./../img/ai-content-moderation-workflow.png)</div>
 
-You can monitor real-time content analysis, view Slack notifications, and trace the execution of each moderation decision directly in the Workbench interface. This makes development and debugging significantly easier compared to traditional monolithic moderation systems.
+You can monitor real-time content analysis, view Slack notifications, and trace the execution of each moderation decision directly in the iii console interface. This makes development and debugging significantly easier compared to traditional monolithic moderation systems.
 
 ## Human-in-the-Loop Workflow Demo
 

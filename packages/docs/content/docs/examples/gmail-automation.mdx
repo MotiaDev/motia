@@ -7,7 +7,7 @@ import { GmailTab } from '../../../components/GmailCodeFetcher'
 
 ---
 
-## Explore the Workbench
+## Explore the iii console
 
 <div className="my-8">![Gmail Automation](./../img/gmail-automation.png)</div>
 
@@ -70,7 +70,7 @@ The Gmail Account Manager workflow consists of the following steps:
 ### 2. Gmail Webhook (API Step)
 - **File**: `steps/gmail-webhook.step.ts`
 - **Purpose**: Receives notifications from Gmail when new emails arrive
-- **Emits**: `gmail.new_email` event with message details
+- **Enqueues**: `gmail.new_email` event with message details
 - **Endpoint**: `POST /api/gmail-webhook`
 
 ### 3. Gmail Watch (API Step)
@@ -81,15 +81,15 @@ The Gmail Account Manager workflow consists of the following steps:
 ### 4. Fetch Email (Event Step)
 - **File**: `steps/fetch-email.step.ts`
 - **Purpose**: Retrieves the full email content from Gmail API
-- **Subscribes to**: `gmail.email.received`
-- **Emits**: `gmail.email.fetched` with complete email data
+- **Queue trigger**: `gmail.email.received`
+- **Enqueues**: `gmail.email.fetched` with complete email data
 - **Key Functions**: Authenticates with Gmail API, fetches message content, parses attachments
 
 ### 5. Analyze Email (Event Step)
 - **File**: `steps/analyze-email.step.py`
 - **Purpose**: Uses Hugging Face models to analyze email content
-- **Subscribes to**: `gmail.email.fetched`
-- **Emits**: `gmail.email.analyzed` with analysis results
+- **Queue trigger**: `gmail.email.fetched`
+- **Enqueues**: `gmail.email.analyzed` with analysis results
 - **Analysis Performed**: 
   - Category classification
   - Urgency detection
@@ -99,15 +99,15 @@ The Gmail Account Manager workflow consists of the following steps:
 ### 6. Organize Email (Event Step)
 - **File**: `steps/organize-email.step.ts`
 - **Purpose**: Applies labels and organization based on analysis
-- **Subscribes to**: `gmail.email.analyzed`
-- **Emits**: `[gmail.email.organized, gmail.email.archived]`
+- **Queue trigger**: `gmail.email.analyzed`
+- **Enqueues**: `[gmail.email.organized, gmail.email.archived]`
 - **Actions**: Creates/applies labels, archives certain emails, marks importance
 
 ### 7. Auto-Respond to Email (Event Step)
 - **File**: `steps/auto-responder.step.ts`
 - **Purpose**: Generates and sends appropriate responses for certain emails
-- **Subscribes to**: `gmail.email.analyzed`
-- **Emits**: `gmail.email.responded`
+- **Queue trigger**: `gmail.email.analyzed`
+- **Enqueues**: `gmail.email.responded`
 - **Features**: 
   - Template selection based on email context
   - Personalization of responses
@@ -118,7 +118,7 @@ The Gmail Account Manager workflow consists of the following steps:
 - **File**: `steps/daily-summary.step.ts`
 - **Purpose**: Compiles and sends daily email activity summary
 - **Schedule**: Runs daily at 6:00 PM
-- **Emits**: `gmail.summary.sent`
+- **Enqueues**: `gmail.summary.sent`
 - **Delivery**: Sends report to Discord via webhook
 
 ## Try It Out
@@ -162,7 +162,7 @@ The Gmail Account Manager workflow consists of the following steps:
    pnpm dev
    ```
 
-6. **Open the Motia Workbench**
+6. **Open the Motia iii console**
    
    Navigate to [http://localhost:3000](http://localhost:3000) to access the workflow UI.
 
@@ -230,7 +230,7 @@ To enable real-time email notifications, you need to set up a Google Cloud Pub/S
 This project includes a complete OAuth2 authentication flow for the Gmail API:
 
 1. Start the development server: `pnpm dev`
-2. Navigate to the authentication workflow in the Motia Workbench
+2. Navigate to the authentication workflow in the Motia iii console
 3. The workflow will generate an authorization URL
 4. Open the URL in your browser and authorize the application
 5. The application will receive and store your authentication tokens

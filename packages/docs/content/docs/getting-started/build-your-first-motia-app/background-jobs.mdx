@@ -7,7 +7,7 @@ description: Learn how to create async background jobs and scheduled tasks with 
 
 A pet management system with background jobs that handle:
 
-- **Event Step** - Async job that sets feeding reminders when pets are created
+- **Queue Step** - Async job that sets feeding reminders when pets are created
 - **Cron Step** - Scheduled job that runs daily to clean up deleted pets
 
 ![workbench](../../img/build-your-first-app/background-jobs-workbench.png)
@@ -29,13 +29,13 @@ Install dependencies:
 npm install
 ```
 
-Start the Workbench:
+Start the iii console:
 
 ```bash
 npm run dev
 ```
 
-Your Workbench will be available at `http://localhost:3000`.
+Your iii console will be available at `http://localhost:3000`.
 
 ---
 
@@ -78,7 +78,7 @@ Files like `features.json` and `tutorial/tutorial.tsx` are only for the interact
 
 All code examples in this guide are available in the [build-your-first-app](https://github.com/MotiaDev/build-your-first-app/tree/background-jobs) repository.
 
-You can follow this guide to learn how to build background jobs with Motia step by step, or you can clone the repository and dive into our Interactive Tutorial to learn by doing directly in the Workbench.
+You can follow this guide to learn how to build background jobs with Motia step by step, or you can clone the repository and dive into our Interactive Tutorial to learn by doing directly in the iii console.
 
 ![interactive-tutorial](../../img/build-your-first-app/interactive-tutorial-bg.png)
 
@@ -90,16 +90,16 @@ Background jobs let you handle time-consuming tasks without blocking your API re
 
 Motia provides two types of background jobs:
 
-- **Event Steps** - Triggered by events from your API endpoints
+- **Queue Steps** - Triggered by enqueued messages from your API endpoints
 - **Cron Steps** - Run on a schedule (like daily cleanup tasks)
 
 ---
 
-## Creating Your First Event Step
+## Creating Your First Queue Step
 
-Let's create a background job that sets feeding reminders when a pet is created. First, we need to emit an event from our API endpoint.
+Let's create a background job that sets feeding reminders when a pet is created. First, we need to enqueue a message from our API endpoint.
 
-### Step 1: Emit Events from API
+### Step 1: Enqueue Messages from API
 
 <Callout type="info">
 View on GitHub:
@@ -111,7 +111,7 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="src/typescript/create-pet.step.ts"
-    import { ApiRouteConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { z } from 'zod'
     import { TSStore } from './ts-store'
 
@@ -121,39 +121,37 @@ View on GitHub:
       ageMonths: z.number().int().min(0, 'Age must be a positive number')
     })
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config = {
       name: 'TsCreatePet',
-      path: '/ts/pets',
-      method: 'POST',
-      // Declare what events this endpoint can emit
-      emits: ['ts.feeding.reminder.enqueued'],
+      description: 'Creates a new pet',
+      triggers: [
+        { type: 'api', path: '/ts/pets', method: 'POST', bodySchema: createPetSchema },
+      ],
+      enqueues: ['ts.feeding.reminder.enqueued'],
       flows: ['TsPetManagement'],
-      bodySchema: createPetSchema
-    }
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['TsCreatePet'] = async (req, { emit, logger }) => {
+    export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
       try {
         const validatedData = createPetSchema.parse(req.body)
-        
-        const pet = TSStore.create({ 
-          name: validatedData.name, 
-          species: validatedData.species, 
+
+        const pet = TSStore.create({
+          name: validatedData.name,
+          species: validatedData.species,
           ageMonths: validatedData.ageMonths
         })
-        
+
         if (logger) {
-          logger.info('🐾 Pet created', { 
-            petId: pet.id, 
-            name: pet.name, 
-            species: pet.species, 
-            status: pet.status 
+          logger.info('Pet created', {
+            petId: pet.id,
+            name: pet.name,
+            species: pet.species,
+            status: pet.status
           })
         }
-        
-        // Emit event to trigger background job
-        if (emit) {
-          await emit({
+
+        if (enqueue) {
+          await enqueue({
             topic: 'ts.feeding.reminder.enqueued',
             data: {
               petId: pet.id,
@@ -165,24 +163,24 @@ View on GitHub:
         return { status: 201, body: pet }
       } catch (error) {
         if (error instanceof z.ZodError) {
-          return { 
-            status: 400, 
-            body: { 
-              message: 'Validation error', 
-              errors: error.errors 
-            } 
+          return {
+            status: 400,
+            body: {
+              message: 'Validation error',
+              errors: error.errors
+            }
           }
         }
-        
+
         if (logger) {
-          logger.error('❌ Pet creation failed', { 
-            error: error instanceof Error ? error.message : 'Unknown error' 
+          logger.error('Pet creation failed', {
+            error: error instanceof Error ? error.message : 'Unknown error'
           })
         }
-        
-        return { 
-          status: 500, 
-          body: { message: 'Internal server error' } 
+
+        return {
+          status: 500,
+          body: { message: 'Internal server error' }
         }
       }
     }
@@ -198,10 +196,12 @@ View on GitHub:
 
     config = {
         "name": "CreatePet",
-        "type": "api",
-        "path": "/pets",
-        "method": "POST",
-        "emits": ["py.feeding.reminder.enqueued"]
+        "description": "Creates a new pet",
+        "triggers": [
+            {"type": "api", "path": "/pets", "method": "POST"}
+        ],
+        "enqueues": ["py.feeding.reminder.enqueued"],
+        "flows": ["PetManagement"]
     }
 
     async def handler(req, ctx=None):
@@ -221,10 +221,9 @@ View on GitHub:
             return {"status": 400, "body": {"message": "Invalid ageMonths"}}
 
         pet = pet_store.create(name, species, age_val)
-        
-        # Emit event to trigger background job
-        if ctx and ctx.emit:
-            await ctx.emit({
+
+        if ctx and ctx.enqueue:
+            await ctx.enqueue({
                 "topic": "py.feeding.reminder.enqueued",
                 "data": {
                     "petId": pet["id"],
@@ -241,13 +240,15 @@ View on GitHub:
 
     export const config = {
       name: 'CreatePet',
-      type: 'api',
-      path: '/pets',
-      method: 'POST',
-      emits: ['js.feeding.reminder.enqueued']
+      description: 'Creates a new pet',
+      triggers: [
+        { type: 'api', path: '/pets', method: 'POST' },
+      ],
+      enqueues: ['js.feeding.reminder.enqueued'],
+      flows: ['PetManagement'],
     }
 
-    const handler = async (req, { emit }) => {
+    const handler = async (req, { enqueue }) => {
       const b = req.body || {}
       const name = typeof b.name === 'string' && b.name.trim()
       const speciesOk = ['dog', 'cat', 'bird', 'other'].includes(b.species)
@@ -259,9 +260,8 @@ View on GitHub:
 
       const pet = create({ name, species: b.species, ageMonths: Number(b.ageMonths) })
 
-      // Emit event to trigger background job
-      if (emit) {
-        await emit({
+      if (enqueue) {
+        await enqueue({
           topic: 'js.feeding.reminder.enqueued',
           data: {
             petId: pet.id,
@@ -276,13 +276,13 @@ View on GitHub:
   </Tab>
 </Tabs>
 
-The API endpoint now emits an event after creating a pet. The response returns immediately while the background job processes asynchronously.
+The API endpoint now enqueues a message after creating a pet. The response returns immediately while the background job processes asynchronously.
 
 ---
 
-### Step 2: Create the Event Step
+### Step 2: Create the Queue Step
 
-Now let's create the background job that listens for this event and sets feeding reminders.
+Now let's create the background job that listens for this message and sets feeding reminders.
 
 <Callout type="info">
 View on GitHub:
@@ -294,20 +294,20 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="src/typescript/set-next-feeding-reminder.job.step.ts"
-    import { EventConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { TSStore } from './ts-store'
 
     export const config = {
-      type: 'event',
       name: 'TsSetNextFeedingReminder',
       description: 'Background job that sets next feeding reminder and adds welcome notes',
-      // Subscribe to the event emitted by CreatePet
-      subscribes: ['ts.feeding.reminder.enqueued'],
-      emits: [],
-      flows: ['TsPetManagement']
-    }
+      triggers: [
+        { type: 'queue', topic: 'ts.feeding.reminder.enqueued' },
+      ],
+      enqueues: [],
+      flows: ['TsPetManagement'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['TsSetNextFeedingReminder'] = async (input, { emit, logger }) => {
+    export const handler: Handlers<typeof config> = async (input, { enqueue, logger }) => {
       const { petId, enqueuedAt } = input
 
       if (logger) {
@@ -360,11 +360,13 @@ View on GitHub:
     from services import pet_store
 
     config = {
-        "type": "event",
         "name": "PySetNextFeedingReminder",
         "description": "Background job that sets next feeding reminder and adds welcome notes",
-        "subscribes": ["py.feeding.reminder.enqueued"],
-        "emits": []
+        "triggers": [
+            {"type": "queue", "topic": "py.feeding.reminder.enqueued"}
+        ],
+        "enqueues": [],
+        "flows": ["PetManagement"]
     }
 
     async def handler(input_data, ctx=None):
@@ -423,11 +425,13 @@ View on GitHub:
     import { update } from './js-store.js'
 
     export const config = {
-      type: 'event',
       name: 'JsSetNextFeedingReminder',
       description: 'Background job that sets next feeding reminder and adds welcome notes',
-      subscribes: ['js.feeding.reminder.enqueued'],
-      emits: []
+      triggers: [
+        { type: 'queue', topic: 'js.feeding.reminder.enqueued' },
+      ],
+      enqueues: [],
+      flows: ['PetManagement'],
     }
 
     const handler = async (input, context) => {
@@ -475,15 +479,15 @@ View on GitHub:
   </Tab>
 </Tabs>
 
-### How Event Steps Work
+### How Queue Steps Work
 
-Event Steps have a few key differences from API Steps:
+Queue Steps have a few key differences from API Steps:
 
-- **type** is set to `'event'` instead of `'api'`
-- **subscribes** lists the events this job listens for
-- **handler** receives the event data as the first argument
+- **triggers** uses `{ type: 'queue', topic: '...' }` instead of `{ type: 'api', ... }`
+- **topic** defines which messages this job listens for
+- **handler** receives the message data as the first argument
 
-When you create a pet, the API returns immediately. The background job picks up the event and processes it asynchronously.
+When you create a pet, the API returns immediately. The background job picks up the enqueued message and processes it asynchronously.
 
 ---
 
@@ -498,7 +502,7 @@ curl -X POST http://localhost:3000/pets \
   -d '{"name": "Max", "species": "dog", "ageMonths": 24}'
 ```
 
-Check the logs in Workbench to see both the API call and the background job execution:
+Check the logs in the iii console to see both the API call and the background job execution:
 
 ![background-job-logs](../../img/build-your-first-app/bg-job-logs.png)
 
@@ -523,19 +527,20 @@ View on GitHub:
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
   <Tab value="TypeScript">
     ```typescript title="src/typescript/deletion-reaper.cron.step.ts"
-    import { CronConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { TSStore } from './ts-store'
 
-    export const config: CronConfig = {
-      type: 'cron',
+    export const config = {
       name: 'TsDeletionReaper',
       description: 'Daily job that permanently removes pets scheduled for deletion',
-      cron: '0 2 * * *', // Daily at 2:00 AM
-      emits: [],
-      flows: ['TsPetManagement']
-    }
+      triggers: [
+        { type: 'cron', expression: '0 2 * * *' },
+      ],
+      enqueues: [],
+      flows: ['TsPetManagement'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['TsDeletionReaper'] = async ({ emit, logger }) => {
+    export const handler: Handlers<typeof config> = async (input, { enqueue, logger }) => {
       if (logger) {
         logger.info('🔄 Deletion Reaper started - scanning for pets to purge')
       }
@@ -604,11 +609,12 @@ View on GitHub:
     from services import pet_store
 
     config = {
-        "type": "cron",
         "name": "PyDeletionReaper",
         "description": "Daily job that permanently removes pets scheduled for deletion",
-        "cron": "0 2 * * *",  # Daily at 2:00 AM
-        "emits": [],
+        "triggers": [
+            {"type": "cron", "expression": "0 2 * * *"}
+        ],
+        "enqueues": [],
         "flows": ["PyPetManagement"]
     }
 
@@ -680,12 +686,13 @@ View on GitHub:
     import { findDeletedPetsReadyToPurge, remove } from './js-store.js'
 
     export const config = {
-      type: 'cron',
       name: 'JsDeletionReaper',
       description: 'Daily job that permanently removes pets scheduled for deletion',
-      cron: '0 2 * * *', // Daily at 2:00 AM
-      emits: [],
-      flows: ['JsPetManagement']
+      triggers: [
+        { type: 'cron', expression: '0 2 * * *' },
+      ],
+      enqueues: [],
+      flows: ['JsPetManagement'],
     }
 
     const handler = async ({ emit, logger }) => {
@@ -754,9 +761,9 @@ View on GitHub:
 
 Cron Steps run on a schedule defined by a cron expression:
 
-- **type** is set to `'cron'`
-- **cron** defines when the job runs (e.g., `'0 2 * * *'` = daily at 2 AM)
-- **handler** receives only the context (no input data like Event Steps)
+- **triggers** uses `{ type: 'cron', expression: '...' }`
+- **expression** defines when the job runs (e.g., `'0 2 * * *'` = daily at 2 AM)
+- **handler** receives `(input, ctx)` like all other steps
 
 Common cron patterns:
 - `'*/5 * * * *'` - Every 5 minutes
@@ -768,7 +775,7 @@ Common cron patterns:
 
 ## Monitoring Background Jobs
 
-Workbench provides tools to monitor your background jobs:
+The iii console provides tools to monitor your background jobs:
 
 ### Tracing
 

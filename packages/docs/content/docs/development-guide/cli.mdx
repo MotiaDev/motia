@@ -23,15 +23,15 @@ npx motia@latest create [project-name] [options]
 
 **Arguments:**
 
-- `[project-name]` (optional): The name for your project folder. 
-  If not provided, you will be prompted to enter it. 
+- `[project-name]` (optional): The name for your project folder.
+  If not provided, you will be prompted to enter it.
   Use `.` or `./` to create it in the current directory.
 
 **Options:**
 
-- `--template <template-name>` (optional): The template to use for your project. 
+- `--template <template-name>` (optional): The template to use for your project.
   If not provided, you will be prompted to select one interactively.
-- `--skip-redis` (optional): Skip the embedded Redis binary installation. 
+- `--skip-redis` (optional): Skip the embedded Redis binary installation.
   Use this when you have your own Redis instance or want to configure external Redis.
 
 **Available Templates:**
@@ -62,7 +62,6 @@ npx motia@latest create my-tutorial --template motia-tutorial-python
 Use interactive mode (no template specified):
 ```bash
 npx motia@latest create
-# You'll be prompted to select a template from the list above
 ```
 
 Create project without embedded Redis (use your own Redis):
@@ -118,7 +117,7 @@ The deployment process:
 
 ### `dev`
 
-Start the development server with hot reload and Workbench.
+Start the development server with hot reload and the iii console.
 
 ```bash
 npx motia dev [options]
@@ -129,12 +128,11 @@ Options:
 - `-p, --port <port>`: The port to run the server on (default: 3000).
 - `-H, --host [host]`: The host address for the server (default: localhost).
 - `-d, --debug`: Enable debug logging.
-- `-m, --mermaid`: Enable Mermaid diagram generation.
 - `--motia-dir <path>`: Custom path for `.motia` folder.
 
 ### `start`
 
-Start the production server without hot reload. Workbench is included by default (can be disabled via `MOTIA_DOCKER_DISABLE_WORKBENCH` environment variable).
+Start the production server without hot reload. The iii console is included by default (can be disabled via `MOTIA_DOCKER_DISABLE_WORKBENCH` environment variable).
 
 ```bash
 npx motia start [options]
@@ -156,7 +154,7 @@ npx motia start --port 8080
 # Start on a specific host
 npx motia start --host 0.0.0.0 --port 3000
 
-# Start without Workbench
+# Start without iii console
 MOTIA_DOCKER_DISABLE_WORKBENCH=true npx motia start
 ```
 
@@ -172,18 +170,18 @@ Options:
 
 - `-o, --output <path>`: Path to write the generated config file.
 
-### `emit`
+### `enqueue`
 
-Emit an event to the Motia server.
+Enqueue a message to a topic on the Motia server.
 
 ```bash
-npx motia emit [options]
+npx motia enqueue [options]
 ```
 
 Options:
 
-- `--topic <topic>` (required): Event topic/type to emit.
-- `--message <message>` (required): Event payload as a JSON string.
+- `--topic <topic>` (required): Topic to enqueue to.
+- `--message <message>` (required): Message payload as a JSON string.
 - `-p, --port <number>`: Port number (default: 3000).
 
 ### `generate`
@@ -201,20 +199,6 @@ npx motia generate step [options]
 Options:
 
 - `-d, --dir <step file path>`: The path relative to the src directory to create the step file.
-
-#### `generate openapi`
-
-Generate OpenAPI spec for your project.
-
-```bash
-npx motia generate openapi [options]
-```
-
-Options:
-
-- `-t, --title <tile of the document>`: Title for the OpenAPI document. Defaults to project name from package.json.
-- `-v, --version <version of the document>`: Version of the OpenAPI document. Defaults to 1.0.0.
-- `-o, --output <output file name / path>`: The file name and path relative to root to create the openapi file. Defaults to `openapi.json` at the root.
 
 ### `state`
 

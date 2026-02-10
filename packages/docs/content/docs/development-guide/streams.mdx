@@ -1,5 +1,5 @@
 ---
-title: Real-time Streams 
+title: Real-time Streams
 description: Push live updates from your backend to connected clients without polling. Perfect for AI responses, chat apps, and long-running tasks.
 ---
 
@@ -21,11 +21,11 @@ With Motia Streams, you get all of this out of the box. Just define what data yo
 
 ## Some Use Cases for Streams
 
-- **AI/LLM responses** → Stream ChatGPT responses as they generate
-- **Chat applications** → Real-time messaging and typing indicators
-- **Long processes** → Video processing, data exports, batch operations
-- **Live dashboards** → Real-time metrics and notifications
-- **Collaborative tools** → Real-time updates across multiple users
+- **AI/LLM responses** - Stream ChatGPT responses as they generate
+- **Chat applications** - Real-time messaging and typing indicators
+- **Long processes** - Video processing, data exports, batch operations
+- **Live dashboards** - Real-time metrics and notifications
+- **Collaborative tools** - Real-time updates across multiple users
 
 ---
 
@@ -100,7 +100,7 @@ module.exports = { config }
 </Tab>
 </Tabs>
 
-👉 That's it. Motia auto-discovers the stream and makes it available as `context.streams.chatMessage` in all your handlers.
+That's it. Motia auto-discovers the stream and makes it available as `context.streams.chatMessage` in all your handlers.
 
 ---
 
@@ -114,16 +114,33 @@ Every stream has these methods:
 
 | Method | What it does |
 |--------|-------------|
-| `set(groupId, id, data)` | Create or update an item |
+| `set(groupId, id, data)` | Create or update an item. Returns `StreamSetResult` with `new_value` and `old_value` |
 | `get(groupId, id)` | Get a single item |
 | `delete(groupId, id)` | Remove an item |
 | `getGroup(groupId)` | Get all items in a group |
+| `update(groupId, id, ops)` | Atomic update with `UpdateOp[]`. Returns `{ new_value, old_value }` |
 | `send(channel, event)` | Send ephemeral events (typing, reactions, etc.) |
 
 **Think of it like this:**
 - `groupId` = Which room/conversation/user
 - `id` = Which specific item in that room
 - `data` = The actual data matching your schema
+
+### Atomic Updates with `update()`
+
+Use the `update()` method for atomic operations on stream items:
+
+```typescript
+import { type UpdateOp } from 'motia'
+
+const ops: UpdateOp[] = [
+  { type: 'set', path: 'name', value: 'New Name' },
+  { type: 'increment', path: 'count', by: 1 },
+  { type: 'decrement', path: 'stock', by: 1 },
+]
+const result = await streams.myStream.update('groupId', 'itemId', ops)
+// result has new_value and old_value
+```
 
 ---
 
@@ -161,33 +178,20 @@ export type Todo = z.infer<typeof todoSchema>
 **Step 2:** Create an API endpoint that uses streams
 
 ```typescript title="src/create-todo.step.ts"
-import { ApiRouteConfig, Handlers } from 'motia'
+import { type Handlers, type StepConfig } from 'motia'
 import { z } from 'zod'
 import { Todo } from './todo.stream'
 
-export const config: ApiRouteConfig = {
-  type: 'api',
+export const config = {
   name: 'CreateTodo',
-  method: 'POST',
-  path: '/todo',
-  bodySchema: z.object({
-    description: z.string(),
-    dueDate: z.string().optional()
-  }),
-  responseSchema: {
-    200: z.object({
-      id: z.string(),
-      description: z.string(),
-      createdAt: z.string(),
-      dueDate: z.string().optional(),
-      completedAt: z.string().optional()
-    }),
-    400: z.object({ error: z.string() })
-  },
-  emits: []
-}
+  description: 'Create a new todo item',
+  triggers: [
+    { type: 'api', path: '/todo', method: 'POST' },
+  ],
+  flows: ['todo-app'],
+} as const satisfies StepConfig
 
-export const handler: Handlers['CreateTodo'] = async (req, { logger, streams }) => {
+export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
   logger.info('Creating new todo', { body: req.body })
 
   const { description, dueDate } = req.body
@@ -220,19 +224,18 @@ export const handler: Handlers['CreateTodo'] = async (req, { logger, streams }) 
 3. **Instantly**, all clients subscribed to the `inbox` group receive the new todo
 4. No polling, no refresh needed
 
-👉 Every time you call `streams.todo.set()`, connected clients receive the update instantly. No polling needed.
+Every time you call `streams.todo.set()`, connected clients receive the update instantly. No polling needed.
 
 ---
 
 ## Restricting Stream Access
 
-Streams can now enforce authentication and authorization rules so that only approved clients can subscribe.
+Streams can enforce authentication and authorization rules so that only approved clients can subscribe.
 
-### 1. Configure `streamAuth` in `motia.config.ts`
+### 1. Configure `streamAuth`
 
-```typescript title="motia.config.ts"
-import type { StreamAuthRequest } from '@motiadev/core'
-import { config } from 'motia'
+```typescript title="stream-auth.ts"
+import type { StreamAuthRequest } from 'motia'
 import { z } from 'zod'
 
 const streamAuthContextSchema = z.object({
@@ -259,27 +262,7 @@ const extractAuthToken = (request: StreamAuthRequest): string | undefined => {
     return undefined
   }
 }
-
-export default config({
-  streamAuth: {
-    contextSchema: z.toJSONSchema(streamAuthContextSchema),
-    authenticate: async (request: StreamAuthRequest) => {
-      const token = extractAuthToken(request)
-      if (!token) return null
-
-      // look up the token in your auth system
-      const session = await mySessionStore.get(token)
-      if (!session) {
-        throw new Error(`Invalid token: ${token}`)
-      }
-
-      return session
-    },
-  },
-})
 ```
-
-Motia uses `contextSchema` to generate the `StreamAuthContext` type inside your project's `types.d.ts` and stores whatever `authenticate` returns as `authContext` on the WebSocket connection. Returning `null` means the client is anonymous.
 
 ### 2. Apply fine-grained rules with `canAccess`
 
@@ -292,17 +275,16 @@ export const config: StreamConfig = {
   baseConfig: { storageType: 'default' },
   canAccess: ({ groupId, id }, authContext) => {
     if (!authContext) return false
-    // only allow users that are part of the project backing this chat
     return authContext.projectIds.includes(groupId)
   },
 }
 ```
 
-`canAccess` can be synchronous or async. If it's not defined, Motia allows every client (even anonymous ones) to subscribe. If you remove the function from a stream that previously had one, Motia evaluates it out-of-process using the generated runner (useful for Python/Ruby streams).
+`canAccess` can be synchronous or async. If it's not defined, Motia allows every client (even anonymous ones) to subscribe.
 
 ### 3. Send tokens from the client
 
-Provide an auth token when creating the stream client by embedding it in the WebSocket URL. Motia will read it in `authenticate` before authorizing subscriptions.
+Provide an auth token when creating the stream client by embedding it in the WebSocket URL.
 
 ```tsx title="App.tsx"
 import { useMemo } from 'react'
@@ -322,8 +304,6 @@ function AppShell({ session }: { session?: { streamToken?: string } }) {
 }
 ```
 
-When you pass the token via the `protocols` prop Motia sends it as `Sec-WebSocket-Protocol: Authorization,<token>`, matching the Workbench Stream RBAC plugin (`ActiveStreamConnection.tsx`).
-
 Using the browser/node clients directly:
 
 ```ts
@@ -337,28 +317,26 @@ if (process.env.STREAM_TOKEN) {
 const stream = new Stream(url.toString())
 ```
 
-On the server side Motia validates the token (via `authenticate`), stores the resulting context on the WebSocket, and calls `canAccess` before creating a subscription. Unauthorized clients receive an `error` event and no subscriptions are created.
-
 ---
 
-## Testing Streams in Workbench
+## Testing Streams in the iii Console
 
-Testing real-time features can be tricky. Workbench makes it easy.
+Testing real-time features can be tricky. The iii console makes it easy.
 
 **How to test:**
 
 1. Make sure your API Step returns the stream object:
 
 ```typescript
-return { status: 200, body: todo } // result from streams.todo.set()
+return { status: 200, body: todo }
 ```
 
 2. Open [http://localhost:3000/endpoints](http://localhost:3000/endpoints)
 3. Watch the stream update in real-time
 
-![Stream Test in Workbench](./../img/todo-workbench.png)
+![Stream Test in iii Console](./../img/todo-workbench.png)
 
-👉 Workbench automatically detects stream responses and subscribes to them for you.
+The iii console automatically detects stream responses and subscribes to them for you.
 
 ---
 
@@ -380,7 +358,7 @@ Wrap your app with the provider:
 import { MotiaStreamProvider } from '@motiadev/stream-client-react'
 
 function App() {
-  const authToken = useAuthToken() // e.g. from cookies or local storage
+  const authToken = useAuthToken()
 
   return (
     <MotiaStreamProvider address="ws://localhost:3000" authToken={authToken}>
@@ -398,16 +376,14 @@ import { useTodoEndpoints, type Todo } from './hook/useTodoEndpoints'
 
 function App() {
   const { createTodo, updateTodo, deleteTodo } = useTodoEndpoints()
-  
-  // Subscribe to all todos in the 'inbox' group
-  const { data: todos } = useStreamGroup<Todo>({ 
-    groupId: 'inbox', 
-    streamName: 'todo' 
+
+  const { data: todos } = useStreamGroup<Todo>({
+    groupId: 'inbox',
+    streamName: 'todo'
   })
 
   const handleAddTodo = async (description: string) => {
     await createTodo(description)
-    // No need to manually update UI - stream does it automatically!
   }
 
   return (
@@ -429,7 +405,7 @@ function App() {
 
 ![Todo App in React](./../img/todo-react.png)
 
-👉 Every time you call `createTodo()`, connected clients receive the update instantly. No polling needed.
+Every time you call `createTodo()`, connected clients receive the update instantly. No polling needed.
 
 ---
 
@@ -443,15 +419,13 @@ Use `streams.<name>.send()` for this:
 <Tab value='TypeScript'>
 
 ```typescript
-// Send typing indicator
 await streams.chatMessage.send(
-  { groupId: channelId }, // No id = broadcasts to all subscribers in group
+  { groupId: channelId },
   { type: 'typing', data: { userId: 'user-123', isTyping: true } }
 )
 
-// Send reaction to specific message
 await streams.chatMessage.send(
-  { groupId: channelId, id: messageId }, // With id = only subscribers to this item get it
+  { groupId: channelId, id: messageId },
   { type: 'reaction', data: { emoji: '👍', userId: 'user-123' } }
 )
 ```
@@ -460,15 +434,13 @@ await streams.chatMessage.send(
 <Tab value='Python'>
 
 ```python
-# Send typing indicator
 await context.streams.chatMessage.send(
-    {"groupId": channel_id},  # No id = broadcasts to all subscribers in group
+    {"groupId": channel_id},
     {"type": "typing", "data": {"userId": "user-123", "isTyping": True}}
 )
 
-# Send reaction to specific message
 await context.streams.chatMessage.send(
-    {"groupId": channel_id, "id": message_id},  # With id = only subscribers to this item get it
+    {"groupId": channel_id, "id": message_id},
     {"type": "reaction", "data": {"emoji": "👍", "userId": "user-123"}}
 )
 ```
@@ -477,15 +449,13 @@ await context.streams.chatMessage.send(
 <Tab value='JavaScript'>
 
 ```javascript
-// Send typing indicator
 await streams.chatMessage.send(
-  { groupId: channelId }, // No id = broadcasts to all subscribers in group
+  { groupId: channelId },
   { type: 'typing', data: { userId: 'user-123', isTyping: true } }
 )
 
-// Send reaction to specific message
 await streams.chatMessage.send(
-  { groupId: channelId, id: messageId }, // With id = only subscribers to this item get it
+  { groupId: channelId, id: messageId },
   { type: 'reaction', data: { emoji: '👍', userId: 'user-123' } }
 )
 ```
@@ -494,80 +464,18 @@ await streams.chatMessage.send(
 </Tabs>
 
 **Difference from `set()`:**
-- `set()` → Stores data, clients sync to it
-- `send()` → Fire-and-forget events, not stored
-
----
-
-## Stream Adapters
-
-Stream adapters control where and how stream data is stored. Motia provides default adapters that work out of the box, and distributed adapters for production deployments with multiple instances.
-
-### Default Adapter (File Storage)
-
-No setup needed. Streams are stored in `.motia/streams/` directory.
-
-```typescript title="motia.config.ts"
-import { config } from '@motiadev/core'
-
-export default config({
-  // Uses FileStreamAdapter by default
-  // Streams stored in .motia/streams/
-})
-```
-
-<Callout type="info">
-The default FileStreamAdapter is perfect for single-instance deployments, development, and testing. Real-time updates work seamlessly within a single instance.
-</Callout>
-
-### Distributed Adapter (Redis)
-
-For production deployments with multiple Motia instances, use Redis to synchronize streams across instances. This ensures all connected clients receive updates regardless of which instance handles the request:
-
-```typescript title="motia.config.ts"
-import { config } from '@motiadev/core'
-import { RedisStreamAdapter } from '@motiadev/adapter-redis-streams'
-
-export default config({
-  adapters: {
-    streams: new RedisStreamAdapter({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    }),
-  },
-})
-```
-
-<Callout type="warn">
-Use distributed stream adapters (like Redis) when running multiple Motia instances. Without them, stream updates are only visible to clients connected to the instance that created them.
-</Callout>
-
-**Your Step code stays the same:**
-
-```typescript
-// Works with both file and Redis adapters
-export const handler: Handlers['Chat'] = async (req, { streams }) => {
-  await streams.messages.set('chat-123', 'msg-1', {
-    content: 'Hello!',
-    userId: 'user-1',
-    timestamp: Date.now(),
-  })
-  // ... rest of your code
-}
-```
-
-The adapter handles the storage backend and synchronization - your application code doesn't change. All connected clients receive updates in real-time, regardless of which instance processes the request.
-
-[Learn more about adapters →](/docs/development-guide/adapters)
+- `set()` - Stores data, clients sync to it. Returns `{ new_value, old_value }`
+- `send()` - Fire-and-forget events, not stored
 
 ---
 
 ## Remember
 
 - **Streams = Real-time state** that clients subscribe to
-- **Every `set()` call** pushes updates to connected clients instantly
+- **Every `set()` call** pushes updates to connected clients instantly and returns `{ new_value, old_value }`
+- **Use `update()`** for atomic operations (increment, decrement, set fields)
 - **Use `send()`** for temporary events like typing indicators
-- **Test in Workbench** before building your frontend
+- **Test in the iii console** before building your frontend
 - **No polling needed** - WebSocket connection handles everything
 
 ---
@@ -575,11 +483,11 @@ The adapter handles the storage backend and synchronization - your application c
 ## What's Next?
 
 <Cards>
-  <Card href="/docs/development-guide/state-management" title="📦 State Management">
+  <Card href="/docs/development-guide/state-management" title="State Management">
     Learn about persistent storage across Steps
   </Card>
-  
-  <Card href="/docs/concepts/steps" title="🔄 Steps">
+
+  <Card href="/docs/concepts/steps" title="Steps">
     Deep dive into building with Steps
   </Card>
 </Cards>

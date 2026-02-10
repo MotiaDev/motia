@@ -3,6 +3,10 @@ title: 'Adapter Configuration'
 description: 'Configure distributed adapters for horizontal scaling in production'
 ---
 
+<Callout type="warn">
+**Deprecated** - Adapter configuration has been removed from Motia. This page is kept for reference only.
+</Callout>
+
 This guide shows you how to configure distributed adapters for Motia to enable horizontal scaling and production-ready deployments. We'll cover setting up Redis and RabbitMQ adapters for state, streams, events, and cron.
 
 ## Why Distributed Adapters?
@@ -31,7 +35,7 @@ npm install @motiadev/adapter-redis-state \
 
 ### 2. Configure Adapters
 
-```typescript title="motia.config.ts"
+```typescript title="iii config.yml"
 import { config } from '@motiadev/core'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
@@ -69,7 +73,7 @@ Each adapter supports additional configuration options for production use:
 
 ### Redis State Adapter
 
-```typescript title="motia.config.ts"
+```typescript title="iii config.yml"
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 
 export default config({
@@ -112,7 +116,7 @@ export default config({
 
 ### Redis Stream Adapter
 
-```typescript title="motia.config.ts"
+```typescript title="iii config.yml"
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'
 
 export default config({
@@ -153,7 +157,7 @@ export default config({
 
 ### RabbitMQ Event Adapter
 
-```typescript title="motia.config.ts"
+```typescript title="iii config.yml"
 import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
 
 export default config({
@@ -187,7 +191,7 @@ export default config({
 
 ### Redis Cron Adapter
 
-```typescript title="motia.config.ts"
+```typescript title="iii config.yml"
 import { RedisCronAdapter } from '@motiadev/adapter-redis-cron'
 
 export default config({
@@ -286,7 +290,7 @@ You don't need to configure all adapters. Mix and match based on your needs:
 
 If you only need shared state across instances:
 
-```typescript title="motia.config.ts"
+```typescript title="iii config.yml"
 import { config } from '@motiadev/core'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 
@@ -305,7 +309,7 @@ export default config({
 
 If you only need distributed events:
 
-```typescript title="motia.config.ts"
+```typescript title="iii config.yml"
 import { config } from '@motiadev/core'
 import { RabbitMQEventAdapter } from '@motiadev/adapter-rabbitmq-events'
 
@@ -410,10 +414,10 @@ Your application code doesn't change when switching adapters. Test with defaults
 
 ```typescript
 // This works with both file and Redis adapters
-export const handler: Handlers['MyStep'] = async (req, { state, streams, emit }) => {
+export const handler: Handlers<typeof config> = async (req, { state, streams, enqueue }) => {
   await state.set('orders', 'order-123', { id: 'order-123' })
   await streams.messages.set('chat-123', 'msg-1', { text: 'Hello' })
-  await emit({ topic: 'order.created', data: { orderId: '123' } })
+  await enqueue({ topic: 'order.created', data: { orderId: '123' } })
 }
 ```
 

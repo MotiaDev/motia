@@ -13,10 +13,10 @@ A **Step** is the core primitive in Motia. Instead of juggling separate framewor
 
 Every Step file contains two parts:
 
-- **Config** → defines when and how the Step runs, and gives it a unique `name`  
-- **Handler** → the function that executes your business logic  
+- **Config** → defines when and how the Step runs, and gives it a unique `name`
+- **Handler** → the function that executes your business logic
 
-Motia automatically discovers any file ending in `.step.ts`, `.step.js`, or `_step.py` from your `src/` directory.  
+Motia automatically discovers any file ending in `.step.ts`, `.step.js`, or `_step.py` from your `src/` directory.
 The filename pattern tells Motia to load it, and the `name` in the `config` uniquely identifies the Step inside your system.
 
 <Callout type="info">
@@ -31,19 +31,23 @@ The filename pattern tells Motia to load it, and the `name` in the `config` uniq
 <Tab value='TypeScript'>
 
 ```ts title="src/hello.step.ts"
-import { ApiRouteConfig, Handlers } from 'motia';
+import { type Handlers, type StepConfig } from 'motia'
+import { z } from 'zod'
 
-export const config: ApiRouteConfig = {
+export const config = {
   name: 'HelloStep',
-  type: 'api',
-  path: '/hello',
-  method: 'GET'
-};
+  description: 'Hello endpoint',
+  triggers: [
+    { type: 'api', path: '/hello', method: 'GET', responseSchema: { 200: z.object({ message: z.string() }) } },
+  ],
+  enqueues: [],
+  flows: ['my-flow'],
+} as const satisfies StepConfig
 
-export const handler: Handlers['HelloStep'] = async (req, { logger }) => {
-  logger.info('Hello endpoint called');
-  return { status: 200, body: { message: 'Hello world!' } };
-};
+export const handler: Handlers<typeof config> = async (req, { logger }) => {
+  logger.info('Hello endpoint called')
+  return { status: 200, body: { message: 'Hello world!' } }
+}
 ```
 
 </Tab>
@@ -52,9 +56,12 @@ export const handler: Handlers['HelloStep'] = async (req, { logger }) => {
 ```python title="src/hello_step.py"
 config = {
     "name": "HelloStep",
-    "type": "api",
-    "path": "/hello",
-    "method": "GET"
+    "description": "Hello endpoint",
+    "triggers": [
+        {"type": "api", "path": "/hello", "method": "GET"}
+    ],
+    "enqueues": [],
+    "flows": ["my-flow"]
 }
 
 async def handler(req, ctx):
@@ -66,71 +73,85 @@ async def handler(req, ctx):
 <Tab value='JavaScript'>
 
 ```js title="src/hello.step.js"
+const { z } = require('zod')
+
 const config = {
   name: 'HelloStep',
-  type: 'api',
-  path: '/hello',
-  method: 'GET'
-};
+  description: 'Hello endpoint',
+  triggers: [
+    { type: 'api', path: '/hello', method: 'GET', responseSchema: { 200: z.object({ message: z.string() }) } },
+  ],
+  enqueues: [],
+  flows: ['my-flow'],
+}
 
 const handler = async (req, { logger }) => {
-  logger.info('Hello endpoint called');
-  return { status: 200, body: { message: 'Hello world!' } };
-};
+  logger.info('Hello endpoint called')
+  return { status: 200, body: { message: 'Hello world!' } }
+}
 
-module.exports = { config, handler };
+module.exports = { config, handler }
 ```
 
 </Tab>
 </Tabs>
 
-👉 That’s all you need to make a running API endpoint.  
+That's all you need to make a running API endpoint.
 Motia will auto-discover this file and wire it into your backend.
 
 ---
 
-## Steps Work Together: Emit + Subscribe
+## Steps Work Together: Enqueue + Queue
 
-Steps aren’t isolated. They communicate by **emitting** and **subscribing** to events.  
+Steps aren't isolated. They communicate by **enqueuing** messages that other Steps listen for via **queue triggers**.
 This is the core of how you build backends with Motia.
 
-### Example Flow: API Step → Event Step
+### Example Flow: API Step → Queue Step
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
 ```ts title="src/send-message.step.ts"
-import { ApiRouteConfig, Handlers } from 'motia';
+import { type Handlers, type StepConfig } from 'motia'
+import { z } from 'zod'
 
-export const config: ApiRouteConfig = {
+export const config = {
   name: 'SendMessage',
-  type: 'api',
-  path: '/messages',
-  method: 'POST',
-  emits: ['message.sent']
-};
+  description: 'Sends a message',
+  triggers: [
+    { type: 'api', path: '/messages', method: 'POST' },
+  ],
+  enqueues: ['message.sent'],
+  flows: ['messaging'],
+} as const satisfies StepConfig
 
-export const handler: Handlers['SendMessage'] = async (req, { emit }) => {
-  await emit({
+export const handler: Handlers<typeof config> = async (req, { enqueue }) => {
+  await enqueue({
     topic: 'message.sent',
     data: { text: req.body.text }
-  });
-  return { status: 200, body: { ok: true } };
-};
+  })
+  return { status: 200, body: { ok: true } }
+}
 ```
 
 ```ts title="src/process-message.step.ts"
-import { EventConfig, Handlers } from 'motia';
+import { type Handlers, type StepConfig } from 'motia'
+import { z } from 'zod'
 
-export const config: EventConfig = {
+export const config = {
   name: 'ProcessMessage',
-  type: 'event',
-  subscribes: ['message.sent']
-};
+  description: 'Processes messages in background',
+  triggers: [
+    { type: 'queue', topic: 'message.sent', input: z.object({ text: z.string() }) },
+  ],
+  enqueues: ['message.processed'],
+  flows: ['messaging'],
+} as const satisfies StepConfig
 
-export const handler: Handlers['ProcessMessage'] = async (input, { logger }) => {
-  logger.info('Processing message', input);
-};
+export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
+  logger.info('Processing message', input)
+  await enqueue({ topic: 'message.processed', data: input })
+}
 ```
 </Tab>
 
@@ -139,14 +160,16 @@ export const handler: Handlers['ProcessMessage'] = async (input, { logger }) => 
 ```python title="send_message_step.py"
 config = {
     "name": "SendMessage",
-    "type": "api",
-    "path": "/messages",
-    "method": "POST",
-    "emits": ["message.sent"]
+    "description": "Sends a message",
+    "triggers": [
+        {"type": "api", "path": "/messages", "method": "POST"}
+    ],
+    "enqueues": ["message.sent"],
+    "flows": ["messaging"]
 }
 
 async def handler(req, ctx):
-    await ctx.emit({
+    await ctx.enqueue({
         "topic": "message.sent",
         "data": {"text": req.body["text"]}
     })
@@ -156,12 +179,17 @@ async def handler(req, ctx):
 ```python title="process_message_step.py"
 config = {
     "name": "ProcessMessage",
-    "type": "event",
-    "subscribes": ["message.sent"]
+    "description": "Processes messages in background",
+    "triggers": [
+        {"type": "queue", "topic": "message.sent"}
+    ],
+    "enqueues": ["message.processed"],
+    "flows": ["messaging"]
 }
 
 async def handler(input, ctx):
-    ctx.logger.info("Processing message", input)
+    ctx.logger.info("Processing message", {"input": input})
+    await ctx.enqueue({"topic": "message.processed", "data": input})
 ```
 </Tab>
 
@@ -170,58 +198,67 @@ async def handler(input, ctx):
 ```js title="src/send-message.step.js"
 const config = {
   name: 'SendMessage',
-  type: 'api',
-  path: '/messages',
-  method: 'POST',
-  emits: ['message.sent']
-};
+  description: 'Sends a message',
+  triggers: [
+    { type: 'api', path: '/messages', method: 'POST' },
+  ],
+  enqueues: ['message.sent'],
+  flows: ['messaging'],
+}
 
-const handler = async (req, { emit }) => {
-  await emit({
+const handler = async (req, { enqueue }) => {
+  await enqueue({
     topic: 'message.sent',
     data: { text: req.body.text }
-  });
-  return { status: 200, body: { ok: true } };
-};
+  })
+  return { status: 200, body: { ok: true } }
+}
 
-module.exports = { config, handler };
+module.exports = { config, handler }
 ```
 
 ```js title="src/process-message.step.js"
 const config = {
   name: 'ProcessMessage',
-  type: 'event',
-  subscribes: ['message.sent']
-};
+  description: 'Processes messages in background',
+  triggers: [
+    { type: 'queue', topic: 'message.sent' },
+  ],
+  enqueues: ['message.processed'],
+  flows: ['messaging'],
+}
 
-const handler = async (input, { logger }) => {
-  logger.info('Processing message', input);
-};
+const handler = async (input, { logger, enqueue }) => {
+  logger.info('Processing message', input)
+  await enqueue({ topic: 'message.processed', data: input })
+}
 
-module.exports = { config, handler };
+module.exports = { config, handler }
 ```
 </Tab>
 </Tabs>
 
-👉 With just two files, you have an **API endpoint** that triggers an **event-driven workflow**.  
+With just two files, you have an **API endpoint** that triggers a **queue-driven workflow**.
 
 ---
 
 ## Triggers
 
 <div id="triggers-api"></div>
-<div id="triggers-event"></div>
+<div id="triggers-queue"></div>
 <div id="triggers-cron"></div>
 
-Every Step has a `type` that defines **how it triggers**:
+Every Step has a `triggers` array that defines **how it triggers**:
 
 | Type | When it runs | Use case |
 |------|--------------|----------|
 | `api` | HTTP request | REST APIs, webhooks |
-| `event` | Event emitted | Background jobs, workflows |
+| `queue` | Message enqueued | Background jobs, workflows |
 | `cron` | Schedule | Cleanup, reports, reminders |
+| `state` | State change | React to data changes |
+| `stream` | Stream event | Real-time data processing |
 
-<Tabs items={['API', 'Event', 'Cron']} groupId="triggers" updateAnchor defaultIndex={0}>
+<Tabs items={['API', 'Queue', 'Cron']} groupId="triggers" updateAnchor defaultIndex={0}>
   <Tab id="triggers-api" value="API">
 
 ### API Trigger
@@ -233,16 +270,20 @@ Runs when an HTTP request hits the path.
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-    import { ApiRouteConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
+    import { z } from 'zod'
 
-    export const config: ApiRouteConfig = {
+    export const config = {
       name: 'GetUser',
-      type: 'api',
-      path: '/users/:id',
-      method: 'GET'
-    }
+      description: 'Get user by ID',
+      triggers: [
+        { type: 'api', path: '/users/:id', method: 'GET' },
+      ],
+      enqueues: [],
+      flows: ['users'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['GetUser'] = async (req, { logger }) => {
+    export const handler: Handlers<typeof config> = async (req, { logger }) => {
       const userId = req.pathParams.id
       logger.info('Getting user', { userId })
       return { status: 200, body: { id: userId, name: 'John' } }
@@ -253,9 +294,12 @@ Runs when an HTTP request hits the path.
     ```javascript
     const config = {
       name: 'GetUser',
-      type: 'api',
-      path: '/users/:id',
-      method: 'GET'
+      description: 'Get user by ID',
+      triggers: [
+        { type: 'api', path: '/users/:id', method: 'GET' },
+      ],
+      enqueues: [],
+      flows: ['users'],
     }
 
     const handler = async (req, { logger }) => {
@@ -271,9 +315,12 @@ Runs when an HTTP request hits the path.
     ```python
     config = {
         "name": "GetUser",
-        "type": "api",
-        "path": "/users/:id",
-        "method": "GET"
+        "description": "Get user by ID",
+        "triggers": [
+            {"type": "api", "path": "/users/:id", "method": "GET"}
+        ],
+        "enqueues": [],
+        "flows": ["users"]
     }
 
     async def handler(req, ctx):
@@ -289,7 +336,7 @@ Runs when an HTTP request hits the path.
 | Property | Description |
 |----------|-------------|
 | `name` | Unique identifier |
-| `type` | Set to `'api'` |
+| `triggers` | Array with `{ type: 'api', path, method }` |
 | `path` | URL path (supports `:params`) |
 | `method` | GET, POST, PUT, DELETE |
 | `bodySchema` | Validate request body |
@@ -297,34 +344,38 @@ Runs when an HTTP request hits the path.
 **Handler:** `handler(req, ctx)`
 
 - `req` - Request with `body`, `headers`, `pathParams`, `queryParams`, `rawBody`
-- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+- `ctx` - Context with `logger`, `enqueue`, `state`, `streams`, `traceId`, `trigger`, `is`, `getData`, `match`
 - Returns `{ status, body, headers? }`
 
 </Tab>
 
-  <Tab id="triggers-event" value="Event">
+  <Tab id="triggers-queue" value="Queue">
 
-### Event Trigger
+### Queue Trigger
 
-Runs when an event is emitted. Use for background tasks.
+Runs when a message is enqueued to a topic. Use for background tasks.
 
 **Example:**
 
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-    import { EventConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
+    import { z } from 'zod'
 
-    export const config: EventConfig = {
+    export const config = {
       name: 'ProcessMessage',
-      type: 'event',
-      subscribes: ['message.sent'],
-      emits: ['message.processed']
-    }
+      description: 'Processes messages in background',
+      triggers: [
+        { type: 'queue', topic: 'message.sent', input: z.object({ text: z.string() }) },
+      ],
+      enqueues: ['message.processed'],
+      flows: ['messaging'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['ProcessMessage'] = async (input, { logger, emit }) => {
+    export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
       logger.info('Processing message:', input)
-      await emit({ topic: 'message.processed', data: input })
+      await enqueue({ topic: 'message.processed', data: input })
     }
     ```
   </Tab>
@@ -332,14 +383,17 @@ Runs when an event is emitted. Use for background tasks.
     ```javascript
     const config = {
       name: 'ProcessMessage',
-      type: 'event',
-      subscribes: ['message.sent'],
-      emits: ['message.processed']
+      description: 'Processes messages in background',
+      triggers: [
+        { type: 'queue', topic: 'message.sent' },
+      ],
+      enqueues: ['message.processed'],
+      flows: ['messaging'],
     }
 
-    const handler = async (input, { logger, emit }) => {
+    const handler = async (input, { logger, enqueue }) => {
       logger.info('Processing message:', input)
-      await emit({ topic: 'message.processed', data: input })
+      await enqueue({ topic: 'message.processed', data: input })
     }
 
     module.exports = { config, handler }
@@ -349,14 +403,17 @@ Runs when an event is emitted. Use for background tasks.
     ```python
     config = {
         "name": "ProcessMessage",
-        "type": "event",
-        "subscribes": ["message.sent"],
-        "emits": ["message.processed"]
+        "description": "Processes messages in background",
+        "triggers": [
+            {"type": "queue", "topic": "message.sent"}
+        ],
+        "enqueues": ["message.processed"],
+        "flows": ["messaging"]
     }
 
     async def handler(input, ctx):
         ctx.logger.info("Processing message:", {"input": input})
-        await ctx.emit({"topic": "message.processed", "data": input})
+        await ctx.enqueue({"topic": "message.processed", "data": input})
     ```
   </Tab>
 </Tabs>
@@ -366,15 +423,15 @@ Runs when an event is emitted. Use for background tasks.
 | Property | Description |
 |----------|-------------|
 | `name` | Unique identifier |
-| `type` | Set to `'event'` |
-| `subscribes` | Event topics to listen to |
-| `emits` | Event topics to emit |
+| `triggers` | Array with `{ type: 'queue', topic }` |
+| `topic` | Topic to listen for messages on |
+| `enqueues` | Topics this step can enqueue to |
 | `input` | Validate input data |
 
 **Handler:** `handler(input, ctx)`
 
-- `input` - Data from the emitted event
-- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+- `input` - Data from the enqueued message
+- `ctx` - Context with `logger`, `enqueue`, `state`, `streams`, `traceId`, `trigger`, `is`, `getData`, `match`
 
 </Tab>
 
@@ -389,15 +446,19 @@ Runs on a schedule. Use for periodic tasks.
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-    import { CronConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
 
-    export const config: CronConfig = {
+    export const config = {
       name: 'DailyCleanup',
-      type: 'cron',
-      cron: '0 0 * * *'
-    }
+      description: 'Runs daily cleanup',
+      triggers: [
+        { type: 'cron', expression: '0 0 * * *' },
+      ],
+      enqueues: [],
+      flows: ['maintenance'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['DailyCleanup'] = async ({ logger }) => {
+    export const handler: Handlers<typeof config> = async (input, { logger }) => {
       logger.info('Running daily cleanup')
     }
     ```
@@ -406,11 +467,15 @@ Runs on a schedule. Use for periodic tasks.
     ```javascript
     const config = {
       name: 'DailyCleanup',
-      type: 'cron',
-      cron: '0 0 * * *'
+      description: 'Runs daily cleanup',
+      triggers: [
+        { type: 'cron', expression: '0 0 * * *' },
+      ],
+      enqueues: [],
+      flows: ['maintenance'],
     }
 
-    const handler = async ({ logger }) => {
+    const handler = async (input, { logger }) => {
       logger.info('Running daily cleanup')
     }
 
@@ -421,11 +486,15 @@ Runs on a schedule. Use for periodic tasks.
     ```python
     config = {
         "name": "DailyCleanup",
-        "type": "cron",
-        "cron": "0 0 * * *"
+        "description": "Runs daily cleanup",
+        "triggers": [
+            {"type": "cron", "expression": "0 0 * * *"}
+        ],
+        "enqueues": [],
+        "flows": ["maintenance"]
     }
-  
-    async def handler(ctx):
+
+    async def handler(input, ctx):
         ctx.logger.info("Running daily cleanup")
     ```
   </Tab>
@@ -436,12 +505,12 @@ Runs on a schedule. Use for periodic tasks.
 | Property | Description |
 |----------|-------------|
 | `name` | Unique identifier |
-| `type` | Set to `'cron'` |
-| `cron` | Cron expression |
+| `triggers` | Array with `{ type: 'cron', expression }` |
+| `expression` | Cron expression |
 
-**Handler:** `handler(ctx)`
+**Handler:** `handler(input, ctx)`
 
-- `ctx` - Context with `logger`, `emit`, `state`, `streams`, `traceId`
+- `ctx` - Context with `logger`, `enqueue`, `state`, `streams`, `traceId`, `trigger`, `is`, `getData`, `match`
 
 **Common schedules:**
 
@@ -452,7 +521,7 @@ Runs on a schedule. Use for periodic tasks.
 | `0 0 * * *` | Daily at midnight |
 | `0 9 * * 1` | Monday at 9 AM |
 
-👉 Use [crontab.guru](https://crontab.guru) to build expressions.
+Use [crontab.guru](https://crontab.guru) to build expressions.
 
 </Tab>
 </Tabs>
@@ -466,16 +535,20 @@ Every handler receives a `ctx` object with these tools:
 | Property | Description |
 |----------|-------------|
 | `logger` | Structured logging (`info`, `warn`, `error`) |
-| `emit` | Trigger other Steps by emitting events |
+| `enqueue` | Trigger other Steps by enqueuing messages |
 | `state` | Persistent key-value storage |
 | `streams` | Real-time data channels for clients |
 | `traceId` | Unique ID for tracing requests & workflows |
+| `trigger` | Info about which trigger activated this handler |
+| `is` | Type guards for trigger types (is.queue, is.api, is.cron) |
+| `getData` | Extract data payload regardless of trigger type |
+| `match` | Pattern match on trigger type for multi-trigger steps |
 
 ---
 
 ## Core Functionality
 
-### State – Persistent Data
+### State -- Persistent Data
 
 Key-value storage shared across Steps and workflows.
 
@@ -483,15 +556,15 @@ Key-value storage shared across Steps and workflows.
 <Tab value='TypeScript'>
 
 ```ts
-await state.set(traceId, 'preferences', { theme: 'dark' });
-const prefs = await state.get(traceId, 'preferences');
+const result = await state.set(traceId, 'preferences', { theme: 'dark' })
+const prefs = await state.get(traceId, 'preferences')
 ```
 
 </Tab>
 <Tab value='Python'>
 
 ```python
-await context.state.set(context.trace_id, "preferences", {"theme": "dark"})
+result = await context.state.set(context.trace_id, "preferences", {"theme": "dark"})
 prefs = await context.state.get(context.trace_id, "preferences")
 ```
 
@@ -499,16 +572,18 @@ prefs = await context.state.get(context.trace_id, "preferences")
 <Tab value='JavaScript'>
 
 ```js
-await state.set(traceId, 'preferences', { theme: 'dark' });
-const prefs = await state.get(traceId, 'preferences');
+const result = await state.set(traceId, 'preferences', { theme: 'dark' })
+const prefs = await state.get(traceId, 'preferences')
 ```
 
 </Tab>
 </Tabs>
 
-👉 [Learn more about State Management →](/docs/development-guide/state-management)
+`state.set` returns `{ new_value, old_value }`. Use `state.update` for atomic updates with `UpdateOp[]`.
 
-### Logging – Structured & Contextual
+[Learn more about State Management](/docs/development-guide/state-management)
+
+### Logging -- Structured & Contextual
 
 For debugging, monitoring, and observability.
 
@@ -516,7 +591,7 @@ For debugging, monitoring, and observability.
 <Tab value='TypeScript'>
 
 ```ts
-logger.info('Processing user', { userId: '123' });
+logger.info('Processing user', { userId: '123' })
 ```
 
 </Tab>
@@ -530,15 +605,15 @@ context.logger.info("Processing user", {"userId": "123"})
 <Tab value='JavaScript'>
 
 ```js
-logger.info('Processing user', { userId: '123' });
+logger.info('Processing user', { userId: '123' })
 ```
 
 </Tab>
 </Tabs>
 
-👉 [Learn more about Observability →](/docs/development-guide/observability)
+[Learn more about Observability](/docs/development-guide/observability)
 
-### Streams – Real-Time Data
+### Streams -- Real-Time Data
 
 Push updates directly to connected clients.
 
@@ -546,7 +621,7 @@ Push updates directly to connected clients.
 <Tab value='TypeScript'>
 
 ```ts
-await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
+await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' })
 ```
 
 </Tab>
@@ -560,29 +635,31 @@ await context.streams.chat.set("room-123", "msg-456", {"text": "Hello!"})
 <Tab value='JavaScript'>
 
 ```js
-await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' });
+await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' })
 ```
 
 </Tab>
 </Tabs>
 
-👉 [Learn more about Streams →](/docs/development-guide/streams)
+[Learn more about Streams](/docs/development-guide/streams)
 
-### Flows – Visualize in Workbench
+### Flows -- Visualize in iii Console
 
-Group Steps together for diagram visualization in Workbench.
+Group Steps together for diagram visualization in iii Console.
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
 ```ts
-export const config: ApiRouteConfig = {
+export const config = {
   name: 'CreateOrder',
-  type: 'api',
-  path: '/orders',
-  method: 'POST',
-  flows: ['order-management']
-};
+  description: 'Creates a new order',
+  triggers: [
+    { type: 'api', path: '/orders', method: 'POST' },
+  ],
+  enqueues: [],
+  flows: ['order-management'],
+} as const satisfies StepConfig
 ```
 
 </Tab>
@@ -591,9 +668,11 @@ export const config: ApiRouteConfig = {
 ```python
 config = {
     "name": "CreateOrder",
-    "type": "api",
-    "path": "/orders",
-    "method": "POST",
+    "description": "Creates a new order",
+    "triggers": [
+        {"type": "api", "path": "/orders", "method": "POST"}
+    ],
+    "enqueues": [],
     "flows": ["order-management"]
 }
 ```
@@ -604,35 +683,44 @@ config = {
 ```js
 const config = {
   name: 'CreateOrder',
-  type: 'api',
-  path: '/orders',
-  method: 'POST',
-  flows: ['order-management']
-};
+  description: 'Creates a new order',
+  triggers: [
+    { type: 'api', path: '/orders', method: 'POST' },
+  ],
+  enqueues: [],
+  flows: ['order-management'],
+}
 ```
 
 </Tab>
 </Tabs>
 
-👉 [Learn more about Flows →](/docs/development-guide/flows)
+[Learn more about Flows](/docs/development-guide/flows)
 
-### Infrastructure – Configure Event Steps
+### Infrastructure -- Configure Queue Steps
 
-Customize timeout and retry behavior for Event Steps.
+Customize timeout and retry behavior for Queue Steps.
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
 ```ts
-export const config: EventConfig = {
+export const config = {
   name: 'SendEmail',
-  type: 'event',
-  subscribes: ['email.requested'],
-  infrastructure: {
-    handler: { timeout: 10 },
-    queue: { maxRetries: 5, visibilityTimeout: 60 }
-  }
-};
+  description: 'Send email with retries',
+  triggers: [
+    {
+      type: 'queue',
+      topic: 'email.requested',
+      infrastructure: {
+        handler: { timeout: 10 },
+        queue: { maxRetries: 5, visibilityTimeout: 60 }
+      }
+    },
+  ],
+  enqueues: [],
+  flows: ['email'],
+} as const satisfies StepConfig
 ```
 
 </Tab>
@@ -641,12 +729,19 @@ export const config: EventConfig = {
 ```python
 config = {
     "name": "SendEmail",
-    "type": "event",
-    "subscribes": ["email.requested"],
-    "infrastructure": {
-        "handler": {"timeout": 10},
-        "queue": {"maxRetries": 5, "visibilityTimeout": 60}
-    }
+    "description": "Send email with retries",
+    "triggers": [
+        {
+            "type": "queue",
+            "topic": "email.requested",
+            "infrastructure": {
+                "handler": {"timeout": 10},
+                "queue": {"maxRetries": 5, "visibilityTimeout": 60}
+            }
+        }
+    ],
+    "enqueues": [],
+    "flows": ["email"]
 }
 ```
 
@@ -656,30 +751,37 @@ config = {
 ```js
 const config = {
   name: 'SendEmail',
-  type: 'event',
-  subscribes: ['email.requested'],
-  infrastructure: {
-    handler: { timeout: 10 },
-    queue: { maxRetries: 5, visibilityTimeout: 60 }
-  }
-};
+  description: 'Send email with retries',
+  triggers: [
+    {
+      type: 'queue',
+      topic: 'email.requested',
+      infrastructure: {
+        handler: { timeout: 10 },
+        queue: { maxRetries: 5, visibilityTimeout: 60 }
+      }
+    },
+  ],
+  enqueues: [],
+  flows: ['email'],
+}
 ```
 
 </Tab>
 </Tabs>
 
-👉 [Learn more about Infrastructure →](/docs/development-guide/infrastructure)
+[Learn more about Infrastructure](/docs/development-guide/infrastructure)
 
 ---
 
 ## Remember
 
-- **Steps are just files.** Export a `config` and `handler`.  
-- Motia auto-discovers and connects them.  
-- Combine Steps with **emit + subscribe** to build APIs, workflows, background jobs, or entire systems.  
+- **Steps are just files.** Export a `config` and `handler`.
+- Motia auto-discovers and connects them.
+- Combine Steps with **enqueue + queue triggers** to build APIs, workflows, background jobs, or entire systems.
 
 ---
 
 ## What's Next?
 
-👉 [Build your first app →](/docs/getting-started/build-your-first-motia-app)
+[Build your first app](/docs/getting-started/build-your-first-motia-app)

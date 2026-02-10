@@ -299,13 +299,13 @@ services:
 - No RabbitMQ needed - BullMQ handles events using Redis
 </Callout>
 
-### Configure Redis in motia.config.ts
+### Configure Redis in config.yaml
 
 #### Option 1: Simple Redis Config (Recommended)
 
 Use Motia's built-in `redis` configuration option:
 
-```typescript title="motia.config.ts"
+```typescript title="config.yaml"
 import { config } from 'motia'
 import statesPlugin from '@motiadev/plugin-states/plugin'
 import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
@@ -374,7 +374,7 @@ npm install @motiadev/adapter-redis-state \
             @motiadev/adapter-bullmq-events
 ```
 
-```typescript title="motia.config.ts"
+```typescript title="config.yaml"
 import { config } from 'motia'
 import { RedisStateAdapter } from '@motiadev/adapter-redis-state'
 import { RedisStreamAdapterManager } from '@motiadev/adapter-redis-streams'

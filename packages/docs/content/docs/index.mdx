@@ -36,7 +36,7 @@ At the heart of Motia is a single primitive: the **Step**.
 
 A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files from your project's `src/` directory and connects them automatically - no manual registration required.
 
-Here's a simple example of two Steps working together: an API Step that emits an event, and an Event Step that processes it.
+Here's a simple example of two Steps working together: an API Step that enqueues a message, and a Queue Step that processes it.
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
@@ -44,31 +44,28 @@ Here's a simple example of two Steps working together: an API Step that emits an
 ```ts title="src/send-message.step.ts"
 export const config = {
   name: 'SendMessage',
-  type: 'api',
-  path: '/messages',
-  method: 'POST',
-  emits: ['message.sent']
-};
+  triggers: [{ type: 'api', path: '/messages', method: 'POST' }],
+  enqueues: ['message.sent']
+} as const satisfies StepConfig
 
-export const handler = async (req, { emit }) => {
-  await emit({
+export const handler: Handlers<typeof config> = async (req, { enqueue }) => {
+  await enqueue({
     topic: 'message.sent',
     data: { text: req.body.text }
-  });
-  return { status: 200, body: { ok: true } };
-};
+  })
+  return { status: 200, body: { ok: true } }
+}
 ```
 
 ```ts title="src/process-message.step.ts"
 export const config = {
   name: 'ProcessMessage',
-  type: 'event',
-  subscribes: ['message.sent']
-};
+  triggers: [{ type: 'queue', topic: 'message.sent' }],
+} as const satisfies StepConfig
 
-export const handler = async (input, { logger }) => {
-  logger.info('Processing message', input);
-};
+export const handler: Handlers<typeof config> = async (input, { logger }) => {
+  logger.info('Processing message', input)
+}
 ```
 </Tab>
 
@@ -77,14 +74,12 @@ export const handler = async (input, { logger }) => {
 ```python title="send_message_step.py"
 config = {
     "name": "SendMessage",
-    "type": "api",
-    "path": "/messages",
-    "method": "POST",
-    "emits": ["message.sent"]
+    "triggers": [{"type": "api", "path": "/messages", "method": "POST"}],
+    "enqueues": ["message.sent"]
 }
 
 async def handler(req, ctx):
-    await ctx.emit({
+    await ctx.enqueue({
         "topic": "message.sent",
         "data": {"text": req.body["text"]}
     })
@@ -94,8 +89,7 @@ async def handler(req, ctx):
 ```python title="process_message_step.py"
 config = {
     "name": "ProcessMessage",
-    "type": "event",
-    "subscribes": ["message.sent"]
+    "triggers": [{"type": "queue", "topic": "message.sent"}],
 }
 
 async def handler(input, ctx):
@@ -108,18 +102,16 @@ async def handler(input, ctx):
 ```js title="src/send-message.step.js"
 const config = {
   name: 'SendMessage',
-  type: 'api',
-  path: '/messages',
-  method: 'POST',
-  emits: ['message.sent']
-};
+  triggers: [{ type: 'api', path: '/messages', method: 'POST' }],
+  enqueues: ['message.sent']
+}
 
-const handler = async (req, { emit }) => {
-  await emit({
+const handler = async (req, { enqueue }) => {
+  await enqueue({
     topic: 'message.sent',
     data: { text: req.body.text }
-  });
-  return { status: 200, body: { ok: true } };
+  })
+  return { status: 200, body: { ok: true } }
 }
 
 export { config, handler }
@@ -128,12 +120,11 @@ export { config, handler }
 ```js title="src/process-message.step.js"
 const config = {
   name: 'ProcessMessage',
-  type: 'event',
-  subscribes: ['message.sent']
-};
+  triggers: [{ type: 'queue', topic: 'message.sent' }],
+}
 
 const handler = async (input, { logger }) => {
-  logger.info('Processing message', input);
+  logger.info('Processing message', input)
 }
 
 export { config, handler }
@@ -176,10 +167,10 @@ Motia offers a complete observability toolkit available in both cloud and local 
 - State visualization
 - Diagram representation of dependencies between steps and how they are connected
 
-_The image below shows the Workbench interface available when you run `motia dev`. On the top panel you can see a workflow diagram with multiple steps connected.
+_The image below shows the iii console interface available when you run `motia dev`. On the top panel you can see a workflow diagram with multiple steps connected.
 On the bottom panel you can see the trace view of a single request and what happened in each step._
 
-![Motia Workbench](./img/new-workbench.png)
+![iii console](./img/new-workbench.png)
 
 ## Fault tolerance
 
@@ -187,7 +178,7 @@ With the rise of AI, many backend tasks have become less deterministic and more 
 
 Motia provides fault tolerance out of the box, eliminating the need to manually spin up queue infrastructure.
 
-- Using Event Steps, you get retry mechanisms out of the box
+- Using Queue Steps, you get retry mechanisms out of the box
 - Configuration of queue infrastructure is abstracted away
 
 ## Building and Shipping

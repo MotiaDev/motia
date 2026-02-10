@@ -110,34 +110,33 @@ Our application consists of just two specialized components, each handling a spe
     The secure webhook endpoint that receives GitHub star events, verifies their authenticity, and updates the real-time stream with new star counts.
 
     ```typescript
-    import { ApiRouteConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { z } from 'zod'
     import { verifyWebhookSignature } from '../utils/verify-webhook-signature'
     import { checkUserProfile } from '../utils/check-user-profile'
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config = {
       name: 'GitHubStarWebhook',
       description: 'Process GitHub star webhook events with signature verification',
-      method: 'POST',
-      path: '/webhooks/github/star',
-      bodySchema: z.object({
-        action: z.enum(['created', 'deleted']),
-        starred_at: z.string().optional(),
-        repository: z.object({
-          name: z.string(),
-          full_name: z.string(),
-          stargazers_count: z.number(),
-          owner: z.object({ login: z.string() }),
-        }),
-        sender: z.object({
-          login: z.string(),
-          name: z.string(),
-          avatar_url: z.string().optional(),
-          html_url: z.string(),
-          url: z.string({ description: 'API URL' }),
-        }),
-      }),
+      triggers: [
+        { type: 'api', method: 'POST', path: '/webhooks/github/star', bodySchema: z.object({
+          action: z.enum(['created', 'deleted']),
+          starred_at: z.string().optional(),
+          repository: z.object({
+            name: z.string(),
+            full_name: z.string(),
+            stargazers_count: z.number(),
+            owner: z.object({ login: z.string() }),
+          }),
+          sender: z.object({
+            login: z.string(),
+            name: z.string(),
+            avatar_url: z.string().optional(),
+            html_url: z.string(),
+            url: z.string({ description: 'API URL' }),
+          }),
+        }) },
+      ],
       responseSchema: {
         200: z.object({
           message: z.string(),
@@ -148,11 +147,11 @@ Our application consists of just two specialized components, each handling a spe
         401: z.object({ error: z.string() }),
         500: z.object({ error: z.string() }),
       },
-      emits: [],
+      enqueues: [],
       flows: ['github-star-processing'],
-    }
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['GitHubStarWebhook'] = async (
+    export const handler: Handlers<typeof config> = async (
       req,
       { logger, streams, state, traceId }
     ) => {
@@ -471,7 +470,7 @@ Test your webhook by starring/unstarring your repository:
 1. **Star your repository** on GitHub
 2. **Check the logs** - you should see webhook processing
 3. **Access the stream** - query `/api/streams/stars` to see current data
-4. **Watch real-time updates** in the Motia Workbench
+4. **Watch real-time updates** in the Motia iii console
 
 ### Access Real-Time Data
 
@@ -505,7 +504,7 @@ motia cloud deploy --api-key your-api-key \
 
 **Option 2: One-Click Web Deployment**
 1. Ensure your local project is running (`npm run dev`)
-2. Go to [Motia Cloud -> Import from Workbench](https://motia.cloud)
+2. Go to [Motia Cloud -> Import from iii console](https://motia.cloud)
 3. Select your local project port
 4. Choose project and environment name
 5. Upload environment variables (optional)

@@ -18,7 +18,7 @@ Let's build a chess platform that measures AI intelligence through gameplay qual
 
 ## 🏭 Production-Grade Chess Platform
 
-<div className="my-8">![ChessArena AI Workbench](./../img/chessarena-workbench.png)</div>
+<div className="my-8">![ChessArena AI iii console](./../img/chessarena-workbench.png)</div>
 
 **This is not a tutorial project** - this is battle-tested, production-ready code that handles real traffic at scale. Every aspect has been designed for enterprise use:
 
@@ -94,11 +94,10 @@ Our application consists of specialized components handling different aspects of
 
     ```typescript
     import { AiModelsSchema } from '@chessarena/types/ai-models'
-    import { ApiRouteConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { z } from 'zod'
     import { supportedModelsByProvider } from '../../services/ai/models'
 
-    // Current supported models (as of 2025)
     export const supportedModelsByProvider: AiModels = {
       openai: [
         'gpt-5-2025-08-07',           // Latest GPT-5
@@ -125,22 +124,20 @@ Our application consists of specialized components handling different aspects of
       ],
     }
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config = {
       name: 'AvailableModels',
       description: 'Expose all available AI models for supported providers',
-      path: '/chess/models',
-      method: 'GET',
-      emits: [],
+      triggers: [{ type: 'api', path: '/chess/models', method: 'GET' }],
+      enqueues: [],
       flows: ['chess'],
       responseSchema: {
         200: z.object({ models: AiModelsSchema() }),
         404: z.object({ message: z.string() }),
         400: z.object({ message: z.string() }),
       },
-    }
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['AvailableModels'] = async (_, { logger }) => {
+    export const handler: Handlers<typeof config> = async (_, { logger }) => {
       logger.info('Received available models request')
 
       return {
@@ -159,7 +156,7 @@ Our application consists of specialized components handling different aspects of
     ```typescript
     import { AiModelProviderSchema } from '@chessarena/types/ai-models'
     import { GameSchema, Player } from '@chessarena/types/game'
-    import { ApiRouteConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { RefinementCtx, z } from 'zod'
     import { supportedModelsByProvider } from '../../services/ai/models'
     import { createGame } from '../../services/chess/create-game'
@@ -195,13 +192,11 @@ Our application consists of specialized components handling different aspects of
         })
     }
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config = {
       name: 'CreateGame',
       description: 'Create a new chess game',
-      path: '/chess/create-game',
-      method: 'POST',
-      emits: ['chess-game-created'],
+      triggers: [{ type: 'api', path: '/chess/create-game', method: 'POST' }],
+      enqueues: ['chess-game-created'],
       flows: ['chess'],
       bodySchema: z.object({
         players: z.object({
@@ -215,14 +210,14 @@ Our application consists of specialized components handling different aspects of
         400: z.object({ message: z.string(), errors: z.array(z.object({ message: z.string() })) }),
         401: z.object({ message: z.string() }),
       },
-    }
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['CreateGame'] = async (req, { logger, emit, streams }) => {
+    export const handler: Handlers<typeof config> = async (req, { logger, enqueue, streams }) => {
       logger.info('[CreateGame] Creating new chess game')
 
       const game = await createGame(req.body.players, req.user, streams, logger)
 
-      await emit({
+      await enqueue({
         topic: 'chess-game-created',
         data: { gameId: game.id, fenBefore: game.fen },
       })
@@ -251,11 +246,10 @@ Our application consists of specialized components handling different aspects of
         player: str = Field(description="The player who made the move")
 
     config = {
-        "type": "event",
         "name": "EvaluatePlayerMove",
         "description": "Evaluates move quality using Stockfish engine",
-        "subscribes": ["evaluate-player-move"], 
-        "emits": [],
+        "triggers": [{"type": "queue", "topic": "evaluate-player-move"}],
+        "enqueues": [],
         "flows": ["chess"],
         "input": EvaluatePlayerMoveInput.model_json_schema(),
     }
@@ -337,7 +331,7 @@ Our application consists of specialized components handling different aspects of
     The AI orchestration step that coordinates with different LLM providers using a unified prompt system. Features retry logic, move validation, and real-time thought streaming.
 
     ```typescript
-    import { EventConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { z } from 'zod'
     import { makePrompt } from '../../services/ai/make-prompt'
     import { evaluateBestMoves } from '../../services/chess/evaluate-best-moves'
@@ -357,17 +351,16 @@ Our application consists of specialized components handling different aspects of
       }),
     })
 
-    export const config: EventConfig = {
-      type: 'event',
+    export const config = {
       name: 'AI_Player',
       description: 'AI Player with unified provider system and retry logic',
-      subscribes: ['ai-move'],
-      emits: ['chess-game-moved', 'chess-game-ended', 'evaluate-player-move'],
+      triggers: [{ type: 'queue', topic: 'ai-move' }],
+      enqueues: ['chess-game-moved', 'chess-game-ended', 'evaluate-player-move'],
       flows: ['chess'],
-      includeFiles: ['05-ai-player.mustache'], // Mustache template for chess prompts
-    }
+      includeFiles: ['05-ai-player.mustache'],
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['AI_Player'] = async (input, { logger, emit, streams }) => {
+    export const handler: Handlers<typeof config> = async (input, { logger, enqueue, streams }) => {
       const game = await streams.chessGame.get('game', input.gameId)
       const player = input.player === 'white' ? game.players.white : game.players.black
 
@@ -430,7 +423,7 @@ Our application consists of specialized components handling different aspects of
             player: input.player,
             game,
             action: action.move,
-            emit,
+            enqueue,
             illegalMoveAttempts: attempts,
           })
 
@@ -450,7 +443,7 @@ Our application consists of specialized components handling different aspects of
               endGameReason: 'Too many illegal moves',
             })
             
-            await emit({
+            await enqueue({
               topic: 'chess-game-ended',
               data: { gameId: input.gameId },
             })
@@ -505,32 +498,30 @@ Our application consists of specialized components handling different aspects of
     The authentication system that manages user sessions and provides secure access to chess game creation and management.
 
     ```typescript
-    import { ApiRouteConfig, Handlers } from 'motia'
+    import { type Handlers, type StepConfig } from 'motia'
     import { z } from 'zod'
     import { authenticateUser } from '../../services/auth/auth-service'
 
-    export const config: ApiRouteConfig = {
-      type: 'api',
+    export const config = {
       name: 'AuthAPI',
       description: 'Handle user authentication for chess platform',
-      path: '/auth/login',
-      method: 'POST',
-      emits: ['user-authenticated'],
+      triggers: [{ type: 'api', path: '/auth/login', method: 'POST' }],
+      enqueues: ['user-authenticated'],
       flows: ['auth'],
       bodySchema: z.object({
         email: z.string().email(),
         password: z.string().min(6),
       }),
       responseSchema: {
-        200: z.object({ 
-          token: z.string(), 
-          user: z.object({ id: z.string(), email: z.string() }) 
+        200: z.object({
+          token: z.string(),
+          user: z.object({ id: z.string(), email: z.string() })
         }),
         401: z.object({ message: z.string() }),
       },
-    }
+    } as const satisfies StepConfig
 
-    export const handler: Handlers['AuthAPI'] = async (req, { logger, emit }) => {
+    export const handler: Handlers<typeof config> = async (req, { logger, enqueue }) => {
       const { email, password } = req.body
 
       try {
@@ -540,7 +531,7 @@ Our application consists of specialized components handling different aspects of
           return { status: 401, body: { message: 'Invalid credentials' } }
         }
 
-        await emit({
+        await enqueue({
           topic: 'user-authenticated',
           data: { userId: authResult.user.id, email: authResult.user.email },
         })
@@ -787,7 +778,7 @@ motia cloud deploy --api-key your-api-key \
 
 **Option 2: One-Click Web Deployment**
 1. Ensure your local project is running (`pnpm dev`)
-2. Go to [Motia Cloud -> Import from Workbench](https://motia.cloud)
+2. Go to [Motia Cloud -> Import from iii console](https://motia.cloud)
 3. Select your local project port
 4. Choose project and environment name
 5. Upload environment variables (optional)

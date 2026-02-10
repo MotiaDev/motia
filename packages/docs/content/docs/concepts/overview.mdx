@@ -11,43 +11,43 @@ import VideoPlayer from '@/components/VideoPlayer';
 
 Motia is a unified backend framework that combines APIs, background jobs, durable workflows, AI agents, streaming, and observability around one core primitive: **the Step**.
 
-Want an API? That's a Step.  
-Need a background job? That's a Step.  
+Want an API? That's a Step.
+Need a background job? That's a Step.
 Scheduled task? Also a Step.
 
-Write each Step in whatever language makes sense - TypeScript, Python, or JavaScript. They all run together, share the same state, and talk through events.
+Write each Step in whatever language makes sense - TypeScript, Python, or JavaScript. They all run together, share the same state, and talk through queued messages.
 
 ## How It Works
 
 Every Step is just a file with two parts:
 
-**1. Config** → When and how it runs  
+**1. Config** → When and how it runs
 **2. Handler** → What it does
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
 
 ```typescript title="src/my-step.step.ts"
-import { ApiRouteConfig, Handlers } from 'motia'
+import { type Handlers, type StepConfig } from 'motia'
 
-// Config - when it runs
-export const config: ApiRouteConfig = {
+export const config = {
   name: 'MyStep',
-  type: 'api',
-  path: '/endpoint',
-  method: 'POST',
-  emits: ['task.done']
-}
+  description: 'Handles incoming requests',
+  triggers: [
+    { type: 'api', path: '/endpoint', method: 'POST' },
+  ],
+  enqueues: ['task.done'],
+  flows: ['my-flow'],
+} as const satisfies StepConfig
 
-// Handler - what it does
-export const handler: Handlers['MyStep'] = async (req, { emit, logger }) => {
+export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
   logger.info('Processing request')
-  
-  await emit({
+
+  await enqueue({
     topic: 'task.done',
     data: { result: 'success' }
   })
-  
+
   return { status: 200, body: { success: true } }
 }
 ```
@@ -56,24 +56,24 @@ export const handler: Handlers['MyStep'] = async (req, { emit, logger }) => {
 <Tab value='Python'>
 
 ```python title="src/my_step.py"
-# Config - when it runs
 config = {
     "name": "MyStep",
-    "type": "api",
-    "path": "/endpoint",
-    "method": "POST",
-    "emits": ["task.done"]
+    "description": "Handles incoming requests",
+    "triggers": [
+        {"type": "api", "path": "/endpoint", "method": "POST"}
+    ],
+    "enqueues": ["task.done"],
+    "flows": ["my-flow"]
 }
 
-# Handler - what it does
 async def handler(req, context):
     context.logger.info("Processing request")
-    
-    await context.emit({
+
+    await context.enqueue({
         "topic": "task.done",
         "data": {"result": "success"}
     })
-    
+
     return {"status": 200, "body": {"success": True}}
 ```
 
@@ -81,24 +81,24 @@ async def handler(req, context):
 <Tab value='JavaScript'>
 
 ```javascript title="src/my-step.step.js"
-// Config - when it runs
 const config = {
   name: 'MyStep',
-  type: 'api',
-  path: '/endpoint',
-  method: 'POST',
-  emits: ['task.done']
+  description: 'Handles incoming requests',
+  triggers: [
+    { type: 'api', path: '/endpoint', method: 'POST' },
+  ],
+  enqueues: ['task.done'],
+  flows: ['my-flow'],
 }
 
-// Handler - what it does
-const handler = async (req, { emit, logger }) => {
+const handler = async (req, { enqueue, logger }) => {
   logger.info('Processing request')
-  
-  await emit({
+
+  await enqueue({
     topic: 'task.done',
     data: { result: 'success' }
   })
-  
+
   return { status: 200, body: { success: true } }
 }
 
@@ -108,15 +108,15 @@ module.exports = { config, handler }
 </Tab>
 </Tabs>
 
-👉 Drop this file in your `src/` folder and Motia finds it automatically. No registration, no imports, no setup.
+Drop this file in your `src/` folder and Motia finds it automatically. No registration, no imports, no setup.
 
-[Learn more about Steps →](/docs/concepts/steps)
+[Learn more about Steps](/docs/concepts/steps)
 
 ---
 
-## Event-Driven Architecture
+## Queue-Driven Architecture
 
-Steps don't call each other. They **emit** and **subscribe** to events.
+Steps don't call each other. They **enqueue** messages to topics that other Steps consume.
 
 This means:
 - Your API can trigger a background job without waiting for it
@@ -124,16 +124,17 @@ This means:
 - You can add new Steps without touching existing ones
 - Everything is traceable from start to finish
 
-**Example:** An API emits an event, a background Step picks it up:
+**Example:** An API enqueues a message, a queue Step picks it up:
 
 ```typescript
-// API Step emits
-await emit({ topic: 'user.created', data: { email } })
+// API Step enqueues
+await enqueue({ topic: 'user.created', data: { email } })
 
-// Event Step subscribes and processes
+// Queue Step triggers on the topic
 config = {
-  type: 'event',
-  subscribes: ['user.created']
+  triggers: [
+    { type: 'queue', topic: 'user.created' }
+  ]
 }
 ```
 
@@ -154,7 +155,7 @@ Motia automatically discovers Steps - no manual registration required.
       <File name="create-user.step.ts" />
       <File name="get-user.step.ts" />
     </Folder>
-    <Folder name="events">
+    <Folder name="queues">
       <File name="send-email.step.ts" />
       <File name="process-data_step.py" />
     </Folder>
@@ -181,14 +182,14 @@ The `src/` directory is the heart of your Motia application. All your workflow l
 
 Motia scans the `src/` directory and automatically registers files that:
 
-1. ✅ **Match naming pattern:**
+1. **Match naming pattern:**
    - TypeScript: `.step.ts`
    - JavaScript: `.step.js`
    - Python: `_step.py` (note: underscore before `step`)
 
-2. ✅ **Export a `config` object** with Step configuration
+2. **Export a `config` object** with Step configuration
 
-3. ✅ **Export a `handler` function** with business logic
+3. **Export a `handler` function** with business logic
 
 **No imports. No registration. Just create the file and Motia finds it.**
 
@@ -199,14 +200,14 @@ Motia scans the `src/` directory and automatically registers files that:
 Every Step can be in a different language. They all run in the same process and share everything.
 
 **Currently Supported:**
-- **TypeScript** → `.step.ts`
-- **Python** → `_step.py`
-- **JavaScript** → `.step.js`
+- **TypeScript** `.step.ts`
+- **Python** `_step.py` (install with `pip install motia-python`)
+- **JavaScript** `.step.js`
 
 **Coming Soon:**
-- Ruby → `.step.rb`
-- C# → `.step.cs`
-- Go → `.step.go`
+- Ruby `.step.rb`
+- C# `.step.cs`
+- Go `.step.go`
 - And many more...
 
 **Example project:**
@@ -221,21 +222,22 @@ Every Step can be in a different language. They all run in the same process and 
 </Folder>
 </Files>
 
-All three Steps work together. TypeScript API emits an event → Python processes with ML → JavaScript sends the result.
+All three Steps work together. TypeScript API enqueues a message, Python processes with ML, JavaScript sends the result.
 
 ---
 
 ## Core Concepts
 
 ### State Management
-Persistent key-value storage that works across all Steps and languages.
+Persistent key-value storage that works across all Steps and languages. `state.set` returns `{ new_value, old_value }`.
 
 ```typescript
-await state.set('users', 'user-123', { name: 'John' })
+const result = await state.set('users', 'user-123', { name: 'John' })
+// result = { new_value: { name: 'John' }, old_value: null }
 const user = await state.get('users', 'user-123')
 ```
 
-[Learn about State →](/docs/development-guide/state-management)
+[Learn about State](/docs/development-guide/state-management)
 
 ### Real-Time Streams
 Push live updates to connected clients (browsers, mobile apps).
@@ -249,12 +251,12 @@ await streams.notifications.set('user-123', 'notif-1', {
 
 Clients receive updates instantly.
 
-[Learn about Streams →](/docs/development-guide/streams)
+[Learn about Streams](/docs/development-guide/streams)
 
 ### Adapters
 Pluggable infrastructure components that enable horizontal scaling and custom implementations. Swap default file-based storage with Redis, RabbitMQ, or your own implementations without changing your code.
 
-[Learn about Adapters →](/docs/development-guide/adapters)
+[Learn about Adapters](/docs/development-guide/adapters)
 
 ### Context Object
 Every handler gets a context object with everything you need:
@@ -262,14 +264,14 @@ Every handler gets a context object with everything you need:
 | Property | What It Does |
 |----------|--------------|
 | `logger` | Structured logging |
-| `emit` | Trigger other Steps |
+| `enqueue` | Trigger other Steps |
 | `state` | Persistent storage |
 | `streams` | Real-time updates |
 | `traceId` | Request tracing |
 
 ---
 
-## Development Tool - Workbench
+## Development Tool - iii Console
 
 ![create-pet](../img/build-your-first-app/create-api.png)
 
@@ -280,18 +282,18 @@ Visual interface for testing APIs, building and debugging flows:
 - Watch logs in real-time
 - Inspect state as it changes
 
-[Learn about Workbench →](/docs/concepts/workbench)
+[Learn about iii Console](/docs/concepts/workbench)
 
 ---
 
 ## What's Next?
 
 <Cards>
-  <Card href="/docs/concepts/steps" title="📦 Steps">
+  <Card href="/docs/concepts/steps" title="Steps">
     Deep dive into Steps - the only primitive you need
   </Card>
-  
-  <Card href="/docs/getting-started/quick-start" title="🚀 Quick Start">
+
+  <Card href="/docs/getting-started/quick-start" title="Quick Start">
     Build your first app in 5 minutes
   </Card>
 </Cards>
