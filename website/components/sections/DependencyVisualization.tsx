@@ -559,7 +559,7 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
         isDarkMode={isDarkMode}
       />
 
-      {/* III Engine Core */}
+      {/* iii Engine Core */}
       <div
         className={`
         relative px-6 py-4 rounded-xl border-2 transition-all duration-500 my-1
@@ -672,6 +672,7 @@ interface HighlightedCodeBlockProps {
   isDarkMode: boolean;
   language?: string;
   animationPhase: AnimationPhase;
+  showIndicatorsWhenIdle?: boolean;
 }
 
 // Helper to check if a line contains any tool-related import or setup
@@ -736,6 +737,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
   isDarkMode,
   language = "typescript",
   animationPhase,
+  showIndicatorsWhenIdle = false,
 }) => {
   const isTraditional = variant === "traditional";
   const isIII = variant === "iii";
@@ -885,6 +887,8 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
     isTraditional &&
     (animationPhase === "highlighting" || animationPhase === "moving");
   const shouldShowExtracted = isTraditional && animationPhase === "moving";
+  const showIndicatorsOnIdle =
+    animationPhase === "idle" && showIndicatorsWhenIdle;
 
   // Border styling for iii code block - transforms to dashed accent when outputting
   const getBorderClasses = () => {
@@ -956,28 +960,8 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
 
       {/* Code */}
       <div
-        className={`p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] relative ${
-          isDarkMode ? "scrollbar-brand-dark" : "scrollbar-brand-light"
-        }`}
+        className="p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] relative"
       >
-        {/* Scan line effect during spotlight - constrained to marker area */}
-        {isSpotlight &&
-          revealedLine > 0 &&
-          revealedLine < totalLinesRef.current && (
-            <div
-              className="absolute left-0 w-1 h-1 pointer-events-none z-10"
-              style={{
-                bottom: `${(revealedLine / totalLinesRef.current) * 100}%`,
-                width: "4px",
-                height: "3px",
-                borderRadius: "2px",
-                background: isDarkMode
-                  ? "var(--color-accent)"
-                  : "var(--color-accent-light)",
-              }}
-            />
-          )}
-
         <Highlight
           theme={isDarkMode ? themes.nightOwl : themes.github}
           code={code.trim()}
@@ -995,18 +979,21 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
 
                   // Traditional: during early phases show architecture as alert (red)
                   const showTraditionalHighlight =
-                    shouldHighlight && isArchLine;
+                    (shouldHighlight && isArchLine) ||
+                    (showIndicatorsOnIdle && isTraditional && isArchLine);
                   const extracted = shouldShowExtracted && isArchLine;
 
                   // Calculate if this line has been revealed (bottom to top)
                   const lineFromBottom = totalLines - lineNum + 1;
                   const isRevealed = revealedLine >= lineFromBottom;
 
-                  // Spotlight phase: show markers only when revealed
+                  // Spotlight phase: show markers when revealed; idle (mobile): show all
                   const showArchHighlight =
-                    isSpotlight && isArchLine && isRevealed;
+                    (isSpotlight && isArchLine && isRevealed) ||
+                    (showIndicatorsOnIdle && isArchLine);
                   const showBizHighlight =
-                    isSpotlight && isBizLine && isRevealed;
+                    (isSpotlight && isBizLine && isRevealed) ||
+                    (showIndicatorsOnIdle && isBizLine);
 
                   return (
                     <div
@@ -1026,13 +1013,13 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
                     >
                       {/* Initial push: alert (red) */}
                       {showTraditionalHighlight && (
-                        <span className="absolute left-0 top-0 bottom-0 w-0.5 rounded-full bg-iii-alert" />
+                        <span className="absolute left-0 top-0 bottom-0 w-1 sm:w-0.5 rounded-full bg-iii-alert" />
                       )}
 
                       {/* Spotlight architecture: warn (orange) */}
                       {showArchHighlight && (
                         <span
-                          className={`absolute left-0 top-0 bottom-0 w-0.5 rounded-full bg-iii-warn ${
+                          className={`absolute left-0 top-0 bottom-0 w-1 sm:w-0.5 rounded-full bg-iii-warn ${
                             !scanComplete ? "animate-pulse" : ""
                           }`}
                         />
@@ -1041,7 +1028,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
                       {/* Business logic indicator bar (success/green) */}
                       {showBizHighlight && (
                         <span
-                          className={`absolute left-0 top-0 bottom-0 w-0.5 rounded-full bg-iii-success ${
+                          className={`absolute left-0 top-0 bottom-0 w-1 sm:w-0.5 rounded-full bg-iii-success ${
                             !scanComplete ? "animate-pulse" : ""
                           }`}
                         />
@@ -1169,8 +1156,23 @@ export const DependencyVisualization: React.FC<
     runAnimation();
   };
 
+  const [isSmallScreen, setIsSmallScreen] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 1023px)").matches
+      : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    setIsSmallScreen(mq.matches);
+    const handler = () => setIsSmallScreen(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const isLegendVisible =
-    animationPhase === "legendVisible" || animationPhase === "spotlight";
+    animationPhase === "legendVisible" ||
+    animationPhase === "spotlight" ||
+    (isSmallScreen && animationPhase === "idle");
   const isSpotlight = animationPhase === "spotlight";
 
   return (
@@ -1193,7 +1195,7 @@ export const DependencyVisualization: React.FC<
         </button>
       </div>
 
-      {/* Three column layout: Traditional | Engine Hub | III */}
+      {/* Three column layout: Traditional | Engine Hub | iii */}
       <div className="hidden lg:grid grid-cols-[1fr_160px_1fr] gap-4 xl:gap-6 overflow-visible">
         {/* Traditional Code - Left */}
         <div className="min-w-0">
@@ -1208,7 +1210,7 @@ export const DependencyVisualization: React.FC<
           />
         </div>
 
-        {/* III Engine Hub - Center (narrow) */}
+        {/* iii Engine Hub - Center (narrow) */}
         <div className="flex-shrink-0 overflow-visible">
           <IIIEngineHub
             tools={traditionalTools}
@@ -1217,7 +1219,7 @@ export const DependencyVisualization: React.FC<
           />
         </div>
 
-        {/* III Code - Right */}
+        {/* iii Code - Right */}
         <div className="min-w-0">
           <HighlightedCodeBlock
             code={iiiCode}
@@ -1240,6 +1242,7 @@ export const DependencyVisualization: React.FC<
           isDarkMode={isDarkMode}
           language={traditionalLanguage}
           animationPhase="idle"
+          showIndicatorsWhenIdle
         />
         <HighlightedCodeBlock
           code={iiiCode}
@@ -1248,49 +1251,41 @@ export const DependencyVisualization: React.FC<
           isDarkMode={isDarkMode}
           language={iiiLanguage}
           animationPhase="idle"
+          showIndicatorsWhenIdle
         />
       </div>
 
-      {/* Legend - appears at bottom during legendVisible phase with dramatic entrance */}
+      {/* Legend - aligned below respective code blocks */}
       <div
         className={`
-          flex justify-center transition-all duration-1000 ease-out overflow-hidden
+          hidden lg:grid grid-cols-[1fr_160px_1fr] gap-4 xl:gap-6
+          transition-all duration-1000 ease-out overflow-hidden
           ${isLegendVisible ? "max-h-32 opacity-100" : "max-h-0 opacity-0"}
         `}
       >
-        <div
-          className={`
-            flex flex-col sm:flex-row items-center gap-4 sm:gap-8 px-6 py-4 rounded-xl
-            transition-all duration-1000 ease-out
-            ${
-              isLegendVisible
-                ? "translate-y-0 scale-100"
-                : "translate-y-8 scale-95"
-            }
-            ${
-              isDarkMode
-                ? "bg-iii-dark/80 shadow-lg shadow-black/20"
-                : "bg-white/80 shadow-lg shadow-black/5"
-            }
-          `}
-          style={{
-            transitionDelay: isLegendVisible ? "200ms" : "0ms",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          {/* Architecture legend item */}
+        {/* Architecture legend - below traditional code (left) */}
+        <div className="flex justify-center">
           <div
             className={`
-              flex items-center gap-3 transition-all duration-700
+              flex items-center gap-3 px-5 py-3 rounded-xl
+              transition-all duration-700 ease-out
               ${
                 isLegendVisible
-                  ? "opacity-100 translate-x-0"
-                  : "opacity-0 -translate-x-4"
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-4"
+              }
+              ${
+                isDarkMode
+                  ? "bg-iii-dark/80 shadow-lg shadow-black/20"
+                  : "bg-white/80 shadow-lg shadow-black/5"
               }
             `}
-            style={{ transitionDelay: isLegendVisible ? "400ms" : "0ms" }}
+            style={{
+              transitionDelay: isLegendVisible ? "400ms" : "0ms",
+              backdropFilter: "blur(8px)",
+            }}
           >
-            <div className="w-4 h-4 rounded transition-all duration-500 bg-iii-warn" />
+            <div className="w-4 h-4 rounded bg-iii-warn" />
             <div className="flex flex-col">
               <span className="text-sm font-medium text-iii-warn">
                 Architecture
@@ -1304,34 +1299,34 @@ export const DependencyVisualization: React.FC<
               </span>
             </div>
           </div>
+        </div>
 
-          {/* Divider */}
+        {/* Empty center column (below engine hub) */}
+        <div />
+
+        {/* Business Logic legend - below iii code (right) */}
+        <div className="flex justify-center">
           <div
             className={`
-              hidden sm:block w-px h-10 transition-all duration-500
+              flex items-center gap-3 px-5 py-3 rounded-xl
+              transition-all duration-700 ease-out
               ${
                 isLegendVisible
-                  ? "opacity-100 scale-y-100"
-                  : "opacity-0 scale-y-0"
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-4"
               }
-              ${isDarkMode ? "bg-iii-light/20" : "bg-iii-dark/10"}
-            `}
-            style={{ transitionDelay: isLegendVisible ? "600ms" : "0ms" }}
-          />
-
-          {/* Business logic legend item */}
-          <div
-            className={`
-              flex items-center gap-3 transition-all duration-700
               ${
-                isLegendVisible
-                  ? "opacity-100 translate-x-0"
-                  : "opacity-0 translate-x-4"
+                isDarkMode
+                  ? "bg-iii-dark/80 shadow-lg shadow-black/20"
+                  : "bg-white/80 shadow-lg shadow-black/5"
               }
             `}
-            style={{ transitionDelay: isLegendVisible ? "800ms" : "0ms" }}
+            style={{
+              transitionDelay: isLegendVisible ? "600ms" : "0ms",
+              backdropFilter: "blur(8px)",
+            }}
           >
-            <div className="w-4 h-4 rounded transition-all duration-500 bg-iii-success" />
+            <div className="w-4 h-4 rounded bg-iii-success" />
             <div className="flex flex-col">
               <span className="text-sm font-medium text-iii-success">
                 Business Logic
@@ -1341,9 +1336,36 @@ export const DependencyVisualization: React.FC<
                   isDarkMode ? "text-iii-light/50" : "text-iii-medium/70"
                 }`}
               >
-                The application
+                Your application code
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile legend - stacked centered */}
+      <div
+        className={`
+          lg:hidden flex justify-center transition-all duration-1000 ease-out overflow-hidden
+          ${isLegendVisible ? "max-h-32 opacity-100" : "max-h-0 opacity-0"}
+        `}
+      >
+        <div
+          className={`
+            flex flex-col sm:flex-row items-center gap-4 sm:gap-6 px-5 py-3 rounded-xl
+            transition-all duration-700 ease-out
+            ${isLegendVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
+            ${isDarkMode ? "bg-iii-dark/80 shadow-lg shadow-black/20" : "bg-white/80 shadow-lg shadow-black/5"}
+          `}
+          style={{ backdropFilter: "blur(8px)" }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-4 h-4 rounded bg-iii-warn" />
+            <span className="text-sm font-medium text-iii-warn">Architecture</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-4 h-4 rounded bg-iii-success" />
+            <span className="text-sm font-medium text-iii-success">Business Logic</span>
           </div>
         </div>
       </div>

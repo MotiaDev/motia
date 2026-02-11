@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Highlight, themes } from "prism-react-renderer";
+import { Zap } from "lucide-react";
 import { codeExamples } from "./CodeExamples";
 import { DependencyVisualization } from "./DependencyVisualization";
 
-// Categories showing what III Engine replaces and enables
+// Categories showing what iii Engine replaces and enables
 const categories = [
   // Infrastructure it replaces
   { id: "api", label: "API Frameworks" },
@@ -33,7 +34,7 @@ const ToolBadge: React.FC<ToolBadgeProps> = ({ tool, isDarkMode }) => {
       className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium transition-colors ${
         isDarkMode
           ? "bg-iii-alert/20 text-iii-alert border border-iii-alert/30"
-          : "bg-red-100 text-red-700 border border-red-200"
+          : "bg-iii-alert/10 text-iii-alert border border-iii-alert/20"
       }`}
     >
       {tool}
@@ -140,8 +141,8 @@ function CodeBlock({
                 isTraditional
                   ? "bg-iii-alert"
                   : isDarkMode
-                  ? "bg-iii-accent"
-                  : "bg-iii-accent-light"
+                    ? "bg-iii-accent"
+                    : "bg-iii-accent-light"
               }`}
             />
             <span
@@ -157,10 +158,10 @@ function CodeBlock({
               isTraditional
                 ? isDarkMode
                   ? "bg-iii-alert/20 text-iii-alert"
-                  : "bg-red-100 text-red-700"
+                  : "bg-iii-alert/10 text-iii-alert"
                 : isDarkMode
-                ? "bg-iii-accent/20 text-iii-accent"
-                : "bg-iii-accent-light/20 text-iii-accent-light"
+                  ? "bg-iii-accent/20 text-iii-accent"
+                  : "bg-iii-accent-light/20 text-iii-accent-light"
             }`}
           >
             {lineCount} lines
@@ -177,9 +178,7 @@ function CodeBlock({
 
       {/* Code */}
       <div
-        className={`p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] ${
-          isDarkMode ? "scrollbar-brand-dark" : "scrollbar-brand-light"
-        }`}
+        className="p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px]"
       >
         <Highlight
           theme={isDarkMode ? themes.nightOwl : themes.github}
@@ -187,7 +186,7 @@ function CodeBlock({
           language={language as any}
         >
           {({ tokens, getLineProps, getTokenProps }) => (
-            <pre className="text-[9px] sm:text-[10px] md:text-xs font-mono leading-relaxed overflow-x-auto">
+            <pre className="text-[10px] sm:text-xs md:text-sm font-mono leading-relaxed overflow-x-auto">
               {tokens.map((line, i) => (
                 <div
                   key={i}
@@ -240,8 +239,8 @@ function SavingsIndicator({
   const codeComparisonColor = isSame
     ? "text-iii-info"
     : isLess
-    ? "text-iii-success"
-    : "text-iii-warn";
+      ? "text-iii-success"
+      : "text-iii-warn";
 
   return (
     <div
@@ -410,7 +409,17 @@ export function ExampleCodeSection({
     >
       <div className="relative z-10">
         {/* Header */}
-        <div className="text-center mb-3 sm:mb-4 md:mb-6 space-y-2 sm:space-y-3 md:space-y-4">
+        <div className="text-center mb-8 md:mb-12 space-y-3 md:space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-iii-accent/30 bg-iii-accent/5 mb-4">
+            <Zap
+              className={`w-4 h-4 ${isDarkMode ? "text-iii-accent" : "text-iii-accent-light"}`}
+            />
+            <span
+              className={`text-xs font-mono tracking-wider uppercase ${isDarkMode ? "text-iii-accent" : "text-iii-accent-light"}`}
+            >
+              Side-by-Side Comparisons
+            </span>
+          </div>
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter">
             <p>Services, frameworks, integrations,</p>
             <p>all become design patterns.</p>
@@ -425,21 +434,21 @@ export function ExampleCodeSection({
         </div>
 
         {/* Category Pills */}
-        <div className="mb-2 sm:mb-3 md:mb-4">
+        <div className="mb-4 md:mb-6">
           <div className="flex overflow-x-auto scrollbar-hide pb-2 justify-center">
             <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center px-2">
               {categories.map((category) => (
                 <button
                   key={category.id}
                   onClick={() => setActiveCategory(category.id)}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs md:text-sm transition-all whitespace-nowrap font-medium ${
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all whitespace-nowrap font-medium ${
                     activeCategory === category.id
                       ? isDarkMode
                         ? "bg-iii-accent text-iii-black border-2 border-iii-accent"
                         : "bg-iii-accent-light text-iii-light border-2 border-iii-accent-light"
                       : isDarkMode
-                      ? "text-iii-light/70 hover:text-iii-light hover:bg-iii-dark/50 border-2 border-iii-light"
-                      : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border-2 border-iii-dark"
+                        ? "text-iii-light/70 hover:text-iii-light hover:bg-iii-dark/50 border-2 border-iii-light"
+                        : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border-2 border-iii-dark"
                   }`}
                 >
                   {category.label}
@@ -450,8 +459,8 @@ export function ExampleCodeSection({
         </div>
 
         {/* Description */}
-        {currentExample && (
-          <div className="min-h-[2.5rem] sm:min-h-[3rem] md:min-h-[4rem] mb-3 sm:mb-4 md:mb-6 max-w-2xl mx-auto flex items-center justify-center px-2">
+        {/* {currentExample && (
+          <div className="min-h-[2.5rem] sm:min-h-[3rem] md:min-h-[4rem] mb-6 md:mb-8 max-w-2xl mx-auto flex items-center justify-center px-2">
             <p
               className={`text-center text-[11px] sm:text-xs md:text-sm leading-5 sm:leading-6 ${
                 isDarkMode ? "text-iii-light/70" : "text-iii-medium"
@@ -460,7 +469,7 @@ export function ExampleCodeSection({
               {currentExample.description}
             </p>
           </div>
-        )}
+        )} */}
 
         {/* Code comparison with dependency visualization */}
         {currentExample && (

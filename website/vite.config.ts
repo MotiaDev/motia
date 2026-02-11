@@ -9,8 +9,5 @@ export default defineConfig({
       "@": path.resolve(__dirname, "."),
     },
   },
-  server: {
-    // Enable SPA fallback for client-side routing
-    historyApiFallback: true,
-  },
+  appType: "spa",
 });

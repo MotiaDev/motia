@@ -43,6 +43,7 @@ function CatchCard({
   description,
   details,
 }: {
+  key?: string | number;
   icon: string;
   title: string;
   description: string;

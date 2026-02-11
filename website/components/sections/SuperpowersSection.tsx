@@ -44,6 +44,7 @@ function SuperpowerCard({
   isActive,
   onClick,
 }: {
+  key?: string | number;
   superpower: (typeof superpowers)[0];
   isActive: boolean;
   onClick: () => void;

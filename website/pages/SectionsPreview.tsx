@@ -3,8 +3,7 @@ import { HeroSection } from "../components/sections/HeroSection";
 import { ExampleCodeSection } from "../components/sections/ExampleCodeSection";
 import { TestimonialsSection } from "../components/sections/TestimonialsSection";
 import { WhatsCatchSection } from "../components/sections/WhatsCatchSection";
-import { FAQSection } from "../components/sections/FAQSection";
-import { CommunitySection } from "../components/sections/CommunitySection";
+import { FooterSection } from "../components/sections/FooterSection";
 import {
   DependencyStack,
   DependencyStackBackground,
@@ -39,8 +38,7 @@ export function SectionsPreview() {
         <ExampleCodeSection />
         <TestimonialsSection />
         <WhatsCatchSection />
-        <FAQSection />
-        <CommunitySection />
+        <FooterSection />
 
         {/* Splash Demo Section */}
         <section className="py-24 px-6">

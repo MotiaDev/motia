@@ -3,24 +3,24 @@ import { Logo } from "./components/Logo";
 import { Terminal } from "./components/Terminal";
 import { GridBackground } from "./components/GridBackground";
 import { VisualArrow } from "./components/VisualArrow";
-import { ProtocolModal } from "./components/ProtocolModal";
-import { ManifestoModal } from "./components/ManifestoModal";
 import { FeatureBento } from "./components/FeatureBento";
 import { StackVisual } from "./components/StackVisual";
 import { CodeComparison } from "./components/CodeComparison";
 import { ExampleCodeSection } from "./components/sections/ExampleCodeSection";
 import { HeroSection } from "./components/sections/HeroSection";
-import { FAQSection } from "./components/sections/FAQSection";
-import { CommunitySection } from "./components/sections/CommunitySection";
+import { HelloWorldSection } from "./components/sections/HelloWorldSection";
+import { EngineSection } from "./components/sections/EngineSection";
+import { AgentReadySection } from "./components/sections/AgentReadySection";
+import { FooterSection } from "./components/sections/FooterSection";
 import { TechLogos } from "./components/TechLogos";
 import { Features } from "./components/Features";
 import { ValueProps } from "./components/ValuePropsRedesigned";
-import { PersonaValueProps } from "./components/PersonaValueProps";
 // FractureAnimation removed - using StackVisual only
 import { ModeToggle } from "./components/ModeToggle";
 import { Navbar } from "./components/Navbar";
 import { MachineView } from "./components/MachineView";
 import { SectionsPreview } from "./pages/SectionsPreview";
+import { ManifestoPage } from "./pages/ManifestoPage";
 import { KeySequence } from "./types";
 import {
   ArrowRight,
@@ -32,13 +32,21 @@ import {
 } from "lucide-react";
 import { insertAccessRequest, checkAccessRequest } from "./lib/supabase";
 
-const App: React.FC = () => {
-  // Check if we're on the preview route
-  if (window.location.pathname === "/preview") {
+const AppRouter: React.FC = () => {
+  const pathname = window.location.pathname;
+
+  if (pathname === "/preview") {
     return <SectionsPreview />;
   }
+  if (pathname === "/manifesto") {
+    return <ManifestoPage />;
+  }
+
+  return <App />;
+};
+
+const App: React.FC = () => {
   const [showTerminal, setShowTerminal] = useState(false);
-  const [showProtocol, setShowProtocol] = useState(false);
   const [isGodMode, setIsGodMode] = useState(false);
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,7 +76,6 @@ const App: React.FC = () => {
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [hoverAnimIndex, setHoverAnimIndex] = useState(-1);
   const [showGodModeUnlock, setShowGodModeUnlock] = useState(false);
-  const [showManifesto, setShowManifesto] = useState(false);
 
   // URL-based mode detection: /ai = machine mode, / = human mode
   const [isHumanMode, setIsHumanMode] = useState(() => {
@@ -195,11 +202,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleManifestoClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setShowManifesto(true);
-  };
-
   // Machine mode - raw markdown/text dump for AI consumption
   // Easter eggs still work: Konami code, terminal access
   if (!isHumanMode) {
@@ -212,25 +214,11 @@ const App: React.FC = () => {
           isDarkMode={isDarkMode}
           isSubmitted={isSubmitted}
           onLogoClick={handleLogoClick}
-          onManifestoClick={handleManifestoClick}
-          onProtocolClick={() => setShowProtocol(true)}
         />
         {showTerminal && (
           <Terminal
             onClose={() => setShowTerminal(false)}
             isGodMode={isGodMode}
-          />
-        )}
-        {showProtocol && (
-          <ProtocolModal
-            onClose={() => setShowProtocol(false)}
-            isDarkMode={isDarkMode}
-          />
-        )}
-        {showManifesto && (
-          <ManifestoModal
-            onClose={() => setShowManifesto(false)}
-            isDarkMode={isDarkMode}
           />
         )}
         {showGodModeUnlock && (
@@ -270,8 +258,6 @@ const App: React.FC = () => {
         onToggleTheme={toggleTheme}
         onToggleMode={toggleMode}
         onLogoClick={handleLogoClick}
-        onManifestoClick={handleManifestoClick}
-        onProtocolClick={() => setShowProtocol(true)}
         logoClickCount={logoClickCount}
         isLogoHovered={isLogoHovered}
         hoverAnimIndex={hoverAnimIndex}
@@ -280,60 +266,36 @@ const App: React.FC = () => {
       />
 
       <main className="flex-1 relative z-10 flex flex-col items-center w-full pt-16 md:pt-20">
-        {/* Hero Section */}
+        {/* Section 1: Hero - One Engine. Any Language. Anywhere. */}
         <div className="w-full">
           <HeroSection isDarkMode={isDarkMode} />
         </div>
 
-        {/* Code Examples Section - Before/After */}
+        {/* Section 2: Hello World - Polyglot proof with IPC */}
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <HelloWorldSection isDarkMode={isDarkMode} />
+        </div>
+
+        {/* Section 3: Architecture (formerly Engine) - Trigger → Function → Workers */}
+        {/* <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <EngineSection isDarkMode={isDarkMode} />
+        </div> */}
+
+        {/* Section 4: Triggers as Universal Adapters - Code Examples */}
         <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
           <ExampleCodeSection isDarkMode={isDarkMode} />
         </div>
 
-        {/* Value Props - Core Features (Hidden on mobile to reduce scrolling) */}
-        {/* <div className="hidden md:block">
-          <ValueProps isDarkMode={isDarkMode} />
+        {/* Section 5: Agent-Ready - AI agents as first-class citizens */}
+        {/* <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+          <AgentReadySection isDarkMode={isDarkMode} />
         </div> */}
 
-        {/* Persona-Based Value Props */}
+        {/* Section 7: Footer + CTA - FAQ, Discord, Links */}
         <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
-          <PersonaValueProps isDarkMode={isDarkMode} />
-        </div>
-
-        {/* FAQ Section */}
-        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-4xl py-12 md:py-16 lg:py-24">
-          <FAQSection isDarkMode={isDarkMode} />
-        </div>
-
-        {/* Community Section */}
-        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
-          <CommunitySection isDarkMode={isDarkMode} />
+          <FooterSection isDarkMode={isDarkMode} />
         </div>
       </main>
-
-      <footer
-        className={`relative z-10 w-full px-4 py-6 md:px-12 md:py-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-t text-[9px] md:text-[10px] text-iii-medium font-mono transition-colors duration-300 ${
-          isDarkMode
-            ? "border-iii-light bg-iii-black"
-            : "border-iii-dark bg-iii-light"
-        }`}
-      >
-        <div className="max-w-sm md:max-w-md space-y-1.5 md:space-y-2">
-          <p className="leading-relaxed hidden md:block">
-            Defining the universal runtime for distributed execution.
-          </p>
-        </div>
-        <div className="flex flex-col items-start md:items-end gap-0.5 md:gap-1">
-          <span
-            className={`uppercase tracking-widest ${
-              isDarkMode ? "text-iii-light" : "text-iii-black"
-            }`}
-          >
-            © 2025 III, INC.
-          </span>
-          <span className="opacity-50">v0.1.0-alpha</span>
-        </div>
-      </footer>
 
       {/* God Mode Unlock Animation */}
       {showGodModeUnlock && (
@@ -367,20 +329,8 @@ const App: React.FC = () => {
           isGodMode={isGodMode}
         />
       )}
-      {showProtocol && (
-        <ProtocolModal
-          onClose={() => setShowProtocol(false)}
-          isDarkMode={isDarkMode}
-        />
-      )}
-      {showManifesto && (
-        <ManifestoModal
-          onClose={() => setShowManifesto(false)}
-          isDarkMode={isDarkMode}
-        />
-      )}
     </div>
   );
 };
 
-export default App;
+export default AppRouter;

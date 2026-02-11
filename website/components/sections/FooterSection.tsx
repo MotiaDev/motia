@@ -1,0 +1,422 @@
+import { useState, useEffect } from "react";
+import {
+  ChevronDown,
+  Github,
+  Terminal,
+  Copy,
+  Check,
+  Users,
+  ArrowRight,
+} from "lucide-react";
+import { Logo } from "../Logo";
+
+// Discord integration
+const DISCORD_GUILD_ID = "1322278831184281721";
+const DISCORD_WIDGET_URL = `https://discord.com/api/guilds/${DISCORD_GUILD_ID}/widget.json`;
+const DISCORD_INVITE_URL = "https://discord.gg/iii";
+
+interface DiscordMember {
+  id: string;
+  username: string;
+  avatar_url: string;
+  status: string;
+}
+
+interface DiscordStats {
+  onlineCount: number;
+  serverName: string;
+  members: DiscordMember[];
+  isLoading: boolean;
+  error: string | null;
+  inviteUrl: string | null;
+}
+
+const fallbackAvatars = ["👨‍💻", "👩‍💼", "👨‍🔬", "👩‍💻", "👨‍💼", "👩‍🔬"];
+
+function useDiscordWidget(): DiscordStats {
+  const [stats, setStats] = useState<DiscordStats>({
+    onlineCount: 0,
+    serverName: "iii Community",
+    members: [],
+    isLoading: true,
+    error: null,
+    inviteUrl: DISCORD_INVITE_URL,
+  });
+
+  useEffect(() => {
+    const fetchDiscordData = async () => {
+      try {
+        const response = await fetch(DISCORD_WIDGET_URL);
+        if (!response.ok) {
+          throw new Error(
+            response.status === 403
+              ? "Widget is disabled for this server"
+              : `Failed to fetch: ${response.status}`,
+          );
+        }
+        const data = await response.json();
+        setStats({
+          onlineCount: data.presence_count,
+          serverName: data.name,
+          members: data.members?.slice(0, 8) || [],
+          isLoading: false,
+          error: null,
+          inviteUrl: data.instant_invite || DISCORD_INVITE_URL,
+        });
+      } catch (err) {
+        setStats((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: err instanceof Error ? err.message : "Offline",
+          inviteUrl: DISCORD_INVITE_URL,
+        }));
+      }
+    };
+    fetchDiscordData();
+    const interval = setInterval(fetchDiscordData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return stats;
+}
+
+// Top 5 FAQ questions as specified in the plan
+const faqItems = [
+  {
+    id: 1,
+    question: "How is iii different from gRPC?",
+    answer:
+      "gRPC requires compile-time IDL files and code generation. iii uses runtime protocol-based registration — no compilation needed. Functions become available immediately when workers register them.",
+  },
+  {
+    id: 2,
+    question: "How is iii different from a service mesh?",
+    answer:
+      "Service meshes require sidecar configuration and complex networking. iii is a single engine binary — workers connect directly via WebSocket, no sidecars needed.",
+  },
+  {
+    id: 3,
+    question: "Can I use iii with my existing Express/Flask/Spring app?",
+    answer:
+      "Yes. Drop in the SDK, register your routes as functions, and they become part of the distributed architecture immediately. No rewrite required.",
+  },
+  {
+    id: 4,
+    question: "What about AI agents and LLMs?",
+    answer:
+      "Agent-ready by design. Functions self-describe with schemas. Agents dynamically discover functions and invoke them with autonomous payload construction. No tool definition files needed.",
+  },
+  {
+    id: 5,
+    question: "Is iii production-ready?",
+    answer:
+      "The engine is in active development. Join our Discord to get early access, provide feedback, and shape the future of distributed systems.",
+  },
+];
+
+interface FooterSectionProps {
+  isDarkMode?: boolean;
+}
+
+export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
+  const [openFaqId, setOpenFaqId] = useState<number | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const discord = useDiscordWidget();
+  const installCmd = "curl -fsSL install.iii.dev | sh";
+
+  const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
+  const textSecondary = isDarkMode ? "text-iii-light/70" : "text-iii-black/70";
+  const borderColor = isDarkMode
+    ? "border-iii-light/10"
+    : "border-iii-black/10";
+  const bgCard = isDarkMode ? "bg-iii-dark/20" : "bg-white/40";
+  const accentColor = isDarkMode ? "text-iii-accent" : "text-iii-accent-light";
+  const accentBorder = isDarkMode
+    ? "border-iii-accent"
+    : "border-iii-accent-light";
+
+  const copyToClipboard = () => {
+    navigator.clipboard
+      .writeText(installCmd)
+      .then(() => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      })
+      .catch(() => {});
+  };
+
+  return (
+    <footer
+      className={`relative overflow-hidden font-mono transition-colors duration-300 ${textPrimary}`}
+    >
+      <div className="relative z-10">
+        {/* Primary CTA Section */}
+        <div className="hidden text-center mb-6 md:mb-8">
+          <div className="mb-4">
+            <h3 className={`text-xl md:text-2xl font-bold mb-2 ${textPrimary}`}>
+              Get started in seconds
+            </h3>
+            <p className={`text-sm ${textSecondary}`}>
+              Install the engine and start building
+            </p>
+          </div>
+
+          {/* Install command */}
+          <button
+            type="button"
+            aria-label="Copy install command"
+            className={`group relative flex items-center gap-3 px-4 py-2.5 md:px-5 md:py-3 border-2 rounded-xl mb-4 max-w-lg mx-auto cursor-pointer transition-all ${
+              isDarkMode
+                ? "bg-iii-dark/50 border-iii-light/20 hover:border-iii-light/40"
+                : "bg-white/50 border-iii-black/20 hover:border-iii-black/40"
+            }`}
+            onClick={copyToClipboard}
+          >
+            <Terminal className={`w-5 h-5 flex-shrink-0 ${textSecondary}`} />
+            <code className={`text-xs md:text-sm flex-1 ${textPrimary}`}>
+              {installCmd}
+            </code>
+            {copySuccess ? (
+              <Check className={`w-5 h-5 flex-shrink-0 ${accentColor}`} />
+            ) : (
+              <Copy
+                className={`w-5 h-5 flex-shrink-0 ${textSecondary} ${isDarkMode ? "group-hover:text-iii-accent" : "group-hover:text-iii-accent-light"}`}
+              />
+            )}
+          </button>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="https://github.com/MotiaDev/iii"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`
+                w-full sm:w-auto inline-flex items-center justify-center gap-2.5
+                px-5 py-2.5 rounded-xl border-2 transition-all duration-300
+                font-bold text-sm
+                ${
+                  isDarkMode
+                    ? `${accentBorder} ${accentColor} hover:bg-iii-accent/10`
+                    : `border-iii-accent-light ${accentColor} hover:bg-iii-accent-light/10`
+                }
+              `}
+            >
+              <Github className="w-4 h-4" />
+              GitHub
+            </a>
+            <button
+              onClick={() =>
+                window.open(
+                  discord.inviteUrl || DISCORD_INVITE_URL,
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5
+                px-5 py-2.5 rounded-xl bg-[#5865F2] text-white font-bold text-sm
+                hover:bg-[#4752C4] transition-all duration-300"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="currentColor"
+                viewBox="0 0 127.14 96.36"
+              >
+                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+              </svg>
+              Discord
+            </button>
+          </div>
+        </div>
+
+        {/* FAQ + Discord Row */}
+        <div className="hidden grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+          {/* Collapsible FAQ */}
+          <div className="lg:col-span-2">
+            <h4 className={`text-sm font-bold mb-4 ${accentColor}`}>
+              Frequently Asked Questions
+            </h4>
+            <div className="space-y-2">
+              {faqItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`
+                    rounded-xl border-2 transition-all duration-300 overflow-hidden
+                    ${
+                      openFaqId === item.id
+                        ? `${accentBorder} ${isDarkMode ? "bg-iii-accent/5" : "bg-iii-accent-light/5"}`
+                        : `${borderColor} ${bgCard}`
+                    }
+                  `}
+                >
+                  <button
+                    onClick={() =>
+                      setOpenFaqId(openFaqId === item.id ? null : item.id)
+                    }
+                    className="w-full text-left p-4 flex items-center gap-3"
+                  >
+                    <span
+                      className={`text-xs font-bold ${openFaqId === item.id ? accentColor : textSecondary}`}
+                    >
+                      {String(item.id).padStart(2, "0")}
+                    </span>
+                    <span
+                      className={`flex-1 text-sm font-medium ${textPrimary}`}
+                    >
+                      {item.question}
+                    </span>
+                    <ChevronDown
+                      className={`
+                      w-4 h-4 transition-transform duration-300
+                      ${openFaqId === item.id ? `rotate-180 ${accentColor}` : textSecondary}
+                    `}
+                    />
+                  </button>
+                  <div
+                    className={`
+                    overflow-hidden transition-all duration-300
+                    ${openFaqId === item.id ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}
+                  `}
+                  >
+                    <p
+                      className={`px-4 pb-4 pl-8 sm:pl-12 text-xs leading-relaxed ${textSecondary}`}
+                    >
+                      {item.answer}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Discord Widget with Member Avatars */}
+          <div className={`p-5 rounded-2xl border-2 ${borderColor} ${bgCard}`}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#5865F2] flex items-center justify-center">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 127.14 96.36"
+                >
+                  <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className={`text-sm font-bold ${textPrimary}`}>
+                  {discord.serverName}
+                </h4>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`w-2 h-2 rounded-full ${discord.error ? "bg-iii-alert" : "bg-iii-success"} ${discord.isLoading ? "animate-pulse" : ""}`}
+                  />
+                  <span className={`text-xs ${textSecondary}`}>
+                    {discord.isLoading
+                      ? "Connecting..."
+                      : discord.error
+                        ? "Widget unavailable"
+                        : `${discord.onlineCount} online`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Member Avatars */}
+            {!discord.error && (
+              <div className="flex items-center gap-1 mb-4">
+                {(discord.members.length > 0
+                  ? discord.members
+                  : fallbackAvatars.map((emoji, i) => ({
+                      id: `fb-${i}`,
+                      username: "",
+                      avatar_url: "",
+                      status: "online",
+                      emoji,
+                    }))
+                )
+                  .slice(0, 6)
+                  .map((member, index) => (
+                    <div
+                      key={member.id}
+                      className="relative"
+                      style={{
+                        marginLeft: index > 0 ? "-6px" : "0",
+                        zIndex: 10 - index,
+                      }}
+                    >
+                      {member.avatar_url ? (
+                        <img
+                          src={member.avatar_url}
+                          alt={member.username}
+                          className="w-7 h-7 rounded-full border-2 border-iii-dark object-cover"
+                        />
+                      ) : (
+                        <div
+                          className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs ${isDarkMode ? "border-iii-dark bg-iii-dark/50" : "border-white bg-gray-100"}`}
+                        >
+                          {(member as { emoji?: string }).emoji || "👤"}
+                        </div>
+                      )}
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 ${isDarkMode ? "border-iii-dark" : "border-white"} ${
+                          member.status === "online"
+                            ? "bg-iii-success"
+                            : member.status === "idle"
+                              ? "bg-yellow-500"
+                              : member.status === "dnd"
+                                ? "bg-red-500"
+                                : "bg-gray-500"
+                        }`}
+                      />
+                    </div>
+                  ))}
+                {discord.onlineCount > 6 && (
+                  <span className={`text-xs ml-2 ${textSecondary}`}>
+                    +{discord.onlineCount - 6} more
+                  </span>
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={() =>
+                window.open(
+                  discord.inviteUrl || DISCORD_INVITE_URL,
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+                bg-[#5865F2] text-white font-bold text-sm
+                hover:bg-[#4752C4] transition-all duration-300"
+            >
+              <Users className="w-4 h-4" />
+              Join Community
+              <ArrowRight className="w-3 h-3" />
+            </button>
+
+            <div className={`mt-4 pt-4 border-t ${borderColor}`}>
+              <p className={`text-xs ${textSecondary}`}>
+                Get help, share projects, and stay updated on new features.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Links */}
+        <div className={`border-t ${borderColor} pt-6 md:pt-8`}>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* Logo / Brand */}
+            <div className="flex items-center gap-3">
+              <Logo
+                className={`h-4 ${isDarkMode ? "text-iii-light" : "text-iii-black"}`}
+              />
+            </div>
+
+            {/* Copyright */}
+            <div className={`hidden text-xs ${textSecondary}`}>© Motia LLC</div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}

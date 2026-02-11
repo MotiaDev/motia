@@ -287,14 +287,14 @@ const result = await callService(
         code: `// Any worker can call any registered function
 // iii handles discovery + routing + load balancing
 
-const result = await bridge.invokeFunction(
-  'payment.processPayment',
+const result = await call(
+  'payment::processPayment',
   { amount: 100 }
 );
 
 // The payment worker just registers:
-bridge.registerFunction(
-  { function_path: 'payment.processPayment' },
+registerFunction(
+  { id: 'payment::processPayment' },
   async (data) => {
     return processPayment(data);
   }

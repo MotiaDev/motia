@@ -1,3 +1,37 @@
+/* ChivoMono Brand Font - Variable Weight */
+@font-face {
+  font-family: 'Chivo Mono';
+  src: url('/fonts/ChivoMono-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chivo Mono';
+  src: url('/fonts/ChivoMono-Italic-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Fallback for browsers that don't support variable fonts */
+@font-face {
+  font-family: 'Chivo Mono';
+  src: url('/fonts/ChivoMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chivo Mono';
+  src: url('/fonts/ChivoMono-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Prevent horizontal scroll on mobile */
 html,
 body {
@@ -19,26 +53,21 @@ body {
   --arrow-light-color: #cccccc;
   --arrow-highlight-color: #aaaaaa;
 
-  /* Base colors */
+  /* Base colors - Brand Guidelines */
   --color-black: #000000;
   --color-dark: #1d1d1d;
-  --color-medium: #5b5b5b; /* Brand medium gray */
-  --color-medium-dark: #5b5b5b; /* For dark backgrounds */
-  --color-medium-light: #5b5b5b; /* For light backgrounds */
-  --color-light: #ffffff;
-  --color-accent: #f3f724;
-  --color-accent-light: #1d4ed8;
+  --color-medium: #848484; /* Medium Gray */
+  --color-medium-dark: #848484;
+  --color-medium-light: #848484;
+  --color-light: #f4f4f4; /* Light Cool Gray */
+  --color-accent: #f3f724; /* Yellow iii */
+  --color-accent-light: #2f7fff; /* Blue iii */
 
   /* Semantic colors */
   --color-info: #42e7e7;
   --color-warn: #f3943d;
   --color-alert: #e52e61;
   --color-success: #1ce669;
-
-  /* Scrollbar colors (Light Default) */
-  --scrollbar-track: var(--color-light);
-  --scrollbar-thumb: #cccccc;
-  --scrollbar-thumb-hover: var(--color-accent-light);
 }
 
 /* Dark mode colors */
@@ -52,11 +81,6 @@ body {
   --grid-line-color: rgba(255, 255, 255, 0.04);
   --arrow-light-color: #555555;
   --arrow-highlight-color: #666666;
-
-  /* Scrollbar colors (Dark) */
-  --scrollbar-track: var(--color-black);
-  --scrollbar-thumb: #333333;
-  --scrollbar-thumb-hover: var(--color-accent);
 }
 
 /* Apply to body based on isDarkMode */
@@ -70,11 +94,6 @@ body.dark-mode {
   --grid-line-color: rgba(255, 255, 255, 0.04);
   --arrow-light-color: #555555;
   --arrow-highlight-color: #666666;
-
-  /* Scrollbar colors (Dark) */
-  --scrollbar-track: var(--color-black);
-  --scrollbar-thumb: #333333;
-  --scrollbar-thumb-hover: var(--color-accent);
 }
 
 body.light-mode {
@@ -87,30 +106,6 @@ body.light-mode {
   --grid-line-color: rgba(0, 0, 0, 0.06);
   --arrow-light-color: #cccccc;
   --arrow-highlight-color: #aaaaaa;
-
-  /* Scrollbar colors (Light) */
-  --scrollbar-track: var(--color-light);
-  --scrollbar-thumb: #cccccc;
-  --scrollbar-thumb-hover: var(--color-accent-light);
-}
-
-/* Scrollbar styles */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
 }
 
 /* CRT Effect for Terminal */
@@ -144,56 +139,6 @@ body.light-mode {
   display: none;
 }
 
-/* Brand scrollbar for dark mode (yellow accent) */
-.scrollbar-brand-dark {
-  scrollbar-width: thin;
-  scrollbar-color: #333333 var(--color-black);
-}
-
-.scrollbar-brand-dark::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.scrollbar-brand-dark::-webkit-scrollbar-track {
-  background: var(--color-dark);
-  border-radius: 3px;
-}
-
-.scrollbar-brand-dark::-webkit-scrollbar-thumb {
-  background: #444444;
-  border-radius: 3px;
-}
-
-.scrollbar-brand-dark::-webkit-scrollbar-thumb:hover {
-  background: var(--color-accent);
-}
-
-/* Brand scrollbar for light mode (blue accent) */
-.scrollbar-brand-light {
-  scrollbar-width: thin;
-  scrollbar-color: #cccccc var(--color-light);
-}
-
-.scrollbar-brand-light::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.scrollbar-brand-light::-webkit-scrollbar-track {
-  background: #e8e8e8;
-  border-radius: 3px;
-}
-
-.scrollbar-brand-light::-webkit-scrollbar-thumb {
-  background: #cccccc;
-  border-radius: 3px;
-}
-
-.scrollbar-brand-light::-webkit-scrollbar-thumb:hover {
-  background: var(--color-accent-light);
-}
-
 /* Energy flow animations for dependency connection lines */
 @keyframes flowDown {
   0% {
@@ -201,6 +146,20 @@ body.light-mode {
   }
   100% {
     background-position: 0% 200%;
+  }
+}
+
+@keyframes flowRight {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
   }
 }
 

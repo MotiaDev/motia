@@ -137,7 +137,7 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
           ))}
         </div>
 
-        {/* Arrow pointing to III */}
+        {/* Arrow pointing to iii */}
         <div className="relative w-full max-w-xs md:max-w-md mt-4 mb-2">
           <svg viewBox="0 0 200 30" className={`w-full h-6 md:h-8 ${accentColor}`}>
             <defs>
@@ -164,10 +164,10 @@ export const StackVisual: React.FC<StackVisualProps> = ({ isDarkMode = true }) =
           </svg>
         </div>
 
-        {/* III Foundation */}
+        {/* iii Foundation */}
         <div className="relative w-full max-w-sm md:max-w-lg">
           <div className="relative">
-            {/* Main III block */}
+            {/* Main iii block */}
             <div className={`relative px-6 py-6 md:px-10 md:py-8 bg-gradient-to-b border-2 rounded-sm ${
               isDarkMode 
                 ? 'from-iii-dark to-iii-black border-iii-accent shadow-[0_0_40px_rgba(243,247,36,0.15)]' 

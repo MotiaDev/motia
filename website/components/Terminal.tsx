@@ -50,7 +50,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
       await new Promise(r => setTimeout(r, 150));
       addLog('  ✓ StreamModule listening on 127.0.0.1:31112', 'success');
       await new Promise(r => setTimeout(r, 150));
-      addLog('  ✓ EventModule (Redis-backed)', 'success');
+      addLog('  ✓ QueueModule (Redis-backed)', 'success');
       await new Promise(r => setTimeout(r, 150));
       addLog('  ✓ CronModule (Redis-backed)', 'success');
       await new Promise(r => setTimeout(r, 150));
@@ -151,7 +151,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('4. Connect a worker (Node.js):', 'warning');
         addLog('   npm install @iii-dev/sdk', 'info');
-        addLog('   const bridge = new Bridge("ws://127.0.0.1:49134")', 'success');
+        addLog('   const { registerFunction, call } = init("ws://127.0.0.1:49134")', 'success');
         addLog('', 'info');
         addLog('Read the docs at docs.iii.dev', 'warning');
         break;
@@ -166,7 +166,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('Active Modules:', 'warning');
         addLog('  ✓ RestApiModule (port 3111)', 'success');
         addLog('  ✓ StreamModule (port 31112)', 'success');
-        addLog('  ✓ EventModule (Redis)', 'success');
+        addLog('  ✓ QueueModule (Redis)', 'success');
         addLog('  ✓ CronModule (Redis)', 'success');
         addLog('  ✓ LoggingModule', 'success');
         addLog('', 'info');
@@ -219,20 +219,20 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('Node.js/TypeScript:', 'warning');
         addLog('', 'info');
-        addLog('import { Bridge } from "@iii-dev/sdk";', 'success');
+        addLog('import { init } from "@iii-dev/sdk";', 'success');
         addLog('', 'info');
-        addLog('const bridge = new Bridge("ws://127.0.0.1:49134");', 'success');
+        addLog('const { registerFunction } = init("ws://127.0.0.1:49134");', 'success');
         addLog('', 'info');
-        addLog('bridge.registerFunction({', 'success');
-        addLog('  function_path: "math.add"', 'success');
+        addLog('registerFunction({', 'success');
+        addLog('  id: "math::add"', 'success');
         addLog('}, async (input) => {', 'success');
         addLog('  return { sum: input.a + input.b };', 'success');
         addLog('});', 'success');
         addLog('', 'info');
         addLog('Python:', 'warning');
         addLog('', 'info');
-        addLog('from iii import Bridge', 'success');
-        addLog('bridge = Bridge("ws://127.0.0.1:49134")', 'success');
+        addLog('from iii import init', 'success');
+        addLog('iii = init("ws://127.0.0.1:49134")', 'success');
         addLog('', 'info');
         addLog('See "register" and "triggers" for more examples', 'info');
         break;
@@ -242,8 +242,8 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('Register a function:', 'warning');
         addLog('', 'info');
-        addLog('bridge.registerFunction({', 'success');
-        addLog('  function_path: "api.echo"', 'success');
+        addLog('registerFunction({', 'success');
+        addLog('  id: "api::echo"', 'success');
         addLog('}, async (req) => {', 'success');
         addLog('  return {', 'success');
         addLog('    status_code: 200,', 'success');
@@ -251,10 +251,10 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  };', 'success');
         addLog('});', 'success');
         addLog('', 'info');
-        addLog('Function paths use dot notation:', 'warning');
-        addLog('  service.function', 'info');
-        addLog('  myapp.users.create', 'info');
-        addLog('  data.transform.json', 'info');
+        addLog('Function paths use double-colon notation:', 'warning');
+        addLog('  service::function', 'info');
+        addLog('  myapp::users::create', 'info');
+        addLog('  data::transform::json', 'info');
         addLog('', 'info');
         addLog('See "triggers" to expose functions', 'warning');
         break;
@@ -264,9 +264,9 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('API Trigger (HTTP endpoints):', 'warning');
         addLog('', 'info');
-        addLog('bridge.registerTrigger({', 'success');
-        addLog('  trigger_type: "api",', 'success');
-        addLog('  function_path: "api.echo",', 'success');
+        addLog('registerTrigger({', 'success');
+        addLog('  type: "api",', 'success');
+        addLog('  functionId: "api::echo",', 'success');
         addLog('  config: {', 'success');
         addLog('    api_path: "echo",', 'success');
         addLog('    http_method: "POST"', 'success');
@@ -275,12 +275,12 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('→ http://127.0.0.1:3111/echo', 'info');
         addLog('', 'info');
-        addLog('Event Trigger (pub/sub):', 'warning');
-        addLog('  trigger_type: "event"', 'info');
+        addLog('Queue Trigger (pub/sub):', 'warning');
+        addLog('  type: "queue"', 'info');
         addLog('  config: { event_name: "user.created" }', 'info');
         addLog('', 'info');
         addLog('Cron Trigger (scheduled):', 'warning');
-        addLog('  trigger_type: "cron"', 'info');
+        addLog('  type: "cron"', 'info');
         addLog('  config: { schedule: "0 0 * * *" }', 'info');
         addLog('', 'info');
         addLog('All triggers require Redis', 'warning');
@@ -295,7 +295,6 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  registerfunction', 'success');
         addLog('  registertrigger', 'success');
         addLog('  unregistertrigger', 'success');
-        addLog('  registerservice', 'success');
         addLog('  invocationresult', 'success');
         addLog('  pong', 'success');
         addLog('', 'info');
@@ -337,7 +336,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('═══ REDIS INTEGRATION ═══', 'system');
         addLog('', 'info');
         addLog('Required for:', 'warning');
-        addLog('  ✓ EventModule (pub/sub)', 'success');
+        addLog('  ✓ QueueModule (pub/sub)', 'success');
         addLog('  ✓ CronModule (scheduled tasks)', 'success');
         addLog('  ○ StreamModule (optional, can use file/memory)', 'info');
         addLog('  ○ LoggingModule (optional)', 'info');
@@ -364,7 +363,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('═══ ARCHITECTURE ═══', 'system');
         addLog('', 'info');
         addLog('┌─────────────────┐', 'warning');
-        addLog('│  III ENGINE     │ ← Rust Core', 'warning');
+        addLog('│  iii ENGINE     │ ← Rust Core', 'warning');
         addLog('└───────┬─────────┘', 'warning');
         addLog('        │', 'info');
         addLog('        ▼', 'info');
@@ -405,9 +404,9 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  • Default: 127.0.0.1:31112', 'info');
         addLog('  • Redis or file/memory backed', 'info');
         addLog('', 'info');
-        addLog('modules::event::EventModule', 'success');
-        addLog('  • Redis-backed event bus', 'info');
-        addLog('  • Event trigger + emit function', 'info');
+        addLog('modules::queue::QueueModule', 'success');
+        addLog('  • Redis-backed queue bus', 'info');
+        addLog('  • Queue trigger + enqueue function', 'info');
         addLog('', 'info');
         addLog('modules::cron::CronModule', 'success');
         addLog('  • Cron-based scheduling', 'info');
@@ -432,8 +431,8 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('    (file_based or in_memory)', 'info');
         addLog('  • modules::streams::adapters::RedisAdapter', 'success');
         addLog('', 'info');
-        addLog('EventModule adapters:', 'warning');
-        addLog('  • modules::event::RedisAdapter', 'success');
+        addLog('QueueModule adapters:', 'warning');
+        addLog('  • modules::queue::RedisAdapter', 'success');
         addLog('', 'info');
         addLog('CronModule adapters:', 'warning');
         addLog('  • modules::cron::RedisCronAdapter', 'success');
@@ -465,10 +464,10 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('        config:', 'success');
         addLog('          store_method: file_based', 'success');
         addLog('', 'info');
-        addLog('  - class: modules::event::EventModule', 'success');
+        addLog('  - class: modules::queue::QueueModule', 'success');
         addLog('    config:', 'success');
         addLog('      adapter:', 'success');
-        addLog('        class: modules::event::RedisAdapter', 'success');
+        addLog('        class: modules::queue::RedisAdapter', 'success');
         addLog('        config:', 'success');
         addLog('          redis_url: redis://localhost:6379', 'success');
         addLog('', 'info');
@@ -481,38 +480,37 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('// TypeScript Example', 'warning');
         addLog('', 'info');
-        addLog('import { Bridge } from "@iii/sdk";', 'success');
+        addLog('import { init } from "@iii-dev/sdk";', 'success');
         addLog('', 'info');
-        addLog('const bridge = new Bridge("ws://localhost:49134");', 'success');
+        addLog('const { registerFunction, registerTrigger } = init("ws://localhost:49134");', 'success');
         addLog('', 'info');
-        addLog('bridge.registerFunction({', 'success');
-        addLog('  functionPath: "myService.greet",', 'success');
-        addLog('  handler: async (input) => {', 'success');
-        addLog('    return { message: `Hello, ${input.name}!` };', 'success');
-        addLog('  }', 'success');
+        addLog('registerFunction({', 'success');
+        addLog('  id: "myService::greet",', 'success');
+        addLog('}, async (input) => {', 'success');
+        addLog('  return { message: `Hello, ${input.name}!` };', 'success');
         addLog('});', 'success');
         addLog('', 'info');
-        addLog('bridge.registerTrigger({', 'success');
-        addLog('  triggerType: "api",', 'success');
-        addLog('  functionPath: "myService.greet",', 'success');
+        addLog('registerTrigger({', 'success');
+        addLog('  type: "api",', 'success');
+        addLog('  functionId: "myService::greet",', 'success');
         addLog('  config: { api_path: "/greet", http_method: "POST" }', 'success');
         addLog('});', 'success');
         addLog('', 'info');
-        addLog('Available SDKs: @iii/sdk (TS), iii-py', 'warning');
+        addLog('Available SDKs: @iii-dev/sdk (TS), iii-py', 'warning');
         break;
 
       case 'invoke':
         addLog('═══ INVOKE ═══', 'system');
         addLog('', 'info');
         addLog('// Synchronous invocation (wait for result)', 'warning');
-        addLog('const result = await bridge.invokeFunction(', 'success');
-        addLog('  "userService.getProfile",', 'success');
+        addLog('const result = await call(', 'success');
+        addLog('  "userService::getProfile",', 'success');
         addLog('  { userId: "123" }', 'success');
         addLog(');', 'success');
         addLog('', 'info');
         addLog('// Async invocation (fire and forget)', 'warning');
-        addLog('bridge.invokeFunctionAsync(', 'success');
-        addLog('  "emailService.sendWelcome",', 'success');
+        addLog('callVoid(', 'success');
+        addLog('  "emailService::sendWelcome",', 'success');
         addLog('  { email: "user@example.com" }', 'success');
         addLog(');', 'success');
         addLog('', 'info');
@@ -521,7 +519,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         break;
 
       case 'compare':
-        addLog('═══ III vs OTHERS ═══', 'system');
+        addLog('═══ iii vs OTHERS ═══', 'system');
         addLog('', 'info');
         addLog('vs Temporal:', 'warning');
         addLog('  ✓ Both: Durable execution', 'info');
@@ -547,7 +545,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  ┌────────────────┬────────────────────────────────────┐', 'info');
         addLog('  │ Language       │ SDK Package                        │', 'info');
         addLog('  ├────────────────┼────────────────────────────────────┤', 'info');
-        addLog('  │ TypeScript/JS  │ npm install @iii/sdk           │', 'success');
+        addLog('  │ TypeScript/JS  │ npm install @iii-dev/sdk        │', 'success');
         addLog('  │ Python         │ pip install iii-py                 │', 'success');
         addLog('  │ Go             │ Coming Soon                        │', 'warning');
         addLog('  │ Rust           │ cargo add iii-rs                   │', 'success');
@@ -585,7 +583,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('Your worker can be triggered TWO ways:', 'warning');
         addLog('', 'info');
         addLog('MODE A: MANAGED (Via Engine)', 'success');
-        addLog('  • Engine sends X-III-Action: POKE header', 'info');
+        addLog('  • Engine sends X-iii-Action: POKE header', 'info');
         addLog('  • Worker wakes, opens WebSocket to Engine', 'info');
         addLog('  • Receives task, executes, reports result', 'info');
         addLog('  • Use case: Heavy workflows, coordinated tasks', 'info');
@@ -623,11 +621,11 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
             addLog('Usage: poke <target_url>', 'warning');
           addLog('', 'info');
           addLog('The "poke" wakes up a sleeping/serverless worker.', 'info');
-          addLog('Engine sends HTTP with X-III-Action: POKE header.', 'info');
+          addLog('Engine sends HTTP with X-iii-Action: POKE header.', 'info');
           addLog('Worker boots, connects WebSocket, awaits tasks.', 'info');
         } else {
             addLog(`Poking ${args[0]}...`, 'info');
-            setTimeout(() => addLog('Sending X-III-Action: POKE', 'system'), 300);
+            setTimeout(() => addLog('Sending X-iii-Action: POKE', 'system'), 300);
           setTimeout(() => addLog('Target awakening...', 'info'), 600);
           setTimeout(() => addLog('WebSocket connection established!', 'success'), 1000);
           setTimeout(() => addLog('Worker is now ONLINE and awaiting tasks.', 'success'), 1300);
@@ -695,7 +693,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('"Context-Aware Execution"', 'success');
         addLog('', 'info');
-        addLog('© 2025 III, Inc.', 'info');
+        addLog('© 2025 iii, inc.', 'info');
         break;
 
       case 'motia':
@@ -811,9 +809,9 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('HOST FUNCTIONS (registered by modules):', 'warning');
         addLog('', 'info');
-        addLog('events.emit', 'success');
-        addLog('  Publish to global event bus', 'info');
-        addLog('  Backed by EventModule adapter', 'info');
+        addLog('enqueue', 'success');
+        addLog('  Publish to global queue bus', 'info');
+        addLog('  Backed by QueueModule adapter', 'info');
         addLog('', 'info');
         addLog('logger.info/warn/error', 'success');
         addLog('  Centralized logging with trace context', 'info');
@@ -827,7 +825,7 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  Key-value storage (no real-time sync)', 'info');
         addLog('  Backed by StateModule adapter', 'info');
         addLog('', 'info');
-        addLog('These are invokable via bridge.invokeFunction()', 'warning');
+        addLog('These are invokable via call()', 'warning');
         break;
 
       case 'roadmap':
@@ -878,21 +876,16 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('  • Health checks: Ping/Pong every 30s', 'info');
         addLog('', 'info');
         addLog('FUNCTIONS REGISTRY (Arc<RwLock<HashMap>>):', 'warning');
-        addLog('  • Stores: function_path -> Box<dyn FunctionHandler>', 'info');
+        addLog('  • Stores: id -> Box<dyn FunctionHandler>', 'info');
         addLog('  • Registered functions: 0', 'info');
         addLog('  • Hash tracking for change detection', 'info');
         addLog('  • Thread-safe Arc refs for concurrent access', 'info');
         addLog('', 'info');
         addLog('TRIGGER REGISTRY (Arc<RwLock<HashMap>>):', 'warning');
-        addLog('  • Maps: (trigger_type, id) -> Trigger struct', 'info');
-        addLog('  • Types: api, cron, streams:join, streams:leave', 'info');
+        addLog('  • Maps: (type, id) -> Trigger struct', 'info');
+        addLog('  • Types: api, cron, queue, streams:join, streams:leave', 'info');
         addLog('  • Active triggers: 0', 'info');
         addLog('  • Config stored as serde_json::Value', 'info');
-        addLog('', 'info');
-        addLog('SERVICE REGISTRY:', 'warning');
-        addLog('  • Tracks services registered by workers', 'info');
-        addLog('  • Service discovery mechanism', 'info');
-        addLog('  • Active services: 0', 'info');
         break;
 
       case 'perf':
@@ -950,9 +943,9 @@ export const Terminal: React.FC<TerminalProps> = ({ onClose, isGodMode = false }
         addLog('', 'info');
         addLog('LOG FIELDS:', 'warning');
         addLog('  • worker_id: UUID of connected worker', 'info');
-        addLog('  • function_path: Function being invoked', 'info');
+        addLog('  • function_id: Function being invoked', 'info');
         addLog('  • invocation_id: Unique invocation UUID', 'info');
-        addLog('  • trigger_type: api/cron/event', 'info');
+        addLog('  • trigger_type: api/cron/queue', 'info');
         addLog('', 'info');
         addLog('OBSERVABILITY MODULE:', 'warning');
         addLog('  • Adapters: FileLogger, RedisLogger', 'info');

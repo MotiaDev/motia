@@ -287,31 +287,36 @@ export const cloudLogos = [
 ];
 
 const rotatingWords = [
-  "ship faster",
-  "write better",
-  "scale easily",
-  "debug quickly",
-  "observe anything",
-  "integrate",
+  "orchestrate",
+  "invoke",
+  "register",
+  "discover",
+  "scale",
+  "observe",
 ];
 
 const rotatingContexts = [
-  "in any language",
-  "on any cloud",
-  "with any stack",
-  "in multiple languages",
-  "with any protocol",
-  "via carrier pigeon",
+  "any language",
+  "any location",
+  "any runtime",
+  "any worker",
+  "any trigger",
+  "any function",
 ];
 
 const features = [
-  { text: "A single control plane for your entire backend." },
   {
-    text: "A single engine that manages your entire stack, and scales effortlessly.",
+    text: "Polyglot execution — Languages communicate seamlessly through one universal protocol.",
   },
-  { text: "Instant observability throughout your entire backend." },
-  { text: "Makes it impossible to ignore problems." },
-  { text: "Anything you want it to be." },
+  {
+    text: "Complete observability — Logs and traces across domains and throughout the application.",
+  },
+  {
+    text: "Self-hosting/BYOC — Connect existing domains and services without lock-in.",
+  },
+  {
+    text: "Shared capabilities — State updates and functions can be shared globally across your stack.",
+  },
 ];
 
 interface HeroSectionProps {
@@ -334,7 +339,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
 
   // Install command state
   const [copySuccess, setCopySuccess] = useState(false);
-  const [installCmd] = useState("curl -fsSL iii.sh/install.sh | sh");
+  const [installCmd] = useState("curl -fsSL install.iii.dev | sh");
 
   // Email form state
   const [email, setEmail] = useState("");
@@ -379,35 +384,60 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
             <div className="space-y-2">
               <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl font-bold leading-tight tracking-tighter font-chivo">
                 <span
-                  className={isDarkMode ? "text-iii-light" : "text-iii-black"}
-                >
-                  The best way to
-                </span>
-                <br />
-                <span
-                  className={`inline-block min-w-[140px] sm:min-w-[200px] md:min-w-[360px] lg:min-w-[440px] transition-all duration-500 ease-in-out ${
+                  className={
                     isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-                  } ${
-                    isAnimating
-                      ? "opacity-0 translate-y-5 scale-80"
-                      : "opacity-100 translate-y-0 scale-100"
-                  }`}
+                  }
                 >
-                  {currentWord}
+                  One Engine.
                 </span>
                 <br />
-                <span
-                  className={`inline-block min-w-[140px] sm:min-w-[200px] md:min-w-[360px] lg:min-w-[440px] transition-all duration-500 ease-in-out ${
-                    isDarkMode ? "text-iii-light" : "text-iii-black"
-                  } ${
-                    isContextAnimating
-                      ? "opacity-0 -translate-y-3 scale-90"
-                      : "opacity-100 translate-y-0 scale-100"
-                  }`}
-                >
-                  {currentContext}
+                <span className="inline-grid">
+                  <span
+                    className="col-start-1 row-start-1 invisible"
+                    aria-hidden="true"
+                  >
+                    orchestrate
+                  </span>
+                  <span
+                    className={`col-start-1 row-start-1 transition-all duration-500 ease-in-out ${
+                      isDarkMode ? "text-iii-light" : "text-iii-black"
+                    } ${
+                      isAnimating
+                        ? "opacity-0 translate-y-5 scale-[0.8]"
+                        : "opacity-100 translate-y-0 scale-100"
+                    }`}
+                  >
+                    {currentWord}
+                  </span>
+                </span>{" "}
+                <span className="inline-grid">
+                  <span
+                    className="col-start-1 row-start-1 invisible"
+                    aria-hidden="true"
+                  >
+                    any language
+                  </span>
+                  <span
+                    className={`col-start-1 row-start-1 transition-all duration-500 ease-in-out ${
+                      isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+                    } ${
+                      isContextAnimating
+                        ? "opacity-0 -translate-y-3 scale-[0.9]"
+                        : "opacity-100 translate-y-0 scale-100"
+                    }`}
+                  >
+                    {currentContext}
+                  </span>
                 </span>
               </h1>
+              <p
+                className={`text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl mx-auto ${
+                  isDarkMode ? "text-iii-light/70" : "text-iii-black/70"
+                }`}
+              >
+                The centralized orchestration runtime for distributed polyglot
+                function execution.
+              </p>
             </div>
 
             {/* Feature checklist */}
@@ -447,8 +477,8 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
             </ul>
 
             {/* Install Command & Email Form */}
-            <div className="flex flex-col gap-3 sm:gap-4 md:gap-6 sm:flex-row items-stretch sm:items-start pt-2 md:pt-4 w-full max-w-2xl mx-auto px-2 sm:px-0">
-              <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+            <div className="flex flex-col gap-3 sm:gap-4 md:gap-6 sm:flex-row items-stretch sm:items-start pt-2 md:pt-4 w-full max-w-2xl mx-auto px-2 sm:px-0 justify-center items-center">
+              <div className="flex flex-col gap-1.5 w-full sm:w-auto hidden">
                 <div
                   className={`group relative flex items-center gap-2 px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 border rounded transition-colors cursor-pointer w-full sm:min-w-[220px] md:min-w-[280px] ${
                     isDarkMode
@@ -503,7 +533,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                   >
                     <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
                     <span className="font-mono tracking-tight text-xs sm:text-sm">
-                      ACCESS REQUESTED
+                      SUBSCRIBED
                     </span>
                   </div>
                 ) : (
@@ -516,7 +546,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                   >
                     <input
                       type="email"
-                      placeholder="EMAIL_FOR_ACCESS"
+                      placeholder="EMAIL_FOR_UPDATES"
                       className={`bg-transparent outline-none text-xs md:text-sm py-2.5 md:py-3 px-1 w-full sm:w-48 md:w-64 placeholder-iii-medium/50 font-mono ${
                         isDarkMode ? "text-iii-light" : "text-iii-black"
                       }`}
@@ -634,8 +664,8 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                       isDarkMode ? "text-iii-light/70" : "text-iii-black/70"
                     }`}
                   >
-                    Any cloud, any compute — our engine runs anything anywhere
-                    with the right adapter.
+                    Workers register, engine orchestrates — one protocol,
+                    infinite possibilities.
                   </span>
                   <div
                     className={`hidden sm:block flex-1 h-px ${

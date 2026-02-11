@@ -61,24 +61,24 @@ app.listen(3000)`,
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Language-agnostic API
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Register API endpoint - works from any language
-bridge.registerFunction(
+registerFunction(
   { 
-    function_path: 'users.create',
+    id: 'users::create',
     metadata: { api_path: '/users', http_method: 'POST' }
   },
   async (input) => {
     const { logger } = getContext()
     logger.info('Creating user', { email: input.email })
-    
+
     const user = await createUser(input)
-    
-    // Emit event - subscribers notified automatically
-    bridge.invokeFunctionAsync('events.emit', {
+
+    // Enqueue event - subscribers notified automatically
+    callVoid('enqueue', {
       topic: 'user.created',
       data: user
     })
@@ -86,10 +86,7 @@ bridge.registerFunction(
     return { status_code: 201, body: user }
   }
 )
-
-// Python ML service registers the same way
-// Rust service registers the same way
-// One unified protocol, any language`,
+`,
     },
     linesTraditional: 35,
     linesIII: 28,
@@ -148,13 +145,13 @@ await emailQueue.add('welcome', { userId, email }, {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions ARE the jobs
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Register job handler - that's it
-bridge.registerFunction(
-  { function_path: 'jobs.sendWelcomeEmail' },
+registerFunction(
+  { id: 'jobs::sendWelcomeEmail' },
   async (input) => {
     const { logger } = getContext()
     logger.info('Sending welcome email', { userId: input.userId })
@@ -165,27 +162,25 @@ bridge.registerFunction(
 )
 
 // Register notification handler
-bridge.registerFunction(
-  { function_path: 'jobs.sendNotification' },
+registerFunction(
+  { id: 'jobs::sendNotification' },
   async ({ userId, message }) => {
     await sendNotification(userId, message)
   }
 )
 
 // Fire-and-forget invocation (async job)
-bridge.invokeFunctionAsync('jobs.sendWelcomeEmail', {
+callVoid('jobs::sendWelcomeEmail', {
   userId: user.id,
   email: user.email
 })
 
 // Or await the result
-const result = await bridge.invokeFunction(
-  'jobs.sendWelcomeEmail',
+const result = await call(
+  'jobs::sendWelcomeEmail',
   { userId, email }
 )
-
-// Python workers use the same pattern
-// Retry, visibility timeout - configured in EventModule`,
+`,
     },
     linesTraditional: 42,
     linesIII: 32,
@@ -252,44 +247,42 @@ await subscribe('order.placed', async (order) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Events are function invocations
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Register event handlers as functions
-bridge.registerFunction(
-  { function_path: 'events.user.created' },
+registerFunction(
+  { id: 'events::user::created' },
   async (user) => {
     const { logger } = getContext()
     logger.info('Syncing user to CRM', { userId: user.id })
-    
+
     await syncToCRM(user)
   }
 )
 
-bridge.registerFunction(
-  { function_path: 'events.order.placed' },
+registerFunction(
+  { id: 'events::order::placed' },
   async (order) => {
     // Chain events naturally
     await updateInventory(order)
-    bridge.invokeFunctionAsync('events.warehouse.notify', order)
+    callVoid('events::warehouse::notify', order)
   }
 )
 
 // Register trigger to subscribe to events
-bridge.registerTrigger({
-  trigger_type: 'event',
-  function_path: 'events.user.created',
+registerTrigger({
+  type: 'queue',
+  functionId: 'events::user::created',
   config: { topic: 'user.created' }
 })
 
-// Emit events - subscribers invoked automatically
-bridge.invokeFunctionAsync('events.emit', {
+callVoid('enqueue', {
   topic: 'user.created',
   data: newUser
 })
-
-// EventModule handles Redis adapter, retries, DLQ`,
+`,
     },
     linesTraditional: 48,
     linesIII: 34,
@@ -359,9 +352,9 @@ io.on('connection', (socket) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Streams are built-in
-import { Bridge, MemoryStream } from 'iii'
+import { init, MemoryStream } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Create typed stream
 interface ChatMessage {
@@ -372,15 +365,11 @@ interface ChatMessage {
 }
 
 const chatStream = new MemoryStream<ChatMessage>()
-bridge.createStream('chat', chatStream)
-
-// Stream operations registered automatically:
-// streams.get(chat), streams.set(chat), 
-// streams.delete(chat), streams.getGroup(chat)
+createStream('chat', chatStream)
 
 // Handle join events via trigger
-bridge.registerFunction(
-  { function_path: 'streams.onJoin(chat)' },
+registerFunction(
+  { id: 'streams::onJoin(chat)' },
   async ({ subscription_id, group_id, context }) => {
     console.log(\`User joined room: \${group_id}\`)
     // Presence handled by StreamModule
@@ -388,8 +377,8 @@ bridge.registerFunction(
 )
 
 // Send message - broadcasts to all subscribers
-bridge.registerFunction(
-  { function_path: 'chat.sendMessage' },
+registerFunction(
+  { id: 'chat::sendMessage' },
   async ({ roomId, content, userId }) => {
     const message = {
       id: crypto.randomUUID(),
@@ -477,34 +466,34 @@ async function setSession(sessionId: string, data: any, ttl: number) {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State is a module
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Use StateModule - same API everywhere
-bridge.registerFunction(
-  { function_path: 'workflow.process' },
+registerFunction(
+  { id: 'workflow::process' },
   async (input) => {
     const { logger } = getContext()
-    
+
     // Get state - works across all workers
-    const currentStep = await bridge.invokeFunction(
-      'state.get',
+    const currentStep = await call(
+      'state::get',
       { workflow_id: input.workflowId, key: 'currentStep' }
     )
     
     logger.info('Processing step', { step: currentStep })
     
     // Update state - trace_id propagated automatically
-    await bridge.invokeFunction('state.set', {
+    await call('state::set', {
       workflow_id: input.workflowId,
       key: 'currentStep',
       value: currentStep + 1
     })
-    
+
     // Continue workflow
     if (currentStep < 5) {
-      bridge.invokeFunctionAsync('workflow.process', {
+      callVoid('workflow::process', {
         workflowId: input.workflowId
       })
     }
@@ -512,10 +501,7 @@ bridge.registerFunction(
     return { step: currentStep, status: 'processed' }
   }
 )
-
-// StateModule uses Redis adapter in production
-// File adapter in development
-// Consistent API, pluggable backends`,
+`,
     },
     linesTraditional: 48,
     linesIII: 36,
@@ -542,7 +528,6 @@ cron.schedule('0 9 * * *', async () => {
   await generateDailyReport()
 })
 
-// Agenda for distributed - needs MongoDB
 agenda.define('send-weekly-digest', async (job) => {
   const { userId } = job.attrs.data
   await sendWeeklyDigest(userId)
@@ -577,21 +562,21 @@ await agenda.every('1 week', 'send-weekly-digest', { userId: 123 })
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Cron is a trigger type
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Register the function
-bridge.registerFunction(
-  { function_path: 'reports.daily' },
+registerFunction(
+  { id: 'reports::daily' },
   async () => {
     const { logger } = getContext()
     logger.info('Generating daily report')
-    
+
     const report = await generateDailyReport()
-    
+
     // Store in state for retrieval
-    await bridge.invokeFunction('state.set', {
+    await call('state::set', {
       workflow_id: 'reports',
       key: 'daily-' + new Date().toISOString().split('T')[0],
       value: report
@@ -602,23 +587,23 @@ bridge.registerFunction(
 )
 
 // Register cron trigger - distributed locking built-in
-bridge.registerTrigger({
-  trigger_type: 'cron',
-  function_path: 'reports.daily',
+registerTrigger({
+  type: 'cron',
+  functionId: 'reports::daily',
   config: { schedule: '0 9 * * *' } // 9am daily
 })
 
 // Cleanup job - CronModule handles locking
-bridge.registerFunction(
-  { function_path: 'maintenance.cleanup' },
+registerFunction(
+  { id: 'maintenance::cleanup' },
   async () => {
     await cleanupExpiredSessions()
   }
 )
 
-bridge.registerTrigger({
-  trigger_type: 'cron',
-  function_path: 'maintenance.cleanup',
+registerTrigger({
+  type: 'cron',
+  functionId: 'maintenance::cleanup',
   config: { schedule: '*/5 * * * *' } // Every 5 min
 })`,
     },
@@ -695,17 +680,17 @@ async function handleRequest(req: Request) {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Logging is built-in
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
-bridge.registerFunction(
-  { function_path: 'orders.process' },
+registerFunction(
+  { id: 'orders::process' },
   async (input) => {
     // Context includes logger with trace_id
     const { logger } = getContext()
     
-    // Logs include trace_id + function_path automatically
+    // Logs include trace_id + function id automatically
     logger.info('Processing order', { 
       orderId: input.orderId,
       items: input.items.length 
@@ -731,11 +716,7 @@ bridge.registerFunction(
     }
   }
 )
-
-// Logs flow through LoggingModule
-// FileLogger for dev, RedisLogger for prod
-// Trace correlation across function calls
-// Workbench visualizes everything`,
+`,
     },
     linesTraditional: 52,
     linesIII: 38,
@@ -794,28 +775,24 @@ export async function orderWorkflow(order: Order): Promise<OrderResult> {
     paymentId: payment.id,
     trackingNumber: shipment.trackingNumber,
   }
-}
-
-// Need separate worker process
-// Need Temporal server infrastructure
-// DSL to learn`,
+}`,
     },
     iii: {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State + Events = Workflows
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Step 1: Start order
-bridge.registerFunction(
-  { function_path: 'order.start' },
+registerFunction(
+  { id: 'order::start' },
   async (order) => {
     const { logger } = getContext()
-    
+
     // Save workflow state
-    await bridge.invokeFunction('state.set', {
+    await call('state::set', {
       workflow_id: order.id,
       key: 'status',
       value: 'started'
@@ -824,30 +801,27 @@ bridge.registerFunction(
     logger.info('Order started', { orderId: order.id })
     
     // Trigger next step via event
-    bridge.invokeFunctionAsync('order.sendConfirmation', order)
+    callVoid('order::sendConfirmation', order)
     
     return { orderId: order.id, status: 'started' }
   }
 )
 
 // Step 2: Send confirmation
-bridge.registerFunction(
-  { function_path: 'order.sendConfirmation' },
+registerFunction(
+  { id: 'order::sendConfirmation' },
   async (order) => {
     await sendEmail({ to: order.email, template: 'confirmation' })
-    
+
     // Update state and continue
-    await bridge.invokeFunction('state.set', {
+    await call('state::set', {
       workflow_id: order.id, key: 'status', value: 'confirmed'
     })
-    
-    bridge.invokeFunctionAsync('order.chargeCard', order)
+
+    callVoid('order::chargeCard', order)
   }
 )
-
-// Steps continue... each function is durable
-// State persists across restarts
-// No separate infrastructure needed`,
+`,
     },
     linesTraditional: 50,
     linesIII: 42,
@@ -907,7 +881,6 @@ const prompt = ChatPromptTemplate.fromMessages([/* ... */])
 const agent = await createOpenAIToolsAgent({ llm: model, tools, prompt })
 const executor = new AgentExecutor({ agent, tools })
 
-// Execute with streaming... complex setup
 const stream = await executor.streamEvents(
   { input: userMessage },
   { version: 'v1' }
@@ -917,14 +890,14 @@ const stream = await executor.streamEvents(
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions ARE tools, State IS memory
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Register tools as functions - automatic discovery
-bridge.registerFunction(
+registerFunction(
   { 
-    function_path: 'tools.searchDatabase',
+    id: 'tools::searchDatabase',
     description: 'Search the product database',
     request_format: { query: 'string' }
   },
@@ -934,9 +907,9 @@ bridge.registerFunction(
   }
 )
 
-bridge.registerFunction(
+registerFunction(
   { 
-    function_path: 'tools.sendEmail',
+    id: 'tools::sendEmail',
     description: 'Send an email to user'
   },
   async ({ to, subject, body }) => {
@@ -946,13 +919,13 @@ bridge.registerFunction(
 )
 
 // Agent orchestrator - uses StateModule for memory
-bridge.registerFunction(
-  { function_path: 'agent.chat' },
+registerFunction(
+  { id: 'agent::chat' },
   async ({ sessionId, message }) => {
     const { logger } = getContext()
-    
+
     // Get conversation history from StateModule
-    const history = await bridge.invokeFunction('state.get', {
+    const history = await call('state::get', {
       workflow_id: sessionId, key: 'history'
     }) || []
     
@@ -961,18 +934,18 @@ bridge.registerFunction(
     
     // If tool call, invoke function directly
     if (response.toolCall) {
-      const result = await bridge.invokeFunction(
+      const result = await call(
         response.toolCall.function,
         response.toolCall.args
       )
       // Stream response back
-      bridge.invokeFunctionAsync('streams.send', {
+      callVoid('streams::send', {
         stream: 'chat', group: sessionId, data: result
       })
     }
     
     // Save to memory
-    await bridge.invokeFunction('state.set', {
+    await call('state::set', {
       workflow_id: sessionId,
       key: 'history',
       value: [...history, { role: 'user', content: message }]
@@ -1042,34 +1015,31 @@ async function getFlag(flagKey: string, user: User, defaultValue: any) {
 // Cleanup
 process.on('SIGTERM', () => {
   ldClient.close()
-})
-
-// $25k+/year for enterprise features
-// Vendor lock-in for flag definitions`,
+})`,
     },
     iii: {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State + Streams = Feature Flags
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Define flags in StateModule
-bridge.registerFunction(
-  { function_path: 'flags.set' },
+registerFunction(
+  { id: 'flags::set' },
   async ({ flagKey, config }) => {
     const { logger } = getContext()
-    
+
     // Store flag config
-    await bridge.invokeFunction('state.set', {
+    await call('state::set', {
       workflow_id: 'flags',
       key: flagKey,
       value: config
     })
     
     // Broadcast to all connected clients instantly
-    bridge.invokeFunctionAsync('streams.broadcast', {
+    callVoid('streams::broadcast', {
       stream: 'flags',
       data: { type: 'update', flag: flagKey, config }
     })
@@ -1080,10 +1050,10 @@ bridge.registerFunction(
 )
 
 // Evaluate flag
-bridge.registerFunction(
-  { function_path: 'flags.evaluate' },
+registerFunction(
+  { id: 'flags::evaluate' },
   async ({ flagKey, user, defaultValue }) => {
-    const config = await bridge.invokeFunction('state.get', {
+    const config = await call('state::get', {
       workflow_id: 'flags', key: flagKey
     })
     
@@ -1100,9 +1070,7 @@ bridge.registerFunction(
     return defaultValue
   }
 )
-
-// Client subscribes to flags stream for real-time updates
-// No vendor, no monthly fee, full control`,
+`,
     },
     linesTraditional: 52,
     linesIII: 42,
@@ -1182,17 +1150,17 @@ class GameRoom extends Room<GameState> {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Streams for state, Events for actions
-import { Bridge, MemoryStream } from 'iii'
+import { init, MemoryStream } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 interface Player { x: number; y: number; score: number }
 const gameStream = new MemoryStream<Player>()
-bridge.createStream('game', gameStream)
+createStream('game', gameStream)
 
 // Player joins - StreamModule handles connections
-bridge.registerFunction(
-  { function_path: 'streams.onJoin(game)' },
+registerFunction(
+  { id: 'streams::onJoin(game)' },
   async ({ subscription_id, group_id }) => {
     // group_id = room ID
     await gameStream.set({
@@ -1208,8 +1176,8 @@ bridge.registerFunction(
 )
 
 // Handle player movement
-bridge.registerFunction(
-  { function_path: 'game.move' },
+registerFunction(
+  { id: 'game::move' },
   async ({ roomId, playerId, x, y }) => {
     const player = await gameStream.get({
       stream_name: 'game', group_id: roomId, item_id: playerId
@@ -1226,8 +1194,8 @@ bridge.registerFunction(
 )
 
 // Handle game action
-bridge.registerFunction(
-  { function_path: 'game.action' },
+registerFunction(
+  { id: 'game::action' },
   async ({ roomId, playerId, points }) => {
     const player = await gameStream.get({
       stream_name: 'game', group_id: roomId, item_id: playerId
@@ -1242,7 +1210,7 @@ bridge.registerFunction(
     })
     
     // Leaderboard update via event
-    bridge.invokeFunctionAsync('leaderboard.update', {
+    callVoid('leaderboard::update', {
       playerId, score: player.score + points
     })
   }
@@ -1325,27 +1293,24 @@ load = PythonOperator(
     dag=dag
 )
 
-extract >> transform >> load
-
-# Need Airflow scheduler + webserver + database
-# Need Celery workers + Redis + Flower`,
+extract >> transform >> load`,
     },
     iii: {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Events for flow, State for checkpoints
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Step 1: Extract
-bridge.registerFunction(
-  { function_path: 'etl.extract' },
+registerFunction(
+  { id: 'etl::extract' },
   async ({ pipeline }) => {
     const { logger } = getContext()
-    
+
     // Get checkpoint from StateModule
-    const checkpoint = await bridge.invokeFunction('state.get', {
+    const checkpoint = await call('state::get', {
       workflow_id: pipeline, key: 'checkpoint'
     })
     
@@ -1356,15 +1321,15 @@ bridge.registerFunction(
     logger.info('Extracted users', { count: users.length })
     
     // Trigger transform step
-    bridge.invokeFunctionAsync('etl.transform', { pipeline, users })
+    callVoid('etl::transform', { pipeline, users })
     
     return { extracted: users.length }
   }
 )
 
 // Step 2: Transform
-bridge.registerFunction(
-  { function_path: 'etl.transform' },
+registerFunction(
+  { id: 'etl::transform' },
   async ({ pipeline, users }) => {
     const transformed = users.map(user => ({
       user_id: user.id,
@@ -1373,7 +1338,7 @@ bridge.registerFunction(
     }))
     
     // Trigger load step
-    bridge.invokeFunctionAsync('etl.load', {
+    callVoid('etl::load', {
       pipeline,
       data: transformed
     })
@@ -1383,15 +1348,15 @@ bridge.registerFunction(
 )
 
 // Step 3: Load
-bridge.registerFunction(
-  { function_path: 'etl.load' },
+registerFunction(
+  { id: 'etl::load' },
   async ({ pipeline, data }) => {
     const { logger } = getContext()
-    
+
     await warehouse.bulkInsert('user_analytics', data)
-    
+
     // Update checkpoint
-    await bridge.invokeFunction('state.set', {
+    await call('state::set', {
       workflow_id: pipeline,
       key: 'checkpoint',
       value: new Date().toISOString()
@@ -1403,15 +1368,12 @@ bridge.registerFunction(
 )
 
 // Schedule with CronModule
-bridge.registerTrigger({   
+registerTrigger({
   type: 'cron',
-  path: 'etl.extract',
-  schedule: '0 2 * * *', // Daily at 2 AM
-  payload: { pipeline: 'user_analytics' }
+  functionId: 'etl::extract',
+  config: { schedule: '0 2 * * *' } // Daily at 2 AM
 })
-
-// No scheduler. No Redis. No workers.
-// Just functions and events.`,
+`,
     },
     linesTraditional: 58,
     linesIII: 65,
@@ -1424,13 +1386,8 @@ bridge.registerTrigger({
       title: "Convex",
       tools: ["Convex", "Firebase", "Supabase Realtime"],
       language: "typescript",
-      code: `// Convex - proprietary reactive backend
-import { mutation, query } from "./_generated/server"
+      code: `import { mutation, query } from "./_generated/server"
 import { v } from "convex/values"
-
-// Locked into Convex's hosting
-// Locked into Convex's database
-// Locked into Convex's pricing
 
 export const sendMessage = mutation({
   args: {
@@ -1441,7 +1398,6 @@ export const sendMessage = mutation({
     const user = await ctx.auth.getUserIdentity()
     if (!user) throw new Error("Not authenticated")
     
-    // Insert into Convex's proprietary database
     const messageId = await ctx.db.insert("messages", {
       channelId,
       content,
@@ -1456,9 +1412,6 @@ export const sendMessage = mutation({
 export const getMessages = query({
   args: { channelId: v.id("channels") },
   handler: async (ctx, { channelId }) => {
-    // Convex auto-subscribes clients
-    // But you can't use your own database
-    // Can't run on your infrastructure
     return await ctx.db
       .query("messages")
       .withIndex("by_channel", q => q.eq("channelId", channelId))
@@ -1468,21 +1421,20 @@ export const getMessages = query({
 })
 
 // Client subscribes reactively
-// useQuery(api.messages.getMessages, { channelId })
-// Real-time updates work, but you're locked in`,
+// useQuery(api.messages.getMessages, { channelId })`,
     },
     iii: {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Reactive backend, your infrastructure
-import { Bridge, getContext } from 'iii'
+import { init, getContext } from "@iii-dev/sdk"
 
-const bridge = new Bridge('ws://engine:8080')
+const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
 
 // Send message - triggers reactive update
-bridge.registerFunction(
+registerFunction(
   {
-    function_path: 'chat.sendMessage',
+    id: 'chat::sendMessage',
     metadata: { api_path: '/messages', http_method: 'POST' }
   },
   async ({ channelId, content }) => {
@@ -1497,7 +1449,7 @@ bridge.registerFunction(
     })
     
     // Emit to reactive subscribers
-    bridge.invokeFunctionAsync('realtime.publish', {
+    callVoid('realtime::publish', {
       channel: \`messages:\${channelId}\`,
       event: 'message.created',
       data: message
@@ -1509,9 +1461,9 @@ bridge.registerFunction(
 )
 
 // Query messages - clients can subscribe
-bridge.registerFunction(
+registerFunction(
   {
-    function_path: 'chat.getMessages',
+    id: 'chat::getMessages',
     metadata: { 
       api_path: '/channels/:channelId/messages',
       http_method: 'GET',
@@ -1529,13 +1481,7 @@ bridge.registerFunction(
     return messages
   }
 )
-
-// Client subscribes:
-// bridge.subscribe('chat.getMessages', { channelId }, (messages) => {
-//   setMessages(messages)
-// })
-//
-// Real-time updates. Your database. Your infrastructure.`,
+`,
     },
     linesTraditional: 45,
     linesIII: 55,

@@ -1,19 +1,20 @@
-<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 933.61 1050.31" xmlns="http://www.w3.org/2000/svg">
   <style>
     .bar { fill: #000000; }
     @media (prefers-color-scheme: dark) {
       .bar { fill: #FFFFFF; }
     }
   </style>
-  <!-- iii logo: 4x dot, 2x gap, 12x stem proportions -->
-  <!-- First i -->
-  <rect class="bar" x="17" y="14" width="14" height="14"/>
-  <rect class="bar" x="17" y="35" width="14" height="51"/>
-  <!-- Second i -->
-  <rect class="bar" x="43" y="14" width="14" height="14"/>
-  <rect class="bar" x="43" y="35" width="14" height="51"/>
-  <!-- Third i -->
-  <rect class="bar" x="69" y="14" width="14" height="14"/>
-  <rect class="bar" x="69" y="35" width="14" height="51"/>
+  <!-- First i - dot -->
+  <rect class="bar" width="233.4" height="233.4"/>
+  <!-- First i - stem -->
+  <rect class="bar" y="350.1" width="233.4" height="700.21"/>
+  <!-- Second i - dot -->
+  <rect class="bar" x="350.1" width="233.4" height="233.4"/>
+  <!-- Second i - stem -->
+  <rect class="bar" x="350.1" y="350.1" width="233.4" height="700.21"/>
+  <!-- Third i - dot -->
+  <rect class="bar" x="700.21" width="233.4" height="233.4"/>
+  <!-- Third i - stem -->
+  <rect class="bar" x="700.21" y="350.1" width="233.4" height="700.21"/>
 </svg>
-

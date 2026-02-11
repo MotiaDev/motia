@@ -98,6 +98,7 @@ function FeatureCard({
   features,
   cta,
 }: {
+  key?: string | number;
   icon: string;
   title: string;
   description: string;
