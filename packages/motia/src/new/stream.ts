@@ -1,4 +1,4 @@
-import type { StreamSetResult, UpdateOp } from '@iii-dev/sdk/streams'
+import type { StreamSetResult, UpdateOp } from '@iii-dev/sdk/stream'
 import type { StreamConfig } from '../types-stream'
 import { iii } from './iii'
 
@@ -6,7 +6,7 @@ export class Stream<TData> {
   constructor(readonly config: StreamConfig) {}
 
   async get(groupId: string, itemId: string): Promise<TData | null> {
-    return iii.call('streams.get', {
+    return iii.call('stream.get', {
       stream_name: this.config.name,
       group_id: groupId,
       item_id: itemId,
@@ -14,7 +14,7 @@ export class Stream<TData> {
   }
 
   async set(groupId: string, itemId: string, data: TData): Promise<StreamSetResult<TData> | null> {
-    return iii.call('streams.set', {
+    return iii.call('stream.set', {
       stream_name: this.config.name,
       group_id: groupId,
       item_id: itemId,
@@ -23,7 +23,7 @@ export class Stream<TData> {
   }
 
   async delete(groupId: string, itemId: string): Promise<void> {
-    return iii.call('streams.delete', {
+    return iii.call('stream.delete', {
       stream_name: this.config.name,
       group_id: groupId,
       item_id: itemId,
@@ -31,14 +31,14 @@ export class Stream<TData> {
   }
 
   async list(groupId: string): Promise<TData[]> {
-    return iii.call('streams.list', {
+    return iii.call('stream.list', {
       stream_name: this.config.name,
       group_id: groupId,
     })
   }
 
   async update(groupId: string, itemId: string, ops: UpdateOp[]): Promise<StreamSetResult<TData> | null> {
-    return iii.call('streams.update', {
+    return iii.call('stream.update', {
       stream_name: this.config.name,
       group_id: groupId,
       item_id: itemId,
@@ -47,7 +47,7 @@ export class Stream<TData> {
   }
 
   async listGroups(): Promise<string[]> {
-    return iii.call('streams.list_groups', {
+    return iii.call('stream.list_groups', {
       stream_name: this.config.name,
     })
   }

@@ -1,6 +1,6 @@
 import type { ApiRequest as IIIApiRequest, ApiResponse as IIIApiResponse } from '@iii-dev/sdk'
 import { getContext } from '@iii-dev/sdk'
-import type { StreamAuthInput, StreamJoinLeaveEvent } from '@iii-dev/sdk/streams'
+import type { StreamAuthInput, StreamJoinLeaveEvent } from '@iii-dev/sdk/stream'
 import { isApiTrigger, isCronTrigger, isQueueTrigger, isStateTrigger, isStreamTrigger } from '../../guards'
 import { Printer } from '../../printer'
 import type {
@@ -25,7 +25,7 @@ import type { AuthenticateStream, StreamAuthInput as MotiaStreamAuthInput, Strea
 import { iii } from '../iii'
 import { setupStepEndpoint } from '../setup-step-endpoint'
 import { StateManager } from '../state'
-import { Stream } from '../streams'
+import { Stream } from '../stream'
 
 const printer = new Printer(process.cwd())
 
@@ -364,7 +364,7 @@ export class Motia {
     }
 
     if (hasJoin) {
-      const function_id = 'motia.streams.join'
+      const function_id = 'motia::streams::join'
 
       iii.registerFunction({ id: function_id }, async (req: StreamJoinLeaveEvent) => {
         const { stream_name, group_id, id, context: authContext } = req
@@ -378,14 +378,14 @@ export class Motia {
       })
 
       iii.registerTrigger({
-        trigger_type: 'streams:join',
+        trigger_type: 'stream:join',
         function_id,
         config: {},
       })
     }
 
     if (hasLeave) {
-      const function_id = 'motia.streams.leave'
+      const function_id = 'motia::stream::leave'
 
       iii.registerFunction({ id: function_id }, async (req: StreamJoinLeaveEvent) => {
         const { stream_name, group_id, id, context: authContext } = req
@@ -399,7 +399,7 @@ export class Motia {
       })
 
       iii.registerTrigger({
-        trigger_type: 'streams:leave',
+        trigger_type: 'stream:leave',
         function_id,
         config: {},
       })

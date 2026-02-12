@@ -1,4 +1,4 @@
-import type { StreamSetResult, UpdateOp } from '@iii-dev/sdk/streams'
+import type { StreamSetResult, UpdateOp } from '@iii-dev/sdk/stream'
 import type { InternalStateManager } from '../types'
 import { iii } from './iii'
 

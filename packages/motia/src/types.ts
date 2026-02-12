@@ -1,5 +1,5 @@
 import type { Logger } from '@iii-dev/sdk'
-import type { StreamSetResult, UpdateOp } from '@iii-dev/sdk/streams'
+import type { StreamSetResult, UpdateOp } from '@iii-dev/sdk/stream'
 import type { FromSchema } from 'json-schema-to-ts'
 import type { ZodType } from 'zod'
 import * as z from 'zod'
