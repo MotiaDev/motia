@@ -3,7 +3,7 @@
   "version": "1.0.0-beta.197",
   "private": false,
   "publishConfig": {
-    "access": "private"
+    "access": "public"
   },
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.19.0",
