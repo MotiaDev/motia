@@ -195,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </a>
           <a
             href="/docs"
-            className={`hidden transition-colors uppercase ${
+            className={`transition-colors uppercase ${
               isDarkMode
                 ? "text-iii-accent hover:text-iii-light"
                 : "text-iii-accent-light hover:text-iii-black"
