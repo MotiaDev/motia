@@ -14,9 +14,8 @@ import { getMDXComponents } from "@/mdx-components";
 
 function isIndexPage(slugs: string[] | undefined): boolean {
   if (!slugs || slugs.length === 0) return false;
-  // Check if this page is an index page by seeing if there's a folder with this as its index
   const tree = source.pageTree;
-  return hasMatchingFolderIndex(tree.children, `/${slugs.join("/")}`);
+  return hasMatchingFolderIndex(tree.children, `/docs/${slugs.join("/")}`);
 }
 
 function hasMatchingFolderIndex(
@@ -52,7 +51,11 @@ export default async function Page(props: {
       tableOfContent={{ style: "clerk" }}
       footer={
         isRootIndex
-          ? { items: { next: { name: 'Quickstart', url: '/tutorials/quickstart' } } }
+          ? {
+              items: {
+                next: { name: "Quickstart", url: "/docs/tutorials/quickstart" },
+              },
+            }
           : { enabled: !isIndex }
       }
     >
@@ -62,7 +65,6 @@ export default async function Page(props: {
       <DocsBody>
         <MDX
           components={getMDXComponents({
-            // this allows you to link to other pages with relative file paths
             a: createRelativeLink(source, page),
           })}
         />
