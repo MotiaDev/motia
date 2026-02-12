@@ -27,11 +27,12 @@ import { Mermaid } from './lib/components/Mermaid'
 import { ResponseField } from './lib/components/ResponseField'
 import { Tip } from './lib/components/Tip'
 import { Warning } from './lib/components/Warning'
-import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
+import * as TabsComponents from 'fumadocs-ui/components/tabs'
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
     ...defaultMdxComponents,
+    ...TabsComponents,
     ...components,
     Card,
     Columns,
@@ -59,7 +60,5 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Cog,
     Handshake,
     LayoutTemplate,
-    Tab,
-    Tabs,
   }
 }

@@ -4,7 +4,7 @@ import { lucideIconsPlugin } from "fumadocs-core/source/lucide-icons";
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
 export const source = loader({
-  baseUrl: "/docs",
+  baseUrl: "/",
   source: docs.toFumadocsSource(),
   plugins: [lucideIconsPlugin()],
 });

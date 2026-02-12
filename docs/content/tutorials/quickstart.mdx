@@ -1,78 +1,76 @@
 ---
 title: 'Quickstart'
-description: 'Learn everything you need to start building with iii'
+description: 'Learn everything you need to start building with the iii SDK'
 ---
 
-The iii SDK is the base SDK for building iii applications. It provides the core functionality for building iii applications.
+<Callout title="Install iii" type="info">
+  If you haven't installed iii yet then first run `curl -fsSL https://install.iii.dev/latest.sh | sh` and verify the
+  installation with `iii --version`
+</Callout>
 
-## Install the SDK
+The advantage of iii is that it transforms a backend from behaving like a series of separate concerns, domains, and services to behaving like one cohesive and interoperable application.
 
-<Tabs items={['Node', 'Python']} groupId="language" persist>
-  <Tab value="Node">
+This Quickstart will show how any project can leverage iii and the iii SDK to unify their stack.
+
+### 1. Create a new quickstart project
+
+The project setup will indicate that this project includes TypeScript, Python, and Rust languages. The README contains instructions about using Docker Compose in case not all are available on the system.
 
 ```bash
-npm install @iii-dev/sdk
+iii-cli create --template quickstart my-iii-backend
+cd my-iii-backend
+```
+
+### 2. Run the Engine
+
+```bash
+iii --config iii-config.yaml
+```
+
+### 3. Open the project
+
+Open the project in your IDE. From the project directory, run:
+
+<Tabs items={['VS Code', 'Cursor', 'JetBrains', 'Sublime', 'Neovim']}>
+  <Tab value="VS Code">
+
+```bash
+code . README.md
 ```
 
   </Tab>
-  <Tab value="Python">
+  <Tab value="Cursor">
 
 ```bash
-uv pip install iii-sdk
-# or
-pip install iii-sdk
+cursor . README.md
+```
+
+  </Tab>
+  <Tab value="JetBrains">
+
+```bash
+idea . README.md
+```
+
+  </Tab>
+  <Tab value="Sublime">
+
+```bash
+subl . README.md
+```
+
+  </Tab>
+  <Tab value="Neovim">
+
+```bash
+nvim README.md
 ```
 
   </Tab>
 </Tabs>
 
-## Usage
+## Next Steps
 
-Run `iii` command line, this will start the iii process.
-
-```bash
-iii
-```
-
-<Tabs items={['Node', 'Python']} groupId="language" persist>
-  <Tab value="Node">
-
-```typescript
-import { Bridge } from '@iii-dev/sdk'
-
-const bridge = new Bridge(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
-```
-
-  </Tab>
-  <Tab value="Python">
-
-```python
-import asyncio
-import os
-from iii import Bridge
-
-async def main() -> None:
-    bridge = Bridge(os.getenv("III_BRIDGE_URL", "ws://localhost:49134"))
-
-    @bridge.function("greet.hello")
-    async def hello(data):
-        name = data.get("name", "World")
-        return {"message": f"Hello, {name}!"}
-
-    await bridge.connect()
-    await asyncio.Event().wait()
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-  </Tab>
-</Tabs>
-
-<Tip>The port to iii is usually `ws://localhost:49134` if you're running the iii process locally.</Tip>
-
-## More information
-
-<Card icon={<ArrowBigDownDash />} title="@iii-dev/sdk" href="/api-reference/iii-sdk">
-  Check the API Reference for more information.
+<Card icon={<LayoutTemplate />} title="Learn more" href={`/concepts`}>
+  Learn how Call and Register simplify backend application development.
 </Card>

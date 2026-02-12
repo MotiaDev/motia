@@ -1,5 +1,5 @@
 ---
-title: "Deployment & Configuration"
+title: 'Deployment & Configuration'
 ---
 
 This guide covers deploying the iii Engine and configuring it for production use.
@@ -9,7 +9,7 @@ This guide covers deploying the iii Engine and configuring it for production use
 Install the iii Engine binary:
 
 ```bash
-curl -fsSL https://install.iii.dev | bash
+curl -fsSL https://install.iii.dev/latest.sh | bash
 ```
 
 Or run directly with Cargo:
@@ -22,10 +22,10 @@ cargo install iii-engine
 
 The engine accepts the following CLI arguments:
 
-| Argument | Short | Default | Description |
-|----------|-------|---------|-------------|
-| `--config` | `-c` | `config.yaml` | Path to configuration file |
-| `--version` | `-v` | - | Print version and exit |
+| Argument    | Short | Default       | Description                |
+| ----------- | ----- | ------------- | -------------------------- |
+| `--config`  | `-c`  | `config.yaml` | Path to configuration file |
+| `--version` | `-v`  | -             | Print version and exit     |
 
 Start the engine:
 
@@ -83,6 +83,7 @@ modules:
 ```
 
 **Behavior:**
+
 - If `REDIS_URL` is set, uses that value
 - If not set, uses the default (`redis://localhost:6379`)
 - If no default provided and variable is missing, engine logs an error
@@ -109,12 +110,12 @@ The base `docker-compose.yml` runs the engine with Redis and RabbitMQ:
 docker compose up -d
 ```
 
-| Port  | Service                    |
-|-------|----------------------------|
+| Port  | Service                        |
+| ----- | ------------------------------ |
 | 49134 | WebSocket (worker connections) |
-| 3111  | REST API                   |
-| 3112  | Streams API                |
-| 9464  | Prometheus metrics         |
+| 3111  | REST API                       |
+| 3112  | Streams API                    |
+| 9464  | Prometheus metrics             |
 
 ### Docker Compose (Production Example)
 
@@ -339,8 +340,8 @@ Configure logging verbosity:
 modules:
   - class: modules::observability::LoggingModule
     config:
-      level: debug  # trace, debug, info, warn, error
-      format: json  # or default
+      level: debug # trace, debug, info, warn, error
+      format: json # or default
 ```
 
 Or via environment variable:
