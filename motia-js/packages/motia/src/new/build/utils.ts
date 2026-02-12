@@ -2,7 +2,6 @@ import type { ApiRequest as IIIApiRequest, ApiResponse as IIIApiResponse } from 
 import { getContext } from 'iii-sdk'
 import type { StreamAuthInput, StreamJoinLeaveEvent } from 'iii-sdk/stream'
 import { isApiTrigger, isCronTrigger, isQueueTrigger, isStateTrigger, isStreamTrigger } from '../../guards'
-import { Printer } from '../../printer'
 import type {
   ApiMiddleware,
   Enqueuer,
@@ -24,10 +23,8 @@ import type {
 import type { AuthenticateStream, StreamAuthInput as MotiaStreamAuthInput, StreamConfig } from '../../types-stream'
 import { iii } from '../iii'
 import { setupStepEndpoint } from '../setup-step-endpoint'
-import { StateManager } from '../state'
+import { stateManager } from '../state'
 import { Stream } from '../stream'
-
-const printer = new Printer(process.cwd())
 
 type StepWithHandler = Step & { handler: StepHandler<unknown> }
 
@@ -74,12 +71,11 @@ const flowContext = <EnqueueData, TInput = unknown>(
   const traceId = crypto.randomUUID()
   const { logger } = getContext()
   const enqueue: Enqueuer<EnqueueData> = async (queue: EnqueueData): Promise<void> => iii.call('enqueue', queue)
-  const state = new StateManager()
 
   const context: FlowContext<EnqueueData, TInput> = {
     enqueue,
     traceId,
-    state,
+    state: stateManager,
     logger,
     streams: streamManager.streams,
     trigger,
@@ -142,9 +138,6 @@ export class Motia {
 
   public addStep(config: StepConfig, stepPath: string, handler: StepHandler<unknown>, filePath: string) {
     const step: StepWithHandler = { config, handler, filePath: stepPath }
-
-    printer.printStepCreated(step)
-
     const metadata = { ...step.config, filePath }
 
     step.config.triggers.forEach((trigger: TriggerConfig, index: number) => {
@@ -334,7 +327,6 @@ export class Motia {
   }
 
   public addStream(config: StreamConfig, streamPath: string) {
-    printer.printStreamCreated({ filePath: streamPath, config, hidden: false })
     this.streams[config.name] = new Stream<unknown>(config)
   }
 

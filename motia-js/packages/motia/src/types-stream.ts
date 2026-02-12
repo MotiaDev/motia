@@ -1,7 +1,14 @@
-import type { StreamAuthResult, StreamContext, StreamJoinResult, StreamSetResult, UpdateOp } from 'iii-sdk'
+import type { StreamAuthResult, StreamContext, StreamJoinResult, StreamSetResult, UpdateOp } from 'iii-sdk/stream'
 import type { FlowContext, StepSchemaInput } from './types'
 
-export type { StreamSetInput, StreamSetResult, UpdateOp } from 'iii-sdk'
+export type {
+  StreamAuthResult,
+  StreamContext,
+  StreamJoinResult,
+  StreamSetInput,
+  StreamSetResult,
+  UpdateOp,
+} from 'iii-sdk/stream'
 export type StreamSubscription = { groupId: string; id?: string }
 
 export interface StreamAuthInput {

@@ -39,3 +39,5 @@ export class StateManager implements InternalStateManager {
     }
   }
 }
+
+export const stateManager = new StateManager()
