@@ -30,7 +30,6 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { insertAccessRequest, checkAccessRequest } from "./lib/supabase";
 
 const AppRouter: React.FC = () => {
   const pathname = window.location.pathname;
@@ -48,25 +47,14 @@ const AppRouter: React.FC = () => {
 const App: React.FC = () => {
   const [showTerminal, setShowTerminal] = useState(false);
   const [isGodMode, setIsGodMode] = useState(false);
-  const [email, setEmail] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(() => {
     // Check localStorage on initial load
     return localStorage.getItem("iii_access_requested") === "true";
   });
 
-  // Restore access state from localStorage on mount
   useEffect(() => {
-    const hasAccess = localStorage.getItem("iii_access_requested") === "true";
-    if (hasAccess) {
+    if (localStorage.getItem("iii_access_requested") === "true") {
       setIsSubmitted(true);
-      // Optionally verify with Supabase in background (non-blocking)
-      const storedEmail = localStorage.getItem("iii_access_email");
-      if (storedEmail) {
-        checkAccessRequest(storedEmail).catch(() => {
-          // Silently fail - localStorage is source of truth for UX
-        });
-      }
     }
   }, []);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -168,39 +156,6 @@ const App: React.FC = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setIsSubmitting(true);
-
-    try {
-      const result = await insertAccessRequest(email);
-
-      if (result.success) {
-        setIsSubmitted(true);
-        localStorage.setItem("iii_access_requested", "true");
-        localStorage.setItem("iii_access_email", email);
-        setEmail("");
-      } else {
-        // Handle error silently or show a message
-        console.error("Failed to submit email:", result.error);
-        setIsSubmitted(true); // Still show success to user
-        localStorage.setItem("iii_access_requested", "true");
-        localStorage.setItem("iii_access_email", email);
-        setEmail("");
-      }
-    } catch (error) {
-      console.error("Error submitting email:", error);
-      setIsSubmitted(true); // Still show success to user
-      localStorage.setItem("iii_access_requested", "true");
-      localStorage.setItem("iii_access_email", email);
-      setEmail("");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // Machine mode - raw markdown/text dump for AI consumption
   // Easter eggs still work: Konami code, terminal access
