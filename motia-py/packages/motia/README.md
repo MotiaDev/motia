@@ -1,0 +1,113 @@
+# Motia Framework for Python
+
+High-level framework for building workflows with the III Engine.
+
+## Installation
+
+```bash
+uv pip install iii-motia
+```
+
+## Usage
+
+### Defining a Step
+
+```python
+from motia import FlowContext, event
+
+config = {
+    "name": "process-data",
+    "triggers": [event("data.created")],
+    "emits": ["data.processed"],
+}
+
+async def handler(data: dict, ctx: FlowContext) -> None:
+    ctx.logger.info("Processing data", data)
+    await ctx.emit({"topic": "data.processed", "data": data})
+```
+
+### API Steps
+
+```python
+from motia import ApiRequest, ApiResponse, FlowContext, api
+
+config = {
+    "name": "create-item",
+    "triggers": [api("POST", "/items")],
+    "emits": ["item.created"],
+}
+
+async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
+    ctx.logger.info("Creating item", req.body)
+    await ctx.emit({"topic": "item.created", "data": req.body})
+    return ApiResponse(status=201, body={"id": "123"})
+```
+
+### Streams
+
+```python
+from motia import Stream
+
+# Define a stream
+todo_stream = Stream[dict]("todos")
+
+# Use the stream
+item = await todo_stream.get("group-1", "item-1")
+await todo_stream.set("group-1", "item-1", {"title": "Buy milk"})
+await todo_stream.delete("group-1", "item-1")
+items = await todo_stream.get_group("group-1")
+```
+
+
+### Build & Publish
+```bash
+python -m build
+uv publish --index cloudsmith dist/*
+```
+
+
+## Features
+
+- Event-driven step definitions
+- API route handlers
+- Cron job support
+- Stream-based state management
+- Type-safe context with logging
+
+## Testing
+
+### Running Integration Tests
+
+Integration tests require a running III Engine instance. Make sure to have it built or installed before running tests.
+
+1. Install dev dependencies:
+   ```bash
+   cd motia && uv sync --all-extras
+
+   ```
+
+   ```
+3. Run tests:
+   ```bash
+   uv run pytest
+   ```
+
+### Test Configuration
+
+Tests use non-default ports to avoid conflicts:
+- Engine WebSocket: `ws://localhost:49199`
+- HTTP API: `http://localhost:3199`
+
+Set `III_ENGINE_PATH` environment variable to point to the III engine binary.
+
+### Test Coverage
+
+The integration test suite covers:
+- Bridge connection and function registration
+- API triggers (HTTP endpoints)
+- KV Server operations
+- PubSub messaging
+- Logging module
+- Motia framework integration
+- Stream operations (when available)
+- State management (when available)

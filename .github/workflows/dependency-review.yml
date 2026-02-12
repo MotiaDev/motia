@@ -3,9 +3,10 @@ name: Dependency Review
 on:
   pull_request:
     paths:
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '**/package.json'
+      - 'motia-js/package.json'
+      - 'motia-js/pnpm-lock.yaml'
+      - 'motia-js/**/package.json'
+      - 'motia-py/**/pyproject.toml'
       - '.github/workflows/dependency-review.yml'
 
 permissions:
@@ -16,6 +17,7 @@ jobs:
   dependency-review:
     if: false
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

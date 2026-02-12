@@ -2,16 +2,16 @@ name: PR Validation
 
 on:
   pull_request_target:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, edited, reopened]
 
 permissions:
   issues: write
   pull-requests: write
-  statuses: write
 
 jobs:
   validate-title:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Validate PR Title
         uses: amannn/action-semantic-pull-request@v5
@@ -36,9 +36,10 @@ jobs:
             The subject "{subject}" found in the pull request title "{title}"
             didn't match the configured pattern. Please ensure that the subject
             doesn't start with an uppercase character.
-            
+
   welcome-contributor:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
     steps:
       - name: Welcome First Time Contributor
@@ -47,21 +48,21 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: pr.number,
               body: `👋 Welcome @${pr.user.login}! Thank you for your first contribution to Motia!
-              
+
               Our maintainers will review your PR shortly. In the meantime, please ensure:
               - [ ] Your PR follows our contribution guidelines
               - [ ] All tests are passing
               - [ ] The PR title follows conventional commits format
-              
+
               If you have any questions, feel free to ask in this PR or join our community discussions!`
             });
-            
+
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,

@@ -34,7 +34,7 @@ jobs:
   create-tag:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Generate token
         id: generate_token
@@ -54,85 +54,119 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.generate_token.outputs.token }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
       - name: Setup Git
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Create .npmrc
-        run: |
-          echo "tag-version-prefix=v" > .npmrc
-
-      - name: Get current version
+      - name: Get current version from git tags
         id: current_version
         run: |
-          current_version=$(node -p "require('./package.json').version")
-          echo "Current version: v$current_version"
-          echo "version=v$current_version" >> $GITHUB_OUTPUT
+          LATEST_TAG=$(git tag --sort=-version:refname --list 'v*' | head -n 1)
 
-      - name: Build and execute version command
-        id: version_command
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No existing tags found, starting from v0.0.0"
+            LATEST_TAG="v0.0.0"
+          fi
+
+          CURRENT="${LATEST_TAG#v}"
+          echo "Current version: $CURRENT (tag: $LATEST_TAG)"
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Compute next version
+        id: next_version
         env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          CURRENT: ${{ steps.current_version.outputs.version }}
+          VERSION_TYPE: ${{ github.event.inputs.version_type }}
+          PREID: ${{ github.event.inputs.prerelease_identifier }}
+          CUSTOM: ${{ github.event.inputs.custom_version }}
         run: |
-          version_type="${{ github.event.inputs.version_type }}"
-          preid="${{ github.event.inputs.prerelease_identifier }}"
-          custom="${{ github.event.inputs.custom_version }}"
-          
-          cmd="pnpm version"
-          
-          if [[ -n "$custom" ]]; then
-            if [[ ! $custom =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
-              echo "❌ Invalid version format. Use semantic versioning (e.g., 1.2.3, v1.2.3, 1.2.3-beta.1)"
+          if [[ -n "$CUSTOM" ]]; then
+            if [[ ! $CUSTOM =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
+              echo "::error::Invalid version format. Use semantic versioning (e.g., 1.2.3, v1.2.3, 1.2.3-beta.1)"
               exit 1
             fi
-            custom_clean=$(echo "$custom" | sed 's/^v//')
-            cmd="$cmd $custom_clean"
-          elif [[ "$version_type" == "prerelease-bump" ]]; then
-            cmd="$cmd prerelease"
-          elif [[ "$version_type" == "prerelease" ]]; then
-            cmd="$cmd prepatch"
+            NEW_VERSION=$(echo "$CUSTOM" | sed 's/^v//')
           else
-            cmd="$cmd $version_type"
-          fi
-                    
-          if [[ "$version_type" == "prerelease" || "$version_type" == "prerelease-bump" ]] && [[ -n "$preid" ]]; then
-            cmd="$cmd --preid $preid"
-          fi
-          
-          echo "Executing: $cmd"
-          eval $cmd
-          
-          new_version=$(node -p "require('./package.json').version")
-          echo "New version: v$new_version"
-          
-          git push origin main --follow-tags
-          commit_sha=$(git rev-parse HEAD)
-          echo "version=v$new_version" >> $GITHUB_OUTPUT
-          echo "✅ Version $new_version created and pushed successfully!"
-          echo "### ✅ Version Created Successfully" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** $new_version" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** $commit_sha" >> $GITHUB_STEP_SUMMARY
-          echo "- **View tag:** https://github.com/${{ github.repository }}/releases/tag/$new_version" >> $GITHUB_STEP_SUMMARY
-          
-          echo "commit=$commit_sha" >> $GITHUB_OUTPUT
+            # Parse current version into components
+            BASE=$(echo "$CURRENT" | cut -d'-' -f1)
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
 
+            case "$VERSION_TYPE" in
+              major)
+                NEW_VERSION="$((MAJOR + 1)).0.0"
+                ;;
+              minor)
+                NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
+                ;;
+              patch)
+                NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+                ;;
+              prerelease)
+                # Create a new prepatch pre-release (e.g., 1.2.3 -> 1.2.4-beta.0)
+                NEXT_PATCH=$((PATCH + 1))
+                LABEL="${PREID:-beta}"
+                NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-${LABEL}.0"
+                ;;
+              prerelease-bump)
+                # Bump existing pre-release number (e.g., 1.2.3-beta.0 -> 1.2.3-beta.1)
+                PRE_PART=$(echo "$CURRENT" | cut -d'-' -f2-)
+                if [ -z "$PRE_PART" ] || [ "$PRE_PART" = "$CURRENT" ]; then
+                  echo "::error::Current version ($CURRENT) is not a pre-release. Use 'prerelease' instead."
+                  exit 1
+                fi
 
-      - name: Show version information
+                # Extract pre-release label and number
+                PRE_LABEL=$(echo "$PRE_PART" | sed 's/\.[0-9]*$//')
+                PRE_NUM=$(echo "$PRE_PART" | grep -oE '[0-9]+$')
+
+                if [ -z "$PRE_NUM" ]; then
+                  PRE_NUM=0
+                fi
+
+                # Use provided preid or keep existing label
+                if [ -n "$PREID" ]; then
+                  PRE_LABEL="$PREID"
+                fi
+
+                NEW_VERSION="${BASE}-${PRE_LABEL}.$((PRE_NUM + 1))"
+                ;;
+              *)
+                echo "::error::Unknown version type: $VERSION_TYPE"
+                exit 1
+                ;;
+            esac
+          fi
+
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          NEW_VERSION: ${{ steps.next_version.outputs.version }}
         run: |
-          echo "### Version Information" >> $GITHUB_STEP_SUMMARY
-          echo "- **Current version:** ${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **New version:** ${{ steps.version_command.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version type:** ${{ github.event.inputs.version_type }}" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event.inputs.version_type }}" =~ "prerelease" ]]; then
-            echo "- **Pre-release identifier:** ${{ github.event.inputs.prerelease_identifier }}" >> $GITHUB_STEP_SUMMARY
-          fi
+          TAG_NAME="v${NEW_VERSION}"
+          git tag -a "$TAG_NAME" -m "Release $NEW_VERSION"
+          git push origin "$TAG_NAME"
+          echo "Tag $TAG_NAME created and pushed successfully!"
 
-      - name: Set outputs
-        id: outputs
+      - name: Summary
+        env:
+          CURRENT_VERSION: ${{ steps.current_version.outputs.version }}
+          NEW_VERSION: ${{ steps.next_version.outputs.version }}
+          VERSION_TYPE: ${{ github.event.inputs.version_type }}
+          PREID: ${{ github.event.inputs.prerelease_identifier }}
         run: |
-          echo "tag=${{ steps.version_command.outputs.version }}" >> $GITHUB_OUTPUT
-          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT 
+          echo "### Tag Created Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Previous version:** ${CURRENT_VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New version:** ${NEW_VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** v${NEW_VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version type:** ${VERSION_TYPE}" >> $GITHUB_STEP_SUMMARY
+          if [[ "${VERSION_TYPE}" =~ "prerelease" ]]; then
+            echo "- **Pre-release identifier:** ${PREID}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The deploy workflow will be triggered automatically by this tag." >> $GITHUB_STEP_SUMMARY

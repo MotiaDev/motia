@@ -1,0 +1,3 @@
+import { init } from 'iii-sdk'
+
+export const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')

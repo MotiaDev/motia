@@ -1,0 +1,106 @@
+name: WIP Release - PyPI
+
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Pre-release label (e.g. beta, alpha, rc, next)'
+        required: true
+        default: 'next'
+      branch:
+        description: 'Branch containing the WIP changes'
+        required: true
+        default: 'main'
+
+jobs:
+  wip-release-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: motia-py/packages/motia
+    steps:
+      - name: Warning
+        working-directory: .
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+          BRANCH: ${{ github.event.inputs.branch }}
+        run: |
+          echo "::warning::WIP Release bypasses the approval gate. Use for testing only."
+          echo "Publishing pre-release with label: ${TAG}"
+          echo "From branch: ${BRANCH}"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        working-directory: .
+        run: pip install build
+
+      - name: Compute version from latest tag
+        id: version
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          LATEST_TAG=$(git tag --sort=-version:refname --list 'v*' | head -n 1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            BASE_VERSION="0.0.1"
+          else
+            CURRENT="${LATEST_TAG#v}"
+            BASE=$(echo "$CURRENT" | cut -d'-' -f1)
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+            BASE_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          NEW_VERSION="${BASE_VERSION}-${TAG}.${TIMESTAMP}"
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Computed version: $NEW_VERSION"
+
+      - name: Stamp version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          echo "Set pyproject.toml version to: $VERSION"
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: motia-py/packages/motia/dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Summary
+        working-directory: .
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ github.event.inputs.tag }}
+          BRANCH: ${{ github.event.inputs.branch }}
+        run: |
+          echo "### WIP Release - PyPI" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: motia@${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Label**: ${TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${BRANCH}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Install" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "pip install motia==${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

@@ -1,4 +1,5 @@
 name: 'Setup'
+description: 'Setup Node.js, pnpm, and install dependencies for the motia-js workspace'
 
 inputs:
   npm-token:
@@ -13,6 +14,7 @@ runs:
       with:
         node-version: '22.21.1'
         cache: 'pnpm'
+        cache-dependency-path: motia-js/pnpm-lock.yaml
 
     - name: Setup NPM authentication
       if: inputs.npm-token != ''
@@ -20,13 +22,14 @@ runs:
       env:
         NPM_TOKEN: ${{ inputs.npm-token }}
       run: |
-        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> motia-js/.npmrc
 
     - name: Install dependencies
       shell: bash
+      working-directory: motia-js
       run: pnpm --filter=!playground install
 
     - name: Build packages
       shell: bash
+      working-directory: motia-js
       run: pnpm --filter=motia build
-
