@@ -27,4 +27,4 @@ packages = ["steps"]
 allow-direct-references = true
 
 [tool.uv.sources]
-iii-motia = { path = "../motia" }
+iii-motia = { path = "../packages/motia" }
