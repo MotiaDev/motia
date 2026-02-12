@@ -13,6 +13,9 @@ services:
       - ./config-test.yaml:/app/config.yaml:ro
     environment:
       - RUST_LOG=info
+      - OTEL_ENABLED=true
+      - OTEL_EXPORTER_TYPE=memory
+      - OTEL_SERVICE_NAME=iii-test
     depends_on:
       redis:
         condition: service_healthy

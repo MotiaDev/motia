@@ -1,10 +1,9 @@
 # motia/tests/test_stream_trigger_types.py
 """Tests for Stream trigger types."""
-import pytest
 from motia.types import (
+    StreamEvent,
     StreamTrigger,
     StreamTriggerInput,
-    StreamEvent,
     stream,
 )
 

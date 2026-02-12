@@ -3,6 +3,8 @@
 import logging
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
+from .tracing import operation_span, record_exception, set_span_ok
+
 if TYPE_CHECKING:
     from iii import III
 
@@ -28,53 +30,119 @@ class Stream(Generic[TData]):
 
     async def get(self, group_id: str, item_id: str) -> TData | None:
         """Get an item from the stream."""
-        return await self._get_bridge().call(
-            "streams.get",
-            {
-                "stream_name": self.stream_name,
-                "group_id": group_id,
-                "item_id": item_id,
+        with operation_span(
+            "stream.get",
+            **{
+                "motia.stream.name": self.stream_name,
+                "motia.stream.group_id": group_id,
+                "motia.stream.item_id": item_id,
             },
-        )
+        ) as span:
+            try:
+                result = await self._get_bridge().call(
+                    "stream.get",
+                    {
+                        "stream_name": self.stream_name,
+                        "group_id": group_id,
+                        "item_id": item_id,
+                    },
+                )
+                set_span_ok(span)
+                return result
+            except Exception as exc:
+                record_exception(span, exc)
+                raise
 
     async def set(self, group_id: str, item_id: str, data: TData) -> TData:
         """Set an item in the stream."""
-        return await self._get_bridge().call(
-            "streams.set",
-            {
-                "stream_name": self.stream_name,
-                "group_id": group_id,
-                "item_id": item_id,
-                "data": data,
+        with operation_span(
+            "stream.set",
+            **{
+                "motia.stream.name": self.stream_name,
+                "motia.stream.group_id": group_id,
+                "motia.stream.item_id": item_id,
             },
-        )
+        ) as span:
+            try:
+                result = await self._get_bridge().call(
+                    "stream.set",
+                    {
+                        "stream_name": self.stream_name,
+                        "group_id": group_id,
+                        "item_id": item_id,
+                        "data": data,
+                    },
+                )
+                set_span_ok(span)
+                return result
+            except Exception as exc:
+                record_exception(span, exc)
+                raise
 
     async def delete(self, group_id: str, item_id: str) -> None:
         """Delete an item from the stream."""
-        await self._get_bridge().call(
-            "streams.delete",
-            {
-                "stream_name": self.stream_name,
-                "group_id": group_id,
-                "item_id": item_id,
+        with operation_span(
+            "stream.delete",
+            **{
+                "motia.stream.name": self.stream_name,
+                "motia.stream.group_id": group_id,
+                "motia.stream.item_id": item_id,
             },
-        )
+        ) as span:
+            try:
+                await self._get_bridge().call(
+                    "stream.delete",
+                    {
+                        "stream_name": self.stream_name,
+                        "group_id": group_id,
+                        "item_id": item_id,
+                    },
+                )
+                set_span_ok(span)
+            except Exception as exc:
+                record_exception(span, exc)
+                raise
 
     async def get_group(self, group_id: str) -> list[TData]:
         """Get all items in a group."""
-        return await self._get_bridge().call(
-            "streams.list",
-            {
-                "stream_name": self.stream_name,
-                "group_id": group_id,
+        with operation_span(
+            "stream.list",
+            **{
+                "motia.stream.name": self.stream_name,
+                "motia.stream.group_id": group_id,
             },
-        )
+        ) as span:
+            try:
+                result = await self._get_bridge().call(
+                    "stream.list",
+                    {
+                        "stream_name": self.stream_name,
+                        "group_id": group_id,
+                    },
+                )
+                set_span_ok(span)
+                return result
+            except Exception as exc:
+                record_exception(span, exc)
+                raise
 
     async def list_groups(self) -> list[str]:
         """List all group IDs for the stream."""
-        return await self._get_bridge().call(
-            "streams.listGroups",
-            {
-                "stream_name": self.stream_name,
+        with operation_span(
+            "stream.list_groups",
+            **{
+                "motia.stream.name": self.stream_name,
             },
-        )
+        ) as span:
+            try:
+                result = await self._get_bridge().call(
+                    "stream.list_groups",
+                    {
+                        "stream_name": self.stream_name,
+                    },
+                )
+                set_span_ok(span)
+                return result
+            except Exception as exc:
+                record_exception(span, exc)
+                raise

@@ -1,5 +1,6 @@
 """Motia framework for III Engine."""
 
+from . import tracing
 from .bridge import bridge
 from .guards import is_api_step, is_cron_step, is_event_step, is_noop_step
 from .runtime import Motia
@@ -85,4 +86,6 @@ __all__ = [
     "is_cron_step",
     "is_event_step",
     "is_noop_step",
+    # Tracing
+    "tracing",
 ]

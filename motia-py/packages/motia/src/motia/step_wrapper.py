@@ -12,6 +12,14 @@ from .bridge import bridge
 from .schema_utils import schema_to_json_schema
 from .state import StateManager
 from .streams import Stream
+from .tracing import (
+    get_trace_id_from_span,
+    instrument_bridge,
+    operation_span,
+    record_exception,
+    set_span_ok,
+    step_span,
+)
 from .types import (
     ApiRequest,
     ApiResponse,
@@ -188,6 +196,8 @@ def register_step(
     if errors:
         raise ValueError(f"Invalid step config for {step.config.name}: {', '.join(errors)}")
 
+    instrument_bridge(bridge)
+
     log.info(f"Step registered: {step.config.name}")
 
     for trigger_index, trigger in enumerate(config.triggers):
@@ -201,110 +211,135 @@ def register_step(
                 req: dict[str, Any],
                 _trigger=trigger,
             ) -> dict[str, Any]:
-                context_data = get_context()
+                with step_span(
+                    step.config.name,
+                    "api",
+                    **{"http.method": req.get("method"), "http.route": req.get("path")},
+                ) as span:
+                    try:
+                        context_data = get_context()
 
-                trigger_metadata = TriggerMetadata(
-                    type="api",
-                    path=req.get("path"),
-                    method=req.get("method"),
-                )
+                        trigger_metadata = TriggerMetadata(
+                            type="api",
+                            path=req.get("path"),
+                            method=req.get("method"),
+                        )
 
-                async def emit(event: Any) -> None:
-                    await bridge.call("enqueue", event)
+                        async def emit(event: Any) -> None:
+                            with operation_span("emit", **{"motia.step.name": step.config.name}):
+                                await bridge.call("enqueue", event)
 
-                motia_request = ApiRequest(
-                    path_params=req.get("path_params", {}),
-                    query_params=req.get("query_params", {}),
-                    body=req.get("body"),
-                    headers=req.get("headers", {}),
-                )
+                        motia_request = ApiRequest(
+                            path_params=req.get("path_params", {}),
+                            query_params=req.get("query_params", {}),
+                            body=req.get("body"),
+                            headers=req.get("headers", {}),
+                        )
 
-                if isinstance(_trigger, ApiTrigger) and _trigger.body_schema:
-                    motia_request.body = _validate_input_schema(
-                        _trigger.body_schema,
-                        motia_request.body,
-                        f"api:{step.config.name}",
-                    )
+                        if isinstance(_trigger, ApiTrigger) and _trigger.body_schema:
+                            motia_request.body = _validate_input_schema(
+                                _trigger.body_schema,
+                                motia_request.body,
+                                f"api:{step.config.name}",
+                            )
 
-                context = FlowContext(
-                    emit=emit,
-                    trace_id=str(uuid.uuid4()),
-                    state=state,
-                    logger=context_data.logger,
-                    streams=streams,
-                    trigger=trigger_metadata,
-                    _input=motia_request,
-                )
+                        trace_id = get_trace_id_from_span() or str(uuid.uuid4())
 
-                middlewares = _trigger.middleware or []
+                        context = FlowContext(
+                            emit=emit,
+                            trace_id=trace_id,
+                            state=state,
+                            logger=context_data.logger,
+                            streams=streams,
+                            trigger=trigger_metadata,
+                            _input=motia_request,
+                        )
 
-                if middlewares:
-                    composed = _compose_middleware(middlewares)
-                    response: ApiResponse[Any] = await composed(
-                        motia_request, context, lambda: handler(motia_request, context)
-                    )
-                else:
-                    response = await handler(motia_request, context)
+                        middlewares = _trigger.middleware or []
 
-                return {
-                    "status_code": response.status,
-                    "headers": response.headers,
-                    "body": response.body,
-                }
+                        if middlewares:
+                            composed = _compose_middleware(middlewares)
+                            response: ApiResponse[Any] = await composed(
+                                motia_request, context, lambda: handler(motia_request, context)
+                            )
+                        else:
+                            response = await handler(motia_request, context)
+
+                        set_span_ok(span)
+                        return {
+                            "status_code": response.status,
+                            "headers": response.headers,
+                            "body": response.body,
+                        }
+                    except Exception as exc:
+                        record_exception(span, exc)
+                        raise
 
             bridge.register_function(function_path, api_handler)
         else:
 
             async def event_handler(req: Any, _trigger=trigger) -> Any:
-                context_data = get_context()
+                trigger_type_name = _trigger.type if hasattr(_trigger, "type") else "queue"
+                with step_span(step.config.name, trigger_type_name) as span:
+                    try:
+                        context_data = get_context()
 
-                if isinstance(_trigger, QueueTrigger):
-                    trigger_metadata = TriggerMetadata(
-                        type="queue",
-                        topic=_trigger.subscribes[0] if _trigger.subscribes else None,
-                    )
-                elif isinstance(_trigger, CronTrigger):
-                    trigger_metadata = TriggerMetadata(
-                        type="cron",
-                        expression=_trigger.expression,
-                    )
-                elif isinstance(_trigger, StateTrigger):
-                    trigger_metadata = TriggerMetadata(
-                        type="state",
-                        index=trigger_index,
-                    )
-                elif isinstance(_trigger, StreamTrigger):
-                    trigger_metadata = TriggerMetadata(
-                        type="stream",
-                        index=trigger_index,
-                        stream_name=_trigger.stream_name,
-                        group_id=_trigger.group_id,
-                        item_id=_trigger.item_id,
-                    )
-                else:
-                    trigger_metadata = TriggerMetadata(type="queue")
+                        if isinstance(_trigger, QueueTrigger):
+                            trigger_metadata = TriggerMetadata(
+                                type="queue",
+                                topic=_trigger.subscribes[0] if _trigger.subscribes else None,
+                            )
+                        elif isinstance(_trigger, CronTrigger):
+                            trigger_metadata = TriggerMetadata(
+                                type="cron",
+                                expression=_trigger.expression,
+                            )
+                        elif isinstance(_trigger, StateTrigger):
+                            trigger_metadata = TriggerMetadata(
+                                type="state",
+                                index=trigger_index,
+                            )
+                        elif isinstance(_trigger, StreamTrigger):
+                            trigger_metadata = TriggerMetadata(
+                                type="stream",
+                                index=trigger_index,
+                                stream_name=_trigger.stream_name,
+                                group_id=_trigger.group_id,
+                                item_id=_trigger.item_id,
+                            )
+                        else:
+                            trigger_metadata = TriggerMetadata(type="queue")
 
-                async def emit(event: Any) -> None:
-                    await bridge.call("enqueue", event)
+                        async def emit(event: Any) -> None:
+                            with operation_span("emit", **{"motia.step.name": step.config.name}):
+                                await bridge.call("enqueue", event)
 
-                input_data = None if isinstance(_trigger, CronTrigger) else req
-                if isinstance(_trigger, QueueTrigger) and _trigger.input:
-                    input_data = _validate_input_schema(
-                        _trigger.input,
-                        input_data,
-                        f"queue:{step.config.name}",
-                    )
+                        input_data = None if isinstance(_trigger, CronTrigger) else req
+                        if isinstance(_trigger, QueueTrigger) and _trigger.input:
+                            input_data = _validate_input_schema(
+                                _trigger.input,
+                                input_data,
+                                f"queue:{step.config.name}",
+                            )
 
-                context = FlowContext(
-                    emit=emit,
-                    trace_id=str(uuid.uuid4()),
-                    state=state,
-                    logger=context_data.logger,
-                    streams=streams,
-                    trigger=trigger_metadata,
-                    _input=input_data,
-                )
-                return await handler(input_data, context)
+                        trace_id = get_trace_id_from_span() or str(uuid.uuid4())
+
+                        context = FlowContext(
+                            emit=emit,
+                            trace_id=trace_id,
+                            state=state,
+                            logger=context_data.logger,
+                            streams=streams,
+                            trigger=trigger_metadata,
+                            _input=input_data,
+                        )
+
+                        result = await handler(input_data, context)
+                        set_span_ok(span)
+                        return result
+                    except Exception as exc:
+                        record_exception(span, exc)
+                        raise
 
             bridge.register_function(function_path, event_handler)
 

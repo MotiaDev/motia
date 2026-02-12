@@ -13,9 +13,18 @@ def test_state_trigger_exports():
 
 def test_stream_trigger_exports():
     """Test stream trigger types are exported."""
-    from motia import StreamTrigger, StreamTriggerInput, StreamEvent, stream
+    from motia import StreamEvent, StreamTrigger, StreamTriggerInput, stream
 
     assert StreamTrigger is not None
     assert StreamTriggerInput is not None
     assert StreamEvent is not None
     assert stream is not None
+
+
+def test_tracing_exports():
+    """Test tracing utilities are exported."""
+    from motia import tracing
+
+    assert hasattr(tracing, "HAS_OTEL")
+    assert hasattr(tracing, "get_tracer")
+    assert hasattr(tracing, "instrument_bridge")

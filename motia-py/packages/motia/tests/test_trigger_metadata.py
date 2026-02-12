@@ -1,5 +1,4 @@
 """Tests for TriggerMetadata with state and stream types."""
-import pytest
 from motia.types import TriggerMetadata
 
 

@@ -19,7 +19,7 @@ async def test_stream_get_group_uses_streams_list() -> None:
 
     assert result == [{"id": "a"}]
     bridge.call.assert_awaited_once_with(
-        "streams.list",
+        "stream.list",
         {
             "stream_name": "todos",
             "group_id": "default",
@@ -38,7 +38,7 @@ async def test_stream_get_group_does_not_fallback_on_missing_function() -> None:
         await stream.get_group("default")
 
     bridge.call.assert_awaited_once_with(
-        "streams.list",
+        "stream.list",
         {"stream_name": "todos", "group_id": "default"},
     )
 
@@ -54,7 +54,7 @@ async def test_state_get_group_uses_streams_list() -> None:
 
     assert result == [{"id": "x"}]
     manager._bridge.call.assert_awaited_once_with(
-        "streams.list",
+        "stream.list",
         {
             "stream_name": "$$internal-state",
             "group_id": "users",
@@ -73,6 +73,6 @@ async def test_state_get_group_does_not_fallback_on_missing_function() -> None:
         await manager.get_group("users")
 
     manager._bridge.call.assert_awaited_once_with(
-        "streams.list",
+        "stream.list",
         {"stream_name": "$$internal-state", "group_id": "users"},
     )
