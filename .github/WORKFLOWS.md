@@ -7,20 +7,34 @@ This document describes all GitHub Actions workflows, their triggers, and how th
 ```
 Pull Request                          Manual Dispatch                    Tag Push (v*)
      │                                  │         │         │                  │
-     ├─► motia.yml (CI)                 │         │         │                  │
-     ├─► pr-validation.yml              │         │         │                  │
-     └─► dependency-review.yml          │         │         │                  │
-                                        │         │         │                  │
-                              create-tag.yml      │         │            deploy.yml
-                                   │          wip-release   wip-release        │
-                                   │           -npm.yml      -pypi.yml         │
-                                   │              │              │             │
-                                   └─ pushes tag ─┼──────────────┼────────────►│
-                                                  │              │             │
-                                                  ▼              ▼    ┌────────┼────────┐
-                                                 NPM           PyPI  │        │        │
-                                                                  Publish  Publish  GitHub
-                                                                   NPM     PyPI   Release
+     ├─► ci-node.yml (JS changes)      │         │         │                  │
+     ├─► ci-python.yml (Py changes)    │         │         │                  │
+     ├─► pr-validation.yml             │         │         │                  │
+     └─► dependency-review.yml         │         │         │                  │
+                                       │         │         │                  │
+                             create-tag.yml      │         │            deploy.yml
+                                  │          wip-release   wip-release        │
+                                  │           -npm.yml      -pypi.yml         │
+                                  │              │              │             │
+                                  └─ pushes tag ─┼──────────────┼────────────►│
+                                                 │              │    ┌────────┼──────────┐
+                                                 ▼              ▼    │        │          │
+                                                NPM           PyPI  │  ┌─────┼─────┐    │
+                                                                    │  │     │     │    │
+                                                                  Test  Test  │  Create  │
+                                                                  Node  Py   │  Release │
+                                                                    │     │  │     │    │
+                                                                    └─────┘──┘     │    │
+                                                                         │    Publish  Publish
+                                                                         │     NPM     PyPI
+                                                                         │       │       │
+                                                                         └───────┴───┬───┘
+                                                                                     │
+                                                                              validate-release.yml
+                                                                                     │
+                                                                              (auto on failure)
+                                                                                     │
+                                                                               rollback.yml
 ```
 
 ## Security Hardening
@@ -37,11 +51,46 @@ All workflows follow these security practices:
 
 ## Workflows
 
-### `motia.yml` — CI Quality Gate
+### `ci-node.yml` — Node.js CI (Path-Filtered)
 
-**Trigger**: Pull requests to `main`, pushes to `main`, tag pushes (`v*`)
+**Trigger**: Pull requests and pushes to `main` that modify `motia-js/**`, the workflow file itself, or `.github/actions/setup/**`
 
-Runs quality checks for both languages in parallel. This is the primary CI pipeline that validates every code change.
+Runs Node.js quality checks only when JavaScript/TypeScript code changes.
+
+**Jobs**:
+
+| Job | What it runs | Working directory |
+|-----|-------------|-------------------|
+| `quality-node` | `pnpm lint:ci` (Biome) + `pnpm test:ci` (Jest) | `motia-js/` |
+
+- Concurrency: cancels in-progress runs on new PR pushes
+- Job timeout: 15 minutes
+
+---
+
+### `ci-python.yml` — Python CI (Path-Filtered)
+
+**Trigger**: Pull requests and pushes to `main` that modify `motia-py/**` or the workflow file itself
+
+Runs Python quality checks only when Python code changes.
+
+**Jobs**:
+
+| Job | What it runs | Working directory |
+|-----|-------------|-------------------|
+| `quality-python` | `ruff check src` + `mypy src` + `pytest` | `motia-py/packages/motia/` |
+
+- Python runs on a matrix: **3.10, 3.11, 3.12**
+- Concurrency: cancels in-progress runs on new PR pushes
+- Job timeout: 15 minutes
+
+---
+
+### `motia.yml` — Full CI (Reusable Workflow)
+
+**Trigger**: `workflow_call` (called by `deploy.yml`) or `workflow_dispatch` (manual fallback)
+
+Runs both Node.js and Python quality checks. No longer triggered directly by PR/push — use `ci-node.yml` and `ci-python.yml` for that. This workflow exists as a reusable workflow for the release pipeline and as a manual fallback to run all checks.
 
 **Jobs**:
 
@@ -51,9 +100,9 @@ Runs quality checks for both languages in parallel. This is the primary CI pipel
 | `quality-python` | `ruff check src` + `mypy src` + `pytest` | `motia-py/packages/motia/` |
 
 - Python runs on a matrix: **3.10, 3.11, 3.12**
-- Concurrency: cancels in-progress runs on new PR pushes
-- Ignores changes to `contributors/` directory
 - Job timeout: 15 minutes
+
+**Note**: Branch protection rules should reference `CI - Node.js` and `CI - Python` workflow names (not `Motia CI`).
 
 ---
 
@@ -78,79 +127,138 @@ Two jobs:
 
 **Trigger**: Manual workflow dispatch
 
-Creates and pushes a semantic version tag to trigger the release pipeline. Uses pure git tag manipulation — no file changes or commits.
+Creates and pushes a semantic version tag to trigger the release pipeline. Now also updates version files (`package.json`, `pyproject.toml`) before tagging for consistency.
 
 **Inputs**:
 
 | Input | Description | Options |
 |-------|-------------|---------|
-| `version_type` | Type of version bump | `major`, `minor`, `patch`, `prerelease`, `prerelease-bump` |
-| `prerelease_identifier` | Pre-release label (when applicable) | `alpha`, `beta`, `rc` |
-| `custom_version` | Override with a specific version | Any semver string |
+| `bump` | Type of version bump | `patch`, `minor`, `major` |
+| `pre_release` | Pre-release label (none = stable) | `none`, `alpha`, `beta`, `rc` |
 
 **Flow**:
-1. Reads the latest version tag from git (`git tag --sort=-version:refname`)
-2. Computes next version in bash based on semver rules
-3. Creates an annotated git tag and pushes it
-4. Reports version information to step summary
+1. **Pre-flight checks** — verifies version files exist, on main branch, not behind origin
+2. **Get latest stable tag** — filters to `^v[0-9]+\.[0-9]+\.[0-9]+$` only
+3. **Calculate new version** — standard semver bump + auto-increment pre-release numbers
+4. **PEP 440 conversion** — for pre-releases: `1.2.3-beta.1` → `1.2.3b1` (Python compatible)
+5. **Update version files** — `package.json` and `pyproject.toml` (PEP 440 for Python)
+6. **Validate versions** — grep both files and confirm they match expected values
+7. **Commit version bump** — `chore: bump version to vX.Y.Z`
+8. **Generate changelog** — `git log` last 20 non-merge commits since last stable tag
+9. **Create and push annotated tag**
+10. **Slack notification** — post tag info + changelog preview via webhook
 
-**Version source of truth**: The git tag is the sole source of truth. No `package.json` or `pyproject.toml` is read or modified.
+**Version source of truth**: Version files are updated in the repository before tagging. The tag points to a commit with correct version files.
 
-**Authentication**: Uses GitHub App token (`MOTIA_CI_APP_ID` / `MOTIA_CI_APP_PRIVATE_KEY`) with scoped permissions to push tags that trigger downstream workflows (personal tokens or `GITHUB_TOKEN` cannot trigger other workflows).
+**Authentication**: Uses GitHub App token (`MOTIA_CI_APP_ID` / `MOTIA_CI_APP_PRIVATE_KEY`) to push commits and tags that trigger downstream workflows.
 
 ---
 
-### `deploy.yml` — Stable Release Pipeline
+### `deploy.yml` — Release Pipeline
 
 **Trigger**: Tag push matching `v*`
 
-The main release workflow. Publishes to both NPM and PyPI from a single version tag. Both language CIs must pass before either package publishes. The manual `create-tag.yml` dispatch acts as the intentional release gate.
+The main release workflow with progressive Slack notifications. Publishes to both NPM and PyPI from a single version tag.
 
 **Jobs (in order)**:
 
-#### 1. CI Checks (Node.js)
-- Extracts version from tag (`v1.2.3` → `1.2.3`)
-- Detects pre-release status (beta/alpha/rc)
+#### 1. Initialize Slack Notification (`notify-start`)
+- Posts initial Slack message with status indicators
+- Saves Slack message timestamp as artifact for cross-workflow access (used by `validate-release.yml`)
+
+#### 2. Detect Pre-release (`detect-prerelease`)
+- Parses tag for `-beta`, `-alpha`, `-rc` suffixes
+- Outputs: `is_prerelease`, `npm_tag`, `version`, `tag_name`
+
+#### 3. Test Node.js (`test-node`)
 - Runs Node.js lint (Biome) + tests (Jest)
-- Outputs: `version`, `tag_name`, `is_prerelease`
 
-#### 2. CI Checks (Python)
-- Runs on matrix: **3.10, 3.11, 3.12**
+#### 4. Test Python (`test-python`)
+- Single Python 3.12 (no matrix for faster release)
 - Lints with ruff, type-checks with mypy, runs unit tests with pytest
-- Skips integration tests that require III engine (`pytest -m "not integration"`)
+- Skips integration tests (`pytest -m "not integration"`)
 
-#### 3. Publish to NPM
-- Stamps `packages/motia/package.json` with version from tag (not committed)
-- Determines NPM dist-tag:
-  - `-beta.*` → `beta`
-  - `-alpha.*` → `alpha`
-  - `-rc.*` → `rc`
-  - otherwise → `latest`
+#### 5. Create GitHub Release (`create-release`)
+- Needs: `notify-start`, `detect-prerelease`, `test-node`, `test-python`
+- Creates release with auto-generated release notes
+- Updates Slack: "Tests passed, release created, publishing..."
+
+#### 6. Publish to NPM (`publish-npm`)
+- Needs: `detect-prerelease`, `create-release`
+- Stamps `package.json` with version from tag (not committed)
 - Publishes with `--provenance` for supply chain security
+- NPM dist-tag based on pre-release suffix
 
-#### 4. Publish to PyPI
+#### 7. Publish to PyPI (`publish-pypi`)
+- Needs: `detect-prerelease`, `create-release`
 - Stamps `pyproject.toml` with version from tag via `sed` (not committed)
-- Builds with `python -m build`
-- Publishes via `pypa/gh-action-pypi-publish` using `PYPI_API_TOKEN`
+- Builds with `python -m build` and publishes via `pypa/gh-action-pypi-publish`
 
-#### 5. Create GitHub Release
-- Batch-fetches commit authors via GitHub Compare API (single API call)
-- Generates changelog from conventional commit messages between previous tag and current tag
-- Categorizes commits: Features, Bug Fixes, Performance, Docs, Dependencies, Refactoring, Tests, Build, CI, Maintenance, Reverts
-- Includes installation instructions for NPM/Yarn/PNPM/PyPI
-- Only runs if CI passed AND at least one publish succeeded
+#### 8. Update Release Status (`notify-complete`)
+- Needs: `notify-start`, `publish-npm`, `publish-pypi`
+- `if: always()` — runs regardless of publish outcomes
+- Updates Slack with final status: checkmark/x for each package
 
 **Dependency chain**:
 ```
-ci-checks ──────────┐
-                     ├──► publish-npm ──► create-github-release
-quality-python ─────┘──► publish-pypi ──┘
+notify-start ─────────────────────┐
+detect-prerelease ────────────────┤
+test-node ────────────────────────┤
+test-python ──────────────────────┤
+                                  ├──► create-release ──┬──► publish-npm ───┐
+                                  │                     └──► publish-pypi ──┤
+                                  └────────────────────────────────────────┴──► notify-complete
 ```
 
-Both CI jobs must succeed before publishing proceeds. No manual approval gate — the intentional act of triggering `create-tag.yml` serves as the release decision.
-
 - Concurrency: prevents parallel deploys for the same tag
-- Job timeouts: 15 min (CI/publish), 10 min (release)
+- Job timeouts: 15 min (test/publish), 10 min (release), 5 min (notifications)
+
+---
+
+### `validate-release.yml` — Post-Release Validation
+
+**Trigger**: `workflow_run` — runs automatically after `Deploy Release` workflow completes successfully
+
+Validates that published packages are actually available to users on package registries.
+
+**Steps**:
+1. Get release tag from git
+2. Download Slack notification artifact from triggering workflow (cross-workflow IPC)
+3. **Validate Node package on npm** — polls `npm view motia@$VERSION` up to 5 retries, 30s apart
+4. **Validate Python package on PyPI** — polls `pip index versions motia` up to 5 retries, 30s apart
+5. Update Slack with validation success/failure
+6. **Auto-trigger rollback** if BOTH npm and PyPI validation fail
+
+- Job timeout: 15 minutes
+
+---
+
+### `rollback.yml` — Release Rollback
+
+**Trigger**: Manual workflow dispatch (or auto-triggered by `validate-release.yml`)
+
+Rolls back to a previous version by updating version files, committing, and creating a rollback tag.
+
+**Inputs**:
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| `target_version` | Version to rollback to (e.g., `v0.1.0`) | Required |
+| `reason` | Reason for rollback | Required |
+| `delete_bad_release` | Delete the problematic release | `true` |
+
+**Flow**:
+1. Generate GitHub App token
+2. Validate target version format + tag existence
+3. Notify Slack — rollback started
+4. Delete bad release if requested (`gh release delete`)
+5. Update version files: `package.json` and `pyproject.toml`
+6. Commit: `chore: rollback to $TARGET_VERSION - $REASON`
+7. Push to main
+8. Create rollback tag: `${TARGET_VERSION}-rollback`
+9. Update Slack with success/failure
+
+- Job timeout: 15 minutes
 
 ---
 
@@ -211,9 +319,9 @@ Scans dependency changes for security vulnerabilities and license compliance:
 
 ---
 
-## Shared Setup Action
+## Composite Actions
 
-### `.github/actions/setup/action.yml`
+### `.github/actions/setup/action.yml` — Node.js Setup
 
 Composite action used by multiple workflows to set up the Node.js environment:
 
@@ -223,7 +331,43 @@ Composite action used by multiple workflows to set up the Node.js environment:
 4. Install dependencies: `pnpm --filter=!playground install`
 5. Build motia package: `pnpm --filter=motia build`
 
-All actions within the composite are SHA-pinned (pnpm/action-setup v4.1.0, actions/setup-node v4.4.0).
+All actions within the composite are SHA-pinned.
+
+### `.github/actions/setup-iii-engine/action.yml` — III Engine Setup
+
+Composite action to download, cache, and start the III Engine server for integration tests:
+
+1. Resolve engine repository and version (default: latest release)
+2. Cache engine binary by platform + version
+3. Download and extract if not cached
+4. Start engine with config from `.github/engine-config/test-config.yml`
+5. Health check on `:3111` (30 attempts, 2s apart)
+
+**Inputs**: `engine-repo`, `engine-version`, `config-path`, `github-token`
+**Output**: `engine-available` (boolean string)
+
+### `.github/actions/stop-iii-engine/action.yml` — III Engine Cleanup
+
+Composite action to stop the III Engine and clean up temporary files:
+
+1. Read PID from `/tmp/iii-engine.pid`, send SIGTERM
+2. Force kill (SIGKILL) if needed
+3. Clean up `/tmp/iii-engine-data`
+
+---
+
+## Engine Configuration
+
+### `.github/engine-config/test-config.yml`
+
+Engine configuration for CI integration tests. Modules:
+- **StreamModule** — port 3112, file-based KV store
+- **StateModule** — file-based KV store
+- **RestApiModule** — port 3111, CORS for localhost:3000/5173
+- **OtelModule** — memory exporter (no external collector needed)
+- **QueueModule** — builtin adapter
+- **PubSubModule** — local adapter
+- **CronModule** — KV-backed cron adapter
 
 ---
 
@@ -233,8 +377,11 @@ All actions within the composite are SHA-pinned (pnpm/action-setup v4.1.0, actio
 |--------|---------|---------|
 | `NPM_TOKEN` | setup action, deploy, wip-release-npm | NPM registry authentication |
 | `PYPI_API_TOKEN` | deploy, wip-release-pypi | PyPI publishing |
-| `MOTIA_CI_APP_ID` | create-tag, deploy, wip-release-npm | GitHub App for tag pushing |
-| `MOTIA_CI_APP_PRIVATE_KEY` | create-tag, deploy, wip-release-npm | GitHub App private key |
+| `MOTIA_CI_APP_ID` | create-tag, deploy, rollback, wip-release-npm | GitHub App for tag/commit pushing |
+| `MOTIA_CI_APP_PRIVATE_KEY` | create-tag, deploy, rollback, wip-release-npm | GitHub App private key |
+| `SLACK_BOT_TOKEN` | deploy, validate-release, rollback | Slack API for chat.postMessage/update |
+| `SLACK_CHANNEL_ID` | deploy, validate-release, rollback | Target Slack channel |
+| `SLACK_WEBHOOK_URL` | create-tag | Slack incoming webhook for tag notifications |
 
 ---
 
@@ -242,22 +389,32 @@ All actions within the composite are SHA-pinned (pnpm/action-setup v4.1.0, actio
 
 ### Stable Release
 ```
-1. Maintainer triggers "Create Tag" with version_type=patch (or minor/major)
-2. Tag v1.2.3 is created and pushed (no commits, pure tag)
-3. deploy.yml picks up the tag
-4. CI checks run for BOTH Node.js and Python (must both pass)
-5. Publish to NPM (latest) and PyPI simultaneously
-6. GitHub Release created with auto-generated changelog
+1. Maintainer triggers "Create Tag" with bump=patch (or minor/major)
+2. Pre-flight checks validate version files exist and branch is up-to-date
+3. Version files updated: package.json + pyproject.toml
+4. Version bump committed and pushed to main
+5. Tag v1.2.3 is created and pushed
+6. deploy.yml picks up the tag
+7. Slack notification posted: "Release started"
+8. CI checks run for BOTH Node.js and Python (must both pass)
+9. GitHub Release created with auto-generated notes
+10. Slack updated: "Tests passed, release created, publishing..."
+11. Publish to NPM (latest) and PyPI simultaneously
+12. Slack updated: final status with checkmarks for each package
+13. validate-release.yml runs automatically, polling registries
+14. If validation fails for both registries, rollback.yml triggered automatically
 ```
 
 ### Pre-release
 ```
-1. Maintainer triggers "Create Tag" with version_type=prerelease, identifier=beta
-2. Tag v1.2.4-beta.0 is created and pushed
-3. deploy.yml picks up the tag
-4. CI checks run for both languages
-5. Publish to NPM (beta tag) and PyPI simultaneously
-6. GitHub Release created (marked as pre-release)
+1. Maintainer triggers "Create Tag" with bump=patch, pre_release=beta
+2. Auto-increments pre-release number (e.g., 1.2.4-beta.1, 1.2.4-beta.2)
+3. PEP 440 conversion for Python (1.2.4-beta.1 → 1.2.4b1)
+4. Version files updated + committed + tag pushed
+5. deploy.yml picks up the tag
+6. CI checks run for both languages
+7. Publish to NPM (beta tag) and PyPI simultaneously
+8. GitHub Release created (marked as pre-release)
 ```
 
 ### WIP / Testing Release
@@ -266,4 +423,15 @@ All actions within the composite are SHA-pinned (pnpm/action-setup v4.1.0, actio
 2. Version computed from latest tag + timestamp: 1.2.1-next.20260211115959
 3. Published to NPM or PyPI independently
 4. No git changes, no GitHub Release
+```
+
+### Rollback
+```
+1. Triggered manually or automatically by validate-release.yml
+2. Validates target version exists as a tag
+3. Optionally deletes the problematic release + tag
+4. Updates version files to target version
+5. Commits rollback to main
+6. Creates rollback tag (e.g., v1.2.3-rollback)
+7. Slack notifications throughout the process
 ```

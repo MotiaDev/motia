@@ -1,0 +1,30 @@
+name: 'Stop III Engine'
+description: 'Stop the III Engine server and clean up temporary files'
+
+runs:
+  using: composite
+  steps:
+    - name: Stop engine server
+      shell: bash
+      run: |
+        if [ -f /tmp/iii-engine.pid ]; then
+          PID=$(cat /tmp/iii-engine.pid)
+          if ps -p $PID > /dev/null 2>&1; then
+            echo "Stopping III Engine (PID: $PID)"
+            kill $PID || true
+            sleep 1
+            if ps -p $PID > /dev/null 2>&1; then
+              echo "Force killing III Engine"
+              kill -9 $PID || true
+            fi
+          fi
+          rm -f /tmp/iii-engine.pid
+          echo "III Engine stopped"
+        else
+          echo "No engine PID file found, engine may not have been running"
+        fi
+
+    - name: Cleanup temporary files
+      shell: bash
+      run: |
+        rm -rf /tmp/iii-engine-data || true

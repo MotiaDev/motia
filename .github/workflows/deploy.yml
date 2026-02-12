@@ -11,13 +11,88 @@ concurrency:
   group: deploy-${{ github.ref }}
 
 jobs:
-  ci-checks:
-    name: CI Checks (Node.js)
+  notify-start:
+    name: Initialize Slack Notification
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      version: ${{ steps.extract_version.outputs.version }}
-      tag_name: ${{ steps.extract_version.outputs.tag_name }}
-      is_prerelease: ${{ steps.detect_prerelease.outputs.is_prerelease }}
+      slack_ts: ${{ steps.slack.outputs.ts }}
+
+    steps:
+      - name: Post initial Slack message
+        id: slack
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: "Release ${{ github.ref_name }} started"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*Release ${{ github.ref_name }}*\n\n:hourglass: Running tests...\n:white_square: Creating release...\n:white_square: Publishing packages..."
+              - type: "context"
+                elements:
+                  - type: "mrkdwn"
+                    text: "Triggered by ${{ github.actor }} | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"
+
+      - name: Save Slack timestamp to artifact
+        run: |
+          mkdir -p slack-data
+          echo "${{ steps.slack.outputs.ts }}" > slack-data/message_ts.txt
+          echo "${{ github.ref_name }}" > slack-data/version.txt
+
+      - name: Upload Slack data
+        uses: actions/upload-artifact@v4
+        with:
+          name: slack-notification-data
+          path: slack-data/
+          retention-days: 1
+
+  detect-prerelease:
+    name: Detect Pre-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
+      npm_tag: ${{ steps.check.outputs.npm_tag }}
+      version: ${{ steps.check.outputs.version }}
+      tag_name: ${{ steps.check.outputs.tag_name }}
+
+    steps:
+      - name: Check tag format
+        id: check
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG" >> $GITHUB_OUTPUT
+
+          if [[ $VERSION =~ -beta ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "npm_tag=beta" >> $GITHUB_OUTPUT
+            echo "Detected pre-release: beta"
+          elif [[ $VERSION =~ -alpha ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "npm_tag=alpha" >> $GITHUB_OUTPUT
+            echo "Detected pre-release: alpha"
+          elif [[ $VERSION =~ -rc ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "npm_tag=rc" >> $GITHUB_OUTPUT
+            echo "Detected pre-release: rc"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "npm_tag=latest" >> $GITHUB_OUTPUT
+            echo "Detected stable release (npm tag: latest)"
+          fi
+
+  test-node:
+    name: Test Node.js
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Generate token
         id: generate_token
@@ -36,27 +111,6 @@ jobs:
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
 
-      - name: Extract version from tag
-        id: extract_version
-        run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "Version: ${GITHUB_REF#refs/tags/v}"
-
-      - name: Detect pre-release
-        id: detect_prerelease
-        env:
-          VERSION: ${{ steps.extract_version.outputs.version }}
-        run: |
-          if [[ $VERSION =~ -beta || $VERSION =~ -alpha || $VERSION =~ -rc ]]; then
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-            echo "Detected pre-release version"
-          else
-            echo "is_prerelease=false" >> $GITHUB_OUTPUT
-            echo "Detected stable release version"
-          fi
-
       - name: Run linter
         working-directory: motia-js
         run: pnpm lint:ci
@@ -65,15 +119,8 @@ jobs:
         working-directory: motia-js
         run: pnpm test:ci
 
-      - name: CI Summary
-        run: |
-          echo "### Node.js CI Checks Passed" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.extract_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: ${{ steps.extract_version.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Pre-release**: ${{ steps.detect_prerelease.outputs.is_prerelease }}" >> $GITHUB_STEP_SUMMARY
-
-  quality-python:
-    name: CI Checks (Python)
+  test-python:
+    name: Test Python
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -82,18 +129,13 @@ jobs:
       run:
         working-directory: motia-py/packages/motia
 
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python ${{ matrix.python-version }}
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.12'
           cache: 'pip'
 
       - name: Install dependencies
@@ -108,122 +150,14 @@ jobs:
       - name: Run tests
         run: pytest -m "not integration"
 
-  publish-npm:
-    name: Publish to NPM
-    runs-on: ubuntu-latest
-    needs: [ci-checks, quality-python]
-    steps:
-      - name: Generate token
-        id: generate_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.MOTIA_CI_APP_ID }}
-          private-key: ${{ secrets.MOTIA_CI_APP_PRIVATE_KEY }}
-
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ steps.generate_token.outputs.token }}
-
-      - name: Setup
-        uses: ./.github/actions/setup
-        with:
-          npm-token: ${{ secrets.NPM_TOKEN }}
-
-      - name: Determine NPM tag
-        id: npm_tag
-        env:
-          VERSION: ${{ needs.ci-checks.outputs.version }}
-        run: |
-          if [[ $VERSION =~ -beta ]]; then
-            NPM_TAG="beta"
-          elif [[ $VERSION =~ -alpha ]]; then
-            NPM_TAG="alpha"
-          elif [[ $VERSION =~ -rc ]]; then
-            NPM_TAG="rc"
-          else
-            NPM_TAG="latest"
-          fi
-
-          echo "tag=$NPM_TAG" >> $GITHUB_OUTPUT
-          echo "NPM dist-tag: $NPM_TAG"
-
-      - name: Set version from git tag
-        working-directory: motia-js/packages/motia
-        run: |
-          pnpm version from-git --no-git-tag-version
-
-      - name: Setup NPM authentication
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> motia-js/.npmrc
-
-      - name: Publish to NPM
-        working-directory: motia-js
-        run: |
-          pnpm publish -r --filter motia --no-git-checks --tag ${{ steps.npm_tag.outputs.tag }} --provenance
-
-      - name: Publish Summary
-        run: |
-          echo "### Published to NPM" >> $GITHUB_STEP_SUMMARY
-          echo "- **Package**: motia@${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **NPM Tag**: ${{ steps.npm_tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Install**: \`npm install motia@${{ steps.npm_tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-
-  publish-pypi:
-    name: Publish to PyPI
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [ci-checks, quality-python]
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install build tools
-        run: pip install build
-
-      - name: Set version from tag
-        working-directory: motia-py/packages/motia
-        env:
-          VERSION: ${{ needs.ci-checks.outputs.version }}
-        run: |
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-          echo "Set pyproject.toml version to: $VERSION"
-
-      - name: Build package
-        working-directory: motia-py/packages/motia
-        run: python -m build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: motia-py/packages/motia/dist/
-          password: ${{ secrets.PYPI_API_TOKEN }}
-
-      - name: Publish Summary
-        run: |
-          echo "### Published to PyPI" >> $GITHUB_STEP_SUMMARY
-          echo "- **Package**: motia@${{ needs.ci-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Install**: \`pip install motia==${{ needs.ci-checks.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-
-  create-github-release:
+  create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
-    needs: [ci-checks, publish-npm, publish-pypi]
-    if: |
-      always() &&
-      needs.ci-checks.result == 'success' &&
-      (needs.publish-npm.result == 'success' || needs.publish-pypi.result == 'success')
+    needs: [notify-start, detect-prerelease, test-node, test-python]
+
     steps:
       - name: Generate token
         id: generate_token
@@ -246,7 +180,161 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          name: motia ${{ needs.ci-checks.outputs.version }}
+          name: motia ${{ needs.detect-prerelease.outputs.version }}
           draft: false
-          prerelease: ${{ needs.ci-checks.outputs.is_prerelease == 'true' }}
+          prerelease: ${{ needs.detect-prerelease.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
+
+      - name: Update Slack - Tests passed, release created
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.update
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            ts: ${{ needs.notify-start.outputs.slack_ts }}
+            text: "Release ${{ github.ref_name }} in progress"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*Release ${{ github.ref_name }}*\n\n:white_check_mark: Tests passed (Node, Python)\n:white_check_mark: Release created\n:hourglass: Publishing packages..."
+              - type: "context"
+                elements:
+                  - type: "mrkdwn"
+                    text: "Triggered by ${{ github.actor }} | <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>"
+
+  publish-npm:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [detect-prerelease, create-release]
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.MOTIA_CI_APP_ID }}
+          private-key: ${{ secrets.MOTIA_CI_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+
+      - name: Set version from git tag
+        working-directory: motia-js/packages/motia
+        run: |
+          pnpm version from-git --no-git-tag-version
+
+      - name: Setup NPM authentication
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> motia-js/.npmrc
+
+      - name: Publish to NPM
+        working-directory: motia-js
+        run: |
+          pnpm publish -r --filter motia --no-git-checks --tag ${{ needs.detect-prerelease.outputs.npm_tag }} --provenance
+
+      - name: Publish Summary
+        env:
+          VERSION: ${{ needs.detect-prerelease.outputs.version }}
+          NPM_TAG: ${{ needs.detect-prerelease.outputs.npm_tag }}
+        run: |
+          echo "### Published to NPM" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: motia@$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **NPM Tag**: $NPM_TAG" >> $GITHUB_STEP_SUMMARY
+          echo "- **Install**: \`npm install motia@$NPM_TAG\`" >> $GITHUB_STEP_SUMMARY
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [detect-prerelease, create-release]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Set version from tag
+        working-directory: motia-py/packages/motia
+        env:
+          VERSION: ${{ needs.detect-prerelease.outputs.version }}
+        run: |
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          echo "Set pyproject.toml version to: $VERSION"
+
+      - name: Build package
+        working-directory: motia-py/packages/motia
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: motia-py/packages/motia/dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Publish Summary
+        env:
+          VERSION: ${{ needs.detect-prerelease.outputs.version }}
+        run: |
+          echo "### Published to PyPI" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: motia@$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Install**: \`pip install motia==$VERSION\`" >> $GITHUB_STEP_SUMMARY
+
+  notify-complete:
+    name: Update Release Status
+    needs: [notify-start, publish-npm, publish-pypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+
+    steps:
+      - name: Check results
+        id: results
+        run: |
+          NODE_RESULT='${{ needs.publish-npm.result }}'
+          PYTHON_RESULT='${{ needs.publish-pypi.result }}'
+
+          NODE_ICON="white_check_mark"
+          PYTHON_ICON="white_check_mark"
+
+          if [ "$NODE_RESULT" != "success" ]; then NODE_ICON="x"; fi
+          if [ "$PYTHON_RESULT" != "success" ]; then PYTHON_ICON="x"; fi
+
+          echo "node_icon=$NODE_ICON" >> $GITHUB_OUTPUT
+          echo "python_icon=$PYTHON_ICON" >> $GITHUB_OUTPUT
+
+      - name: Update Slack - Release Complete
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.update
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            ts: ${{ needs.notify-start.outputs.slack_ts }}
+            text: "Release ${{ github.ref_name }} complete"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*Release ${{ github.ref_name }}*\n\n:white_check_mark: Tests passed (Node, Python)\n:white_check_mark: Release created\n:${{ steps.results.outputs.node_icon }}: Node package published to npm\n:${{ steps.results.outputs.python_icon }}: Python package published to PyPI"
+              - type: "context"
+                elements:
+                  - type: "mrkdwn"
+                    text: "Triggered by ${{ github.actor }} | <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>"

@@ -3,37 +3,37 @@ name: Create Tag
 on:
   workflow_dispatch:
     inputs:
-      version_type:
-        description: 'Type of version bump'
+      bump:
+        description: 'Version bump'
         required: true
-        default: 'patch'
         type: choice
         options:
-          - major
-          - minor
           - patch
-          - prerelease
-          - prerelease-bump
-      prerelease_identifier:
-        description: 'Pre-release identifier (alpha, beta, rc) - only used with prerelease type'
-        required: false
+          - minor
+          - major
+        default: patch
+      pre_release:
+        description: 'Pre-release label (none = stable release)'
+        required: true
         type: choice
         options:
+          - none
           - alpha
           - beta
           - rc
-      custom_version:
-        description: 'Custom version (optional, overrides version_type)'
-        required: false
-        type: string
+        default: none
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   create-tag:
+    name: Create and Push Tag
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
 
     steps:
       - name: Generate token
@@ -42,11 +42,6 @@ jobs:
         with:
           app-id: ${{ secrets.MOTIA_CI_APP_ID }}
           private-key: ${{ secrets.MOTIA_CI_APP_PRIVATE_KEY }}
-          permissions: >-
-            {
-              "contents": "write",
-              "metadata": "read"
-            }
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -54,119 +49,262 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.generate_token.outputs.token }}
 
-      - name: Setup Git
+      - name: Pre-flight checks
+        id: preflight
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          echo "Running pre-flight checks..."
 
-      - name: Get current version from git tags
-        id: current_version
-        run: |
-          LATEST_TAG=$(git tag --sort=-version:refname --list 'v*' | head -n 1)
-
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No existing tags found, starting from v0.0.0"
-            LATEST_TAG="v0.0.0"
-          fi
-
-          CURRENT="${LATEST_TAG#v}"
-          echo "Current version: $CURRENT (tag: $LATEST_TAG)"
-          echo "version=$CURRENT" >> $GITHUB_OUTPUT
-          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-
-      - name: Compute next version
-        id: next_version
-        env:
-          CURRENT: ${{ steps.current_version.outputs.version }}
-          VERSION_TYPE: ${{ github.event.inputs.version_type }}
-          PREID: ${{ github.event.inputs.prerelease_identifier }}
-          CUSTOM: ${{ github.event.inputs.custom_version }}
-        run: |
-          if [[ -n "$CUSTOM" ]]; then
-            if [[ ! $CUSTOM =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
-              echo "::error::Invalid version format. Use semantic versioning (e.g., 1.2.3, v1.2.3, 1.2.3-beta.1)"
+          for f in motia-js/packages/motia/package.json motia-py/packages/motia/pyproject.toml; do
+            if [ ! -f "$f" ]; then
+              echo "Error: $f not found"
               exit 1
             fi
-            NEW_VERSION=$(echo "$CUSTOM" | sed 's/^v//')
-          else
-            # Parse current version into components
-            BASE=$(echo "$CURRENT" | cut -d'-' -f1)
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+          done
 
-            case "$VERSION_TYPE" in
-              major)
-                NEW_VERSION="$((MAJOR + 1)).0.0"
-                ;;
-              minor)
-                NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
-                ;;
-              patch)
-                NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
-                ;;
-              prerelease)
-                # Create a new prepatch pre-release (e.g., 1.2.3 -> 1.2.4-beta.0)
-                NEXT_PATCH=$((PATCH + 1))
-                LABEL="${PREID:-beta}"
-                NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-${LABEL}.0"
-                ;;
-              prerelease-bump)
-                # Bump existing pre-release number (e.g., 1.2.3-beta.0 -> 1.2.3-beta.1)
-                PRE_PART=$(echo "$CURRENT" | cut -d'-' -f2-)
-                if [ -z "$PRE_PART" ] || [ "$PRE_PART" = "$CURRENT" ]; then
-                  echo "::error::Current version ($CURRENT) is not a pre-release. Use 'prerelease' instead."
-                  exit 1
-                fi
-
-                # Extract pre-release label and number
-                PRE_LABEL=$(echo "$PRE_PART" | sed 's/\.[0-9]*$//')
-                PRE_NUM=$(echo "$PRE_PART" | grep -oE '[0-9]+$')
-
-                if [ -z "$PRE_NUM" ]; then
-                  PRE_NUM=0
-                fi
-
-                # Use provided preid or keep existing label
-                if [ -n "$PREID" ]; then
-                  PRE_LABEL="$PREID"
-                fi
-
-                NEW_VERSION="${BASE}-${PRE_LABEL}.$((PRE_NUM + 1))"
-                ;;
-              *)
-                echo "::error::Unknown version type: $VERSION_TYPE"
-                exit 1
-                ;;
-            esac
+          CURRENT_BRANCH=$(git branch --show-current)
+          if [ "$CURRENT_BRANCH" != "main" ]; then
+            echo "Warning: Not on main branch (current: $CURRENT_BRANCH)"
           fi
 
-          echo "New version: $NEW_VERSION"
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          git fetch origin main
+          BEHIND=$(git rev-list --count HEAD..origin/main)
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "Error: Local branch is $BEHIND commits behind origin/main"
+            echo "Please pull latest changes first"
+            exit 1
+          fi
+
+          echo "Pre-flight checks passed"
+
+      - name: Get latest stable tag
+        id: get_latest_tag
+        run: |
+          git fetch --tags
+          LATEST_STABLE=$(git tag -l "v*" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+          if [ -z "$LATEST_STABLE" ]; then
+            LATEST_STABLE="v0.0.0"
+          fi
+          echo "latest_tag=$LATEST_STABLE" >> $GITHUB_OUTPUT
+          echo "Latest stable tag: $LATEST_STABLE"
+
+      - name: Calculate new version
+        id: calc_version
+        env:
+          LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
+          BUMP: ${{ github.event.inputs.bump }}
+          PRE_RELEASE: ${{ github.event.inputs.pre_release }}
+        run: |
+          VERSION="${LATEST_TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          case "$BUMP" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+            *)
+              echo "Error: Invalid bump type: $BUMP"
+              exit 1
+              ;;
+          esac
+
+          BASE_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          if [ "$PRE_RELEASE" != "none" ]; then
+            echo "Finding existing pre-release tags for v${BASE_VERSION}-${PRE_RELEASE}..."
+            EXISTING_TAGS=$(git tag -l "v${BASE_VERSION}-${PRE_RELEASE}.*" | sort -V)
+
+            if [ -z "$EXISTING_TAGS" ]; then
+              PRE_NUMBER=1
+              echo "No existing pre-release tags found, starting at .1"
+            else
+              LATEST_PRE=$(echo "$EXISTING_TAGS" | tail -n1)
+              echo "Latest pre-release tag: $LATEST_PRE"
+              PRE_NUMBER=$(echo "$LATEST_PRE" | grep -oE '\.[0-9]+$' | tr -d '.')
+              PRE_NUMBER=$((PRE_NUMBER + 1))
+              echo "Incrementing to .${PRE_NUMBER}"
+            fi
+
+            NEW_VERSION="${BASE_VERSION}-${PRE_RELEASE}.${PRE_NUMBER}"
+
+            # PEP 440 conversion for Python
+            if [ "$PRE_RELEASE" = "rc" ]; then
+              PYTHON_VERSION="${BASE_VERSION}rc${PRE_NUMBER}"
+            else
+              PYTHON_VERSION="${BASE_VERSION}${PRE_RELEASE:0:1}${PRE_NUMBER}"
+            fi
+          else
+            NEW_VERSION="${BASE_VERSION}"
+            PYTHON_VERSION="${BASE_VERSION}"
+          fi
+
+          NEW_TAG="v${NEW_VERSION}"
+
+          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            echo "Error: Tag $NEW_TAG already exists"
+            exit 1
+          fi
+
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "python_version=$PYTHON_VERSION" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$( [ "$PRE_RELEASE" != "none" ] && echo "true" || echo "false" )" >> $GITHUB_OUTPUT
+          echo ""
+          echo "New tag: $NEW_TAG"
+          echo "Node version: $NEW_VERSION"
+          echo "Python version: $PYTHON_VERSION"
+
+      - name: Update package.json version
+        env:
+          NEW_VERSION: ${{ steps.calc_version.outputs.new_version }}
+        run: |
+          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" motia-js/packages/motia/package.json
+          rm motia-js/packages/motia/package.json.bak
+          echo "Updated package.json to version $NEW_VERSION"
+          git diff motia-js/packages/motia/package.json
+
+      - name: Update pyproject.toml version
+        env:
+          PYTHON_VERSION: ${{ steps.calc_version.outputs.python_version }}
+        run: |
+          sed -i.bak "s/^version = \".*\"/version = \"$PYTHON_VERSION\"/" motia-py/packages/motia/pyproject.toml
+          rm motia-py/packages/motia/pyproject.toml.bak
+          echo "Updated pyproject.toml to version $PYTHON_VERSION (PEP 440 format)"
+          git diff motia-py/packages/motia/pyproject.toml
+
+      - name: Validate versions
+        env:
+          NEW_VERSION: ${{ steps.calc_version.outputs.new_version }}
+          PYTHON_VERSION: ${{ steps.calc_version.outputs.python_version }}
+        run: |
+          PACKAGE_VERSION=$(grep '"version":' motia-js/packages/motia/package.json | head -n1 | cut -d'"' -f4)
+          if [ "$PACKAGE_VERSION" != "$NEW_VERSION" ]; then
+            echo "Error: package.json version ($PACKAGE_VERSION) does not match $NEW_VERSION"
+            exit 1
+          fi
+          echo "package.json version OK: $PACKAGE_VERSION"
+
+          PYPROJECT_VERSION=$(grep '^version = ' motia-py/packages/motia/pyproject.toml | head -n1 | cut -d'"' -f2)
+          if [ "$PYPROJECT_VERSION" != "$PYTHON_VERSION" ]; then
+            echo "Error: pyproject.toml version ($PYPROJECT_VERSION) does not match $PYTHON_VERSION"
+            exit 1
+          fi
+          echo "pyproject.toml version OK: $PYPROJECT_VERSION"
+
+      - name: Commit version bump
+        env:
+          NEW_TAG: ${{ steps.calc_version.outputs.new_tag }}
+          IS_PRERELEASE: ${{ steps.calc_version.outputs.is_prerelease }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add motia-js/packages/motia/package.json motia-py/packages/motia/pyproject.toml
+
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            git commit -m "chore: bump version to $NEW_TAG (pre-release)"
+          else
+            git commit -m "chore: bump version to $NEW_TAG"
+          fi
+
+          git push origin main
+
+      - name: Generate changelog
+        id: changelog
+        env:
+          LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
+        run: |
+          echo "Generating changelog from $LATEST_TAG to HEAD"
+
+          CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | head -n 20)
+
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="No changes recorded"
+          fi
+
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "Changelog preview:"
+          echo "$CHANGELOG"
 
       - name: Create and push tag
         env:
+          NEW_TAG: ${{ steps.calc_version.outputs.new_tag }}
+          IS_PRERELEASE: ${{ steps.calc_version.outputs.is_prerelease }}
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-          NEW_VERSION: ${{ steps.next_version.outputs.version }}
         run: |
-          TAG_NAME="v${NEW_VERSION}"
-          git tag -a "$TAG_NAME" -m "Release $NEW_VERSION"
-          git push origin "$TAG_NAME"
-          echo "Tag $TAG_NAME created and pushed successfully!"
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            git tag -a "$NEW_TAG" -m "Pre-release $NEW_TAG"
+          else
+            git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+          fi
+
+          git push origin "$NEW_TAG"
+          echo "Created and pushed tag: $NEW_TAG"
 
       - name: Summary
         env:
-          CURRENT_VERSION: ${{ steps.current_version.outputs.version }}
-          NEW_VERSION: ${{ steps.next_version.outputs.version }}
-          VERSION_TYPE: ${{ github.event.inputs.version_type }}
-          PREID: ${{ github.event.inputs.prerelease_identifier }}
+          NEW_TAG: ${{ steps.calc_version.outputs.new_tag }}
+          IS_PRERELEASE: ${{ steps.calc_version.outputs.is_prerelease }}
+          BUMP: ${{ github.event.inputs.bump }}
+          PRE_RELEASE: ${{ github.event.inputs.pre_release }}
         run: |
-          echo "### Tag Created Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "### Tag Created Successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Previous version:** ${CURRENT_VERSION}" >> $GITHUB_STEP_SUMMARY
-          echo "- **New version:** ${NEW_VERSION}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag:** v${NEW_VERSION}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version type:** ${VERSION_TYPE}" >> $GITHUB_STEP_SUMMARY
-          if [[ "${VERSION_TYPE}" =~ "prerelease" ]]; then
-            echo "- **Pre-release identifier:** ${PREID}" >> $GITHUB_STEP_SUMMARY
+          echo "**New Tag:** \`$NEW_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Bump Type:** \`$BUMP\`" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            echo "**Pre-release:** \`$PRE_RELEASE\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Type:** Stable release" >> $GITHUB_STEP_SUMMARY
           fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The deploy workflow will be triggered automatically by this tag." >> $GITHUB_STEP_SUMMARY
+          echo "The release workflow will now automatically trigger." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View the release progress: [Actions](https://github.com/${{ github.repository }}/actions)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify Slack - Tag Created
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "New tag ${{ steps.calc_version.outputs.new_tag }} created",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*New Tag Created*\n\nVersion: `${{ steps.calc_version.outputs.new_tag }}`\nBump: `${{ github.event.inputs.bump }}`\nPre-release: `${{ github.event.inputs.pre_release }}`\nCreated by: ${{ github.actor }}\n\nRelease workflow will now trigger automatically."
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Recent Changes:*\n```${{ steps.changelog.outputs.changelog }}```"
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "<${{ github.server_url }}/${{ github.repository }}/actions|View Workflow>"
+                    }
+                  ]
+                }
+              ]
+            }

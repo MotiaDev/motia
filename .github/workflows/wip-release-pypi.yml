@@ -66,10 +66,26 @@ jobs:
           fi
 
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          NEW_VERSION="${BASE_VERSION}-${TAG}.${TIMESTAMP}"
 
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Computed version: $NEW_VERSION"
+          # PEP 440 requires .devN format for dev releases
+          # Convert label to PEP 440: next/dev -> .devN, alpha -> aN, beta -> bN, rc -> rcN
+          case "$TAG" in
+            alpha)
+              PEP440_VERSION="${BASE_VERSION}a${TIMESTAMP}"
+              ;;
+            beta)
+              PEP440_VERSION="${BASE_VERSION}b${TIMESTAMP}"
+              ;;
+            rc)
+              PEP440_VERSION="${BASE_VERSION}rc${TIMESTAMP}"
+              ;;
+            *)
+              PEP440_VERSION="${BASE_VERSION}.dev${TIMESTAMP}"
+              ;;
+          esac
+
+          echo "version=$PEP440_VERSION" >> $GITHUB_OUTPUT
+          echo "Computed version: $PEP440_VERSION (PEP 440 compliant)"
 
       - name: Stamp version
         env:

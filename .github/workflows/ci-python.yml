@@ -1,34 +1,27 @@
-name: Motia CI
+name: CI - Python
 
 permissions:
   contents: read
 
 on:
-  workflow_call:
-  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'motia-py/**'
+      - '.github/workflows/ci-python.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'motia-py/**'
+      - '.github/workflows/ci-python.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  quality-node:
-    name: Node.js Quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Run linter
-        working-directory: motia-js
-        run: pnpm lint:ci
-
-      - name: Run tests
-        working-directory: motia-js
-        run: pnpm test:ci
-
   quality-python:
-    name: Python Quality
+    name: Python Quality (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -42,6 +35,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
