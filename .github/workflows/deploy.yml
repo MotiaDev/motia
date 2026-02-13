@@ -236,11 +236,10 @@ jobs:
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
 
-      - name: Set version from git tag
+      - name: Verify package version
         working-directory: motia-js/packages/motia
         run: |
-          pnpm version from-git --no-git-tag-version
-          echo "Updated version to: $(node -p "require('./package.json').version")"
+          echo "Package version: $(node -p "require('./package.json').version")"
 
       - name: Build packages
         working-directory: motia-js
