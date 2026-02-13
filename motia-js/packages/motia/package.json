@@ -5,6 +5,16 @@
   "publishConfig": {
     "access": "public"
   },
+  "description": "Motia is a library for building AI-powered applications.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MotiaDev/motia.git"
+  },
+  "homepage": "https://www.motia.dev",
+  "keywords": [
+    "ai",
+    "agentic"
+  ],
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.19.0",
   "type": "module",
