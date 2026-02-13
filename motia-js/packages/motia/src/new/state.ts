@@ -3,39 +3,39 @@ import type { InternalStateManager } from '../types'
 import { iii } from './iii'
 
 export class StateManager implements InternalStateManager {
-  async get<T>(groupId: string, itemId: string): Promise<T | null> {
-    return iii.call('state.get', { group_id: groupId, item_id: itemId })
+  async get<T>(scope: string, key: string): Promise<T | null> {
+    return iii.call('state.get', { scope, key })
   }
 
-  async set<T>(groupId: string, itemId: string, data: T): Promise<StreamSetResult<T> | null> {
+  async set<T>(scope: string, key: string, data: T): Promise<StreamSetResult<T> | null> {
     return iii.call('state.set', {
-      group_id: groupId,
-      item_id: itemId,
+      scope,
+      key,
       data,
     }) as Promise<StreamSetResult<T> | null>
   }
 
-  async delete<T>(groupId: string, itemId: string): Promise<T | null> {
-    return iii.call('state.delete', { group_id: groupId, item_id: itemId })
+  async delete<T>(scope: string, key: string): Promise<T | null> {
+    return iii.call('state.delete', { scope, key })
   }
 
-  async list<T>(groupId: string): Promise<T[]> {
-    return iii.call('state.list', { group_id: groupId })
+  async list<T>(scope: string): Promise<T[]> {
+    return iii.call('state.list', { scope })
   }
 
   async listGroups(): Promise<string[]> {
-    return iii.call('state.listGroups', {})
+    return iii.call('state.list_groups', {})
   }
 
-  async update<T>(groupId: string, itemId: string, ops: UpdateOp[]): Promise<StreamSetResult<T> | null> {
-    return iii.call('state.update', { group_id: groupId, item_id: itemId, ops })
+  async update<T>(scope: string, key: string, ops: UpdateOp[]): Promise<StreamSetResult<T> | null> {
+    return iii.call('state.update', { scope, key, ops })
   }
 
-  async clear(groupId: string): Promise<void> {
-    const items = await this.list<{ id: string }>(groupId)
+  async clear(scope: string): Promise<void> {
+    const items = await this.list<{ id: string }>(scope)
 
     for (const item of items) {
-      await this.delete(groupId, item.id)
+      await this.delete(scope, item.id)
     }
   }
 }
