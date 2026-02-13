@@ -28,13 +28,9 @@ Pull Request                          Manual Dispatch                    Tag Pus
                                                                          │    Publish  Publish
                                                                          │     NPM     PyPI
                                                                          │       │       │
-                                                                         └───────┴───┬───┘
+                                                                         └───────┴───────┘
                                                                                      │
-                                                                              validate-release.yml
-                                                                                     │
-                                                                              (auto on failure)
-                                                                                     │
-                                                                               rollback.yml
+                                                                               notify-complete
 ```
 
 ## Security Hardening
@@ -164,7 +160,7 @@ The main release workflow with progressive Slack notifications. Publishes to bot
 
 #### 1. Initialize Slack Notification (`notify-start`)
 - Posts initial Slack message with status indicators
-- Saves Slack message timestamp as artifact for cross-workflow access (used by `validate-release.yml`)
+- Saves Slack message timestamp as artifact for cross-workflow access
 
 #### 2. Detect Pre-release (`detect-prerelease`)
 - Parses tag for `-beta`, `-alpha`, `-rc` suffixes
@@ -215,27 +211,9 @@ test-python ──────────────────────�
 
 ---
 
-### `validate-release.yml` — Post-Release Validation
-
-**Trigger**: `workflow_run` — runs automatically after `Deploy Release` workflow completes successfully
-
-Validates that published packages are actually available to users on package registries.
-
-**Steps**:
-1. Get release tag from git
-2. Download Slack notification artifact from triggering workflow (cross-workflow IPC)
-3. **Validate Node package on npm** — polls `npm view motia@$VERSION` up to 5 retries, 30s apart
-4. **Validate Python package on PyPI** — polls `pip index versions motia` up to 5 retries, 30s apart
-5. Update Slack with validation success/failure
-6. **Auto-trigger rollback** if BOTH npm and PyPI validation fail
-
-- Job timeout: 15 minutes
-
----
-
 ### `rollback.yml` — Release Rollback
 
-**Trigger**: Manual workflow dispatch (or auto-triggered by `validate-release.yml`)
+**Trigger**: Manual workflow dispatch
 
 Rolls back to a previous version by updating version files, committing, and creating a rollback tag.
 
@@ -379,8 +357,8 @@ Engine configuration for CI integration tests. Modules:
 | `PYPI_API_TOKEN` | deploy, wip-release-pypi | PyPI publishing |
 | `MOTIA_CI_APP_ID` | create-tag, deploy, rollback, wip-release-npm | GitHub App for tag/commit pushing |
 | `MOTIA_CI_APP_PRIVATE_KEY` | create-tag, deploy, rollback, wip-release-npm | GitHub App private key |
-| `SLACK_BOT_TOKEN` | deploy, validate-release, rollback | Slack API for chat.postMessage/update |
-| `SLACK_CHANNEL_ID` | deploy, validate-release, rollback | Target Slack channel |
+| `SLACK_BOT_TOKEN` | deploy, rollback | Slack API for chat.postMessage/update |
+| `SLACK_CHANNEL_ID` | deploy, rollback | Target Slack channel |
 | `SLACK_WEBHOOK_URL` | create-tag | Slack incoming webhook for tag notifications |
 
 ---
@@ -401,8 +379,6 @@ Engine configuration for CI integration tests. Modules:
 10. Slack updated: "Tests passed, release created, publishing..."
 11. Publish to NPM (latest) and PyPI simultaneously
 12. Slack updated: final status with checkmarks for each package
-13. validate-release.yml runs automatically, polling registries
-14. If validation fails for both registries, rollback.yml triggered automatically
 ```
 
 ### Pre-release
@@ -427,7 +403,7 @@ Engine configuration for CI integration tests. Modules:
 
 ### Rollback
 ```
-1. Triggered manually or automatically by validate-release.yml
+1. Triggered manually
 2. Validates target version exists as a tag
 3. Optionally deletes the problematic release + tag
 4. Updates version files to target version
