@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "iii-motia"
-version = "0.3.0a4"
+version = "0.3.0a5"
 description = "Motia framework for III Engine"
 authors = [{ name = "III" }]
 readme = "README.md"
