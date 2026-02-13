@@ -31,6 +31,7 @@ from .types import (
     Step,
     StepConfig,
     StreamTrigger,
+    StreamTriggerInput,
     TriggerConfig,
     TriggerMetadata,
 )
@@ -323,6 +324,8 @@ def register_step(
                                 input_data,
                                 f"queue:{step.config.name}",
                             )
+                        elif isinstance(_trigger, StreamTrigger):
+                            input_data = StreamTriggerInput.model_validate(input_data)
 
                         trace_id = get_trace_id_from_span() or str(uuid.uuid4())
 
