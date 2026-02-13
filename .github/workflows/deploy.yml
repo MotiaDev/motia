@@ -132,6 +132,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Start III Engine
+        uses: ./.github/actions/iii-engine
+
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -148,7 +151,11 @@ jobs:
         run: mypy src
 
       - name: Run tests
-        run: pytest -m "not integration"
+        run: pytest
+
+      - name: Stop III Engine
+        if: always()
+        run: docker rm -f iii-engine || true
 
   create-release:
     name: Create GitHub Release
