@@ -216,6 +216,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [detect-prerelease, create-release]
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Generate token
         id: generate_token
