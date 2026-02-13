@@ -1,5 +1,5 @@
-import type { ISdk } from 'iii-sdk'
 import fs from 'fs/promises'
+import type { ISdk } from 'iii-sdk'
 import path from 'path'
 import { getStepFilesFromDir } from './build/generate-index'
 import { generateStepId } from './build/loader'

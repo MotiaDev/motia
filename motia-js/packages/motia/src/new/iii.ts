@@ -15,9 +15,16 @@ const createIII = (otelConfig?: Partial<OtelConfig>) => {
   })
 }
 
-export let iii: ISdk | undefined
+let instance: ISdk | undefined
+
+export const getInstance = (): ISdk => {
+  if (!instance) {
+    instance = createIII()
+  }
+  return instance
+}
 
 export const initIII = (otelConfig?: Partial<OtelConfig>) => {
-  iii = createIII(otelConfig)
-  return iii
+  instance = createIII(otelConfig)
+  return instance
 }
