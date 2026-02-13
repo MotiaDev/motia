@@ -20,8 +20,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  quality-python:
-    name: Python Quality (${{ matrix.python-version }})
+  lint-python:
+    name: Python Lint & Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: motia-py/packages/motia
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check src
+
+      - name: Type check
+        run: mypy src
+
+  test-python:
+    name: Python Tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -38,6 +66,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
+      - name: Start III Engine
+        uses: ./.github/actions/iii-engine
+
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -47,11 +78,9 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
-      - name: Lint
-        run: ruff check src
-
-      - name: Type check
-        run: mypy src
-
       - name: Run tests
         run: pytest
+
+      - name: Stop III Engine
+        if: always()
+        run: docker rm -f iii-engine || true

@@ -105,7 +105,7 @@ class StateManager:
             },
         ) as span:
             try:
-                result = await self._get_bridge().call(
+                items: list[Any] = await self._get_bridge().call(
                     "stream.list",
                     {
                         "stream_name": STREAM_NAME,
@@ -113,7 +113,7 @@ class StateManager:
                     },
                 )
                 set_span_ok(span)
-                return result
+                return items
             except Exception as exc:
                 record_exception(span, exc)
                 raise
@@ -122,14 +122,14 @@ class StateManager:
         """List all group IDs."""
         with operation_span("state.list_groups") as span:
             try:
-                result = await self._get_bridge().call(
+                groups: list[str] = await self._get_bridge().call(
                     "stream.list_groups",
                     {
                         "stream_name": STREAM_NAME,
                     },
                 )
                 set_span_ok(span)
-                return result
+                return groups
             except Exception as exc:
                 record_exception(span, exc)
                 raise

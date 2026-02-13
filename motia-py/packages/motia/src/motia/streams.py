@@ -39,7 +39,7 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                result = await self._get_bridge().call(
+                value: TData | None = await self._get_bridge().call(
                     "stream.get",
                     {
                         "stream_name": self.stream_name,
@@ -48,7 +48,7 @@ class Stream(Generic[TData]):
                     },
                 )
                 set_span_ok(span)
-                return result
+                return value
             except Exception as exc:
                 record_exception(span, exc)
                 raise
@@ -64,7 +64,7 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                result = await self._get_bridge().call(
+                value: TData = await self._get_bridge().call(
                     "stream.set",
                     {
                         "stream_name": self.stream_name,
@@ -74,7 +74,7 @@ class Stream(Generic[TData]):
                     },
                 )
                 set_span_ok(span)
-                return result
+                return value
             except Exception as exc:
                 record_exception(span, exc)
                 raise
@@ -113,7 +113,7 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                result = await self._get_bridge().call(
+                items: list[TData] = await self._get_bridge().call(
                     "stream.list",
                     {
                         "stream_name": self.stream_name,
@@ -121,7 +121,7 @@ class Stream(Generic[TData]):
                     },
                 )
                 set_span_ok(span)
-                return result
+                return items
             except Exception as exc:
                 record_exception(span, exc)
                 raise
@@ -135,14 +135,14 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                result = await self._get_bridge().call(
+                groups: list[str] = await self._get_bridge().call(
                     "stream.list_groups",
                     {
                         "stream_name": self.stream_name,
                     },
                 )
                 set_span_ok(span)
-                return result
+                return groups
             except Exception as exc:
                 record_exception(span, exc)
                 raise

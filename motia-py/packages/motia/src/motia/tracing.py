@@ -156,9 +156,9 @@ def instrument_bridge(bridge_instance: Any) -> None:
     original_handle_message = bridge_instance._handle_message
 
     def patched_to_dict(msg: Any) -> dict[str, Any]:
-        data = original_to_dict(msg)
-        msg_type = data.get("type")
-        if hasattr(msg_type, "value"):
+        data: dict[str, Any] = original_to_dict(msg)
+        msg_type: Any = data.get("type")
+        if msg_type is not None and hasattr(msg_type, "value"):
             msg_type = msg_type.value
         if msg_type == "invokefunction":
             headers = inject_context()

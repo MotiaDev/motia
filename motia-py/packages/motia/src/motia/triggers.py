@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from .types import ApiTrigger, CronTrigger, QueueTrigger
+from .types import ApiRouteMethod, ApiTrigger, CronTrigger, QueueTrigger
 
 
 def api(
-    method: str,
+    method: ApiRouteMethod,
     path: str,
     *,
     body_schema: Any | None = None,

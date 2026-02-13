@@ -37,7 +37,7 @@ def load_and_register_step(path: str) -> None:
     handler = getattr(module, "handler", None)
 
     if callable(handler) and (isinstance(config, Mapping) or hasattr(config, "model_dump")):
-        register_step(config, path, handler)
+        register_step(config, path, handler)  # type: ignore[arg-type]
 
 
 def _discover_files(directories: list[str], pattern: str) -> list[str]:

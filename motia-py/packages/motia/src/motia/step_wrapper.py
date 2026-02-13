@@ -188,7 +188,7 @@ def register_step(
     """Register a step with the bridge."""
     if not isinstance(config, StepConfig):
         config = StepConfig.model_validate(config)
-    step = Step(file_path=step_path, version="", config=config)
+    step: Step[Any] = Step(file_path=step_path, version="", config=config)
     state = StateManager()
     streams = streams or {}
 
@@ -209,7 +209,7 @@ def register_step(
 
             async def api_handler(
                 req: dict[str, Any],
-                _trigger=trigger,
+                _trigger: TriggerConfig = trigger,
             ) -> dict[str, Any]:
                 with step_span(
                     step.config.name,
@@ -229,7 +229,7 @@ def register_step(
                             with operation_span("emit", **{"motia.step.name": step.config.name}):
                                 await bridge.call("enqueue", event)
 
-                        motia_request = ApiRequest(
+                        motia_request: ApiRequest[Any] = ApiRequest(
                             path_params=req.get("path_params", {}),
                             query_params=req.get("query_params", {}),
                             body=req.get("body"),
@@ -245,7 +245,7 @@ def register_step(
 
                         trace_id = get_trace_id_from_span() or str(uuid.uuid4())
 
-                        context = FlowContext(
+                        context: FlowContext[Any] = FlowContext(
                             emit=emit,
                             trace_id=trace_id,
                             state=state,
@@ -255,7 +255,9 @@ def register_step(
                             _input=motia_request,
                         )
 
-                        middlewares = _trigger.middleware or []
+                        middlewares: list[Any] = []
+                        if isinstance(_trigger, ApiTrigger) and _trigger.middleware:
+                            middlewares = _trigger.middleware
 
                         if middlewares:
                             composed = _compose_middleware(middlewares)
@@ -278,7 +280,7 @@ def register_step(
             bridge.register_function(function_path, api_handler)
         else:
 
-            async def event_handler(req: Any, _trigger=trigger) -> Any:
+            async def event_handler(req: Any, _trigger: TriggerConfig = trigger) -> Any:
                 trigger_type_name = _trigger.type if hasattr(_trigger, "type") else "queue"
                 with step_span(step.config.name, trigger_type_name) as span:
                     try:
@@ -324,7 +326,7 @@ def register_step(
 
                         trace_id = get_trace_id_from_span() or str(uuid.uuid4())
 
-                        context = FlowContext(
+                        context: FlowContext[Any] = FlowContext(
                             emit=emit,
                             trace_id=trace_id,
                             state=state,
@@ -350,7 +352,7 @@ def register_step(
             condition_function_path = f"{function_path}.conditions:{trigger_index}"
             engine_config["_condition_path"] = condition_function_path
 
-            async def condition_handler(input_data: Any, _trigger=trigger) -> bool:
+            async def condition_handler(input_data: Any, _trigger: TriggerConfig = trigger) -> bool:
                 context_data = get_context()
 
                 trigger_metadata = TriggerMetadata(type=_trigger.type)
@@ -358,7 +360,7 @@ def register_step(
                 async def emit(event: Any) -> None:
                     pass
 
-                context = FlowContext(
+                context: FlowContext[Any] = FlowContext(
                     emit=emit,
                     trace_id="",
                     state=state,
@@ -368,10 +370,12 @@ def register_step(
                     _input=input_data,
                 )
 
+                if _trigger.condition is None:
+                    return True
                 result = _trigger.condition(input_data, context)
                 if inspect.iscoroutine(result):
-                    result = await result
-                return result
+                    return bool(await result)
+                return bool(result)
 
             bridge.register_function(condition_function_path, condition_handler)
 

@@ -132,7 +132,7 @@ class Motia:
             return result.model_dump()
         return {"authorized": bool(result)}
 
-    def _build_context(self, input_data: Any | None = None) -> FlowContext:
+    def _build_context(self, input_data: Any | None = None) -> FlowContext[Any]:
         """Create a FlowContext for stream handlers."""
         from .state import StateManager
 
@@ -160,8 +160,8 @@ class Motia:
         Returns:
             Response indicating success or failure
         """
-        stream_name = data.get("stream_name")
-        group_id = data.get("group_id")
+        stream_name: str = data.get("stream_name", "")
+        group_id: str = data.get("group_id", "")
         client_id = data.get("client_id") or data.get("id")
         auth_context = data.get("context")
 
@@ -186,8 +186,8 @@ class Motia:
         Returns:
             Response indicating success or failure
         """
-        stream_name = data.get("stream_name")
-        group_id = data.get("group_id")
+        stream_name: str = data.get("stream_name", "")
+        group_id: str = data.get("group_id", "")
         client_id = data.get("client_id") or data.get("id")
         auth_context = data.get("context")
 
