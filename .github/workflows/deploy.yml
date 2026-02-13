@@ -237,6 +237,7 @@ jobs:
         working-directory: motia-js/packages/motia
         run: |
           pnpm version from-git --no-git-tag-version
+          echo "Updated version to: $(node -p "require('./package.json').version")"
 
       - name: Build packages
         working-directory: motia-js
@@ -249,9 +250,9 @@ jobs:
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> motia-js/.npmrc
 
       - name: Publish to NPM
-        working-directory: motia-js
+        working-directory: motia-js/packages/motia
         run: |
-          pnpm publish -r --filter motia --no-git-checks --tag ${{ needs.detect-prerelease.outputs.npm_tag }} --provenance
+          pnpm publish --no-git-checks --tag ${{ needs.detect-prerelease.outputs.npm_tag }} --provenance --access public
 
       - name: Publish Summary
         env:
