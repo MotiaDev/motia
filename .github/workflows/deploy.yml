@@ -238,6 +238,10 @@ jobs:
         run: |
           pnpm version from-git --no-git-tag-version
 
+      - name: Build packages
+        working-directory: motia-js
+        run: pnpm build
+
       - name: Setup NPM authentication
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
