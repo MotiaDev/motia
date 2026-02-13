@@ -1,7 +1,7 @@
 """Create Order Step - demonstrates automatic OTel tracing.
 
 No tracing code is needed in the handler - it's all automatic.
-Install: pip install iii-motia[otel]
+Install: pip install motia[otel]
 """
 
 import random
