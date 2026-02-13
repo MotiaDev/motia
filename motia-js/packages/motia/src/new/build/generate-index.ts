@@ -32,8 +32,9 @@ const toSnakeCaseConst = (filePath: string) => {
 export const generateIndex = () => {
   const motiaConfigPath = path.join(process.cwd(), 'motia.config.ts')
   const hasMotiaConfig = existsSync(motiaConfigPath)
-  const hasAuthenticateStream =
-    hasMotiaConfig && readFileSync(motiaConfigPath, 'utf8').includes('export const authenticateStream')
+  const motiaConfigContent = hasMotiaConfig ? readFileSync(motiaConfigPath, 'utf8') : ''
+  const hasAuthenticateStream = motiaConfigContent.includes('export const authenticateStream')
+  const hasOtelConfig = motiaConfigContent.includes('export const otel')
 
   const streamsFiles = [
     ...getStreamFilesFromDir(path.join(process.cwd(), 'streams')),
@@ -66,12 +67,13 @@ export const generateIndex = () => {
   })
 
   return [
-    "import { Motia } from 'motia'",
+    "import { Motia, initIII } from 'motia'",
     hasMotiaConfig ? `import * as motiaConfig from './motia.config';` : '// No motia.config.ts found',
 
     ...streams.map((stream) => stream.importStatement),
     ...steps.map((step) => step.importStatement),
     '',
+    hasOtelConfig ? 'initIII(motiaConfig.otel);' : 'initIII();',
     'const motia = new Motia();',
     ...streams.map((stream) => stream.content),
 

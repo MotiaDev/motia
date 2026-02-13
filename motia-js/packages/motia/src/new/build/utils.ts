@@ -68,8 +68,8 @@ const flowContext = <EnqueueData, TInput = unknown>(
   trigger: TriggerInfo,
   input?: TInput,
 ): FlowContext<EnqueueData, TInput> => {
-  const traceId = crypto.randomUUID()
-  const { logger } = getContext()
+  const { logger, trace } = getContext()
+  const traceId = trace?.spanContext().traceId ?? crypto.randomUUID()
   const enqueue: Enqueuer<EnqueueData> = async (queue: EnqueueData): Promise<void> => iii.call('enqueue', queue)
 
   const context: FlowContext<EnqueueData, TInput> = {

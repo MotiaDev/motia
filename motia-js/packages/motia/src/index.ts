@@ -1,9 +1,9 @@
 export { getContext, Logger } from 'iii-sdk'
 export type { StreamAuthInput, StreamAuthResult, StreamContext } from 'iii-sdk/stream'
-
 export { multiTriggerStep } from './multi-trigger'
 export { generateStepId } from './new/build/loader'
 export { Motia } from './new/build/utils'
+export { initIII } from './new/iii'
 export { setupStepEndpoint } from './new/setup-step-endpoint'
 export { StateManager, stateManager } from './new/state'
 export { Stream } from './new/stream'
