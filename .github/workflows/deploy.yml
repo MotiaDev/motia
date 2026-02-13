@@ -240,7 +240,7 @@ jobs:
 
       - name: Build packages
         working-directory: motia-js
-        run: pnpm build
+        run: pnpm build --filter=!playground
 
       - name: Setup NPM authentication
         env:
