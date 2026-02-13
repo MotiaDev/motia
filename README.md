@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> 🚀 **A brand new engine is now powering Motia and supercharged its speed & scalability. It's currently in alpha.**
+>
+> **[📬 Signup to be the first to get notified about future releases](https://forms.gle/24iCHL9yAk1i6LDc6) → https://forms.gle/24iCHL9yAk1i6LDc6**
+
 <a href="https://motia.dev">
   <img src="assets/github-readme-banner.png" alt="Motia Banner" width="100%">
 </a>
