@@ -255,7 +255,7 @@ jobs:
       - name: Publish to NPM
         working-directory: motia-js/packages/motia
         run: |
-          pnpm publish --no-git-checks --tag ${{ needs.detect-prerelease.outputs.npm_tag }} --provenance --access public
+          pnpm publish --no-git-checks --tag ${{ needs.detect-prerelease.outputs.npm_tag }} --access public
 
       - name: Publish Summary
         env:
