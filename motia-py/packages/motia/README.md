@@ -5,7 +5,7 @@ High-level framework for building workflows with the III Engine.
 ## Installation
 
 ```bash
-uv pip install iii-motia
+uv pip install motia
 ```
 
 ## Usage

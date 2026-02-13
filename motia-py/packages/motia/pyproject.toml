@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "iii-motia"
+name = "motia"
 version = "1.0.0rc5"
 description = "Motia framework for III Engine"
 authors = [{ name = "III" }]
@@ -44,7 +44,6 @@ dev = [
 
 [project.scripts]
 motia = "motia.cli:main"
-motia-iii = "motia.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/motia"]
