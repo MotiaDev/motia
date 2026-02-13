@@ -23,7 +23,8 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "shiki": "^3.22.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",

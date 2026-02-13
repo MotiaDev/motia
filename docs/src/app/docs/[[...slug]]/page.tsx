@@ -41,8 +41,8 @@ export default async function Page(props: {
   const MDX = page.data.body;
   const markdown = await getLLMText(page);
   const isIndex = isIndexPage(params.slug);
-
   const isRootIndex = !params.slug || params.slug.length === 0;
+  const showCards = isIndex && !page.data.hideCards && !!params.slug;
 
   return (
     <DocsPage
@@ -50,13 +50,13 @@ export default async function Page(props: {
       full={page.data.full}
       tableOfContent={{ style: "clerk" }}
       footer={
-        isRootIndex
+        isRootIndex && !page.data.hideCards
           ? {
               items: {
                 next: { name: "Quickstart", url: "/docs/tutorials/quickstart" },
               },
             }
-          : { enabled: !isIndex }
+          : { enabled: !(isIndex || page.data.hideCards) }
       }
     >
       <DocsTitle>{page.data.title}</DocsTitle>
@@ -68,8 +68,8 @@ export default async function Page(props: {
             a: createRelativeLink(source, page),
           })}
         />
-        {isIndex && params.slug && (
-          <SectionCards tree={source.pageTree} slugs={params.slug} />
+        {showCards && (
+          <SectionCards tree={source.pageTree} slugs={params.slug!} />
         )}
       </DocsBody>
     </DocsPage>

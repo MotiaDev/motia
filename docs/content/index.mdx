@@ -1,6 +1,7 @@
 ---
 title: Welcome to iii
 description: The way to unify your backend and not think about it.
+hideCards: true
 ---
 
 **iii** (pronounced "three eye") is a backend engine that unifies your entire infrastructure—APIs, background jobs, workflows, queues, state, and everything else—into a single, durable runtime.
@@ -20,6 +21,11 @@ The best way to understand iii is to try it:
 
 ### 1. Install iii
 
+<Callout title="iii is in alpha" type="warn">
+  iii is under very active development. For now please install it directly from GitHub with:\
+  `curl -fsSl https://raw.githubusercontent.com/iii-hq/iii/main/install.sh | sh`
+</Callout>
+
 Get the toolchain installed on your machine.
 
 ```bash
@@ -37,10 +43,10 @@ iii --version
 ## Next Steps
 
 <Cards>
-  <Card icon={<Terminal />} title="Start building" href={`/tutorials/quickstart`}>
+  <Card icon={<Terminal />} title="Start building" href={`/docs/tutorials/quickstart`}>
     Try the Quickstart Tutorial and start building with iii right away.
   </Card>
-  <Card icon={<LayoutTemplate />} title="Learn more" href={`/concepts`}>
+  <Card icon={<LayoutTemplate />} title="Learn more" href={`/docs/concepts`}>
     Learn how Call and Register simplify backend application development.
   </Card>
 </Cards>
