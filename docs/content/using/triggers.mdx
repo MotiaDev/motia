@@ -102,7 +102,7 @@ The engine sets up the trigger in the appropriate module. Now when an HTTP POST 
 
 ```typescript
 {
-  trigger_type: 'event',
+  trigger_type: 'queue',
   function_path: 'events.handler',
   config: {
     subscribes: [
@@ -176,9 +176,9 @@ bridge.registerTrigger({
 
 // Trigger from events
 bridge.registerTrigger({
-  trigger_type: 'event',
+  trigger_type: 'queue',
   function_path: 'users.notify',
-  config: { subscribes: ['user.created', 'order.placed'] },
+  config: { topic: 'user.created' },
 })
 
 // Trigger from cron
@@ -258,7 +258,7 @@ bridge.registerFunction({
     await saveOrder(order)
     // Emit next event in chain
     await bridge.invokeFunction({
-      function_path: 'event.emit',
+      function_path: 'enqueue',
       data: {
         topic: 'order.processed',
         data: order,
@@ -268,9 +268,9 @@ bridge.registerFunction({
 })
 
 bridge.registerTrigger({
-  trigger_type: 'event',
+  trigger_type: 'queue',
   function_path: 'orders.process',
-  config: { subscribes: ['order.placed'] },
+  config: { topic: 'order.placed' },
 })
 
 // Step 2: Send confirmation
@@ -282,9 +282,9 @@ bridge.registerFunction({
 })
 
 bridge.registerTrigger({
-  trigger_type: 'event',
+  trigger_type: 'queue',
   function_path: 'orders.sendConfirmation',
-  config: { subscribes: ['order.processed'] },
+  config: { topic: 'order.processed' },
 })
 ```
 

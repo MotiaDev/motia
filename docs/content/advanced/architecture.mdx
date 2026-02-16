@@ -104,12 +104,12 @@ sequenceDiagram
     participant R as Redis
     participant W2 as Worker2
 
-    W1->>E: Invoke event.emit
-    E->>R: Publish to Redis
-    R-->>E: Event Published
+    W1->>E: Invoke enqueue
+    E->>R: Enqueue to Queue
+    R-->>E: Enqueued
 
     R->>E: Notify Subscribers
-    E->>W2: Invoke Handler (event trigger)
+    E->>W2: Dequeue from Queue
     W2-->>E: Processing Complete
 ```
 

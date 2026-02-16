@@ -65,9 +65,9 @@ Executes functions when events are published to subscribed topics.
 
 ```typescript
 {
-  trigger_type: 'event',
+  trigger_type: 'queue',
   config: {
-    subscribes: ['user.created', 'user.updated']
+    topic: 'user.created'
   }
 }
 ```
@@ -257,7 +257,7 @@ bridge.registerTrigger({
 ```typescript
 // Emit events
 await bridge.invokeFunction({
-  function_path: 'event.emit',
+  function_path: 'enqueue',
   data: {
     topic: 'order.placed',
     data: { orderId: '123', amount: 99.99 },
@@ -273,7 +273,7 @@ bridge.registerFunction({
 })
 
 bridge.registerTrigger({
-  trigger_type: 'event',
+  trigger_type: 'queue',
   function_path: 'notifications.sendOrderEmail',
   config: {
     subscribes: ['order.placed'],

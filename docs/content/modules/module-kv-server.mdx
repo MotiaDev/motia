@@ -37,7 +37,7 @@ modules::kv_server::KvServer
 
 ## Functions
 
-<ResponseField name="kv_server.get" type="function">
+<ResponseField name="kv_server::get" type="function">
   Get a value by key from the KV store.
 
   <AccordionGroup>
@@ -57,7 +57,7 @@ modules::kv_server::KvServer
   </AccordionGroup>
 </ResponseField>
 
-<ResponseField name="kv_server.set" type="function">
+<ResponseField name="kv_server::set" type="function">
   Set a value by key in the KV store.
 
   <AccordionGroup>
@@ -80,7 +80,7 @@ modules::kv_server::KvServer
   </AccordionGroup>
 </ResponseField>
 
-<ResponseField name="kv_server.delete" type="function">
+<ResponseField name="kv_server::delete" type="function">
   Delete a value by key from the KV store.
 
   <AccordionGroup>
@@ -100,7 +100,7 @@ modules::kv_server::KvServer
   </AccordionGroup>
 </ResponseField>
 
-<ResponseField name="kv_server.list_keys_with_prefix" type="function">
+<ResponseField name="kv_server::list_keys_with_prefix" type="function">
   List all keys that match a given prefix.
 
   <AccordionGroup>
@@ -117,7 +117,7 @@ modules::kv_server::KvServer
   </AccordionGroup>
 </ResponseField>
 
-<ResponseField name="kv_server.list" type="function">
+<ResponseField name="kv_server::list" type="function">
   List all values that match a given key pattern.
 
   <AccordionGroup>
@@ -145,21 +145,21 @@ modules::kv_server::KvServer
 import { bridge } from 'iii'
 
 // Set a value
-await bridge.invoke('kv_server.set', {
+await bridge.invoke('kv_server::set', {
   index: 'default',
   key: 'user:123',
   value: { name: 'John', email: 'john@example.com' },
 })
 
 // Get a value
-const user = await bridge.invoke('kv_server.get', {
+const user = await bridge.invoke('kv_server::get', {
   index: 'default',
   key: 'user:123',
 })
 console.log(user) // { name: 'John', email: 'john@example.com' }
 
 // Delete a value
-await bridge.invoke('kv_server.delete', {
+await bridge.invoke('kv_server::delete', {
   index: 'default',
   key: 'user:123',
 })
@@ -169,12 +169,12 @@ await bridge.invoke('kv_server.delete', {
 
 ```typescript
 // Store some users
-await bridge.invoke('kv_server.set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
-await bridge.invoke('kv_server.set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
-await bridge.invoke('kv_server.set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
+await bridge.invoke('kv_server::set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
+await bridge.invoke('kv_server::set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
+await bridge.invoke('kv_server::set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
 
 // List all user keys
-const userKeys = await bridge.invoke('kv_server.list_keys_with_prefix', {
+const userKeys = await bridge.invoke('kv_server::list_keys_with_prefix', {
   prefix: 'user:',
 })
 console.log(userKeys) // ['user:1', 'user:2']

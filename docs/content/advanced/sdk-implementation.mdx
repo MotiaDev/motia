@@ -520,14 +520,14 @@ Both SDKs provide abstractions for interacting with the Engine's Stream module, 
 
 ### Stream Operations
 
-Streams are accessed via the `streams.` namespace functions invoked over the bridge.
+Streams are accessed via the `stream::` namespace functions invoked over the bridge.
 
-| Operation     | SDK Function                 | Bridge Target      | Description                    |
-| ------------- | ---------------------------- | ------------------ | ------------------------------ |
-| **Get**       | `stream.get(group, id)`      | `streams.get`      | Retrieves an item from a group |
-| **Set**       | `stream.set(group, id, val)` | `streams.set`      | Saves an item to a group       |
-| **Delete**    | `stream.delete(group, id)`   | `streams.delete`   | Removes an item                |
-| **Get Group** | `stream.get_group(group)`    | `streams.getGroup` | Retrieves all items in a group |
+| Operation     | SDK Function                 | Bridge Target        | Description                    |
+| ------------- | ---------------------------- | -------------------- | ------------------------------ |
+| **Get**       | `stream.get(group, id)`      | `stream::get`        | Retrieves an item from a group |
+| **Set**       | `stream.set(group, id, val)` | `stream::set`        | Saves an item to a group       |
+| **Delete**    | `stream.delete(group, id)`   | `stream::delete`     | Removes an item                |
+| **Get Group** | `stream.list(group)`         | `stream::list`       | Retrieves all items in a group |
 
 ### Python Stream Class
 
@@ -542,7 +542,7 @@ todo_stream = Stream("todos")
 # Get item
 async def get(self, group_id: str, item_id: str) -> TData | None:
     return await self._get_bridge().invoke_function(
-        "streams.get",
+        "stream::get",
         {
             "stream_name": self.stream_name,
             "group_id": group_id,

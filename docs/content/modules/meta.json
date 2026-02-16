@@ -2,7 +2,7 @@
   "title": "Modules",
   "pages": [
     "module-rest-api",
-    "module-event",
+    "module-queue",
     "module-cron",
     "module-logging",
     "module-stream",

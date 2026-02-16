@@ -16,5 +16,5 @@ The result is a unified way to invoke any functionality accessible to the Engine
 graph LR
     CallProcess((Call)) --> Process["create_user()"]
     CallEndpoint((Call)) --> Endpoint["POST /user"]
-    CallState((Call)) --> State["state.set(user)"]
+    CallState((Call)) --> State["state::set(user)"]
 ```
