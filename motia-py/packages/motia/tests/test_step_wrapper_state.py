@@ -47,7 +47,7 @@ def test_state_trigger_registration(mock_bridge):
     # Verify trigger was registered
     mock_bridge.register_trigger.assert_called()
     call_args = mock_bridge.register_trigger.call_args
-    assert call_args[1]["trigger_type"] == "state"
+    assert call_args[1]["type"] == "state"
 
 
 def test_state_trigger_with_condition_registers_condition_function(mock_bridge):

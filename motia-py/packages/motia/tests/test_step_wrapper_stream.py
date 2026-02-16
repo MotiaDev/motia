@@ -47,7 +47,7 @@ def test_stream_trigger_registration(mock_bridge):
     # Verify trigger was registered
     mock_bridge.register_trigger.assert_called()
     call_args = mock_bridge.register_trigger.call_args
-    assert call_args[1]["trigger_type"] == "stream"
+    assert call_args[1]["type"] == "stream"
     assert call_args[1]["config"]["stream_name"] == "todos"
 
 

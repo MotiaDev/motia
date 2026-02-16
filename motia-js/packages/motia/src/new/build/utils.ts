@@ -231,7 +231,7 @@ export class Motia {
         }
 
         getInstance().registerTrigger({
-          trigger_type: 'queue',
+          type: 'queue',
           function_id,
           config: triggerConfig,
         })
@@ -258,7 +258,7 @@ export class Motia {
         }
 
         getInstance().registerTrigger({
-          trigger_type: 'cron',
+          type: 'cron',
           function_id,
           config: triggerConfig,
         })
@@ -284,7 +284,7 @@ export class Motia {
         }
 
         getInstance().registerTrigger({
-          trigger_type: 'state',
+          type: 'state',
           function_id,
           config: triggerConfig,
         })
@@ -322,7 +322,7 @@ export class Motia {
         }
 
         getInstance().registerTrigger({
-          trigger_type: 'stream',
+          type: 'stream',
           function_id,
           config: triggerConfig,
         })
@@ -374,7 +374,7 @@ export class Motia {
       })
 
       getInstance().registerTrigger({
-        trigger_type: 'stream:join',
+        type: 'stream:join',
         function_id,
         config: {},
       })
@@ -395,7 +395,7 @@ export class Motia {
       })
 
       getInstance().registerTrigger({
-        trigger_type: 'stream:leave',
+        type: 'stream:leave',
         function_id,
         config: {},
       })

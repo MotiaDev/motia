@@ -383,7 +383,7 @@ def register_step(
             bridge.register_function(condition_function_path, condition_handler)
 
         bridge.register_trigger(
-            trigger_type=trigger.type,
+            type=trigger.type,
             function_id=function_path,
             config=engine_config,
         )

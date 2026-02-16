@@ -35,7 +35,7 @@ def test_event_trigger_registers_as_queue_trigger(mock_bridge: MagicMock) -> Non
         register_step(config, "steps/test.step.py", handler)
 
     call_args = mock_bridge.register_trigger.call_args
-    assert call_args[1]["trigger_type"] == "queue"
+    assert call_args[1]["type"] == "queue"
     assert call_args[1]["config"]["topic"] == "orders.created"
     assert call_args[1]["config"]["metadata"]["type"] == "queue"
 
