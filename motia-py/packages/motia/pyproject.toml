@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "iii-motia"
+name = "motia"
 version = "0.3.0a6"
 description = "Motia framework for III Engine"
 authors = [{ name = "III" }]

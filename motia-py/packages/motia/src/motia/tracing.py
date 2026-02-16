@@ -1,7 +1,7 @@
 """OpenTelemetry instrumentation for Motia framework.
 
 Provides distributed tracing support using OpenTelemetry.
-When opentelemetry packages are installed (via `pip install iii-motia[otel]`),
+When opentelemetry packages are installed (via `pip install motia[otel]`),
 spans are automatically created for step execution, stream/state operations,
 and emit calls. When not installed, all functions are no-ops.
 """

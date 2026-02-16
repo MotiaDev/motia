@@ -10,7 +10,7 @@ authors = [{ name = "III" }]
 requires-python = ">=3.10"
 
 dependencies = [
-    "iii-motia[otel]",
+    "motia[otel]",
     "iii-sdk==0.2.0",
     "pydantic>=2.0",
 ]
@@ -27,4 +27,4 @@ packages = ["steps"]
 allow-direct-references = true
 
 [tool.uv.sources]
-iii-motia = { path = "../packages/motia" }
+motia = { path = "../packages/motia" }
