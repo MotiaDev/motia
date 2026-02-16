@@ -51,6 +51,6 @@ async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     return await ctx.match(
         {
             "event": _event_handler,
-            "api": _api_handler,
+            "http": _api_handler,
         },
     )

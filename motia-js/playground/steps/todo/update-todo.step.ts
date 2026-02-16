@@ -8,7 +8,7 @@ export const config = {
   flows: ['todo-app'],
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'PUT',
       path: '/todo/:todoId',
       bodySchema: z.object({

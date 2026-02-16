@@ -86,7 +86,7 @@ export const config = {
   name: 'SendMessage',
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'POST',
       path: '/messages',
     }
@@ -131,7 +131,7 @@ const config = {
   name: 'SendMessage',
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'POST',
       path: '/messages',
     }

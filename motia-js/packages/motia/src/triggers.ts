@@ -33,7 +33,7 @@ export function api<TOptions extends ApiOptions<any> | undefined = undefined>(
   condition?: TriggerCondition,
 ): ApiTrigger<TOptions extends ApiOptions<infer S> ? S : undefined> {
   // biome-ignore lint/suspicious/noExplicitAny: runtime return is correct, cast needed for flexible type
-  return { type: 'api', method, path, ...options, condition } as any
+  return { type: 'http', method, path, ...options, condition } as any
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to accept all schema types

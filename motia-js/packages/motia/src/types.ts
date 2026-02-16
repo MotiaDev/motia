@@ -38,7 +38,7 @@ export type ExtractDataPayload<TInput> =
 export type MatchHandlers<TInput, TEnqueueData, TResult> = {
   queue?: (input: ExtractQueueInput<TInput>) => Promise<void>
 
-  api?: (request: ExtractApiInput<TInput>) => Promise<TResult>
+  http?: (request: ExtractApiInput<TInput>) => Promise<TResult>
 
   cron?: () => Promise<void>
 
@@ -59,7 +59,7 @@ export interface FlowContext<TEnqueueData = never, TInput = unknown> {
 
   is: {
     queue: (input: TInput) => input is ExtractQueueInput<TInput>
-    api: (input: TInput) => input is ExtractApiInput<TInput>
+    http: (input: TInput) => input is ExtractApiInput<TInput>
     cron: (input: TInput) => input is never
     state: (input: TInput) => input is ExtractStateInput<TInput>
     stream: (input: TInput) => input is ExtractStreamInput<TInput>
@@ -86,7 +86,7 @@ export interface FlowContext<TEnqueueData = never, TInput = unknown> {
 
 export type Enqueue = string | { topic: string; label?: string; conditional?: boolean }
 
-type TriggerType = 'api' | 'queue' | 'cron' | 'state' | 'stream'
+type TriggerType = 'http' | 'queue' | 'cron' | 'state' | 'stream'
 
 export type TriggerInfo = {
   type: TriggerType
@@ -194,7 +194,7 @@ export type QueueTrigger<TSchema extends StepSchemaInput | undefined = any> = {
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to allow trigger assignment to TriggerConfig
 export type ApiTrigger<TSchema extends StepSchemaInput | undefined = any> = {
-  type: 'api'
+  type: 'http'
   path: string
   method: ApiRouteMethod
   bodySchema?: TSchema
@@ -307,7 +307,7 @@ type TriggerToInput<TTrigger> = TTrigger extends { type: 'queue'; input?: infer 
     : S extends StepSchemaInput
       ? InferSchema<S>
       : unknown
-  : TTrigger extends { type: 'api'; bodySchema?: infer S }
+  : TTrigger extends { type: 'http'; bodySchema?: infer S }
     ? ApiRequest<S extends ZodInput ? z.infer<S> : S extends StepSchemaInput ? InferSchema<S> : unknown>
     : TTrigger extends { type: 'state' }
       ? StateTriggerInput<unknown>

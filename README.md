@@ -91,7 +91,7 @@ export const config = {
   name: 'SendMessage',
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'POST',
       path: '/messages',
     }
@@ -136,7 +136,7 @@ const config = {
   name: 'SendMessage',
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'POST',
       path: '/messages',
     }
@@ -234,7 +234,7 @@ The guides include patterns for API endpoints, background tasks, state managemen
 
 | Type | When it runs | Use Case |
 |------|--------------|----------|
-| **`api`** | HTTP Request | REST endpoints |
+| **`http`** | HTTP Request | REST endpoints |
 | **`queue`** | Queue subscription | Background processing |  
 | **`cron`** | Schedule | Recurring jobs |
 | **`state`** | State change | State management |

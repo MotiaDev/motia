@@ -9,7 +9,7 @@ export const config = {
   flows: ['array-step'],
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'POST',
       path: '/array',
       bodySchema: jsonSchema(
