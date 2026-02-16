@@ -9,7 +9,7 @@ export const config = {
   flows: ['basic-tutorial'],
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'POST',
       path: '/basic-tutorial',
       bodySchema: z.object({

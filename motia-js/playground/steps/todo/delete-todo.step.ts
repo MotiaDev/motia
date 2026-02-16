@@ -7,7 +7,7 @@ export const config = {
   flows: ['todo-app'],
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'DELETE',
       path: '/todo/:todoId',
       responseSchema: {

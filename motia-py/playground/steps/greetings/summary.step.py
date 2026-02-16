@@ -37,7 +37,7 @@ async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     """Dispatch to the API or cron handler based on trigger type."""
     return await ctx.match(
         {
-            "api": _summary_api_handler,
+            "http": _summary_api_handler,
             "cron": _summary_cron_handler,
         },
     )

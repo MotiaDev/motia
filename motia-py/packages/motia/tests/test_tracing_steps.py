@@ -50,12 +50,12 @@ def mock_context():
 
 @pytest.mark.asyncio
 async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_context):
-    """Register API step, call handler, verify step:name span with motia.trigger.type=api."""
+    """Register API step, call handler, verify step:name span with motia.trigger.type=http."""
     from motia.step_wrapper import register_step
 
     config = StepConfig(
         name="my-api-step",
-        triggers=[ApiTrigger(type="api", path="/test", method="GET")],
+        triggers=[ApiTrigger(type="http", path="/test", method="GET")],
     )
 
     async def handler(req, ctx):
@@ -83,7 +83,7 @@ async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_context
 
     span = step_spans[0]
     assert span.attributes["motia.step.name"] == "my-api-step"
-    assert span.attributes["motia.trigger.type"] == "api"
+    assert span.attributes["motia.trigger.type"] == "http"
     assert span.status.status_code == StatusCode.OK
 
 
@@ -166,7 +166,7 @@ async def test_trace_id_uses_otel_trace_id(otel_exporter, mock_bridge, mock_cont
 
     config = StepConfig(
         name="trace-id-step",
-        triggers=[ApiTrigger(type="api", path="/trace", method="GET")],
+        triggers=[ApiTrigger(type="http", path="/trace", method="GET")],
     )
 
     async def handler(req, ctx):

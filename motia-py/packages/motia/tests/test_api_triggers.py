@@ -21,7 +21,7 @@ async def test_api_trigger_get_endpoint(bridge, api_url):
 
     bridge.register_function("test.api.get", get_handler)
     bridge.register_trigger(
-        "api",
+        "http",
         "test.api.get",
         {
             "api_path": "test/hello",
@@ -52,7 +52,7 @@ async def test_api_trigger_post_with_body(bridge, api_url):
 
     bridge.register_function("test.api.post", post_handler)
     bridge.register_trigger(
-        "api",
+        "http",
         "test.api.post",
         {
             "api_path": "test/items",
@@ -88,7 +88,7 @@ async def test_api_trigger_path_params(bridge, api_url):
 
     bridge.register_function("test.api.getById", get_by_id_handler)
     bridge.register_trigger(
-        "api",
+        "http",
         "test.api.getById",
         {
             "api_path": "test/items/:id",
@@ -119,7 +119,7 @@ async def test_api_trigger_query_params(bridge, api_url):
 
     bridge.register_function("test.api.search", search_handler)
     bridge.register_trigger(
-        "api",
+        "http",
         "test.api.search",
         {
             "api_path": "test/search",
@@ -151,7 +151,7 @@ async def test_api_trigger_custom_status_code(bridge, api_url):
 
     bridge.register_function("test.api.notfound", not_found_handler)
     bridge.register_trigger(
-        "api",
+        "http",
         "test.api.notfound",
         {
             "api_path": "test/missing",

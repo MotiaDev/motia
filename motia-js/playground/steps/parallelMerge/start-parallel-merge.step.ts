@@ -15,7 +15,7 @@ export const config = {
   description: 'Triggered when a message is received from parallel merge',
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'POST',
       path: '/api/parallel-merge',
       bodySchema,

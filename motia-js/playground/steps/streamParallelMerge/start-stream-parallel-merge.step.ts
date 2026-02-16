@@ -19,7 +19,7 @@ export const config = {
   description: 'Initiates a parallel merge workflow using streams, triggering multiple step processing events',
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       method: 'POST',
       path: '/api/stream-parallel-merge',
       bodySchema,

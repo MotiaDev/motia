@@ -6,7 +6,7 @@ export const config = {
   description: 'Receives hello request and enqueues event for processing',
   triggers: [
     {
-      type: 'api',
+      type: 'http',
       path: '/hello',
       method: 'GET',
       responseSchema: {
