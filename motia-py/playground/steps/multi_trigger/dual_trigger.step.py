@@ -2,14 +2,14 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api, event
+from motia import ApiRequest, ApiResponse, FlowContext, api, queue
 
 
 config = {
     "name": "DualTrigger",
     "description": "Test dual trigger (event + API)",
     "triggers": [
-        event("test.dual"),
+        queue("test.dual"),
         api("POST", "/test/dual"),
     ],
     "emits": ["test.dual.processed"],
@@ -31,7 +31,7 @@ async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     """Dispatch dual trigger handlers."""
     return await ctx.match(
         {
-            "event": _event_handler,
+            "queue": _event_handler,
             "http": _api_handler,
         },
     )

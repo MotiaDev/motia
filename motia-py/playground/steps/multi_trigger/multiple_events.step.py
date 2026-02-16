@@ -2,16 +2,16 @@
 
 from typing import Any
 
-from motia import FlowContext, event
+from motia import FlowContext, queue
 
 
 config = {
     "name": "MultipleEvents",
     "description": "Test multiple event triggers",
     "triggers": [
-        event("test.event.1"),
-        event("test.event.2"),
-        event("test.event.3"),
+        queue("test.event.1"),
+        queue("test.event.2"),
+        queue("test.event.3"),
     ],
     "emits": ["test.events.processed"],
 }

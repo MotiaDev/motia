@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api, event
+from motia import ApiRequest, ApiResponse, FlowContext, api, queue
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -28,7 +28,7 @@ config = {
     "name": "MixedTriggersWithConditions",
     "description": "Test multiple triggers each with different conditions",
     "triggers": [
-        event("order.created", condition=is_high_value),
+        queue("order.created", condition=is_high_value),
         api("POST", "/orders/manual", condition=is_verified_user),
     ],
     "emits": ["order.processed"],
@@ -50,7 +50,7 @@ async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     """Dispatch to handler based on trigger type."""
     return await ctx.match(
         {
-            "event": _event_handler,
+            "queue": _event_handler,
             "http": _api_handler,
         },
     )

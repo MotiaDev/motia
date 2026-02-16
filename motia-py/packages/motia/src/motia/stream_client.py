@@ -43,7 +43,7 @@ class StreamSubscription:
 
     def off_event(self, event_type: str, listener: Callable[[Any], None]) -> None:
         listeners = self._event_listeners.get(event_type, [])
-        self._event_listeners[event_type] = [l for l in listeners if l != listener]
+        self._event_listeners[event_type] = [fn for fn in listeners if fn != listener]
 
     def on_close(self, listener: Callable[[], None]) -> None:
         self._close_listeners.add(listener)

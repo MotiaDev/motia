@@ -10,7 +10,7 @@ from iii import get_context
 
 from .iii import get_instance
 from .schema_utils import schema_to_json_schema
-from .state import StateManager, stateManager
+from .state import stateManager
 from .streams import Stream
 from .tracing import (
     get_trace_id_from_span,

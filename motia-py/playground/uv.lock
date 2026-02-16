@@ -196,33 +196,8 @@ wheels = [
 ]
 
 [[package]]
-name = "iii-sdk"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "websockets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/14/79/1c48d48a4c8453fe7cb1541a42480e44f2ea3e16f56fe41516ed696f2f92/iii_sdk-0.1.0.tar.gz", hash = "sha256:11a9c6cfaeb3e64d289e9f32728198975e8c199439149f099487d038dbb63df1", size = 49067, upload-time = "2026-02-13T20:02:13.631Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/26/b856f8c6365446e2d4af3eefa75deee3aec64b682c9841a72639bf0266d2/iii_sdk-0.1.0-py3-none-any.whl", hash = "sha256:483a8fd6108912962b7f321c31c9a6cbd608c962dc34870acbf0453a7948d4bf", size = 12132, upload-time = "2026-02-13T20:02:12.29Z" },
-]
-
-[[package]]
-name = "importlib-metadata"
-version = "8.7.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "zipp" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/49/3b30cad09e7771a4982d9975a8cbf64f00d4a1ececb53297f1d9a7be1b10/importlib_metadata-8.7.1.tar.gz", hash = "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb", size = 57107, upload-time = "2025-12-21T10:00:19.278Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fa/5e/f8e9a1d23b9c20a551a8a02ea3637b4642e22c2626e3a13a9a29cdea99eb/importlib_metadata-8.7.1-py3-none-any.whl", hash = "sha256:5a1f80bf1daa489495071efbb095d75a634cf28a8bc299581244063b53176151", size = 27865, upload-time = "2025-12-21T10:00:18.329Z" },
-]
-
-[[package]]
-name = "motia"
-version = "1.0.0rc10"
+name = "iii-motia"
+version = "0.3.0a6"
 source = { directory = "../packages/motia" }
 dependencies = [
     { name = "iii-sdk" },
@@ -239,7 +214,7 @@ otel = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
-    { name = "iii-sdk", specifier = "==0.1.0" },
+    { name = "iii-sdk", specifier = "==0.2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "opentelemetry-api", marker = "extra == 'dev'", specifier = ">=1.20" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.20" },
@@ -255,12 +230,37 @@ requires-dist = [
 provides-extras = ["otel", "dev"]
 
 [[package]]
+name = "iii-sdk"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b1/c5/ab7e4232f33f86c6172bb1b091371c2b6f801402fbf257c3f8443eeac133/iii_sdk-0.2.0.tar.gz", hash = "sha256:0a4fa22c2566b6de294c216f077455448c90561cc1ae4c4b71764e0ee0876325", size = 49059, upload-time = "2026-02-16T19:36:13.243Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/a3/2cd390e15e5ae9e9e5332f379ac4931190c97fec3d92cde3cb982b465745/iii_sdk-0.2.0-py3-none-any.whl", hash = "sha256:9d632db14356f4c2f2d9ae8852a251fb5de827902256868ac5295219711372a9", size = 12124, upload-time = "2026-02-16T19:36:11.92Z" },
+]
+
+[[package]]
+name = "importlib-metadata"
+version = "8.7.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "zipp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f3/49/3b30cad09e7771a4982d9975a8cbf64f00d4a1ececb53297f1d9a7be1b10/importlib_metadata-8.7.1.tar.gz", hash = "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb", size = 57107, upload-time = "2025-12-21T10:00:19.278Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/5e/f8e9a1d23b9c20a551a8a02ea3637b4642e22c2626e3a13a9a29cdea99eb/importlib_metadata-8.7.1-py3-none-any.whl", hash = "sha256:5a1f80bf1daa489495071efbb095d75a634cf28a8bc299581244063b53176151", size = 27865, upload-time = "2025-12-21T10:00:18.329Z" },
+]
+
+[[package]]
 name = "motia-example"
 version = "0.0.2"
 source = { editable = "." }
 dependencies = [
+    { name = "iii-motia", extra = ["otel"] },
     { name = "iii-sdk" },
-    { name = "motia", extra = ["otel"] },
     { name = "pydantic" },
 ]
 
@@ -271,8 +271,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "iii-sdk", specifier = "==0.1.0" },
-    { name = "motia", extras = ["otel"], directory = "../packages/motia" },
+    { name = "iii-motia", extras = ["otel"], directory = "../packages/motia" },
+    { name = "iii-sdk", specifier = "==0.2.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=4.0" },
 ]

@@ -16,7 +16,7 @@ config = {
     "triggers": [
         api("POST", "/todo"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 
