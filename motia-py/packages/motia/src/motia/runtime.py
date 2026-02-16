@@ -92,20 +92,20 @@ class Motia:
 
         # Register authentication handler
         if self._authenticate:
-            bridge.register_function("motia.streams.authenticate", self._handle_authenticate)
+            bridge.register_function("motia::streams::authenticate", self._handle_authenticate)
             log.debug("Registered stream authentication handler")
 
         has_join = any(config.on_join for config in self._stream_configs.values())
         has_leave = any(config.on_leave for config in self._stream_configs.values())
 
         if has_join:
-            bridge.register_function("motia.streams.join", self._handle_join)
-            bridge.register_trigger("streams:join", "motia.streams.join", {})
+            bridge.register_function("motia::streams::join", self._handle_join)
+            bridge.register_trigger("streams:join", "motia::streams::join", {})
             log.debug("Registered stream join handler")
 
         if has_leave:
-            bridge.register_function("motia.streams.leave", self._handle_leave)
-            bridge.register_trigger("streams:leave", "motia.streams.leave", {})
+            bridge.register_function("motia::streams::leave", self._handle_leave)
+            bridge.register_trigger("streams:leave", "motia::streams::leave", {})
             log.debug("Registered stream leave handler")
 
         from .setup_step_endpoint import setup_step_endpoint

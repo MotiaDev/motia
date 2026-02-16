@@ -202,7 +202,7 @@ def register_step(
     log.info(f"Step registered: {step.config.name}")
 
     for trigger_index, trigger in enumerate(config.triggers):
-        function_path = f"steps.{step.config.name}:trigger:{trigger_index}"
+        function_path = f"steps::{step.config.name}::trigger::{trigger_index}"
 
         is_api_trigger = isinstance(trigger, ApiTrigger)
 
@@ -352,7 +352,7 @@ def register_step(
         engine_config = _trigger_to_engine_config(trigger, trigger_metadata)
 
         if trigger.condition:
-            condition_function_path = f"{function_path}.conditions:{trigger_index}"
+            condition_function_path = f"{function_path}::conditions::{trigger_index}"
             engine_config["_condition_path"] = condition_function_path
 
             async def condition_handler(input_data: Any, _trigger: TriggerConfig = trigger) -> bool:
