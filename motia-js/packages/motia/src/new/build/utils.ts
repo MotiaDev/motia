@@ -142,7 +142,7 @@ export class Motia {
     const metadata = { ...step.config, filePath }
 
     step.config.triggers.forEach((trigger: TriggerConfig, index: number) => {
-      const function_id = `steps.${step.config.name}:trigger:${index}`
+      const function_id = `steps::${step.config.name}::trigger::${index}`
 
       if (isApiTrigger(trigger)) {
         getInstance().registerFunction(
@@ -181,7 +181,7 @@ export class Motia {
         }
 
         if (trigger.condition) {
-          const conditionPath = `${function_id}.conditions:${index}`
+          const conditionPath = `${function_id}::conditions::${index}`
 
           getInstance().registerFunction(
             { id: conditionPath },
@@ -219,7 +219,7 @@ export class Motia {
         }
 
         if (trigger.condition) {
-          const conditionPath = `${function_id}.conditions:${index}`
+          const conditionPath = `${function_id}::conditions::${index}`
 
           getInstance().registerFunction({ id: conditionPath }, async (input: unknown) => {
             const triggerInfo: TriggerInfo = { type: 'queue', index }
@@ -247,7 +247,7 @@ export class Motia {
         }
 
         if (trigger.condition) {
-          const conditionPath = `${function_id}.conditions:${index}`
+          const conditionPath = `${function_id}::conditions::${index}`
 
           getInstance().registerFunction({ id: conditionPath }, async () => {
             const triggerInfo: TriggerInfo = { type: 'cron', index }
@@ -273,7 +273,7 @@ export class Motia {
         const triggerConfig: Record<string, any> = { metadata }
 
         if (trigger.condition) {
-          const conditionPath = `${function_id}.conditions:${index}`
+          const conditionPath = `${function_id}::conditions::${index}`
 
           getInstance().registerFunction({ id: conditionPath }, async (input) => {
             const triggerInfo: TriggerInfo = { type: 'state', index }
@@ -311,7 +311,7 @@ export class Motia {
         }
 
         if (trigger.condition) {
-          const conditionPath = `${function_id}.conditions:${index}`
+          const conditionPath = `${function_id}::conditions::${index}`
 
           getInstance().registerFunction({ id: conditionPath }, async (input) => {
             const triggerInfo: TriggerInfo = { type: 'stream', index }
@@ -341,7 +341,7 @@ export class Motia {
     setupStepEndpoint(getInstance())
 
     if (this.authenticateStream) {
-      const function_id = 'motia.streams.authenticate'
+      const function_id = 'motia::streams::authenticate'
 
       getInstance().registerFunction({ id: function_id }, async (req: StreamAuthInput) => {
         if (this.authenticateStream) {
