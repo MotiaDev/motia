@@ -5,7 +5,7 @@ inputs:
   image:
     description: 'Docker image for the III Engine'
     required: false
-    default: 'iiidev/iii:sha-3df6903'
+    default: 'iiidev/iii:build-amd64'
   config-path:
     description: 'Path to the engine config YAML file (relative to workspace root)'
     required: false
