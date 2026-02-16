@@ -1,25 +1,61 @@
-"""Type guards for step configurations."""
+"""Type guards for step and trigger configurations."""
 
-from typing import Any
-
-from .types import ApiTrigger, CronTrigger, QueueTrigger, Step
+from .types import ApiTrigger, CronTrigger, QueueTrigger, StateTrigger, Step, StreamTrigger, TriggerConfig
 
 
-def is_api_step(step: Step[Any]) -> bool:
+# Trigger-level guards (matching Node.js)
+def is_api_trigger(trigger: TriggerConfig) -> bool:
+    """Check if a trigger is an API trigger."""
+    return isinstance(trigger, ApiTrigger)
+
+
+def is_queue_trigger(trigger: TriggerConfig) -> bool:
+    """Check if a trigger is a queue trigger."""
+    return isinstance(trigger, QueueTrigger)
+
+
+def is_cron_trigger(trigger: TriggerConfig) -> bool:
+    """Check if a trigger is a cron trigger."""
+    return isinstance(trigger, CronTrigger)
+
+
+def is_state_trigger(trigger: TriggerConfig) -> bool:
+    """Check if a trigger is a state trigger."""
+    return isinstance(trigger, StateTrigger)
+
+
+def is_stream_trigger(trigger: TriggerConfig) -> bool:
+    """Check if a trigger is a stream trigger."""
+    return isinstance(trigger, StreamTrigger)
+
+
+# Step-level guards
+def is_api_step(step: Step) -> bool:
     """Check if a step has an API trigger."""
-    return any(isinstance(t, ApiTrigger) for t in step.config.triggers)
+    return any(is_api_trigger(t) for t in step.config.triggers)
 
 
-def is_event_step(step: Step[Any]) -> bool:
-    """Check if a step has a queue/event trigger."""
-    return any(isinstance(t, QueueTrigger) for t in step.config.triggers)
+def is_queue_step(step: Step) -> bool:
+    """Check if a step has a queue trigger."""
+    return any(is_queue_trigger(t) for t in step.config.triggers)
 
 
-def is_noop_step(step: Step[Any]) -> bool:
-    """Check if a step has no triggers."""
-    return len(step.config.triggers) == 0
-
-
-def is_cron_step(step: Step[Any]) -> bool:
+def is_cron_step(step: Step) -> bool:
     """Check if a step has a cron trigger."""
-    return any(isinstance(t, CronTrigger) for t in step.config.triggers)
+    return any(is_cron_trigger(t) for t in step.config.triggers)
+
+
+# Getter helpers (matching Node.js)
+def get_api_triggers(step: Step) -> list[ApiTrigger]:
+    """Get all API triggers from a step."""
+    return [t for t in step.config.triggers if is_api_trigger(t)]
+
+
+def get_queue_triggers(step: Step) -> list[QueueTrigger]:
+    """Get all queue triggers from a step."""
+    return [t for t in step.config.triggers if is_queue_trigger(t)]
+
+
+def get_cron_triggers(step: Step) -> list[CronTrigger]:
+    """Get all cron triggers from a step."""
+    return [t for t in step.config.triggers if is_cron_trigger(t)]

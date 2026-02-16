@@ -277,6 +277,50 @@ wheels = [
 ]
 
 [[package]]
+name = "iii-motia"
+version = "0.3.0a6"
+source = { editable = "." }
+dependencies = [
+    { name = "iii-sdk" },
+    { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "mypy" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-sdk" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+otel = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-sdk" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
+    { name = "iii-sdk", specifier = "==0.2.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
+    { name = "opentelemetry-api", marker = "extra == 'dev'", specifier = ">=1.20" },
+    { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.20" },
+    { name = "opentelemetry-exporter-otlp", marker = "extra == 'dev'", specifier = ">=1.20" },
+    { name = "opentelemetry-exporter-otlp", marker = "extra == 'otel'", specifier = ">=1.20" },
+    { name = "opentelemetry-sdk", marker = "extra == 'dev'", specifier = ">=1.20" },
+    { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.20" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2" },
+]
+provides-extras = ["otel", "dev"]
+
+[[package]]
 name = "iii-sdk"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -394,50 +438,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/bb/f3/e1981ab6fa9b41be0396648b5850267888a752d025313a9e929c4856208e/librt-0.8.0-cp314-cp314t-win_amd64.whl", hash = "sha256:25e82d920d4d62ad741592fcf8d0f3bda0e3fc388a184cb7d2f566c681c5f7b9", size = 58719, upload-time = "2026-02-12T14:53:37.183Z" },
     { url = "https://files.pythonhosted.org/packages/94/d1/433b3c06e78f23486fe4fdd19bc134657eb30997d2054b0dbf52bbf3382e/librt-0.8.0-cp314-cp314t-win_arm64.whl", hash = "sha256:92249938ab744a5890580d3cb2b22042f0dce71cdaa7c1369823df62bedf7cbc", size = 48753, upload-time = "2026-02-12T14:53:38.539Z" },
 ]
-
-[[package]]
-name = "motia"
-version = "1.0.0rc13"
-source = { editable = "." }
-dependencies = [
-    { name = "iii-sdk" },
-    { name = "pydantic" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "httpx" },
-    { name = "mypy" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp" },
-    { name = "opentelemetry-sdk" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-]
-otel = [
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp" },
-    { name = "opentelemetry-sdk" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
-    { name = "iii-sdk", specifier = "==0.2.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
-    { name = "opentelemetry-api", marker = "extra == 'dev'", specifier = ">=1.20" },
-    { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.20" },
-    { name = "opentelemetry-exporter-otlp", marker = "extra == 'dev'", specifier = ">=1.20" },
-    { name = "opentelemetry-exporter-otlp", marker = "extra == 'otel'", specifier = ">=1.20" },
-    { name = "opentelemetry-sdk", marker = "extra == 'dev'", specifier = ">=1.20" },
-    { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.20" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2" },
-]
-provides-extras = ["otel", "dev"]
 
 [[package]]
 name = "mypy"

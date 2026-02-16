@@ -1,117 +1,80 @@
 """State management for Motia framework."""
 
-from typing import Any, TypeVar
+from __future__ import annotations
 
+from typing import Any
+
+from .iii import get_instance
 from .tracing import operation_span, record_exception, set_span_ok
-
-TData = TypeVar("TData")
-
-STREAM_NAME = "$$internal-state"
 
 
 class StateManager:
-    """Internal state manager using streams."""
+    """Internal state manager using state SDK calls."""
 
-    def __init__(self) -> None:
-        self._bridge: Any = None
-
-    def _get_bridge(self) -> Any:
-        """Lazy load bridge to avoid circular imports."""
-        if self._bridge is None:
-            from .bridge import bridge
-
-            self._bridge = bridge
-        return self._bridge
-
-    async def get(self, group_id: str, item_id: str) -> Any | None:
+    async def get(self, scope: str, key: str) -> Any | None:
         """Get a value from the state."""
         with operation_span(
-            "state.get",
-            **{
-                "motia.state.group_id": group_id,
-                "motia.state.item_id": item_id,
-            },
+            "state::get",
+            **{"motia.state.scope": scope, "motia.state.key": key},
         ) as span:
             try:
-                result = await self._get_bridge().call(
-                    "stream.get",
-                    {
-                        "stream_name": STREAM_NAME,
-                        "group_id": group_id,
-                        "item_id": item_id,
-                    },
-                )
+                result = await get_instance().call("state::get", {"scope": scope, "key": key})
                 set_span_ok(span)
                 return result
             except Exception as exc:
                 record_exception(span, exc)
                 raise
 
-    async def set(self, group_id: str, item_id: str, data: Any) -> Any:
+    async def set(self, scope: str, key: str, data: Any) -> Any:
         """Set a value in the state."""
         with operation_span(
-            "state.set",
-            **{
-                "motia.state.group_id": group_id,
-                "motia.state.item_id": item_id,
-            },
+            "state::set",
+            **{"motia.state.scope": scope, "motia.state.key": key},
         ) as span:
             try:
-                result = await self._get_bridge().call(
-                    "stream.set",
-                    {
-                        "stream_name": STREAM_NAME,
-                        "group_id": group_id,
-                        "item_id": item_id,
-                        "data": data,
-                    },
-                )
+                result = await get_instance().call("state::set", {"scope": scope, "key": key, "data": data})
                 set_span_ok(span)
                 return result
             except Exception as exc:
                 record_exception(span, exc)
                 raise
 
-    async def delete(self, group_id: str, item_id: str) -> Any | None:
+    async def update(self, scope: str, key: str, ops: list[dict[str, Any]]) -> Any:
+        """Update a value in the state using update operations."""
+        with operation_span(
+            "state::update",
+            **{"motia.state.scope": scope, "motia.state.key": key},
+        ) as span:
+            try:
+                result = await get_instance().call("state::update", {"scope": scope, "key": key, "ops": ops})
+                set_span_ok(span)
+                return result
+            except Exception as exc:
+                record_exception(span, exc)
+                raise
+
+    async def delete(self, scope: str, key: str) -> Any | None:
         """Delete a value from the state."""
         with operation_span(
-            "state.delete",
-            **{
-                "motia.state.group_id": group_id,
-                "motia.state.item_id": item_id,
-            },
+            "state::delete",
+            **{"motia.state.scope": scope, "motia.state.key": key},
         ) as span:
             try:
-                result = await self._get_bridge().call(
-                    "stream.delete",
-                    {
-                        "stream_name": STREAM_NAME,
-                        "group_id": group_id,
-                        "item_id": item_id,
-                    },
-                )
+                result = await get_instance().call("state::delete", {"scope": scope, "key": key})
                 set_span_ok(span)
                 return result
             except Exception as exc:
                 record_exception(span, exc)
                 raise
 
-    async def get_group(self, group_id: str) -> list[Any]:
-        """Get all values in a group."""
+    async def list(self, scope: str) -> list[Any]:
+        """List all values in a scope."""
         with operation_span(
-            "state.list",
-            **{
-                "motia.state.group_id": group_id,
-            },
+            "state::list",
+            **{"motia.state.scope": scope},
         ) as span:
             try:
-                items: list[Any] = await self._get_bridge().call(
-                    "stream.list",
-                    {
-                        "stream_name": STREAM_NAME,
-                        "group_id": group_id,
-                    },
-                )
+                items: list[Any] = await get_instance().call("state::list", {"scope": scope})
                 set_span_ok(span)
                 return items
             except Exception as exc:
@@ -119,35 +82,31 @@ class StateManager:
                 raise
 
     async def list_groups(self) -> list[str]:
-        """List all group IDs."""
-        with operation_span("state.list_groups") as span:
+        """List all scope IDs."""
+        with operation_span("state::list_groups") as span:
             try:
-                groups: list[str] = await self._get_bridge().call(
-                    "stream.list_groups",
-                    {
-                        "stream_name": STREAM_NAME,
-                    },
-                )
+                groups: list[str] = await get_instance().call("state::list_groups", {})
                 set_span_ok(span)
                 return groups
             except Exception as exc:
                 record_exception(span, exc)
                 raise
 
-    async def clear(self, group_id: str) -> None:
-        """Clear all values in a group."""
+    async def clear(self, scope: str) -> None:
+        """Clear all values in a scope."""
         with operation_span(
-            "state.clear",
-            **{
-                "motia.state.group_id": group_id,
-            },
+            "state::clear",
+            **{"motia.state.scope": scope},
         ) as span:
             try:
-                items = await self.get_group(group_id)
+                items = await self.list(scope)
                 for item in items:
                     if isinstance(item, dict) and "id" in item:
-                        await self.delete(group_id, item["id"])
+                        await self.delete(scope, item["id"])
                 set_span_ok(span)
             except Exception as exc:
                 record_exception(span, exc)
                 raise
+
+
+stateManager = StateManager()

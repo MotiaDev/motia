@@ -1,22 +1,36 @@
 """Motia framework for III Engine."""
 
 from . import tracing
-from .bridge import bridge
-from .guards import is_api_step, is_cron_step, is_event_step, is_noop_step
+from .guards import (
+    get_api_triggers,
+    get_cron_triggers,
+    get_queue_triggers,
+    is_api_step,
+    is_api_trigger,
+    is_cron_step,
+    is_cron_trigger,
+    is_queue_step,
+    is_queue_trigger,
+    is_state_trigger,
+    is_stream_trigger,
+)
+from .iii import get_instance, init_iii
+from .loader import generate_step_id
 from .runtime import Motia
 from .schema_utils import schema_to_json_schema
-from .state import StateManager
-from .step_wrapper import stream_wrapper
+from .setup_step_endpoint import setup_step_endpoint
+from .state import StateManager, stateManager
 from .streams import Stream
-from .triggers import api, cron, event, queue
+from .triggers import api, cron, queue
 from .types import (
     ApiMiddleware,
     ApiRequest,
     ApiResponse,
+    ApiRouteMethod,
     ApiTrigger,
     CronTrigger,
-    Emit,
-    Emitter,
+    Enqueue,
+    Enqueuer,
     FlowContext,
     QueryParam,
     QueueTrigger,
@@ -29,40 +43,42 @@ from .types import (
     StreamTriggerInput,
     TriggerCondition,
     TriggerConfig,
+    TriggerInfo,
     TriggerInput,
-    TriggerMetadata,
     state,
     stream,
 )
 from .types_stream import StreamAuthInput, StreamAuthResult, StreamConfig, StreamSubscription
 
 __all__ = [
-    # Bridge
-    "bridge",
+    # III SDK
+    "get_instance",
+    "init_iii",
     # Runtime
     "Motia",
+    # Setup
+    "setup_step_endpoint",
+    "generate_step_id",
     # Triggers
     "api",
     "queue",
-    "event",
     "cron",
     "state",
     "stream",
     # Schema utils
     "schema_to_json_schema",
-    # Step wrapper
-    "stream_wrapper",
     # Types
     "ApiMiddleware",
     "ApiRequest",
     "ApiResponse",
+    "ApiRouteMethod",
     "ApiTrigger",
     "CronTrigger",
-    "Emit",
-    "Emitter",
-    "QueueTrigger",
+    "Enqueue",
+    "Enqueuer",
     "FlowContext",
     "QueryParam",
+    "QueueTrigger",
     "StateTrigger",
     "StateTriggerInput",
     "Step",
@@ -76,16 +92,26 @@ __all__ = [
     "StreamTriggerInput",
     "TriggerCondition",
     "TriggerConfig",
+    "TriggerInfo",
     "TriggerInput",
-    "TriggerMetadata",
-    # Streams
+    # Streams & State
     "Stream",
     "StateManager",
-    # Guards
+    "stateManager",
+    # Guards - trigger level
+    "is_api_trigger",
+    "is_queue_trigger",
+    "is_cron_trigger",
+    "is_state_trigger",
+    "is_stream_trigger",
+    # Guards - step level
     "is_api_step",
+    "is_queue_step",
     "is_cron_step",
-    "is_event_step",
-    "is_noop_step",
+    # Guards - getters
+    "get_api_triggers",
+    "get_queue_triggers",
+    "get_cron_triggers",
     # Tracing
     "tracing",
 ]

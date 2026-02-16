@@ -5,7 +5,7 @@ High-level framework for building workflows with the III Engine.
 ## Installation
 
 ```bash
-uv pip install motia
+uv pip install iii-motia
 ```
 
 ## Usage
@@ -13,17 +13,17 @@ uv pip install motia
 ### Defining a Step
 
 ```python
-from motia import FlowContext, event
+from motia import FlowContext, queue
 
 config = {
     "name": "process-data",
-    "triggers": [event("data.created")],
-    "emits": ["data.processed"],
+    "triggers": [queue("data.created")],
+    "enqueues": ["data.processed"],
 }
 
 async def handler(data: dict, ctx: FlowContext) -> None:
     ctx.logger.info("Processing data", data)
-    await ctx.emit({"topic": "data.processed", "data": data})
+    await ctx.enqueue({"topic": "data.processed", "data": data})
 ```
 
 ### API Steps
@@ -34,12 +34,12 @@ from motia import ApiRequest, ApiResponse, FlowContext, api
 config = {
     "name": "create-item",
     "triggers": [api("POST", "/items")],
-    "emits": ["item.created"],
+    "enqueues": ["item.created"],
 }
 
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
     ctx.logger.info("Creating item", req.body)
-    await ctx.emit({"topic": "item.created", "data": req.body})
+    await ctx.enqueue({"topic": "item.created", "data": req.body})
     return ApiResponse(status=201, body={"id": "123"})
 ```
 

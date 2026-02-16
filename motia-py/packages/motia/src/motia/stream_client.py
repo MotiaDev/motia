@@ -43,7 +43,7 @@ class StreamSubscription:
 
     def off_event(self, event_type: str, listener: Callable[[Any], None]) -> None:
         listeners = self._event_listeners.get(event_type, [])
-        self._event_listeners[event_type] = [item for item in listeners if item != listener]
+        self._event_listeners[event_type] = [l for l in listeners if l != listener]
 
     def on_close(self, listener: Callable[[], None]) -> None:
         self._close_listeners.add(listener)
@@ -104,8 +104,7 @@ class StreamGroupSubscription(StreamSubscription):
     def _sort(self, state: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not self._sort_key:
             return state
-        sort_key = self._sort_key
-        return sorted(state, key=lambda item: str(item.get(sort_key, "")))
+        return sorted(state, key=lambda item: str(item.get(self._sort_key, "")))
 
     def _set_state(self, state: Any) -> None:
         super()._set_state(self._sort(state))
@@ -223,8 +222,7 @@ class StreamClient:
         if not self._ws:
             raise RuntimeError("Not connected. Call connect() first.")
         data = await self._ws.recv()
-        message: dict[str, Any] = json.loads(data)
-        return message
+        return json.loads(data)
 
     async def _receive_loop(self) -> None:
         while True:

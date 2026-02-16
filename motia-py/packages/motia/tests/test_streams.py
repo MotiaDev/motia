@@ -2,6 +2,7 @@
 """Integration tests for Stream operations."""
 
 import uuid
+from unittest.mock import patch
 
 import pytest
 
@@ -10,9 +11,11 @@ from motia import Stream
 
 @pytest.fixture
 def stream(bridge) -> Stream:
-    """Create a test stream with unique name."""
+    """Create a test stream with unique name, using the test bridge."""
     stream_name = f"test_stream_{uuid.uuid4().hex[:8]}"
-    return Stream(stream_name, bridge=bridge)
+    with patch("motia.streams.get_instance", return_value=bridge):
+        s = Stream(stream_name)
+    return s
 
 
 async def _check_streams_available(stream: Stream) -> bool:
@@ -34,70 +37,74 @@ async def _check_streams_available(stream: Stream) -> bool:
 
 
 @pytest.mark.asyncio
-async def test_stream_set_and_get(stream):
+async def test_stream_set_and_get(bridge, stream):
     """Test setting and getting stream data."""
-    if not await _check_streams_available(stream):
-        pytest.skip("Streams module not available in engine configuration")
+    with patch("motia.streams.get_instance", return_value=bridge):
+        if not await _check_streams_available(stream):
+            pytest.skip("Streams module not available in engine configuration")
 
-    group_id = f"group_{uuid.uuid4().hex[:8]}"
-    item_id = f"item_{uuid.uuid4().hex[:8]}"
-    data = {"name": "test", "value": 42}
+        group_id = f"group_{uuid.uuid4().hex[:8]}"
+        item_id = f"item_{uuid.uuid4().hex[:8]}"
+        data = {"name": "test", "value": 42}
 
-    await stream.set(group_id, item_id, data)
+        await stream.set(group_id, item_id, data)
 
-    result = await stream.get(group_id, item_id)
+        result = await stream.get(group_id, item_id)
 
-    assert result is not None
-    assert result["name"] == "test"
-    assert result["value"] == 42
+        assert result is not None
+        assert result["name"] == "test"
+        assert result["value"] == 42
 
 
 @pytest.mark.asyncio
-async def test_stream_delete(stream):
+async def test_stream_delete(bridge, stream):
     """Test deleting stream data."""
-    if not await _check_streams_available(stream):
-        pytest.skip("Streams module not available in engine configuration")
+    with patch("motia.streams.get_instance", return_value=bridge):
+        if not await _check_streams_available(stream):
+            pytest.skip("Streams module not available in engine configuration")
 
-    group_id = f"group_delete_{uuid.uuid4().hex[:8]}"
-    item_id = f"item_delete_{uuid.uuid4().hex[:8]}"
+        group_id = f"group_delete_{uuid.uuid4().hex[:8]}"
+        item_id = f"item_delete_{uuid.uuid4().hex[:8]}"
 
-    await stream.set(group_id, item_id, {"temp": True})
+        await stream.set(group_id, item_id, {"temp": True})
 
-    # Verify exists
-    result = await stream.get(group_id, item_id)
-    assert result is not None
+        # Verify exists
+        result = await stream.get(group_id, item_id)
+        assert result is not None
 
-    # Delete
-    await stream.delete(group_id, item_id)
+        # Delete
+        await stream.delete(group_id, item_id)
 
-    # Verify deleted
-    result = await stream.get(group_id, item_id)
-    assert result is None
+        # Verify deleted
+        result = await stream.get(group_id, item_id)
+        assert result is None
 
 
 @pytest.mark.asyncio
-async def test_stream_get_group(stream):
+async def test_stream_get_group(bridge, stream):
     """Test getting all items in a group."""
-    if not await _check_streams_available(stream):
-        pytest.skip("Streams module not available in engine configuration")
+    with patch("motia.streams.get_instance", return_value=bridge):
+        if not await _check_streams_available(stream):
+            pytest.skip("Streams module not available in engine configuration")
 
-    group_id = f"group_list_{uuid.uuid4().hex[:8]}"
+        group_id = f"group_list_{uuid.uuid4().hex[:8]}"
 
-    # Add items
-    for i in range(3):
-        await stream.set(group_id, f"item_{i}", {"index": i})
+        # Add items
+        for i in range(3):
+            await stream.set(group_id, f"item_{i}", {"index": i})
 
-    # Get group
-    items = await stream.get_group(group_id)
+        # Get group
+        items = await stream.get_group(group_id)
 
-    assert len(items) == 3
+        assert len(items) == 3
 
 
 @pytest.mark.asyncio
-async def test_stream_get_nonexistent(stream):
+async def test_stream_get_nonexistent(bridge, stream):
     """Test getting non-existent data returns None."""
-    if not await _check_streams_available(stream):
-        pytest.skip("Streams module not available in engine configuration")
+    with patch("motia.streams.get_instance", return_value=bridge):
+        if not await _check_streams_available(stream):
+            pytest.skip("Streams module not available in engine configuration")
 
-    result = await stream.get("nonexistent_group", "nonexistent_item")
-    assert result is None
+        result = await stream.get("nonexistent_group", "nonexistent_item")
+        assert result is None

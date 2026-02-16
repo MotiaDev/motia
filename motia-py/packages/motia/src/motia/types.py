@@ -10,7 +10,7 @@ from .streams import Stream
 
 TInput = TypeVar("TInput")
 TOutput = TypeVar("TOutput")
-TEmitData = TypeVar("TEmitData")
+TEnqueueData = TypeVar("TEnqueueData")
 TBody = TypeVar("TBody")
 TResult = TypeVar("TResult")
 TCommon = TypeVar("TCommon")
@@ -19,37 +19,34 @@ TCommon = TypeVar("TCommon")
 class InternalStateManager(Protocol):
     """Protocol for internal state management."""
 
-    async def get(self, group_id: str, key: str) -> Any | None: ...
-    async def set(self, group_id: str, key: str, value: Any) -> Any: ...
-    async def delete(self, group_id: str, key: str) -> Any | None: ...
-    async def get_group(self, group_id: str) -> list[Any]: ...
+    async def get(self, scope: str, key: str) -> Any | None: ...
+    async def set(self, scope: str, key: str, value: Any) -> Any: ...
+    async def update(self, scope: str, key: str, ops: list[dict[str, Any]]) -> Any: ...
+    async def delete(self, scope: str, key: str) -> Any | None: ...
+    async def list(self, scope: str) -> list[Any]: ...
+    async def clear(self, scope: str) -> None: ...
     async def list_groups(self) -> list[str]: ...
-    async def clear(self, group_id: str) -> None: ...
 
 
-Emitter = Callable[[Any], Awaitable[None]]
+Enqueuer = Callable[[Any], Awaitable[None]]
 
 
-class FlowContext(BaseModel, Generic[TEmitData]):
+class FlowContext(BaseModel, Generic[TEnqueueData]):
     """Context passed to step handlers."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    emit: Emitter
+    enqueue: Enqueuer
     trace_id: str
     state: Any  # InternalStateManager
     logger: Any  # Logger
     streams: dict[str, Stream[Any]] = Field(default_factory=dict)
-    trigger: "TriggerMetadata"
+    trigger: "TriggerInfo"
     _input: Any = None
 
     def is_queue(self) -> bool:
-        """Return True if the trigger is a queue/event trigger."""
-        return self.trigger.type in {"queue", "event"}
-
-    def is_event(self) -> bool:
-        """Return True if the trigger is a queue/event trigger."""
-        return self.is_queue()
+        """Return True if the trigger is a queue trigger."""
+        return self.trigger.type == "queue"
 
     def is_api(self) -> bool:
         """Return True if the trigger is an API request."""
@@ -75,12 +72,11 @@ class FlowContext(BaseModel, Generic[TEmitData]):
 
     async def match(self, handlers: dict[str, Any]) -> Any:
         """Match handlers based on trigger type."""
-        if self.is_queue():
-            queue_handler = handlers.get("queue") or handlers.get("event")
-            if queue_handler:
-                return await queue_handler(self._input, self)
-        if self.is_api() and handlers.get("http"):
-            return await handlers["http"](self._input, self)
+        if self.is_queue() and handlers.get("queue"):
+            return await handlers["queue"](self._input, self)
+        if self.is_api() and (handlers.get("http") or handlers.get("api")):
+            api_handler = handlers.get("http") or handlers.get("api")
+            return await api_handler(self._input, self)
         if self.is_cron() and handlers.get("cron"):
             return await handlers["cron"](self)
         if self.is_state() and handlers.get("state"):
@@ -89,14 +85,15 @@ class FlowContext(BaseModel, Generic[TEmitData]):
             return await handlers["stream"](self._input, self)
         if handlers.get("default"):
             return await handlers["default"](self._input, self)
-        raise RuntimeError(f"No handler for trigger type: {self.trigger.type}")
+
+        raise RuntimeError(
+            f"No handler matched for trigger type: {self.trigger.type}. "
+            f"Available handlers: {', '.join(k for k in handlers if k != 'default')}"
+        )
 
 
-EventHandler = Callable[[Any, FlowContext[Any]], Awaitable[None]]
-
-
-class Emit(BaseModel):
-    """Emit configuration."""
+class Enqueue(BaseModel):
+    """Enqueue configuration."""
 
     topic: str
     label: str | None = None
@@ -129,62 +126,26 @@ class InfrastructureConfig(BaseModel):
     queue: QueueConfig | None = None
 
 
-class EventConfig(BaseModel):
-    """Configuration for an event step."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    type: Literal["event"]
-    name: str
-    subscribes: list[str]
-    emits: list[str | Emit]
-    description: str | None = None
-    virtual_emits: list[str | Emit] | None = Field(default=None, serialization_alias="virtualEmits")
-    virtual_subscribes: list[str] | None = Field(default=None, serialization_alias="virtualSubscribes")
-    input: Any | None = None
-    flows: list[str] | None = None
-    include_files: list[str] | None = Field(default=None, serialization_alias="includeFiles")
-    infrastructure: InfrastructureConfig | None = None
-
-
-class NoopConfig(BaseModel):
-    """Configuration for a noop step."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    type: Literal["noop"]
-    name: str
-    virtual_emits: list[str | Emit] = Field(serialization_alias="virtualEmits")
-    virtual_subscribes: list[str] = Field(serialization_alias="virtualSubscribes")
-    description: str | None = None
-    flows: list[str] | None = None
-
-
 ApiRouteMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
 
 
-class TriggerMetadata(BaseModel):
-    """Metadata about the trigger that fired."""
+class TriggerInfo(BaseModel):
+    """Information about the trigger that fired."""
 
     model_config = ConfigDict(populate_by_name=True)
 
-    type: Literal["http", "queue", "event", "cron", "state", "stream"]
+    type: Literal["http", "queue", "cron", "state", "stream"]
     index: int | None = None
 
     # API trigger specific
     path: str | None = None
     method: str | None = None
 
-    # Event trigger specific
+    # Queue trigger specific
     topic: str | None = None
 
     # Cron trigger specific
     expression: str | None = None
-
-    # Stream trigger specific
-    stream_name: str | None = Field(default=None, alias="streamName")
-    group_id: str | None = Field(default=None, alias="groupId")
-    item_id: str | None = Field(default=None, alias="itemId")
 
 
 TriggerInput = Any
@@ -198,7 +159,7 @@ class QueueTrigger(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     type: Literal["queue"] = "queue"
-    subscribes: list[str]
+    topic: str
     condition: TriggerCondition | None = None
     input: Any | None = None
     infrastructure: InfrastructureConfig | None = None
@@ -258,14 +219,7 @@ class StateTrigger(BaseModel):
 
 
 def state(*, condition: TriggerCondition | None = None) -> StateTrigger:
-    """Create a state trigger.
-
-    Args:
-        condition: Optional function to filter which state changes trigger execution.
-
-    Returns:
-        StateTrigger configuration.
-    """
+    """Create a state trigger."""
     return StateTrigger(type="state", condition=condition)
 
 
@@ -308,17 +262,7 @@ def stream(
     item_id: str | None = None,
     condition: TriggerCondition | None = None,
 ) -> StreamTrigger:
-    """Create a stream trigger.
-
-    Args:
-        stream_name: Name of the stream to listen to.
-        group_id: Optional group ID to filter events.
-        item_id: Optional item ID to filter events.
-        condition: Optional function to filter which stream events trigger execution.
-
-    Returns:
-        StreamTrigger configuration.
-    """
+    """Create a stream trigger."""
     return StreamTrigger(
         type="stream",
         stream_name=stream_name,
@@ -358,49 +302,6 @@ ApiMiddleware = Callable[
 ]
 
 
-class ApiRouteConfig(BaseModel):
-    """Configuration for an API route step."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True, populate_by_name=True)
-
-    type: Literal["api"]
-    name: str
-    path: str
-    method: ApiRouteMethod
-    emits: list[str | Emit]
-    description: str | None = None
-    virtual_emits: list[str | Emit] | None = Field(default=None, serialization_alias="virtualEmits")
-    virtual_subscribes: list[str] | None = Field(default=None, serialization_alias="virtualSubscribes")
-    flows: list[str] | None = None
-    middleware: list[Any] | None = None  # ApiMiddleware
-    body_schema: Any | None = Field(default=None, serialization_alias="bodySchema")
-    response_schema: dict[int, Any] | None = Field(default=None, serialization_alias="responseSchema")
-    query_params: list[QueryParam] | None = Field(default=None, serialization_alias="queryParams")
-    include_files: list[str] | None = Field(default=None, serialization_alias="includeFiles")
-
-
-ApiRouteHandler = Callable[[ApiRequest[Any], FlowContext[Any]], Awaitable[ApiResponse[Any]]]
-
-
-class CronConfig(BaseModel):
-    """Configuration for a cron step."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    type: Literal["cron"]
-    name: str
-    cron: str
-    emits: list[str | Emit]
-    description: str | None = None
-    virtual_emits: list[str | Emit] | None = Field(default=None, serialization_alias="virtualEmits")
-    virtual_subscribes: list[str] | None = Field(default=None, serialization_alias="virtualSubscribes")
-    flows: list[str] | None = None
-    include_files: list[str] | None = Field(default=None, serialization_alias="includeFiles")
-
-
-CronHandler = Callable[[FlowContext[Any]], Awaitable[None]]
-
-
 class StepConfig(BaseModel):
     """Configuration for a step with triggers."""
 
@@ -408,8 +309,8 @@ class StepConfig(BaseModel):
 
     name: str
     triggers: list[TriggerConfig]
-    emits: list[str | Emit] = Field(default_factory=list)
-    virtual_emits: list[str | Emit] | None = Field(default=None, serialization_alias="virtualEmits")
+    enqueues: list[str | Enqueue] = Field(default_factory=list)
+    virtual_enqueues: list[str | Enqueue] | None = Field(default=None, serialization_alias="virtualEnqueues")
     virtual_subscribes: list[str] | None = Field(default=None, serialization_alias="virtualSubscribes")
     description: str | None = None
     flows: list[str] | None = None
@@ -417,11 +318,10 @@ class StepConfig(BaseModel):
     infrastructure: InfrastructureConfig | None = None
 
 
-class Step(BaseModel, Generic[TInput]):
+class Step(BaseModel):
     """Represents a step in a flow."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, populate_by_name=True)
 
     file_path: str = Field(serialization_alias="filePath")
-    version: str
     config: StepConfig

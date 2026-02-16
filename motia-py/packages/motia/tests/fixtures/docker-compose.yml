@@ -1,6 +1,6 @@
 services:
   iii:
-    image: iiidev/iii:sha-3df6903
+    image: iiidev/iii:latest
     platform: linux/arm64
     # Or build from source instead:
     # build: .

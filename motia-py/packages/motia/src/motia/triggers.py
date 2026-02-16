@@ -38,22 +38,11 @@ def queue(
 ) -> QueueTrigger:
     """Create a queue trigger configuration."""
     return QueueTrigger(
-        subscribes=[topic],
+        topic=topic,
         condition=condition,
         input=input,
         infrastructure=infrastructure,
     )
-
-
-def event(
-    topic: str,
-    *,
-    input: Any | None = None,
-    infrastructure: Any | None = None,
-    condition: Any | None = None,
-) -> QueueTrigger:
-    """Backward-compatible alias for queue() trigger constructor."""
-    return queue(topic, input=input, infrastructure=infrastructure, condition=condition)
 
 
 def cron(expression: str, *, condition: Any | None = None) -> CronTrigger:
