@@ -214,14 +214,14 @@ def register_step(
             ) -> dict[str, Any]:
                 with step_span(
                     step.config.name,
-                    "api",
+                    "http",
                     **{"http.method": req.get("method"), "http.route": req.get("path")},
                 ) as span:
                     try:
                         context_data = get_context()
 
                         trigger_metadata = TriggerMetadata(
-                            type="api",
+                            type="http",
                             path=req.get("path"),
                             method=req.get("method"),
                         )

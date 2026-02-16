@@ -122,7 +122,7 @@ async def test_api_step_creates_trace(otel_exporter, patch_motia_bridge, api_url
 
     span = step_spans[0]
     assert span.attributes["motia.step.name"] == step_name
-    assert span.attributes["motia.trigger.type"] == "api"
+    assert span.attributes["motia.trigger.type"] == "http"
     assert span.status.status_code == StatusCode.OK
 
 

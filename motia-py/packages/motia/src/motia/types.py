@@ -53,7 +53,7 @@ class FlowContext(BaseModel, Generic[TEmitData]):
 
     def is_api(self) -> bool:
         """Return True if the trigger is an API request."""
-        return self.trigger.type == "api"
+        return self.trigger.type == "http"
 
     def is_cron(self) -> bool:
         """Return True if the trigger is a cron event."""
@@ -79,8 +79,8 @@ class FlowContext(BaseModel, Generic[TEmitData]):
             queue_handler = handlers.get("queue") or handlers.get("event")
             if queue_handler:
                 return await queue_handler(self._input, self)
-        if self.is_api() and handlers.get("api"):
-            return await handlers["api"](self._input, self)
+        if self.is_api() and handlers.get("http"):
+            return await handlers["http"](self._input, self)
         if self.is_cron() and handlers.get("cron"):
             return await handlers["cron"](self)
         if self.is_state() and handlers.get("state"):
@@ -168,7 +168,7 @@ class TriggerMetadata(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    type: Literal["api", "queue", "event", "cron", "state", "stream"]
+    type: Literal["http", "queue", "event", "cron", "state", "stream"]
     index: int | None = None
 
     # API trigger specific
@@ -216,7 +216,7 @@ class ApiTrigger(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    type: Literal["api"] = "api"
+    type: Literal["http"] = "http"
     path: str
     method: ApiRouteMethod
     condition: TriggerCondition | None = None

@@ -56,7 +56,7 @@ export function setupStepEndpoint(iii: ISdk): void {
   })
 
   iii.registerTrigger({
-    type: 'api',
+    trigger_type: 'http',
     function_id,
     config: { api_path: '__motia/step/:stepId', http_method: 'GET', description: 'Get a step' },
   })

@@ -54,7 +54,7 @@ export const { config, handler } = step(stepConfig, async (input, ctx) => {
   })
 
   return ctx.match({
-    api: async () => {
+    http: async () => {
       return {
         status: 200,
         body: {

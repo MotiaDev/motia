@@ -83,14 +83,14 @@ const flowContext = <EnqueueData, TInput = unknown>(
 
     is: {
       queue: (inp: TInput): inp is ExtractQueueInput<TInput> => trigger.type === 'queue',
-      api: (inp: TInput): inp is ExtractApiInput<TInput> => trigger.type === 'api',
+      http: (inp: TInput): inp is ExtractApiInput<TInput> => trigger.type === 'http',
       cron: (inp: TInput): inp is never => trigger.type === 'cron',
       state: (inp: TInput): inp is ExtractStateInput<TInput> => trigger.type === 'state',
       stream: (inp: TInput): inp is ExtractStreamInput<TInput> => trigger.type === 'stream',
     },
 
     getData: (): ExtractDataPayload<TInput> => {
-      if (trigger.type === 'api') {
+      if (trigger.type === 'http') {
         return (input as Extract<TInput, MotiaApiRequest>).body as ExtractDataPayload<TInput>
       }
       return input as ExtractDataPayload<TInput>
@@ -103,8 +103,8 @@ const flowContext = <EnqueueData, TInput = unknown>(
       if (trigger.type === 'queue' && handlers.queue) {
         return await handlers.queue(input as ExtractQueueInput<TInput>)
       }
-      if (trigger.type === 'api' && handlers.api) {
-        return await handlers.api(input as ExtractApiInput<TInput>)
+      if (trigger.type === 'http' && handlers.http) {
+        return await handlers.http(input as ExtractApiInput<TInput>)
       }
       if (trigger.type === 'cron' && handlers.cron) {
         return await handlers.cron()
@@ -148,7 +148,7 @@ export class Motia {
         getInstance().registerFunction(
           { id: function_id, metadata },
           async (req: IIIApiRequest<unknown>): Promise<IIIApiResponse> => {
-            const triggerInfo: TriggerInfo = { type: 'api', index }
+            const triggerInfo: TriggerInfo = { type: 'http', index }
             const motiaRequest: MotiaApiRequest<unknown> = {
               pathParams: req.path_params || {},
               queryParams: req.query_params || {},
@@ -186,7 +186,7 @@ export class Motia {
           getInstance().registerFunction(
             { id: conditionPath },
             async (req: IIIApiRequest<unknown>): Promise<unknown> => {
-              const triggerInfo: TriggerInfo = { type: 'api', index }
+              const triggerInfo: TriggerInfo = { type: 'http', index }
               const motiaRequest: MotiaApiRequest<unknown> = {
                 pathParams: req.path_params || {},
                 queryParams: req.query_params || {},
@@ -202,7 +202,7 @@ export class Motia {
         }
 
         getInstance().registerTrigger({
-          type: 'api',
+          trigger_type: 'http',
           function_id,
           config: triggerConfig,
         })

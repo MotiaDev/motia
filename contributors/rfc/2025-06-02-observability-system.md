@@ -179,7 +179,7 @@ interface Trace {
   status: 'running' | 'completed' | 'failed'
   startTime: number
   duration?: number
-  entryPoint: { type: 'api' | 'cron' | 'event', stepName: string }
+  entryPoint: { type: 'http' | 'cron' | 'event', stepName: string }
   steps: Step[]
   metadata: { 
     totalSteps: number, 

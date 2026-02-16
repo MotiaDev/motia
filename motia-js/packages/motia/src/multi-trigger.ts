@@ -14,7 +14,7 @@ type TriggerHandlers<TConfig extends StepConfig> = {
     input: ExtractQueueInput<InferHandlerInput<TConfig>>,
     ctx: Omit<FlowContext<any, any>, 'match'>,
   ) => Promise<void>
-  api?: (
+  http?: (
     request: ExtractApiInput<InferHandlerInput<TConfig>>,
     ctx: Omit<FlowContext<any, any>, 'match'>,
   ) => Promise<any>
@@ -29,8 +29,8 @@ type MultiTriggerStepBuilder<TConfig extends StepConfig> = {
   onQueue: (
     handler: TriggerHandlers<TConfig>['queue'],
   ) => MultiTriggerStepBuilder<TConfig> & { handlers: () => StepDefinition<TConfig> }
-  onApi: (
-    handler: TriggerHandlers<TConfig>['api'],
+  onHttp: (
+    handler: TriggerHandlers<TConfig>['http'],
   ) => MultiTriggerStepBuilder<TConfig> & { handlers: () => StepDefinition<TConfig> }
   onCron: (
     handler: TriggerHandlers<TConfig>['cron'],
@@ -45,8 +45,8 @@ export function multiTriggerStep<const TConfig extends StepConfig>(config: TConf
       if (ctx.trigger.type === 'queue' && collectedHandlers.queue) {
         return collectedHandlers.queue(input, ctx)
       }
-      if (ctx.trigger.type === 'api' && collectedHandlers.api) {
-        return collectedHandlers.api(input, ctx)
+      if (ctx.trigger.type === 'http' && collectedHandlers.http) {
+        return collectedHandlers.http(input, ctx)
       }
       if (ctx.trigger.type === 'cron' && collectedHandlers.cron) {
         return collectedHandlers.cron(ctx)
@@ -74,8 +74,8 @@ export function multiTriggerStep<const TConfig extends StepConfig>(config: TConf
       }
     },
 
-    onApi(handler: TriggerHandlers<TConfig>['api']) {
-      collectedHandlers.api = handler
+    onHttp(handler: TriggerHandlers<TConfig>['http']) {
+      collectedHandlers.http = handler
       return {
         ...builder,
         handlers: () => ({ config, handler: createUnifiedHandler() }),
