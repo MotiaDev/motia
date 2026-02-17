@@ -60,7 +60,7 @@ describe('state integration', () => {
     await state.set(scope, 'item_1', { index: 1 })
     await state.set(scope, 'item_2', { index: 2 })
 
-    const items = await state.list<{ id: string }>(scope)
+    const items = await state.list<{ index: number }>(scope)
     expect(items.length).toBeGreaterThanOrEqual(3)
   }, 10000)
 

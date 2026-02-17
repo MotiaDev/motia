@@ -10,6 +10,7 @@ describe('StateManager', () => {
   let manager: StateManager
 
   beforeEach(() => {
+    mockCall.mockClear()
     manager = new StateManager()
   })
 
@@ -58,10 +59,11 @@ describe('StateManager', () => {
   })
 
   it('clear() lists then deletes each item', async () => {
+    const clearScope = 'clearScope'
     mockCall.mockResolvedValueOnce([{ id: 'a' }, { id: 'b' }]).mockResolvedValue(null)
-    await manager.clear('scope1')
-    expect(mockCall).toHaveBeenCalledWith('state::list', { scope: 'scope1' })
-    expect(mockCall).toHaveBeenCalledWith('state::delete', { scope: 'scope1', key: 'a' })
-    expect(mockCall).toHaveBeenCalledWith('state::delete', { scope: 'scope1', key: 'b' })
+    await manager.clear(clearScope)
+    expect(mockCall).toHaveBeenCalledWith('state::list', { scope: clearScope })
+    expect(mockCall).toHaveBeenCalledWith('state::delete', { scope: clearScope, key: 'a' })
+    expect(mockCall).toHaveBeenCalledWith('state::delete', { scope: clearScope, key: 'b' })
   })
 })

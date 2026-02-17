@@ -25,6 +25,10 @@ jest.mock('../src/new/setup-step-endpoint', () => ({
 }))
 
 describe('Motia', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   describe('addStep', () => {
     it('registers function and trigger for http trigger', () => {
       const motia = new Motia()
