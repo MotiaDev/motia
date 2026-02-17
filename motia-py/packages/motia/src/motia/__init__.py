@@ -23,7 +23,7 @@ from .setup_step_endpoint import setup_step_endpoint
 from .state import StateManager, stateManager
 from .step import StepBuilder, StepDefinition, step
 from .streams import Stream
-from .triggers import api, cron, queue
+from .triggers import api, cron, queue, state, stream
 from .types import (
     ApiMiddleware,
     ApiRequest,
@@ -47,8 +47,6 @@ from .types import (
     TriggerConfig,
     TriggerInfo,
     TriggerInput,
-    state,
-    stream,
 )
 from .types_stream import StreamAuthInput, StreamAuthResult, StreamConfig, StreamSubscription
 
