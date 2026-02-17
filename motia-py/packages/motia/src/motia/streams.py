@@ -55,7 +55,7 @@ class Stream(Generic[TData]):
                 record_exception(span, exc)
                 raise
 
-    async def set(self, group_id: str, item_id: str, data: TData) -> TData:
+    async def set(self, group_id: str, item_id: str, data: TData) -> Any:
         """Set an item in the stream."""
         with operation_span(
             "stream::set",
@@ -66,7 +66,7 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                value: TData = await get_instance().call(
+                result: Any = await get_instance().call(
                     "stream::set",
                     {
                         "stream_name": self.stream_name,
@@ -76,7 +76,7 @@ class Stream(Generic[TData]):
                     },
                 )
                 set_span_ok(span)
-                return value
+                return result
             except Exception as exc:
                 record_exception(span, exc)
                 raise
