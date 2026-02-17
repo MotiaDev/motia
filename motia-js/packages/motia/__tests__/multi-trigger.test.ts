@@ -56,7 +56,14 @@ describe('multiTriggerStep', () => {
     const streamHandler = jest.fn().mockResolvedValue(undefined)
     const { handler } = multiTriggerStep(config).onStream(streamHandler).handlers()
     const ctx = { trigger: { type: 'stream' }, logger: { warn: jest.fn() } }
-    const input = { type: 'stream', timestamp: 123, streamName: 'events', groupId: 'g1', id: '1', event: { type: 'create', data: {} } }
+    const input = {
+      type: 'stream',
+      timestamp: 123,
+      streamName: 'events',
+      groupId: 'g1',
+      id: '1',
+      event: { type: 'create', data: {} },
+    }
     await handler(input, ctx)
     expect(streamHandler).toHaveBeenCalledWith(input, ctx)
   })
@@ -66,10 +73,23 @@ describe('multiTriggerStep', () => {
     const streamHandler = jest.fn().mockResolvedValue(undefined)
     const { handler } = multiTriggerStep(config).handlers({ state: stateHandler, stream: streamHandler })
 
-    await handler({ type: 'state', group_id: 'g1', item_id: 'i1' } as any, { trigger: { type: 'state' }, logger: { warn: jest.fn() } })
+    await handler({ type: 'state', group_id: 'g1', item_id: 'i1' } as any, {
+      trigger: { type: 'state' },
+      logger: { warn: jest.fn() },
+    })
     expect(stateHandler).toHaveBeenCalled()
 
-    await handler({ type: 'stream', streamName: 'e', groupId: 'g', id: '1', timestamp: 0, event: { type: 'create', data: {} } } as any, { trigger: { type: 'stream' }, logger: { warn: jest.fn() } })
+    await handler(
+      {
+        type: 'stream',
+        streamName: 'e',
+        groupId: 'g',
+        id: '1',
+        timestamp: 0,
+        event: { type: 'create', data: {} },
+      } as any,
+      { trigger: { type: 'stream' }, logger: { warn: jest.fn() } },
+    )
     expect(streamHandler).toHaveBeenCalled()
   })
 

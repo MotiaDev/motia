@@ -283,7 +283,14 @@ describe('Motia', () => {
 
       motia.addStep(config as any, 'test.step.ts', handler, 'steps/test.step.ts')
       const registeredHandler = mockRegisterFunction.mock.calls[0][1]
-      await registeredHandler({ type: 'stream', streamName: 's1', groupId: 'g1', id: '1', timestamp: 0, event: { type: 'create', data: {} } })
+      await registeredHandler({
+        type: 'stream',
+        streamName: 's1',
+        groupId: 'g1',
+        id: '1',
+        timestamp: 0,
+        event: { type: 'create', data: {} },
+      })
     })
 
     it('match routes to state handler for state trigger', async () => {

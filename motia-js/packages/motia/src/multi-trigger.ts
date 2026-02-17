@@ -1,4 +1,12 @@
-import type { ExtractApiInput, ExtractQueueInput, ExtractStateInput, ExtractStreamInput, FlowContext, Handlers, StepConfig } from './types'
+import type {
+  ExtractApiInput,
+  ExtractQueueInput,
+  ExtractStateInput,
+  ExtractStreamInput,
+  FlowContext,
+  Handlers,
+  StepConfig,
+} from './types'
 
 type StepDefinition<TConfig extends StepConfig> = {
   config: TConfig

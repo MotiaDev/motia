@@ -1,7 +1,7 @@
 import type { StreamSetResult, UpdateOp } from 'iii-sdk/stream'
+import { SpanStatusCode, withSpan } from 'iii-sdk/telemetry'
 import type { InternalStateManager } from '../types'
 import { getInstance } from './iii'
-import { withSpan, SpanStatusCode } from 'iii-sdk/telemetry'
 
 export class StateManager implements InternalStateManager {
   async get<T>(scope: string, key: string): Promise<T | null> {
@@ -9,7 +9,7 @@ export class StateManager implements InternalStateManager {
       span.setAttribute('motia.state.scope', scope)
       span.setAttribute('motia.state.key', key)
       try {
-        return await getInstance().call('state::get', { scope, key }) as T | null
+        return (await getInstance().call('state::get', { scope, key })) as T | null
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -23,11 +23,11 @@ export class StateManager implements InternalStateManager {
       span.setAttribute('motia.state.scope', scope)
       span.setAttribute('motia.state.key', key)
       try {
-        return await getInstance().call('state::set', {
+        return (await getInstance().call('state::set', {
           scope,
           key,
           data,
-        }) as StreamSetResult<T> | null
+        })) as StreamSetResult<T> | null
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -41,7 +41,7 @@ export class StateManager implements InternalStateManager {
       span.setAttribute('motia.state.scope', scope)
       span.setAttribute('motia.state.key', key)
       try {
-        return await getInstance().call('state::delete', { scope, key }) as T | null
+        return (await getInstance().call('state::delete', { scope, key })) as T | null
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -54,7 +54,7 @@ export class StateManager implements InternalStateManager {
     return withSpan('state::list', {}, async (span) => {
       span.setAttribute('motia.state.scope', scope)
       try {
-        return await getInstance().call('state::list', { scope }) as T[]
+        return (await getInstance().call('state::list', { scope })) as T[]
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -66,7 +66,7 @@ export class StateManager implements InternalStateManager {
   async listGroups(): Promise<string[]> {
     return withSpan('state::list_groups', {}, async (span) => {
       try {
-        return await getInstance().call('state::list_groups', {}) as string[]
+        return (await getInstance().call('state::list_groups', {})) as string[]
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -80,7 +80,7 @@ export class StateManager implements InternalStateManager {
       span.setAttribute('motia.state.scope', scope)
       span.setAttribute('motia.state.key', key)
       try {
-        return await getInstance().call('state::update', { scope, key, ops }) as StreamSetResult<T> | null
+        return (await getInstance().call('state::update', { scope, key, ops })) as StreamSetResult<T> | null
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
