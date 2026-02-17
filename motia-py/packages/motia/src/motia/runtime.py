@@ -11,6 +11,7 @@ from iii import get_context
 from .iii import get_instance
 from .schema_utils import schema_to_json_schema
 from .state import stateManager
+from .step import StepDefinition
 from .streams import Stream
 from .tracing import (
     get_trace_id_from_span,
@@ -40,15 +41,18 @@ log = logging.getLogger("motia.runtime")
 
 
 def _compose_middleware(
-    middlewares: list[Callable],
-) -> Callable:
+    middlewares: list[Callable[..., Any]],
+) -> Callable[..., Any]:
     """Compose multiple middlewares into a single middleware."""
 
-    async def composed(req: Any, ctx: Any, handler: Callable) -> Any:
+    async def composed(req: Any, ctx: Any, handler: Callable[..., Any]) -> Any:
         composed_handler = handler
         for middleware in reversed(middlewares):
 
-            def make_next(m: Callable = middleware, p: Callable = composed_handler) -> Callable:
+            def make_next(
+                m: Callable[..., Any] = middleware,
+                p: Callable[..., Any] = composed_handler,
+            ) -> Callable[..., Any]:
                 async def next_handler() -> Any:
                     return await m(req, ctx, p)
 
@@ -184,10 +188,23 @@ class Motia:
         self,
         config: Any,
         step_path: str,
-        handler: Callable[..., Awaitable[Any]],
+        handler: Callable[..., Awaitable[Any]] | None = None,
         file_path: str | None = None,
     ) -> None:
-        """Add a step to the runtime and register with III engine."""
+        """Add a step to the runtime and register with III engine.
+
+        Accepts either:
+        - config as StepDefinition (from step() or multi_trigger_step()): handler extracted automatically
+        - config as StepConfig/dict + separate handler argument
+        """
+        if isinstance(config, StepDefinition):
+            if handler is None:
+                handler = config.handler
+            config = config.config
+
+        if handler is None:
+            raise ValueError("handler is required - provide it directly or use step()/multi_trigger_step()")
+
         if not isinstance(config, StepConfig):
             config = StepConfig.model_validate(config)
 
@@ -207,7 +224,7 @@ class Motia:
         log.info(f"Step registered: {config.name}")
 
         for index, trigger in enumerate(config.triggers):
-            function_id = f"steps.{config.name}:trigger:{index}"
+            function_id = f"steps::{config.name}::trigger::{index}"
 
             if isinstance(trigger, ApiTrigger):
                 self._register_api_trigger(config, trigger, handler, function_id, index, metadata)
@@ -224,7 +241,7 @@ class Motia:
         self,
         config: StepConfig,
         trigger: ApiTrigger,
-        handler: Callable,
+        handler: Callable[..., Any],
         function_id: str,
         index: int,
         metadata: dict[str, Any],
@@ -282,7 +299,7 @@ class Motia:
         }
 
         if trigger.condition:
-            condition_path = f"{function_id}.conditions:{index}"
+            condition_path = f"{function_id}::conditions::{index}"
             self._register_condition(trigger, condition_path, "http", index)
             trigger_config["_condition_path"] = condition_path
 
@@ -292,7 +309,7 @@ class Motia:
         self,
         config: StepConfig,
         trigger: QueueTrigger,
-        handler: Callable,
+        handler: Callable[..., Any],
         function_id: str,
         index: int,
         metadata: dict[str, Any],
@@ -322,7 +339,7 @@ class Motia:
         }
 
         if trigger.condition:
-            condition_path = f"{function_id}.conditions:{index}"
+            condition_path = f"{function_id}::conditions::{index}"
             self._register_condition(trigger, condition_path, "queue", index)
             trigger_config["_condition_path"] = condition_path
 
@@ -332,7 +349,7 @@ class Motia:
         self,
         config: StepConfig,
         trigger: CronTrigger,
-        handler: Callable,
+        handler: Callable[..., Any],
         function_id: str,
         index: int,
         metadata: dict[str, Any],
@@ -357,7 +374,7 @@ class Motia:
         }
 
         if trigger.condition:
-            condition_path = f"{function_id}.conditions:{index}"
+            condition_path = f"{function_id}::conditions::{index}"
             self._register_condition(trigger, condition_path, "cron", index)
             trigger_config["_condition_path"] = condition_path
 
@@ -367,7 +384,7 @@ class Motia:
         self,
         config: StepConfig,
         trigger: StateTrigger,
-        handler: Callable,
+        handler: Callable[..., Any],
         function_id: str,
         index: int,
         metadata: dict[str, Any],
@@ -389,7 +406,7 @@ class Motia:
         trigger_config: dict[str, Any] = {"metadata": metadata}
 
         if trigger.condition:
-            condition_path = f"{function_id}.conditions:{index}"
+            condition_path = f"{function_id}::conditions::{index}"
             self._register_condition(trigger, condition_path, "state", index)
             trigger_config["_condition_path"] = condition_path
 
@@ -399,7 +416,7 @@ class Motia:
         self,
         config: StepConfig,
         trigger: StreamTrigger,
-        handler: Callable,
+        handler: Callable[..., Any],
         function_id: str,
         index: int,
         metadata: dict[str, Any],
@@ -428,7 +445,7 @@ class Motia:
             trigger_config["item_id"] = trigger.item_id
 
         if trigger.condition:
-            condition_path = f"{function_id}.conditions:{index}"
+            condition_path = f"{function_id}::conditions::{index}"
             self._register_condition(trigger, condition_path, "stream", index)
             trigger_config["condition_function_id"] = condition_path
 
@@ -442,6 +459,9 @@ class Motia:
         index: int,
     ) -> None:
         """Register a condition function for a trigger."""
+        condition = trigger.condition
+        if condition is None:
+            return
 
         async def condition_handler(input_data: Any) -> bool:
             trigger_info = TriggerInfo(type=trigger_type, index=index)
@@ -454,10 +474,10 @@ class Motia:
                     headers=input_data.get("headers", {}) if isinstance(input_data, dict) else {},
                 )
                 context = _flow_context(self, trigger_info, motia_input)
-                result = trigger.condition(motia_input, context)
+                result = condition(motia_input, context)
             else:
                 context = _flow_context(self, trigger_info, input_data)
-                result = trigger.condition(input_data, context)
+                result = condition(input_data, context)
 
             if inspect.iscoroutine(result):
                 return bool(await result)
@@ -469,7 +489,7 @@ class Motia:
         """Initialize the runtime and register bridge functions."""
 
         if self._authenticate:
-            get_instance().register_function("motia.streams.authenticate", self._handle_authenticate)
+            get_instance().register_function("motia::streams::authenticate", self._handle_authenticate)
             log.debug("Registered stream authentication handler")
 
         has_join = any(config.on_join for config in self._stream_configs.values())

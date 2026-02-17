@@ -7,6 +7,8 @@ from typing import Any
 from .iii import get_instance
 from .tracing import operation_span, record_exception, set_span_ok
 
+_list = list  # module-level alias; StateManager.list() shadows the builtin inside the class
+
 
 class StateManager:
     """Internal state manager using state SDK calls."""
@@ -81,11 +83,11 @@ class StateManager:
                 record_exception(span, exc)
                 raise
 
-    async def list_groups(self) -> list[str]:
+    async def list_groups(self) -> _list[str]:
         """List all scope IDs."""
         with operation_span("state::list_groups") as span:
             try:
-                groups: list[str] = await get_instance().call("state::list_groups", {})
+                groups: _list[str] = await get_instance().call("state::list_groups", {})
                 set_span_ok(span)
                 return groups
             except Exception as exc:

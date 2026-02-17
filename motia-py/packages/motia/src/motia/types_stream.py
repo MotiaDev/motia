@@ -37,7 +37,7 @@ class StreamConfig(BaseModel):
 
     name: str
     description: str | None = None
-    schema: dict[str, Any] | None = None
+    schema: dict[str, Any] | None = None  # type: ignore[assignment]
     base_config: dict[str, Any] | None = None
-    on_join: Callable[[StreamSubscription, FlowContext, Any | None], Awaitable[Any]] | None = None
-    on_leave: Callable[[StreamSubscription, FlowContext, Any | None], Awaitable[Any]] | None = None
+    on_join: Callable[[StreamSubscription, FlowContext[Any], Any | None], Awaitable[Any]] | None = None
+    on_leave: Callable[[StreamSubscription, FlowContext[Any], Any | None], Awaitable[Any]] | None = None

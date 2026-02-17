@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .streams import Stream
 
+_list = list  # module-level alias; InternalStateManager.list() shadows the builtin
+
 TInput = TypeVar("TInput")
 TOutput = TypeVar("TOutput")
 TEnqueueData = TypeVar("TEnqueueData")
@@ -23,9 +25,9 @@ class InternalStateManager(Protocol):
     async def set(self, scope: str, key: str, value: Any) -> Any: ...
     async def update(self, scope: str, key: str, ops: list[dict[str, Any]]) -> Any: ...
     async def delete(self, scope: str, key: str) -> Any | None: ...
-    async def list(self, scope: str) -> list[Any]: ...
+    async def list(self, scope: str) -> _list[Any]: ...
     async def clear(self, scope: str) -> None: ...
-    async def list_groups(self) -> list[str]: ...
+    async def list_groups(self) -> _list[str]: ...
 
 
 Enqueuer = Callable[[Any], Awaitable[None]]
@@ -64,27 +66,44 @@ class FlowContext(BaseModel, Generic[TEnqueueData]):
         """Return True if the trigger is a stream event."""
         return self.trigger.type == "stream"
 
-    def get_data(self, input: "ApiRequest[TCommon] | TCommon") -> TCommon | None:
-        """Extract the data payload from the input."""
-        if isinstance(input, ApiRequest):
-            return input.body
-        return input
+    def get_data(self) -> Any:
+        """Extract the data payload from the input, regardless of trigger type.
+
+        - For HTTP triggers: returns request.body
+        - For queue triggers: returns the queue data directly
+        - For cron triggers: returns None
+        """
+        if self.is_cron():
+            return None
+        if isinstance(self._input, ApiRequest):
+            return self._input.body
+        return self._input
 
     async def match(self, handlers: dict[str, Any]) -> Any:
-        """Match handlers based on trigger type."""
+        """Match handlers based on trigger type.
+
+        Handler signatures (matching JS SDK):
+        - queue: async (input) -> None
+        - http: async (request) -> ApiResponse
+        - cron: async () -> None
+        - state: async (input) -> Any
+        - stream: async (input) -> Any
+        - default: async (input) -> Any
+        """
         if self.is_queue() and handlers.get("queue"):
-            return await handlers["queue"](self._input, self)
-        if self.is_api() and (handlers.get("http") or handlers.get("api")):
-            api_handler = handlers.get("http") or handlers.get("api")
-            return await api_handler(self._input, self)
+            return await handlers["queue"](self._input)
+        if self.is_api():
+            handler = handlers.get("http") or handlers.get("api")
+            if handler:
+                return await handler(self._input)
         if self.is_cron() and handlers.get("cron"):
-            return await handlers["cron"](self)
+            return await handlers["cron"]()
         if self.is_state() and handlers.get("state"):
-            return await handlers["state"](self._input, self)
+            return await handlers["state"](self._input)
         if self.is_stream() and handlers.get("stream"):
-            return await handlers["stream"](self._input, self)
+            return await handlers["stream"](self._input)
         if handlers.get("default"):
-            return await handlers["default"](self._input, self)
+            return await handlers["default"](self._input)
 
         raise RuntimeError(
             f"No handler matched for trigger type: {self.trigger.type}. "

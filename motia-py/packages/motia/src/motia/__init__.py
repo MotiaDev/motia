@@ -16,10 +16,12 @@ from .guards import (
 )
 from .iii import get_instance, init_iii
 from .loader import generate_step_id
+from .multi_trigger import MultiTriggerStepBuilder, multi_trigger_step
 from .runtime import Motia
 from .schema_utils import schema_to_json_schema
 from .setup_step_endpoint import setup_step_endpoint
 from .state import StateManager, stateManager
+from .step import StepBuilder, StepDefinition, step
 from .streams import Stream
 from .triggers import api, cron, queue
 from .types import (
@@ -67,6 +69,13 @@ __all__ = [
     "stream",
     # Schema utils
     "schema_to_json_schema",
+    # Step builders
+    "step",
+    "StepDefinition",
+    "StepBuilder",
+    # Multi-trigger step builder
+    "multi_trigger_step",
+    "MultiTriggerStepBuilder",
     # Types
     "ApiMiddleware",
     "ApiRequest",

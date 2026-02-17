@@ -48,14 +48,14 @@ def is_cron_step(step: Step) -> bool:
 # Getter helpers (matching Node.js)
 def get_api_triggers(step: Step) -> list[ApiTrigger]:
     """Get all API triggers from a step."""
-    return [t for t in step.config.triggers if is_api_trigger(t)]
+    return [t for t in step.config.triggers if isinstance(t, ApiTrigger)]
 
 
 def get_queue_triggers(step: Step) -> list[QueueTrigger]:
     """Get all queue triggers from a step."""
-    return [t for t in step.config.triggers if is_queue_trigger(t)]
+    return [t for t in step.config.triggers if isinstance(t, QueueTrigger)]
 
 
 def get_cron_triggers(step: Step) -> list[CronTrigger]:
     """Get all cron triggers from a step."""
-    return [t for t in step.config.triggers if is_cron_trigger(t)]
+    return [t for t in step.config.triggers if isinstance(t, CronTrigger)]

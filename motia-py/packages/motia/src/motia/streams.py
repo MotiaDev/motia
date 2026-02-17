@@ -1,5 +1,7 @@
 """Stream implementation for Motia framework."""
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
@@ -10,6 +12,7 @@ if TYPE_CHECKING:
     from .types_stream import StreamConfig
 
 TData = TypeVar("TData")
+_list = list  # module-level alias; Stream.list() shadows the builtin inside the class
 log = logging.getLogger("motia.streams")
 
 
@@ -125,7 +128,11 @@ class Stream(Generic[TData]):
                 record_exception(span, exc)
                 raise
 
-    async def update(self, group_id: str, item_id: str, ops: list[dict[str, Any]]) -> Any:
+    async def list(self, group_id: str) -> list[TData]:
+        """List all items in a group. Alias for get_group()."""
+        return await self.get_group(group_id)
+
+    async def update(self, group_id: str, item_id: str, ops: _list[dict[str, Any]]) -> Any:
         """Update an item in the stream using update operations."""
         with operation_span(
             "stream::update",
@@ -151,7 +158,7 @@ class Stream(Generic[TData]):
                 record_exception(span, exc)
                 raise
 
-    async def list_groups(self) -> list[str]:
+    async def list_groups(self) -> _list[str]:
         """List all group IDs for the stream."""
         with operation_span(
             "stream::list_groups",
@@ -160,7 +167,7 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                groups: list[str] = await get_instance().call(
+                groups: _list[str] = await get_instance().call(
                     "stream::list_groups",
                     {
                         "stream_name": self.stream_name,

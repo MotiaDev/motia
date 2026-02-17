@@ -27,24 +27,19 @@ config = {
 }
 
 
-async def _event_handler(input: Any, ctx: FlowContext[Any]) -> None:
-    """Handle triple trigger from event."""
-    ctx.logger.info("Triple trigger fired (event)", {"data": input, "topic": ctx.trigger.topic})
-
-
-async def _api_handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
-    """Handle triple trigger from API."""
-    ctx.logger.info("Triple trigger fired (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})
-    return ApiResponse(status=200, body={"message": "Triple trigger via API"})
-
-
-async def _cron_handler(ctx: FlowContext[Any]) -> None:
-    """Handle triple trigger from cron."""
-    ctx.logger.info("Triple trigger fired (cron)", {"expression": ctx.trigger.expression})
-
-
 async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     """Dispatch triple trigger handlers."""
+
+    async def _event_handler(input: Any) -> None:
+        ctx.logger.info("Triple trigger fired (event)", {"data": input, "topic": ctx.trigger.topic})
+
+    async def _api_handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
+        ctx.logger.info("Triple trigger fired (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})
+        return ApiResponse(status=200, body={"message": "Triple trigger via API"})
+
+    async def _cron_handler() -> None:
+        ctx.logger.info("Triple trigger fired (cron)", {"expression": ctx.trigger.expression})
+
     return await ctx.match(
         {
             "queue": _event_handler,

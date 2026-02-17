@@ -35,19 +35,16 @@ config = {
 }
 
 
-async def _event_handler(input: Any, ctx: FlowContext[Any]) -> None:
-    """Handle event orders from multiple triggers with conditions."""
-    ctx.logger.info("Processing order (event)", {"data": input, "topic": ctx.trigger.topic})
-
-
-async def _api_handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
-    """Handle API orders from multiple triggers with conditions."""
-    ctx.logger.info("Processing order (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})
-    return ApiResponse(status=200, body={"message": "Order processed via API"})
-
-
 async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     """Dispatch to handler based on trigger type."""
+
+    async def _event_handler(input: Any) -> None:
+        ctx.logger.info("Processing order (event)", {"data": input, "topic": ctx.trigger.topic})
+
+    async def _api_handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
+        ctx.logger.info("Processing order (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})
+        return ApiResponse(status=200, body={"message": "Order processed via API"})
+
     return await ctx.match(
         {
             "queue": _event_handler,

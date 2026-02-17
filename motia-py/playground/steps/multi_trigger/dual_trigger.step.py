@@ -16,19 +16,16 @@ config = {
 }
 
 
-async def _event_handler(input: Any, ctx: FlowContext[Any]) -> None:
-    """Handle dual trigger from event."""
-    ctx.logger.info("Dual trigger fired (event)", {"data": input, "topic": ctx.trigger.topic})
-
-
-async def _api_handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
-    """Handle dual trigger from API."""
-    ctx.logger.info("Dual trigger fired (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})
-    return ApiResponse(status=200, body={"message": "Dual trigger via API"})
-
-
 async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     """Dispatch dual trigger handlers."""
+
+    async def _event_handler(input: Any) -> None:
+        ctx.logger.info("Dual trigger fired (event)", {"data": input, "topic": ctx.trigger.topic})
+
+    async def _api_handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
+        ctx.logger.info("Dual trigger fired (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})
+        return ApiResponse(status=200, body={"message": "Dual trigger via API"})
+
     return await ctx.match(
         {
             "queue": _event_handler,
