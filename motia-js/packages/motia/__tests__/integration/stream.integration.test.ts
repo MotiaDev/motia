@@ -8,7 +8,7 @@ describe('stream integration', () => {
 
   beforeAll(async () => {
     initTestEnv()
-    initIII({ otel: { enabled: false } })
+    initIII({ enabled: false })
     const sdk = getInstance()
     await waitForReady(sdk)
     stream = new Stream({

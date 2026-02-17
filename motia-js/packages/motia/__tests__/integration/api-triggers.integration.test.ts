@@ -4,7 +4,7 @@ import { initTestEnv, sleep, TEST_API_URL, waitForReady } from './setup'
 describe('api triggers integration', () => {
   beforeAll(async () => {
     initTestEnv()
-    initIII({ otel: { enabled: false } })
+    initIII({ enabled: false })
     const sdk = getInstance()
     await waitForReady(sdk)
   }, 15000)
@@ -23,7 +23,7 @@ describe('api triggers integration', () => {
       body: { message: 'Hello from GET' },
     }))
     sdk.registerTrigger({
-      trigger_type: 'http',
+      type: 'http',
       function_id: functionId,
       config: { api_path: 'test/hello', http_method: 'GET' },
     })
@@ -45,7 +45,7 @@ describe('api triggers integration', () => {
       body: { received: req.body, created: true },
     }))
     sdk.registerTrigger({
-      trigger_type: 'http',
+      type: 'http',
       function_id: functionId,
       config: { api_path: 'test/items', http_method: 'POST' },
     })
@@ -58,7 +58,7 @@ describe('api triggers integration', () => {
       body: JSON.stringify({ name: 'test item', value: 123 }),
     })
     expect(res.status).toBe(201)
-    const data = await res.json()
+    const data = await res.json() as { created: boolean, received: { name: string, value: number } }
     expect(data.created).toBe(true)
     expect(data.received).toEqual({ name: 'test item', value: 123 })
   }, 10000)
@@ -72,7 +72,7 @@ describe('api triggers integration', () => {
       body: { id: req.path_params?.id },
     }))
     sdk.registerTrigger({
-      trigger_type: 'http',
+      type: 'http',
       function_id: functionId,
       config: { api_path: 'test/items/:id', http_method: 'GET' },
     })
@@ -97,7 +97,7 @@ describe('api triggers integration', () => {
       },
     }))
     sdk.registerTrigger({
-      trigger_type: 'http',
+      type: 'http',
       function_id: functionId,
       config: { api_path: 'test/search', http_method: 'GET' },
     })
@@ -106,7 +106,7 @@ describe('api triggers integration', () => {
 
     const res = await fetch(`${TEST_API_URL}/test/search?q=hello&limit=10`)
     expect(res.status).toBe(200)
-    const data = await res.json()
+    const data = await res.json() as { query: string, limit: string }
     expect(data.query).toBe('hello')
     expect(data.limit).toBe('10')
   }, 10000)
@@ -120,7 +120,7 @@ describe('api triggers integration', () => {
       body: { error: 'Not found' },
     }))
     sdk.registerTrigger({
-      trigger_type: 'http',
+      type: 'http',
       function_id: functionId,
       config: { api_path: 'test/missing', http_method: 'GET' },
     })

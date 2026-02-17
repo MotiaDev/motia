@@ -8,7 +8,7 @@ describe('state integration', () => {
 
   beforeAll(async () => {
     initTestEnv()
-    initIII({ otel: { enabled: false } })
+    initIII({ enabled: false })
     const sdk = getInstance()
     await waitForReady(sdk)
     state = new StateManager()

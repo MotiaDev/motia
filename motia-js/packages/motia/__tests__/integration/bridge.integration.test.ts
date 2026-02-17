@@ -4,7 +4,7 @@ import { initTestEnv, sleep, waitForReady } from './setup'
 describe('bridge integration', () => {
   beforeAll(async () => {
     initTestEnv()
-    initIII({ otel: { enabled: false } })
+    initIII({ enabled: false })
     const sdk = getInstance()
     await waitForReady(sdk)
   }, 15000)
