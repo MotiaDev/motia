@@ -19,7 +19,7 @@ export const stepConfig = {
   enqueues: ['notification'],
 }
 
-export const { config, handler } = step(stepConfig, async (input, ctx) => {
+export const { config, handler } = step(stepConfig, async (_input, ctx) => {
   const data = ctx.getData() // this will return the data regardless of the trigger type
 
   ctx.logger.info('Step 02 - Process food order', {

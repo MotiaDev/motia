@@ -149,7 +149,8 @@
       "linter": {
         "rules": {
           "suspicious": {
-            "noEmptyBlockStatements": "off"
+            "noEmptyBlockStatements": "off",
+            "noExplicitAny": "off"
           },
           "correctness": {
             "noUnusedFunctionParameters": "warn"

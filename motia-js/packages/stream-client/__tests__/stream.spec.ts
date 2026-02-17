@@ -31,7 +31,7 @@ class MockSocket implements SocketAdapter {
   }
 
   send(data: string) {
-    this.listeners['message']?.forEach((cb) => cb(data))
+    this.listeners.message?.forEach((cb) => cb(data))
   }
 
   close() {
