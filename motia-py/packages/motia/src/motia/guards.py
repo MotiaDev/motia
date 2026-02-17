@@ -56,6 +56,37 @@ def get_queue_triggers(step: Step) -> list[QueueTrigger]:
     return [t for t in step.config.triggers if isinstance(t, QueueTrigger)]
 
 
+def is_state_step(step: Step) -> bool:
+    """Check if a step has a state trigger."""
+    return any(is_state_trigger(t) for t in step.config.triggers)
+
+
+def is_stream_step(step: Step) -> bool:
+    """Check if a step has a stream trigger."""
+    return any(is_stream_trigger(t) for t in step.config.triggers)
+
+
+# Getter helpers (matching Node.js)
+def get_api_triggers(step: Step) -> list[ApiTrigger]:
+    """Get all API triggers from a step."""
+    return [t for t in step.config.triggers if isinstance(t, ApiTrigger)]
+
+
+def get_queue_triggers(step: Step) -> list[QueueTrigger]:
+    """Get all queue triggers from a step."""
+    return [t for t in step.config.triggers if isinstance(t, QueueTrigger)]
+
+
 def get_cron_triggers(step: Step) -> list[CronTrigger]:
     """Get all cron triggers from a step."""
     return [t for t in step.config.triggers if isinstance(t, CronTrigger)]
+
+
+def get_state_triggers(step: Step) -> list[StateTrigger]:
+    """Get all state triggers from a step."""
+    return [t for t in step.config.triggers if isinstance(t, StateTrigger)]
+
+
+def get_stream_triggers(step: Step) -> list[StreamTrigger]:
+    """Get all stream triggers from a step."""
+    return [t for t in step.config.triggers if isinstance(t, StreamTrigger)]

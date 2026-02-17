@@ -433,7 +433,7 @@ class Motia:
         if trigger.condition:
             condition_path = f"{function_id}::conditions::{index}"
             self._register_condition(trigger, condition_path, "state", index)
-            trigger_config[CONDITION_PATH_KEY] = condition_path
+            trigger_config["condition_function_id"] = condition_path
 
         get_instance().register_trigger("state", function_id, trigger_config)
 
@@ -472,7 +472,7 @@ class Motia:
         if trigger.condition:
             condition_path = f"{function_id}::conditions::{index}"
             self._register_condition(trigger, condition_path, "stream", index)
-            trigger_config[CONDITION_PATH_KEY] = condition_path
+            trigger_config["condition_function_id"] = condition_path
 
         get_instance().register_trigger("stream", function_id, trigger_config)
 

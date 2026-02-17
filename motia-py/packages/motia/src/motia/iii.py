@@ -5,7 +5,7 @@ from typing import Any
 
 from iii import III
 
-_engine_ws_url = os.environ.get("III_BRIDGE_URL", "ws://localhost:49134")
+_engine_ws_url = os.environ.get("III_URL", "ws://localhost:49134")
 _instance: III | None = None
 
 
