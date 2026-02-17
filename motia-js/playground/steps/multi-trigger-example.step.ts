@@ -1,7 +1,7 @@
 import type { ApiRequest, Handlers, StepConfig, TriggerCondition } from 'motia'
 import { z } from 'zod'
 
-const isHighValue: TriggerCondition<{ amount: number; description: string }> = (input, ctx) => {
+const isHighValue: TriggerCondition<{ amount: number; description: string }> = (input, _ctx) => {
   if (!input || typeof input !== 'object') return false
   return (input as { amount: number }).amount > 1000
 }

@@ -32,5 +32,5 @@ export const useStreamEventHandler = (
       event.onEvent(type, listener)
       return () => event.offEvent(type, listener)
     }
-  }, [event, type, ...dependencies])
+  }, [event, type, ...dependencies, listener])
 }

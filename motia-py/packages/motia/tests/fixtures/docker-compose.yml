@@ -15,6 +15,11 @@ services:
       - OTEL_ENABLED=true
       - OTEL_EXPORTER_TYPE=memory
       - OTEL_SERVICE_NAME=iii-test
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3199/"]
+      interval: 2s
+      timeout: 3s
+      retries: 90
     depends_on:
       redis:
         condition: service_healthy

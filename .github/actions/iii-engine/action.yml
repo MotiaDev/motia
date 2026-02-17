@@ -6,14 +6,6 @@ inputs:
     description: 'Path to the docker-compose file (relative to workspace root)'
     required: false
     default: 'motia-py/packages/motia/tests/fixtures/docker-compose.yml'
-  health-check-port:
-    description: 'Port to health-check for readiness'
-    required: false
-    default: '3199'
-  health-check-retries:
-    description: 'Number of health check attempts (2s interval)'
-    required: false
-    default: '30'
 
 runs:
   using: composite
@@ -22,17 +14,4 @@ runs:
       id: start
       shell: bash
       run: |
-        docker compose -f "${{ github.workspace }}/${{ inputs.compose-file }}" up -d
-
-        echo "Waiting for III Engine on port ${{ inputs.health-check-port }}..."
-        for i in $(seq 1 ${{ inputs.health-check-retries }}); do
-          if curl -sf "http://localhost:${{ inputs.health-check-port }}/" >/dev/null 2>&1; then
-            echo "III Engine is ready!"
-            exit 0
-          fi
-          echo "  attempt $i/${{ inputs.health-check-retries }}..."
-          sleep 2
-        done
-        echo "Engine did not become ready. Logs:"
-        docker compose -f "${{ github.workspace }}/${{ inputs.compose-file }}" logs
-        exit 1
+        docker compose -f "${{ github.workspace }}/${{ inputs.compose-file }}" up -d --wait

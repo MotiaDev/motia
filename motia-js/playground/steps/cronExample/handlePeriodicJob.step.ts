@@ -13,7 +13,7 @@ export const config = {
   flows: ['cron-example'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
+export const handler: Handlers<typeof config> = async (_input, { logger, enqueue }) => {
   logger.info('Periodic job executed')
 
   await enqueue({
