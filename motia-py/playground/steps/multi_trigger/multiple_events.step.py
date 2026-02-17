@@ -13,7 +13,7 @@ config = {
         queue("test.event.2"),
         queue("test.event.3"),
     ],
-    "emits": ["test.events.processed"],
+    "enqueues": ["test.events.processed"],
 }
 
 

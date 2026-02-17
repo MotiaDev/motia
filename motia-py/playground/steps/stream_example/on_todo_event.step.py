@@ -9,7 +9,7 @@ config = {
     "triggers": [
         stream("todo"),
     ],
-    "emits": ["todo.processed"],
+    "enqueues": ["todo.processed"],
     "flows": ["stream-example"],
 }
 

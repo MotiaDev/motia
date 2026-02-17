@@ -23,7 +23,7 @@ config = {
         api("POST", "/test/triple", condition=is_business_hours),
         cron("0 2 * * * *"),
     ],
-    "emits": ["test.triple.processed"],
+    "enqueues": ["test.triple.processed"],
 }
 
 

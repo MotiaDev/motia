@@ -12,7 +12,7 @@ config = {
         queue("test.dual"),
         api("POST", "/test/dual"),
     ],
-    "emits": ["test.dual.processed"],
+    "enqueues": ["test.dual.processed"],
 }
 
 

@@ -31,7 +31,7 @@ config = {
         queue("order.created", condition=is_high_value),
         api("POST", "/orders/manual", condition=is_verified_user),
     ],
-    "emits": ["order.processed"],
+    "enqueues": ["order.processed"],
 }
 
 

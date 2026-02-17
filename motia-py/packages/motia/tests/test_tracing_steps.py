@@ -50,7 +50,7 @@ def mock_context():
 
 @pytest.mark.asyncio
 async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_context):
-    """Register API step, call handler, verify step:name span with motia.trigger.type=api."""
+    """Register API step, call handler, verify step:name span with motia.trigger.type=http."""
     from motia.runtime import Motia
 
     config = StepConfig(

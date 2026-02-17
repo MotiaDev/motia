@@ -43,7 +43,7 @@ config = {
     "triggers": [
         queue("order.created", condition=all_premium_checks),
     ],
-    "emits": ["premium.order.processed"],
+    "enqueues": ["premium.order.processed"],
 }
 
 

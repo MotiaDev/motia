@@ -15,7 +15,7 @@ config = {
         api("GET", "/greetings/summary"),
         cron("*/5 * * * * *"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

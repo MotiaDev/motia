@@ -11,7 +11,7 @@ config = {
     "triggers": [
         queue("test.event"),
     ],
-    "emits": ["test.processed"],
+    "enqueues": ["test.processed"],
 }
 
 

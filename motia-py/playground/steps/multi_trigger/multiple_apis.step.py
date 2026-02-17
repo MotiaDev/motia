@@ -13,7 +13,7 @@ config = {
         api("POST", "/test/api/2"),
         api("PUT", "/test/api/3"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

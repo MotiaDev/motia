@@ -19,7 +19,7 @@ config = {
     "triggers": [
         queue("order.created", condition=is_high_value),
     ],
-    "emits": ["order.processed"],
+    "enqueues": ["order.processed"],
 }
 
 

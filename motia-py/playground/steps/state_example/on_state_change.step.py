@@ -10,7 +10,7 @@ config = {
     "triggers": [
         state(condition=lambda input, ctx: input.group_id == "users"),
     ],
-    "emits": ["user.status.changed"],
+    "enqueues": ["user.status.changed"],
     "flows": ["state-example"],
 }
 

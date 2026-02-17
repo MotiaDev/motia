@@ -16,7 +16,7 @@ config = {
     "triggers": [
         queue("order.created"),
     ],
-    "emits": ["order.processed"],
+    "enqueues": ["order.processed"],
 }
 
 
