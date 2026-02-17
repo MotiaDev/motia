@@ -490,7 +490,7 @@ class Motia:
         """Initialize the runtime and register bridge functions."""
 
         if self._authenticate:
-            get_instance().register_function("motia::streams::authenticate", self._handle_authenticate)
+            get_instance().register_function("motia::stream::authenticate", self._handle_authenticate)
             log.debug("Registered stream authentication handler")
 
         has_join = any(config.on_join for config in self._stream_configs.values())
@@ -501,7 +501,7 @@ class Motia:
         setup_step_endpoint(get_instance())
 
         if has_join:
-            function_id = "motia::streams::join"
+            function_id = "motia::stream::join"
 
             async def join_handler(req: dict[str, Any]) -> Any:
                 stream_name = req.get("stream_name", "")
