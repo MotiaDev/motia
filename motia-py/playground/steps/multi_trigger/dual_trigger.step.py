@@ -20,7 +20,7 @@ async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     """Dispatch dual trigger handlers."""
 
     async def _event_handler(input: Any) -> None:
-        ctx.logger.info("Dual trigger fired (event)", {"data": input, "topic": ctx.trigger.topic})
+        ctx.logger.info("Dual trigger fired (queue)", {"data": input, "topic": ctx.trigger.topic})
 
     async def _api_handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
         ctx.logger.info("Dual trigger fired (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})

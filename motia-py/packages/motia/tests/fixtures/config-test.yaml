@@ -34,7 +34,7 @@ modules:
       service_version: ${SERVICE_VERSION:0.2.0}
 
       # === Service Identity (Optional) ===
-      service_namespace: ${SERVICE_NAMESPACE:production}  # Optional: environment/namespace for the service
+      service_namespace: ${SERVICE_NAMESPACE:test}  # Optional: environment/namespace for the service
       # === Trace Exporter Configuration (Required) ===
       # Exporter type: "otlp" (export to collector) or "memory" (store in-memory) or "both"
       exporter: ${OTEL_EXPORTER_TYPE:memory}
