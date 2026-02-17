@@ -22,7 +22,10 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "scripts": {
-    "build": "tsdown"
+    "build": "tsdown",
+    "test": "jest --testPathIgnorePatterns=integration",
+    "test:ci": "jest",
+    "test:integration": "jest __tests__/integration"
   },
   "exports": {
     ".": {
@@ -50,8 +53,11 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.10.1",
     "commander": "^14.0.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
     "tsdown": "^0.17.0"
   }
 }
