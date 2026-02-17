@@ -16,17 +16,21 @@ This Quickstart will show how any project can leverage iii and the iii SDK to un
 ### 1. Create a new quickstart project
 
 <Callout title="iii is in alpha" type="warn">
-  iii is under very active development. For now please download the quickstart directly with:\
-  `curl -LO https://github.com/iii-hq/cli-tooling/releases/download/v0.0.1/quickstart.zip`\
-  Then continue from step 2.
+  iii is under very active development. We will have a much more streamlined onboarding experience shortly.
 </Callout>
 
 The project setup will indicate that this project includes TypeScript, Python, and Rust languages. The README contains instructions about using Docker Compose in case not all are available on the system.
 
 ```bash
+curl -LO https://github.com/iii-hq/cli-tooling/releases/latest/download/quickstart.zip
+unzip quickstart.zip
+cd quickstart
+```
+
+{/* ```bash
 iii-cli create --template quickstart my-iii-backend
 cd my-iii-backend
-```
+``` */}
 
 ### 2. Run the Engine
 
@@ -36,7 +40,7 @@ iii --config iii-config.yaml
 
 ### 3. Open the project
 
-Open the project in your IDE. From the project directory, run:
+Open the project and README in your IDE. You can use this shorthand from a second terminal window in the project directory:
 
 <Tabs items={['VS Code', 'Cursor', 'JetBrains', 'Sublime', 'Neovim']}>
   <Tab value="VS Code">
@@ -75,6 +79,31 @@ nvim README.md
 
   </Tab>
 </Tabs>
+
+### 4. Continue with the README
+
+The README will explain what the project is doing and how to quickly start up
+the services that will connect to the iii engine and use it for their communication.
+
+After completing the project, explore the `worker.ts` file from the project
+directory and then navigate back here to learn more about how iii works and can be
+used to streamline backend orchestration.
+
+### 5. Try the iii Console
+
+<Callout title="iii is in alpha" type="warn">
+  iii is under very active development. We will be regularly updating both it and iii console to address any issues.
+</Callout>
+
+iii also comes with a brand new web console that provides complete observability of a iii daemon.
+Install and start it in a new terminal window with:
+
+```bash
+curl -fsSL https://install.iii.dev/console/main/install.sh | sh
+iii-console
+```
+
+Then open your web browser to: http://localhost:3113/
 
 ## Next Steps
 
