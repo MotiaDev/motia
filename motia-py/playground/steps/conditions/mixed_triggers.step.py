@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api, queue
+from motia import ApiRequest, ApiResponse, FlowContext, http, queue
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -29,7 +29,7 @@ config = {
     "description": "Test multiple triggers each with different conditions",
     "triggers": [
         queue("order.created", condition=is_high_value),
-        api("POST", "/orders/manual", condition=is_verified_user),
+        http("POST", "/orders/manual", condition=is_verified_user),
     ],
     "enqueues": ["order.processed"],
 }

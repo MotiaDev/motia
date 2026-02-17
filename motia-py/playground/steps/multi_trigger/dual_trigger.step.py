@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api, queue
+from motia import ApiRequest, ApiResponse, FlowContext, http, queue
 
 
 config = {
@@ -10,7 +10,7 @@ config = {
     "description": "Test dual trigger (event + API)",
     "triggers": [
         queue("test.dual"),
-        api("POST", "/test/dual"),
+        http("POST", "/test/dual"),
     ],
     "enqueues": ["test.dual.processed"],
 }

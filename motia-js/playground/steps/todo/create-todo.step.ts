@@ -1,4 +1,4 @@
-import { api, type Handlers, type StepConfig } from 'motia'
+import { http, type Handlers, type StepConfig } from 'motia'
 import { z } from 'zod'
 import type { Todo } from './todo.stream'
 
@@ -15,7 +15,7 @@ export const config = {
   description: 'Create a new todo item',
   flows: ['todo-app'],
   triggers: [
-    api('POST', '/todo', {
+    http('POST', '/todo', {
       bodySchema: z.object({ description: z.string(), dueDate: z.string().optional() }),
       responseSchema: {
         200: todoSchema,

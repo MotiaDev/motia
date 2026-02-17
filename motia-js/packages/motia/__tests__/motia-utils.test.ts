@@ -1,5 +1,5 @@
 import { Motia } from '../src/new/build/utils'
-import { api, cron, queue, state, stream } from '../src/triggers'
+import { cron, http, queue, state, stream } from '../src/triggers'
 
 const mockRegisterFunction = jest.fn()
 const mockRegisterTrigger = jest.fn()
@@ -32,7 +32,7 @@ describe('Motia', () => {
   describe('addStep', () => {
     it('registers function and trigger for http trigger', () => {
       const motia = new Motia()
-      const config = { name: 'test', triggers: [api('GET', '/users')] }
+      const config = { name: 'test', triggers: [http('GET', '/users')] }
       const handler = jest.fn().mockResolvedValue({ status: 200, body: null })
 
       motia.addStep(config as any, 'test.step.ts', handler, 'steps/test.step.ts')
@@ -51,7 +51,7 @@ describe('Motia', () => {
 
     it('strips leading slash from API path', () => {
       const motia = new Motia()
-      const config = { name: 'test', triggers: [api('POST', '/api/items')] }
+      const config = { name: 'test', triggers: [http('POST', '/api/items')] }
 
       motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
 
@@ -62,7 +62,7 @@ describe('Motia', () => {
     it('registers condition function when trigger has condition', () => {
       const motia = new Motia()
       const condition = jest.fn().mockResolvedValue(true)
-      const config = { name: 'test', triggers: [api('GET', '/x', undefined, condition)] }
+      const config = { name: 'test', triggers: [http('GET', '/x', undefined, condition)] }
 
       motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
 
@@ -154,7 +154,7 @@ describe('Motia', () => {
         return { status: 200, body: null }
       }
 
-      const config = { name: 'test', triggers: [api('GET', '/test', { middleware: [middleware] })] }
+      const config = { name: 'test', triggers: [http('GET', '/test', { middleware: [middleware] })] }
       motia.addStep(config as any, 'test.step.ts', handler, 'steps/test.step.ts')
 
       const registeredHandler = mockRegisterFunction.mock.calls[0][1]
@@ -219,7 +219,7 @@ describe('Motia', () => {
 
     it('getData returns body for http trigger', async () => {
       const motia = new Motia()
-      const config = { name: 'test', triggers: [api('POST', '/x')] }
+      const config = { name: 'test', triggers: [http('POST', '/x')] }
       let capturedContext: any
 
       const handler = async (_req: any, ctx: any) => {

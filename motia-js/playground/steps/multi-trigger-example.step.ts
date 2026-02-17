@@ -10,7 +10,7 @@ const isVerifiedUser: TriggerCondition<{ user: { verified: boolean }; amount: nu
   input,
   ctx,
 ) => {
-  if (ctx.trigger.type !== 'api' || !input) return false
+  if (ctx.trigger.type !== 'http' || !input) return false
   const apiInput = input as ApiRequest<{ user: { verified: boolean }; amount: number; description: string }>
   return apiInput.body.user.verified === true
 }

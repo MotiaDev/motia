@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api
+from motia import ApiRequest, ApiResponse, FlowContext, http
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -33,7 +33,7 @@ config = {
     "name": "ApiWithConditions",
     "description": "Test conditions on API trigger",
     "triggers": [
-        api("POST", "/orders/premium", condition=api_premium_check),
+        http("POST", "/orders/premium", condition=api_premium_check),
     ],
     "enqueues": [],
 }

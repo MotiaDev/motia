@@ -2,13 +2,13 @@
 
 from typing import Any
 
-from motia import FlowContext, api
+from motia import FlowContext, http
 
 config = {
     "name": "update-user-state",
     "description": "API endpoint to update user state",
     "triggers": [
-        api("POST", "/users/:id/status"),
+        http("POST", "/users/:id/status"),
     ],
     "flows": ["state-example"],
 }

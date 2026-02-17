@@ -1,9 +1,9 @@
-import { api, cron, queue, state, stream } from '../src/triggers'
+import { api, cron, http, queue, state, stream } from '../src/triggers'
 
 describe('triggers', () => {
-  describe('api', () => {
+  describe('http', () => {
     it('returns http trigger with method and path', () => {
-      const t = api('GET', '/users')
+      const t = http('GET', '/users')
       expect(t.type).toBe('http')
       expect(t.method).toBe('GET')
       expect(t.path).toBe('/users')
@@ -14,7 +14,7 @@ describe('triggers', () => {
       const responseSchema = { 200: { type: 'object' as const } }
       const queryParams = [{ name: 'q', required: true }] as const
       const middleware = [jest.fn()] as const
-      const t = api('POST', '/items', {
+      const t = http('POST', '/items', {
         bodySchema,
         responseSchema,
         queryParams,
@@ -28,8 +28,18 @@ describe('triggers', () => {
 
     it('includes condition when provided', () => {
       const condition = jest.fn()
-      const t = api('GET', '/test', undefined, condition)
+      const t = http('GET', '/test', undefined, condition)
       expect(t.condition).toBe(condition)
+    })
+  })
+
+  describe('api (deprecated)', () => {
+    it('delegates to http and returns same result', () => {
+      const t = api('GET', '/users')
+      expect(t).toEqual(http('GET', '/users'))
+      expect(t.type).toBe('http')
+      expect(t.method).toBe('GET')
+      expect(t.path).toBe('/users')
     })
   })
 

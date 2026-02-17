@@ -26,7 +26,7 @@ type QueueOptions<TSchema extends StepSchemaInput | undefined = undefined> = {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to accept all schema types
-export function api<TOptions extends ApiOptions<any> | undefined = undefined>(
+export function http<TOptions extends ApiOptions<any> | undefined = undefined>(
   method: ApiRouteMethod,
   path: string,
   options?: TOptions,
@@ -34,6 +34,16 @@ export function api<TOptions extends ApiOptions<any> | undefined = undefined>(
 ): ApiTrigger<TOptions extends ApiOptions<infer S> ? S : undefined> {
   // biome-ignore lint/suspicious/noExplicitAny: runtime return is correct, cast needed for flexible type
   return { type: 'http', method, path, ...options, condition } as any
+}
+
+/** @deprecated Use http() instead. Will be removed in a future version. */
+export function api<TOptions extends ApiOptions<any> | undefined = undefined>(
+  method: ApiRouteMethod,
+  path: string,
+  options?: TOptions,
+  condition?: TriggerCondition,
+): ApiTrigger<TOptions extends ApiOptions<infer S> ? S : undefined> {
+  return http(method, path, options, condition)
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to accept all schema types

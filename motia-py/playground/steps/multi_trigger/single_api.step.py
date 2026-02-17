@@ -2,14 +2,14 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api
+from motia import ApiRequest, ApiResponse, FlowContext, http
 
 
 config = {
     "name": "SingleApiTrigger",
     "description": "Test single API trigger",
     "triggers": [
-        api("GET", "/test/single"),
+        http("GET", "/test/single"),
     ],
     "enqueues": [],
 }
