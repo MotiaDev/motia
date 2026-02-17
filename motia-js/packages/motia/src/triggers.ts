@@ -54,6 +54,16 @@ export function state(condition?: TriggerCondition): StateTrigger {
   return { type: 'state', condition }
 }
 
-export function stream(streamName: string, condition?: TriggerCondition): StreamTrigger {
-  return { type: 'stream', streamName, condition }
+type StreamOptions = {
+  groupId?: string
+  itemId?: string
+  condition?: TriggerCondition
+}
+
+export function stream(streamName: string, optionsOrCondition?: StreamOptions | TriggerCondition): StreamTrigger {
+  if (typeof optionsOrCondition === 'function') {
+    return { type: 'stream', streamName, condition: optionsOrCondition }
+  }
+  const { groupId, itemId, condition } = optionsOrCondition ?? {}
+  return { type: 'stream', streamName, groupId, itemId, condition }
 }
