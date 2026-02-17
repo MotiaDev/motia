@@ -5,9 +5,10 @@ modules:
       port: 3112
       host: 0.0.0.0
       adapter:
-        class: modules::stream::adapters::RedisAdapter
+        class: modules::stream::adapters::KvStore
         config:
-          redis_url: redis://redis:6379
+          store_method: file_based # Options: in_memory, file_based
+          file_path: ./data/stream_store
   - class: modules::api::RestApiModule
     config:
       host: 0.0.0.0
@@ -133,10 +134,23 @@ modules:
 
   - class: modules::queue::QueueModule
     config:
-      adapter:
-        class: modules::queue::RedisAdapter
-        config:
-          redis_url: redis://redis:6379
+        adapter:
+          class: modules::queue::BuiltinQueueAdapter
+          config:
+            # QueueConfig
+            mode: concurrent        # concurrent | fifo
+            max_attempts: 3
+            backoff_ms: 1000
+            concurrency: 10
+            poll_interval_ms: 100
+
+            # BuiltinKvStore / QueueKvStore (persistência opcional)
+            store_method: in_memory # in_memory | file_based
+            file_path: ./.data/queue
+            save_interval_ms: 5000
+
+            # BuiltInPubSubLite
+            channel_size: 256
 
 
   - class: modules::cron::CronModule
