@@ -66,17 +66,6 @@ def is_stream_step(step: Step) -> bool:
     return any(is_stream_trigger(t) for t in step.config.triggers)
 
 
-# Getter helpers (matching Node.js)
-def get_api_triggers(step: Step) -> list[ApiTrigger]:
-    """Get all API triggers from a step."""
-    return [t for t in step.config.triggers if isinstance(t, ApiTrigger)]
-
-
-def get_queue_triggers(step: Step) -> list[QueueTrigger]:
-    """Get all queue triggers from a step."""
-    return [t for t in step.config.triggers if isinstance(t, QueueTrigger)]
-
-
 def get_cron_triggers(step: Step) -> list[CronTrigger]:
     """Get all cron triggers from a step."""
     return [t for t in step.config.triggers if isinstance(t, CronTrigger)]
