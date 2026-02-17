@@ -7,6 +7,8 @@ import uuid
 from typing import Any, Awaitable, Callable
 
 from iii import get_context
+from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
 
 from .iii import get_instance
 from .schema_utils import schema_to_json_schema
@@ -120,21 +122,43 @@ def _validate_input_schema(schema: Any, value: Any, label: str) -> Any:
     if schema is None:
         return value
     if isinstance(schema, type):
-        try:
-            from pydantic import BaseModel
-
-            if issubclass(schema, BaseModel):
+        if issubclass(schema, BaseModel):
+            try:
                 return schema.model_validate(value)
-        except Exception:
-            return value
+            except PydanticValidationError as exc:
+                log.error(
+                    "Pydantic input validation failed for label=%s schema=%r: %s",
+                    label,
+                    schema,
+                    exc,
+                    exc_info=True,
+                )
+                raise
+
     json_schema = schema_to_json_schema(schema)
     if json_schema:
         try:
             import jsonschema  # type: ignore
+        except ImportError:
+            log.warning(
+                "jsonschema is not installed; skipping JSON Schema validation for label=%s json_schema=%r",
+                label,
+                json_schema,
+            )
+            return value
 
+        try:
             jsonschema.validate(instance=value, schema=json_schema)
-        except Exception:
-            pass
+        except jsonschema.ValidationError as exc:
+            log.error(
+                "JSON Schema validation failed for label=%s json_schema=%r: %s",
+                label,
+                json_schema,
+                exc,
+                exc_info=True,
+            )
+            raise
+
     return value
 
 
