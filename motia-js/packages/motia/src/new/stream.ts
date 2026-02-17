@@ -1,6 +1,6 @@
 import type { StreamSetResult, UpdateOp } from 'iii-sdk/stream'
 import { SpanStatusCode, withSpan } from 'iii-sdk/telemetry'
-import type { StreamConfig } from '../types-stream'
+import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { getInstance } from './iii'
 
 export class Stream<TData> {
@@ -108,6 +108,27 @@ export class Stream<TData> {
         return (await getInstance().call('stream::list_groups', {
           stream_name: this.config.name,
         })) as string[]
+      } catch (err) {
+        span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+        span.recordException(err as Error)
+        throw err
+      }
+    })
+  }
+
+  async send<T>(channel: StateStreamEventChannel, event: StateStreamEvent<T>): Promise<void> {
+    return withSpan('stream::send', {}, async (span) => {
+      span.setAttribute('motia.stream.name', this.config.name)
+      span.setAttribute('motia.stream.group_id', channel.groupId)
+      if (channel.id) span.setAttribute('motia.stream.item_id', channel.id)
+      try {
+        await getInstance().call('stream::send', {
+          stream_name: this.config.name,
+          group_id: channel.groupId,
+          id: channel.id,
+          type: event.type,
+          data: event.data,
+        })
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
