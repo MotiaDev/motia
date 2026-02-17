@@ -1,7 +1,6 @@
 services:
   iii:
     image: iiidev/iii:latest
-    platform: linux/arm64
     # Or build from source instead:
     # build: .
     ports:

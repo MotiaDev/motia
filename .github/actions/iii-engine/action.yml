@@ -1,15 +1,11 @@
 name: 'III Engine'
-description: 'Start the III Engine via Docker for integration tests'
+description: 'Start the III Engine via Docker Compose for integration tests'
 
 inputs:
-  image:
-    description: 'Docker image for the III Engine'
+  compose-file:
+    description: 'Path to the docker-compose file (relative to workspace root)'
     required: false
-    default: 'iiidev/iii:build-amd64'
-  config-path:
-    description: 'Path to the engine config YAML file (relative to workspace root)'
-    required: false
-    default: 'motia-py/packages/motia/tests/fixtures/config-test.yaml'
+    default: 'motia-py/packages/motia/tests/fixtures/docker-compose.yml'
   health-check-port:
     description: 'Port to health-check for readiness'
     required: false
@@ -26,12 +22,7 @@ runs:
       id: start
       shell: bash
       run: |
-        docker run -d \
-          --name iii-engine \
-          --network=host \
-          -v "${{ github.workspace }}/${{ inputs.config-path }}":/app/config.yaml:ro \
-          -e RUST_LOG=info \
-          "${{ inputs.image }}"
+        docker compose -f "${{ github.workspace }}/${{ inputs.compose-file }}" up -d
 
         echo "Waiting for III Engine on port ${{ inputs.health-check-port }}..."
         for i in $(seq 1 ${{ inputs.health-check-retries }}); do
@@ -43,5 +34,5 @@ runs:
           sleep 2
         done
         echo "Engine did not become ready. Logs:"
-        docker logs iii-engine
-        exit 0
+        docker compose -f "${{ github.workspace }}/${{ inputs.compose-file }}" logs
+        exit 1
