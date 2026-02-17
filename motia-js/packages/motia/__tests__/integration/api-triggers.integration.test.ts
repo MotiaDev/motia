@@ -58,7 +58,7 @@ describe('api triggers integration', () => {
       body: JSON.stringify({ name: 'test item', value: 123 }),
     })
     expect(res.status).toBe(201)
-    const data = await res.json() as { created: boolean, received: { name: string, value: number } }
+    const data = (await res.json()) as { created: boolean; received: { name: string; value: number } }
     expect(data.created).toBe(true)
     expect(data.received).toEqual({ name: 'test item', value: 123 })
   }, 10000)
@@ -106,7 +106,7 @@ describe('api triggers integration', () => {
 
     const res = await fetch(`${TEST_API_URL}/test/search?q=hello&limit=10`)
     expect(res.status).toBe(200)
-    const data = await res.json() as { query: string, limit: string }
+    const data = (await res.json()) as { query: string; limit: string }
     expect(data.query).toBe('hello')
     expect(data.limit).toBe('10')
   }, 10000)
