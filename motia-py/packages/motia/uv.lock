@@ -397,7 +397,7 @@ wheels = [
 
 [[package]]
 name = "motia"
-version = "0.3.0a6"
+version = "1.0.0rc14"
 source = { editable = "." }
 dependencies = [
     { name = "iii-sdk" },
