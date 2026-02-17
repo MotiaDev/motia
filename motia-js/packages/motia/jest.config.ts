@@ -1,13 +1,7 @@
-export default {
-  preset: 'ts-jest/presets/default-esm',
-  modulePathIgnorePatterns: [],
+const commonConfig = {
+  preset: 'ts-jest/presets/default-esm' as const,
   resetMocks: true,
-  roots: ['__tests__'],
-  testMatch: ['**/__tests__/**/*.test.ts'],
-  verbose: true,
   testEnvironment: 'node',
-  testTimeout: 30000,
-  setupFiles: ['<rootDir>/__tests__/integration/jest-env.ts'],
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
@@ -24,4 +18,24 @@ export default {
       },
     ],
   },
+}
+
+export default {
+  verbose: true,
+  projects: [
+    {
+      ...commonConfig,
+      displayName: 'unit',
+      testMatch: ['**/__tests__/**/*.test.ts'],
+      testPathIgnorePatterns: ['__tests__/integration'],
+      testTimeout: 5000,
+    },
+    {
+      ...commonConfig,
+      displayName: 'integration',
+      testMatch: ['**/__tests__/integration/**/*.test.ts'],
+      testTimeout: 15000,
+      setupFiles: ['<rootDir>/__tests__/integration/jest-env.ts'],
+    },
+  ],
 }

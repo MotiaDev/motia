@@ -3,8 +3,7 @@ import { Stream } from '../../src/new/stream'
 import { initTestEnv, waitForReady } from './setup'
 
 describe('stream integration', () => {
-  let stream: Stream<{ name?: string; value?: number; index?: number; count?: number }>
-  let streamAvailable: boolean
+  let stream: Stream<{ name?: string; value?: number; index?: number; count?: number; temp?: boolean }>
 
   beforeAll(async () => {
     initTestEnv()
@@ -18,9 +17,12 @@ describe('stream integration', () => {
     })
     try {
       await stream.get('__check__', '__check__')
-      streamAvailable = true
     } catch (e) {
-      streamAvailable = !String(e).toLowerCase().includes('function_not_found')
+      if (String(e).toLowerCase().includes('function_not_found')) {
+        throw new Error(
+          'Stream integration tests require a running motia engine with stream support. Start the engine or run unit tests only with: pnpm test:unit',
+        )
+      }
     }
   }, 15000)
 
@@ -30,7 +32,6 @@ describe('stream integration', () => {
   })
 
   it('set then get returns stored value', async () => {
-    if (!streamAvailable) return
     const groupId = `group_${Date.now()}`
     const itemId = `item_${Date.now()}`
     const data = { name: 'test', value: 42 }
@@ -44,7 +45,6 @@ describe('stream integration', () => {
   }, 10000)
 
   it('delete removes value', async () => {
-    if (!streamAvailable) return
     const groupId = `group_delete_${Date.now()}`
     const itemId = `item_delete_${Date.now()}`
 
@@ -58,7 +58,6 @@ describe('stream integration', () => {
   }, 10000)
 
   it('list returns all items in group', async () => {
-    if (!streamAvailable) return
     const groupId = `group_list_${Date.now()}`
 
     await stream.set(groupId, 'item_0', { index: 0 })
@@ -70,13 +69,11 @@ describe('stream integration', () => {
   }, 10000)
 
   it('listGroups returns available groups', async () => {
-    if (!streamAvailable) return
     const groups = await stream.listGroups()
     expect(Array.isArray(groups)).toBe(true)
   }, 10000)
 
   it('update applies partial updates', async () => {
-    if (!streamAvailable) return
     const groupId = `group_update_${Date.now()}`
     const itemId = `item_update_${Date.now()}`
 

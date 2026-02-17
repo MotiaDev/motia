@@ -1,5 +1,5 @@
 import { Motia } from '../src/new/build/utils'
-import { api, queue, state, stream } from '../src/triggers'
+import { api, cron, queue, state, stream } from '../src/triggers'
 
 const mockRegisterFunction = jest.fn()
 const mockRegisterTrigger = jest.fn()
@@ -25,12 +25,6 @@ jest.mock('../src/new/setup-step-endpoint', () => ({
 }))
 
 describe('Motia', () => {
-  beforeEach(() => {
-    mockRegisterFunction.mockReset()
-    mockRegisterTrigger.mockReset()
-    mockCall.mockReset()
-  })
-
   describe('addStep', () => {
     it('registers function and trigger for http trigger', () => {
       const motia = new Motia()
@@ -80,7 +74,7 @@ describe('Motia', () => {
 
       expect(mockRegisterTrigger).toHaveBeenCalledWith(
         expect.objectContaining({
-          trigger_type: 'queue',
+          type: 'queue',
           config: expect.objectContaining({ topic: 'tasks' }),
         }),
       )
@@ -94,7 +88,7 @@ describe('Motia', () => {
 
       expect(mockRegisterTrigger).toHaveBeenCalledWith(
         expect.objectContaining({
-          trigger_type: 'state',
+          type: 'state',
         }),
       )
     })
@@ -107,10 +101,62 @@ describe('Motia', () => {
 
       expect(mockRegisterTrigger).toHaveBeenCalledWith(
         expect.objectContaining({
-          trigger_type: 'stream',
+          type: 'stream',
           config: expect.objectContaining({ stream_name: 'events' }),
         }),
       )
+    })
+
+    it('registers function and trigger for cron trigger', () => {
+      const motia = new Motia()
+      const config = { name: 'test', triggers: [cron('0 * * * *')] }
+
+      motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
+
+      expect(mockRegisterTrigger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'cron',
+          config: expect.objectContaining({ expression: '0 * * * *' }),
+        }),
+      )
+    })
+
+    it('registers condition function when cron trigger has condition', () => {
+      const motia = new Motia()
+      const condition = jest.fn().mockResolvedValue(true)
+      const config = { name: 'test', triggers: [cron('0 0 * * *', condition)] }
+
+      motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
+
+      expect(mockRegisterFunction).toHaveBeenCalledTimes(2)
+      expect(mockRegisterTrigger.mock.calls[0][0].config._condition_path).toBeDefined()
+    })
+  })
+
+  describe('middleware composition', () => {
+    it('executes middleware around handler for http trigger', async () => {
+      const motia = new Motia()
+      const order: number[] = []
+
+      const middleware = async (_req: any, _ctx: any, next: () => Promise<any>) => {
+        order.push(1)
+        const result = await next()
+        order.push(3)
+        return result
+      }
+
+      const handler = async (_req: any, _ctx: any) => {
+        order.push(2)
+        return { status: 200, body: null }
+      }
+
+      const config = { name: 'test', triggers: [api('GET', '/test', { middleware: [middleware] })] }
+      motia.addStep(config as any, 'test.step.ts', handler, 'steps/test.step.ts')
+
+      const registeredHandler = mockRegisterFunction.mock.calls[0][1]
+      await registeredHandler({ body: {}, path_params: {}, query_params: {}, headers: {} })
+
+      expect(order).toEqual([1, 2, 3])
     })
   })
 
@@ -193,10 +239,8 @@ describe('Motia', () => {
     it('match throws when no handler matches', async () => {
       const motia = new Motia()
       const config = { name: 'test', triggers: [queue('q')] }
-      let _capturedContext: any
 
-      const handler = async (_input: unknown, ctx: any) => {
-        _capturedContext = ctx
+      const handler = async (_input: unknown, ctx: any): Promise<any> => {
         await ctx.match({})
       }
 

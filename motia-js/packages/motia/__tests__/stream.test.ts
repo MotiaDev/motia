@@ -16,7 +16,6 @@ describe('Stream', () => {
   let stream: Stream<{ id: string; value: string }>
 
   beforeEach(() => {
-    mockCall.mockReset()
     stream = new Stream(config as any)
   })
 
@@ -62,12 +61,12 @@ describe('Stream', () => {
 
   it('update() calls stream::update with ops', async () => {
     mockCall.mockResolvedValue(null)
-    await stream.update('group1', 'item1', [{ op: 'set' as const, path: 'x', value: 1 }])
+    await stream.update('group1', 'item1', [{ type: 'set' as const, path: 'x', value: 1 }])
     expect(mockCall).toHaveBeenCalledWith('stream::update', {
       stream_name: 'test-stream',
       group_id: 'group1',
       item_id: 'item1',
-      ops: [{ op: 'set', path: 'x', value: 1 }],
+      ops: [{ type: 'set', path: 'x', value: 1 }],
     })
   })
 

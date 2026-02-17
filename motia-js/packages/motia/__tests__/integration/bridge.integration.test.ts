@@ -1,5 +1,5 @@
 import { getInstance, initIII } from '../../src/new/iii'
-import { initTestEnv, sleep, waitForReady } from './setup'
+import { initTestEnv, sleep, waitForReady, waitForRegistration } from './setup'
 
 describe('bridge integration', () => {
   beforeAll(async () => {
@@ -22,13 +22,11 @@ describe('bridge integration', () => {
       return { status_code: 200, body: { echoed: data } }
     })
 
-    await sleep(500)
+    await waitForRegistration(sdk, functionId)
 
-    const result = (await sdk.call(functionId, { message: 'hello' })) as
-      | { echoed?: { message?: string } }
-      | { body?: { echoed?: { message?: string } } }
+    const result = (await sdk.call(functionId, { message: 'hello' })) as Record<string, any>
     expect(result).toBeDefined()
-    const echoed = 'echoed' in result ? result.echoed : result.body?.echoed
+    const echoed = result.echoed ?? result.body?.echoed
     expect(echoed?.message).toBe('hello')
   }, 10000)
 
@@ -42,10 +40,16 @@ describe('bridge integration', () => {
       return {}
     })
 
-    await sleep(500)
+    await waitForRegistration(sdk, functionId)
 
     sdk.callVoid(functionId, { value: 42 })
-    await sleep(1000)
+
+    const maxWait = 3000
+    const pollInterval = 100
+    const start = Date.now()
+    while (received === null && Date.now() - start < maxWait) {
+      await sleep(pollInterval)
+    }
 
     expect(received).toEqual(expect.objectContaining({ value: 42 }))
   }, 10000)
@@ -58,7 +62,8 @@ describe('bridge integration', () => {
     sdk.registerFunction({ id: func1 }, async () => ({}))
     sdk.registerFunction({ id: func2 }, async () => ({}))
 
-    await sleep(500)
+    await waitForRegistration(sdk, func1)
+    await waitForRegistration(sdk, func2)
 
     const result = (await sdk.call('engine::functions::list', {})) as { functions?: { function_id: string }[] }
     const ids = result?.functions?.map((f) => f.function_id) ?? []

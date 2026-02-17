@@ -10,7 +10,6 @@ describe('StateManager', () => {
   let manager: StateManager
 
   beforeEach(() => {
-    mockCall.mockReset()
     manager = new StateManager()
   })
 
@@ -50,11 +49,11 @@ describe('StateManager', () => {
 
   it('update() calls state::update with scope, key, ops', async () => {
     mockCall.mockResolvedValue(null)
-    await manager.update('scope1', 'key1', [{ op: 'set' as const, path: 'x', value: 1 }])
+    await manager.update('scope1', 'key1', [{ type: 'set' as const, path: 'x', value: 1 }])
     expect(mockCall).toHaveBeenCalledWith('state::update', {
       scope: 'scope1',
       key: 'key1',
-      ops: [{ op: 'set', path: 'x', value: 1 }],
+      ops: [{ type: 'set', path: 'x', value: 1 }],
     })
   })
 

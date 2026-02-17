@@ -1,5 +1,5 @@
 import { getInstance, initIII } from '../../src/new/iii'
-import { initTestEnv, sleep, TEST_API_URL, waitForReady } from './setup'
+import { initTestEnv, TEST_API_URL, waitForReady, waitForRegistration } from './setup'
 
 describe('api triggers integration', () => {
   beforeAll(async () => {
@@ -28,7 +28,7 @@ describe('api triggers integration', () => {
       config: { api_path: 'test/hello', http_method: 'GET' },
     })
 
-    await sleep(500)
+    await waitForRegistration(sdk, functionId)
 
     const res = await fetch(`${TEST_API_URL}/test/hello`)
     expect(res.status).toBe(200)
@@ -50,7 +50,7 @@ describe('api triggers integration', () => {
       config: { api_path: 'test/items', http_method: 'POST' },
     })
 
-    await sleep(500)
+    await waitForRegistration(sdk, functionId)
 
     const res = await fetch(`${TEST_API_URL}/test/items`, {
       method: 'POST',
@@ -77,7 +77,7 @@ describe('api triggers integration', () => {
       config: { api_path: 'test/items/:id', http_method: 'GET' },
     })
 
-    await sleep(500)
+    await waitForRegistration(sdk, functionId)
 
     const res = await fetch(`${TEST_API_URL}/test/items/abc123`)
     expect(res.status).toBe(200)
@@ -102,7 +102,7 @@ describe('api triggers integration', () => {
       config: { api_path: 'test/search', http_method: 'GET' },
     })
 
-    await sleep(500)
+    await waitForRegistration(sdk, functionId)
 
     const res = await fetch(`${TEST_API_URL}/test/search?q=hello&limit=10`)
     expect(res.status).toBe(200)
@@ -125,7 +125,7 @@ describe('api triggers integration', () => {
       config: { api_path: 'test/missing', http_method: 'GET' },
     })
 
-    await sleep(500)
+    await waitForRegistration(sdk, functionId)
 
     const res = await fetch(`${TEST_API_URL}/test/missing`)
     expect(res.status).toBe(404)

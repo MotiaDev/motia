@@ -4,7 +4,6 @@ import { initTestEnv, waitForReady } from './setup'
 
 describe('state integration', () => {
   let state: StateManager
-  let stateAvailable: boolean
 
   beforeAll(async () => {
     initTestEnv()
@@ -14,9 +13,12 @@ describe('state integration', () => {
     state = new StateManager()
     try {
       await state.get(`test_${Date.now()}`, 'check')
-      stateAvailable = true
     } catch (e) {
-      stateAvailable = !String(e).toLowerCase().includes('function_not_found')
+      if (String(e).toLowerCase().includes('function_not_found')) {
+        throw new Error(
+          'State integration tests require a running motia engine with state support. Start the engine or run unit tests only with: pnpm test:unit',
+        )
+      }
     }
   }, 15000)
 
@@ -26,7 +28,6 @@ describe('state integration', () => {
   })
 
   it('set then get returns stored value', async () => {
-    if (!stateAvailable) return
     const scope = `test_scope_${Date.now()}`
     const key = `test_key_${Date.now()}`
     const value = { status: 'active', count: 10 }
@@ -40,7 +41,6 @@ describe('state integration', () => {
   }, 10000)
 
   it('delete removes value', async () => {
-    if (!stateAvailable) return
     const scope = `delete_scope_${Date.now()}`
     const key = `delete_key_${Date.now()}`
 
@@ -54,7 +54,6 @@ describe('state integration', () => {
   }, 10000)
 
   it('list returns all items in scope', async () => {
-    if (!stateAvailable) return
     const scope = `list_scope_${Date.now()}`
 
     await state.set(scope, 'item_0', { index: 0 })
@@ -66,14 +65,12 @@ describe('state integration', () => {
   }, 10000)
 
   it('listGroups returns available scopes', async () => {
-    if (!stateAvailable) return
     const result = await state.listGroups()
     const groups = Array.isArray(result) ? result : ((result as { groups?: string[] })?.groups ?? [])
     expect(Array.isArray(groups)).toBe(true)
   }, 10000)
 
   it('update applies partial updates', async () => {
-    if (!stateAvailable) return
     const scope = `update_scope_${Date.now()}`
     const key = `update_key_${Date.now()}`
 
@@ -85,7 +82,6 @@ describe('state integration', () => {
   }, 10000)
 
   it('clear removes all items from scope', async () => {
-    if (!stateAvailable) return
     const scope = `clear_scope_${Date.now()}`
 
     await state.set(scope, 'a', { id: 'a' })
