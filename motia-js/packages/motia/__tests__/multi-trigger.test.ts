@@ -1,5 +1,5 @@
-import { api, cron, queue } from '../src/triggers'
 import { multiTriggerStep } from '../src/multi-trigger'
+import { api, cron, queue } from '../src/triggers'
 
 describe('multiTriggerStep', () => {
   const config = {

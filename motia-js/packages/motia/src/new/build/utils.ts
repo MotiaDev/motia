@@ -99,7 +99,7 @@ const flowContext = <EnqueueData, TInput = unknown>(
     // biome-ignore lint/suspicious/noConfusingVoidType: needed for match handlers
     match: async <TResult = unknown>(
       handlers: MatchHandlers<TInput, EnqueueData, TResult>,
-    ): Promise<TResult | void> => {
+    ): Promise<TResult | undefined> => {
       if (trigger.type === 'queue' && handlers.queue) {
         return await handlers.queue(input as ExtractQueueInput<TInput>)
       }
@@ -330,7 +330,7 @@ export class Motia {
     })
   }
 
-  public addStream(config: StreamConfig, streamPath: string) {
+  public addStream(config: StreamConfig, _streamPath: string) {
     this.streams[config.name] = new Stream<unknown>(config)
   }
 

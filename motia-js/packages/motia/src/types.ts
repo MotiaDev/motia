@@ -35,7 +35,7 @@ export type ExtractStreamInput<TInput> = Extract<TInput, StreamTriggerInput<unkn
 export type ExtractDataPayload<TInput> =
   TInput extends ApiRequest<infer TBody> ? TBody : TInput extends undefined ? undefined : TInput
 
-export type MatchHandlers<TInput, TEnqueueData, TResult> = {
+export type MatchHandlers<TInput, _TEnqueueData, TResult> = {
   queue?: (input: ExtractQueueInput<TInput>) => Promise<void>
 
   http?: (request: ExtractApiInput<TInput>) => Promise<TResult>
@@ -46,7 +46,7 @@ export type MatchHandlers<TInput, TEnqueueData, TResult> = {
 
   stream?: (input: ExtractStreamInput<TInput>) => Promise<TResult>
 
-  default?: (input: TInput) => Promise<TResult | void>
+  default?: (input: TInput) => Promise<TResult | undefined>
 }
 
 export interface FlowContext<TEnqueueData = never, TInput = unknown> {
@@ -81,7 +81,7 @@ export interface FlowContext<TEnqueueData = never, TInput = unknown> {
    */
   getData: () => ExtractDataPayload<TInput>
 
-  match: <TResult = any>(handlers: MatchHandlers<TInput, TEnqueueData, TResult>) => Promise<TResult | void>
+  match: <TResult = any>(handlers: MatchHandlers<TInput, TEnqueueData, TResult>) => Promise<TResult | undefined>
 }
 
 export type Enqueue = string | { topic: string; label?: string; conditional?: boolean }
@@ -241,7 +241,7 @@ export type ApiResponse<TStatus extends number = number, TBody = any> = {
 export type StepHandler<TInput = any, TEnqueueData = never> = (
   input: TriggerInput<TInput>,
   ctx: FlowContext<TEnqueueData, TriggerInput<TInput>>,
-) => Promise<ApiResponse | void>
+) => Promise<ApiResponse | undefined>
 
 export type Event<TData = unknown> = {
   topic: string
@@ -319,7 +319,7 @@ type TriggerToInput<TTrigger> = TTrigger extends { type: 'queue'; input?: infer 
 
 type InferHandlerInput<TConfig extends StepConfig> = TriggerToInput<TConfig['triggers'][number]>
 
-type InferReturnType = Promise<ApiResponse | void>
+type InferReturnType = Promise<ApiResponse | undefined>
 
 type EnqueueTopic<T extends string> = T extends keyof Enqueues ? Enqueues[T] : unknown
 

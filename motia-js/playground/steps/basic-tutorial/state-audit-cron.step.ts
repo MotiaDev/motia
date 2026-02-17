@@ -14,7 +14,7 @@ export const config = {
   flows: ['basic-tutorial'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, state, enqueue }) => {
+export const handler: Handlers<typeof config> = async (_input, { logger, state, enqueue }) => {
   const stateValue = await state.list<Order>('orders')
 
   for (const item of stateValue) {

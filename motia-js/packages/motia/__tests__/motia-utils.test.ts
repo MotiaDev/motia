@@ -1,5 +1,5 @@
-import { api, queue, state, stream } from '../src/triggers'
 import { Motia } from '../src/new/build/utils'
+import { api, queue, state, stream } from '../src/triggers'
 
 const mockRegisterFunction = jest.fn()
 const mockRegisterTrigger = jest.fn()
@@ -125,8 +125,8 @@ describe('Motia', () => {
 
       motia.addStream(config as any, 'users.stream.ts')
 
-      expect(motia.streams['users']).toBeDefined()
-      expect(motia.streams['users'].config.name).toBe('users')
+      expect(motia.streams.users).toBeDefined()
+      expect(motia.streams.users.config.name).toBe('users')
     })
   })
 
@@ -193,10 +193,10 @@ describe('Motia', () => {
     it('match throws when no handler matches', async () => {
       const motia = new Motia()
       const config = { name: 'test', triggers: [queue('q')] }
-      let capturedContext: any
+      let _capturedContext: any
 
       const handler = async (_input: unknown, ctx: any) => {
-        capturedContext = ctx
+        _capturedContext = ctx
         await ctx.match({})
       }
 
@@ -204,9 +204,7 @@ describe('Motia', () => {
 
       const registeredHandler = mockRegisterFunction.mock.calls[0][1]
 
-      await expect(registeredHandler({ data: 'test' })).rejects.toThrow(
-        'No handler matched for trigger type: queue',
-      )
+      await expect(registeredHandler({ data: 'test' })).rejects.toThrow('No handler matched for trigger type: queue')
     })
   })
 })

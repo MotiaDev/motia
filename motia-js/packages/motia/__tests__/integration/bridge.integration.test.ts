@@ -1,5 +1,5 @@
 import { getInstance, initIII } from '../../src/new/iii'
-import { sleep, initTestEnv, waitForReady } from './setup'
+import { initTestEnv, sleep, waitForReady } from './setup'
 
 describe('bridge integration', () => {
   beforeAll(async () => {

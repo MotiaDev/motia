@@ -4,8 +4,7 @@ const TEST_API_PORT = parseInt(process.env.TEST_API_PORT ?? '3199', 10)
 export const TEST_ENGINE_URL = `ws://localhost:${TEST_ENGINE_PORT}`
 export const TEST_API_URL = `http://localhost:${TEST_API_PORT}`
 
-export const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms))
+export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 export function initTestEnv(): void {
   process.env.III_URL = process.env.III_URL ?? TEST_ENGINE_URL

@@ -59,9 +59,7 @@ describe('StateManager', () => {
   })
 
   it('clear() lists then deletes each item', async () => {
-    mockCall
-      .mockResolvedValueOnce([{ id: 'a' }, { id: 'b' }])
-      .mockResolvedValue(null)
+    mockCall.mockResolvedValueOnce([{ id: 'a' }, { id: 'b' }]).mockResolvedValue(null)
     await manager.clear('scope1')
     expect(mockCall).toHaveBeenCalledWith('state::list', { scope: 'scope1' })
     expect(mockCall).toHaveBeenCalledWith('state::delete', { scope: 'scope1', key: 'a' })

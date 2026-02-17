@@ -1,10 +1,5 @@
 import * as z from 'zod'
-import {
-  isJsonSchema,
-  isStandardSchema,
-  isZodSchema,
-  schemaToJsonSchema,
-} from '../src/schema-utils'
+import { isJsonSchema, isStandardSchema, isZodSchema, schemaToJsonSchema } from '../src/schema-utils'
 
 describe('schema-utils', () => {
   describe('isStandardSchema', () => {

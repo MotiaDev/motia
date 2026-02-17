@@ -1,9 +1,5 @@
 import { api, queue } from '../src/triggers'
-import {
-  generateEnqueuesInterface,
-  generateStreamsInterface,
-  generateTypesString,
-} from '../src/types/generate-types'
+import { generateEnqueuesInterface, generateStreamsInterface, generateTypesString } from '../src/types/generate-types'
 
 describe('generate-types', () => {
   describe('generateStreamsInterface', () => {
@@ -118,8 +114,8 @@ describe('generate-types', () => {
       }
       const result = generateTypesString(steps as any, streams as any)
       expect(result).toContain('Automatically generated types')
-      expect(result).toContain('import { MotiaStream } from \'motia\'')
-      expect(result).toContain('declare module \'motia\'')
+      expect(result).toContain("import { MotiaStream } from 'motia'")
+      expect(result).toContain("declare module 'motia'")
       expect(result).toContain('interface Streams')
       expect(result).toContain('interface Enqueues')
       expect(result).toContain('items')

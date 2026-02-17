@@ -1,5 +1,5 @@
 import { getInstance, initIII } from '../../src/new/iii'
-import { sleep, TEST_API_URL, initTestEnv, waitForReady } from './setup'
+import { initTestEnv, sleep, TEST_API_URL, waitForReady } from './setup'
 
 describe('api triggers integration', () => {
   beforeAll(async () => {
@@ -67,13 +67,10 @@ describe('api triggers integration', () => {
     const sdk = getInstance()
     const functionId = `test.api.getById.${Date.now()}`
 
-    sdk.registerFunction(
-      { id: functionId },
-      async (req: { path_params?: Record<string, string> }) => ({
-        status_code: 200,
-        body: { id: req.path_params?.id },
-      }),
-    )
+    sdk.registerFunction({ id: functionId }, async (req: { path_params?: Record<string, string> }) => ({
+      status_code: 200,
+      body: { id: req.path_params?.id },
+    }))
     sdk.registerTrigger({
       trigger_type: 'http',
       function_id: functionId,
@@ -92,16 +89,13 @@ describe('api triggers integration', () => {
     const sdk = getInstance()
     const functionId = `test.api.search.${Date.now()}`
 
-    sdk.registerFunction(
-      { id: functionId },
-      async (req: { query_params?: Record<string, string | string[]> }) => ({
-        status_code: 200,
-        body: {
-          query: req.query_params?.q,
-          limit: req.query_params?.limit,
-        },
-      }),
-    )
+    sdk.registerFunction({ id: functionId }, async (req: { query_params?: Record<string, string | string[]> }) => ({
+      status_code: 200,
+      body: {
+        query: req.query_params?.q,
+        limit: req.query_params?.limit,
+      },
+    }))
     sdk.registerTrigger({
       trigger_type: 'http',
       function_id: functionId,

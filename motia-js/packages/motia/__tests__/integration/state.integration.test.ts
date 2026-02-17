@@ -1,6 +1,6 @@
 import { getInstance, initIII } from '../../src/new/iii'
 import { StateManager } from '../../src/new/state'
-import { initTestEnv, waitForReady, sleep } from './setup'
+import { initTestEnv, waitForReady } from './setup'
 
 describe('state integration', () => {
   let state: StateManager
@@ -68,7 +68,7 @@ describe('state integration', () => {
   it('listGroups returns available scopes', async () => {
     if (!stateAvailable) return
     const result = await state.listGroups()
-    const groups = Array.isArray(result) ? result : (result as { groups?: string[] })?.groups ?? []
+    const groups = Array.isArray(result) ? result : ((result as { groups?: string[] })?.groups ?? [])
     expect(Array.isArray(groups)).toBe(true)
   }, 10000)
 

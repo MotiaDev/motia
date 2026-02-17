@@ -1,5 +1,5 @@
-import { api } from '../src/triggers'
 import { step } from '../src/step'
+import { api } from '../src/triggers'
 
 describe('step', () => {
   const config = {
