@@ -11,11 +11,15 @@ export function initTestEnv(): void {
 }
 
 export async function waitForReady(sdk: { call: (id: string, data: unknown) => Promise<unknown> }): Promise<void> {
-  const maxAttempts = 30
+  const deadline = Date.now() + 13000
+  const callTimeout = 300
   let delay = 50
-  for (let i = 0; i < maxAttempts; i++) {
+  while (Date.now() < deadline) {
     try {
-      await sdk.call('engine::workers::list', {})
+      await Promise.race([
+        sdk.call('engine::workers::list', {}),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('call timeout')), callTimeout)),
+      ])
       return
     } catch {
       await sleep(delay)
