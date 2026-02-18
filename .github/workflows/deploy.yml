@@ -111,6 +111,9 @@ jobs:
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
 
+      - name: Start III Engine
+        uses: ./.github/actions/iii-engine
+
       - name: Run linter
         working-directory: motia-js
         run: pnpm lint:ci
@@ -118,6 +121,12 @@ jobs:
       - name: Run tests
         working-directory: motia-js
         run: pnpm test:ci
+        env:
+          III_URL: ws://localhost:49199
+
+      - name: Stop III Engine
+        if: always()
+        run: docker rm -f iii-engine || true
 
   test-python:
     name: Test Python
