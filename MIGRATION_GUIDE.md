@@ -15,11 +15,11 @@ This guide covers migrating from **Motia v0.17.x** to the **new Motia** framewor
 7. [Streams](#7-streams)
 8. [State](#8-state)
 9. [Middleware](#9-middleware)
-10. [Python Runtime](#10-python-runtime)
-11. [Workbench, Plugins, and Console](#11-workbench-plugins-and-console)
-12. [OpenAPI Generation](#12-openapi-generation)
-13. [New Features](#13-new-features)
-14. [Migration Checklist](#14-migration-checklist)
+10. [New Features](#10-new-features)
+11. [Migration Checklist](#11-migration-checklist)
+12. [Python Runtime](#12-python-runtime)
+13. [Workbench, Plugins, and Console](#13-workbench-plugins-and-console)
+14. [OpenAPI Generation](#14-openapi-generation)
 
 ---
 
@@ -33,25 +33,73 @@ Install iii from [https://iii.dev](https://iii.dev) before proceeding with the m
 
 ### Project Config
 
-The old `motia.config.json` is replaced by two files managed by iii:
+The old `motia.config.ts` (using `defineConfig`) is replaced by two files managed by iii:
 
 | Concern | Old | New |
 |---|---|---|
-| Project metadata | `motia.config.json` | Removed (handled by iii engine) |
+| Project config & plugins | `motia.config.ts` (`defineConfig({...})`) | Removed (handled by iii engine via `config.yaml`) |
 | Module/adapter config | N/A | `config.yaml` (iii engine config) |
-| Auth & hooks | N/A | `motia.config.ts` |
+| Auth & hooks | `streamAuth` in `motia.config.ts` | `motia.config.ts` (simplified, exports only auth hooks) |
 | Build externals | `.esbuildrc.json` | Removed |
-| Workbench UI layout | `motia-workbench.json` | Removed (see [Workbench, Plugins, and Console](#10-workbench-plugins-and-console)) |
+| Workbench UI layout | `motia-workbench.json` | Removed (see [Workbench, Plugins, and Console](#13-workbench-plugins-and-console)) |
 
-**Old -- `motia.config.json`:**
+**Old -- `motia.config.ts`:**
 
-```json
-{
-  "name": "motia-hub-api",
-  "description": "Motia Hub API",
-  "id": "d8fadd3b-fcad-4987-95ed-38eb715cdd9c",
-  "selectedEnvironment": "076591e9-b336-4050-a08c-d65a0dc6ca53"
+```typescript
+import path from 'node:path'
+import { defineConfig, type MotiaPlugin, type MotiaPluginContext, type StreamAuthRequest } from '@motiadev/core'
+import bullmqPlugin from '@motiadev/plugin-bullmq/plugin'
+import endpointPlugin from '@motiadev/plugin-endpoint/plugin'
+import examplePlugin from '@motiadev/plugin-example/plugin'
+import logsPlugin from '@motiadev/plugin-logs/plugin'
+import observabilityPlugin from '@motiadev/plugin-observability/plugin'
+import statesPlugin from '@motiadev/plugin-states/plugin'
+import { z } from 'zod'
+
+const streamAuthContextSchema = z.object({
+  userId: z.string(),
+  permissions: z.enum(['nodejs', 'python']).optional(),
+})
+
+const demoTokens: Record<string, z.infer<typeof streamAuthContextSchema>> = {
+  'token-nodejs': { userId: 'anderson', permissions: 'nodejs' },
+  'token-python': { userId: 'sergio', permissions: 'python' },
 }
+
+const extractAuthToken = (request: StreamAuthRequest): string | undefined => {
+  const protocol = request.headers['sec-websocket-protocol'] as string | undefined
+  if (protocol?.includes('Authorization')) {
+    const [, token] = protocol.split(',')
+    if (token) return token.trim()
+  }
+  try {
+    const url = new URL(request.url)
+    return url.searchParams.get('authToken') ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+export default defineConfig({
+  plugins: [
+    observabilityPlugin,
+    statesPlugin,
+    endpointPlugin,
+    logsPlugin,
+    examplePlugin,
+    bullmqPlugin,
+  ],
+  streamAuth: {
+    contextSchema: z.toJSONSchema(streamAuthContextSchema),
+    authenticate: async (request: StreamAuthRequest) => {
+      const token = extractAuthToken(request)
+      if (!token) return null
+      const tokenData = demoTokens[token]
+      if (!tokenData) throw new Error(`Invalid token: ${token}`)
+      return tokenData
+    },
+  },
+})
 ```
 
 **New -- `config.yaml` (development):**
@@ -196,9 +244,10 @@ export const authenticateStream: AuthenticateStream = async (req, context) => {
 
 ### Files to Delete
 
-- `motia.config.json`
 - `motia-workbench.json`
-- `.motia/` directory (auto-generated state)
+- `.motia/` directory (auto-generated state) — **Warning:** this will delete any local stream and state data persisted by the old engine; back up first if needed
+
+Note: `motia.config.ts` is **not deleted** -- it is simplified. Remove the `defineConfig` wrapper, all plugin imports, and the `plugins` array. Keep only the authentication hook exports (see the "New" example above).
 
 ---
 
@@ -388,7 +437,7 @@ export const handler: Handlers<typeof config> = async (req, { enqueue, logger })
 2. `method`, `path`, `bodySchema`, `responseSchema` all move inside the trigger.
 3. `emits` becomes `enqueues` at the config level.
 4. `emit()` becomes `enqueue()` in the handler context.
-5. `middleware` is removed from step config (see [Middleware](#9-middleware)).
+5. `middleware` is removed from step config (see [Middleware](#9-middleware) below).
 6. Config type changes from `ApiRouteConfig` to `StepConfig` with `as const satisfies`.
 
 ### HTTP Helper Shorthand
@@ -879,72 +928,7 @@ export const handler: Handlers<typeof config> = async (request, { logger }) => {
 
 ---
 
-## 10. Python Runtime
-
-**This is a major architectural change.** In the old Motia, Python steps were managed by the same Node.js-based Motia runtime. Python files were executed as child processes spawned by the Node runtime, meaning **Python developers still needed Node.js and npm installed** to use Motia at all.
-
-In the new Motia, **runtimes are fully independent**. There is a dedicated **Motia Python** SDK (`motia-py`) that runs as its own standalone process, communicating directly with the iii engine. Python developers no longer need Node.js, npm, or any JavaScript tooling whatsoever.
-
-### What Changed
-
-| Aspect | Old | New |
-|---|---|---|
-| Python execution | Spawned as child process by Node runtime | Independent process managed by iii engine |
-| Node.js required for Python? | Yes | **No** |
-| SDK | Single `motia` npm package handled both | Separate `motia-py` (Python) and `motia` (Node) packages |
-| Configuration | Shared with Node steps | Own `config.yaml` ExecModule entry pointing to the Python process |
-
-### For Mixed Projects (Node + Python)
-
-If your project has both Node and Python steps, you now configure **separate ExecModule entries** in `config.yaml` -- one for each runtime:
-
-```yaml
-modules:
-  - class: modules::shell::ExecModule
-    config:
-      watch:
-        - steps/**/*.ts
-      exec:
-        - npx motia dev
-
-  - class: modules::shell::ExecModule
-    config:
-      watch:
-        - steps/**/*.py
-      exec:
-        - uv run motia dev --dir steps
-```
-
-### Python Migration Guide
-
-A dedicated migration guide for Python projects and steps will be provided in a separate document. This guide focuses on the Node.js/TypeScript migration path.
-
----
-
-## 11. Workbench, Plugins, and Console
-
-### Workbench Replaced by iii Console
-
-The Motia Workbench (the local visual flow editor, configured via `motia-workbench.json`) has been replaced by the **iii Console**. The console provides a richer experience for visualizing and managing your flows, traces, and infrastructure.
-
-> **TODO:** Detailed documentation on the iii Console migration will be added in a future update.
-
-### Workbench Plugins Sunset
-
-Workbench plugins (custom UI panels and extensions rendered inside the Workbench) have been **sunset** and are no longer supported. If your project relied on workbench plugins, you will need to find alternative approaches for any custom UI functionality they provided.
-
-- Delete any `.ui.step.ts` or noop step files that were used exclusively for workbench rendering.
-- Remove any React/JSX workbench plugin code that is no longer needed.
-
----
-
-## 12. OpenAPI Generation
-
-Motia's automatic OpenAPI/Swagger spec generation from HTTP step schemas is currently a **work in progress**. This feature is not yet available in the new version. If your project relied on generated OpenAPI specs, be aware that this capability will be restored in a future release.
-
----
-
-## 13. New Features
+## 10. New Features
 
 ### Multi-Trigger Steps
 
@@ -1038,16 +1022,16 @@ triggers: [
 
 ---
 
-## 14. Migration Checklist
+## 11. Migration Checklist
 
 ### Project Setup
 
 - [ ] Install the iii engine from [https://iii.dev](https://iii.dev)
 - [ ] Create `config.yaml` with module definitions (stream, state, api, queue, cron, exec)
 - [ ] Create `motia.config.ts` for authentication hooks (if needed)
-- [ ] Delete `motia.config.json`
+- [ ] Simplify `motia.config.ts`: remove `defineConfig`, all plugin imports, and the `plugins` array; keep only auth hook exports
 - [ ] Delete `motia-workbench.json`
-- [ ] Delete `.motia/` directory
+- [ ] Delete `.motia/` directory — **Warning:** this will delete any local stream and state data persisted by the old engine; back up first if needed
 - [ ] Update dev script from `motia dev` to `iii`
 - [ ] Choose your runtime (Node.js or Bun) and module system (CommonJS or ESM)
 
@@ -1102,3 +1086,68 @@ triggers: [
 - [ ] Remove any `.ui.step.ts` or noop step files used exclusively for workbench rendering
 - [ ] Remove any workbench plugin code (React/JSX components for workbench panels)
 - [ ] Familiarize with the iii Console as the replacement for the Workbench
+
+---
+
+## 12. Python Runtime
+
+**This is a major architectural change.** In the old Motia, Python steps were managed by the same Node.js-based Motia runtime. Python files were executed as child processes spawned by the Node runtime, meaning **Python developers previously needed Node.js and npm installed** to use Motia at all.
+
+In the new Motia, **runtimes are fully independent**. There is a dedicated **Motia Python** SDK (`motia-py`) that runs as its own standalone process, communicating directly with the iii engine. Python developers no longer need Node.js, npm, or any JavaScript tooling whatsoever.
+
+### What Changed
+
+| Aspect | Old | New |
+|---|---|---|
+| Python execution | Spawned as child process by Node runtime | Independent process managed by iii engine |
+| Node.js required for Python? | Yes | **No** |
+| SDK | Single `motia` npm package handled both | Separate `motia-py` (Python) and `motia` (Node) packages |
+| Configuration | Shared with Node steps | Own `config.yaml` ExecModule entry pointing to the Python process |
+
+### For Mixed Projects (Node + Python)
+
+If your project has both Node and Python steps, you now configure **separate ExecModule entries** in `config.yaml` -- one for each runtime:
+
+```yaml
+modules:
+  - class: modules::shell::ExecModule
+    config:
+      watch:
+        - steps/**/*.ts
+      exec:
+        - npx motia dev
+
+  - class: modules::shell::ExecModule
+    config:
+      watch:
+        - steps/**/*.py
+      exec:
+        - uv run motia dev --dir steps
+```
+
+### Python Migration Guide
+
+A dedicated migration guide for Python projects and steps will be provided in a separate document. This guide focuses on the Node.js/TypeScript migration path.
+
+---
+
+## 13. Workbench, Plugins, and Console
+
+### Workbench Replaced by iii Console
+
+The Motia Workbench (the local visual flow editor, configured via `motia-workbench.json`) has been replaced by the **iii Console**. The console provides a richer experience for visualizing and managing your flows, traces, and infrastructure.
+
+> Refer to the [iii quickstart documentation](https://iii.dev/docs/tutorials/quickstart) for iii Console installation instructions.
+
+### Workbench Plugins Sunset
+
+Workbench plugins (custom UI panels and extensions rendered inside the Workbench) have been **sunset** and are no longer supported. If your project relied on workbench plugins, you will need to find alternative approaches for any custom UI functionality they provided.
+
+- Delete any `.ui.step.ts` or noop step files that were used exclusively for workbench rendering.
+- Remove any React/JSX workbench plugin code that is no longer needed.
+
+---
+
+## 14. OpenAPI Generation
+
+Motia's automatic OpenAPI/Swagger spec generation from HTTP step schemas is currently a **work in progress**. This feature is not yet available in the new version. If your project relied on generated OpenAPI specs, be aware that this capability will be restored in a future release.
