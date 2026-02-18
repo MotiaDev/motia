@@ -1,22 +1,15 @@
 # motia/tests/conftest.py
 """Pytest configuration and fixtures for integration tests.
 
-These tests require a running III engine instance.
-
-In CI, the engine is started automatically via the setup-iii-engine GitHub Action.
-
-Locally, start the engine manually:
+These tests require a running III engine instance. Start the engine manually:
 
     iii --config tests/fixtures/config-test.yaml
 
-Or override the ports via environment variables:
-
-    TEST_ENGINE_PORT=49199 TEST_API_PORT=3199 pytest
+Or set III_ENGINE_PATH and use the run_integration_tests.sh script.
 """
 
 import asyncio
 import json
-import os
 from typing import AsyncGenerator
 
 import pytest
@@ -24,7 +17,7 @@ import pytest_asyncio
 from iii import III
 
 
-async def flush_bridge_queue(bridge: III) -> None:
+async def flush_bridge_queue(bridge) -> None:
     """Flush the bridge queue to ensure all messages are sent.
 
     This is needed because register_function uses _enqueue which adds to a queue
@@ -34,15 +27,15 @@ async def flush_bridge_queue(bridge: III) -> None:
         await bridge._ws.send(json.dumps(bridge._queue.pop(0)))
 
 
-# Test ports - configurable via environment, defaults match tests/fixtures/config-test.yaml
-TEST_ENGINE_PORT = int(os.environ.get("TEST_ENGINE_PORT", "49199"))
-TEST_API_PORT = int(os.environ.get("TEST_API_PORT", "3199"))
+# Test ports - must match tests/fixtures/config-test.yaml
+TEST_ENGINE_PORT = 49199
+TEST_API_PORT = 3199
 TEST_ENGINE_URL = f"ws://localhost:{TEST_ENGINE_PORT}"
 TEST_API_URL = f"http://localhost:{TEST_API_PORT}"
 
 
 @pytest_asyncio.fixture
-async def bridge() -> AsyncGenerator[III, None]:
+async def bridge() -> AsyncGenerator:
     """Create a connected bridge instance for testing.
 
     Requires III engine to be running on TEST_ENGINE_URL.

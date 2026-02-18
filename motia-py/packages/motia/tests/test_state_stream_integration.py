@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from motia import api, event
-from motia.types import FlowContext, StateTriggerInput, StepConfig, StreamTriggerInput, TriggerMetadata, state, stream
+from motia import api, queue
+from motia.types import FlowContext, StateTriggerInput, StepConfig, StreamTriggerInput, TriggerInfo, state, stream
 
 
 class TestStateTriggerIntegration:
@@ -21,7 +21,7 @@ class TestStateTriggerIntegration:
         config = StepConfig(
             name="user-state-handler",
             triggers=[state(condition=condition)],
-            emits=["user.updated"],
+            enqueues=["user.updated"],
         )
 
         # Verify config structure
@@ -31,17 +31,17 @@ class TestStateTriggerIntegration:
 
         # Create context for state trigger
         ctx = FlowContext(
-            emit=AsyncMock(),
+            enqueue=AsyncMock(),
             trace_id="test-trace",
             state=MagicMock(),
             logger=MagicMock(),
             streams={},
-            trigger=TriggerMetadata(type="state", index=0),
+            trigger=TriggerInfo(type="state", index=0),
             _input=None,
         )
 
         assert ctx.is_state() is True
-        assert ctx.is_event() is False
+        assert ctx.is_queue() is False
         assert ctx.is_stream() is False
 
     def test_state_trigger_input_parsing(self):
@@ -75,7 +75,7 @@ class TestStreamTriggerIntegration:
         config = StepConfig(
             name="todo-stream-handler",
             triggers=[stream("todos", group_id="inbox", condition=condition)],
-            emits=["todo.processed"],
+            enqueues=["todo.processed"],
         )
 
         # Verify config structure
@@ -88,23 +88,21 @@ class TestStreamTriggerIntegration:
 
         # Create context for stream trigger
         ctx = FlowContext(
-            emit=AsyncMock(),
+            enqueue=AsyncMock(),
             trace_id="test-trace",
             state=MagicMock(),
             logger=MagicMock(),
             streams={},
-            trigger=TriggerMetadata(
+            trigger=TriggerInfo(
                 type="stream",
                 index=0,
-                stream_name="todos",
-                group_id="inbox",
             ),
             _input=None,
         )
 
         assert ctx.is_stream() is True
         assert ctx.is_state() is False
-        assert ctx.is_event() is False
+        assert ctx.is_queue() is False
 
     def test_stream_trigger_input_parsing(self):
         """Test StreamTriggerInput parses camelCase from engine."""
@@ -134,40 +132,40 @@ class TestMixedTriggers:
         """Test match() dispatches to correct handler type."""
         # State context
         state_ctx = FlowContext(
-            emit=AsyncMock(),
+            enqueue=AsyncMock(),
             trace_id="test",
             state=MagicMock(),
             logger=MagicMock(),
             streams={},
-            trigger=TriggerMetadata(type="state"),
+            trigger=TriggerInfo(type="state"),
             _input={"group_id": "test"},
         )
 
         state_handler = AsyncMock(return_value="state")
         stream_handler = AsyncMock(return_value="stream")
-        event_handler = AsyncMock(return_value="event")
+        queue_handler = AsyncMock(return_value="queue")
 
         result = await state_ctx.match(
             {
                 "state": state_handler,
                 "stream": stream_handler,
-                "event": event_handler,
+                "queue": queue_handler,
             }
         )
 
         assert result == "state"
         state_handler.assert_called_once()
         stream_handler.assert_not_called()
-        event_handler.assert_not_called()
+        queue_handler.assert_not_called()
 
         # Stream context
         stream_ctx = FlowContext(
-            emit=AsyncMock(),
+            enqueue=AsyncMock(),
             trace_id="test",
             state=MagicMock(),
             logger=MagicMock(),
             streams={},
-            trigger=TriggerMetadata(type="stream", stream_name="test"),
+            trigger=TriggerInfo(type="stream"),
             _input={"stream_name": "test"},
         )
 
@@ -178,7 +176,7 @@ class TestMixedTriggers:
             {
                 "state": state_handler,
                 "stream": stream_handler,
-                "event": event_handler,
+                "queue": queue_handler,
             }
         )
 
@@ -191,12 +189,12 @@ class TestMixedTriggers:
         config = StepConfig(
             name="multi-trigger-step",
             triggers=[
-                event("user.created"),
+                queue("user.created"),
                 api("POST", "/users"),
                 state(),
                 stream("users"),
             ],
-            emits=["user.processed"],
+            enqueues=["user.processed"],
         )
 
         assert len(config.triggers) == 4

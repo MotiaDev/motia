@@ -1,5 +1,5 @@
 import { multiTriggerStep } from '../src/multi-trigger'
-import { api, cron, queue } from '../src/triggers'
+import { api, cron, queue, state, stream } from '../src/triggers'
 
 describe('multiTriggerStep', () => {
   const config = {
@@ -7,12 +7,14 @@ describe('multiTriggerStep', () => {
     triggers: [queue('tasks'), api('GET', '/test'), cron('0 * * * *')],
   }
 
-  it('returns builder with onQueue, onHttp, onCron methods', () => {
+  it('returns builder with onQueue, onHttp, onCron, onState, onStream methods', () => {
     const builder = multiTriggerStep(config)
     expect(builder.config).toEqual(config)
     expect(typeof builder.onQueue).toBe('function')
     expect(typeof builder.onHttp).toBe('function')
     expect(typeof builder.onCron).toBe('function')
+    expect(typeof builder.onState).toBe('function')
+    expect(typeof builder.onStream).toBe('function')
     expect(typeof builder.handlers).toBe('function')
   })
 
@@ -39,6 +41,56 @@ describe('multiTriggerStep', () => {
     const ctx = { trigger: { type: 'cron' }, logger: { warn: jest.fn() } }
     await handler(undefined, ctx)
     expect(cronHandler).toHaveBeenCalledWith(ctx)
+  })
+
+  it('onState(handler).handlers() routes state triggers to state handler', async () => {
+    const stateHandler = jest.fn().mockResolvedValue(undefined)
+    const { handler } = multiTriggerStep(config).onState(stateHandler).handlers()
+    const ctx = { trigger: { type: 'state' }, logger: { warn: jest.fn() } }
+    const input = { type: 'state', group_id: 'g1', item_id: 'i1', new_value: 42 }
+    await handler(input, ctx)
+    expect(stateHandler).toHaveBeenCalledWith(input, ctx)
+  })
+
+  it('onStream(handler).handlers() routes stream triggers to stream handler', async () => {
+    const streamHandler = jest.fn().mockResolvedValue(undefined)
+    const { handler } = multiTriggerStep(config).onStream(streamHandler).handlers()
+    const ctx = { trigger: { type: 'stream' }, logger: { warn: jest.fn() } }
+    const input = {
+      type: 'stream',
+      timestamp: 123,
+      streamName: 'events',
+      groupId: 'g1',
+      id: '1',
+      event: { type: 'create', data: {} },
+    }
+    await handler(input, ctx)
+    expect(streamHandler).toHaveBeenCalledWith(input, ctx)
+  })
+
+  it('handlers({ state, stream }) accepts state/stream via dict', async () => {
+    const stateHandler = jest.fn().mockResolvedValue(undefined)
+    const streamHandler = jest.fn().mockResolvedValue(undefined)
+    const { handler } = multiTriggerStep(config).handlers({ state: stateHandler, stream: streamHandler })
+
+    await handler({ type: 'state', group_id: 'g1', item_id: 'i1' } as any, {
+      trigger: { type: 'state' },
+      logger: { warn: jest.fn() },
+    })
+    expect(stateHandler).toHaveBeenCalled()
+
+    await handler(
+      {
+        type: 'stream',
+        streamName: 'e',
+        groupId: 'g',
+        id: '1',
+        timestamp: 0,
+        event: { type: 'create', data: {} },
+      } as any,
+      { trigger: { type: 'stream' }, logger: { warn: jest.fn() } },
+    )
+    expect(streamHandler).toHaveBeenCalled()
   })
 
   it('handlers({ queue, http }) accepts all at once', async () => {

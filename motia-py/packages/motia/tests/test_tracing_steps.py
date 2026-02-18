@@ -51,7 +51,7 @@ def mock_context():
 @pytest.mark.asyncio
 async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_context):
     """Register API step, call handler, verify step:name span with motia.trigger.type=http."""
-    from motia.step_wrapper import register_step
+    from motia.runtime import Motia
 
     config = StepConfig(
         name="my-api-step",
@@ -62,10 +62,11 @@ async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_context
         return ApiResponse(status=200, body={"ok": True})
 
     with (
-        patch("motia.step_wrapper.bridge", mock_bridge),
-        patch("motia.step_wrapper.get_context", return_value=mock_context),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
+        patch("motia.runtime.get_context", return_value=mock_context),
     ):
-        register_step(config, "steps/test.step.py", handler)
+        motia = Motia()
+        motia.add_step(config, "steps/test.step.py", handler)
 
         # Get the registered handler
         api_handler = mock_bridge.register_function.call_args_list[0][0][1]
@@ -90,21 +91,22 @@ async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_context
 @pytest.mark.asyncio
 async def test_event_handler_creates_span(otel_exporter, mock_bridge, mock_context):
     """Register queue step, call handler, verify step:name span with motia.trigger.type=queue."""
-    from motia.step_wrapper import register_step
+    from motia.runtime import Motia
 
     config = StepConfig(
         name="my-queue-step",
-        triggers=[QueueTrigger(type="queue", subscribes=["test-topic"])],
+        triggers=[QueueTrigger(type="queue", topic="test-topic")],
     )
 
     async def handler(input_data, ctx):
         return {"processed": True}
 
     with (
-        patch("motia.step_wrapper.bridge", mock_bridge),
-        patch("motia.step_wrapper.get_context", return_value=mock_context),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
+        patch("motia.runtime.get_context", return_value=mock_context),
     ):
-        register_step(config, "steps/test.step.py", handler)
+        motia = Motia()
+        motia.add_step(config, "steps/test.step.py", handler)
 
         # Get the registered handler
         event_handler = mock_bridge.register_function.call_args_list[0][0][1]
@@ -127,21 +129,22 @@ async def test_event_handler_creates_span(otel_exporter, mock_bridge, mock_conte
 @pytest.mark.asyncio
 async def test_handler_error_records_on_span(otel_exporter, mock_bridge, mock_context):
     """Register step with handler that raises, verify span has ERROR status."""
-    from motia.step_wrapper import register_step
+    from motia.runtime import Motia
 
     config = StepConfig(
         name="error-step",
-        triggers=[QueueTrigger(type="queue", subscribes=["fail-topic"])],
+        triggers=[QueueTrigger(type="queue", topic="fail-topic")],
     )
 
     async def handler(input_data, ctx):
         raise ValueError("something went wrong")
 
     with (
-        patch("motia.step_wrapper.bridge", mock_bridge),
-        patch("motia.step_wrapper.get_context", return_value=mock_context),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
+        patch("motia.runtime.get_context", return_value=mock_context),
     ):
-        register_step(config, "steps/test.step.py", handler)
+        motia = Motia()
+        motia.add_step(config, "steps/test.step.py", handler)
 
         event_handler = mock_bridge.register_function.call_args_list[0][0][1]
 
@@ -160,7 +163,7 @@ async def test_handler_error_records_on_span(otel_exporter, mock_bridge, mock_co
 @pytest.mark.asyncio
 async def test_trace_id_uses_otel_trace_id(otel_exporter, mock_bridge, mock_context):
     """Register API step, capture ctx.trace_id in handler, verify it is 32 hex chars."""
-    from motia.step_wrapper import register_step
+    from motia.runtime import Motia
 
     captured_trace_id = None
 
@@ -175,10 +178,11 @@ async def test_trace_id_uses_otel_trace_id(otel_exporter, mock_bridge, mock_cont
         return ApiResponse(status=200, body={"trace_id": ctx.trace_id})
 
     with (
-        patch("motia.step_wrapper.bridge", mock_bridge),
-        patch("motia.step_wrapper.get_context", return_value=mock_context),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
+        patch("motia.runtime.get_context", return_value=mock_context),
     ):
-        register_step(config, "steps/test.step.py", handler)
+        motia = Motia()
+        motia.add_step(config, "steps/test.step.py", handler)
 
         api_handler = mock_bridge.register_function.call_args_list[0][0][1]
         await api_handler({"method": "GET", "path": "/trace", "body": None, "headers": {}})

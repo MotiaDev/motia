@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, FlowContext, event
+from motia import ApiRequest, FlowContext, queue
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -41,9 +41,9 @@ config = {
     "name": "MultipleConditionsTest",
     "description": "Test multiple conditions (AND logic)",
     "triggers": [
-        event("order.created", condition=all_premium_checks),
+        queue("order.created", condition=all_premium_checks),
     ],
-    "emits": ["premium.order.processed"],
+    "enqueues": ["premium.order.processed"],
 }
 
 

@@ -3,6 +3,7 @@
 
 import asyncio
 import uuid
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -13,12 +14,8 @@ from tests.conftest import flush_bridge_queue
 @pytest.fixture
 def patch_motia_bridge(bridge):
     """Patch the motia bridge to use the test bridge."""
-    import motia.step_wrapper
-
-    original_bridge = motia.step_wrapper.bridge
-    motia.step_wrapper.bridge = bridge
-    yield bridge
-    motia.step_wrapper.bridge = original_bridge
+    with patch("motia.runtime.get_instance", return_value=bridge):
+        yield bridge
 
 
 @pytest.mark.asyncio
@@ -161,7 +158,7 @@ async def test_motia_context_trigger_metadata(bridge, api_url, patch_motia_bridg
 
     async def handler(input_data: ApiRequest, context: FlowContext) -> ApiResponse:
         captured_context["is_api"] = context.is_api()
-        captured_context["is_event"] = context.is_event()
+        captured_context["is_queue"] = context.is_queue()
         captured_context["trigger_type"] = context.trigger.type
         return ApiResponse(
             status=200,
@@ -178,7 +175,7 @@ async def test_motia_context_trigger_metadata(bridge, api_url, patch_motia_bridg
 
     assert response.status_code == 200
     assert captured_context["is_api"] is True
-    assert captured_context["is_event"] is False
+    assert captured_context["is_queue"] is False
     assert captured_context["trigger_type"] == "http"
 
 

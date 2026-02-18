@@ -13,7 +13,7 @@ config = {
     "triggers": [
         api("DELETE", "/todo"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

@@ -35,7 +35,7 @@ config = {
     "triggers": [
         api("POST", "/orders/premium", condition=api_premium_check),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

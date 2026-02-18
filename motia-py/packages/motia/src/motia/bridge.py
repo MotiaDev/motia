@@ -1,7 +1,6 @@
 """III SDK client instance for Motia framework."""
 
-import os
+from .iii import get_instance
 
-from iii import III
-
-bridge = III(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
+# Backward compatibility - bridge is now an alias for get_instance()
+bridge = get_instance()

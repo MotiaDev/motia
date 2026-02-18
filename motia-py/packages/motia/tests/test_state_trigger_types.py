@@ -1,5 +1,6 @@
 # motia/tests/test_state_trigger_types.py
 """Tests for State trigger types."""
+import pytest
 from motia.types import (
     StateTrigger,
     StateTriggerInput,

@@ -43,7 +43,7 @@ class StreamSubscription:
 
     def off_event(self, event_type: str, listener: Callable[[Any], None]) -> None:
         listeners = self._event_listeners.get(event_type, [])
-        self._event_listeners[event_type] = [item for item in listeners if item != listener]
+        self._event_listeners[event_type] = [fn for fn in listeners if fn != listener]
 
     def on_close(self, listener: Callable[[], None]) -> None:
         self._close_listeners.add(listener)
@@ -223,8 +223,8 @@ class StreamClient:
         if not self._ws:
             raise RuntimeError("Not connected. Call connect() first.")
         data = await self._ws.recv()
-        message: dict[str, Any] = json.loads(data)
-        return message
+        result: dict[str, Any] = json.loads(data)
+        return result
 
     async def _receive_loop(self) -> None:
         while True:

@@ -197,15 +197,15 @@ wheels = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.1.0"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/14/79/1c48d48a4c8453fe7cb1541a42480e44f2ea3e16f56fe41516ed696f2f92/iii_sdk-0.1.0.tar.gz", hash = "sha256:11a9c6cfaeb3e64d289e9f32728198975e8c199439149f099487d038dbb63df1", size = 49067, upload-time = "2026-02-13T20:02:13.631Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/c5/ab7e4232f33f86c6172bb1b091371c2b6f801402fbf257c3f8443eeac133/iii_sdk-0.2.0.tar.gz", hash = "sha256:0a4fa22c2566b6de294c216f077455448c90561cc1ae4c4b71764e0ee0876325", size = 49059, upload-time = "2026-02-16T19:36:13.243Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/26/b856f8c6365446e2d4af3eefa75deee3aec64b682c9841a72639bf0266d2/iii_sdk-0.1.0-py3-none-any.whl", hash = "sha256:483a8fd6108912962b7f321c31c9a6cbd608c962dc34870acbf0453a7948d4bf", size = 12132, upload-time = "2026-02-13T20:02:12.29Z" },
+    { url = "https://files.pythonhosted.org/packages/90/a3/2cd390e15e5ae9e9e5332f379ac4931190c97fec3d92cde3cb982b465745/iii_sdk-0.2.0-py3-none-any.whl", hash = "sha256:9d632db14356f4c2f2d9ae8852a251fb5de827902256868ac5295219711372a9", size = 12124, upload-time = "2026-02-16T19:36:11.92Z" },
 ]
 
 [[package]]
@@ -222,7 +222,7 @@ wheels = [
 
 [[package]]
 name = "motia"
-version = "1.0.0rc10"
+version = "1.0.0rc14"
 source = { directory = "../packages/motia" }
 dependencies = [
     { name = "iii-sdk" },
@@ -239,7 +239,7 @@ otel = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
-    { name = "iii-sdk", specifier = "==0.1.0" },
+    { name = "iii-sdk", specifier = "==0.2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "opentelemetry-api", marker = "extra == 'dev'", specifier = ">=1.20" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.20" },
@@ -271,7 +271,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "iii-sdk", specifier = "==0.1.0" },
+    { name = "iii-sdk", specifier = "==0.2.0" },
     { name = "motia", extras = ["otel"], directory = "../packages/motia" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=4.0" },

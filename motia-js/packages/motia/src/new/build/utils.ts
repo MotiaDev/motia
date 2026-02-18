@@ -341,7 +341,7 @@ export class Motia {
     setupStepEndpoint(getInstance())
 
     if (this.authenticateStream) {
-      const function_id = 'motia::streams::authenticate'
+      const function_id = 'motia::stream::authenticate'
 
       getInstance().registerFunction({ id: function_id }, async (req: StreamAuthInput) => {
         if (this.authenticateStream) {
@@ -360,7 +360,7 @@ export class Motia {
     }
 
     if (hasJoin) {
-      const function_id = 'motia::streams::join'
+      const function_id = 'motia::stream::join'
 
       getInstance().registerFunction({ id: function_id }, async (req: StreamJoinLeaveEvent) => {
         const { stream_name, group_id, id, context: authContext } = req

@@ -26,9 +26,10 @@ def load_module_from_path(path: str) -> Any | None:
 
 
 def load_and_register_step(path: str) -> None:
-    """Load a step module and register if it exports config and handler."""
-    from .step_wrapper import register_step
+    """Load a step module and register using Motia.add_step()."""
+    from .runtime import Motia
 
+    motia = Motia()
     module = load_module_from_path(path)
     if module is None:
         return
@@ -37,7 +38,7 @@ def load_and_register_step(path: str) -> None:
     handler = getattr(module, "handler", None)
 
     if callable(handler) and (isinstance(config, Mapping) or hasattr(config, "model_dump")):
-        register_step(config, path, handler)  # type: ignore[arg-type]
+        motia.add_step(config, path, handler)
 
 
 def _discover_files(directories: list[str], pattern: str) -> list[str]:
@@ -79,8 +80,9 @@ def generate_index(step_files: list[str], stream_files: list[str]) -> str:
         "import asyncio",
         "import importlib.util",
         "import sys",
-        "from motia.step_wrapper import register_step",
         "from collections.abc import Mapping",
+        "from motia.runtime import Motia",
+        "from motia.iii import get_instance",
         "",
         "def load_module_from_path(path: str) -> None:",
         "    spec = importlib.util.spec_from_file_location('step_module', path)",
@@ -88,6 +90,8 @@ def generate_index(step_files: list[str], stream_files: list[str]) -> str:
         "        module = importlib.util.module_from_spec(spec)",
         "        sys.modules[f'step_module:{path}'] = module",
         "        spec.loader.exec_module(module)",
+        "",
+        "motia = Motia()",
         "",
         "def load_and_register_step(path: str) -> None:",
         "    spec = importlib.util.spec_from_file_location('step_module', path)",
@@ -98,7 +102,7 @@ def generate_index(step_files: list[str], stream_files: list[str]) -> str:
         "        config = getattr(module, 'config', None)",
         "        handler = getattr(module, 'handler', None)",
         "        if callable(handler) and (isinstance(config, Mapping) or hasattr(config, 'model_dump')):",
-        "            register_step(config, path, handler)",
+        "            motia.add_step(config, path, handler)",
         "",
         "def main() -> None:",
     ]
@@ -108,10 +112,10 @@ def generate_index(step_files: list[str], stream_files: list[str]) -> str:
         lines.append(f"    load_and_register_step(r'{step_file}')")
     lines.extend(
         [
-            "    from motia.bridge import bridge",
+            "    iii = get_instance()",
             "",
             "    async def run() -> None:",
-            "        await bridge.connect()",
+            "        await iii.connect()",
             "        while True:",
             "            await asyncio.sleep(1)",
             "",
@@ -206,15 +210,17 @@ def main() -> None:
             log.debug("Loading step: %s", step_file)
             load_and_register_step(step_file)
 
-        log.info("All steps loaded. Connecting to bridge...")
+        log.info("All steps loaded. Connecting...")
 
         try:
             import asyncio
 
-            from .bridge import bridge
+            from .iii import get_instance
+
+            iii = get_instance()
 
             async def run() -> None:
-                await bridge.connect()
+                await iii.connect()
                 log.info("Connected. Waiting for events...")
                 while True:
                     await asyncio.sleep(1)
@@ -244,10 +250,12 @@ def main() -> None:
         try:
             import asyncio
 
-            from .bridge import bridge
+            from .iii import get_instance
+
+            iii = get_instance()
 
             async def run() -> None:
-                await bridge.connect()
+                await iii.connect()
                 log.info("Connected. Waiting for events...")
                 while True:
                     await asyncio.sleep(1)

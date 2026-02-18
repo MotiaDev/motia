@@ -21,7 +21,7 @@ config = {
     "triggers": [
         cron("5 * * * * * *", condition=is_business_hours),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

@@ -2,16 +2,16 @@
 
 from typing import Any
 
-from motia import FlowContext, event
+from motia import FlowContext, queue
 
 
 config = {
     "name": "SingleEventTrigger",
     "description": "Test single event trigger",
     "triggers": [
-        event("test.event"),
+        queue("test.event"),
     ],
-    "emits": ["test.processed"],
+    "enqueues": ["test.processed"],
 }
 
 

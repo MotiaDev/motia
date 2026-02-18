@@ -20,7 +20,7 @@ config = {
     "triggers": [
         api("POST", "/orders"),
     ],
-    "emits": ["order.created"],
+    "enqueues": ["order.created"],
 }
 
 
