@@ -1,6 +1,6 @@
 # Motia Migration Guide
 
-This guide covers migrating from **Motia v0.17.x** to the **new Motia** framework. It is organized by area of concern so you can migrate incrementally.
+This guide covers migrating from **Motia v0.17.x** to the **Motia 1.0-RC** framework. It is organized by area of concern so you can migrate incrementally.
 
 ---
 
