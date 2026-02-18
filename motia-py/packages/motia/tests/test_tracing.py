@@ -1,17 +1,19 @@
 """Tests for motia.tracing – core utilities and bridge instrumentation."""
 
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry import trace
 
 from motia.tracing import (
     HAS_OTEL,
+    _incoming_baggage,
     _incoming_traceparent,
     _instrumented_bridges,
     extract_parent_context,
@@ -124,7 +126,7 @@ def test_step_span_creates_span(otel_exporter):
 
 def test_operation_span_creates_child_span(otel_exporter):
     """operation_span inside a step_span should create a CLIENT child span."""
-    with step_span("parent-step", "event"):
+    with step_span("parent-step", "event") as parent:
         with operation_span("stream.emit", topic="orders") as child:
             assert child is not None
 

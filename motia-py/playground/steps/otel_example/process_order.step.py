@@ -16,7 +16,7 @@ config = {
     "triggers": [
         queue("order.created"),
     ],
-    "emits": ["order.processed"],
+    "enqueues": ["order.processed"],
 }
 
 
@@ -32,7 +32,7 @@ async def handler(data: Any, ctx: FlowContext[Any]) -> None:
         await ctx.state.set("order_processing", order_id, {"status": "processing"})
         processed_order = {**current, "status": "processed"}
         await order_stream.set("processed", order_id, processed_order)
-        await ctx.emit({"topic": "order.processed", "data": processed_order})
+        await ctx.enqueue({"topic": "order.processed", "data": processed_order})
         ctx.logger.info("Order processed", {"order_id": order_id})
     else:
         ctx.logger.warn("Order not found in stream", {"order_id": order_id})

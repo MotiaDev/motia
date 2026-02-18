@@ -14,7 +14,7 @@ config = {
     "triggers": [
         api("GET", "/greetings"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

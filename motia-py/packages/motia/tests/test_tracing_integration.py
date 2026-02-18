@@ -10,6 +10,7 @@ Run with:
 
 import asyncio
 import uuid
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -56,20 +57,16 @@ def otel_exporter():
 
 @pytest.fixture
 def patch_motia_bridge(bridge):
-    """Swap ``motia.step_wrapper.bridge`` with the test bridge and instrument it.
+    """Patch ``motia.runtime.get_instance`` with the test bridge and instrument it.
 
-    This ensures that ``register_step`` (called internally by ``Motia.add_step``)
-    uses the live test bridge connected to the running III engine, and that the
-    bridge is instrumented for trace-context propagation.
+    This ensures that ``Motia.add_step`` uses the live test bridge connected
+    to the running III engine, and that the bridge is instrumented for
+    trace-context propagation.
     """
-    import motia.step_wrapper
-
-    original_bridge = motia.step_wrapper.bridge
-    motia.step_wrapper.bridge = bridge
     _instrumented_bridges.discard(id(bridge))
     instrument_bridge(bridge)
-    yield bridge
-    motia.step_wrapper.bridge = original_bridge
+    with patch("motia.runtime.get_instance", return_value=bridge):
+        yield bridge
 
 
 # ---------------------------------------------------------------------------
@@ -127,20 +124,20 @@ async def test_api_step_creates_trace(otel_exporter, patch_motia_bridge, api_url
 
 
 @pytest.mark.asyncio
-async def test_emit_creates_child_span(otel_exporter, patch_motia_bridge, api_url):
-    """Register an API step that emits an event, invoke it via HTTP, and verify
-    that both the step span and emit child span are produced.
+async def test_enqueue_creates_child_span(otel_exporter, patch_motia_bridge, api_url):
+    """Register an API step that enqueues an event, invoke it via HTTP, and verify
+    that both the step span and enqueue child span are produced.
     """
-    step_name = f"emit-trace-{uuid.uuid4().hex[:8]}"
-    path = f"/emit-trace/{uuid.uuid4().hex[:8]}"
+    step_name = f"enqueue-trace-{uuid.uuid4().hex[:8]}"
+    path = f"/enqueue-trace/{uuid.uuid4().hex[:8]}"
 
     motia = Motia()
 
     async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
         try:
-            await ctx.emit({"topic": "test.traced", "data": {"hello": "world"}})
+            await ctx.enqueue({"topic": "test.traced", "data": {"hello": "world"}})
         except Exception:
-            pass  # emit may fail if queue not configured
+            pass  # enqueue may fail if queue not configured
         return ApiResponse(status=200, body={"ok": True, "trace_id": ctx.trace_id})
 
     config = StepConfig(
@@ -167,10 +164,10 @@ async def test_emit_creates_child_span(otel_exporter, patch_motia_bridge, api_ur
         f"Expected at least one step span, got: {[s.name for s in spans]}"
     )
 
-    # Verify emit child span exists
-    emit_spans = [s for s in spans if s.name == "emit"]
-    assert len(emit_spans) >= 1, (
-        f"Expected at least one 'emit' span, got: {[s.name for s in spans]}"
+    # Verify enqueue child span exists
+    enqueue_spans = [s for s in spans if s.name == "enqueue"]
+    assert len(enqueue_spans) >= 1, (
+        f"Expected at least one 'enqueue' span, got: {[s.name for s in spans]}"
     )
 
 

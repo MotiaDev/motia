@@ -13,7 +13,7 @@ config = {
     "triggers": [
         api("PUT", "/todo"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

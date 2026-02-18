@@ -1,6 +1,6 @@
 """Tests for OpenTelemetry instrumentation of stream operations."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from opentelemetry import trace
@@ -27,25 +27,26 @@ def otel_exporter():
 
 
 @pytest.fixture
-def mock_bridge():
-    """Create a mock bridge."""
-    bridge = MagicMock()
-    bridge.call = AsyncMock()
-    return bridge
+def mock_iii():
+    """Create a mock III SDK instance."""
+    iii = MagicMock()
+    iii.call = AsyncMock()
+    return iii
 
 
 @pytest.mark.asyncio
-async def test_stream_get_creates_span(otel_exporter, mock_bridge):
+async def test_stream_get_creates_span(otel_exporter, mock_iii):
     """stream.get() should create a span named 'stream.get' with correct attributes."""
-    mock_bridge.call.return_value = {"id": "item1", "value": "data"}
-    stream = Stream("my-stream", bridge=mock_bridge)
+    mock_iii.call.return_value = {"id": "item1", "value": "data"}
 
-    result = await stream.get("group1", "item1")
+    with patch("motia.streams.get_instance", return_value=mock_iii):
+        stream = Stream("my-stream")
+        result = await stream.get("group1", "item1")
 
     assert result == {"id": "item1", "value": "data"}
 
     spans = otel_exporter.get_finished_spans()
-    stream_spans = [s for s in spans if s.name == "stream.get"]
+    stream_spans = [s for s in spans if s.name == "stream::get"]
     assert len(stream_spans) == 1
 
     span = stream_spans[0]
@@ -56,17 +57,18 @@ async def test_stream_get_creates_span(otel_exporter, mock_bridge):
 
 
 @pytest.mark.asyncio
-async def test_stream_set_creates_span(otel_exporter, mock_bridge):
+async def test_stream_set_creates_span(otel_exporter, mock_iii):
     """stream.set() should create a span named 'stream.set' with correct attributes."""
-    mock_bridge.call.return_value = {"id": "item1", "value": "hello"}
-    stream = Stream("my-stream", bridge=mock_bridge)
+    mock_iii.call.return_value = {"id": "item1", "value": "hello"}
 
-    result = await stream.set("group1", "item1", {"value": "hello"})
+    with patch("motia.streams.get_instance", return_value=mock_iii):
+        stream = Stream("my-stream")
+        result = await stream.set("group1", "item1", {"value": "hello"})
 
     assert result == {"id": "item1", "value": "hello"}
 
     spans = otel_exporter.get_finished_spans()
-    stream_spans = [s for s in spans if s.name == "stream.set"]
+    stream_spans = [s for s in spans if s.name == "stream::set"]
     assert len(stream_spans) == 1
 
     span = stream_spans[0]
@@ -77,15 +79,16 @@ async def test_stream_set_creates_span(otel_exporter, mock_bridge):
 
 
 @pytest.mark.asyncio
-async def test_stream_delete_creates_span(otel_exporter, mock_bridge):
+async def test_stream_delete_creates_span(otel_exporter, mock_iii):
     """stream.delete() should create a span named 'stream.delete' with correct attributes."""
-    mock_bridge.call.return_value = None
-    stream = Stream("my-stream", bridge=mock_bridge)
+    mock_iii.call.return_value = None
 
-    await stream.delete("group1", "item1")
+    with patch("motia.streams.get_instance", return_value=mock_iii):
+        stream = Stream("my-stream")
+        await stream.delete("group1", "item1")
 
     spans = otel_exporter.get_finished_spans()
-    stream_spans = [s for s in spans if s.name == "stream.delete"]
+    stream_spans = [s for s in spans if s.name == "stream::delete"]
     assert len(stream_spans) == 1
 
     span = stream_spans[0]
@@ -96,17 +99,18 @@ async def test_stream_delete_creates_span(otel_exporter, mock_bridge):
 
 
 @pytest.mark.asyncio
-async def test_stream_get_group_creates_span(otel_exporter, mock_bridge):
+async def test_stream_get_group_creates_span(otel_exporter, mock_iii):
     """stream.get_group() should create a span named 'stream.list' with correct attributes."""
-    mock_bridge.call.return_value = [{"id": "a"}, {"id": "b"}]
-    stream = Stream("my-stream", bridge=mock_bridge)
+    mock_iii.call.return_value = [{"id": "a"}, {"id": "b"}]
 
-    result = await stream.get_group("group1")
+    with patch("motia.streams.get_instance", return_value=mock_iii):
+        stream = Stream("my-stream")
+        result = await stream.get_group("group1")
 
     assert result == [{"id": "a"}, {"id": "b"}]
 
     spans = otel_exporter.get_finished_spans()
-    stream_spans = [s for s in spans if s.name == "stream.list"]
+    stream_spans = [s for s in spans if s.name == "stream::list"]
     assert len(stream_spans) == 1
 
     span = stream_spans[0]
@@ -116,17 +120,18 @@ async def test_stream_get_group_creates_span(otel_exporter, mock_bridge):
 
 
 @pytest.mark.asyncio
-async def test_stream_list_groups_creates_span(otel_exporter, mock_bridge):
+async def test_stream_list_groups_creates_span(otel_exporter, mock_iii):
     """stream.list_groups() should create a span named 'stream.list_groups' with correct attributes."""
-    mock_bridge.call.return_value = ["group1", "group2"]
-    stream = Stream("my-stream", bridge=mock_bridge)
+    mock_iii.call.return_value = ["group1", "group2"]
 
-    result = await stream.list_groups()
+    with patch("motia.streams.get_instance", return_value=mock_iii):
+        stream = Stream("my-stream")
+        result = await stream.list_groups()
 
     assert result == ["group1", "group2"]
 
     spans = otel_exporter.get_finished_spans()
-    stream_spans = [s for s in spans if s.name == "stream.list_groups"]
+    stream_spans = [s for s in spans if s.name == "stream::list_groups"]
     assert len(stream_spans) == 1
 
     span = stream_spans[0]

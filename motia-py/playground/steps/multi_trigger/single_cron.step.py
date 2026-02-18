@@ -10,7 +10,7 @@ config = {
     "triggers": [
         cron("5 * * * * *"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

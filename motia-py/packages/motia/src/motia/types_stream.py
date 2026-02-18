@@ -2,7 +2,7 @@
 
 from typing import Any, Awaitable, Callable
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from .types import FlowContext
 
@@ -33,11 +33,11 @@ class StreamAuthResult(BaseModel):
 class StreamConfig(BaseModel):
     """Configuration for a stream."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, populate_by_name=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str
     description: str | None = None
-    stream_schema: dict[str, Any] | None = Field(default=None, alias="schema")
+    schema: dict[str, Any] | None = None  # type: ignore[assignment]
     base_config: dict[str, Any] | None = None
     on_join: Callable[[StreamSubscription, FlowContext[Any], Any | None], Awaitable[Any]] | None = None
     on_leave: Callable[[StreamSubscription, FlowContext[Any], Any | None], Awaitable[Any]] | None = None

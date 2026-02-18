@@ -9,7 +9,7 @@ inputs:
   config-path:
     description: 'Path to the engine config YAML file (relative to workspace root)'
     required: false
-    default: 'motia-py/packages/motia/tests/fixtures/config-test.yaml'
+    default: '.github/actions/iii-engine/config-test.yaml'
   health-check-port:
     description: 'Port to health-check for readiness'
     required: false
@@ -35,7 +35,7 @@ runs:
 
         echo "Waiting for III Engine on port ${{ inputs.health-check-port }}..."
         for i in $(seq 1 ${{ inputs.health-check-retries }}); do
-          if curl -sf "http://localhost:${{ inputs.health-check-port }}/" >/dev/null 2>&1; then
+          if nc -z 127.0.0.1 ${{ inputs.health-check-port }} 2>/dev/null; then
             echo "III Engine is ready!"
             exit 0
           fi
@@ -44,4 +44,4 @@ runs:
         done
         echo "Engine did not become ready. Logs:"
         docker logs iii-engine
-        exit 0
+        exit 1

@@ -11,7 +11,7 @@ config = {
     "triggers": [
         api("GET", "/test/single"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

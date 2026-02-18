@@ -89,9 +89,38 @@ describe('triggers', () => {
       expect(t.streamName).toBe('events')
     })
 
-    it('includes condition when provided', () => {
+    it('includes condition when provided as function (backward compat)', () => {
       const condition = jest.fn()
       const t = stream('messages', condition)
+      expect(t.condition).toBe(condition)
+    })
+
+    it('accepts options object with groupId', () => {
+      const t = stream('events', { groupId: 'g1' })
+      expect(t.type).toBe('stream')
+      expect(t.streamName).toBe('events')
+      expect(t.groupId).toBe('g1')
+    })
+
+    it('accepts options object with groupId and itemId', () => {
+      const t = stream('events', { groupId: 'g1', itemId: 'i1' })
+      expect(t.groupId).toBe('g1')
+      expect(t.itemId).toBe('i1')
+    })
+
+    it('accepts options object with groupId, itemId, and condition', () => {
+      const condition = jest.fn()
+      const t = stream('events', { groupId: 'g1', itemId: 'i1', condition })
+      expect(t.groupId).toBe('g1')
+      expect(t.itemId).toBe('i1')
+      expect(t.condition).toBe(condition)
+    })
+
+    it('backward compat: condition function as second arg still works', () => {
+      const condition = jest.fn()
+      const t = stream('events', condition)
+      expect(t.type).toBe('stream')
+      expect(t.streamName).toBe('events')
       expect(t.condition).toBe(condition)
     })
   })

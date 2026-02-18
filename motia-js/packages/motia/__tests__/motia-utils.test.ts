@@ -254,5 +254,75 @@ describe('Motia', () => {
 
       await expect(registeredHandler({ data: 'test' })).rejects.toThrow('No handler matched for trigger type: queue')
     })
+
+    it('is.state returns true for state trigger', async () => {
+      const motia = new Motia()
+      const config = { name: 'test', triggers: [state()] }
+
+      const handler = async (input: unknown, ctx: any): Promise<any> => {
+        expect(ctx.is.state(input)).toBe(true)
+        expect(ctx.is.queue(input)).toBe(false)
+        expect(ctx.is.http(input)).toBe(false)
+        expect(ctx.is.stream(input)).toBe(false)
+      }
+
+      motia.addStep(config as any, 'test.step.ts', handler, 'steps/test.step.ts')
+      const registeredHandler = mockRegisterFunction.mock.calls[0][1]
+      await registeredHandler({ type: 'state', group_id: 'g1', item_id: 'i1' })
+    })
+
+    it('is.stream returns true for stream trigger', async () => {
+      const motia = new Motia()
+      const config = { name: 'test', triggers: [stream('events')] }
+
+      const handler = async (input: unknown, ctx: any): Promise<any> => {
+        expect(ctx.is.stream(input)).toBe(true)
+        expect(ctx.is.queue(input)).toBe(false)
+        expect(ctx.is.state(input)).toBe(false)
+      }
+
+      motia.addStep(config as any, 'test.step.ts', handler, 'steps/test.step.ts')
+      const registeredHandler = mockRegisterFunction.mock.calls[0][1]
+      await registeredHandler({
+        type: 'stream',
+        streamName: 's1',
+        groupId: 'g1',
+        id: '1',
+        timestamp: 0,
+        event: { type: 'create', data: {} },
+      })
+    })
+
+    it('match routes to state handler for state trigger', async () => {
+      const motia = new Motia()
+      const config = { name: 'test', triggers: [state()] }
+
+      const handler = async (input: unknown, ctx: any): Promise<any> => {
+        return ctx.match({
+          state: async () => 'state-handled',
+        })
+      }
+
+      motia.addStep(config as any, 'test.step.ts', handler, 'steps/test.step.ts')
+      const registeredHandler = mockRegisterFunction.mock.calls[0][1]
+      const result = await registeredHandler({ type: 'state', group_id: 'g1', item_id: 'i1' })
+      expect(result).toBe('state-handled')
+    })
+
+    it('match uses default handler when no specific handler matches', async () => {
+      const motia = new Motia()
+      const config = { name: 'test', triggers: [queue('q')] }
+
+      const handler = async (input: unknown, ctx: any): Promise<any> => {
+        return ctx.match({
+          default: async (inp: any) => 'default-result',
+        })
+      }
+
+      motia.addStep(config as any, 'test.step.ts', handler, 'steps/test.step.ts')
+      const registeredHandler = mockRegisterFunction.mock.calls[0][1]
+      const result = await registeredHandler({ data: 'test' })
+      expect(result).toBe('default-result')
+    })
   })
 })

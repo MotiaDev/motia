@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import FlowContext, event
+from motia import FlowContext, queue
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -17,9 +17,9 @@ config = {
     "name": "SingleConditionTest",
     "description": "Test single condition on event trigger",
     "triggers": [
-        event("order.created", condition=is_high_value),
+        queue("order.created", condition=is_high_value),
     ],
-    "emits": ["order.processed"],
+    "enqueues": ["order.processed"],
 }
 
 

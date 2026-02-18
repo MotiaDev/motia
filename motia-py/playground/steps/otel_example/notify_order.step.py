@@ -14,7 +14,7 @@ config = {
     "triggers": [
         queue("order.processed"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

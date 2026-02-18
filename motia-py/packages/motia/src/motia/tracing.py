@@ -1,7 +1,7 @@
 """OpenTelemetry instrumentation for Motia framework.
 
 Provides distributed tracing support using OpenTelemetry.
-When opentelemetry packages are installed (via `pip install iii-motia[otel]`),
+When opentelemetry packages are installed (via `pip install motia[otel]`),
 spans are automatically created for step execution, stream/state operations,
 and emit calls. When not installed, all functions are no-ops.
 """
@@ -157,7 +157,7 @@ def instrument_bridge(bridge_instance: Any) -> None:
 
     def patched_to_dict(msg: Any) -> dict[str, Any]:
         data: dict[str, Any] = original_to_dict(msg)
-        msg_type: Any = data.get("type")
+        msg_type = data.get("type")
         if msg_type is not None and hasattr(msg_type, "value"):
             msg_type = msg_type.value
         if msg_type == "invokefunction":

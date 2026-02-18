@@ -1,4 +1,12 @@
-import type { ExtractApiInput, ExtractQueueInput, FlowContext, Handlers, StepConfig } from './types'
+import type {
+  ExtractApiInput,
+  ExtractQueueInput,
+  ExtractStateInput,
+  ExtractStreamInput,
+  FlowContext,
+  Handlers,
+  StepConfig,
+} from './types'
 
 type StepDefinition<TConfig extends StepConfig> = {
   config: TConfig
@@ -19,6 +27,14 @@ type TriggerHandlers<TConfig extends StepConfig> = {
     ctx: Omit<FlowContext<any, any>, 'match'>,
   ) => Promise<any>
   cron?: (ctx: Omit<FlowContext<any, any>, 'match'>) => Promise<void>
+  state?: (
+    input: ExtractStateInput<InferHandlerInput<TConfig>>,
+    ctx: Omit<FlowContext<any, any>, 'match'>,
+  ) => Promise<any>
+  stream?: (
+    input: ExtractStreamInput<InferHandlerInput<TConfig>>,
+    ctx: Omit<FlowContext<any, any>, 'match'>,
+  ) => Promise<any>
 }
 
 type MultiTriggerStepBuilder<TConfig extends StepConfig> = {
@@ -35,6 +51,12 @@ type MultiTriggerStepBuilder<TConfig extends StepConfig> = {
   onCron: (
     handler: TriggerHandlers<TConfig>['cron'],
   ) => MultiTriggerStepBuilder<TConfig> & { handlers: () => StepDefinition<TConfig> }
+  onState: (
+    handler: TriggerHandlers<TConfig>['state'],
+  ) => MultiTriggerStepBuilder<TConfig> & { handlers: () => StepDefinition<TConfig> }
+  onStream: (
+    handler: TriggerHandlers<TConfig>['stream'],
+  ) => MultiTriggerStepBuilder<TConfig> & { handlers: () => StepDefinition<TConfig> }
 }
 
 export function multiTriggerStep<const TConfig extends StepConfig>(config: TConfig): MultiTriggerStepBuilder<TConfig> {
@@ -50,6 +72,12 @@ export function multiTriggerStep<const TConfig extends StepConfig>(config: TConf
       }
       if (ctx.trigger.type === 'cron' && collectedHandlers.cron) {
         return collectedHandlers.cron(ctx)
+      }
+      if (ctx.trigger.type === 'state' && collectedHandlers.state) {
+        return collectedHandlers.state(input, ctx)
+      }
+      if (ctx.trigger.type === 'stream' && collectedHandlers.stream) {
+        return collectedHandlers.stream(input, ctx)
       }
 
       ctx.logger.warn(`No handler defined for trigger type: ${ctx.trigger.type}`, {
@@ -84,6 +112,22 @@ export function multiTriggerStep<const TConfig extends StepConfig>(config: TConf
 
     onCron(handler: TriggerHandlers<TConfig>['cron']) {
       collectedHandlers.cron = handler
+      return {
+        ...builder,
+        handlers: () => ({ config, handler: createUnifiedHandler() }),
+      }
+    },
+
+    onState(handler: TriggerHandlers<TConfig>['state']) {
+      collectedHandlers.state = handler
+      return {
+        ...builder,
+        handlers: () => ({ config, handler: createUnifiedHandler() }),
+      }
+    },
+
+    onStream(handler: TriggerHandlers<TConfig>['stream']) {
+      collectedHandlers.stream = handler
       return {
         ...builder,
         handlers: () => ({ config, handler: createUnifiedHandler() }),

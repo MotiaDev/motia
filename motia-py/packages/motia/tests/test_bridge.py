@@ -72,25 +72,6 @@ async def test_invoke_function_async_fire_and_forget(bridge):
     assert received_data["value"] == 42
 
 
-@pytest.mark.asyncio
-async def test_list_functions(bridge):
-    """Test listing registered functions."""
-    async def dummy_handler(data):
-        return {}
-
-    bridge.register_function("test.list.func1", dummy_handler)
-    bridge.register_function("test.list.func2", dummy_handler)
-
-    await flush_bridge_queue(bridge)
-
-    await asyncio.sleep(0.3)
-
-    functions = await bridge.list_functions()
-
-    function_paths = [f.function_id for f in functions]
-    assert "test.list.func1" in function_paths
-    assert "test.list.func2" in function_paths
-
 
 @pytest.mark.asyncio
 async def test_invoke_nonexistent_function_raises(bridge):

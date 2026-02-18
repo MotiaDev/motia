@@ -10,7 +10,7 @@ config = {
     "triggers": [
         state(condition=lambda input, ctx: input.group_id == "users"),
     ],
-    "emits": ["user.status.changed"],
+    "enqueues": ["user.status.changed"],
     "flows": ["state-example"],
 }
 
@@ -27,11 +27,11 @@ async def handler(input: StateTriggerInput, ctx: FlowContext[Any]) -> None:
         },
     )
 
-    # Emit event for downstream processing
+    # Enqueue event for downstream processing
     old_status = input.old_value.get("status") if isinstance(input.old_value, dict) else None
     new_status = input.new_value.get("status") if isinstance(input.new_value, dict) else None
 
-    await ctx.emit(
+    await ctx.enqueue(
         {
             "topic": "user.status.changed",
             "data": {

@@ -1,4 +1,4 @@
-"""Compatibility tests for event/queue engine contract mapping."""
+"""Compatibility tests for queue engine contract mapping."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -19,48 +19,57 @@ def mock_bridge() -> MagicMock:
     return bridge
 
 
-def test_event_trigger_registers_as_queue_trigger(mock_bridge: MagicMock) -> None:
-    """Event trigger should map to queue trigger type for engine registration."""
-    from motia.step_wrapper import register_step
+@pytest.fixture
+def mock_context() -> MagicMock:
+    """Create mock III context."""
+    ctx = MagicMock()
+    ctx.logger = MagicMock()
+    return ctx
 
+
+def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+    """Queue trigger should map to queue trigger type for engine registration."""
     config = StepConfig(
-        name="event-trigger-compat",
+        name="queue-trigger-compat",
         triggers=[queue("orders.created")],
     )
 
     async def handler(input_data: object, ctx: FlowContext[object]) -> None:
         _ = (input_data, ctx)
 
-    with patch("motia.step_wrapper.bridge", mock_bridge):
-        register_step(config, "steps/test.step.py", handler)
+    with patch("motia.runtime.get_instance", return_value=mock_bridge), \
+         patch("motia.runtime.get_context", return_value=mock_context):
+        motia = Motia()
+        motia.add_step(config, "steps/test.step.py", handler)
 
     call_args = mock_bridge.register_trigger.call_args
-    assert call_args[1]["type"] == "queue"
-    assert call_args[1]["config"]["topic"] == "orders.created"
-    assert call_args[1]["config"]["metadata"]["type"] == "queue"
+    assert call_args[0][0] == "queue"
+    assert call_args[0][2]["topic"] == "orders.created"
 
 
 @pytest.mark.asyncio
-async def test_ctx_emit_uses_enqueue_for_event_triggers(mock_bridge: MagicMock) -> None:
-    """ctx.emit should invoke queue enqueue function for event-trigger handlers."""
-    from motia.step_wrapper import register_step
-
+async def test_ctx_enqueue_uses_enqueue_for_queue_triggers(
+    mock_bridge: MagicMock, mock_context: MagicMock
+) -> None:
+    """ctx.enqueue should invoke queue enqueue function for queue-trigger handlers."""
     config = StepConfig(
-        name="event-emit-compat",
+        name="queue-enqueue-compat",
         triggers=[queue("orders.created")],
     )
 
     async def handler(input_data: object, ctx: FlowContext[object]) -> None:
         _ = input_data
-        await ctx.emit(
+        await ctx.enqueue(
             {
                 "topic": "orders.processed",
                 "data": {"order_id": "123"},
             }
         )
 
-    with patch("motia.step_wrapper.bridge", mock_bridge):
-        register_step(config, "steps/test.step.py", handler)
+    with patch("motia.runtime.get_instance", return_value=mock_bridge), \
+         patch("motia.runtime.get_context", return_value=mock_context):
+        motia = Motia()
+        motia.add_step(config, "steps/test.step.py", handler)
         registered_handler = mock_bridge.register_function.call_args_list[0][0][1]
         await registered_handler({"source": "test"})
 
@@ -74,18 +83,18 @@ async def test_ctx_emit_uses_enqueue_for_event_triggers(mock_bridge: MagicMock) 
 
 
 @pytest.mark.asyncio
-async def test_ctx_emit_uses_enqueue_for_api_triggers(mock_bridge: MagicMock) -> None:
-    """ctx.emit should invoke queue enqueue function for API-trigger handlers too."""
-    from motia.step_wrapper import register_step
-
+async def test_ctx_enqueue_uses_enqueue_for_api_triggers(
+    mock_bridge: MagicMock, mock_context: MagicMock
+) -> None:
+    """ctx.enqueue should invoke queue enqueue function for API-trigger handlers too."""
     config = StepConfig(
-        name="api-emit-compat",
+        name="api-enqueue-compat",
         triggers=[api("POST", "/orders")],
     )
 
     async def handler(req: ApiRequest[dict], ctx: FlowContext[dict]) -> ApiResponse[dict]:
         _ = req
-        await ctx.emit(
+        await ctx.enqueue(
             {
                 "topic": "orders.created",
                 "data": {"order_id": "abc"},
@@ -93,8 +102,10 @@ async def test_ctx_emit_uses_enqueue_for_api_triggers(mock_bridge: MagicMock) ->
         )
         return ApiResponse(status=200, body={"ok": True})
 
-    with patch("motia.step_wrapper.bridge", mock_bridge):
-        register_step(config, "steps/test.step.py", handler)
+    with patch("motia.runtime.get_instance", return_value=mock_bridge), \
+         patch("motia.runtime.get_context", return_value=mock_context):
+        motia = Motia()
+        motia.add_step(config, "steps/test.step.py", handler)
         registered_handler = mock_bridge.register_function.call_args_list[0][0][1]
         await registered_handler(
             {
@@ -117,17 +128,30 @@ async def test_ctx_emit_uses_enqueue_for_api_triggers(mock_bridge: MagicMock) ->
 
 
 @pytest.mark.asyncio
-async def test_runtime_context_emit_uses_enqueue() -> None:
-    """Runtime-built context should emit using enqueue."""
-    motia = Motia()
-    mock_bridge = MagicMock()
-    mock_bridge.call = AsyncMock()
+async def test_runtime_context_enqueue_uses_enqueue(
+    mock_bridge: MagicMock, mock_context: MagicMock
+) -> None:
+    """Runtime-built context should enqueue using the III instance call method."""
+    config = StepConfig(
+        name="runtime-enqueue-test",
+        triggers=[queue("runtime.topic")],
+    )
 
-    motia._bridge = mock_bridge
+    captured_ctx = None
 
-    context = motia._build_context()
-    await context.emit({"topic": "runtime.topic", "data": {"value": 1}})
+    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
+        nonlocal captured_ctx
+        captured_ctx = ctx
+        await ctx.enqueue({"topic": "runtime.topic", "data": {"value": 1}})
 
+    with patch("motia.runtime.get_instance", return_value=mock_bridge), \
+         patch("motia.runtime.get_context", return_value=mock_context):
+        motia = Motia()
+        motia.add_step(config, "steps/test.step.py", handler)
+        registered_handler = mock_bridge.register_function.call_args_list[0][0][1]
+        await registered_handler({"source": "test"})
+
+    assert captured_ctx is not None
     mock_bridge.call.assert_awaited_once_with(
         "enqueue",
         {"topic": "runtime.topic", "data": {"value": 1}},

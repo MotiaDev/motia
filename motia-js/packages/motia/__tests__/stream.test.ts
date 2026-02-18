@@ -16,6 +16,7 @@ describe('Stream', () => {
   let stream: Stream<{ id: string; value: string }>
 
   beforeEach(() => {
+    mockCall.mockClear()
     stream = new Stream(config as any)
   })
 
@@ -75,6 +76,18 @@ describe('Stream', () => {
     await stream.listGroups()
     expect(mockCall).toHaveBeenCalledWith('stream::list_groups', {
       stream_name: 'test-stream',
+    })
+  })
+
+  it('send() calls stream::send with channel and event', async () => {
+    mockCall.mockResolvedValue(undefined)
+    await stream.send({ groupId: 'game', id: 'item1' }, { type: 'on-access-requested', data: { user: 'alice' } })
+    expect(mockCall).toHaveBeenCalledWith('stream::send', {
+      stream_name: 'test-stream',
+      group_id: 'game',
+      id: 'item1',
+      type: 'on-access-requested',
+      data: { user: 'alice' },
     })
   })
 })

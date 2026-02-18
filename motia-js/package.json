@@ -5,7 +5,7 @@
     "build": "pnpm -r build",
     "dev": "pnpm run build && pnpm --filter=@iii/motia-example dev",
     "test": "pnpm -r --filter motia test",
-    "test:ci": "pnpm -r --filter motia test:ci || echo 'No tests found'",
+    "test:ci": "pnpm -r --filter motia test:ci",
     "lint": "biome check .",
     "lint:ci": "biome ci . --since=origin/main --changed --diagnostic-level=error --no-errors-on-unmatched",
     "lint:fix": "biome check --write .",

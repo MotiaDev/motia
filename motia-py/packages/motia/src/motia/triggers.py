@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .types import ApiRouteMethod, ApiTrigger, CronTrigger, QueueTrigger
+from .types import ApiRouteMethod, ApiTrigger, CronTrigger, QueueTrigger, StateTrigger, StreamTrigger, TriggerCondition
 
 
 def api(
@@ -38,24 +38,35 @@ def queue(
 ) -> QueueTrigger:
     """Create a queue trigger configuration."""
     return QueueTrigger(
-        subscribes=[topic],
+        topic=topic,
         condition=condition,
         input=input,
         infrastructure=infrastructure,
     )
 
 
-def event(
-    topic: str,
-    *,
-    input: Any | None = None,
-    infrastructure: Any | None = None,
-    condition: Any | None = None,
-) -> QueueTrigger:
-    """Backward-compatible alias for queue() trigger constructor."""
-    return queue(topic, input=input, infrastructure=infrastructure, condition=condition)
-
-
 def cron(expression: str, *, condition: Any | None = None) -> CronTrigger:
     """Create a cron trigger configuration."""
     return CronTrigger(expression=expression, condition=condition)
+
+
+def state(*, condition: TriggerCondition | None = None) -> StateTrigger:
+    """Create a state trigger."""
+    return StateTrigger(type="state", condition=condition)
+
+
+def stream(
+    stream_name: str,
+    *,
+    group_id: str | None = None,
+    item_id: str | None = None,
+    condition: TriggerCondition | None = None,
+) -> StreamTrigger:
+    """Create a stream trigger."""
+    return StreamTrigger(
+        type="stream",
+        stream_name=stream_name,
+        group_id=group_id,
+        item_id=item_id,
+        condition=condition,
+    )

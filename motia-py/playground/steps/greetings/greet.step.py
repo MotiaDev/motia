@@ -22,7 +22,7 @@ config = {
     "triggers": [
         api("GET", "/greet"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 

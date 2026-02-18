@@ -14,7 +14,7 @@ config = {
     "triggers": [
         api("DELETE", "/greetings/:name"),
     ],
-    "emits": [],
+    "enqueues": [],
 }
 
 
