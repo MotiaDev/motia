@@ -9,7 +9,7 @@ inputs:
   config-path:
     description: 'Path to the engine config YAML file (relative to workspace root)'
     required: false
-    default: 'motia-py/packages/motia/tests/fixtures/config-test.yaml'
+    default: '.github/actions/iii-engine/config-test.yaml'
   health-check-port:
     description: 'Port to health-check for readiness'
     required: false
