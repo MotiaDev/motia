@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api, cron, queue
+from motia import ApiRequest, ApiResponse, FlowContext, cron, http, queue
 
 
 async def is_business_hours(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -20,7 +20,7 @@ config = {
     "description": "Test triple trigger (event + API + cron)",
     "triggers": [
         queue("test.triple"),
-        api("POST", "/test/triple", condition=is_business_hours),
+        http("POST", "/test/triple", condition=is_business_hours),
         cron("0 2 * * * *"),
     ],
     "enqueues": ["test.triple.processed"],

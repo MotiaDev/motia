@@ -2,16 +2,16 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api
+from motia import ApiRequest, ApiResponse, FlowContext, http
 
 
 config = {
     "name": "MultipleApis",
     "description": "Test multiple API triggers",
     "triggers": [
-        api("GET", "/test/api/1"),
-        api("POST", "/test/api/2"),
-        api("PUT", "/test/api/3"),
+        http("GET", "/test/api/1"),
+        http("POST", "/test/api/2"),
+        http("PUT", "/test/api/3"),
     ],
     "enqueues": [],
 }

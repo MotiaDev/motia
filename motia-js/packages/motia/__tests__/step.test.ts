@@ -1,10 +1,10 @@
 import { step } from '../src/step'
-import { api, cron, queue, state, stream } from '../src/triggers'
+import { cron, http, queue, state, stream } from '../src/triggers'
 
 describe('step', () => {
   const config = {
     name: 'test-step',
-    triggers: [api('GET', '/test')],
+    triggers: [http('GET', '/test')],
   }
 
   it('step(config, handler) returns { config, handler }', () => {

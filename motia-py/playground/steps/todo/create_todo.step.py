@@ -5,7 +5,7 @@ import string
 from datetime import datetime
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, api
+from motia import ApiRequest, ApiResponse, FlowContext, Stream, http
 
 todo_stream: Stream[dict[str, Any]] = Stream("todo")
 
@@ -14,7 +14,7 @@ config = {
     "description": "Create a new todo item",
     "flows": ["todo-app"],
     "triggers": [
-        api("POST", "/todo"),
+        http("POST", "/todo"),
     ],
     "enqueues": [],
 }

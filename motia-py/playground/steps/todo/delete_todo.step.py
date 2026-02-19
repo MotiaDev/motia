@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, api
+from motia import ApiRequest, ApiResponse, FlowContext, Stream, http
 
 todo_stream: Stream[dict[str, Any]] = Stream("todo")
 
@@ -11,7 +11,7 @@ config = {
     "description": "Delete a todo item",
     "flows": ["todo-app"],
     "triggers": [
-        api("DELETE", "/todo"),
+        http("DELETE", "/todo"),
     ],
     "enqueues": [],
 }

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, api
+from motia import ApiRequest, ApiResponse, FlowContext, Stream, http
 
 GREETINGS_GROUP_ID = "default"
 greetings_stream: Stream[dict[str, Any]] = Stream("greetings")
@@ -12,7 +12,7 @@ config = {
     "name": "GetGreeting",
     "description": "Get a greeting from the stream",
     "triggers": [
-        api("GET", "/greetings/:name"),
+        http("GET", "/greetings/:name"),
     ],
     "enqueues": [],
 }

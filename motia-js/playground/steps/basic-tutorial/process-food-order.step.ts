@@ -1,4 +1,4 @@
-import { api, queue, step } from 'motia'
+import { http, queue, step } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 
@@ -14,7 +14,7 @@ export const stepConfig = {
   flows: ['basic-tutorial'],
   triggers: [
     queue('process-food-order', { input: orderSchema }),
-    api('POST', '/process-food-order', { bodySchema: orderSchema }),
+    http('POST', '/process-food-order', { bodySchema: orderSchema }),
   ],
   enqueues: ['notification'],
 }

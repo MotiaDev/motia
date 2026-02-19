@@ -29,12 +29,12 @@ async def handler(data: dict, ctx: FlowContext) -> None:
 ### API Steps
 
 ```python
-from motia import ApiRequest, ApiResponse, FlowContext, api
+from motia import ApiRequest, ApiResponse, FlowContext, http
 
 config = {
     "name": "create-item",
-    "triggers": [api("POST", "/items")],
-    "enqueues": ["item.created"],
+    "triggers": [http("POST", "/items")],
+    "emits": ["item.created"],
 }
 
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:

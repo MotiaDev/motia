@@ -1,4 +1,4 @@
-import { api, queue } from '../src/triggers'
+import { http, queue } from '../src/triggers'
 import { generateEnqueuesInterface, generateStreamsInterface, generateTypesString } from '../src/types/generate-types'
 
 describe('generate-types', () => {
@@ -87,7 +87,7 @@ describe('generate-types', () => {
       const steps = [
         {
           filePath: 's.step.ts',
-          config: { name: 's', triggers: [api('GET', '/x')] },
+          config: { name: 's', triggers: [http('GET', '/x')] },
         },
       ]
       const result = generateEnqueuesInterface(steps as any)
