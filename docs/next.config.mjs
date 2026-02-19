@@ -6,6 +6,11 @@ const withMDX = createMDX()
 const config = {
   reactStrictMode: true,
   basePath: '',
+  images: {
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
 }
 
 export default withMDX(config)
