@@ -1126,16 +1126,18 @@ If your project has both Node and Python steps, you now configure **separate Exe
 modules:
   - class: modules::shell::ExecModule
     config:
-      watch:
+      watch:                          # Glob patterns to watch for hot-reload
         - steps/**/*.ts
-      exec:
+        - motia.config.ts
+      exec:                           # Commands to run as the SDK process (in order)
         - npx motia dev
+        - bun run --enable-source-maps dist/index-dev.js
 
   - class: modules::shell::ExecModule
     config:
-      watch:
+      watch:                          # Glob patterns to watch for hot-reload
         - steps/**/*.py
-      exec:
+      exec:                           # Commands to run as the SDK process (in order)
         - uv run motia dev --dir steps
 ```
 
