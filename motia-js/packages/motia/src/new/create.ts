@@ -1,8 +1,8 @@
-import { createInterface } from 'readline'
+import { execSync } from 'child_process'
 import { existsSync } from 'fs'
 import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { execSync } from 'child_process'
+import { createInterface } from 'readline'
 
 const REPO = 'MotiaDev/motia-iii-example'
 const BRANCH = 'main'
