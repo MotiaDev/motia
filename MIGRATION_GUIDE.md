@@ -412,6 +412,7 @@ export const config = {
         200: z.object({ id: z.string() }),
         400: z.object({ error: z.string() }),
       },
+      middleware: [validateBearerToken],
     },
   ],
   enqueues: ['user-created'],
@@ -434,11 +435,10 @@ export const handler: Handlers<typeof config> = async (req, { enqueue, logger })
 ### Key Differences
 
 1. `type: 'api'` is now `type: 'http'` inside a trigger object.
-2. `method`, `path`, `bodySchema`, `responseSchema` all move inside the trigger.
+2. `method`, `path`, `bodySchema`, `responseSchema`, `middleware` all move inside the trigger.
 3. `emits` becomes `enqueues` at the config level.
 4. `emit()` becomes `enqueue()` in the handler context.
-5. `middleware` is removed from step config (see [Middleware](#9-middleware) below).
-6. Config type changes from `ApiRouteConfig` to `StepConfig` with `as const satisfies`.
+5. Config type changes from `ApiRouteConfig` to `StepConfig` with `as const satisfies`.
 
 ### HTTP Helper Shorthand
 
@@ -543,6 +543,7 @@ export const handler: Handlers<typeof config> = async (input, { logger, enqueue,
 | `subscribes: ['topic']` | `topic` field inside trigger |
 | `emits: ['topic']` | `enqueues: ['topic']` |
 | `input: schema` | `input: schema` inside trigger (or wrap with `jsonSchema()`) |
+| `infrastructure: {...}` at config root | `infrastructure: {...}` inside the queue trigger |
 | `emit({ topic, data })` | `enqueue({ topic, data })` |
 | Handler receives `data` directly | Handler receives `input` directly |
 
@@ -900,16 +901,30 @@ export const config: ApiRouteConfig = {
 
 ### New Approach
 
-The `middleware` field has been removed from step configs. Authentication is now handled at the engine level:
-
-1. **Stream authentication** is configured in `motia.config.ts` via `authenticateStream`.
-2. **API authentication** should be handled within the step handler itself, or via shared utility functions called at the start of handlers.
-3. **Error handling** (previously `coreMiddleware`) should be handled within handlers using try/catch, or via a wrapper utility.
-
-**Migration strategy:**
+The `middleware` field has moved from the config root **into the HTTP trigger object**:
 
 ```typescript
-// Create a shared auth utility
+export const config = {
+  name: 'GetUser',
+  flows: ['users'],
+  triggers: [
+    {
+      type: 'http',
+      method: 'GET',
+      path: '/users',
+      middleware: [validateBearerToken],
+    },
+  ],
+  enqueues: [],
+} as const satisfies StepConfig
+```
+
+**Stream authentication** is configured separately in `motia.config.ts` via `authenticateStream`.
+
+You can also use shared utility functions called directly within handlers as an alternative:
+
+```typescript
+// Alternative: handler-level auth
 export async function requireAuth(request: ApiRequest<any>): Promise<TokenData> {
   const authToken = request.headers['authorization'] as string
   if (!authToken) {
@@ -919,7 +934,6 @@ export async function requireAuth(request: ApiRequest<any>): Promise<TokenData> 
   return jwt.verify(token, env.JWT_SECRET) as TokenData
 }
 
-// Use in handler directly
 export const handler: Handlers<typeof config> = async (request, { logger }) => {
   const tokenData = await requireAuth(request)
   // ... rest of handler
@@ -1044,7 +1058,8 @@ triggers: [
 - [ ] Rename all `emit()` calls to `enqueue()`
 - [ ] Rename all `emits` config fields to `enqueues`
 - [ ] Move `subscribes` into queue triggers
-- [ ] Move `method`, `path`, `bodySchema`, `responseSchema` into HTTP triggers
+- [ ] Move `method`, `path`, `bodySchema`, `responseSchema`, `middleware` into HTTP triggers
+- [ ] Move `infrastructure` from config root into queue triggers
 - [ ] Change `type: 'api'` to `type: 'http'` in all triggers
 - [ ] Move `cron` into cron triggers as `expression` (and convert to 7-field format)
 - [ ] Remove `type` field from config root
@@ -1065,9 +1080,8 @@ triggers: [
 
 ### Middleware
 
-- [ ] Extract authentication logic into shared utility functions
-- [ ] Extract error handling logic into handler-level try/catch or wrapper functions
-- [ ] Remove all `middleware` imports and references from step configs
+- [ ] Move `middleware` arrays from config root into the corresponding HTTP trigger objects
+- [ ] Alternatively, extract authentication logic into shared utility functions called in handlers
 
 ### Cron Expressions
 
