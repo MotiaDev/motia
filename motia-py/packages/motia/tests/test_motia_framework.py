@@ -21,7 +21,7 @@ def patch_motia_bridge(bridge):
 @pytest.mark.asyncio
 async def test_motia_api_step(bridge, api_url, patch_motia_bridge):
     """Test registering and invoking an API step via Motia."""
-    from motia import Motia, api
+    from motia import Motia, http
     from motia.types import ApiRequest, ApiResponse, FlowContext
 
     motia = Motia()
@@ -32,7 +32,7 @@ async def test_motia_api_step(bridge, api_url, patch_motia_bridge):
         "name": "test-api-step",
         "description": "Test API step",
         "triggers": [
-            api("POST", f"/{endpoint_path}", body_schema={"type": "object"})
+            http("POST", f"/{endpoint_path}", body_schema={"type": "object"})
         ],
     }
 
@@ -64,7 +64,7 @@ async def test_motia_api_step(bridge, api_url, patch_motia_bridge):
 @pytest.mark.asyncio
 async def test_motia_step_with_query_params(bridge, api_url, patch_motia_bridge):
     """Test a step that receives query parameters."""
-    from motia import Motia, api
+    from motia import Motia, http
     from motia.types import ApiRequest, ApiResponse, FlowContext
 
     motia = Motia()
@@ -74,7 +74,7 @@ async def test_motia_step_with_query_params(bridge, api_url, patch_motia_bridge)
         "name": "test-query-params-step",
         "description": "Test step with query params",
         "triggers": [
-            api("GET", f"/{endpoint_path}")
+            http("GET", f"/{endpoint_path}")
         ],
     }
 
@@ -105,7 +105,7 @@ async def test_motia_step_with_query_params(bridge, api_url, patch_motia_bridge)
 @pytest.mark.asyncio
 async def test_motia_api_with_path_params(bridge, api_url, patch_motia_bridge):
     """Test API step with path parameters."""
-    from motia import Motia, api
+    from motia import Motia, http
     from motia.types import ApiRequest, ApiResponse, FlowContext
 
     motia = Motia()
@@ -115,7 +115,7 @@ async def test_motia_api_with_path_params(bridge, api_url, patch_motia_bridge):
         "name": "test-path-params-step",
         "description": "Test path params",
         "triggers": [
-            api("GET", f"/{base_path}/:id")
+            http("GET", f"/{base_path}/:id")
         ],
     }
 
@@ -141,7 +141,7 @@ async def test_motia_api_with_path_params(bridge, api_url, patch_motia_bridge):
 @pytest.mark.asyncio
 async def test_motia_context_trigger_metadata(bridge, api_url, patch_motia_bridge):
     """Test that FlowContext contains correct trigger metadata."""
-    from motia import Motia, api
+    from motia import Motia, http
     from motia.types import ApiRequest, ApiResponse, FlowContext
 
     motia = Motia()
@@ -152,7 +152,7 @@ async def test_motia_context_trigger_metadata(bridge, api_url, patch_motia_bridg
         "name": "test-context-step",
         "description": "Test context metadata",
         "triggers": [
-            api("GET", f"/{endpoint_path}")
+            http("GET", f"/{endpoint_path}")
         ],
     }
 
@@ -182,7 +182,7 @@ async def test_motia_context_trigger_metadata(bridge, api_url, patch_motia_bridg
 @pytest.mark.asyncio
 async def test_motia_step_config_validation(bridge, api_url, patch_motia_bridge):
     """Test that invalid step configs are rejected."""
-    from motia import Motia, api
+    from motia import Motia, http
 
     motia = Motia()
 
@@ -190,7 +190,7 @@ async def test_motia_step_config_validation(bridge, api_url, patch_motia_bridge)
     invalid_config = {
         "description": "Missing name",
         "triggers": [
-            api("GET", "/invalid")
+            http("GET", "/invalid")
         ],
     }
 
@@ -217,7 +217,7 @@ async def test_motia_add_stream(bridge, api_url, patch_motia_bridge):
 @pytest.mark.asyncio
 async def test_motia_multiple_triggers(bridge, api_url, patch_motia_bridge):
     """Test a step with multiple triggers."""
-    from motia import Motia, api
+    from motia import Motia, http
     from motia.types import ApiRequest, ApiResponse, FlowContext
 
     motia = Motia()
@@ -228,8 +228,8 @@ async def test_motia_multiple_triggers(bridge, api_url, patch_motia_bridge):
         "name": "test-multi-trigger-step",
         "description": "Test step with multiple triggers",
         "triggers": [
-            api("GET", f"/{get_path}"),
-            api("POST", f"/{post_path}"),
+            http("GET", f"/{get_path}"),
+            http("POST", f"/{post_path}"),
         ],
     }
 

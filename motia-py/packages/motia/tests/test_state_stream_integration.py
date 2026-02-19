@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from motia import api, queue
+from motia import http, queue
 from motia.types import FlowContext, StateTriggerInput, StepConfig, StreamTriggerInput, TriggerInfo, state, stream
 
 
@@ -190,7 +190,7 @@ class TestMixedTriggers:
             name="multi-trigger-step",
             triggers=[
                 queue("user.created"),
-                api("POST", "/users"),
+                http("POST", "/users"),
                 state(),
                 stream("users"),
             ],

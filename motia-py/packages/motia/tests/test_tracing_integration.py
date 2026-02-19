@@ -20,7 +20,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from motia import Motia, api
+from motia import Motia, http
 from motia.tracing import _instrumented_bridges, instrument_bridge
 from motia.types import ApiRequest, ApiResponse, FlowContext, StepConfig
 from tests.conftest import flush_bridge_queue
@@ -89,7 +89,7 @@ async def test_api_step_creates_trace(otel_exporter, patch_motia_bridge, api_url
 
     config = StepConfig(
         name=step_name,
-        triggers=[api("POST", path)],
+        triggers=[http("POST", path)],
     )
     motia.add_step(config, f"steps/{step_name}.step.py", handler)
 
@@ -142,7 +142,7 @@ async def test_enqueue_creates_child_span(otel_exporter, patch_motia_bridge, api
 
     config = StepConfig(
         name=step_name,
-        triggers=[api("POST", path)],
+        triggers=[http("POST", path)],
     )
     motia.add_step(config, f"steps/{step_name}.step.py", handler)
 

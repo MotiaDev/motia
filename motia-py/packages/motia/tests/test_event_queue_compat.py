@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from motia.runtime import Motia
-from motia.triggers import api, queue
+from motia.triggers import http, queue
 from motia.types import ApiRequest, ApiResponse, FlowContext, StepConfig
 
 
@@ -88,8 +88,8 @@ async def test_ctx_enqueue_uses_enqueue_for_api_triggers(
 ) -> None:
     """ctx.enqueue should invoke queue enqueue function for API-trigger handlers too."""
     config = StepConfig(
-        name="api-enqueue-compat",
-        triggers=[api("POST", "/orders")],
+        name="api-emit-compat",
+        triggers=[http("POST", "/orders")],
     )
 
     async def handler(req: ApiRequest[dict], ctx: FlowContext[dict]) -> ApiResponse[dict]:

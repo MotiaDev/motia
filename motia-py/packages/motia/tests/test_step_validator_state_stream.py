@@ -26,13 +26,13 @@ def test_step_config_with_stream_trigger_validates():
 
 def test_step_config_with_mixed_triggers_validates():
     """Test StepConfig accepts mixed trigger types."""
-    from motia.triggers import api, queue
+    from motia import http, queue
 
     config = StepConfig(
         name="test-mixed-step",
         triggers=[
             queue("test.event"),
-            api("GET", "/test"),
+            http("GET", "/test"),
             state(),
             stream("todos"),
         ],

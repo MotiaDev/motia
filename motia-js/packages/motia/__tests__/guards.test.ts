@@ -8,12 +8,12 @@ import {
   isStateTrigger,
   isStreamTrigger,
 } from '../src/guards'
-import { api, cron, queue, state, stream } from '../src/triggers'
+import { cron, http, queue, state, stream } from '../src/triggers'
 
 describe('guards', () => {
   describe('type guards', () => {
     it('isApiTrigger returns true for http trigger', () => {
-      const t = api('GET', '/test')
+      const t = http('GET', '/test')
       expect(isApiTrigger(t)).toBe(true)
     })
 
@@ -30,7 +30,7 @@ describe('guards', () => {
     })
 
     it('isQueueTrigger returns false for other trigger types', () => {
-      expect(isQueueTrigger(api('GET', '/x'))).toBe(false)
+      expect(isQueueTrigger(http('GET', '/x'))).toBe(false)
       expect(isQueueTrigger(cron('0 0 * * *'))).toBe(false)
       expect(isQueueTrigger(state())).toBe(false)
       expect(isQueueTrigger(stream('s'))).toBe(false)
@@ -42,7 +42,7 @@ describe('guards', () => {
     })
 
     it('isCronTrigger returns false for other trigger types', () => {
-      expect(isCronTrigger(api('GET', '/x'))).toBe(false)
+      expect(isCronTrigger(http('GET', '/x'))).toBe(false)
       expect(isCronTrigger(queue('x'))).toBe(false)
       expect(isCronTrigger(state())).toBe(false)
       expect(isCronTrigger(stream('s'))).toBe(false)
@@ -54,7 +54,7 @@ describe('guards', () => {
     })
 
     it('isStateTrigger returns false for other trigger types', () => {
-      expect(isStateTrigger(api('GET', '/x'))).toBe(false)
+      expect(isStateTrigger(http('GET', '/x'))).toBe(false)
       expect(isStateTrigger(queue('x'))).toBe(false)
       expect(isStateTrigger(cron('0 0 * * *'))).toBe(false)
       expect(isStateTrigger(stream('s'))).toBe(false)
@@ -66,7 +66,7 @@ describe('guards', () => {
     })
 
     it('isStreamTrigger returns false for other trigger types', () => {
-      expect(isStreamTrigger(api('GET', '/x'))).toBe(false)
+      expect(isStreamTrigger(http('GET', '/x'))).toBe(false)
       expect(isStreamTrigger(queue('x'))).toBe(false)
       expect(isStreamTrigger(cron('0 0 * * *'))).toBe(false)
       expect(isStreamTrigger(state())).toBe(false)
@@ -79,7 +79,7 @@ describe('guards', () => {
         filePath: 'test.step.ts',
         config: {
           name: 'test',
-          triggers: [api('GET', '/a'), queue('q'), api('POST', '/b'), state()],
+          triggers: [http('GET', '/a'), queue('q'), http('POST', '/b'), state()],
         },
       }
       const result = getApiTriggers(step)
@@ -93,7 +93,7 @@ describe('guards', () => {
         filePath: 'test.step.ts',
         config: {
           name: 'test',
-          triggers: [queue('a'), api('GET', '/x'), queue('b'), cron('0 0 * * *')],
+          triggers: [queue('a'), http('GET', '/x'), queue('b'), cron('0 0 * * *')],
         },
       }
       const result = getQueueTriggers(step)

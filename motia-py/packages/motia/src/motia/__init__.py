@@ -27,7 +27,7 @@ from .setup_step_endpoint import setup_step_endpoint
 from .state import StateManager, stateManager
 from .step import StepBuilder, StepDefinition, step
 from .streams import Stream
-from .triggers import api, cron, queue, state, stream
+from .triggers import api, cron, http, queue, state, stream
 from .types import (
     ApiMiddleware,
     ApiRequest,
@@ -65,6 +65,7 @@ __all__ = [
     "generate_step_id",
     # Triggers
     "api",
+    "http",
     "queue",
     "cron",
     "state",

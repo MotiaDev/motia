@@ -9,7 +9,7 @@ import string
 from datetime import datetime
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, api
+from motia import ApiRequest, ApiResponse, FlowContext, Stream, http
 
 order_stream: Stream[dict[str, Any]] = Stream("orders")
 
@@ -18,7 +18,7 @@ config = {
     "description": "Create a new order - auto-instrumented with OTel",
     "flows": ["otel-example"],
     "triggers": [
-        api("POST", "/orders"),
+        http("POST", "/orders"),
     ],
     "enqueues": ["order.created"],
 }

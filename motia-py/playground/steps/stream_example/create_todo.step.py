@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from motia import FlowContext, Stream, api
+from motia import FlowContext, Stream, http
 
 todo_stream: Stream[dict[str, Any]] = Stream("todo")
 
@@ -11,7 +11,7 @@ config = {
     "name": "create-todo",
     "description": "API endpoint to create a todo item",
     "triggers": [
-        api(
+        http(
             "POST",
             "/todos",
             body_schema={

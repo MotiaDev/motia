@@ -1,10 +1,10 @@
 import { multiTriggerStep } from '../src/multi-trigger'
-import { api, cron, queue, state, stream } from '../src/triggers'
+import { cron, http, queue, state, stream } from '../src/triggers'
 
 describe('multiTriggerStep', () => {
   const config = {
     name: 'multi-step',
-    triggers: [queue('tasks'), api('GET', '/test'), cron('0 * * * *')],
+    triggers: [queue('tasks'), http('GET', '/test'), cron('0 * * * *')],
   }
 
   it('returns builder with onQueue, onHttp, onCron, onState, onStream methods', () => {

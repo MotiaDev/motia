@@ -2,9 +2,32 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from .types import ApiRouteMethod, ApiTrigger, CronTrigger, QueueTrigger, StateTrigger, StreamTrigger, TriggerCondition
+
+
+def http(
+    method: ApiRouteMethod,
+    path: str,
+    *,
+    body_schema: Any | None = None,
+    response_schema: dict[int, Any] | None = None,
+    query_params: list[Any] | None = None,
+    middleware: list[Any] | None = None,
+    condition: Any | None = None,
+) -> ApiTrigger:
+    """Create an HTTP trigger configuration."""
+    return ApiTrigger(
+        path=path,
+        method=method,
+        condition=condition,
+        body_schema=body_schema,
+        response_schema=response_schema,
+        query_params=query_params,
+        middleware=middleware,
+    )
 
 
 def api(
@@ -17,15 +40,15 @@ def api(
     middleware: list[Any] | None = None,
     condition: Any | None = None,
 ) -> ApiTrigger:
-    """Create an API trigger configuration."""
-    return ApiTrigger(
-        path=path,
+    warnings.warn("api() is deprecated, use http() instead", DeprecationWarning, stacklevel=2)
+    return http(
         method=method,
-        condition=condition,
+        path=path,
         body_schema=body_schema,
         response_schema=response_schema,
         query_params=query_params,
         middleware=middleware,
+        condition=condition,
     )
 
 
