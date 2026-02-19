@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import { build } from './build/build'
 import { dev } from './build/dev'
 import { typegen } from './build/typegen'
+import { create } from './create'
 
 const program = new Command()
 
@@ -29,6 +30,13 @@ program
   .option('-o, --output <path>', 'Output file path', 'types.d.ts')
   .action((options) => {
     typegen(options).catch(console.error)
+  })
+
+program
+  .command('create')
+  .description('Create a new Motia project powered by iii')
+  .action(() => {
+    create().catch(console.error)
   })
 
 program.parse(process.argv)
