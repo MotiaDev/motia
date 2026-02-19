@@ -3,11 +3,24 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import "./global.css";
 import { Chivo_Mono } from "next/font/google";
 import Script from "next/script";
+import type { Metadata } from "next";
 
 const chivoMono = Chivo_Mono({
   weight: ["300", "400", "500", "600", "700", "800"],
   subsets: ["latin"],
 });
+
+export const metadata: Metadata = {
+  title: { default: "iii Docs", template: "%s | iii Docs" },
+  icons: {
+    icon: [
+      { url: "/favicon/favicon.ico", sizes: "any" },
+      { url: "/favicon/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/favicon/apple-touch-icon.png",
+  },
+  manifest: "/favicon/site.webmanifest",
+};
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (

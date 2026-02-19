@@ -15,7 +15,7 @@ modules::cron::CronModule
 - class: modules::cron::CronModule
   config:
     adapter:
-      class: modules::cron::adapters::RedisAdapter
+      class: modules::cron::RedisCronAdapter
       config:
         redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
@@ -23,18 +23,25 @@ modules::cron::CronModule
 ## Configuration
 
 <ResponseField name="adapter" type="Adapter">
-  The adapter to use for distributed locking and job persistence. Redis adapter is recommended for multi-instance
-  deployments.
+  The adapter to use for distributed locking. Defaults to `modules::cron::KvCronAdapter`. Use `RedisCronAdapter` for multi-instance deployments.
 </ResponseField>
 
 ## Adapters
 
-### modules::cron::adapters::RedisAdapter
+### modules::cron::KvCronAdapter
+
+Built-in adapter using process-local locks. Suitable for single-instance deployments. Cron jobs may run on every engine instance when using multiple instances.
+
+```yaml
+class: modules::cron::KvCronAdapter
+```
+
+### modules::cron::RedisCronAdapter
 
 Uses Redis for distributed locking to prevent duplicate job execution across multiple engine instances.
 
 ```yaml
-class: modules::cron::adapters::RedisAdapter
+class: modules::cron::RedisCronAdapter
 config:
   redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
@@ -64,29 +71,26 @@ This Module adds a new Trigger Type: `cron`.
     ```
 
   </ResponseField>
+  <ResponseField name="condition_function_id" type="string">
+    Function ID for conditional execution. The engine invokes it with the cron event; if it returns `false`, the handler is skipped.
+  </ResponseField>
 </Expandable>
 
 ### Sample Code
 
 ```typescript
-import { logger } from '@iii-dev/sdk'
-
-// Register a function to run on a schedule
-bridge.registerFunction({
-  function_path: 'jobs.cleanupOldData',
-  handler: async () => {
-    logger.info('Running scheduled cleanup...')
-    // Perform cleanup tasks
+const fn = iii.registerFunction(
+  { id: 'jobs.cleanupOldData' },
+  async () => {
+    console.log('Running scheduled cleanup...')
+    return {}
   },
-})
+)
 
-// Schedule to run every day at 2 AM
-bridge.registerTrigger({
-  trigger_type: 'cron',
-  function_path: 'jobs.cleanupOldData',
-  config: {
-    cron: '0 2 * * *',
-  },
+iii.registerTrigger({
+  type: 'cron',
+  function_id: fn.id,
+  config: { cron: '0 2 * * *' },
 })
 ```
 

@@ -9,9 +9,9 @@ Trigger Types define different ways to invoke functions in the iii Engine.
 A Trigger Type is a mechanism that can initiate function execution. The iii Engine supports multiple trigger types, each serving different use cases:
 
 - **[API](/docs/modules/module-rest-api)**: HTTP requests
-- **[Event](/docs/modules/module-event)**: Published events on topics
+- **[Queue](/docs/modules/module-queue)**: Published events on topics
 - **[Cron](/docs/modules/module-cron)**: Scheduled time-based execution
-- **[Log](/docs/modules/module-logging)**: System log events
+- **[Log](/docs/modules/module-observability)**: System log events
 - **[Streams](/docs/modules/module-stream)**: Stream connection lifecycle (join/leave)
 
 ```mermaid
@@ -37,7 +37,7 @@ Executes functions in response to HTTP requests.
 
 ```typescript
 {
-  trigger_type: 'api',
+  type: 'http',
   config: {
     api_path: '/users/:id',
     http_method: 'GET'
@@ -47,7 +47,9 @@ Executes functions in response to HTTP requests.
 
 **Input**: `ApiRequest` with path params, query params, body, headers
 
-**Output**: `ApiResponse` with status, body, headers
+**Output**: `ApiResponse` with status_code, body, headers
+
+**Conditions**: Optional. Add `_condition_path` to config with a function ID. The engine invokes it before the handler; if it returns `false`, the handler is skipped. See [Trigger Conditions](/docs/using/triggers#trigger-conditions).
 
 <Card icon={<Globe />} title="REST API Module" href="/docs/modules/module-rest-api">
   Learn more about the API trigger
@@ -59,13 +61,14 @@ Executes functions in response to HTTP requests.
 
 Executes functions when events are published to subscribed topics.
 
-**Provided by**: [Event Module](/docs/modules/module-event)
+**Provided by**: [Queue Module](/docs/modules/module-queue)
 
 **Configuration:**
 
 ```typescript
 {
-  trigger_type: 'queue',
+  type: 'queue',
+  function_id: fn.id,
   config: {
     topic: 'user.created'
   }
@@ -76,8 +79,10 @@ Executes functions when events are published to subscribed topics.
 
 **Output**: Function result (optional, fire-and-forget pattern supported)
 
-<Card icon={<Zap />} title="Event Module" href="/docs/modules/module-event">
-  Learn more about the Event trigger
+**Conditions**: Optional. Add `_condition_path` to config. See [Trigger Conditions](/docs/using/triggers#trigger-conditions).
+
+<Card icon={<Zap />} title="Queue Module" href="/docs/modules/module-queue">
+  Learn more about the Queue trigger
 </Card>
 
 ---
@@ -92,9 +97,10 @@ Executes functions on a time-based schedule using cron expressions.
 
 ```typescript
 {
-  trigger_type: 'cron',
+  type: 'cron',
+  function_id: fn.id,
   config: {
-    cron: '0 2 * * *'  // Every day at 2 AM
+    cron: '0 2 * * *'
   }
 }
 ```
@@ -102,6 +108,8 @@ Executes functions on a time-based schedule using cron expressions.
 **Input**: Cron execution context (timestamp, trigger info)
 
 **Output**: Function result
+
+**Conditions**: Optional. Add `condition_function_id` to config. See [Trigger Conditions](/docs/using/triggers#trigger-conditions).
 
 <Card icon={<Clock />} title="Cron Module" href="/docs/modules/module-cron">
   Learn more about the Cron trigger
@@ -113,15 +121,16 @@ Executes functions on a time-based schedule using cron expressions.
 
 Executes functions when log entries match specified criteria.
 
-**Provided by**: [Logging Module](/docs/modules/module-logging)
+**Provided by**: [Observability Module](/docs/modules/module-observability)
 
 **Configuration:**
 
 ```typescript
 {
-  trigger_type: 'log',
+  type: 'log',
+  function_id: fn.id,
   config: {
-    level: 'error'  // info, warn, error, debug
+    level: 'error'
   }
 }
 ```
@@ -130,13 +139,13 @@ Executes functions when log entries match specified criteria.
 
 **Output**: Function result (useful for alerting, metrics)
 
-<Card icon={<FileText />} title="Logging Module" href="/docs/modules/module-logging">
+<Card icon={<FileText />} title="Observability Module" href="/docs/modules/module-observability">
   Learn more about the Log trigger
 </Card>
 
 ---
 
-### Stream Triggers (`streams:join`, `streams:leave`)
+### Stream Triggers (`stream:join`, `stream:leave`)
 
 Executes functions when clients connect to or disconnect from streams.
 
@@ -145,22 +154,24 @@ Executes functions when clients connect to or disconnect from streams.
 **Configuration:**
 
 ```typescript
-// Join trigger
 {
-  trigger_type: 'streams:join',
-  config: {}  // No config needed
+  type: 'stream:join',
+  function_id: fn.id,
+  config: {}
 }
 
-// Leave trigger
 {
-  trigger_type: 'streams:leave',
-  config: {}  // No config needed
+  type: 'stream:leave',
+  function_id: fn.id,
+  config: {}
 }
 ```
 
 **Input**: Subscription info with stream_name, group_id, item_id, context
 
 **Output**: Function result (useful for access control, analytics)
+
+**Conditions**: Optional. Add `condition_function_id` to config for stream:join/stream:leave. See [Trigger Conditions](/docs/using/triggers#trigger-conditions).
 
 <Card icon={<Activity />} title="Stream Module" href="/docs/modules/module-stream">
   Learn more about Stream triggers
@@ -174,8 +185,8 @@ Executes functions when clients connect to or disconnect from streams.
 | **event**         | Pub/sub messaging     | ✗ No        | ✓ Yes                   |
 | **cron**          | Scheduled tasks       | ✗ No        | ✗ No (distributed lock) |
 | **log**           | Log monitoring        | ✗ No        | ✓ Yes                   |
-| **streams:join**  | Stream connections    | ✗ No        | ✓ Yes                   |
-| **streams:leave** | Stream disconnections | ✗ No        | ✓ Yes                   |
+| **stream:join**  | Stream connections    | ✗ No        | ✓ Yes                   |
+| **stream:leave** | Stream disconnections | ✗ No        | ✓ Yes                   |
 
 ## Registering Trigger Types
 
@@ -198,11 +209,13 @@ sequenceDiagram
 Workers can then register triggers using these types:
 
 ```typescript
-bridge.registerTrigger({
-  trigger_type: 'api', // Must be a registered trigger type
-  function_path: 'users.create',
+const fn = iii.registerFunction({ id: 'api.getUser' }, handler)
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: {
-    /* trigger-specific config */
+    api_path: '/users/:id',
+    http_method: 'GET',
   },
 })
 ```
@@ -232,19 +245,14 @@ impl CoreModule for CustomModule {
 ### HTTP API Endpoints
 
 ```typescript
-// Register function
-bridge.registerFunction({
-  function_path: 'api.getUser',
-  handler: async (req) => ({
-    status: 200,
-    body: { user: { id: req.path_params.id } },
-  }),
-})
+const fn = iii.registerFunction({ id: 'api.getUser' }, async (req) => ({
+  status_code: 200,
+  body: { user: { id: req.path_params?.id } },
+}))
 
-// Register API trigger
-bridge.registerTrigger({
-  trigger_type: 'api',
-  function_path: 'api.getUser',
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: {
     api_path: '/users/:id',
     http_method: 'GET',
@@ -255,28 +263,20 @@ bridge.registerTrigger({
 ### Event-Driven Workflows
 
 ```typescript
-// Emit events
-await bridge.invokeFunction({
-  function_path: 'enqueue',
-  data: {
-    topic: 'order.placed',
-    data: { orderId: '123', amount: 99.99 },
-  },
+await iii.call('enqueue', {
+  topic: 'order.placed',
+  data: { orderId: '123', amount: 99.99 },
 })
 
-// Subscribe to events
-bridge.registerFunction({
-  function_path: 'notifications.sendOrderEmail',
-  handler: async (data) => {
-    await sendEmail(data)
-  },
+const fn = iii.registerFunction({ id: 'notifications.sendOrderEmail' }, async (data) => {
+  await sendEmail(data)
 })
 
-bridge.registerTrigger({
-  trigger_type: 'queue',
-  function_path: 'notifications.sendOrderEmail',
+iii.registerTrigger({
+  type: 'queue',
+  function_id: fn.id,
   config: {
-    subscribes: ['order.placed'],
+    topic: 'order.placed',
   },
 })
 ```
@@ -284,19 +284,16 @@ bridge.registerTrigger({
 ### Scheduled Jobs
 
 ```typescript
-bridge.registerFunction({
-  function_path: 'jobs.dailyReport',
-  handler: async () => {
-    const report = await generateReport()
-    await sendReport(report)
-  },
+const fn = iii.registerFunction({ id: 'jobs.dailyReport' }, async () => {
+  const report = await generateReport()
+  await sendReport(report)
 })
 
-bridge.registerTrigger({
-  trigger_type: 'cron',
-  function_path: 'jobs.dailyReport',
+iii.registerTrigger({
+  type: 'cron',
+  function_id: fn.id,
   config: {
-    cron: '0 9 * * *', // Every day at 9 AM
+    cron: '0 9 * * *',
   },
 })
 ```

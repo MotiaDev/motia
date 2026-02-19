@@ -18,7 +18,7 @@ modules::bridge_client::BridgeClientModule
     service_id: bridge-client
     service_name: bridge-client
     expose:
-      - local_function: logger::info
+      - local_function: engine::log::info
         remote_function: engine::log::info
 
     forward:
@@ -80,7 +80,7 @@ modules::bridge_client::BridgeClientModule
 
 ## Functions
 
-<ResponseField name="bridge::invoke" type="function">
+<ResponseField name="bridge.invoke" type="function">
   Invoke a function on the remote III instance.
 
   <AccordionGroup>
@@ -103,7 +103,7 @@ modules::bridge_client::BridgeClientModule
   </AccordionGroup>
 </ResponseField>
 
-<ResponseField name="bridge::invoke_async" type="function">
+<ResponseField name="bridge.invoke_async" type="function">
   Fire-and-forget invoke on the remote III instance.
 
   <AccordionGroup>

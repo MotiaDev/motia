@@ -6,7 +6,7 @@ description: 'Build REST APIs with ease.'
 The REST API Module is a module that allows you to build REST APIs with ease.
 
 ```
-modules::rest_api::RestApiModule
+modules::api::RestApiModule
 ```
 
 ## Sample Configuration
@@ -53,7 +53,7 @@ modules::rest_api::RestApiModule
 
 ## Trigger Type
 
-This Module add a new Trigger Type: `api`.
+This module adds a new Trigger Type: `http`.
 
 <Expandable title="Trigger Config">
   <ResponseField name="api_path" type="string" required>
@@ -62,14 +62,18 @@ This Module add a new Trigger Type: `api`.
   <ResponseField name="http_method" type="string" required>
     The HTTP method of the API.
   </ResponseField>
+  <ResponseField name="_condition_path" type="string">
+    Function ID for conditional execution. The engine invokes it with the request; if it returns `false`, the handler is skipped.
+  </ResponseField>
 </Expandable>
 
 ### Sample code
 
 ```typescript
-bridge.registerTrigger({
-  trigger_type: 'api',
-  functionPath,
+const fn = iii.registerFunction({ id: 'api.getUsers' }, handler)
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: {
     api_path: '/api/v1/users',
     http_method: 'GET',
@@ -103,7 +107,7 @@ When an API trigger fires, the function receives an `ApiRequest` object:
 
 Functions must return an `ApiResponse` object:
 
-<ResponseField name="status" type="number">
+<ResponseField name="status_code" type="number">
   HTTP status code (e.g., 200, 404, 500).
 </ResponseField>
 
@@ -128,36 +132,32 @@ sequenceDiagram
     Engine->>+Worker: Invoke Function (JSON)
     Note over Worker: Execute handler
 
-    Worker-->>-Engine: Return {status, body, headers}
+    Worker-->>-Engine: Return {status_code, body, headers}
     Engine-->>-Client: HTTP Response
 ```
 
 ## Example Handler
 
 ```typescript
-import { ApiRequest, ApiResponse } from '@iii-dev/sdk'
+import { init } from 'iii-sdk'
+import type { ApiRequest, ApiResponse } from 'iii-sdk'
 
-async function getUser(req: ApiRequest) {
-  const userId = req.path_params.id
+const iii = init('ws://localhost:49134')
+
+async function getUser(req: ApiRequest): Promise<ApiResponse> {
+  const userId = req.path_params?.id
   const user = await database.findUser(userId)
-
   return {
-    status: 200,
+    status_code: 200,
     body: { user },
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
   }
 }
 
-bridge.registerFunction({
-  function_path: 'api.getUser',
-  handler: getUser,
-})
-
-bridge.registerTrigger({
-  trigger_type: 'api',
-  function_path: 'api.getUser',
+const fn = iii.registerFunction({ id: 'api.getUser' }, getUser)
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: {
     api_path: '/users/:id',
     http_method: 'GET',

@@ -6,19 +6,18 @@ title: 'Using Triggers'
 
 A trigger consists of three parts:
 
-1. **Trigger Type**: The mechanism that initiates execution (api, event, cron, log)
+1. **Trigger Type**: The mechanism that initiates execution (http, queue, cron, log, stream)
 2. **Configuration**: Type-specific settings (path, schedule, topics)
-3. **Function Path**: The function to invoke when triggered
+3. **Function ID**: The function to invoke when triggered
 
 ```typescript
-bridge.registerTrigger({
-  trigger_type: 'api', // 1. Trigger Type
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: {
-    // 2. Configuration
     api_path: '/users',
     http_method: 'POST',
   },
-  function_path: 'users.create', // 3. Function Path
 })
 ```
 
@@ -47,12 +46,8 @@ sequenceDiagram
 First, register the function that will be invoked:
 
 ```typescript
-bridge.registerFunction({
-  function_path: 'users.create',
-  handler: async (data) => {
-    // Function logic
-    return { id: '123', ...data }
-  },
+const fn = iii.registerFunction({ id: 'users.create' }, async (data) => {
+  return { id: '123', ...data }
 })
 ```
 
@@ -61,9 +56,9 @@ bridge.registerFunction({
 Then, register a trigger that routes to that function:
 
 ```typescript
-bridge.registerTrigger({
-  trigger_type: 'api',
-  function_path: 'users.create', // Must match registered function
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: {
     api_path: '/users',
     http_method: 'POST',
@@ -73,7 +68,7 @@ bridge.registerTrigger({
 
 **Step 3: Trigger Active**
 
-The engine sets up the trigger in the appropriate module. Now when an HTTP POST request comes to `/users`, the `users.create` function will be invoked.
+The engine sets up the trigger in the appropriate module. When an HTTP POST request comes to `/users`, the `users.create` function will be invoked.
 
 ## Trigger Configurations by Type
 
@@ -81,10 +76,10 @@ The engine sets up the trigger in the appropriate module. Now when an HTTP POST 
 
 ```typescript
 {
-  trigger_type: 'api',
-  function_path: 'api.endpoint',
+  type: 'http',
+  function_id: fn.id,
   config: {
-    api_path: '/api/v1/resource/:id',  // Supports path parameters
+    api_path: '/api/v1/resource/:id',
     http_method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   }
 }
@@ -102,28 +97,24 @@ The engine sets up the trigger in the appropriate module. Now when an HTTP POST 
 
 ```typescript
 {
-  trigger_type: 'queue',
-  function_path: 'events.handler',
+  type: 'queue',
+  function_id: fn.id,
   config: {
-    subscribes: [
-      'user.created',
-      'user.updated',
-      'user.deleted'
-    ]
+    topic: 'user.created'
   }
 }
 ```
 
-**Multiple Subscriptions**: One trigger can subscribe to multiple topics.
+**Multiple Topics**: Register separate triggers for each topic.
 
 ### Cron Trigger Configuration
 
 ```typescript
 {
-  trigger_type: 'cron',
-  function_path: 'jobs.scheduled',
+  type: 'cron',
+  function_id: fn.id,
   config: {
-    cron: '*/5 * * * *'  // Every 5 minutes
+    cron: '*/5 * * * *'
   }
 }
 ```
@@ -134,10 +125,10 @@ The engine sets up the trigger in the appropriate module. Now when an HTTP POST 
 
 ```typescript
 {
-  trigger_type: 'log',
-  function_path: 'monitoring.onError',
+  type: 'log',
+  function_id: fn.id,
   config: {
-    level: 'error'  // Optional: filter by log level
+    level: 'error'
   }
 }
 ```
@@ -148,9 +139,9 @@ The engine sets up the trigger in the appropriate module. Now when an HTTP POST 
 
 ```typescript
 {
-  trigger_type: 'streams:join',
-  function_path: 'streams.onJoin',
-  config: {}  // No configuration needed
+  type: 'stream:join',
+  function_id: fn.id,
+  config: {}
 }
 ```
 
@@ -159,37 +150,122 @@ The engine sets up the trigger in the appropriate module. Now when an HTTP POST 
 A single function can have multiple triggers:
 
 ```typescript
-// Register function once
-bridge.registerFunction({
-  function_path: 'users.notify',
-  handler: async (data) => {
-    await sendNotification(data)
-  },
+const fn = iii.registerFunction({ id: 'users.notify' }, async (data) => {
+  await sendNotification(data)
 })
 
-// Trigger from API
-bridge.registerTrigger({
-  trigger_type: 'api',
-  function_path: 'users.notify',
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: { api_path: '/notify', http_method: 'POST' },
 })
 
-// Trigger from events
-bridge.registerTrigger({
-  trigger_type: 'queue',
-  function_path: 'users.notify',
+iii.registerTrigger({
+  type: 'queue',
+  function_id: fn.id,
   config: { topic: 'user.created' },
 })
 
-// Trigger from cron
-bridge.registerTrigger({
-  trigger_type: 'cron',
-  function_path: 'users.notify',
+iii.registerTrigger({
+  type: 'cron',
+  function_id: fn.id,
   config: { cron: '0 9 * * *' },
 })
 ```
 
 **Use Case**: Send notifications via API calls, events, or scheduled jobs using the same logic.
+
+## Trigger Conditions
+
+Triggers can optionally use a **condition function** to decide whether the handler should run. The engine invokes the condition with the trigger payload before the main handler. If it returns `false`, the handler is not invoked.
+
+**Supported trigger types**: http, queue, cron, stream, state
+
+### How It Works
+
+1. Register a condition function that receives the same input as the handler and returns a boolean.
+2. Add `condition_function_id` to the trigger config (or `_condition_path` for http/queue triggers).
+3. When the trigger fires, the engine calls the condition first. Only if it returns truthy does the handler run.
+
+### Example: HTTP Trigger with Condition
+
+```typescript
+const conditionFn = iii.registerFunction(
+  { id: 'conditions.requireVerified' },
+  async (req) => req.headers?.['x-verified'] === 'true',
+)
+
+const fn = iii.registerFunction({ id: 'api.verifiedOnly' }, async (req) => ({
+  status_code: 200,
+  body: { message: 'Verified request' },
+}))
+
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
+  config: {
+    api_path: '/verified',
+    http_method: 'POST',
+    _condition_path: conditionFn.id,
+  },
+})
+```
+
+### Example: Queue Trigger with Condition
+
+```typescript
+const conditionFn = iii.registerFunction(
+  { id: 'conditions.highValue' },
+  async (data) => (data?.amount ?? 0) > 1000,
+)
+
+const fn = iii.registerFunction({ id: 'orders.processHighValue' }, async (order) => {
+  await processHighValueOrder(order)
+  return {}
+})
+
+iii.registerTrigger({
+  type: 'queue',
+  function_id: fn.id,
+  config: {
+    topic: 'order.placed',
+    _condition_path: conditionFn.id,
+  },
+})
+```
+
+### Example: State Trigger with Condition
+
+```typescript
+const conditionFn = iii.registerFunction(
+  { id: 'conditions.profileChanged' },
+  async (event) => event.event_type === 'state:updated' && event.key === 'profile',
+)
+
+const fn = iii.registerFunction({ id: 'state.onProfileUpdate' }, async (event) => {
+  console.log('Profile updated:', event.new_value)
+  return {}
+})
+
+iii.registerTrigger({
+  type: 'state',
+  function_id: fn.id,
+  config: {
+    scope: 'users',
+    condition_function_id: conditionFn.id,
+  },
+})
+```
+
+### Config Keys by Trigger Type
+
+| Trigger Type | Condition Config Key |
+|--------------|----------------------|
+| http | `_condition_path` |
+| queue | `_condition_path` |
+| cron | `condition_function_id` |
+| stream, stream:join, stream:leave | `condition_function_id` |
+| state | `condition_function_id` |
 
 ## Trigger Lifecycle
 
@@ -205,20 +281,17 @@ stateDiagram-v2
 
 ### Unregistering Triggers
 
-Remove triggers dynamically:
+Remove triggers dynamically. `registerTrigger` returns a trigger object with `unregister()`:
 
 ```typescript
-const triggerId = 'unique-trigger-id'
-
-bridge.registerTrigger({
-  id: triggerId,
-  trigger_type: 'api',
-  function_path: 'api.temp',
+const fn = iii.registerFunction({ id: 'api.temp' }, async () => ({ status_code: 200, body: {} }))
+const trigger = iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: { api_path: '/temp', http_method: 'GET' },
 })
 
-// Later...
-bridge.unregisterTrigger(triggerId)
+trigger.unregister()
 ```
 
 ## Trigger Patterns
@@ -226,21 +299,18 @@ bridge.unregisterTrigger(triggerId)
 ### Webhook Handler
 
 ```typescript
-bridge.registerFunction({
-  function_path: 'webhooks.github',
-  handler: async (req) => {
-    const event = req.headers['x-github-event']
-    const payload = req.body
+const fn = iii.registerFunction({ id: 'webhooks.github' }, async (req) => {
+  const event = req.headers?.['x-github-event']
+  const payload = req.body
 
-    await processGitHubWebhook(event, payload)
+  await processGitHubWebhook(event, payload)
 
-    return { status: 200, body: { received: true } }
-  },
+  return { status_code: 200, body: { received: true } }
 })
 
-bridge.registerTrigger({
-  trigger_type: 'api',
-  function_path: 'webhooks.github',
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
   config: {
     api_path: '/webhooks/github',
     http_method: 'POST',
@@ -251,39 +321,27 @@ bridge.registerTrigger({
 ### Event Chain
 
 ```typescript
-// Step 1: Order placed
-bridge.registerFunction({
-  function_path: 'orders.process',
-  handler: async (order) => {
-    await saveOrder(order)
-    // Emit next event in chain
-    await bridge.invokeFunction({
-      function_path: 'enqueue',
-      data: {
-        topic: 'order.processed',
-        data: order,
-      },
-    })
-  },
+const processFn = iii.registerFunction({ id: 'orders.process' }, async (order) => {
+  await saveOrder(order)
+  await iii.call('enqueue', {
+    topic: 'order.processed',
+    data: order,
+  })
 })
 
-bridge.registerTrigger({
-  trigger_type: 'queue',
-  function_path: 'orders.process',
+iii.registerTrigger({
+  type: 'queue',
+  function_id: processFn.id,
   config: { topic: 'order.placed' },
 })
 
-// Step 2: Send confirmation
-bridge.registerFunction({
-  function_path: 'orders.sendConfirmation',
-  handler: async (order) => {
-    await sendEmail(order.email, 'Order confirmed')
-  },
+const confirmFn = iii.registerFunction({ id: 'orders.sendConfirmation' }, async (order) => {
+  await sendEmail(order.email, 'Order confirmed')
 })
 
-bridge.registerTrigger({
-  trigger_type: 'queue',
-  function_path: 'orders.sendConfirmation',
+iii.registerTrigger({
+  type: 'queue',
+  function_id: confirmFn.id,
   config: { topic: 'order.processed' },
 })
 ```
@@ -291,19 +349,16 @@ bridge.registerTrigger({
 ### Scheduled Cleanup
 
 ```typescript
-bridge.registerFunction({
-  function_path: 'maintenance.cleanup',
-  handler: async () => {
-    const deleted = await deleteOldRecords()
-    logger.info(`Deleted ${deleted} old records`)
-  },
+const fn = iii.registerFunction({ id: 'maintenance.cleanup' }, async () => {
+  const deleted = await deleteOldRecords()
+  logger.info(`Deleted ${deleted} old records`)
 })
 
-bridge.registerTrigger({
-  trigger_type: 'cron',
-  function_path: 'maintenance.cleanup',
+iii.registerTrigger({
+  type: 'cron',
+  function_id: fn.id,
   config: {
-    cron: '0 3 * * *', // Every day at 3 AM
+    cron: '0 3 * * *',
   },
 })
 ```
@@ -315,12 +370,11 @@ bridge.registerTrigger({
     Provide unique IDs for easier management:
 
     ```typescript
-    bridge.registerTrigger({
-      id: 'api-users-create-v1',  // Versioned, descriptive
-      trigger_type: 'api',
-      function_path: 'users.create',
+    const trigger = iii.registerTrigger({
+      type: 'http',
+      function_id: fn.id,
       config: { api_path: '/users', http_method: 'POST' }
-    });
+    })
     ```
 
   </Accordion>
@@ -329,18 +383,13 @@ bridge.registerTrigger({
     Ensure trigger configuration matches what the function expects:
 
     ```typescript
-    // Function expects { name, email }
-    bridge.registerFunction({
-      function_path: 'users.create',
-      handler: async ({ name, email }) => { /* ... */ }
-    });
+    const fn = iii.registerFunction({ id: 'users.create' }, async ({ name, email }) => { /* ... */ })
 
-    // API trigger should accept POST with body
-    bridge.registerTrigger({
-      trigger_type: 'api',
-      function_path: 'users.create',
-      config: { http_method: 'POST' }  // Not GET
-    });
+    iii.registerTrigger({
+      type: 'http',
+      function_id: fn.id,
+      config: { api_path: '/users', http_method: 'POST' }
+    })
     ```
 
   </Accordion>
@@ -364,20 +413,17 @@ bridge.registerTrigger({
     Functions should handle errors gracefully:
 
     ```typescript
-    bridge.registerFunction({
-      function_path: 'api.create',
-      handler: async (req) => {
-        try {
-          const result = await createResource(req.body);
-          return { status: 201, body: result };
-        } catch (error) {
-          return {
-            status: 400,
-            body: { error: error.message }
-          };
+    iii.registerFunction({ id: 'api.create' }, async (req) => {
+      try {
+        const result = await createResource(req.body)
+        return { status_code: 201, body: result }
+      } catch (error) {
+        return {
+          status_code: 400,
+          body: { error: error.message }
         }
       }
-    });
+    })
     ```
 
   </Accordion>
@@ -391,5 +437,8 @@ bridge.registerTrigger({
   </Card>
   <Card icon={<Parentheses />} title="Remote Functions" href="/docs/remote-functions">
     Understand how to write functions
+  </Card>
+  <Card icon={<Filter />} title="Trigger Conditions" href="/docs/using/triggers#trigger-conditions">
+    Filter when handlers run with conditions
   </Card>
 </Columns>

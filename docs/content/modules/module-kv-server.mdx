@@ -142,24 +142,18 @@ modules::kv_server::KvServer
 ### Basic Key-Value Operations
 
 ```typescript
-import { bridge } from 'iii'
-
-// Set a value
-await bridge.invoke('kv_server::set', {
+await iii.call('kv_server::set', {
   index: 'default',
   key: 'user:123',
   value: { name: 'John', email: 'john@example.com' },
 })
 
-// Get a value
-const user = await bridge.invoke('kv_server::get', {
+const user = await iii.call('kv_server::get', {
   index: 'default',
   key: 'user:123',
 })
-console.log(user) // { name: 'John', email: 'john@example.com' }
 
-// Delete a value
-await bridge.invoke('kv_server::delete', {
+await iii.call('kv_server::delete', {
   index: 'default',
   key: 'user:123',
 })
@@ -168,14 +162,11 @@ await bridge.invoke('kv_server::delete', {
 ### Listing Keys with Prefix
 
 ```typescript
-// Store some users
-await bridge.invoke('kv_server::set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
-await bridge.invoke('kv_server::set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
-await bridge.invoke('kv_server::set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
+await iii.call('kv_server::set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
+await iii.call('kv_server::set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
+await iii.call('kv_server::set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
 
-// List all user keys
-const userKeys = await bridge.invoke('kv_server::list_keys_with_prefix', {
+const userKeys = await iii.call('kv_server::list_keys_with_prefix', {
   prefix: 'user:',
 })
-console.log(userKeys) // ['user:1', 'user:2']
 ```

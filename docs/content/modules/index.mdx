@@ -1,5 +1,5 @@
 ---
-title: 'Modules'
+title: 'Core Modules'
 ---
 
 iii Architecture is very modular. Composed of a few Layers: Engine, Modules, Adapters.
@@ -8,15 +8,7 @@ Let's break down each layer:
 
 - **Engine**: The core of iii. It is the engine that powers the iii architecture.
 - **Modules**: The core modules that make up the iii architecture.
-- **Adapters**: The adapters that connect the iii architecture to the outside world.
-
-<Card
-  horizontal
-  icon={<Blocks />}
-  title="Summary"
-  href="/docs/modules/summary"
-  description="Summary of all the core modules."
-/>
+- **Adapters**: The adapters that connect the iii architecture to the outside world. See [Adapters](/docs/adapters) for details.
 
 ## Engine
 
@@ -29,34 +21,34 @@ Built with Rust for exceptional speed and memory efficiency, Core Modules delive
 Examples of Modules:
 
 - **REST API Module**: Build REST APIs with ease.
-- **Streams Module**: Build durable streams for real-time data subscriptions.
-- **Event Module**: Redis-backed pub/sub for asynchronous messaging.
+- **Stream Module**: Durable streams for real-time data subscriptions.
+- **Queue Module**: Topic-based message queuing with retries and DLQ.
+- **PubSub Module**: Topic-based publish/subscribe for real-time events.
 - **Cron Module**: Schedule functions with cron expressions.
-- **Logging Module**: System observability and log management.
+- **Observability Module**: Traces, metrics, logs, and alerts (OpenTelemetry).
 
 Within these modules, there's an Adapter Layer, where we can configure external services to be used as their backend.
-For example: in Queues Module, we can configure Redis to be used as BullMQ, or we can configure RabbitMQ to manage queues.
+For example: in the Queue Module, you can configure Redis or RabbitMQ to manage queues.
 
 ## How to configure the Engine
 
-Let's use the Streams Module as an example. The following file is the main configuration file for iii.
+Let's use the Stream Module as an example. The following file is the main configuration file for iii.
 Add it to your project as `config.yaml` and iii will automatically load the modules and adapters.
 
 ```yaml
 modules:
-  - class: modules::streams::StreamModule
+  - class: modules::stream::StreamModule
     config:
-      port: ${STREAMS_PORT:31112}
+      port: ${STREAM_PORT:3112}
       host: 0.0.0.0
-      auth_function: motia.streams.authenticate
       adapter:
-        class: modules::streams::adapters::RedisAdapter
+        class: modules::stream::adapters::RedisAdapter
         config:
           redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
 
-In the example above, we're configuring only Streams Module in the Engine.
-We can configure the port to listen on, the host to listen on, and the authentication function to use.
+In the example above, we're configuring only the Stream Module in the Engine.
+We can configure the port to listen on and the host to listen on.
 
-We're also configuring the adapter to use for the Streams Module. In this case, we're using the `modules::streams::adapters::RedisAdapter`.
+We're also configuring the adapter to use for the Stream Module. In this case, we're using the `modules::stream::adapters::RedisAdapter`.
 We can configure the Redis URL to use for the RedisAdapter.
