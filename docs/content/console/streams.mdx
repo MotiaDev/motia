@@ -1,0 +1,27 @@
+---
+title: 'Streams'
+description: 'Discover and monitor streams in the system.'
+hideCards: true
+---
+
+The Streams page lists all streams registered in the iii engine and provides metadata about each one.
+
+## Stream Discovery
+
+The page displays every stream in the system:
+
+| Column   | Description                                         |
+|----------|-----------------------------------------------------|
+| Name     | The stream identifier                               |
+| Group    | The consumer group the stream belongs to            |
+| Type     | Whether the stream is user-defined or system-internal |
+
+Use the filter toggle to show or hide **system streams** (internal streams used by the engine itself).
+
+## Real-Time Monitoring
+
+Streams update in real time via WebSocket. As new streams are created or existing ones receive data, the list refreshes automatically.
+
+<Callout title="Stream module required" type="info">
+  Streams are provided by the Stream module. Make sure `modules::stream::StreamModule` is included in your engine configuration. See [Stream Module](/docs/modules/module-stream) for details.
+</Callout>

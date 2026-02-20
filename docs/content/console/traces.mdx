@@ -1,0 +1,73 @@
+---
+title: 'Traces'
+description: 'Visualize and analyze OpenTelemetry traces with multiple view modes and advanced filtering.'
+hideCards: true
+---
+
+The Traces page provides full OpenTelemetry trace visualization with multiple view modes, advanced filtering, and detailed span inspection.
+
+<Callout title="Observability module required" type="info">
+  Trace collection requires the Observability module with `exporter` set to `memory` or `both`. See [Observability Module](/docs/modules/module-observability) for configuration.
+</Callout>
+
+## Trace List
+
+The main view shows collected traces with:
+
+| Column    | Description                                    |
+|-----------|------------------------------------------------|
+| Trace ID  | Unique identifier (click to expand)            |
+| Service   | The service that produced the trace            |
+| Root Span | The top-level operation name                   |
+| Duration  | Total trace duration                           |
+| Status    | OK, Error, or Pending                          |
+| Spans     | Number of spans in the trace                   |
+| Timestamp | When the trace started                         |
+
+## View Modes
+
+Click on a trace to open the detail view. Four visualization modes are available:
+
+### Waterfall Chart
+
+A timeline view showing every span laid out horizontally by start time and duration. This is the default view and is best for understanding the sequential and parallel flow of operations.
+
+### Flame Graph
+
+A stack-based visualization where each span is stacked on its parent. Wider bars indicate longer duration. Useful for identifying which operations consume the most time.
+
+### Service Breakdown
+
+Groups spans by service name and shows aggregate statistics per service: total spans, average duration, and error rate. Useful for identifying which service is the bottleneck.
+
+### Trace Map
+
+A topology graph showing how services communicate. Nodes represent services and edges represent span parent-child relationships across service boundaries. Useful for understanding distributed call patterns.
+
+## Span Details
+
+Click on any span in the waterfall or flame graph to open the detail panel:
+
+| Tab       | Content                                             |
+|-----------|-----------------------------------------------------|
+| Info      | Span name, service, duration, status, trace/span IDs |
+| Tags      | All span attributes as key-value pairs              |
+| Logs      | Events and log entries attached to the span         |
+| Errors    | Error messages, stack traces, and exception details |
+| Baggage   | Trace context baggage key-value pairs               |
+
+## Filtering
+
+The Traces page supports advanced filtering to narrow results:
+
+| Filter       | Description                                                |
+|--------------|------------------------------------------------------------|
+| Trace ID     | Search by exact trace ID                                   |
+| Service Name | Filter by service name (substring match)                   |
+| Span Name    | Filter by span/operation name (substring match)            |
+| Status       | Filter by status: OK, Error, or Pending                    |
+| Duration     | Min and max duration range in milliseconds                 |
+| Time Range   | Start and end time window                                  |
+| Attributes   | Filter by span attributes as key-value pairs (AND logic)   |
+
+Multiple filters are combined with AND logic. Pagination controls at the bottom allow browsing large result sets.

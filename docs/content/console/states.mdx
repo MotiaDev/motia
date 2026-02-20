@@ -1,0 +1,57 @@
+---
+title: 'States'
+description: 'Browse and manage key-value state groups and items.'
+hideCards: true
+---
+
+The States page provides a browser for the engine's key-value state store. You can view, create, edit, and delete state entries organized by scope.
+
+## State Browser
+
+The state browser displays a two-level hierarchy:
+
+1. **Groups (Scopes)** — top-level namespaces that organize state
+2. **Items** — individual key-value pairs within each group
+
+### Viewing State
+
+Select a group from the left panel to see all its key-value items. Each item shows:
+
+| Column | Description                                    |
+|--------|------------------------------------------------|
+| Key    | The item key within the scope                  |
+| Value  | The stored value, rendered as formatted JSON   |
+
+Complex values (objects, arrays) are displayed in a collapsible JSON viewer.
+
+### Adding State
+
+1. Click **Add Item**
+2. Enter the **scope** (group name) and **key**
+3. Enter the **value** as JSON
+4. Click **Save**
+
+The item is persisted via `state::set` and appears in the browser immediately.
+
+### Editing State
+
+1. Click on an existing item
+2. Modify the JSON value in the editor
+3. Click **Save**
+
+The update fires `state:updated` triggers if any are registered for that scope/key.
+
+### Deleting State
+
+1. Click the delete icon on an item
+2. Confirm the deletion
+
+The deletion fires `state:deleted` triggers if any are registered.
+
+<Callout title="State persistence" type="info">
+  State persistence depends on your engine's State module configuration. With `in_memory` storage, state is lost on engine restart. With `file_based` or `RedisAdapter`, state persists across restarts. See [State Module](/docs/modules/module-state) for configuration details.
+</Callout>
+
+## Search and Pagination
+
+Use the search bar to filter items by key name. For groups with many items, the browser supports pagination.

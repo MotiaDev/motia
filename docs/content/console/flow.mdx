@@ -1,0 +1,46 @@
+---
+title: 'Flow'
+description: 'Visual flow diagram showing your system architecture.'
+hideCards: true
+---
+
+The Flow page renders an interactive graph of your system's architecture, showing how triggers, functions, state stores, and queues connect.
+
+<Callout title="Feature flag required" type="warn">
+  The Flow page is an opt-in feature. Enable it by starting the console with the `--enable-flow` flag or setting the `III_ENABLE_FLOW` environment variable.
+</Callout>
+
+## Enabling Flow
+
+```bash
+# Via CLI flag
+iii-console --enable-flow
+
+# Via environment variable
+III_ENABLE_FLOW=true iii-console
+```
+
+## Graph Visualization
+
+The flow diagram uses an auto-layout algorithm (Dagre) to arrange nodes and edges. The graph includes several node types:
+
+| Node Type   | Description                          | Visual           |
+|-------------|--------------------------------------|-------------------|
+| HTTP Trigger | REST API endpoint triggers          | Colored by method |
+| Cron Trigger | Scheduled triggers                  | Clock icon        |
+| Event Trigger | Event-driven triggers              | Lightning icon    |
+| Function    | Registered functions                 | Code icon         |
+| State       | Key-value state stores               | Database icon     |
+| Queue       | Queue nodes                          | List icon         |
+
+Edges show the data flow direction between components — from triggers to the functions they invoke, and from functions to the state or queues they interact with.
+
+## Interaction
+
+- **Pan and zoom** — scroll to zoom, drag to pan
+- **Click a node** — view its details (function ID, trigger config, etc.)
+- **Auto-layout** — the graph arranges itself automatically using a directed-graph layout
+
+## Configuration Persistence
+
+Flow layout configuration is saved to the engine's state store. The next time you open the Flow page, it restores the previous view state.

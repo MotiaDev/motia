@@ -1,0 +1,51 @@
+---
+title: 'Functions'
+description: 'View registered functions and invoke them directly from the console.'
+hideCards: true
+---
+
+The Functions page lists every function registered with the iii engine and lets you invoke any of them directly with custom JSON input.
+
+## Function List
+
+All registered functions are displayed with their metadata:
+
+| Column      | Description                                           |
+|-------------|-------------------------------------------------------|
+| Function ID | The fully qualified path (e.g. `my.service.handler`)  |
+| Triggers    | Number and types of triggers attached to the function |
+| Workers     | Worker processes that can execute the function        |
+| Status      | Current function status                               |
+
+Use the **search bar** at the top to filter functions by name.
+
+## Invoking Functions
+
+You can invoke any function directly from the console:
+
+1. Click on a function to open its detail panel
+2. Enter a JSON payload in the input editor
+3. Click **Invoke**
+4. View the result or error in real time
+
+This is useful for:
+
+- **Testing** a function during development without wiring up a trigger
+- **Debugging** by sending specific payloads to reproduce an issue
+- **Ad-hoc operations** like running a migration function manually
+
+### Example
+
+To invoke a function `users.getProfile`:
+
+```json
+{
+  "user_id": "user-123"
+}
+```
+
+The console sends the payload to the engine via `POST /_console/invoke` and displays the JSON response or error inline.
+
+<Callout title="Function must be registered" type="info">
+  Only functions that are currently registered and connected via an active worker will appear in the list. If a function is missing, check that its worker process is running.
+</Callout>

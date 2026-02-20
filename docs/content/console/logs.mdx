@@ -1,0 +1,69 @@
+---
+title: 'Logs'
+description: 'Query and filter structured OpenTelemetry logs from the engine.'
+hideCards: true
+---
+
+The Logs page provides a viewer for structured OpenTelemetry logs collected by the engine.
+
+<Callout title="Observability module required" type="info">
+  Log collection requires the Observability module with `logs_enabled: true`. See [Observability Module](/docs/modules/module-observability) for configuration.
+</Callout>
+
+## Log Viewer
+
+Logs are displayed in reverse chronological order with:
+
+| Column    | Description                                |
+|-----------|--------------------------------------------|
+| Timestamp | When the log entry was produced            |
+| Severity  | Log level: DEBUG, INFO, WARN, ERROR, TRACE |
+| Service   | The service that produced the log          |
+| Message   | The log body/message content               |
+
+Click on a log entry to expand it and see the full JSON payload, including attributes, trace/span IDs, and resource metadata.
+
+## Filtering
+
+| Filter        | Description                                         |
+|---------------|-----------------------------------------------------|
+| Severity      | Filter by one or more log levels                    |
+| Time Range    | Start and end time window                           |
+| Text Search   | Full-text search across log messages                |
+| Trace ID      | Show only logs from a specific trace                |
+
+## Log Entry Details
+
+Each expanded log entry shows:
+
+<ResponseField name="timestamp_unix_nano" type="number">
+  Timestamp of the log entry.
+</ResponseField>
+
+<ResponseField name="severity_text" type="string">
+  Severity level: `INFO`, `WARN`, `ERROR`, `DEBUG`, or `TRACE`.
+</ResponseField>
+
+<ResponseField name="body" type="string">
+  The log message content.
+</ResponseField>
+
+<ResponseField name="attributes" type="object">
+  Structured attributes attached to the log entry.
+</ResponseField>
+
+<ResponseField name="trace_id" type="string">
+  Distributed trace ID for correlating this log with traces.
+</ResponseField>
+
+<ResponseField name="span_id" type="string">
+  Span ID within the trace.
+</ResponseField>
+
+<ResponseField name="service_name" type="string">
+  Name of the service that produced the entry.
+</ResponseField>
+
+<Callout title="Trace correlation" type="info">
+  If a log entry has a `trace_id`, you can click it to jump directly to the corresponding trace in the [Traces](/docs/console/traces) page.
+</Callout>

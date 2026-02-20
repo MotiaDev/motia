@@ -1,0 +1,66 @@
+---
+title: 'Triggers'
+description: 'View, test, and interact with HTTP, cron, and event triggers.'
+hideCards: true
+---
+
+The Triggers page shows every trigger registered with the engine and provides interactive tools to test each trigger type.
+
+## Trigger List
+
+All registered triggers are displayed with their details:
+
+| Column       | Description                                              |
+|--------------|----------------------------------------------------------|
+| Type         | The trigger type: `http`, `cron`, `event`, `state`, etc. |
+| Function     | The function this trigger invokes                        |
+| Path / Config | HTTP path, cron schedule, or event name                 |
+| Status       | Active, Error, or Inactive                               |
+
+## Testing HTTP Triggers
+
+For HTTP-type triggers, the console provides a built-in request builder:
+
+1. Select the **HTTP method** (GET, POST, PUT, DELETE, PATCH)
+2. The **path** is pre-filled from the trigger configuration
+3. Add **query parameters** as key-value pairs
+4. Enter a **request body** (for POST/PUT/PATCH) as JSON
+5. Click **Send** to execute the request
+
+The response is displayed inline with status code, headers, and body.
+
+### Example
+
+For a trigger registered at `POST /api/users`:
+
+```json
+{
+  "name": "Alice",
+  "email": "alice@example.com"
+}
+```
+
+The console sends the request through the engine's REST API module and shows the response.
+
+## Testing Cron Triggers
+
+Cron triggers display their schedule expression (e.g. `0 */5 * * * *`). You can:
+
+- View the configured schedule
+- Click **Trigger Now** to manually fire the cron job immediately
+
+This is useful for testing scheduled tasks without waiting for the next scheduled run.
+
+## Testing Event Triggers
+
+For event-type triggers, the console provides an event emitter:
+
+1. The **event name** is pre-filled from the trigger configuration
+2. Enter a **payload** as JSON
+3. Click **Emit** to publish the event
+
+The engine dispatches the event and invokes the connected function.
+
+<Callout title="Trigger types" type="info">
+  The available trigger types depend on which modules are loaded in your engine configuration. See [Trigger Types](/docs/trigger-types) and [Modules](/docs/modules) for the full list.
+</Callout>

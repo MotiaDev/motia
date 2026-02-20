@@ -1,0 +1,14 @@
+{
+  "title": "Console",
+  "defaultOpen": true,
+  "pages": [
+    "index",
+    "functions",
+    "triggers",
+    "states",
+    "streams",
+    "traces",
+    "logs",
+    "configuration"
+  ]
+}

@@ -1,0 +1,108 @@
+---
+title: 'Configuration'
+description: 'CLI flags, environment variables, and connection settings for the iii Console.'
+hideCards: true
+---
+
+The iii Console is configured via CLI flags and environment variables. All settings have sensible defaults for local development.
+
+## CLI Flags
+
+```bash
+iii-console [OPTIONS]
+```
+
+<ResponseField name="--port, -p" type="number">
+  Port for the console web UI. Defaults to `3113`.
+</ResponseField>
+
+<ResponseField name="--host" type="string">
+  Host address to bind the console to. Defaults to `127.0.0.1`.
+</ResponseField>
+
+<ResponseField name="--engine-host" type="string">
+  Host address of the iii engine. Defaults to `127.0.0.1`.
+</ResponseField>
+
+<ResponseField name="--engine-port" type="number">
+  Port of the engine's REST API. Defaults to `3111`.
+</ResponseField>
+
+<ResponseField name="--ws-port" type="number">
+  Port of the engine's WebSocket server. Defaults to `3112`.
+</ResponseField>
+
+<ResponseField name="--bridge-port" type="number">
+  Port of the engine's bridge WebSocket (used by the iii SDK). Defaults to `49134`.
+</ResponseField>
+
+<ResponseField name="--no-otel" type="boolean">
+  Disable OpenTelemetry export from the console itself. Defaults to `false`.
+</ResponseField>
+
+<ResponseField name="--otel-service-name" type="string">
+  Service name used for the console's own OTEL traces. Defaults to `iii-console`.
+</ResponseField>
+
+<ResponseField name="--enable-flow" type="boolean">
+  Enable the Flow visualization page. Defaults to `false`.
+</ResponseField>
+
+## Environment Variables
+
+Environment variables can be used instead of (or in addition to) CLI flags:
+
+| Variable            | Equivalent Flag         | Description                    |
+|---------------------|------------------------|--------------------------------|
+| `OTEL_DISABLED`     | `--no-otel`            | Disable OTEL export            |
+| `OTEL_SERVICE_NAME` | `--otel-service-name`  | OTEL service name              |
+| `III_ENABLE_FLOW`   | `--enable-flow`        | Enable Flow visualization      |
+
+## Default Ports
+
+A typical local development setup uses these ports:
+
+| Service              | Port    | Description                      |
+|----------------------|---------|----------------------------------|
+| iii Engine REST API  | `3111`  | Engine HTTP API                  |
+| iii Engine WebSocket | `3112`  | Engine real-time updates         |
+| iii Console UI       | `3113`  | Console web interface            |
+| iii SDK Bridge       | `49134` | SDK bridge WebSocket connection  |
+
+## Examples
+
+### Local Development (Defaults)
+
+```bash
+# Start the engine
+iii --config iii-config.yaml
+
+# Start the console (connects to localhost automatically)
+iii-console
+```
+
+### Remote Engine
+
+Connect the console to an engine running on a different host:
+
+```bash
+iii-console --engine-host 192.168.1.50 --engine-port 3111 --ws-port 3112
+```
+
+### Custom Port
+
+Run the console on a different port:
+
+```bash
+iii-console --port 8080
+```
+
+### All Features Enabled
+
+```bash
+iii-console --enable-flow --otel-service-name my-console
+```
+
+## Config Page
+
+The console includes a **Config** page (accessible from the sidebar) that displays the current runtime configuration: engine connectivity, port information, OpenTelemetry settings, and service version.

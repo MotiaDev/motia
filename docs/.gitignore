@@ -26,3 +26,5 @@ yarn-error.log*
 next-env.d.ts
 
 .idea/
+.omc
+AGENTS.md
