@@ -66,7 +66,7 @@ async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_context
         patch("motia.runtime.get_context", return_value=mock_context),
     ):
         motia = Motia()
-        motia.add_step(config, "steps/test.step.py", handler)
+        motia.add_step(config, "steps/test_step.py", handler)
 
         # Get the registered handler
         api_handler = mock_bridge.register_function.call_args_list[0][0][1]
@@ -106,7 +106,7 @@ async def test_event_handler_creates_span(otel_exporter, mock_bridge, mock_conte
         patch("motia.runtime.get_context", return_value=mock_context),
     ):
         motia = Motia()
-        motia.add_step(config, "steps/test.step.py", handler)
+        motia.add_step(config, "steps/test_step.py", handler)
 
         # Get the registered handler
         event_handler = mock_bridge.register_function.call_args_list[0][0][1]
@@ -144,7 +144,7 @@ async def test_handler_error_records_on_span(otel_exporter, mock_bridge, mock_co
         patch("motia.runtime.get_context", return_value=mock_context),
     ):
         motia = Motia()
-        motia.add_step(config, "steps/test.step.py", handler)
+        motia.add_step(config, "steps/test_step.py", handler)
 
         event_handler = mock_bridge.register_function.call_args_list[0][0][1]
 
@@ -182,7 +182,7 @@ async def test_trace_id_uses_otel_trace_id(otel_exporter, mock_bridge, mock_cont
         patch("motia.runtime.get_context", return_value=mock_context),
     ):
         motia = Motia()
-        motia.add_step(config, "steps/test.step.py", handler)
+        motia.add_step(config, "steps/test_step.py", handler)
 
         api_handler = mock_bridge.register_function.call_args_list[0][0][1]
         await api_handler({"method": "GET", "path": "/trace", "body": None, "headers": {}})

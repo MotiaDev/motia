@@ -91,7 +91,7 @@ async def test_api_step_creates_trace(otel_exporter, patch_motia_bridge, api_url
         name=step_name,
         triggers=[http("POST", path)],
     )
-    motia.add_step(config, f"steps/{step_name}.step.py", handler)
+    motia.add_step(config, f"steps/{step_name}_step.py", handler)
 
     # Flush the bridge queue so the engine registers our step
     await flush_bridge_queue(patch_motia_bridge)
@@ -113,8 +113,7 @@ async def test_api_step_creates_trace(otel_exporter, patch_motia_bridge, api_url
     spans = otel_exporter.get_finished_spans()
     step_spans = [s for s in spans if s.name == f"step:{step_name}"]
     assert len(step_spans) >= 1, (
-        f"Expected at least one span named 'step:{step_name}', "
-        f"got spans: {[s.name for s in spans]}"
+        f"Expected at least one span named 'step:{step_name}', " f"got spans: {[s.name for s in spans]}"
     )
 
     span = step_spans[0]
@@ -144,7 +143,7 @@ async def test_enqueue_creates_child_span(otel_exporter, patch_motia_bridge, api
         name=step_name,
         triggers=[http("POST", path)],
     )
-    motia.add_step(config, f"steps/{step_name}.step.py", handler)
+    motia.add_step(config, f"steps/{step_name}_step.py", handler)
 
     await flush_bridge_queue(patch_motia_bridge)
     await asyncio.sleep(0.5)
@@ -160,15 +159,11 @@ async def test_enqueue_creates_child_span(otel_exporter, patch_motia_bridge, api
 
     # Verify the parent step span exists
     step_spans = [s for s in spans if s.name == f"step:{step_name}"]
-    assert len(step_spans) >= 1, (
-        f"Expected at least one step span, got: {[s.name for s in spans]}"
-    )
+    assert len(step_spans) >= 1, f"Expected at least one step span, got: {[s.name for s in spans]}"
 
     # Verify enqueue child span exists
     enqueue_spans = [s for s in spans if s.name == "enqueue"]
-    assert len(enqueue_spans) >= 1, (
-        f"Expected at least one 'enqueue' span, got: {[s.name for s in spans]}"
-    )
+    assert len(enqueue_spans) >= 1, f"Expected at least one 'enqueue' span, got: {[s.name for s in spans]}"
 
 
 @pytest.mark.asyncio
@@ -179,12 +174,7 @@ async def test_engine_receives_traceparent(bridge):
     try:
         result = await bridge.call("engine.traces.list", {"limit": 10})
     except Exception:
-        pytest.skip(
-            "Engine does not support 'engine.traces.list' RPC; "
-            "skipping traceparent verification"
-        )
+        pytest.skip("Engine does not support 'engine.traces.list' RPC; " "skipping traceparent verification")
 
     # If the call succeeds, the result should be a list (possibly empty)
-    assert isinstance(result, (list, dict)), (
-        f"Expected list or dict from engine.traces.list, got {type(result)}"
-    )
+    assert isinstance(result, (list, dict)), f"Expected list or dict from engine.traces.list, got {type(result)}"

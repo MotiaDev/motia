@@ -55,7 +55,7 @@ def discover_steps(directory: str, *, include_src: bool = False) -> list[str]:
     directories = [directory]
     if include_src and directory != "src":
         directories.append("src")
-    return _discover_files(directories, "*.step.py")
+    return _discover_files(directories, "*_step.py")
 
 
 def discover_streams(directory: str, *, include_src: bool = False) -> list[str]:
@@ -63,7 +63,7 @@ def discover_streams(directory: str, *, include_src: bool = False) -> list[str]:
     directories = [directory]
     if include_src and directory != "src":
         directories.append("src")
-    return _discover_files(directories, "*.stream.py")
+    return _discover_files(directories, "*_stream.py")
 
 
 def configure_logging(verbose: bool = False) -> None:
