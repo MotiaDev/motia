@@ -302,6 +302,7 @@ A single step can have multiple triggers of different kinds (HTTP, queue, cron, 
 
 | Old | New |
 |---|---|
+| `import { ... } from '@motiadev/core'` | `import { ... } from 'motia'` |
 | `ApiRouteConfig` | `StepConfig` |
 | `EventConfig` | `StepConfig` |
 | `CronConfig` | `StepConfig` |
@@ -349,7 +350,7 @@ In the old version these were "API steps" -- a dedicated step type with `type: '
 ### Before (Old)
 
 ```typescript
-import { ApiRouteConfig, Handlers } from 'motia'
+import { ApiRouteConfig, Handlers } from '@motiadev/core'
 import { z } from 'zod'
 
 const bodySchema = z.object({
@@ -472,7 +473,7 @@ The concept of "event steps" that subscribe to topics no longer exists as a step
 ### Before (Old)
 
 ```typescript
-import { EventConfig, Handlers } from 'motia'
+import { EventConfig, Handlers } from '@motiadev/core'
 import { z } from 'zod'
 
 export const config: EventConfig = {
@@ -575,7 +576,7 @@ triggers: [
 ### Before (Old)
 
 ```typescript
-import { CronConfig, Handlers } from 'motia'
+import { CronConfig, Handlers } from '@motiadev/core'
 
 export const config: CronConfig = {
   type: 'cron',
@@ -608,7 +609,7 @@ export const config = {
   triggers: [
     {
       type: 'cron',
-      expression: '0 0 5 * * * *',
+      expression: '0 0 5 * * *',
     },
   ],
   enqueues: ['collect-metrics'],
@@ -629,13 +630,13 @@ export const handler: Handlers<typeof config> = async (input, { logger, enqueue 
 | Old | New |
 |---|---|
 | `type: 'cron'` at config root | `triggers: [{ type: 'cron', expression }]` |
-| `cron: '0 5 * * *'` (5-field) | `expression: '0 0 5 * * * *'` (7-field, includes seconds and year) |
+| `cron: '0 5 * * *'` (5-field) | `expression: '0 0 5 * * *'` (6-field: prepend seconds; 7th year field optional) |
 | Handler: `async ({ logger, emit })` | Handler: `async (input, { logger, enqueue })` |
 | `emit()` | `enqueue()` |
 
 ### Cron Expression Format
 
-The new engine uses a 7-field cron expression:
+The new engine uses a 6-field cron expression (7th year field is optional):
 
 ```
 ┌──────────── second (0-59)
@@ -651,10 +652,10 @@ The new engine uses a 7-field cron expression:
 
 **Conversion examples:**
 
-| Old (5-field) | New (7-field) | Meaning |
+| Old (5-field) | New (6-field) | Meaning |
 |---|---|---|
-| `0 5 * * *` | `0 0 5 * * * *` | Daily at 5:00 AM |
-| `0 2 * * *` | `0 0 2 * * * *` | Daily at 2:00 AM |
+| `0 5 * * *` | `0 0 5 * * *` | Daily at 5:00 AM |
+| `0 2 * * *` | `0 0 2 * * *` | Daily at 2:00 AM |
 | `*/5 * * * *` | `0 */5 * * * * *` | Every 5 minutes |
 | `0 0 * * 0` | `0 0 0 * * 0 *` | Weekly on Sunday at midnight |
 
@@ -1051,6 +1052,7 @@ triggers: [
 
 ### Steps
 
+- [ ] Replace all `@motiadev/core` imports with `motia`
 - [ ] Replace all `ApiRouteConfig` / `EventConfig` / `CronConfig` imports with `StepConfig`
 - [ ] Convert all step configs to use `triggers[]` and `enqueues[]`
 - [ ] Add `as const satisfies StepConfig` to all configs
@@ -1061,7 +1063,7 @@ triggers: [
 - [ ] Move `method`, `path`, `bodySchema`, `responseSchema`, `middleware` into HTTP triggers
 - [ ] Move `infrastructure` from config root into queue triggers
 - [ ] Change `type: 'api'` to `type: 'http'` in all triggers
-- [ ] Move `cron` into cron triggers as `expression` (and convert to 7-field format)
+- [ ] Move `cron` into cron triggers as `expression` (prepend seconds; 7th year field is optional)
 - [ ] Remove `type` field from config root
 - [ ] Remove `middleware` field from all step configs
 - [ ] Replace `virtualEmits` with `virtualEnqueues` (format changes from `[{ topic, label }]` to `['topic']`)
@@ -1085,7 +1087,7 @@ triggers: [
 
 ### Cron Expressions
 
-- [ ] Convert all 5-field cron expressions to 7-field format (prepend seconds, append year)
+- [ ] Convert all 5-field cron expressions to 6-field format (prepend seconds; 7th year field is optional)
 - [ ] Rename `cron` field to `expression` inside trigger objects
 
 ### Python (if applicable)
@@ -1174,6 +1176,19 @@ dev = ["pytest>=8.0.0"]
 package = false
 ```
 
+> **Migrating from `requirements.txt`:** Move your existing dependencies from `requirements.txt` into the `dependencies` list in `pyproject.toml`. For example, if your `requirements.txt` has `openai>=1.40.0` and `httpx>=0.27.0`, add them alongside the Motia packages:
+> ```toml
+> dependencies = [
+>   "motia[otel]==1.0.0rc17",
+>   "iii-sdk==0.2.0",
+>   "pydantic>=2.0",
+>   # Your existing dependencies:
+>   "openai>=1.40.0",
+>   "httpx>=0.27.0",
+> ]
+> ```
+> Then delete `requirements.txt` — `uv sync` will install everything from `pyproject.toml`.
+
 ### Python Step Migration -- Quick Reference
 
 | Concern | Old | New |
@@ -1193,6 +1208,12 @@ package = false
 | Streams | `ctx.streams.streamName.get(group_id, id)` | `Stream("name")` module-level declaration |
 | Logger | `context.logger` | `ctx.logger` |
 | Trace ID | `context.trace_id` | `ctx.trace_id` |
+| Path params | `req.get("pathParams", {}).get("id")` | `request.path_params["id"]` |
+| Query params | `req.get("queryParams", {})` | `request.query_params` |
+| Headers | `req.get("headers", {})` | `request.headers` |
+| Labeled enqueues | `"emits": [{"topic": "x", "label": "y", "conditional": True}]` | `"enqueues": [{"topic": "x", "label": "y", "conditional": True}]` (same format, key renamed) |
+
+> **Note on parameter names:** The migration examples use `ctx` and `input_data` as handler parameter names by convention, but any valid Python names work (e.g., `context`, `data`). The framework identifies handlers by function name (`handler`) and argument count, not parameter names.
 
 ### API Steps
 
@@ -1283,6 +1304,8 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 5. Handler receives typed `ApiRequest` and returns `ApiResponse` instead of raw dicts.
 6. `req.get("body", {})` becomes `request.body`.
 7. File naming changes from `api_step.py` to `classify-bill-api.step.py`.
+8. `req.get("pathParams", {}).get("id")` becomes `request.path_params["id"]`.
+9. `req.get("queryParams", {})` becomes `request.query_params`.
 
 #### API Trigger Advanced Options
 
@@ -1299,6 +1322,41 @@ api("POST", "/orders",
     condition=is_authorized,
 )
 ```
+
+#### `ApiRequest` and `ApiResponse` Fields
+
+The `ApiRequest` object replaces the old raw `req` dict. Here are all available fields:
+
+| Field | Type | Old equivalent | Description |
+|---|---|---|---|
+| `request.body` | `TBody \| None` | `req.get("body", {})` | Parsed request body |
+| `request.path_params` | `dict[str, str]` | `req.get("pathParams", {})` | URL path parameters (e.g., `/users/:id` → `{"id": "123"}`) |
+| `request.query_params` | `dict[str, str \| list[str]]` | `req.get("queryParams", {})` | URL query parameters |
+| `request.headers` | `dict[str, str \| list[str]]` | `req.get("headers", {})` | HTTP request headers |
+
+The `ApiResponse` object replaces the old raw return dict:
+
+| Field | Type | Old equivalent | Description |
+|---|---|---|---|
+| `status` | `int` | `"status"` key | HTTP status code |
+| `body` | `Any` | `"body"` key | Response body |
+| `headers` | `dict[str, str]` | N/A (new) | Response headers (optional) |
+
+**Example — GET endpoint with path parameters:**
+
+```python
+# Old:
+async def handler(req, context):
+    ingestion_id = req.get("pathParams", {}).get("ingestion_id")
+    return {"status": 200, "body": {"id": ingestion_id}}
+
+# New:
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[dict]:
+    ingestion_id = request.path_params["ingestion_id"]
+    return ApiResponse(status=200, body={"id": ingestion_id})
+```
+
+> **Note:** Path parameter syntax in routes is unchanged — use `:param` style (e.g., `api("GET", "/ingest/:ingestion_id")`).
 
 #### Python Middleware
 
@@ -1416,7 +1474,20 @@ async def handler(input_data: dict[str, Any], ctx: FlowContext[Any]) -> None:
 4. `"emits"` becomes `"enqueues"`.
 5. `context.emit()` becomes `ctx.enqueue()`.
 
-**Subscribing to multiple topics** -- a single step can listen to multiple queue topics by adding multiple triggers:
+**Labeled enqueues** — The `"enqueues"` field supports both simple strings and dicts with metadata, exactly as the old `"emits"` did:
+
+```python
+# Simple format
+"enqueues": ["notification", "audit-log"]
+
+# Labeled format (same structure as old "emits")
+"enqueues": [
+    {"topic": "notification", "label": "Send email notification"},
+    {"topic": "audit-log", "label": "Log to audit trail", "conditional": True},
+]
+```
+
+**Subscribing to multiple topics** — a single step can listen to multiple queue topics by adding multiple triggers:
 
 ```python
 config = {
@@ -1995,6 +2066,8 @@ async def handler(input_data: dict[str, Any], ctx: FlowContext[Any]) -> None:
 - [ ] Create `pyproject.toml` with `motia[otel]`, `iii-sdk`, and `pydantic` dependencies
 - [ ] Run `uv sync` to install dependencies — Node.js is no longer required
 - [ ] Add a Python ExecModule entry in `config.yaml`
+- [ ] Delete `motia.config.ts`, `package.json`, and `tsconfig.json` if this is a Python-only project (replaced by `config.yaml` and `pyproject.toml`)
+- [ ] Delete `motia-workbench.json` (replaced by iii Console — see [Section 13](#13-workbench-plugins-and-console))
 
 #### File Changes
 - [ ] Rename step files from `*_step.py` to `*.step.py`
@@ -2008,12 +2081,19 @@ async def handler(input_data: dict[str, Any], ctx: FlowContext[Any]) -> None:
 - [ ] Convert 5-field cron expressions to 6-field (prepend seconds; 7th year field optional)
 - [ ] Move `"input": schema` from config root into `queue("topic", input=schema)`
 - [ ] Rename `"emits"` to `"enqueues"` in all configs
+- [ ] Move `"bodySchema"` from config root into `api("POST", "/path", body_schema=...)` trigger
+- [ ] Move `"responseSchema"` from config root into `api("POST", "/path", response_schema=...)` trigger
+- [ ] Move `"queryParams"` from config root into `api("GET", "/path", query_params=...)` trigger
 
 #### Handler Migration
 - [ ] Replace `context.emit()` with `ctx.enqueue()` in all handlers
 - [ ] Replace `context.state.get_group()` with `ctx.state.list()`
 - [ ] Update cron handler signature from `async def handler(context)` to `async def handler(input_data, ctx)`
 - [ ] Update API handlers to use `ApiRequest` / `ApiResponse` types
+- [ ] Replace `req.get("pathParams", {}).get("x")` with `request.path_params["x"]`
+- [ ] Replace `req.get("queryParams", {})` with `request.query_params`
+- [ ] Replace `req.get("headers", {})` with `request.headers`
+- [ ] Replace `return {"status": N, "body": {...}}` with `return ApiResponse(status=N, body={...})`
 - [ ] Replace `ctx.streams.streamName.get(...)` with module-level `Stream("name")` declarations
 
 #### New Features (Optional)
