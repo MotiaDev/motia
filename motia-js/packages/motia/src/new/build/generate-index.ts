@@ -2,18 +2,22 @@ import { existsSync, readFileSync } from 'fs'
 import { globSync } from 'glob'
 import path from 'path'
 
+const toRelativePosix = (file: string): string => {
+  return './' + path.relative(process.cwd(), file).replace(/\\/g, '/')
+}
+
 export const getStreamFilesFromDir = (dir: string): string[] => {
   if (!existsSync(dir)) {
     return []
   }
-  return globSync('**/*.stream.{ts,js}', { absolute: true, cwd: dir }).map((file) => file.replace(process.cwd(), '.'))
+  return globSync('**/*.stream.{ts,js}', { absolute: true, cwd: dir }).map(toRelativePosix)
 }
 
 export const getStepFilesFromDir = (dir: string): string[] => {
   if (!existsSync(dir)) {
     return []
   }
-  return globSync('**/*.step.{ts,js}', { absolute: true, cwd: dir }).map((file) => file.replace(process.cwd(), '.'))
+  return globSync('**/*.step.{ts,js}', { absolute: true, cwd: dir }).map(toRelativePosix)
 }
 
 const toSnakeCaseConst = (filePath: string) => {
@@ -58,11 +62,10 @@ export const generateIndex = () => {
 
   const steps = stepFiles.map((file) => {
     const constName = toSnakeCaseConst(file)
-    const filePath = file.replace(process.cwd(), '.')
 
     return {
       importStatement: `import * as ${constName} from '${file}';`,
-      content: `motia.addStep(${constName}.config, '${file}', ${constName}.handler, '${filePath}');`,
+      content: `motia.addStep(${constName}.config, '${file}', ${constName}.handler, '${file}');`,
     }
   })
 
