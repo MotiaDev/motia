@@ -1,18 +1,30 @@
 ---
-title: 'Trigger Types'
+title: 'Triggers'
+description: 'Triggers are entrypoints into a iii system. Learn about trigger types, configuration, conditions, and lifecycle.'
 ---
 
-Trigger Types define different ways to invoke functions in the iii Engine.
+Triggers are entrypoints into a iii system. Each trigger defines the conditions that cause it to fire, a payload it accepts, and a function that it will invoke. When a trigger fires, the function is invoked with that payload.
 
-## What are Trigger Types?
+## Trigger Components
 
-A Trigger Type is a mechanism that can initiate function execution. The iii Engine supports multiple trigger types, each serving different use cases:
+A trigger consists of three parts:
 
-- **[API](/docs/modules/module-rest-api)**: HTTP requests
-- **[Queue](/docs/modules/module-queue)**: Published events on topics
-- **[Cron](/docs/modules/module-cron)**: Scheduled time-based execution
-- **[Log](/docs/modules/module-observability)**: System log events
-- **[Streams](/docs/modules/module-stream)**: Stream connection lifecycle (join/leave)
+1. **Trigger Type**: The mechanism that initiates execution (http, queue, cron, log, stream)
+2. **Configuration**: Type-specific settings (path, schedule, topics)
+3. **Function ID**: The function to invoke when triggered
+
+```typescript
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
+  config: {
+    api_path: '/users',
+    http_method: 'POST',
+  },
+})
+```
+
+## Core Trigger Types
 
 ```mermaid
 graph LR
@@ -25,8 +37,6 @@ graph LR
     Engine --> Function[Execute Function]
 ```
 
-## Core Trigger Types
-
 ### API Trigger (`api`)
 
 Executes functions in response to HTTP requests.
@@ -38,6 +48,7 @@ Executes functions in response to HTTP requests.
 ```typescript
 {
   type: 'http',
+  function_id: fn.id,
   config: {
     api_path: '/users/:id',
     http_method: 'GET'
@@ -49,7 +60,15 @@ Executes functions in response to HTTP requests.
 
 **Output**: `ApiResponse` with status_code, body, headers
 
-**Conditions**: Optional. Add `_condition_path` to config with a function ID. The engine invokes it before the handler; if it returns `false`, the handler is skipped. See [Trigger Conditions](/docs/using/triggers#trigger-conditions).
+**Conditions**: Optional. Add `_condition_path` to config with a function ID. The engine invokes it before the handler; if it returns `false`, the handler is skipped. See [Trigger Conditions](#trigger-conditions).
+
+**Path Parameters**: Extract values from URL
+
+```typescript
+// Trigger: api_path: '/users/:userId/posts/:postId'
+// Request: GET /users/123/posts/456
+// Handler receives: { path_params: { userId: '123', postId: '456' } }
+```
 
 <Card icon={<Globe />} title="REST API Module" href="/docs/modules/module-rest-api">
   Learn more about the API trigger
@@ -79,7 +98,9 @@ Executes functions when events are published to subscribed topics.
 
 **Output**: Function result (optional, fire-and-forget pattern supported)
 
-**Conditions**: Optional. Add `_condition_path` to config. See [Trigger Conditions](/docs/using/triggers#trigger-conditions).
+**Conditions**: Optional. Add `_condition_path` to config. See [Trigger Conditions](#trigger-conditions).
+
+**Multiple Topics**: Register separate triggers for each topic.
 
 <Card icon={<Zap />} title="Queue Module" href="/docs/modules/module-queue">
   Learn more about the Queue trigger
@@ -109,7 +130,9 @@ Executes functions on a time-based schedule using cron expressions.
 
 **Output**: Function result
 
-**Conditions**: Optional. Add `condition_function_id` to config. See [Trigger Conditions](/docs/using/triggers#trigger-conditions).
+**Conditions**: Optional. Add `condition_function_id` to config. See [Trigger Conditions](#trigger-conditions).
+
+**Cron Expression**: Standard 5-field format (minute hour day month weekday)
 
 <Card icon={<Clock />} title="Cron Module" href="/docs/modules/module-cron">
   Learn more about the Cron trigger
@@ -138,6 +161,8 @@ Executes functions when log entries match specified criteria.
 **Input**: Log entry with trace_id, message, level, function_name, date
 
 **Output**: Function result (useful for alerting, metrics)
+
+**Log Levels**: `info`, `warn`, `error`, `debug` (omit to receive all levels)
 
 <Card icon={<FileText />} title="Observability Module" href="/docs/modules/module-observability">
   Learn more about the Log trigger
@@ -171,7 +196,7 @@ Executes functions when clients connect to or disconnect from streams.
 
 **Output**: Function result (useful for access control, analytics)
 
-**Conditions**: Optional. Add `condition_function_id` to config for stream:join/stream:leave. See [Trigger Conditions](/docs/using/triggers#trigger-conditions).
+**Conditions**: Optional. Add `condition_function_id` to config for stream:join/stream:leave. See [Trigger Conditions](#trigger-conditions).
 
 <Card icon={<Activity />} title="Stream Module" href="/docs/modules/module-stream">
   Learn more about Stream triggers
@@ -188,9 +213,54 @@ Executes functions when clients connect to or disconnect from streams.
 | **stream:join**  | Stream connections    | ✗ No        | ✓ Yes                   |
 | **stream:leave** | Stream disconnections | ✗ No        | ✓ Yes                   |
 
-## Registering Trigger Types
+## Registering Triggers
 
-Trigger types are registered by Core Modules during engine initialization:
+Triggers are registered by workers after establishing a connection to the engine:
+
+```mermaid
+sequenceDiagram
+    participant W as Worker
+    participant E as Engine
+    participant M as Module
+
+    W->>E: Connect WebSocket
+    W->>E: Register Function<br/>(users.create)
+    W->>E: Register Trigger<br/>(api, POST /users)
+    E->>M: Setup Trigger
+    M-->>E: Trigger Ready
+    E-->>W: Trigger Registered
+```
+
+**Step 1: Register Function**
+
+First, register the function that will be invoked:
+
+```typescript
+const fn = iii.registerFunction({ id: 'users.create' }, async (data) => {
+  return { id: '123', ...data }
+})
+```
+
+**Step 2: Register Trigger**
+
+Then, register a trigger that routes to that function:
+
+```typescript
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
+  config: {
+    api_path: '/users',
+    http_method: 'POST',
+  },
+})
+```
+
+**Step 3: Trigger Active**
+
+The engine sets up the trigger in the appropriate module. When an HTTP POST request comes to `/users`, the `users.create` function will be invoked.
+
+Trigger types are registered by core modules during engine initialization:
 
 ```mermaid
 sequenceDiagram
@@ -206,19 +276,289 @@ sequenceDiagram
     Note over R: Trigger types available for workers
 ```
 
-Workers can then register triggers using these types:
+## Multiple Triggers to One Function
+
+A single function can have multiple triggers:
 
 ```typescript
-const fn = iii.registerFunction({ id: 'api.getUser' }, handler)
+const fn = iii.registerFunction({ id: 'users.notify' }, async (data) => {
+  await sendNotification(data)
+})
+
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
+  config: { api_path: '/notify', http_method: 'POST' },
+})
+
+iii.registerTrigger({
+  type: 'queue',
+  function_id: fn.id,
+  config: { topic: 'user.created' },
+})
+
+iii.registerTrigger({
+  type: 'cron',
+  function_id: fn.id,
+  config: { cron: '0 9 * * *' },
+})
+```
+
+**Use Case**: Send notifications via API calls, events, or scheduled jobs using the same logic.
+
+## Trigger Conditions
+
+Triggers can optionally use a **condition function** to decide whether the handler should run. The engine invokes the condition with the trigger payload before the main handler. If it returns `false`, the handler is not invoked.
+
+**Supported trigger types**: http, queue, cron, stream, state
+
+### How It Works
+
+1. Register a condition function that receives the same input as the handler and returns a boolean.
+2. Add `condition_function_id` to the trigger config (or `_condition_path` for http/queue triggers).
+3. When the trigger fires, the engine calls the condition first. Only if it returns truthy does the handler run.
+
+### Example: HTTP Trigger with Condition
+
+```typescript
+const conditionFn = iii.registerFunction(
+  { id: 'conditions.requireVerified' },
+  async (req) => req.headers?.['x-verified'] === 'true',
+)
+
+const fn = iii.registerFunction({ id: 'api.verifiedOnly' }, async (req) => ({
+  status_code: 200,
+  body: { message: 'Verified request' },
+}))
+
 iii.registerTrigger({
   type: 'http',
   function_id: fn.id,
   config: {
-    api_path: '/users/:id',
-    http_method: 'GET',
+    api_path: '/verified',
+    http_method: 'POST',
+    _condition_path: conditionFn.id,
   },
 })
 ```
+
+### Example: Queue Trigger with Condition
+
+```typescript
+const conditionFn = iii.registerFunction(
+  { id: 'conditions.highValue' },
+  async (data) => (data?.amount ?? 0) > 1000,
+)
+
+const fn = iii.registerFunction({ id: 'orders.processHighValue' }, async (order) => {
+  await processHighValueOrder(order)
+  return {}
+})
+
+iii.registerTrigger({
+  type: 'queue',
+  function_id: fn.id,
+  config: {
+    topic: 'order.placed',
+    _condition_path: conditionFn.id,
+  },
+})
+```
+
+### Example: State Trigger with Condition
+
+```typescript
+const conditionFn = iii.registerFunction(
+  { id: 'conditions.profileChanged' },
+  async (event) => event.event_type === 'state:updated' && event.key === 'profile',
+)
+
+const fn = iii.registerFunction({ id: 'state.onProfileUpdate' }, async (event) => {
+  console.log('Profile updated:', event.new_value)
+  return {}
+})
+
+iii.registerTrigger({
+  type: 'state',
+  function_id: fn.id,
+  config: {
+    scope: 'users',
+    condition_function_id: conditionFn.id,
+  },
+})
+```
+
+### Config Keys by Trigger Type
+
+| Trigger Type | Condition Config Key |
+|--------------|----------------------|
+| http | `_condition_path` |
+| queue | `_condition_path` |
+| cron | `condition_function_id` |
+| stream, stream:join, stream:leave | `condition_function_id` |
+| state | `condition_function_id` |
+
+## Trigger Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Registered: registerTrigger()
+    Registered --> Active: Engine Setup
+    Active --> Invoked: Trigger Fires
+    Invoked --> Active: Function Completes
+    Active --> Unregistered: unregisterTrigger()
+    Unregistered --> [*]
+```
+
+### Unregistering Triggers
+
+Remove triggers dynamically. `registerTrigger` returns a trigger object with `unregister()`:
+
+```typescript
+const fn = iii.registerFunction({ id: 'api.temp' }, async () => ({ status_code: 200, body: {} }))
+const trigger = iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
+  config: { api_path: '/temp', http_method: 'GET' },
+})
+
+trigger.unregister()
+```
+
+## Usage Patterns
+
+### Webhook Handler
+
+```typescript
+const fn = iii.registerFunction({ id: 'webhooks.github' }, async (req) => {
+  const event = req.headers?.['x-github-event']
+  const payload = req.body
+
+  await processGitHubWebhook(event, payload)
+
+  return { status_code: 200, body: { received: true } }
+})
+
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
+  config: {
+    api_path: '/webhooks/github',
+    http_method: 'POST',
+  },
+})
+```
+
+### Event Chain
+
+```typescript
+const processFn = iii.registerFunction({ id: 'orders.process' }, async (order) => {
+  await saveOrder(order)
+  await iii.call('enqueue', {
+    topic: 'order.processed',
+    data: order,
+  })
+})
+
+iii.registerTrigger({
+  type: 'queue',
+  function_id: processFn.id,
+  config: { topic: 'order.placed' },
+})
+
+const confirmFn = iii.registerFunction({ id: 'orders.sendConfirmation' }, async (order) => {
+  await sendEmail(order.email, 'Order confirmed')
+})
+
+iii.registerTrigger({
+  type: 'queue',
+  function_id: confirmFn.id,
+  config: { topic: 'order.processed' },
+})
+```
+
+### Scheduled Cleanup
+
+```typescript
+const fn = iii.registerFunction({ id: 'maintenance.cleanup' }, async () => {
+  const deleted = await deleteOldRecords()
+  logger.info(`Deleted ${deleted} old records`)
+})
+
+iii.registerTrigger({
+  type: 'cron',
+  function_id: fn.id,
+  config: {
+    cron: '0 3 * * *',
+  },
+})
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Descriptive Trigger IDs">
+    Provide unique IDs for easier management:
+
+    ```typescript
+    const trigger = iii.registerTrigger({
+      type: 'http',
+      function_id: fn.id,
+      config: { api_path: '/users', http_method: 'POST' }
+    })
+    ```
+
+  </Accordion>
+
+  <Accordion title="Match Function Capabilities">
+    Ensure trigger configuration matches what the function expects:
+
+    ```typescript
+    const fn = iii.registerFunction({ id: 'users.create' }, async ({ name, email }) => { /* ... */ })
+
+    iii.registerTrigger({
+      type: 'http',
+      function_id: fn.id,
+      config: { api_path: '/users', http_method: 'POST' }
+    })
+    ```
+
+  </Accordion>
+
+  <Accordion title="Namespace Your Paths">
+    Use consistent path patterns:
+
+    ```typescript
+    // Good: Organized, versioned
+    api_path: '/api/v1/users'
+    api_path: '/api/v1/orders'
+
+    // Avoid: Inconsistent
+    api_path: '/getUsers'
+    api_path: '/order-list'
+    ```
+
+  </Accordion>
+
+  <Accordion title="Handle Trigger Errors">
+    Functions should handle errors gracefully:
+
+    ```typescript
+    iii.registerFunction({ id: 'api.create' }, async (req) => {
+      try {
+        const result = await createResource(req.body)
+        return { status_code: 201, body: result }
+      } catch (error) {
+        return {
+          status_code: 400,
+          body: { error: error.message }
+        }
+      }
+    })
+    ```
+
+  </Accordion>
+</AccordionGroup>
 
 ## Custom Trigger Types
 
@@ -240,69 +580,11 @@ impl CoreModule for CustomModule {
 }
 ```
 
-## Usage Patterns
-
-### HTTP API Endpoints
-
-```typescript
-const fn = iii.registerFunction({ id: 'api.getUser' }, async (req) => ({
-  status_code: 200,
-  body: { user: { id: req.path_params?.id } },
-}))
-
-iii.registerTrigger({
-  type: 'http',
-  function_id: fn.id,
-  config: {
-    api_path: '/users/:id',
-    http_method: 'GET',
-  },
-})
-```
-
-### Event-Driven Workflows
-
-```typescript
-await iii.call('enqueue', {
-  topic: 'order.placed',
-  data: { orderId: '123', amount: 99.99 },
-})
-
-const fn = iii.registerFunction({ id: 'notifications.sendOrderEmail' }, async (data) => {
-  await sendEmail(data)
-})
-
-iii.registerTrigger({
-  type: 'queue',
-  function_id: fn.id,
-  config: {
-    topic: 'order.placed',
-  },
-})
-```
-
-### Scheduled Jobs
-
-```typescript
-const fn = iii.registerFunction({ id: 'jobs.dailyReport' }, async () => {
-  const report = await generateReport()
-  await sendReport(report)
-})
-
-iii.registerTrigger({
-  type: 'cron',
-  function_id: fn.id,
-  config: {
-    cron: '0 9 * * *',
-  },
-})
-```
-
 ## Next Steps
 
 <Columns cols={2}>
-  <Card icon={<Recycle />} title="Triggers" href="/docs/using/triggers">
-    Learn how to register and configure triggers
+  <Card icon={<Parentheses />} title="Remote Functions" href="/docs/remote-functions">
+    Understand how to write functions
   </Card>
   <Card icon={<Blocks />} title="Core Modules" href="/docs/modules">
     Explore modules that provide trigger types

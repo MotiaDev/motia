@@ -1,5 +1,6 @@
 {
   "title": "Modules",
+  "defaultOpen": true,
   "pages": [
     "module-rest-api",
     "module-queue",

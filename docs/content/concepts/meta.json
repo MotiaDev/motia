@@ -1,4 +1,5 @@
 {
   "title": "Concepts",
+  "defaultOpen": true,
   "pages": ["call", "register"]
 }

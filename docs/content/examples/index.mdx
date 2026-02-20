@@ -1,0 +1,48 @@
+---
+title: 'Examples'
+description: 'Real-world code examples for every trigger type and pattern — shown in TypeScript, Python, and Rust.'
+---
+
+Each example uses the **iii SDK** directly. Every page shows the same pattern in three languages so you can pick whichever fits your stack.
+
+<Cards>
+  <Card title="Hello World" href="/docs/examples/hello-world">
+    An HTTP endpoint that publishes an event and a background handler that processes it. The simplest end-to-end flow.
+  </Card>
+  <Card title="Todo App" href="/docs/examples/todo-app">
+    Full CRUD (create, update, delete) backed by a custom stream implementation, showing `iii.createStream`.
+  </Card>
+  <Card title="Multi-Trigger" href="/docs/examples/multi-trigger">
+    One function registered with multiple triggers — HTTP, queue, and cron — with per-trigger dispatch logic.
+  </Card>
+  <Card title="Conditions" href="/docs/examples/conditions">
+    Guard logic inside handlers that filters execution based on business rules before doing any work.
+  </Card>
+  <Card title="State Management" href="/docs/examples/state-management">
+    Read and write distributed key-value state via `state::get` / `state::set` and react to changes.
+  </Card>
+  <Card title="Cron Jobs" href="/docs/examples/cron">
+    Schedule recurring tasks with cron expressions and fan out work through the queue.
+  </Card>
+  <Card title="Observability" href="/docs/examples/observability">
+    Structured logging, trace ID propagation, and OpenTelemetry across a multi-step workflow.
+  </Card>
+</Cards>
+
+## SDK model
+
+All three SDKs share the same concepts. The table below shows the equivalent primitives in each language.
+
+| Concept | TypeScript | Python | Rust |
+|---|---|---|---|
+| Init | `init(url)` | `III(address=url)` | `III::new(url)` |
+| Register function | `iii.registerFunction({ id }, handler)` | `iii.register_function(id, fn)` | `iii.register_function(id, \|input\| ...)` |
+| Register trigger | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger(type, function_id, config)` | `iii.register_trigger(type, id, json!({...}))` |
+| Context | `getContext()` | `get_context()` | `iii_sdk::get_context()` |
+| Publish event | `iii.call('queue::enqueue', { topic, data })` | `await iii.call("queue::enqueue", {...})` | `iii.call_void("queue::enqueue", json!({...}))` |
+| State write | `iii.call('state::set', { scope, key, data })` | `await iii.call("state::set", {...})` | `iii.call_void("state::set", json!({...}))` |
+| Stream write | `iii.call('stream::set', { stream_name, group_id, item_id, data })` | `await iii.call("stream::set", {...})` | `streams.update(key, ops).await` |
+
+<Callout title="No framework required" type="info">
+  These examples use the iii SDK directly, with no Motia framework layer. There are no auto-discovered step files. Each worker is a plain application that connects, registers its functions and triggers, then enters an event loop.
+</Callout>

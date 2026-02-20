@@ -10,7 +10,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       tree={source.pageTree}
       {...baseOptions()}
       sidebar={{
-        collapsible: false,
+        collapsible: true,
         components: {
           Item: SidebarItem,
           Folder: SidebarFolder,
