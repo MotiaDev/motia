@@ -466,6 +466,8 @@ export const config = {
 } as const satisfies StepConfig
 ```
 
+> **Note:** The TypeScript SDK also exports `api()` as a deprecated alias for `http()`. If you encounter `api()` in migrated TypeScript code, it works identically but should be updated to `http()` for future compatibility. The Python SDK uses `api()` as the primary name (see [Section 12](#12-python-runtime)).
+
 ---
 
 ## 5. Queue Triggers (formerly Event Steps)
