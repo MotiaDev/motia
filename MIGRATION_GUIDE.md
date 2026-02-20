@@ -675,7 +675,7 @@ Stream definitions remain similar but the access API has changed.
 **Old:**
 
 ```typescript
-import { StreamConfig } from 'motia'
+import { StreamConfig } from '@motiadev/core'
 import { z } from 'zod'
 
 export const config: StreamConfig = {
@@ -884,7 +884,7 @@ In the old version, middleware was defined as `ApiMiddleware` functions and atta
 
 ```typescript
 // src/middleware/bearerToken.middleware.ts
-import { ApiMiddleware } from 'motia'
+import { ApiMiddleware } from '@motiadev/core'
 
 export const validateBearerToken: ApiMiddleware = async (req, ctx, next) => {
   const authToken = req.headers['authorization'] as string
