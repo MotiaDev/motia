@@ -353,7 +353,7 @@ In the old version these were "API steps" -- a dedicated step type with `type: '
 ### Before (Old)
 
 ```typescript
-import { ApiRouteConfig, Handlers } from '@motiadev/core'
+import { ApiRouteConfig, Handlers } from 'motia'
 import { z } from 'zod'
 
 const bodySchema = z.object({
@@ -468,7 +468,7 @@ export const config = {
 } as const satisfies StepConfig
 ```
 
-> **Note:** The TypeScript SDK also exports `api()` as a deprecated alias for `http()`. If you encounter `api()` in migrated TypeScript code, it works identically but should be updated to `http()` for future compatibility. The Python SDK uses `api()` as the primary name (see [Section 12](#12-python-runtime)).
+> **Note:** Both the TypeScript and Python SDKs use `http()` as the primary trigger helper. Both also export `api()` as a deprecated alias — it works identically but should be updated to `http()` for future compatibility.
 
 ---
 
@@ -1203,7 +1203,7 @@ package = false
 | Concern | Old | New |
 |---|---|---|
 | Config type field | `"type": "api"` / `"event"` / `"cron"` | Removed — use `triggers` list |
-| API trigger | `"method": "POST", "path": "/foo"` at config root | `api("POST", "/foo")` in `triggers` |
+| API trigger | `"method": "POST", "path": "/foo"` at config root | `http("POST", "/foo")` in `triggers` |
 | Event trigger | `"subscribes": ["topic"]` at config root | `queue("topic", input=schema)` in `triggers` |
 | Cron trigger | `"cron": "0 5 * * *"` at config root | `cron("0 0 5 * * *")` in `triggers` (6-field: prepend seconds; 7th year field optional) |
 | State trigger | N/A (new in v1.0) | `state(condition=fn)` in `triggers` |
@@ -1211,7 +1211,7 @@ package = false
 | Enqueue config (was `emits`) | `"emits": ["topic"]` | `"enqueues": ["topic"]` |
 | Enqueue function (was `emit`) | `context.emit({"topic": ..., "data": ...})` | `ctx.enqueue({"topic": ..., "data": ...})` |
 | Input schema location | `"input": Schema.model_json_schema()` at config root | `queue("topic", input=Schema.model_json_schema())` inside trigger |
-| Body schema location | `"bodySchema": Schema.model_json_schema()` at config root | `api("POST", "/foo", body_schema=Schema.model_json_schema())` inside trigger |
+| Body schema location | `"bodySchema": Schema.model_json_schema()` at config root | `http("POST", "/foo", body_schema=Schema.model_json_schema())` inside trigger |
 | File naming | `*_step.py` | `*.step.py` |
 | State list | `context.state.get_group("group")` | `ctx.state.list("group")` |
 | Streams | `ctx.streams.streamName.get(group_id, id)` | `Stream("name")` module-level declaration |
@@ -1273,7 +1273,7 @@ async def handler(req, context):
 # steps/petstore/classify-bill-api.step.py
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, api
+from motia import ApiRequest, ApiResponse, FlowContext, http
 from pydantic import BaseModel
 
 
@@ -1291,7 +1291,7 @@ class Bill(BaseModel):
 config = {
     "name": "BillClassifierAPI",
     "flows": ["classify-bill"],
-    "triggers": [api("POST", "/classify-bill")],
+    "triggers": [http("POST", "/classify-bill")],
     "enqueues": ["bill-created"],
 }
 
@@ -1307,11 +1307,9 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
     return ApiResponse(status=200, body={**new_bill, "traceId": ctx.trace_id})
 ```
 
-> **Note:** The Python SDK uses `api()` as the HTTP trigger helper, while the TypeScript SDK uses `http()`. They are functionally equivalent.
-
 #### Key Differences
-1. `"type": "api"` removed -- replaced by `api()` trigger in `triggers` list.
-2. `"method"` and `"path"` move from config root into the `api()` call.
+1. `"type": "api"` removed -- replaced by `http()` trigger in `triggers` list.
+2. `"method"` and `"path"` move from config root into the `http()` call.
 3. `"emits"` becomes `"enqueues"`.
 4. `context.emit()` becomes `ctx.enqueue()`.
 5. Handler receives typed `ApiRequest` and returns `ApiResponse` instead of raw dicts.
@@ -1322,12 +1320,12 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 
 #### API Trigger Advanced Options
 
-The `api()` helper supports additional keyword arguments:
+The `http()` helper supports additional keyword arguments:
 
 ```python
-from motia import api, QueryParam
+from motia import http, QueryParam
 
-api("POST", "/orders",
+http("POST", "/orders",
     body_schema=OrderInput.model_json_schema(),
     response_schema={200: OrderResponse.model_json_schema()},
     query_params=[QueryParam(name="filter", description="Filter criteria")],
@@ -1369,7 +1367,7 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
     return ApiResponse(status=200, body={"id": ingestion_id})
 ```
 
-> **Note:** Path parameter syntax in routes is unchanged — use `:param` style (e.g., `api("GET", "/ingest/:ingestion_id")`).
+> **Note:** Path parameter syntax in routes is unchanged — use `:param` style (e.g., `http("GET", "/ingest/:ingestion_id")`).
 
 #### Python Middleware
 
@@ -1679,7 +1677,7 @@ A single step can have multiple triggers of different types. The `ctx.match()` m
 # steps/greetings/summary.step.py
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, api, cron
+from motia import ApiRequest, ApiResponse, FlowContext, Stream, http, cron
 
 greetings_stream: Stream[dict[str, Any]] = Stream("greetings")
 
@@ -1687,7 +1685,7 @@ config = {
     "name": "GreetingsSummary",
     "description": "Summarize greetings via API or every 5 seconds",
     "triggers": [
-        api("GET", "/greetings/summary"),
+        http("GET", "/greetings/summary"),
         cron("*/5 * * * * *"),
     ],
     "enqueues": [],
@@ -1756,12 +1754,12 @@ The `ctx.get_data()` method normalizes input extraction across trigger types:
 For steps with many triggers, the `MultiTriggerStepBuilder` provides a chainable API:
 
 ```python
-from motia import multi_trigger_step, api, queue, cron
+from motia import multi_trigger_step, http, queue, cron
 
 my_step = (
     multi_trigger_step({
         "name": "MyStep",
-        "triggers": [queue("events"), api("POST", "/events"), cron("0 */5 * * * *")],
+        "triggers": [queue("events"), http("POST", "/events"), cron("0 */5 * * * *")],
         "enqueues": ["processed"],
     })
     .on_queue(queue_handler)
@@ -1784,7 +1782,7 @@ my_step = step({
 
 ### Trigger Conditions
 
-Every trigger helper (`api()`, `queue()`, `cron()`, `state()`, `stream()`) accepts an optional `condition` parameter — a function that determines whether the handler should run:
+Every trigger helper (`http()`, `queue()`, `cron()`, `state()`, `stream()`) accepts an optional `condition` parameter — a function that determines whether the handler should run:
 
 ```python
 from typing import Any
@@ -1807,7 +1805,7 @@ config = {
 Conditions can also be async and are supported on all trigger types:
 
 ```python
-api("POST", "/orders/premium", condition=api_premium_check)
+http("POST", "/orders/premium", condition=api_premium_check)
 cron("0 0 9 * * *", condition=is_business_hours)
 state(condition=lambda input, ctx: input.group_id == "users")
 stream("todo", condition=lambda input, ctx: input.event.type == "create")
@@ -1956,7 +1954,7 @@ All Motia imports come from the `motia` package:
 
 ```python
 # Trigger helpers
-from motia import api, queue, cron, state, stream
+from motia import http, queue, cron, state, stream  # also: api (deprecated alias for http)
 
 # Core types
 from motia import ApiRequest, ApiResponse, FlowContext
@@ -2090,14 +2088,14 @@ async def handler(input_data: dict[str, Any], ctx: FlowContext[Any]) -> None:
 #### Config Migration
 - [ ] Remove `"type"` field from all step configs
 - [ ] Replace `"subscribes": [...]` with `"triggers": [queue(...)]`
-- [ ] Replace `"method"` / `"path"` at config root with `"triggers": [api(...)]`
+- [ ] Replace `"method"` / `"path"` at config root with `"triggers": [http(...)]`
 - [ ] Replace `"cron": "..."` at config root with `"triggers": [cron("...")]`
 - [ ] Convert 5-field cron expressions to 6-field (prepend seconds; 7th year field optional)
 - [ ] Move `"input": schema` from config root into `queue("topic", input=schema)`
 - [ ] Rename `"emits"` to `"enqueues"` in all configs
-- [ ] Move `"bodySchema"` from config root into `api("POST", "/path", body_schema=...)` trigger
-- [ ] Move `"responseSchema"` from config root into `api("POST", "/path", response_schema=...)` trigger
-- [ ] Move `"queryParams"` from config root into `api("GET", "/path", query_params=...)` trigger
+- [ ] Move `"bodySchema"` from config root into `http("POST", "/path", body_schema=...)` trigger
+- [ ] Move `"responseSchema"` from config root into `http("POST", "/path", response_schema=...)` trigger
+- [ ] Move `"queryParams"` from config root into `http("GET", "/path", query_params=...)` trigger
 
 #### Handler Migration
 - [ ] Replace `context.emit()` with `ctx.enqueue()` in all handlers
