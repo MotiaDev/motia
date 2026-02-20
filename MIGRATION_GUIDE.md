@@ -309,6 +309,8 @@ A single step can have multiple triggers of different kinds (HTTP, queue, cron, 
 | `type: 'api' | 'event' | 'cron'` | `triggers: [{ type: 'http' | 'queue' | 'cron' | 'state' | 'stream' }]` |
 | `emits: ['topic']` | `enqueues: ['topic']` |
 | `subscribes: ['topic']` | Moved into trigger: `{ type: 'queue', topic: '...' }` |
+| `virtualEmits` | `virtualEnqueues` |
+| `virtualSubscribes` | `virtualSubscribes` (unchanged) |
 
 ### Handler Type Changes
 
@@ -1072,6 +1074,7 @@ triggers: [
 - [ ] Remove `type` field from config root
 - [ ] Remove `middleware` field from all step configs
 - [ ] Replace `virtualEmits` with `virtualEnqueues` (format changes from `[{ topic, label }]` to `['topic']`)
+- [ ] Keep `virtualSubscribes` as-is (no rename needed)
 
 ### Streams
 
