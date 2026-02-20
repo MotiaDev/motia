@@ -1480,6 +1480,7 @@ async def handler(input_data: dict[str, Any], ctx: FlowContext[Any]) -> None:
 3. `"input": schema` moves from config root into the `queue()` call as a keyword argument.
 4. `"emits"` becomes `"enqueues"`.
 5. `context.emit()` becomes `ctx.enqueue()`.
+6. Handler input is a plain `dict` — use `input_data["key"]` or `input_data.get("key")` instead of attribute access (`args.key`). For type-safe access, validate with Pydantic: `payload = MyModel.model_validate(input_data)`.
 
 **Labeled enqueues** — The `"enqueues"` field supports both simple strings and dicts with metadata, exactly as the old `"emits"` did:
 
@@ -2102,6 +2103,7 @@ async def handler(input_data: dict[str, Any], ctx: FlowContext[Any]) -> None:
 - [ ] Replace `req.get("headers", {})` with `request.headers`
 - [ ] Replace `return {"status": N, "body": {...}}` with `return ApiResponse(status=N, body={...})`
 - [ ] Replace `ctx.streams.streamName.get(...)` with module-level `Stream("name")` declarations
+- [ ] Replace attribute access on handler input (`args.field`) with dict access (`input_data["field"]` or `input_data.get("field")`)
 
 #### New Features (Optional)
 - [ ] Migrate state-triggered steps to use `state()` trigger and `StateTriggerInput`
