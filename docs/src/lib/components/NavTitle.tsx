@@ -4,7 +4,7 @@ export function NavTitle() {
   return (
     <span className="relative inline-flex h-6 items-center">
       <Image
-        src="/icons/iii-black.svg"
+        src="/docs/icons/iii-black.svg"
         alt="iii"
         width={32}
         height={24}
@@ -12,7 +12,7 @@ export function NavTitle() {
         unoptimized
       />
       <Image
-        src="/icons/iii-white.svg"
+        src="/docs/icons/iii-white.svg"
         alt="iii"
         width={32}
         height={24}
