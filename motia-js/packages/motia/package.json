@@ -1,6 +1,6 @@
 {
   "name": "motia",
-  "version": "1.0.0-rc.20",
+  "version": "1.0.0-rc.21",
   "private": false,
   "publishConfig": {
     "access": "public"
