@@ -1134,7 +1134,7 @@ In the new Motia, **runtimes are fully independent**. There is a dedicated **Mot
 > **Recommended migration order:**
 > 1. Set up your Python project (`pyproject.toml` with `uv`) — see [Python Project Setup](#python-project-setup) below
 > 2. Add the Python ExecModule entry in `config.yaml` — see [Configuration](#1-configuration) and [Module System](#2-module-system-and-runtime) for full `config.yaml` structure
-> 3. Migrate step configs and handlers one at a time (file naming `*_step.py` is unchanged)
+> 3. Rename step files (`*_step.py` → `*_step.py`)
 > 4. Migrate step configs and handlers one at a time (use the subsections below as reference)
 > 5. Verify with the [Python Migration Checklist](#python-migration-checklist) at the end of this section
 
@@ -1314,7 +1314,7 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 4. `context.emit()` becomes `ctx.enqueue()`.
 5. Handler receives typed `ApiRequest` and returns `ApiResponse` instead of raw dicts.
 6. `req.get("body", {})` becomes `request.body`.
-7. File naming convention `*_step.py` is unchanged (e.g., `classify_bill_api_step.py`).
+7. File naming convention changes from `*_step.py` to `*_step.py` (e.g., `classify_bill_api_step.py`).
 8. `req.get("pathParams", {}).get("id")` becomes `request.path_params["id"]`.
 9. `req.get("queryParams", {})` becomes `request.query_params`.
 
@@ -2082,7 +2082,7 @@ async def handler(input_data: dict[str, Any], ctx: FlowContext[Any]) -> None:
 - [ ] Delete `motia-workbench.json` (replaced by iii Console — see [Section 13](#13-workbench-plugins-and-console))
 
 #### File Changes
-- [ ] Keep step file naming as `*_step.py` (unchanged from old convention)
+- [ ] Rename step files from `*_step.py` to `*_step.py`
 - [ ] Delete `requirements.txt` if present (replaced by `pyproject.toml`)
 
 #### Config Migration

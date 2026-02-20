@@ -31,13 +31,11 @@ async def test_motia_api_step(bridge, api_url, patch_motia_bridge):
     config = {
         "name": "test-api-step",
         "description": "Test API step",
-        "triggers": [
-            http("POST", f"/{endpoint_path}", body_schema={"type": "object"})
-        ],
+        "triggers": [http("POST", f"/{endpoint_path}", body_schema={"type": "object"})],
     }
 
     async def handler(input_data: ApiRequest, context: FlowContext) -> ApiResponse:
-        body = input_data.body if hasattr(input_data, 'body') else input_data.get('body', {})
+        body = input_data.body if hasattr(input_data, "body") else input_data.get("body", {})
         return ApiResponse(
             status=200,
             body={"received": body, "processed": True},
@@ -73,9 +71,7 @@ async def test_motia_step_with_query_params(bridge, api_url, patch_motia_bridge)
     config = {
         "name": "test-query-params-step",
         "description": "Test step with query params",
-        "triggers": [
-            http("GET", f"/{endpoint_path}")
-        ],
+        "triggers": [http("GET", f"/{endpoint_path}")],
     }
 
     async def handler(input_data: ApiRequest, context: FlowContext) -> ApiResponse:
@@ -86,7 +82,7 @@ async def test_motia_step_with_query_params(bridge, api_url, patch_motia_bridge)
             body={"query": q, "limit": limit},
         )
 
-    motia.add_step(config, "test_query_params.py", handler)
+    motia.add_step(config, "test_query_params_step.py", handler)
 
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.3)
@@ -114,9 +110,7 @@ async def test_motia_api_with_path_params(bridge, api_url, patch_motia_bridge):
     config = {
         "name": "test-path-params-step",
         "description": "Test path params",
-        "triggers": [
-            http("GET", f"/{base_path}/:id")
-        ],
+        "triggers": [http("GET", f"/{base_path}/:id")],
     }
 
     async def handler(input_data: ApiRequest, context: FlowContext) -> ApiResponse:
@@ -126,7 +120,7 @@ async def test_motia_api_with_path_params(bridge, api_url, patch_motia_bridge):
             body={"id": item_id},
         )
 
-    motia.add_step(config, "test_path_params.py", handler)
+    motia.add_step(config, "test_path_params_step.py", handler)
 
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.3)
@@ -151,9 +145,7 @@ async def test_motia_context_trigger_metadata(bridge, api_url, patch_motia_bridg
     config = {
         "name": "test-context-step",
         "description": "Test context metadata",
-        "triggers": [
-            http("GET", f"/{endpoint_path}")
-        ],
+        "triggers": [http("GET", f"/{endpoint_path}")],
     }
 
     async def handler(input_data: ApiRequest, context: FlowContext) -> ApiResponse:
@@ -165,7 +157,7 @@ async def test_motia_context_trigger_metadata(bridge, api_url, patch_motia_bridg
             body={"ok": True},
         )
 
-    motia.add_step(config, "test_context.py", handler)
+    motia.add_step(config, "test_context_step.py", handler)
 
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.3)
@@ -189,9 +181,7 @@ async def test_motia_step_config_validation(bridge, api_url, patch_motia_bridge)
     # Missing required fields should raise an error
     invalid_config = {
         "description": "Missing name",
-        "triggers": [
-            http("GET", "/invalid")
-        ],
+        "triggers": [http("GET", "/invalid")],
     }
 
     with pytest.raises((ValueError, Exception)):
@@ -240,7 +230,7 @@ async def test_motia_multiple_triggers(bridge, api_url, patch_motia_bridge):
             body={"method": method},
         )
 
-    motia.add_step(config, "test_multi_trigger.py", handler)
+    motia.add_step(config, "test_multi_trigger_step.py", handler)
 
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.3)
