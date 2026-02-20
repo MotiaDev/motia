@@ -441,6 +441,7 @@ export const handler: Handlers<typeof config> = async (req, { enqueue, logger })
 3. `emits` becomes `enqueues` at the config level.
 4. `emit()` becomes `enqueue()` in the handler context.
 5. Config type changes from `ApiRouteConfig` to `StepConfig` with `as const satisfies`.
+6. In old `emit()` calls, some projects used `type` as the field name (e.g., `emit({ type: 'topic-name', data })`) while others used `topic`. The new `enqueue()` always uses `topic`: `enqueue({ topic: 'topic-name', data })`.
 
 ### HTTP Helper Shorthand
 
@@ -547,6 +548,7 @@ export const handler: Handlers<typeof config> = async (input, { logger, enqueue,
 | `input: schema` | `input: schema` inside trigger (or wrap with `jsonSchema()`) |
 | `infrastructure: {...}` at config root | `infrastructure: {...}` inside the queue trigger |
 | `emit({ topic, data })` | `enqueue({ topic, data })` |
+| `emit({ type: 'topic' })` (some old projects) | `enqueue({ topic: 'topic' })` (field key standardized to `topic`) |
 | Handler receives `data` directly | Handler receives `input` directly |
 
 ### Using `jsonSchema()` Wrapper
@@ -1213,6 +1215,8 @@ package = false
 | Query params | `req.get("queryParams", {})` | `request.query_params` |
 | Headers | `req.get("headers", {})` | `request.headers` |
 | Labeled enqueues | `"emits": [{"topic": "x", "label": "y", "conditional": True}]` | `"enqueues": [{"topic": "x", "label": "y", "conditional": True}]` (same format, key renamed) |
+
+> **Note:** Some older projects used `"type"` instead of `"topic"` as the key in `emit()` calls (e.g., `context.emit({"type": "topic-name", "data": {...}})`). The new `enqueue()` always uses `"topic"`.
 
 > **Note on parameter names:** The migration examples use `ctx` and `input_data` as handler parameter names by convention, but any valid Python names work (e.g., `context`, `data`). The framework identifies handlers by function name (`handler`) and argument count, not parameter names.
 
