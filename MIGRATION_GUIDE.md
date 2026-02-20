@@ -663,8 +663,8 @@ The new engine uses a 6-field cron expression (7th year field is optional):
 |---|---|---|
 | `0 5 * * *` | `0 0 5 * * *` | Daily at 5:00 AM |
 | `0 2 * * *` | `0 0 2 * * *` | Daily at 2:00 AM |
-| `*/5 * * * *` | `0 */5 * * * * *` | Every 5 minutes |
-| `0 0 * * 0` | `0 0 0 * * 0 *` | Weekly on Sunday at midnight |
+| `*/5 * * * *` | `0 */5 * * * *` | Every 5 minutes |
+| `0 0 * * 0` | `0 0 0 * * 0` | Weekly on Sunday at midnight |
 
 ---
 
@@ -1223,6 +1223,8 @@ package = false
 | Labeled enqueues | `"emits": [{"topic": "x", "label": "y", "conditional": True}]` | `"enqueues": [{"topic": "x", "label": "y", "conditional": True}]` (same format, key renamed) |
 
 > **Note:** Some older projects used `"type"` instead of `"topic"` as the key in `emit()` calls (e.g., `context.emit({"type": "topic-name", "data": {...}})`). The new `enqueue()` always uses `"topic"`.
+
+<!-- -->
 
 > **Note on parameter names:** The migration examples use `ctx` and `input_data` as handler parameter names by convention, but any valid Python names work (e.g., `context`, `data`). The framework identifies handlers by function name (`handler`) and argument count, not parameter names.
 
