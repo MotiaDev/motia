@@ -14,12 +14,12 @@ export const metadata: Metadata = {
   title: { default: "iii Docs", template: "%s | iii Docs" },
   icons: {
     icon: [
-      { url: "/favicon/favicon.ico", sizes: "any" },
-      { url: "/favicon/favicon.svg", type: "image/svg+xml" },
+      { url: "/docs/favicon/favicon.ico", sizes: "any" },
+      { url: "/docs/favicon/favicon.svg", type: "image/svg+xml" },
     ],
-    apple: "/favicon/apple-touch-icon.png",
+    apple: "/docs/favicon/apple-touch-icon.png",
   },
-  manifest: "/favicon/site.webmanifest",
+  manifest: "/docs/favicon/site.webmanifest",
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
