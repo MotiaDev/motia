@@ -3,7 +3,11 @@ import type { Folder } from "fumadocs-core/page-tree";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { isPathMatch } from "@/lib/path";
+import { isExactPathMatch, isPathMatch } from "@/lib/path";
+import {
+  restoreSidebarScrollPosition,
+  saveSidebarScrollPosition,
+} from "./sidebar-scroll";
 import { SidebarItem } from "./SidebarItem";
 
 const hasActivePath = (pathname: string, folder: Folder): boolean => {
@@ -24,6 +28,9 @@ export const SidebarFolder: React.FC<{ item: Folder; depth?: number }> = ({
     () => hasActivePath(pathname, item),
     [pathname, item],
   );
+  const isIndexActive = item.index
+    ? isExactPathMatch(pathname, item.index.url)
+    : false;
   const defaultOpen = item.defaultOpen ?? isSectionActive;
   const [isOpen, setIsOpen] = useState<boolean>(defaultOpen);
 
@@ -32,6 +39,10 @@ export const SidebarFolder: React.FC<{ item: Folder; depth?: number }> = ({
       setIsOpen(true);
     }
   }, [isSectionActive]);
+
+  useEffect(() => {
+    restoreSidebarScrollPosition(pathname);
+  }, [pathname]);
 
   const panelId = `sidebar-folder-${item.$id}`;
   const indentation = depth > 0 ? "pl-4" : "";
@@ -57,13 +68,14 @@ export const SidebarFolder: React.FC<{ item: Folder; depth?: number }> = ({
         {item.index ? (
           <Link
             href={item.index.url}
+            onClick={saveSidebarScrollPosition}
             className={[
               "w-full rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors",
-              isSectionActive
+              isIndexActive
                 ? "bg-primary/10 text-foreground"
                 : "text-foreground/85 hover:bg-muted-background/50 hover:text-foreground",
             ].join(" ")}
-            aria-current={isSectionActive ? "page" : undefined}
+            aria-current={isIndexActive ? "page" : undefined}
           >
             {item.name}
           </Link>
