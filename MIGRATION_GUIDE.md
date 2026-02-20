@@ -315,6 +315,7 @@ A single step can have multiple triggers of different kinds (HTTP, queue, cron, 
 | Old | New |
 |---|---|
 | `Handlers['StepName']` | `Handlers<typeof config>` |
+| `StepHandler<typeof config>` | `Handlers<typeof config>` |
 | `ctx.emit({ topic, data })` | `ctx.enqueue({ topic, data })` |
 
 ### Type Safety
