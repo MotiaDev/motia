@@ -1107,6 +1107,7 @@ triggers: [
 - [ ] Remove any `.ui.step.ts` or noop step files used exclusively for workbench rendering
 - [ ] Remove any workbench plugin code (React/JSX components for workbench panels)
 - [ ] Familiarize with the iii Console as the replacement for the Workbench
+- [ ] Remove `@motiadev/workbench` and `@motiadev/core` from `package.json` dependencies (replaced by `motia`)
 
 ---
 
