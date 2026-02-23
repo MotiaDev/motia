@@ -28,8 +28,8 @@ iii.registerTrigger({
 
 ```mermaid
 graph LR
-    HTTP[HTTP Request] -->|api| Engine
-    Event[Event Bus] -->|event| Engine
+    HTTP[HTTP Request] -->|http| Engine
+    Event[Event Bus] -->|queue| Engine
     Schedule[Cron Schedule] -->|cron| Engine
     Logs[Log Entry] -->|log| Engine
     Stream[Stream Join/Leave] -->|streams| Engine
@@ -37,7 +37,7 @@ graph LR
     Engine --> Function[Execute Function]
 ```
 
-### API Trigger (`api`)
+### HTTP Trigger (`http`)
 
 Executes functions in response to HTTP requests.
 
@@ -60,7 +60,7 @@ Executes functions in response to HTTP requests.
 
 **Output**: `ApiResponse` with status_code, body, headers
 
-**Conditions**: Optional. Add `_condition_path` to config with a function ID. The engine invokes it before the handler; if it returns `false`, the handler is skipped. See [Trigger Conditions](#trigger-conditions).
+**Conditions**: Optional. Add `_condition_path` to config with a function ID. The engine invokes it before the handler; if it returns `false`, the handler function is not called. See [Trigger Conditions](#trigger-conditions).
 
 **Path Parameters**: Extract values from URL
 
@@ -76,7 +76,7 @@ Executes functions in response to HTTP requests.
 
 ---
 
-### Event Trigger (`event`)
+### Queue Trigger (`queue`)
 
 Executes functions when events are published to subscribed topics.
 
@@ -121,7 +121,7 @@ Executes functions on a time-based schedule using cron expressions.
   type: 'cron',
   function_id: fn.id,
   config: {
-    cron: '0 2 * * *'
+    expression: '0 2 * * *'
   }
 }
 ```
@@ -130,7 +130,7 @@ Executes functions on a time-based schedule using cron expressions.
 
 **Output**: Function result
 
-**Conditions**: Optional. Add `condition_function_id` to config. See [Trigger Conditions](#trigger-conditions).
+**Conditions**: Optional. Add `_condition_path` to config. See [Trigger Conditions](#trigger-conditions).
 
 **Cron Expression**: Standard 5-field format (minute hour day month weekday)
 
@@ -206,8 +206,8 @@ Executes functions when clients connect to or disconnect from streams.
 
 | Trigger Type      | Use Case              | Synchronous | Multiple Subscribers    |
 | ----------------- | --------------------- | ----------- | ----------------------- |
-| **api**           | HTTP endpoints        | ✓ Yes       | ✗ No (1:1 mapping)      |
-| **event**         | Pub/sub messaging     | ✗ No        | ✓ Yes                   |
+| **http**          | HTTP endpoints        | ✓ Yes       | ✗ No (1:1 mapping)      |
+| **queue**         | Pub/sub messaging     | ✗ No        | ✓ Yes                   |
 | **cron**          | Scheduled tasks       | ✗ No        | ✗ No (distributed lock) |
 | **log**           | Log monitoring        | ✗ No        | ✓ Yes                   |
 | **stream:join**  | Stream connections    | ✗ No        | ✓ Yes                   |
@@ -269,8 +269,8 @@ sequenceDiagram
     participant R as Registry
 
     E->>M: Initialize Module
-    M->>R: RegisterTriggerType("api")
-    M->>R: RegisterTriggerType("event")
+    M->>R: RegisterTriggerType("http")
+    M->>R: RegisterTriggerType("queue")
     M->>R: RegisterTriggerType("cron")
 
     Note over R: Trigger types available for workers
@@ -300,7 +300,7 @@ iii.registerTrigger({
 iii.registerTrigger({
   type: 'cron',
   function_id: fn.id,
-  config: { cron: '0 9 * * *' },
+  config: { expression: '0 9 * * *' },
 })
 ```
 
@@ -315,18 +315,18 @@ Triggers can optionally use a **condition function** to decide whether the handl
 ### How It Works
 
 1. Register a condition function that receives the same input as the handler and returns a boolean.
-2. Add `condition_function_id` to the trigger config (or `_condition_path` for http/queue triggers).
+2. Add `_condition_path` to the trigger config for http, queue, and cron; use `condition_function_id` for state and stream triggers.
 3. When the trigger fires, the engine calls the condition first. Only if it returns truthy does the handler run.
 
 ### Example: HTTP Trigger with Condition
 
 ```typescript
 const conditionFn = iii.registerFunction(
-  { id: 'conditions.requireVerified' },
+  { id: 'conditions::requireVerified' },
   async (req) => req.headers?.['x-verified'] === 'true',
 )
 
-const fn = iii.registerFunction({ id: 'api.verifiedOnly' }, async (req) => ({
+const fn = iii.registerFunction({ id: 'api::verifiedOnly' }, async (req) => ({
   status_code: 200,
   body: { message: 'Verified request' },
 }))
@@ -346,11 +346,11 @@ iii.registerTrigger({
 
 ```typescript
 const conditionFn = iii.registerFunction(
-  { id: 'conditions.highValue' },
+  { id: 'conditions::highValue' },
   async (data) => (data?.amount ?? 0) > 1000,
 )
 
-const fn = iii.registerFunction({ id: 'orders.processHighValue' }, async (order) => {
+const fn = iii.registerFunction({ id: 'orders::processHighValue' }, async (order) => {
   await processHighValueOrder(order)
   return {}
 })
@@ -369,11 +369,11 @@ iii.registerTrigger({
 
 ```typescript
 const conditionFn = iii.registerFunction(
-  { id: 'conditions.profileChanged' },
-  async (event) => event.event_type === 'state:updated' && event.key === 'profile',
+  { id: 'conditions::profileChanged' },
+  async (event) => event.event_type === 'updated' && event.key === 'profile',
 )
 
-const fn = iii.registerFunction({ id: 'state.onProfileUpdate' }, async (event) => {
+const fn = iii.registerFunction({ id: 'state::onProfileUpdate' }, async (event) => {
   console.log('Profile updated:', event.new_value)
   return {}
 })
@@ -394,8 +394,8 @@ iii.registerTrigger({
 |--------------|----------------------|
 | http | `_condition_path` |
 | queue | `_condition_path` |
-| cron | `condition_function_id` |
-| stream, stream:join, stream:leave | `condition_function_id` |
+| cron | `_condition_path` |
+| stream | `condition_function_id` |
 | state | `condition_function_id` |
 
 ## Trigger Lifecycle
@@ -454,7 +454,7 @@ iii.registerTrigger({
 ```typescript
 const processFn = iii.registerFunction({ id: 'orders.process' }, async (order) => {
   await saveOrder(order)
-  await iii.call('enqueue', {
+  await iii.trigger('enqueue', {
     topic: 'order.processed',
     data: order,
   })
@@ -489,7 +489,7 @@ iii.registerTrigger({
   type: 'cron',
   function_id: fn.id,
   config: {
-    cron: '0 3 * * *',
+    expression: '0 3 * * *',
   },
 })
 ```

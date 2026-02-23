@@ -166,7 +166,7 @@ iii.registerFunction(
 
     ctx.logger.info('Creating todo', { todoId })
 
-    const todo = await iii.call('stream::set', {
+    const todo = await iii.trigger('stream::set', {
       stream_name: 'todo',
       group_id: 'inbox',
       item_id: todoId,
@@ -214,7 +214,7 @@ async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
 
     ctx.logger.info("Creating todo", {"todoId": todo_id})
 
-    todo = await iii.call("stream::set", {
+    todo = await iii.trigger("stream::set", {
         "stream_name": "todo",
         "group_id": "inbox",
         "item_id": todo_id,
@@ -299,7 +299,7 @@ iii.registerFunction(
     const todoId = req.path_params?.id
 
     const existing = todoId
-      ? await iii.call<Todo | null>('stream::get', {
+      ? await iii.trigger<Todo | null>('stream::get', {
           stream_name: 'todo',
           group_id: 'inbox',
           item_id: todoId,
@@ -312,7 +312,7 @@ iii.registerFunction(
 
     ctx.logger.info('Updating todo', { todoId })
 
-    const updated = await iii.call('stream::set', {
+    const updated = await iii.trigger('stream::set', {
       stream_name: 'todo',
       group_id: 'inbox',
       item_id: todoId,
@@ -338,7 +338,7 @@ iii.registerTrigger({
 async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     todo_id = req.path_params.get("id") if req.path_params else None
 
-    existing = await iii.call("stream::get", {
+    existing = await iii.trigger("stream::get", {
         "stream_name": "todo", "group_id": "inbox", "item_id": todo_id,
     }) if todo_id else None
 
@@ -348,7 +348,7 @@ async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     ctx.logger.info("Updating todo", {"todoId": todo_id})
 
     merged = {**existing, **(req.body or {})}
-    updated = await iii.call("stream::set", {
+    updated = await iii.trigger("stream::set", {
         "stream_name": "todo", "group_id": "inbox", "item_id": todo_id, "data": merged,
     })
 
@@ -421,7 +421,7 @@ iii.registerFunction(
 
     ctx.logger.info('Deleting todo', { todoId })
 
-    await iii.call('stream::delete', {
+    await iii.trigger('stream::delete', {
       stream_name: 'todo',
       group_id: 'inbox',
       item_id: todoId,
@@ -451,7 +451,7 @@ async def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
 
     ctx.logger.info("Deleting todo", {"todoId": todo_id})
 
-    await iii.call("stream::delete", {
+    await iii.trigger("stream::delete", {
         "stream_name": "todo", "group_id": "inbox", "item_id": todo_id,
     })
 
@@ -483,7 +483,7 @@ iii.register_function("api.delete.todo", |input| async move {
 
     ctx.logger.info("Deleting todo", Some(json!({ "todoId": todo_id })));
 
-    iii.call_void("stream::delete", json!({
+    iii.trigger_void("stream::delete", json!({
         "stream_name": "todo",
         "group_id": "inbox",
         "item_id": todo_id,

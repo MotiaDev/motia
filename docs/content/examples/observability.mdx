@@ -9,8 +9,8 @@ Every iii function invocation receives a `traceId` (via `getContext()`) that is 
 ```mermaid
 graph LR
     Client -->|"POST /orders"| CreateOrder
-    CreateOrder -->|"queue::enqueue + traceId"| ProcessOrder
-    ProcessOrder -->|"queue::enqueue + traceId"| NotifyOrder
+    CreateOrder -->|"enqueue + traceId"| ProcessOrder
+    ProcessOrder -->|"enqueue + traceId"| NotifyOrder
     CreateOrder & ProcessOrder & NotifyOrder -->|"structured logs"| Observability
 ```
 
@@ -50,13 +50,13 @@ iii.registerFunction(
       traceId: ctx.traceId, // same traceId will appear in downstream logs
     })
 
-    await iii.call('state::set', {
+    await iii.trigger('state::set', {
       scope: 'orders',
       key: orderId,
       data: { id: orderId, customerId, amount, items, status: 'created', createdAt: new Date().toISOString() },
     })
 
-    await iii.call('queue::enqueue', {
+    await iii.trigger('enqueue', {
       topic: 'order.process',
       data: { orderId, amount, customerId, items },
     })
@@ -100,7 +100,7 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
         "traceId": ctx.trace_id,  # same traceId will appear in downstream logs
     })
 
-    await iii.call("state::set", {
+    await iii.trigger("state::set", {
         "scope": "orders",
         "key": order_id,
         "data": {
@@ -112,7 +112,7 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
         },
     })
 
-    await iii.call("queue::enqueue", {
+    await iii.trigger("enqueue", {
         "topic": "order.process",
         "data": {"orderId": order_id, "amount": amount, "customerId": customer_id},
     })
@@ -159,7 +159,7 @@ iii.register_function("orders.create", |input| async move {
         "traceId": ctx.trace_id, // same traceId propagated to downstream handlers
     })));
 
-    iii.call_void("state::set", json!({
+    iii.trigger_void("state::set", json!({
         "scope": "orders",
         "key": order_id,
         "data": {
@@ -171,7 +171,7 @@ iii.register_function("orders.create", |input| async move {
         },
     }))?;
 
-    iii.call_void("queue::enqueue", json!({
+    iii.trigger_void("enqueue", json!({
         "topic": "order.process",
         "data": { "orderId": order_id, "amount": amount, "customerId": customer_id },
     }))?;
@@ -202,13 +202,13 @@ iii.registerFunction(
 
     ctx.logger.info('Processing order', { orderId, amount, customerId, traceId: ctx.traceId })
 
-    await iii.call('state::set', {
+    await iii.trigger('state::set', {
       scope: 'orders',
       key: orderId,
       data: { status: 'processed', processedAt: new Date().toISOString() },
     })
 
-    await iii.call('queue::enqueue', {
+    await iii.trigger('enqueue', {
       topic: 'order.notify',
       data: { orderId, customerId, amount, status: 'processed' },
     })
@@ -239,7 +239,7 @@ async def process_order(data: dict, ctx) -> None:
         "traceId": ctx.trace_id,
     })
 
-    await iii.call("state::set", {
+    await iii.trigger("state::set", {
         "scope": "orders",
         "key": order_id,
         "data": {
@@ -248,7 +248,7 @@ async def process_order(data: dict, ctx) -> None:
         },
     })
 
-    await iii.call("queue::enqueue", {
+    await iii.trigger("enqueue", {
         "topic": "order.notify",
         "data": {"orderId": order_id, "customerId": customer_id, "amount": amount, "status": "processed"},
     })
@@ -273,7 +273,7 @@ iii.register_function("order.process", |input| async move {
         "traceId": ctx.trace_id,
     })));
 
-    iii.call_void("queue::enqueue", json!({
+    iii.trigger_void("enqueue", json!({
         "topic": "order.notify",
         "data": { "orderId": order_id, "customerId": input["customerId"] },
     }))?;

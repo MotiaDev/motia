@@ -12,7 +12,7 @@ graph LR
     WriteHandler -->|"state::set scope=users"| StateStore[(State)]
     Cron -->|"every 5s"| AuditHandler
     AuditHandler -->|"state::list scope=orders"| StateStore
-    AuditHandler -->|"queue::enqueue: notification"| Notify
+    AuditHandler -->|"enqueue: notification"| Notify
 ```
 
 ## Writing state
@@ -38,7 +38,7 @@ iii.registerFunction(
     const { status = 'active' } = req.body ?? {}
 
     // Write to state — addressed by scope + key
-    await iii.call('state::set', {
+    await iii.trigger('state::set', {
       scope: 'users',
       key: userId,
       data: { status, updatedAt: new Date().toISOString() },
@@ -76,7 +76,7 @@ async def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
     new_status = (req.body or {}).get("status", "active")
 
     # Write to state — addressed by scope + key
-    await iii.call("state::set", {
+    await iii.trigger("state::set", {
         "scope": "users",
         "key": user_id,
         "data": {"status": new_status, "updatedAt": datetime.now(timezone.utc).isoformat()},
@@ -115,7 +115,7 @@ iii.register_function("users.update_status", |input| async move {
     let new_status = req.body["status"].as_str().unwrap_or("active").to_string();
 
     // Write to state — addressed by scope + key
-    iii.call_void("state::set", json!({
+    iii.trigger_void("state::set", json!({
         "scope": "users",
         "key": user_id,
         "data": {
@@ -154,7 +154,7 @@ iii.registerFunction(
       return { status_code: 400, body: { error: 'Missing user id' } }
     }
 
-    const user = await iii.call<{ status: string } | null>('state::get', {
+    const user = await iii.trigger<{ status: string } | null>('state::get', {
       scope: 'users',
       key: userId,
     })
@@ -182,7 +182,7 @@ iii.registerTrigger({
 async def get_user_status(req: ApiRequest, ctx) -> ApiResponse:
     user_id = req.path_params.get("id") if req.path_params else None
 
-    user = await iii.call("state::get", {"scope": "users", "key": user_id}) if user_id else None
+    user = await iii.trigger("state::get", {"scope": "users", "key": user_id}) if user_id else None
 
     if not user:
         return ApiResponse(statusCode=404, body={"error": "User not found"})
@@ -209,7 +209,7 @@ iii.register_function("users.get_status", |input| async move {
     let req: ApiRequest = serde_json::from_value(input)?;
     let user_id = req.path_params.get("id").cloned().unwrap_or_default();
 
-    let user = iii.call("state::get", json!({
+    let user = iii.trigger("state::get", json!({
         "scope": "users",
         "key": user_id,
     })).await?;
@@ -244,7 +244,7 @@ iii.registerFunction(
   async () => {
     const ctx = getContext()
 
-    const orders = await iii.call<{ id: string; shipDate: string; complete: boolean; status: string }[]>(
+    const orders = await iii.trigger<{ id: string; shipDate: string; complete: boolean; status: string }[]>(
       'state::list',
       { scope: 'orders' },
     )
@@ -253,7 +253,7 @@ iii.registerFunction(
       if (!order.complete && new Date() > new Date(order.shipDate)) {
         ctx.logger.warn('Order overdue', { orderId: order.id })
 
-        await iii.call('queue::enqueue', {
+        await iii.trigger('enqueue', {
           topic: 'notification',
           data: { orderId: order.id, templateId: 'order-audit-warning', status: order.status },
         })
@@ -277,7 +277,7 @@ from datetime import datetime, timezone
 
 
 async def orders_audit(_data, ctx) -> None:
-    orders = await iii.call("state::list", {"scope": "orders"}) or []
+    orders = await iii.trigger("state::list", {"scope": "orders"}) or []
 
     for order in orders:
         ship_date_str = order.get("shipDate") or order.get("ship_date", "2099-01-01T00:00:00Z")
@@ -291,7 +291,7 @@ async def orders_audit(_data, ctx) -> None:
         if not complete and datetime.now(timezone.utc) > ship_date:
             ctx.logger.warn("Order overdue", {"orderId": order.get("id")})
 
-            await iii.call("queue::enqueue", {
+            await iii.trigger("enqueue", {
                 "topic": "notification",
                 "data": {"orderId": order.get("id"), "templateId": "order-audit-warning"},
             })
@@ -308,7 +308,7 @@ iii.register_trigger(type="cron", function_id="cron.orders_audit", config={"expr
 iii.register_function("cron.orders_audit", |_input| async move {
     let ctx = get_context();
 
-    let orders_val = iii.call("state::list", json!({ "scope": "orders" })).await?;
+    let orders_val = iii.trigger("state::list", json!({ "scope": "orders" })).await?;
     let orders = orders_val.as_array().cloned().unwrap_or_default();
 
     for order in &orders {
@@ -319,7 +319,7 @@ iii.register_function("cron.orders_audit", |_input| async move {
             if !complete && chrono::Utc::now() > ship_date {
                 ctx.logger.warn("Order overdue", Some(json!({ "orderId": order["id"] })));
 
-                iii.call_void("queue::enqueue", json!({
+                iii.trigger_void("enqueue", json!({
                     "topic": "notification",
                     "data": { "orderId": order["id"], "templateId": "order-audit-warning" },
                 }))?;
@@ -340,10 +340,10 @@ iii.register_trigger("cron", "cron.orders_audit", json!({ "expression": "*/5 * *
 
 | Operation | TypeScript | Python | Rust |
 |---|---|---|---|
-| Write | `iii.call('state::set', { scope, key, data })` | `await iii.call("state::set", {...})` | `iii.call_void("state::set", json!({...}))` |
-| Read one | `iii.call('state::get', { scope, key })` | `await iii.call("state::get", {...})` | `iii.call("state::get", json!({...})).await` |
-| Read all in scope | `iii.call('state::list', { scope })` | `await iii.call("state::list", {...})` | `iii.call("state::list", json!({...})).await` |
-| Delete | `iii.call('state::delete', { scope, key })` | `await iii.call("state::delete", {...})` | `iii.call_void("state::delete", json!({...}))` |
+| Write | `iii.trigger('state::set', { scope, key, data })` | `await iii.trigger("state::set", {...})` | `iii.trigger_void("state::set", json!({...}))` |
+| Read one | `iii.trigger('state::get', { scope, key })` | `await iii.trigger("state::get", {...})` | `iii.trigger("state::get", json!({...})).await` |
+| Read all in scope | `iii.trigger('state::list', { scope })` | `await iii.trigger("state::list", {...})` | `iii.trigger("state::list", json!({...})).await` |
+| Delete | `iii.trigger('state::delete', { scope, key })` | `await iii.trigger("state::delete", {...})` | `iii.trigger_void("state::delete", json!({...}))` |
 
 ## Key concepts
 

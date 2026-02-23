@@ -55,7 +55,7 @@ This Module adds a new Trigger Type: `queue`.
     The topic to subscribe to. The function will be invoked whenever a message is enqueued to this topic.
   </ResponseField>
   <ResponseField name="_condition_path" type="string">
-    Function ID for conditional execution. The engine invokes it with the message payload; if it returns `false`, the handler is skipped.
+    Function ID for conditional execution. The engine invokes it with the message payload; if it returns `false`, the handler function is not called.
   </ResponseField>
 </Expandable>
 
@@ -76,7 +76,7 @@ iii.registerTrigger({
   config: { topic: 'user.created' },
 })
 
-await iii.call('enqueue', {
+await iii.trigger('enqueue', {
   topic: 'user.created',
   data: { id: '123', email: 'user@example.com' },
 })

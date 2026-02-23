@@ -16,7 +16,7 @@ Each example uses the **iii SDK** directly. Every page shows the same pattern in
     One function registered with multiple triggers — HTTP, queue, and cron — with per-trigger dispatch logic.
   </Card>
   <Card title="Conditions" href="/docs/examples/conditions">
-    Guard logic inside handlers that filters execution based on business rules before doing any work.
+    Pre-handler functions the engine evaluates before a trigger fires — if the condition returns false, the handler is not called.
   </Card>
   <Card title="State Management" href="/docs/examples/state-management">
     Read and write distributed key-value state via `state::get` / `state::set` and react to changes.
@@ -36,12 +36,15 @@ All three SDKs share the same concepts. The table below shows the equivalent pri
 | Concept | TypeScript | Python | Rust |
 |---|---|---|---|
 | Init | `init(url)` | `III(address=url)` | `III::new(url)` |
-| Register function | `iii.registerFunction({ id }, handler)` | `iii.register_function(id, fn)` | `iii.register_function(id, \|input\| ...)` |
-| Register trigger | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger(type, function_id, config)` | `iii.register_trigger(type, id, json!({...}))` |
+| Connect | Auto on `init()` | `await iii.connect()` | `iii.connect().await?` |
+| Register function | `iii.registerFunction({ id }, handler)` | `iii.register_function(function_id, handler)` | `iii.register_function(id, \|input\| ...)` |
+| Register trigger | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger(type, function_id, config)` | `iii.register_trigger(type, function_id, config)?` |
 | Context | `getContext()` | `get_context()` | `iii_sdk::get_context()` |
-| Publish event | `iii.call('queue::enqueue', { topic, data })` | `await iii.call("queue::enqueue", {...})` | `iii.call_void("queue::enqueue", json!({...}))` |
-| State write | `iii.call('state::set', { scope, key, data })` | `await iii.call("state::set", {...})` | `iii.call_void("state::set", json!({...}))` |
-| Stream write | `iii.call('stream::set', { stream_name, group_id, item_id, data })` | `await iii.call("stream::set", {...})` | `streams.update(key, ops).await` |
+| Trigger (sync) | `await iii.trigger(id, data)` | `await iii.trigger(function_id, data)` | `iii.trigger(id, data).await?` |
+| Trigger (fire-and-forget) | `iii.triggerVoid(id, data)` | `iii.trigger_void(function_id, data)` | `iii.trigger_void(id, data)?` |
+| Publish event | `await iii.trigger('enqueue', { topic, data })` | `await iii.trigger("enqueue", {...})` | `iii.trigger_void("enqueue", json!({...}))?` |
+| State write | `await iii.trigger('state::set', { scope, key, data })` | `await iii.trigger("state::set", {...})` | `iii.trigger_void("state::set", json!({...}))?` |
+| Stream write | `iii.trigger('stream::set', { stream_name, group_id, item_id, data })` | `await iii.trigger("stream::set", {...})` | `streams.update(key, ops).await?` |
 
 <Callout title="No framework required" type="info">
   These examples use the iii SDK directly, with no Motia framework layer. There are no auto-discovered step files. Each worker is a plain application that connects, registers its functions and triggers, then enters an event loop.

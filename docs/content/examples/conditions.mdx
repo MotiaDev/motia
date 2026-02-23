@@ -1,27 +1,25 @@
 ---
 title: 'Conditions'
-description: 'Guard logic inside handlers that filters execution based on business rules before doing any work.'
+description: 'Pre-handler functions the engine evaluates before executing a trigger — if the condition returns false, the handler function is not called.'
 hideCards: true
 ---
 
-The iii SDK has no built-in condition API on triggers. Instead, add guard logic at the **top of your handler**: check the input and return early (or return an error response) if the condition is not satisfied.
-
-This pattern is intentionally explicit — the logic lives in code, is testable, and requires no framework-specific abstractions.
+Conditions are regular iii functions that the engine calls **before** a trigger's handler runs. Attach a condition to any trigger by adding the condition function's ID to the trigger config. If the condition returns `false`, the handler function is not called.
 
 ```mermaid
 graph LR
-    Queue -->|"order.created"| Handler
-    Handler --> Check{{"amount > 1000?"}}
-    Check -->|"false — return early"| Skip[return null]
-    Check -->|"true"| Process[process order]
-
-    HTTP -->|"POST /orders/premium"| Handler2
-    Handler2 --> UserCheck{{"user.verified?"}}
-    UserCheck -->|"false — 403"| Reject
-    UserCheck -->|"true"| Accept[process order]
+    Trigger -->|event data| Condition{{"condition fn"}}
+    Condition -->|"true"| Handler[handler fn]
+    Condition -->|"false"| Skip[handler not called]
 ```
 
-## Single guard
+<Callout type="info">
+  Condition functions are registered with `registerFunction` / `register_function` like any other function. They receive the same event data as the handler and must return a boolean.
+</Callout>
+
+## HTTP trigger condition
+
+The condition function receives the full API request. If it returns `false`, the engine responds with `422 Unprocessable Entity` and the handler function is not called.
 
 <Tabs items={['TypeScript', 'Python', 'Rust']}>
   <Tab value="TypeScript">
@@ -32,33 +30,29 @@ import { init, getContext, type ApiRequest } from 'iii-sdk'
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
-  { id: 'orders.premium', description: 'Processes premium orders from verified users' },
-  async (req: ApiRequest<{ user: { verified: boolean }; amount: number; description: string }>) => {
+  { id: 'conditions::is_premium' },
+  async (req: ApiRequest<{ amount: number }>) => {
+    return (req.body?.amount ?? 0) > 1000
+  },
+)
+
+iii.registerFunction(
+  { id: 'orders::premium', description: 'Processes premium orders' },
+  async (req: ApiRequest<{ amount: number; description: string }>) => {
     const ctx = getContext()
-    const { amount, description, user } = req.body ?? {}
-
-    // Guard: amount must be above threshold
-    if (!amount || amount <= 1000) {
-      ctx.logger.info('Order below threshold — skipping', { amount })
-      return { status_code: 422, body: { error: 'Amount must exceed 1000' } }
-    }
-
-    // Guard: user must be verified
-    if (!user?.verified) {
-      ctx.logger.info('Unverified user — rejecting', { verified: user?.verified })
-      return { status_code: 403, body: { error: 'User must be verified' } }
-    }
-
-    ctx.logger.info('Processing premium order', { amount })
-
-    return { status_code: 200, body: { message: 'Premium order processed', description } }
+    ctx.logger.info('Processing premium order', { amount: req.body?.amount })
+    return { status_code: 200, body: { message: 'Premium order processed' } }
   },
 )
 
 iii.registerTrigger({
   type: 'http',
-  function_id: 'orders.premium',
-  config: { api_path: 'orders/premium', http_method: 'POST' },
+  function_id: 'orders::premium',
+  config: {
+    api_path: 'orders/premium',
+    http_method: 'POST',
+    _condition_path: 'conditions::is_premium',
+  },
 })
 ```
 
@@ -71,31 +65,31 @@ from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
 
 
-async def orders_premium(req: ApiRequest, ctx) -> ApiResponse:
-    body = req.body or {}
-    amount = body.get("amount", 0)
-    user = body.get("user", {})
+async def is_premium(data) -> bool:
+    req = ApiRequest(**data) if isinstance(data, dict) else data
+    return (req.body or {}).get("amount", 0) > 1000
 
-    # Guard: amount must be above threshold
-    if amount <= 1000:
-        ctx.logger.info("Order below threshold — skipping", {"amount": amount})
-        return ApiResponse(statusCode=422, body={"error": "Amount must exceed 1000"})
 
-    # Guard: user must be verified
-    if not user.get("verified", False):
-        ctx.logger.info("Unverified user — rejecting")
-        return ApiResponse(statusCode=403, body={"error": "User must be verified"})
-
-    ctx.logger.info("Processing premium order", {"amount": amount})
+async def orders_premium(data, ctx) -> ApiResponse:
+    req = ApiRequest(**data) if isinstance(data, dict) else data
+    ctx.logger.info("Processing premium order", {"amount": (req.body or {}).get("amount")})
     return ApiResponse(statusCode=200, body={"message": "Premium order processed"})
 
 
-iii.register_function("orders.premium", lambda data: orders_premium(
-    ApiRequest(**data) if isinstance(data, dict) else data, get_context()
-))
+async def orders_premium_wrapper(data):
+    return await orders_premium(data, get_context())
+
+iii.register_function("conditions::is_premium", is_premium)
+iii.register_function("orders::premium", orders_premium_wrapper)
+
 iii.register_trigger(
-    type="http", function_id="orders.premium",
-    config={"api_path": "orders/premium", "http_method": "POST"},
+    type="http",
+    function_id="orders::premium",
+    config={
+        "api_path": "orders/premium",
+        "http_method": "POST",
+        "_condition_path": "conditions::is_premium",
+    },
 )
 ```
 
@@ -103,61 +97,61 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-iii.register_function("orders.premium", |input| async move {
-    let ctx = get_context();
-    let req: ApiRequest = serde_json::from_value(input)?;
+use iii_sdk::{III, get_context};
+use serde_json::json;
 
-    let amount = req.body["amount"].as_f64().unwrap_or(0.0);
-    let verified = req.body["user"]["verified"].as_bool().unwrap_or(false);
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
 
-    // Guard: amount must be above threshold
-    if amount <= 1000.0 {
-        ctx.logger.info("Order below threshold — skipping", Some(json!({ "amount": amount })));
-        return Ok(json!({ "status_code": 422, "body": { "error": "Amount must exceed 1000" } }));
-    }
+    iii.register_function("conditions::is_premium", |input| async move {
+        let amount = input["body"]["amount"].as_f64().unwrap_or(0.0);
+        Ok(json!(amount > 1000.0))
+    });
 
-    // Guard: user must be verified
-    if !verified {
-        ctx.logger.info("Unverified user — rejecting", None);
-        return Ok(json!({ "status_code": 403, "body": { "error": "User must be verified" } }));
-    }
+    iii.register_function("orders::premium", |input| async move {
+        let ctx = get_context();
+        let amount = input["body"]["amount"].as_f64().unwrap_or(0.0);
+        ctx.logger.info("Processing premium order", Some(json!({ "amount": amount })));
+        Ok(json!({ "status_code": 200, "body": { "message": "Premium order processed" } }))
+    });
 
-    ctx.logger.info("Processing premium order", Some(json!({ "amount": amount })));
+    iii.register_trigger("http", "orders::premium", json!({
+        "api_path": "orders/premium",
+        "http_method": "POST",
+        "_condition_path": "conditions::is_premium",
+    }))?;
 
-    Ok(json!({ "status_code": 200, "body": { "message": "Premium order processed" } }))
-});
-
-iii.register_trigger("http", "orders.premium", json!({
-    "api_path": "orders/premium",
-    "http_method": "POST",
-}))?;
+    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+}
 ```
 
   </Tab>
 </Tabs>
 
-## Guards on queue handlers
+## Queue trigger condition
 
-Queue handlers use the same pattern. Return early (with `null` / `None` / `json!(null)`) to silently skip without raising an error.
+The condition function receives the queue message data. If it returns `false`, the handler function is not called — no error is raised.
 
 <Tabs items={['TypeScript', 'Python', 'Rust']}>
   <Tab value="TypeScript">
 
 ```typescript
 iii.registerFunction(
-  { id: 'orders.high_value', description: 'Processes only high-value orders from queue' },
+  { id: 'conditions::is_high_value' },
+  async (data: { amount: number }) => {
+    return data.amount > 1000
+  },
+)
+
+iii.registerFunction(
+  { id: 'orders::high_value', description: 'Processes high-value orders from queue' },
   async (data: { amount: number; description: string }) => {
     const ctx = getContext()
-
-    // Silent skip — low-value orders are ignored
-    if (data.amount <= 1000) {
-      ctx.logger.info('Low-value order — skipping', { amount: data.amount })
-      return
-    }
-
     ctx.logger.info('Processing high-value order', { amount: data.amount })
 
-    await iii.call('queue::enqueue', {
+    await iii.trigger('enqueue', {
       topic: 'order.processed',
       data: { ...data, processedAt: new Date().toISOString() },
     })
@@ -166,8 +160,8 @@ iii.registerFunction(
 
 iii.registerTrigger({
   type: 'queue',
-  function_id: 'orders.high_value',
-  config: { topic: 'order.created' },
+  function_id: 'orders::high_value',
+  config: { topic: 'order.created', _condition_path: 'conditions::is_high_value' },
 })
 ```
 
@@ -175,43 +169,49 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
+from datetime import datetime, timezone
+
+
+async def is_high_value(data) -> bool:
+    if isinstance(data, dict):
+        return data.get("amount", 0) > 1000
+    return False
+
+
 async def orders_high_value(data: dict, ctx) -> None:
-    amount = data.get("amount", 0)
+    ctx.logger.info("Processing high-value order", {"amount": data.get("amount")})
 
-    # Silent skip
-    if amount <= 1000:
-        ctx.logger.info("Low-value order — skipping", {"amount": amount})
-        return
-
-    ctx.logger.info("Processing high-value order", {"amount": amount})
-
-    await iii.call("queue::enqueue", {
+    await iii.trigger("enqueue", {
         "topic": "order.processed",
-        "data": {**data, "processedAt": __import__("datetime").datetime.utcnow().isoformat()},
+        "data": {**data, "processedAt": datetime.now(timezone.utc).isoformat()},
     })
 
 
-iii.register_function("orders.high_value", lambda data: orders_high_value(data, get_context()))
-iii.register_trigger(type="queue", function_id="orders.high_value", config={"topic": "order.created"})
+iii.register_function("conditions::is_high_value", is_high_value)
+iii.register_function("orders::high_value", lambda data: orders_high_value(data, get_context()))
+
+iii.register_trigger(
+    type="queue",
+    function_id="orders::high_value",
+    config={"topic": "order.created", "_condition_path": "conditions::is_high_value"},
+)
 ```
 
   </Tab>
   <Tab value="Rust">
 
 ```rust
-iii.register_function("orders.high_value", |input| async move {
+iii.register_function("conditions::is_high_value", |input| async move {
+    let amount = input["amount"].as_f64().unwrap_or(0.0);
+    Ok(json!(amount > 1000.0))
+});
+
+iii.register_function("orders::high_value", |input| async move {
     let ctx = get_context();
     let amount = input["amount"].as_f64().unwrap_or(0.0);
-
-    // Silent skip
-    if amount <= 1000.0 {
-        ctx.logger.info("Low-value order — skipping", Some(json!({ "amount": amount })));
-        return Ok(json!(null));
-    }
-
     ctx.logger.info("Processing high-value order", Some(json!({ "amount": amount })));
 
-    iii.call_void("queue::enqueue", json!({
+    iii.trigger_void("enqueue", json!({
         "topic": "order.processed",
         "data": { "amount": amount, "processedAt": chrono::Utc::now().to_rfc3339() },
     }))?;
@@ -219,63 +219,91 @@ iii.register_function("orders.high_value", |input| async move {
     Ok(json!(null))
 });
 
-iii.register_trigger("queue", "orders.high_value", json!({ "topic": "order.created" }))?;
+iii.register_trigger("queue", "orders::high_value", json!({
+    "topic": "order.created",
+    "_condition_path": "conditions::is_high_value",
+}))?;
 ```
 
   </Tab>
 </Tabs>
 
-## Business-hours guard
+## State trigger condition
 
-Guards can use any runtime information — time, env variables, external state, etc.
+State and stream triggers use `condition_function_id` in the config instead of `_condition_path`. The condition receives the full state event, including the event type (`created`, `updated`, `deleted`), scope, key, and both old and new values.
 
 <Tabs items={['TypeScript', 'Python', 'Rust']}>
   <Tab value="TypeScript">
 
 ```typescript
 iii.registerFunction(
-  { id: 'api.business_hours' },
-  async (req: ApiRequest) => {
-    const hour = new Date().getUTCHours()
-    if (hour < 9 || hour >= 17) {
-      return { status_code: 503, body: { error: 'Service unavailable outside business hours' } }
-    }
-    // ... normal processing
-    return { status_code: 200, body: { ok: true } }
+  { id: 'conditions::is_update' },
+  async (event: { event_type: string; scope: string; key: string; old_value: unknown; new_value: unknown }) => {
+    return event.event_type === 'updated'
   },
 )
+
+iii.registerFunction(
+  { id: 'orders::on_update', description: 'Reacts to order state updates' },
+  async (event) => {
+    const ctx = getContext()
+    ctx.logger.info('Order updated', { scope: event.scope, key: event.key })
+  },
+)
+
+iii.registerTrigger({
+  type: 'state',
+  function_id: 'orders::on_update',
+  config: { scope: 'orders', condition_function_id: 'conditions::is_update' },
+})
 ```
 
   </Tab>
   <Tab value="Python">
 
 ```python
-from datetime import datetime
+async def is_update(event) -> bool:
+    if isinstance(event, dict):
+        return event.get("event_type") == "updated"
+    return False
 
 
-async def business_hours_handler(req: ApiRequest, ctx) -> ApiResponse:
-    now = datetime.utcnow()
-    if not (9 <= now.hour < 17):
-        return ApiResponse(statusCode=503, body={"error": "Service unavailable outside business hours"})
-    # ... normal processing
-    return ApiResponse(statusCode=200, body={"ok": True})
+async def orders_on_update(event: dict, ctx) -> None:
+    ctx.logger.info("Order updated", {"scope": event.get("scope"), "key": event.get("key")})
+
+
+iii.register_function("conditions::is_update", is_update)
+iii.register_function("orders::on_update", lambda data: orders_on_update(data, get_context()))
+
+iii.register_trigger(
+    type="state",
+    function_id="orders::on_update",
+    config={"scope": "orders", "condition_function_id": "conditions::is_update"},
+)
 ```
 
   </Tab>
   <Tab value="Rust">
 
 ```rust
-iii.register_function("api.business_hours", |input| async move {
-    let hour = chrono::Utc::now().hour();
-    if hour < 9 || hour >= 17 {
-        return Ok(json!({
-            "status_code": 503,
-            "body": { "error": "Service unavailable outside business hours" },
-        }));
-    }
-    // ... normal processing
-    Ok(json!({ "status_code": 200, "body": { "ok": true } }))
+iii.register_function("conditions::is_update", |input| async move {
+    let event_type = input["event_type"].as_str().unwrap_or("");
+    Ok(json!(event_type == "updated"))
 });
+
+iii.register_function("orders::on_update", |input| async move {
+    let ctx = get_context();
+    ctx.logger.info("Order updated", Some(json!({
+        "scope": input["scope"],
+        "key": input["key"],
+    })));
+    Ok(json!(null))
+});
+
+iii.register_trigger("state", "orders::on_update", json!({
+    "scope": "orders",
+    "condition_function_id": "conditions::is_update",
+}))?;
 ```
 
   </Tab>
@@ -283,7 +311,12 @@ iii.register_function("api.business_hours", |input| async move {
 
 ## Key concepts
 
-- There is no `condition` parameter on trigger registration. Guard logic lives inside the handler and is plain code.
-- For HTTP handlers, return an error response (`4xx` / `5xx`) when the guard fails.
-- For queue and cron handlers, return `undefined` / `None` / `json!(null)` to silently skip — no error is surfaced.
-- Extracting guard functions (e.g. `isHighValue`, `isVerifiedUser`) keeps handlers readable and makes the conditions unit-testable independently.
+- Condition functions are registered with `registerFunction` / `register_function` like any other function. They receive the same event data as the handler and must return `true` or `false`.
+- For HTTP, queue, and cron triggers, add `_condition_path` to the trigger config with the condition function's ID.
+- For state and stream triggers, use `condition_function_id` in the trigger config instead.
+- When a condition returns `false`:
+  - **HTTP** — the engine responds with `422 Unprocessable Entity`; the handler function is not called.
+  - **Queue / Cron** — the handler function is not called; no error is surfaced.
+  - **State / Stream** — the handler function is not called.
+- If a condition function errors, the engine logs the error and does not call the handler (HTTP returns `500 Internal Server Error`).
+- A single condition function can be shared across multiple triggers.

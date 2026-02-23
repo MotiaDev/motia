@@ -57,7 +57,7 @@ config:
 This Module adds a new Trigger Type: `cron`.
 
 <Expandable title="Trigger Config">
-  <ResponseField name="cron" type="string" required>
+  <ResponseField name="expression" type="string" required>
     Standard cron expression defining the schedule. Supports the following format:
 
     ```
@@ -71,8 +71,8 @@ This Module adds a new Trigger Type: `cron`.
     ```
 
   </ResponseField>
-  <ResponseField name="condition_function_id" type="string">
-    Function ID for conditional execution. The engine invokes it with the cron event; if it returns `false`, the handler is skipped.
+  <ResponseField name="_condition_path" type="string">
+    Function ID for conditional execution. The engine invokes it with the cron event; if it returns `false`, the handler function is not called.
   </ResponseField>
 </Expandable>
 
@@ -90,7 +90,7 @@ const fn = iii.registerFunction(
 iii.registerTrigger({
   type: 'cron',
   function_id: fn.id,
-  config: { cron: '0 2 * * *' },
+  config: { expression: '0 2 * * *' },
 })
 ```
 

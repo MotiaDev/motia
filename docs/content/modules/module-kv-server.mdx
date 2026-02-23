@@ -118,7 +118,24 @@ modules::kv_server::KvServer
 </ResponseField>
 
 <ResponseField name="kv_server::list" type="function">
-  List all values that match a given key pattern.
+  List all values in an index.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="index" type="string" required>
+        The index (namespace) to use for organizing data.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="values" type="any[]">
+        An array of all values in the index.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="kv_server::update" type="function">
+  Update a value by key in the KV store using patch operations.
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
@@ -126,12 +143,15 @@ modules::kv_server::KvServer
         The index (namespace) to use for organizing data.
       </ResponseField>
       <ResponseField name="key" type="string" required>
-        The key pattern to match.
+        The key of the value to update.
+      </ResponseField>
+      <ResponseField name="ops" type="any[]" required>
+        An array of patch operations to apply to the value.
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="values" type="any[]">
-        An array of values matching the key pattern.
+      <ResponseField name="result" type="object">
+        The result of the update operation containing the updated value.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -142,18 +162,18 @@ modules::kv_server::KvServer
 ### Basic Key-Value Operations
 
 ```typescript
-await iii.call('kv_server::set', {
+await iii.trigger('kv_server::set', {
   index: 'default',
   key: 'user:123',
   value: { name: 'John', email: 'john@example.com' },
 })
 
-const user = await iii.call('kv_server::get', {
+const user = await iii.trigger('kv_server::get', {
   index: 'default',
   key: 'user:123',
 })
 
-await iii.call('kv_server::delete', {
+await iii.trigger('kv_server::delete', {
   index: 'default',
   key: 'user:123',
 })
@@ -162,11 +182,11 @@ await iii.call('kv_server::delete', {
 ### Listing Keys with Prefix
 
 ```typescript
-await iii.call('kv_server::set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
-await iii.call('kv_server::set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
-await iii.call('kv_server::set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
+await iii.trigger('kv_server::set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
+await iii.trigger('kv_server::set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
+await iii.trigger('kv_server::set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
 
-const userKeys = await iii.call('kv_server::list_keys_with_prefix', {
+const userKeys = await iii.trigger('kv_server::list_keys_with_prefix', {
   prefix: 'user:',
 })
 ```

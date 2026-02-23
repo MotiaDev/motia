@@ -211,7 +211,7 @@ When a state value is created, updated, or deleted, all registered `state` trigg
     Only fire for state changes to this specific key. When omitted, fires for all keys.
   </ResponseField>
   <ResponseField name="condition_function_id" type="string">
-    Path to a function that receives the state event and returns `true` to allow the trigger to fire, or `false` to skip it.
+    Function ID for conditional execution. The engine invokes it with the state event; if it returns `false`, the handler function is not called.
   </ResponseField>
 </Expandable>
 
@@ -247,7 +247,7 @@ When the trigger fires, the handler receives a state event object:
 
 ```typescript
 const fn = iii.registerFunction(
-  { id: 'state.onUserUpdated' },
+  { id: 'state::onUserUpdated' },
   async (event) => {
     console.log('State changed:', event.event_type, event.key)
     console.log('Previous:', event.old_value)
@@ -268,22 +268,22 @@ iii.registerTrigger({
 Store user profiles in state and react when they change:
 
 ```typescript
-await iii.call('state::set', {
+await iii.trigger('state::set', {
   scope: 'users',
   key: 'user-123',
   data: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'dark' } },
 })
 
-const profile = await iii.call('state::get', { scope: 'users', key: 'user-123' })
+const profile = await iii.trigger('state::get', { scope: 'users', key: 'user-123' })
 
-await iii.call('state::set', {
+await iii.trigger('state::set', {
   scope: 'users',
   key: 'user-123',
   data: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'light' } },
 })
 
-const allUsers = await iii.call('state::list', { scope: 'users' })
-const scopes = await iii.call('state::list_groups', {})
+const allUsers = await iii.trigger('state::list', { scope: 'users' })
+const scopes = await iii.trigger('state::list_groups', {})
 ```
 
 ### Usage Example: Conditional Trigger
@@ -292,13 +292,13 @@ Only process profile updates when the email field changed:
 
 ```typescript
 const conditionFn = iii.registerFunction(
-  { id: 'conditions.emailChanged' },
+  { id: 'conditions::emailChanged' },
   async (event) =>
     event.event_type === 'state:updated' &&
     event.old_value?.email !== event.new_value?.email,
 )
 
-const fn = iii.registerFunction({ id: 'state.onEmailChange' }, async (event) => {
+const fn = iii.registerFunction({ id: 'state::onEmailChange' }, async (event) => {
   await sendVerificationEmail(event.new_value.email)
   return {}
 })

@@ -176,6 +176,89 @@ config:
   </AccordionGroup>
 </ResponseField>
 
+<ResponseField name="stream::list_groups" type="function">
+  List all groups in a stream.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="stream_name" type="string" required>
+        The ID of the stream to list groups from.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="groups" type="string[]" required>
+        An array of group IDs in the stream.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="stream::list_all" type="function">
+  List all items across all groups in a stream.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="stream_name" type="string" required>
+        The ID of the stream to list all items from.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="items" type="any[]" required>
+        An array of all items across all groups in the stream.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="stream::send" type="function">
+  Send a message to all subscribers of a stream group.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="stream_name" type="string" required>
+        The ID of the stream to send the message to.
+      </ResponseField>
+      <ResponseField name="group_id" type="string" required>
+        The group ID in the stream to send the message to.
+      </ResponseField>
+      <ResponseField name="data" type="any" required>
+        The message payload to send.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="result" type="null">
+        Returns `null` on success.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="stream::update" type="function">
+  Update an existing item in the stream using patch operations.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="stream_name" type="string" required>
+        The ID of the stream containing the item to update.
+      </ResponseField>
+      <ResponseField name="group_id" type="string" required>
+        The group ID in the stream containing the item to update.
+      </ResponseField>
+      <ResponseField name="item_id" type="string" required>
+        The item ID in the stream to update.
+      </ResponseField>
+      <ResponseField name="data" type="any" required>
+        The updated data to apply to the item.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="value" type="any" required>
+        The updated value in the stream.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
 ## Authentication
 
 It's possible to implement a function to handle authentication.
@@ -235,7 +318,7 @@ Join and leave triggers receive the same payload shape when invoked.
 </ResponseField>
 
 <ResponseField name="condition_function_id" type="string">
-  Function ID for conditional execution (stream:join, stream:leave). The engine invokes it with the subscription payload; if it returns `false`, the handler is skipped.
+  Function ID for conditional execution. Only applies to the `stream` trigger type (not `stream:join` or `stream:leave`). The engine invokes it with the subscription payload; if it returns `false`, the handler function is not called.
 </ResponseField>
 
 ### Sample Code
@@ -258,25 +341,25 @@ iii.registerTrigger({
 Streams organize data by `stream_name`, `group_id`, and `item_id`. Use for live presence, collaborative docs, or dashboards:
 
 ```typescript
-await iii.call('stream::set', {
+await iii.trigger('stream::set', {
   stream_name: 'presence',
   group_id: 'room-1',
   item_id: 'user-123',
   data: { name: 'Alice', online: true, lastSeen: new Date().toISOString() },
 })
 
-const user = await iii.call('stream::get', {
+const user = await iii.trigger('stream::get', {
   stream_name: 'presence',
   group_id: 'room-1',
   item_id: 'user-123',
 })
 
-const roomMembers = await iii.call('stream::list', {
+const roomMembers = await iii.trigger('stream::list', {
   stream_name: 'presence',
   group_id: 'room-1',
 })
 
-await iii.call('stream::delete', {
+await iii.trigger('stream::delete', {
   stream_name: 'presence',
   group_id: 'room-1',
   item_id: 'user-123',
@@ -335,7 +418,7 @@ iii.registerTrigger({
 
 ```typescript
 const conditionFn = iii.registerFunction(
-  { id: 'conditions.requireContext' },
+  { id: 'conditions::requireContext' },
   async (input) => input.context?.userId != null,
 )
 

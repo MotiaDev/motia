@@ -27,8 +27,8 @@ graph TD
         subgraph "Core Modules"
             API[RestApiModule]
             Stream[StreamModule]
-            Log[LoggingModule]
-            Event[EventModule]
+            Log[OtelModule]
+            Queue[QueueModule]
             Cron[CronModule]
         end
     end
@@ -51,7 +51,7 @@ graph TD
     W1 -->|Register| Core
     W2 -->|Register| Core
 
-    Event -.->|Persist/Sub| Redis
+    Queue -.->|Persist/Sub| Redis
     Stream -.->|State| Redis
     Cron -.->|Locks| Redis
     Log -.->|Store| Redis
@@ -65,7 +65,7 @@ The Worker Registry tracks connected workers and their registered functions:
 |-----------|-------------|
 | `WorkerRegistry` | Thread-safe map storing active workers by UUID |
 | `Worker` | Represents a connected client with WebSocket channel |
-| `function_paths` | Set of function paths the worker can execute |
+| `function_ids` | Set of function IDs the worker can execute |
 | `invocations` | Active request IDs being processed |
 
 ## Communication Flow
@@ -133,11 +133,11 @@ Manages real-time state and WebSocket connections:
 - **Real-time Sync**: WebSocket-based state synchronization
 - **Authentication**: Optional auth function for connection validation
 
-### Event Module
+### Queue Module
 
 Implements publish-subscribe pattern:
 
-- **Adapters**: Pluggable backends (Redis, In-Memory)
+- **Adapters**: Pluggable backends (Redis, RabbitMQ, Built-in)
 - **Topics**: Subscribe to specific event topics
 - **Async Processing**: Non-blocking event distribution
 

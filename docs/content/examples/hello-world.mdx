@@ -9,7 +9,7 @@ This example shows the two-step pattern at the heart of most iii workflows: an *
 ```mermaid
 graph LR
     Client -->|"GET /hello"| HelloHandler
-    HelloHandler -->|"queue::enqueue: greet.process"| ProcessHandler
+    HelloHandler -->|"enqueue: greet.process"| ProcessHandler
     ProcessHandler -->|"state::set"| State[(State)]
 ```
 
@@ -78,7 +78,7 @@ iii.registerFunction(
 
     ctx.logger.info('Hello API called', { appName, requestId })
 
-    await iii.call('queue::enqueue', {
+    await iii.trigger('enqueue', {
       topic: 'greet.process',
       data: {
         requestId,
@@ -122,7 +122,7 @@ async def hello_api(req: ApiRequest, ctx) -> ApiResponse:
 
     ctx.logger.info("Hello API called", {"appName": app_name, "requestId": request_id})
 
-    await iii.call("queue::enqueue", {
+    await iii.trigger("enqueue", {
         "topic": "greet.process",
         "data": {
             "requestId": request_id,
@@ -169,7 +169,7 @@ iii.register_function("hello.api", |input| async move {
         "requestId": request_id,
     })));
 
-    iii.call_void("queue::enqueue", json!({
+    iii.trigger_void("enqueue", json!({
         "topic": "greet.process",
         "data": {
             "requestId": request_id,
@@ -221,7 +221,7 @@ iii.registerFunction(
 
     const greeting = `${greetingPrefix} ${appName}!`
 
-    await iii.call('state::set', {
+    await iii.trigger('state::set', {
       scope: 'greetings',
       key: requestId,
       data: {
@@ -259,7 +259,7 @@ async def greet_process(data: dict, ctx) -> None:
 
     greeting = f"{greeting_prefix} {app_name}!"
 
-    await iii.call("state::set", {
+    await iii.trigger("state::set", {
         "scope": "greetings",
         "key": request_id,
         "data": {
@@ -298,7 +298,7 @@ iii.register_function("greet.process", |input| async move {
 
     let greeting = format!("{} {}!", prefix, app_name);
 
-    iii.call_void("state::set", json!({
+    iii.trigger_void("state::set", json!({
         "scope": "greetings",
         "key": request_id,
         "data": {
@@ -323,12 +323,16 @@ iii.register_trigger("queue", "greet.process", json!({
 
 ## Connect and run
 
+<Callout title="Node.js connects automatically" type="info">
+  The Node SDK establishes the WebSocket connection when you call `init()`. There is no separate `connect()` method. Keep the process alive so the worker stays registered.
+</Callout>
+
 <Tabs items={['TypeScript', 'Python', 'Rust']}>
   <Tab value="TypeScript">
 
 ```typescript
-// Start the worker — connect to engine and keep alive
-await iii.connect()
+// Node SDK connects on init() — keep the process alive
+await new Promise(() => {})
 ```
 
   </Tab>
@@ -368,5 +372,5 @@ curl http://localhost:3111/hello
 
 - `iii.registerFunction` pairs a string ID with an async handler. The ID is referenced by all triggers bound to that function.
 - `iii.registerTrigger` binds a trigger type + config to a function ID. A function can have multiple triggers.
-- `iii.call('queue::enqueue', { topic, data })` publishes an event on the named topic. Any worker with a `queue` trigger on that topic will receive it.
-- `iii.call('state::set', { scope, key, data })` persists data to the engine's key-value store, addressed by `scope` + `key`.
+- `iii.trigger('enqueue', { topic, data })` publishes an event on the named topic. Any worker with a `queue` trigger on that topic will receive it.
+- `iii.trigger('state::set', { scope, key, data })` persists data to the engine's key-value store, addressed by `scope` + `key`.

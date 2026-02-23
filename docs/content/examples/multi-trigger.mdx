@@ -11,7 +11,7 @@ graph LR
     Client -->|"POST /orders/manual"| Handler
     Queue -->|"topic: order.created"| Handler
     Cron -->|"every minute"| Handler
-    Handler -->|"queue::enqueue: order.processed"| Downstream
+    Handler -->|"enqueue: order.processed"| Downstream
 ```
 
 ## Register one function, three triggers
@@ -36,13 +36,13 @@ iii.registerFunction(
 
       ctx.logger.info('Processing manual order via API', { amount: req.body?.amount })
 
-      await iii.call('state::set', {
+      await iii.trigger('state::set', {
         scope: 'orders',
         key: orderId,
         data: { id: orderId, ...req.body, source: 'api', createdAt: new Date().toISOString() },
       })
 
-      await iii.call('queue::enqueue', {
+      await iii.trigger('enqueue', {
         topic: 'order.processed',
         data: { orderId, source: 'api' },
       })
@@ -57,13 +57,13 @@ iii.registerFunction(
 
       ctx.logger.info('Processing order from queue', { amount })
 
-      await iii.call('state::set', {
+      await iii.trigger('state::set', {
         scope: 'orders',
         key: orderId,
         data: { id: orderId, amount, description, source: 'queue', createdAt: new Date().toISOString() },
       })
 
-      await iii.call('queue::enqueue', {
+      await iii.trigger('enqueue', {
         topic: 'order.processed',
         data: { orderId, amount, source: 'queue' },
       })
@@ -74,12 +74,12 @@ iii.registerFunction(
     // Cron trigger — input is null/empty
     ctx.logger.info('Processing scheduled order batch')
 
-    const pendingOrders = await iii.call<{ id: string; amount: number }[]>('state::list', {
+    const pendingOrders = await iii.trigger<{ id: string; amount: number }[]>('state::list', {
       scope: 'pending-orders',
     })
 
     for (const order of pendingOrders ?? []) {
-      await iii.call('queue::enqueue', {
+      await iii.trigger('enqueue', {
         topic: 'order.processed',
         data: { orderId: order.id, amount: order.amount, source: 'cron' },
       })
@@ -127,12 +127,12 @@ async def orders_handle(data, ctx) -> dict | None:
 
         ctx.logger.info("Processing manual order via API", {"amount": req.body.get("amount")})
 
-        await iii.call("state::set", {
+        await iii.trigger("state::set", {
             "scope": "orders",
             "key": order_id,
             "data": {**req.body, "id": order_id, "source": "api"},
         })
-        await iii.call("queue::enqueue", {
+        await iii.trigger("enqueue", {
             "topic": "order.processed",
             "data": {"orderId": order_id, "source": "api"},
         })
@@ -148,12 +148,12 @@ async def orders_handle(data, ctx) -> dict | None:
 
         ctx.logger.info("Processing order from queue", {"amount": amount})
 
-        await iii.call("state::set", {
+        await iii.trigger("state::set", {
             "scope": "orders",
             "key": order_id,
             "data": {**data, "id": order_id, "source": "queue"},
         })
-        await iii.call("queue::enqueue", {
+        await iii.trigger("enqueue", {
             "topic": "order.processed",
             "data": {"orderId": order_id, "source": "queue"},
         })
@@ -162,9 +162,9 @@ async def orders_handle(data, ctx) -> dict | None:
     # Cron trigger — data is None or empty
     ctx.logger.info("Processing scheduled order batch")
 
-    pending = await iii.call("state::list", {"scope": "pending-orders"}) or []
+    pending = await iii.trigger("state::list", {"scope": "pending-orders"}) or []
     for order in pending:
-        await iii.call("queue::enqueue", {
+        await iii.trigger("enqueue", {
             "topic": "order.processed",
             "data": {"orderId": order["id"], "source": "cron"},
         })
@@ -201,13 +201,13 @@ iii.register_function("orders.handle", |input| async move {
             "amount": req.body["amount"]
         })));
 
-        iii.call_void("state::set", json!({
+        iii.trigger_void("state::set", json!({
             "scope": "orders",
             "key": order_id,
             "data": { "id": order_id, "source": "api", "amount": req.body["amount"] },
         }))?;
 
-        iii.call_void("queue::enqueue", json!({
+        iii.trigger_void("enqueue", json!({
             "topic": "order.processed",
             "data": { "orderId": order_id, "source": "api" },
         }))?;
@@ -222,7 +222,7 @@ iii.register_function("orders.handle", |input| async move {
 
         ctx.logger.info("Processing order from queue", Some(json!({ "amount": amount })));
 
-        iii.call_void("queue::enqueue", json!({
+        iii.trigger_void("enqueue", json!({
             "topic": "order.processed",
             "data": { "orderId": order_id, "source": "queue" },
         }))?;
@@ -233,11 +233,11 @@ iii.register_function("orders.handle", |input| async move {
     // Cron trigger
     ctx.logger.info("Processing scheduled batch", None);
 
-    let pending = iii.call("state::list", json!({ "scope": "pending-orders" })).await?;
+    let pending = iii.trigger("state::list", json!({ "scope": "pending-orders" })).await?;
     let orders = pending.as_array().cloned().unwrap_or_default();
 
     for order in &orders {
-        iii.call_void("queue::enqueue", json!({
+        iii.trigger_void("enqueue", json!({
             "topic": "order.processed",
             "data": { "orderId": order["id"], "source": "cron" },
         }))?;
@@ -293,6 +293,6 @@ iii.register_trigger("http", "my.fn", json!({ "api_path": "events", "http_method
 
 - There is no framework-level `ctx.match()` — distinguish trigger types by inspecting the input shape at runtime.
 - HTTP trigger input always has `path_params`, `query_params`, `body`, and `headers` fields.
-- Queue trigger input is the raw event payload you published with `queue::enqueue`.
+- Queue trigger input is the raw event payload you published with `enqueue`.
 - Cron trigger input is `null` / `None` / `json!(null)` — the invocation itself is the signal.
 - Registering the same `function_id` with multiple triggers is intentional and supported; the engine dispatches independently.

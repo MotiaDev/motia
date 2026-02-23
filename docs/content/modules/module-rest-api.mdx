@@ -38,6 +38,14 @@ modules::api::RestApiModule
   The host to listen on. Defaults to `0.0.0.0`.
 </ResponseField>
 
+<ResponseField name="default_timeout" type="number">
+  The default timeout in milliseconds for request processing. Defaults to `30000`.
+</ResponseField>
+
+<ResponseField name="concurrency_request_limit" type="number">
+  The maximum number of concurrent requests the server will handle. Defaults to `1024`.
+</ResponseField>
+
 <ResponseField name="cors" type="Cors">
   The CORS configuration.
 
@@ -63,7 +71,7 @@ This module adds a new Trigger Type: `http`.
     The HTTP method of the API.
   </ResponseField>
   <ResponseField name="_condition_path" type="string">
-    Function ID for conditional execution. The engine invokes it with the request; if it returns `false`, the handler is skipped.
+    Function ID for conditional execution. The engine invokes it with the request; if it returns `false`, the handler function is not called.
   </ResponseField>
 </Expandable>
 
@@ -86,6 +94,14 @@ iii.registerTrigger({
 ### ApiRequest
 
 When an API trigger fires, the function receives an `ApiRequest` object:
+
+<ResponseField name="path" type="string">
+  The request path.
+</ResponseField>
+
+<ResponseField name="method" type="string">
+  The HTTP method of the request (e.g., `GET`, `POST`).
+</ResponseField>
 
 <ResponseField name="path_params" type="Record&lt;string, string&gt;">
   Variables extracted from the URL path (e.g., `/users/:id`).
@@ -115,7 +131,7 @@ Functions must return an `ApiResponse` object:
   The response payload.
 </ResponseField>
 
-<ResponseField name="headers" type="Record&lt;string, string&gt;">
+<ResponseField name="headers" type="string[]">
   HTTP response headers (optional).
 </ResponseField>
 

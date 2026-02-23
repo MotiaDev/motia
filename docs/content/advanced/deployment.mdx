@@ -53,12 +53,12 @@ modules:
       host: 0.0.0.0
       port: 3111
 
-  - class: modules::streams::StreamModule
+  - class: modules::stream::StreamModule
     config:
       host: 0.0.0.0
-      port: 31112
+      port: 3112
       adapter:
-        class: modules::streams::adapters::RedisAdapter
+        class: modules::stream::adapters::RedisAdapter
         config:
           redis_url: redis://localhost:6379
 ```
@@ -74,10 +74,10 @@ modules:
       host: ${API_HOST:127.0.0.1}
       port: ${API_PORT:3111}
 
-  - class: modules::event::EventModule
+  - class: modules::queue::QueueModule
     config:
       adapter:
-        class: modules::event::adapters::RedisAdapter
+        class: modules::queue::adapters::RedisAdapter
         config:
           redis_url: ${REDIS_URL:redis://localhost:6379}
 ```
@@ -156,7 +156,7 @@ your-domain.com {
     handle /api/* {
         reverse_proxy 127.0.0.1:3111
     }
-    handle /streams/* {
+    handle /stream/* {
         reverse_proxy 127.0.0.1:3112
     }
     handle /ws {
@@ -186,7 +186,7 @@ server {
         proxy_set_header Connection "upgrade";
     }
 
-    location /streams/ {
+    location /stream/ {
         proxy_pass http://127.0.0.1:3112;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -214,10 +214,10 @@ modules:
 
   - class: modules::cron::CronModule
 
-  - class: modules::observability::LoggingModule
+  - class: modules::observability::OtelModule
     config:
-      level: info
-      format: json
+      enabled: true
+      exporter: memory
 ```
 
 Additional modules (Streams, Events, Queue) require external adapters such as Redis or RabbitMQ. See the [Configuration File](#configuration-file) section for examples.
@@ -264,10 +264,10 @@ nc -zv 127.0.0.1 49134
 If no configuration file is provided, the engine loads these default modules:
 
 - **RestApiModule** - Host: 127.0.0.1, Port: 3111
-- **EventModule** - Redis at localhost:6379
-- **LoggingModule** - Level: info
-- **CronModule** - Redis at localhost:6379
-- **StreamsModule** - Stream API at 127.0.0.1:31112
+- **QueueModule** - Redis at localhost:6379
+- **OtelModule** - Observability (traces, metrics, logs)
+- **CronModule** - Built-in KV or Redis at localhost:6379
+- **StreamModule** - Stream API at 127.0.0.1:3112
 
 ## Startup Flow
 
@@ -293,7 +293,7 @@ graph TD
 
 When running multiple engine instances:
 
-1. **Redis Required**: Use Redis adapters for Events, Cron, Streams, and Logging
+1. **Redis Required**: Use Redis adapters for Queue, Cron, Streams, and State
 2. **Load Balancing**: Use a load balancer for API endpoints
 3. **Distributed Locking**: Cron module uses Redis locks to prevent duplicate execution
 4. **Session Affinity**: Not required - workers connect to any engine instance
@@ -319,7 +319,7 @@ graph LR
 Monitor engine health by checking:
 
 1. **WebSocket Port**: Engine listens on `127.0.0.1:49134` by default
-2. **Module Ports**: REST API (3111), Streams (31112)
+2. **Module Ports**: REST API (3111), Streams (3112)
 3. **Redis Connection**: If using Redis adapters
 
 Example health check:
@@ -334,17 +334,17 @@ curl http://localhost:3111/health
 
 ## Logging
 
-Configure logging verbosity:
+Configure the observability module (traces, metrics, logs):
 
 ```yaml
 modules:
-  - class: modules::observability::LoggingModule
+  - class: modules::observability::OtelModule
     config:
-      level: debug # trace, debug, info, warn, error
-      format: json # or default
+      enabled: true
+      exporter: memory  # or otlp, both
 ```
 
-Or via environment variable:
+Configure Rust logging verbosity via environment variable:
 
 ```bash
 RUST_LOG=debug iii

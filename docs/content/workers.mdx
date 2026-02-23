@@ -16,7 +16,7 @@ Workers are consumers of the iii architecture that:
 
 Workers can be written in any language with WebSocket support. Official SDKs are available for:
 
-- **Node.js/TypeScript**: `@iii-dev/sdk` (low-level) and `@iii-dev/motia` (high-level framework)
+- **Node.js/TypeScript**: `iii-sdk` (low-level) and `iii` (high-level framework)
 - **Python**: `iii` (low-level) and `motia` (high-level framework)
 
 ```mermaid
@@ -26,7 +26,7 @@ graph LR
     Worker -->|Result| Engine
 
     subgraph "Worker Process"
-        SDK[SDK/Bridge]
+        SDK[iii SDK]
         Functions[Registered<br/>Functions]
         SDK --> Functions
     end
@@ -39,39 +39,26 @@ graph LR
 Worker establishes WebSocket connection to the Engine:
 
 ```typescript
-import { createBridge } from '@iii-dev/sdk'
+import { init } from 'iii-sdk'
 
-const bridge = createBridge({
-  url: 'ws://127.0.0.1:49134',
-})
-
-await bridge.connect()
+const iii = await init()
 ```
 
 ### 2. Registration
 
-Worker registers services, functions, and triggers:
+Worker registers functions and triggers:
 
 ```typescript
-// Register a service (logical grouping)
-bridge.registerService({
-  id: 'users',
-  name: 'User Management',
-})
-
 // Register a function
-bridge.registerFunction({
-  function_path: 'users.create',
-  handler: async (data) => {
-    // Business logic here
-    return { id: '123', ...data }
-  },
+iii.registerFunction({ id: 'users::create' }, async (data) => {
+  // Business logic here
+  return { id: '123', ...data }
 })
 
 // Register a trigger
-bridge.registerTrigger({
-  trigger_type: 'api',
-  function_path: 'users.create',
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'users::create',
   config: {
     api_path: '/users',
     http_method: 'POST',
@@ -92,7 +79,7 @@ sequenceDiagram
     Note over W,E: Worker Connected & Registered
 
     C->>E: HTTP POST /users
-    E->>W: invokefunction { function_path: "users.create" }
+    E->>W: invokefunction { function_id: "users::create" }
     W->>W: Execute handler
     W-->>E: invocationresult { result: {...} }
     E-->>C: HTTP 200 OK
@@ -106,7 +93,7 @@ The Engine maintains a registry of connected workers:
 | ---------------- | ---------------------------------------------------- |
 | `WorkerRegistry` | Thread-safe map storing active workers by UUID       |
 | `Worker`         | Represents a connected client with WebSocket channel |
-| `function_paths` | Set of functions the worker can execute              |
+| `function_ids` | Set of functions the worker can execute              |
 | `invocations`    | Active request IDs being processed                   |
 
 ### Worker State
@@ -114,7 +101,7 @@ The Engine maintains a registry of connected workers:
 Each worker tracks:
 
 - **UUID**: Unique identifier assigned on connection
-- **Function Paths**: List of registered functions (e.g., `users.create`, `api.echo`)
+- **Function IDs**: List of registered functions (e.g., `users::create`, `api::echo`)
 - **Active Invocations**: Currently executing requests
 - **WebSocket Channel**: Communication channel to the Engine
 
@@ -150,50 +137,45 @@ graph TD
 ### Node.js
 
 ```typescript
-import { createBridge } from '@iii-dev/sdk'
+import { init } from 'iii-sdk'
 
-const bridge = createBridge()
+const iii = await init()
 
 // Register functions
-bridge.registerFunction({
-  function_path: 'greet.hello',
-  handler: async ({ name }) => {
-    return { message: `Hello, ${name}!` }
-  },
+iii.registerFunction({ id: 'greet.hello' }, async ({ name }) => {
+  return { message: `Hello, ${name}!` }
 })
 
-// Register API trigger
-bridge.registerTrigger({
-  trigger_type: 'api',
-  function_path: 'greet.hello',
+// Register HTTP trigger
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'greet.hello',
   config: {
     api_path: '/greet/:name',
     http_method: 'GET',
   },
 })
 
-// Connect to engine
-await bridge.connect()
 logger.info('Worker connected!')
 ```
 
 ### Python (iii SDK)
 
 ```python
-from iii import Bridge
+from iii import III
 
-bridge = Bridge()
+iii = III()
 
 # Register function
-@bridge.function('greet.hello')
+@iii.register_function('greet.hello')
 async def hello(data):
     name = data.get('name', 'World')
     return {'message': f'Hello, {name}!'}
 
-# Register API trigger
-bridge.register_trigger(
-    trigger_type='api',
-    function_path='greet.hello',
+# Register HTTP trigger
+iii.register_trigger(
+    type='http',
+    function_id='greet.hello',
     config={
         'api_path': '/greet/:name',
         'http_method': 'GET'
@@ -201,7 +183,7 @@ bridge.register_trigger(
 )
 
 # Connect to engine
-bridge.connect()
+iii.connect()
 ```
 
 ## Best Practices
@@ -222,22 +204,19 @@ bridge.connect()
     Always handle errors gracefully and return structured error responses:
 
     ```typescript
-    bridge.registerFunction({
-      function_path: 'users.create',
-      handler: async (data) => {
-        try {
-          const user = await createUser(data);
-          return { success: true, user };
-        } catch (error) {
-          return {
-            success: false,
-            error: {
-              code: 'USER_CREATE_FAILED',
-              message: error.message,
-            },
-          };
-        }
-      },
+    iii.registerFunction({ id: 'users::create' }, async (data) => {
+      try {
+        const user = await createUser(data);
+        return { success: true, user };
+      } catch (error) {
+        return {
+          success: false,
+          error: {
+            code: 'USER_CREATE_FAILED',
+            message: error.message,
+          },
+        };
+      }
     });
     ```
 
@@ -247,31 +226,23 @@ bridge.connect()
     Handle disconnections and implement reconnection logic:
 
     ```typescript
-    bridge.on('disconnect', () => {
-      console.log('Disconnected from engine');
-    });
-
-    bridge.on('connect', () => {
-      console.log('Connected to engine');
+    iii.onConnectionStateChange((state) => {
+      console.log('Connection state:', state);
     });
     ```
 
   </Accordion>
 
-  <Accordion title="Service Organization">
-    Group related functions under services for better organization:
+  <Accordion title="Function Organization">
+    Group related functions using namespaced IDs:
 
     ```typescript
-    // User service
-    bridge.registerService({ id: 'users' });
-    bridge.registerFunction({ function_path: 'users.create', ... });
-    bridge.registerFunction({ function_path: 'users.update', ... });
-    bridge.registerFunction({ function_path: 'users.delete', ... });
+    iii.registerFunction({ id: 'users::create' }, createHandler);
+    iii.registerFunction({ id: 'users::update' }, updateHandler);
+    iii.registerFunction({ id: 'users::delete' }, deleteHandler);
 
-    // Auth service
-    bridge.registerService({ id: 'auth' });
-    bridge.registerFunction({ function_path: 'auth.login', ... });
-    bridge.registerFunction({ function_path: 'auth.logout', ... });
+    iii.registerFunction({ id: 'auth::login' }, loginHandler);
+    iii.registerFunction({ id: 'auth::logout' }, logoutHandler);
     ```
 
   </Accordion>

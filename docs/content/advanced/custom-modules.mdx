@@ -30,7 +30,7 @@ The module system is built around two primary traits: `CoreModule` and `Configur
 
 | Trait                  | Description                                                                                   | Key Methods                                                  |
 | ---------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **CoreModule**         | The base trait for all modules. Handles lifecycle, identification, and function registration. | `name()`, `create()`, `initialize()`, `register_functions()` |
+| **CoreModule**         | The base trait for all modules. Handles lifecycle, identification, and function registration. | `name()`, `create()`, `initialize()`, `register_functions()`, `start_background_tasks()`, `destroy()` |
 | **ConfigurableModule** | Extends `CoreModule` to support typed configuration and pluggable adapters.                   | `build()`, `registry()`, `adapter_class_from_config()`       |
 
 ### Lifecycle Flow
@@ -81,7 +81,7 @@ use serde_json::Value;
 #[async_trait]
 pub trait CustomEventAdapter: Send + Sync + 'static {
     async fn emit(&self, topic: &str, event_data: Value);
-    async fn subscribe(&self, topic: &str, id: &str, function_path: &str);
+    async fn subscribe(&self, topic: &str, id: &str, function_id: &str);
     async fn unsubscribe(&self, topic: &str, id: &str);
 }
 ```
@@ -162,7 +162,7 @@ Create the actual adapter implementations.
     use tokio::sync::RwLock;
 
     pub struct InMemoryEventAdapter {
-        subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>>,
+        subscriptions: Arc<RwLock<HashMap<String, HashMap<String, String>>>>,
         engine: Arc<Engine>,
     }
 
@@ -182,25 +182,24 @@ Create the actual adapter implementations.
     impl CustomEventAdapter for InMemoryEventAdapter {
         async fn emit(&self, topic: &str, event_data: Value) {
             let subs = self.subscriptions.read().await;
-            if let Some(function_paths) = subs.get(topic) {
-                for function_path in function_paths {
-                    // Invoke functions subscribed to this topic
-                    self.engine.invoke_function(function_path, event_data.clone()).await;
+            if let Some(by_id) = subs.get(topic) {
+                for function_id in by_id.values() {
+                    let _ = self.engine.call(function_id, event_data.clone()).await;
                 }
             }
         }
 
-        async fn subscribe(&self, topic: &str, id: &str, function_path: &str) {
+        async fn subscribe(&self, topic: &str, id: &str, function_id: &str) {
             let mut subs = self.subscriptions.write().await;
             subs.entry(topic.to_string())
-                .or_insert_with(Vec::new)
-                .push(function_path.to_string());
+                .or_insert_with(HashMap::new)
+                .insert(id.to_string(), function_id.to_string());
         }
 
         async fn unsubscribe(&self, topic: &str, id: &str) {
             let mut subs = self.subscriptions.write().await;
-            if let Some(paths) = subs.get_mut(topic) {
-                paths.retain(|p| p != id);
+            if let Some(by_id) = subs.get_mut(topic) {
+                by_id.remove(id);
             }
         }
     }
@@ -227,9 +226,9 @@ Create the actual adapter implementations.
             self.inner.emit(topic, event_data).await;
         }
 
-        async fn subscribe(&self, topic: &str, id: &str, function_path: &str) {
+        async fn subscribe(&self, topic: &str, id: &str, function_id: &str) {
             tracing::info!(topic = %topic, "Subscribing to topic");
-            self.inner.subscribe(topic, id, function_path).await;
+            self.inner.subscribe(topic, id, function_id).await;
         }
 
         async fn unsubscribe(&self, topic: &str, id: &str) {
@@ -304,7 +303,7 @@ When registering a function, you must provide a `RegisterFunctionRequest`.
 
 | Field             | Type             | Description                                    |
 | ----------------- | ---------------- | ---------------------------------------------- |
-| `function_path`   | `String`         | Unique dot-notation path (e.g., "custom_emit") |
+| `function_id`     | `String`         | Unique function ID (e.g., "custom::emit")      |
 | `description`     | `Option<String>` | Human-readable description of the function     |
 | `request_format`  | `Option<Value>`  | JSON Schema defining the expected input        |
 | `response_format` | `Option<Value>`  | JSON Schema defining the expected output       |
@@ -323,7 +322,7 @@ impl CoreModule for CustomEventModule {
     async fn initialize(&self) -> anyhow::Result<()> {
         self.engine.register_function(
             RegisterFunctionRequest {
-                function_path: "custom_emit".to_string(),
+                function_id: "custom::emit".to_string(),
                 description: Some("Emit a custom event".to_string()),
                 request_format: Some(serde_json::json!({
                     "type": "object",
@@ -426,7 +425,7 @@ impl TriggerRegistrator for CustomEventModule {
                 self.adapter.subscribe(
                     topic_str,
                     &trigger.id,
-                    &trigger.function_path
+                    &trigger.function_id
                 ).await;
             }
 
@@ -508,13 +507,13 @@ use iii::{
 #[async_trait]
 pub trait CustomEventAdapter: Send + Sync + 'static {
     async fn emit(&self, topic: &str, event_data: Value);
-    async fn subscribe(&self, topic: &str, id: &str, function_path: &str);
+    async fn subscribe(&self, topic: &str, id: &str, function_id: &str);
     async fn unsubscribe(&self, topic: &str, id: &str);
 }
 
 // 2. Implement In-Memory Adapter
 pub struct InMemoryEventAdapter {
-    subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    subscriptions: Arc<RwLock<HashMap<String, HashMap<String, String>>>>,
     engine: Arc<Engine>,
 }
 
@@ -531,24 +530,24 @@ impl InMemoryEventAdapter {
 impl CustomEventAdapter for InMemoryEventAdapter {
     async fn emit(&self, topic: &str, event_data: Value) {
         let subs = self.subscriptions.read().await;
-        if let Some(function_paths) = subs.get(topic) {
-            for function_path in function_paths {
-                self.engine.invoke_function(function_path, event_data.clone()).await;
+        if let Some(by_id) = subs.get(topic) {
+            for function_id in by_id.values() {
+                let _ = self.engine.call(function_id, event_data.clone()).await;
             }
         }
     }
 
-    async fn subscribe(&self, topic: &str, _id: &str, function_path: &str) {
+    async fn subscribe(&self, topic: &str, id: &str, function_id: &str) {
         let mut subs = self.subscriptions.write().await;
         subs.entry(topic.to_string())
-            .or_insert_with(Vec::new)
-            .push(function_path.to_string());
+            .or_insert_with(HashMap::new)
+            .insert(id.to_string(), function_id.to_string());
     }
 
     async fn unsubscribe(&self, topic: &str, id: &str) {
         let mut subs = self.subscriptions.write().await;
-        if let Some(paths) = subs.get_mut(topic) {
-            paths.retain(|p| p != id);
+        if let Some(by_id) = subs.get_mut(topic) {
+            by_id.remove(id);
         }
     }
 }
@@ -579,7 +578,7 @@ impl CoreModule for CustomEventModule {
         // Register emit function
         self.engine.register_function(
             RegisterFunctionRequest {
-                function_path: "custom_emit".to_string(),
+                function_id: "custom::emit".to_string(),
                 description: Some("Emit a custom event".to_string()),
                 request_format: Some(serde_json::json!({
                     "type": "object",
@@ -632,7 +631,7 @@ impl TriggerRegistrator for CustomEventModule {
             for topic in subscribes {
                 let topic_str = topic.as_str()
                     .ok_or_else(|| anyhow::anyhow!("Invalid topic"))?;
-                self.adapter.subscribe(topic_str, &trigger.id, &trigger.function_path).await;
+                self.adapter.subscribe(topic_str, &trigger.id, &trigger.function_id).await;
             }
 
             Ok(())
@@ -707,7 +706,7 @@ modules:
     ```rust
     tracing::info!(
         topic = %topic,
-        subscriber_count = subs.len(),
+        subscriber_count = by_id.len(),
         "Emitting event to subscribers"
     );
     ```
