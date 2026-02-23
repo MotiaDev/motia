@@ -222,6 +222,8 @@ iii -c iii-config.yaml
 - ✅ Zero configuration
 - ✅ AI development guides included (Cursor, OpenCode, Codex, and more)
 
+![iii Console Dashboard](https://raw.githubusercontent.com/MotiaDev/motia-docs/main/public/console/dashboard.png)
+
 > 📖 **[Full tutorial in our docs →](https://motia.dev/docs/getting-started/quick-start)**
 
 ### 🤖 AI-Assisted Development
