@@ -15,14 +15,7 @@ from .schema_utils import schema_to_json_schema
 from .state import stateManager
 from .step import StepDefinition
 from .streams import Stream
-from .tracing import (
-    get_trace_id_from_span,
-    instrument_bridge,
-    operation_span,
-    record_exception,
-    set_span_ok,
-    step_span,
-)
+from .tracing import get_trace_id_from_span, instrument_bridge, operation_span, record_exception, set_span_ok, step_span
 from .types import (
     ApiRequest,
     ApiResponse,
@@ -182,7 +175,7 @@ def _flow_context(
         logger=context_data.logger,
         streams=motia.streams,
         trigger=trigger,
-        _input=input_data,
+        input_value=input_data,
     )
 
 
@@ -241,9 +234,7 @@ class Motia:
         actual_file_path = file_path or step_path
         raw_metadata = config.model_dump(by_alias=True, exclude_none=True)
         if "triggers" in raw_metadata:
-            raw_metadata["triggers"] = [
-                _sanitize_trigger_metadata(t) for t in config.triggers
-            ]
+            raw_metadata["triggers"] = [_sanitize_trigger_metadata(t) for t in config.triggers]
         metadata = {**raw_metadata, "filePath": actual_file_path}
 
         log.info(f"Step registered: {config.name}")
@@ -278,9 +269,7 @@ class Motia:
                 **{"http.method": req.get("method"), "http.route": req.get("path")},
             ) as span:
                 try:
-                    trigger_info = TriggerInfo(
-                        type="http", index=index, method=trigger.method, path=trigger.path
-                    )
+                    trigger_info = TriggerInfo(type="http", index=index, method=trigger.method, path=trigger.path)
                     motia_request: ApiRequest[Any] = ApiRequest(
                         path_params=req.get("path_params", {}),
                         query_params=req.get("query_params", {}),
@@ -345,9 +334,7 @@ class Motia:
                     trigger_info = TriggerInfo(type="queue", index=index)
                     input_data = req
                     if trigger.input:
-                        input_data = _validate_input_schema(
-                            trigger.input, input_data, f"queue:{config.name}"
-                        )
+                        input_data = _validate_input_schema(trigger.input, input_data, f"queue:{config.name}")
                     context = _flow_context(self, trigger_info, input_data)
                     result = await handler(input_data, context)
                     set_span_ok(span)

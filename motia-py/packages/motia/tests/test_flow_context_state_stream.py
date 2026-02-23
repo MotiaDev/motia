@@ -17,7 +17,7 @@ def state_context():
         logger=None,
         streams={},
         trigger=TriggerInfo(type="state", index=0),
-        _input={"group_id": "users", "item_id": "user-1"},
+        input_value={"group_id": "users", "item_id": "user-1"},
     )
 
 
@@ -31,7 +31,7 @@ def stream_context():
         logger=None,
         streams={},
         trigger=TriggerInfo(type="stream", index=0),
-        _input={"stream_name": "todos", "event": {"type": "create"}},
+        input_value={"stream_name": "todos", "event": {"type": "create"}},
     )
 
 
@@ -45,7 +45,7 @@ def queue_context():
         logger=None,
         streams={},
         trigger=TriggerInfo(type="queue", topic="test.topic"),
-        _input={"topic": "test.topic", "data": {}},
+        input_value={"topic": "test.topic", "data": {}},
     )
 
 
