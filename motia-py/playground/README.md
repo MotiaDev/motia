@@ -13,44 +13,37 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ### 2. Enter the project folder
 
 ```bash
-cd motia-example
+cd playground
 ```
 
-### 3. Create virtual environment
+### 3. install the dependencies.
 
 ```bash
-uv venv
-source .venv/bin/activate  # Linux/Mac
-# or .venv\Scripts\activate  # Windows
+uv sync --all-extras
 ```
 
-### 4. Install dependencies
+### 4. Run the example
 
 ```bash
-uv pip install -r pyproject.toml
-```
-
-### 5. Run the example
-
-```bash
-motia run
+uv run motia run --dir steps
 ```
 
 ## Project Structure
 
 ```
-motia-example/
-├── pyproject.toml          # Project configuration with dependencies
-├── README.md               # This file
-└── steps/                  # Step definitions
+playground/
+├── pyproject.toml              # Project configuration with dependencies
+├── uv.lock                     # Locked dependency versions
+├── README.md                   # This file
+└── steps/                      # Example workflows and triggers
     ├── __init__.py
-    ├── test_conditions.step.py
-    ├── test_multi_trigger.step.py
-    └── todo/               # Todo application steps
-        ├── __init__.py
-        ├── create_todo.step.py
-        ├── delete_todo.step.py
-        └── update_todo.step.py
+    ├── conditions/             # Conditional trigger examples
+    ├── greetings/              # API CRUD + summary flow examples
+    ├── multi_trigger/          # Single/multi trigger examples (API/Event/Cron)
+    ├── otel_example/           # OpenTelemetry instrumentation example
+    ├── state_example/          # State update + state-change listener examples
+    ├── stream_example/         # Stream-based todo event example
+    └── todo/                   # Todo CRUD workflow examples
 ```
 
 ## What This Example Does
