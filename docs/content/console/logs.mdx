@@ -4,7 +4,9 @@ description: 'Query and filter structured OpenTelemetry logs from the engine.'
 hideCards: true
 ---
 
-The Logs page provides a viewer for structured OpenTelemetry logs collected by the engine.
+The Logs page provides a viewer for structured OpenTelemetry logs collected by the engine. Each entry shows a timestamp, severity level, service name, trace/span context, and message. A severity filter toggle, full-text search, and time-range controls let you zero in on specific log entries quickly. The source breakdown at the bottom of the page shows which services are contributing the most log volume.
+
+<Image src="/console/logs.png" alt="Logs screen showing structured log entries with severity, service, trace context, and message columns" />
 
 <Callout title="Observability module required" type="info">
   Log collection requires the Observability module with `logs_enabled: true`. See [Observability Module](/docs/modules/module-observability) for configuration.

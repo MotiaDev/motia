@@ -4,7 +4,9 @@ description: 'Visualize and analyze OpenTelemetry traces with multiple view mode
 hideCards: true
 ---
 
-The Traces page provides full OpenTelemetry trace visualization with multiple view modes, advanced filtering, and detailed span inspection.
+The Traces page provides full OpenTelemetry trace visualization with multiple view modes, advanced filtering, and detailed span inspection. The list view shows each trace with its operation name, short trace ID, duration, service name, and timestamp — along with a rich filter bar covering status, time range, duration, service, operation, and span attributes.
+
+<Image src="/console/traces.png" alt="Traces screen showing the trace list with filter bar and per-trace duration and service info" />
 
 <Callout title="Observability module required" type="info">
   Trace collection requires the Observability module with `exporter` set to `memory` or `both`. See [Observability Module](/docs/modules/module-observability) for configuration.
