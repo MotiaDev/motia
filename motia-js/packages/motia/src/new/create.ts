@@ -1,6 +1,6 @@
 import { execSync } from 'child_process'
 import { existsSync } from 'fs'
-import { mkdir, writeFile } from 'fs/promises'
+import { mkdir, rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { createInterface } from 'readline'
 
@@ -12,7 +12,7 @@ const LIGHT_BLUE = '\x1b[94m'
 const R = '\x1b[0m'
 const WHITE = '\x1b[97m'
 const GRAY = '\x1b[90m'
-const YELLOW = '\x1b[93m'
+const YELLOW = '\x1b[33m'
 const LIGHT_YELLOW = '\x1b[93m'
 
 const BANNER = `
@@ -65,7 +65,7 @@ async function fetchRepoTree(): Promise<RepoTreeEntry[]> {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   })
 
-  if (res.status === 403) {
+  if (res.status === 403 || res.status === 429) {
     const resetHeader = res.headers.get('x-ratelimit-reset')
     const resetMsg = resetHeader
       ? ` Rate limit resets at ${new Date(Number(resetHeader) * 1000).toLocaleTimeString()}.`
@@ -103,14 +103,21 @@ export async function create() {
   try {
     let folderName = ''
     let targetDir = ''
+    let emptyCount = 0
 
     while (true) {
       folderName = await ask(rl, '  Project folder name: ')
 
       if (!folderName) {
-        console.error('\n  Project folder name is required.\n')
+        emptyCount++
+        if (emptyCount >= 2) {
+          console.log('\n  Project creation cancelled.\n')
+          return
+        }
+        console.error('\n  Project folder name is required. Press Enter again to cancel.\n')
         continue
       }
+      emptyCount = 0
 
       targetDir = join(process.cwd(), folderName)
 
@@ -147,9 +154,10 @@ export async function create() {
     let files: RepoTreeEntry[]
     try {
       files = await fetchRepoTree()
-    } catch (err) {
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : ''
       const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('TimeoutError') || msg.includes('timed out') || msg.includes('abort')) {
+      if (name === 'TimeoutError' || name === 'AbortError') {
         console.error(`\n  ${RED}Connection timed out.${R} Check your internet connection and try again.\n`)
       } else if (msg.includes('rate limit')) {
         console.error(`\n  ${RED}${msg}${R}\n`)
@@ -185,12 +193,19 @@ export async function create() {
 
         await writeFile(join(targetDir, file.path), content)
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : ''
       const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('TimeoutError') || msg.includes('timed out') || msg.includes('abort')) {
+      if (name === 'TimeoutError' || name === 'AbortError') {
         console.error(`\n  ${RED}Download timed out.${R} Check your internet connection and try again.\n`)
       } else {
         console.error(`\n  ${RED}Failed to download files:${R} ${msg}\n`)
+      }
+      try {
+        await rm(targetDir, { recursive: true, force: true })
+        console.error(`  Cleaned up partial directory ./${folderName}\n`)
+      } catch {
+        // cleanup is best-effort; ignore errors
       }
       process.exitCode = 1
       return
