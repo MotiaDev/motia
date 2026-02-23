@@ -222,7 +222,7 @@ wheels = [
 
 [[package]]
 name = "motia"
-version = "1.0.0rc14"
+version = "1.0.0rc23"
 source = { directory = "../packages/motia" }
 dependencies = [
     { name = "iii-sdk" },
