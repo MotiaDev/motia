@@ -19,7 +19,7 @@ Motia provides:
 
 ## Repository Structure
 
-```
+```text
 motia-js/
 ├── packages/
 │   ├── motia/                      # Main SDK + CLI (v1.0.0-rc.22)
@@ -67,6 +67,12 @@ motia-js/
    ```
 
 3. Link the CLI for development:
+
+   ```bash
+   pnpm setup
+   ```
+
+   Reload your shell profile (`source ~/.zshrc` or `~/.bashrc`), then:
 
    ```bash
    pnpm link ./packages/motia --global

@@ -8,7 +8,7 @@ Motia is a unified backend framework built on the **iii engine** — a high-perf
 
 This repository is organized as a multi-language monorepo:
 
-```
+```text
 motia/
 ├── motia-js/                       # JavaScript/TypeScript SDK + CLI
 │   ├── packages/
@@ -35,10 +35,12 @@ motia/
 
 ## Local Setup (JavaScript/TypeScript)
 
-1. **Clone the repository:**
+1. **Fork and clone the repository:**
+
+   Fork [MotiaDev/motia](https://github.com/MotiaDev/motia) on GitHub, then clone your fork:
 
    ```bash
-   git clone https://github.com/MotiaDev/motia.git
+   git clone git@github.com:<your-username>/motia.git
    cd motia
    ```
 
@@ -59,12 +61,15 @@ motia/
 
    ```bash
    pnpm setup
+   ```
 
-   # Reload your shell profile:
-   # Zsh:  source ~/.zshrc
-   # Bash: source ~/.bashrc
-   # Fish: source ~/.config/fish/config.fish
+   Then reload your shell profile before continuing:
 
+   - **Zsh:** `source ~/.zshrc`
+   - **Bash:** `source ~/.bashrc`
+   - **Fish:** `source ~/.config/fish/config.fish`
+
+   ```bash
    pnpm link ./packages/motia --global
    ```
 
