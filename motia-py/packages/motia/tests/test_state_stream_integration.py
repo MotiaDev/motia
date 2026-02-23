@@ -37,7 +37,7 @@ class TestStateTriggerIntegration:
             logger=MagicMock(),
             streams={},
             trigger=TriggerInfo(type="state", index=0),
-            _input=None,
+            input_value=None,
         )
 
         assert ctx.is_state() is True
@@ -97,7 +97,7 @@ class TestStreamTriggerIntegration:
                 type="stream",
                 index=0,
             ),
-            _input=None,
+            input_value=None,
         )
 
         assert ctx.is_stream() is True
@@ -138,7 +138,7 @@ class TestMixedTriggers:
             logger=MagicMock(),
             streams={},
             trigger=TriggerInfo(type="state"),
-            _input={"group_id": "test"},
+            input_value={"group_id": "test"},
         )
 
         state_handler = AsyncMock(return_value="state")
@@ -166,7 +166,7 @@ class TestMixedTriggers:
             logger=MagicMock(),
             streams={},
             trigger=TriggerInfo(type="stream"),
-            _input={"stream_name": "test"},
+            input_value={"stream_name": "test"},
         )
 
         state_handler.reset_mock()
