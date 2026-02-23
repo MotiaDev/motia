@@ -1,165 +1,133 @@
-# Motia Monorepo
+# Motia JS/TS Monorepo
 
-This repository hosts the development of **Motia**, a unified backend framework that combines APIs, background jobs, queues, workflows, and AI agents with built-in state management, streaming, and observability. The repository is structured to facilitate the iterative development and testing of the core framework and includes a playground environment for real-world use cases.
+This directory hosts the JavaScript/TypeScript SDK for **Motia** — a unified backend framework that combines APIs, background jobs, queues, workflows, and AI agents into a single system powered by the **iii engine**.
 
 ## Overview
 
 **Build production-grade backends with a single primitive.**
 
-Modern backends shouldn't require juggling frameworks, queues, and services. Motia is a unified framework with a single core primitive: **the Step**.
-
 Motia provides:
 
-- **APIs** - RESTful endpoints with validation and routing
-- **Background Jobs** - Async processing with built-in queues
-- **Durable Workflows** - Complex multi-step orchestration
-- **Agentic AI** - AI agent workflows with streaming support
-- **State Management** - Built-in persistent storage across steps
-- **Streaming** - Real-time data updates to clients
-- **Logging & Observability** - End-to-end tracing and monitoring
-- **Multi-language Support** - Write steps in TypeScript, Python, JavaScript, and more
-
-### Aspirational Vision
-
-Motia strives to be:
-
-- **Developer-Friendly**: Easy to adopt and extend with a single primitive.
-- **Production-Ready**: Scales gracefully from prototypes to enterprise-grade systems.
-- **Unified**: One runtime for all backend patterns - no more juggling frameworks.
+- **APIs** — RESTful endpoints with validation and routing
+- **Background Jobs** — Async processing with built-in queues
+- **Durable Workflows** — Complex multi-step orchestration
+- **Agentic AI** — AI agent workflows with streaming support
+- **State Management** — Built-in persistent storage across steps
+- **Streaming** — Real-time data updates to clients
+- **Observability** — End-to-end tracing and monitoring via OpenTelemetry
+- **Multi-language Support** — Write steps in TypeScript, Python, JavaScript, and more
 
 ## Repository Structure
 
 ```
-.
-├── packages/                   # Core framework and supporting tools
-│   ├── motia/                  # The Motia.js framework
-│   │   ├── src/                # Source code
-│   │   ├── dist/               # Compiled output
-│   │   ├── package.json        # Package metadata
-│   │   └── README.md           # Framework-specific documentation
-│   └── other-packages/         # Placeholder for future packages
-├── playground/                 # Sandbox environment for testing
-│   ├── src/                    # Source code for testing and examples
-│   │   ├── flows/              # Flow implementations
-│   │   ├── traffic/            # Traffic definitions (inbound/outbound)
-│   │   ├── ui/                 # Custom UI components
-│   │   └── index.js            # Playground entry point
-│   ├── .env.example            # Environment variable template
-│   └── README.md               # Playground-specific documentation
-├── pnpm-workspace.yaml         # Monorepo configuration
-├── package.json                # Top-level package metadata
-├── README.md                   # Monorepo overview (this file)
-└── CONTRIBUTING.md             # Guidelines for contributing
+motia-js/
+├── packages/
+│   ├── motia/                      # Main SDK + CLI (v1.0.0-rc.22)
+│   │   ├── src/                    # Source code
+│   │   │   └── new/cli.ts          # CLI entry point (motia create/dev/build/typegen)
+│   │   └── package.json
+│   ├── stream-client/              # Core stream client library
+│   ├── stream-client-browser/      # Browser stream client
+│   ├── stream-client-node/         # Node.js stream client
+│   └── stream-client-react/        # React hooks for streams
+├── playground/                     # Dev sandbox (example Motia project)
+│   ├── steps/                      # Example step implementations
+│   ├── config.yaml                 # iii engine configuration
+│   ├── motia.config.ts             # Motia SDK configuration
+│   └── package.json
+├── biome.json                      # Linter + formatter config
+├── compose.yml                     # Optional Redis + RabbitMQ for production adapters
+├── pnpm-workspace.yaml             # Monorepo workspace config
+├── package.json                    # Root scripts and tooling
+├── CONTRIBUTING.md                 # Contribution guide
+└── README.md                       # SDK documentation
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- **Node.js** (v16+ recommended)
-- **Python** (LTS recommended)
-- **pnpm** (for managing the monorepo)
+- **Node.js v24+** (Volta pins v24.11.1)
+- **pnpm 10+** (`pnpm@10.11.0`)
+- **iii engine** — the Rust runtime ([iii.dev/docs](https://iii.dev/docs))
 
 ### Setup
 
-1. Clone the repository:
+1. From the repo root:
 
    ```bash
-   git clone <repository_url>
-   cd motia-monorepo
-   ```
-
-2. Install dependencies:
-
-   ```bash
+   cd motia-js
    pnpm install
    ```
 
-3. Build the project:
+2. Build all packages:
 
    ```bash
    pnpm build
    ```
 
-4. Set up Motia in the playground:
+3. Link the CLI for development:
 
    ```bash
-   cd playground
-   npx motia install
+   pnpm link ./packages/motia --global
+   motia --version
    ```
-
-5. Set up environment variables:
-   - Copy the example `.env` file:
-     ```bash
-     cp playground/.env.example playground/.env
-     ```
-   - Update the `.env` file with your credentials and API keys.
 
 ### Running the Playground
 
-The playground allows you to test and refine flows built using Motia.js.
+The playground is the local dev sandbox for testing Motia changes. It requires the iii engine.
 
 ```bash
-pnpm run dev
+pnpm dev
 ```
 
-This command starts the following services:
+This builds all packages, then starts the playground via the iii engine. The iii engine's shell module watches for file changes and re-runs `motia dev` automatically.
 
-- **MotiaCore**: The flow orchestrator.
-- **MotiaServer**: Provides HTTP endpoints for triggering flows.
-- **Playground UI**: A React-based visualization tool for flows.
+Key ports:
 
-The workbench runs locally at **[http://localhost:3000](http://localhost:3000)**.
+| Port | Service |
+|------|---------|
+| 3111 | REST API |
+| 3112 | Streams |
+| 3113 | Console |
+| 49134 | SDK WebSocket (iii engine) |
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `pnpm build` | Build all packages (uses tsdown) |
+| `pnpm dev` | Build + run playground with iii engine |
+| `pnpm test` | Run unit tests (motia package) |
+| `pnpm test:ci` | Run all tests including integration |
+| `pnpm lint` | Lint with Biome |
+| `pnpm lint:fix` | Auto-fix lint issues |
+| `pnpm format` | Format code with Biome |
+| `pnpm format:check` | Check formatting |
 
 ## How to Contribute
 
-### Development Flow
-
-1. Create a new branch for your changes:
+1. Create a new branch from `main`:
 
    ```bash
-   git checkout -b feature/<your-feature-name>
+   git checkout -b feature/my-change
    ```
 
-2. Make changes to the codebase.
+2. Make your changes:
+   - SDK changes: update `packages/motia/`
+   - Stream client changes: update `packages/stream-client*/`
+   - Example flows: update `playground/steps/`
 
-   - Framework changes: Update `packages/core`.
-   - Flow examples: Update `playground/src/flows`.
-
-3. Run tests:
+3. Run checks:
 
    ```bash
-   pnpm run test
+   pnpm build && pnpm lint && pnpm test
    ```
 
-4. Commit and push your changes:
+4. Commit, push, and open a pull request.
 
-   ```bash
-   git commit -m "Add <your-feature-description>"
-   git push origin feature/<your-feature-name>
-   ```
-
-5. Open a pull request on GitHub.
-
-### Code Guidelines
-
-- Follow the existing code style (Prettier and ESLint are configured).
-- Write unit tests for new features and components.
-- Keep commits focused and descriptive.
-
-📘 **For detailed contribution guidelines, setup steps, and best practices, see the [CONTRIBUTING.md](https://github.com/MotiaDev/motia/blob/main/CONTRIBUTING.md) file.**
-
-## Roadmap
-
-- Expand the set of example flows.
-- Enhance the visualization capabilities of the playground.
-- Improve documentation for public release.
-- Publish `motia` to npm with comprehensive guides and examples.
+For detailed guidelines, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
 This project is licensed under the [Apache License 2.0](https://github.com/MotiaDev/motia/blob/main/LICENSE).
-
----
-
-For any questions or feedback, feel free to open an issue on GitHub!

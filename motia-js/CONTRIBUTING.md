@@ -1,228 +1,237 @@
----
-title: How to Contribute
-description: Guide for developers who want to contribute to Motia
----
-
 # How to Contribute
 
-Thank you for your interest in contributing to Motia! We welcome contributions from the community to help make Motia better. Here are some ways you can contribute:
+Thank you for your interest in contributing to Motia! We welcome contributions from the community — whether it's fixing bugs, adding features, improving docs, or sharing examples.
 
-## Local Setup
+## Project Overview
 
+Motia is a unified backend framework built on the **iii engine** — a high-performance Rust runtime. The Motia SDK (JavaScript/TypeScript and Python) connects to iii via WebSocket and provides the developer-facing API for building steps, flows, and agents.
 
-Before contributing, you’ll need to set up the project locally.
+This repository is organized as a multi-language monorepo:
 
-## Project Structure
+```
+motia/
+├── motia-js/                       # JavaScript/TypeScript SDK + CLI
+│   ├── packages/
+│   │   ├── motia/                  # Main SDK + CLI (v1.0.0-rc.22)
+│   │   ├── stream-client/          # Core stream client library
+│   │   ├── stream-client-browser/  # Browser stream client
+│   │   ├── stream-client-node/     # Node.js stream client
+│   │   └── stream-client-react/    # React hooks for streams
+│   └── playground/                 # Example Motia project (dev sandbox)
+├── motia-py/                       # Python SDK
+│   ├── packages/motia/             # Python SDK package
+│   └── playground/                 # Python example project
+├── contributors/rfc/               # RFC proposals
+└── .github/                        # CI workflows, PR template, issue templates
+```
 
-Motia is a pnpm-based monorepo. Key directories:
+## Prerequisites
 
-- **packages/core** — main workflow engine and internal execution logic
-- **packages/server** — backend HTTP API used by the playground and workbench
-- **packages/ui** — reusable UI components
-- **packages/workbench** — local developer tools and debugging interface
-- **packages/snap** — Motia CLI implementation
-- **packages/stream-client*** — client SDKs for streams
-- **plugins/** — official Motia plugins (logs, states, observability, endpoints, etc.)
-- **playground/** — example workspace used during local development
+- **Node.js v24+** — [Volta](https://volta.sh) pins v24.11.1 (see root `package.json`)
+- **pnpm 10+** — the repo uses `pnpm@10.11.0` as its package manager
+- **iii engine** — the Rust runtime that powers Motia ([install from iii.dev/docs](https://iii.dev/docs))
+- **Python 3.10+** (only if working on `motia-py`) — `.python-version` pins 3.11.10
+- **uv** (only if working on `motia-py`) — Python package manager used by the Python SDK
 
-### Prerequisites
+## Local Setup (JavaScript/TypeScript)
 
-- **Node.js** (v16+ recommended)
-- **Python** (LTS recommended)
-- **pnpm** (for managing the monorepo)
-
-### Steps
-
-1. Clone the repository:
+1. **Clone the repository:**
 
    ```bash
    git clone https://github.com/MotiaDev/motia.git
    cd motia
    ```
 
-2. Install dependencies:
+2. **Install dependencies:**
 
    ```bash
+   cd motia-js
    pnpm install
    ```
 
-   If you see a warning like:
-
-   ```
-   Ignored build scripts...
-   Run "pnpm approve-builds"
-   ```
-
-   Run:
-
-   ```bash
-   pnpm approve-builds
-   ```
-
-   Then press **a** to select all packages, then **Enter**.
-   
-3. Build the project:
+3. **Build all packages:**
 
    ```bash
    pnpm build
    ```
 
-4. Set up the Motia CLI for development:
-
-   Before using the CLI, you must link it globally:
+4. **Link the CLI globally** (for using `motia` commands during development):
 
    ```bash
    pnpm setup
 
-   # Activate pnpm depending on your shell:
-   # Zsh:
-   source ~/.zshrc
-   # Bash:
-   source ~/.bashrc
-   # Fish:
-   source ~/.config/fish/config.fish
+   # Reload your shell profile:
+   # Zsh:  source ~/.zshrc
+   # Bash: source ~/.bashrc
+   # Fish: source ~/.config/fish/config.fish
 
-   pnpm link ./packages/snap --global
+   pnpm link ./packages/motia --global
    ```
 
-   Verify:
+   Verify it works:
 
    ```bash
    motia --version
    ```
 
-   Then install playground dependencies:
+5. **Run the playground:**
+
+   The playground is the dev sandbox for testing changes. It requires the iii engine to be running.
+
+   From `motia-js/playground/`:
 
    ```bash
-   cd playground
-   motia install
+   iii
    ```
 
-5. Set up environment variables:
-
-   - Copy the example `.env` file:
-     ```bash
-     cp playground/.env.example playground/.env
-     ```
-   - Update the `.env` file with your credentials and API keys.
-
-6. Start the development environment:
-
-   This launches MotiaCore, MotiaServer, and all supporting background services.
-
-   Run the full development environment:
+   Or from `motia-js/` root:
 
    ```bash
-   pnpm run dev
+   pnpm dev
    ```
 
-   - Run this command at the root of the project to start workbench
+   This builds all packages, then starts the playground with the iii engine.
+
+## Local Setup (Python)
+
+1. From the repo root:
 
    ```bash
-   pnpm dev:workbench
+   cd motia-py/packages/motia
+   uv sync --extra dev
    ```
 
-   This will start:
+2. Run the Python playground:
 
-   - **MotiaCore** (flow orchestrator)
-   - **MotiaServer** (HTTP endpoints)
-   - **Playground UI** (flow visualization)
+   ```bash
+   cd motia-py/playground
+   uv sync
+   iii
+   ```
 
-   The app runs locally at **[http://localhost:3000](http://localhost:3000)**.
+## How the iii Engine Works
+
+Motia does not run your code directly — it connects to the **iii engine** via WebSocket.
+
+- **SDK WebSocket**: `ws://localhost:49134` (where Motia SDK connects to iii)
+- **REST API**: `localhost:3111` (HTTP endpoints defined by API steps)
+- **Streams**: `localhost:3112` (real-time streaming)
+- **Console**: `localhost:3113` (developer console UI)
+
+The engine is configured via `config.yaml` in your project root. The playground's `config.yaml` defines modules for:
+
+| Module | Purpose |
+|--------|---------|
+| `StreamModule` | Real-time streaming to clients |
+| `StateModule` | Persistent key-value state across steps |
+| `RestApiModule` | HTTP endpoint routing |
+| `OtelModule` | OpenTelemetry observability (traces, metrics, logs) |
+| `QueueModule` | Background job processing |
+| `PubSubModule` | Publish/subscribe messaging |
+| `CronModule` | Scheduled task execution |
+| `ExecModule` | Shell commands with file watching (runs `motia dev`) |
+
+For production, `compose.yml` provides optional Redis and RabbitMQ adapters.
+
+## CLI Commands
+
+The Motia CLI provides these commands:
+
+| Command | Description |
+|---------|-------------|
+| `motia create` | Scaffold a new Motia project |
+| `motia dev` | Build for development (used by iii shell module in watch mode) |
+| `motia build` | Build for production |
+| `motia typegen` | Generate TypeScript types from steps and streams |
+
+## Linting and Formatting
+
+This project uses **Biome** (not ESLint/Prettier) for both linting and formatting:
+
+```bash
+# From motia-js/
+pnpm lint          # Check for lint issues
+pnpm lint:fix      # Auto-fix lint issues
+pnpm format        # Format code
+pnpm format:check  # Check formatting without modifying
+```
+
+**Code style** (configured in `biome.json`):
+
+- Single quotes
+- No semicolons
+- Trailing commas
+- 120 character line width
+- 2-space indentation
+
+A pre-commit hook runs Biome via `lint-staged` automatically on staged JS/TS files.
+
+**Python linting** uses **Ruff**. The pre-commit hook runs `ruff check` on staged `.py` files under `motia-py/`.
 
 ## Running Tests
 
-Run all tests:
-
 ```bash
-pnpm test
+# From motia-js/
+pnpm test          # Unit tests only (motia package)
+pnpm test:ci       # All tests including integration
+
+# Run tests for a specific package:
+pnpm --filter motia test
+pnpm --filter @motiadev/stream-client test
 ```
 
-Run tests for a specific package:
+Tests use **Jest** with `ts-jest`. Integration tests require a running iii engine.
+
+**Python tests:**
 
 ```bash
-pnpm --filter <package-name> test
+cd motia-py/packages/motia
+uv run pytest
 ```
-----
 
-## Reporting Issues
-
-If you encounter any bugs, have feature requests, or want to discuss improvements, please [open an issue](https://github.com/MotiaDev/motia/issues) on our GitHub repository. When reporting bugs, please provide detailed information about your environment and steps to reproduce the issue.
+Python tests use **pytest** with `pytest-asyncio`. Integration tests are marked with `@pytest.mark.integration`.
 
 ## Submitting Pull Requests
 
-We appreciate pull requests for bug fixes, enhancements, or new features. To submit a pull request:
+1. **Fork** the [Motia repository](https://github.com/MotiaDev/motia) on GitHub.
+2. **Create a branch** from `main`:
+   ```bash
+   git checkout -b feature/my-change
+   ```
+3. **Make your changes** and ensure code follows the project's style (Biome will catch issues).
+4. **Write tests** for new functionality where applicable.
+5. **Run the checks:**
+   ```bash
+   cd motia-js
+   pnpm build && pnpm lint && pnpm test
+   ```
+6. **Commit and push** to your fork.
+7. **Open a pull request** against the `main` branch.
 
-1. Fork the [Motia repository](https://github.com/MotiaDev/motia) on GitHub.
-2. Create a new branch from the `main` branch for your changes.
-3. Make your modifications and ensure that the code follows our coding conventions.
-4. Write tests to cover your changes, if applicable.
-5. Commit your changes and push them to your forked repository.
-6. Open a pull request against the `main` branch of the Motia repository.
+Use the [PR template](https://github.com/MotiaDev/motia/blob/main/.github/PULL_REQUEST_TEMPLATE.md) and provide a clear summary of your changes.
 
-Please provide a clear description of your changes in the pull request, along with any relevant information or context.
+## RFC Process
 
-## Troubleshooting
+For substantial changes (new public APIs, breaking changes, architectural decisions), submit an RFC:
 
-### Error: `command not found: motia`
-Make sure the pnpm global bin directory is created and in PATH:
+1. Copy the template: `cp contributors/rfc/0000-00-00-template.md contributors/rfc/YYYY-MM-DD-my-feature.md`
+2. Fill in the proposal details.
+3. Submit a pull request for review.
 
-```bash
-pnpm setup
+See [`contributors/rfc/README.md`](https://github.com/MotiaDev/motia/blob/main/contributors/rfc/README.md) for the full process.
 
-# Activate pnpm depending on your shell:
-# Zsh:
-source ~/.zshrc
-# Bash:
-source ~/.bashrc
-# Fish:
-source ~/.config/fish/config.fish
+## Reporting Issues
 
-pnpm link ./packages/snap --global
-```
+Found a bug or have a feature request? [Open an issue](https://github.com/MotiaDev/motia/issues) with steps to reproduce and your environment details.
 
-### Warning: Ignored build scripts
-Run:
+## Documentation
 
-```bash
-pnpm approve-builds
-```
+Docs are hosted at [motia.dev/docs](https://motia.dev/docs) and maintained in a separate repository. If you'd like to contribute to documentation, check the [Motia docs repo](https://github.com/MotiaDev/motia-docs).
 
-Then press **a** to select all packages.
+## Community
 
-### pnpm: No global bin directory
-Run:
+- [Discord](https://discord.gg/motia) — chat with the team and other contributors
+- [Twitter/X](https://twitter.com/motiadev) — follow for updates
+- [GitHub Discussions](https://github.com/MotiaDev/motia/discussions) — longer-form conversations
 
-```bash
-pnpm setup
-
-# Activate pnpm depending on your shell:
-# Zsh:
-source ~/.zshrc
-# Bash:
-source ~/.bashrc
-# Fish:
-source ~/.config/fish/config.fish
-```
-
-### Playground does not start
-Ensure you installed Python dependencies:
-
-```bash
-cd playground
-motia install
-```
-
-## Documentation Improvements
-
-Improving the documentation is a great way to contribute to Motia. If you find any errors, typos, or areas that need clarification, please submit a pull request with the necessary changes. The documentation source files are located in the `packages/docs/content` directory.
-
-## Sharing Examples and Use Cases
-
-If you have built something interesting with Motia or have a real-world use case to share, we would love to showcase it in our [Examples](/docs/examples) section. You can contribute your examples by submitting a pull request to the [Motia Examples repository](https://github.com/MotiaDev/motia-examples).
-
-## Spreading the Word
-
-Help spread the word about Motia by sharing it with your friends, colleagues, and the developer community. You can also star our [GitHub repository](https://github.com/MotiaDev/motia), follow us on [Twitter](https://twitter.com/motiadev), and join our [Discord community](https://discord.gg/nJFfsH5d6v) to stay updated with the latest news and engage with other Motia developers.
-
-We appreciate all forms of contributions and look forward to collaborating with you to make Motia even better!
+We appreciate all contributions and look forward to collaborating with you!
