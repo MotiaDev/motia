@@ -10,7 +10,10 @@ program
   .command('dev')
   .description('Build the project for development')
   .action(() => {
-    dev().catch(console.error)
+    dev().catch((err) => {
+      console.error(err)
+      process.exitCode = 1
+    })
   })
 
 program
@@ -20,7 +23,10 @@ program
   .action((options) => {
     const external = options.external ? options.external.split(',') : []
 
-    build({ external }).catch(console.error)
+    build({ external }).catch((err) => {
+      console.error(err)
+      process.exitCode = 1
+    })
   })
 
 program
@@ -29,14 +35,20 @@ program
   .option('-w, --watch', 'Watch for file changes')
   .option('-o, --output <path>', 'Output file path', 'types.d.ts')
   .action((options) => {
-    typegen(options).catch(console.error)
+    typegen(options).catch((err) => {
+      console.error(err)
+      process.exitCode = 1
+    })
   })
 
 program
   .command('create')
   .description('Create a new Motia project powered by iii')
   .action(() => {
-    create().catch(console.error)
+    create().catch((err) => {
+      console.error(err)
+      process.exitCode = 1
+    })
   })
 
 program.parse(process.argv)

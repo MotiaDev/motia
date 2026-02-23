@@ -35,6 +35,8 @@ ${LIGHT_BLUE}░${BLUE}██       ░██  ░███████      ░
 
 const SKIP_FILES = new Set(['package-lock.json', 'README.md'])
 const BOLD = '\x1b[1m'
+const RED = '\x1b[31m'
+const FETCH_TIMEOUT_MS = 30_000
 
 interface RepoTreeEntry {
   path: string
@@ -47,9 +49,29 @@ function ask(rl: ReturnType<typeof createInterface>, question: string): Promise<
   })
 }
 
+function fetchHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'User-Agent': 'motia-cli' }
+  const token = process.env.GITHUB_TOKEN
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+  return headers
+}
+
 async function fetchRepoTree(): Promise<RepoTreeEntry[]> {
   const url = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`
-  const res = await fetch(url, { headers: { 'User-Agent': 'motia-cli' } })
+  const res = await fetch(url, {
+    headers: fetchHeaders(),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
+
+  if (res.status === 403) {
+    const resetHeader = res.headers.get('x-ratelimit-reset')
+    const resetMsg = resetHeader
+      ? ` Rate limit resets at ${new Date(Number(resetHeader) * 1000).toLocaleTimeString()}.`
+      : ''
+    throw new Error(`GitHub API rate limit exceeded.${resetMsg} Set GITHUB_TOKEN to increase your limit.`)
+  }
 
   if (!res.ok) {
     throw new Error(`Failed to fetch template repository: ${res.statusText}`)
@@ -61,7 +83,10 @@ async function fetchRepoTree(): Promise<RepoTreeEntry[]> {
 
 async function downloadFile(filePath: string): Promise<string> {
   const url = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${filePath}`
-  const res = await fetch(url)
+  const res = await fetch(url, {
+    headers: fetchHeaders(),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
 
   if (!res.ok) {
     throw new Error(`Failed to download ${filePath}: ${res.statusText}`)
@@ -76,18 +101,25 @@ export async function create() {
   const rl = createInterface({ input: process.stdin, output: process.stdout })
 
   try {
-    const folderName = await ask(rl, '  Project folder name: ')
+    let folderName = ''
+    let targetDir = ''
 
-    if (!folderName) {
-      console.error('\n  Project folder name is required.\n')
-      process.exit(1)
-    }
+    while (true) {
+      folderName = await ask(rl, '  Project folder name: ')
 
-    const targetDir = join(process.cwd(), folderName)
+      if (!folderName) {
+        console.error('\n  Project folder name is required.\n')
+        continue
+      }
 
-    if (existsSync(targetDir)) {
-      console.error(`\n  Directory "${folderName}" already exists.\n`)
-      process.exit(1)
+      targetDir = join(process.cwd(), folderName)
+
+      if (existsSync(targetDir)) {
+        console.error(`\n  Directory "${folderName}" already exists. Please choose a different name.\n`)
+        continue
+      }
+
+      break
     }
 
     const hasIII = await ask(rl, '  Do you have iii installed? (Y/n): ')
@@ -100,13 +132,33 @@ export async function create() {
       console.log('')
       console.log(`  Install iii → ${BOLD}https://iii.dev/docs${R}`)
       console.log('')
+
+      const cont = await ask(rl, '  Continue creating project? (Y/n): ')
+      if (cont.toLowerCase() === 'n' || cont.toLowerCase() === 'no') {
+        console.log('\n  Project creation cancelled.\n')
+        return
+      }
     }
 
     console.log('')
     console.log(`  Creating project in ./${folderName}`)
     console.log('')
 
-    const files = await fetchRepoTree()
+    let files: RepoTreeEntry[]
+    try {
+      files = await fetchRepoTree()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('TimeoutError') || msg.includes('timed out') || msg.includes('abort')) {
+        console.error(`\n  ${RED}Connection timed out.${R} Check your internet connection and try again.\n`)
+      } else if (msg.includes('rate limit')) {
+        console.error(`\n  ${RED}${msg}${R}\n`)
+      } else {
+        console.error(`\n  ${RED}Failed to fetch project template:${R} ${msg}\n`)
+      }
+      process.exitCode = 1
+      return
+    }
 
     const dirs = new Set<string>()
     for (const file of files) {
@@ -120,24 +172,41 @@ export async function create() {
       await mkdir(join(targetDir, dir), { recursive: true })
     }
 
-    for (const file of files) {
-      process.stdout.write(`  ↓ ${file.path}\n`)
-      let content = await downloadFile(file.path)
+    try {
+      for (const file of files) {
+        process.stdout.write(`  ↓ ${file.path}\n`)
+        let content = await downloadFile(file.path)
 
-      if (file.path === 'package.json') {
-        const pkg = JSON.parse(content)
-        pkg.name = folderName
-        content = JSON.stringify(pkg, null, 2) + '\n'
+        if (file.path === 'package.json') {
+          const pkg = JSON.parse(content)
+          pkg.name = folderName
+          content = JSON.stringify(pkg, null, 2) + '\n'
+        }
+
+        await writeFile(join(targetDir, file.path), content)
       }
-
-      await writeFile(join(targetDir, file.path), content)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('TimeoutError') || msg.includes('timed out') || msg.includes('abort')) {
+        console.error(`\n  ${RED}Download timed out.${R} Check your internet connection and try again.\n`)
+      } else {
+        console.error(`\n  ${RED}Failed to download files:${R} ${msg}\n`)
+      }
+      process.exitCode = 1
+      return
     }
 
     console.log('')
     console.log('  Installing dependencies...')
     console.log('')
 
-    execSync('npm install', { cwd: targetDir, stdio: 'inherit' })
+    try {
+      execSync('npm install', { cwd: targetDir, stdio: 'inherit' })
+    } catch {
+      console.error(`\n  ${RED}Failed to install dependencies.${R} Run "npm install" manually in ./${folderName}\n`)
+      process.exitCode = 1
+      return
+    }
 
     console.log('')
     console.log('  ✓ Project created successfully!')
