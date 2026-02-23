@@ -265,7 +265,7 @@ export class Motia {
       } else if (isStateTrigger(trigger)) {
         getInstance().registerFunction({ id: function_id, metadata }, async (req) => {
           const triggerInfo: TriggerInfo = { type: 'state', index }
-          const context = flowContext(this, triggerInfo)
+          const context = flowContext(this, triggerInfo, req)
           return step.handler(req, context)
         })
 
@@ -277,7 +277,7 @@ export class Motia {
 
           getInstance().registerFunction({ id: conditionPath }, async (input) => {
             const triggerInfo: TriggerInfo = { type: 'state', index }
-            return trigger.condition?.(input, flowContext(this, triggerInfo))
+            return trigger.condition?.(input, flowContext(this, triggerInfo, input))
           })
 
           triggerConfig.condition_function_id = conditionPath
@@ -291,7 +291,7 @@ export class Motia {
       } else if (isStreamTrigger(trigger)) {
         getInstance().registerFunction({ id: function_id, metadata }, async (req) => {
           const triggerInfo: TriggerInfo = { type: 'stream', index }
-          const context = flowContext(this, triggerInfo)
+          const context = flowContext(this, triggerInfo, req)
           return step.handler(req, context)
         })
 
@@ -315,7 +315,7 @@ export class Motia {
 
           getInstance().registerFunction({ id: conditionPath }, async (input) => {
             const triggerInfo: TriggerInfo = { type: 'stream', index }
-            return trigger.condition?.(input, flowContext(this, triggerInfo))
+            return trigger.condition?.(input, flowContext(this, triggerInfo, input))
           })
 
           triggerConfig.condition_function_id = conditionPath
