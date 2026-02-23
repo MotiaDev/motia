@@ -1,7 +1,7 @@
 > [!IMPORTANT]
-> 🚀 **A brand new engine is now powering Motia and supercharged its speed & scalability. It's currently in alpha.**
+> 🚀 **Motia 1.0-RC is here — now powered by the [iii engine](https://iii.dev), a Rust-based runtime that manages queues, state, streams, cron, and observability through a single `config.yaml`.**
 >
-> **[📬 Signup to be the first to get notified about future releases](https://forms.gle/24iCHL9yAk1i6LDc6) → https://forms.gle/24iCHL9yAk1i6LDc6**
+> **[📖 Migration Guide (v0.17 → v1.0)](https://motia.dev/docs/getting-started/migration-guide)** · **[🚀 Quick Start](https://motia.dev/docs/getting-started/quick-start)**
 
 <a href="https://motia.dev">
   <img src="assets/github-readme-banner.png" alt="Motia Banner" width="100%">
@@ -80,7 +80,7 @@ To read more about this, check out our **[manifesto](https://motia.dev/manifesto
 
 A Step is just a file with a `config` and a `handler`. Motia auto-discovers these files and connects them automatically.
 
-Here's a simple example of two Steps working together: an API Step that enqueues an event, and an Event Step that processes it.
+Here's a simple example of two Steps working together: an HTTP Step that enqueues a message, and a Queue Step that processes it.
 
 <details open>
 <summary><b>TypeScript</b></summary>
@@ -189,6 +189,15 @@ module.exports = { config, handler };
 
 Get Motia project up and running in **under 60 seconds**:
 
+### 0. Prerequisites
+
+- **Node.js 18+** — for TypeScript/JavaScript Steps
+- **Python 3** — optional, for Python Steps
+- **iii engine** — install from [iii.dev](https://iii.dev/docs):
+  ```bash
+  curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
+  ```
+
 ### 1. Bootstrap a New Motia Project
 
 ```bash
@@ -198,23 +207,30 @@ npx motia@latest create   # runs the interactive terminal
 Follow the prompts to pick a template, project name, and language.
 ![motia-terminal](assets/motia-terminal.gif)
 
-### 2. Start the Workbench
+### 2. Start the iii Engine
 
-Inside your new project folder, launch the dev server:
+Inside your new project folder, start the iii engine:
 
 ```bash
-npm run dev # ➜ http://localhost:3000
+iii -c iii-config.yaml
 ```
 
 **That's it!** You have:
 - ✅ REST APIs with validation
-- ✅ Visual debugger & tracing  
 - ✅ Multi-language support
 - ✅ Event-driven architecture
 - ✅ Zero configuration
 - ✅ AI development guides included (Cursor, OpenCode, Codex, and more)
 
-![new-workbench](assets/new-workbench.png)
+### 3. (Optional) Install the iii Console
+
+The iii Console gives you visual flow diagrams, real-time logs, state inspection, and stream monitoring:
+
+```bash
+curl -fsSL https://install.iii.dev/console/main/install.sh | sh
+iii-console --enable-flow
+```
+Then open http://localhost:3113/
 
 > 📖 **[Full tutorial in our docs →](https://motia.dev/docs/getting-started/quick-start)**
 
@@ -306,11 +322,11 @@ Feel free to add comments to the issues, or create a new issue if you have a fea
 | Feature | Status | Link | Description |
 | ------- | ------ | ---- | ----------- |
 | Streams: RBAC | ✅ Shipped | [#495](https://github.com/MotiaDev/motia/issues/495) | Add support for RBAC |
-| Streams: Workbench UI | ✅ Shipped | [#497](https://github.com/MotiaDev/motia/issues/497) | Add support for Workbench UI |
+| Streams: iii Console UI | ✅ Shipped | [#497](https://github.com/MotiaDev/motia/issues/497) | Stream visualization in iii Console |
 | Queue Strategies | ✅ Shipped | [#476](https://github.com/MotiaDev/motia/issues/476) | Add support for Queue Strategies |
 | Reactive Steps | ✅ Shipped | [#477](https://github.com/MotiaDev/motia/issues/477) | Add support for Reactive Steps |
 | Point in time triggers | 📅 Planned | [#480](https://github.com/MotiaDev/motia/issues/480) | Add support for Point in time triggers |
-| Workbench plugins | ✅ Shipped | [#481](https://github.com/MotiaDev/motia/issues/481) | Add support for Workbench plugins |
+| Workbench plugins | ⏹️ Sunset | [#481](https://github.com/MotiaDev/motia/issues/481) | Replaced by iii Console |
 | Rewrite core in Rust | ✅ Shipped | [#482](https://github.com/MotiaDev/motia/issues/482) | Rewrite our Core in Rust |
 | Decrease deployment time | ✅ Shipped | [#483](https://github.com/MotiaDev/motia/issues/483) | Decrease deployment time |
 | Built-in database support | 📅 Planned | [#484](https://github.com/MotiaDev/motia/issues/484) | Add support for built-in database |
