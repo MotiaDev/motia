@@ -24,6 +24,54 @@ modules::queue::QueueModule
   The adapter to use for queue persistence and distribution. Defaults to `modules::queue::BuiltinQueueAdapter` when not specified.
 </ResponseField>
 
+## Adapters
+
+### modules::queue::BuiltinQueueAdapter
+
+Built-in in-process queue. No external dependencies. Suitable for single-instance deployments only — messages are not shared across engine instances.
+
+```yaml
+class: modules::queue::BuiltinQueueAdapter
+```
+
+### modules::queue::RedisAdapter
+
+Uses Redis Streams as the queue backend. Enables message sharing across multiple engine instances.
+
+```yaml
+class: modules::queue::RedisAdapter
+config:
+  redis_url: ${REDIS_URL:redis://localhost:6379}
+```
+
+<ResponseField name="redis_url" type="string">
+  The URL of the Redis instance to connect to.
+</ResponseField>
+
+### modules::queue::RabbitMQAdapter
+
+Uses RabbitMQ as the queue backend. Supports retries, dead-letter queues, and durable message delivery across multiple engine instances.
+
+```yaml
+class: modules::queue::RabbitMQAdapter
+config:
+  amqp_url: ${RABBITMQ_URL:amqp://localhost:5672}
+  max_attempts: 3
+  prefetch_count: 10
+```
+
+<ResponseField name="amqp_url" type="string">
+  The AMQP URL of the RabbitMQ instance to connect to.
+</ResponseField>
+
+<ResponseField name="max_attempts" type="number">
+  Maximum number of delivery attempts before sending to the dead-letter queue. Defaults to `3`.
+</ResponseField>
+
+<ResponseField name="prefetch_count" type="number">
+  Number of messages to prefetch per consumer. Defaults to `10`.
+</ResponseField>
+
 ## Functions
 
 <ResponseField name="enqueue" type="function">

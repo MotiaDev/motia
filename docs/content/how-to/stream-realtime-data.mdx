@@ -1,0 +1,114 @@
+---
+title: 'Stream Real-Time Data'
+description: 'How to push live updates to connected clients using the Stream module.'
+---
+
+## Goal
+
+Push real-time updates (chat messages, notifications, live dashboards) to connected clients over WebSocket.
+
+## Steps
+
+### 1. Enable the Stream module
+
+```yaml
+modules:
+  stream:
+    adapter: memory
+    port: 3001
+```
+
+### 2. Write to a stream from a Function
+
+<Tabs items={["TypeScript", "Python"]}>
+<Tab value="TypeScript">
+```typescript
+import { init } from 'iii-sdk'
+
+const iii = init('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'chat::send-message' },
+  async (data) => {
+    const message = {
+      id: crypto.randomUUID(),
+      text: data.text,
+      author: data.author,
+      timestamp: Date.now(),
+    }
+
+    await iii.trigger('stream::set', {
+      stream_name: 'chat',
+      group_id: data.roomId,
+      item_id: message.id,
+      data: message,
+    })
+
+    return message
+  }
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+import asyncio, uuid, time
+from iii import III
+
+async def main():
+    iii = III('ws://localhost:49134')
+
+    async def send_message(data):
+        message = {
+            'id': str(uuid.uuid4()),
+            'text': data['text'],
+            'author': data['author'],
+            'timestamp': int(time.time() * 1000),
+        }
+
+        await iii.trigger('stream::set', {
+            'stream_name': 'chat',
+            'group_id': data['roomId'],
+            'item_id': message['id'],
+            'data': message,
+        })
+
+        return message
+
+    iii.register_function('chat::send-message', send_message)
+    await iii.connect()
+
+asyncio.run(main())
+```
+</Tab>
+</Tabs>
+
+### 3. Read from a stream
+
+```typescript
+const roomId = 'room-123'
+const messages = await iii.trigger('stream::list', {
+  stream_name: 'chat',
+  group_id: roomId,
+})
+```
+
+### 4. Connect a client
+
+Clients connect to the stream WebSocket endpoint to receive live updates:
+
+```javascript
+const ws = new WebSocket('ws://localhost:3001/stream/chat/room-123')
+
+ws.onmessage = (event) => {
+  const update = JSON.parse(event.data)
+  console.log('New message:', update)
+}
+```
+
+## Result
+
+Any data written to the stream via `stream::set` is immediately pushed to all connected WebSocket clients subscribed to that stream and group. No polling needed.
+
+<Callout title="See also" type="info">
+  For stream operations like `update`, `delete`, `listGroups`, and authentication, see the [Stream module reference](/docs/modules/module-stream).
+</Callout>

@@ -1,0 +1,104 @@
+---
+title: 'Add a Background Job'
+description: 'How to process work asynchronously using the Queue module.'
+---
+
+## Goal
+
+Offload slow or unreliable work (sending emails, processing images, calling external APIs) to a background queue so your HTTP endpoint responds immediately.
+
+## Steps
+
+### 1. Enable the Queue module
+
+```yaml
+modules:
+  queue:
+    adapter: memory
+```
+
+### 2. Register the background Function
+
+<Tabs items={["TypeScript", "Python"]}>
+<Tab value="TypeScript">
+```typescript
+import { init } from 'iii-sdk'
+
+const iii = init('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'emails::send-welcome' },
+  async (data) => {
+    // send the email
+    return { sent: true, to: data.to }
+  }
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+import asyncio
+from iii import III
+
+async def main():
+    iii = III('ws://localhost:49134')
+
+    async def send_welcome(data):
+        # send the email
+        return {'sent': True, 'to': data['to']}
+
+    iii.register_function('emails::send-welcome', send_welcome)
+    await iii.connect()
+
+asyncio.run(main())
+```
+</Tab>
+</Tabs>
+
+### 3. Trigger it asynchronously from another Function
+
+Use `triggerVoid()` (fire-and-forget) so the calling Function doesn't wait:
+
+<Tabs items={["TypeScript", "Python"]}>
+<Tab value="TypeScript">
+```typescript
+iii.registerFunction(
+  { id: 'users::create' },
+  async (req) => {
+    const user = { id: crypto.randomUUID(), ...req.body }
+
+    iii.triggerVoid('emails::send-welcome', {
+      to: user.email,
+      body: `Hi ${user.name}, welcome!`,
+    })
+
+    return { status_code: 201, body: user }
+  }
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+async def create_user(req):
+    import uuid
+    user = {'id': str(uuid.uuid4()), **req['body']}
+
+    iii.trigger_void('emails::send-welcome', {
+        'to': user['email'],
+        'body': f"Hi {user['name']}, welcome!",
+    })
+
+    return {'status_code': 201, 'body': user}
+
+iii.register_function('users::create', create_user)
+```
+</Tab>
+</Tabs>
+
+## Result
+
+The HTTP endpoint returns `201` immediately while the email is sent in the background. If the email Function fails, it does not affect the user creation response.
+
+<Callout title="Queue triggers" type="info">
+  For more advanced patterns like retry policies, dead-letter queues, and batching, see the [Queue module reference](/docs/modules/module-queue).
+</Callout>

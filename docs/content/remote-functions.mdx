@@ -18,7 +18,7 @@ graph TD
     Event[Event Trigger] -->|Invokes| Func
     Cron[Cron Trigger] -->|Invokes| Func
     Other[Another Function] -->|Invokes| Func
-    Direct[Direct SDK Call] -->|Invokes| Func
+    Direct[Direct SDK trigger] -->|Invokes| Func
 
     Func -->|Calls| DB[(Database)]
     Func -->|Calls| External[External API]
@@ -474,7 +474,7 @@ bridge.registerFunction({
     Use the logger for debugging and monitoring:
 
     ```typescript
-    import { logger } from '@iii-dev/sdk';
+    import { logger } from 'iii-sdk';
 
     bridge.registerFunction({
       function_path: 'payments.charge',

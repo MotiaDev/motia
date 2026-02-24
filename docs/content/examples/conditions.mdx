@@ -181,6 +181,13 @@ async def is_high_value(data) -> bool:
 async def orders_high_value(data: dict, ctx) -> None:
     ctx.logger.info("Processing high-value order", {"amount": data.get("amount")})
 
+    # Silent skip
+    if amount <= 1000:
+        ctx.logger.info("Low-value order — skipping", {"amount": amount})
+        return
+
+    ctx.logger.info("Processing high-value order", {"amount": amount})
+
     await iii.trigger("enqueue", {
         "topic": "order.processed",
         "data": {**data, "processedAt": datetime.now(timezone.utc).isoformat()},

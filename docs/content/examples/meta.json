@@ -1,8 +1,7 @@
 {
   "title": "Examples",
-  "defaultOpen": true,
+  "defaultOpen": false,
   "pages": [
-    "index",
     "hello-world",
     "todo-app",
     "multi-trigger",

@@ -1,0 +1,266 @@
+---
+title: 'Queue a Background Job'
+description: 'How to use the Queue module to publish events and process them asynchronously with decoupled workers.'
+---
+
+## Goal
+
+Use the iii engine's Queue module to decouple producers from consumers. A function publishes a message to a **topic**, and any function with a **queue trigger** on that topic processes it asynchronously — potentially on a different worker, with independent scaling and failure isolation.
+
+This is different from `triggerVoid()` (direct fire-and-forget invocation). Queue-based processing gives you:
+
+- **Decoupling** — producer doesn't need to know which function handles the work
+- **Fan-out** — multiple functions can subscribe to the same topic
+- **Resilience** — queue persists messages even if the consumer is temporarily down
+- **Scalability** — consumers can run on separate workers and scale independently
+
+## Steps
+
+### 1. Enable the Queue module
+
+```yaml title="config.yaml"
+modules:
+  - class: modules::queue::QueueModule
+    config:
+      adapter:
+        class: modules::queue::BuiltinQueueAdapter
+```
+
+### 2. Publish to a topic
+
+Use `iii.trigger('enqueue', { topic, data })` to publish a message. The calling function returns immediately — it does not wait for the consumer.
+
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
+```typescript
+import { init, getContext, type ApiResponse } from 'iii-sdk'
+
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'orders::create' },
+  async (req) => {
+    const ctx = getContext()
+    const order = { id: crypto.randomUUID(), ...req.body }
+
+    await iii.trigger('enqueue', {
+      topic: 'order.created',
+      data: order,
+    })
+
+    ctx.logger.info('Order enqueued', { orderId: order.id })
+    return { status_code: 201, body: order } satisfies ApiResponse
+  },
+)
+
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'orders::create',
+  config: { api_path: 'orders', http_method: 'POST' },
+})
+```
+</Tab>
+<Tab value="Python">
+```python
+import asyncio
+import uuid
+from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
+
+iii = III(
+    address="ws://localhost:49134",
+    options=InitOptions(worker_name="order-worker"),
+)
+
+async def create_order(req):
+    ctx = get_context()
+    order = {"id": str(uuid.uuid4()), **req["body"]}
+
+    await iii.trigger("enqueue", {
+        "topic": "order.created",
+        "data": order,
+    })
+
+    ctx.logger.info("Order enqueued", {"orderId": order["id"]})
+    return {"status_code": 201, "body": order}
+
+iii.register_function("orders::create", create_order)
+iii.register_trigger(
+    type="http",
+    function_id="orders::create",
+    config={"api_path": "orders", "http_method": "POST"},
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+use iii_sdk::{III, get_context};
+use serde_json::json;
+
+iii.register_function("orders::create", |input| async move {
+    let ctx = get_context();
+    let order_id = uuid::Uuid::new_v4().to_string();
+
+    iii.trigger_void("enqueue", json!({
+        "topic": "order.created",
+        "data": {
+            "id": order_id,
+            "items": input["body"]["items"],
+        },
+    }))?;
+
+    ctx.logger.info("Order enqueued", Some(json!({ "orderId": order_id })));
+
+    Ok(json!({
+        "status_code": 201,
+        "body": { "id": order_id, "status": "processing" },
+    }))
+});
+
+iii.register_trigger("http", "orders::create", json!({
+    "api_path": "orders",
+    "http_method": "POST",
+}))?;
+```
+</Tab>
+</Tabs>
+
+### 3. Consume from the topic
+
+Register a function and bind it to a `queue` trigger with the same topic. The engine invokes this function whenever a message arrives on that topic.
+
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
+```typescript
+iii.registerFunction(
+  { id: 'orders::process-payment' },
+  async (data) => {
+    const ctx = getContext()
+    const { id, items } = data as { id: string; items: any[] }
+
+    ctx.logger.info('Processing payment', { orderId: id })
+    const result = await chargePayment(id, items)
+
+    await iii.trigger('enqueue', {
+      topic: 'order.paid',
+      data: { orderId: id, chargeId: result.chargeId },
+    })
+  },
+)
+
+iii.registerTrigger({
+  type: 'queue',
+  function_id: 'orders::process-payment',
+  config: { topic: 'order.created' },
+})
+```
+</Tab>
+<Tab value="Python">
+```python
+async def process_payment(data):
+    ctx = get_context()
+    order_id = data["id"]
+
+    ctx.logger.info("Processing payment", {"orderId": order_id})
+    result = await charge_payment(order_id, data["items"])
+
+    await iii.trigger("enqueue", {
+        "topic": "order.paid",
+        "data": {"orderId": order_id, "chargeId": result["chargeId"]},
+    })
+
+iii.register_function("orders::process-payment", process_payment)
+iii.register_trigger(
+    type="queue",
+    function_id="orders::process-payment",
+    config={"topic": "order.created"},
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("orders::process-payment", |input| async move {
+    let ctx = get_context();
+    let order_id = input["id"].as_str().unwrap();
+
+    ctx.logger.info("Processing payment", Some(json!({ "orderId": order_id })));
+    let result = charge_payment(order_id, &input["items"]).await?;
+
+    iii.trigger_void("enqueue", json!({
+        "topic": "order.paid",
+        "data": { "orderId": order_id, "chargeId": result.charge_id },
+    }))?;
+
+    Ok(json!(null))
+});
+
+iii.register_trigger("queue", "orders::process-payment", json!({
+    "topic": "order.created",
+}))?;
+```
+</Tab>
+</Tabs>
+
+### 4. Chain multiple consumers (fan-out)
+
+Multiple functions can subscribe to the same topic. When `order.created` fires, both `process-payment` and `send-confirmation` run independently:
+
+```typescript
+iii.registerFunction(
+  { id: 'orders::send-confirmation' },
+  async (data) => {
+    const ctx = getContext()
+    await sendEmail(data.email, `Order ${data.id} confirmed!`)
+    ctx.logger.info('Confirmation sent', { orderId: data.id })
+  },
+)
+
+iii.registerTrigger({
+  type: 'queue',
+  function_id: 'orders::send-confirmation',
+  config: { topic: 'order.created' },
+})
+```
+
+### 5. Conditional queue triggers
+
+Use `_condition_path` to only invoke the handler when a condition is met:
+
+```typescript
+iii.registerFunction(
+  { id: 'orders::high-value-alert' },
+  async (data) => {
+    await notifySlack(`High-value order: ${data.id} ($${data.total})`)
+  },
+)
+
+iii.registerFunction(
+  { id: 'orders::is-high-value' },
+  async (data) => data.total > 1000,
+)
+
+iii.registerTrigger({
+  type: 'queue',
+  function_id: 'orders::high-value-alert',
+  config: {
+    topic: 'order.created',
+    _condition_path: 'orders::is-high-value',
+  },
+})
+```
+
+## Result
+
+The HTTP endpoint returns `201` immediately. The queue adapter distributes the message to all subscribed functions, which process it independently on their own workers. If a consumer fails, it does not affect the producer or other consumers.
+
+## Queue vs triggerVoid
+
+| | `enqueue` | `triggerVoid()` |
+|---|---|---|
+| **Decoupling** | Producer doesn't know consumers | Producer must know function ID |
+| **Fan-out** | Multiple consumers per topic | One target function |
+| **Persistence** | Messages survive restarts (with Redis adapter) | No persistence |
+| **Scaling** | Consumers scale independently | Same worker |
+
+<Callout title="Production adapters" type="info">
+  The `BuiltinQueueAdapter` is for single-instance use. For production with multiple replicas, a RabbitMQ adapter is in development. See the [Queue module reference](/docs/modules/module-queue).
+</Callout>

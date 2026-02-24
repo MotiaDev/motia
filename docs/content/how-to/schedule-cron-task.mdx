@@ -1,0 +1,99 @@
+---
+title: 'Schedule a Cron Task'
+description: 'How to run a Function on a recurring schedule.'
+---
+
+## Goal
+
+Run a Function at regular intervals (cleanup jobs, report generation, health checks) using the Cron module.
+
+## Steps
+
+### 1. Enable the Cron module
+
+```yaml
+modules:
+  cron: {}
+```
+
+### 2. Register the Function
+
+<Tabs items={["TypeScript", "Python"]}>
+<Tab value="TypeScript">
+```typescript
+import { init } from 'iii-sdk'
+
+const iii = init('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'cleanup::expired-sessions' },
+  async () => {
+    const count = await deleteExpiredSessions()
+    return { deleted: count }
+  }
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+import asyncio
+from iii import III
+
+async def main():
+    iii = III('ws://localhost:49134')
+
+    async def cleanup_sessions():
+        count = await delete_expired_sessions()
+        return {'deleted': count}
+
+    iii.register_function('cleanup::expired-sessions', cleanup_sessions)
+    await iii.connect()
+
+asyncio.run(main())
+```
+</Tab>
+</Tabs>
+
+### 3. Register the Cron trigger
+
+<Tabs items={["TypeScript", "Python"]}>
+<Tab value="TypeScript">
+```typescript
+iii.registerTrigger({
+  type: 'cron',
+  function_id: 'cleanup::expired-sessions',
+  config: { expression: '0 */6 * * *' },
+})
+```
+</Tab>
+<Tab value="Python">
+```python
+iii.register_trigger(
+    type='cron',
+    function_id='cleanup::expired-sessions',
+    config={'expression': '0 */6 * * *'},
+)
+```
+</Tab>
+</Tabs>
+
+This runs the Function every 6 hours. The `expression` field uses standard cron syntax.
+
+### Common schedules
+
+| Expression | Frequency |
+|------------|-----------|
+| `* * * * *` | Every minute |
+| `*/5 * * * *` | Every 5 minutes |
+| `0 * * * *` | Every hour |
+| `0 */6 * * *` | Every 6 hours |
+| `0 0 * * *` | Daily at midnight |
+| `0 9 * * 1` | Every Monday at 9 AM |
+
+## Result
+
+The Function executes automatically on the defined schedule. The Engine handles scheduling, no external cron daemon needed.
+
+<Callout title="See also" type="info">
+  For advanced scheduling options, see the [Cron module reference](/docs/modules/module-cron).
+</Callout>

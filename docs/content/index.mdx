@@ -4,15 +4,22 @@ description: The way to unify your backend and not think about it.
 hideCards: true
 ---
 
-**iii** (pronounced "three eye") is a backend engine that unifies your entire infrastructure—APIs, background jobs, workflows, queues, state, and everything else—into a single, durable runtime.
+**iii** (pronounced "three eye") is a long-running backend engine. You start it once, and it runs continuously — dynamically registering Functions from Workers as they connect, orchestrating triggers, and providing shared functionality (state, queues, streams, observability) to everything in the system.
 
-The engine model creates a "Modular Monolith" that scales like microservices but removes their architectural complexity which makes your application feel and behave like a cohesive whole no matter where it is running.
+## What iii does
 
-It creates this experience by transforming every backend operation into two core concepts: Call and Register. These concepts are the mechanism by which most architectural complexity is removed.
+When iii starts, it:
+
+- **Dynamically registers Functions** — Workers connect over WebSocket and register their handlers. iii routes incoming triggers to the right Worker, regardless of language or location.
+- **Orchestrates triggers** — HTTP requests, cron schedules, queue messages, state changes, and stream events all flow through iii and invoke the correct Function.
+- **Provides shared functionality** — State, queues, streams, and observability are available to every Function through the same `trigger()` API, no matter where the Function is running.
+- **Manages the lifecycle** — When a Worker disconnects, iii cleans up its Functions automatically. When it reconnects, Functions are re-registered transparently.
+
+This makes iii the single coordination point for your entire backend — APIs, background jobs, workflows, queues, and state — without any of the complexity of managing those systems separately.
 
 <Callout title="The Paradigm Shift" type="info">
   React revolutionized the frontend with the Component and Context. Rust revolutionized systems programming with
-  Ownership and Borrowing. iii hopes to do the same on the backend with Call and Register.
+  Ownership and Borrowing. iii hopes to do the same on the backend with Function and Trigger.
 </Callout>
 
 ## Getting Started
@@ -27,6 +34,14 @@ Get the iii daemon installed on your machine.
 curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
 ```
 
+<Callout title="Anonymous telemetry" type="info">
+  iii collects anonymous usage data to help improve the engine. No personal information is collected. To opt out, set the environment variable before running iii:
+
+  ```bash
+  III_TELEMETRY_ENABLED=false iii
+  ```
+</Callout>
+
 ### 2. Verify installation
 
 Check that iii has installed correctly with the following command. It should return a version number.
@@ -38,10 +53,16 @@ iii --version
 ## Next Steps
 
 <Cards>
-  <Card icon={<Terminal />} title="Start building" href={`/docs/tutorials/quickstart`}>
-    Try the Quickstart Tutorial and start building with iii right away.
+  <Card icon={<Terminal />} title="Tutorials" href={`/docs/tutorials/quickstart`}>
+    Follow the Quickstart and build your first iii application step by step.
   </Card>
-  <Card icon={<LayoutTemplate />} title="Learn more" href={`/docs/concepts`}>
-    Learn how Call and Register simplify backend application development.
+  <Card icon={<LayoutTemplate />} title="Concepts" href={`/docs/concepts`}>
+    Understand how Function and Trigger simplify backend development.
+  </Card>
+  <Card icon={<Settings />} title="How-to Guides" href={`/docs/how-to/expose-http-endpoint`}>
+    Solve specific problems: HTTP endpoints, background jobs, state, cron, and streaming.
+  </Card>
+  <Card icon={<FileText />} title="SDK Reference" href={`/docs/api-reference/iii-sdk`}>
+    Complete API reference for TypeScript, Python, and Rust SDKs.
   </Card>
 </Cards>

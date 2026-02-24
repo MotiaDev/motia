@@ -1,8 +1,9 @@
 {
   "title": "Advanced",
-  "defaultOpen": true,
+  "defaultOpen": false,
   "pages": [
     "architecture",
+    "adapters",
     "deployment",
     "protocol",
     "sdk-implementation",

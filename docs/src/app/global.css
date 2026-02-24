@@ -211,6 +211,24 @@ a:hover {
   display: flex;
   justify-content: center;
   margin: 2rem 0;
+  overflow: visible;
+}
+
+.mermaid svg {
+  overflow: visible;
+  max-width: 100%;
+}
+
+.mermaid .node rect,
+.mermaid .node polygon,
+.mermaid .node circle {
+  overflow: visible;
+}
+
+.mermaid .nodeLabel,
+.mermaid .edgeLabel {
+  overflow: visible;
+  white-space: nowrap;
 }
 
 /* Mermaid Diagrams - No filters needed */

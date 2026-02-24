@@ -47,8 +47,20 @@ export function Mermaid({ chart }: { chart: string }) {
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
-        fontFamily: 'inherit',
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+        fontSize: 14,
         theme: isDark ? 'dark' : 'default',
+        flowchart: {
+          useMaxWidth: true,
+          padding: 16,
+          nodeSpacing: 30,
+          rankSpacing: 40,
+        },
+        sequence: {
+          useMaxWidth: true,
+          boxMargin: 8,
+          boxTextMargin: 8,
+        },
       })
 
       const { svg } = await mermaid.render(`mermaid-${id}-${Date.now()}`, chart.replaceAll('\\n', '\n'))

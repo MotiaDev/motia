@@ -1,0 +1,100 @@
+---
+title: 'Expose an HTTP Endpoint'
+description: 'How to register a function and expose it as a REST API endpoint.'
+---
+
+## Goal
+
+Expose a Function as an HTTP endpoint so external clients can call it via REST.
+
+## Steps
+
+### 1. Register the Function
+
+<Tabs items={["TypeScript", "Python"]}>
+<Tab value="TypeScript">
+```typescript
+import { init } from 'iii-sdk'
+
+const iii = init('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'users::create' },
+  async (req) => {
+    const { name, email } = req.body
+    const user = { id: crypto.randomUUID(), name, email }
+    return { status_code: 201, body: user }
+  }
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+import asyncio, uuid
+from iii import III
+
+async def main():
+    iii = III('ws://localhost:49134')
+
+    async def create_user(req):
+        name = req['body']['name']
+        email = req['body']['email']
+        user = {'id': str(uuid.uuid4()), 'name': name, 'email': email}
+        return {'status_code': 201, 'body': user}
+
+    iii.register_function('users::create', create_user)
+    await iii.connect()
+
+asyncio.run(main())
+```
+</Tab>
+</Tabs>
+
+### 2. Register the HTTP Trigger
+
+<Tabs items={["TypeScript", "Python"]}>
+<Tab value="TypeScript">
+```typescript
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'users::create',
+  config: { api_path: '/users', http_method: 'POST' },
+})
+```
+</Tab>
+<Tab value="Python">
+```python
+iii.register_trigger(
+    type='http',
+    function_id='users::create',
+    config={'api_path': '/users', 'http_method': 'POST'},
+)
+```
+</Tab>
+</Tabs>
+
+### 3. Enable the REST API module
+
+Make sure `config.yaml` has the REST API module enabled:
+
+```yaml
+modules:
+  rest_api:
+    port: 3000
+```
+
+### 4. Test it
+
+```bash
+curl -X POST http://localhost:3000/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice", "email": "alice@example.com"}'
+```
+
+## Result
+
+Your Function is now accessible as `POST /users` on port 3000. The `http` trigger handles request parsing and response serialization automatically.
+
+<Callout title="Request and Response types" type="info">
+  HTTP-triggered Functions receive an `ApiRequest` and should return an `ApiResponse`. See the [SDK Reference](/docs/api-reference/iii-sdk) for type details.
+</Callout>

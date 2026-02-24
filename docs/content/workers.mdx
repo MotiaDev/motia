@@ -26,7 +26,7 @@ graph LR
     Worker -->|Result| Engine
 
     subgraph "Worker Process"
-        SDK[iii SDK]
+        SDK[SDK]
         Functions[Registered<br/>Functions]
         SDK --> Functions
     end
@@ -41,7 +41,7 @@ Worker establishes WebSocket connection to the Engine:
 ```typescript
 import { init } from 'iii-sdk'
 
-const iii = await init()
+const iii = init('ws://127.0.0.1:49134')
 ```
 
 ### 2. Registration
@@ -49,13 +49,13 @@ const iii = await init()
 Worker registers functions and triggers:
 
 ```typescript
-// Register a function
-iii.registerFunction({ id: 'users::create' }, async (data) => {
-  // Business logic here
-  return { id: '123', ...data }
-})
+iii.registerFunction(
+  { id: 'users::create' },
+  async (data) => {
+    return { id: '123', ...data }
+  }
+)
 
-// Register a trigger
 iii.registerTrigger({
   type: 'http',
   function_id: 'users::create',
@@ -79,9 +79,9 @@ sequenceDiagram
     Note over W,E: Worker Connected & Registered
 
     C->>E: HTTP POST /users
-    E->>W: invokefunction { function_id: "users::create" }
+    E->>W: invoke { function_id: "users::create" }
     W->>W: Execute handler
-    W-->>E: invocationresult { result: {...} }
+    W-->>E: result { data: {...} }
     E-->>C: HTTP 200 OK
 ```
 
@@ -120,9 +120,9 @@ graph TD
     E -.-> W2
     E -.-> W3
 
-    W1 -->|Functions:<br/>api.*| E
-    W2 -->|Functions:<br/>data.*| E
-    W3 -->|Functions:<br/>jobs.*| E
+    W1 -->|"Functions: api::*"| E
+    W2 -->|"Functions: data::*"| E
+    W3 -->|"Functions: jobs::*"| E
 ```
 
 **Benefits:**
@@ -139,64 +139,65 @@ graph TD
 ```typescript
 import { init } from 'iii-sdk'
 
-const iii = await init()
+const iii = init('ws://localhost:49134')
 
-// Register functions
-iii.registerFunction({ id: 'greet.hello' }, async ({ name }) => {
-  return { message: `Hello, ${name}!` }
-})
+iii.registerFunction(
+  { id: 'greet::hello' },
+  async ({ name }) => {
+    return { message: `Hello, ${name}!` }
+  }
+)
 
-// Register HTTP trigger
 iii.registerTrigger({
   type: 'http',
-  function_id: 'greet.hello',
+  function_id: 'greet::hello',
   config: {
     api_path: '/greet/:name',
     http_method: 'GET',
   },
 })
-
-logger.info('Worker connected!')
 ```
 
-### Python (iii SDK)
+### Python
 
 ```python
+import asyncio
 from iii import III
 
-iii = III()
+async def main():
+    iii = III('ws://localhost:49134')
 
-# Register function
-@iii.register_function('greet.hello')
-async def hello(data):
-    name = data.get('name', 'World')
-    return {'message': f'Hello, {name}!'}
+    async def hello(data):
+        name = data.get('name', 'World')
+        return {'message': f'Hello, {name}!'}
 
-# Register HTTP trigger
-iii.register_trigger(
-    type='http',
-    function_id='greet.hello',
-    config={
-        'api_path': '/greet/:name',
-        'http_method': 'GET'
-    }
-)
+    iii.register_function('greet::hello', hello)
 
-# Connect to engine
-iii.connect()
+    iii.register_trigger(
+        type='http',
+        function_id='greet::hello',
+        config={
+            'api_path': '/greet/:name',
+            'http_method': 'GET',
+        }
+    )
+
+    await iii.connect()
+
+asyncio.run(main())
 ```
 
 ## Best Practices
 
 <AccordionGroup>
   <Accordion title="Function Naming">
-    Use dot notation to organize functions: `service.action`
+    Use double-colon notation to organize functions: `service::action`
 
     Examples:
-    - `users.create`
-    - `users.update`
-    - `auth.login`
-    - `payments.process`
+    - `users::create`
+    - `users::update`
+    - `auth::login`
+    - `payments::process`
 
   </Accordion>
 
@@ -204,45 +205,50 @@ iii.connect()
     Always handle errors gracefully and return structured error responses:
 
     ```typescript
-    iii.registerFunction({ id: 'users::create' }, async (data) => {
-      try {
-        const user = await createUser(data);
-        return { success: true, user };
-      } catch (error) {
-        return {
-          success: false,
-          error: {
-            code: 'USER_CREATE_FAILED',
-            message: error.message,
-          },
-        };
+    iii.registerFunction(
+      { id: 'users::create' },
+      async (data) => {
+        try {
+          const user = await createUser(data);
+          return { success: true, user };
+        } catch (error) {
+          return {
+            success: false,
+            error: {
+              code: 'USER_CREATE_FAILED',
+              message: error.message,
+            },
+          };
+        }
       }
-    });
+    )
     ```
 
   </Accordion>
 
   <Accordion title="Connection Management">
-    Handle disconnections and implement reconnection logic:
+    Monitor connection state changes using the SDK:
 
     ```typescript
     iii.onConnectionStateChange((state) => {
-      console.log('Connection state:', state);
-    });
+      console.log('Connection state:', state)
+    })
     ```
 
   </Accordion>
 
   <Accordion title="Function Organization">
-    Group related functions using namespaced IDs:
+    Group related functions by namespace:
 
     ```typescript
-    iii.registerFunction({ id: 'users::create' }, createHandler);
-    iii.registerFunction({ id: 'users::update' }, updateHandler);
-    iii.registerFunction({ id: 'users::delete' }, deleteHandler);
+    // User functions
+    iii.registerFunction({ id: 'users::create' }, createHandler)
+    iii.registerFunction({ id: 'users::update' }, updateHandler)
+    iii.registerFunction({ id: 'users::delete' }, deleteHandler)
 
-    iii.registerFunction({ id: 'auth::login' }, loginHandler);
-    iii.registerFunction({ id: 'auth::logout' }, logoutHandler);
+    // Auth functions
+    iii.registerFunction({ id: 'auth::login' }, loginHandler)
+    iii.registerFunction({ id: 'auth::logout' }, logoutHandler)
     ```
 
   </Accordion>

@@ -1,6 +1,6 @@
 {
   "title": "Console",
-  "defaultOpen": true,
+  "defaultOpen": false,
   "pages": [
     "index",
     "functions",

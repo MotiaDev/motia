@@ -3,4 +3,10 @@ title: 'Concepts'
 description: 'The core building blocks of iii-powered applications.'
 ---
 
-The ultimate goal of the iii engine is to reduce the contextual overhead needed to create modern backend applications and make the experience of building, integrating, maintaining, and migrating as ergonomic as possible. This is accomplished on the application side with Call and Register.
+iii is built around two primitives: **Functions** and **Triggers**.
+
+A **Function** is an async handler with a string ID. Register it with the engine from any language, and it becomes triggerable from anywhere in the system — other workers, other languages, other machines.
+
+A **Trigger** is what causes a Function to run. It can be explicit (calling `trigger()` from code) or automatic (HTTP request, cron schedule, queue message, state change, and more).
+
+Everything in iii — modules, workers, built-in operations — is built on top of these two primitives. Start here:

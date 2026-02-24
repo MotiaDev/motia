@@ -16,7 +16,7 @@ graph LR
 
 ## Custom stream
 
-The iii SDK lets you register a custom stream backed by any storage — in-memory, a database, or a remote service. The engine routes `stream::get` / `stream::set` / `stream::delete` / `stream::list` calls to your implementation.
+The iii SDK lets you register a custom stream backed by any storage — in-memory, a database, or a remote service. The engine routes `stream::get` / `stream::set` / `stream::delete` / `stream::list` requests to your implementation.
 
 <Tabs items={['TypeScript', 'Python', 'Rust']}>
   <Tab value="TypeScript">
@@ -505,7 +505,7 @@ iii.register_trigger("http", "api.delete.todo", json!({
 
 ## Key concepts
 
-- `iii.createStream(name, impl)` registers a custom stream with get / set / delete / list / listGroups / update methods. The engine routes `stream::*` calls to this implementation.
+- `iii.createStream(name, impl)` registers a custom stream with get / set / delete / list / listGroups / update methods. The engine routes `stream::*` requests to this implementation.
 - `stream::set` returns the stored value — in the custom implementation above, the `set` handler shapes the result.
 - `stream::get` returns `null` if the item doesn't exist — always guard before writing an update.
 - In Rust, `Streams::new(iii.clone())` wraps the engine connection and provides `streams.update(key, ops)` for atomic modifications.

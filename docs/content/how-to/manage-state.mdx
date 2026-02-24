@@ -1,0 +1,108 @@
+---
+title: 'Manage Shared State'
+description: 'How to read, write, and update shared state across functions.'
+---
+
+## Goal
+
+Use the State module to share data between Functions without a separate database.
+
+## Steps
+
+### 1. Enable the State module
+
+```yaml
+modules:
+  state:
+    adapter: memory
+```
+
+### 2. Write state from a Function
+
+<Tabs items={["TypeScript", "Python"]}>
+<Tab value="TypeScript">
+```typescript
+import { init } from 'iii-sdk'
+
+const iii = init('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'users::create' },
+  async (data) => {
+    const user = { id: crypto.randomUUID(), ...data }
+
+    await iii.trigger('state::set', {
+      scope: 'users',
+      key: user.id,
+      data: user,
+    })
+
+    return user
+  }
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+import asyncio, uuid
+from iii import III
+
+async def main():
+    iii = III('ws://localhost:49134')
+
+    async def create_user(data):
+        user = {'id': str(uuid.uuid4()), **data}
+
+        await iii.trigger('state::set', {
+            'scope': 'users',
+            'key': user['id'],
+            'data': user,
+        })
+
+        return user
+
+    iii.register_function('users::create', create_user)
+    await iii.connect()
+
+asyncio.run(main())
+```
+</Tab>
+</Tabs>
+
+### 3. Read state from another Function
+
+```typescript
+iii.registerFunction(
+  { id: 'users::get' },
+  async (data) => {
+    const user = await iii.trigger('state::get', {
+      scope: 'users',
+      key: data.id,
+    })
+    return user
+  }
+)
+```
+
+### 4. Atomic updates
+
+Use `state::update` with update operations for safe concurrent modifications:
+
+```typescript
+await iii.trigger('state::update', {
+  scope: 'users',
+  key: userId,
+  ops: [
+    { type: 'set', path: 'lastLogin', value: new Date().toISOString() },
+    { type: 'increment', path: 'loginCount', by: 1 },
+  ],
+})
+```
+
+## Result
+
+State is shared across all Functions in the system. Any Function can read or write to any scope/key pair. The Engine handles consistency and persistence based on the configured adapter.
+
+<Callout title="Production adapters" type="info">
+  The `memory` adapter is for development only. For production, use a persistent adapter like Redis. See the [State module reference](/docs/modules/module-state).
+</Callout>

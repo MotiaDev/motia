@@ -1,0 +1,124 @@
+---
+title: 'Context'
+description: 'Per-invocation context providing logger and trace span to every Function.'
+---
+
+When the engine invokes a Function, the SDK makes a **Context** available for that invocation. Context gives you a correlated logger and an optional trace span, so every log line and span is automatically linked to the current request.
+
+## What Context Provides
+
+| Capability | Description |
+|------------|-------------|
+| `logger` | Structured logger with automatic trace correlation |
+| `trace` | OpenTelemetry span for the current invocation (if tracing is enabled) |
+
+## Using Context
+
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
+```typescript
+import { init, getContext } from 'iii-sdk'
+
+const iii = init('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'orders::create' },
+  async (data) => {
+    const ctx = getContext()
+
+    ctx.logger.info('Creating order', { items: data.items.length })
+    ctx.logger.warn('Low stock detected', { sku: 'ABC-123' })
+
+    const result = await processOrder(data)
+
+    ctx.logger.info('Order created', { orderId: result.id })
+    return result
+  },
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+from iii import III, get_context
+
+iii = III('ws://localhost:49134')
+
+async def create_order(data):
+    ctx = get_context()
+
+    ctx.logger.info('Creating order', {'items': len(data['items'])})
+    result = await process_order(data)
+    ctx.logger.info('Order created', {'orderId': result['id']})
+
+    return result
+
+iii.register_function('orders::create', create_order)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+use iii_sdk::{III, get_context};
+use serde_json::json;
+
+iii.register_function("orders::create", |data| async move {
+    let ctx = get_context();
+
+    ctx.logger.info("Creating order", Some(json!({
+        "items": data["items"].as_array().map(|a| a.len()),
+    })));
+
+    let result = process_order(&data).await?;
+    ctx.logger.info("Order created", Some(json!({ "orderId": result.id })));
+
+    Ok(result)
+});
+```
+</Tab>
+</Tabs>
+
+## Context vs SDK
+
+Context and the SDK object serve different purposes:
+
+| | Context (`getContext()`) | SDK (`iii`) |
+|---|---|---|
+| **Scope** | Per-invocation | Application-wide |
+| **Provides** | Logger, trace span | trigger, triggerVoid, registerFunction, registerTrigger |
+| **Accessed via** | `getContext()` inside a handler | `init()` return value |
+
+To invoke other Functions or access engine modules (state, stream, queue), use the SDK object:
+
+```typescript
+const iii = init('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'users::create' },
+  async (data) => {
+    const ctx = getContext()
+    ctx.logger.info('Creating user', { name: data.name })
+
+    const user = await createUser(data)
+
+    await iii.trigger('state::set', {
+      scope: 'users',
+      key: user.id,
+      data: user,
+    })
+
+    iii.triggerVoid('enqueue', {
+      topic: 'user.created',
+      data: { userId: user.id },
+    })
+
+    return user
+  },
+)
+```
+
+<Callout title="Automatic correlation" type="info">
+  Every `ctx.logger` call is automatically correlated with the current trace. In the iii Console, you can click a trace span to see all logs emitted during that invocation.
+</Callout>
+
+<Card icon={<Activity />} title="Observability" href="/docs/modules/module-observability">
+  Learn about traces, metrics, and log collection.
+</Card>

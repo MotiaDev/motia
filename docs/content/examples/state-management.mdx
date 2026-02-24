@@ -4,7 +4,7 @@ description: 'Read and write distributed key-value state via state::get / state:
 hideCards: true
 ---
 
-State in iii is a distributed key-value store addressed by `scope` (group) + `key` (item ID). Any worker can read and write state by calling `state::get`, `state::set`, `state::delete`, and `state::list` through the engine.
+State in iii is a distributed key-value store addressed by `scope` (group) + `key` (item ID). Any worker can read and write state by triggering `state::get`, `state::set`, `state::delete`, and `state::list` through the engine.
 
 ```mermaid
 graph LR
@@ -340,10 +340,10 @@ iii.register_trigger("cron", "cron.orders_audit", json!({ "expression": "*/5 * *
 
 | Operation | TypeScript | Python | Rust |
 |---|---|---|---|
-| Write | `iii.trigger('state::set', { scope, key, data })` | `await iii.trigger("state::set", {...})` | `iii.trigger_void("state::set", json!({...}))` |
-| Read one | `iii.trigger('state::get', { scope, key })` | `await iii.trigger("state::get", {...})` | `iii.trigger("state::get", json!({...})).await` |
-| Read all in scope | `iii.trigger('state::list', { scope })` | `await iii.trigger("state::list", {...})` | `iii.trigger("state::list", json!({...})).await` |
-| Delete | `iii.trigger('state::delete', { scope, key })` | `await iii.trigger("state::delete", {...})` | `iii.trigger_void("state::delete", json!({...}))` |
+| Write | `await iii.trigger('state::set', { scope, key, data })` | `await iii.trigger("state::set", {...})` | `iii.trigger_void("state::set", json!({...}))` |
+| Read one | `await iii.trigger('state::get', { scope, key })` | `await iii.trigger("state::get", {...})` | `iii.trigger("state::get", json!({...})).await` |
+| Read all in scope | `await iii.trigger('state::list', { scope })` | `await iii.trigger("state::list", {...})` | `iii.trigger("state::list", json!({...})).await` |
+| Delete | `await iii.trigger('state::delete', { scope, key })` | `await iii.trigger("state::delete", {...})` | `iii.trigger_void("state::delete", json!({...}))` |
 
 ## Key concepts
 

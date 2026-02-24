@@ -372,5 +372,5 @@ curl http://localhost:3111/hello
 
 - `iii.registerFunction` pairs a string ID with an async handler. The ID is referenced by all triggers bound to that function.
 - `iii.registerTrigger` binds a trigger type + config to a function ID. A function can have multiple triggers.
-- `iii.trigger('enqueue', { topic, data })` publishes an event on the named topic. Any worker with a `queue` trigger on that topic will receive it.
+- `iii.trigger('enqueue', { topic, data })` publishes an event to the named topic. Any worker with a `queue` trigger on that topic will receive it.
 - `iii.trigger('state::set', { scope, key, data })` persists data to the engine's key-value store, addressed by `scope` + `key`.

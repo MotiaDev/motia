@@ -31,7 +31,11 @@ Each example uses the **iii SDK** directly. Every page shows the same pattern in
 
 ## SDK model
 
-All three SDKs share the same concepts. The table below shows the equivalent primitives in each language.
+All three SDKs share the same concepts with language-idiomatic initialization:
+
+- **TypeScript**: `init(url)` — named function, connection is automatic
+- **Python**: `III(address=url)` — class constructor (`__init__` convention), then call `await iii.connect()`
+- **Rust**: `III::new(url)` — `new` is the Rust convention for constructors, then call `iii.connect().await?`
 
 | Concept | TypeScript | Python | Rust |
 |---|---|---|---|
