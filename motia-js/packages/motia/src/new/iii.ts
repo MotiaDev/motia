@@ -38,7 +38,7 @@ const createIII = (otelConfig?: Partial<OtelConfig>) => {
     telemetry: {
       framework: 'motia',
       project_name: readProjectName(),
-      amplitude_api_key: 'ab2408031a38aa5cb85587a27ecfc69c',
+      amplitude_api_key: process.env.MOTIA_AMPLITUDE_API_KEY ?? 'ab2408031a38aa5cb85587a27ecfc69c',
     },
   })
 }
