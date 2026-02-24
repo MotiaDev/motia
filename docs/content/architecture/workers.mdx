@@ -73,16 +73,22 @@ asyncio.run(main())
 <Tab value="Rust">
 ```rust
 use iii_sdk::III;
-use serde_json::{json, Value};
+use serde_json::json;
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
 
-iii.register_function("users::create", |data: Value| async move {
-    let user = json!({ "id": uuid::Uuid::new_v4().to_string(), "email": data["email"] });
-    iii.trigger_void("emails::welcome", json!({"to": user["email"]}))?;
-    Ok(user)
-});
+    iii.register_function("users::create", |data| async move {
+        let user = json!({ "id": uuid::Uuid::new_v4().to_string(), "email": data["email"] });
+        Ok(user)
+    });
+
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    }
+}
 ```
 </Tab>
 </Tabs>

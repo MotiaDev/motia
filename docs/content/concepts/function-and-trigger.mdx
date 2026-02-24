@@ -66,15 +66,21 @@ await iii.connect()
 use iii_sdk::III;
 use serde_json::json;
 
-let iii = III::new("ws://localhost:49134");
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
 
-iii.register_function("math::add", |input| async move {
-    let a = input["a"].as_i64().unwrap_or(0);
-    let b = input["b"].as_i64().unwrap_or(0);
-    Ok(json!({ "result": a + b }))
-});
+    iii.register_function("math::add", |input| async move {
+        let a = input["a"].as_i64().unwrap_or(0);
+        let b = input["b"].as_i64().unwrap_or(0);
+        Ok(json!({ "result": a + b }))
+    });
 
-iii.connect().await?;
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    }
+}
 ```
 </Tab>
 </Tabs>
