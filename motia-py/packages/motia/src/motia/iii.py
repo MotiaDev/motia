@@ -49,7 +49,7 @@ def _create_iii() -> III:
     telemetry = TelemetryOptions(
         framework="motia",
         project_name=_read_project_name(),
-        amplitude_api_key=os.environ.get("MOTIA_AMPLITUDE_API_KEY"),
+        amplitude_api_key="ab2408031a38aa5cb85587a27ecfc69c",
     )
     return III(_engine_ws_url, InitOptions(telemetry=telemetry))
 
