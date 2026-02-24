@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
+    { "source": "/api/search", "destination": "https://iii-docs.vercel.app/api/search" },
     { "source": "/docs", "destination": "https://iii-docs.vercel.app/docs" },
     { "source": "/docs/:path*", "destination": "https://iii-docs.vercel.app/docs/:path*" },
     { "source": "/ai", "destination": "/" },
