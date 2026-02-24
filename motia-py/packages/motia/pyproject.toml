@@ -21,7 +21,7 @@ classifiers = [
 
 
 dependencies = [
-    "iii-sdk==0.2.0",
+    "iii-sdk>=0.3.0",
     "pydantic>=2.0",
     "python-dotenv>=1.0",
 ]
