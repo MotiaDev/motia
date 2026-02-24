@@ -71,6 +71,8 @@ Then create a project:
 motia-cli create my-app
 ```
 
+> 📖 **[Full quickstart guide →](https://www.motia.dev/docs/getting-started/quick-start)**
+
 ---
 
 ## 🎯 What is Motia?
