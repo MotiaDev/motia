@@ -1,3 +1,5 @@
+import 'dotenv/config'
+
 export { getContext, Logger } from 'iii-sdk'
 export type { StreamAuthInput, StreamAuthResult, StreamContext } from 'iii-sdk/stream'
 export * from './guards'

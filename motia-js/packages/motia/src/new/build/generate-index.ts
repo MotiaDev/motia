@@ -70,7 +70,6 @@ export const generateIndex = () => {
   })
 
   return [
-    "import 'dotenv/config'",
     "import { Motia, initIII } from 'motia'",
     hasMotiaConfig ? `import * as motiaConfig from './motia.config';` : '// No motia.config.ts found',
 

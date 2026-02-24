@@ -10,9 +10,9 @@ jest.mock('fs', () => ({
 }))
 
 describe('generateIndex', () => {
-  it('includes dotenv/config as the first import', () => {
+  it('starts with motia import (dotenv is loaded by the motia package itself)', () => {
     const result = generateIndex()
     const lines = result.split('\n')
-    expect(lines[0]).toBe("import 'dotenv/config'")
+    expect(lines[0]).toBe("import { Motia, initIII } from 'motia'")
   })
 })

@@ -181,6 +181,9 @@ importers:
 
   playground:
     dependencies:
+      dotenv:
+        specifier: ^16.5.0
+        version: 16.6.1
       motia:
         specifier: workspace:*
         version: link:../packages/motia
