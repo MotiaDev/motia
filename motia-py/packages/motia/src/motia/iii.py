@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import tomllib
+    import tomllib  # type: ignore[import-not-found]
 except ImportError:
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[import-not-found]
 
 from iii import III
 from iii.iii import InitOptions, TelemetryOptions
