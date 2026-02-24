@@ -44,7 +44,7 @@ class FlowContext(BaseModel, Generic[TEnqueueData]):
     logger: Any  # Logger
     streams: dict[str, Stream[Any]] = Field(default_factory=dict)
     trigger: "TriggerInfo"
-    _input: Any = None
+    input_value: Any = None
 
     def is_queue(self) -> bool:
         """Return True if the trigger is a queue trigger."""
@@ -75,9 +75,9 @@ class FlowContext(BaseModel, Generic[TEnqueueData]):
         """
         if self.is_cron():
             return None
-        if isinstance(self._input, ApiRequest):
-            return self._input.body
-        return self._input
+        if isinstance(self.input_value, ApiRequest):
+            return self.input_value.body
+        return self.input_value
 
     async def match(self, handlers: dict[str, Any]) -> Any:
         """Match handlers based on trigger type.
@@ -91,19 +91,19 @@ class FlowContext(BaseModel, Generic[TEnqueueData]):
         - default: async (input) -> Any
         """
         if self.is_queue() and handlers.get("queue"):
-            return await handlers["queue"](self._input)
+            return await handlers["queue"](self.input_value)
         if self.is_api():
             handler = handlers.get("http") or handlers.get("api")
             if handler:
-                return await handler(self._input)
+                return await handler(self.input_value)
         if self.is_cron() and handlers.get("cron"):
             return await handlers["cron"]()
         if self.is_state() and handlers.get("state"):
-            return await handlers["state"](self._input)
+            return await handlers["state"](self.input_value)
         if self.is_stream() and handlers.get("stream"):
-            return await handlers["stream"](self._input)
+            return await handlers["stream"](self.input_value)
         if handlers.get("default"):
-            return await handlers["default"](self._input)
+            return await handlers["default"](self.input_value)
 
         raise RuntimeError(
             f"No handler matched for trigger type: {self.trigger.type}. "

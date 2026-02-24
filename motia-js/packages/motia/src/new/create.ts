@@ -6,6 +6,7 @@ import { createInterface } from 'readline'
 
 const REPO = 'MotiaDev/motia-iii-example'
 const BRANCH = 'main'
+const TEMPLATE_PREFIX = 'nodejs'
 
 const BLUE = '\x1b[1;34m'
 const LIGHT_BLUE = '\x1b[94m'
@@ -78,7 +79,13 @@ async function fetchRepoTree(): Promise<RepoTreeEntry[]> {
   }
 
   const data = (await res.json()) as { tree: RepoTreeEntry[] }
-  return data.tree.filter((entry) => entry.type === 'blob' && !SKIP_FILES.has(entry.path))
+  const prefix = `${TEMPLATE_PREFIX}/`
+  return data.tree.filter(
+    (entry) =>
+      entry.type === 'blob' &&
+      entry.path.startsWith(prefix) &&
+      !SKIP_FILES.has(entry.path.split('/').pop() ?? ''),
+  )
 }
 
 async function downloadFile(filePath: string): Promise<string> {
@@ -168,10 +175,12 @@ export async function create() {
       return
     }
 
+    const prefix = `${TEMPLATE_PREFIX}/`
     const dirs = new Set<string>()
     for (const file of files) {
-      const lastSlash = file.path.lastIndexOf('/')
-      if (lastSlash > 0) dirs.add(file.path.substring(0, lastSlash))
+      const relPath = file.path.startsWith(prefix) ? file.path.slice(prefix.length) : file.path
+      const lastSlash = relPath.lastIndexOf('/')
+      if (lastSlash > 0) dirs.add(relPath.substring(0, lastSlash))
     }
 
     await mkdir(targetDir, { recursive: true })
@@ -182,16 +191,17 @@ export async function create() {
 
     try {
       for (const file of files) {
-        process.stdout.write(`  ↓ ${file.path}\n`)
+        const relPath = file.path.startsWith(prefix) ? file.path.slice(prefix.length) : file.path
+        process.stdout.write(`  ↓ ${relPath}\n`)
         let content = await downloadFile(file.path)
 
-        if (file.path === 'package.json') {
+        if (relPath === 'package.json') {
           const pkg = JSON.parse(content)
           pkg.name = folderName
           content = JSON.stringify(pkg, null, 2) + '\n'
         }
 
-        await writeFile(join(targetDir, file.path), content)
+        await writeFile(join(targetDir, relPath), content)
       }
     } catch (err: unknown) {
       const name = err instanceof Error ? err.name : ''
