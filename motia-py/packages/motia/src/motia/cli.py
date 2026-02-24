@@ -11,6 +11,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
 log = logging.getLogger("motia.cli")
 
 
@@ -81,8 +83,11 @@ def generate_index(step_files: list[str], stream_files: list[str]) -> str:
         "import importlib.util",
         "import sys",
         "from collections.abc import Mapping",
+        "from dotenv import load_dotenv",
         "from motia.runtime import Motia",
         "from motia.iii import get_instance",
+        "",
+        "load_dotenv()",
         "",
         "def load_module_from_path(path: str) -> None:",
         "    spec = importlib.util.spec_from_file_location('step_module', path)",
@@ -162,6 +167,7 @@ def generate_schema_manifest(step_files: list[str], stream_files: list[str]) -> 
 
 def main() -> None:
     """Main entry point for the CLI."""
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Motia CLI")
     parser.add_argument(
         "command",

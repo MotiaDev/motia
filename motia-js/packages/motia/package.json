@@ -51,6 +51,7 @@
     "iii-sdk": "^0.2.0",
     "json-schema-to-ts": "^3.1.1",
     "uuid": "^13.0.0",
+    "dotenv": "^16.5.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
