@@ -17,10 +17,10 @@
 </p>
 
 <p align="center">
-  <strong>🔥 The Unified Backend Framework That Eliminates Runtime Fragmentation 🔥</strong>
+  <strong>Build production-grade backends with a single primitive</strong>
 </p>
 <p align="center">
-  <em>APIs, background jobs, queueing, streaming, states, workflows, AI agents, observability, scaling, and deployment all in one system. JavaScript, TypeScript, Python, and more in a single core primitive</em>
+  <em>APIs, background jobs, workflows, AI agents, streaming, state management, and observability — unified in one framework. TypeScript, JavaScript, and Python.</em>
 </p>
 
 <p align="center">
@@ -187,6 +187,51 @@ const handler = async (input, { logger }) => {
 };
 
 module.exports = { config, handler };
+```
+
+</details>
+
+<details>
+<summary><b>Python</b></summary>
+
+```python
+# steps/send_message_step.py
+config = {
+    "name": "SendMessage",
+    "triggers": [
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/messages",
+        }
+    ],
+    "enqueues": ["message.sent"],
+}
+
+
+async def handler(req, ctx):
+    await ctx.enqueue({
+        "topic": "message.sent",
+        "data": {"text": req.body.get("text")},
+    })
+    return {"status": 200, "body": {"ok": True}}
+```
+
+```python
+# steps/process_message_step.py
+config = {
+    "name": "ProcessMessage",
+    "triggers": [
+        {
+            "type": "queue",
+            "topic": "message.sent",
+        }
+    ],
+}
+
+
+async def handler(input, ctx):
+    ctx.logger.info("Processing message", input)
 ```
 
 </details>
