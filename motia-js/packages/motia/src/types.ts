@@ -319,7 +319,7 @@ type TriggerToInput<TTrigger> = TTrigger extends { type: 'queue'; input?: infer 
 
 type InferHandlerInput<TConfig extends StepConfig> = TriggerToInput<TConfig['triggers'][number]>
 
-type InferReturnType = Promise<ApiResponse | undefined>
+type InferReturnType = Promise<ApiResponse | undefined | void>
 
 type EnqueueTopic<T extends string> = T extends keyof Enqueues ? Enqueues[T] : unknown
 
