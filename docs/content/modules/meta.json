@@ -9,7 +9,6 @@
     "module-stream",
     "module-state",
     "module-pubsub",
-    "module-kv-server",
     "module-exec",
     "module-bridge"
   ]
