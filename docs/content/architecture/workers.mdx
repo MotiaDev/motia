@@ -9,24 +9,21 @@ Workers are independent processes — they can be written in any language, run a
 
 ```mermaid
 graph LR
-    Engine[Engine]
+    E[Engine]
 
-    subgraph W1[user-service]
-        F1([users::create])
-        F2([users::list])
+    subgraph W1[Worker A]
+        F1([Function A])
+        F2([Function B])
     end
 
-    subgraph W2[email-service]
-        F3([emails::send])
+    subgraph W2[Worker B]
+        F3([Function C])
     end
 
-    subgraph W3[analytics]
-        F5([analytics::track])
-    end
-
-    Engine <--> W1
-    Engine <--> W2
-    Engine <--> W3
+    W1 -- registerFunction --> E
+    W2 -- registerFunction --> E
+    E -- trigger --> W1
+    E -- trigger --> W2
 ```
 
 ## Creating a Worker

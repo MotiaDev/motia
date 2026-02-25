@@ -7,20 +7,30 @@ The Engine is the central orchestrator of a iii system. It maintains a registry 
 
 ```mermaid
 graph TB
-    subgraph WorkerA[Worker A]
-        F1([users::create])
-        F2([users::list])
+    subgraph Modules
+        HTTP[HTTP]
+        Cron[Cron]
+        State[State]
     end
 
-    subgraph WorkerB[Worker B]
-        F3([emails::send])
+    Modules -- registerTrigger --> E[Engine]
+
+    E -- trigger --> W1
+    E -- trigger --> W2
+
+    subgraph W1[Worker A]
+        direction LR
+        F1([Function A])
+        F2([Function B])
     end
 
-    WorkerA -- registerFunction --> E[Engine]
-    WorkerB -- registerFunction --> E
+    subgraph W2[Worker B]
+        direction LR
+        F3([Function C])
+    end
 
-    F1 -- "trigger(id, data)" --> E
-    E -- trigger --> WorkerB
+    W1 -- registerFunction --> E
+    W2 -- registerFunction --> E
 ```
 
 ## Responsibilities

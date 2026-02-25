@@ -2,13 +2,14 @@
   "title": "Console",
   "defaultOpen": false,
   "pages": [
-    "index",
+    "dashboard",
     "functions",
     "triggers",
     "states",
     "streams",
     "traces",
     "logs",
+    "flow",
     "configuration"
   ]
 }
