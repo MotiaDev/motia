@@ -133,6 +133,15 @@ const flowContext = <EnqueueData, TInput = unknown>(
   return context
 }
 
+function getTriggerSuffix(trigger: TriggerConfig): string {
+  if (isApiTrigger(trigger)) return `http(${trigger.method} ${trigger.path})`
+  if (isCronTrigger(trigger)) return `cron(${trigger.expression})`
+  if (isQueueTrigger(trigger)) return `queue(${trigger.topic})`
+  if (isStreamTrigger(trigger)) return `stream(${trigger.streamName})`
+  if (isStateTrigger(trigger)) return 'state'
+  return 'unknown'
+}
+
 export class Motia {
   public streams: Record<string, Stream<unknown>> = {}
   private authenticateStream: AuthenticateStream | undefined
@@ -142,7 +151,8 @@ export class Motia {
     const metadata = { ...step.config, filePath }
 
     step.config.triggers.forEach((trigger: TriggerConfig, index: number) => {
-      const function_id = `steps::${step.config.name}::trigger::${index}`
+      const triggerSuffix = getTriggerSuffix(trigger)
+      const function_id = `steps::${step.config.name}::trigger::${triggerSuffix}`
 
       if (isApiTrigger(trigger)) {
         getInstance().registerFunction(
@@ -202,7 +212,7 @@ export class Motia {
         }
 
         getInstance().registerTrigger({
-          trigger_type: 'http',
+          type: 'http',
           function_id,
           config: triggerConfig,
         })

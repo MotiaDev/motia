@@ -110,6 +110,21 @@ def _sanitize_trigger_metadata(trigger: TriggerConfig) -> dict[str, Any]:
     return data
 
 
+def _get_trigger_suffix(trigger: "TriggerConfig") -> str:
+    """Return a descriptive suffix for a trigger based on its type and key properties."""
+    if isinstance(trigger, ApiTrigger):
+        return f"http({trigger.method} {trigger.path})"
+    if isinstance(trigger, CronTrigger):
+        return f"cron({trigger.expression})"
+    if isinstance(trigger, QueueTrigger):
+        return f"queue({trigger.topic})"
+    if isinstance(trigger, StreamTrigger):
+        return f"stream({trigger.stream_name})"
+    if isinstance(trigger, StateTrigger):
+        return "state"
+    return "unknown"
+
+
 def _validate_input_schema(schema: Any, value: Any, label: str) -> Any:
     """Validate input with a Pydantic model or JSON Schema if available."""
     if schema is None:
@@ -240,7 +255,8 @@ class Motia:
         log.info(f"Step registered: {config.name}")
 
         for index, trigger in enumerate(config.triggers):
-            function_id = f"steps::{config.name}::trigger::{index}"
+            trigger_suffix = _get_trigger_suffix(trigger)
+            function_id = f"steps::{config.name}::trigger::{trigger_suffix}"
 
             if isinstance(trigger, ApiTrigger):
                 self._register_api_trigger(config, trigger, handler, function_id, index, metadata)
