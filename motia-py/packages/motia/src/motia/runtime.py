@@ -254,8 +254,13 @@ class Motia:
 
         log.info(f"Step registered: {config.name}")
 
+        seen_suffixes: set[str] = set()
+
         for index, trigger in enumerate(config.triggers):
             trigger_suffix = _get_trigger_suffix(trigger)
+            if trigger_suffix in seen_suffixes:
+                trigger_suffix = f"{trigger_suffix}::{index}"
+            seen_suffixes.add(trigger_suffix)
             function_id = f"steps::{config.name}::trigger::{trigger_suffix}"
 
             if isinstance(trigger, ApiTrigger):

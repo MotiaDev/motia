@@ -150,8 +150,14 @@ export class Motia {
     const step: StepWithHandler = { config, handler, filePath: stepPath }
     const metadata = { ...step.config, filePath }
 
+    const seenSuffixes = new Set<string>()
+
     step.config.triggers.forEach((trigger: TriggerConfig, index: number) => {
-      const triggerSuffix = getTriggerSuffix(trigger)
+      let triggerSuffix = getTriggerSuffix(trigger)
+      if (seenSuffixes.has(triggerSuffix)) {
+        triggerSuffix = `${triggerSuffix}-${index}`
+      }
+      seenSuffixes.add(triggerSuffix)
       const function_id = `steps::${step.config.name}::trigger::${triggerSuffix}`
 
       if (isApiTrigger(trigger)) {
