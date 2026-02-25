@@ -349,5 +349,5 @@ iii.register_trigger("cron", "cron.orders_audit", json!({ "expression": "*/5 * *
 
 - State is addressed by `scope` (equivalent to groupId in streams) and `key` (item ID). Use `scope` as a logical namespace (`"users"`, `"orders"`) and `key` as the unique identifier within it.
 - `state::list` returns **all items** in a scope as an array. Use it sparingly in hot paths; it's best suited for cron-driven batch sweeps.
-- State is backed by the engine's `kv_server` module internally. It is separate from named streams — streams have real-time WebSocket push; state does not.
+- State is separate from named streams. Streams have real-time WebSocket push; state does not.
 - Unlike streams, state has no `update` semantics — to modify a record, read it first then write the merged result back with `state::set`.

@@ -22,16 +22,16 @@ modules::bridge_client::BridgeClientModule
         remote_function: engine::log::info
 
     forward:
-      - local_function: remote::kv::get
-        remote_function: kv_server::get
+      - local_function: remote::state::get
+        remote_function: state::get
         timeout_ms: 5000
 
-      - local_function: remote::kv::set
-        remote_function: kv_server::set
+      - local_function: remote::state::set
+        remote_function: state::set
         timeout_ms: 5000
 
-      - local_function: remote::kv::delete
-        remote_function: kv_server::delete
+      - local_function: remote::state::delete
+        remote_function: state::delete
         timeout_ms: 5000
 ```
 
