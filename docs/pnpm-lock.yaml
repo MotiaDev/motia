@@ -26,6 +26,9 @@ importers:
       mermaid:
         specifier: ^11.12.2
         version: 11.12.2
+      negotiator:
+        specifier: ^1.0.0
+        version: 1.0.0
       next:
         specifier: 16.0.10
         version: 16.0.10(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -57,6 +60,9 @@ importers:
       '@types/mdx':
         specifier: ^2.0.13
         version: 2.0.13
+      '@types/negotiator':
+        specifier: ^0.6.4
+        version: 0.6.4
       '@types/node':
         specifier: ^24.10.2
         version: 24.10.4
@@ -1217,6 +1223,9 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
+
+  '@types/negotiator@0.6.4':
+    resolution: {integrity: sha512-elf6BsTq+AkyNsb2h5cGNst2Mc7dPliVoAPm1fXglC/BM3f2pFA40BaSSv3E5lyHteEawVKLP+8TwiY1DMNb3A==}
 
   '@types/node@24.10.4':
     resolution: {integrity: sha512-vnDVpYPMzs4wunl27jHrfmwojOGKya0xyM3sH+UE5iv5uPS6vX7UIoh6m+vQc5LGBq52HBKPIn/zcSZVzeDEZg==}
@@ -3425,6 +3434,8 @@ snapshots:
   '@types/mdx@2.0.13': {}
 
   '@types/ms@2.1.0': {}
+
+  '@types/negotiator@0.6.4': {}
 
   '@types/node@24.10.4':
     dependencies:

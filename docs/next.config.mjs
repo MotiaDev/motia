@@ -11,6 +11,14 @@ const config = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  async rewrites() {
+    return [
+      {
+        source: '/docs/:path*.mdx',
+        destination: '/llms.mdx/docs/:path*',
+      },
+    ];
+  },
 }
 
 export default withMDX(config)
