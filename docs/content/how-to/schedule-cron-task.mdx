@@ -18,7 +18,7 @@ modules:
 
 ### 2. Register the Function
 
-<Tabs items={["TypeScript", "Python"]}>
+<Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
 import { init } from 'iii-sdk'
@@ -52,11 +52,30 @@ async def main():
 asyncio.run(main())
 ```
 </Tab>
+<Tab value="Rust">
+```rust
+use iii_sdk::III;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
+
+    iii.register_function("cleanup::expired-sessions", |_input| async move {
+        let count = delete_expired_sessions().await;
+        Ok(json!({ "deleted": count }))
+    });
+
+    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+}
+```
+</Tab>
 </Tabs>
 
 ### 3. Register the Cron trigger
 
-<Tabs items={["TypeScript", "Python"]}>
+<Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
 iii.registerTrigger({
@@ -73,6 +92,13 @@ iii.register_trigger(
     function_id='cleanup::expired-sessions',
     config={'expression': '0 */6 * * *'},
 )
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_trigger("cron", "cleanup::expired-sessions", json!({
+    "expression": "0 */6 * * *"
+}))?;
 ```
 </Tab>
 </Tabs>

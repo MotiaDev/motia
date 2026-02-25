@@ -84,13 +84,32 @@ asyncio.run(main())
 
 ### 3. Read from a stream
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
-const roomId = 'room-123'
 const messages = await iii.trigger('stream::list', {
   stream_name: 'chat',
-  group_id: roomId,
+  group_id: 'room-123',
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+messages = await iii.trigger('stream::list', {
+    'stream_name': 'chat',
+    'group_id': 'room-123',
+})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+let messages = iii.trigger("stream::list", json!({
+    "stream_name": "chat",
+    "group_id": "room-123",
+})).await?;
+```
+</Tab>
+</Tabs>
 
 ### 4. Connect a client
 

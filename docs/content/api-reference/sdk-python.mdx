@@ -34,7 +34,7 @@ The Python SDK requires an explicit `connect()` call to establish the WebSocket 
 
   async def main():
       await iii.connect()
-      result = await iii.call("math.sum", {"a": 2, "b": 3})
+      result = await iii.trigger("math.sum", {"a": 2, "b": 3})
       print(result)  # {"sum": 5}
 
   asyncio.run(main())

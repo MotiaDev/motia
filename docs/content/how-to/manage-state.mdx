@@ -19,7 +19,7 @@ modules:
 
 ### 2. Write state from a Function
 
-<Tabs items={["TypeScript", "Python"]}>
+<Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
 import { init } from 'iii-sdk'
@@ -67,10 +67,41 @@ async def main():
 asyncio.run(main())
 ```
 </Tab>
+<Tab value="Rust">
+```rust
+use iii_sdk::III;
+use serde_json::json;
+use uuid::Uuid;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
+
+    iii.register_function("users::create", |data| async move {
+        let id = Uuid::new_v4().to_string();
+        let mut user = data.clone();
+        user["id"] = json!(id);
+
+        iii.trigger("state::set", json!({
+            "scope": "users",
+            "key": id,
+            "data": user,
+        })).await?;
+
+        Ok(user)
+    });
+
+    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+}
+```
+</Tab>
 </Tabs>
 
 ### 3. Read state from another Function
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 iii.registerFunction(
   { id: 'users::get' },
@@ -83,11 +114,39 @@ iii.registerFunction(
   }
 )
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def get_user(data):
+    user = await iii.trigger('state::get', {
+        'scope': 'users',
+        'key': data['id'],
+    })
+    return user
+
+iii.register_function('users::get', get_user)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("users::get", |data| async move {
+    let key = data["id"].as_str().unwrap_or("");
+    let user = iii.trigger("state::get", json!({
+        "scope": "users",
+        "key": key,
+    })).await?;
+    Ok(user)
+});
+```
+</Tab>
+</Tabs>
 
 ### 4. Atomic updates
 
 Use `state::update` with update operations for safe concurrent modifications:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 await iii.trigger('state::update', {
   scope: 'users',
@@ -98,6 +157,32 @@ await iii.trigger('state::update', {
   ],
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+await iii.trigger('state::update', {
+    'scope': 'users',
+    'key': user_id,
+    'ops': [
+        {'type': 'set', 'path': 'lastLogin', 'value': datetime.now(timezone.utc).isoformat()},
+        {'type': 'increment', 'path': 'loginCount', 'by': 1},
+    ],
+})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.trigger("state::update", json!({
+    "scope": "users",
+    "key": user_id,
+    "ops": [
+        { "type": "set", "path": "lastLogin", "value": chrono::Utc::now().to_rfc3339() },
+        { "type": "increment", "path": "loginCount", "by": 1 },
+    ],
+})).await?;
+```
+</Tab>
+</Tabs>
 
 ## Result
 

@@ -204,6 +204,8 @@ iii.register_trigger("queue", "orders::process-payment", json!({
 
 Multiple functions can subscribe to the same topic. When `order.created` fires, both `process-payment` and `send-confirmation` run independently:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 iii.registerFunction(
   { id: 'orders::send-confirmation' },
@@ -220,11 +222,46 @@ iii.registerTrigger({
   config: { topic: 'order.created' },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def send_confirmation(data):
+    ctx = get_context()
+    await send_email(data['email'], f"Order {data['id']} confirmed!")
+    ctx.logger.info('Confirmation sent', {'orderId': data['id']})
+
+iii.register_function('orders::send-confirmation', send_confirmation)
+
+iii.register_trigger(
+    type='queue',
+    function_id='orders::send-confirmation',
+    config={'topic': 'order.created'},
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("orders::send-confirmation", |data| async move {
+    let ctx = get_context();
+    let order_id = data["id"].as_str().unwrap_or("");
+    send_email(&data["email"], &format!("Order {} confirmed!", order_id)).await;
+    ctx.logger.info("Confirmation sent", Some(json!({ "orderId": order_id })));
+    Ok(json!(null))
+});
+
+iii.register_trigger("queue", "orders::send-confirmation", json!({
+    "topic": "order.created"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ### 5. Conditional queue triggers
 
 Use `_condition_path` to only invoke the handler when a condition is met:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 iii.registerFunction(
   { id: 'orders::high-value-alert' },
@@ -247,6 +284,49 @@ iii.registerTrigger({
   },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def high_value_alert(data):
+    await notify_slack(f"High-value order: {data['id']} (${data['total']})")
+
+async def is_high_value(data):
+    return data.get('total', 0) > 1000
+
+iii.register_function('orders::high-value-alert', high_value_alert)
+iii.register_function('orders::is-high-value', is_high_value)
+
+iii.register_trigger(
+    type='queue',
+    function_id='orders::high-value-alert',
+    config={
+        'topic': 'order.created',
+        '_condition_path': 'orders::is-high-value',
+    },
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("orders::high-value-alert", |data| async move {
+    let id = data["id"].as_str().unwrap_or("");
+    let total = data["total"].as_f64().unwrap_or(0.0);
+    notify_slack(&format!("High-value order: {} (${})", id, total)).await;
+    Ok(json!(null))
+});
+
+iii.register_function("orders::is-high-value", |data| async move {
+    let total = data["total"].as_f64().unwrap_or(0.0);
+    Ok(json!(total > 1000.0))
+});
+
+iii.register_trigger("queue", "orders::high-value-alert", json!({
+    "topic": "order.created",
+    "_condition_path": "orders::is-high-value",
+}))?;
+```
+</Tab>
+</Tabs>
 
 ## Result
 
