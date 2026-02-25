@@ -18,7 +18,7 @@ export class StateManager implements InternalStateManager {
     })
   }
 
-  async set<T>(scope: string, key: string, data: T): Promise<StreamSetResult<T> | null> {
+  async set<T>(scope: string, key: string, value: T): Promise<StreamSetResult<T> | null> {
     return withSpan('state::set', {}, async (span) => {
       span.setAttribute('motia.state.scope', scope)
       span.setAttribute('motia.state.key', key)
@@ -26,7 +26,7 @@ export class StateManager implements InternalStateManager {
         return (await getInstance().call('state::set', {
           scope,
           key,
-          data,
+          value,
         })) as StreamSetResult<T> | null
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
