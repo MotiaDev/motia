@@ -39,8 +39,8 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0
       iii-sdk:
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.3.0
+        version: 0.3.0
       json-schema-to-ts:
         specifier: ^3.1.1
         version: 3.1.1
@@ -1715,8 +1715,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  iii-sdk@0.2.0:
-    resolution: {integrity: sha512-j8h9rrRBr/Id+BHTqqgWCC+rulvwNGpT/1tH4CWrn/CSdUpthfGGUF57Sb2ej6JzV1PiXkMWo2ydtcYhCyUsJQ==}
+  iii-sdk@0.3.0:
+    resolution: {integrity: sha512-v0lV72aXlVMSehYDYVx6rqy8EDXkzUtAM17TBNRI9HRZnRlMON6hgmm/pIkb+rULUujaaaQxTv+WVxJMlmzEDA==}
 
   import-in-the-middle@1.15.0:
     resolution: {integrity: sha512-bpQy+CrsRmYmoPMAE/0G33iwRqwW4ouqdRg8jgbH3aKuCtOc8lxgmYXg2dMM92CRiGP660EtBcymH/eVUpCSaA==}
@@ -4007,7 +4007,7 @@ snapshots:
 
   husky@9.1.7: {}
 
-  iii-sdk@0.2.0:
+  iii-sdk@0.3.0:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/api-logs': 0.57.2
