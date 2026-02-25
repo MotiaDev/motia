@@ -13,12 +13,19 @@ type ImageProps = {
 export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className }) => {
   const [isZoomed, setIsZoomed] = useState(false)
   const [isGrow, setIsGrow] = useState(false)
-  const isDark = useMode() === 'dark'
+  const [imgError, setImgError] = useState(false)
+  const mode = useMode()
+  const isDark = mode === 'dark'
   const lastDotIndex = defaultSrc.lastIndexOf('.')
   const imageName = defaultSrc.slice(0, lastDotIndex)
   const extension = defaultSrc.slice(lastDotIndex + 1)
-  const src = isDark ? `${imageName}-dark.${extension}` : `${imageName}-light.${extension}`
+  const themedSrc = isDark ? `${imageName}-dark.${extension}` : `${imageName}-light.${extension}`
+  const src = imgError ? defaultSrc : themedSrc
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    setImgError(false)
+  }, [isDark])
 
   useEffect(() => {
     if (!isZoomed) {
@@ -26,7 +33,6 @@ export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className })
       return
     }
 
-    // Trigger grow animation after render
     const timeout = setTimeout(() => setIsGrow(true), 15)
 
     const handleEscape = (e: KeyboardEvent) => {
@@ -38,7 +44,6 @@ export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className })
     document.addEventListener('keydown', handleEscape)
     document.body.style.overflow = 'hidden'
 
-    // focus the close button after open
     closeButtonRef.current?.focus()
 
     return () => {
@@ -56,6 +61,7 @@ export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className })
         src={src}
         alt={alt}
         suppressHydrationWarning
+        onError={() => setImgError(true)}
         className={cn('w-full h-auto cursor-pointer transition-transform active:scale-95', className)}
         onClick={() => setIsZoomed(true)}
       />
