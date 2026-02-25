@@ -40,7 +40,7 @@ describe('Motia', () => {
       expect(mockRegisterFunction).toHaveBeenCalled()
       expect(mockRegisterTrigger).toHaveBeenCalledWith(
         expect.objectContaining({
-          trigger_type: 'http',
+          type: 'http',
           config: expect.objectContaining({
             api_path: 'users',
             http_method: 'GET',
