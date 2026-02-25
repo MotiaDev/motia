@@ -24,7 +24,7 @@ iii-console [OPTIONS]
 </ResponseField>
 
 <ResponseField name="--engine-port" type="number">
-  Port of the engine's REST API. Defaults to `3111`.
+  Port of the engine's HTTP API. Defaults to `3111`.
 </ResponseField>
 
 <ResponseField name="--ws-port" type="number">
@@ -63,7 +63,7 @@ A typical local development setup uses these ports:
 
 | Service              | Port    | Description                      |
 |----------------------|---------|----------------------------------|
-| iii Engine REST API  | `3111`  | Engine HTTP API                  |
+| iii Engine HTTP API   | `3111`  | Engine HTTP API                  |
 | iii Engine WebSocket | `3112`  | Engine real-time updates         |
 | iii Console UI       | `3113`  | Console web interface            |
 | iii SDK Bridge       | `49134` | SDK bridge WebSocket connection  |

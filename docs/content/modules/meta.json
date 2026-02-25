@@ -2,7 +2,7 @@
   "title": "Modules",
   "defaultOpen": false,
   "pages": [
-    "module-rest-api",
+    "module-http",
     "module-queue",
     "module-cron",
     "module-observability",

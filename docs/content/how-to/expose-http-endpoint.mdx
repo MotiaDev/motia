@@ -1,11 +1,11 @@
 ---
 title: 'Expose an HTTP Endpoint'
-description: 'How to register a function and expose it as a REST API endpoint.'
+description: 'How to register a function and expose it as an HTTP endpoint.'
 ---
 
 ## Goal
 
-Expose a Function as an HTTP endpoint so external clients can call it via REST.
+Expose a Function as an HTTP endpoint so external clients can call it over HTTP.
 
 ## Steps
 
@@ -73,9 +73,9 @@ iii.register_trigger(
 </Tab>
 </Tabs>
 
-### 3. Enable the REST API module
+### 3. Enable the HTTP module
 
-Make sure `config.yaml` has the REST API module enabled:
+Make sure `config.yaml` has the HTTP module enabled:
 
 ```yaml
 modules:

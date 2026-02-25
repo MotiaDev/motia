@@ -113,7 +113,7 @@ docker compose up -d
 | Port  | Service                        |
 | ----- | ------------------------------ |
 | 49134 | WebSocket (worker connections) |
-| 3111  | REST API                       |
+| 3111  | HTTP API                       |
 | 3112  | Streams API                    |
 | 9464  | Prometheus metrics             |
 
@@ -252,7 +252,7 @@ curl http://localhost:9464/metrics
 Health check endpoints:
 
 ```bash
-# REST API
+# HTTP API
 curl http://localhost:3111/health
 
 # WebSocket port
@@ -319,7 +319,7 @@ graph LR
 Monitor engine health by checking:
 
 1. **WebSocket Port**: Engine listens on `127.0.0.1:49134` by default
-2. **Module Ports**: REST API (3111), Streams (3112)
+2. **Module Ports**: HTTP API (3111), Streams (3112)
 3. **Redis Connection**: If using Redis adapters
 
 Example health check:
@@ -328,7 +328,7 @@ Example health check:
 # Check if WebSocket is listening
 nc -zv 127.0.0.1 49134
 
-# Check REST API
+# Check HTTP API
 curl http://localhost:3111/health
 ```
 

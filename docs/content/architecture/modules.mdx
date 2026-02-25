@@ -24,7 +24,7 @@ graph TB
 
 | Module | Provides | Config key |
 |--------|----------|------------|
-| [REST API](/docs/modules/module-rest-api) | HTTP trigger type, request/response handling | `rest_api` |
+| [HTTP](/docs/modules/module-http) | HTTP trigger type, request/response handling | `rest_api` |
 | [Queue](/docs/modules/module-queue) | Async message processing with retries | `queue` |
 | [Cron](/docs/modules/module-cron) | Scheduled task execution | `cron` |
 | [State](/docs/modules/module-state) | Key-value state storage with atomic updates | `state` |
@@ -39,7 +39,7 @@ graph TB
 
 A Module has two responsibilities:
 
-1. **Register trigger types**: A Module can introduce new ways to invoke Functions. For example, the REST API module registers the `http` trigger type, and the Cron module registers the `cron` trigger type.
+1. **Register trigger types**: A Module can introduce new ways to invoke Functions. For example, the HTTP module registers the `http` trigger type, and the Cron module registers the `cron` trigger type.
 
 2. **Supply Context**: A Module can add capabilities to the Context object that gets passed to every Function. For example, the State module adds `state::get`, `state::set`, and other state operations.
 

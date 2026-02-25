@@ -7,7 +7,7 @@ The iii Console is a standalone application that gives you full operational visi
 
 ```mermaid
 graph LR
-    C[iii Console] -->|REST API| E[iii Engine]
+    C[iii Console] -->|HTTP| E[iii Engine]
     C -->|WebSocket| E
     C -->|iii SDK Bridge| E
     B[Browser] -->|HTTP :3113| C
