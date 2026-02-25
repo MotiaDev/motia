@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '../utils'
-import { useMode } from '../utils-client'
 
 type ImageProps = {
   src: string
@@ -10,22 +9,36 @@ type ImageProps = {
   className?: string
 }
 
-export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className }) => {
-  const [isZoomed, setIsZoomed] = useState(false)
-  const [isGrow, setIsGrow] = useState(false)
-  const [imgError, setImgError] = useState(false)
-  const mode = useMode()
-  const isDark = mode === 'dark'
+function getThemedSrc(defaultSrc: string, isDark: boolean): string {
   const lastDotIndex = defaultSrc.lastIndexOf('.')
   const imageName = defaultSrc.slice(0, lastDotIndex)
   const extension = defaultSrc.slice(lastDotIndex + 1)
-  const themedSrc = isDark ? `${imageName}-dark.${extension}` : `${imageName}-light.${extension}`
-  const src = imgError ? defaultSrc : themedSrc
+  return isDark ? `${imageName}-dark.${extension}` : `${imageName}-light.${extension}`
+}
+
+export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className }) => {
+  const [isZoomed, setIsZoomed] = useState(false)
+  const [isGrow, setIsGrow] = useState(false)
+  const [resolvedSrc, setResolvedSrc] = useState(defaultSrc)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    setImgError(false)
-  }, [isDark])
+    const html = document.documentElement
+    const updateSrc = () => {
+      const isDark = html.classList.contains('dark')
+      setResolvedSrc(getThemedSrc(defaultSrc, isDark))
+    }
+
+    updateSrc()
+
+    const observer = new MutationObserver(updateSrc)
+    observer.observe(html, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [defaultSrc])
+
+  const handleError = () => {
+    setResolvedSrc(defaultSrc)
+  }
 
   useEffect(() => {
     if (!isZoomed) {
@@ -43,7 +56,6 @@ export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className })
 
     document.addEventListener('keydown', handleEscape)
     document.body.style.overflow = 'hidden'
-
     closeButtonRef.current?.focus()
 
     return () => {
@@ -53,28 +65,26 @@ export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className })
     }
   }, [isZoomed])
 
-  const handleZoomedClick = () => setIsZoomed(false)
-
   return (
     <>
       <img
-        src={src}
+        src={resolvedSrc}
         alt={alt}
         suppressHydrationWarning
-        onError={() => setImgError(true)}
+        onError={handleError}
         className={cn('w-full h-auto cursor-pointer transition-transform active:scale-95', className)}
         onClick={() => setIsZoomed(true)}
       />
       {isZoomed && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-          onClick={handleZoomedClick}
+          onClick={() => setIsZoomed(false)}
           aria-modal="true"
           role="dialog"
         >
           <button
             ref={closeButtonRef}
-            onClick={handleZoomedClick}
+            onClick={() => setIsZoomed(false)}
             aria-label="Close image preview"
             className="absolute top-6 right-6 md:top-10 md:right-10 z-10 rounded-full p-1.5 text-white bg-black/60 hover:bg-black/80 transition shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
             tabIndex={0}
@@ -85,7 +95,7 @@ export const Image: React.FC<ImageProps> = ({ src: defaultSrc, alt, className })
             </svg>
           </button>
           <img
-            src={src}
+            src={resolvedSrc}
             alt={alt}
             className={cn(
               'max-w-full max-h-full object-contain shadow-xl bg-white/5 rounded-lg',
