@@ -9,6 +9,20 @@ Distributed key-value state storage with scope-based organization and reactive t
 modules::state::StateModule
 ```
 
+## Architecture
+
+```mermaid
+graph LR
+    W1[Worker] -->|state::set| Engine[Engine]
+    Engine -->|Persist| Adapter[State Adapter]
+    Adapter -->|old + new value| Engine
+    Engine -->|Result| W1
+    Engine -->|Match| Triggers[Trigger Registry]
+    Triggers -.->|Fire Handler| W2[Worker]
+```
+
+State is server-side key-value storage with trigger-based reactivity. Unlike streams, state does not push updates to WebSocket clients — it fires triggers that workers handle server-side.
+
 ## Sample Configuration
 
 ```yaml
@@ -245,6 +259,8 @@ When the trigger fires, the handler receives a state event object:
 
 ### Sample Code
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const fn = iii.registerFunction(
   { id: 'state::onUserUpdated' },
@@ -262,11 +278,42 @@ iii.registerTrigger({
   config: { scope: 'users', key: 'profile' },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def on_user_updated(event):
+    print('State changed:', event['event_type'], event['key'])
+    print('Previous:', event.get('old_value'))
+    print('Current:', event.get('new_value'))
+    return {}
+
+iii.register_function('state::onUserUpdated', on_user_updated)
+iii.register_trigger(type='state', function_id='state::onUserUpdated', config={'scope': 'users', 'key': 'profile'})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("state::onUserUpdated", |event| async move {
+    println!("State changed: {} {}", event["event_type"], event["key"]);
+    println!("Previous: {:?}", event.get("old_value"));
+    println!("Current: {:?}", event.get("new_value"));
+    Ok(json!({}))
+})?;
+
+iii.register_trigger("state", "state::onUserUpdated", json!({
+    "scope": "users",
+    "key": "profile"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ### Usage Example: User Profile with Reactive Sync
 
 Store user profiles in state and react when they change:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 await iii.trigger('state::set', {
   scope: 'users',
@@ -285,11 +332,58 @@ await iii.trigger('state::set', {
 const allUsers = await iii.trigger('state::list', { scope: 'users' })
 const scopes = await iii.trigger('state::list_groups', {})
 ```
+</Tab>
+<Tab value="Python">
+```python
+await iii.trigger('state::set', {
+    'scope': 'users',
+    'key': 'user-123',
+    'data': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'dark'}},
+})
+
+profile = await iii.trigger('state::get', {'scope': 'users', 'key': 'user-123'})
+
+await iii.trigger('state::set', {
+    'scope': 'users',
+    'key': 'user-123',
+    'data': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'light'}},
+})
+
+all_users = await iii.trigger('state::list', {'scope': 'users'})
+scopes = await iii.trigger('state::list_groups', {})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.trigger("state::set", json!({
+    "scope": "users",
+    "key": "user-123",
+    "data": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "dark" } }
+})).await?;
+
+let profile = iii.trigger("state::get", json!({
+    "scope": "users",
+    "key": "user-123"
+})).await?;
+
+iii.trigger("state::set", json!({
+    "scope": "users",
+    "key": "user-123",
+    "data": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "light" } }
+})).await?;
+
+let all_users = iii.trigger("state::list", json!({ "scope": "users" })).await?;
+let scopes = iii.trigger("state::list_groups", json!({})).await?;
+```
+</Tab>
+</Tabs>
 
 ### Usage Example: Conditional Trigger
 
 Only process profile updates when the email field changed:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::emailChanged' },
@@ -313,22 +407,66 @@ iii.registerTrigger({
   },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def email_changed(event):
+    if event.get('event_type') != 'state:updated':
+        return False
+    old = event.get('old_value', {})
+    new = event.get('new_value', {})
+    return old.get('email') != new.get('email')
+
+iii.register_function('conditions::emailChanged', email_changed)
+
+async def on_email_change(event):
+    await send_verification_email(event['new_value']['email'])
+    return {}
+
+iii.register_function('state::onEmailChange', on_email_change)
+iii.register_trigger(
+    type='state',
+    function_id='state::onEmailChange',
+    config={
+        'scope': 'users',
+        'key': 'profile',
+        'condition_function_id': 'conditions::emailChanged',
+    },
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("conditions::emailChanged", |event| async move {
+    let is_update = event["event_type"].as_str() == Some("state:updated");
+    let old_email = event.get("old_value").and_then(|v| v.get("email"));
+    let new_email = event.get("new_value").and_then(|v| v.get("email"));
+    Ok(json!(is_update && old_email != new_email))
+})?;
+
+iii.register_function("state::onEmailChange", |event| async move {
+    let email = event["new_value"]["email"].as_str().unwrap_or("");
+    send_verification_email(email).await?;
+    Ok(json!({}))
+})?;
+
+iii.register_trigger("state", "state::onEmailChange", json!({
+    "scope": "users",
+    "key": "profile",
+    "condition_function_id": "conditions::emailChanged"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ## State Flow
 
 ```mermaid
-sequenceDiagram
-    participant W1 as Worker1
-    participant E as Engine
-    participant S as State Adapter
-    participant W2 as Worker2
-
-    W1->>E: state::set (scope: users, key: profile)
-    E->>S: Persist value
-    S-->>E: old_value + new_value
-    E-->>W1: Result
-
-    E->>E: Check registered state triggers
-    E->>W2: Invoke state handler (state:updated event)
-    W2-->>E: Handler complete
+graph LR
+    W1[Worker] -->|state::set| E[Engine]
+    E -->|Persist| S[State Adapter]
+    S -->|old + new value| E
+    E -->|Result| W1
+    E -->|Match| T[Trigger Registry]
+    T -.->|state:updated| W2[Handler]
 ```

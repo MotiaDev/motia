@@ -34,6 +34,24 @@ graph LR
 
 ## Worker Lifecycle
 
+### Lifecycle Overview
+
+```mermaid
+stateDiagram-v2
+    [*] --> Connecting: init(url)
+    Connecting --> Connected: WebSocket open
+    Connected --> Registering: Register functions/triggers
+    Registering --> Ready: All registered
+    Ready --> Executing: Invocation received
+    Executing --> Ready: Result sent
+    Ready --> Disconnected: Connection lost
+    Disconnected --> Reconnecting: Auto-reconnect
+    Reconnecting --> Connected: Reconnected
+    Reconnecting --> Failed: Max retries
+    Ready --> ShuttingDown: shutdown()
+    ShuttingDown --> [*]: Cleanup complete
+```
+
 ### 1. Connection
 
 Worker establishes WebSocket connection to the Engine:

@@ -14,7 +14,6 @@ export function Mermaid({ chart }: { chart: string }) {
     setMounted(true)
   }, [])
 
-  // Watch for theme changes via MutationObserver
   useEffect(() => {
     if (!mounted) return
 
@@ -23,10 +22,8 @@ export function Mermaid({ chart }: { chart: string }) {
       setThemeState(isDark ? 'dark' : 'light')
     }
 
-    // Set initial theme
     updateTheme()
 
-    // Watch for class changes on html element
     const observer = new MutationObserver(updateTheme)
     observer.observe(document.documentElement, {
       attributes: true,
@@ -57,7 +54,7 @@ export function Mermaid({ chart }: { chart: string }) {
           rankSpacing: 40,
         },
         sequence: {
-          useMaxWidth: true,
+          useMaxWidth: false,
           boxMargin: 8,
           boxTextMargin: 8,
         },
@@ -69,18 +66,27 @@ export function Mermaid({ chart }: { chart: string }) {
 
       const svgElement = containerRef.current.querySelector('svg')
       if (svgElement) {
-        // Read colors from CSS variables
+        const naturalWidth = parseFloat(svgElement.getAttribute('width') || '0')
+        const naturalHeight = parseFloat(svgElement.getAttribute('height') || '0')
+
+        if (naturalWidth > 0 && naturalHeight > 0) {
+          svgElement.setAttribute('viewBox', `0 0 ${naturalWidth} ${naturalHeight}`)
+        }
+
+        svgElement.setAttribute('width', '100%')
+        svgElement.removeAttribute('height')
+        svgElement.style.maxWidth = '100%'
+        svgElement.style.height = 'auto'
+
         const style = getComputedStyle(document.documentElement)
         const fillColor = style.getPropertyValue('--color-mermaid-fill').trim()
         const strokeColor = style.getPropertyValue('--color-mermaid-stroke').trim()
         const textColor = style.getPropertyValue('--color-mermaid-text').trim()
         const clusterFill = style.getPropertyValue('--color-mermaid-cluster-fill').trim()
 
-        // Update all rects
         svgElement.querySelectorAll('rect').forEach((el) => {
           const svgEl = el as SVGElement
 
-          // Check various class names that might indicate clusters
           const isCluster =
             el.classList.contains('cluster') ||
             el.classList.contains('cluster-rect') ||
@@ -94,7 +100,6 @@ export function Mermaid({ chart }: { chart: string }) {
             ;(svgEl as unknown as HTMLElement).style.cssText =
               `fill: ${clusterFill} !important; stroke: ${strokeColor} !important; stroke-width: 2px !important; stroke-dasharray: 5 5 !important;`
           } else {
-            // Regular boxes - force the fill
             svgEl.setAttribute('fill', fillColor)
             svgEl.setAttribute('stroke', strokeColor)
             svgEl.setAttribute('stroke-width', '2')
@@ -103,7 +108,6 @@ export function Mermaid({ chart }: { chart: string }) {
           }
         })
 
-        // Update polygons, circles, ellipses
         svgElement.querySelectorAll('polygon, circle, ellipse').forEach((el) => {
           const svgEl = el as SVGElement
 
@@ -116,7 +120,6 @@ export function Mermaid({ chart }: { chart: string }) {
             `fill: ${fillColor} !important; stroke: ${strokeColor} !important; stroke-width: 2px !important;`
         })
 
-        // Update all paths and lines
         svgElement.querySelectorAll('path, line, polyline').forEach((el) => {
           const svgEl = el as SVGElement
           svgEl.setAttribute('stroke', strokeColor)
@@ -125,7 +128,6 @@ export function Mermaid({ chart }: { chart: string }) {
             `stroke: ${strokeColor} !important; stroke-width: 2px !important; fill: none !important;`
         })
 
-        // Update text - be more aggressive
         svgElement.querySelectorAll('text, tspan, .nodeLabel, .edgeLabel').forEach((el) => {
           const svgEl = el as SVGElement
           svgEl.setAttribute('fill', textColor)
@@ -134,7 +136,6 @@ export function Mermaid({ chart }: { chart: string }) {
             `fill: ${textColor} !important; color: ${textColor} !important;`
         })
 
-        // Update markers (arrowheads)
         svgElement.querySelectorAll('marker path, marker polygon').forEach((el) => {
           const svgEl = el as SVGElement
           svgEl.setAttribute('fill', strokeColor)
@@ -148,5 +149,5 @@ export function Mermaid({ chart }: { chart: string }) {
     renderDiagram()
   }, [chart, id, themeState, mounted])
 
-  return <div ref={containerRef} className="mermaid my-6 flex justify-center" />
+  return <div ref={containerRef} className="mermaid my-6" />
 }

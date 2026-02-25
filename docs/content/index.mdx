@@ -1,25 +1,39 @@
 ---
 title: Welcome to iii
-description: The way to unify your backend and not think about it.
+description: One engine. Three primitives. Your entire backend.
 hideCards: true
 ---
 
-**iii** (pronounced "three eye") is a long-running backend engine. You start it once, and it runs continuously — dynamically registering Functions from Workers as they connect, orchestrating triggers, and providing shared functionality (state, queues, streams, observability) to everything in the system.
+**iii** (pronounced "three eye") replaces your backend stack with a single engine and three primitives: **Worker**, **Function**, and **Trigger**.
 
-## What iii does
+No more gluing together separate tools for APIs, queues, cron, state, and real-time. iii gives you all of that out of the box.
+
+## The Problem
+
+Building a typical backend today means stitching together 5-10 separate systems: an API framework, a task queue, a cron scheduler, a pub/sub layer, a state store, a WebSocket server, and an observability pipeline. Each one has its own setup, its own deployment, and its own failure modes. You spend more time wiring infrastructure than writing business logic.
+
+## How iii Solves It
+
+You start iii once. It runs as a single process and handles everything:
+
+- **Write functions in any language.** Your code runs in Workers that connect to iii over WebSocket. Use TypeScript, Python, or Rust. Mix them freely.
+- **Triggers replace all your infra wiring.** An HTTP request, a cron schedule, a queue message, a state change, a stream event. They all work the same way: a Trigger fires, iii invokes your Function.
+- **Discovery replaces imports and configuration.** The engine provides built-in functions for state, queues, streams, and more. Workers discover these on connection. You do not import a Redis client or a queue library. You just `trigger()` what you need.
+- **Workers come and go.** When a Worker connects, its Functions are registered automatically. When it disconnects, they are cleaned up. When it reconnects, everything is restored. Zero-downtime deploys become trivial.
+
+The result: you write business logic as Functions, declare what triggers them, and iii handles the rest.
+
+## What iii Does
 
 When iii starts, it:
 
-- **Dynamically registers Functions** — Workers connect over WebSocket and register their handlers. iii routes incoming triggers to the right Worker, regardless of language or location.
-- **Orchestrates triggers** — HTTP requests, cron schedules, queue messages, state changes, and stream events all flow through iii and invoke the correct Function.
-- **Provides shared functionality** — State, queues, streams, and observability are available to every Function through the same `trigger()` API, no matter where the Function is running.
-- **Manages the lifecycle** — When a Worker disconnects, iii cleans up its Functions automatically. When it reconnects, Functions are re-registered transparently.
+- **Dynamically registers Functions.** Workers connect over WebSocket and register their handlers. iii routes incoming triggers to the right Worker, regardless of language or location.
+- **Orchestrates triggers.** HTTP requests, cron schedules, queue messages, state changes, and stream events all flow through iii and invoke the correct Function.
+- **Enables runtime discovery.** Every Worker can see every Function in the system, including built-in ones. When a Worker connects or disconnects, the registry updates and everyone is notified.
+- **Manages the lifecycle.** When a Worker disconnects, iii cleans up its Functions automatically. When it reconnects, Functions are re-registered transparently.
 
-This makes iii the single coordination point for your entire backend — APIs, background jobs, workflows, queues, and state — without any of the complexity of managing those systems separately.
-
-<Callout title="The Paradigm Shift" type="info">
-  React revolutionized the frontend with the Component and Context. Rust revolutionized systems programming with
-  Ownership and Borrowing. iii hopes to do the same on the backend with Function and Trigger.
+<Callout title="Why this matters" type="info">
+  React simplified the frontend with Component and Context. iii does the same for the backend with Function, Trigger, and Discovery. One mental model for APIs, background jobs, workflows, real-time, and more.
 </Callout>
 
 ## Getting Started
@@ -57,7 +71,7 @@ iii --version
     Follow the Quickstart and build your first iii application step by step.
   </Card>
   <Card icon={<LayoutTemplate />} title="Concepts" href={`/docs/concepts`}>
-    Understand how Function and Trigger simplify backend development.
+    Understand Function, Trigger, and Discovery.
   </Card>
   <Card icon={<Settings />} title="How-to Guides" href={`/docs/how-to/expose-http-endpoint`}>
     Solve specific problems: HTTP endpoints, background jobs, state, cron, and streaming.

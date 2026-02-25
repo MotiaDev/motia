@@ -58,7 +58,7 @@ The SDKs communicate with the engine using JSON messages over WebSocket. Each me
 
 | Message Type | Description | Key Fields |
 | --- | --- | --- |
-| `registerfunction` | Registers a callable function | `id`, `description` |
+| `registerfunction` | Registers a triggerable function | `id`, `description` |
 | `registertrigger` | Binds a trigger config to a function | `trigger_type`, `function_id`, `config` |
 | `invokefunction` | Requests function execution | `function_id`, `data`, `invocation_id` |
 | `invocationresult` | Returns execution result | `invocation_id`, `result`, `error` |

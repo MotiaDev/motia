@@ -13,6 +13,8 @@ A trigger consists of three parts:
 2. **Configuration**: Type-specific settings (path, schedule, topics)
 3. **Function ID**: The function to invoke when triggered
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 iii.registerTrigger({
   type: 'http',
@@ -22,6 +24,55 @@ iii.registerTrigger({
     http_method: 'POST',
   },
 })
+```
+</Tab>
+<Tab value="Python">
+```python
+iii.register_trigger(
+    type='http',
+    function_id=fn.id,
+    config={'api_path': '/users', 'http_method': 'POST'},
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_trigger("http", "users.create", json!({
+    "api_path": "/users",
+    "http_method": "POST"
+}))?;
+```
+</Tab>
+</Tabs>
+
+## Trigger Pipeline
+
+```mermaid
+sequenceDiagram
+    participant External
+    participant Module
+    participant Engine
+    participant ConditionFn
+    participant Worker
+
+    Worker->>Engine: Register trigger type
+    Worker->>Engine: Register trigger (type + function_id + config)
+    Engine->>Module: Route trigger to module
+    Module-->>Engine: Trigger ready
+
+    External->>Module: Event arrives (HTTP request / cron tick / queue message)
+    Module->>Engine: Fire trigger
+    Engine->>ConditionFn: Check condition function (if configured)
+    alt Condition passes
+        ConditionFn-->>Engine: true
+        Engine->>Worker: Invoke target function
+        Worker->>Worker: Execute handler
+        Worker-->>Engine: Return result
+        Engine-->>External: Route result back to caller
+    else Condition fails
+        ConditionFn-->>Engine: false
+        Engine-->>External: Request skipped
+    end
 ```
 
 ## Core Trigger Types
@@ -45,6 +96,8 @@ Executes functions in response to HTTP requests.
 
 **Configuration:**
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 {
   type: 'http',
@@ -55,6 +108,32 @@ Executes functions in response to HTTP requests.
   }
 }
 ```
+</Tab>
+<Tab value="Python">
+```python
+{
+    'type': 'http',
+    'function_id': fn.id,
+    'config': {
+        'api_path': '/users/:id',
+        'http_method': 'GET',
+    },
+}
+```
+</Tab>
+<Tab value="Rust">
+```rust
+json!({
+    "type": "http",
+    "function_id": "users.get",
+    "config": {
+        "api_path": "/users/:id",
+        "http_method": "GET"
+    }
+})
+```
+</Tab>
+</Tabs>
 
 **Input**: `ApiRequest` with path params, query params, body, headers
 
@@ -84,6 +163,8 @@ Executes functions when events are published to subscribed topics.
 
 **Configuration:**
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 {
   type: 'queue',
@@ -93,6 +174,30 @@ Executes functions when events are published to subscribed topics.
   }
 }
 ```
+</Tab>
+<Tab value="Python">
+```python
+{
+    'type': 'queue',
+    'function_id': fn.id,
+    'config': {
+        'topic': 'user.created',
+    },
+}
+```
+</Tab>
+<Tab value="Rust">
+```rust
+json!({
+    "type": "queue",
+    "function_id": "users.on_created",
+    "config": {
+        "topic": "user.created"
+    }
+})
+```
+</Tab>
+</Tabs>
 
 **Input**: Event payload (any JSON data)
 
@@ -116,6 +221,8 @@ Executes functions on a time-based schedule using cron expressions.
 
 **Configuration:**
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 {
   type: 'cron',
@@ -125,6 +232,30 @@ Executes functions on a time-based schedule using cron expressions.
   }
 }
 ```
+</Tab>
+<Tab value="Python">
+```python
+{
+    'type': 'cron',
+    'function_id': fn.id,
+    'config': {
+        'expression': '0 2 * * *',
+    },
+}
+```
+</Tab>
+<Tab value="Rust">
+```rust
+json!({
+    "type": "cron",
+    "function_id": "reports.daily",
+    "config": {
+        "expression": "0 2 * * *"
+    }
+})
+```
+</Tab>
+</Tabs>
 
 **Input**: Cron execution context (timestamp, trigger info)
 
@@ -148,6 +279,8 @@ Executes functions when log entries match specified criteria.
 
 **Configuration:**
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 {
   type: 'log',
@@ -157,6 +290,30 @@ Executes functions when log entries match specified criteria.
   }
 }
 ```
+</Tab>
+<Tab value="Python">
+```python
+{
+    'type': 'log',
+    'function_id': fn.id,
+    'config': {
+        'level': 'error',
+    },
+}
+```
+</Tab>
+<Tab value="Rust">
+```rust
+json!({
+    "type": "log",
+    "function_id": "alerts.on_error",
+    "config": {
+        "level": "error"
+    }
+})
+```
+</Tab>
+</Tabs>
 
 **Input**: Log entry with trace_id, message, level, function_name, date
 
@@ -235,16 +392,37 @@ sequenceDiagram
 
 First, register the function that will be invoked:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'users.create' }, async (data) => {
   return { id: '123', ...data }
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def create_user(data):
+    return {'id': '123', **data}
+
+fn = iii.register_function('users.create', create_user)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("users.create", |data: Value| async move {
+    Ok(json!({"id": "123", "name": data["name"]}))
+});
+```
+</Tab>
+</Tabs>
 
 **Step 2: Register Trigger**
 
 Then, register a trigger that routes to that function:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 iii.registerTrigger({
   type: 'http',
@@ -255,6 +433,25 @@ iii.registerTrigger({
   },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+iii.register_trigger(
+    type='http',
+    function_id=fn.id,
+    config={'api_path': '/users', 'http_method': 'POST'},
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_trigger("http", "users.create", json!({
+    "api_path": "/users",
+    "http_method": "POST"
+}))?;
+```
+</Tab>
+</Tabs>
 
 **Step 3: Trigger Active**
 
@@ -280,6 +477,8 @@ sequenceDiagram
 
 A single function can have multiple triggers:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'users.notify' }, async (data) => {
   await sendNotification(data)
@@ -303,6 +502,55 @@ iii.registerTrigger({
   config: { expression: '0 9 * * *' },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def notify(data):
+    await send_notification(data)
+
+fn = iii.register_function('users.notify', notify)
+
+iii.register_trigger(
+    type='http',
+    function_id=fn.id,
+    config={'api_path': '/notify', 'http_method': 'POST'},
+)
+
+iii.register_trigger(
+    type='queue',
+    function_id=fn.id,
+    config={'topic': 'user.created'},
+)
+
+iii.register_trigger(
+    type='cron',
+    function_id=fn.id,
+    config={'expression': '0 9 * * *'},
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("users.notify", |data: Value| async move {
+    send_notification(&data).await;
+    Ok(json!({}))
+});
+
+iii.register_trigger("http", "users.notify", json!({
+    "api_path": "/notify",
+    "http_method": "POST"
+}))?;
+
+iii.register_trigger("queue", "users.notify", json!({
+    "topic": "user.created"
+}))?;
+
+iii.register_trigger("cron", "users.notify", json!({
+    "expression": "0 9 * * *"
+}))?;
+```
+</Tab>
+</Tabs>
 
 **Use Case**: Send notifications via API calls, events, or scheduled jobs using the same logic.
 
@@ -320,6 +568,8 @@ Triggers can optionally use a **condition function** to decide whether the handl
 
 ### Example: HTTP Trigger with Condition
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::requireVerified' },
@@ -341,9 +591,54 @@ iii.registerTrigger({
   },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def require_verified(req):
+    return req.get('headers', {}).get('x-verified') == 'true'
+
+condition_fn = iii.register_function('conditions::requireVerified', require_verified)
+
+async def verified_only(req):
+    return {'status_code': 200, 'body': {'message': 'Verified request'}}
+
+fn = iii.register_function('api::verifiedOnly', verified_only)
+
+iii.register_trigger(
+    type='http',
+    function_id=fn.id,
+    config={
+        'api_path': '/verified',
+        'http_method': 'POST',
+        '_condition_path': condition_fn.id,
+    },
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("conditions::requireVerified", |req: Value| async move {
+    let verified = req["headers"]["x-verified"].as_str() == Some("true");
+    Ok(json!(verified))
+});
+
+iii.register_function("api::verifiedOnly", |_req: Value| async move {
+    Ok(json!({"status_code": 200, "body": {"message": "Verified request"}}))
+});
+
+iii.register_trigger("http", "api::verifiedOnly", json!({
+    "api_path": "/verified",
+    "http_method": "POST",
+    "_condition_path": "conditions::requireVerified"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ### Example: Queue Trigger with Condition
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::highValue' },
@@ -364,9 +659,54 @@ iii.registerTrigger({
   },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def high_value(data):
+    return (data.get('amount', 0)) > 1000
+
+condition_fn = iii.register_function('conditions::highValue', high_value)
+
+async def process_high_value(order):
+    await process_high_value_order(order)
+    return {}
+
+fn = iii.register_function('orders::processHighValue', process_high_value)
+
+iii.register_trigger(
+    type='queue',
+    function_id=fn.id,
+    config={
+        'topic': 'order.placed',
+        '_condition_path': condition_fn.id,
+    },
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("conditions::highValue", |data: Value| async move {
+    let amount = data["amount"].as_f64().unwrap_or(0.0);
+    Ok(json!(amount > 1000.0))
+});
+
+iii.register_function("orders::processHighValue", |order: Value| async move {
+    process_high_value_order(&order).await;
+    Ok(json!({}))
+});
+
+iii.register_trigger("queue", "orders::processHighValue", json!({
+    "topic": "order.placed",
+    "_condition_path": "conditions::highValue"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ### Example: State Trigger with Condition
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::profileChanged' },
@@ -387,6 +727,50 @@ iii.registerTrigger({
   },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def profile_changed(event):
+    return event.get('event_type') == 'updated' and event.get('key') == 'profile'
+
+condition_fn = iii.register_function('conditions::profileChanged', profile_changed)
+
+async def on_profile_update(event):
+    print('Profile updated:', event.get('new_value'))
+    return {}
+
+fn = iii.register_function('state::onProfileUpdate', on_profile_update)
+
+iii.register_trigger(
+    type='state',
+    function_id=fn.id,
+    config={
+        'scope': 'users',
+        'condition_function_id': condition_fn.id,
+    },
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("conditions::profileChanged", |event: Value| async move {
+    let is_updated = event["event_type"].as_str() == Some("updated");
+    let is_profile = event["key"].as_str() == Some("profile");
+    Ok(json!(is_updated && is_profile))
+});
+
+iii.register_function("state::onProfileUpdate", |event: Value| async move {
+    println!("Profile updated: {:?}", event["new_value"]);
+    Ok(json!({}))
+});
+
+iii.register_trigger("state", "state::onProfileUpdate", json!({
+    "scope": "users",
+    "condition_function_id": "conditions::profileChanged"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ### Config Keys by Trigger Type
 
@@ -429,6 +813,8 @@ trigger.unregister()
 
 ### Webhook Handler
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'webhooks.github' }, async (req) => {
   const event = req.headers?.['x-github-event']
@@ -448,9 +834,52 @@ iii.registerTrigger({
   },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def github_webhook(req):
+    event = req.get('headers', {}).get('x-github-event')
+    payload = req.get('body')
+
+    await process_github_webhook(event, payload)
+
+    return {'status_code': 200, 'body': {'received': True}}
+
+fn = iii.register_function('webhooks.github', github_webhook)
+
+iii.register_trigger(
+    type='http',
+    function_id=fn.id,
+    config={
+        'api_path': '/webhooks/github',
+        'http_method': 'POST',
+    },
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("webhooks.github", |req: Value| async move {
+    let event = req["headers"]["x-github-event"].as_str().unwrap_or("");
+    let payload = &req["body"];
+
+    process_github_webhook(event, payload).await;
+
+    Ok(json!({"status_code": 200, "body": {"received": true}}))
+});
+
+iii.register_trigger("http", "webhooks.github", json!({
+    "api_path": "/webhooks/github",
+    "http_method": "POST"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ### Event Chain
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const processFn = iii.registerFunction({ id: 'orders.process' }, async (order) => {
   await saveOrder(order)
@@ -476,9 +905,67 @@ iii.registerTrigger({
   config: { topic: 'order.processed' },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def process_order(order):
+    await save_order(order)
+    await iii.trigger('enqueue', {
+        'topic': 'order.processed',
+        'data': order,
+    })
+
+process_fn = iii.register_function('orders.process', process_order)
+
+iii.register_trigger(
+    type='queue',
+    function_id=process_fn.id,
+    config={'topic': 'order.placed'},
+)
+
+async def send_confirmation(order):
+    await send_email(order['email'], 'Order confirmed')
+
+confirm_fn = iii.register_function('orders.sendConfirmation', send_confirmation)
+
+iii.register_trigger(
+    type='queue',
+    function_id=confirm_fn.id,
+    config={'topic': 'order.processed'},
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("orders.process", |order: Value| async move {
+    save_order(&order).await;
+    iii.trigger("enqueue", json!({
+        "topic": "order.processed",
+        "data": order,
+    })).await?;
+    Ok(json!(null))
+});
+
+iii.register_trigger("queue", "orders.process", json!({
+    "topic": "order.placed"
+}))?;
+
+iii.register_function("orders.sendConfirmation", |order: Value| async move {
+    send_email(order["email"].as_str().unwrap_or(""), "Order confirmed").await;
+    Ok(json!(null))
+});
+
+iii.register_trigger("queue", "orders.sendConfirmation", json!({
+    "topic": "order.processed"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ### Scheduled Cleanup
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'maintenance.cleanup' }, async () => {
   const deleted = await deleteOldRecords()
@@ -493,6 +980,38 @@ iii.registerTrigger({
   },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def cleanup():
+    deleted = await delete_old_records()
+    logger.info(f'Deleted {deleted} old records')
+
+fn = iii.register_function('maintenance.cleanup', cleanup)
+
+iii.register_trigger(
+    type='cron',
+    function_id=fn.id,
+    config={
+        'expression': '0 3 * * *',
+    },
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("maintenance.cleanup", |_: Value| async move {
+    let deleted = delete_old_records().await;
+    info!("Deleted {} old records", deleted);
+    Ok(json!(null))
+});
+
+iii.register_trigger("cron", "maintenance.cleanup", json!({
+    "expression": "0 3 * * *"
+}))?;
+```
+</Tab>
+</Tabs>
 
 ## Best Practices
 

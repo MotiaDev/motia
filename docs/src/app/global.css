@@ -217,6 +217,7 @@ a:hover {
 .mermaid svg {
   overflow: visible;
   max-width: 100%;
+  height: auto;
 }
 
 .mermaid .node rect,

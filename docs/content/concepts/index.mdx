@@ -3,10 +3,12 @@ title: 'Concepts'
 description: 'The core building blocks of iii-powered applications.'
 ---
 
-iii is built around two primitives: **Functions** and **Triggers**.
+iii is built around three concepts: **Function**, **Trigger**, and **Discovery**.
 
-A **Function** is an async handler with a string ID. Register it with the engine from any language, and it becomes triggerable from anywhere in the system — other workers, other languages, other machines.
+A **Function** is an async handler with a string ID. Register it with the engine from any language, and it becomes triggerable from anywhere in the system.
 
 A **Trigger** is what causes a Function to run. It can be explicit (calling `trigger()` from code) or automatic (HTTP request, cron schedule, queue message, state change, and more).
 
-Everything in iii — modules, workers, built-in operations — is built on top of these two primitives. Start here:
+**Discovery** is what makes the system self-aware. When a worker connects, it can see every function registered by every other worker, plus built-in functions the engine provides. No configuration files, no service registries. This is what turns infrastructure tools into design patterns.
+
+Start here:

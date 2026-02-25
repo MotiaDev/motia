@@ -192,54 +192,7 @@ let result = iii.trigger("math::add", json!({"a": 2, "b": 3})).await?;
 
 The triggering function doesn't know or care what language the target is written in.
 
-## Discovery
-
-When a Worker connects, the engine assigns it a `worker_id` and the SDK re-registers all functions and triggers automatically. You can query the engine to discover what's currently registered across all workers:
-
-```typescript
-// List all registered functions across all workers
-const functions = await iii.listFunctions()
-
-// List all connected workers
-const workers = await iii.listWorkers()
-
-// React whenever the function registry changes
-iii.onFunctionsAvailable((functions) => {
-  console.log('Available functions:', functions.map(f => f.function_id))
-})
-```
-
-This is useful for building dynamic workflows, dashboards, or routing logic that depends on what's currently available in the system.
-
-## Built-in Functions
-
-The engine provides built-in Functions through its modules — no registration needed, trigger them directly:
-
-| Function | Module | Purpose |
-|----------|--------|---------|
-| `enqueue` | Queue | Publish a message to a topic |
-| `state::set` | State | Store a value by scope + key |
-| `state::get` | State | Retrieve a value by scope + key |
-| `state::list` | State | List values in a scope |
-| `state::delete` | State | Delete a value |
-| `state::list_groups` | State | List all state scopes |
-| `stream::set` | Stream | Set data on a real-time stream |
-| `stream::get` | Stream | Get current stream data |
-| `stream::delete` | Stream | Remove stream data |
-| `stream::list` | Stream | List entries in a stream |
-
-```typescript
-await iii.trigger('enqueue', {
-  topic: 'user.created',
-  data: { userId: '123' },
-})
-
-await iii.trigger('state::set', {
-  scope: 'users',
-  key: '123',
-  data: { name: 'Alice' },
-})
-```
+Once a Function is registered, every other worker in the system can discover and trigger it. See [Discovery](/docs/concepts/discovery) for how this works, including built-in functions the engine provides.
 
 ## Function IDs
 
@@ -254,6 +207,9 @@ notifications::send
 The `engine::` prefix is reserved for internal engine functions.
 
 <Cards>
+  <Card icon={<Search />} title="Discovery" href="/docs/concepts/discovery">
+    How workers discover functions and built-in capabilities at runtime.
+  </Card>
   <Card icon={<Code />} title="SDK Reference" href="/docs/api-reference/iii-sdk">
     Full API reference for registerFunction, trigger, triggerVoid, and more.
   </Card>

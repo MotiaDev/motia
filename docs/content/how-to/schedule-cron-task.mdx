@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let iii = III::new("ws://127.0.0.1:49134");
     iii.connect().await?;
 
-    iii.register_function("cleanup::expired-sessions", |_input| async move {
+    iii.register_function("cleanup::expired-sessions", |_| async move {
         let count = delete_expired_sessions().await;
         Ok(json!({ "deleted": count }))
     });

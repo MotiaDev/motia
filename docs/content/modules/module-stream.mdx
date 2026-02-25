@@ -9,6 +9,41 @@ Durable streams for real-time data subscriptions.
 modules::stream::StreamModule
 ```
 
+## Architecture
+
+```mermaid
+graph LR
+    Client[Client] -->|WebSocket| Stream[StreamModule]
+    Stream -->|Auth| Engine[Engine]
+    Engine -->|Context| Stream
+    Stream -->|Connected| Client
+
+    Worker[Worker] -->|stream::set| Engine
+    Engine -->|Persist + Notify| Stream
+    Stream -.->|Push Update| Client
+    Stream -.->|Fire Triggers| Engine
+```
+
+## Data Flow
+
+When a worker triggers `stream::set`, the engine:
+
+1. Persists the data via the configured adapter (Redis or KvStore)
+2. Publishes a notification to all WebSocket clients subscribed to that stream and group
+3. Evaluates registered `stream` triggers and fires matching handlers
+
+A single `stream::set` handles persistence, real-time delivery, and reactive logic in one operation.
+
+## Groups
+
+Streams organize data hierarchically: `stream_name` > `group_id` > `item_id`.
+
+- **stream_name** identifies the top-level stream (e.g. `chat`, `presence`, `dashboard`)
+- **group_id** partitions data within a stream (e.g. `room-1`, `team-alpha`)
+- **item_id** uniquely identifies a record within a group (e.g. `user-123`, `msg-456`)
+
+Clients subscribe at the group level by connecting to `ws://host:port/stream/{stream_name}/{group_id}/`. They receive all item-level changes within that group.
+
 ## Sample Configuration
 
 ```yaml
@@ -280,11 +315,30 @@ It's possible to implement a function to handle authentication.
   </ResponseField>
 </Expandable>
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 iii.registerFunction({ id: 'onAuth' }, (input) => ({
   context: { name: 'John Doe' },
 }))
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def on_auth(input):
+    return {'context': {'name': 'John Doe'}}
+
+iii.register_function('onAuth', on_auth)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("onAuth", |_input| async move {
+    Ok(json!({ "context": { "name": "John Doe" } }))
+})?;
+```
+</Tab>
+</Tabs>
 
 2. Make sure you add the function to the configuration file.
 
@@ -323,6 +377,8 @@ Join and leave triggers receive the same payload shape when invoked.
 
 ### Sample Code
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'onJoin' }, (input) => {
   console.log('Joined stream', input)
@@ -335,12 +391,38 @@ iii.registerTrigger({
   config: {},
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def on_join(input):
+    print('Joined stream', input)
+    return {}
+
+iii.register_function('onJoin', on_join)
+iii.register_trigger(type='stream:join', function_id='onJoin', config={})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("onJoin", |input| async move {
+    println!("Joined stream: {:?}", input);
+    Ok(json!({}))
+})?;
+
+iii.register_trigger("stream:join", "onJoin", json!({}))?;
+```
+</Tab>
+</Tabs>
 
 ### Usage Example: Real-Time Presence
 
 Streams organize data by `stream_name`, `group_id`, and `item_id`. Use for live presence, collaborative docs, or dashboards:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
+const iii = init('ws://localhost:49134')
+
 await iii.trigger('stream::set', {
   stream_name: 'presence',
   group_id: 'room-1',
@@ -365,6 +447,73 @@ await iii.trigger('stream::delete', {
   item_id: 'user-123',
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+from iii import III
+
+iii = III('ws://localhost:49134')
+await iii.connect()
+
+await iii.trigger('stream::set', {
+    'stream_name': 'presence',
+    'group_id': 'room-1',
+    'item_id': 'user-123',
+    'data': {'name': 'Alice', 'online': True, 'lastSeen': '2026-01-01T00:00:00Z'},
+})
+
+user = await iii.trigger('stream::get', {
+    'stream_name': 'presence',
+    'group_id': 'room-1',
+    'item_id': 'user-123',
+})
+
+room_members = await iii.trigger('stream::list', {
+    'stream_name': 'presence',
+    'group_id': 'room-1',
+})
+
+await iii.trigger('stream::delete', {
+    'stream_name': 'presence',
+    'group_id': 'room-1',
+    'item_id': 'user-123',
+})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+use iii_sdk::III;
+use serde_json::json;
+
+let iii = III::new("ws://localhost:49134");
+iii.connect().await?;
+
+iii.trigger("stream::set", json!({
+    "stream_name": "presence",
+    "group_id": "room-1",
+    "item_id": "user-123",
+    "data": { "name": "Alice", "online": true }
+})).await?;
+
+let user = iii.trigger("stream::get", json!({
+    "stream_name": "presence",
+    "group_id": "room-1",
+    "item_id": "user-123"
+})).await?;
+
+let room_members = iii.trigger("stream::list", json!({
+    "stream_name": "presence",
+    "group_id": "room-1"
+})).await?;
+
+iii.trigger("stream::delete", json!({
+    "stream_name": "presence",
+    "group_id": "room-1",
+    "item_id": "user-123"
+})).await?;
+```
+</Tab>
+</Tabs>
 
 Clients connect via WebSocket to `ws://host:3112/stream/presence/room-1/` and receive real-time updates when items change.
 
@@ -387,6 +536,8 @@ Configure the stream module with an auth function:
 
 Register the auth function. Clients may send the token via `Authorization: Bearer <token>` (Node.js) or `Sec-WebSocket-Protocol: Authorization,<token>` (browser stream-client):
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 iii.registerFunction({ id: 'stream::auth' }, (input) => {
   const auth = input.headers?.['authorization']?.replace(/^Bearer\s+/i, '')
@@ -395,9 +546,41 @@ iii.registerFunction({ id: 'stream::auth' }, (input) => {
   return token ? { context: { userId: 'user-from-token' } } : { context: null }
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def stream_auth(input):
+    auth = input.get('headers', {}).get('authorization', '')
+    token = auth.replace('Bearer ', '', 1) if auth.startswith('Bearer ') else None
+    if token:
+        return {'context': {'userId': 'user-from-token'}}
+    return {'context': None}
+
+iii.register_function('stream::auth', stream_auth)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("stream::auth", |input| async move {
+    let headers = input.get("headers").and_then(|h| h.as_object());
+    let token = headers
+        .and_then(|h| h.get("authorization"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.strip_prefix("Bearer "));
+
+    match token {
+        Some(_) => Ok(json!({ "context": { "userId": "user-from-token" } })),
+        None => Ok(json!({ "context": null })),
+    }
+})?;
+```
+</Tab>
+</Tabs>
 
 Join/leave triggers receive the auth `context`:
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'onJoin' }, (input) => {
   const { stream_name, group_id, id: itemId, context } = input
@@ -413,9 +596,40 @@ iii.registerTrigger({
   config: {},
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def on_join(input):
+    context = input.get('context', {})
+    if context.get('userId'):
+        print(f"User {context['userId']} joined {input['stream_name']}/{input['group_id']}/{input['id']}")
+    return {}
+
+iii.register_function('onJoin', on_join)
+iii.register_trigger(type='stream:join', function_id='onJoin', config={})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("onJoin", |input| async move {
+    if let Some(user_id) = input.get("context").and_then(|c| c.get("userId")).and_then(|u| u.as_str()) {
+        let stream = input["stream_name"].as_str().unwrap_or("");
+        let group = input["group_id"].as_str().unwrap_or("");
+        let item = input["id"].as_str().unwrap_or("");
+        println!("User {} joined {}/{}/{}", user_id, stream, group, item);
+    }
+    Ok(json!({}))
+})?;
+
+iii.register_trigger("stream:join", "onJoin", json!({}))?;
+```
+</Tab>
+</Tabs>
 
 ### Usage Example: Conditional Join
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::requireContext' },
@@ -433,3 +647,46 @@ iii.registerTrigger({
   config: { condition_function_id: conditionFn.id },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def require_context(input):
+    return input.get('context', {}).get('userId') is not None
+
+iii.register_function('conditions::requireContext', require_context)
+
+async def on_join(input):
+    print('User joined:', input.get('context', {}).get('userId'), input['stream_name'])
+    return {}
+
+iii.register_function('onJoin', on_join)
+iii.register_trigger(
+    type='stream:join',
+    function_id='onJoin',
+    config={'condition_function_id': 'conditions::requireContext'},
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("conditions::requireContext", |input| async move {
+    let has_user = input
+        .get("context")
+        .and_then(|c| c.get("userId"))
+        .is_some();
+    Ok(json!(has_user))
+})?;
+
+iii.register_function("onJoin", |input| async move {
+    let user_id = input.get("context").and_then(|c| c.get("userId")).and_then(|u| u.as_str()).unwrap_or("");
+    let stream = input["stream_name"].as_str().unwrap_or("");
+    println!("User joined: {} {}", user_id, stream);
+    Ok(json!({}))
+})?;
+
+iii.register_trigger("stream:join", "onJoin", json!({
+    "condition_function_id": "conditions::requireContext"
+}))?;
+```
+</Tab>
+</Tabs>

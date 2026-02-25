@@ -202,6 +202,107 @@ Optimize single instance performance:
 - **Connection Pooling**: Efficient WebSocket management
 - **Adapter Optimization**: Redis pipelining, connection pooling
 
+## SDK Connection Flow
+
+The SDK connection lifecycle manages initialization, function registration, and automatic reconnection with the engine.
+
+```mermaid
+sequenceDiagram
+    participant SDK as SDK Client
+    participant WS as WebSocket
+    participant E as Engine
+    participant R as Function Registry
+
+    Note over SDK,R: Initialization Phase
+    SDK->>WS: init(url)
+    WS->>E: WebSocket CONNECT
+    E->>E: Generate worker_id
+    E-->>WS: Connected (worker_id)
+    WS-->>SDK: Connection Established
+
+    Note over SDK,R: Function Registration
+    SDK->>E: Register Function (fn_a)
+    E->>R: Store fn_a -> worker_id
+    SDK->>E: Register Function (fn_b)
+    E->>R: Store fn_b -> worker_id
+    E-->>SDK: Registration Confirmed
+
+    Note over SDK,E: Heartbeat Loop
+    loop Every 30s
+        SDK->>E: Ping
+        E-->>SDK: Pong
+    end
+
+    Note over SDK,R: Disconnection and Reconnection
+    WS--xE: Connection Lost
+    E->>R: Remove worker_id entries
+
+    loop Exponential Backoff
+        SDK->>WS: Reconnect (1s, 2s, 4s, 8s...)
+        WS--xE: Connection Failed
+    end
+
+    SDK->>WS: Reconnect
+    WS->>E: WebSocket CONNECT
+    E->>E: Generate new worker_id
+    E-->>SDK: Connected (new worker_id)
+
+    Note over SDK,R: Re-registration
+    SDK->>E: Register Function (fn_a)
+    E->>R: Store fn_a -> new worker_id
+    SDK->>E: Register Function (fn_b)
+    E->>R: Store fn_b -> new worker_id
+    E-->>SDK: Registration Confirmed
+```
+
+## Package Architecture
+
+All three SDK packages connect to the same iii Engine using a shared JSON-over-WebSocket wire protocol.
+
+```mermaid
+graph TD
+    subgraph NodeJS["Node.js SDK (iii-sdk)"]
+        NodeSDK["iii-sdk"]
+        ws["ws"]
+        otelNode["opentelemetry/sdk-node"]
+        otelApi["opentelemetry/api"]
+        NodeSDK --> ws
+        NodeSDK --> otelNode
+        NodeSDK --> otelApi
+    end
+
+    subgraph Python["Python SDK (iii)"]
+        PySDK["iii"]
+        websockets["websockets"]
+        otelPy["opentelemetry-sdk"]
+        otelPyApi["opentelemetry-api"]
+        PySDK --> websockets
+        PySDK --> otelPy
+        PySDK --> otelPyApi
+    end
+
+    subgraph Rust["Rust SDK (iii-sdk)"]
+        RustSDK["iii-sdk"]
+        tokioWS["tokio-tungstenite"]
+        otelRust["opentelemetry"]
+        RustSDK --> tokioWS
+        RustSDK --> otelRust
+    end
+
+    subgraph Protocol["Wire Protocol"]
+        Proto["JSON over WebSocket"]
+    end
+
+    subgraph Core["iii Engine"]
+        Engine["Engine Core"]
+    end
+
+    NodeSDK -->|WebSocket| Proto
+    PySDK -->|WebSocket| Proto
+    RustSDK -->|WebSocket| Proto
+    Proto --> Engine
+```
+
 ## Extension Points
 
 ### Custom Modules

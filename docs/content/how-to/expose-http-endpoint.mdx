@@ -1,11 +1,11 @@
 ---
 title: 'Expose an HTTP Endpoint'
-description: 'How to register a function and expose it as an HTTP endpoint.'
+description: 'How to register a function and expose it as a REST API endpoint.'
 ---
 
 ## Goal
 
-Expose a Function as an HTTP endpoint so external clients can call it over HTTP.
+Expose a Function as an HTTP endpoint so external clients can call it via REST.
 
 ## Steps
 
@@ -52,7 +52,6 @@ asyncio.run(main())
 ```rust
 use iii_sdk::III;
 use serde_json::json;
-use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,10 +61,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     iii.register_function("users::create", |req| async move {
         let name = req["body"]["name"].as_str().unwrap_or("");
         let email = req["body"]["email"].as_str().unwrap_or("");
-        let id = Uuid::new_v4().to_string();
         Ok(json!({
             "status_code": 201,
-            "body": { "id": id, "name": name, "email": email }
+            "body": { "id": uuid::Uuid::new_v4().to_string(), "name": name, "email": email }
         }))
     });
 
@@ -106,9 +104,9 @@ iii.register_trigger("http", "users::create", json!({
 </Tab>
 </Tabs>
 
-### 3. Enable the HTTP module
+### 3. Enable the REST API module
 
-Make sure `config.yaml` has the HTTP module enabled:
+Make sure `config.yaml` has the REST API module enabled:
 
 ```yaml
 modules:

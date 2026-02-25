@@ -19,7 +19,7 @@ modules:
 
 ### 2. Register the background Function
 
-<Tabs items={["TypeScript", "Python"]}>
+<Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
 import { init } from 'iii-sdk'
@@ -29,7 +29,6 @@ const iii = init('ws://localhost:49134')
 iii.registerFunction(
   { id: 'emails::send-welcome' },
   async (data) => {
-    // send the email
     return { sent: true, to: data.to }
   }
 )
@@ -44,7 +43,6 @@ async def main():
     iii = III('ws://localhost:49134')
 
     async def send_welcome(data):
-        # send the email
         return {'sent': True, 'to': data['to']}
 
     iii.register_function('emails::send-welcome', send_welcome)
@@ -53,13 +51,32 @@ async def main():
 asyncio.run(main())
 ```
 </Tab>
+<Tab value="Rust">
+```rust
+use iii_sdk::III;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
+
+    iii.register_function("emails::send-welcome", |data| async move {
+        let to = data["to"].as_str().unwrap_or("");
+        Ok(json!({ "sent": true, "to": to }))
+    });
+
+    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+}
+```
+</Tab>
 </Tabs>
 
 ### 3. Trigger it asynchronously from another Function
 
 Use `triggerVoid()` (fire-and-forget) so the calling Function doesn't wait:
 
-<Tabs items={["TypeScript", "Python"]}>
+<Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
 iii.registerFunction(
@@ -91,6 +108,22 @@ async def create_user(req):
     return {'status_code': 201, 'body': user}
 
 iii.register_function('users::create', create_user)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("users::create", |req| async move {
+    let user_id = uuid::Uuid::new_v4().to_string();
+    let email = req["body"]["email"].as_str().unwrap_or("");
+    let name = req["body"]["name"].as_str().unwrap_or("");
+
+    iii.call_void("emails::send-welcome", json!({
+        "to": email,
+        "body": format!("Hi {}, welcome!", name),
+    }));
+
+    Ok(json!({ "status_code": 201, "body": { "id": user_id, "name": name, "email": email } }))
+});
 ```
 </Tab>
 </Tabs>
