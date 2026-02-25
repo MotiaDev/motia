@@ -8,8 +8,9 @@ type OtelConfig = NonNullable<InitOptions['otel']>
 const engineWsUrl = process.env.III_URL ?? 'ws://localhost:49134'
 
 function readProjectName(): string | undefined {
+  const maxDepth = 1
   let dir = process.cwd()
-  while (true) {
+  for (let i = 0; i <= maxDepth; i++) {
     const pkgPath = join(dir, 'package.json')
     if (existsSync(pkgPath)) {
       try {

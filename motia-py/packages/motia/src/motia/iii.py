@@ -17,9 +17,10 @@ _instance: III | None = None
 
 
 def _read_project_name() -> str | None:
-    """Walk up from cwd to find the nearest pyproject.toml and extract the project name."""
+    """Walk up from cwd (max 1 parent) to find the nearest pyproject.toml and extract the project name."""
+    max_depth = 1
     directory = Path.cwd()
-    while True:
+    for _ in range(max_depth + 1):
         pyproject = directory / "pyproject.toml"
         if pyproject.exists():
             try:
