@@ -1,5 +1,5 @@
 {
   "title": "Architecture",
   "defaultOpen": false,
-  "pages": ["engine", "workers", "modules", "context"]
+  "pages": ["engine", "workers", "modules", "context", "trigger-types"]
 }
