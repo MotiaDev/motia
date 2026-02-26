@@ -86,7 +86,7 @@ The Engine handles serialization, routing, and request-response correlation tran
 from iii import init
 import torch
 
-iii = init("ws://engine:8080")
+iii = init("ws://localhost:49134")
 
 def predict(input: dict) -> dict:
     tensor = torch.tensor(input["data"])
@@ -107,23 +107,23 @@ fn transform(input: Vec<f64>) -> Vec<f64> {
 }
 
 fn main() {
-    let iii = init("ws://engine:8080");
+    let iii = init("ws://localhost:49134");
     iii.register_function("data::transform", transform);
 }
 \`\`\`
 
 ## Node.js Consumer
 \`\`\`typescript
-import { init } from "@iii-dev/sdk";
+import { init } from "iii-sdk";
 
-const { call } = init("ws://engine:8080");
+const iii = init("ws://localhost:49134");
 
-const transformed = await call(
+const transformed = await iii.trigger(
   "data::transform",
   [1.0, 2.0, 3.0]
 );
 
-const prediction = await call(
+const prediction = await iii.trigger(
   "ml::predict",
   { data: transformed }
 );
@@ -290,7 +290,7 @@ One Binary. Infinite Systems.`}</pre>
 
 [Documentation](https://iii-docs.vercel.app)
 [GitHub](https://github.com/MotiaDev/iii-engine)
-[npm](https://npmjs.com/package/@iii-dev/sdk)
+[npm](https://npmjs.com/package/iii-sdk)
 [Discord](https://discord.gg/iii)
 
 Install: curl -fsSL install.iii.dev | sh`}</pre>

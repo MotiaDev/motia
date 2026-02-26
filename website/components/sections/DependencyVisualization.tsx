@@ -230,12 +230,11 @@ const businessLogicKeywords = [
   "group",
   "aggregate",
 
-  // API/service calls (the actual work)
+  // API/service triggers (the actual work)
   "await ",
   ".await",
-  "invoke",
+  "trigger",
   "execute",
-  "call",
   "request",
   "getuser",
   "createuser",
@@ -280,8 +279,8 @@ const businessLogicKeywords = [
   "emit(",
   "getcontext",
   "registerfunction",
-  "invokefunctionasync",
-  "bridge.",
+  "triggervoid",
+  "iii.",
   "step.",
   "flow.",
 ];
@@ -849,7 +848,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
       lowerLine.includes("emit(") ||
       lowerLine.includes("getcontext") ||
       lowerLine.includes("registerfunction") ||
-      lowerLine.includes("invokefunctionasync") ||
+      lowerLine.includes("triggervoid") ||
       (lowerLine.includes("await ") &&
         !lowerLine.includes("connect") &&
         !lowerLine.includes("subscribe")) ||
@@ -959,9 +958,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
       </div>
 
       {/* Code */}
-      <div
-        className="p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] relative"
-      >
+      <div className="p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] relative">
         <Highlight
           theme={isDarkMode ? themes.nightOwl : themes.github}
           code={code.trim()}
@@ -1159,7 +1156,7 @@ export const DependencyVisualization: React.FC<
   const [isSmallScreen, setIsSmallScreen] = useState(() =>
     typeof window !== "undefined"
       ? window.matchMedia("(max-width: 1023px)").matches
-      : false
+      : false,
   );
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)");
@@ -1361,11 +1358,15 @@ export const DependencyVisualization: React.FC<
         >
           <div className="flex items-center gap-3">
             <div className="w-4 h-4 rounded bg-iii-warn" />
-            <span className="text-sm font-medium text-iii-warn">Architecture</span>
+            <span className="text-sm font-medium text-iii-warn">
+              Architecture
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-4 h-4 rounded bg-iii-success" />
-            <span className="text-sm font-medium text-iii-success">Business Logic</span>
+            <span className="text-sm font-medium text-iii-success">
+              Business Logic
+            </span>
           </div>
         </div>
       </div>

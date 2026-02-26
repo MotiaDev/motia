@@ -61,12 +61,12 @@ app.listen(3000)`,
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Language-agnostic API
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Register API endpoint - works from any language
-registerFunction(
+iii.registerFunction(
   { 
     id: 'users::create',
     metadata: { api_path: '/users', http_method: 'POST' }
@@ -78,7 +78,7 @@ registerFunction(
     const user = await createUser(input)
 
     // Enqueue event - subscribers notified automatically
-    callVoid('enqueue', {
+    iii.triggerVoid('enqueue', {
       topic: 'user.created',
       data: user
     })
@@ -145,12 +145,12 @@ await emailQueue.add('welcome', { userId, email }, {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions ARE the jobs
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Register job handler - that's it
-registerFunction(
+iii.registerFunction(
   { id: 'jobs::sendWelcomeEmail' },
   async (input) => {
     const { logger } = getContext()
@@ -162,7 +162,7 @@ registerFunction(
 )
 
 // Register notification handler
-registerFunction(
+iii.registerFunction(
   { id: 'jobs::sendNotification' },
   async ({ userId, message }) => {
     await sendNotification(userId, message)
@@ -170,13 +170,13 @@ registerFunction(
 )
 
 // Fire-and-forget invocation (async job)
-callVoid('jobs::sendWelcomeEmail', {
+iii.triggerVoid('jobs::sendWelcomeEmail', {
   userId: user.id,
   email: user.email
 })
 
 // Or await the result
-const result = await call(
+const result = await iii.trigger(
   'jobs::sendWelcomeEmail',
   { userId, email }
 )
@@ -247,12 +247,12 @@ await subscribe('order.placed', async (order) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Events are function invocations
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Register event handlers as functions
-registerFunction(
+iii.registerFunction(
   { id: 'events::user::created' },
   async (user) => {
     const { logger } = getContext()
@@ -262,23 +262,23 @@ registerFunction(
   }
 )
 
-registerFunction(
+iii.registerFunction(
   { id: 'events::order::placed' },
   async (order) => {
     // Chain events naturally
     await updateInventory(order)
-    callVoid('events::warehouse::notify', order)
+    iii.triggerVoid('events::warehouse::notify', order)
   }
 )
 
 // Register trigger to subscribe to events
-registerTrigger({
+iii.registerTrigger({
   type: 'queue',
   functionId: 'events::user::created',
   config: { topic: 'user.created' }
 })
 
-callVoid('enqueue', {
+iii.triggerVoid('enqueue', {
   topic: 'user.created',
   data: newUser
 })
@@ -352,9 +352,9 @@ io.on('connection', (socket) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Streams are built-in
-import { init, MemoryStream } from "@iii-dev/sdk"
+import { init, MemoryStream } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Create typed stream
 interface ChatMessage {
@@ -365,10 +365,10 @@ interface ChatMessage {
 }
 
 const chatStream = new MemoryStream<ChatMessage>()
-createStream('chat', chatStream)
+iii.createStream('chat', chatStream)
 
 // Handle join events via trigger
-registerFunction(
+iii.registerFunction(
   { id: 'streams::onJoin(chat)' },
   async ({ subscription_id, group_id, context }) => {
     console.log(\`User joined room: \${group_id}\`)
@@ -377,7 +377,7 @@ registerFunction(
 )
 
 // Send message - broadcasts to all subscribers
-registerFunction(
+iii.registerFunction(
   { id: 'chat::sendMessage' },
   async ({ roomId, content, userId }) => {
     const message = {
@@ -466,18 +466,18 @@ async function setSession(sessionId: string, data: any, ttl: number) {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State is a module
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Use StateModule - same API everywhere
-registerFunction(
+iii.registerFunction(
   { id: 'workflow::process' },
   async (input) => {
     const { logger } = getContext()
 
     // Get state - works across all workers
-    const currentStep = await call(
+    const currentStep = await iii.trigger(
       'state::get',
       { workflow_id: input.workflowId, key: 'currentStep' }
     )
@@ -485,7 +485,7 @@ registerFunction(
     logger.info('Processing step', { step: currentStep })
     
     // Update state - trace_id propagated automatically
-    await call('state::set', {
+    await iii.trigger('state::set', {
       workflow_id: input.workflowId,
       key: 'currentStep',
       value: currentStep + 1
@@ -493,7 +493,7 @@ registerFunction(
 
     // Continue workflow
     if (currentStep < 5) {
-      callVoid('workflow::process', {
+      iii.triggerVoid('workflow::process', {
         workflowId: input.workflowId
       })
     }
@@ -562,12 +562,12 @@ await agenda.every('1 week', 'send-weekly-digest', { userId: 123 })
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Cron is a trigger type
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Register the function
-registerFunction(
+iii.registerFunction(
   { id: 'reports::daily' },
   async () => {
     const { logger } = getContext()
@@ -576,7 +576,7 @@ registerFunction(
     const report = await generateDailyReport()
 
     // Store in state for retrieval
-    await call('state::set', {
+    await iii.trigger('state::set', {
       workflow_id: 'reports',
       key: 'daily-' + new Date().toISOString().split('T')[0],
       value: report
@@ -587,21 +587,21 @@ registerFunction(
 )
 
 // Register cron trigger - distributed locking built-in
-registerTrigger({
+iii.registerTrigger({
   type: 'cron',
   functionId: 'reports::daily',
   config: { schedule: '0 9 * * *' } // 9am daily
 })
 
 // Cleanup job - CronModule handles locking
-registerFunction(
+iii.registerFunction(
   { id: 'maintenance::cleanup' },
   async () => {
     await cleanupExpiredSessions()
   }
 )
 
-registerTrigger({
+iii.registerTrigger({
   type: 'cron',
   functionId: 'maintenance::cleanup',
   config: { schedule: '*/5 * * * *' } // Every 5 min
@@ -680,11 +680,11 @@ async function handleRequest(req: Request) {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Logging is built-in
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
-registerFunction(
+iii.registerFunction(
   { id: 'orders::process' },
   async (input) => {
     // Context includes logger with trace_id
@@ -781,18 +781,18 @@ export async function orderWorkflow(order: Order): Promise<OrderResult> {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State + Events = Workflows
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Step 1: Start order
-registerFunction(
+iii.registerFunction(
   { id: 'order::start' },
   async (order) => {
     const { logger } = getContext()
 
     // Save workflow state
-    await call('state::set', {
+    await iii.trigger('state::set', {
       workflow_id: order.id,
       key: 'status',
       value: 'started'
@@ -801,24 +801,24 @@ registerFunction(
     logger.info('Order started', { orderId: order.id })
     
     // Trigger next step via event
-    callVoid('order::sendConfirmation', order)
+    iii.triggerVoid('order::sendConfirmation', order)
     
     return { orderId: order.id, status: 'started' }
   }
 )
 
 // Step 2: Send confirmation
-registerFunction(
+iii.registerFunction(
   { id: 'order::sendConfirmation' },
   async (order) => {
     await sendEmail({ to: order.email, template: 'confirmation' })
 
     // Update state and continue
-    await call('state::set', {
+    await iii.trigger('state::set', {
       workflow_id: order.id, key: 'status', value: 'confirmed'
     })
 
-    callVoid('order::chargeCard', order)
+    iii.triggerVoid('order::chargeCard', order)
   }
 )
 `,
@@ -890,12 +890,12 @@ const stream = await executor.streamEvents(
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions ARE tools, State IS memory
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Register tools as functions - automatic discovery
-registerFunction(
+iii.registerFunction(
   { 
     id: 'tools::searchDatabase',
     description: 'Search the product database',
@@ -907,7 +907,7 @@ registerFunction(
   }
 )
 
-registerFunction(
+iii.registerFunction(
   { 
     id: 'tools::sendEmail',
     description: 'Send an email to user'
@@ -919,13 +919,13 @@ registerFunction(
 )
 
 // Agent orchestrator - uses StateModule for memory
-registerFunction(
+iii.registerFunction(
   { id: 'agent::chat' },
   async ({ sessionId, message }) => {
     const { logger } = getContext()
 
     // Get conversation history from StateModule
-    const history = await call('state::get', {
+    const history = await iii.trigger('state::get', {
       workflow_id: sessionId, key: 'history'
     }) || []
     
@@ -934,18 +934,18 @@ registerFunction(
     
     // If tool call, invoke function directly
     if (response.toolCall) {
-      const result = await call(
+      const result = await iii.trigger(
         response.toolCall.function,
         response.toolCall.args
       )
       // Stream response back
-      callVoid('streams::send', {
+      iii.triggerVoid('streams::send', {
         stream: 'chat', group: sessionId, data: result
       })
     }
     
     // Save to memory
-    await call('state::set', {
+    await iii.trigger('state::set', {
       workflow_id: sessionId,
       key: 'history',
       value: [...history, { role: 'user', content: message }]
@@ -1021,25 +1021,25 @@ process.on('SIGTERM', () => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State + Streams = Feature Flags
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Define flags in StateModule
-registerFunction(
+iii.registerFunction(
   { id: 'flags::set' },
   async ({ flagKey, config }) => {
     const { logger } = getContext()
 
     // Store flag config
-    await call('state::set', {
+    await iii.trigger('state::set', {
       workflow_id: 'flags',
       key: flagKey,
       value: config
     })
     
     // Broadcast to all connected clients instantly
-    callVoid('streams::broadcast', {
+    iii.triggerVoid('streams::broadcast', {
       stream: 'flags',
       data: { type: 'update', flag: flagKey, config }
     })
@@ -1050,10 +1050,10 @@ registerFunction(
 )
 
 // Evaluate flag
-registerFunction(
+iii.registerFunction(
   { id: 'flags::evaluate' },
   async ({ flagKey, user, defaultValue }) => {
-    const config = await call('state::get', {
+    const config = await iii.trigger('state::get', {
       workflow_id: 'flags', key: flagKey
     })
     
@@ -1150,16 +1150,16 @@ class GameRoom extends Room<GameState> {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Streams for state, Events for actions
-import { init, MemoryStream } from "@iii-dev/sdk"
+import { init, MemoryStream } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 interface Player { x: number; y: number; score: number }
 const gameStream = new MemoryStream<Player>()
-createStream('game', gameStream)
+iii.createStream('game', gameStream)
 
 // Player joins - StreamModule handles connections
-registerFunction(
+iii.registerFunction(
   { id: 'streams::onJoin(game)' },
   async ({ subscription_id, group_id }) => {
     // group_id = room ID
@@ -1176,7 +1176,7 @@ registerFunction(
 )
 
 // Handle player movement
-registerFunction(
+iii.registerFunction(
   { id: 'game::move' },
   async ({ roomId, playerId, x, y }) => {
     const player = await gameStream.get({
@@ -1194,7 +1194,7 @@ registerFunction(
 )
 
 // Handle game action
-registerFunction(
+iii.registerFunction(
   { id: 'game::action' },
   async ({ roomId, playerId, points }) => {
     const player = await gameStream.get({
@@ -1210,7 +1210,7 @@ registerFunction(
     })
     
     // Leaderboard update via event
-    callVoid('leaderboard::update', {
+    iii.triggerVoid('leaderboard::update', {
       playerId, score: player.score + points
     })
   }
@@ -1299,18 +1299,18 @@ extract >> transform >> load`,
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Events for flow, State for checkpoints
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Step 1: Extract
-registerFunction(
+iii.registerFunction(
   { id: 'etl::extract' },
   async ({ pipeline }) => {
     const { logger } = getContext()
 
     // Get checkpoint from StateModule
-    const checkpoint = await call('state::get', {
+    const checkpoint = await iii.trigger('state::get', {
       workflow_id: pipeline, key: 'checkpoint'
     })
     
@@ -1321,14 +1321,14 @@ registerFunction(
     logger.info('Extracted users', { count: users.length })
     
     // Trigger transform step
-    callVoid('etl::transform', { pipeline, users })
+    iii.triggerVoid('etl::transform', { pipeline, users })
     
     return { extracted: users.length }
   }
 )
 
 // Step 2: Transform
-registerFunction(
+iii.registerFunction(
   { id: 'etl::transform' },
   async ({ pipeline, users }) => {
     const transformed = users.map(user => ({
@@ -1338,7 +1338,7 @@ registerFunction(
     }))
     
     // Trigger load step
-    callVoid('etl::load', {
+    iii.triggerVoid('etl::load', {
       pipeline,
       data: transformed
     })
@@ -1348,7 +1348,7 @@ registerFunction(
 )
 
 // Step 3: Load
-registerFunction(
+iii.registerFunction(
   { id: 'etl::load' },
   async ({ pipeline, data }) => {
     const { logger } = getContext()
@@ -1356,7 +1356,7 @@ registerFunction(
     await warehouse.bulkInsert('user_analytics', data)
 
     // Update checkpoint
-    await call('state::set', {
+    await iii.trigger('state::set', {
       workflow_id: pipeline,
       key: 'checkpoint',
       value: new Date().toISOString()
@@ -1368,7 +1368,7 @@ registerFunction(
 )
 
 // Schedule with CronModule
-registerTrigger({
+iii.registerTrigger({
   type: 'cron',
   functionId: 'etl::extract',
   config: { schedule: '0 2 * * *' } // Daily at 2 AM
@@ -1427,12 +1427,12 @@ export const getMessages = query({
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Reactive backend, your infrastructure
-import { init, getContext } from "@iii-dev/sdk"
+import { init, getContext } from "iii-sdk"
 
-const { registerFunction, registerTrigger, call, callVoid, createStream } = init("ws://engine:8080")
+const iii = init("ws://localhost:49134")
 
 // Send message - triggers reactive update
-registerFunction(
+iii.registerFunction(
   {
     id: 'chat::sendMessage',
     metadata: { api_path: '/messages', http_method: 'POST' }
@@ -1449,7 +1449,7 @@ registerFunction(
     })
     
     // Emit to reactive subscribers
-    callVoid('realtime::publish', {
+    iii.triggerVoid('realtime::publish', {
       channel: \`messages:\${channelId}\`,
       event: 'message.created',
       data: message
@@ -1461,7 +1461,7 @@ registerFunction(
 )
 
 // Query messages - clients can subscribe
-registerFunction(
+iii.registerFunction(
   {
     id: 'chat::getMessages',
     metadata: { 

@@ -284,7 +284,7 @@ export const cloudLogos = [
 
 const rotatingWords = [
   "orchestrate",
-  "invoke",
+  "trigger",
   "register",
   "discover",
   "scale",
@@ -296,7 +296,7 @@ const rotatingContexts = [
   "any location",
   "any runtime",
   "any worker",
-  "any trigger",
+  "any event",
   "any function",
 ];
 
