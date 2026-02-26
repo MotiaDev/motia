@@ -1,47 +1,48 @@
 ---
 title: 'Discovery'
-description: 'Workers discover every function in the system at runtime, including built-in functions the engine provides.'
+description: 'Every worker sees every function in the system — and gets notified when functions appear or disappear as workers connect and disconnect.'
 ---
 
-When a worker connects, it can see every function registered by every other worker, plus built-in functions the engine provides. No configuration files, no service registries. The engine maintains a live registry and notifies all workers when functions appear or disappear.
+When a worker connects to the engine, it receives the full list of functions registered across every other worker. When a new worker connects and registers functions, every existing worker gets notified. When a worker disconnects, its functions disappear and everyone is notified again.
+
+No configuration files. No service registries. No hardcoded URLs. The engine maintains a live registry and pushes changes to every connected worker in real time.
 
 <Callout title="Why Discovery matters" type="info">
-  Instead of importing a Redis client, a queue library, and a WebSocket server, you `trigger()` built-in functions. The engine manages the infrastructure. Your code has zero infrastructure dependencies.
+  In traditional architectures, services need to know where other services live — through config files, DNS, service meshes, or client libraries. With iii, you just `trigger()` a function by name. The engine knows which worker owns it and routes the invocation. Workers can come and go, scale up and down, and every other worker adapts automatically.
 </Callout>
 
+## How It Works
+
 ```mermaid
-graph TB
-    subgraph Engine
-        FR[Function Registry]
-        BF["Built-in Functions\nenqueue, state::set, ..."]
-    end
+sequenceDiagram
+    participant E as Engine
+    participant WA as Worker A
+    participant WB as Worker B
 
-    subgraph WA[Worker A]
-        FA(["orders::create"])
-    end
+    WA->>E: connect + register orders::create
+    E->>WA: functionsAvailable [orders::create, enqueue, state::set, ...]
 
-    subgraph WB[Worker B]
-        FB(["payments::charge"])
-    end
+    WB->>E: connect + register payments::charge
+    E->>WA: functionsAvailable [orders::create, payments::charge, ...]
+    E->>WB: functionsAvailable [orders::create, payments::charge, ...]
 
-    WA -- "registers" --> FR
-    WB -- "discovers" --> FR
-    WB -- "triggers" --> BF
-    FR -- "notifies" --> WA
-    FR -- "notifies" --> WB
+    Note over WA,WB: Worker B can now trigger orders::create
+    Note over WA,WB: Worker A can now trigger payments::charge
+
+    WB->>E: disconnect
+    E->>WA: functionsAvailable [orders::create, enqueue, state::set, ...]
+    Note over WA: payments::charge is gone
 ```
 
-## Runtime Discovery APIs
+Every time a worker connects, disconnects, or registers new functions, the engine broadcasts an updated `functionsAvailable` message to all connected workers.
 
-Query the engine to discover what is currently registered across all workers:
+## Listening for Changes
+
+Subscribe to discovery events to react when the system topology changes:
 
 <Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
-const functions = await iii.listFunctions()
-
-const workers = await iii.listWorkers()
-
 iii.onFunctionsAvailable((functions) => {
   console.log('Available functions:', functions.map(f => f.function_id))
 })
@@ -49,10 +50,6 @@ iii.onFunctionsAvailable((functions) => {
 </Tab>
 <Tab value="Python">
 ```python
-functions = await iii.list_functions()
-
-workers = await iii.list_workers()
-
 @iii.on_functions_available
 async def on_change(functions):
     print('Available functions:', [f.function_id for f in functions])
@@ -60,10 +57,6 @@ async def on_change(functions):
 </Tab>
 <Tab value="Rust">
 ```rust
-let functions = iii.list_functions().await?;
-
-let workers = iii.list_workers().await?;
-
 iii.on_functions_available(|functions| {
     println!("Available: {:?}", functions.iter().map(|f| &f.function_id).collect::<Vec<_>>());
 });
@@ -71,45 +64,46 @@ iii.on_functions_available(|functions| {
 </Tab>
 </Tabs>
 
-## Built-in Functions
+## Querying the Registry
 
-The engine provides built-in functions through its modules. Available to every worker on connection, no registration needed.
+You can also query the current state of the registry at any time:
 
-| Function | Module | Purpose |
-|----------|--------|---------|
-| `enqueue` | Queue | Publish a message to a topic |
-| `state::set` | State | Store a value by scope + key |
-| `state::get` | State | Retrieve a value by scope + key |
-| `state::list` | State | List values in a scope |
-| `state::delete` | State | Delete a value |
-| `state::list_groups` | State | List all state scopes |
-| `stream::set` | Stream | Set data on a real-time stream |
-| `stream::get` | Stream | Get current stream data |
-| `stream::delete` | Stream | Remove stream data |
-| `stream::list` | Stream | List entries in a stream |
-
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
-await iii.trigger('enqueue', {
-  topic: 'user.created',
-  data: { userId: '123' },
-})
+const functions = await iii.listFunctions()
 
-await iii.trigger('state::set', {
-  scope: 'users',
-  key: '123',
-  data: { name: 'Alice' },
-})
+const workers = await iii.listWorkers()
 ```
+</Tab>
+<Tab value="Python">
+```python
+functions = await iii.list_functions()
 
-See the [Modules](/docs/modules) pages for full details on each built-in function.
+workers = await iii.list_workers()
+```
+</Tab>
+<Tab value="Rust">
+```rust
+let functions = iii.list_functions().await?;
+
+let workers = iii.list_workers().await?;
+```
+</Tab>
+</Tabs>
 
 ## What This Changes
 
-Traditional approach: import Express for APIs, BullMQ for queues, ioredis for state, ws for WebSocket. Each library has its own connection, configuration, and failure mode. Your application code is tightly coupled to specific infrastructure.
+Traditional architectures require services to know about each other ahead of time. You configure service URLs, set up service meshes, maintain API gateways, and redeploy when topology changes. Adding a new service means updating every service that needs to call it.
 
-With iii: connect to the engine and trigger built-in functions. Need a queue? `trigger('enqueue', {...})`. Need state? `trigger('state::set', {...})`. Need real-time? `trigger('stream::set', {...})`. Your code has zero infrastructure dependencies.
+With iii, a new worker connects and registers its functions. Every other worker immediately knows those functions exist and can trigger them. No redeployment. No configuration changes. No coordination.
 
-Want to swap the queue adapter from the built-in implementation to RabbitMQ? Change the engine configuration. Your application code stays the same.
+This means you can:
+- **Scale workers independently** — spin up more instances of a worker and the engine load-balances across them
+- **Deploy new capabilities** — connect a new worker with new functions and they're instantly available to the entire system
+- **Remove services cleanly** — disconnect a worker and its functions disappear from the registry, no stale references
+
+The engine also provides built-in functions through its modules (like `enqueue`, `state::set`, `stream::set`). These are always available and listed in the [Modules](/docs/modules) pages. But the real power of Discovery is the dynamic part — your workers forming a living system that adapts as it runs.
 
 <Cards>
   <Card icon={<Code />} title="Function & Trigger" href="/docs/concepts/function-and-trigger">
