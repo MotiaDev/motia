@@ -259,7 +259,7 @@ class Motia:
         for index, trigger in enumerate(config.triggers):
             trigger_suffix = _get_trigger_suffix(trigger)
             if trigger_suffix in seen_suffixes:
-                trigger_suffix = f"{trigger_suffix}::{index}"
+                trigger_suffix = f"{trigger_suffix}-{index}"
             seen_suffixes.add(trigger_suffix)
             function_id = f"steps::{config.name}::trigger::{trigger_suffix}"
 
@@ -324,7 +324,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, api_handler)
+        get_instance().register_function(function_id, api_handler, metadata=metadata)
 
         api_path = trigger.path.lstrip("/")
         trigger_config: dict[str, Any] = {
@@ -364,7 +364,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, queue_handler)
+        get_instance().register_function(function_id, queue_handler, metadata=metadata)
 
         trigger_config: dict[str, Any] = {
             "topic": trigger.topic,
@@ -399,7 +399,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, cron_handler)
+        get_instance().register_function(function_id, cron_handler, metadata=metadata)
 
         trigger_config: dict[str, Any] = {
             "expression": trigger.expression,
@@ -434,7 +434,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, state_handler)
+        get_instance().register_function(function_id, state_handler, metadata=metadata)
 
         trigger_config: dict[str, Any] = {"metadata": metadata}
 
@@ -466,7 +466,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, stream_handler)
+        get_instance().register_function(function_id, stream_handler, metadata=metadata)
 
         trigger_config: dict[str, Any] = {
             "metadata": metadata,

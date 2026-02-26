@@ -334,7 +334,6 @@ class StepConfig(BaseModel):
     description: str | None = None
     flows: list[str] | None = None
     include_files: list[str] | None = Field(default=None, serialization_alias="includeFiles")
-    infrastructure: InfrastructureConfig | None = None
 
 
 class Step(BaseModel):
