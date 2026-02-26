@@ -20,38 +20,35 @@ from iii import III, InitOptions, get_context, ApiRequest, ApiResponse
 The Python SDK requires an explicit `connect()` call to establish the WebSocket connection.
 
 ```python
-  import asyncio
-  from iii import III
+import asyncio
+from iii import III
 
-  iii = III("ws://localhost:49134")
+iii = III("ws://localhost:49134")
 
-  async def sum_function(data):
-      a = data.get("a", 0)
-      b = data.get("b", 0)
-      return {"sum": a + b}
+async def sum_function(data):
+    a = data.get("a", 0)
+    b = data.get("b", 0)
+    return {"sum": a + b}
 
-  iii.register_function("math.sum", sum_function, description="Add two numbers")
+iii.register_function("math.sum", sum_function, description="Add two numbers")
 
-  async def main():
-      await iii.connect()
-      result = await iii.trigger("math.sum", {"a": 2, "b": 3})
-      print(result)  # {"sum": 5}
+async def main():
+    await iii.connect()
+    result = await iii.trigger("math.sum", {"a": 2, "b": 3})
+    print(result)  # {"sum": 5}
 
-  asyncio.run(main())
+asyncio.run(main())
+```
+
+You can also pass `InitOptions` to customize the worker name:
+
+```python
 from iii import III, InitOptions
 
 iii = III(
     address="ws://localhost:49134",
     options=InitOptions(worker_name="my-worker"),
 )
-
-async def main():
-    await iii.connect()
-    # ... register functions and triggers
-    while True:
-        await asyncio.sleep(60)
-
-asyncio.run(main())
 ```
 
 <ResponseField name="III" type="class" required>
