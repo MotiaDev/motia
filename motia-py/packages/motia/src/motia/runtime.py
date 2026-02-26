@@ -18,7 +18,9 @@ from .streams import Stream
 from .tracing import get_trace_id_from_span, instrument_bridge, operation_span, record_exception, set_span_ok, step_span
 from .types import (
     ApiRequest,
-    ApiResponse,
+    ApiStreamHttpRequest,
+    ApiStreamRequest,
+    ApiStreamResponse,
     ApiTrigger,
     CronTrigger,
     FlowContext,
@@ -283,43 +285,50 @@ class Motia:
         index: int,
         metadata: dict[str, Any],
     ) -> None:
-        async def api_handler(req: dict[str, Any]) -> dict[str, Any]:
+        async def api_handler(req: Any) -> None:
             with step_span(
                 config.name,
                 "http",
-                **{"http.method": req.get("method"), "http.route": req.get("path")},
+                **{"http.method": req.get("method") if isinstance(req, dict) else getattr(req, "method", None),
+                   "http.route": trigger.path},
             ) as span:
                 try:
                     trigger_info = TriggerInfo(type="http", index=index, method=trigger.method, path=trigger.path)
-                    motia_request: ApiRequest[Any] = ApiRequest(
-                        path_params=req.get("path_params", {}),
-                        query_params=req.get("query_params", {}),
-                        body=req.get("body"),
-                        headers=req.get("headers", {}),
+
+                    if isinstance(req, dict):
+                        response_writer = req.get("response")
+                        request_body = req.get("request_body")
+                        path_params = req.get("path_params", {})
+                        query_params = req.get("query_params", {})
+                        body = req.get("body")
+                        headers = req.get("headers", {})
+                        method = req.get("method", "")
+                    else:
+                        response_writer = getattr(req, "response", None)
+                        request_body = getattr(req, "request_body", None)
+                        path_params = getattr(req, "path_params", {})
+                        query_params = getattr(req, "query_params", {})
+                        body = getattr(req, "body", None)
+                        headers = getattr(req, "headers", {})
+                        method = getattr(req, "method", "")
+
+                    stream_response = ApiStreamResponse(response_writer)
+                    http_request = ApiStreamHttpRequest(
+                        path_params=path_params,
+                        query_params=query_params,
+                        body=body,
+                        headers=headers,
+                        method=method,
+                        request_body=request_body,
+                    )
+                    motia_request: ApiStreamRequest[Any] = ApiStreamRequest(
+                        request=http_request,
+                        response=stream_response,
                     )
 
-                    if trigger.body_schema:
-                        motia_request.body = _validate_input_schema(
-                            trigger.body_schema, motia_request.body, f"api:{config.name}"
-                        )
-
                     context = _flow_context(self, trigger_info, motia_request)
-                    middlewares = trigger.middleware or []
-
-                    if middlewares:
-                        composed = _compose_middleware(middlewares)
-                        response: ApiResponse[Any] = await composed(
-                            motia_request, context, lambda: handler(motia_request, context)
-                        )
-                    else:
-                        response = await handler(motia_request, context)
-
+                    await handler(motia_request, context)
                     set_span_ok(span)
-                    return {
-                        "status_code": response.status,
-                        "headers": response.headers,
-                        "body": response.body,
-                    }
                 except Exception as exc:
                     record_exception(span, exc)
                     raise

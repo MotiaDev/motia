@@ -18,6 +18,12 @@ from .guards import (
     is_stream_step,
     is_stream_trigger,
 )
+try:
+    from iii import ChannelReader, ChannelWriter
+except ImportError:
+    ChannelReader = None  # type: ignore[assignment,misc]
+    ChannelWriter = None  # type: ignore[assignment,misc]
+
 from .iii import get_instance, init_iii
 from .loader import generate_step_id
 from .multi_trigger import MultiTriggerStepBuilder, multi_trigger_step
@@ -33,6 +39,9 @@ from .types import (
     ApiRequest,
     ApiResponse,
     ApiRouteMethod,
+    ApiStreamHttpRequest,
+    ApiStreamRequest,
+    ApiStreamResponse,
     ApiTrigger,
     CronTrigger,
     Enqueue,
@@ -58,6 +67,8 @@ __all__ = [
     # III SDK
     "get_instance",
     "init_iii",
+    "ChannelReader",
+    "ChannelWriter",
     # Runtime
     "Motia",
     # Setup
@@ -84,6 +95,9 @@ __all__ = [
     "ApiRequest",
     "ApiResponse",
     "ApiRouteMethod",
+    "ApiStreamHttpRequest",
+    "ApiStreamRequest",
+    "ApiStreamResponse",
     "ApiTrigger",
     "CronTrigger",
     "Enqueue",

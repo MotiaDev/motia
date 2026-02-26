@@ -2,9 +2,16 @@
 """Integration tests for API triggers (HTTP endpoints)."""
 
 import asyncio
+import json
+import time
 
 import httpx
 import pytest
+
+try:
+    from iii import HttpResponse
+except ImportError:
+    HttpResponse = None  # type: ignore[assignment,misc]
 
 from tests.conftest import flush_bridge_queue
 
@@ -167,3 +174,220 @@ async def test_api_trigger_custom_status_code(bridge, api_url):
 
     assert response.status_code == 404
     assert response.json() == {"error": "Not found"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(HttpResponse is None, reason="iii-sdk does not export HttpResponse (needs >= 0.3.0)")
+async def test_streaming_response_via_channels(bridge, api_url):
+    """Test streaming a JSON response via channels."""
+    function_id = f"test.api.stream.{int(time.time() * 1000)}"
+
+    async def stream_handler(req):
+        response_writer = req.get("response") if isinstance(req, dict) else getattr(req, "response", None)
+        response = HttpResponse(response_writer)
+        await response.status(200)
+        await response.headers({"content-type": "application/json"})
+        response.writer.stream.write(json.dumps({"streamed": True, "message": "hello from stream"}).encode("utf-8"))
+        response.close()
+
+    bridge.register_function(function_id, stream_handler)
+    bridge.register_trigger(
+        "http",
+        function_id,
+        {"api_path": "test/stream/response", "http_method": "GET"},
+    )
+
+    await flush_bridge_queue(bridge)
+    await asyncio.sleep(0.3)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{api_url}/test/stream/response")
+
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "application/json"
+    data = response.json()
+    assert data == {"streamed": True, "message": "hello from stream"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(HttpResponse is None, reason="iii-sdk does not export HttpResponse (needs >= 0.3.0)")
+async def test_streaming_request_body_via_channels(bridge, api_url):
+    """Test reading a streamed request body via channels."""
+    function_id = f"test.api.stream.upload.{int(time.time() * 1000)}"
+
+    async def upload_handler(req):
+        response_writer = req.get("response") if isinstance(req, dict) else getattr(req, "response", None)
+        request_body = req.get("request_body") if isinstance(req, dict) else getattr(req, "request_body", None)
+
+        chunks: list[bytes] = []
+        async for chunk in request_body.stream:
+            if isinstance(chunk, bytes):
+                chunks.append(chunk)
+            else:
+                chunks.append(chunk.encode("utf-8"))
+        body = b"".join(chunks).decode("utf-8")
+
+        response = HttpResponse(response_writer)
+        await response.status(200)
+        await response.headers({"content-type": "application/json"})
+        response.writer.stream.write(json.dumps({"received": body, "size": len(body)}).encode("utf-8"))
+        response.close()
+
+    bridge.register_function(function_id, upload_handler)
+    bridge.register_trigger(
+        "http",
+        function_id,
+        {"api_path": "test/stream/upload", "http_method": "POST"},
+    )
+
+    await flush_bridge_queue(bridge)
+    await asyncio.sleep(0.3)
+
+    payload = json.dumps({"data": "streamed content", "items": [1, 2, 3]})
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{api_url}/test/stream/upload",
+            content=payload.encode("utf-8"),
+            headers={"content-type": "application/octet-stream"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["received"] == payload
+    assert data["size"] == len(payload)
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(HttpResponse is None, reason="iii-sdk does not export HttpResponse (needs >= 0.3.0)")
+async def test_multipart_form_data_via_channels(bridge, api_url):
+    """Test multipart/form-data with file upload via channels."""
+    function_id = f"test.api.multipart.{int(time.time() * 1000)}"
+
+    async def multipart_handler(req):
+        response_writer = req.get("response") if isinstance(req, dict) else getattr(req, "response", None)
+        request_body = req.get("request_body") if isinstance(req, dict) else getattr(req, "request_body", None)
+        headers = req.get("headers", {}) if isinstance(req, dict) else getattr(req, "headers", {})
+
+        chunks: list[bytes] = []
+        async for chunk in request_body.stream:
+            if isinstance(chunk, bytes):
+                chunks.append(chunk)
+            else:
+                chunks.append(chunk.encode("utf-8"))
+        raw_body = b"".join(chunks)
+
+        content_type = headers.get("content-type", "")
+        if isinstance(content_type, list):
+            content_type = content_type[0] if content_type else ""
+
+        import re
+
+        boundary_match = re.search(r"boundary=([^\s;]+)", content_type)
+        body_text = raw_body.decode("utf-8", errors="replace")
+
+        response = HttpResponse(response_writer)
+        await response.status(200)
+        await response.headers({"content-type": "application/json"})
+        response.writer.stream.write(
+            json.dumps(
+                {
+                    "has_boundary": bool(boundary_match and len(boundary_match.group(1)) > 0),
+                    "has_title": "Test Document" in body_text,
+                    "has_description": "A test upload" in body_text,
+                    "has_file_content": "fake file content" in body_text,
+                    "body_size": len(raw_body),
+                }
+            ).encode("utf-8")
+        )
+        response.close()
+
+    bridge.register_function(function_id, multipart_handler)
+    bridge.register_trigger(
+        "http",
+        function_id,
+        {"api_path": "test/form/multipart", "http_method": "POST"},
+    )
+
+    await flush_bridge_queue(bridge)
+    await asyncio.sleep(0.3)
+
+    boundary = "----TestBoundary12345"
+    body_parts = [
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="title"\r\n\r\n'
+        "Test Document\r\n",
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="description"\r\n\r\n'
+        "A test upload\r\n",
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="file"; filename="test.txt"\r\n'
+        "Content-Type: text/plain\r\n\r\n"
+        "fake file content\r\n",
+        f"--{boundary}--\r\n",
+    ]
+    multipart_body = "".join(body_parts).encode("utf-8")
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{api_url}/test/form/multipart",
+            content=multipart_body,
+            headers={"content-type": f"multipart/form-data; boundary={boundary}"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["has_boundary"] is True
+    assert data["has_title"] is True
+    assert data["has_description"] is True
+    assert data["has_file_content"] is True
+    assert data["body_size"] > 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(HttpResponse is None, reason="iii-sdk does not export HttpResponse (needs >= 0.3.0)")
+async def test_data_channels_worker_to_worker(bridge, api_url):
+    """Test data channels for worker-to-worker streaming."""
+    processor_id = f"test.channel.processor.{int(time.time() * 1000)}"
+    sender_id = f"test.channel.sender.{int(time.time() * 1000)}"
+
+    async def processor_handler(input_data):
+        label = input_data.get("label", "") if isinstance(input_data, dict) else getattr(input_data, "label", "")
+        reader = input_data.get("reader") if isinstance(input_data, dict) else getattr(input_data, "reader", None)
+
+        chunks: list[bytes] = []
+        async for chunk in reader.stream:
+            if isinstance(chunk, bytes):
+                chunks.append(chunk)
+            else:
+                chunks.append(chunk.encode("utf-8"))
+
+        records = json.loads(b"".join(chunks).decode("utf-8"))
+        total = sum(r["value"] for r in records)
+
+        return {"label": label, "count": len(records), "sum": total}
+
+    async def sender_handler(input_data):
+        records = input_data.get("records", []) if isinstance(input_data, dict) else getattr(input_data, "records", [])
+        channel = await bridge.create_channel()
+        payload = json.dumps(records).encode("utf-8")
+        channel.writer.stream.write(payload)
+        channel.writer.close()
+
+        result = await bridge.call(
+            processor_id,
+            {"label": "test-batch", "reader": channel.reader_ref.__dict__},
+        )
+        return result
+
+    bridge.register_function(processor_id, processor_handler)
+    bridge.register_function(sender_id, sender_handler)
+
+    await flush_bridge_queue(bridge)
+    await asyncio.sleep(0.3)
+
+    records = [{"value": 10}, {"value": 20}, {"value": 30}]
+    result = await bridge.call(sender_id, {"records": records})
+
+    assert result["label"] == "test-batch"
+    assert result["count"] == 3
+    assert result["sum"] == 60

@@ -1,4 +1,4 @@
-import type { Logger } from 'iii-sdk'
+import type { ChannelReader, Logger } from 'iii-sdk'
 import type { StreamSetResult, UpdateOp } from 'iii-sdk/stream'
 import type { FromSchema } from 'json-schema-to-ts'
 import type { ZodType } from 'zod'
@@ -28,12 +28,18 @@ export type InternalStateManager = {
 export type EnqueueData<T = unknown> = { topic: string; data: T; messageGroupId?: string }
 export type Enqueuer<TData> = (event: TData) => Promise<void>
 
-export type ExtractQueueInput<TInput> = Exclude<Exclude<TInput, ApiRequest>, undefined>
-export type ExtractApiInput<TInput> = Extract<TInput, ApiRequest>
+export type ExtractQueueInput<TInput> = Exclude<Exclude<Exclude<TInput, ApiRequest>, MotiaHttpArgs>, undefined>
+export type ExtractApiInput<TInput> = Extract<TInput, ApiRequest | MotiaHttpArgs>
 export type ExtractStateInput<TInput> = Extract<TInput, StateTriggerInput<unknown>>
 export type ExtractStreamInput<TInput> = Extract<TInput, StreamTriggerInput<unknown>>
 export type ExtractDataPayload<TInput> =
-  TInput extends ApiRequest<infer TBody> ? TBody : TInput extends undefined ? undefined : TInput
+  TInput extends ApiRequest<infer TBody>
+    ? TBody
+    : TInput extends MotiaHttpArgs<infer TBody>
+      ? TBody
+      : TInput extends undefined
+        ? undefined
+        : TInput
 
 export type MatchHandlers<TInput, _TEnqueueData, TResult> = {
   queue?: (input: ExtractQueueInput<TInput>) => Promise<void>
@@ -81,6 +87,7 @@ export interface FlowContext<TEnqueueData = never, TInput = unknown> {
    */
   getData: () => ExtractDataPayload<TInput>
 
+  // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
   match: <TResult = any>(handlers: MatchHandlers<TInput, TEnqueueData, TResult>) => Promise<TResult | undefined>
 }
 
@@ -158,10 +165,10 @@ export type InfrastructureConfig = {
 export type ApiRouteMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
 export type ApiMiddleware<TBody = unknown, TEnqueueData = never, TResult = unknown> = (
-  req: ApiRequest<TBody>,
-  ctx: FlowContext<TEnqueueData, ApiRequest<TBody>>,
-  next: () => Promise<ApiResponse<number, TResult>>,
-) => Promise<ApiResponse<number, TResult>>
+  req: MotiaHttpArgs<TBody>,
+  ctx: FlowContext<TEnqueueData, MotiaHttpArgs<TBody>>,
+  next: () => Promise<TResult>,
+) => Promise<TResult>
 
 export interface QueryParam {
   name: string
@@ -225,6 +232,13 @@ export type StepConfig = {
   includeFiles?: readonly string[]
 }
 
+export type ApiStreamResponse = {
+  status: (statusCode: number) => void
+  headers: (headers: Record<string, string>) => void
+  stream: NodeJS.WritableStream
+  close: () => void
+}
+
 export interface ApiRequest<TBody = unknown> {
   pathParams: Record<string, string>
   queryParams: Record<string, string | string[]>
@@ -232,12 +246,28 @@ export interface ApiRequest<TBody = unknown> {
   headers: Record<string, string | string[]>
 }
 
+export interface ApiStreamHttpRequest<TBody = unknown> {
+  pathParams: Record<string, string>
+  queryParams: Record<string, string | string[]>
+  body: TBody
+  headers: Record<string, string | string[]>
+  method: string
+  requestBody: ChannelReader
+}
+
+export interface MotiaHttpArgs<TBody = unknown> {
+  request: ApiStreamHttpRequest<TBody>
+  response: ApiStreamResponse
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
 export type ApiResponse<TStatus extends number = number, TBody = any> = {
   status: TStatus
   headers?: Record<string, string>
   body: TBody
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
 export type StepHandler<TInput = any, TEnqueueData = never> = (
   input: TriggerInput<TInput>,
   ctx: FlowContext<TEnqueueData, TriggerInput<TInput>>,
@@ -268,10 +298,6 @@ export type UnsubscribeConfig = {
 
 export type Step = { filePath: string; config: StepConfig }
 
-export type PluginStep = Step & {
-  handler?: StepHandler<any, any>
-}
-
 export type Flow = {
   name: string
   description?: string
@@ -284,22 +310,24 @@ export interface Streams {}
 // biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface Enqueues {}
 
-// biome-ignore lint/suspicious/noExplicitAny: FromSchema requires flexible casting for JSON Schema inference
-type InferSchema<T, TFallback = unknown> = T extends TypedJsonSchema<infer O>
-  ? O
-  : T extends ZodInput
-    ? z.infer<T>
-    : T extends { readonly type: string }
-      ? FromSchema<T & { type: any }>
-      : T extends { readonly anyOf: readonly any[] }
-        ? FromSchema<T & { anyOf: any }>
-        : T extends { readonly allOf: readonly any[] }
-          ? FromSchema<T & { allOf: any }>
-          : T extends { readonly oneOf: readonly any[] }
-            ? FromSchema<T & { oneOf: any }>
-            : T extends undefined
-              ? unknown
-              : TFallback
+type InferSchema<T, TFallback = unknown> =
+  T extends TypedJsonSchema<infer O>
+    ? O
+    : T extends ZodInput
+      ? z.infer<T>
+      : T extends { readonly type: string }
+        ? FromSchema<T & { type: any }>
+        : T extends { readonly anyOf: readonly any[] }
+          ? FromSchema<T & { anyOf: any }>
+          : T extends { readonly allOf: readonly any[] }
+            ? FromSchema<T & { allOf: any }>
+            : T extends { readonly oneOf: readonly any[] }
+              ? FromSchema<T & { oneOf: any }>
+              : T extends undefined
+                ? unknown
+                : TFallback
+
+type InferBodySchema<S> = S extends ZodInput ? z.infer<S> : S extends StepSchemaInput ? InferSchema<S> : unknown
 
 type TriggerToInput<TTrigger> = TTrigger extends { type: 'queue'; input?: infer S }
   ? S extends ZodInput
@@ -308,7 +336,7 @@ type TriggerToInput<TTrigger> = TTrigger extends { type: 'queue'; input?: infer 
       ? InferSchema<S>
       : unknown
   : TTrigger extends { type: 'http'; bodySchema?: infer S }
-    ? ApiRequest<S extends ZodInput ? z.infer<S> : S extends StepSchemaInput ? InferSchema<S> : unknown>
+    ? MotiaHttpArgs<InferBodySchema<S>>
     : TTrigger extends { type: 'state' }
       ? StateTriggerInput<unknown>
       : TTrigger extends { type: 'stream' }
@@ -319,6 +347,7 @@ type TriggerToInput<TTrigger> = TTrigger extends { type: 'queue'; input?: infer 
 
 type InferHandlerInput<TConfig extends StepConfig> = TriggerToInput<TConfig['triggers'][number]>
 
+// biome-ignore lint/suspicious/noConfusingVoidType: we need to define this type to avoid type errors
 type InferReturnType = Promise<ApiResponse | undefined | void>
 
 type EnqueueTopic<T extends string> = T extends keyof Enqueues ? Enqueues[T] : unknown
