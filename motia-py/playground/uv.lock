@@ -17,11 +17,11 @@ wheels = [
 
 [[package]]
 name = "certifi"
-version = "2026.1.4"
+version = "2026.2.25"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e0/2d/a891ca51311197f6ad14a7ef42e2399f36cf2f9bd44752b3dc4eab60fdc5/certifi-2026.1.4.tar.gz", hash = "sha256:ac726dd470482006e014ad384921ed6438c457018f4b3d204aea4281258b2120", size = 154268, upload-time = "2026-01-04T02:42:41.825Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/af/2d/7bf41579a8986e348fa033a31cdd0e4121114f6bce2457e8876010b092dd/certifi-2026.2.25.tar.gz", hash = "sha256:e887ab5cee78ea814d3472169153c2d12cd43b14bd03329a39a9c6e2e80bfba7", size = 155029, upload-time = "2026-02-25T02:54:17.342Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/ad/3cc14f097111b4de0040c83a525973216457bbeeb63739ef1ed275c1c021/certifi-2026.1.4-py3-none-any.whl", hash = "sha256:9943707519e4add1115f44c2bc244f782c0249876bf51b6599fee1ffbedd685c", size = 152900, upload-time = "2026-01-04T02:42:40.15Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/3c/c17fb3ca2d9c3acff52e30b309f538586f9f5b9c9cf454f3845fc9af4881/certifi-2026.2.25-py3-none-any.whl", hash = "sha256:027692e4402ad994f1c42e52a4997a9763c646b73e4096e4d5d6db8af1d6f0fa", size = 153684, upload-time = "2026-02-25T02:54:15.766Z" },
 ]
 
 [[package]]
@@ -197,15 +197,15 @@ wheels = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.4.0"
+version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f2/69/59998d72037d284819ad8fc5c1358cbb9ff5e813b0250ec96478dc98583b/iii_sdk-0.4.0.tar.gz", hash = "sha256:8c7b47b2e1d9e9cef17bd90dce7b28011603d62eb204e658af32816d4724a1ee", size = 136705, upload-time = "2026-02-27T16:40:43.897Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4d/7d/ddd0359c480ca35060fe6eda0a63c3b77babf99634b1674a81681a250635/iii_sdk-0.4.1.tar.gz", hash = "sha256:141946bcea621d382124868d6f43baa5d61e6bdcbc37af6d205f0491da2ad467", size = 136763, upload-time = "2026-02-28T02:44:25.369Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/c9/73c6863b6a2bf19e7492997e7bca93c2ca371ceca9220b50db40aa191a60/iii_sdk-0.4.0-py3-none-any.whl", hash = "sha256:5023f6cd3211a76c3f531b06e1a4e10348ddcf4974c8d911be32ee12b4fc7e8a", size = 29606, upload-time = "2026-02-27T16:40:42.886Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/02/88ea6a3bca3ab89b09620156b5b4b8aa293818d2d07b726aa70a6e4c640b/iii_sdk-0.4.1-py3-none-any.whl", hash = "sha256:10e9ec6d548cdb3fd3f379f80c5edf7661ca776432e234bdf9e17012fe175b6c", size = 29640, upload-time = "2026-02-28T02:44:24.163Z" },
 ]
 
 [[package]]
@@ -538,11 +538,11 @@ wheels = [
 
 [[package]]
 name = "python-dotenv"
-version = "1.2.1"
+version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f0/26/19cadc79a718c5edbec86fd4919a6b6d3f681039a2f6d66d14be94e75fb9/python_dotenv-1.2.1.tar.gz", hash = "sha256:42667e897e16ab0d66954af0e60a9caa94f0fd4ecf3aaf6d2d260eec1aa36ad6", size = 44221, upload-time = "2025-10-26T15:12:10.434Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/ed/0301aeeac3e5353ef3d94b6ec08bbcabd04a72018415dcb29e588514bba8/python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3", size = 50135, upload-time = "2026-03-01T16:00:26.196Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/1b/a298b06749107c305e1fe0f814c6c74aea7b2f1e10989cb30f544a1b3253/python_dotenv-1.2.1-py3-none-any.whl", hash = "sha256:b81ee9561e9ca4004139c6cbba3a238c32b03e4894671e181b671e8cb8425d61", size = 21230, upload-time = "2025-10-26T15:12:09.109Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a", size = 22101, upload-time = "2026-03-01T16:00:25.09Z" },
 ]
 
 [[package]]
