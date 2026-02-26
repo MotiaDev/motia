@@ -107,7 +107,7 @@ class: modules::state::adapters::Bridge
       <ResponseField name="key" type="string" required>
         The key to store the value under.
       </ResponseField>
-      <ResponseField name="data" type="any" required>
+      <ResponseField name="value" type="any" required>
         The value to store. Can be any JSON-serializable value.
       </ResponseField>
     </Accordion>
@@ -318,7 +318,7 @@ Store user profiles in state and react when they change:
 await iii.trigger('state::set', {
   scope: 'users',
   key: 'user-123',
-  data: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'dark' } },
+  value: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'dark' } },
 })
 
 const profile = await iii.trigger('state::get', { scope: 'users', key: 'user-123' })
@@ -326,7 +326,7 @@ const profile = await iii.trigger('state::get', { scope: 'users', key: 'user-123
 await iii.trigger('state::set', {
   scope: 'users',
   key: 'user-123',
-  data: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'light' } },
+  value: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'light' } },
 })
 
 const allUsers = await iii.trigger('state::list', { scope: 'users' })
@@ -338,7 +338,7 @@ const scopes = await iii.trigger('state::list_groups', {})
 await iii.trigger('state::set', {
     'scope': 'users',
     'key': 'user-123',
-    'data': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'dark'}},
+    'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'dark'}},
 })
 
 profile = await iii.trigger('state::get', {'scope': 'users', 'key': 'user-123'})
@@ -346,7 +346,7 @@ profile = await iii.trigger('state::get', {'scope': 'users', 'key': 'user-123'})
 await iii.trigger('state::set', {
     'scope': 'users',
     'key': 'user-123',
-    'data': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'light'}},
+    'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'light'}},
 })
 
 all_users = await iii.trigger('state::list', {'scope': 'users'})
@@ -358,7 +358,7 @@ scopes = await iii.trigger('state::list_groups', {})
 iii.trigger("state::set", json!({
     "scope": "users",
     "key": "user-123",
-    "data": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "dark" } }
+    "value": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "dark" } }
 })).await?;
 
 let profile = iii.trigger("state::get", json!({
@@ -369,7 +369,7 @@ let profile = iii.trigger("state::get", json!({
 iii.trigger("state::set", json!({
     "scope": "users",
     "key": "user-123",
-    "data": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "light" } }
+    "value": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "light" } }
 })).await?;
 
 let all_users = iii.trigger("state::list", json!({ "scope": "users" })).await?;
