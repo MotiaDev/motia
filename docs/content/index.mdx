@@ -18,7 +18,7 @@ You start iii once. It runs as a single process and handles everything:
 
 - **Write functions in any language.** Your code runs in Workers that connect to iii over WebSocket. Use TypeScript, Python, or Rust. Mix them freely.
 - **Triggers replace all your infra wiring.** An HTTP request, a cron schedule, a queue message, a state change, a stream event. They all work the same way: a Trigger fires, iii invokes your Function.
-- **Discovery replaces imports and configuration.** The engine provides built-in functions for state, queues, streams, and more. Workers discover these on connection. You do not import a Redis client or a queue library. You just `trigger()` what you need.
+- **Discovery keeps every worker in sync.** When a Worker connects and registers its Functions, every other Worker is notified. When it disconnects, its Functions disappear. No service registry, no config files — every Worker always knows what the entire system can do.
 - **Workers come and go.** When a Worker connects, its Functions are registered automatically. When it disconnects, they are cleaned up. When it reconnects, everything is restored. Zero-downtime deploys become trivial.
 
 The result: you write business logic as Functions, declare what triggers them, and iii handles the rest.

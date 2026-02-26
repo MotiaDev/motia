@@ -14,24 +14,13 @@ No configuration files. No service registries. No hardcoded URLs. The engine mai
 ## How It Works
 
 ```mermaid
-sequenceDiagram
-    participant E as Engine
-    participant WA as Worker A
-    participant WB as Worker B
-
-    WA->>E: connect + register orders::create
-    E->>WA: functionsAvailable [orders::create, enqueue, state::set, ...]
-
-    WB->>E: connect + register payments::charge
-    E->>WA: functionsAvailable [orders::create, payments::charge, ...]
-    E->>WB: functionsAvailable [orders::create, payments::charge, ...]
-
-    Note over WA,WB: Worker B can now trigger orders::create
-    Note over WA,WB: Worker A can now trigger payments::charge
-
-    WB->>E: disconnect
-    E->>WA: functionsAvailable [orders::create, enqueue, state::set, ...]
-    Note over WA: payments::charge is gone
+graph LR
+    WA["Worker A<br/><small>orders::create</small>"] -->|registers| E["Engine<br/><small>Live Registry</small>"]
+    WB["Worker B<br/><small>payments::charge</small>"] -->|registers| E
+    E -->|"functionsAvailable"| WA
+    E -->|"functionsAvailable"| WB
+    WA -.->|"trigger payments::charge"| E
+    WB -.->|"trigger orders::create"| E
 ```
 
 Every time a worker connects, disconnects, or registers new functions, the engine broadcasts an updated `functionsAvailable` message to all connected workers.
