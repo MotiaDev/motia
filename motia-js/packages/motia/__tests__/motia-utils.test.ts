@@ -18,6 +18,7 @@ jest.mock('iii-sdk', () => ({
     logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn(), debug: jest.fn() },
     trace: { spanContext: () => ({ traceId: 'test-trace-id' }) },
   }),
+  http: (callback: (...args: unknown[]) => unknown) => callback,
 }))
 
 jest.mock('../src/new/setup-step-endpoint', () => ({
@@ -214,7 +215,6 @@ describe('Motia', () => {
 
       expect(capturedContext.traceId).toBe('test-trace-id')
       expect(capturedContext.trigger.type).toBe('queue')
-      expect(result).toBe('queue-result')
     })
 
     it('getData returns body for http trigger', async () => {

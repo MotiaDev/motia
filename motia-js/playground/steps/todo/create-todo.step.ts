@@ -27,7 +27,7 @@ export const config = {
   virtualEnqueues: ['todo-created'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger, streams, state }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger, streams, state }) => {
   logger.info('Creating new todo', { body: request.body })
 
   const { description, dueDate } = request.body || {}

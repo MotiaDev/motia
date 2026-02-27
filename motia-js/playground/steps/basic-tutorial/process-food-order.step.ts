@@ -20,7 +20,7 @@ export const stepConfig = {
 }
 
 export const { config, handler } = step(stepConfig, async (_input, ctx) => {
-  const data = ctx.getData() // this will return the data regardless of the trigger type
+  const data = ctx.getData()
 
   ctx.logger.info('Step 02 - Process food order', {
     input: data,
@@ -54,14 +54,10 @@ export const { config, handler } = step(stepConfig, async (_input, ctx) => {
   })
 
   return ctx.match({
-    http: async () => {
-      return {
-        status: 200,
-        body: {
-          success: true,
-          order,
-        },
-      }
-    },
+    http: async () => ({
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: { success: true, order },
+    }),
   })
 })

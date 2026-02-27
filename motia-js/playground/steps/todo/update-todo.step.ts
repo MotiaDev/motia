@@ -26,7 +26,7 @@ export const config = {
   virtualSubscribes: ['todo-created'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger, streams }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger, streams }) => {
   const { todoId } = request.pathParams || {}
   const body = request.body || {}
 

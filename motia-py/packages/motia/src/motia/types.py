@@ -75,6 +75,8 @@ class FlowContext(BaseModel, Generic[TEnqueueData]):
         """
         if self.is_cron():
             return None
+        if isinstance(self.input_value, ApiStreamRequest):
+            return self.input_value.request.body
         if isinstance(self.input_value, ApiRequest):
             return self.input_value.body
         return self.input_value
@@ -313,6 +315,99 @@ class ApiResponse(BaseModel, Generic[TOutput]):
     status: int
     body: Any
     headers: dict[str, str] = Field(default_factory=dict)
+
+
+class ApiStreamResponse:
+    """Streaming HTTP response for channel-based API triggers."""
+
+    def __init__(self, writer: Any) -> None:
+        self._writer = writer
+
+    async def status(self, status_code: int) -> None:
+        import json
+
+        if self._writer is not None:
+            await self._writer.send_message_async(json.dumps({"type": "set_status", "status_code": status_code}))
+
+    async def headers(self, headers: dict[str, str]) -> None:
+        import json
+
+        if self._writer is not None:
+            await self._writer.send_message_async(json.dumps({"type": "set_headers", "headers": headers}))
+
+    @property
+    def writer(self) -> Any:
+        return self._writer
+
+    def close(self) -> None:
+        if self._writer is not None:
+            self._writer.close()
+
+
+class ApiStreamHttpRequest(BaseModel, Generic[TBody]):
+    """HTTP request portion of a streaming API trigger."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, populate_by_name=True)
+
+    path_params: dict[str, str] = Field(default_factory=dict, serialization_alias="pathParams")
+    query_params: dict[str, str | list[str]] = Field(default_factory=dict, serialization_alias="queryParams")
+    body: TBody | None = None
+    headers: dict[str, str | list[str]] = Field(default_factory=dict)
+    method: str = ""
+    request_body: Any = None  # ChannelReader
+
+
+class ApiStreamRequest(BaseModel, Generic[TBody]):
+    """Streaming API trigger input with separate request and response."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    request: ApiStreamHttpRequest[TBody]
+    response: ApiStreamResponse
+
+    @property
+    def path_params(self) -> dict[str, str]:
+        """Backward-compatible accessor for request.path_params."""
+        return self.request.path_params
+
+    @property
+    def query_params(self) -> dict[str, str | list[str]]:
+        """Backward-compatible accessor for request.query_params."""
+        return self.request.query_params
+
+    @property
+    def body(self) -> TBody | None:
+        """Backward-compatible accessor for request.body."""
+        return self.request.body
+
+    @property
+    def headers(self) -> dict[str, str | list[str]]:
+        """Backward-compatible accessor for request.headers."""
+        return self.request.headers
+
+    @property
+    def method(self) -> str:
+        """Backward-compatible accessor for request.method."""
+        return self.request.method
+
+    @property
+    def request_body(self) -> Any:
+        """Backward-compatible accessor for request.request_body."""
+        return self.request.request_body
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Dict-like access for backward compatibility with handlers expecting dicts."""
+        values: dict[str, Any] = {
+            "request": self.request,
+            "response": self.response,
+            "path_params": self.path_params,
+            "query_params": self.query_params,
+            "body": self.body,
+            "headers": self.headers,
+            "method": self.method,
+            "request_body": self.request_body,
+        }
+        return values.get(key, default)
 
 
 ApiMiddleware = Callable[

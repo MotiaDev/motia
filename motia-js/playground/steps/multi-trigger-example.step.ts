@@ -68,7 +68,7 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
   const orderId = `order-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
   return ctx.match({
-    http: async (request) => {
+    http: async ({ request }) => {
       const body = request.body
 
       ctx.logger.info('Processing manual order via API', {

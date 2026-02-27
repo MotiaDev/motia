@@ -25,7 +25,7 @@ export const config = {
   flows: ['parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger, enqueue, state }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue, state }) => {
   logger.info('Starting parallel merge')
 
   const body = bodySchema.parse(request.body ?? {})

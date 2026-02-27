@@ -7,7 +7,7 @@ export const config = {
   triggers: [
     {
       type: 'cron',
-      expression: '0/5 * * * * * *', // Every 5 seconds
+      expression: '0 0/5 * * * * *', // Every 5 minutes
     },
   ],
   enqueues: ['notification'],

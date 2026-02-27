@@ -1,5 +1,11 @@
 """Motia framework for III Engine."""
 
+try:
+    from iii import ChannelReader, ChannelWriter
+except ImportError:
+    ChannelReader = None
+    ChannelWriter = None
+
 from . import tracing
 from .guards import (
     get_api_triggers,
@@ -33,6 +39,9 @@ from .types import (
     ApiRequest,
     ApiResponse,
     ApiRouteMethod,
+    ApiStreamHttpRequest,
+    ApiStreamRequest,
+    ApiStreamResponse,
     ApiTrigger,
     CronTrigger,
     Enqueue,
@@ -58,6 +67,8 @@ __all__ = [
     # III SDK
     "get_instance",
     "init_iii",
+    "ChannelReader",
+    "ChannelWriter",
     # Runtime
     "Motia",
     # Setup
@@ -84,6 +95,9 @@ __all__ = [
     "ApiRequest",
     "ApiResponse",
     "ApiRouteMethod",
+    "ApiStreamHttpRequest",
+    "ApiStreamRequest",
+    "ApiStreamResponse",
     "ApiTrigger",
     "CronTrigger",
     "Enqueue",
