@@ -31,8 +31,7 @@ test:
 			exit 1; \
 		fi; \
 	done
-	@set -e; \
-	uv run pytest; \
+	@uv run pytest; \
 	status=$$?; \
 	docker rm -f $(TEST_CONTAINER) >/dev/null 2>&1 || true; \
 	exit $$status
