@@ -187,8 +187,8 @@ export const FeatureBento: React.FC<FeatureBentoProps> = ({
             <div className="flex flex-wrap gap-1.5 md:gap-2">
               {[
                 { name: "iii-sdk", lang: "Node.js", available: true },
-                { name: "iii-py", lang: "Python", available: true },
-                { name: "iii-rs", lang: "Rust", available: false },
+                { name: "iii-sdk", lang: "Python", available: true },
+                { name: "iii-sdk", lang: "Rust", available: true },
               ].map(({ name, lang, available }) => (
                 <div
                   key={name}

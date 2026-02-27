@@ -122,7 +122,8 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
   const [openFaqId, setOpenFaqId] = useState<number | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const discord = useDiscordWidget();
-  const installCmd = "curl -fsSL install.iii.dev | sh";
+  const installCmd =
+    "curl -fsSL https://install.iii.dev/iii/main/install.sh | sh";
 
   const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
   const textSecondary = isDarkMode ? "text-iii-light/70" : "text-iii-black/70";

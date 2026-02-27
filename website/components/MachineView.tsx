@@ -47,10 +47,10 @@ export const MachineView: React.FC<MachineViewProps> = ({
           {/* Header */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`iii — The Centralized Orchestration Runtime for Distributed Polyglot Function Execution
 
-[Manifesto](/manifesto) | [Architecture](/architecture) | [Docs](https://iii-docs.vercel.app) | [GitHub](https://github.com/MotiaDev/iii-engine)
+[Docs](https://iii.dev/docs) | [GitHub](https://github.com/iii-hq/iii)
 
 ## Install
-curl -fsSL install.iii.dev | sh`}</pre>
+curl -fsSL https://install.iii.dev/iii/main/install.sh | sh`}</pre>
 
           {/* What is iii */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# What is iii
@@ -295,12 +295,12 @@ One Binary. Infinite Systems.`}</pre>
           {/* Resources */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# Resources
 
-[Documentation](https://iii-docs.vercel.app)
-[GitHub](https://github.com/MotiaDev/iii-engine)
+[Documentation](https://iii.dev/docs)
+[GitHub](https://github.com/iii-hq/iii)
 [npm](https://npmjs.com/package/iii-sdk)
 [Discord](https://discord.gg/iii)
 
-Install: curl -fsSL install.iii.dev | sh`}</pre>
+Install: curl -fsSL https://install.iii.dev/iii/main/install.sh | sh`}</pre>
 
           {/* Footer */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto text-gray-500">{`---

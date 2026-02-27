@@ -339,7 +339,9 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
 
   // Install command state
   const [copySuccess, setCopySuccess] = useState(false);
-  const [installCmd] = useState("curl -fsSL install.iii.dev | sh");
+  const [installCmd] = useState(
+    "curl -fsSL https://install.iii.dev/iii/main/install.sh | sh",
+  );
 
   // Email form state
   const [email, setEmail] = useState("");

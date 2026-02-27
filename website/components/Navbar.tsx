@@ -43,7 +43,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [installCopied, setInstallCopied] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [starCount, setStarCount] = useState<number | null>(null);
-  const installCmd = "curl -fsSL install.iii.dev | sh";
+  const installCmd =
+    "curl -fsSL https://install.iii.dev/iii/main/install.sh | sh";
 
   useEffect(() => {
     const handleScroll = () => {

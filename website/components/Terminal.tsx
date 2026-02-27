@@ -364,7 +364,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("Cron Trigger (scheduled):", "warning");
         addLog('  type: "cron"', "info");
-        addLog('  config: { schedule: "0 0 * * *" }', "info");
+        addLog('  config: { expression: "0 0 * * *" }', "info");
         addLog("", "info");
         addLog("State Trigger (on state change):", "warning");
         addLog('  type: "state"', "info");
@@ -987,7 +987,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("stream::set / stream::get / stream::delete", "success");
         addLog("  Real-time state with WebSocket sync", "info");
-        addLog("  stream::list, stream::update, stream::send", "info");
+        addLog("  stream::list, stream::update, stream::list_groups", "info");
         addLog("", "info");
         addLog("queue::enqueue", "success");
         addLog("  Enqueue background job (Redis-backed)", "info");
