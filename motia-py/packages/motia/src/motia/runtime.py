@@ -327,7 +327,25 @@ class Motia:
                     )
 
                     context = _flow_context(self, trigger_info, motia_request)
-                    await handler(motia_request, context)
+                    result = await handler(motia_request, context)
+
+                    if result is not None and isinstance(result, dict):
+                        status_code = int(result.get("status_code", result.get("status", 200)))
+                        headers_out = result.get("headers") or {}
+                        body_out = result.get("body")
+
+                        await stream_response.status(status_code)
+                        if headers_out:
+                            await stream_response.headers(headers_out)
+                        if body_out is not None:
+                            payload = (
+                                body_out
+                                if isinstance(body_out, (bytes, bytearray))
+                                else json.dumps(body_out).encode("utf-8")
+                            )
+                            stream_response.writer.stream.write(payload)
+                        stream_response.close()
+
                     set_span_ok(span)
                 except Exception as exc:
                     record_exception(span, exc)

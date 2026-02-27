@@ -1,22 +1,23 @@
 import { type Handlers, http, type StepConfig } from 'motia'
 
 export const config = {
-  name: "SSE Example",
-  description: "Accepts form-data and streams back random items as SSE",
-  flows: ["sse-example"],
-  triggers: [http("POST", "/sse")],
+  name: 'SSE Example',
+  description: 'Accepts URL-encoded data and streams back random items as SSE',
+  flows: ['sse-example'],
+  triggers: [http('POST', '/sse')],
   enqueues: [],
 } as const satisfies StepConfig
 
 export const handler: Handlers<typeof config> = async ({ request, response }, { logger }) => {
-  logger.info('FormData received', { headers: request.headers })
+  logger.info('Data received', { headers: request.headers })
   response.status(200)
-  response.headers({ 
+  const sseHeaders = {
     'content-type': 'text/event-stream',
     'cache-control': 'no-cache',
     connection: 'keep-alive',
-  })
-  logger.info('Headers set', { headers: response.headers })
+  }
+  response.headers(sseHeaders)
+  logger.info('Headers set', { headers: sseHeaders })
 
   const responses: string[] = []
 
@@ -25,9 +26,9 @@ export const handler: Handlers<typeof config> = async ({ request, response }, { 
   }
 
   const parts: Record<string, string> = {}
-  
+
   responses
-    .filter(s => typeof s === 'string' && s.trim().length > 0)
+    .filter((s) => typeof s === 'string' && s.trim().length > 0)
     .forEach((s) => {
       const pairs = s.split('&')
       for (const pair of pairs) {
@@ -53,10 +54,8 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-type FormField = { name: string; value: string }
-
 function generateRandomItems(parts: Record<string, string>) {
-  const fields: FormField[] = Object.entries(parts).map(([name, value]) => ({ name, value }))
+  const fields = Object.entries(parts).map(([name, value]) => ({ name, value }))
   const count = 5 + Math.floor(Math.random() * 6)
   const adjectives = ['swift', 'lazy', 'bold', 'calm', 'fierce', 'gentle', 'sharp', 'wild']
   const nouns = ['falcon', 'river', 'mountain', 'crystal', 'thunder', 'shadow', 'ember', 'frost']

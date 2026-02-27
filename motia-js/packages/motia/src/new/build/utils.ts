@@ -186,9 +186,11 @@ export class Motia {
 
             if (middlewares.length > 0) {
               const composed = composeMiddleware(...middlewares)
-              await composed(motiaRequest, context, async () => {
-                await step.handler(motiaRequest, context as FlowContext<unknown>)
-              })
+              await composed(
+                motiaRequest,
+                context,
+                () => step.handler(motiaRequest, context as FlowContext<unknown>) as Promise<unknown>,
+              )
             } else {
               await step.handler(motiaRequest, context as FlowContext<unknown>)
             }

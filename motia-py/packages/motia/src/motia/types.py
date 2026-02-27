@@ -366,6 +366,50 @@ class ApiStreamRequest(BaseModel, Generic[TBody]):
     request: ApiStreamHttpRequest[TBody]
     response: ApiStreamResponse
 
+    @property
+    def path_params(self) -> dict[str, str]:
+        """Backward-compatible accessor for request.path_params."""
+        return self.request.path_params
+
+    @property
+    def query_params(self) -> dict[str, str | list[str]]:
+        """Backward-compatible accessor for request.query_params."""
+        return self.request.query_params
+
+    @property
+    def body(self) -> TBody | None:
+        """Backward-compatible accessor for request.body."""
+        return self.request.body
+
+    @property
+    def headers(self) -> dict[str, str | list[str]]:
+        """Backward-compatible accessor for request.headers."""
+        return self.request.headers
+
+    @property
+    def method(self) -> str:
+        """Backward-compatible accessor for request.method."""
+        return self.request.method
+
+    @property
+    def request_body(self) -> Any:
+        """Backward-compatible accessor for request.request_body."""
+        return self.request.request_body
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Dict-like access for backward compatibility with handlers expecting dicts."""
+        values: dict[str, Any] = {
+            "request": self.request,
+            "response": self.response,
+            "path_params": self.path_params,
+            "query_params": self.query_params,
+            "body": self.body,
+            "headers": self.headers,
+            "method": self.method,
+            "request_body": self.request_body,
+        }
+        return values.get(key, default)
+
 
 ApiMiddleware = Callable[
     [ApiRequest[Any], FlowContext[Any], Callable[[], Awaitable[ApiResponse[Any]]]],

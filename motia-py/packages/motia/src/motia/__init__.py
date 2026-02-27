@@ -1,5 +1,11 @@
 """Motia framework for III Engine."""
 
+try:
+    from iii import ChannelReader, ChannelWriter
+except ImportError:
+    ChannelReader = None  # type: ignore[assignment,misc]
+    ChannelWriter = None  # type: ignore[assignment,misc]
+
 from . import tracing
 from .guards import (
     get_api_triggers,
@@ -18,12 +24,6 @@ from .guards import (
     is_stream_step,
     is_stream_trigger,
 )
-try:
-    from iii import ChannelReader, ChannelWriter
-except ImportError:
-    ChannelReader = None  # type: ignore[assignment,misc]
-    ChannelWriter = None  # type: ignore[assignment,misc]
-
 from .iii import get_instance, init_iii
 from .loader import generate_step_id
 from .multi_trigger import MultiTriggerStepBuilder, multi_trigger_step

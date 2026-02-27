@@ -1,4 +1,4 @@
-"""Accepts multipart/form-data and streams back random items as SSE."""
+"""Accepts URL-encoded data and streams back random items as SSE."""
 
 import asyncio
 import json
@@ -12,7 +12,7 @@ from motia import ApiStreamRequest, FlowContext, http
 
 config = {
     "name": "SSE Example",
-    "description": "Accepts form-data and streams back random items as SSE",
+    "description": "Accepts URL-encoded data and streams back random items as SSE",
     "flows": ["sse-example"],
     "triggers": [
         http("POST", "/sse"),
@@ -22,7 +22,7 @@ config = {
 
 
 async def handler(args: ApiStreamRequest[Any], ctx: FlowContext[Any]) -> None:
-    """Read form body, then stream random items back as SSE."""
+    """Read URL-encoded body, then stream random items back as SSE."""
     request = args.request
     response = args.response
 
@@ -38,7 +38,7 @@ async def handler(args: ApiStreamRequest[Any], ctx: FlowContext[Any]) -> None:
     raw_chunks: list[str] = []
     async for chunk in request.request_body.stream:
         if isinstance(chunk, bytes):
-            raw_chunks.append(chunk.decode("latin-1"))
+            raw_chunks.append(chunk.decode("utf-8", errors="replace"))
         else:
             raw_chunks.append(str(chunk))
 
