@@ -285,7 +285,7 @@ class Motia:
         index: int,
         metadata: dict[str, Any],
     ) -> None:
-        async def api_handler(req: Any) -> None:
+        async def api_handler(req: Any) -> dict[str, Any] | None:
             with step_span(
                 config.name,
                 "http",
@@ -312,7 +312,12 @@ class Motia:
                         headers = getattr(req, "headers", {})
                         method = getattr(req, "method", "")
 
-                    stream_response = ApiStreamResponse(response_writer)
+                    has_channel_writer = (
+                        response_writer is not None
+                        and not isinstance(response_writer, dict)
+                        and hasattr(response_writer, "send_message_async")
+                    )
+                    stream_response = ApiStreamResponse(response_writer if has_channel_writer else None)
                     http_request: ApiStreamHttpRequest[Any] = ApiStreamHttpRequest(
                         path_params=path_params,
                         query_params=query_params,
@@ -337,24 +342,31 @@ class Motia:
                     else:
                         result = await handler(motia_request, context)
 
+                    if result is not None and hasattr(result, "model_dump"):
+                        result = result.model_dump()
+                        if "status" in result and "status_code" not in result:
+                            result["status_code"] = result.pop("status")
+
                     if result is not None and isinstance(result, dict):
                         status_code = int(result.get("status_code", result.get("status", 200)))
                         headers_out = result.get("headers") or {}
                         body_out = result.get("body")
 
-                        await stream_response.status(status_code)
-                        if headers_out:
-                            await stream_response.headers(headers_out)
-                        if body_out is not None:
-                            payload = (
-                                body_out
-                                if isinstance(body_out, (bytes, bytearray))
-                                else json.dumps(body_out).encode("utf-8")
-                            )
-                            stream_response.writer.stream.write(payload)
-                        stream_response.close()
+                        if has_channel_writer:
+                            await stream_response.status(status_code)
+                            if headers_out:
+                                await stream_response.headers(headers_out)
+                            if body_out is not None and stream_response.writer is not None:
+                                payload = (
+                                    body_out
+                                    if isinstance(body_out, (bytes, bytearray))
+                                    else json.dumps(body_out).encode("utf-8")
+                                )
+                                stream_response.writer.stream.write(payload)
+                            stream_response.close()
 
                     set_span_ok(span)
+                    return result
                 except Exception as exc:
                     record_exception(span, exc)
                     raise

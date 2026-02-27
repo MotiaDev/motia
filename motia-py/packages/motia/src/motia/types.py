@@ -324,25 +324,24 @@ class ApiStreamResponse:
         self._writer = writer
 
     async def status(self, status_code: int) -> None:
-        """Set the HTTP status code."""
         import json
 
-        await self._writer.send_message_async(json.dumps({"type": "set_status", "status_code": status_code}))
+        if self._writer is not None:
+            await self._writer.send_message_async(json.dumps({"type": "set_status", "status_code": status_code}))
 
     async def headers(self, headers: dict[str, str]) -> None:
-        """Set response headers."""
         import json
 
-        await self._writer.send_message_async(json.dumps({"type": "set_headers", "headers": headers}))
+        if self._writer is not None:
+            await self._writer.send_message_async(json.dumps({"type": "set_headers", "headers": headers}))
 
     @property
     def writer(self) -> Any:
-        """Access the underlying ChannelWriter."""
         return self._writer
 
     def close(self) -> None:
-        """Close the response stream."""
-        self._writer.close()
+        if self._writer is not None:
+            self._writer.close()
 
 
 class ApiStreamHttpRequest(BaseModel, Generic[TBody]):
