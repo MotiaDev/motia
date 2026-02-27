@@ -310,22 +310,21 @@ export interface Streams {}
 // biome-ignore lint/suspicious/noEmptyInterface: we need to define this interface to avoid type errors
 export interface Enqueues {}
 
-type InferSchema<T, TFallback = unknown> =
-  T extends TypedJsonSchema<infer O>
-    ? O
-    : T extends ZodInput
-      ? z.infer<T>
-      : T extends { readonly type: string }
-        ? FromSchema<T & { type: any }>
-        : T extends { readonly anyOf: readonly any[] }
-          ? FromSchema<T & { anyOf: any }>
-          : T extends { readonly allOf: readonly any[] }
-            ? FromSchema<T & { allOf: any }>
-            : T extends { readonly oneOf: readonly any[] }
-              ? FromSchema<T & { oneOf: any }>
-              : T extends undefined
-                ? unknown
-                : TFallback
+type InferSchema<T, TFallback = unknown> = T extends TypedJsonSchema<infer O>
+  ? O
+  : T extends ZodInput
+    ? z.infer<T>
+    : T extends { readonly type: string }
+      ? FromSchema<T & { type: any }>
+      : T extends { readonly anyOf: readonly any[] }
+        ? FromSchema<T & { anyOf: any }>
+        : T extends { readonly allOf: readonly any[] }
+          ? FromSchema<T & { allOf: any }>
+          : T extends { readonly oneOf: readonly any[] }
+            ? FromSchema<T & { oneOf: any }>
+            : T extends undefined
+              ? unknown
+              : TFallback
 
 type InferBodySchema<S> = S extends ZodInput ? z.infer<S> : S extends StepSchemaInput ? InferSchema<S> : unknown
 
