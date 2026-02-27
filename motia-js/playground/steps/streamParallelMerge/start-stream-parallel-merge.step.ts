@@ -29,7 +29,7 @@ export const config = {
   flows: ['stream-parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger, enqueue, streams }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue, streams }) => {
   const body = bodySchema.parse(request.body ?? {})
   const { traceId, totalSteps, waitTimeMin, waitTimeMax } = body
 

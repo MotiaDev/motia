@@ -47,12 +47,12 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.0.0",
+    "dotenv": "^16.5.0",
     "esbuild": "^0.27.0",
     "glob": "^13.0.0",
-    "iii-sdk": "^0.3.0",
+    "iii-sdk": "^0.4.0",
     "json-schema-to-ts": "^3.1.1",
     "uuid": "^13.0.0",
-    "dotenv": "^16.5.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
@@ -61,6 +61,7 @@
     "commander": "^14.0.2",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
     "tsdown": "^0.17.0"
   }
 }

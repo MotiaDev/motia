@@ -1,6 +1,7 @@
+// biome-ignore assist/source/organizeImports: needs to be first
 import 'dotenv/config'
 
-export { getContext, Logger } from 'iii-sdk'
+export { getContext, Logger, ChannelReader, ChannelWriter } from 'iii-sdk'
 export type { StreamAuthInput, StreamAuthResult, StreamContext } from 'iii-sdk/stream'
 export * from './guards'
 export { multiTriggerStep } from './multi-trigger'
