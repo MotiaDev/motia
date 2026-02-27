@@ -1,10 +1,10 @@
 import { type Handlers, http, type StepConfig } from 'motia'
 
 export const config = {
-  name: 'FormDataStep',
-  description: 'Accepts multipart/form-data and streams back random items as SSE',
-  flows: ['form-data-step'],
-  triggers: [http('POST', '/form-data')],
+  name: "SSE Example",
+  description: "Accepts form-data and streams back random items as SSE",
+  flows: ["sse-example"],
+  triggers: [http("POST", "/sse")],
   enqueues: [],
 } as const satisfies StepConfig
 

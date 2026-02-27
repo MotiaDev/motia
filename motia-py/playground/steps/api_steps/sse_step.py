@@ -11,11 +11,11 @@ from urllib.parse import unquote
 from motia import ApiStreamRequest, FlowContext, http
 
 config = {
-    "name": "FormDataStep",
-    "description": "Accepts multipart/form-data and streams back random items as SSE",
-    "flows": ["form-data-step"],
+    "name": "SSE Example",
+    "description": "Accepts form-data and streams back random items as SSE",
+    "flows": ["sse-example"],
     "triggers": [
-        http("POST", "/form-data"),
+        http("POST", "/sse"),
     ],
     "enqueues": [],
 }
