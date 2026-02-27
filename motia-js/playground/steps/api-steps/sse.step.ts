@@ -8,8 +8,13 @@ export const config = {
   enqueues: [],
 } as const satisfies StepConfig
 
+const SAFE_HEADERS = ['content-type', 'user-agent', 'accept', 'accept-language', 'content-length', 'x-request-id']
+
 export const handler: Handlers<typeof config> = async ({ request, response }, { logger }) => {
-  logger.info('Data received', { headers: request.headers })
+  const sanitizedHeaders = Object.fromEntries(
+    SAFE_HEADERS.filter((h) => request.headers[h] != null).map((h) => [h, request.headers[h]]),
+  )
+  logger.info('Data received', { headers: sanitizedHeaders })
   response.status(200)
   const sseHeaders = {
     'content-type': 'text/event-stream',
@@ -19,25 +24,17 @@ export const handler: Handlers<typeof config> = async ({ request, response }, { 
   response.headers(sseHeaders)
   logger.info('Headers set', { headers: sseHeaders })
 
-  const responses: string[] = []
+  const chunks: string[] = []
 
   for await (const chunk of request.requestBody.stream) {
-    responses.push(Buffer.from(chunk).toString('binary'))
+    chunks.push(Buffer.from(chunk).toString('utf-8'))
   }
 
+  const body = chunks.join('').trim()
   const parts: Record<string, string> = {}
-
-  responses
-    .filter((s) => typeof s === 'string' && s.trim().length > 0)
-    .forEach((s) => {
-      const pairs = s.split('&')
-      for (const pair of pairs) {
-        const [key, value] = pair.split('=')
-        if (key) {
-          parts[decodeURIComponent(key)] = value ? decodeURIComponent(value) : ''
-        }
-      }
-    })
+  for (const [key, value] of new URLSearchParams(body)) {
+    parts[key] = value
+  }
 
   const items = generateRandomItems(parts)
 

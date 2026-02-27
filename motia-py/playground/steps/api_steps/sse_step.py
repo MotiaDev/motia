@@ -6,7 +6,7 @@ import math
 import random
 import time
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import parse_qsl
 
 from motia import ApiStreamRequest, FlowContext, http
 
@@ -26,7 +26,9 @@ async def handler(args: ApiStreamRequest[Any], ctx: FlowContext[Any]) -> None:
     request = args.request
     response = args.response
 
-    ctx.logger.info("FormData received", {"headers": request.headers})
+    safe_header_keys = ("content-type", "user-agent", "accept", "content-length", "x-request-id")
+    safe_headers = {k: v for k, v in request.headers.items() if k.lower() in safe_header_keys}
+    ctx.logger.info("Data received", {"headers": safe_headers})
 
     await response.status(200)
     await response.headers({
@@ -42,17 +44,8 @@ async def handler(args: ApiStreamRequest[Any], ctx: FlowContext[Any]) -> None:
         else:
             raw_chunks.append(str(chunk))
 
-    parts: dict[str, str] = {}
-    for s in raw_chunks:
-        s = s.strip()
-        if not s:
-            continue
-        for pair in s.split("&"):
-            if "=" in pair:
-                key, value = pair.split("=", 1)
-                parts[unquote(key)] = unquote(value)
-            elif pair:
-                parts[unquote(pair)] = ""
+    payload = "".join(raw_chunks).strip()
+    parts: dict[str, str] = dict(parse_qsl(payload, keep_blank_values=True))
 
     items = _generate_random_items(parts)
 

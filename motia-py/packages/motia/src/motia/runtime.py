@@ -313,7 +313,7 @@ class Motia:
                         method = getattr(req, "method", "")
 
                     stream_response = ApiStreamResponse(response_writer)
-                    http_request = ApiStreamHttpRequest(
+                    http_request: ApiStreamHttpRequest[Any] = ApiStreamHttpRequest(
                         path_params=path_params,
                         query_params=query_params,
                         body=body,
@@ -327,7 +327,15 @@ class Motia:
                     )
 
                     context = _flow_context(self, trigger_info, motia_request)
-                    result = await handler(motia_request, context)
+                    middlewares = trigger.middleware or []
+
+                    if middlewares:
+                        composed = _compose_middleware(middlewares)
+                        result = await composed(
+                            motia_request, context, lambda: handler(motia_request, context)
+                        )
+                    else:
+                        result = await handler(motia_request, context)
 
                     if result is not None and isinstance(result, dict):
                         status_code = int(result.get("status_code", result.get("status", 200)))
