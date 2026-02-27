@@ -55,13 +55,13 @@ curl -fsSL install.iii.dev | sh`}</pre>
           {/* What is iii */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# What is iii
 
-One Engine. Orchestrate, invoke, register, discover, scale, observe — any language, any location, any runtime.
+One Engine. Orchestrate, trigger, register, discover, scale, observe — any language, any location, any runtime.
 
 Three primitives. Infinite compositions.
 
 | Primitive | Role                                                        |
 |-----------|-------------------------------------------------------------|
-| Worker    | External service connected via WebSocket Bridge SDK         |
+| Worker    | External service connected via WebSocket SDK                |
 | Function  | Globally addressable handler — local module or remote worker|
 | Trigger   | Binds external events (HTTP, cron, events, webhooks, AI intents) to function invocations |
 
@@ -78,17 +78,18 @@ Platforms: AWS, Google Cloud, Azure, Cloudflare, Vercel, Fly.io, Docker, Kuberne
           {/* Hello World — Polyglot Code Examples */}
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# Hello World — One Protocol, Any Language
 
-Simply register functions and call them.
+Simply register functions and trigger them.
 The Engine handles serialization, routing, and request-response correlation transparently.
 
 ## Python Worker — ML Inference
 \`\`\`python
-from iii import init
+from iii import III
 import torch
 
-iii = init("ws://localhost:49134")
+iii = III("ws://localhost:49134")
+await iii.connect()
 
-def predict(input: dict) -> dict:
+async def predict(input: dict) -> dict:
     tensor = torch.tensor(input["data"])
     result = model(tensor)
     return {"predictions": result.tolist()}
@@ -98,17 +99,23 @@ iii.register_function("ml::predict", predict)
 
 ## Rust Worker — Data Transform
 \`\`\`rust
-use iii::init;
+use iii_sdk::{III, Value, IIIError};
+use serde_json::json;
 
-fn transform(input: Vec<f64>) -> Vec<f64> {
-    input.iter()
-        .map(|x| x * 2.0)
-        .collect()
+async fn transform(input: Value) -> Result<Value, IIIError> {
+    let nums: Vec<f64> = serde_json::from_value(input)?;
+    let doubled: Vec<f64> = nums.iter().map(|x| x * 2.0).collect();
+    Ok(json!(doubled))
 }
 
-fn main() {
-    let iii = init("ws://localhost:49134");
+#[tokio::main]
+async fn main() -> Result<(), IIIError> {
+    let iii = III::new("ws://localhost:49134");
+    iii.connect().await?;
+
     iii.register_function("data::transform", transform);
+
+    Ok(())
 }
 \`\`\`
 
@@ -136,7 +143,7 @@ const prediction = await iii.trigger(
 
 ### Function Registry
 Maps globally addressable function paths to executable handlers — local modules or remote workers.
-- Unique function paths (e.g., user.create, orders.process)
+- Unique function paths (e.g., user::create, orders::process)
 - Overwrite semantics for updates without caller changes
 - Optional metadata and schema definitions
 - Automatic cleanup on worker disconnect
@@ -182,7 +189,7 @@ Tracks connected workers with bidirectional communication channels and lifecycle
 | Category        | Traditional Tools                         | iii Primitive    |
 |-----------------|-------------------------------------------|------------------|
 | API Frameworks  | Express, Flask, FastAPI, Koa, Hono        | Function + Trigger (api) |
-| Background Jobs | Bull, Celery, Sidekiq, Agenda, Dramatiq   | Function + async invoke  |
+| Background Jobs | Bull, Celery, Sidekiq, Agenda, Dramatiq   | Function + async trigger  |
 | Message Queues  | Redis Pub/Sub, RabbitMQ, Kafka, NATS      | Function + Trigger (event) |
 | Real-time       | Socket.io, Pusher, Ably, Liveblocks       | Streaming        |
 | State & Cache   | Redis, Memcached, DynamoDB                | State            |
@@ -261,7 +268,7 @@ Service meshes require sidecar configuration and complex networking. iii is a si
 Yes. Drop in the SDK, register your routes as functions, and they become part of the distributed architecture immediately. No rewrite required.
 
 ## What about AI agents and LLMs?
-Agent-ready by design. Functions self-describe with schemas. Agents dynamically discover functions and invoke them with autonomous payload construction. No tool definition files needed.
+Agent-ready by design. Functions self-describe with schemas. Agents dynamically discover functions and trigger them with autonomous payload construction. No tool definition files needed.
 
 ## Is iii production-ready?
 The engine is in active development. Join our Discord to get early access, provide feedback, and shape the future of distributed systems.`}</pre>

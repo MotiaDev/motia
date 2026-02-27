@@ -230,11 +230,12 @@ const businessLogicKeywords = [
   "group",
   "aggregate",
 
-  // API/service triggers (the actual work)
+  // API/service calls (the actual work)
   "await ",
   ".await",
   "trigger",
   "execute",
+  "call",
   "request",
   "getuser",
   "createuser",
@@ -279,8 +280,8 @@ const businessLogicKeywords = [
   "emit(",
   "getcontext",
   "registerfunction",
-  "triggervoid",
-  "iii.",
+  "invokefunctionasync",
+  "bridge.",
   "step.",
   "flow.",
 ];
@@ -671,7 +672,6 @@ interface HighlightedCodeBlockProps {
   isDarkMode: boolean;
   language?: string;
   animationPhase: AnimationPhase;
-  showIndicatorsWhenIdle?: boolean;
 }
 
 // Helper to check if a line contains any tool-related import or setup
@@ -736,7 +736,6 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
   isDarkMode,
   language = "typescript",
   animationPhase,
-  showIndicatorsWhenIdle = false,
 }) => {
   const isTraditional = variant === "traditional";
   const isIII = variant === "iii";
@@ -848,7 +847,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
       lowerLine.includes("emit(") ||
       lowerLine.includes("getcontext") ||
       lowerLine.includes("registerfunction") ||
-      lowerLine.includes("triggervoid") ||
+      lowerLine.includes("invokefunctionasync") ||
       (lowerLine.includes("await ") &&
         !lowerLine.includes("connect") &&
         !lowerLine.includes("subscribe")) ||
@@ -886,8 +885,6 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
     isTraditional &&
     (animationPhase === "highlighting" || animationPhase === "moving");
   const shouldShowExtracted = isTraditional && animationPhase === "moving";
-  const showIndicatorsOnIdle =
-    animationPhase === "idle" && showIndicatorsWhenIdle;
 
   // Border styling for iii code block - transforms to dashed accent when outputting
   const getBorderClasses = () => {
@@ -958,7 +955,29 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
       </div>
 
       {/* Code */}
-      <div className="p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] relative">
+      <div
+        className={`p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] relative ${
+          isDarkMode ? "scrollbar-brand-dark" : "scrollbar-brand-light"
+        }`}
+      >
+        {/* Scan line effect during spotlight - constrained to marker area */}
+        {isSpotlight &&
+          revealedLine > 0 &&
+          revealedLine < totalLinesRef.current && (
+            <div
+              className="absolute left-0 w-1 h-1 pointer-events-none z-10"
+              style={{
+                bottom: `${(revealedLine / totalLinesRef.current) * 100}%`,
+                width: "4px",
+                height: "3px",
+                borderRadius: "2px",
+                background: isDarkMode
+                  ? "var(--color-accent)"
+                  : "var(--color-accent-light)",
+              }}
+            />
+          )}
+
         <Highlight
           theme={isDarkMode ? themes.nightOwl : themes.github}
           code={code.trim()}
@@ -976,21 +995,18 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
 
                   // Traditional: during early phases show architecture as alert (red)
                   const showTraditionalHighlight =
-                    (shouldHighlight && isArchLine) ||
-                    (showIndicatorsOnIdle && isTraditional && isArchLine);
+                    shouldHighlight && isArchLine;
                   const extracted = shouldShowExtracted && isArchLine;
 
                   // Calculate if this line has been revealed (bottom to top)
                   const lineFromBottom = totalLines - lineNum + 1;
                   const isRevealed = revealedLine >= lineFromBottom;
 
-                  // Spotlight phase: show markers when revealed; idle (mobile): show all
+                  // Spotlight phase: show markers only when revealed
                   const showArchHighlight =
-                    (isSpotlight && isArchLine && isRevealed) ||
-                    (showIndicatorsOnIdle && isArchLine);
+                    isSpotlight && isArchLine && isRevealed;
                   const showBizHighlight =
-                    (isSpotlight && isBizLine && isRevealed) ||
-                    (showIndicatorsOnIdle && isBizLine);
+                    isSpotlight && isBizLine && isRevealed;
 
                   return (
                     <div
@@ -1010,13 +1026,13 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
                     >
                       {/* Initial push: alert (red) */}
                       {showTraditionalHighlight && (
-                        <span className="absolute left-0 top-0 bottom-0 w-1 sm:w-0.5 rounded-full bg-iii-alert" />
+                        <span className="absolute left-0 top-0 bottom-0 w-0.5 rounded-full bg-iii-alert" />
                       )}
 
                       {/* Spotlight architecture: warn (orange) */}
                       {showArchHighlight && (
                         <span
-                          className={`absolute left-0 top-0 bottom-0 w-1 sm:w-0.5 rounded-full bg-iii-warn ${
+                          className={`absolute left-0 top-0 bottom-0 w-0.5 rounded-full bg-iii-warn ${
                             !scanComplete ? "animate-pulse" : ""
                           }`}
                         />
@@ -1025,7 +1041,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
                       {/* Business logic indicator bar (success/green) */}
                       {showBizHighlight && (
                         <span
-                          className={`absolute left-0 top-0 bottom-0 w-1 sm:w-0.5 rounded-full bg-iii-success ${
+                          className={`absolute left-0 top-0 bottom-0 w-0.5 rounded-full bg-iii-success ${
                             !scanComplete ? "animate-pulse" : ""
                           }`}
                         />
@@ -1153,23 +1169,8 @@ export const DependencyVisualization: React.FC<
     runAnimation();
   };
 
-  const [isSmallScreen, setIsSmallScreen] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 1023px)").matches
-      : false,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1023px)");
-    setIsSmallScreen(mq.matches);
-    const handler = () => setIsSmallScreen(mq.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
   const isLegendVisible =
-    animationPhase === "legendVisible" ||
-    animationPhase === "spotlight" ||
-    (isSmallScreen && animationPhase === "idle");
+    animationPhase === "legendVisible" || animationPhase === "spotlight";
   const isSpotlight = animationPhase === "spotlight";
 
   return (
@@ -1239,7 +1240,6 @@ export const DependencyVisualization: React.FC<
           isDarkMode={isDarkMode}
           language={traditionalLanguage}
           animationPhase="idle"
-          showIndicatorsWhenIdle
         />
         <HighlightedCodeBlock
           code={iiiCode}
@@ -1248,7 +1248,6 @@ export const DependencyVisualization: React.FC<
           isDarkMode={isDarkMode}
           language={iiiLanguage}
           animationPhase="idle"
-          showIndicatorsWhenIdle
         />
       </div>
 

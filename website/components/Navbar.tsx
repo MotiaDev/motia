@@ -10,9 +10,6 @@ import {
   X,
 } from "lucide-react";
 
-// Disabled: logo goes to homepage. Re-enable for 3-click terminal + hover animation.
-const LOGO_TERMINAL_EASTER_EGG = false;
-
 interface NavbarProps {
   isDarkMode: boolean;
   isGodMode?: boolean;
@@ -45,6 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [installCopied, setInstallCopied] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [starCount, setStarCount] = useState<number | null>(null);
   const installCmd = "curl -fsSL install.iii.dev | sh";
 
   useEffect(() => {
@@ -53,6 +51,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    fetch("https://api.github.com/repos/iii-hq/iii")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.stargazers_count) setStarCount(data.stargazers_count);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -90,9 +97,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         }`}
       >
         <div className="flex items-center gap-4">
-          {(window.location.pathname === "/" ||
-            window.location.pathname === "/ai") &&
-          LOGO_TERMINAL_EASTER_EGG ? (
+          {window.location.pathname === "/" ||
+          window.location.pathname === "/ai" ? (
             <div
               className="cursor-pointer"
               onClick={onLogoClick}
@@ -123,7 +129,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               />
             </div>
           ) : (
-            <a href="/" className="cursor-pointer">
+            <a
+              href="/"
+              className="cursor-pointer"
+              onMouseEnter={onLogoMouseEnter}
+              onMouseLeave={onLogoMouseLeave}
+            >
               <Logo
                 className={`transition-all duration-300 ${
                   isScrolled ? "h-5 md:h-7" : "h-6 md:h-10"
@@ -134,6 +145,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ? "text-iii-light"
                       : "text-iii-black"
                 }`}
+                highlightCount={logoClickCount > 0 ? logoClickCount : undefined}
+                highlightIndex={
+                  logoClickCount === 0 ? hoverAnimIndex : undefined
+                }
                 accentColor={
                   isGodMode
                     ? "fill-red-500"
@@ -144,13 +159,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               />
             </a>
           )}
-          {/* <div className="hidden sm:block">
+          <div className="hidden sm:block">
             <ModeToggle
               isHumanMode={isHumanMode}
               onToggle={onToggleMode}
               isDarkMode={isDarkMode}
             />
-          </div> */}
+          </div>
         </div>
 
         {/* Desktop Navigation */}
@@ -161,7 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <button
             onClick={handleInstallClick}
-            className={`hidden flex items-center gap-2 px-3 py-1.5 rounded border transition-all duration-300 font-mono text-xs ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-all duration-300 font-mono text-xs ${
               installCopied
                 ? isDarkMode
                   ? "bg-iii-accent/20 border-iii-accent text-iii-accent"
@@ -185,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
           <a
             href="/manifesto"
-            className={`hidden transition-colors ${
+            className={`transition-colors ${
               isDarkMode
                 ? "hover:text-iii-accent"
                 : "hover:text-iii-accent-light"
@@ -202,6 +217,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             DOCS
+          </a>
+          <a
+            href="https://github.com/iii-hq/iii"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded border transition-all duration-300 text-xs ${
+              isDarkMode
+                ? "border-iii-light text-iii-light hover:bg-iii-light hover:text-iii-black"
+                : "border-iii-dark text-iii-dark hover:bg-iii-dark hover:text-iii-light"
+            }`}
+          >
+            <svg viewBox="0 0 16 16" className="w-4 h-4" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+            {starCount !== null && (
+              <span className="font-mono font-semibold">
+                {starCount.toLocaleString()}
+              </span>
+            )}
           </a>
           <button
             onClick={onToggleTheme}
@@ -222,6 +256,29 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile Navigation Controls */}
         <div className="flex md:hidden items-center gap-2">
+          <a
+            href="https://github.com/iii-hq/iii"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-1 px-2 py-1.5 rounded border transition-all text-[10px] ${
+              isDarkMode
+                ? "border-iii-light/20 text-iii-light/70"
+                : "border-iii-dark/20 text-iii-dark/70"
+            }`}
+          >
+            <svg
+              viewBox="0 0 16 16"
+              className="w-3.5 h-3.5"
+              fill="currentColor"
+            >
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+            {starCount !== null && (
+              <span className="font-mono font-semibold">
+                {starCount.toLocaleString()}
+              </span>
+            )}
+          </a>
           <button
             onClick={onToggleTheme}
             className={`p-2 rounded-full transition-colors ${
@@ -308,6 +365,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 DOCS
+              </a>
+
+              <a
+                href="https://github.com/iii-hq/iii"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={closeMobileMenu}
+                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
+                  isDarkMode
+                    ? "border-iii-light/10 hover:border-iii-light/30 text-iii-light"
+                    : "border-iii-dark/10 hover:border-iii-dark/30 text-iii-black"
+                }`}
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  className="w-4 h-4"
+                  fill="currentColor"
+                >
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                </svg>
+                GitHub
+                {starCount !== null ? ` ${starCount.toLocaleString()}` : ""}
               </a>
 
               <div className="my-4 border-t border-iii-medium/20" />

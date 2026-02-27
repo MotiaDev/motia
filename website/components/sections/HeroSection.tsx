@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Copy, Check, Terminal as TerminalIcon } from "lucide-react";
-import { EmailSignupForm } from "../EmailSignupForm";
+import {
+  ArrowRight,
+  Copy,
+  Check,
+  Terminal as TerminalIcon,
+} from "lucide-react";
 import { useRotatingText } from "../../lib/useRotatingText";
 // AUTHENTIC SVG LOGOS - Official & Community Verified Paths
 // Sources: Official branding pages, vectorlogo.zone, svgl.app, simpleicons.org
@@ -296,22 +300,22 @@ const rotatingContexts = [
   "any location",
   "any runtime",
   "any worker",
-  "any event",
+  "any trigger",
   "any function",
 ];
 
 const features = [
   {
-    text: "Polyglot execution — Languages communicate seamlessly through one universal protocol.",
+    text: "Polyglot execution — any language participates through one universal protocol.",
   },
   {
-    text: "Complete observability — Logs and traces across domains and throughout the application.",
+    text: "Complete observability — logs and traces auto-injected into every invocation.",
   },
   {
-    text: "Self-hosting/BYOC — Connect existing domains and services without lock-in.",
+    text: "Self-hosting/BYOC — connect existing domains and services, full portability.",
   },
   {
-    text: "Shared capabilities — State updates and functions can be shared globally across your stack.",
+    text: "Shared capabilities — State, Streaming, Observability accessible to every function.",
   },
 ];
 
@@ -337,10 +341,33 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
   const [copySuccess, setCopySuccess] = useState(false);
   const [installCmd] = useState("curl -fsSL install.iii.dev | sh");
 
+  // Email form state
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(() => {
+    return localStorage.getItem("iii_access_requested") === "true";
+  });
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(installCmd);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 2000);
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setIsSubmitting(true);
+
+    // Simulate submission - in real app this would call the API
+    setTimeout(() => {
+      setIsSubmitted(true);
+      localStorage.setItem("iii_access_requested", "true");
+      localStorage.setItem("iii_access_email", email);
+      setEmail("");
+      setIsSubmitting(false);
+    }, 500);
   };
 
   return (
@@ -364,43 +391,27 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                   One Engine.
                 </span>
                 <br />
-                <span className="inline-grid">
-                  <span
-                    className="col-start-1 row-start-1 invisible"
-                    aria-hidden="true"
-                  >
-                    orchestrate
-                  </span>
-                  <span
-                    className={`col-start-1 row-start-1 transition-all duration-500 ease-in-out ${
-                      isDarkMode ? "text-iii-light" : "text-iii-black"
-                    } ${
-                      isAnimating
-                        ? "opacity-0 translate-y-5 scale-[0.8]"
-                        : "opacity-100 translate-y-0 scale-100"
-                    }`}
-                  >
-                    {currentWord}
-                  </span>
+                <span
+                  className={`transition-all duration-500 ease-in-out ${
+                    isDarkMode ? "text-iii-light" : "text-iii-black"
+                  } ${
+                    isAnimating
+                      ? "opacity-0 translate-y-5 scale-[0.8]"
+                      : "opacity-100 translate-y-0 scale-100"
+                  }`}
+                >
+                  {currentWord}
                 </span>{" "}
-                <span className="inline-grid">
-                  <span
-                    className="col-start-1 row-start-1 invisible"
-                    aria-hidden="true"
-                  >
-                    any language
-                  </span>
-                  <span
-                    className={`col-start-1 row-start-1 transition-all duration-500 ease-in-out ${
-                      isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-                    } ${
-                      isContextAnimating
-                        ? "opacity-0 -translate-y-3 scale-[0.9]"
-                        : "opacity-100 translate-y-0 scale-100"
-                    }`}
-                  >
-                    {currentContext}
-                  </span>
+                <span
+                  className={`transition-all duration-500 ease-in-out ${
+                    isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
+                  } ${
+                    isContextAnimating
+                      ? "opacity-0 -translate-y-3 scale-[0.9]"
+                      : "opacity-100 translate-y-0 scale-100"
+                  }`}
+                >
+                  {currentContext}
                 </span>
               </h1>
               <p
@@ -410,6 +421,14 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
               >
                 The centralized orchestration runtime for distributed polyglot
                 function execution.
+              </p>
+              <p
+                className={`text-xs md:text-sm tracking-wide max-w-md mx-auto ${
+                  isDarkMode ? "text-iii-medium" : "text-iii-medium"
+                }`}
+              >
+                React simplified frontend with Component and Context. iii does
+                the same for backend.
               </p>
             </div>
 
@@ -450,8 +469,8 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
             </ul>
 
             {/* Install Command & Email Form */}
-            <div className="flex flex-col gap-3 sm:gap-4 md:gap-6 sm:flex-row items-stretch sm:items-start pt-2 md:pt-4 w-full max-w-2xl mx-auto px-2 sm:px-0 justify-center items-center">
-              <div className="flex flex-col gap-1.5 w-full sm:w-auto hidden">
+            <div className="flex flex-col gap-3 sm:gap-4 md:gap-6 sm:flex-row items-stretch sm:items-start pt-2 md:pt-4 w-full max-w-2xl mx-auto px-2 sm:px-0">
+              <div className="flex flex-col gap-1.5 w-full sm:w-auto">
                 <div
                   className={`group relative flex items-center gap-2 px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 border rounded transition-colors cursor-pointer w-full sm:min-w-[220px] md:min-w-[280px] ${
                     isDarkMode
@@ -492,7 +511,59 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                 </div>
               </div>
 
-              <EmailSignupForm isDarkMode={isDarkMode} />
+              <form
+                onSubmit={handleEmailSubmit}
+                className="flex items-center w-full sm:w-auto"
+              >
+                {isSubmitted ? (
+                  <div
+                    className={`flex items-center gap-2 text-xs md:text-sm px-3 py-2.5 md:px-4 md:py-3 border rounded w-full justify-center ${
+                      isDarkMode
+                        ? "text-iii-accent bg-iii-accent/10 border-iii-accent/20"
+                        : "text-iii-accent-light bg-iii-accent-light/10 border-iii-accent-light/20"
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <span className="font-mono tracking-tight text-xs sm:text-sm">
+                      SUBSCRIBED — STAY UPDATED
+                    </span>
+                  </div>
+                ) : (
+                  <div
+                    className={`flex w-full border-b transition-colors relative ${
+                      isDarkMode
+                        ? "border-iii-light focus-within:border-iii-accent"
+                        : "border-iii-dark focus-within:border-iii-accent-light"
+                    }`}
+                  >
+                    <input
+                      type="email"
+                      placeholder="EMAIL_FOR_UPDATES"
+                      className={`bg-transparent outline-none text-xs md:text-sm py-2.5 md:py-3 px-1 w-full sm:w-48 md:w-64 placeholder-iii-medium/50 font-mono ${
+                        isDarkMode ? "text-iii-light" : "text-iii-black"
+                      }`}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className={`absolute right-0 top-1/2 -translate-y-1/2 disabled:opacity-50 transition-colors p-1.5 md:p-2 ${
+                        isDarkMode
+                          ? "text-iii-light hover:text-iii-accent"
+                          : "text-iii-black hover:text-iii-accent-light"
+                      }`}
+                    >
+                      {isSubmitting ? (
+                        "..."
+                      ) : (
+                        <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
+                      )}
+                    </button>
+                  </div>
+                )}
+              </form>
             </div>
 
             {/* Tech logos section */}

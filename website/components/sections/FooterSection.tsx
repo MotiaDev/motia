@@ -86,31 +86,31 @@ const faqItems = [
     id: 1,
     question: "How is iii different from gRPC?",
     answer:
-      "gRPC requires compile-time IDL files and code generation. iii uses runtime protocol-based registration — no compilation needed. Functions become available immediately when workers register them.",
+      "gRPC needs compile-time IDL and codegen. iii uses runtime registration — functions available the moment a worker connects.",
   },
   {
     id: 2,
     question: "How is iii different from a service mesh?",
     answer:
-      "Service meshes require sidecar configuration and complex networking. iii is a single engine binary — workers connect directly via WebSocket, no sidecars needed.",
+      "Service meshes need sidecars and complex networking. iii is one binary — workers connect via WebSocket, nothing else.",
   },
   {
     id: 3,
     question: "Can I use iii with my existing Express/Flask/Spring app?",
     answer:
-      "Yes. Drop in the SDK, register your routes as functions, and they become part of the distributed architecture immediately. No rewrite required.",
+      "Yes. Add the SDK, register routes as functions. They join the distributed architecture instantly. Incremental adoption.",
   },
   {
     id: 4,
     question: "What about AI agents and LLMs?",
     answer:
-      "Agent-ready by design. Functions self-describe with schemas. Agents dynamically discover functions and invoke them with autonomous payload construction. No tool definition files needed.",
+      "Functions self-describe with schemas. Agents discover and trigger them autonomously. Everything is auto-generated.",
   },
   {
     id: 5,
     question: "Is iii production-ready?",
     answer:
-      "The engine is in active development. Join our Discord to get early access, provide feedback, and shape the future of distributed systems.",
+      "Active development. Join Discord for early access and to shape what ships next.",
   },
 ];
 
@@ -151,7 +151,7 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
     >
       <div className="relative z-10">
         {/* Primary CTA Section */}
-        <div className="hidden text-center mb-6 md:mb-8">
+        <div className="text-center mb-6 md:mb-8">
           <div className="mb-4">
             <h3 className={`text-xl md:text-2xl font-bold mb-2 ${textPrimary}`}>
               Get started in seconds
@@ -180,7 +180,7 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
               <Check className={`w-5 h-5 flex-shrink-0 ${accentColor}`} />
             ) : (
               <Copy
-                className={`w-5 h-5 flex-shrink-0 ${textSecondary} ${isDarkMode ? "group-hover:text-iii-accent" : "group-hover:text-iii-accent-light"}`}
+                className={`w-5 h-5 flex-shrink-0 transition-all ${textSecondary} ${isDarkMode ? "group-hover:text-iii-accent group-hover:drop-shadow-[0_0_6px_rgba(243,247,36,0.4)]" : "group-hover:text-iii-accent-light group-hover:drop-shadow-[0_0_6px_rgba(47,127,255,0.4)]"}`}
               />
             )}
           </button>
@@ -230,22 +230,24 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
         </div>
 
         {/* FAQ + Discord Row */}
-        <div className="hidden grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
           {/* Collapsible FAQ */}
           <div className="lg:col-span-2">
-            <h4 className={`text-sm font-bold mb-4 ${accentColor}`}>
-              Frequently Asked Questions
+            <h4
+              className={`text-xs font-semibold uppercase tracking-wider mb-4 ${accentColor}`}
+            >
+              FAQ
             </h4>
             <div className="space-y-2">
               {faqItems.map((item) => (
                 <div
                   key={item.id}
                   className={`
-                    rounded-xl border-2 transition-all duration-300 overflow-hidden
+                    rounded-xl transition-all duration-300 overflow-hidden
                     ${
                       openFaqId === item.id
-                        ? `${accentBorder} ${isDarkMode ? "bg-iii-accent/5" : "bg-iii-accent-light/5"}`
-                        : `${borderColor} ${bgCard}`
+                        ? `border-2 ${accentBorder} ${isDarkMode ? "bg-iii-accent/5" : "bg-iii-accent-light/5"}`
+                        : `border ${borderColor} ${bgCard} hover:pl-5`
                     }
                   `}
                 >
@@ -253,7 +255,7 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
                     onClick={() =>
                       setOpenFaqId(openFaqId === item.id ? null : item.id)
                     }
-                    className="w-full text-left p-4 flex items-center gap-3"
+                    className="w-full text-left px-4 py-3 flex items-center gap-3"
                   >
                     <span
                       className={`text-xs font-bold ${openFaqId === item.id ? accentColor : textSecondary}`}
@@ -279,7 +281,7 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
                   `}
                   >
                     <p
-                      className={`px-4 pb-4 pl-8 sm:pl-12 text-xs leading-relaxed ${textSecondary}`}
+                      className={`px-4 pb-3 pl-8 sm:pl-12 text-xs leading-relaxed ${textSecondary}`}
                     >
                       {item.answer}
                     </p>
@@ -394,11 +396,7 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
               <ArrowRight className="w-3 h-3" />
             </button>
 
-            <div className={`mt-4 pt-4 border-t ${borderColor}`}>
-              <p className={`text-xs ${textSecondary}`}>
-                Get help, share projects, and stay updated on new features.
-              </p>
-            </div>
+            <div className={`mt-4 pt-4 border-t ${borderColor}`} />
           </div>
         </div>
 
@@ -410,10 +408,13 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
               <Logo
                 className={`h-4 ${isDarkMode ? "text-iii-light" : "text-iii-black"}`}
               />
+              <span className={`text-sm font-bold ${textPrimary}`}>
+                Interoperable Invocation Interface
+              </span>
             </div>
 
             {/* Copyright */}
-            <div className={`hidden text-xs ${textSecondary}`}>© Motia LLC</div>
+            <div className={`text-xs ${textSecondary}`}>© Motia LLC</div>
           </div>
         </div>
       </div>

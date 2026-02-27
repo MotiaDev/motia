@@ -1,21 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Logo } from "./components/Logo";
 import { Terminal } from "./components/Terminal";
-import { GridBackground } from "./components/GridBackground";
-import { VisualArrow } from "./components/VisualArrow";
-import { FeatureBento } from "./components/FeatureBento";
-import { StackVisual } from "./components/StackVisual";
-import { CodeComparison } from "./components/CodeComparison";
 import { ExampleCodeSection } from "./components/sections/ExampleCodeSection";
 import { HeroSection } from "./components/sections/HeroSection";
 import { HelloWorldSection } from "./components/sections/HelloWorldSection";
 import { EngineSection } from "./components/sections/EngineSection";
 import { AgentReadySection } from "./components/sections/AgentReadySection";
 import { FooterSection } from "./components/sections/FooterSection";
-import { TechLogos } from "./components/TechLogos";
-import { Features } from "./components/Features";
-import { ValueProps } from "./components/ValuePropsRedesigned";
-// FractureAnimation removed - using StackVisual only
 import { ModeToggle } from "./components/ModeToggle";
 import { Navbar } from "./components/Navbar";
 import { MachineView } from "./components/MachineView";
@@ -30,6 +20,8 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+const MAILMODO_ENDPOINT =
+  "MAILMODO_URL_REDACTED";
 
 const AppRouter: React.FC = () => {
   const pathname = window.location.pathname;
@@ -47,6 +39,8 @@ const AppRouter: React.FC = () => {
 const App: React.FC = () => {
   const [showTerminal, setShowTerminal] = useState(false);
   const [isGodMode, setIsGodMode] = useState(false);
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(() => {
     // Check localStorage on initial load
     return localStorage.getItem("iii_access_requested") === "true";
@@ -69,6 +63,11 @@ const App: React.FC = () => {
   const [isHumanMode, setIsHumanMode] = useState(() => {
     return window.location.pathname !== "/ai";
   });
+
+  useEffect(() => {
+    document.body.classList.toggle("dark-mode", isDarkMode);
+    document.body.classList.toggle("light-mode", !isDarkMode);
+  }, [isDarkMode]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -157,6 +156,35 @@ const App: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch(MAILMODO_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      if (res.ok || res.status === 409) {
+        setIsSubmitted(true);
+        localStorage.setItem("iii_access_requested", "true");
+        localStorage.setItem("iii_access_email", email);
+        setEmail("");
+      }
+    } catch {
+      setIsSubmitted(true);
+      localStorage.setItem("iii_access_requested", "true");
+      localStorage.setItem("iii_access_email", email);
+      setEmail("");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Machine mode - raw markdown/text dump for AI consumption
   // Easter eggs still work: Konami code, terminal access
   if (!isHumanMode) {
@@ -232,9 +260,9 @@ const App: React.FC = () => {
         </div>
 
         {/* Section 3: Architecture (formerly Engine) - Trigger → Function → Workers */}
-        {/* <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
           <EngineSection isDarkMode={isDarkMode} />
-        </div> */}
+        </div>
 
         {/* Section 4: Triggers as Universal Adapters - Code Examples */}
         <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
@@ -242,9 +270,9 @@ const App: React.FC = () => {
         </div>
 
         {/* Section 5: Agent-Ready - AI agents as first-class citizens */}
-        {/* <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
           <AgentReadySection isDarkMode={isDarkMode} />
-        </div> */}
+        </div>
 
         {/* Section 7: Footer + CTA - FAQ, Discord, Links */}
         <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">

@@ -29,27 +29,32 @@ const pythonCode = `from iii import III
 import torch
 
 iii = III("ws://localhost:49134")
+await iii.connect()
 
-def predict(input: dict) -> dict:
+async def predict(input: dict) -> dict:
     tensor = torch.tensor(input["data"])
     result = model(tensor)
     return {"predictions": result.tolist()}
 
 iii.register_function("ml::predict", predict)`;
 
-const rustCode = `use iii_sdk::III;
+const rustCode = `use iii_sdk::{III, Value, IIIError};
 use serde_json::json;
 
+async fn transform(input: Value) -> Result<Value, IIIError> {
+    let nums: Vec<f64> = serde_json::from_value(input)?;
+    let doubled: Vec<f64> = nums.iter().map(|x| x * 2.0).collect();
+    Ok(json!(doubled))
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), IIIError> {
     let iii = III::new("ws://localhost:49134");
     iii.connect().await?;
 
-    iii.register_function("data::transform", |input| async move {
-        Ok(json!({ "result": input }))
-    });
+    iii.register_function("data::transform", transform);
 
-    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+    Ok(())
 }`;
 
 const nodeCode = `import { init } from "iii-sdk";
@@ -218,7 +223,7 @@ export function HelloWorldSection({
                       getTokenProps,
                     }) => (
                       <pre
-                        className={`text-[11px] md:text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap break-words p-5 h-full ${className}`}
+                        className={`text-[11px] md:text-xs leading-relaxed overflow-x-auto whitespace-pre p-5 h-full ${className}`}
                         style={{
                           ...style,
                           background: "transparent",
@@ -245,14 +250,21 @@ export function HelloWorldSection({
         <div className="mt-8 md:mt-12 text-center">
           <div
             className={`
-            inline-flex items-center gap-3 px-5 py-3 rounded-xl
+            inline-flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl
             ${isDarkMode ? "bg-iii-dark/40" : "bg-white/60"}
-            border ${borderColor}
+            border ${borderColor} max-w-[90vw]
           `}
           >
-            <div className={`w-2 h-2 rounded-full ${accentBg} animate-pulse`} />
-            <span className={`text-xs md:text-sm ${textSecondary}`}>
-              <span className={accentColor}>Inter-process communication</span>{" "}
+            <div
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${accentBg} animate-pulse`}
+            />
+            <span
+              className={`text-[11px] sm:text-xs md:text-sm ${textSecondary} text-left`}
+            >
+              <span className={accentColor}>IPC</span>{" "}
+              <span className="hidden sm:inline">
+                <span className={accentColor}>Inter-process communication</span>{" "}
+              </span>
               across languages, domains, and systems
             </span>
           </div>

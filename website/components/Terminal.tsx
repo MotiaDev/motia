@@ -56,15 +56,19 @@ export const Terminal: React.FC<TerminalProps> = ({
       await new Promise((r) => setTimeout(r, 200));
       addLog("Initializing modules...", "info");
       await new Promise((r) => setTimeout(r, 150));
-      addLog("  ✓ RestApiModule listening on 127.0.0.1:3111", "success");
+      addLog("  ✓ HttpModule listening on 127.0.0.1:3111", "success");
       await new Promise((r) => setTimeout(r, 150));
-      addLog("  ✓ StreamModule listening on 127.0.0.1:31112", "success");
+      addLog("  ✓ StreamModule listening on 127.0.0.1:3112", "success");
+      await new Promise((r) => setTimeout(r, 150));
+      addLog("  ✓ StateModule", "success");
       await new Promise((r) => setTimeout(r, 150));
       addLog("  ✓ QueueModule (Redis-backed)", "success");
       await new Promise((r) => setTimeout(r, 150));
+      addLog("  ✓ PubSubModule", "success");
+      await new Promise((r) => setTimeout(r, 150));
       addLog("  ✓ CronModule (Redis-backed)", "success");
       await new Promise((r) => setTimeout(r, 150));
-      addLog("  ✓ LoggingModule", "success");
+      addLog("  ✓ OtelModule", "success");
       await new Promise((r) => setTimeout(r, 300));
       addLog("WebSocket server listening on ws://127.0.0.1:49134", "warning");
       await new Promise((r) => setTimeout(r, 200));
@@ -108,7 +112,7 @@ export const Terminal: React.FC<TerminalProps> = ({
           "register",
         );
         addLog(
-          "  triggers    - Trigger types (api, event, cron)",
+          "  triggers    - Trigger types (http, queue, cron, subscribe)",
           "info",
           "triggers",
         );
@@ -189,7 +193,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         );
         addLog("", "info");
         addLog("Install specific version:", "warning");
-        addLog("curl -fsSL [...]/install.sh | sh -s -- v0.2.1", "info");
+        addLog("curl -fsSL [...]/install.sh | sh -s -- v0.6.3", "info");
         addLog("", "info");
         addLog("Custom install directory:", "warning");
         addLog("BIN_DIR=/usr/local/bin curl -fsSL [url] | sh", "info");
@@ -207,20 +211,18 @@ export const Terminal: React.FC<TerminalProps> = ({
           "info",
         );
         addLog("", "info");
-        addLog("2. Start Redis (required for events & cron):", "warning");
+        addLog("2. Start Redis (optional, for queue & cron):", "warning");
         addLog("   docker run -d -p 6379:6379 redis:alpine", "info");
         addLog("", "info");
         addLog("3. Run the engine:", "warning");
-        addLog("   iii --config config.yaml", "success");
+        addLog("   iii --config iii-config.yaml", "success");
         addLog("", "info");
         addLog("4. Connect a worker (Node.js):", "warning");
         addLog("   npm install iii-sdk", "info");
-        addLog(
-          '   const { registerFunction, call } = init("ws://127.0.0.1:49134")',
-          "success",
-        );
+        addLog('   const iii = init("ws://127.0.0.1:49134")', "success");
+        addLog('   iii.registerFunction({ id: "my::fn" }, handler)', "success");
         addLog("", "info");
-        addLog("Read the docs at docs.iii.dev", "warning");
+        addLog("Read the docs at iii.dev/docs", "warning");
         break;
 
       case "status":
@@ -231,28 +233,31 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("Workers:         0 connected", "info");
         addLog("", "info");
         addLog("Active Modules:", "warning");
-        addLog("  ✓ RestApiModule (port 3111)", "success");
-        addLog("  ✓ StreamModule (port 31112)", "success");
+        addLog("  ✓ HttpModule (port 3111)", "success");
+        addLog("  ✓ StreamModule (port 3112)", "success");
+        addLog("  ✓ StateModule", "success");
         addLog("  ✓ QueueModule (Redis)", "success");
+        addLog("  ✓ PubSubModule", "success");
         addLog("  ✓ CronModule (Redis)", "success");
-        addLog("  ✓ LoggingModule", "success");
+        addLog("  ✓ OtelModule", "success");
         addLog("", "info");
         addLog("Triggers:        0 registered", "info");
         addLog("Functions:       0 registered", "info");
-        addLog("Version:         v0.0.0-dev", "warning");
+        addLog("Version:         v0.6.3", "warning");
         break;
 
       case "version":
         addLog("═══ VERSION INFO ═══", "system");
         addLog("", "info");
-        addLog("Engine:     v0.0.0 (development)", "warning");
+        addLog("Engine:     v0.6.3", "warning");
+        addLog("SDK:        v0.3.0", "info");
         addLog("Edition:    Rust 2024", "info");
         addLog("Protocol:   WebSocket + JSON", "info");
         addLog("", "info");
         addLog("Check version:", "warning");
         addLog("  iii --version", "success");
         addLog("", "info");
-        addLog("GitHub: github.com/MotiaDev/iii-engine", "info");
+        addLog("GitHub: github.com/iii-hq/iii", "info");
         break;
 
       case "ports":
@@ -260,49 +265,53 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("Worker WebSocket:", "warning");
         addLog("  ws://127.0.0.1:49134", "success");
-        addLog("  (Workers connect here via Bridge SDK)", "info");
+        addLog("  (Workers connect here via SDK)", "info");
         addLog("", "info");
-        addLog("REST API Module:", "warning");
+        addLog("HTTP API Module:", "warning");
         addLog("  http://127.0.0.1:3111", "success");
         addLog("  (HTTP triggers and endpoints)", "info");
         addLog("", "info");
         addLog("Stream Module:", "warning");
-        addLog("  ws://127.0.0.1:31112", "success");
+        addLog("  ws://127.0.0.1:3112", "success");
         addLog("  (Real-time subscriptions)", "info");
         addLog("", "info");
-        addLog("Redis:", "warning");
+        addLog("Prometheus Metrics:", "warning");
+        addLog("  http://127.0.0.1:9464", "success");
+        addLog("  (OTel metrics endpoint)", "info");
+        addLog("", "info");
+        addLog("Redis (optional):", "warning");
         addLog("  redis://localhost:6379", "success");
-        addLog("  (Event, Cron, optional Streams/Logging)", "info");
+        addLog("  (Queue and Cron modules)", "info");
         addLog("", "info");
         addLog("Ports are configurable in config.yaml", "warning");
         break;
 
       case "sdk":
-        addLog("═══ BRIDGE SDK ═══", "system");
+        addLog("═══ SDK ═══", "system");
         addLog("", "info");
         addLog("Install:", "warning");
         addLog("  npm install iii-sdk", "success");
-        addLog("  pip install iii-py", "success");
+        addLog("  pip install iii-sdk", "success");
+        addLog("  cargo add iii-sdk", "success");
         addLog("", "info");
         addLog("Node.js/TypeScript:", "warning");
-        addLog("", "info");
         addLog('import { init } from "iii-sdk";', "success");
+        addLog('const iii = init("ws://127.0.0.1:49134");', "success");
         addLog("", "info");
-        addLog(
-          'const { registerFunction } = init("ws://127.0.0.1:49134");',
-          "success",
-        );
-        addLog("", "info");
-        addLog("registerFunction({", "success");
+        addLog("iii.registerFunction({", "success");
         addLog('  id: "math::add"', "success");
         addLog("}, async (input) => {", "success");
         addLog("  return { sum: input.a + input.b };", "success");
         addLog("});", "success");
         addLog("", "info");
         addLog("Python:", "warning");
+        addLog("from iii import III", "success");
+        addLog('iii = III("ws://127.0.0.1:49134")', "success");
+        addLog("await iii.connect()", "success");
         addLog("", "info");
-        addLog("from iii import init", "success");
-        addLog('iii = init("ws://127.0.0.1:49134")', "success");
+        addLog("Rust:", "warning");
+        addLog('let iii = III::new("ws://127.0.0.1:49134");', "success");
+        addLog("iii.connect().await?;", "success");
         addLog("", "info");
         addLog('See "register" and "triggers" for more examples', "info");
         break;
@@ -312,7 +321,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("Register a function:", "warning");
         addLog("", "info");
-        addLog("registerFunction({", "success");
+        addLog("iii.registerFunction({", "success");
         addLog('  id: "api::echo"', "success");
         addLog("}, async (req) => {", "success");
         addLog("  return {", "success");
@@ -332,11 +341,11 @@ export const Terminal: React.FC<TerminalProps> = ({
       case "triggers":
         addLog("═══ TRIGGER TYPES ═══", "system");
         addLog("", "info");
-        addLog("API Trigger (HTTP endpoints):", "warning");
+        addLog("HTTP Trigger (endpoints):", "warning");
         addLog("", "info");
-        addLog("registerTrigger({", "success");
-        addLog('  type: "api",', "success");
-        addLog('  functionId: "api::echo",', "success");
+        addLog("iii.registerTrigger({", "success");
+        addLog('  type: "http",', "success");
+        addLog('  function_id: "api::echo",', "success");
         addLog("  config: {", "success");
         addLog('    api_path: "echo",', "success");
         addLog('    http_method: "POST"', "success");
@@ -345,15 +354,25 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("→ http://127.0.0.1:3111/echo", "info");
         addLog("", "info");
-        addLog("Queue Trigger (pub/sub):", "warning");
+        addLog("Queue Trigger (background jobs):", "warning");
         addLog('  type: "queue"', "info");
-        addLog('  config: { event_name: "user.created" }', "info");
+        addLog('  config: { topic: "user.created" }', "info");
+        addLog("", "info");
+        addLog("Subscribe Trigger (pub/sub events):", "warning");
+        addLog('  type: "subscribe"', "info");
+        addLog('  config: { topic: "order.placed" }', "info");
         addLog("", "info");
         addLog("Cron Trigger (scheduled):", "warning");
         addLog('  type: "cron"', "info");
         addLog('  config: { schedule: "0 0 * * *" }', "info");
         addLog("", "info");
-        addLog("All triggers require Redis", "warning");
+        addLog("State Trigger (on state change):", "warning");
+        addLog('  type: "state"', "info");
+        addLog('  config: { scope: "users", key: "*" }', "info");
+        addLog("", "info");
+        addLog("Stream Trigger (on stream update):", "warning");
+        addLog('  type: "stream"', "info");
+        addLog('  config: { stream_name: "cursors" }', "info");
         break;
 
       case "protocol":
@@ -362,17 +381,20 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("Message types (JSON over WebSocket):", "warning");
         addLog("", "info");
         addLog("Worker → Engine:", "warning");
-        addLog("  registerfunction", "success");
-        addLog("  registertrigger", "success");
-        addLog("  unregistertrigger", "success");
-        addLog("  invocationresult", "success");
-        addLog("  pong", "success");
+        addLog("  RegisterFunction", "success");
+        addLog("  UnregisterFunction", "success");
+        addLog("  RegisterTrigger", "success");
+        addLog("  UnregisterTrigger", "success");
+        addLog("  RegisterService", "success");
+        addLog("  InvocationResult", "success");
+        addLog("  Pong", "success");
         addLog("", "info");
         addLog("Engine → Worker:", "warning");
-        addLog("  invokefunction", "success");
-        addLog("  triggerregistrationresult", "success");
-        addLog("  functionsavailable", "success");
-        addLog("  ping", "success");
+        addLog("  WorkerRegistered", "success");
+        addLog("  InvokeFunction", "success");
+        addLog("  TriggerRegistrationResult", "success");
+        addLog("  FunctionsAvailable", "success");
+        addLog("  Ping", "success");
         addLog("", "info");
         addLog("Invocations can be fire-and-forget", "warning");
         addLog("by omitting invocation_id", "info");
@@ -387,9 +409,9 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("  ws://127.0.0.1:49134", "success");
         addLog("", "info");
         addLog("Supported languages:", "warning");
-        addLog("  ✓ Node.js / TypeScript (iii-sdk)", "success");
-        addLog("  ✓ Python (iii-py)", "success");
-        addLog("  ○ Rust (coming soon)", "info");
+        addLog("  ✓ Node.js / TypeScript (npm: iii-sdk)", "success");
+        addLog("  ✓ Python (pip: iii-sdk)", "success");
+        addLog("  ✓ Rust (cargo: iii-sdk)", "success");
         addLog("", "info");
         addLog("Worker lifecycle:", "warning");
         addLog("  1. Connect to engine", "info");
@@ -406,25 +428,24 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("═══ REDIS INTEGRATION ═══", "system");
         addLog("", "info");
         addLog("Required for:", "warning");
-        addLog("  ✓ QueueModule (pub/sub)", "success");
+        addLog("  ✓ QueueModule (background jobs)", "success");
         addLog("  ✓ CronModule (scheduled tasks)", "success");
         addLog("  ○ StreamModule (optional, can use file/memory)", "info");
-        addLog("  ○ LoggingModule (optional)", "info");
         addLog("", "info");
         addLog("Default connection:", "warning");
         addLog("  redis://localhost:6379", "success");
         addLog("", "info");
-        addLog("Configure in config.yaml:", "warning");
+        addLog("Configure in iii-config.yaml:", "warning");
         addLog("", "info");
-        addLog("- class: modules::event::EventModule", "success");
+        addLog("- class: modules::queue::QueueModule", "success");
         addLog("  config:", "success");
         addLog("    adapter:", "success");
-        addLog("      class: modules::event::RedisAdapter", "success");
+        addLog("      class: modules::queue::RedisAdapter", "success");
         addLog("      config:", "success");
         addLog("        redis_url: redis://localhost:6379", "success");
         addLog("", "info");
         addLog("Alternative: Run without Redis", "warning");
-        addLog("by disabling Event/Cron modules", "info");
+        addLog("by disabling Queue/Cron modules", "info");
         break;
 
       case "arch":
@@ -440,10 +461,10 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("┌─────────────────┐", "info");
         addLog("│ CORE MODULES    │", "info");
         addLog("├─────────────────┤", "info");
-        addLog("│ • REST API      │", "success");
-        addLog("│ • Streams       │", "success");
-        addLog("│ • Cron          │", "success");
-        addLog("│ • Exec/Logging  │", "success");
+        addLog("│ • HTTP / Stream │", "success");
+        addLog("│ • State / Queue │", "success");
+        addLog("│ • PubSub / Cron │", "success");
+        addLog("│ • OTel / Shell  │", "success");
         addLog("└───────┬─────────┘", "info");
         addLog("        │", "info");
         addLog("        ▼", "info");
@@ -455,7 +476,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("        ▼", "info");
         addLog("┌─────────────────┐", "success");
         addLog("│ WORKERS         │", "success");
-        addLog("│ Node│Python│Rust│ ← Via Bridge", "success");
+        addLog("│ Node│Python│Rust│ ← Via SDK", "success");
         addLog("└─────────────────┘", "success");
         addLog("", "info");
         addLog("Flow: Engine → Modules → Adapters → Workers", "warning");
@@ -465,26 +486,34 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("═══ CORE MODULES ═══", "system");
         addLog("All modules built with Rust", "warning");
         addLog("", "info");
-        addLog("modules::api::RestApiModule", "success");
+        addLog("modules::api::RestApiModule (HTTP)", "success");
         addLog("  • HTTP triggers on host:port", "info");
         addLog("  • Default: 127.0.0.1:3111", "info");
         addLog("", "info");
-        addLog("modules::streams::StreamModule", "success");
-        addLog("  • Stream WebSocket API", "info");
-        addLog("  • Default: 127.0.0.1:31112", "info");
-        addLog("  • Redis or file/memory backed", "info");
+        addLog("modules::stream::StreamModule", "success");
+        addLog("  • Real-time state sync over WebSocket", "info");
+        addLog("  • Default: 127.0.0.1:3112", "info");
+        addLog("  • File/memory or Redis backed", "info");
+        addLog("", "info");
+        addLog("modules::state::StateModule", "success");
+        addLog("  • Key-value state with triggers", "info");
+        addLog("  • state::set, state::get, state::delete", "info");
         addLog("", "info");
         addLog("modules::queue::QueueModule", "success");
-        addLog("  • Redis-backed queue bus", "info");
-        addLog("  • Queue trigger + enqueue function", "info");
+        addLog("  • Redis-backed background jobs", "info");
+        addLog("  • Queue trigger + queue::enqueue", "info");
+        addLog("", "info");
+        addLog("modules::pubsub::PubSubModule", "success");
+        addLog("  • Pub/sub event distribution", "info");
+        addLog("  • Subscribe trigger + publish", "info");
         addLog("", "info");
         addLog("modules::cron::CronModule", "success");
         addLog("  • Cron-based scheduling", "info");
         addLog("  • Redis-backed distributed locks", "info");
         addLog("", "info");
-        addLog("modules::observability::LoggingModule", "success");
-        addLog("  • logger.info/warn/error functions", "info");
-        addLog("  • Redis or file-backed", "info");
+        addLog("modules::observability::OtelModule", "success");
+        addLog("  • OpenTelemetry traces, metrics, logs", "info");
+        addLog("  • Prometheus metrics on :9464", "info");
         addLog("", "info");
         addLog("modules::shell::ExecModule", "success");
         addLog("  • File watcher + command execution", "info");
@@ -497,9 +526,9 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("═══ ADAPTER ECOSYSTEM ═══", "system");
         addLog("", "info");
         addLog("StreamModule adapters:", "warning");
-        addLog("  • modules::streams::adapters::KvStore", "success");
+        addLog("  • modules::stream::adapters::KvStore", "success");
         addLog("    (file_based or in_memory)", "info");
-        addLog("  • modules::streams::adapters::RedisAdapter", "success");
+        addLog("  • modules::stream::adapters::RedisAdapter", "success");
         addLog("", "info");
         addLog("QueueModule adapters:", "warning");
         addLog("  • modules::queue::RedisAdapter", "success");
@@ -507,18 +536,14 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("CronModule adapters:", "warning");
         addLog("  • modules::cron::RedisCronAdapter", "success");
         addLog("", "info");
-        addLog("LoggingModule adapters:", "warning");
-        addLog("  • modules::observability::adapters::RedisLogger", "success");
-        addLog("  • modules::observability::adapters::FileLogger", "success");
-        addLog("", "info");
-        addLog("RestApiModule:", "warning");
+        addLog("HttpModule:", "warning");
         addLog("  • Direct HTTP (no adapter needed)", "success");
         addLog("", "info");
         addLog('Configure in config.yaml (type "config")', "warning");
         break;
 
       case "config":
-        addLog("═══ CONFIGURATION (config.yaml) ═══", "system");
+        addLog("═══ CONFIGURATION (iii-config.yaml) ═══", "system");
         addLog("", "info");
         addLog("modules:", "success");
         addLog("  - class: modules::api::RestApiModule", "success");
@@ -526,11 +551,11 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("      port: 3111", "success");
         addLog("      host: 127.0.0.1", "success");
         addLog("", "info");
-        addLog("  - class: modules::streams::StreamModule", "success");
+        addLog("  - class: modules::stream::StreamModule", "success");
         addLog("    config:", "success");
-        addLog("      port: 31112", "success");
+        addLog("      port: 3112", "success");
         addLog("      adapter:", "success");
-        addLog("        class: modules::streams::adapters::KvStore", "success");
+        addLog("        class: modules::stream::adapters::KvStore", "success");
         addLog("        config:", "success");
         addLog("          store_method: file_based", "success");
         addLog("", "info");
@@ -546,40 +571,37 @@ export const Terminal: React.FC<TerminalProps> = ({
         break;
 
       case "bridge":
-        addLog("═══ BRIDGE SDK ═══", "system");
+        addLog("═══ SDK ═══", "system");
         addLog("", "info");
         addLog("// TypeScript Example", "warning");
         addLog("", "info");
         addLog('import { init } from "iii-sdk";', "success");
         addLog("", "info");
-        addLog(
-          'const { registerFunction, registerTrigger } = init("ws://localhost:49134");',
-          "success",
-        );
+        addLog('const iii = init("ws://localhost:49134");', "success");
         addLog("", "info");
-        addLog("registerFunction({", "success");
+        addLog("iii.registerFunction({", "success");
         addLog('  id: "myService::greet",', "success");
         addLog("}, async (input) => {", "success");
         addLog("  return { message: `Hello, ${input.name}!` };", "success");
         addLog("});", "success");
         addLog("", "info");
-        addLog("registerTrigger({", "success");
-        addLog('  type: "api",', "success");
-        addLog('  functionId: "myService::greet",', "success");
+        addLog("iii.registerTrigger({", "success");
+        addLog('  type: "http",', "success");
+        addLog('  function_id: "myService::greet",', "success");
         addLog(
           '  config: { api_path: "/greet", http_method: "POST" }',
           "success",
         );
         addLog("});", "success");
         addLog("", "info");
-        addLog("Available SDKs: iii-sdk (TS), iii-py", "warning");
+        addLog("All SDKs: iii-sdk (npm, pip, cargo)", "warning");
         break;
 
-      case "invoke":
-        addLog("═══ INVOKE ═══", "system");
+      case "trigger":
+        addLog("═══ TRIGGER ═══", "system");
         addLog("", "info");
         addLog("// Synchronous invocation (wait for result)", "warning");
-        addLog("const result = await call(", "success");
+        addLog("const result = await iii.trigger(", "success");
         addLog('  "userService::getProfile",', "success");
         addLog('  { userId: "123" }', "success");
         addLog(");", "success");
@@ -590,7 +612,10 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog('  { email: "user@example.com" }', "success");
         addLog(");", "success");
         addLog("", "info");
-        addLog("Functions can call OTHER functions across workers!", "success");
+        addLog(
+          "Functions can trigger OTHER functions across workers!",
+          "success",
+        );
         addLog("Node.JS worker → Python worker? No problem.", "warning");
         break;
 
@@ -630,9 +655,16 @@ export const Terminal: React.FC<TerminalProps> = ({
           "  ├────────────────┼────────────────────────────────────┤",
           "info",
         );
-        addLog("  │ TypeScript/JS  │ npm install iii-sdk        │", "success");
         addLog(
-          "  │ Python         │ pip install iii-py                 │",
+          "  │ TypeScript/JS  │ npm install iii-sdk                │",
+          "success",
+        );
+        addLog(
+          "  │ Python         │ pip install iii-sdk                │",
+          "success",
+        );
+        addLog(
+          "  │ Rust           │ cargo add iii-sdk                  │",
           "success",
         );
         addLog(
@@ -640,15 +672,11 @@ export const Terminal: React.FC<TerminalProps> = ({
           "warning",
         );
         addLog(
-          "  │ Rust           │ cargo add iii-rs                   │",
-          "success",
-        );
-        addLog(
           "  └────────────────┴────────────────────────────────────┘",
           "info",
         );
         addLog("", "info");
-        addLog("A TypeScript worker can invoke a Python function.", "success");
+        addLog("A TypeScript worker can trigger a Python function.", "success");
         addLog("A Go service can trigger a Rust handler.", "success");
         addLog("", "info");
         addLog("The engine doesn't care. It just orchestrates.", "warning");
@@ -665,7 +693,10 @@ export const Terminal: React.FC<TerminalProps> = ({
         );
         addLog("     from the last checkpoint, not from scratch.", "info");
         addLog("", "info");
-        addLog("  2. HISTORY: Every function call is logged. Debug", "success");
+        addLog(
+          "  2. HISTORY: Every function invocation is logged. Debug",
+          "success",
+        );
         addLog("     any failure by replaying the exact sequence.", "info");
         addLog("", "info");
         addLog(
@@ -889,7 +920,10 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("KEY REGISTRIES (Arc<RwLock>):", "warning");
         addLog("  • WorkerRegistry - Connected workers", "info");
         addLog("  • FunctionsRegistry - Registered capabilities", "info");
-        addLog("  • TriggerRegistry - Event/Cron/API mappings", "info");
+        addLog(
+          "  • TriggerRegistry - HTTP/Queue/Cron/Subscribe/State/Stream",
+          "info",
+        );
         addLog("", "info");
         addLog("RUST BENEFITS:", "success");
         addLog("  • Memory efficient - no GC pauses", "info");
@@ -932,7 +966,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("  • Local Server: Poke → Boot → Connect", "info");
         addLog("  • Autoscaling: Poke → Cloud decides how", "info");
         addLog("", "info");
-        addLog("Bridge decides lifecycle, NOT Engine.", "warning");
+        addLog("SDK decides lifecycle, NOT Engine.", "warning");
         break;
 
       case "builtins":
@@ -947,23 +981,31 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("HOST FUNCTIONS (registered by modules):", "warning");
         addLog("", "info");
-        addLog("enqueue", "success");
-        addLog("  Publish to global queue bus", "info");
-        addLog("  Backed by QueueModule adapter", "info");
+        addLog("state::set / state::get / state::delete", "success");
+        addLog("  Key-value state management", "info");
+        addLog("  state::update, state::list, state::list_groups", "info");
         addLog("", "info");
-        addLog("logger.info/warn/error", "success");
-        addLog("  Centralized logging with trace context", "info");
-        addLog("  Backed by LoggingModule adapter", "info");
-        addLog("", "info");
-        addLog("streams.get/set/delete/getGroup", "success");
+        addLog("stream::set / stream::get / stream::delete", "success");
         addLog("  Real-time state with WebSocket sync", "info");
-        addLog("  Backed by StreamModule adapter", "info");
+        addLog("  stream::list, stream::update, stream::send", "info");
         addLog("", "info");
-        addLog("state.get/set/delete", "success");
-        addLog("  Key-value storage (no real-time sync)", "info");
-        addLog("  Backed by StateModule adapter", "info");
+        addLog("queue::enqueue", "success");
+        addLog("  Enqueue background job (Redis-backed)", "info");
         addLog("", "info");
-        addLog("These are invokable via call()", "warning");
+        addLog("publish", "success");
+        addLog("  Distribute event to all subscribers", "info");
+        addLog("  iii.triggerVoid('publish', { topic, data })", "info");
+        addLog("", "info");
+        addLog("engine::functions::list", "success");
+        addLog("  List all registered functions", "info");
+        addLog("", "info");
+        addLog("engine::workers::list", "success");
+        addLog("  List all connected workers", "info");
+        addLog("", "info");
+        addLog(
+          "All invokable via iii.trigger() / iii.triggerVoid()",
+          "warning",
+        );
         break;
 
       case "roadmap":
@@ -1025,7 +1067,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("TRIGGER REGISTRY (Arc<RwLock<HashMap>>):", "warning");
         addLog("  • Maps: (type, id) -> Trigger struct", "info");
         addLog(
-          "  • Types: api, cron, queue, streams:join, streams:leave",
+          "  • Types: http, queue, subscribe, cron, state, stream",
           "info",
         );
         addLog("  • Active triggers: 0", "info");
@@ -1064,7 +1106,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("  • WebSocket frame overhead (~12 bytes/msg)", "info");
         addLog("", "info");
         addLog("CONCURRENCY:", "success");
-        addLog("  • REST API: 1024 concurrent requests (default)", "info");
+        addLog("  • HTTP API: 1024 concurrent requests (default)", "info");
         addLog("  • Workers: Unlimited (bounded by system)", "info");
         addLog("  • Tokio tasks scale to CPU cores", "info");
         break;
@@ -1089,10 +1131,13 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("  • worker_id: UUID of connected worker", "info");
         addLog("  • function_id: Function being invoked", "info");
         addLog("  • invocation_id: Unique invocation UUID", "info");
-        addLog("  • trigger_type: api/cron/queue", "info");
+        addLog(
+          "  • trigger_type: http/queue/cron/subscribe/state/stream",
+          "info",
+        );
         addLog("", "info");
-        addLog("OBSERVABILITY MODULE:", "warning");
-        addLog("  • Adapters: FileLogger, RedisLogger", "info");
+        addLog("OTEL MODULE:", "warning");
+        addLog("  • OpenTelemetry traces, metrics, logs", "info");
         addLog("  • Structured logs with serde_json", "info");
         addLog("  • Request ID propagation across workers", "info");
         addLog("", "info");
@@ -1136,7 +1181,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("MEMORY STATS (SIMULATED):", "warning");
         addLog("  • Heap allocated: ~12.4 MB", "info");
         addLog("  • Stack size: 2 MB (Tokio default)", "info");
-        addLog("  • Open sockets: 3 (WS, REST API, Streams)", "info");
+        addLog("  • Open sockets: 3 (WS, HTTP API, Streams)", "info");
         addLog("  • Redis connections: 2 (events, cron)", "info");
         addLog("", "info");
         addLog("THREAD MODEL:", "warning");
@@ -1239,14 +1284,14 @@ export const Terminal: React.FC<TerminalProps> = ({
             {isGodMode ? (
               <>
                 <span className="hidden sm:inline">
-                  ROOT_ACCESS // ENGINE_CORE v0.1.0
+                  ROOT_ACCESS // ENGINE_CORE v0.6.3
                 </span>
                 <span className="sm:hidden">ROOT_ACCESS</span>
               </>
             ) : (
               <>
                 <span className="hidden sm:inline">
-                  iii_engine_debug_console v0.1.0-alpha
+                  iii_engine_debug_console v0.6.3
                 </span>
                 <span className="sm:hidden">iii_debug_console</span>
               </>

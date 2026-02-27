@@ -68,6 +68,11 @@ body {
   --color-warn: #f3943d;
   --color-alert: #e52e61;
   --color-success: #1ce669;
+
+  /* Scrollbar colors (Light Default) — blue accent */
+  --scrollbar-track: var(--color-light);
+  --scrollbar-thumb: var(--color-accent-light);
+  --scrollbar-thumb-hover: var(--color-accent-light);
 }
 
 /* Dark mode colors */
@@ -81,6 +86,11 @@ body {
   --grid-line-color: rgba(255, 255, 255, 0.04);
   --arrow-light-color: #555555;
   --arrow-highlight-color: #666666;
+
+  /* Scrollbar colors (Dark) — yellow accent */
+  --scrollbar-track: var(--color-black);
+  --scrollbar-thumb: var(--color-accent);
+  --scrollbar-thumb-hover: var(--color-accent);
 }
 
 /* Apply to body based on isDarkMode */
@@ -94,6 +104,11 @@ body.dark-mode {
   --grid-line-color: rgba(255, 255, 255, 0.04);
   --arrow-light-color: #555555;
   --arrow-highlight-color: #666666;
+
+  /* Scrollbar colors (Dark) — yellow accent */
+  --scrollbar-track: var(--color-black);
+  --scrollbar-thumb: var(--color-accent);
+  --scrollbar-thumb-hover: var(--color-accent);
 }
 
 body.light-mode {
@@ -106,6 +121,30 @@ body.light-mode {
   --grid-line-color: rgba(0, 0, 0, 0.06);
   --arrow-light-color: #cccccc;
   --arrow-highlight-color: #aaaaaa;
+
+  /* Scrollbar colors (Light) — blue accent */
+  --scrollbar-track: var(--color-light);
+  --scrollbar-thumb: var(--color-accent-light);
+  --scrollbar-thumb-hover: var(--color-accent-light);
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* CRT Effect for Terminal */
@@ -137,6 +176,56 @@ body.light-mode {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Brand scrollbar for dark mode (yellow accent) */
+.scrollbar-brand-dark {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-accent) var(--color-black);
+}
+
+.scrollbar-brand-dark::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-brand-dark::-webkit-scrollbar-track {
+  background: var(--color-dark);
+  border-radius: 3px;
+}
+
+.scrollbar-brand-dark::-webkit-scrollbar-thumb {
+  background: var(--color-accent);
+  border-radius: 3px;
+}
+
+.scrollbar-brand-dark::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* Brand scrollbar for light mode (blue accent) */
+.scrollbar-brand-light {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-accent-light) var(--color-light);
+}
+
+.scrollbar-brand-light::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-brand-light::-webkit-scrollbar-track {
+  background: #e8e8e8;
+  border-radius: 3px;
+}
+
+.scrollbar-brand-light::-webkit-scrollbar-thumb {
+  background: var(--color-accent-light);
+  border-radius: 3px;
+}
+
+.scrollbar-brand-light::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-light);
 }
 
 /* Energy flow animations for dependency connection lines */
@@ -313,6 +402,25 @@ body.light-mode {
   100% {
     stroke-dashoffset: 24;
   }
+}
+
+/* Category switch animation for code examples */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-slide-in { animation: fadeSlideIn 200ms ease-out; }
+
+/* Three Primitives - sequential card highlight */
+@keyframes primitiveHighlight {
+  0%, 100% { border-color: rgba(243, 247, 36, 0.1); }
+  50% { border-color: rgba(243, 247, 36, 0.5); }
+}
+
+/* Stat counter entrance */
+@keyframes statCount {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Legend item pulse animation */

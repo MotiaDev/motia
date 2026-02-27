@@ -5,22 +5,23 @@ import { codeExamples } from "./CodeExamples";
 import { DependencyVisualization } from "./DependencyVisualization";
 
 // Categories showing what iii Engine replaces and enables
-const categories = [
-  // Infrastructure it replaces
-  { id: "api", label: "API Frameworks" },
-  { id: "jobs", label: "Background Jobs" },
-  { id: "events", label: "Message Queues" },
-  { id: "realtime", label: "Real-time" },
-  { id: "state", label: "State & Cache" },
-  { id: "cron", label: "Scheduled Tasks" },
+const replaceCategories = [
+  { id: "api", label: "API" },
+  { id: "jobs", label: "Jobs" },
+  { id: "events", label: "Queues" },
+  { id: "realtime", label: "Realtime" },
+  { id: "state", label: "State" },
+  { id: "cron", label: "Cron" },
   { id: "logging", label: "Observability" },
   { id: "workflow", label: "Workflows" },
-  // Platforms it enables
+];
+
+const enableCategories = [
   { id: "ai-agents", label: "AI Agents" },
   { id: "feature-flags", label: "Feature Flags" },
-  { id: "multiplayer", label: "Multiplayer Games" },
-  { id: "etl", label: "ETL Pipelines" },
-  { id: "reactive", label: "Reactive Backend" },
+  { id: "multiplayer", label: "Multiplayer" },
+  { id: "etl", label: "ETL" },
+  { id: "reactive", label: "Reactive" },
 ];
 
 interface ToolBadgeProps {
@@ -178,7 +179,9 @@ function CodeBlock({
 
       {/* Code */}
       <div
-        className="p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px]"
+        className={`p-2 sm:p-3 md:p-4 overflow-auto flex-1 max-h-[400px] sm:max-h-[500px] ${
+          isDarkMode ? "scrollbar-brand-dark" : "scrollbar-brand-light"
+        }`}
       >
         <Highlight
           theme={isDarkMode ? themes.nightOwl : themes.github}
@@ -434,46 +437,84 @@ export function ExampleCodeSection({
         </div>
 
         {/* Category Pills */}
-        <div className="mb-4 md:mb-6">
-          <div className="flex overflow-x-auto scrollbar-hide pb-2 justify-center">
-            <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center px-2">
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => setActiveCategory(category.id)}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all whitespace-nowrap font-medium ${
-                    activeCategory === category.id
-                      ? isDarkMode
-                        ? "bg-iii-accent text-iii-black border-2 border-iii-accent"
-                        : "bg-iii-accent-light text-iii-light border-2 border-iii-accent-light"
-                      : isDarkMode
-                        ? "text-iii-light/70 hover:text-iii-light hover:bg-iii-dark/50 border-2 border-iii-light"
-                        : "text-iii-medium hover:text-iii-black hover:bg-iii-medium/10 border-2 border-iii-dark"
-                  }`}
-                >
-                  {category.label}
-                </button>
-              ))}
+        <div className="mb-4 md:mb-6 space-y-3">
+          <div>
+            <div
+              className={`text-[10px] uppercase tracking-widest mb-2 text-center ${isDarkMode ? "text-iii-light/40" : "text-iii-black/40"}`}
+            >
+              Replaces
+            </div>
+            <div className="flex overflow-x-auto scrollbar-hide pb-1 justify-center">
+              <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center px-2">
+                {replaceCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all whitespace-nowrap font-medium ${
+                      activeCategory === category.id
+                        ? isDarkMode
+                          ? "bg-iii-accent text-iii-black border border-iii-accent"
+                          : "bg-iii-accent-light text-iii-light border border-iii-accent-light"
+                        : isDarkMode
+                          ? "text-iii-light/50 hover:text-iii-light hover:bg-iii-dark/50 border border-iii-light/30"
+                          : "text-iii-medium/60 hover:text-iii-black hover:bg-iii-medium/10 border border-iii-dark/30"
+                    }`}
+                  >
+                    {category.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div
+              className={`text-[10px] uppercase tracking-widest mb-2 text-center ${isDarkMode ? "text-iii-light/40" : "text-iii-black/40"}`}
+            >
+              Enables
+            </div>
+            <div className="flex overflow-x-auto scrollbar-hide pb-1 justify-center">
+              <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center px-2">
+                {enableCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all whitespace-nowrap font-medium ${
+                      activeCategory === category.id
+                        ? isDarkMode
+                          ? "bg-iii-accent text-iii-black border border-iii-accent"
+                          : "bg-iii-accent-light text-iii-light border border-iii-accent-light"
+                        : isDarkMode
+                          ? "text-iii-light/50 hover:text-iii-light hover:bg-iii-dark/50 border border-iii-light/30"
+                          : "text-iii-medium/60 hover:text-iii-black hover:bg-iii-medium/10 border border-iii-dark/30"
+                    }`}
+                  >
+                    {category.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Description */}
-        {/* {currentExample && (
-          <div className="min-h-[2.5rem] sm:min-h-[3rem] md:min-h-[4rem] mb-6 md:mb-8 max-w-2xl mx-auto flex items-center justify-center px-2">
+        {currentExample && (
+          <div className="mb-6 md:mb-8 max-w-2xl mx-auto flex items-center justify-center px-2">
             <p
               className={`text-center text-[11px] sm:text-xs md:text-sm leading-5 sm:leading-6 ${
-                isDarkMode ? "text-iii-light/70" : "text-iii-medium"
+                isDarkMode ? "text-iii-light/50" : "text-iii-medium/70"
               }`}
             >
               {currentExample.description}
             </p>
           </div>
-        )} */}
+        )}
 
         {/* Code comparison with dependency visualization */}
         {currentExample && (
-          <div className="lg:max-w-[95%] lg:mx-auto">
+          <div
+            key={activeCategory}
+            className="animate-fade-slide-in lg:max-w-[95%] lg:mx-auto"
+          >
             <DependencyVisualization
               traditionalCode={currentExample.traditional.code}
               traditionalTitle={currentExample.traditional.title}
