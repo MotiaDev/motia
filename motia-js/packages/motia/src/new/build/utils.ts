@@ -62,7 +62,6 @@ const composeMiddleware = <TRequestBody = unknown, TEnqueueData = never, TResult
       (nextHandler, middleware) => () => middleware(req, ctx, nextHandler),
       handler,
     )
-
     return composedHandler()
   }
 }
