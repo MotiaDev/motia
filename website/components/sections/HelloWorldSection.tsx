@@ -38,19 +38,21 @@ async def predict(input: dict) -> dict:
 
 iii.register_function("ml::predict", predict)`;
 
-const rustCode = `use iii_sdk::III;
+const rustCode = `use iii_sdk::{III, Value, IIIError};
 use serde_json::json;
 
+async fn transform(input: Value) -> Result<Value, IIIError> {
+    let nums: Vec<f64> = serde_json::from_value(input)?;
+    let doubled: Vec<f64> = nums.iter().map(|x| x * 2.0).collect();
+    Ok(json!(doubled))
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), IIIError> {
     let iii = III::new("ws://localhost:49134");
     iii.connect().await?;
 
-    iii.register_function("data::transform", |input| async move {
-        let nums: Vec<f64> = serde_json::from_value(input)?;
-        let doubled: Vec<f64> = nums.iter().map(|x| x * 2.0).collect();
-        Ok(json!(doubled))
-    });
+    iii.register_function("data::transform", transform);
 
     Ok(())
 }`;
