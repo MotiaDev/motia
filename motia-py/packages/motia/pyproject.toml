@@ -21,7 +21,7 @@ classifiers = [
 
 
 dependencies = [
-    "iii-sdk>=0.3.0",
+    "iii-sdk @ git+https://github.com/iii-hq/sdk.git@main#subdirectory=packages/python/iii",
     "pydantic>=2.0",
     "python-dotenv>=1.0",
     "tomli>=2.0; python_version < \"3.11\"",

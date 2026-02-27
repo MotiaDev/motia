@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "motia[otel]",
-    "iii-sdk>=0.3.0",
+    "iii-sdk @ git+https://github.com/iii-hq/sdk.git@main#subdirectory=packages/python/iii",
     "pydantic>=2.0",
 ]
 

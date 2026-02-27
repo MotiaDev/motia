@@ -279,14 +279,10 @@ wheels = [
 [[package]]
 name = "iii-sdk"
 version = "0.3.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/iii-hq/sdk.git?subdirectory=packages%2Fpython%2Fiii&rev=main#22c64053e839afb20489f02e15ab3444c6377777" }
 dependencies = [
     { name = "pydantic" },
     { name = "websockets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2f/ad/19e4c2db7dffa90e9b54281e29c07e2a9fa14c486925cf5f35244df8e63d/iii_sdk-0.3.0.tar.gz", hash = "sha256:44f1ce3ba4b194741885fcdb1525176bff9d164381885f980e48843f4ad98fcd", size = 66491, upload-time = "2026-02-24T21:40:16.067Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/21/e9e5541a2e66e5c6032a306b3f9622da60abb7276ce260e0cefa2a09d4b5/iii_sdk-0.3.0-py3-none-any.whl", hash = "sha256:f1e24c2febf382d9675b4bdcfdab61376362ce2edafc6c70ec1124ef15e19984", size = 26310, upload-time = "2026-02-24T21:40:15.041Z" },
 ]
 
 [[package]]
@@ -397,7 +393,7 @@ wheels = [
 
 [[package]]
 name = "motia"
-version = "1.0.0rc25"
+version = "1.0.0rc26"
 source = { editable = "." }
 dependencies = [
     { name = "iii-sdk" },
@@ -426,7 +422,7 @@ otel = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
-    { name = "iii-sdk", specifier = ">=0.3.0" },
+    { name = "iii-sdk", git = "https://github.com/iii-hq/sdk.git?subdirectory=packages%2Fpython%2Fiii&rev=main" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "opentelemetry-api", marker = "extra == 'dev'", specifier = ">=1.20" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.20" },
