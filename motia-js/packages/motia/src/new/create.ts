@@ -82,9 +82,7 @@ async function fetchRepoTree(): Promise<RepoTreeEntry[]> {
   const prefix = `${TEMPLATE_PREFIX}/`
   return data.tree.filter(
     (entry) =>
-      entry.type === 'blob' &&
-      entry.path.startsWith(prefix) &&
-      !SKIP_FILES.has(entry.path.split('/').pop() ?? ''),
+      entry.type === 'blob' && entry.path.startsWith(prefix) && !SKIP_FILES.has(entry.path.split('/').pop() ?? ''),
   )
 }
 
