@@ -366,7 +366,9 @@ class Motia:
                             stream_response.close()
 
                     set_span_ok(span)
-                    return result
+                    if isinstance(result, dict):
+                        return result
+                    return None
                 except Exception as exc:
                     record_exception(span, exc)
                     raise

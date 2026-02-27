@@ -370,8 +370,8 @@ async def test_data_channels_worker_to_worker(bridge, api_url):
         records = input_data.get("records", []) if isinstance(input_data, dict) else getattr(input_data, "records", [])
         channel = await bridge.create_channel()
         payload = json.dumps(records).encode("utf-8")
-        channel.writer.stream.write(payload)
-        channel.writer.close()
+        await channel.writer.write(payload)
+        await channel.writer.close_async()
 
         result = await bridge.call(
             processor_id,

@@ -3,8 +3,8 @@
 try:
     from iii import ChannelReader, ChannelWriter
 except ImportError:
-    ChannelReader = None  # type: ignore[assignment,misc]
-    ChannelWriter = None  # type: ignore[assignment,misc]
+    ChannelReader = None
+    ChannelWriter = None
 
 from . import tracing
 from .guards import (
