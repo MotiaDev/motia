@@ -46,20 +46,41 @@ type CronTriggerConfig = TriggerConfigBase & {
   expression: string
 }
 
-const composeMiddleware = <TRequestBody = unknown, TEnqueueData = never, TResponseBody = unknown>(
-  ...middlewares: ApiMiddleware<TRequestBody, TEnqueueData, TResponseBody>[]
+const wrapMiddlewareForEngine = (
+  mw: ApiMiddleware,
+  motiaInstance: Motia,
+  triggerInfo: TriggerInfo,
 ) => {
-  return async (
-    req: MotiaApiRequest<TRequestBody>,
-    ctx: FlowContext<TEnqueueData, MotiaApiRequest<TRequestBody>>,
-    handler: () => Promise<MotiaApiResponse<number, TResponseBody>>,
-  ): Promise<MotiaApiResponse<number, TResponseBody>> => {
-    const composedHandler = middlewares.reduceRight<() => Promise<MotiaApiResponse<number, TResponseBody>>>(
-      (nextHandler, middleware) => () => middleware(req, ctx, nextHandler),
-      handler,
-    )
+  return async (engineReq: Record<string, unknown>) => {
+    const req = engineReq.request as Record<string, unknown>
+    const motiaRequest: MotiaApiRequest<unknown> = {
+      pathParams: (req.path_params as Record<string, string>) || {},
+      queryParams: (req.query_params as Record<string, string | string[]>) || {},
+      body: req.body,
+      headers: (req.headers as Record<string, string | string[]>) || {},
+    }
+    const ctx = flowContext(motiaInstance, triggerInfo, motiaRequest)
 
-    return composedHandler()
+    let nextCalled = false
+    const next = async (): Promise<MotiaApiResponse> => {
+      nextCalled = true
+      return { status: 200, body: null }
+    }
+
+    const result = await mw(motiaRequest, ctx, next)
+
+    if (!nextCalled) {
+      return {
+        action: 'respond',
+        response: {
+          status_code: result.status,
+          headers: result.headers,
+          body: result.body,
+        },
+      }
+    }
+
+    return { action: 'continue' }
   }
 }
 
@@ -172,15 +193,8 @@ export class Motia {
               headers: req.headers || {},
             }
             const context = flowContext(this, triggerInfo, motiaRequest)
-            const middlewares = Array.isArray(trigger?.middleware) ? trigger.middleware : []
-
-            const composedMiddleware = composeMiddleware(...middlewares)
-            const handlerFn = async (): Promise<MotiaApiResponse> => {
-              const result = await step.handler(motiaRequest, context as FlowContext<unknown>)
-              return result || { status: 200, body: null }
-            }
-            const response: MotiaApiResponse = await composedMiddleware(motiaRequest, context, handlerFn)
-
+            const response: MotiaApiResponse =
+              (await step.handler(motiaRequest, context as FlowContext<unknown>)) || { status: 200, body: null }
             return {
               status_code: response.status,
               headers: response.headers,
@@ -188,6 +202,25 @@ export class Motia {
             }
           },
         )
+
+        const middlewares = Array.isArray(trigger?.middleware) ? trigger.middleware : []
+        middlewares.forEach((mw, i) => {
+          const mwFunctionId = `${function_id}::middleware::${i}`
+          const mwTriggerInfo: TriggerInfo = { type: 'http', index }
+
+          getInstance().registerFunction(
+            { id: mwFunctionId },
+            wrapMiddlewareForEngine(mw, this, mwTriggerInfo),
+          )
+
+          getInstance().registerMiddleware({
+            middlewareId: mwFunctionId,
+            phase: 'preHandler',
+            scope: { path: trigger.path },
+            priority: 100 - i,
+            functionId: mwFunctionId,
+          })
+        })
 
         const apiPath = trigger.path.startsWith('/') ? trigger.path.substring(1) : trigger.path
         const triggerConfig: ApiTriggerConfig = {

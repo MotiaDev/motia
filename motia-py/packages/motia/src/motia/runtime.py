@@ -7,6 +7,7 @@ import uuid
 from typing import Any, Awaitable, Callable
 
 from iii import get_context
+from iii import MiddlewareScope, RegisterMiddlewareInput
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
@@ -36,28 +37,43 @@ log = logging.getLogger("motia.runtime")
 CONDITION_PATH_KEY = "_condition_path"
 
 
-def _compose_middleware(
-    middlewares: list[Callable[..., Any]],
+def _wrap_middleware_for_engine(
+    mw: Callable[..., Any],
+    motia_instance: "Motia",
+    trigger_info: TriggerInfo,
 ) -> Callable[..., Any]:
-    """Compose multiple middlewares into a single middleware."""
+    async def engine_handler(engine_req: dict[str, Any]) -> dict[str, Any]:
+        req = engine_req.get("request", {})
+        motia_request: ApiRequest[Any] = ApiRequest(
+            path_params=req.get("path_params", {}),
+            query_params=req.get("query_params", {}),
+            body=req.get("body"),
+            headers=req.get("headers", {}),
+        )
+        context = _flow_context(motia_instance, trigger_info, motia_request)
 
-    async def composed(req: Any, ctx: Any, handler: Callable[..., Any]) -> Any:
-        composed_handler = handler
-        for middleware in reversed(middlewares):
+        next_called = False
 
-            def make_next(
-                m: Callable[..., Any] = middleware,
-                p: Callable[..., Any] = composed_handler,
-            ) -> Callable[..., Any]:
-                async def next_handler() -> Any:
-                    return await m(req, ctx, p)
+        async def next_fn() -> ApiResponse[Any]:
+            nonlocal next_called
+            next_called = True
+            return ApiResponse(status=200, body=None)
 
-                return next_handler
+        result = await mw(motia_request, context, next_fn)
 
-            composed_handler = make_next()
-        return await composed_handler()
+        if not next_called:
+            return {
+                "action": "respond",
+                "response": {
+                    "status_code": result.status,
+                    "headers": result.headers,
+                    "body": result.body,
+                },
+            }
 
-    return composed
+        return {"action": "continue"}
+
+    return engine_handler
 
 
 def _jsonable_value(value: Any) -> tuple[bool, Any | None]:
@@ -304,15 +320,10 @@ class Motia:
                         )
 
                     context = _flow_context(self, trigger_info, motia_request)
-                    middlewares = trigger.middleware or []
-
-                    if middlewares:
-                        composed = _compose_middleware(middlewares)
-                        response: ApiResponse[Any] = await composed(
-                            motia_request, context, lambda: handler(motia_request, context)
-                        )
-                    else:
-                        response = await handler(motia_request, context)
+                    raw_response = await handler(motia_request, context)
+                    response: ApiResponse[Any] = (
+                        raw_response if raw_response is not None else ApiResponse(status=200, body=None)
+                    )
 
                     set_span_ok(span)
                     return {
@@ -339,6 +350,28 @@ class Motia:
             trigger_config[CONDITION_PATH_KEY] = condition_path
 
         get_instance().register_trigger("http", function_id, trigger_config)
+
+        middlewares = trigger.middleware or []
+        for i, mw in enumerate(middlewares):
+            mw_function_id = f"{function_id}::middleware::{i}"
+            mw_trigger_info = TriggerInfo(
+                type="http", index=index, method=trigger.method, path=trigger.path
+            )
+
+            get_instance().register_function(
+                mw_function_id,
+                _wrap_middleware_for_engine(mw, self, mw_trigger_info),
+            )
+
+            get_instance().register_middleware(
+                RegisterMiddlewareInput(
+                    middleware_id=mw_function_id,
+                    phase="preHandler",
+                    scope=MiddlewareScope(path=trigger.path) if trigger.path else None,
+                    priority=100 - i,
+                    function_id=mw_function_id,
+                )
+            )
 
     def _register_queue_trigger(
         self,
