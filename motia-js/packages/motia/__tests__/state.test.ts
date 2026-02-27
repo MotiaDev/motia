@@ -20,13 +20,13 @@ describe('StateManager', () => {
     expect(mockCall).toHaveBeenCalledWith('state::get', { scope: 'scope1', key: 'key1' })
   })
 
-  it('set() calls state::set with scope, key, data', async () => {
+  it('set() calls state::set with scope, key, value', async () => {
     mockCall.mockResolvedValue(null)
     await manager.set('scope1', 'key1', { name: 'test' })
     expect(mockCall).toHaveBeenCalledWith('state::set', {
       scope: 'scope1',
       key: 'key1',
-      data: { name: 'test' },
+      value: { name: 'test' },
     })
   })
 

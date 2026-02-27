@@ -27,14 +27,14 @@ class StateManager:
                 record_exception(span, exc)
                 raise
 
-    async def set(self, scope: str, key: str, data: Any) -> Any:
+    async def set(self, scope: str, key: str, value: Any) -> Any:
         """Set a value in the state."""
         with operation_span(
             "state::set",
             **{"motia.state.scope": scope, "motia.state.key": key},
         ) as span:
             try:
-                result = await get_instance().call("state::set", {"scope": scope, "key": key, "data": data})
+                result = await get_instance().call("state::set", {"scope": scope, "key": key, "value": value})
                 set_span_ok(span)
                 return result
             except Exception as exc:
