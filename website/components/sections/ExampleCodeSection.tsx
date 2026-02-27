@@ -7,7 +7,7 @@ import { DependencyVisualization } from "./DependencyVisualization";
 // Categories showing what iii Engine replaces and enables
 const replaceCategories = [
   { id: "api", label: "API" },
-  { id: "jobs", label: "Jobs" },
+  { id: "jobs", label: "Background Jobs" },
   { id: "events", label: "Queues" },
   { id: "realtime", label: "Realtime" },
   { id: "state", label: "State" },
