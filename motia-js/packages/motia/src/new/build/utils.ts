@@ -188,7 +188,7 @@ export class Motia {
 
             if (middlewares.length > 0) {
               const composed = composeMiddleware(...middlewares)
-              
+
               return composed(
                 motiaRequest,
                 context,
