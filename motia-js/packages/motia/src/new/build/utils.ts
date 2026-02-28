@@ -169,7 +169,7 @@ export class Motia {
       if (isApiTrigger(trigger)) {
         getInstance().registerFunction(
           { id: function_id, metadata },
-          iiiHttp(async (req: IIIHttpRequest, res: IIIHttpResponse): Promise<void | ApiResponse> => {
+          iiiHttp(async (req: IIIHttpRequest, res: IIIHttpResponse): Promise<undefined | ApiResponse> => {
             const triggerInfo: TriggerInfo = { type: 'http', index }
             const motiaRequest: MotiaHttpArgs<unknown> = {
               request: {
