@@ -164,11 +164,11 @@ export type InfrastructureConfig = {
 
 export type ApiRouteMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
-export type ApiMiddleware<TBody = unknown, TEnqueueData = never, TResult = unknown> = (
+export type ApiMiddleware<TBody = unknown, TEnqueueData = never> = (
   req: MotiaHttpArgs<TBody>,
   ctx: FlowContext<TEnqueueData, MotiaHttpArgs<TBody>>,
-  next: () => Promise<TResult>,
-) => Promise<TResult>
+  next: () => Promise<ApiResponse | void>,
+) => Promise<ApiResponse | void>
 
 export interface QueryParam {
   name: string
@@ -208,7 +208,7 @@ export type ApiTrigger<TSchema extends StepSchemaInput | undefined = any> = {
   responseSchema?: Record<number, StepSchemaInput>
   queryParams?: readonly QueryParam[]
   // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
-  middleware?: readonly ApiMiddleware<any, any, any>[]
+  middleware?: readonly ApiMiddleware<any, any>[]
   condition?: TriggerCondition<TSchema extends ZodInput ? z.infer<TSchema> : unknown>
 }
 
@@ -232,7 +232,7 @@ export type StepConfig = {
   includeFiles?: readonly string[]
 }
 
-export type ApiStreamResponse = {
+export type MotiaHttpResponse = {
   status: (statusCode: number) => void
   headers: (headers: Record<string, string>) => void
   stream: NodeJS.WritableStream
@@ -246,7 +246,7 @@ export interface ApiRequest<TBody = unknown> {
   headers: Record<string, string | string[]>
 }
 
-export interface ApiStreamHttpRequest<TBody = unknown> {
+export interface MotiaHttpRequest<TBody = unknown> {
   pathParams: Record<string, string>
   queryParams: Record<string, string | string[]>
   body: TBody
@@ -256,8 +256,8 @@ export interface ApiStreamHttpRequest<TBody = unknown> {
 }
 
 export interface MotiaHttpArgs<TBody = unknown> {
-  request: ApiStreamHttpRequest<TBody>
-  response: ApiStreamResponse
+  request: MotiaHttpRequest<TBody>
+  response: MotiaHttpResponse
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
@@ -271,7 +271,7 @@ export type ApiResponse<TStatus extends number = number, TBody = any> = {
 export type StepHandler<TInput = any, TEnqueueData = never> = (
   input: TriggerInput<TInput>,
   ctx: FlowContext<TEnqueueData, TriggerInput<TInput>>,
-) => Promise<ApiResponse | undefined>
+) => Promise<ApiResponse | void>
 
 export type Event<TData = unknown> = {
   topic: string
@@ -347,7 +347,7 @@ type TriggerToInput<TTrigger> = TTrigger extends { type: 'queue'; input?: infer 
 type InferHandlerInput<TConfig extends StepConfig> = TriggerToInput<TConfig['triggers'][number]>
 
 // biome-ignore lint/suspicious/noConfusingVoidType: we need to define this type to avoid type errors
-type InferReturnType = Promise<ApiResponse | undefined | void>
+type InferReturnType = Promise<ApiResponse | void>
 
 type EnqueueTopic<T extends string> = T extends keyof Enqueues ? Enqueues[T] : unknown
 
