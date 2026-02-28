@@ -18,12 +18,12 @@ from .streams import Stream
 from .tracing import get_trace_id_from_span, instrument_bridge, operation_span, record_exception, set_span_ok, step_span
 from .types import (
     ApiRequest,
-    MotiaHttpRequest,
-    MotiaHttpArgs,
-    MotiaHttpResponse,
     ApiTrigger,
     CronTrigger,
     FlowContext,
+    MotiaHttpArgs,
+    MotiaHttpRequest,
+    MotiaHttpResponse,
     QueueTrigger,
     StateTrigger,
     StepConfig,
