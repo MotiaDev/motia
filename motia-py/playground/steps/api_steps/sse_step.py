@@ -8,7 +8,7 @@ import time
 from typing import Any
 from urllib.parse import parse_qsl
 
-from motia import ApiStreamRequest, FlowContext, http
+from motia import MotiaHttpArgs, FlowContext, http
 
 config = {
     "name": "SSE Example",
@@ -21,7 +21,7 @@ config = {
 }
 
 
-async def handler(args: ApiStreamRequest[Any], ctx: FlowContext[Any]) -> None:
+async def handler(args: MotiaHttpArgs[Any], ctx: FlowContext[Any]) -> None:
     """Read URL-encoded body, then stream random items back as SSE."""
     request = args.request
     response = args.response

@@ -18,9 +18,9 @@ from .streams import Stream
 from .tracing import get_trace_id_from_span, instrument_bridge, operation_span, record_exception, set_span_ok, step_span
 from .types import (
     ApiRequest,
-    ApiStreamHttpRequest,
-    ApiStreamRequest,
-    ApiStreamResponse,
+    MotiaHttpRequest,
+    MotiaHttpArgs,
+    MotiaHttpResponse,
     ApiTrigger,
     CronTrigger,
     FlowContext,
@@ -317,8 +317,8 @@ class Motia:
                         and not isinstance(response_writer, dict)
                         and hasattr(response_writer, "send_message_async")
                     )
-                    stream_response = ApiStreamResponse(response_writer if has_channel_writer else None)
-                    http_request: ApiStreamHttpRequest[Any] = ApiStreamHttpRequest(
+                    stream_response = MotiaHttpResponse(response_writer if has_channel_writer else None)
+                    http_request: MotiaHttpRequest[Any] = MotiaHttpRequest(
                         path_params=path_params,
                         query_params=query_params,
                         body=body,
@@ -326,7 +326,7 @@ class Motia:
                         method=method,
                         request_body=request_body,
                     )
-                    motia_request: ApiStreamRequest[Any] = ApiStreamRequest(
+                    motia_request: MotiaHttpArgs[Any] = MotiaHttpArgs(
                         request=http_request,
                         response=stream_response,
                     )

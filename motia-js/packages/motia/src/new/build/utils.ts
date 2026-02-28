@@ -1,4 +1,5 @@
 import type {
+  ApiResponse,
   ApiRequest as IIIApiRequest,
   HttpRequest as IIIHttpRequest,
   HttpResponse as IIIHttpResponse,
@@ -54,12 +55,12 @@ const composeMiddleware = <TRequestBody = unknown, TEnqueueData = never, TResult
   ...middlewares: ApiMiddleware<TRequestBody, TEnqueueData, TResult>[]
 ) => {
   return async (
-    req: MotiaHttpArgs<TRequestBody>,
+    args: MotiaHttpArgs<TRequestBody>,
     ctx: FlowContext<TEnqueueData, MotiaHttpArgs<TRequestBody>>,
     handler: () => Promise<TResult>,
   ): Promise<TResult> => {
     const composedHandler = middlewares.reduceRight<() => Promise<TResult>>(
-      (nextHandler, middleware) => () => middleware(req, ctx, nextHandler),
+      (nextHandler, middleware) => () => middleware(args, ctx, nextHandler),
       handler,
     )
 
@@ -168,7 +169,7 @@ export class Motia {
       if (isApiTrigger(trigger)) {
         getInstance().registerFunction(
           { id: function_id, metadata },
-          iiiHttp(async (req: IIIHttpRequest, res: IIIHttpResponse) => {
+          iiiHttp(async (req: IIIHttpRequest, res: IIIHttpResponse): Promise<void | ApiResponse> => {
             const triggerInfo: TriggerInfo = { type: 'http', index }
             const motiaRequest: MotiaHttpArgs<unknown> = {
               request: {
@@ -186,13 +187,14 @@ export class Motia {
 
             if (middlewares.length > 0) {
               const composed = composeMiddleware(...middlewares)
-              await composed(
+              
+              return composed(
                 motiaRequest,
                 context,
                 () => step.handler(motiaRequest, context as FlowContext<unknown>) as Promise<unknown>,
               )
             } else {
-              await step.handler(motiaRequest, context as FlowContext<unknown>)
+              return step.handler(motiaRequest, context as FlowContext<unknown>)
             }
           }),
         )

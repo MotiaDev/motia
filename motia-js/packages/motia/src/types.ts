@@ -232,7 +232,7 @@ export type StepConfig = {
   includeFiles?: readonly string[]
 }
 
-export type ApiStreamResponse = {
+export type MotiaHttpResponse = {
   status: (statusCode: number) => void
   headers: (headers: Record<string, string>) => void
   stream: NodeJS.WritableStream
@@ -246,7 +246,7 @@ export interface ApiRequest<TBody = unknown> {
   headers: Record<string, string | string[]>
 }
 
-export interface ApiStreamHttpRequest<TBody = unknown> {
+export interface MotiaHttpRequest<TBody = unknown> {
   pathParams: Record<string, string>
   queryParams: Record<string, string | string[]>
   body: TBody
@@ -256,8 +256,8 @@ export interface ApiStreamHttpRequest<TBody = unknown> {
 }
 
 export interface MotiaHttpArgs<TBody = unknown> {
-  request: ApiStreamHttpRequest<TBody>
-  response: ApiStreamResponse
+  request: MotiaHttpRequest<TBody>
+  response: MotiaHttpResponse
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need to define this type to avoid type errors
