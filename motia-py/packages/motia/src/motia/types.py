@@ -75,7 +75,7 @@ class FlowContext(BaseModel, Generic[TEnqueueData]):
         """
         if self.is_cron():
             return None
-        if isinstance(self.input_value, ApiStreamRequest):
+        if isinstance(self.input_value, MotiaHttpArgs):
             return self.input_value.request.body
         if isinstance(self.input_value, ApiRequest):
             return self.input_value.body
@@ -317,7 +317,7 @@ class ApiResponse(BaseModel, Generic[TOutput]):
     headers: dict[str, str] = Field(default_factory=dict)
 
 
-class ApiStreamResponse:
+class MotiaHttpResponse:
     """Streaming HTTP response for channel-based API triggers."""
 
     def __init__(self, writer: Any) -> None:
@@ -344,7 +344,7 @@ class ApiStreamResponse:
             self._writer.close()
 
 
-class ApiStreamHttpRequest(BaseModel, Generic[TBody]):
+class MotiaHttpRequest(BaseModel, Generic[TBody]):
     """HTTP request portion of a streaming API trigger."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, populate_by_name=True)
@@ -357,13 +357,13 @@ class ApiStreamHttpRequest(BaseModel, Generic[TBody]):
     request_body: Any = None  # ChannelReader
 
 
-class ApiStreamRequest(BaseModel, Generic[TBody]):
-    """Streaming API trigger input with separate request and response."""
+class MotiaHttpArgs(BaseModel, Generic[TBody]):
+    """Motia HTTP arguments with separate request and response."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    request: ApiStreamHttpRequest[TBody]
-    response: ApiStreamResponse
+    request: MotiaHttpRequest[TBody]
+    response: MotiaHttpResponse
 
     @property
     def path_params(self) -> dict[str, str]:

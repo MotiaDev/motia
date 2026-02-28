@@ -39,8 +39,8 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0
       iii-sdk:
-        specifier: ^0.4.0
-        version: 0.4.0
+        specifier: ^0.4.1
+        version: 0.4.1
       json-schema-to-ts:
         specifier: ^3.1.1
         version: 3.1.1
@@ -799,8 +799,8 @@ packages:
     resolution: {integrity: sha512-lp4qAiMTD4sNWW4DbKLBkfiMZ4jbAboJIGOQr5DvciMRI494OapieI9qiODpOt0XBr1LjIDy1xAGAnVs5supTA==}
     engines: {node: '>=14'}
 
-  '@opentelemetry/semantic-conventions@1.39.0':
-    resolution: {integrity: sha512-R5R9tb2AXs2IRLNKLBJDynhkfmx7mX0vi8NkhZb3gUkPWHn6HXk5J8iQ/dql0U3ApfWym4kXXmBDRGO+oeOfjg==}
+  '@opentelemetry/semantic-conventions@1.40.0':
+    resolution: {integrity: sha512-cifvXDhcqMwwTlTK04GBNeIe7yyo28Mfby85QXFe1Yk8nmi36Ab/5UQwptOx84SsoGNRg+EVSjwzfSZMy6pmlw==}
     engines: {node: '>=14'}
 
   '@oxc-project/types@0.101.0':
@@ -1751,8 +1751,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  iii-sdk@0.4.0:
-    resolution: {integrity: sha512-cGKjutDylAjIXwhVuuiy48nwYpsRSSoXNjIJvpIkgDAeXIuImaY8crsWl5wmC3unm3Vow9PMj+H5OzrmZZgMIg==}
+  iii-sdk@0.4.1:
+    resolution: {integrity: sha512-mhkja3ht4eSEFriR6Uweeah8H0T6MF9HXgRyFzG1splkmaavIgLav6YI2s1l0qrPun+RYqRhoslKeJUm6E3uXw==}
 
   import-in-the-middle@1.15.0:
     resolution: {integrity: sha512-bpQy+CrsRmYmoPMAE/0G33iwRqwW4ouqdRg8jgbH3aKuCtOc8lxgmYXg2dMM92CRiGP660EtBcymH/eVUpCSaA==}
@@ -3328,7 +3328,7 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.28.0': {}
 
-  '@opentelemetry/semantic-conventions@1.39.0': {}
+  '@opentelemetry/semantic-conventions@1.40.0': {}
 
   '@oxc-project/types@0.101.0': {}
 
@@ -4091,7 +4091,7 @@ snapshots:
 
   husky@9.1.7: {}
 
-  iii-sdk@0.4.0:
+  iii-sdk@0.4.1:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/api-logs': 0.57.2
@@ -4103,7 +4103,7 @@ snapshots:
       '@opentelemetry/sdk-metrics': 1.30.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-trace-base': 1.30.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-trace-node': 1.30.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.39.0
+      '@opentelemetry/semantic-conventions': 1.40.0
       ws: 8.18.3
     transitivePeerDependencies:
       - bufferutil
