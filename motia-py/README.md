@@ -100,8 +100,10 @@ uv pip install -e iii -e motia
 ### Run tests
 
 ```bash
-cd iii && pytest
-cd motia && pytest
+cd packages/motia
+uv sync --extra dev
+uv run pytest -m "not integration"
+uv run pytest -m "not integration" --cov=src/motia --cov-report=term-missing
 ```
 
 ### Type checking

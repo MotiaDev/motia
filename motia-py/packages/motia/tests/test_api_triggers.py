@@ -8,6 +8,8 @@ import pytest
 
 from tests.conftest import flush_bridge_queue
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.asyncio
 async def test_api_trigger_get_endpoint(bridge, api_url):

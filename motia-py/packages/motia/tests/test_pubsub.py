@@ -8,6 +8,8 @@ import pytest
 
 from tests.conftest import flush_bridge_queue
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.asyncio
 async def test_pubsub_subscribe_and_publish(bridge):
@@ -25,18 +27,25 @@ async def test_pubsub_subscribe_and_publish(bridge):
     bridge.register_function(f"test.pubsub.subscriber.{topic}", subscriber_handler)
 
     # Register subscribe trigger
-    bridge.register_trigger("subscribe", f"test.pubsub.subscriber.{topic}", {
-        "topic": topic,
-    })
+    bridge.register_trigger(
+        "subscribe",
+        f"test.pubsub.subscriber.{topic}",
+        {
+            "topic": topic,
+        },
+    )
 
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.3)
 
     # Publish a message
-    await bridge.call("publish", {
-        "topic": topic,
-        "data": {"message": "Hello PubSub!"},
-    })
+    await bridge.call(
+        "publish",
+        {
+            "topic": topic,
+            "data": {"message": "Hello PubSub!"},
+        },
+    )
 
     # Wait for message
     await asyncio.wait_for(message_received.wait(), timeout=5.0)
@@ -75,10 +84,13 @@ async def test_pubsub_different_topics(bridge):
     await asyncio.sleep(0.3)
 
     # Publish to topic A only
-    await bridge.call("publish", {
-        "topic": topic_a,
-        "data": {"for": "a"},
-    })
+    await bridge.call(
+        "publish",
+        {
+            "topic": topic_a,
+            "data": {"for": "a"},
+        },
+    )
 
     await asyncio.wait_for(message_a_received.wait(), timeout=5.0)
 

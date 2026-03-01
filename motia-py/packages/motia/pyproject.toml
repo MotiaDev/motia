@@ -36,6 +36,7 @@ otel = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
     "mypy>=1.8",
     "ruff>=0.2",
     "httpx>=0.27",
@@ -85,3 +86,11 @@ filterwarnings = [
 markers = [
     "integration: marks tests as integration tests (require III engine)",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["src/motia"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

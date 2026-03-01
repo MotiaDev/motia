@@ -8,6 +8,8 @@ import pytest
 
 from motia import Stream
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def stream(bridge) -> Stream:

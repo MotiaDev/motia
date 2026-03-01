@@ -10,6 +10,8 @@ import pytest
 
 from tests.conftest import flush_bridge_queue
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def patch_motia_bridge(bridge):

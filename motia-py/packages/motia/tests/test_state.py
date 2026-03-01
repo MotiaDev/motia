@@ -8,6 +8,8 @@ import pytest
 
 from motia.state import StateManager
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def state_manager(bridge) -> StateManager:
