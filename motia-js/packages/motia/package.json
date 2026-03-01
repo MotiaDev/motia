@@ -25,6 +25,7 @@
     "build": "tsdown",
     "test": "jest --selectProjects unit",
     "test:unit": "jest --selectProjects unit",
+    "test:coverage": "jest --selectProjects unit --coverage --coverageReporters=text",
     "test:integration": "jest --selectProjects integration",
     "test:ci": "jest"
   },
