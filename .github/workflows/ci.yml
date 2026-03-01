@@ -211,9 +211,8 @@ jobs:
             sleep 2
           done
 
-      - name: Run tests
-        working-directory: sdk/packages/python/iii
-        run: uv run pytest -q
+      - name: Run Tests with coverage 
+        run: uv run pytest --cov=src/motia --cov-report=term-missing --cov-fail-under=70
 
       - name: Stop III Engine
         if: always()
