@@ -7,6 +7,8 @@ import pytest
 
 from tests.conftest import flush_bridge_queue
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.asyncio
 async def test_bridge_connects_successfully(bridge):
@@ -70,7 +72,6 @@ async def test_invoke_function_async_fire_and_forget(bridge):
     # Check that the received data contains our value
     # (III engine may inject _caller_worker_id into the data)
     assert received_data["value"] == 42
-
 
 
 @pytest.mark.asyncio

@@ -76,21 +76,28 @@ uv publish --index cloudsmith dist/*
 
 ## Testing
 
-### Running Integration Tests
-
-Integration tests require a running III Engine instance. Make sure to have it built or installed before running tests.
-
 1. Install dev dependencies:
    ```bash
-   cd motia && uv sync --all-extras
-
+   uv sync --extra dev
    ```
 
-   ```
-3. Run tests:
+2. Run the unit test suite:
    ```bash
-   uv run pytest
+   uv run pytest -m "not integration"
    ```
+
+3. Run the unit test suite with coverage:
+   ```bash
+   uv run pytest -m "not integration" --cov=src/motia --cov-report=term-missing
+   ```
+
+### Running Integration Tests
+
+Integration tests require a running III Engine instance on the test ports below.
+
+```bash
+uv run pytest -m integration
+```
 
 ### Test Configuration
 
@@ -101,6 +108,8 @@ Tests use non-default ports to avoid conflicts:
 Set `III_ENGINE_PATH` environment variable to point to the III engine binary.
 
 ### Test Coverage
+
+The coverage command above measures the unit-testable Python package code under `src/motia`.
 
 The integration test suite covers:
 - Bridge connection and function registration
