@@ -35,16 +35,20 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: Start III Engine
-        uses: ./.github/actions/iii-engine
-
       - name: Run linter
         working-directory: motia-js
         run: pnpm lint:ci
 
-      - name: Run tests
+      - name: Run unit coverage
         working-directory: motia-js
-        run: pnpm test:ci
+        run: pnpm test:coverage
+
+      - name: Start III Engine
+        uses: ./.github/actions/iii-engine
+
+      - name: Run integration tests
+        working-directory: motia-js
+        run: pnpm --filter motia test:integration
         env:
           III_URL: ws://localhost:49199
 

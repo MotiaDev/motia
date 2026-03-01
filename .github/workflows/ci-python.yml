@@ -48,6 +48,38 @@ jobs:
       - name: Type check
         run: mypy src
 
+  coverage-python:
+    name: Python Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: motia-py/packages/motia
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Start III Engine
+        uses: ./.github/actions/iii-engine
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run coverage gate
+        run: pytest --cov=src/motia --cov-report=term-missing --cov-fail-under=70
+
+      - name: Stop III Engine
+        if: always()
+        run: docker rm -f iii-engine || true
+
   test-python:
     name: Python Tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
