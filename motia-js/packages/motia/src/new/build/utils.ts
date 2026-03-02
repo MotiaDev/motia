@@ -256,7 +256,10 @@ export class Motia {
 
         const triggerConfig: QueueTriggerConfig = {
           topic: trigger.topic,
-          metadata,
+          metadata: {
+            ...metadata,
+            ...(trigger.infrastructure ? { infrastructure: trigger.infrastructure } : {}),
+          },
         }
 
         if (trigger.condition) {

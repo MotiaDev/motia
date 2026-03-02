@@ -415,9 +415,15 @@ class Motia:
 
         get_instance().register_function(function_id, queue_handler)
 
+        trigger_metadata = {**metadata}
+        if trigger.infrastructure:
+            trigger_metadata["infrastructure"] = trigger.infrastructure.model_dump(
+                by_alias=True, exclude_none=True
+            )
+
         trigger_config: dict[str, Any] = {
             "topic": trigger.topic,
-            "metadata": metadata,
+            "metadata": trigger_metadata,
         }
 
         if trigger.condition:

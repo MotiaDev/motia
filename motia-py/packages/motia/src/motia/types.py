@@ -138,6 +138,9 @@ class QueueConfig(BaseModel):
     max_retries: int = Field(default=3, serialization_alias="maxRetries")
     visibility_timeout: int = Field(default=30, serialization_alias="visibilityTimeout")
     delay_seconds: int = Field(default=0, serialization_alias="delaySeconds")
+    concurrency: int | None = Field(default=None)
+    backoff_type: str | None = Field(default=None, serialization_alias="backoffType")
+    backoff_delay_ms: int | None = Field(default=None, serialization_alias="backoffDelayMs")
 
 
 class InfrastructureConfig(BaseModel):
