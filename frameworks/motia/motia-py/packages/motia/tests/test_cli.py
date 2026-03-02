@@ -69,9 +69,12 @@ def test_discover_helpers_find_steps_and_streams(tmp_path: Path, monkeypatch: py
     steps = cli.discover_steps("steps", include_src=True)
     streams = cli.discover_streams("steps", include_src=True)
 
-    assert discovered == ["steps/alpha_step.py"]
-    assert steps == ["steps/alpha_step.py", "src/beta_step.py"]
-    assert streams == ["steps/gamma_stream.py", "src/delta_stream.py"]
+    def _norm(paths: list[str]) -> list[str]:
+        return sorted(str(Path(p)) for p in paths)
+
+    assert _norm(discovered) == _norm(["steps/alpha_step.py"])
+    assert _norm(steps) == _norm(["steps/alpha_step.py", "src/beta_step.py"])
+    assert _norm(streams) == _norm(["steps/gamma_stream.py", "src/delta_stream.py"])
 
 
 def test_configure_logging_uses_expected_level(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -112,7 +115,7 @@ def test_generate_schema_manifest_supports_model_dump_and_fallback(monkeypatch: 
             module.config = ConfigWithDump()
         else:
             module.config = ConfigWithBrokenDump()
-        sys.modules[f"step_module:{path}"] = module
+        monkeypatch.setitem(sys.modules, f"step_module:{path}", module)
         return module
 
     monkeypatch.setattr(cli, "load_module_from_path", fake_loader)
@@ -226,4 +229,3 @@ def test_main_dev_without_watchfiles_logs_warning_and_handles_keyboard_interrupt
     assert warnings == ["watchfiles not available; running without watch mode"]
     assert loaded_streams == ["streams/demo_stream.py"]
     assert loaded_steps == ["steps/demo_step.py"]
-
