@@ -160,11 +160,6 @@ export type QueueConfig = {
   backoffDelayMs?: number
 }
 
-export type InfrastructureConfig = {
-  handler?: Partial<HandlerConfig>
-  queue?: Partial<QueueConfig>
-}
-
 export type ApiRouteMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
 export type ApiMiddleware<TBody = unknown, TEnqueueData = never> = (
@@ -199,7 +194,7 @@ export type QueueTrigger<TSchema extends StepSchemaInput | undefined = any> = {
   topic: string
   input?: TSchema
   condition?: TriggerCondition<TSchema extends ZodInput ? z.infer<TSchema> : unknown>
-  infrastructure?: Partial<InfrastructureConfig>
+  config?: Partial<QueueConfig>
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to allow trigger assignment to TriggerConfig

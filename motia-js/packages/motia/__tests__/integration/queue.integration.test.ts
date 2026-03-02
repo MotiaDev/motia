@@ -73,14 +73,10 @@ describe('queue integration', () => {
       function_id: functionId,
       config: {
         topic,
-        metadata: {
-          infrastructure: {
-            queue: {
-              maxRetries: 5,
-              type: 'standard',
-              concurrency: 2,
-            },
-          },
+        queue_config: {
+          maxRetries: 5,
+          type: 'standard',
+          concurrency: 2,
         },
       },
     })
@@ -92,7 +88,7 @@ describe('queue integration', () => {
     expect(received).toEqual({ infra: true })
   }, 15000)
 
-  it('multiple subscribers on same topic both receive message', async () => {
+  it('multiple subscribers on same topic - messages delivered to exactly one subscriber', async () => {
     const sdk = getInstance()
     const topic = `test-topic-multi-${Date.now()}`
     const functionId1 = `test.queue.multi1.${Date.now()}`
@@ -119,11 +115,14 @@ describe('queue integration', () => {
 
     await waitForRegistration(sdk, functionId1)
     await waitForRegistration(sdk, functionId2)
-    await sdk.call('enqueue', { topic, data: { shared: true } })
+    await sdk.call('enqueue', { topic, data: { msg: 1 } })
+    await sdk.call('enqueue', { topic, data: { msg: 2 } })
     await sleep(2000)
 
-    expect(received1).toContainEqual({ shared: true })
-    expect(received2).toContainEqual({ shared: true })
+    const total = received1.length + received2.length
+    expect(total).toBe(2)
+    expect([...received1, ...received2]).toContainEqual({ msg: 1 })
+    expect([...received1, ...received2]).toContainEqual({ msg: 2 })
   }, 15000)
 
   it('condition function filters messages', async () => {

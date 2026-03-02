@@ -54,8 +54,8 @@ async def test_handler_receives_exact_data_payload_from_enqueue(bridge):
 
 
 @pytest.mark.asyncio
-async def test_subscription_with_infrastructure_config_receives_messages(bridge):
-    """Subscription with infrastructure config receives messages."""
+async def test_subscription_with_queue_config_receives_messages(bridge):
+    """Subscription with queue config receives messages."""
     function_id = f"test.queue.infra.{int(time.time() * 1000)}"
     topic = f"test-topic-infra-{int(time.time() * 1000)}"
     received = []
@@ -69,14 +69,10 @@ async def test_subscription_with_infrastructure_config_receives_messages(bridge)
         function_id,
         {
             "topic": topic,
-            "metadata": {
-                "infrastructure": {
-                    "queue": {
-                        "maxRetries": 5,
-                        "type": "standard",
-                        "concurrency": 2,
-                    }
-                }
+            "queue_config": {
+                "maxRetries": 5,
+                "type": "standard",
+                "concurrency": 2,
             },
         },
     )
@@ -91,8 +87,8 @@ async def test_subscription_with_infrastructure_config_receives_messages(bridge)
 
 
 @pytest.mark.asyncio
-async def test_multiple_subscribers_on_same_topic_both_receive_message(bridge):
-    """Multiple subscribers on same topic both receive message."""
+async def test_multiple_subscribers_on_same_topic_messages_delivered_to_one(bridge):
+    """Multiple subscribers on same topic - messages delivered to exactly one subscriber."""
     topic = f"test-topic-multi-{int(time.time() * 1000)}"
     function_id1 = f"test.queue.multi1.{int(time.time() * 1000)}"
     function_id2 = f"test.queue.multi2.{int(time.time() * 1000)}"
@@ -113,11 +109,15 @@ async def test_multiple_subscribers_on_same_topic_both_receive_message(bridge):
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.5)
 
-    await bridge.call("enqueue", {"topic": topic, "data": {"shared": True}})
+    await bridge.call("enqueue", {"topic": topic, "data": {"msg": 1}})
+    await bridge.call("enqueue", {"topic": topic, "data": {"msg": 2}})
     await asyncio.sleep(2.0)
 
-    assert {"shared": True} in received1
-    assert {"shared": True} in received2
+    total = len(received1) + len(received2)
+    assert total == 2
+    all_received = received1 + received2
+    assert {"msg": 1} in all_received
+    assert {"msg": 2} in all_received
 
 
 @pytest.mark.asyncio

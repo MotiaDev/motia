@@ -56,7 +56,7 @@ def queue(
     topic: str,
     *,
     input: Any | None = None,
-    infrastructure: Any | None = None,
+    config: Any | None = None,
     condition: Any | None = None,
 ) -> QueueTrigger:
     """Create a queue trigger configuration."""
@@ -64,7 +64,7 @@ def queue(
         topic=topic,
         condition=condition,
         input=input,
-        infrastructure=infrastructure,
+        config=config,
     )
 
 

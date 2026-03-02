@@ -20,6 +20,7 @@ import type {
   MatchHandlers,
   ApiRequest as MotiaApiRequest,
   MotiaHttpArgs,
+  QueueConfig,
   Step,
   StepConfig,
   StepHandler,
@@ -46,6 +47,7 @@ type ApiTriggerConfig = TriggerConfigBase & {
 
 type QueueTriggerConfig = TriggerConfigBase & {
   topic: string
+  queue_config?: Partial<QueueConfig>
 }
 
 type CronTriggerConfig = TriggerConfigBase & {
@@ -256,10 +258,8 @@ export class Motia {
 
         const triggerConfig: QueueTriggerConfig = {
           topic: trigger.topic,
-          metadata: {
-            ...metadata,
-            ...(trigger.infrastructure ? { infrastructure: trigger.infrastructure } : {}),
-          },
+          metadata: { ...metadata },
+          ...(trigger.config ? { queue_config: trigger.config } : {}),
         }
 
         if (trigger.condition) {

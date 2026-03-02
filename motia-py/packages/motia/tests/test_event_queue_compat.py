@@ -6,7 +6,7 @@ import pytest
 
 from motia.runtime import Motia
 from motia.triggers import http, queue
-from motia.types import ApiRequest, ApiResponse, FlowContext, InfrastructureConfig, QueueConfig, StepConfig
+from motia.types import ApiRequest, ApiResponse, FlowContext, QueueConfig, StepConfig
 
 
 @pytest.fixture
@@ -156,15 +156,12 @@ async def test_runtime_context_enqueue_uses_enqueue(mock_bridge: MagicMock, mock
     )
 
 
-def test_queue_trigger_passes_infrastructure_config(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
-    """Queue trigger with infrastructure config should include it in metadata."""
+def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+    """Queue trigger with config should include it as queue_config."""
     config = StepConfig(
-        name="queue-infra-test",
+        name="queue-config-test",
         triggers=[
-            queue(
-                "orders",
-                infrastructure=InfrastructureConfig(queue=QueueConfig(max_retries=5, type="fifo")),
-            )
+            queue("orders", config=QueueConfig(max_retries=5, type="fifo")),
         ],
     )
 
@@ -179,14 +176,14 @@ def test_queue_trigger_passes_infrastructure_config(mock_bridge: MagicMock, mock
 
     call_args = mock_bridge.register_trigger.call_args
     trigger_config = call_args[0][2]
-    assert trigger_config["metadata"]["infrastructure"]["queue"]["maxRetries"] == 5
-    assert trigger_config["metadata"]["infrastructure"]["queue"]["type"] == "fifo"
+    assert trigger_config["queue_config"]["maxRetries"] == 5
+    assert trigger_config["queue_config"]["type"] == "fifo"
 
 
-def test_queue_trigger_omits_infrastructure_when_not_provided(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
-    """Queue trigger without infrastructure config should not include it in metadata."""
+def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+    """Queue trigger without config should not include queue_config."""
     config = StepConfig(
-        name="queue-no-infra-test",
+        name="queue-no-config-test",
         triggers=[queue("orders")],
     )
 
@@ -201,4 +198,4 @@ def test_queue_trigger_omits_infrastructure_when_not_provided(mock_bridge: Magic
 
     call_args = mock_bridge.register_trigger.call_args
     trigger_config = call_args[0][2]
-    assert "infrastructure" not in trigger_config["metadata"]
+    assert "queue_config" not in trigger_config

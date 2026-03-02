@@ -3,8 +3,8 @@ import type {
   ApiRouteMethod,
   ApiTrigger,
   CronTrigger,
-  InfrastructureConfig,
   QueryParam,
+  QueueConfig,
   QueueTrigger,
   StateTrigger,
   StepSchemaInput,
@@ -22,7 +22,7 @@ type ApiOptions<TSchema extends StepSchemaInput | undefined = undefined> = {
 
 type QueueOptions<TSchema extends StepSchemaInput | undefined = undefined> = {
   input?: TSchema
-  infrastructure?: Partial<InfrastructureConfig>
+  config?: Partial<QueueConfig>
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: we need any to accept all schema types

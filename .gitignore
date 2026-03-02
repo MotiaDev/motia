@@ -6,3 +6,6 @@
 
 CLAUDE.md
 .DS_Store
+
+data/
+kv_store/

@@ -143,13 +143,6 @@ class QueueConfig(BaseModel):
     backoff_delay_ms: int | None = Field(default=None, serialization_alias="backoffDelayMs")
 
 
-class InfrastructureConfig(BaseModel):
-    """Infrastructure configuration."""
-
-    handler: HandlerConfig | None = None
-    queue: QueueConfig | None = None
-
-
 ApiRouteMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
 
 
@@ -186,7 +179,7 @@ class QueueTrigger(BaseModel):
     topic: str
     condition: TriggerCondition | None = None
     input: Any | None = None
-    infrastructure: InfrastructureConfig | None = None
+    config: QueueConfig | None = None
 
 
 class QueryParam(BaseModel):
@@ -432,7 +425,6 @@ class StepConfig(BaseModel):
     description: str | None = None
     flows: list[str] | None = None
     include_files: list[str] | None = Field(default=None, serialization_alias="includeFiles")
-    infrastructure: InfrastructureConfig | None = None
 
 
 class Step(BaseModel):
