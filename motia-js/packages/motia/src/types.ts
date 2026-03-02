@@ -155,9 +155,9 @@ export type QueueConfig = {
   maxRetries: number
   visibilityTimeout: number
   delaySeconds: number
-  concurrency: number
-  backoffType: string
-  backoffDelayMs: number
+  concurrency?: number
+  backoffType?: string
+  backoffDelayMs?: number
 }
 
 export type InfrastructureConfig = {
