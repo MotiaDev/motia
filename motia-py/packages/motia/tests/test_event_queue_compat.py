@@ -6,7 +6,7 @@ import pytest
 
 from motia.runtime import Motia
 from motia.triggers import http, queue
-from motia.types import ApiRequest, ApiResponse, FlowContext, StepConfig
+from motia.types import ApiRequest, ApiResponse, FlowContext, InfrastructureConfig, QueueConfig, StepConfig
 
 
 @pytest.fixture
@@ -154,3 +154,51 @@ async def test_runtime_context_enqueue_uses_enqueue(mock_bridge: MagicMock, mock
         "enqueue",
         {"topic": "runtime.topic", "data": {"value": 1}},
     )
+
+
+def test_queue_trigger_passes_infrastructure_config(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+    """Queue trigger with infrastructure config should include it in metadata."""
+    config = StepConfig(
+        name="queue-infra-test",
+        triggers=[
+            queue(
+                "orders",
+                infrastructure=InfrastructureConfig(queue=QueueConfig(max_retries=5, type="fifo")),
+            )
+        ],
+    )
+
+    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
+        _ = (input_data, ctx)
+
+    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
+        "motia.runtime.get_context", return_value=mock_context
+    ):
+        motia = Motia()
+        motia.add_step(config, "steps/test_step.py", handler)
+
+    call_args = mock_bridge.register_trigger.call_args
+    trigger_config = call_args[0][2]
+    assert trigger_config["metadata"]["infrastructure"]["queue"]["maxRetries"] == 5
+    assert trigger_config["metadata"]["infrastructure"]["queue"]["type"] == "fifo"
+
+
+def test_queue_trigger_omits_infrastructure_when_not_provided(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+    """Queue trigger without infrastructure config should not include it in metadata."""
+    config = StepConfig(
+        name="queue-no-infra-test",
+        triggers=[queue("orders")],
+    )
+
+    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
+        _ = (input_data, ctx)
+
+    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
+        "motia.runtime.get_context", return_value=mock_context
+    ):
+        motia = Motia()
+        motia.add_step(config, "steps/test_step.py", handler)
+
+    call_args = mock_bridge.register_trigger.call_args
+    trigger_config = call_args[0][2]
+    assert "infrastructure" not in trigger_config["metadata"]

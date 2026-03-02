@@ -85,6 +85,30 @@ describe('Motia', () => {
       )
     })
 
+    it('passes infrastructure config in queue trigger metadata', () => {
+      const motia = new Motia()
+      const config = {
+        name: 'test',
+        triggers: [queue('tasks', { infrastructure: { queue: { maxRetries: 5, type: 'fifo' } } })],
+      }
+      motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
+
+      const triggerCall = mockRegisterTrigger.mock.calls[0][0]
+      expect(triggerCall.config.metadata.infrastructure?.queue).toEqual({
+        maxRetries: 5,
+        type: 'fifo',
+      })
+    })
+
+    it('omits infrastructure from metadata when not provided', () => {
+      const motia = new Motia()
+      const config = { name: 'test', triggers: [queue('tasks')] }
+      motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
+
+      const triggerCall = mockRegisterTrigger.mock.calls[0][0]
+      expect(triggerCall.config.metadata.infrastructure).toBeUndefined()
+    })
+
     it('registers function and trigger for state trigger', () => {
       const motia = new Motia()
       const config = { name: 'test', triggers: [state()] }
