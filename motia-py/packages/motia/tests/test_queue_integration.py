@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from tests.conftest import flush_bridge_queue
+from tests.conftest import flush_bridge_queue, wait_for_registration
 
 
 @pytest.mark.asyncio
@@ -146,7 +146,8 @@ async def test_condition_function_filters_messages(bridge):
     )
 
     await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.5)
+    await wait_for_registration(bridge, function_id)
+    await wait_for_registration(bridge, condition_path)
 
     await bridge.call("enqueue", {"topic": topic, "data": {"accept": False}})
     await bridge.call("enqueue", {"topic": topic, "data": {"accept": True}})

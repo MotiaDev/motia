@@ -148,6 +148,7 @@ describe('queue integration', () => {
     })
 
     await waitForRegistration(sdk, functionId)
+    await waitForRegistration(sdk, conditionPath)
     await sdk.call('enqueue', { topic, data: { accept: false } })
     await sdk.call('enqueue', { topic, data: { accept: true } })
     await sleep(2000)
