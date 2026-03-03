@@ -154,7 +154,9 @@ function ConfigPage() {
   }, [adapters, showSystem])
 
   const visibleAdapters = useMemo(() => {
-    return adapters.filter((a) => a.type !== 'module' && a.type !== 'worker_pool' && a.type !== 'trigger')
+    return adapters.filter(
+      (a) => a.type !== 'module' && a.type !== 'worker_pool' && a.type !== 'trigger',
+    )
   }, [adapters])
 
   const selectedModuleData = adapters.find((a) => a.id === selectedModule)
@@ -570,40 +572,40 @@ ${workerPools.map((w) => `# ${w.id}: ${w.count || 0} connected`).join('\n')}
                   </h3>
                   <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                     {visibleAdapters.map((adapter) => (
-                        <div
-                          key={adapter.id}
-                          className={`p-3 rounded-lg border ${
-                            adapter.health === 'healthy'
-                              ? 'border-purple-400/30 bg-purple-400/5'
-                              : 'border-error/30 bg-error/5'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            {adapter.health === 'healthy' ? (
-                              <CheckCircle className="w-3.5 h-3.5 text-purple-400" />
-                            ) : (
-                              <XCircle className="w-3.5 h-3.5 text-error" />
-                            )}
-                            <span className="font-medium text-sm truncate">
-                              {adapter.id.split('::').pop()}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-400/20 text-purple-400">
-                              {adapter.type}
-                            </span>
-                            <span
-                              className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                adapter.status === 'active'
-                                  ? 'bg-success/20 text-success'
-                                  : 'bg-muted/20 text-muted'
-                              }`}
-                            >
-                              {adapter.status}
-                            </span>
-                          </div>
+                      <div
+                        key={adapter.id}
+                        className={`p-3 rounded-lg border ${
+                          adapter.health === 'healthy'
+                            ? 'border-purple-400/30 bg-purple-400/5'
+                            : 'border-error/30 bg-error/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          {adapter.health === 'healthy' ? (
+                            <CheckCircle className="w-3.5 h-3.5 text-purple-400" />
+                          ) : (
+                            <XCircle className="w-3.5 h-3.5 text-error" />
+                          )}
+                          <span className="font-medium text-sm truncate">
+                            {adapter.id.split('::').pop()}
+                          </span>
                         </div>
-                      ))}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-400/20 text-purple-400">
+                            {adapter.type}
+                          </span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded ${
+                              adapter.status === 'active'
+                                ? 'bg-success/20 text-success'
+                                : 'bg-muted/20 text-muted'
+                            }`}
+                          >
+                            {adapter.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
