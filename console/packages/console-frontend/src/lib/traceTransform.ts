@@ -107,7 +107,8 @@ function getSpanStatus(status: StoredSpan['status']): 'ok' | 'error' | 'unset' {
 /**
  * Convert attributes array to Record
  */
-function attributesToRecord(attributes: Array<[string, unknown]>): Record<string, unknown> {
+function attributesToRecord(attributes: Array<[string, unknown]> | undefined): Record<string, unknown> {
+  if (!attributes) return {}
   const record: Record<string, unknown> = {}
   for (const [key, value] of attributes) {
     record[key] = value

@@ -153,6 +153,10 @@ function ConfigPage() {
     return adapters.filter((a) => a.type === 'trigger' && (showSystem || !a.internal))
   }, [adapters, showSystem])
 
+  const visibleAdapters = useMemo(() => {
+    return adapters.filter((a) => a.type !== 'module' && a.type !== 'worker_pool' && a.type !== 'trigger')
+  }, [adapters])
+
   const selectedModuleData = adapters.find((a) => a.id === selectedModule)
 
   const stats = useMemo(
@@ -250,10 +254,8 @@ ${modules
 
     modulesYaml += `  - class: modules::devtools::DevToolsModule
     config:
-      enabled: true
-      api_prefix: _console
-      metrics_enabled: true
-      metrics_interval: 30
+      # Runtime settings (enabled, api_prefix, metrics_enabled, metrics_interval)
+      # are managed by the engine and may differ from defaults
 
 `
 
@@ -560,28 +562,14 @@ ${workerPools.map((w) => `# ${w.id}: ${w.count || 0} connected`).join('\n')}
               </div>
 
               {/* Adapters Section */}
-              {adapters.filter(
-                (a) => a.type !== 'module' && a.type !== 'worker_pool' && a.type !== 'trigger',
-              ).length > 0 && (
+              {visibleAdapters.length > 0 && (
                 <div>
                   <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Plug className="w-3.5 h-3.5 text-purple-400" />
-                    Adapters (
-                    {
-                      adapters.filter(
-                        (a) =>
-                          a.type !== 'module' && a.type !== 'worker_pool' && a.type !== 'trigger',
-                      ).length
-                    }
-                    )
+                    Adapters ({visibleAdapters.length})
                   </h3>
                   <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {adapters
-                      .filter(
-                        (a) =>
-                          a.type !== 'module' && a.type !== 'worker_pool' && a.type !== 'trigger',
-                      )
-                      .map((adapter) => (
+                    {visibleAdapters.map((adapter) => (
                         <div
                           key={adapter.id}
                           className={`p-3 rounded-lg border ${

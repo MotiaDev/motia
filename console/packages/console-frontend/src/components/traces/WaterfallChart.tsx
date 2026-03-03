@@ -186,10 +186,11 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
 
   const totalMs = data.total_duration_ms || 1
   const rulerMarks = useMemo(
-    () => [0, 25, 50, 75, 100].map((pct) => ({
-      pct,
-      label: formatDuration((totalMs * pct) / 100),
-    })),
+    () =>
+      [0, 25, 50, 75, 100].map((pct) => ({
+        pct,
+        label: formatDuration((totalMs * pct) / 100),
+      })),
     [totalMs],
   )
 
@@ -203,8 +204,7 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
   const visibleSpans = useMemo(() => flattenTree(spanTree, expandedIds), [spanTree, expandedIds])
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement
-    dispatch({ type: 'SET_SCROLL', position: target.scrollTop })
+    dispatch({ type: 'SET_SCROLL', position: e.currentTarget.scrollTop })
   }
 
   const toggleExpand = (spanId: string) => {
@@ -303,8 +303,10 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
 
             const getBarStyle = (): React.CSSProperties => {
               if (isCritical) return { background: 'linear-gradient(to right, #F97316, #FB923C)' }
-              if (span.status === 'error') return { background: 'linear-gradient(to right, #EF4444, #DC2626)' }
-              if (span.status === 'ok') return { background: 'linear-gradient(to right, #22C55E, #16A34A)' }
+              if (span.status === 'error')
+                return { background: 'linear-gradient(to right, #EF4444, #DC2626)' }
+              if (span.status === 'ok')
+                return { background: 'linear-gradient(to right, #22C55E, #16A34A)' }
               return { background: 'linear-gradient(to right, #6B7280, #4B5563)' }
             }
 

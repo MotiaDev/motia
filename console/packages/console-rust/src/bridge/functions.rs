@@ -530,8 +530,9 @@ async fn handle_adapters(bridge: &III) -> Value {
                 }
             }
 
-            // Add unique trigger handlers
-            let mut seen_triggers = HashSet::new();
+            // Aggregate internal flag per trigger_type: true if ALL triggers are internal
+            let mut trigger_internal: std::collections::HashMap<String, bool> =
+                std::collections::HashMap::new();
             for trigger in triggers {
                 let trigger_type = trigger
                     .get("trigger_type")
@@ -543,16 +544,23 @@ async fn handle_adapters(bridge: &III) -> Value {
                     .unwrap_or("");
                 let is_internal = function_id.starts_with("engine::");
 
-                if seen_triggers.insert(trigger_type.to_string()) {
-                    adapters.push(json!({
-                        "id": trigger_type,
-                        "type": "trigger",
-                        "status": "active",
-                        "health": "healthy",
-                        "description": format!("{} trigger handler", trigger_type),
-                        "internal": is_internal
-                    }));
+                let entry = trigger_internal
+                    .entry(trigger_type.to_string())
+                    .or_insert(true);
+                if !is_internal {
+                    *entry = false;
                 }
+            }
+
+            for (trigger_type, is_internal) in &trigger_internal {
+                adapters.push(json!({
+                    "id": trigger_type,
+                    "type": "trigger",
+                    "status": "active",
+                    "health": "healthy",
+                    "description": format!("{} trigger handler", trigger_type),
+                    "internal": is_internal
+                }));
             }
         }
     }
