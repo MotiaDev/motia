@@ -239,7 +239,7 @@ impl StreamAdapter for BridgeAdapter {
         let handler_function_id = self.handler_function_id.clone();
         let pub_sub = self.pub_sub.clone();
         self.bridge
-            .register_function(handler_function_id.clone(), move |data: Value| {
+            .register_function(handler_function_id.clone(), move |data| {
                 let pub_sub = pub_sub.clone();
 
                 async move {

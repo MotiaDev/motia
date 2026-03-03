@@ -13,6 +13,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
+    condition::check_condition,
     engine::{Engine, EngineTrait},
     modules::queue::{
         QueueAdapter, SubscriberQueueConfig,
@@ -149,34 +150,29 @@ impl QueueAdapter for BridgeAdapter {
         let function_id_for_handler = function_id_for_subscription.clone();
         let condition_function_id_for_handler = condition_function_id.clone();
         self.bridge
-            .register_function(handler_path.clone(), move |data: Value| {
+            .register_function(handler_path.clone(), move |data| {
                 let engine = Arc::clone(&engine);
                 let function_id = function_id_for_handler.clone();
                 let condition_function_id = condition_function_id_for_handler.clone();
                 async move {
-                    // Check condition if provided
                     if let Some(condition_path) = condition_function_id {
-                        match engine.call(&condition_path, data.clone()).await {
-                            Ok(Some(result)) => {
-                                if let Some(passed) = result.as_bool()
-                                    && !passed
-                                {
-                                    tracing::debug!(
-                                        condition_path = %condition_path,
-                                        "Condition check failed, skipping handler"
-                                    );
-                                    return Ok(Value::Null);
-                                }
-                            }
-                            Ok(None) => {
-                                tracing::warn!(
+                        tracing::debug!(
+                            condition_function_id = %condition_path,
+                            "Checking trigger conditions"
+                        );
+                        match check_condition(engine.as_ref(), &condition_path, data.clone()).await
+                        {
+                            Ok(true) => {}
+                            Ok(false) => {
+                                tracing::debug!(
                                     condition_path = %condition_path,
-                                    "Condition function returned no result"
+                                    "Condition check failed, skipping handler"
                                 );
+                                return Ok(Value::Null);
                             }
                             Err(err) => {
                                 tracing::error!(
-                                    condition_path = %condition_path,
+                                    condition_function_id = %condition_path,
                                     error = ?err,
                                     "Error invoking condition function"
                                 );

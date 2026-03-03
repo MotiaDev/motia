@@ -613,7 +613,7 @@ mod test {
         kv_store
             .set(index.to_string(), key.to_string(), updated.clone())
             .await;
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         let bytes = std::fs::read(&file_path).unwrap();
         let storage = rkyv::from_bytes::<KeyStorage, rkyv::rancor::Error>(&bytes).unwrap();
         let on_disk_index_map: IndexMap<String, Value> = serde_json::from_str(&storage.0).unwrap();
@@ -621,7 +621,7 @@ mod test {
         assert_eq!(on_disk_value, &updated);
 
         kv_store.delete(index.to_string(), key.to_string()).await;
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         assert!(!file_path.exists());
 
         std::fs::remove_dir_all(&dir).unwrap();
@@ -1169,7 +1169,7 @@ mod test {
             }
 
             // Wait for persistence
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         }
 
         // Reload from disk and verify order is preserved

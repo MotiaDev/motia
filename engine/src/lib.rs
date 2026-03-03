@@ -6,6 +6,7 @@
 
 pub mod builtins;
 pub mod channels;
+pub mod condition;
 pub mod config;
 pub mod engine;
 pub mod function;
