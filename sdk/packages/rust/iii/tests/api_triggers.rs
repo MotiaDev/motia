@@ -190,7 +190,10 @@ async fn query_parameters() {
     settle().await;
 
     let resp = http_client()
-        .get(format!("{}/test/rs/search?q=hello&limit=10", engine_http_url()))
+        .get(format!(
+            "{}/test/rs/search?q=hello&limit=10",
+            engine_http_url()
+        ))
         .send()
         .await
         .expect("request failed");
