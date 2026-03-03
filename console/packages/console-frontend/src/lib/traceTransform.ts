@@ -100,7 +100,8 @@ function getSpanStatus(status: StoredSpan['status']): 'ok' | 'error' | 'unset' {
   if (!status) return 'unset'
   const lower = status.toLowerCase()
   if (lower === 'error' || lower === '2') return 'error'
-  if (lower === 'ok' || lower === '0') return 'ok'
+  if (lower === 'ok' || lower === '1') return 'ok'
+  if (lower === 'unset' || lower === '0') return 'unset'
   return 'unset'
 }
 
