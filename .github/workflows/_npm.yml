@@ -1,0 +1,65 @@
+name: NPM Publish
+
+on:
+  workflow_call:
+    inputs:
+      package_path:
+        description: 'Package directory to publish (e.g., sdk/packages/node/iii)'
+        required: true
+        type: string
+      npm_tag:
+        description: 'NPM dist-tag (latest, alpha, beta, rc)'
+        required: true
+        type: string
+      build_filter:
+        description: 'pnpm filter for building the package (e.g., iii-sdk)'
+        required: true
+        type: string
+      pre_build_filter:
+        description: 'pnpm filter for building dependencies first (optional)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      NPM_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build dependencies
+        if: inputs.pre_build_filter != ''
+        run: pnpm --filter ${{ inputs.pre_build_filter }} build
+
+      - name: Build package
+        run: pnpm --filter ${{ inputs.build_filter }} build
+
+      - name: Setup NPM authentication
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+
+      - name: Publish to NPM
+        working-directory: ${{ inputs.package_path }}
+        run: pnpm publish --no-git-checks --tag ${{ inputs.npm_tag }} --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

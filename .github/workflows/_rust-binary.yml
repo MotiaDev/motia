@@ -1,0 +1,146 @@
+name: Rust Binary Release
+
+on:
+  workflow_call:
+    inputs:
+      bin_name:
+        description: 'Binary name (e.g., iii, iii-console)'
+        required: true
+        type: string
+      manifest_path:
+        description: 'Path to Cargo.toml (e.g., engine/Cargo.toml)'
+        required: true
+        type: string
+      targets:
+        description: 'JSON array of {target, os} objects for the build matrix'
+        required: true
+        type: string
+      tag_name:
+        description: 'Git tag for the GitHub Release (e.g., engine/v0.7.1)'
+        required: true
+        type: string
+      is_prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+      artifact_name:
+        description: 'Pre-built artifact to download before building (optional)'
+        required: false
+        type: string
+        default: ''
+      artifact_dest:
+        description: 'Destination path for the downloaded artifact (optional)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      III_CI_APP_ID:
+        required: true
+      III_CI_APP_PRIVATE_KEY:
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+  CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.III_CI_APP_ID }}
+          private-key: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          tag_name: ${{ inputs.tag_name }}
+          name: ${{ inputs.bin_name }} ${{ inputs.tag_name }}
+          draft: false
+          prerelease: ${{ inputs.is_prerelease }}
+          generate_release_notes: true
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: [create-release]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    env:
+      SKIP_FRONTEND_BUILD: ${{ inputs.artifact_name != '' && '1' || '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.targets) }}
+
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.III_CI_APP_ID }}
+          private-key: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Download pre-built artifact
+        if: inputs.artifact_name != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.artifact_dest }}
+
+      - name: Install cross-compilation tools
+        if: runner.os == 'Linux'
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: |
+          sudo apt-get update
+          case "$BUILD_TARGET" in
+            x86_64-unknown-linux-musl)
+              sudo apt-get install -y musl-tools
+              ;;
+            aarch64-unknown-linux-gnu)
+              sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+              ;;
+            armv7-unknown-linux-gnueabihf)
+              sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross
+              ;;
+          esac
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry & build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ inputs.bin_name }}-${{ matrix.target }}
+
+      - name: Build and upload binary
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: ${{ inputs.bin_name }}
+          target: ${{ matrix.target }}
+          ref: refs/tags/${{ inputs.tag_name }}
+          tar: unix
+          zip: windows
+          checksum: sha256
+          manifest-path: ${{ inputs.manifest_path }}
+          token: ${{ steps.generate_token.outputs.token }}

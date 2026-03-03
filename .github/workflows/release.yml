@@ -1,21 +1,90 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'release/v*'
-
-env:
-  CARGO_TERM_COLOR: always
+  workflow_dispatch:
+    inputs:
+      release_engine:
+        description: 'Release Engine'
+        required: false
+        type: boolean
+        default: false
+      engine_tag:
+        description: 'Engine git tag (e.g., engine/v0.7.1)'
+        required: false
+        type: string
+        default: ''
+      engine_version:
+        description: 'Engine version (e.g., 0.7.1)'
+        required: false
+        type: string
+        default: ''
+      release_sdk:
+        description: 'Release SDK'
+        required: false
+        type: boolean
+        default: false
+      sdk_tag:
+        description: 'SDK git tag (e.g., sdk/v0.4.2)'
+        required: false
+        type: string
+        default: ''
+      sdk_version:
+        description: 'SDK version (e.g., 0.4.2)'
+        required: false
+        type: string
+        default: ''
+      release_console:
+        description: 'Release Console'
+        required: false
+        type: boolean
+        default: false
+      console_tag:
+        description: 'Console git tag (e.g., console/v0.2.5)'
+        required: false
+        type: string
+        default: ''
+      console_version:
+        description: 'Console version (e.g., 0.2.5)'
+        required: false
+        type: string
+        default: ''
+      release_motia:
+        description: 'Release Motia'
+        required: false
+        type: boolean
+        default: false
+      motia_tag:
+        description: 'Motia git tag (e.g., motia/v1.0.0)'
+        required: false
+        type: string
+        default: ''
+      motia_version:
+        description: 'Motia version (e.g., 1.0.0)'
+        required: false
+        type: string
+        default: ''
+      npm_tag:
+        description: 'NPM dist-tag'
+        required: false
+        type: string
+        default: 'latest'
+      is_prerelease:
+        description: 'Is pre-release'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   id-token: write
   actions: write
 
+concurrency:
+  group: release
+
 jobs:
   # ──────────────────────────────────────────────────────────────
-  # Preparation
+  # Notification
   # ──────────────────────────────────────────────────────────────
 
   notify-start:
@@ -24,226 +93,85 @@ jobs:
     outputs:
       slack_ts: ${{ steps.slack.outputs.ts }}
     steps:
+      - name: Build status lines
+        id: lines
+        env:
+          RELEASE_ENGINE: ${{ inputs.release_engine }}
+          RELEASE_SDK: ${{ inputs.release_sdk }}
+          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_MOTIA: ${{ inputs.release_motia }}
+          ENGINE_TAG: ${{ inputs.engine_tag }}
+          SDK_TAG: ${{ inputs.sdk_tag }}
+          CONSOLE_TAG: ${{ inputs.console_tag }}
+          MOTIA_TAG: ${{ inputs.motia_tag }}
+        run: |
+          STATUS=""
+          [[ "$RELEASE_ENGINE" == "true" ]] && STATUS="$STATUS:white_square: Engine ($ENGINE_TAG)\n"
+          [[ "$RELEASE_SDK" == "true" ]] && STATUS="$STATUS:white_square: SDK ($SDK_TAG)\n"
+          [[ "$RELEASE_CONSOLE" == "true" ]] && STATUS="$STATUS:white_square: Console ($CONSOLE_TAG)\n"
+          [[ "$RELEASE_MOTIA" == "true" ]] && STATUS="$STATUS:white_square: Motia ($MOTIA_TAG)\n"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+
       - name: Post initial Slack message
         id: slack
+        continue-on-error: true
         uses: slackapi/slack-github-action@v2.0.0
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             channel: ${{ secrets.SLACK_CHANNEL_ID }}
-            text: "Release ${{ github.ref_name }} started"
+            text: "Release started"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "*Release ${{ github.ref_name }}*\n\n:hourglass: Running tests...\n:white_square: Engine release\n:white_square: SDK publish\n:white_square: Motia publish\n:white_square: Console release\n:white_square: Deploy docs"
+                  text: "*Release Pipeline*\n\n${{ steps.lines.outputs.status }}"
               - type: "context"
                 elements:
                   - type: "mrkdwn"
                     text: "Triggered by ${{ github.actor }} | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"
 
-  detect-prerelease:
-    name: Detect Pre-release
-    runs-on: ubuntu-latest
-    outputs:
-      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
-      npm_tag: ${{ steps.check.outputs.npm_tag }}
-    steps:
-      - name: Check tag format
-        id: check
-        run: |
-          TAG="${{ github.ref_name }}"
-          if [[ "$TAG" =~ -alpha ]]; then
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-            echo "npm_tag=alpha" >> $GITHUB_OUTPUT
-          elif [[ "$TAG" =~ -beta ]]; then
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-            echo "npm_tag=beta" >> $GITHUB_OUTPUT
-          elif [[ "$TAG" =~ -rc ]]; then
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-            echo "npm_tag=rc" >> $GITHUB_OUTPUT
-          else
-            echo "is_prerelease=false" >> $GITHUB_OUTPUT
-            echo "npm_tag=latest" >> $GITHUB_OUTPUT
-          fi
-
   # ──────────────────────────────────────────────────────────────
-  # Step 1: Test everything
+  # Step 1: Engine Release (binaries)
   # ──────────────────────────────────────────────────────────────
 
-  test-all:
-    name: Run All Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - uses: Swatinem/rust-cache@v2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - uses: astral-sh/setup-uv@v5
-
-      - name: Rust checks
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets --all-features -- -D warnings
-          cargo test --workspace --all-features
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build and test Node SDK
-        run: |
-          pnpm --filter iii-sdk build
-          pnpm --filter iii-sdk exec tsc --noEmit
-
-      - name: Build and test Motia JS
-        run: |
-          pnpm --filter motia build
-          pnpm --filter motia test
-
-      - name: Test Python SDK
-        working-directory: sdk/packages/python/iii
-        run: |
-          uv sync --extra dev
-          uv run ruff check src
-          uv run mypy src
-
-      - name: Test Motia Python
-        working-directory: motia/motia-py/packages/motia
-        run: |
-          uv sync --extra dev
-          uv run ruff check src
-          uv run mypy src
-
-  # ──────────────────────────────────────────────────────────────
-  # Step 2: Release Engine (binaries + GitHub Release)
-  # ──────────────────────────────────────────────────────────────
-
-  create-engine-release:
-    name: Create Engine Release
-    needs: [notify-start, detect-prerelease, test-all]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Generate token
-        id: generate_token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.III_CI_APP_ID }}
-          private-key: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
-          permission-contents: write
-
-      - uses: actions/checkout@v4
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          token: ${{ steps.generate_token.outputs.token }}
-          draft: false
-          prerelease: ${{ needs.detect-prerelease.outputs.is_prerelease == 'true' }}
-          generate_release_notes: true
-
-      - name: Update Slack
-        uses: slackapi/slack-github-action@v2.0.0
-        with:
-          method: chat.update
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          payload: |
-            channel: ${{ secrets.SLACK_CHANNEL_ID }}
-            ts: ${{ needs.notify-start.outputs.slack_ts }}
-            text: "Release ${{ github.ref_name }} in progress"
-            blocks:
-              - type: "section"
-                text:
-                  type: "mrkdwn"
-                  text: "*Release ${{ github.ref_name }}*\n\n:white_check_mark: Tests passed\n:hourglass: Building engine binaries...\n:white_square: SDK publish\n:white_square: Motia publish\n:white_square: Console release\n:white_square: Deploy docs"
-              - type: "context"
-                elements:
-                  - type: "mrkdwn"
-                    text: "Triggered by ${{ github.actor }} | <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>"
-
-  build-engine-binaries:
-    name: Engine Binary - ${{ matrix.target }}
-    needs: [create-engine-release]
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-          - target: i686-pc-windows-msvc
-            os: windows-latest
-          - target: aarch64-pc-windows-msvc
-            os: windows-latest
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-22.04
-          - target: armv7-unknown-linux-gnueabihf
-            os: ubuntu-22.04
-
-    steps:
-      - name: Generate token
-        id: generate_token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.III_CI_APP_ID }}
-          private-key: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
-          permission-contents: write
-
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ steps.generate_token.outputs.token }}
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-
-      - name: Build and upload binary
-        uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: iii
-          target: ${{ matrix.target }}
-          tar: unix
-          zip: windows
-          manifest-path: engine/Cargo.toml
-          token: ${{ steps.generate_token.outputs.token }}
+  engine-release:
+    name: Engine Release
+    needs: [notify-start]
+    if: inputs.release_engine == true
+    uses: ./.github/workflows/_rust-binary.yml
+    with:
+      bin_name: iii
+      manifest_path: engine/Cargo.toml
+      tag_name: ${{ inputs.engine_tag }}
+      is_prerelease: ${{ inputs.is_prerelease }}
+      targets: >-
+        [
+          {"target":"x86_64-apple-darwin","os":"macos-latest"},
+          {"target":"aarch64-apple-darwin","os":"macos-latest"},
+          {"target":"x86_64-pc-windows-msvc","os":"windows-latest"},
+          {"target":"i686-pc-windows-msvc","os":"windows-latest"},
+          {"target":"aarch64-pc-windows-msvc","os":"windows-latest"},
+          {"target":"x86_64-unknown-linux-gnu","os":"ubuntu-22.04"},
+          {"target":"x86_64-unknown-linux-musl","os":"ubuntu-latest"},
+          {"target":"aarch64-unknown-linux-gnu","os":"ubuntu-22.04"},
+          {"target":"armv7-unknown-linux-gnueabihf","os":"ubuntu-22.04"}
+        ]
+    secrets:
+      III_CI_APP_ID: ${{ secrets.III_CI_APP_ID }}
+      III_CI_APP_PRIVATE_KEY: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
 
   trigger-engine-pkg-managers:
     name: Trigger Engine Package Managers
-    needs: [detect-prerelease, build-engine-binaries]
+    needs: [engine-release]
+    if: inputs.release_engine == true && inputs.is_prerelease != true
     runs-on: ubuntu-latest
-    if: needs.detect-prerelease.outputs.is_prerelease != 'true'
     steps:
       - name: Trigger Homebrew
         uses: actions/github-script@v7
+        env:
+          ENGINE_TAG: ${{ inputs.engine_tag }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -252,170 +180,82 @@ jobs:
               repo: context.repo.repo,
               workflow_id: 'publish-engine-homebrew.yml',
               ref: 'main',
-              inputs: { version: '${{ github.ref_name }}', dry_run: 'false' }
+              inputs: { version: process.env.ENGINE_TAG, dry_run: 'false' }
             });
 
   # ──────────────────────────────────────────────────────────────
-  # Step 3: Publish SDKs (after engine release)
+  # Step 2: SDK Publish (after engine)
   # ──────────────────────────────────────────────────────────────
 
-  publish-sdk-node:
-    name: Publish Node SDK
-    needs: [detect-prerelease, build-engine-binaries]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  sdk-npm:
+    name: SDK Node Publish
+    needs: [engine-release]
+    if: |
+      always() &&
+      inputs.release_sdk == true &&
+      (needs.engine-release.result == 'success' || needs.engine-release.result == 'skipped')
+    uses: ./.github/workflows/_npm.yml
+    with:
+      package_path: sdk/packages/node/iii
+      npm_tag: ${{ inputs.npm_tag }}
+      build_filter: iii-sdk
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+  sdk-py:
+    name: SDK Python Publish
+    needs: [engine-release]
+    if: |
+      always() &&
+      inputs.release_sdk == true &&
+      (needs.engine-release.result == 'success' || needs.engine-release.result == 'skipped')
+    uses: ./.github/workflows/_py.yml
+    with:
+      package_path: sdk/packages/python/iii
+    secrets:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build SDK
-        run: pnpm --filter iii-sdk build
-
-      - name: Publish to npm
-        working-directory: sdk/packages/node/iii
-        run: pnpm publish --access public --no-git-checks --tag ${{ needs.detect-prerelease.outputs.npm_tag }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  publish-sdk-python:
-    name: Publish Python SDK
-    needs: [build-engine-binaries]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install build tools
-        run: pip install build
-
-      - name: Build package
-        working-directory: sdk/packages/python/iii
-        run: python -m build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: sdk/packages/python/iii/dist/
-          password: ${{ secrets.PYPI_API_TOKEN }}
-
-  publish-sdk-rust:
-    name: Publish Rust SDK
-    needs: [build-engine-binaries]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Publish to crates.io
-        working-directory: sdk/packages/rust/iii
-        run: cargo publish
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+  sdk-rust:
+    name: SDK Rust Publish
+    needs: [engine-release]
+    if: |
+      always() &&
+      inputs.release_sdk == true &&
+      (needs.engine-release.result == 'success' || needs.engine-release.result == 'skipped')
+    uses: ./.github/workflows/_rust-cargo.yml
+    with:
+      package_path: sdk/packages/rust/iii
+    secrets:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   # ──────────────────────────────────────────────────────────────
-  # Step 4: Publish Motia (after SDKs)
+  # Step 2b: Console Release (after engine, parallel with SDK)
   # ──────────────────────────────────────────────────────────────
 
-  publish-motia-js:
-    name: Publish Motia JS
-    needs: [detect-prerelease, publish-sdk-node]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build SDK first
-        run: pnpm --filter iii-sdk build
-
-      - name: Build Motia
-        run: pnpm --filter motia build
-
-      - name: Publish to npm
-        working-directory: motia/motia-js/packages/motia
-        run: pnpm publish --access public --no-git-checks --tag ${{ needs.detect-prerelease.outputs.npm_tag }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  publish-motia-py:
-    name: Publish Motia Python
-    needs: [publish-sdk-python]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install build tools
-        run: pip install build
-
-      - name: Build package
-        working-directory: motia/motia-py/packages/motia
-        run: python -m build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: motia/motia-py/packages/motia/dist/
-          password: ${{ secrets.PYPI_MOTIA_TOKEN }}
-
-  # ──────────────────────────────────────────────────────────────
-  # Step 5: Publish Console (after engine)
-  # ──────────────────────────────────────────────────────────────
-
-  build-console-frontend:
+  console-frontend:
     name: Build Console Frontend
-    needs: [build-engine-binaries]
+    needs: [engine-release]
+    if: |
+      always() &&
+      inputs.release_console == true &&
+      (needs.engine-release.result == 'success' || needs.engine-release.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend for binary
+      - name: Build frontend for binary embedding
         run: pnpm --filter console-frontend build:binary
 
       - uses: actions/upload-artifact@v4
@@ -424,108 +264,158 @@ jobs:
           path: console/packages/console-frontend/dist-binary/
           retention-days: 1
 
-  build-console-binaries:
-    name: Console Binary - ${{ matrix.target }}
-    needs: [build-console-frontend]
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
-    env:
-      SKIP_FRONTEND_BUILD: "1"
-      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
+  console-release:
+    name: Console Release
+    needs: [console-frontend]
+    if: inputs.release_console == true
+    uses: ./.github/workflows/_rust-binary.yml
+    with:
+      bin_name: iii-console
+      manifest_path: console/packages/console-rust/Cargo.toml
+      tag_name: ${{ inputs.console_tag }}
+      is_prerelease: ${{ inputs.is_prerelease }}
+      artifact_name: console-frontend-dist
+      artifact_dest: console/packages/console-rust/assets/
+      targets: >-
+        [
+          {"target":"x86_64-apple-darwin","os":"macos-latest"},
+          {"target":"aarch64-apple-darwin","os":"macos-latest"},
+          {"target":"x86_64-unknown-linux-gnu","os":"ubuntu-latest"},
+          {"target":"x86_64-unknown-linux-musl","os":"ubuntu-latest"},
+          {"target":"aarch64-unknown-linux-gnu","os":"ubuntu-latest"}
+        ]
+    secrets:
+      III_CI_APP_ID: ${{ secrets.III_CI_APP_ID }}
+      III_CI_APP_PRIVATE_KEY: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
 
+  trigger-console-pkg-managers:
+    name: Trigger Console Package Managers
+    needs: [console-release]
+    if: inputs.release_console == true && inputs.is_prerelease != true
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: console-frontend-dist
-          path: console/packages/console-rust/assets/
-
-      - name: Install cross-compilation tools
-        if: runner.os == 'Linux'
+      - name: Trigger Homebrew
+        uses: actions/github-script@v7
         env:
-          BUILD_TARGET: ${{ matrix.target }}
-        run: |
-          sudo apt-get update
-          case "$BUILD_TARGET" in
-            x86_64-unknown-linux-musl) sudo apt-get install -y musl-tools ;;
-            aarch64-unknown-linux-gnu) sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross ;;
-          esac
-
-      - uses: dtolnay/rust-toolchain@stable
+          CONSOLE_TAG: ${{ inputs.console_tag }}
         with:
-          targets: ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: console-${{ matrix.target }}
-
-      - name: Build and upload binary
-        uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: iii-console
-          target: ${{ matrix.target }}
-          tar: unix
-          checksum: sha256
-          manifest-path: console/packages/console-rust/Cargo.toml
-          token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'publish-console-homebrew.yml',
+              ref: 'main',
+              inputs: { version: process.env.CONSOLE_TAG, dry_run: 'false' }
+            });
 
   # ──────────────────────────────────────────────────────────────
-  # Step 6: Notify completion
+  # Step 3: Motia Publish (after SDK)
+  # ──────────────────────────────────────────────────────────────
+
+  motia-npm:
+    name: Motia JS Publish
+    needs: [sdk-npm]
+    if: |
+      always() &&
+      inputs.release_motia == true &&
+      (needs.sdk-npm.result == 'success' || needs.sdk-npm.result == 'skipped')
+    uses: ./.github/workflows/_npm.yml
+    with:
+      package_path: frameworks/motia/motia-js/packages/motia
+      npm_tag: ${{ inputs.npm_tag }}
+      build_filter: motia
+      pre_build_filter: iii-sdk
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  motia-py:
+    name: Motia Python Publish
+    needs: [sdk-py]
+    if: |
+      always() &&
+      inputs.release_motia == true &&
+      (needs.sdk-py.result == 'success' || needs.sdk-py.result == 'skipped')
+    uses: ./.github/workflows/_py.yml
+    with:
+      package_path: frameworks/motia/motia-py/packages/motia
+    secrets:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_MOTIA_TOKEN }}
+
+  # ──────────────────────────────────────────────────────────────
+  # Final: Notify completion
   # ──────────────────────────────────────────────────────────────
 
   notify-complete:
     name: Release Complete
     needs:
       - notify-start
-      - detect-prerelease
-      - build-engine-binaries
-      - publish-sdk-node
-      - publish-sdk-python
-      - publish-sdk-rust
-      - publish-motia-js
-      - publish-motia-py
-      - build-console-binaries
+      - engine-release
+      - sdk-npm
+      - sdk-py
+      - sdk-rust
+      - console-release
+      - motia-npm
+      - motia-py
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Determine status
         id: status
+        env:
+          RELEASE_ENGINE: ${{ inputs.release_engine }}
+          RELEASE_SDK: ${{ inputs.release_sdk }}
+          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_MOTIA: ${{ inputs.release_motia }}
+          ENGINE_TAG: ${{ inputs.engine_tag }}
+          SDK_TAG: ${{ inputs.sdk_tag }}
+          CONSOLE_TAG: ${{ inputs.console_tag }}
+          MOTIA_TAG: ${{ inputs.motia_tag }}
+          ENGINE_RESULT: ${{ needs.engine-release.result }}
+          SDK_NPM_RESULT: ${{ needs.sdk-npm.result }}
+          SDK_PY_RESULT: ${{ needs.sdk-py.result }}
+          SDK_RUST_RESULT: ${{ needs.sdk-rust.result }}
+          CONSOLE_RESULT: ${{ needs.console-release.result }}
+          MOTIA_NPM_RESULT: ${{ needs.motia-npm.result }}
+          MOTIA_PY_RESULT: ${{ needs.motia-py.result }}
         run: |
-          ENGINE='${{ needs.build-engine-binaries.result }}'
-          SDK_NODE='${{ needs.publish-sdk-node.result }}'
-          SDK_PY='${{ needs.publish-sdk-python.result }}'
-          SDK_RUST='${{ needs.publish-sdk-rust.result }}'
-          MOTIA_JS='${{ needs.publish-motia-js.result }}'
-          MOTIA_PY='${{ needs.publish-motia-py.result }}'
-          CONSOLE='${{ needs.build-console-binaries.result }}'
+          icon() {
+            case "$1" in
+              success) echo ":white_check_mark:" ;;
+              skipped) echo ":fast_forward:" ;;
+              *) echo ":x:" ;;
+            esac
+          }
 
-          icon() { [ "$1" = "success" ] && echo ":white_check_mark:" || echo ":x:"; }
+          LINES=""
+          OVERALL="success"
 
-          echo "engine_icon=$(icon $ENGINE)" >> $GITHUB_OUTPUT
-          echo "sdk_node_icon=$(icon $SDK_NODE)" >> $GITHUB_OUTPUT
-          echo "sdk_py_icon=$(icon $SDK_PY)" >> $GITHUB_OUTPUT
-          echo "sdk_rust_icon=$(icon $SDK_RUST)" >> $GITHUB_OUTPUT
-          echo "motia_js_icon=$(icon $MOTIA_JS)" >> $GITHUB_OUTPUT
-          echo "motia_py_icon=$(icon $MOTIA_PY)" >> $GITHUB_OUTPUT
-          echo "console_icon=$(icon $CONSOLE)" >> $GITHUB_OUTPUT
+          if [[ "$RELEASE_ENGINE" == "true" ]]; then
+            LINES="$LINES$(icon "$ENGINE_RESULT") Engine ($ENGINE_TAG)\n"
+            [[ "$ENGINE_RESULT" != "success" ]] && OVERALL="failure"
+          fi
+          if [[ "$RELEASE_SDK" == "true" ]]; then
+            LINES="$LINES$(icon "$SDK_NPM_RESULT") SDK Node\n"
+            LINES="$LINES$(icon "$SDK_PY_RESULT") SDK Python\n"
+            LINES="$LINES$(icon "$SDK_RUST_RESULT") SDK Rust\n"
+            [[ "$SDK_NPM_RESULT" != "success" || "$SDK_PY_RESULT" != "success" || "$SDK_RUST_RESULT" != "success" ]] && OVERALL="failure"
+          fi
+          if [[ "$RELEASE_CONSOLE" == "true" ]]; then
+            LINES="$LINES$(icon "$CONSOLE_RESULT") Console ($CONSOLE_TAG)\n"
+            [[ "$CONSOLE_RESULT" != "success" ]] && OVERALL="failure"
+          fi
+          if [[ "$RELEASE_MOTIA" == "true" ]]; then
+            LINES="$LINES$(icon "$MOTIA_NPM_RESULT") Motia JS\n"
+            LINES="$LINES$(icon "$MOTIA_PY_RESULT") Motia Python\n"
+            [[ "$MOTIA_NPM_RESULT" != "success" || "$MOTIA_PY_RESULT" != "success" ]] && OVERALL="failure"
+          fi
+
+          echo "lines=$LINES" >> "$GITHUB_OUTPUT"
+          echo "overall=$OVERALL" >> "$GITHUB_OUTPUT"
 
       - name: Update Slack
+        if: needs.notify-start.outputs.slack_ts != ''
+        continue-on-error: true
         uses: slackapi/slack-github-action@v2.0.0
         with:
           method: chat.update
@@ -533,13 +423,13 @@ jobs:
           payload: |
             channel: ${{ secrets.SLACK_CHANNEL_ID }}
             ts: ${{ needs.notify-start.outputs.slack_ts }}
-            text: "Release ${{ github.ref_name }} complete"
+            text: "Release ${{ steps.status.outputs.overall }}"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "*Release ${{ github.ref_name }}*\n\n:white_check_mark: Tests passed\n${{ steps.status.outputs.engine_icon }} Engine binaries\n${{ steps.status.outputs.sdk_node_icon }} SDK Node (npm)\n${{ steps.status.outputs.sdk_py_icon }} SDK Python (PyPI)\n${{ steps.status.outputs.sdk_rust_icon }} SDK Rust (crates.io)\n${{ steps.status.outputs.motia_js_icon }} Motia JS (npm)\n${{ steps.status.outputs.motia_py_icon }} Motia Python (PyPI)\n${{ steps.status.outputs.console_icon }} Console binaries"
+                  text: "*Release Pipeline* ${{ steps.status.outputs.overall == 'success' && ':white_check_mark:' || ':x:' }}\n\n${{ steps.status.outputs.lines }}"
               - type: "context"
                 elements:
                   - type: "mrkdwn"
-                    text: "Triggered by ${{ github.actor }} | <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|View Release>"
+                    text: "Triggered by ${{ github.actor }} | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"

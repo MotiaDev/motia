@@ -1,0 +1,39 @@
+name: PyPI Publish
+
+on:
+  workflow_call:
+    inputs:
+      package_path:
+        description: 'Package directory (e.g., sdk/packages/python/iii)'
+        required: true
+        type: string
+    secrets:
+      PYPI_API_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build package
+        working-directory: ${{ inputs.package_path }}
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ inputs.package_path }}/dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
