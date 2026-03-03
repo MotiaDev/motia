@@ -1,0 +1,165 @@
+// Copyright Motia LLC and/or licensed to Motia LLC under one or more
+// contributor license agreements. Licensed under the Elastic License 2.0;
+// you may not use this file except in compliance with the Elastic License 2.0.
+// This software is patent protected. We welcome discussions - reach out at support@motia.dev
+// See LICENSE and PATENTS files for details.
+
+use std::collections::HashMap;
+
+use axum::extract::ws::Message as WsMessage;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use iii_sdk::UpdateOp;
+
+pub struct Subscription {
+    pub subscription_id: String,
+    pub stream_name: String,
+    pub group_id: String,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamIncomingMessageData {
+    #[serde(rename = "subscriptionId")]
+    pub subscription_id: String,
+    #[serde(rename = "streamName")]
+    pub stream_name: String,
+    #[serde(rename = "groupId")]
+    pub group_id: String,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum StreamIncomingMessage {
+    Join { data: StreamIncomingMessageData },
+    Leave { data: StreamIncomingMessageData },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EventData {
+    #[serde(rename = "type")]
+    pub event_type: String,
+    pub data: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum StreamOutboundMessage {
+    Unauthorized {},
+    Sync { data: Value },
+    Create { data: Value },
+    Update { data: Value },
+    Delete { data: Value },
+    Event { event: EventData },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamWrapperMessage {
+    #[serde(rename = "type")]
+    pub event_type: String,
+    pub timestamp: i64,
+    #[serde(rename = "streamName")]
+    pub stream_name: String,
+    #[serde(rename = "groupId")]
+    pub group_id: String,
+    pub id: Option<String>,
+    pub event: StreamOutboundMessage,
+}
+
+#[derive(Debug)]
+pub enum StreamOutbound {
+    Stream(StreamWrapperMessage),
+    Raw(WsMessage),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamSetInput {
+    pub stream_name: String,
+    pub group_id: String,
+    pub item_id: String,
+    pub data: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamGetInput {
+    pub stream_name: String,
+    pub group_id: String,
+    pub item_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamDeleteInput {
+    pub stream_name: String,
+    pub group_id: String,
+    pub item_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamListInput {
+    pub stream_name: String,
+    pub group_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamListGroupsInput {
+    pub stream_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamAuthInput {
+    pub headers: HashMap<String, String>,
+    pub path: String,
+    pub query_params: HashMap<String, Vec<String>>,
+    pub addr: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamAuthContext {
+    pub context: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamJoinLeaveEvent {
+    pub subscription_id: String,
+    pub stream_name: String,
+    pub group_id: String,
+    pub id: Option<String>,
+    pub context: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamJoinResult {
+    pub unauthorized: bool,
+}
+
+/// Input for atomic stream update operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamUpdateInput {
+    pub stream_name: String,
+    pub group_id: String,
+    pub item_id: String,
+    pub ops: Vec<UpdateOp>,
+}
+
+/// Input for stream.listAll (empty struct)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamListAllInput {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamSendInput {
+    pub stream_name: String,
+    pub group_id: String,
+    pub id: Option<String>,
+    #[serde(rename = "type")]
+    pub event_type: String,
+    pub data: Value,
+}
+
+/// Metadata for a stream (used by stream.listAll)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamMetadata {
+    pub id: String,
+    pub groups: Vec<String>,
+}

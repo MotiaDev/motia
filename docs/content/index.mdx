@@ -1,0 +1,82 @@
+---
+title: Welcome to iii
+description: One engine. Three primitives. Your entire backend.
+hideCards: true
+---
+
+**iii** (pronounced "three eye") replaces your backend stack with a single engine and three primitives: **Worker**, **Function**, and **Trigger**.
+
+No more gluing together separate tools for APIs, queues, cron, state, and real-time. iii gives you all of that out of the box.
+
+## The Problem
+
+Building a typical backend today means stitching together 5-10 separate systems: an API framework, a task queue, a cron scheduler, a pub/sub layer, a state store, a WebSocket server, and an observability pipeline. Each one has its own setup, its own deployment, and its own failure modes. You spend more time wiring infrastructure than writing business logic.
+
+## How iii Solves It
+
+You start iii once. It runs as a single process and handles everything:
+
+- **Write functions in any language.** Your code runs in Workers that connect to iii over WebSocket. Use TypeScript, Python, or Rust. Mix them freely.
+- **Triggers replace all your infra wiring.** An HTTP request, a cron schedule, a queue message, a state change, a stream event. They all work the same way: a Trigger fires, iii invokes your Function.
+- **Discovery keeps every worker in sync.** When a Worker connects and registers its Functions, every other Worker is notified. When it disconnects, its Functions disappear. No service registry, no config files — every Worker always knows what the entire system can do.
+- **Workers come and go.** When a Worker connects, its Functions are registered automatically. When it disconnects, they are cleaned up. When it reconnects, everything is restored. Zero-downtime deploys become trivial.
+
+The result: you write business logic as Functions, declare what triggers them, and iii handles the rest.
+
+## What iii Does
+
+When iii starts, it:
+
+- **Dynamically registers Functions.** Workers connect over WebSocket and register their handlers. iii routes incoming triggers to the right Worker, regardless of language or location.
+- **Orchestrates triggers.** HTTP requests, cron schedules, queue messages, state changes, and stream events all flow through iii and invoke the correct Function.
+- **Enables runtime discovery.** Every Worker can see every Function in the system, including built-in ones. When a Worker connects or disconnects, the registry updates and everyone is notified.
+- **Manages the lifecycle.** When a Worker disconnects, iii cleans up its Functions automatically. When it reconnects, Functions are re-registered transparently.
+
+<Callout title="Why this matters" type="info">
+  React simplified the frontend with Component and Context. iii does the same for the backend with Function, Trigger, and Discovery. One mental model for APIs, background jobs, workflows, real-time, and more.
+</Callout>
+
+## Getting Started
+
+The best way to understand iii is to try it:
+
+### 1. Install iii
+
+Get the iii daemon installed on your machine.
+
+```bash
+curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
+```
+
+<Callout title="Anonymous telemetry" type="info">
+  iii collects anonymous usage data to help improve the engine. No personal information is collected. To opt out, set the environment variable before running iii:
+
+  ```bash
+  III_TELEMETRY_ENABLED=false iii
+  ```
+</Callout>
+
+### 2. Verify installation
+
+Check that iii has installed correctly with the following command. It should return a version number.
+
+```bash
+iii --version
+```
+
+## Next Steps
+
+<Cards>
+  <Card icon={<Terminal />} title="Tutorials" href={`/docs/tutorials/quickstart`}>
+    Follow the Quickstart and build your first iii application step by step.
+  </Card>
+  <Card icon={<LayoutTemplate />} title="Concepts" href={`/docs/concepts`}>
+    Understand Function, Trigger, and Discovery.
+  </Card>
+  <Card icon={<Settings />} title="How-to Guides" href={`/docs/how-to/expose-http-endpoint`}>
+    Solve specific problems: HTTP endpoints, background jobs, state, cron, and streaming.
+  </Card>
+  <Card icon={<FileText />} title="SDK Reference" href={`/docs/api-reference/iii-sdk`}>
+    Complete API reference for TypeScript, Python, and Rust SDKs.
+  </Card>
+</Cards>

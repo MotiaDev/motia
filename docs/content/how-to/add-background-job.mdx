@@ -1,0 +1,137 @@
+---
+title: 'Add a Background Job'
+description: 'How to process work asynchronously using the Queue module.'
+---
+
+## Goal
+
+Offload slow or unreliable work (sending emails, processing images, calling external APIs) to a background queue so your HTTP endpoint responds immediately.
+
+## Steps
+
+### 1. Enable the Queue module
+
+```yaml
+modules:
+  queue:
+    adapter: memory
+```
+
+### 2. Register the background Function
+
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
+```typescript
+import { init } from 'iii-sdk'
+
+const iii = init('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'emails::send-welcome' },
+  async (data) => {
+    return { sent: true, to: data.to }
+  }
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+import asyncio
+from iii import III
+
+async def main():
+    iii = III('ws://localhost:49134')
+
+    async def send_welcome(data):
+        return {'sent': True, 'to': data['to']}
+
+    iii.register_function('emails::send-welcome', send_welcome)
+    await iii.connect()
+
+asyncio.run(main())
+```
+</Tab>
+<Tab value="Rust">
+```rust
+use iii_sdk::III;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
+
+    iii.register_function("emails::send-welcome", |data| async move {
+        let to = data["to"].as_str().unwrap_or("");
+        Ok(json!({ "sent": true, "to": to }))
+    });
+
+    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+}
+```
+</Tab>
+</Tabs>
+
+### 3. Trigger it asynchronously from another Function
+
+Use `triggerVoid()` (fire-and-forget) so the calling Function doesn't wait:
+
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
+```typescript
+iii.registerFunction(
+  { id: 'users::create' },
+  async (req) => {
+    const user = { id: crypto.randomUUID(), ...req.body }
+
+    iii.triggerVoid('emails::send-welcome', {
+      to: user.email,
+      body: `Hi ${user.name}, welcome!`,
+    })
+
+    return { status_code: 201, body: user }
+  }
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+async def create_user(req):
+    import uuid
+    user = {'id': str(uuid.uuid4()), **req['body']}
+
+    iii.trigger_void('emails::send-welcome', {
+        'to': user['email'],
+        'body': f"Hi {user['name']}, welcome!",
+    })
+
+    return {'status_code': 201, 'body': user}
+
+iii.register_function('users::create', create_user)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("users::create", |req| async move {
+    let user_id = uuid::Uuid::new_v4().to_string();
+    let email = req["body"]["email"].as_str().unwrap_or("");
+    let name = req["body"]["name"].as_str().unwrap_or("");
+
+    iii.call_void("emails::send-welcome", json!({
+        "to": email,
+        "body": format!("Hi {}, welcome!", name),
+    }));
+
+    Ok(json!({ "status_code": 201, "body": { "id": user_id, "name": name, "email": email } }))
+});
+```
+</Tab>
+</Tabs>
+
+## Result
+
+The HTTP endpoint returns `201` immediately while the email is sent in the background. If the email Function fails, it does not affect the user creation response.
+
+<Callout title="Queue triggers" type="info">
+  For more advanced patterns like retry policies, dead-letter queues, and batching, see the [Queue module reference](/docs/modules/module-queue).
+</Callout>

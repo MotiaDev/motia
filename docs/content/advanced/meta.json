@@ -1,0 +1,13 @@
+{
+  "title": "Advanced",
+  "defaultOpen": false,
+  "pages": [
+    "architecture",
+    "adapters",
+    "deployment",
+    "protocol",
+    "sdk-implementation",
+    "telemetry",
+    "custom-modules"
+  ]
+}
