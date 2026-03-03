@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from iii import (
+    III,
     IStream,
     StreamDeleteInput,
     StreamGetInput,
@@ -13,38 +14,35 @@ from iii import (
     StreamUpdateInput,
 )
 
-from .iii import get_iii
 from .models import Todo
 
 
 class StreamClient:
+    def __init__(self, iii: III) -> None:
+        self._iii = iii
+
     async def get(self, stream_name: str, group_id: str, item_id: str) -> Any | None:
-        iii = get_iii()
-        return await iii.call(
+        return await self._iii.call(
             "stream::get", {"stream_name": stream_name, "group_id": group_id, "item_id": item_id}
         )
 
     async def set(self, stream_name: str, group_id: str, item_id: str, data: Any) -> Any:
-        iii = get_iii()
-        return await iii.call(
+        return await self._iii.call(
             "stream::set", {"stream_name": stream_name, "group_id": group_id, "item_id": item_id, "data": data}
         )
 
     async def delete(self, stream_name: str, group_id: str, item_id: str) -> None:
-        iii = get_iii()
-        return await iii.call(
+        return await self._iii.call(
             "stream::delete", {"stream_name": stream_name, "group_id": group_id, "item_id": item_id}
         )
 
     async def get_group(self, stream_name: str, group_id: str) -> list[Any]:
-        iii = get_iii()
-        return await iii.call(
+        return await self._iii.call(
             "stream::list", {"stream_name": stream_name, "group_id": group_id}
         )
 
     async def list_groups(self, stream_name: str) -> list[str]:
-        iii = get_iii()
-        return await iii.call("stream::list_groups", {"stream_name": stream_name})
+        return await self._iii.call("stream::list_groups", {"stream_name": stream_name})
 
 
 class TodoStream(IStream[dict[str, Any]]):
@@ -87,13 +85,5 @@ class TodoStream(IStream[dict[str, Any]]):
         return None
 
 
-streams = StreamClient()
-_streams_registered = False
-
-
-def register_streams() -> None:
-    global _streams_registered
-    if _streams_registered:
-        return
-    get_iii().create_stream("todo", TodoStream())
-    _streams_registered = True
+def register_streams(iii: III) -> None:
+    iii.create_stream("todo", TodoStream())

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import random
 import string
 import time
@@ -7,7 +8,7 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Any
 
-from iii import ApiRequest, ApiResponse
+from iii import ApiRequest, ApiResponse, InitOptions, init
 
 state: Any = None
 streams: Any = None
@@ -18,18 +19,18 @@ def _generate_todo_id() -> str:
     return f"todo-{int(time.time() * 1000)}-{suffix}"
 
 
-def _setup() -> None:
+def _setup(iii) -> None:
     from .hooks import use_api, use_functions_available
-    from .state import state as state_client
-    from .stream import register_streams
-    from .stream import streams as streams_client
+    from .state import State
+    from .stream import StreamClient, register_streams
 
     global state, streams
-    state = state_client
-    streams = streams_client
-    register_streams()
+    state = State(iii)
+    streams = StreamClient(iii)
+    register_streams(iii)
 
     use_functions_available(
+        iii,
         lambda functions: print(
             "--------------------------------\n"
             f"Functions available: {len(functions)}\n"
@@ -38,31 +39,37 @@ def _setup() -> None:
     )
 
     use_api(
+        iii,
         {"api_path": "todo", "http_method": "POST", "description": "Create a new todo", "metadata": {"tags": ["todo"]}},
         _create_todo,
     )
 
     use_api(
+        iii,
         {"api_path": "todo", "http_method": "DELETE", "description": "Delete a todo", "metadata": {"tags": ["todo"]}},
         _delete_todo,
     )
 
     use_api(
+        iii,
         {"api_path": "todo/:id", "http_method": "PUT", "description": "Update a todo", "metadata": {"tags": ["todo"]}},
         _update_todo,
     )
 
     use_api(
+        iii,
         {"api_path": "state", "http_method": "POST", "description": "Set application state"},
         _create_state,
     )
 
     use_api(
+        iii,
         {"api_path": "state/:id", "http_method": "GET", "description": "Get state by ID"},
         _get_state,
     )
 
     use_api(
+        iii,
         {
             "api_path": "http-fetch",
             "http_method": "GET",
@@ -72,6 +79,7 @@ def _setup() -> None:
     )
 
     use_api(
+        iii,
         {
             "api_path": "http-fetch",
             "http_method": "POST",
@@ -185,10 +193,15 @@ async def _post_example(req: ApiRequest, ctx) -> ApiResponse:
 
 
 async def _async_main() -> None:
-    from .iii import init_iii
-
-    init_iii()
-    _setup()
+    engine_ws_url = os.environ.get("III_BRIDGE_URL", "ws://localhost:49134")
+    iii = init(
+        address=engine_ws_url,
+        options=InitOptions(
+            worker_name="iii-example",
+            otel={"enabled": True, "service_name": "iii-example"},
+        ),
+    )
+    _setup(iii)
 
     while True:
         await asyncio.sleep(60)
