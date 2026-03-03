@@ -1,8 +1,8 @@
 use iii_sdk::III;
 use serde_json::{json, Value};
 use std::collections::HashSet;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::bridge::error::{error_response, success_response};
 
@@ -582,7 +582,8 @@ async fn handle_adapters(bridge: &III) -> Value {
     // Add worker pools
     if let Ok(workers_data) = &workers_result {
         if let Some(workers) = workers_data.get("workers").and_then(|v| v.as_array()) {
-            let mut pool_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+            let mut pool_counts: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::new();
             for worker in workers {
                 let runtime = worker
                     .get("runtime")
