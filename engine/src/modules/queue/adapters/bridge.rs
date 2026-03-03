@@ -149,7 +149,7 @@ impl QueueAdapter for BridgeAdapter {
         let function_id_for_handler = function_id_for_subscription.clone();
         let condition_function_id_for_handler = condition_function_id.clone();
         self.bridge
-            .register_function(handler_path.clone(), move |data| {
+            .register_function(handler_path.clone(), move |data: Value| {
                 let engine = Arc::clone(&engine);
                 let function_id = function_id_for_handler.clone();
                 let condition_function_id = condition_function_id_for_handler.clone();

@@ -213,6 +213,9 @@ jobs:
 
       - name: Run tests
         working-directory: sdk/packages/python/iii
+        env:
+          III_BRIDGE_URL: ws://localhost:49199
+          III_HTTP_URL: http://localhost:3199
         run: uv run pytest -q
 
       - name: Stop III Engine
@@ -267,6 +270,9 @@ jobs:
           done
 
       - name: Run tests
+        env:
+          III_BRIDGE_URL: ws://localhost:49199
+          III_HTTP_URL: http://localhost:3199
         run: cargo test -p iii-sdk --all-features
 
       - name: Stop III Engine

@@ -152,7 +152,7 @@ pub struct StreamUpdateInput {
 #[derive(Clone)]
 pub struct RemoteFunctionData {
     pub message: RegisterFunctionMessage,
-    pub handler: RemoteFunctionHandler,
+    pub handler: Option<RemoteFunctionHandler>,
 }
 
 #[derive(Clone)]

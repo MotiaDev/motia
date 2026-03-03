@@ -174,14 +174,46 @@ fn inject_trace_headers() -> (Option<String>, Option<String>) {
 pub type FunctionsAvailableCallback = Arc<dyn Fn(Vec<FunctionInfo>) + Send + Sync>;
 
 #[derive(Clone)]
-pub struct HttpFunctionRef {
+pub struct FunctionRef {
     pub id: String,
     unregister_fn: Arc<dyn Fn() + Send + Sync>,
 }
 
-impl HttpFunctionRef {
+impl FunctionRef {
     pub fn unregister(&self) {
         (self.unregister_fn)();
+    }
+}
+
+pub trait IntoFunctionHandler {
+    fn into_parts(self, message: &mut RegisterFunctionMessage) -> Option<RemoteFunctionHandler>;
+}
+
+impl IntoFunctionHandler for HttpInvocationConfig {
+    fn into_parts(self, message: &mut RegisterFunctionMessage) -> Option<RemoteFunctionHandler> {
+        message.invocation = Some(self);
+        None
+    }
+}
+
+impl<F, Fut> IntoFunctionHandler for F
+where
+    F: Fn(Value) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = Result<Value, IIIError>> + Send + 'static,
+{
+    fn into_parts(self, message: &mut RegisterFunctionMessage) -> Option<RemoteFunctionHandler> {
+        let function_id = message.id.clone();
+        let user_handler = Arc::new(move |input: Value| Box::pin(self(input)));
+        let wrapped: RemoteFunctionHandler = Arc::new(move |input: Value| {
+            let function_id = function_id.clone();
+            let user_handler = user_handler.clone();
+            Box::pin(async move {
+                let logger = Logger::new(Some(function_id));
+                let context = Context { logger, span: None };
+                with_context(context, || user_handler(input)).await
+            })
+        });
+        Some(wrapped)
     }
 }
 
@@ -193,7 +225,6 @@ struct IIIInner {
     started: AtomicBool,
     pending: Mutex<HashMap<Uuid, PendingInvocation>>,
     functions: Mutex<HashMap<String, RemoteFunctionData>>,
-    http_functions: Mutex<HashMap<String, RegisterFunctionMessage>>,
     trigger_types: Mutex<HashMap<String, RemoteTriggerTypeData>>,
     triggers: Mutex<HashMap<String, RegisterTriggerMessage>>,
     services: Mutex<HashMap<String, RegisterServiceMessage>>,
@@ -252,7 +283,6 @@ impl III {
             started: AtomicBool::new(false),
             pending: Mutex::new(HashMap::new()),
             functions: Mutex::new(HashMap::new()),
-            http_functions: Mutex::new(HashMap::new()),
             trigger_types: Mutex::new(HashMap::new()),
             triggers: Mutex::new(HashMap::new()),
             services: Mutex::new(HashMap::new()),
@@ -359,33 +389,68 @@ impl III {
         telemetry::shutdown_otel().await;
     }
 
-    pub fn register_function<F, Fut>(&self, id: impl Into<String>, handler: F)
-    where
-        F: Fn(Value) -> Fut + Send + Sync + 'static,
-        Fut: std::future::Future<Output = Result<Value, IIIError>> + Send + 'static,
-    {
-        let message = RegisterFunctionMessage {
-            id: id.into(),
+    fn register_function_inner(
+        &self,
+        message: RegisterFunctionMessage,
+        handler: Option<RemoteFunctionHandler>,
+    ) -> FunctionRef {
+        let id = message.id.clone();
+        if id.trim().is_empty() {
+            panic!("id is required");
+        }
+        let data = RemoteFunctionData {
+            message: message.clone(),
+            handler,
+        };
+        let mut funcs = self.inner.functions.lock_or_recover();
+        match funcs.entry(id.clone()) {
+            std::collections::hash_map::Entry::Occupied(_) => {
+                panic!("function id '{}' already registered", id);
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(data);
+            }
+        }
+        drop(funcs);
+        let _ = self.send_message(message.to_message());
+
+        let iii = self.clone();
+        let unregister_id = id.clone();
+        let unregister_fn = Arc::new(move || {
+            let _ = iii.inner.functions.lock_or_recover().remove(&unregister_id);
+            let _ = iii.send_message(Message::UnregisterFunction {
+                id: unregister_id.clone(),
+            });
+        });
+
+        FunctionRef { id, unregister_fn }
+    }
+
+    pub fn register_function<H: IntoFunctionHandler>(
+        &self,
+        id: impl Into<String>,
+        handler: H,
+    ) -> FunctionRef {
+        let id = id.into();
+        let mut message = RegisterFunctionMessage {
+            id: id.clone(),
             description: None,
             request_format: None,
             response_format: None,
             metadata: None,
             invocation: None,
         };
-
-        self.register_function_with(message, handler);
+        let handler = handler.into_parts(&mut message);
+        self.register_function_inner(message, handler)
     }
 
-    pub fn register_function_with_description<F, Fut>(
+    pub fn register_function_with_description<H: IntoFunctionHandler>(
         &self,
         id: impl Into<String>,
         description: impl Into<String>,
-        handler: F,
-    ) where
-        F: Fn(Value) -> Fut + Send + Sync + 'static,
-        Fut: std::future::Future<Output = Result<Value, IIIError>> + Send + 'static,
-    {
-        let message = RegisterFunctionMessage {
+        handler: H,
+    ) -> FunctionRef {
+        let mut message = RegisterFunctionMessage {
             id: id.into(),
             description: Some(description.into()),
             request_format: None,
@@ -393,108 +458,17 @@ impl III {
             metadata: None,
             invocation: None,
         };
-
-        self.register_function_with(message, handler);
+        let handler = handler.into_parts(&mut message);
+        self.register_function_inner(message, handler)
     }
 
-    pub fn register_function_with<F, Fut>(&self, message: RegisterFunctionMessage, handler: F)
-    where
-        F: Fn(Value) -> Fut + Send + Sync + 'static,
-        Fut: std::future::Future<Output = Result<Value, IIIError>> + Send + 'static,
-    {
-        if self
-            .inner
-            .http_functions
-            .lock_or_recover()
-            .contains_key(&message.id)
-        {
-            panic!(
-                "function id '{}' already registered as HTTP function",
-                message.id
-            );
-        }
-        let function_id = message.id.clone();
-
-        let user_handler = Arc::new(move |input: Value| Box::pin(handler(input)));
-
-        let wrapped_handler: RemoteFunctionHandler = Arc::new(move |input: Value| {
-            let function_id = function_id.clone();
-            let user_handler = user_handler.clone();
-
-            Box::pin(async move {
-                let logger = Logger::new(Some(function_id.clone()));
-                let context = Context { logger, span: None };
-
-                with_context(context, || user_handler(input)).await
-            })
-        });
-
-        let data = RemoteFunctionData {
-            message: message.clone(),
-            handler: wrapped_handler,
-        };
-
-        self.inner
-            .functions
-            .lock_or_recover()
-            .insert(message.id.clone(), data);
-        let _ = self.send_message(message.to_message());
-    }
-
-    pub fn register_http_function(
+    pub fn register_function_with<H: IntoFunctionHandler>(
         &self,
-        id: impl Into<String>,
-        config: HttpInvocationConfig,
-    ) -> Result<HttpFunctionRef, IIIError> {
-        let id = id.into();
-        if id.trim().is_empty() {
-            return Err(IIIError::Remote {
-                code: "invalid_id".into(),
-                message: "id is required".into(),
-            });
-        }
-        if self.inner.functions.lock_or_recover().contains_key(&id)
-            || self
-                .inner
-                .http_functions
-                .lock_or_recover()
-                .contains_key(&id)
-        {
-            return Err(IIIError::Remote {
-                code: "duplicate_id".into(),
-                message: "function id already registered".into(),
-            });
-        }
-
-        let message = RegisterFunctionMessage {
-            id: id.clone(),
-            description: None,
-            request_format: None,
-            response_format: None,
-            metadata: None,
-            invocation: Some(config),
-        };
-
-        self.inner
-            .http_functions
-            .lock_or_recover()
-            .insert(id.clone(), message.clone());
-        let _ = self.send_message(message.to_message());
-
-        let iii = self.clone();
-        let unregister_id = id.clone();
-        let unregister_fn = Arc::new(move || {
-            let _ = iii
-                .inner
-                .http_functions
-                .lock_or_recover()
-                .remove(&unregister_id);
-            let _ = iii.send_message(Message::UnregisterFunction {
-                id: unregister_id.clone(),
-            });
-        });
-
-        Ok(HttpFunctionRef { id, unregister_fn })
+        mut message: RegisterFunctionMessage,
+        handler: H,
+    ) -> FunctionRef {
+        let handler = handler.into_parts(&mut message);
+        self.register_function_inner(message, handler)
     }
 
     pub fn register_service(&self, id: impl Into<String>, description: Option<String>) {
@@ -948,10 +922,6 @@ impl III {
             messages.push(function.message.to_message());
         }
 
-        for message in self.inner.http_functions.lock_or_recover().values() {
-            messages.push(message.to_message());
-        }
-
         for trigger in self.inner.triggers.lock_or_recover().values() {
             messages.push(trigger.to_message());
         }
@@ -1093,23 +1063,31 @@ impl III {
     ) {
         tracing::debug!(function_id = %function_id, traceparent = ?traceparent, baggage = ?baggage, "Invoking function");
 
-        let handler = self
+        let func_data = self
             .inner
             .functions
             .lock_or_recover()
             .get(&function_id)
-            .map(|data| data.handler.clone());
+            .cloned();
+        let handler = func_data.as_ref().and_then(|d| d.handler.clone());
 
         let Some(handler) = handler else {
-            tracing::warn!(function_id = %function_id, "Invocation: Function not found");
+            let (code, message) = match &func_data {
+                Some(_) => (
+                    "function_not_invokable".to_string(),
+                    "Function is HTTP-invoked and cannot be invoked locally".to_string(),
+                ),
+                None => (
+                    "function_not_found".to_string(),
+                    "Function not found".to_string(),
+                ),
+            };
+            tracing::warn!(function_id = %function_id, "Invocation: {}", message);
 
             if let Some(invocation_id) = invocation_id {
                 let (resp_tp, resp_bg) = inject_trace_headers();
 
-                let error = ErrorBody {
-                    code: "function_not_found".to_string(),
-                    message: "Function not found".to_string(),
-                };
+                let error = ErrorBody { code, message };
                 let result = self.send_message(Message::InvocationResult {
                     invocation_id,
                     function_id,
@@ -1291,7 +1269,7 @@ mod tests {
     }
 
     #[test]
-    fn register_http_function_stores_and_unregister_removes() {
+    fn register_function_with_http_config_stores_and_unregister_removes() {
         let iii = III::new("ws://localhost:1234");
         let config = HttpInvocationConfig {
             url: "https://example.com/invoke".to_string(),
@@ -1301,20 +1279,19 @@ mod tests {
             auth: None,
         };
 
-        let http_fn = iii
-            .register_http_function("external::my_lambda", config)
-            .unwrap();
+        let func_ref = iii.register_function("external::my_lambda", config);
 
-        assert_eq!(http_fn.id, "external::my_lambda");
-        assert_eq!(iii.inner.http_functions.lock().unwrap().len(), 1);
+        assert_eq!(func_ref.id, "external::my_lambda");
+        assert_eq!(iii.inner.functions.lock().unwrap().len(), 1);
 
-        http_fn.unregister();
+        func_ref.unregister();
 
-        assert_eq!(iii.inner.http_functions.lock().unwrap().len(), 0);
+        assert_eq!(iii.inner.functions.lock().unwrap().len(), 0);
     }
 
     #[test]
-    fn register_http_function_rejects_empty_id() {
+    #[should_panic(expected = "id is required")]
+    fn register_function_rejects_empty_id() {
         let iii = III::new("ws://localhost:1234");
         let config = HttpInvocationConfig {
             url: "https://example.com/invoke".to_string(),
@@ -1324,8 +1301,7 @@ mod tests {
             auth: None,
         };
 
-        let result = iii.register_http_function("", config);
-        assert!(result.is_err());
+        iii.register_function("", config);
     }
 
     #[tokio::test]
