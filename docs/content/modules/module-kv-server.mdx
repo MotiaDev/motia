@@ -1,0 +1,192 @@
+---
+title: 'KV Server'
+description: 'Key-Value storage server for persistent data storage'
+---
+
+Key-Value storage server for persistent data storage with support for in-memory and file-based backends.
+
+```
+modules::kv_server::KvServer
+```
+
+## Sample Configuration
+
+```yaml
+- class: modules::kv_server::KvServer
+  config:
+    store_method: file_based
+    file_path: ./data/kv_store
+    save_interval_ms: 5000
+```
+
+## Configuration
+
+<ResponseField name="store_method" type="string">
+  The storage method to use. Options are: - `in_memory` - Data is stored only in memory (lost on restart) - `file_based`
+  - Data is stored in memory and periodically persisted to disk (survives restart)
+</ResponseField>
+
+<ResponseField name="file_path" type="string">
+  The directory path where data files will be stored when using `file_based` storage method. Each index is stored as a
+  separate file within this directory.
+</ResponseField>
+
+<ResponseField name="save_interval_ms" type="number">
+  The interval in milliseconds between automatic saves when using `file_based` storage. Defaults to `5000`.
+</ResponseField>
+
+## Functions
+
+<ResponseField name="kv_server::get" type="function">
+  Get a value by key from the KV store.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="index" type="string" required>
+        The index (namespace) to use for organizing data.
+      </ResponseField>
+      <ResponseField name="key" type="string" required>
+        The key to retrieve the value for.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="value" type="any">
+        The value stored at the key, or `null` if the key does not exist.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="kv_server::set" type="function">
+  Set a value by key in the KV store.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="index" type="string" required>
+        The index (namespace) to use for organizing data.
+      </ResponseField>
+      <ResponseField name="key" type="string" required>
+        The key to store the value under.
+      </ResponseField>
+      <ResponseField name="value" type="any" required>
+        The value to store. Can be any JSON-serializable value.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="result" type="object">
+        The result of the set operation containing information about the stored value.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="kv_server::delete" type="function">
+  Delete a value by key from the KV store.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="index" type="string" required>
+        The index (namespace) to use for organizing data.
+      </ResponseField>
+      <ResponseField name="key" type="string" required>
+        The key to delete.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="value" type="any">
+        The deleted value, or `null` if the key did not exist.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="kv_server::list_keys_with_prefix" type="function">
+  List all keys that match a given prefix.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="prefix" type="string" required>
+        The prefix to match keys against.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="keys" type="string[]">
+        An array of keys that match the given prefix.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="kv_server::list" type="function">
+  List all values in an index.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="index" type="string" required>
+        The index (namespace) to use for organizing data.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="values" type="any[]">
+        An array of all values in the index.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+<ResponseField name="kv_server::update" type="function">
+  Update a value by key in the KV store using patch operations.
+
+  <AccordionGroup>
+    <Accordion iconName="settings" title="Parameters">
+      <ResponseField name="index" type="string" required>
+        The index (namespace) to use for organizing data.
+      </ResponseField>
+      <ResponseField name="key" type="string" required>
+        The key of the value to update.
+      </ResponseField>
+      <ResponseField name="ops" type="any[]" required>
+        An array of patch operations to apply to the value.
+      </ResponseField>
+    </Accordion>
+    <Accordion title="Returns">
+      <ResponseField name="result" type="object">
+        The result of the update operation containing the updated value.
+      </ResponseField>
+    </Accordion>
+  </AccordionGroup>
+</ResponseField>
+
+## Usage Examples
+
+### Basic Key-Value Operations
+
+```typescript
+await iii.trigger('kv_server::set', {
+  index: 'default',
+  key: 'user:123',
+  value: { name: 'John', email: 'john@example.com' },
+})
+
+const user = await iii.trigger('kv_server::get', {
+  index: 'default',
+  key: 'user:123',
+})
+
+await iii.trigger('kv_server::delete', {
+  index: 'default',
+  key: 'user:123',
+})
+```
+
+### Listing Keys with Prefix
+
+```typescript
+await iii.trigger('kv_server::set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
+await iii.trigger('kv_server::set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
+await iii.trigger('kv_server::set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
+
+const userKeys = await iii.trigger('kv_server::list_keys_with_prefix', {
+  prefix: 'user:',
+})
+```
