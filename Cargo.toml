@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+  "engine",
+  "engine/function-macros",
+  "sdk/packages/rust/iii",
+  "sdk/packages/rust/iii-example",
+  "console/packages/console-rust",
+]
+
+[workspace.dependencies]
+iii-sdk = { path = "sdk/packages/rust/iii" }

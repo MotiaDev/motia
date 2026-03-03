@@ -1,0 +1,15 @@
+{
+  "title": "Console",
+  "defaultOpen": false,
+  "pages": [
+    "dashboard",
+    "functions",
+    "triggers",
+    "states",
+    "streams",
+    "traces",
+    "logs",
+    "flow",
+    "configuration"
+  ]
+}
