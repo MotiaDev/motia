@@ -1,6 +1,6 @@
 //! Integration tests for HTTP API trigger endpoints.
 //!
-//! Requires a running III engine at `ws://localhost:49199` (WS) and `http://localhost:3199` (HTTP).
+//! Requires a running III engine at `ws://localhost:49134` (WS) and `http://localhost:3199` (HTTP).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 
 use iii_sdk::{III, IIIError};
 
-const ENGINE_WS_URL: &str = "ws://localhost:49199";
+const ENGINE_WS_URL: &str = "ws://localhost:49134";
 const ENGINE_HTTP_URL: &str = "http://localhost:3199";
 
 use std::path::PathBuf;

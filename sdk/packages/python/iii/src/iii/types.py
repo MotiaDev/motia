@@ -36,7 +36,7 @@ class RemoteFunctionData(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     message: RegisterFunctionMessage
-    handler: RemoteFunctionHandler
+    handler: RemoteFunctionHandler | None = None
 
 
 class RemoteTriggerTypeData(BaseModel):

@@ -1,4 +1,4 @@
-use iii_sdk::{ApiRequest, ApiResponse, III, IIIError, execute_traced_request, get_context};
+use iii_sdk::{ApiRequest, ApiResponse, IIIError, III, execute_traced_request, get_context};
 use serde_json::json;
 
 pub fn setup(iii: &III) {
@@ -22,10 +22,8 @@ pub fn setup(iii: &III) {
                 .map_err(|e| IIIError::Handler(e.to_string()))?;
 
             let status = response.status().as_u16();
-            ctx.logger.info(
-                "Fetched todo successfully",
-                Some(json!({ "status": status })),
-            );
+            ctx.logger
+                .info("Fetched todo successfully", Some(json!({ "status": status })));
 
             let data: serde_json::Value = response
                 .json::<serde_json::Value>()

@@ -1,6 +1,6 @@
 //! Integration tests for data channel streaming between workers.
 //!
-//! Requires a running III engine at `ws://localhost:49199`.
+//! Requires a running III engine at `ws://localhost:49134`.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 
 use iii_sdk::{III, IIIError};
 
-const ENGINE_WS_URL: &str = "ws://localhost:49199";
+const ENGINE_WS_URL: &str = "ws://localhost:49134";
 
 /// Helper to wait for function registration propagation.
 async fn settle() {

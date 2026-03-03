@@ -8,7 +8,7 @@ import pytest_asyncio
 
 from iii import III
 
-ENGINE_WS_URL = os.environ.get("III_BRIDGE_URL", "ws://localhost:49199")
+ENGINE_WS_URL = os.environ.get("III_BRIDGE_URL", "ws://localhost:49134")
 ENGINE_HTTP_URL = os.environ.get("III_HTTP_URL", "http://localhost:3199")
 
 
