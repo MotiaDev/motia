@@ -114,11 +114,7 @@ function displayReducer(state: DisplayState, action: DisplayAction): DisplayStat
   switch (action.type) {
     case 'TOGGLE_SPAN': {
       const next = new Set(state.expandedIds)
-      if (next.has(action.spanId)) {
-        next.delete(action.spanId)
-      } else {
-        next.add(action.spanId)
-      }
+      next.has(action.spanId) ? next.delete(action.spanId) : next.add(action.spanId)
       return { ...state, expandedIds: next }
     }
     case 'SET_ALL_EXPANDED':
@@ -189,10 +185,13 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
   }
 
   const totalMs = data.total_duration_ms || 1
-  const rulerMarks = [0, 25, 50, 75, 100].map((pct) => ({
-    pct,
-    label: formatDuration((totalMs * pct) / 100),
-  }))
+  const rulerMarks = useMemo(
+    () => [0, 25, 50, 75, 100].map((pct) => ({
+      pct,
+      label: formatDuration((totalMs * pct) / 100),
+    })),
+    [totalMs],
+  )
 
   const spanTree = useMemo(() => buildSpanTree(data.spans), [data.spans])
 
@@ -203,21 +202,22 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
 
   const visibleSpans = useMemo(() => flattenTree(spanTree, expandedIds), [spanTree, expandedIds])
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement
+    dispatch({ type: 'SET_SCROLL', position: target.scrollTop })
+  }
+
   const toggleExpand = (spanId: string) => {
     dispatch({ type: 'TOGGLE_SPAN', spanId })
   }
 
   const expandAll = () => {
-    dispatch({ type: 'SET_ALL_EXPANDED', ids: new Set(data.spans.map((s) => s.span_id)) })
+    const allIds = new Set(data.spans.map((s) => s.span_id))
+    dispatch({ type: 'SET_ALL_EXPANDED', ids: allIds })
   }
 
   const collapseAll = () => {
     dispatch({ type: 'SET_ALL_EXPANDED', ids: new Set() })
-  }
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement
-    dispatch({ type: 'SET_SCROLL', position: target.scrollTop })
   }
 
   const miniMapHeight = 80
@@ -301,22 +301,20 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
             const isSelected = selectedSpanId === span.span_id
             const isHovered = hoveredSpanId === span.span_id
 
+            const getBarStyle = (): React.CSSProperties => {
+              if (isCritical) return { background: 'linear-gradient(to right, #F97316, #FB923C)' }
+              if (span.status === 'error') return { background: 'linear-gradient(to right, #EF4444, #DC2626)' }
+              if (span.status === 'ok') return { background: 'linear-gradient(to right, #22C55E, #16A34A)' }
+              return { background: 'linear-gradient(to right, #6B7280, #4B5563)' }
+            }
+
             const statusColors = {
               ok: '#22C55E',
               error: '#EF4444',
               unset: '#6B7280',
             }
 
-            let barStyle: React.CSSProperties
-            if (isCritical) {
-              barStyle = { background: 'linear-gradient(to right, #F97316, #FB923C)' }
-            } else if (span.status === 'error') {
-              barStyle = { background: 'linear-gradient(to right, #EF4444, #DC2626)' }
-            } else if (span.status === 'ok') {
-              barStyle = { background: 'linear-gradient(to right, #22C55E, #16A34A)' }
-            } else {
-              barStyle = { background: 'linear-gradient(to right, #6B7280, #4B5563)' }
-            }
+            const barStyle = getBarStyle()
 
             return (
               <button
@@ -363,6 +361,17 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
                     className="w-2 h-2 rounded-sm flex-shrink-0"
                     style={{ backgroundColor: statusColors[span.status] }}
                   />
+
+                  {span.service_name && (
+                    <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded border border-[#1D1D1D] bg-[#1D1D1D]/50 text-gray-300 leading-none">
+                      {span.service_name}
+                    </span>
+                  )}
+                  {span.kind && span.kind !== 'unspecified' && (
+                    <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded border border-[#1D1D1D] bg-[#141414] text-gray-400 leading-none capitalize">
+                      {span.kind.toLowerCase()}
+                    </span>
+                  )}
 
                   <span
                     className={`text-[13px] font-medium truncate ${isSelected ? 'text-[#F3F724]' : 'text-[#F4F4F4]'}`}

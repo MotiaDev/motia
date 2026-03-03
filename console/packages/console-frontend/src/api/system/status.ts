@@ -13,14 +13,6 @@ export interface SystemStatus {
   metrics_available?: boolean
 }
 
-export interface DevToolsConfig {
-  engine_host: string
-  engine_port: number
-  ws_port: number
-  console_port: number
-  version: string
-}
-
 export interface HealthComponent {
   status: string
   details: Record<string, unknown>
@@ -78,21 +70,6 @@ export async function fetchStatus(): Promise<SystemStatus> {
     version: data.version,
     timestamp: Date.now() / 1000,
   }
-}
-
-export async function fetchConfig(): Promise<DevToolsConfig> {
-  try {
-    const res = await fetch(`${getDevtoolsApi()}/config`)
-    if (res.ok) {
-      return unwrapResponse(res)
-    }
-  } catch {
-    // Fall through to management API
-  }
-
-  const res = await fetch(`${getManagementApi()}/config`)
-  if (!res.ok) throw new Error('Failed to fetch config')
-  return res.json()
 }
 
 export async function healthCheck(): Promise<HealthStatus> {
