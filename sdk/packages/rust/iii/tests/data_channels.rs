@@ -1,6 +1,6 @@
 //! Integration tests for data channel streaming between workers.
 //!
-//! Requires a running III engine at `ws://localhost:49134`.
+//! Requires a running III engine. Set III_BRIDGE_URL or use ws://localhost:49134 default.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,7 +10,9 @@ use tokio::sync::Mutex;
 
 use iii_sdk::{III, IIIError};
 
-const ENGINE_WS_URL: &str = "ws://localhost:49134";
+fn engine_ws_url() -> String {
+    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+}
 
 /// Helper to wait for function registration propagation.
 async fn settle() {
@@ -19,7 +21,7 @@ async fn settle() {
 
 #[tokio::test]
 async fn stream_data_from_sender_to_processor() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -145,7 +147,7 @@ async fn stream_data_from_sender_to_processor() {
 
 #[tokio::test]
 async fn bidirectional_streaming() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 

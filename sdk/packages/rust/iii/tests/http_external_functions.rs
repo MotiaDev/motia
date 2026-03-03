@@ -1,6 +1,6 @@
 //! Integration tests for HTTP external function invocation.
 //!
-//! Requires a running III engine at `ws://localhost:49134`.
+//! Requires a running III engine. Set III_BRIDGE_URL or use ws://localhost:49134 default.
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -11,7 +11,9 @@ use tokio::net::TcpListener;
 
 use iii_sdk::{HttpInvocationConfig, HttpMethod, III};
 
-const ENGINE_WS_URL: &str = "ws://localhost:49134";
+fn engine_ws_url() -> String {
+    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+}
 
 async fn settle() {
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -132,7 +134,7 @@ impl WebhookProbe {
 
 #[tokio::test]
 async fn delivers_queue_events_to_external_http_function() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -179,7 +181,7 @@ async fn delivers_queue_events_to_external_http_function() {
 
 #[tokio::test]
 async fn registers_and_unregisters_external_http_function() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -218,7 +220,7 @@ async fn registers_and_unregisters_external_http_function() {
 
 #[tokio::test]
 async fn delivers_events_with_custom_headers() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -274,7 +276,7 @@ async fn delivers_events_with_custom_headers() {
 
 #[tokio::test]
 async fn delivers_events_to_multiple_external_functions() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -345,7 +347,7 @@ async fn delivers_events_to_multiple_external_functions() {
 
 #[tokio::test]
 async fn stops_delivering_events_after_unregister() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -407,7 +409,7 @@ async fn stops_delivering_events_after_unregister() {
 
 #[tokio::test]
 async fn delivers_events_using_put_method() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
