@@ -34,6 +34,44 @@ pub use types::{
 
 pub use serde_json::Value;
 
+#[derive(Debug, Clone, Default)]
+pub struct InitOptions {
+    pub metadata: Option<WorkerMetadata>,
+    #[cfg(feature = "otel")]
+    pub otel: Option<crate::telemetry::types::OtelConfig>,
+}
+
+pub fn init(address: &str, options: InitOptions) -> Result<III, IIIError> {
+    let InitOptions {
+        metadata,
+        #[cfg(feature = "otel")]
+        otel,
+    } = options;
+
+    let iii = if let Some(metadata) = metadata {
+        III::with_metadata(address, metadata)
+    } else {
+        III::new(address)
+    };
+
+    #[cfg(feature = "otel")]
+    if let Some(cfg) = otel {
+        iii.set_otel_config(cfg);
+    }
+
+    let handle = tokio::runtime::Handle::try_current()
+        .map_err(|_| IIIError::Runtime("iii_sdk::init requires an active Tokio runtime".into()))?;
+
+    let client = iii.clone();
+    handle.spawn(async move {
+        if let Err(err) = client.connect().await {
+            tracing::warn!(error = %err, "iii_sdk::init auto-connect failed");
+        }
+    });
+
+    Ok(iii)
+}
+
 // OpenTelemetry re-exports (behind "otel" feature flag)
 #[cfg(feature = "otel")]
 pub use telemetry::{

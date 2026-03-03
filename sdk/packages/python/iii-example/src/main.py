@@ -5,12 +5,12 @@ import string
 import time
 import urllib.request
 from datetime import datetime, timezone
+from typing import Any
 
 from iii import ApiRequest, ApiResponse
 
-from .hooks import use_api, use_functions_available
-from .state import state
-from .stream import streams
+state: Any = None
+streams: Any = None
 
 
 def _generate_todo_id() -> str:
@@ -19,11 +19,23 @@ def _generate_todo_id() -> str:
 
 
 def _setup() -> None:
-    use_functions_available(lambda functions: print(
-        "--------------------------------\n"
-        f"Functions available: {len(functions)}\n"
-        "--------------------------------"
-    ))
+    from .hooks import use_api, use_functions_available
+    from .state import state as state_client
+    from .stream import register_streams
+    from .stream import streams as streams_client
+
+    global state, streams
+    state = state_client
+    streams = streams_client
+    register_streams()
+
+    use_functions_available(
+        lambda functions: print(
+            "--------------------------------\n"
+            f"Functions available: {len(functions)}\n"
+            "--------------------------------"
+        )
+    )
 
     use_api(
         {"api_path": "todo", "http_method": "POST", "description": "Create a new todo", "metadata": {"tags": ["todo"]}},
@@ -51,12 +63,20 @@ def _setup() -> None:
     )
 
     use_api(
-        {"api_path": "http-fetch", "http_method": "GET", "description": "Fetch a todo from JSONPlaceholder (tests urllib instrumentation)"},
+        {
+            "api_path": "http-fetch",
+            "http_method": "GET",
+            "description": "Fetch a todo from JSONPlaceholder (tests urllib instrumentation)",
+        },
         _fetch_example,
     )
 
     use_api(
-        {"api_path": "http-fetch", "http_method": "POST", "description": "Post data to httpbin (tests urllib instrumentation)"},
+        {
+            "api_path": "http-fetch",
+            "http_method": "POST",
+            "description": "Post data to httpbin (tests urllib instrumentation)",
+        },
         _post_example,
     )
 
@@ -165,10 +185,10 @@ async def _post_example(req: ApiRequest, ctx) -> ApiResponse:
 
 
 async def _async_main() -> None:
-    from .iii import iii
+    from .iii import init_iii
 
+    init_iii()
     _setup()
-    await iii.connect()
 
     while True:
         await asyncio.sleep(60)

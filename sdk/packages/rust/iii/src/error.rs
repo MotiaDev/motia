@@ -6,6 +6,8 @@ pub enum IIIError {
     NotConnected,
     #[error("invocation timed out")]
     Timeout,
+    #[error("runtime error: {0}")]
+    Runtime(String),
     #[error("remote error ({code}): {message}")]
     Remote { code: String, message: String },
     #[error("handler error: {0}")]
