@@ -11,135 +11,210 @@ Push real-time updates (chat messages, notifications, live dashboards) to connec
 
 ### 1. Enable the Stream module
 
-```yaml
+```yaml title="iii-config.yaml"
 modules:
-  stream:
-    adapter: memory
-    port: 3001
+  - class: modules::stream::StreamModule
+    config:
+      port: ${STREAM_PORT:3112}
+      host: localhost
+      adapter:
+        class: modules::stream::adapters::KvStore
+        config:
+          store_method: file_based  # Options: in_memory, file_based
+          # file_path: ./data/stream_store  # required for file_based
+        # class: modules::stream::adapters::RedisAdapter
+        # config:
+        #   redis_url: redis://localhost:6379
 ```
 
-### 2. Write to a stream from a Function
+### 2. Write to a stream
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
-import { init } from 'iii-sdk'
+{/* TODO: Remove once addressed */}
+<TabsConditional groupId="language" persist values={["Python", "Rust"]}>
+  <Callout title="Persistence in Python & Rust APIs" type="info">
+  You may notice that currently the Node API has no code around persistence while Python and Rust do.
+  This will be addrssed shortly so that a single initialization step is all that will be required in all languages.
+  </Callout>
+</TabsConditional>
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="stream-writer.ts"
+import { init, getContext } from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
-iii.registerFunction(
-  { id: 'chat::send-message' },
-  async (data) => {
-    const message = {
-      id: crypto.randomUUID(),
-      text: data.text,
-      author: data.author,
-      timestamp: Date.now(),
-    }
+iii.registerFunction({ id: 'chat::send' }, async (input) => {
+  const { logger } = getContext()
+  const messageId = crypto.randomUUID()
 
-    await iii.trigger('stream::set', {
-      stream_name: 'chat',
-      group_id: data.roomId,
-      item_id: message.id,
-      data: message,
-    })
+  await iii.trigger('stream::set', {
+    stream_name: 'chat',
+    group_id: input.roomId,
+    item_id: messageId,
+    data: { text: input.text, author: input.author },
+  })
 
-    return message
-  }
-)
+  logger.info('Message sent to stream', { messageId })
+  return { messageId }
+})
+
+// Then call from another function or worker
+const { messageId } = await iii.trigger('chat::send', { roomId: 'room-123', text: 'Hello world', author: 'alice' })
+logger.info('Sent message', { messageId })
 ```
 </Tab>
 <Tab value="Python">
-```python
-import asyncio, uuid, time
+```python title="stream_writer.py"
+import asyncio
+import os
+import signal
+import uuid
 from iii import III
+from iii.context import get_context
+
+iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+
+async def send_message(input):
+    ctx = get_context()
+    message_id = str(uuid.uuid4())
+
+    await iii.trigger('stream::set', {
+        'stream_name': 'chat',
+        'group_id': input['roomId'],
+        'item_id': message_id,
+        'data': {'text': input['text'], 'author': input['author']},
+    })
+
+    ctx.logger.info('Message sent to stream', {'messageId': message_id})
+    return {'messageId': message_id}
+
+iii.register_function('chat::send', send_message)
 
 async def main():
-    iii = III('ws://localhost:49134')
-
-    async def send_message(data):
-        message = {
-            'id': str(uuid.uuid4()),
-            'text': data['text'],
-            'author': data['author'],
-            'timestamp': int(time.time() * 1000),
-        }
-
-        await iii.trigger('stream::set', {
-            'stream_name': 'chat',
-            'group_id': data['roomId'],
-            'item_id': message['id'],
-            'data': message,
-        })
-
-        return message
-
-    iii.register_function('chat::send-message', send_message)
     await iii.connect()
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop.set)
+    await stop.wait()
 
 asyncio.run(main())
+
+# Then call from another function or worker
+result = await iii.trigger('chat::send', {'roomId': 'room-123', 'text': 'Hello world', 'author': 'alice'})
+print('Sent message:', result['messageId'])
 ```
 </Tab>
 <Tab value="Rust">
-```rust
-use iii_sdk::III;
+```rust title="stream_writer.rs"
+use iii_sdk::{get_context, III};
 use serde_json::json;
+use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
+    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let iii = III::new(&url);
     iii.connect().await?;
 
-    iii.register_function("chat::send-message", |data| async move {
-        let id = uuid::Uuid::new_v4().to_string();
-        let message = json!({
-            "id": id,
-            "text": data["text"],
-            "author": data["author"],
-            "timestamp": chrono::Utc::now().timestamp_millis(),
-        });
+    let iii_clone = iii.clone();
+    iii.register_function("chat::send", move |input| {
+        let iii = iii_clone.clone();
+        async move {
+            let ctx = get_context();
+            let message_id = uuid::Uuid::new_v4().to_string();
+            let room_id = input["roomId"].as_str().unwrap_or("");
+            let text = input["text"].as_str().unwrap_or("");
+            let author = input["author"].as_str().unwrap_or("");
 
-        iii.trigger("stream::set", json!({
-            "stream_name": "chat",
-            "group_id": data["roomId"],
-            "item_id": message["id"],
-            "data": message,
-        })).await?;
+            iii.trigger("stream::set", json!({
+                "stream_name": "chat",
+                "group_id": room_id,
+                "item_id": message_id,
+                "data": { "text": text, "author": author },
+            })).await?;
 
-        Ok(message)
+            ctx.logger.info("Message sent to stream", Some(json!({ "messageId": message_id })));
+            Ok(json!({ "messageId": message_id }))
+        }
     });
 
-    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+    signal::ctrl_c().await?;
+    Ok(())
 }
+
+// Then call from another function or worker
+let result = iii.trigger("chat::send", json!({ "roomId": "room-123", "text": "Hello world", "author": "alice" })).await?;
+println!("Sent message: {}", result["messageId"]);
 ```
 </Tab>
 </Tabs>
 
 ### 3. Read from a stream
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
-const messages = await iii.trigger('stream::list', {
-  stream_name: 'chat',
-  group_id: 'room-123',
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="stream-reader.ts"
+iii.registerFunction({ id: 'chat::list' }, async (input) => {
+  const { logger } = getContext()
+
+  const messages = await iii.trigger('stream::list', {
+    stream_name: 'chat',
+    group_id: input.roomId,
+  })
+
+  logger.info('Messages retrieved', { count: messages.length })
+  return messages
 })
+
+// Then call from another function or worker
+const messages = await iii.trigger('chat::list', { roomId: 'room-123' })
+logger.info('Messages', { messages })
 ```
 </Tab>
 <Tab value="Python">
-```python
-messages = await iii.trigger('stream::list', {
-    'stream_name': 'chat',
-    'group_id': 'room-123',
-})
+```python title="stream_reader.py"
+async def list_messages(input):
+    ctx = get_context()
+
+    messages = await iii.trigger('stream::list', {
+        'stream_name': 'chat',
+        'group_id': input['roomId'],
+    })
+
+    ctx.logger.info('Messages retrieved', {'count': len(messages)})
+    return messages
+
+iii.register_function('chat::list', list_messages)
+
+# Then call from another function or worker
+messages = await iii.trigger('chat::list', {'roomId': 'room-123'})
+print('Messages:', messages)
 ```
 </Tab>
 <Tab value="Rust">
-```rust
-let messages = iii.trigger("stream::list", json!({
-    "stream_name": "chat",
-    "group_id": "room-123",
-})).await?;
+```rust title="stream_reader.rs"
+let iii_clone = iii.clone();
+iii.register_function("chat::list", move |input| {
+    let iii = iii_clone.clone();
+    async move {
+        let ctx = get_context();
+        let room_id = input["roomId"].as_str().unwrap_or("");
+
+        let messages = iii.trigger("stream::list", json!({
+            "stream_name": "chat",
+            "group_id": room_id,
+        })).await?;
+
+        ctx.logger.info("Messages retrieved", Some(json!({ "count": messages.as_array().map(|a| a.len()).unwrap_or(0) })));
+        Ok(messages)
+    }
+});
+
+// Then call from another function or worker
+let messages = iii.trigger("chat::list", json!({ "roomId": "room-123" })).await?;
+println!("Messages: {:?}", messages);
 ```
 </Tab>
 </Tabs>
@@ -148,8 +223,8 @@ let messages = iii.trigger("stream::list", json!({
 
 Clients connect to the stream WebSocket endpoint to receive live updates:
 
-```javascript
-const ws = new WebSocket('ws://localhost:3001/stream/chat/room-123')
+```javascript title="client.js"
+const ws = new WebSocket('ws://localhost:3112/stream/chat/room-123')
 
 ws.onmessage = (event) => {
   const update = JSON.parse(event.data)
@@ -161,6 +236,7 @@ ws.onmessage = (event) => {
 
 Any data written to the stream via `stream::set` is immediately pushed to all connected WebSocket clients subscribed to that stream and group. No polling needed.
 
-<Callout title="See also" type="info">
+{/* TODO: Uncomment once the Stream module reference page exists */}
+{/* <Callout title="See also" type="info">
   For stream operations like `update`, `delete`, `listGroups`, and authentication, see the [Stream module reference](/docs/modules/module-stream).
-</Callout>
+</Callout> */}

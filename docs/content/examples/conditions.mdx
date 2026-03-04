@@ -21,8 +21,8 @@ graph LR
 
 The condition function receives the full API request. If it returns `false`, the engine responds with `422 Unprocessable Entity` and the handler function is not called.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 import { init, getContext, type ApiRequest } from 'iii-sdk'
@@ -134,8 +134,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The condition function receives the queue message data. If it returns `false`, the handler function is not called — no error is raised.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerFunction(
@@ -151,7 +151,7 @@ iii.registerFunction(
     const ctx = getContext()
     ctx.logger.info('Processing high-value order', { amount: data.amount })
 
-    await iii.trigger('enqueue', {
+    iii.triggerVoid('enqueue', {
       topic: 'order.processed',
       data: { ...data, processedAt: new Date().toISOString() },
     })
@@ -188,7 +188,7 @@ async def orders_high_value(data: dict, ctx) -> None:
 
     ctx.logger.info("Processing high-value order", {"amount": amount})
 
-    await iii.trigger("enqueue", {
+    iii.trigger_void("enqueue", {
         "topic": "order.processed",
         "data": {**data, "processedAt": datetime.now(timezone.utc).isoformat()},
     })
@@ -239,8 +239,8 @@ iii.register_trigger("queue", "orders::high_value", json!({
 
 State and stream triggers use `condition_function_id` in the config instead of `_condition_path`. The condition receives the full state event, including the event type (`created`, `updated`, `deleted`), scope, key, and both old and new values.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerFunction(

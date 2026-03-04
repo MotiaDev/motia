@@ -22,17 +22,15 @@ modules::kv_server::KvServer
 ## Configuration
 
 <ResponseField name="store_method" type="string">
-  The storage method to use. Options are: - `in_memory` - Data is stored only in memory (lost on restart) - `file_based`
-  - Data is stored in memory and periodically persisted to disk (survives restart)
+  Storage backend. `in_memory` (default) — data is lost on restart. `file_based` — data is persisted to disk and survives restarts.
 </ResponseField>
 
 <ResponseField name="file_path" type="string">
-  The directory path where data files will be stored when using `file_based` storage method. Each index is stored as a
-  separate file within this directory.
+  Directory path for `file_based` storage. Each index is written as a separate file. Defaults to `kv_store_data.db`.
 </ResponseField>
 
 <ResponseField name="save_interval_ms" type="number">
-  The interval in milliseconds between automatic saves when using `file_based` storage. Defaults to `5000`.
+  Interval in milliseconds between disk writes when using `file_based` storage. Defaults to `5000`.
 </ResponseField>
 
 ## Functions
@@ -73,8 +71,11 @@ modules::kv_server::KvServer
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="result" type="object">
-        The result of the set operation containing information about the stored value.
+      <ResponseField name="old_value" type="any">
+        The previous value at the key, or `null` if the key did not exist.
+      </ResponseField>
+      <ResponseField name="new_value" type="any">
+        The value that was just stored.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -93,25 +94,25 @@ modules::kv_server::KvServer
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="value" type="any">
-        The deleted value, or `null` if the key did not exist.
+      <ResponseField name="old_value" type="any">
+        The value that was deleted, or `null` if the key did not exist.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
 </ResponseField>
 
 <ResponseField name="kv_server::list_keys_with_prefix" type="function">
-  List all keys that match a given prefix.
+  List all **index names** that start with the given prefix. This operates on top-level index namespaces, not on keys within an index.
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
       <ResponseField name="prefix" type="string" required>
-        The prefix to match keys against.
+        The prefix to match index names against.
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="keys" type="string[]">
-        An array of keys that match the given prefix.
+      <ResponseField name="result" type="string[]">
+        An array of index names that start with the given prefix.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -135,7 +136,7 @@ modules::kv_server::KvServer
 </ResponseField>
 
 <ResponseField name="kv_server::update" type="function">
-  Update a value by key in the KV store using patch operations.
+  Update a value by key in the KV store using patch operations. Creates the key with an empty object if it does not exist.
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
@@ -145,13 +146,24 @@ modules::kv_server::KvServer
       <ResponseField name="key" type="string" required>
         The key of the value to update.
       </ResponseField>
-      <ResponseField name="ops" type="any[]" required>
-        An array of patch operations to apply to the value.
+      <ResponseField name="ops" type="UpdateOp[]" required>
+        An array of patch operations to apply to the value. Each operation has a `type` and a `path`:
+
+        | Type | Fields | Description |
+        |------|--------|-------------|
+        | `set` | `path`, `value` | Set a field at the given path. Empty path replaces the whole value. |
+        | `merge` | `value` | Shallow-merge an object into the root value. |
+        | `increment` | `path`, `by` | Increment a numeric field by `by`. Creates the field if missing. |
+        | `decrement` | `path`, `by` | Decrement a numeric field by `by`. Creates the field if missing. |
+        | `remove` | `path` | Remove a field at the given path. |
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="result" type="object">
-        The result of the update operation containing the updated value.
+      <ResponseField name="old_value" type="any">
+        The value before the update, or `null` if the key did not exist.
+      </ResponseField>
+      <ResponseField name="new_value" type="any">
+        The value after applying all operations.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -179,14 +191,17 @@ await iii.trigger('kv_server::delete', {
 })
 ```
 
-### Listing Keys with Prefix
+### Listing Indexes with Prefix
+
+`list_keys_with_prefix` returns **index names** (namespaces), not keys within an index. Use it when your index names follow a naming convention and you want to discover which indexes exist.
 
 ```typescript
-await iii.trigger('kv_server::set', { index: 'default', key: 'user:1', value: { name: 'Alice' } })
-await iii.trigger('kv_server::set', { index: 'default', key: 'user:2', value: { name: 'Bob' } })
-await iii.trigger('kv_server::set', { index: 'default', key: 'product:1', value: { name: 'Widget' } })
+await iii.trigger('kv_server::set', { index: 'user:1', key: 'profile', value: { name: 'Alice' } })
+await iii.trigger('kv_server::set', { index: 'user:2', key: 'profile', value: { name: 'Bob' } })
+await iii.trigger('kv_server::set', { index: 'product:1', key: 'info', value: { name: 'Widget' } })
 
-const userKeys = await iii.trigger('kv_server::list_keys_with_prefix', {
+const userIndexes = await iii.trigger('kv_server::list_keys_with_prefix', {
   prefix: 'user:',
 })
+// returns ['user:1', 'user:2']
 ```

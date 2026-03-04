@@ -40,12 +40,12 @@ graph TB
 | **Function registry** | Tracks all `registerFunction` calls across connected Workers |
 | **Worker registry** | Tracks connected Workers, their status, and metadata |
 | **Trigger dispatch** | Receives `trigger()` / `triggerVoid()` and routes to the correct Worker |
-| **Module orchestration** | Loads and initializes Modules from `config.yaml` |
+| **Module orchestration** | Loads and initializes Modules from `iii-config.yaml` |
 | **Worker cleanup** | When a Worker disconnects, automatically removes all its registered functions and triggers |
 
 ## Configuration
 
-The Engine is configured via `config.yaml` at the root of your project.
+The Engine is configured via `iii-config.yaml` at the root of your project.
 
 ### Ports
 
