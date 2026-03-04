@@ -34,8 +34,7 @@ fn http_concurrency_loopback_benchmark(c: &mut Criterion) {
                             let requests = (0..concurrency).map(|_| {
                                 let body = &body;
                                 async move {
-                                    let response =
-                                        runtime.post_json(target_path, body).await;
+                                    let response = runtime.post_json(target_path, body).await;
                                     assert!(response.status().is_success());
                                 }
                             });
