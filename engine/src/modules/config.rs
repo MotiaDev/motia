@@ -109,6 +109,16 @@ impl EngineConfig {
             .map_err(|e| anyhow::anyhow!("Failed to parse config file '{}': {}", path, e))
     }
 
+    /// Returns a config with default port and default modules (from inventory).
+    /// Use this when explicitly opting in to run without a config file.
+    pub fn default_config() -> Self {
+        tracing::info!("Using default config (no config file)");
+        Self {
+            port: DEFAULT_PORT,
+            modules: default_module_entries(),
+        }
+    }
+
     pub fn config_file_or_default(path: &str) -> anyhow::Result<Self> {
         match std::fs::read_to_string(path) {
             Ok(yaml_content) => {
@@ -683,5 +693,12 @@ mod tests {
             "Error should include the path '{}', got: {}",
             path, err_msg
         );
+    }
+
+    #[test]
+    fn test_default_config_returns_default_port_and_default_modules() {
+        let config = EngineConfig::default_config();
+        assert_eq!(config.port, DEFAULT_PORT);
+        // Default modules come from inventory — at minimum it shouldn't panic
     }
 }
