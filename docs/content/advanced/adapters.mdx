@@ -3,7 +3,7 @@ title: 'Adapters'
 description: 'Pluggable backends for iii modules — swap between in-memory, file-based, Redis, and RabbitMQ without changing your application code.'
 ---
 
-Each iii module that needs persistence or distribution uses an **adapter** — a pluggable backend that implements a fixed interface. Swap adapters in `config.yaml` without touching application code.
+Each iii module that needs persistence or distribution uses an **adapter** — a pluggable backend that implements a fixed interface. Swap adapters in `iii-config.yaml` without touching application code.
 
 ## Pattern
 
@@ -198,7 +198,7 @@ adapter:
 | **PubSub** | LocalAdapter | RedisAdapter |
 
 <Callout type="info" title="Environment variables">
-  Use `${VAR:default}` syntax in `config.yaml` to switch adapters per environment without changing the file:
+  Use `${VAR:default}` syntax in `iii-config.yaml` to switch adapters per environment without changing the file:
 
   ```yaml
   redis_url: ${REDIS_URL:redis://localhost:6379}

@@ -99,7 +99,7 @@ iii.registerTrigger({
   config: { topic: 'orders.shipped' },
 })
 
-await iii.trigger('publish', {
+iii.triggerVoid('publish', {
   topic: 'orders.shipped',
   data: { orderId: 'abc-123', address: '123 Main St' },
 })
