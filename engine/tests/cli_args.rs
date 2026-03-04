@@ -46,8 +46,8 @@ fn test_missing_default_config_exits_with_error() {
 }
 
 #[test]
-fn test_use_default_config_flag_starts_without_config_file() {
-    // Run with --use-default-config and --version to immediately exit
+fn test_use_default_config_flag_is_accepted() {
+    // Run with --use-default-config and --version to verify clap accepts the flag
     let output = iii_bin()
         .args(["--use-default-config", "--version"])
         .output()
