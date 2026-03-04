@@ -20,9 +20,31 @@ on:
         required: false
         type: string
         default: ''
+      dry_run:
+        description: 'Build and validate without publishing'
+        required: false
+        type: boolean
+        default: false
+      slack_thread_ts:
+        description: 'Slack parent message timestamp for thread replies (optional)'
+        required: false
+        type: string
+        default: ''
+      slack_channel:
+        description: 'Slack channel ID for notifications (optional)'
+        required: false
+        type: string
+        default: ''
+      slack_label:
+        description: 'Label for this step in Slack notifications (optional)'
+        required: false
+        type: string
+        default: ''
     secrets:
       NPM_TOKEN:
         required: true
+      SLACK_BOT_TOKEN:
+        required: false
 
 jobs:
   publish:
@@ -32,6 +54,19 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Notify Slack — in progress
+        if: inputs.slack_thread_ts != ''
+        id: slack
+        continue-on-error: true
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ inputs.slack_channel }}
+            thread_ts: "${{ inputs.slack_thread_ts }}"
+            text: ":large_yellow_circle: ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — in progress"
+
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
@@ -48,10 +83,10 @@ jobs:
 
       - name: Build dependencies
         if: inputs.pre_build_filter != ''
-        run: pnpm --filter ${{ inputs.pre_build_filter }} build
+        run: pnpm --filter "${{ inputs.pre_build_filter }}" build
 
       - name: Build package
-        run: pnpm --filter ${{ inputs.build_filter }} build
+        run: pnpm --filter "${{ inputs.build_filter }}" build
 
       - name: Setup NPM authentication
         env:
@@ -60,6 +95,18 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ${{ inputs.package_path }}
-        run: pnpm publish --no-git-checks --tag ${{ inputs.npm_tag }} --access public
+        run: pnpm publish --no-git-checks --tag "${{ inputs.npm_tag }}" --access public ${{ inputs.dry_run == true && '--dry-run' || '' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Notify Slack — result
+        if: always() && steps.slack.outputs.ts != ''
+        continue-on-error: true
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.update
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ inputs.slack_channel }}
+            ts: "${{ steps.slack.outputs.ts }}"
+            text: "${{ job.status == 'success' && ':large_green_circle:' || ':red_circle:' }} ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — ${{ job.status }}"

@@ -1,0 +1,112 @@
+name: WIP Release - NPM
+
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'NPM distribution tag (e.g. beta, alpha, next)'
+        required: true
+        default: 'next'
+      branch:
+        description: 'Branch containing the WIP changes'
+        required: true
+        default: 'main'
+
+jobs:
+  wip-release-npm:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Warning
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+          BRANCH: ${{ github.event.inputs.branch }}
+        run: |
+          echo "::warning::WIP Release bypasses the approval gate. Use for testing only."
+          echo "Publishing to NPM tag: ${TAG}"
+          echo "From branch: ${BRANCH}"
+
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@af35edadc00be37caa72ed9f3e6d5f7801bfdf09 # v1.11.7
+        with:
+          app-id: ${{ secrets.MOTIA_CI_APP_ID }}
+          private-key: ${{ secrets.MOTIA_CI_APP_PRIVATE_KEY }}
+          permissions: >-
+            {
+              "contents": "read",
+              "metadata": "read"
+            }
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+
+      - name: Compute version from latest tag
+        id: version
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          LATEST_TAG=$(git tag --sort=-version:refname --list 'v*' | head -n 1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            BASE_VERSION="0.0.1"
+          else
+            CURRENT="${LATEST_TAG#v}"
+            BASE=$(echo "$CURRENT" | cut -d'-' -f1)
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+            BASE_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          NEW_VERSION="${BASE_VERSION}-${TAG}.${TIMESTAMP}"
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Computed version: $NEW_VERSION"
+
+      - name: Stamp version
+        working-directory: motia-js/packages/motia
+        run: |
+          pnpm version ${{ steps.version.outputs.version }} --no-git-tag-version
+
+      - name: Setup NPM authentication
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> motia-js/.npmrc
+
+      - name: Publish to NPM
+        working-directory: motia-js
+        env:
+          NPM_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          pnpm publish -r --filter motia --no-git-checks --tag "${NPM_TAG}"
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ github.event.inputs.tag }}
+          BRANCH: ${{ github.event.inputs.branch }}
+        run: |
+          echo "### WIP Release - NPM" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: motia@${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **NPM Tag**: ${TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${BRANCH}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Install" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "npm install motia@${TAG}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

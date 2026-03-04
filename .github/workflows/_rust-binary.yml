@@ -16,11 +16,16 @@ on:
         required: true
         type: string
       tag_name:
-        description: 'Git tag for the GitHub Release (e.g., engine/v0.7.1)'
+        description: 'Git tag for the GitHub Release (e.g., iii/v1.0.0)'
         required: true
         type: string
       is_prerelease:
         description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+      skip_create_release:
+        description: 'Skip GH release creation (assumes release already exists for the tag)'
         required: false
         type: boolean
         default: false
@@ -34,11 +39,33 @@ on:
         required: false
         type: string
         default: ''
+      dry_run:
+        description: 'Build binaries without uploading or creating releases'
+        required: false
+        type: boolean
+        default: false
+      slack_thread_ts:
+        description: 'Slack parent message timestamp for thread replies (optional)'
+        required: false
+        type: string
+        default: ''
+      slack_channel:
+        description: 'Slack channel ID for notifications (optional)'
+        required: false
+        type: string
+        default: ''
+      slack_label:
+        description: 'Label for this step in Slack notifications (optional)'
+        required: false
+        type: string
+        default: ''
     secrets:
       III_CI_APP_ID:
         required: true
       III_CI_APP_PRIVATE_KEY:
         required: true
+      SLACK_BOT_TOKEN:
+        required: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -46,8 +73,28 @@ env:
   CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
 
 jobs:
+  notify-start:
+    name: Notify Start
+    if: inputs.slack_thread_ts != ''
+    runs-on: ubuntu-latest
+    outputs:
+      ts: ${{ steps.slack.outputs.ts }}
+    steps:
+      - name: Post thread message
+        id: slack
+        continue-on-error: true
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ inputs.slack_channel }}
+            thread_ts: "${{ inputs.slack_thread_ts }}"
+            text: ":large_yellow_circle: ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — in progress"
+
   create-release:
     name: Create Release
+    if: inputs.skip_create_release != true && inputs.dry_run != true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -75,7 +122,11 @@ jobs:
 
   build:
     name: Build ${{ matrix.target }}
-    needs: [create-release]
+    needs: [create-release, notify-start]
+    if: |
+      always() &&
+      (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') &&
+      (needs.notify-start.result == 'success' || needs.notify-start.result == 'skipped')
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -144,3 +195,23 @@ jobs:
           checksum: sha256
           manifest-path: ${{ inputs.manifest_path }}
           token: ${{ steps.generate_token.outputs.token }}
+          dry-run: ${{ inputs.dry_run }}
+
+  notify-result:
+    name: Notify Result
+    needs: [notify-start, build]
+    if: always() && needs.notify-start.result == 'success' && needs.notify-start.outputs.ts != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update thread message
+        continue-on-error: true
+        uses: slackapi/slack-github-action@v2.0.0
+        env:
+          RESULT: ${{ needs.build.result }}
+        with:
+          method: chat.update
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ inputs.slack_channel }}
+            ts: "${{ needs.notify-start.outputs.ts }}"
+            text: "${{ needs.build.result == 'success' && ':large_green_circle:' || ':red_circle:' }} ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — ${{ needs.build.result }}"

@@ -3,35 +3,34 @@ name: Create Tag
 on:
   workflow_dispatch:
     inputs:
-      release_engine:
-        description: 'Release Engine'
+      release_iii:
+        description: 'Release iii (Engine + SDK + Console)'
         required: false
         type: boolean
         default: false
-      release_sdk:
-        description: 'Release SDK (Node + Python + Rust)'
+      iii_bump:
+        description: 'iii version bump type'
         required: false
-        type: boolean
-        default: false
-      release_console:
-        description: 'Release Console'
-        required: false
-        type: boolean
-        default: false
-      release_motia:
-        description: 'Release Motia (Node + Python)'
-        required: false
-        type: boolean
-        default: false
-      bump:
-        description: 'Version bump type (applies to all selected targets)'
-        required: true
         type: choice
         options:
           - patch
           - minor
           - major
-          - custom
+        default: patch
+      release_motia:
+        description: 'Release Motia (Node + Python)'
+        required: false
+        type: boolean
+        default: false
+      motia_bump:
+        description: 'Motia version bump type'
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
       prerelease:
         description: 'Pre-release label (none = stable release)'
         required: true
@@ -42,10 +41,6 @@ on:
           - beta
           - rc
         default: none
-      custom_version:
-        description: 'Custom version (only when bump=custom, format: X.Y.Z or X.Y.Z-suffix)'
-        required: false
-        type: string
       dry_run:
         description: 'Dry run (no commits, tags, or triggers)'
         required: false
@@ -78,12 +73,8 @@ jobs:
 
       - name: Pre-flight checks
         env:
-          RELEASE_ENGINE: ${{ inputs.release_engine }}
-          RELEASE_SDK: ${{ inputs.release_sdk }}
-          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_III: ${{ inputs.release_iii }}
           RELEASE_MOTIA: ${{ inputs.release_motia }}
-          BUMP: ${{ inputs.bump }}
-          CUSTOM_VERSION: ${{ inputs.custom_version }}
         run: |
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
           if [[ "$BRANCH" != "main" ]]; then
@@ -91,24 +82,17 @@ jobs:
             exit 1
           fi
 
-          if [[ "$RELEASE_ENGINE" != "true" && "$RELEASE_SDK" != "true" && \
-                "$RELEASE_CONSOLE" != "true" && "$RELEASE_MOTIA" != "true" ]]; then
+          if [[ "$RELEASE_III" != "true" && "$RELEASE_MOTIA" != "true" ]]; then
             echo "::error::At least one release target must be selected"
             exit 1
           fi
 
-          if [[ "$BUMP" == "custom" && -z "$CUSTOM_VERSION" ]]; then
-            echo "::error::custom_version is required when bump is custom"
-            exit 1
-          fi
-
-          if [[ "$RELEASE_ENGINE" == "true" && ! -f "engine/Cargo.toml" ]]; then
-            echo "::error::engine/Cargo.toml not found"
-            exit 1
-          fi
-
-          if [[ "$RELEASE_SDK" == "true" ]]; then
-            for f in sdk/packages/rust/iii/Cargo.toml sdk/packages/node/iii/package.json sdk/packages/python/iii/pyproject.toml; do
+          if [[ "$RELEASE_III" == "true" ]]; then
+            for f in engine/Cargo.toml \
+                     sdk/packages/rust/iii/Cargo.toml \
+                     sdk/packages/node/iii/package.json \
+                     sdk/packages/python/iii/pyproject.toml \
+                     console/packages/console-rust/Cargo.toml; do
               if [[ ! -f "$f" ]]; then
                 echo "::error::$f not found"
                 exit 1
@@ -116,13 +100,9 @@ jobs:
             done
           fi
 
-          if [[ "$RELEASE_CONSOLE" == "true" && ! -f "console/packages/console-rust/Cargo.toml" ]]; then
-            echo "::error::console/packages/console-rust/Cargo.toml not found"
-            exit 1
-          fi
-
           if [[ "$RELEASE_MOTIA" == "true" ]]; then
-            for f in frameworks/motia/motia-js/packages/motia/package.json frameworks/motia/motia-py/packages/motia/pyproject.toml; do
+            for f in frameworks/motia/motia-js/packages/motia/package.json \
+                     frameworks/motia/motia-py/packages/motia/pyproject.toml; do
               if [[ ! -f "$f" ]]; then
                 echo "::error::$f not found"
                 exit 1
@@ -133,13 +113,11 @@ jobs:
       - name: Calculate versions
         id: versions
         env:
-          RELEASE_ENGINE: ${{ inputs.release_engine }}
-          RELEASE_SDK: ${{ inputs.release_sdk }}
-          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_III: ${{ inputs.release_iii }}
           RELEASE_MOTIA: ${{ inputs.release_motia }}
-          BUMP: ${{ inputs.bump }}
+          III_BUMP: ${{ inputs.iii_bump }}
+          MOTIA_BUMP: ${{ inputs.motia_bump }}
           PRERELEASE: ${{ inputs.prerelease }}
-          CUSTOM_VERSION: ${{ inputs.custom_version }}
         run: |
           read_cargo_version() { grep '^version = ' "$1" | head -n1 | cut -d'"' -f2; }
           read_json_version()  { grep '"version":' "$1" | head -n1 | cut -d'"' -f4; }
@@ -147,20 +125,11 @@ jobs:
           bump_version() {
             local current="$1"
             local tag_prefix="$2"
+            local bump_type="$3"
             local base="${current%%-*}"
             IFS='.' read -r major minor patch <<< "$base"
 
-            if [[ "$BUMP" == "custom" ]]; then
-              local new_version="${CUSTOM_VERSION#v}"
-              if ! [[ "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-                echo "::error::Invalid custom version: $new_version"
-                exit 1
-              fi
-              echo "$new_version"
-              return
-            fi
-
-            case "$BUMP" in
+            case "$bump_type" in
               major) major=$((major + 1)); minor=0; patch=0 ;;
               minor) minor=$((minor + 1)); patch=0 ;;
               patch) patch=$((patch + 1)) ;;
@@ -190,13 +159,11 @@ jobs:
               local base="${BASH_REMATCH[1]}"
               local label="${BASH_REMATCH[2]}"
               local num="${BASH_REMATCH[3]}"
-              if [[ "$label" == "rc" ]]; then
-                echo "${base}rc${num}"
-              elif [[ "$label" == "alpha" ]]; then
-                echo "${base}a${num}"
-              elif [[ "$label" == "beta" ]]; then
-                echo "${base}b${num}"
-              fi
+              case "$label" in
+                rc)    echo "${base}rc${num}" ;;
+                alpha) echo "${base}a${num}" ;;
+                beta)  echo "${base}b${num}" ;;
+              esac
             else
               echo "$version"
             fi
@@ -210,38 +177,20 @@ jobs:
             echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
-          if [[ "$RELEASE_ENGINE" == "true" ]]; then
+          if [[ "$RELEASE_III" == "true" ]]; then
             current=$(read_cargo_version "engine/Cargo.toml")
-            new_ver=$(bump_version "$current" "engine")
-            echo "engine_version=$new_ver" >> "$GITHUB_OUTPUT"
-            echo "engine_tag=engine/v${new_ver}" >> "$GITHUB_OUTPUT"
-            echo "engine_current=$current" >> "$GITHUB_OUTPUT"
-            echo "::notice::Engine: $current -> $new_ver"
-          fi
-
-          if [[ "$RELEASE_SDK" == "true" ]]; then
-            current=$(read_json_version "sdk/packages/node/iii/package.json")
-            new_ver=$(bump_version "$current" "sdk")
+            new_ver=$(bump_version "$current" "iii" "$III_BUMP")
             py_ver=$(to_pep440 "$new_ver")
-            echo "sdk_version=$new_ver" >> "$GITHUB_OUTPUT"
-            echo "sdk_python_version=$py_ver" >> "$GITHUB_OUTPUT"
-            echo "sdk_tag=sdk/v${new_ver}" >> "$GITHUB_OUTPUT"
-            echo "sdk_current=$current" >> "$GITHUB_OUTPUT"
-            echo "::notice::SDK: $current -> $new_ver (python: $py_ver)"
-          fi
-
-          if [[ "$RELEASE_CONSOLE" == "true" ]]; then
-            current=$(read_cargo_version "console/packages/console-rust/Cargo.toml")
-            new_ver=$(bump_version "$current" "console")
-            echo "console_version=$new_ver" >> "$GITHUB_OUTPUT"
-            echo "console_tag=console/v${new_ver}" >> "$GITHUB_OUTPUT"
-            echo "console_current=$current" >> "$GITHUB_OUTPUT"
-            echo "::notice::Console: $current -> $new_ver"
+            echo "iii_version=$new_ver" >> "$GITHUB_OUTPUT"
+            echo "iii_python_version=$py_ver" >> "$GITHUB_OUTPUT"
+            echo "iii_tag=iii/v${new_ver}" >> "$GITHUB_OUTPUT"
+            echo "iii_current=$current" >> "$GITHUB_OUTPUT"
+            echo "::notice::iii: $current -> $new_ver (python: $py_ver)"
           fi
 
           if [[ "$RELEASE_MOTIA" == "true" ]]; then
             current=$(read_json_version "frameworks/motia/motia-js/packages/motia/package.json")
-            new_ver=$(bump_version "$current" "motia")
+            new_ver=$(bump_version "$current" "motia" "$MOTIA_BUMP")
             py_ver=$(to_pep440 "$new_ver")
             echo "motia_version=$new_ver" >> "$GITHUB_OUTPUT"
             echo "motia_python_version=$py_ver" >> "$GITHUB_OUTPUT"
@@ -250,35 +199,25 @@ jobs:
             echo "::notice::Motia: $current -> $new_ver (python: $py_ver)"
           fi
 
-      - name: Update engine manifest
-        if: inputs.release_engine == true
+      - name: Update iii manifests
+        if: inputs.release_iii == true
         env:
-          NEW_VERSION: ${{ steps.versions.outputs.engine_version }}
+          NEW_VERSION: ${{ steps.versions.outputs.iii_version }}
+          PY_VERSION: ${{ steps.versions.outputs.iii_python_version }}
         run: |
-          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" engine/Cargo.toml
+          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${NEW_VERSION}\"/}" engine/Cargo.toml
           echo "Updated engine/Cargo.toml to $NEW_VERSION"
 
-      - name: Update SDK manifests
-        if: inputs.release_sdk == true
-        env:
-          NEW_VERSION: ${{ steps.versions.outputs.sdk_version }}
-          PY_VERSION: ${{ steps.versions.outputs.sdk_python_version }}
-        run: |
-          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" sdk/packages/rust/iii/Cargo.toml
+          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${NEW_VERSION}\"/}" sdk/packages/rust/iii/Cargo.toml
           echo "Updated sdk/packages/rust/iii/Cargo.toml to $NEW_VERSION"
 
-          sed -i "s/\"version\": \".*\"/\"version\": \"${NEW_VERSION}\"/" sdk/packages/node/iii/package.json
+          jq --arg v "$NEW_VERSION" '.version = $v' sdk/packages/node/iii/package.json > tmp.json && mv tmp.json sdk/packages/node/iii/package.json
           echo "Updated sdk/packages/node/iii/package.json to $NEW_VERSION"
 
-          sed -i "s/^version = \".*\"/version = \"${PY_VERSION}\"/" sdk/packages/python/iii/pyproject.toml
+          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${PY_VERSION}\"/}" sdk/packages/python/iii/pyproject.toml
           echo "Updated sdk/packages/python/iii/pyproject.toml to $PY_VERSION"
 
-      - name: Update console manifest
-        if: inputs.release_console == true
-        env:
-          NEW_VERSION: ${{ steps.versions.outputs.console_version }}
-        run: |
-          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" console/packages/console-rust/Cargo.toml
+          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${NEW_VERSION}\"/}" console/packages/console-rust/Cargo.toml
           echo "Updated console/packages/console-rust/Cargo.toml to $NEW_VERSION"
 
       - name: Update motia manifests
@@ -287,22 +226,27 @@ jobs:
           NEW_VERSION: ${{ steps.versions.outputs.motia_version }}
           PY_VERSION: ${{ steps.versions.outputs.motia_python_version }}
         run: |
-          sed -i "s/\"version\": \".*\"/\"version\": \"${NEW_VERSION}\"/" frameworks/motia/motia-js/packages/motia/package.json
+          jq --arg v "$NEW_VERSION" '.version = $v' frameworks/motia/motia-js/packages/motia/package.json > tmp.json && mv tmp.json frameworks/motia/motia-js/packages/motia/package.json
           echo "Updated frameworks/motia/motia-js/packages/motia/package.json to $NEW_VERSION"
 
-          sed -i "s/^version = \".*\"/version = \"${PY_VERSION}\"/" frameworks/motia/motia-py/packages/motia/pyproject.toml
+          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${PY_VERSION}\"/}" frameworks/motia/motia-py/packages/motia/pyproject.toml
           echo "Updated frameworks/motia/motia-py/packages/motia/pyproject.toml to $PY_VERSION"
+
+      - name: Update motia iii-sdk dependency
+        if: inputs.release_iii == true && inputs.release_motia == true
+        env:
+          III_VERSION: ${{ steps.versions.outputs.iii_version }}
+          III_PY_VERSION: ${{ steps.versions.outputs.iii_python_version }}
+        run: |
+          sed -i "s/\"iii-sdk>=.*\"/\"iii-sdk>=${III_PY_VERSION}\"/" frameworks/motia/motia-py/packages/motia/pyproject.toml
+          echo "Updated motia Python iii-sdk dependency to >=${III_PY_VERSION}"
 
       - name: Validate version updates
         env:
-          RELEASE_ENGINE: ${{ inputs.release_engine }}
-          RELEASE_SDK: ${{ inputs.release_sdk }}
-          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_III: ${{ inputs.release_iii }}
           RELEASE_MOTIA: ${{ inputs.release_motia }}
-          ENGINE_VER: ${{ steps.versions.outputs.engine_version }}
-          SDK_VER: ${{ steps.versions.outputs.sdk_version }}
-          SDK_PY_VER: ${{ steps.versions.outputs.sdk_python_version }}
-          CONSOLE_VER: ${{ steps.versions.outputs.console_version }}
+          III_VER: ${{ steps.versions.outputs.iii_version }}
+          III_PY_VER: ${{ steps.versions.outputs.iii_python_version }}
           MOTIA_VER: ${{ steps.versions.outputs.motia_version }}
           MOTIA_PY_VER: ${{ steps.versions.outputs.motia_python_version }}
         run: |
@@ -328,18 +272,12 @@ jobs:
 
           echo "Validating version updates..."
 
-          if [[ "$RELEASE_ENGINE" == "true" ]]; then
-            check_cargo "engine/Cargo.toml" "$ENGINE_VER"
-          fi
-
-          if [[ "$RELEASE_SDK" == "true" ]]; then
-            check_cargo "sdk/packages/rust/iii/Cargo.toml" "$SDK_VER"
-            check_json "sdk/packages/node/iii/package.json" "$SDK_VER"
-            check_cargo "sdk/packages/python/iii/pyproject.toml" "$SDK_PY_VER"
-          fi
-
-          if [[ "$RELEASE_CONSOLE" == "true" ]]; then
-            check_cargo "console/packages/console-rust/Cargo.toml" "$CONSOLE_VER"
+          if [[ "$RELEASE_III" == "true" ]]; then
+            check_cargo "engine/Cargo.toml" "$III_VER"
+            check_cargo "sdk/packages/rust/iii/Cargo.toml" "$III_VER"
+            check_json "sdk/packages/node/iii/package.json" "$III_VER"
+            check_cargo "sdk/packages/python/iii/pyproject.toml" "$III_PY_VER"
+            check_cargo "console/packages/console-rust/Cargo.toml" "$III_VER"
           fi
 
           if [[ "$RELEASE_MOTIA" == "true" ]]; then
@@ -352,13 +290,9 @@ jobs:
       - name: Check tags do not exist
         if: inputs.dry_run != true
         env:
-          RELEASE_ENGINE: ${{ inputs.release_engine }}
-          RELEASE_SDK: ${{ inputs.release_sdk }}
-          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_III: ${{ inputs.release_iii }}
           RELEASE_MOTIA: ${{ inputs.release_motia }}
-          ENGINE_TAG: ${{ steps.versions.outputs.engine_tag }}
-          SDK_TAG: ${{ steps.versions.outputs.sdk_tag }}
-          CONSOLE_TAG: ${{ steps.versions.outputs.console_tag }}
+          III_TAG: ${{ steps.versions.outputs.iii_tag }}
           MOTIA_TAG: ${{ steps.versions.outputs.motia_tag }}
         run: |
           check_tag() {
@@ -368,30 +302,22 @@ jobs:
             fi
           }
 
-          [[ "$RELEASE_ENGINE" == "true" ]] && check_tag "$ENGINE_TAG"
-          [[ "$RELEASE_SDK" == "true" ]] && check_tag "$SDK_TAG"
-          [[ "$RELEASE_CONSOLE" == "true" ]] && check_tag "$CONSOLE_TAG"
+          [[ "$RELEASE_III" == "true" ]] && check_tag "$III_TAG"
           [[ "$RELEASE_MOTIA" == "true" ]] && check_tag "$MOTIA_TAG"
 
       - name: Commit and push
         if: inputs.dry_run != true
         env:
-          RELEASE_ENGINE: ${{ inputs.release_engine }}
-          RELEASE_SDK: ${{ inputs.release_sdk }}
-          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_III: ${{ inputs.release_iii }}
           RELEASE_MOTIA: ${{ inputs.release_motia }}
-          ENGINE_TAG: ${{ steps.versions.outputs.engine_tag }}
-          SDK_TAG: ${{ steps.versions.outputs.sdk_tag }}
-          CONSOLE_TAG: ${{ steps.versions.outputs.console_tag }}
+          III_TAG: ${{ steps.versions.outputs.iii_tag }}
           MOTIA_TAG: ${{ steps.versions.outputs.motia_tag }}
         run: |
           git config user.name "iii-ci[bot]"
           git config user.email "iii-ci[bot]@users.noreply.github.com"
 
           TARGETS=""
-          [[ "$RELEASE_ENGINE" == "true" ]] && TARGETS="$TARGETS engine($ENGINE_TAG)"
-          [[ "$RELEASE_SDK" == "true" ]] && TARGETS="$TARGETS sdk($SDK_TAG)"
-          [[ "$RELEASE_CONSOLE" == "true" ]] && TARGETS="$TARGETS console($CONSOLE_TAG)"
+          [[ "$RELEASE_III" == "true" ]] && TARGETS="$TARGETS iii($III_TAG)"
           [[ "$RELEASE_MOTIA" == "true" ]] && TARGETS="$TARGETS motia($MOTIA_TAG)"
 
           git add -A
@@ -402,13 +328,9 @@ jobs:
       - name: Create and push tags
         if: inputs.dry_run != true
         env:
-          RELEASE_ENGINE: ${{ inputs.release_engine }}
-          RELEASE_SDK: ${{ inputs.release_sdk }}
-          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_III: ${{ inputs.release_iii }}
           RELEASE_MOTIA: ${{ inputs.release_motia }}
-          ENGINE_TAG: ${{ steps.versions.outputs.engine_tag }}
-          SDK_TAG: ${{ steps.versions.outputs.sdk_tag }}
-          CONSOLE_TAG: ${{ steps.versions.outputs.console_tag }}
+          III_TAG: ${{ steps.versions.outputs.iii_tag }}
           MOTIA_TAG: ${{ steps.versions.outputs.motia_tag }}
         run: |
           create_tag() {
@@ -417,29 +339,21 @@ jobs:
             echo "Created tag: $1"
           }
 
-          [[ "$RELEASE_ENGINE" == "true" ]] && create_tag "$ENGINE_TAG"
-          [[ "$RELEASE_SDK" == "true" ]] && create_tag "$SDK_TAG"
-          [[ "$RELEASE_CONSOLE" == "true" ]] && create_tag "$CONSOLE_TAG"
+          [[ "$RELEASE_III" == "true" ]] && create_tag "$III_TAG"
           [[ "$RELEASE_MOTIA" == "true" ]] && create_tag "$MOTIA_TAG"
 
       - name: Trigger release workflow
-        if: inputs.dry_run != true
         uses: actions/github-script@v7
         env:
-          RELEASE_ENGINE: ${{ inputs.release_engine }}
-          ENGINE_TAG: ${{ steps.versions.outputs.engine_tag }}
-          ENGINE_VERSION: ${{ steps.versions.outputs.engine_version }}
-          RELEASE_SDK: ${{ inputs.release_sdk }}
-          SDK_TAG: ${{ steps.versions.outputs.sdk_tag }}
-          SDK_VERSION: ${{ steps.versions.outputs.sdk_version }}
-          RELEASE_CONSOLE: ${{ inputs.release_console }}
-          CONSOLE_TAG: ${{ steps.versions.outputs.console_tag }}
-          CONSOLE_VERSION: ${{ steps.versions.outputs.console_version }}
+          RELEASE_III: ${{ inputs.release_iii }}
+          III_TAG: ${{ steps.versions.outputs.iii_tag }}
+          III_VERSION: ${{ steps.versions.outputs.iii_version }}
           RELEASE_MOTIA: ${{ inputs.release_motia }}
           MOTIA_TAG: ${{ steps.versions.outputs.motia_tag }}
           MOTIA_VERSION: ${{ steps.versions.outputs.motia_version }}
           NPM_TAG: ${{ steps.versions.outputs.npm_tag }}
           IS_PRERELEASE: ${{ steps.versions.outputs.is_prerelease }}
+          DRY_RUN: ${{ inputs.dry_run }}
         with:
           github-token: ${{ steps.generate_token.outputs.token }}
           script: |
@@ -449,20 +363,15 @@ jobs:
               workflow_id: 'release.yml',
               ref: 'main',
               inputs: {
-                release_engine: process.env.RELEASE_ENGINE,
-                engine_tag: process.env.ENGINE_TAG || '',
-                engine_version: process.env.ENGINE_VERSION || '',
-                release_sdk: process.env.RELEASE_SDK,
-                sdk_tag: process.env.SDK_TAG || '',
-                sdk_version: process.env.SDK_VERSION || '',
-                release_console: process.env.RELEASE_CONSOLE,
-                console_tag: process.env.CONSOLE_TAG || '',
-                console_version: process.env.CONSOLE_VERSION || '',
+                release_iii: process.env.RELEASE_III,
+                iii_tag: process.env.III_TAG || '',
+                iii_version: process.env.III_VERSION || '',
                 release_motia: process.env.RELEASE_MOTIA,
                 motia_tag: process.env.MOTIA_TAG || '',
                 motia_version: process.env.MOTIA_VERSION || '',
                 npm_tag: process.env.NPM_TAG || 'latest',
                 is_prerelease: process.env.IS_PRERELEASE || 'false',
+                dry_run: process.env.DRY_RUN || 'false',
               }
             });
             console.log('Release workflow triggered successfully');
@@ -470,28 +379,24 @@ jobs:
       - name: Dry run summary
         if: inputs.dry_run == true
         env:
-          RELEASE_ENGINE: ${{ inputs.release_engine }}
-          RELEASE_SDK: ${{ inputs.release_sdk }}
-          RELEASE_CONSOLE: ${{ inputs.release_console }}
+          RELEASE_III: ${{ inputs.release_iii }}
           RELEASE_MOTIA: ${{ inputs.release_motia }}
-          ENGINE_TAG: ${{ steps.versions.outputs.engine_tag }}
-          SDK_TAG: ${{ steps.versions.outputs.sdk_tag }}
-          CONSOLE_TAG: ${{ steps.versions.outputs.console_tag }}
+          III_TAG: ${{ steps.versions.outputs.iii_tag }}
           MOTIA_TAG: ${{ steps.versions.outputs.motia_tag }}
         run: |
-          echo "::notice::DRY RUN - no changes pushed"
+          echo "::notice::DRY RUN — no commits, tags, or actual publishes"
           echo ""
           echo "Tags that would be created:"
-          [[ "$RELEASE_ENGINE" == "true" ]] && echo "  - $ENGINE_TAG"
-          [[ "$RELEASE_SDK" == "true" ]] && echo "  - $SDK_TAG"
-          [[ "$RELEASE_CONSOLE" == "true" ]] && echo "  - $CONSOLE_TAG"
+          [[ "$RELEASE_III" == "true" ]] && echo "  - $III_TAG"
           [[ "$RELEASE_MOTIA" == "true" ]] && echo "  - $MOTIA_TAG"
           echo ""
-          echo "Changes:"
+          echo "Release workflow will be triggered with dry_run=true"
+          echo "(all publish steps will build/validate without uploading)"
+          echo ""
+          echo "Changes that would be committed:"
           git diff
 
       - name: Notify Slack
-        if: inputs.dry_run != true
         continue-on-error: true
         uses: slackapi/slack-github-action@v2.0.0
         with:
@@ -499,12 +404,12 @@ jobs:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             channel: ${{ secrets.SLACK_CHANNEL_ID }}
-            text: "Tags created for release"
+            text: "${{ inputs.dry_run == true && '[DRY RUN] ' || '' }}Tags created for release"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "*Tags Created*\n\n${{ inputs.release_engine == true && format(':label: Engine: `{0}`\n', steps.versions.outputs.engine_tag) || '' }}${{ inputs.release_sdk == true && format(':label: SDK: `{0}`\n', steps.versions.outputs.sdk_tag) || '' }}${{ inputs.release_console == true && format(':label: Console: `{0}`\n', steps.versions.outputs.console_tag) || '' }}${{ inputs.release_motia == true && format(':label: Motia: `{0}`\n', steps.versions.outputs.motia_tag) || '' }}Bump: `${{ inputs.bump }}`\nPre-release: `${{ inputs.prerelease }}`\nTriggered by: ${{ github.actor }}"
+                  text: "${{ inputs.dry_run == true && ':test_tube: *Dry Run — Tags Preview*' || ':label: *Tags Created*' }}\n\n${{ inputs.release_iii == true && format(':package: iii: `{0}`\n', steps.versions.outputs.iii_tag) || '' }}${{ inputs.release_motia == true && format(':package: Motia: `{0}`\n', steps.versions.outputs.motia_tag) || '' }}Pre-release: `${{ inputs.prerelease }}`\nTriggered by: ${{ github.actor }}${{ inputs.dry_run == true && '\n\n_No commits, tags, or publishes — validation only_' || '' }}"
               - type: "context"
                 elements:
                   - type: "mrkdwn"
