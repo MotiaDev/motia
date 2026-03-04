@@ -315,10 +315,19 @@ impl ModuleEntry {
 ///
 /// # Examples
 ///
-/// Load from file or use defaults:
+/// Load from a config file (fails if missing):
 /// ```ignore
 /// EngineBuilder::new()
-///     .config_file_or_default("config.yaml")?
+///     .config_file("config.yaml")?
+///     .address("0.0.0.0:3000")
+///     .build().await?
+///     .serve().await?;
+/// ```
+///
+/// Run with built-in defaults (no config file):
+/// ```ignore
+/// EngineBuilder::new()
+///     .default_config()
 ///     .address("0.0.0.0:3000")
 ///     .build().await?
 ///     .serve().await?;
@@ -327,7 +336,7 @@ impl ModuleEntry {
 /// Register custom module:
 /// ```ignore
 /// EngineBuilder::new()
-///     .register::<MyCustomModule>("my::CustomModule")
+///     .register_module::<MyCustomModule>("my::CustomModule")
 ///     .add_module("my::CustomModule", Some(json!({"key": "value"})))
 ///     .build().await?
 ///     .serve().await?;
