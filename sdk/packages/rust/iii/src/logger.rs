@@ -19,15 +19,13 @@ fn json_value_to_anyvalue(v: &Value) -> AnyValue {
             }
         }
         Value::Array(arr) => {
-            AnyValue::ListAny(arr.iter().map(json_value_to_anyvalue).collect())
+            AnyValue::ListAny(Box::new(arr.iter().map(json_value_to_anyvalue).collect()))
         }
-        Value::Object(map) => {
-            AnyValue::Map(
-                map.iter()
-                    .map(|(k, v)| (k.clone().into(), json_value_to_anyvalue(v)))
-                    .collect(),
-            )
-        }
+        Value::Object(map) => AnyValue::Map(Box::new(
+            map.iter()
+                .map(|(k, v)| (k.clone().into(), json_value_to_anyvalue(v)))
+                .collect(),
+        )),
         Value::Null => AnyValue::String("".into()),
     }
 }
