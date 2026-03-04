@@ -361,6 +361,19 @@ impl EngineBuilder {
         Ok(self)
     }
 
+    /// Loads config strictly from file. Fails if file is missing or unparseable.
+    pub fn config_file(mut self, path: &str) -> anyhow::Result<Self> {
+        let config = EngineConfig::config_file(path)?;
+        self.config = Some(config);
+        Ok(self)
+    }
+
+    /// Uses default config (no file). Explicit opt-in to run without a config file.
+    pub fn default_config(mut self) -> Self {
+        self.config = Some(EngineConfig::default_config());
+        self
+    }
+
     /// Registers a custom module type in the registry
     ///
     /// This allows you to register a module implementation that can then be used
@@ -698,5 +711,18 @@ mod tests {
         let config = EngineConfig::default_config();
         assert_eq!(config.port, DEFAULT_PORT);
         // Default modules come from inventory — at minimum it shouldn't panic
+    }
+
+    #[test]
+    fn test_engine_builder_config_file_errors_on_missing() {
+        let result = EngineBuilder::new()
+            .config_file("/tmp/iii_builder_nonexistent_99999.yaml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_builder_default_config_succeeds() {
+        // Should not panic — builder is usable with defaults
+        let _builder = EngineBuilder::new().default_config();
     }
 }
