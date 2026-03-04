@@ -1,12 +1,6 @@
 mod common;
 
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-    time::Instant,
-};
+use std::time::Instant;
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use iii::{
@@ -14,38 +8,29 @@ use iii::{
     function::FunctionResult,
     modules::observability::metrics::ensure_default_meter,
 };
-use tokio::{runtime::Runtime, sync::Notify};
+use tokio::runtime::Runtime;
 
 /// Simulates PubSub LocalAdapter.publish: spawn one engine.call per subscriber,
-/// wait for all to complete.
-async fn simulate_publish(
-    engine: &Engine,
-    subscriber_count: usize,
-    completed: &Arc<AtomicUsize>,
-    notify: &Arc<Notify>,
-) {
-    completed.store(0, Ordering::SeqCst);
-
+/// wait for all to complete. Errors are surfaced via JoinHandle assertions.
+async fn simulate_publish(engine: &Engine, subscriber_count: usize) {
     let payload = common::trigger_payload();
+    let mut handles = Vec::with_capacity(subscriber_count);
 
     for idx in 0..subscriber_count {
         let engine = engine.clone();
         let data = payload.clone();
-        let completed = completed.clone();
-        let notify = notify.clone();
 
-        tokio::spawn(async move {
+        handles.push(tokio::spawn(async move {
             let function_id = format!("bench.subscriber.{idx}");
-            let _ = engine.call(&function_id, data).await;
-
-            completed.fetch_add(1, Ordering::SeqCst);
-            notify.notify_one();
-        });
+            engine
+                .call(&function_id, data)
+                .await
+                .expect("subscriber call should succeed");
+        }));
     }
 
-    // Wait for all subscribers to complete
-    while completed.load(Ordering::SeqCst) < subscriber_count {
-        notify.notified().await;
+    for handle in handles {
+        handle.await.expect("subscriber task panicked");
     }
 }
 
@@ -57,14 +42,9 @@ fn pubsub_fanout_benchmark(c: &mut Criterion) {
 
     for subscriber_count in common::pubsub_subscriber_counts() {
         let engine = Engine::new();
-        let completed = Arc::new(AtomicUsize::new(0));
-        let notify = Arc::new(Notify::new());
 
         // Register N subscriber functions
         for idx in 0..subscriber_count {
-            let completed_ref = completed.clone();
-            let notify_ref = notify.clone();
-
             engine.register_function_handler(
                 RegisterFunctionRequest {
                     function_id: format!("bench.subscriber.{idx}"),
@@ -73,11 +53,7 @@ fn pubsub_fanout_benchmark(c: &mut Criterion) {
                     response_format: None,
                     metadata: None,
                 },
-                Handler::new(move |_input| {
-                    let _completed = completed_ref.clone();
-                    let _notify = notify_ref.clone();
-                    async move { FunctionResult::Success(None) }
-                }),
+                Handler::new(move |_input| async move { FunctionResult::Success(None) }),
             );
         }
 
@@ -87,18 +63,14 @@ fn pubsub_fanout_benchmark(c: &mut Criterion) {
             &subscriber_count,
             |b, &subscriber_count| {
                 let engine = engine.clone();
-                let completed = completed.clone();
-                let notify = notify.clone();
 
                 b.to_async(&rt).iter_custom(move |iters| {
                     let engine = engine.clone();
-                    let completed = completed.clone();
-                    let notify = notify.clone();
 
                     async move {
                         let start = Instant::now();
                         for _ in 0..iters {
-                            simulate_publish(&engine, subscriber_count, &completed, &notify).await;
+                            simulate_publish(&engine, subscriber_count).await;
                         }
                         start.elapsed()
                     }

@@ -24,14 +24,20 @@ fn core_runtime_benchmark(c: &mut Criterion) {
         Handler::new(|input| async move { FunctionResult::Success(Some(input)) }),
     );
 
+    let payload = common::benchmark_payload();
     c.bench_function("core_runtime/engine_call_registered_handler", |b| {
-        b.to_async(&rt).iter(|| async {
-            let payload = common::benchmark_payload();
-            let response = engine
-                .call("bench.echo", payload)
-                .await
-                .expect("engine call should succeed");
-            assert!(response.is_some());
+        let engine = engine.clone();
+        let payload = payload.clone();
+        b.to_async(&rt).iter(|| {
+            let engine = engine.clone();
+            let payload = payload.clone();
+            async move {
+                let response = engine
+                    .call("bench.echo", payload)
+                    .await
+                    .expect("engine call should succeed");
+                assert!(response.is_some());
+            }
         });
     });
 }

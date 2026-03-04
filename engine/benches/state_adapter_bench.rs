@@ -26,7 +26,7 @@ fn state_crud_benchmark(c: &mut Criterion) {
         }
     });
 
-    c.bench_function("state_adapter/set", |b| {
+    c.bench_function("state_adapter/set_overwrite", |b| {
         let adapter = adapter.clone();
         b.to_async(&rt).iter(|| {
             let adapter = adapter.clone();
@@ -66,6 +66,11 @@ fn state_crud_benchmark(c: &mut Criterion) {
         b.to_async(&rt).iter(|| {
             let adapter = adapter.clone();
             async move {
+                // Re-seed the key so each iteration measures a delete-hit
+                adapter
+                    .set("bench-scope", "key-0", common::state_value())
+                    .await
+                    .unwrap();
                 adapter.delete("bench-scope", "key-0").await.unwrap();
             }
         });

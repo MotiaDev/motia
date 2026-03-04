@@ -11,7 +11,7 @@ use iii::{
 };
 use tokio::runtime::Runtime;
 
-async fn run_parallel_batch(engine: Engine, concurrency: usize) {
+async fn run_parallel_batch(engine: &Engine, concurrency: usize) {
     let payload = common::benchmark_payload();
     let futures = (0..concurrency).map(|_| engine.call("bench.echo", payload.clone()));
     let results = join_all(futures).await;
@@ -53,7 +53,7 @@ fn concurrent_invocation_benchmark(c: &mut Criterion) {
                     async move {
                         let start = Instant::now();
                         for _ in 0..iters {
-                            run_parallel_batch(engine.clone(), concurrency).await;
+                            run_parallel_batch(&engine, concurrency).await;
                         }
                         start.elapsed()
                     }

@@ -27,14 +27,17 @@ fn http_concurrency_loopback_benchmark(c: &mut Criterion) {
                 b.to_async(&rt).iter_custom(|iters| {
                     let runtime = &runtime;
                     let target_path = &target_path;
+                    let body = common::http_request_body();
                     async move {
                         let start = Instant::now();
                         for _ in 0..iters {
-                            let requests = (0..concurrency).map(|_| async {
-                                let response = runtime
-                                    .post_json(target_path, &common::http_request_body())
-                                    .await;
-                                assert!(response.status().is_success());
+                            let requests = (0..concurrency).map(|_| {
+                                let body = &body;
+                                async move {
+                                    let response =
+                                        runtime.post_json(target_path, body).await;
+                                    assert!(response.status().is_success());
+                                }
                             });
                             join_all(requests).await;
                         }

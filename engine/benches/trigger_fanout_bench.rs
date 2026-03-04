@@ -39,9 +39,13 @@ impl TriggerRegistrator for NoopRegistrator {
 }
 
 async fn wait_for_completion(counter: Arc<AtomicUsize>, notify: Arc<Notify>, expected: usize) {
-    while counter.load(Ordering::SeqCst) < expected {
-        notify.notified().await;
-    }
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while counter.load(Ordering::SeqCst) < expected {
+            notify.notified().await;
+        }
+    })
+    .await
+    .expect("fanout completion timed out");
 }
 
 async fn build_fanout_engine(fanout: usize) -> (Engine, Arc<AtomicUsize>, Arc<Notify>) {

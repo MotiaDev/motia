@@ -20,7 +20,7 @@ fn kv_set_get_benchmark(c: &mut Criterion) {
         common::kv_value(),
     ));
 
-    c.bench_function("kv_store/set", |b| {
+    c.bench_function("kv_store/set_overwrite", |b| {
         let kv = kv.clone();
         b.to_async(&rt).iter(|| {
             let kv = kv.clone();
@@ -62,6 +62,9 @@ fn kv_set_get_benchmark(c: &mut Criterion) {
         b.to_async(&rt).iter(|| {
             let kv = kv.clone();
             async move {
+                // Re-seed the key so each iteration measures a delete-hit
+                kv.set("bench".to_string(), "key-0".to_string(), common::kv_value())
+                    .await;
                 kv.delete("bench".to_string(), "key-0".to_string()).await;
             }
         });
@@ -79,6 +82,7 @@ fn kv_update_benchmark(c: &mut Criterion) {
         json!({"name": "A", "counter": 0}),
     ));
 
+    // Steady-state benchmarks: same key+payload per iteration to measure update-in-place cost
     c.bench_function("kv_store/update_set_field", |b| {
         let kv = kv.clone();
         b.to_async(&rt).iter(|| {

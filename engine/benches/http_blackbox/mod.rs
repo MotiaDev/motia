@@ -77,6 +77,9 @@ impl BenchRuntime {
     }
 }
 
+/// Reserves an ephemeral port by binding and releasing a listener.
+/// NOTE: This has a small TOCTOU race window where another process could claim
+/// the port between release and the actual bind. Acceptable for local benchmarks.
 fn reserve_local_port() -> u16 {
     let listener = StdTcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
     let port = listener.local_addr().expect("listener addr").port();
@@ -85,17 +88,19 @@ fn reserve_local_port() -> u16 {
 }
 
 async fn wait_for_ws_server(ws_url: &str) {
-    for _ in 0..100 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
         if connect_async(ws_url).await.is_ok() {
             return;
         }
         sleep(Duration::from_millis(10)).await;
     }
-    panic!("ws server did not become ready");
+    panic!("ws server did not become ready within 10s");
 }
 
 async fn wait_for_route(client: &Client, base_http_url: &str, path: &str) {
-    for _ in 0..100 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
         let response = client
             .post(format!("{base_http_url}/{path}"))
             .json(&common::http_request_body())
@@ -110,7 +115,7 @@ async fn wait_for_route(client: &Client, base_http_url: &str, path: &str) {
 
         sleep(Duration::from_millis(10)).await;
     }
-    panic!("http route did not become ready");
+    panic!("http route did not become ready within 10s");
 }
 
 async fn run_worker(ws_url: String, route_count: usize) {

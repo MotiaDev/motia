@@ -46,8 +46,8 @@ impl WsBenchRuntime {
         // Service worker: registers "bench.echo", echoes InvokeFunction → InvocationResult
         let service_worker_task = tokio::spawn(run_service_worker(ws_url.clone()));
 
-        // Wait for service worker to register its function
-        sleep(Duration::from_millis(100)).await;
+        // Wait for service worker to register its function via a probe round-trip
+        wait_for_worker_ready(&ws_url).await;
 
         Self {
             ws_url,
@@ -89,6 +89,9 @@ impl WsBenchRuntime {
     }
 }
 
+/// Reserves an ephemeral port by binding and releasing a listener.
+/// NOTE: This has a small TOCTOU race window where another process could claim
+/// the port between release and the actual bind. Acceptable for local benchmarks.
 fn reserve_local_port() -> u16 {
     let listener = StdTcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
     let port = listener.local_addr().expect("listener addr").port();
@@ -106,13 +109,56 @@ fn write_ws_only_config() -> NamedTempFile {
 }
 
 async fn wait_for_ws_server(ws_url: &str) {
-    for _ in 0..100 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
         if connect_async(ws_url).await.is_ok() {
             return;
         }
         sleep(Duration::from_millis(10)).await;
     }
-    panic!("ws server did not become ready");
+    panic!("ws server did not become ready within 10s");
+}
+
+async fn wait_for_worker_ready(ws_url: &str) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
+        if let Ok((mut socket, _)) = connect_async(ws_url).await {
+            let probe = Message::InvokeFunction {
+                invocation_id: Some(Uuid::new_v4()),
+                function_id: "bench.echo".to_string(),
+                data: serde_json::json!({"probe": true}),
+                traceparent: None,
+                baggage: None,
+            };
+            let _ = socket
+                .send(WsMessage::Text(
+                    serde_json::to_string(&probe).expect("serialize probe"),
+                ))
+                .await;
+
+            if let Some(Ok(WsMessage::Text(text))) = socket.next().await {
+                if let Ok(Message::WorkerRegistered { .. }) = serde_json::from_str::<Message>(&text)
+                {
+                    // Drain WorkerRegistered, then wait for InvocationResult
+                    if let Some(Ok(WsMessage::Text(text))) = socket.next().await {
+                        if matches!(
+                            serde_json::from_str::<Message>(&text),
+                            Ok(Message::InvocationResult { .. })
+                        ) {
+                            return;
+                        }
+                    }
+                } else if matches!(
+                    serde_json::from_str::<Message>(&text),
+                    Ok(Message::InvocationResult { .. })
+                ) {
+                    return;
+                }
+            }
+        }
+        sleep(Duration::from_millis(25)).await;
+    }
+    panic!("worker did not become ready within 10s");
 }
 
 async fn run_service_worker(ws_url: String) {
