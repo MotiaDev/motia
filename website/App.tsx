@@ -6,22 +6,11 @@ import { HelloWorldSection } from "./components/sections/HelloWorldSection";
 import { EngineSection } from "./components/sections/EngineSection";
 import { AgentReadySection } from "./components/sections/AgentReadySection";
 import { FooterSection } from "./components/sections/FooterSection";
-import { ModeToggle } from "./components/ModeToggle";
 import { Navbar } from "./components/Navbar";
 import { MachineView } from "./components/MachineView";
 import { SectionsPreview } from "./pages/SectionsPreview";
 import { ManifestoPage } from "./pages/ManifestoPage";
 import { KeySequence } from "./types";
-import {
-  ArrowRight,
-  Copy,
-  Check,
-  Terminal as TerminalIcon,
-  Sun,
-  Moon,
-} from "lucide-react";
-const MAILMODO_ENDPOINT =
-  "MAILMODO_URL_REDACTED";
 
 const AppRouter: React.FC = () => {
   const pathname = window.location.pathname;
@@ -39,20 +28,6 @@ const AppRouter: React.FC = () => {
 const App: React.FC = () => {
   const [showTerminal, setShowTerminal] = useState(false);
   const [isGodMode, setIsGodMode] = useState(false);
-  const [email, setEmail] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(() => {
-    // Check localStorage on initial load
-    return localStorage.getItem("iii_access_requested") === "true";
-  });
-
-  useEffect(() => {
-    if (localStorage.getItem("iii_access_requested") === "true") {
-      setIsSubmitted(true);
-    }
-  }, []);
-  const [copySuccess, setCopySuccess] = useState(false);
-  const [bslBlink, setBslBlink] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
@@ -121,12 +96,6 @@ const App: React.FC = () => {
     }
   }, [logoClickCount]);
 
-  const handleBslClick = () => {
-    setBslBlink(true);
-    setTimeout(() => setBslBlink(false), 1000);
-    if (Math.random() > 0.9) setShowTerminal(true);
-  };
-
   useEffect(() => {
     let keyBuffer: string[] = [];
 
@@ -156,35 +125,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setIsSubmitting(true);
-
-    try {
-      const res = await fetch(MAILMODO_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      if (res.ok || res.status === 409) {
-        setIsSubmitted(true);
-        localStorage.setItem("iii_access_requested", "true");
-        localStorage.setItem("iii_access_email", email);
-        setEmail("");
-      }
-    } catch {
-      setIsSubmitted(true);
-      localStorage.setItem("iii_access_requested", "true");
-      localStorage.setItem("iii_access_email", email);
-      setEmail("");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   // Machine mode - raw markdown/text dump for AI consumption
   // Easter eggs still work: Konami code, terminal access
   if (!isHumanMode) {
@@ -195,7 +135,6 @@ const App: React.FC = () => {
           onToggleTheme={toggleTheme}
           isGodMode={isGodMode}
           isDarkMode={isDarkMode}
-          isSubmitted={isSubmitted}
           onLogoClick={handleLogoClick}
         />
         {showTerminal && (
@@ -231,13 +170,10 @@ const App: React.FC = () => {
           : "bg-iii-light text-iii-black"
       } ${isGodMode ? "selection:bg-red-500" : ""}`}
     >
-      {/* <GridBackground isDarkMode={isDarkMode} /> */}
-
       <Navbar
         isDarkMode={isDarkMode}
         isGodMode={isGodMode}
         isHumanMode={isHumanMode}
-        isSubmitted={isSubmitted}
         onToggleTheme={toggleTheme}
         onToggleMode={toggleMode}
         onLogoClick={handleLogoClick}
@@ -274,7 +210,7 @@ const App: React.FC = () => {
           <AgentReadySection isDarkMode={isDarkMode} />
         </div>
 
-        {/* Section 7: Footer + CTA - FAQ, Discord, Links */}
+        {/* Section 6: Footer + CTA - FAQ, Discord, Links */}
         <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
           <FooterSection isDarkMode={isDarkMode} />
         </div>

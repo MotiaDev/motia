@@ -52,7 +52,7 @@ function TestimonialCard({
 }) {
   return (
     <div
-      className={`p-8 rounded-xl border transition-all duration-300 ${
+      className={`p-8 rounded-lg border transition-all duration-300 ${
         isActive
           ? "border-green-400/30 bg-green-500/5 opacity-100"
           : "border-neutral-800 bg-neutral-900/30 opacity-50"
@@ -132,7 +132,7 @@ export function TestimonialsSection() {
   const handlePrevious = () => {
     setAutoplay(false);
     setActiveIndex(
-      (prev) => (prev - 1 + testimonials.length) % testimonials.length
+      (prev) => (prev - 1 + testimonials.length) % testimonials.length,
     );
   };
 

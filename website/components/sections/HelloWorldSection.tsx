@@ -134,7 +134,7 @@ export function HelloWorldSection({
       <div className="relative z-10">
         {/* Header */}
         <div className="text-center mb-10 md:mb-16 space-y-4">
-          <h2 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter leading-[1.1]">
+          <h2 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter leading-[1.1]">
             <span className="block sm:inline">One protocol.</span>{" "}
             <span className={`${accentColor} relative inline-block`}>
               Any language.
@@ -169,7 +169,7 @@ export function HelloWorldSection({
               {/* Code Card */}
               <div
                 className={`
-                relative rounded-2xl border-2 ${borderColor} ${bgCard}
+                relative rounded-lg border-2 ${borderColor} ${bgCard}
                 overflow-hidden transition-all duration-300 h-full flex flex-col
                 hover:border-opacity-30 hover:shadow-lg
                 ${isDarkMode ? "hover:border-iii-light/20" : "hover:border-iii-black/20"}
@@ -250,7 +250,7 @@ export function HelloWorldSection({
         <div className="mt-8 md:mt-12 text-center">
           <div
             className={`
-            inline-flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl
+            inline-flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 rounded-lg
             ${isDarkMode ? "bg-iii-dark/40" : "bg-white/60"}
             border ${borderColor} max-w-[90vw]
           `}

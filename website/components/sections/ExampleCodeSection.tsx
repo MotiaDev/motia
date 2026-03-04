@@ -22,6 +22,7 @@ const enableCategories = [
   { id: "multiplayer", label: "Multiplayer" },
   { id: "etl", label: "ETL" },
   { id: "reactive", label: "Reactive" },
+  { id: "remote", label: "Remote Invoke" },
 ];
 
 interface ToolBadgeProps {
@@ -121,7 +122,7 @@ function CodeBlock({
 
   return (
     <div
-      className={`rounded-lg sm:rounded-xl overflow-hidden border h-full flex flex-col transition-colors duration-300 ${
+      className={`rounded-lg overflow-hidden border h-full flex flex-col transition-colors duration-300 ${
         isDarkMode
           ? "border-iii-light bg-iii-black"
           : "border-iii-dark bg-white"

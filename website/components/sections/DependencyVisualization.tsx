@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Highlight, themes } from "prism-react-renderer";
-import { RefreshCw } from "lucide-react";
+import { RefreshIcon } from "../icons";
 
 type AnimationPhase =
   | "idle"
@@ -562,7 +562,7 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
       {/* iii Engine Core */}
       <div
         className={`
-        relative px-6 py-4 rounded-xl border-2 transition-all duration-500 my-1
+        relative px-6 py-4 rounded-lg border-2 transition-all duration-500 my-1
         ${
           isConnected
             ? isDarkMode
@@ -577,7 +577,7 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
         {/* Pulse effect when connected */}
         {isConnected && (
           <div
-            className={`absolute inset-0 rounded-xl opacity-90 transition-none ${
+            className={`absolute inset-0 rounded-lg opacity-90 transition-none ${
               isDarkMode ? "bg-iii-accent" : "bg-iii-accent-light"
             }`}
             style={{
@@ -587,7 +587,7 @@ const IIIEngineHub: React.FC<IIIEngineHubProps> = ({
           />
         )}
         {/* Ping once animation */}
-        <style jsx>{`
+        <style>{`
           @keyframes ping-once {
             0% {
               transform: scale(1);
@@ -898,7 +898,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
 
   return (
     <div
-      className={`rounded-lg sm:rounded-xl overflow-hidden border-2 h-full flex flex-col transition-all duration-700 ${getBorderClasses()} ${
+      className={`rounded-lg overflow-hidden border-2 h-full flex flex-col transition-all duration-700 ${getBorderClasses()} ${
         isDarkMode ? "bg-iii-black" : "bg-white"
       } ${
         isIII && isOutputting
@@ -936,22 +936,6 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
             </span>
           </div>
         </div>
-        {/* {tools && tools.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {tools.map((tool) => (
-              <span
-                key={tool}
-                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium transition-colors ${
-                  isDarkMode
-                    ? "bg-iii-alert/20 text-iii-alert border border-iii-alert/30"
-                    : "bg-red-100 text-red-700 border border-red-200"
-                }`}
-              >
-                {tool}
-              </span>
-            ))}
-          </div>
-        )} */}
       </div>
 
       {/* Code */}
@@ -1188,7 +1172,7 @@ export const DependencyVisualization: React.FC<
             }
           `}
         >
-          <RefreshCw className="w-3 h-3" />
+          <RefreshIcon size={12} />
           Replay
         </button>
       </div>
@@ -1263,7 +1247,7 @@ export const DependencyVisualization: React.FC<
         <div className="flex justify-center">
           <div
             className={`
-              flex items-center gap-3 px-5 py-3 rounded-xl
+              flex items-center gap-3 px-5 py-3 rounded-lg
               transition-all duration-700 ease-out
               ${
                 isLegendVisible
@@ -1304,7 +1288,7 @@ export const DependencyVisualization: React.FC<
         <div className="flex justify-center">
           <div
             className={`
-              flex items-center gap-3 px-5 py-3 rounded-xl
+              flex items-center gap-3 px-5 py-3 rounded-lg
               transition-all duration-700 ease-out
               ${
                 isLegendVisible
@@ -1348,7 +1332,7 @@ export const DependencyVisualization: React.FC<
       >
         <div
           className={`
-            flex flex-col sm:flex-row items-center gap-4 sm:gap-6 px-5 py-3 rounded-xl
+            flex flex-col sm:flex-row items-center gap-4 sm:gap-6 px-5 py-3 rounded-lg
             transition-all duration-700 ease-out
             ${isLegendVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
             ${isDarkMode ? "bg-iii-dark/80 shadow-lg shadow-black/20" : "bg-white/80 shadow-lg shadow-black/5"}

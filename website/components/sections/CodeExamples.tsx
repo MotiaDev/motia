@@ -65,34 +65,38 @@ import { init, getContext } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
-// Register API endpoint - works from any language
+// Register handler - works from any language
 iii.registerFunction(
-  { 
-    id: 'users::create',
-    metadata: { api_path: '/users', http_method: 'POST' }
-  },
-  async (input) => {
+  { id: 'users::create' },
+  async (req) => {
     const { logger } = getContext()
-    logger.info('Creating user', { email: input.email })
+    logger.info('Creating user', { email: req.body.email })
 
-    const user = await createUser(input)
+    const user = await createUser(req.body)
 
     // Publish event - subscribers notified automatically
     iii.triggerVoid('publish', {
       topic: 'user.created',
       data: user
     })
-    
+
     return { status_code: 201, body: user }
   }
 )
+
+// Bind to HTTP - one line, any method, any path
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'users::create',
+  config: { api_path: 'users', http_method: 'POST' }
+})
 
 // Python ML service registers the same way
 // Rust service registers the same way
 // One unified protocol, any language`,
     },
     linesTraditional: 35,
-    linesIII: 28,
+    linesIII: 32,
   },
 
   jobs: {
@@ -515,7 +519,7 @@ iii.registerFunction(
     await iii.trigger('state::set', {
       scope: input.workflowId,
       key: 'currentStep',
-      data: currentStep + 1
+      value: currentStep + 1
     })
 
     // Continue workflow
@@ -610,7 +614,7 @@ iii.registerFunction(
     await iii.trigger('state::set', {
       scope: 'reports',
       key: 'daily-' + new Date().toISOString().split('T')[0],
-      data: report
+      value: report
     })
     
     return { generated: true }
@@ -759,114 +763,143 @@ iii.registerFunction(
 
   workflow: {
     description:
-      "Orchestration without Temporal or Step Functions. State + Events = Workflows.",
+      "Durable multi-step workflows without Temporal servers, Inngest DSL, or trigger.dev wrappers. State = durability. Queues = retries.",
     traditional: {
-      title: "Temporal + Step Functions",
-      tools: ["Temporal", "Cadence", "AWS Step Functions", "Inngest"],
+      title: "Temporal + Inngest + trigger.dev",
+      tools: [
+        "Temporal",
+        "Inngest",
+        "trigger.dev",
+        "Cadence",
+        "AWS Step Functions",
+      ],
       language: "typescript",
-      code: `// Temporal workflow setup
-import { proxyActivities, sleep } from '@temporalio/workflow'
+      code: `// Temporal — the standard for durable execution
+import { proxyActivities, sleep, ApplicationFailure } from '@temporalio/workflow'
+import { Worker, NativeConnection } from '@temporalio/worker'
 import type * as activities from './activities'
 
-const { sendEmail, chargeCard, shipOrder } = proxyActivities<
+// All activities wrapped in proxyActivities — workflow must be deterministic
+// No Date.now(), Math.random(), or direct DB/HTTP calls in workflow code
+const { sendConfirmation, chargeCard, shipOrder } = proxyActivities<
   typeof activities
 >({
-  startToCloseTimeout: '1 minute',
-  retry: {
-    maximumAttempts: 3,
-  },
+  startToCloseTimeout: '30 seconds',
+  retry: { maximumAttempts: 3, backoffCoefficient: 2 },
 })
 
-// Workflow definition
 export async function orderWorkflow(order: Order): Promise<OrderResult> {
-  // Step 1: Send confirmation
-  await sendEmail({
-    to: order.email,
-    template: 'order-confirmation',
-    data: order,
-  })
+  await sendConfirmation({ email: order.email, orderId: order.id })
 
-  // Step 2: Charge card
   const payment = await chargeCard({
     amount: order.total,
     cardToken: order.paymentToken,
   })
 
   if (!payment.success) {
-    throw new Error('Payment failed')
+    throw ApplicationFailure.nonRetryable('Payment declined')
   }
 
-  // Step 3: Wait for inventory check
-  await sleep('5 seconds')
+  // Pause workflow — replay-safe delay
+  await sleep('30 seconds')
 
-  // Step 4: Ship order
-  const shipment = await shipOrder({
-    orderId: order.id,
-    address: order.shippingAddress,
-  })
+  const shipment = await shipOrder({ orderId: order.id, address: order.address })
 
-  return {
-    orderId: order.id,
-    paymentId: payment.id,
-    trackingNumber: shipment.trackingNumber,
-  }
+  return { orderId: order.id, trackingNumber: shipment.trackingNumber }
 }
 
-// Need separate worker process
-// Need Temporal server infrastructure
-// DSL to learn`,
+// Separate worker process — must deploy, scale, and monitor independently
+const worker = await Worker.create({
+  connection: await NativeConnection.connect({ address: 'temporal:7233' }),
+  taskQueue: 'orders',
+  workflowsPath: require.resolve('./workflows'),
+  activities,
+})
+await worker.run()
+
+// Temporal Cloud: $490+/month or self-host Temporal server
+// Inngest: step.run() wraps every activity + cloud HTTP endpoint required
+// trigger.dev: task.run() + server-side SDK + hosted infrastructure
+// All: vendor DSL + vendor infrastructure + deterministic code constraints`,
     },
     iii: {
       title: "iii Engine",
       language: "typescript",
-      code: `// iii SDK - State + Events = Workflows
+      code: `// iii SDK - Durable workflows from plain functions
 import { init, getContext } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
-// Step 1: Start order
+// HTTP endpoint kicks off the workflow
 iii.registerFunction(
   { id: 'order::start' },
   async (order) => {
     const { logger } = getContext()
 
-    // Save workflow state
+    await sendConfirmation({ email: order.email, orderId: order.id })
+
+    // State write = durable checkpoint — survives restarts
     await iii.trigger('state::set', {
-      scope: order.id,
-      key: 'status',
-      data: 'started'
+      scope: order.id, key: 'status', value: 'confirmed'
     })
-    
-    logger.info('Order started', { orderId: order.id })
-    
-    // Trigger next step via event
-    iii.triggerVoid('order::sendConfirmation', order)
-    
-    return { orderId: order.id, status: 'started' }
+
+    logger.info('Order confirmed', { orderId: order.id })
+
+    // Enqueue next step — engine guarantees delivery
+    iii.triggerVoid('enqueue', { topic: 'order.charge', data: order })
+    return { status_code: 202, body: { orderId: order.id, status: 'confirmed' } }
   }
 )
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'order::start',
+  config: { api_path: 'orders', http_method: 'POST' }
+})
 
-// Step 2: Send confirmation
+// Queue trigger = at-least-once delivery + automatic retries on failure
 iii.registerFunction(
-  { id: 'order::sendConfirmation' },
+  { id: 'order::charge' },
   async (order) => {
-    await sendEmail({ to: order.email, template: 'confirmation' })
+    const { logger } = getContext()
+    const payment = await chargeCard({ amount: order.total, token: order.paymentToken })
 
-    // Update state and continue
-    await iii.trigger('state::set', {
-      scope: order.id, key: 'status', data: 'confirmed'
-    })
+    if (!payment.success) {
+      await iii.trigger('state::set', { scope: order.id, key: 'status', value: 'failed' })
+      return
+    }
 
-    iii.triggerVoid('order::chargeCard', order)
+    await iii.trigger('state::set', { scope: order.id, key: 'payment', value: payment })
+    logger.info('Charged', { orderId: order.id, paymentId: payment.id })
+    iii.triggerVoid('order::ship', order)
+  }
+)
+iii.registerTrigger({
+  type: 'queue',
+  function_id: 'order::charge',
+  config: {
+    topic: 'order.charge',
+    metadata: { infrastructure: { queue: { maxRetries: 3 } } }
+  }
+})
+
+// Final step — state records completion
+iii.registerFunction(
+  { id: 'order::ship' },
+  async (order) => {
+    const { logger } = getContext()
+    const shipment = await shipOrder({ orderId: order.id, address: order.address })
+
+    await iii.trigger('state::set', { scope: order.id, key: 'status', value: 'shipped' })
+    logger.info('Shipped', { orderId: order.id, tracking: shipment.trackingNumber })
+    return { orderId: order.id, trackingNumber: shipment.trackingNumber }
   }
 )
 
-// Steps continue... each function is durable
-// State persists across restarts
-// No separate infrastructure needed`,
+// No DSL. No separate server. No determinism rules.
+// State = durability. Queue = retries. Functions = steps.`,
     },
-    linesTraditional: 50,
-    linesIII: 42,
+    linesTraditional: 48,
+    linesIII: 55,
   },
 
   "ai-agents": {
@@ -942,7 +975,7 @@ iii.registerFunction(
   { 
     id: 'tools::searchDatabase',
     description: 'Search the product database',
-    request_format: { query: 'string' }
+    request_format: { name: 'query', type: 'string' }
   },
   async ({ query }) => {
     const results = await db.products.search(query)
@@ -992,7 +1025,7 @@ iii.registerFunction(
     await iii.trigger('state::set', {
       scope: sessionId,
       key: 'history',
-      data: [...history, { role: 'user', content: message }]
+      value: [...history, { role: 'user', content: message }]
     })
     
     return response
@@ -1082,7 +1115,7 @@ iii.registerFunction(
     await iii.trigger('state::set', {
       scope: 'flags',
       key: flagKey,
-      data: config
+      value: config
     })
 
     // Broadcast to all connected clients instantly
@@ -1287,115 +1320,79 @@ iii.registerFunction(
 
   etl: {
     description:
-      "Build ETL pipelines without Airflow or Dagster. Events for data flow, State for checkpoints.",
+      "Build ETL pipelines without cron jobs and manual checkpointing. Events for data flow, State for recovery points.",
     traditional: {
-      title: "Airflow + Celery + Redis",
-      tools: ["Airflow", "Dagster", "Prefect", "Luigi", "dbt"],
-      language: "python",
-      code: `# Airflow DAG setup
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
-from celery import Celery
-import redis
+      title: "node-cron + Redis + Manual Workers",
+      tools: ["node-cron", "Airflow", "Dagster", "Prefect", "Luigi"],
+      language: "typescript",
+      code: `// Manual ETL pipeline — node-cron + Redis checkpoints
+import cron from 'node-cron'
+import Redis from 'ioredis'
 
-redis_client = redis.Redis()
-celery_app = Celery('etl', broker='redis://localhost:6379')
+const redis = new Redis(process.env.REDIS_URL)
 
-default_args = {
-    'owner': 'data-team',
-    'retries': 3,
-    'retry_delay': timedelta(minutes=5),
+async function extractUsers() {
+  const checkpoint = await redis.get('etl:checkpoint')
+  return db.users.find({
+    updated_at: { $gt: checkpoint ? new Date(checkpoint) : new Date(0) }
+  })
 }
 
-dag = DAG(
-    'user_analytics_pipeline',
-    default_args=default_args,
-    schedule_interval='0 2 * * *',
-    start_date=days_ago(1),
-)
+// No stage isolation — one big function, fail = restart everything
+cron.schedule('0 2 * * *', async () => {
+  try {
+    // Extract
+    const users = await extractUsers()
 
-def extract_users(**context):
-    checkpoint = redis_client.get('etl:users:checkpoint')
-    users = db.users.find({'updated_at': {'$gt': checkpoint}})
-    
-    # Store in XCom for next task
-    context['ti'].xcom_push(key='users', value=list(users))
-    redis_client.set('etl:users:checkpoint', datetime.now().isoformat())
+    // Transform
+    const transformed = users.map(user => ({
+      user_id: user.id,
+      lifetime_value: calculateLTV(user),
+      segment: classifySegment(user),
+    }))
 
-def transform_users(**context):
-    users = context['ti'].xcom_pull(key='users', task_ids='extract')
-    
-    transformed = []
-    for user in users:
-        transformed.append({
-            'user_id': user['_id'],
-            'lifetime_value': calculate_ltv(user),
-            'segment': classify_segment(user),
-        })
-    
-    context['ti'].xcom_push(key='transformed', value=transformed)
+    // Load
+    await warehouse.bulkInsert('user_analytics', transformed)
 
-def load_to_warehouse(**context):
-    data = context['ti'].xcom_pull(
-        key='transformed', task_ids='transform'
-    )
-    warehouse.bulk_insert('user_analytics', data)
+    // Save checkpoint — only after full success
+    await redis.set('etl:checkpoint', new Date().toISOString())
+    console.log(\`ETL complete: \${transformed.length} records\`)
+  } catch (err) {
+    console.error('ETL failed — full re-run required:', err)
+    // No retry per stage. No dead-letter. No visibility.
+    // If cron overlaps — duplicate runs, race condition on checkpoint
+  }
+})
 
-extract = PythonOperator(
-    task_id='extract',
-    python_callable=extract_users,
-    dag=dag
-)
-transform = PythonOperator(
-    task_id='transform',
-    python_callable=transform_users,
-    dag=dag
-)
-load = PythonOperator(
-    task_id='load',
-    python_callable=load_to_warehouse,
-    dag=dag
-)
-
-extract >> transform >> load
-
-# Need Airflow scheduler + webserver + database
-# Need Celery workers + Redis + Flower`,
+// Need: Redis + cron process + separate worker machines
+// No per-stage observability, no partial recovery, no backfill`,
     },
     iii: {
       title: "iii Engine",
       language: "typescript",
-      code: `// iii SDK - Events for flow, State for checkpoints
+      code: `// iii SDK - Staged pipeline, events for flow, state for recovery
 import { init, getContext } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
-// Step 1: Extract
+// Extract — reads last checkpoint, hands off to transform
 iii.registerFunction(
   { id: 'etl::extract' },
   async ({ pipeline }) => {
     const { logger } = getContext()
-
-    // Get checkpoint from StateModule
     const checkpoint = await iii.trigger('state::get', {
       scope: pipeline, key: 'checkpoint'
     })
-    
     const users = await db.users.find({
       updated_at: { $gt: checkpoint || new Date(0) }
     })
-    
-    logger.info('Extracted users', { count: users.length })
-    
-    // Trigger transform step
+    logger.info('Extracted', { count: users.length })
     iii.triggerVoid('etl::transform', { pipeline, users })
-    
     return { extracted: users.length }
   }
 )
 
-// Step 2: Transform
+// Transform — pure function, isolated failure, no re-extract on error
 iii.registerFunction(
   { id: 'etl::transform' },
   async ({ pipeline, users }) => {
@@ -1404,171 +1401,325 @@ iii.registerFunction(
       lifetime_value: calculateLTV(user),
       segment: classifySegment(user),
     }))
-    
-    // Trigger load step
-    iii.triggerVoid('etl::load', {
-      pipeline,
-      data: transformed
-    })
-    
+    iii.triggerVoid('etl::load', { pipeline, data: transformed })
     return { transformed: transformed.length }
   }
 )
 
-// Step 3: Load
+// Load — saves checkpoint only after successful write
 iii.registerFunction(
   { id: 'etl::load' },
   async ({ pipeline, data }) => {
     const { logger } = getContext()
-
     await warehouse.bulkInsert('user_analytics', data)
-
-    // Update checkpoint
     await iii.trigger('state::set', {
-      scope: pipeline,
-      key: 'checkpoint',
-      data: new Date().toISOString()
+      scope: pipeline, key: 'checkpoint', value: new Date().toISOString()
     })
-    
     logger.info('Pipeline complete', { loaded: data.length })
     return { loaded: data.length }
   }
 )
 
-// Schedule with CronModule
+// Distributed locking built in — no duplicate runs
 iii.registerTrigger({
   type: 'cron',
   function_id: 'etl::extract',
-  config: { expression: '0 2 * * *' } // Daily at 2 AM
-})
-
-// No scheduler. No Redis. No workers.
-// Just functions and events.`,
+  config: { expression: '0 2 * * *' }
+})`,
     },
-    linesTraditional: 58,
-    linesIII: 65,
+    linesTraditional: 42,
+    linesIII: 48,
   },
 
   reactive: {
     description:
-      "Build reactive backends without Convex lock-in. Real-time subscriptions + state that just works.",
+      "Real-time reactive backend without WebSocket servers or Redis wiring. Publish once, all subscribers update.",
     traditional: {
-      title: "Convex",
-      tools: ["Convex", "Firebase", "Supabase Realtime"],
+      title: "WebSocket + Redis + Postgres",
+      tools: ["ws", "Socket.io", "Redis Pub/Sub", "Ably", "Supabase Realtime"],
       language: "typescript",
-      code: `// Convex - proprietary reactive backend
-import { mutation, query } from "./_generated/server"
-import { v } from "convex/values"
+      code: `// Building reactive from scratch
+import { WebSocketServer } from 'ws'
+import Redis from 'ioredis'
+import { Pool } from 'pg'
 
-// Locked into Convex's hosting
-// Locked into Convex's database
-// Locked into Convex's pricing
+const wss = new WebSocketServer({ port: 8080 })
+const pub = new Redis(process.env.REDIS_URL)
+const sub = new Redis(process.env.REDIS_URL)
+const pg = new Pool({ connectionString: process.env.DATABASE_URL })
 
-export const sendMessage = mutation({
-  args: {
-    channelId: v.id("channels"),
-    content: v.string(),
-  },
-  handler: async (ctx, { channelId, content }) => {
-    const user = await ctx.auth.getUserIdentity()
-    if (!user) throw new Error("Not authenticated")
-    
-    // Insert into Convex's proprietary database
-    const messageId = await ctx.db.insert("messages", {
-      channelId,
-      content,
-      authorId: user.subject,
-      createdAt: Date.now(),
-    })
-    
-    return messageId
-  },
+// Track subscriptions per server pod — not shared across pods
+const channelSubs = new Map<string, Set<WebSocket>>()
+
+// Sync events across pods via Redis pub/sub
+sub.subscribe('messages')
+sub.on('message', (_, payload) => {
+  const { channelId, data } = JSON.parse(payload)
+  channelSubs.get(channelId)?.forEach(ws => {
+    if (ws.readyState === 1) ws.send(JSON.stringify(data))
+  })
 })
 
-export const getMessages = query({
-  args: { channelId: v.id("channels") },
-  handler: async (ctx, { channelId }) => {
-    // Convex auto-subscribes clients
-    // But you can't use your own database
-    // Can't run on your infrastructure
-    return await ctx.db
-      .query("messages")
-      .withIndex("by_channel", q => q.eq("channelId", channelId))
-      .order("desc")
-      .take(50)
-  },
+wss.on('connection', (ws, req) => {
+  const channelId = new URL(req.url!, 'ws://x').searchParams.get('channel')!
+  if (!channelSubs.has(channelId)) channelSubs.set(channelId, new Set())
+  channelSubs.get(channelId)!.add(ws)
+
+  // Send initial state from Postgres on connect
+  pg.query(
+    'SELECT * FROM messages WHERE channel_id=$1 ORDER BY created_at DESC LIMIT 50',
+    [channelId]
+  ).then(({ rows }) => ws.send(JSON.stringify({ type: 'init', data: rows })))
+
+  ws.on('close', () => channelSubs.get(channelId)?.delete(ws))
 })
 
-// Client subscribes reactively
-// useQuery(api.messages.getMessages, { channelId })
-// Real-time updates work, but you're locked in`,
+// Separate HTTP endpoint to send messages
+app.post('/messages', async (req, res) => {
+  const { channelId, content } = req.body
+  const { rows: [msg] } = await pg.query(
+    'INSERT INTO messages (channel_id, content) VALUES ($1, $2) RETURNING *',
+    [channelId, content]
+  )
+  // Broadcast to all pods via Redis
+  await pub.publish('messages', JSON.stringify({ channelId, data: msg }))
+  res.json(msg)
+})
+
+// Need: WebSocket server + Express + Redis + Postgres — all managed manually
+// Manual: connection tracking, cross-pod sync, initial state, cleanup`,
     },
     iii: {
       title: "iii Engine",
       language: "typescript",
-      code: `// iii SDK - Reactive backend, your infrastructure
+      code: `// iii SDK - Reactive backend, your database, your infrastructure
 import { init, getContext } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
-// Send message - triggers reactive update
+// Send message — persist to your DB, notify all subscribers instantly
 iii.registerFunction(
-  {
-    id: 'chat::sendMessage',
-    metadata: { api_path: '/messages', http_method: 'POST' }
-  },
+  { id: 'chat::sendMessage' },
   async ({ channelId, content }) => {
     const { logger } = getContext()
 
-    // Use YOUR database (Postgres, Mongo, whatever)
+    // Use YOUR database — Postgres, Mongo, anything
     const message = await db.messages.create({
-      channelId,
-      content,
-      authorId: 'current-user',
-      createdAt: new Date()
+      channelId, content, createdAt: new Date()
     })
-    
-    // Emit to reactive subscribers
+
+    // One call — all channel subscribers notified automatically
     iii.triggerVoid('publish', {
-      topic: \`messages:\${channelId}\`,
+      topic: \`channel.\${channelId}\`,
       data: message
     })
-    
+
     logger.info('Message sent', { channelId, messageId: message.id })
     return message
   }
 )
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'chat::sendMessage',
+  config: { api_path: 'messages', http_method: 'POST' }
+})
 
-// Query messages - clients can subscribe
+// Get messages — initial state for connecting clients
 iii.registerFunction(
-  {
-    id: 'chat::getMessages',
-    metadata: { 
-      api_path: '/channels/:channelId/messages',
-      http_method: 'GET',
-      subscribable: true  // Enable reactive subscriptions
-    }
-  },
+  { id: 'chat::getMessages' },
   async ({ channelId }) => {
-    // Query YOUR database
-    const messages = await db.messages.findMany({
+    return await db.messages.findMany({
       where: { channelId },
       orderBy: { createdAt: 'desc' },
       take: 50
     })
-    
-    return messages
+  }
+)
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'chat::getMessages',
+  config: { api_path: 'channels/:channelId/messages', http_method: 'GET' }
+})
+
+// React to new messages — server-side fan-out
+iii.registerFunction(
+  { id: 'chat::onMessage' },
+  async (message) => {
+    const { logger } = getContext()
+    logger.info('Broadcasting', { channelId: message.channelId })
+  }
+)
+iii.registerTrigger({
+  type: 'subscribe',
+  function_id: 'chat::onMessage',
+  config: { topic: 'channel.general' }
+})
+
+// No WebSocket server. No Redis. Your database. Real-time built in.`,
+    },
+    linesTraditional: 48,
+    linesIII: 50,
+  },
+
+  remote: {
+    description:
+      "Route requests to external services — Lambda, Stripe, Cloud Functions — without glue code. iii as the universal router.",
+    traditional: {
+      title: "Express + axios + Manual Retries",
+      tools: ["Express.js", "axios", "AWS SDK", "Stripe SDK", "p-retry"],
+      language: "typescript",
+      code: `// Express gateway to external services
+import express from 'express'
+import axios from 'axios'
+import Stripe from 'stripe'
+import { Lambda } from '@aws-sdk/client-lambda'
+
+const app = express()
+const stripe = new Stripe(process.env.STRIPE_KEY!)
+const lambda = new Lambda({ region: 'us-east-1' })
+
+// Manual retry logic
+async function withRetry(fn: () => Promise<any>, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (i === retries - 1) throw err
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)))
+    }
+  }
+}
+
+// Route to Stripe
+app.post('/api/payments', async (req, res) => {
+  try {
+    const session = await withRetry(() =>
+      stripe.checkout.sessions.create({
+        line_items: req.body.items,
+        mode: 'payment',
+        success_url: req.body.successUrl,
+      })
+    )
+    res.json({ url: session.url })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Route to Lambda
+app.post('/api/process', async (req, res) => {
+  try {
+    const result = await withRetry(() =>
+      lambda.invoke({
+        FunctionName: 'data-processor',
+        Payload: JSON.stringify(req.body),
+      })
+    )
+    res.json(JSON.parse(result.Payload as string))
+  } catch (err) {
+    res.status(502).json({ error: 'Upstream failed' })
+  }
+})
+
+// Route to Google Cloud Function
+app.post('/api/analyze', async (req, res) => {
+  try {
+    const { data } = await withRetry(() =>
+      axios.post(process.env.GCF_URL!, req.body, {
+        timeout: 30000,
+        headers: { Authorization: \`Bearer \${process.env.GCF_TOKEN}\` },
+      })
+    )
+    res.json(data)
+  } catch (err) {
+    res.status(502).json({ error: 'Upstream failed' })
+  }
+})
+
+// Each external service: separate SDK, separate error handling
+// No unified observability, no automatic retries across all
+app.listen(3000)`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `// iii SDK - Functions as universal remote invokers
+import { init, getContext } from "iii-sdk"
+
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+
+// Route to Stripe
+iii.registerFunction(
+  { id: 'remote::stripe::checkout' },
+  async ({ items, successUrl }) => {
+    const { logger } = getContext()
+    const stripe = new Stripe(process.env.STRIPE_KEY!)
+
+    const session = await stripe.checkout.sessions.create({
+      line_items: items,
+      mode: 'payment',
+      success_url: successUrl,
+    })
+
+    logger.info('Stripe session created', { sessionId: session.id })
+    return { url: session.url }
   }
 )
 
-// Client subscribes:
-// subscribe('chat::getMessages', { channelId }, (messages) => {
-//   setMessages(messages)
-// })
-//
-// Real-time updates. Your database. Your infrastructure.`,
+// Route to AWS Lambda
+iii.registerFunction(
+  { id: 'remote::lambda::process' },
+  async (payload) => {
+    const { logger } = getContext()
+    const lambda = new Lambda({ region: 'us-east-1' })
+
+    const result = await lambda.invoke({
+      FunctionName: 'data-processor',
+      Payload: JSON.stringify(payload),
+    })
+
+    logger.info('Lambda invoked', { status: result.StatusCode })
+    return JSON.parse(result.Payload as string)
+  }
+)
+
+// Route to any HTTP endpoint (Cloud Functions, webhooks)
+iii.registerFunction(
+  { id: 'remote::gcf::analyze' },
+  async (payload) => {
+    const resp = await fetch(process.env.GCF_URL!, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: \`Bearer \${process.env.GCF_TOKEN}\`,
+      },
+      body: JSON.stringify(payload),
+    })
+    return await resp.json()
+  }
+)
+
+// Expose all as HTTP — one line each
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'remote::stripe::checkout',
+  config: { api_path: 'payments', http_method: 'POST' }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'remote::lambda::process',
+  config: { api_path: 'process', http_method: 'POST' }
+})
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'remote::gcf::analyze',
+  config: { api_path: 'analyze', http_method: 'POST' }
+})
+
+// Retries, logging, tracing — all built into the engine
+// Add more external services by registering more functions`,
     },
-    linesTraditional: 45,
-    linesIII: 55,
+    linesTraditional: 62,
+    linesIII: 52,
   },
 };

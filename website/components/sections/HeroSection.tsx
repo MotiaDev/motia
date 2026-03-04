@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import {
-  ArrowRight,
-  Copy,
-  Check,
-  Terminal as TerminalIcon,
-} from "lucide-react";
+  ArrowNarrowRightIcon,
+  CopyIcon,
+  CheckedIcon,
+  TerminalIcon,
+} from "../icons";
 import { useRotatingText } from "../../lib/useRotatingText";
 // AUTHENTIC SVG LOGOS - Official & Community Verified Paths
 // Sources: Official branding pages, vectorlogo.zone, svgl.app, simpleicons.org
@@ -287,12 +287,12 @@ export const cloudLogos = [
 ];
 
 const rotatingWords = [
-  "orchestrate",
   "trigger",
-  "register",
   "discover",
-  "scale",
+  "register",
   "observe",
+  "scale",
+  "connect",
 ];
 
 const rotatingContexts = [
@@ -300,7 +300,7 @@ const rotatingContexts = [
   "any location",
   "any runtime",
   "any worker",
-  "any trigger",
+  "any event",
   "any function",
 ];
 
@@ -481,34 +481,50 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                   }`}
                   onClick={copyToClipboard}
                 >
-                  <TerminalIcon
-                    className={`w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-colors flex-shrink-0 ${
-                      isDarkMode
-                        ? "text-iii-light/50 group-hover:text-iii-accent"
-                        : "text-iii-dark/50 group-hover:text-iii-accent-light"
-                    }`}
-                  />
-                  <code
-                    className={`text-[9px] sm:text-[10px] md:text-sm flex-1 truncate ${
-                      isDarkMode ? "text-iii-light" : "text-iii-black"
-                    }`}
-                  >
-                    {installCmd}
-                  </code>
                   {copySuccess ? (
-                    <Check
-                      className={`w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 ${
-                        isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
-                      }`}
-                    />
+                    <>
+                      <CheckedIcon
+                        size={16}
+                        className={`flex-shrink-0 ${
+                          isDarkMode
+                            ? "text-iii-accent"
+                            : "text-iii-accent-light"
+                        }`}
+                      />
+                      <code
+                        className={`text-[9px] sm:text-[10px] md:text-sm flex-1 truncate ${
+                          isDarkMode ? "text-iii-light" : "text-iii-black"
+                        }`}
+                      >
+                        copied!
+                      </code>
+                    </>
                   ) : (
-                    <Copy
-                      className={`w-3.5 h-3.5 md:w-4 md:h-4 transition-colors flex-shrink-0 ${
-                        isDarkMode
-                          ? "text-iii-light/50 group-hover:text-white"
-                          : "text-iii-dark/50 group-hover:text-iii-black"
-                      }`}
-                    />
+                    <>
+                      <TerminalIcon
+                        size={16}
+                        className={`transition-colors flex-shrink-0 ${
+                          isDarkMode
+                            ? "text-iii-light/50 group-hover:text-iii-accent"
+                            : "text-iii-dark/50 group-hover:text-iii-accent-light"
+                        }`}
+                      />
+                      <code
+                        className={`text-[9px] sm:text-[10px] md:text-sm flex-1 truncate ${
+                          isDarkMode ? "text-iii-light" : "text-iii-black"
+                        }`}
+                      >
+                        install.sh
+                      </code>
+                      <CopyIcon
+                        size={16}
+                        className={`transition-colors flex-shrink-0 ${
+                          isDarkMode
+                            ? "text-iii-light/50 group-hover:text-white"
+                            : "text-iii-dark/50 group-hover:text-iii-black"
+                        }`}
+                      />
+                    </>
                   )}
                 </div>
               </div>
@@ -525,7 +541,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                         : "text-iii-accent-light bg-iii-accent-light/10 border-iii-accent-light/20"
                     }`}
                   >
-                    <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <CheckedIcon size={16} />
                     <span className="font-mono tracking-tight text-xs sm:text-sm">
                       SUBSCRIBED — STAY UPDATED
                     </span>
@@ -560,7 +576,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                       {isSubmitting ? (
                         "..."
                       ) : (
-                        <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
+                        <ArrowNarrowRightIcon size={20} />
                       )}
                     </button>
                   </div>

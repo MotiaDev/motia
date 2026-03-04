@@ -50,7 +50,7 @@ function CatchCard({
   details: string[];
 }) {
   return (
-    <div className="group p-8 rounded-xl border border-neutral-800 bg-neutral-900/30 hover:border-neutral-700 transition-all hover:bg-neutral-900/50">
+    <div className="group p-8 rounded-lg border border-neutral-800 bg-neutral-900/30 hover:border-neutral-700 transition-all hover:bg-neutral-900/50">
       {/* Header */}
       <div className="space-y-3 mb-6">
         <div className="flex items-center gap-3">

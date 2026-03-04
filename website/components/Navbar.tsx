@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { Logo } from "./Logo";
 import { ModeToggle } from "./ModeToggle";
+import { Menu } from "lucide-react";
 import {
-  Check,
-  Terminal as TerminalIcon,
-  Sun,
-  Moon,
-  Menu,
-  X,
-} from "lucide-react";
+  CheckedIcon,
+  TerminalIcon,
+  BrightnessDownIcon,
+  MoonIcon,
+  XIcon,
+} from "./icons";
 
 interface NavbarProps {
   isDarkMode: boolean;
   isGodMode?: boolean;
   isHumanMode: boolean;
-  isSubmitted: boolean;
   onToggleTheme: () => void;
   onToggleMode: () => void;
   onLogoClick?: () => void;
@@ -29,7 +28,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   isDarkMode,
   isGodMode = false,
   isHumanMode,
-  isSubmitted,
   onToggleTheme,
   onToggleMode,
   onLogoClick,
@@ -189,12 +187,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {installCopied ? (
               <>
-                <Check className="w-3 h-3" />
+                <CheckedIcon size={12} />
                 <span className="whitespace-nowrap">{installCmd}</span>
               </>
             ) : (
               <>
-                <TerminalIcon className="w-3 h-3" />
+                <TerminalIcon size={12} />
                 <span>install.sh</span>
               </>
             )}
@@ -223,6 +221,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             href="https://github.com/iii-hq/iii"
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="GitHub repository"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded border transition-all duration-300 text-xs ${
               isDarkMode
                 ? "border-iii-light text-iii-light hover:bg-iii-light hover:text-iii-black"
@@ -248,9 +247,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Toggle theme"
           >
             {isDarkMode ? (
-              <Sun className="w-4 h-4" />
+              <BrightnessDownIcon size={16} />
             ) : (
-              <Moon className="w-4 h-4" />
+              <MoonIcon size={16} />
             )}
           </button>
         </div>
@@ -261,6 +260,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             href="https://github.com/iii-hq/iii"
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="GitHub repository"
             className={`flex items-center gap-1 px-2 py-1.5 rounded border transition-all text-[10px] ${
               isDarkMode
                 ? "border-iii-light/20 text-iii-light/70"
@@ -290,9 +290,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Toggle theme"
           >
             {isDarkMode ? (
-              <Sun className="w-4 h-4" />
+              <BrightnessDownIcon size={16} />
             ) : (
-              <Moon className="w-4 h-4" />
+              <MoonIcon size={16} />
             )}
           </button>
           <button
@@ -340,7 +340,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
                 aria-label="Close menu"
               >
-                <X className="w-5 h-5" />
+                <XIcon size={20} />
               </button>
             </div>
 
@@ -348,7 +348,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <a
                 href="/manifesto"
                 onClick={closeMobileMenu}
-                className={`py-3 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
+                className={`py-3 px-4 rounded-lg border-2 text-sm font-bold transition-all ${
                   isDarkMode
                     ? "border-iii-light/10 hover:border-iii-accent hover:text-iii-accent text-iii-light"
                     : "border-iii-dark/10 hover:border-iii-accent-light hover:text-iii-accent-light text-iii-black"
@@ -359,7 +359,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <a
                 href="/docs"
                 onClick={closeMobileMenu}
-                className={`py-3 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
+                className={`py-3 px-4 rounded-lg border-2 text-sm font-bold transition-all ${
                   isDarkMode
                     ? "border-iii-accent text-iii-accent hover:bg-iii-accent/10"
                     : "border-iii-accent-light text-iii-accent-light hover:bg-iii-accent-light/10"
@@ -373,7 +373,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={closeMobileMenu}
-                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
+                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 text-sm font-bold transition-all ${
                   isDarkMode
                     ? "border-iii-light/10 hover:border-iii-light/30 text-iii-light"
                     : "border-iii-dark/10 hover:border-iii-dark/30 text-iii-black"
@@ -396,7 +396,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => {
                   handleInstallClick();
                 }}
-                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 text-sm font-mono transition-all ${
+                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 text-sm font-mono transition-all ${
                   installCopied
                     ? isDarkMode
                       ? "bg-iii-accent/20 border-iii-accent text-iii-accent"
@@ -408,12 +408,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 {installCopied ? (
                   <>
-                    <Check className="w-4 h-4" />
+                    <CheckedIcon size={16} />
                     <span>Copied!</span>
                   </>
                 ) : (
                   <>
-                    <TerminalIcon className="w-4 h-4" />
+                    <TerminalIcon size={16} />
                     <span>install.sh</span>
                   </>
                 )}

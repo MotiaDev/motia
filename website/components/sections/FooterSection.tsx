@@ -1,19 +1,20 @@
 import { useState, useEffect } from "react";
+import { ChevronDown } from "lucide-react";
 import {
-  ChevronDown,
-  Github,
-  Terminal,
-  Copy,
-  Check,
-  Users,
-  ArrowRight,
-} from "lucide-react";
+  GithubIcon,
+  TerminalIcon,
+  CopyIcon,
+  CheckedIcon,
+  UsersIcon,
+  ArrowNarrowRightIcon,
+} from "../icons";
 import { Logo } from "../Logo";
+import { TextParticle, drawIiiLogo } from "../ui/text-particle";
 
 // Discord integration
 const DISCORD_GUILD_ID = "1322278831184281721";
 const DISCORD_WIDGET_URL = `https://discord.com/api/guilds/${DISCORD_GUILD_ID}/widget.json`;
-const DISCORD_INVITE_URL = "https://discord.gg/iii";
+const DISCORD_INVITE_URL = "https://discord.gg/motia";
 
 interface DiscordMember {
   id: string;
@@ -166,35 +167,49 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
           <button
             type="button"
             aria-label="Copy install command"
-            className={`group relative flex items-center gap-3 px-4 py-2.5 md:px-5 md:py-3 border-2 rounded-xl mb-4 max-w-lg mx-auto cursor-pointer transition-all ${
+            className={`group relative flex items-center gap-3 px-4 py-2.5 md:px-5 md:py-3 border-2 rounded-lg mb-4 max-w-lg mx-auto cursor-pointer transition-all ${
               isDarkMode
                 ? "bg-iii-dark/50 border-iii-light/20 hover:border-iii-light/40"
                 : "bg-white/50 border-iii-black/20 hover:border-iii-black/40"
             }`}
             onClick={copyToClipboard}
           >
-            <Terminal className={`w-5 h-5 flex-shrink-0 ${textSecondary}`} />
-            <code className={`text-xs md:text-sm flex-1 ${textPrimary}`}>
-              {installCmd}
-            </code>
             {copySuccess ? (
-              <Check className={`w-5 h-5 flex-shrink-0 ${accentColor}`} />
+              <>
+                <CheckedIcon
+                  size={20}
+                  className={`flex-shrink-0 ${accentColor}`}
+                />
+                <code className={`text-xs md:text-sm flex-1 ${textPrimary}`}>
+                  copied!
+                </code>
+              </>
             ) : (
-              <Copy
-                className={`w-5 h-5 flex-shrink-0 transition-all ${textSecondary} ${isDarkMode ? "group-hover:text-iii-accent group-hover:drop-shadow-[0_0_6px_rgba(243,247,36,0.4)]" : "group-hover:text-iii-accent-light group-hover:drop-shadow-[0_0_6px_rgba(47,127,255,0.4)]"}`}
-              />
+              <>
+                <TerminalIcon
+                  size={20}
+                  className={`flex-shrink-0 ${textSecondary}`}
+                />
+                <code className={`text-xs md:text-sm flex-1 ${textPrimary}`}>
+                  install.sh
+                </code>
+                <CopyIcon
+                  size={20}
+                  className={`flex-shrink-0 transition-all ${textSecondary} ${isDarkMode ? "group-hover:text-iii-accent group-hover:drop-shadow-[0_0_6px_rgba(243,247,36,0.4)]" : "group-hover:text-iii-accent-light group-hover:drop-shadow-[0_0_6px_rgba(47,127,255,0.4)]"}`}
+                />
+              </>
             )}
           </button>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
-              href="https://github.com/MotiaDev/iii"
+              href="https://github.com/iii-hq/iii"
               target="_blank"
               rel="noopener noreferrer"
               className={`
                 w-full sm:w-auto inline-flex items-center justify-center gap-2.5
-                px-5 py-2.5 rounded-xl border-2 transition-all duration-300
+                px-5 py-2.5 rounded-lg border-2 transition-all duration-300
                 font-bold text-sm
                 ${
                   isDarkMode
@@ -203,7 +218,7 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
                 }
               `}
             >
-              <Github className="w-4 h-4" />
+              <GithubIcon size={16} />
               GitHub
             </a>
             <button
@@ -215,7 +230,7 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
                 )
               }
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5
-                px-5 py-2.5 rounded-xl bg-[#5865F2] text-white font-bold text-sm
+                px-5 py-2.5 rounded-lg bg-[#5865F2] text-white font-bold text-sm
                 hover:bg-[#4752C4] transition-all duration-300"
             >
               <svg
@@ -244,7 +259,7 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
                 <div
                   key={item.id}
                   className={`
-                    rounded-xl transition-all duration-300 overflow-hidden
+                    rounded-lg transition-all duration-300 overflow-hidden
                     ${
                       openFaqId === item.id
                         ? `border-2 ${accentBorder} ${isDarkMode ? "bg-iii-accent/5" : "bg-iii-accent-light/5"}`
@@ -293,9 +308,9 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
           </div>
 
           {/* Discord Widget with Member Avatars */}
-          <div className={`p-5 rounded-2xl border-2 ${borderColor} ${bgCard}`}>
+          <div className={`p-5 rounded-lg border-2 ${borderColor} ${bgCard}`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-[#5865F2] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-[#5865F2] flex items-center justify-center">
                 <svg
                   className="w-5 h-5 text-white"
                   fill="currentColor"
@@ -388,23 +403,33 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
                   "noopener,noreferrer",
                 )
               }
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
                 bg-[#5865F2] text-white font-bold text-sm
                 hover:bg-[#4752C4] transition-all duration-300"
             >
-              <Users className="w-4 h-4" />
+              <UsersIcon size={16} />
               Join Community
-              <ArrowRight className="w-3 h-3" />
+              <ArrowNarrowRightIcon size={12} />
             </button>
 
             <div className={`mt-4 pt-4 border-t ${borderColor}`} />
           </div>
         </div>
 
-        {/* Footer Links */}
-        <div className={`border-t ${borderColor} pt-6 md:pt-8`}>
+        {/* iii Particle Branding */}
+        <div className={`border-t ${borderColor} pt-8 md:pt-12`}>
+          <div className="h-52 sm:h-72 md:h-96 lg:h-[28rem] w-full overflow-hidden mb-8">
+            <TextParticle
+              renderSource={drawIiiLogo}
+              particleColor={isDarkMode ? "#f4f4f4" : "#000000"}
+              hoverColor={isDarkMode ? "#f3f724" : "#2f7fff"}
+              hoverRadius={150}
+              particleSize={2.5}
+              particleDensity={4}
+            />
+          </div>
+
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            {/* Logo / Brand */}
             <div className="flex items-center gap-3">
               <Logo
                 className={`h-4 ${isDarkMode ? "text-iii-light" : "text-iii-black"}`}
@@ -413,8 +438,6 @@ export function FooterSection({ isDarkMode = true }: FooterSectionProps) {
                 Interoperable Invocation Interface
               </span>
             </div>
-
-            {/* Copyright */}
             <div className={`text-xs ${textSecondary}`}>© Motia LLC</div>
           </div>
         </div>

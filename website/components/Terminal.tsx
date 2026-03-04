@@ -862,7 +862,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog('"Context-Aware Execution"', "success");
         addLog("", "info");
-        addLog("© 2025 iii, inc.", "info");
+        addLog("© 2026 Motia LLC", "info");
         break;
 
       case "motia":

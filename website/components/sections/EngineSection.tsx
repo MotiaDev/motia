@@ -1,63 +1,205 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { Highlight, themes } from "prism-react-renderer";
 import {
   Database,
   Layers,
   GitBranch,
-  Users,
   Zap,
-  Globe,
-  Eye,
-  Cloud,
-  Clock,
-  MessageSquare,
   Activity,
   Share2,
   Bot,
   ArrowRight,
   ChevronDown,
 } from "lucide-react";
+import {
+  GlobeIcon,
+  ClockIcon,
+  MessageCircleIcon,
+  EyeIcon,
+  Cloud1Icon as CloudIcon,
+} from "../icons";
 import { Logo } from "../Logo";
 
 interface EngineSectionProps {
   isDarkMode?: boolean;
 }
 
-const registries = [
+type Lang = "typescript" | "python" | "rust";
+
+const LangIcon = ({ lang, active }: { lang: Lang; active: boolean }) => {
+  const opacity = active ? 1 : 0.5;
+  const size = "w-4 h-4";
+
+  if (lang === "typescript") {
+    return (
+      <svg viewBox="0 0 24 24" className={size} style={{ opacity }}>
+        <rect width="24" height="24" rx="2" fill="#3178c6" />
+        <path
+          d="M1.125 0C.502 0 0 .502 0 1.125v21.75C0 23.498.502 24 1.125 24h21.75c.623 0 1.125-.502 1.125-1.125V1.125C24 .502 23.498 0 22.875 0zm17.363 9.75c.612 0 1.154.037 1.627.111a6.38 6.38 0 0 1 1.306.34v2.458a3.95 3.95 0 0 0-.643-.361 5.093 5.093 0 0 0-.717-.26 5.453 5.453 0 0 0-1.426-.2c-.3 0-.573.028-.819.086a2.1 2.1 0 0 0-.623.242c-.17.104-.3.229-.393.374a.888.888 0 0 0-.14.49c0 .196.053.373.156.529.104.156.252.304.443.444s.423.276.696.41c.273.135.582.274.926.416.47.197.892.407 1.266.628.374.222.695.473.963.753.268.279.472.598.614.957.142.359.214.776.214 1.253 0 .657-.125 1.21-.373 1.656a3.033 3.033 0 0 1-1.012 1.085 4.38 4.38 0 0 1-1.487.596c-.566.12-1.163.18-1.79.18a9.916 9.916 0 0 1-1.84-.164 5.544 5.544 0 0 1-1.512-.493v-2.63a5.033 5.033 0 0 0 3.237 1.2c.333 0 .624-.03.872-.09.249-.06.456-.144.623-.25.166-.108.29-.234.373-.38a1.023 1.023 0 0 0-.074-1.089 2.12 2.12 0 0 0-.537-.5 5.597 5.597 0 0 0-.807-.444 27.72 27.72 0 0 0-1.007-.436c-.918-.383-1.602-.852-2.053-1.405-.45-.553-.676-1.222-.676-2.005 0-.614.123-1.141.369-1.582.246-.441.58-.804 1.004-1.089a4.494 4.494 0 0 1 1.47-.629 7.536 7.536 0 0 1 1.77-.201zm-15.113.188h9.563v2.166H9.506v9.646H6.789v-9.646H3.375z"
+          fill="white"
+        />
+      </svg>
+    );
+  }
+
+  if (lang === "python") {
+    return (
+      <svg viewBox="0 0 24 24" className={size} style={{ opacity }}>
+        <path
+          d="M14.25.18l.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98l-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95l.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25l-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"
+          fill="#3776AB"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" className={size} style={{ opacity }}>
+      <path
+        d="M23.8346 11.7033l-1.0073-.6236a13.7268 13.7268 0 00-.0283-.2936l.8656-.8069a.3483.3483 0 00-.1154-.578l-1.1066-.414a8.4958 8.4958 0 00-.087-.2856l.6904-.9587a.3462.3462 0 00-.2257-.5446l-1.1663-.1894a9.3574 9.3574 0 00-.1407-.2622l.49-1.0761a.3437.3437 0 00-.0274-.3361.3486.3486 0 00-.3006-.154l-1.1845.0416a6.7444 6.7444 0 00-.1873-.2268l.2723-1.153a.3472.3472 0 00-.417-.4172l-1.1532.2724a14.0183 14.0183 0 00-.2278-.1873l.0415-1.1845a.3442.3442 0 00-.49-.328l-1.076.491c-.0872-.0476-.1742-.0952-.2623-.1407l-.1903-1.1673A.3483.3483 0 0016.256.955l-.9597.6905a8.4867 8.4867 0 00-.2855-.086l-.414-1.1066a.3483.3483 0 00-.5781-.1154l-.8069.8666a9.2936 9.2936 0 00-.2936-.0284L12.2946.1683a.3462.3462 0 00-.5892 0l-.6236 1.0073a13.7383 13.7383 0 00-.2936.0284L9.9803.3374a.3462.3462 0 00-.578.1154l-.4141 1.1065c-.0962.0274-.1903.0567-.2855.086L7.744.955a.3483.3483 0 00-.5447.2258L7.009 2.348a9.3574 9.3574 0 00-.2622.1407l-1.0762-.491a.3462.3462 0 00-.49.328l.0416 1.1845a7.9826 7.9826 0 00-.2278.1873L3.8413 3.425a.3472.3472 0 00-.4171.4171l.2713 1.1531c-.0628.075-.1255.1509-.1863.2268l-1.1845-.0415a.3462.3462 0 00-.328.49l.491 1.0761a9.167 9.167 0 00-.1407.2622l-1.1662.1894a.3483.3483 0 00-.2258.5446l.6904.9587a13.303 13.303 0 00-.087.2855l-1.1065.414a.3483.3483 0 00-.1155.5781l.8656.807a9.2936 9.2936 0 00-.0283.2935l-1.0073.6236a.3442.3442 0 000 .5892l1.0073.6236c.008.0982.0182.1964.0283.2936l-.8656.8079a.3462.3462 0 00.1155.578l1.1065.4141c.0273.0962.0567.1914.087.2855l-.6904.9587a.3452.3452 0 00.2268.5447l1.1662.1893c.0456.088.0922.1751.1408.2622l-.491 1.0762a.3462.3462 0 00.328.49l1.1834-.0415c.0618.0769.1235.1528.1873.2277l-.2713 1.1541a.3462.3462 0 00.4171.4161l1.153-.2713c.075.0638.151.1255.2279.1863l-.0415 1.1845a.3442.3442 0 00.49.327l1.0761-.49c.087.0486.1741.0951.2622.1407l.1903 1.1662a.3483.3483 0 00.5447.2268l.9587-.6904a9.299 9.299 0 00.2855.087l.414 1.1066a.3452.3452 0 00.5781.1154l.8079-.8656c.0972.0111.1954.0203.2936.0294l.6236 1.0073a.3472.3472 0 00.5892 0l.6236-1.0073c.0982-.0091.1964-.0183.2936-.0294l.8069.8656a.3483.3483 0 00.578-.1154l.4141-1.1066a8.4626 8.4626 0 00.2855-.087l.9587.6904a.3452.3452 0 00.5447-.2268l.1903-1.1662c.088-.0456.1751-.0931.2622-.1407l1.0762.49a.3472.3472 0 00.49-.327l-.0415-1.1845a6.7267 6.7267 0 00.2267-.1863l1.1531.2713a.3472.3472 0 00.4171-.416l-.2713-1.1542c.0628-.0749.1255-.1508.1863-.2278l1.1845.0415a.3442.3442 0 00.328-.49l-.49-1.076c.0475-.0872.0951-.1742.1407-.2623l1.1662-.1893a.3483.3483 0 00.2258-.5447l-.6904-.9587.087-.2855 1.1066-.414a.3462.3462 0 00.1154-.5781l-.8656-.8079c.0101-.0972.0202-.1954.0283-.2936l1.0073-.6236a.3442.3442 0 000-.5892zm-6.7413 8.3551a.7138.7138 0 01.2986-1.396.714.714 0 11-.2997 1.396zm-.3422-2.3142a.649.649 0 00-.7715.5l-.3573 1.6685c-1.1035.501-2.3285.7795-3.6193.7795a8.7368 8.7368 0 01-3.6951-.814l-.3574-1.6684a.648.648 0 00-.7714-.499l-1.473.3158a8.7216 8.7216 0 01-.7613-.898h7.1676c.081 0 .1356-.0141.1356-.088v-2.536c0-.074-.0536-.0881-.1356-.0881h-2.0966v-1.6077h2.2677c.2065 0 1.1065.0587 1.394 1.2088.0901.3533.2875 1.5044.4232 1.8729.1346.413.6833 1.2381 1.2685 1.2381h3.5716a.7492.7492 0 00.1296-.0131 8.7874 8.7874 0 01-.8119.9526zM6.8369 20.024a.714.714 0 11-.2997-1.396.714.714 0 01.2997 1.396zM4.1177 8.9972a.7137.7137 0 11-1.304.5791.7137.7137 0 011.304-.579zm-.8352 1.9813l1.5347-.6824a.65.65 0 00.33-.8585l-.3158-.7147h1.2432v5.6025H3.5669a8.7753 8.7753 0 01-.2834-3.348zm6.7343-.5437V8.7836h2.9601c.153 0 1.0792.1772 1.0792.8697 0 .575-.7107.7815-1.2948.7815zm10.7574 1.4862c0 .2187-.008.4363-.0243.651h-.9c-.09 0-.1265.0586-.1265.1477v.413c0 .973-.5487 1.1846-1.0296 1.2382-.4576.0517-.9648-.1913-1.0275-.4717-.2704-1.5186-.7198-1.8436-1.4305-2.4034.8817-.5599 1.799-1.386 1.799-2.4915 0-1.1936-.819-1.9458-1.3769-2.3153-.7825-.5163-1.6491-.6195-1.883-.6195H5.4682a8.7651 8.7651 0 014.907-2.7699l1.0974 1.151a.648.648 0 00.9182.0213l1.227-1.1743a8.7753 8.7753 0 016.0044 4.2762l-.8403 1.8982a.652.652 0 00.33.8585l1.6178.7188c.0283.2875.0425.577.0425.8717zm-9.3006-9.5993a.7128.7128 0 11.984 1.0316.7137.7137 0 01-.984-1.0316zm8.3389 6.71a.7107.7107 0 01.9395-.3625.7137.7137 0 11-.9405.3635z"
+        fill="#dea584"
+      />
+    </svg>
+  );
+};
+
+const concepts = [
   {
     id: "function",
     icon: GitBranch,
-    name: "Function Registry",
-    description: "Maps function paths to handlers — local or remote.",
-    details: [
-      "Addressable paths (user::create, orders::process)",
-      "Hot-swap handlers, consumers stay the same",
-      "Metadata + schema definitions",
-      "Auto-cleanup on disconnect",
+    name: "Function",
+    tagline: "Anything that does work.",
+    description:
+      "A Function receives input and optionally returns output. It can live anywhere — locally, on cloud, on serverless, or as a third-party HTTP endpoint. All Functions are treated the same within iii.",
+    highlights: [
+      "Write in TypeScript, Python, or Rust — mix freely",
+      "Addressable by path (users::create, orders::process)",
+      "Hot-swap handlers without restarting consumers",
+      "Auto-cleanup when workers disconnect",
     ],
+    code: {
+      typescript: `iii.registerFunction(
+  { id: 'users::create' },
+  async (input) => {
+    const { logger } = getContext()
+    logger.info('Creating user', { email: input.email })
+    return { id: '123', email: input.email }
+  }
+)`,
+      python: `async def create_user(input):
+    logger = get_context().logger
+    logger.info("Creating user", {
+        "email": input["email"]
+    })
+    return {
+        "id": "123",
+        "email": input["email"]
+    }
+
+iii.register_function("users::create", create_user)`,
+      rust: `iii.register_function(
+    "users::create",
+    |input| async move {
+        let email = input["email"].as_str()
+            .unwrap_or("");
+        Ok(json!({
+            "id": "123",
+            "email": email
+        }))
+    }
+)`,
+    },
   },
   {
     id: "trigger",
     icon: Zap,
-    name: "Trigger Registry",
-    description: "Binds external events to function invocations.",
-    details: [
-      "Types: HTTP, cron, events, webhooks, AI",
-      "Instances: config bound to function path",
-      "Extensible at runtime",
-      "Custom triggers plug in at runtime",
+    name: "Trigger",
+    tagline: "What makes a Function run.",
+    description:
+      "A Trigger causes a Function to execute — either explicitly from code via trigger(), or automatically from an event source like an HTTP request, cron schedule, queue message, or state change.",
+    highlights: [
+      "HTTP, cron, queue, subscribe, state, stream triggers",
+      "One function, many triggers — bind freely",
+      "Custom trigger types plug in at runtime",
+      "Same pattern for every event source",
     ],
+    code: {
+      typescript: `iii.registerTrigger({
+  type: 'http',
+  function_id: 'users::create',
+  config: {
+    api_path: 'users',
+    http_method: 'POST'
+  }
+})`,
+      python: `iii.register_trigger(
+    "http",
+    "users::create",
+    {"api_path": "users", "http_method": "POST"}
+)`,
+      rust: `iii.register_trigger(Trigger {
+    trigger_type: "http".into(),
+    function_id: "users::create".into(),
+    config: json!({
+        "api_path": "users",
+        "http_method": "POST"
+    }),
+})`,
+    },
   },
   {
-    id: "worker",
-    icon: Users,
-    name: "Worker Registry",
-    description: "Tracks connected workers and their lifecycle.",
-    details: [
-      "Unique IDs for routing",
-      "Bidirectional WebSocket channels",
-      "Invocation tracking",
-      "Graceful disconnect",
+    id: "discovery",
+    icon: Share2,
+    name: "Discovery",
+    tagline: "The system knows itself.",
+    description:
+      "When a worker connects, every other worker learns what it can do. When it disconnects, its functions vanish. No config files. No service registries. No hardcoded URLs. The engine maintains a live registry.",
+    highlights: [
+      "Workers register → everyone is notified instantly",
+      "Workers disconnect → functions removed, no stale refs",
+      "trigger() by name — engine routes to the right worker",
+      "Scale up, scale down — topology adapts in real time",
     ],
+    code: {
+      typescript: `// Start listening for topology changes
+iii.onFunctionsAvailable((functions) => {
+  const { logger } = getContext()
+  logger.info(
+    \`\${functions.length} functions available\`
+  )
+})
+
+// [10:04:12] Worker 'user-service-py' connected
+// [10:04:12] functionsAvailable -> 12 functions
+
+// [10:18:45] Worker 'payments-rs' connected
+// [10:18:45] functionsAvailable -> 15 functions
+
+// [10:32:10] Worker 'user-service-py' disconnected
+// [10:32:10] functionsAvailable -> 3 functions`,
+      python: `def on_change(functions):
+    logger = get_context().logger
+    logger.info(f"{len(functions)} functions available")
+
+iii.on_functions_available(on_change)`,
+      rust: `// Start listening for topology changes
+iii.on_functions_available(|functions| {
+    let logger = get_context().logger();
+    logger.info(
+        &format!("{} functions available",
+        functions.len())
+    );
+});
+
+// [10:04:12] ENGINE: Worker 'user-service-py' connected
+// [10:04:12] functionsAvailable -> 12 functions
+
+// [10:18:45] ENGINE: Worker 'payments-rs' connected
+// [10:18:45] functionsAvailable -> 15 functions
+
+// [10:32:10] ENGINE: Worker 'user-service-py' disconnected
+// [10:32:10] functionsAvailable -> 3 functions`,
+    },
   },
 ];
 
@@ -111,7 +253,7 @@ const capabilityNodes = [
     title: "HTTP",
     titleFull: "HTTP + Webhooks",
     subtitle: "API triggers",
-    icon: Globe,
+    icon: GlobeIcon,
     tone: "accent",
     side: "left",
   },
@@ -119,7 +261,7 @@ const capabilityNodes = [
     title: "Cron",
     titleFull: "Cron + Schedules",
     subtitle: "Timed execution",
-    icon: Clock,
+    icon: ClockIcon,
     tone: "warn",
     side: "left",
   },
@@ -127,7 +269,7 @@ const capabilityNodes = [
     title: "Events",
     titleFull: "Queues + Events",
     subtitle: "Pub/Sub",
-    icon: MessageSquare,
+    icon: MessageCircleIcon,
     tone: "info",
     side: "left",
   },
@@ -151,7 +293,7 @@ const capabilityNodes = [
     title: "Traces",
     titleFull: "Observability",
     subtitle: "Logs + traces",
-    icon: Eye,
+    icon: EyeIcon,
     tone: "accent",
     side: "right",
   },
@@ -173,17 +315,7 @@ const capabilityNodes = [
   },
 ];
 
-function AccordionItem({
-  cap,
-  index,
-  isOpen,
-  onToggle,
-  isDarkMode,
-  textPrimary,
-  textSecondary,
-  borderColor,
-  accentColor,
-}: {
+const AccordionItem: React.FC<{
   cap: (typeof capabilities)[0];
   index: number;
   isOpen: boolean;
@@ -193,7 +325,17 @@ function AccordionItem({
   textSecondary: string;
   borderColor: string;
   accentColor: string;
-}) {
+}> = ({
+  cap,
+  index,
+  isOpen,
+  onToggle,
+  isDarkMode,
+  textPrimary,
+  textSecondary,
+  borderColor,
+  accentColor,
+}) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
   const Icon = cap.icon;
@@ -204,13 +346,13 @@ function AccordionItem({
     }
   }, [isOpen]);
 
-  const accentRgb = isDarkMode ? "243,247,36" : "47,127,255";
+  const accentHex = isDarkMode ? "#f3f724" : "#2f7fff";
 
   return (
     <div className={`border-b ${borderColor} transition-colors duration-300`}>
       <button
         onClick={onToggle}
-        className={`w-full flex items-center gap-4 md:gap-5 py-4 md:py-5 text-left group transition-all duration-300 ${
+        className={`w-full flex items-center gap-4 md:gap-5 py-4 md:py-6 text-left group transition-all duration-300 ${
           isOpen
             ? ""
             : isDarkMode
@@ -220,59 +362,56 @@ function AccordionItem({
         aria-expanded={isOpen}
       >
         <div
-          className={`w-[3px] self-stretch rounded-full transition-all duration-300 flex-shrink-0 ${
-            isOpen
-              ? isDarkMode
-                ? "bg-iii-accent"
-                : "bg-iii-accent-light"
+          className={`w-[2px] h-5 rounded-full transition-all duration-300 flex-shrink-0 mt-2.5`}
+          style={{
+            backgroundColor: isOpen
+              ? accentHex
               : isDarkMode
-                ? "bg-iii-light/[0.06] group-hover:bg-iii-light/15"
-                : "bg-iii-black/[0.06] group-hover:bg-iii-black/15"
-          }`}
+                ? "rgba(255,255,255,0.06)"
+                : "rgba(0,0,0,0.06)",
+          }}
         />
 
         <div
-          className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
-            isOpen
-              ? isDarkMode
-                ? "bg-iii-accent/10"
-                : "bg-iii-accent-light/10"
+          className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-300`}
+          style={{
+            backgroundColor: isOpen
+              ? `${accentHex}15`
               : isDarkMode
-                ? "bg-iii-light/[0.04] group-hover:bg-iii-light/[0.06]"
-                : "bg-iii-black/[0.04] group-hover:bg-iii-black/[0.06]"
-          }`}
+                ? "rgba(255,255,255,0.04)"
+                : "rgba(0,0,0,0.04)",
+          }}
         >
           <Icon
-            className={`w-3.5 h-3.5 transition-colors duration-300 ${
-              isOpen
-                ? accentColor
-                : `${textSecondary} group-hover:${textPrimary}`
+            className={`w-4 h-4 transition-colors duration-300 ${
+              !isOpen && `${textSecondary} group-hover:${textPrimary}`
             }`}
+            style={isOpen ? { color: accentHex } : undefined}
           />
         </div>
 
         <div className="flex-1 min-w-0">
           <div
-            className={`text-sm md:text-base font-semibold transition-all duration-300 ${
+            className={`text-base md:text-lg font-bold tracking-tight transition-all duration-300 ${
               isOpen
                 ? textPrimary
                 : `${textSecondary} group-hover:${textPrimary}`
             }`}
             style={{
-              transform: isOpen ? "translateX(0)" : undefined,
+              transform: isOpen ? "translateX(2px)" : undefined,
             }}
           >
             {cap.title}
           </div>
           <div
-            className={`text-[11px] md:text-xs mt-0.5 transition-colors duration-300 ${
+            className={`text-xs md:text-sm mt-1 transition-colors duration-300 ${
               isOpen
                 ? isDarkMode
-                  ? "text-iii-light/50"
-                  : "text-iii-black/50"
+                  ? "text-iii-light/60"
+                  : "text-iii-black/60"
                 : isDarkMode
-                  ? "text-iii-light/30"
-                  : "text-iii-black/30"
+                  ? "text-iii-light/40"
+                  : "text-iii-black/40"
             }`}
           >
             {cap.description}
@@ -280,11 +419,12 @@ function AccordionItem({
         </div>
 
         <ChevronDown
-          className={`w-4 h-4 flex-shrink-0 transition-all duration-300 ${
+          className={`w-5 h-5 flex-shrink-0 transition-all duration-300 ${
             isOpen
-              ? `${accentColor} rotate-180`
+              ? `rotate-180`
               : `${isDarkMode ? "text-iii-light/20" : "text-iii-black/20"} group-hover:${textSecondary}`
           }`}
+          style={isOpen ? { color: accentHex } : undefined}
         />
       </button>
 
@@ -294,21 +434,21 @@ function AccordionItem({
       >
         <div
           ref={contentRef}
-          className="pb-5 pl-[52px] md:pl-[60px] pr-4 md:pr-8"
+          className="pb-6 pl-[60px] md:pl-[76px] pr-4 md:pr-8"
         >
           <div
-            className={`rounded-lg p-4 ${
-              isDarkMode ? "bg-white/[0.02]" : "bg-black/[0.02]"
+            className={`rounded-lg p-5 ${
+              isDarkMode ? "bg-[#111]" : "bg-gray-50"
             }`}
             style={{
-              borderLeft: `2px solid rgba(${accentRgb}, 0.15)`,
+              borderLeft: `2px solid ${accentHex}40`,
             }}
           >
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {cap.details.map((detail, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-2.5"
+                  className="flex items-start gap-3"
                   style={{
                     animation: isOpen
                       ? `statCount 0.3s ease-out ${i * 0.08}s both`
@@ -316,13 +456,12 @@ function AccordionItem({
                   }}
                 >
                   <div
-                    className={`w-1 h-1 rounded-full mt-1.5 flex-shrink-0 ${
-                      isDarkMode ? "bg-iii-accent/40" : "bg-iii-accent-light/40"
-                    }`}
+                    className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0`}
+                    style={{ backgroundColor: `${accentHex}80` }}
                   />
                   <span
-                    className={`text-xs leading-relaxed ${
-                      isDarkMode ? "text-iii-light/60" : "text-iii-black/60"
+                    className={`text-xs sm:text-sm leading-relaxed ${
+                      isDarkMode ? "text-iii-light/70" : "text-iii-black/70"
                     }`}
                   >
                     {detail}
@@ -335,7 +474,7 @@ function AccordionItem({
       </div>
     </div>
   );
-}
+};
 
 function CapabilitiesAccordion({
   isDarkMode,
@@ -380,6 +519,263 @@ function CapabilitiesAccordion({
             accentColor={accentColor}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ConceptsIDE({
+  concepts,
+  isDarkMode,
+  textPrimary,
+  textSecondary,
+  borderColor,
+  accentColor,
+}: {
+  concepts: {
+    id: string;
+    icon: any;
+    name: string;
+    tagline: string;
+    description: string;
+    highlights: string[];
+    code: Record<string, string>;
+  }[];
+  isDarkMode: boolean;
+  textPrimary: string;
+  textSecondary: string;
+  borderColor: string;
+  accentColor: string;
+}) {
+  const [activeTab, setActiveTab] = useState(0);
+  const [activeLang, setActiveLang] = useState<
+    "typescript" | "python" | "rust"
+  >("typescript");
+  const active = concepts[activeTab];
+  const Icon = active.icon;
+
+  const accentHex = isDarkMode ? "#f3f724" : "#2f7fff";
+
+  const langs = [
+    { key: "typescript" as const, label: "TypeScript", short: "TS" },
+    { key: "python" as const, label: "Python", short: "PY" },
+    { key: "rust" as const, label: "Rust", short: "RS" },
+  ] as const;
+
+  const renderLangToggle = (extraClass: string) => (
+    <div
+      className={`flex items-center gap-0.5 rounded-full p-1 ${
+        isDarkMode ? "bg-white/[0.06]" : "bg-black/[0.05]"
+      } ${extraClass}`}
+    >
+      {langs.map((lang) => (
+        <button
+          key={lang.key}
+          onClick={() => setActiveLang(lang.key)}
+          className={`flex items-center gap-2 px-3 py-1.5 text-[10px] sm:text-[11px] font-mono rounded-full transition-all duration-200 ${
+            activeLang === lang.key
+              ? isDarkMode
+                ? "bg-white/[0.12] text-white"
+                : "bg-white text-black shadow-sm"
+              : isDarkMode
+                ? "text-white/40 hover:text-white/60"
+                : "text-black/40 hover:text-black/60"
+          }`}
+        >
+          <LangIcon lang={lang.key} active={activeLang === lang.key} />
+          <span className="hidden sm:inline">{lang.label}</span>
+          <span className="sm:hidden">{lang.short}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="mb-16 md:mb-24">
+      {/* Single IDE Window */}
+      <div
+        className={`rounded-lg border overflow-hidden ${borderColor} ${isDarkMode ? "bg-[#0c0c0c]" : "bg-white"}`}
+        style={{ boxShadow: `0 0 40px ${accentHex}08` }}
+      >
+        {/* Title bar with macOS dots + file tabs */}
+        <div
+          className={`flex items-center border-b ${borderColor} ${isDarkMode ? "bg-[#111]" : "bg-gray-50"}`}
+        >
+          {/* macOS dots */}
+          <div className="flex items-center gap-1.5 px-4 py-3 flex-shrink-0">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+          </div>
+
+          {/* File tabs */}
+          <div className="flex -mb-px overflow-x-auto">
+            {concepts.map((concept: any, i: number) => {
+              const TabIcon = concept.icon;
+              const isActive = activeTab === i;
+              return (
+                <button
+                  key={concept.id}
+                  onClick={() => setActiveTab(i)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-mono border-b-2 transition-all duration-200 whitespace-nowrap ${
+                    isActive
+                      ? `${isDarkMode ? "text-white bg-[#1a1a1a]" : "text-black bg-white"}`
+                      : `${isDarkMode ? "text-white/40 hover:text-white/60 hover:bg-white/[0.02]" : "text-black/40 hover:text-black/60 hover:bg-black/[0.02]"}`
+                  }`}
+                  style={{
+                    borderBottomColor: isActive ? accentHex : "transparent",
+                  }}
+                >
+                  <TabIcon
+                    className={`w-3.5 h-3.5 ${isActive ? accentColor : ""}`}
+                  />
+                  {concept.name}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex-1" />
+
+          {renderLangToggle("hidden md:flex mr-4")}
+        </div>
+
+        {/* Content: Description left + Code right */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr]">
+          {/* Left: Description panel */}
+          <div
+            className={`p-6 sm:p-8 border-b lg:border-b-0 lg:border-r flex flex-col justify-center ${borderColor}`}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="p-2 rounded-lg"
+                style={{ backgroundColor: `${accentHex}15` }}
+              >
+                <Icon size={20} style={{ color: accentHex }} />
+              </div>
+              <div>
+                <h3 className={`text-lg font-bold ${textPrimary}`}>
+                  {active.name}
+                </h3>
+                <p className="text-xs font-mono" style={{ color: accentHex }}>
+                  {active.tagline}
+                </p>
+              </div>
+            </div>
+
+            <p className={`text-sm leading-relaxed mb-6 ${textSecondary}`}>
+              {active.description}
+            </p>
+
+            <div className="space-y-3">
+              {active.highlights.map((h: string, i: number) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  <div
+                    className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                    style={{ backgroundColor: `${accentHex}80` }}
+                  />
+                  <span
+                    className={`text-xs leading-relaxed ${isDarkMode ? "text-white/65" : "text-black/65"}`}
+                  >
+                    {h}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: Code panel */}
+          <div
+            className={`relative flex flex-col ${isDarkMode ? "bg-[#0a0a0a]" : "bg-[#fafafa]"}`}
+          >
+            {/* Mobile language toggle — inside code panel */}
+            <div
+              className={`flex md:hidden justify-center py-3 border-b ${borderColor}`}
+            >
+              {renderLangToggle("")}
+            </div>
+            {/* Code Block with Syntax Highlighting */}
+            <div className="flex flex-1" style={{ minHeight: "280px" }}>
+              <Highlight
+                theme={isDarkMode ? themes.vsDark : themes.vsLight}
+                code={active.code[activeLang]}
+                language={
+                  activeLang === "rust"
+                    ? "rust"
+                    : activeLang === "python"
+                      ? "python"
+                      : "typescript"
+                }
+              >
+                {({
+                  className,
+                  style,
+                  tokens,
+                  getLineProps,
+                  getTokenProps,
+                }) => (
+                  <>
+                    {/* Line numbers */}
+                    <div
+                      className={`flex-shrink-0 pt-6 pb-6 pl-4 pr-3 text-right select-none ${isDarkMode ? "text-white/20" : "text-black/20"}`}
+                      style={{ paddingTop: "2.5rem" }}
+                    >
+                      {tokens.map((_, i) => (
+                        <div
+                          key={i}
+                          className="text-xs sm:text-sm leading-[1.7] font-mono"
+                        >
+                          {i + 1}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Code */}
+                    <pre
+                      className={`flex-1 p-6 pl-0 overflow-x-auto text-xs sm:text-sm leading-[1.7] font-mono`}
+                      style={{
+                        ...style,
+                        backgroundColor: "transparent",
+                        paddingTop: "2.5rem",
+                      }}
+                    >
+                      {tokens.map((line, i) => (
+                        <div key={i} {...getLineProps({ line, key: i })}>
+                          {line.map((token, key) => (
+                            <span
+                              key={key}
+                              {...getTokenProps({ token, key })}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </pre>
+                  </>
+                )}
+              </Highlight>
+            </div>
+
+            {/* Status bar */}
+            <div
+              className={`flex items-center justify-between px-4 py-1.5 border-t text-[10px] font-mono mt-auto ${borderColor} ${isDarkMode ? "text-white/25" : "text-black/25"}`}
+            >
+              <span>
+                {activeLang === "rust"
+                  ? "Rust"
+                  : activeLang === "python"
+                    ? "Python"
+                    : "TypeScript"}
+              </span>
+              <span>
+                {activeLang === "rust"
+                  ? "worker.rs"
+                  : activeLang === "python"
+                    ? "worker.py"
+                    : "worker.ts"}{" "}
+                &middot; {active.code[activeLang].split("\n").length} lines
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -446,210 +842,43 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
         />
       </div>
       <div className="relative z-10">
-        {/* Header */}
-        <div className="text-center mb-10 md:mb-16 space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-iii-accent/30 bg-iii-accent/5 mb-6">
-            <Layers className={`w-4 h-4 ${accentColor}`} />
-            <span
-              className={`text-xs font-mono tracking-wider uppercase ${accentColor}`}
-            >
-              Architecture
-            </span>
-          </div>
-          <h2 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter leading-[1.1]">
-            <span className="block sm:inline">Your stack,</span>{" "}
-            <br className="hidden sm:block" />
-            <span className={`${accentColor} relative inline-block`}>
-              instantly unified.
-              <svg
-                className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-1.5 sm:h-2 opacity-30"
-                viewBox="0 0 200 8"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M0 4 Q50 0 100 4 T200 4"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                />
-              </svg>
-            </span>
+        {/* Header — PlanetScale-inspired: big statement, tight subtitle */}
+        <div className="text-center mb-16 md:mb-24 space-y-5">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter leading-[1.05]">
+            <span className="block">One engine.</span>
+            <span className={`block ${accentColor}`}>Three concepts.</span>
           </h2>
           <p
-            className={`text-sm md:text-base lg:text-lg max-w-3xl mx-auto leading-relaxed ${textSecondary}`}
+            className={`text-sm md:text-base lg:text-lg max-w-2xl mx-auto leading-relaxed ${textSecondary}`}
           >
-            Express, Flask, Spring — they all become part of your distributed
-            architecture instantly. Connect internal services, third-party APIs,
-            and new functions through one protocol.
+            iii unifies your entire backend with{" "}
+            <strong className={textPrimary}>Function</strong>,{" "}
+            <strong className={textPrimary}>Trigger</strong>, and{" "}
+            <strong className={textPrimary}>Discovery</strong>. One mental model
+            for every backend system.
           </p>
-          {/* Key Pillars */}
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 md:gap-4 pt-4 md:pt-6">
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs md:text-sm font-medium bg-iii-success/15 text-iii-success border border-iii-success/20">
-              <Cloud className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>Self-host / BYOC</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs md:text-sm font-medium bg-iii-info/15 text-iii-info border border-iii-info/20">
-              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>Observability</span>
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 pt-2">
+            <div
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-mono border ${isDarkMode ? "border-white/10 text-white/60" : "border-black/10 text-black/60"}`}
+            >
+              <GlobeIcon size={12} /> TypeScript &middot; Python &middot; Rust
             </div>
             <div
-              className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs md:text-sm font-medium border ${isDarkMode ? "bg-iii-accent/15 border-iii-accent/20" : "bg-iii-accent-light/15 border-iii-accent-light/20"} ${accentColor}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-mono border ${isDarkMode ? "border-white/10 text-white/60" : "border-black/10 text-black/60"}`}
             >
-              <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>Any Language</span>
+              <CloudIcon size={12} /> Self-host / BYOC
+            </div>
+            <div
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-mono border ${isDarkMode ? "border-white/10 text-white/60" : "border-black/10 text-black/60"}`}
+            >
+              <EyeIcon size={12} /> Built-in observability
             </div>
           </div>
         </div>
 
-        {/* Three Registries - Side by Side */}
-        <div className="mb-12 md:mb-16">
-          <div className="text-center mb-8 md:mb-12">
-            <h3
-              className={`text-xl md:text-2xl lg:text-3xl font-bold ${textPrimary}`}
-            >
-              Three primitives
-            </h3>
-            <p className={`text-xs md:text-sm mt-2 ${textSecondary}`}>
-              Register functions. Trigger them. The engine handles everything
-              else.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            {registries.map((registry) => {
-              const Icon = registry.icon;
-              return (
-                <div
-                  key={registry.id}
-                  className={`
-                    relative rounded-2xl overflow-hidden transition-all duration-300
-                    ${isDarkMode ? "bg-iii-dark/40" : "bg-white/60"}
-                    border ${borderColor} hover:border-iii-accent/30
-                  `}
-                >
-                  <div
-                    className={`flex items-center gap-3 px-5 py-4 border-b ${borderColor}`}
-                  >
-                    <div
-                      className={`p-2 rounded-lg ${isDarkMode ? "bg-white/5" : "bg-black/5"}`}
-                    >
-                      <Icon className={`w-4 h-4 ${accentColor}`} />
-                    </div>
-                    <div className={`text-sm font-bold ${textPrimary}`}>
-                      {registry.name}
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <p
-                      className={`text-xs md:text-sm leading-relaxed mb-4 ${textSecondary}`}
-                    >
-                      {registry.description}
-                    </p>
-                    <div className="space-y-2">
-                      {registry.details.map((detail, index) => (
-                        <div
-                          key={index}
-                          className={`border-l-2 border-iii-accent/20 pl-3 text-xs ${textPrimary}`}
-                        >
-                          <span>{detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Trigger Pattern - One Pattern, Infinite Possibilities */}
-        <div
-          className={`
-          max-w-4xl mx-auto mb-12 md:mb-16 p-4 sm:p-6 rounded-2xl border-2
-          ${
-            isDarkMode
-              ? "bg-iii-dark/30 border-iii-light/10"
-              : "bg-white/50 border-iii-black/10"
-          }
-        `}
-        >
-          <div className="text-center mb-4">
-            <h3
-              className={`text-sm sm:text-base md:text-lg font-bold ${textPrimary}`}
-            >
-              One Pattern. Infinite Possibilities.
-            </h3>
-            <p className={`text-xs mt-1 ${textSecondary}`}>
-              Every external event simply becomes a trigger binding
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-            {[
-              {
-                trigger: "HTTP Trigger",
-                binds: "POST /api/user",
-                to: "create_user()",
-              },
-              {
-                trigger: "Cron Trigger",
-                binds: '"0 9 * * *"',
-                to: "reports::daily()",
-              },
-              {
-                trigger: "State Trigger",
-                binds: "user::status",
-                to: "notify_admin()",
-              },
-              {
-                trigger: "Custom Trigger",
-                binds: "payment::success",
-                to: "send_receipt()",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className={`flex flex-wrap items-center gap-2 p-3 rounded-xl text-[10px] sm:text-xs ${
-                  isDarkMode
-                    ? "bg-iii-dark/50 border border-iii-light/10"
-                    : "bg-white/50 border border-iii-black/10"
-                }`}
-              >
-                <span className={`font-bold ${accentColor}`}>
-                  {item.trigger}
-                </span>
-                <ArrowRight
-                  className={`w-3 h-3 flex-shrink-0 ${isDarkMode ? "text-iii-light/40" : "text-iii-black/40"}`}
-                />
-                <span
-                  className={`font-mono ${isDarkMode ? "text-iii-light/80" : "text-iii-black/80"}`}
-                >
-                  {item.binds}
-                </span>
-                <ArrowRight
-                  className={`w-3 h-3 flex-shrink-0 ${isDarkMode ? "text-iii-light/40" : "text-iii-black/40"}`}
-                />
-                <span className={`font-mono ${accentColor}`}>{item.to}</span>
-              </div>
-            ))}
-          </div>
-
-          <div
-            className={`mt-4 pt-4 border-t ${isDarkMode ? "border-iii-light/10" : "border-iii-black/10"}`}
-          >
-            <p className={`text-center text-xs sm:text-sm ${textSecondary}`}>
-              Simply{" "}
-              <span className={`font-bold ${accentColor}`}>
-                register functions
-              </span>{" "}
-              and{" "}
-              <span className={`font-bold ${accentColor}`}>trigger them</span>.
-            </p>
-          </div>
-        </div>
-
-        {/* Engine Capabilities - Interactive Accordion */}
-        <CapabilitiesAccordion
+        {/* Concepts — Tabbed IDE Component */}
+        <ConceptsIDE
+          concepts={concepts}
           isDarkMode={isDarkMode}
           textPrimary={textPrimary}
           textSecondary={textSecondary}
@@ -657,33 +886,11 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
           accentColor={accentColor}
         />
 
-        {/* Capability Map Diagram — Interactive */}
-        <style>{`
-          @keyframes dot-flow-right {
-            0% { left: -6px; opacity: 0; }
-            5% { opacity: 1; }
-            95% { opacity: 1; }
-            100% { left: calc(100% - 6px); opacity: 0; }
-          }
-          @keyframes dot-flow-left {
-            0% { right: -6px; opacity: 0; }
-            5% { opacity: 1; }
-            95% { opacity: 1; }
-            100% { right: calc(100% - 6px); opacity: 0; }
-          }
-          @keyframes dash-scroll {
-            0% { stroke-dashoffset: 0; }
-            100% { stroke-dashoffset: -20; }
-          }
-          @keyframes engine-pulse {
-            0%, 100% { box-shadow: 0 0 30px rgba(var(--pulse-rgb), 0.15); }
-            50% { box-shadow: 0 0 60px rgba(var(--pulse-rgb), 0.35); }
-          }
-        `}</style>
-
+        {/* Capability Map Diagram — Interactive SVG Particle Flow */}
         <div
-          className={`relative p-6 sm:p-8 md:p-12 lg:p-16 rounded-2xl md:rounded-3xl border ${borderColor} ${bgCard} overflow-hidden`}
+          className={`relative p-6 sm:p-8 md:p-12 lg:p-16 rounded-lg border ${borderColor} ${bgCard} overflow-hidden`}
         >
+          {/* Subtle Grid Background */}
           <div
             className="absolute inset-0 opacity-[0.03] pointer-events-none"
             style={{
@@ -707,59 +914,156 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
               </p>
             </div>
 
-            {/* Mobile/Tablet: Engine + 2-col grid */}
-            <div className="lg:hidden flex flex-col gap-6">
-              <div className="relative flex items-center justify-center">
-                <div
-                  className={`absolute -inset-4 rounded-3xl border ${isDarkMode ? "border-iii-accent/15" : "border-iii-accent-light/15"}`}
-                />
-                <div
-                  className={`relative z-10 w-full max-w-md px-6 py-8 rounded-3xl border-2 ${accentBorder} ${isDarkMode ? "bg-iii-dark/70" : "bg-white/70"}`}
-                  style={
-                    {
-                      "--pulse-rgb": isDarkMode ? "168,85,247" : "126,34,206",
-                    } as React.CSSProperties
-                  }
-                >
-                  <Logo
-                    className={`h-3 mb-1 ${isDarkMode ? "text-iii-light/50" : "text-iii-black/50"}`}
-                  />
-                  <div className={`text-2xl font-bold ${accentColor}`}>
-                    Engine
-                  </div>
-                  <div className={`text-xs mt-2 ${textSecondary}`}>
-                    Orchestrates triggers, functions, and workers
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    <span
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-mono ${borderColor} ${isDarkMode ? "bg-iii-dark/40" : "bg-white/80"} ${textSecondary}`}
-                    >
-                      Trigger &bull; Function &bull; Worker
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-mono ${borderColor} ${isDarkMode ? "bg-iii-light/5" : "bg-iii-light"} ${textSecondary}`}
-                    >
-                      <Eye className="w-3 h-3" /> End-to-end tracing
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                {capabilityNodes.map((node) => {
+            {/* Mobile/Tablet: Vertical flow — Inputs → Engine → Outputs */}
+            <div className="lg:hidden flex flex-col items-center gap-0">
+              {/* Input nodes */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full max-w-md">
+                {leftNodes.map((node: any) => {
                   const Icon = node.icon;
                   const tone =
                     toneClasses[node.tone as keyof typeof toneClasses];
                   return (
                     <div
                       key={node.title}
-                      className={`rounded-xl border ${borderColor} ${bgCard} px-2.5 sm:px-3 py-2 sm:py-2.5 flex items-center gap-2`}
+                      className={`rounded-lg border ${borderColor} ${bgCard} px-2.5 sm:px-3 py-2 sm:py-2.5 flex items-center gap-2`}
                     >
                       <div
-                        className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border ${tone.border} ${tone.bg} flex-shrink-0`}
+                        className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border overflow-hidden ${tone.border} ${tone.bg} flex-shrink-0`}
                       >
-                        <Icon
-                          className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${tone.icon}`}
-                        />
+                        <Icon className={`${tone.icon}`} size={14} />
+                      </div>
+                      <div className="text-left min-w-0">
+                        <div
+                          className={`text-[10px] sm:text-xs font-semibold ${textPrimary} leading-tight`}
+                        >
+                          <span className="sm:hidden">{node.title}</span>
+                          <span className="hidden sm:inline">
+                            {node.titleFull}
+                          </span>
+                        </div>
+                        <div
+                          className={`text-[9px] sm:text-[10px] ${textSecondary} leading-tight`}
+                        >
+                          {node.subtitle}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Connector: Inputs → Engine */}
+              <div className="flex flex-col items-center py-1">
+                <svg width="2" height="28" className="overflow-visible">
+                  <line
+                    x1="1"
+                    y1="0"
+                    x2="1"
+                    y2="28"
+                    stroke={
+                      isDarkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)"
+                    }
+                    strokeWidth="1.5"
+                    strokeDasharray="4 3"
+                  />
+                  <circle
+                    r="2"
+                    fill={isDarkMode ? "#f3f724" : "#2f7fff"}
+                    opacity="0.7"
+                  >
+                    <animateMotion
+                      dur="1.5s"
+                      repeatCount="indefinite"
+                      path="M 1,0 L 1,28"
+                    />
+                  </circle>
+                </svg>
+              </div>
+
+              {/* Engine Center */}
+              <div className="relative flex items-center justify-center w-full max-w-xs">
+                <div
+                  className={`relative z-10 w-full flex flex-col items-center justify-center px-6 py-6 rounded-lg border-2 ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white"}`}
+                  style={{
+                    borderColor: isDarkMode ? "#f3f724" : "#2f7fff",
+                    boxShadow: `0 0 25px ${isDarkMode ? "#f3f724" : "#2f7fff"}30`,
+                  }}
+                >
+                  <Logo
+                    className={`h-3 mb-1 ${isDarkMode ? "text-white/50" : "text-black/50"}`}
+                  />
+                  <div
+                    className="text-xl font-bold font-mono tracking-tight"
+                    style={{ color: isDarkMode ? "#f3f724" : "#2f7fff" }}
+                  >
+                    Engine
+                  </div>
+                  <div
+                    className={`mt-2 px-3 py-1 rounded-full border text-[10px] font-mono flex items-center gap-1.5 ${
+                      isDarkMode
+                        ? "bg-white/5 border-white/10 text-white/70"
+                        : "bg-black/5 border-black/10 text-black/70"
+                    }`}
+                  >
+                    <Activity
+                      className="w-3 h-3"
+                      style={{ color: isDarkMode ? "#f3f724" : "#2f7fff" }}
+                    />
+                    <span>
+                      12,869 <span className="opacity-50">events</span>
+                    </span>
+                  </div>
+                  <div
+                    className={`mt-2 text-[9px] font-mono text-center ${isDarkMode ? "text-white/40" : "text-black/40"}`}
+                  >
+                    Triggers &bull; Functions &bull; Workers
+                  </div>
+                </div>
+              </div>
+
+              {/* Connector: Engine → Outputs */}
+              <div className="flex flex-col items-center py-1">
+                <svg width="2" height="28" className="overflow-visible">
+                  <line
+                    x1="1"
+                    y1="0"
+                    x2="1"
+                    y2="28"
+                    stroke={
+                      isDarkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)"
+                    }
+                    strokeWidth="1.5"
+                    strokeDasharray="4 3"
+                  />
+                  <circle
+                    r="2"
+                    fill={isDarkMode ? "#f3f724" : "#2f7fff"}
+                    opacity="0.7"
+                  >
+                    <animateMotion
+                      dur="1.5s"
+                      repeatCount="indefinite"
+                      path="M 1,0 L 1,28"
+                    />
+                  </circle>
+                </svg>
+              </div>
+
+              {/* Output nodes */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full max-w-md">
+                {rightNodes.map((node: any) => {
+                  const Icon = node.icon;
+                  const tone =
+                    toneClasses[node.tone as keyof typeof toneClasses];
+                  return (
+                    <div
+                      key={node.title}
+                      className={`rounded-lg border ${borderColor} ${bgCard} px-2.5 sm:px-3 py-2 sm:py-2.5 flex items-center gap-2`}
+                    >
+                      <div
+                        className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border overflow-hidden ${tone.border} ${tone.bg} flex-shrink-0`}
+                      >
+                        <Icon className={`${tone.icon}`} size={14} />
                       </div>
                       <div className="text-left min-w-0">
                         <div
@@ -782,299 +1086,509 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
               </div>
             </div>
 
-            {/* Desktop: Interactive 5-column grid with connection lines */}
-            <div
-              className="hidden lg:grid items-center"
-              style={{
-                gridTemplateColumns: "1fr 120px 1.3fr 120px 1fr",
-                gridTemplateRows: "repeat(4, auto)",
-                gap: "14px 0",
-              }}
-            >
-              {/* Engine Center — spans all 4 rows */}
-              <div
-                className="flex items-center justify-center"
-                style={{ gridColumn: "3", gridRow: "1 / 5" }}
-              >
-                <div className="relative">
-                  <div
-                    className={`absolute -inset-5 rounded-3xl border transition-all duration-500 ${activeNode ? (isDarkMode ? "border-iii-accent/30" : "border-iii-accent-light/30") : isDarkMode ? "border-iii-accent/10" : "border-iii-accent-light/10"}`}
-                  />
-                  <div
-                    className={`relative z-10 w-full px-8 py-10 rounded-3xl border-2 transition-all duration-500 ${accentBorder} ${isDarkMode ? "bg-iii-dark/70" : "bg-white/70"}`}
-                    style={
-                      {
-                        "--pulse-rgb": isDarkMode ? "168,85,247" : "126,34,206",
-                        animation: activeNode
-                          ? "engine-pulse 2s ease-in-out infinite"
-                          : "none",
-                      } as React.CSSProperties
-                    }
-                  >
-                    <Logo
-                      className={`h-3 mb-1 ${isDarkMode ? "text-iii-light/50" : "text-iii-black/50"}`}
-                    />
-                    <div className={`text-3xl font-bold ${accentColor}`}>
-                      Engine
-                    </div>
-                    <div className={`text-sm mt-2 ${textSecondary}`}>
-                      Orchestrates triggers, functions, and workers
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <span
-                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-mono ${borderColor} ${isDarkMode ? "bg-iii-dark/40" : "bg-white/80"} ${textSecondary}`}
-                      >
-                        Trigger &bull; Function &bull; Worker
-                      </span>
-                      <span
-                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-mono ${borderColor} ${isDarkMode ? "bg-iii-light/5" : "bg-iii-light"} ${textSecondary}`}
-                      >
-                        <Eye className="w-3 h-3" /> End-to-end tracing
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Rows: left node → connector → [engine] → connector → right node */}
-              {leftNodes.map((leftNode, i) => {
-                const rightNode = rightNodes[i];
-                const LeftIcon = leftNode.icon;
-                const RightIcon = rightNode.icon;
-                const leftTone =
-                  toneClasses[leftNode.tone as keyof typeof toneClasses];
-                const rightTone =
-                  toneClasses[rightNode.tone as keyof typeof toneClasses];
-                const leftActive = activeNode === leftNode.title;
-                const rightActive = activeNode === rightNode.title;
-                const row = i + 1;
-
-                return (
-                  <div key={i} className="contents">
-                    {/* Left Node */}
-                    <div
-                      style={{ gridColumn: "1", gridRow: `${row}` }}
-                      className="flex justify-end"
-                      onMouseEnter={() => setActiveNode(leftNode.title)}
-                      onMouseLeave={() => setActiveNode(null)}
-                    >
-                      <div
-                        className={`w-full max-w-[240px] rounded-xl border px-4 py-3 flex items-center gap-3 transition-all duration-300 cursor-default ${leftActive ? `${leftTone.border} scale-[1.03]` : `${borderColor} hover:border-iii-medium/30`} ${bgCard}`}
-                      >
-                        <div
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg border flex-shrink-0 transition-all duration-300 ${leftActive ? `${leftTone.border} ${leftTone.bg}` : `${leftTone.border} ${leftTone.bg}`}`}
-                        >
-                          <LeftIcon className={`h-4 w-4 ${leftTone.icon}`} />
-                        </div>
-                        <div className="text-left min-w-0">
-                          <div
-                            className={`text-xs font-semibold ${textPrimary} truncate`}
-                          >
-                            {leftNode.titleFull}
-                          </div>
-                          <div
-                            className={`text-[10px] ${textSecondary} truncate`}
-                          >
-                            {leftNode.subtitle}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Left Connector — dashed SVG line + animated dot */}
-                    <div
-                      style={{ gridColumn: "2", gridRow: `${row}` }}
-                      className="relative flex items-center h-12"
-                    >
-                      <svg
-                        className="absolute inset-0 w-full h-full"
-                        viewBox="0 0 120 48"
-                        preserveAspectRatio="none"
-                      >
-                        <line
-                          x1="0"
-                          y1="24"
-                          x2="112"
-                          y2="24"
-                          stroke={
-                            leftActive
-                              ? isDarkMode
-                                ? "var(--color-accent)"
-                                : "var(--color-accent-light)"
-                              : isDarkMode
-                                ? "rgba(255,255,255,0.15)"
-                                : "rgba(0,0,0,0.12)"
-                          }
-                          strokeWidth={leftActive ? "2" : "1.5"}
-                          strokeDasharray="6 4"
-                          style={{
-                            animation: "dash-scroll 1s linear infinite",
-                            transition: "stroke 0.3s, stroke-width 0.3s",
-                          }}
-                        />
-                        <polygon
-                          points="120,24 110,19 110,29"
-                          fill={
-                            leftActive
-                              ? isDarkMode
-                                ? "var(--color-accent)"
-                                : "var(--color-accent-light)"
-                              : isDarkMode
-                                ? "rgba(255,255,255,0.2)"
-                                : "rgba(0,0,0,0.15)"
-                          }
-                          style={{ transition: "fill 0.3s" }}
-                        />
-                      </svg>
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 rounded-full transition-all duration-300"
-                        style={{
-                          width: leftActive ? "10px" : "6px",
-                          height: leftActive ? "10px" : "6px",
-                          background: leftActive
-                            ? isDarkMode
-                              ? "var(--color-accent)"
-                              : "var(--color-accent-light)"
-                            : isDarkMode
-                              ? "rgba(255,255,255,0.2)"
-                              : "rgba(0,0,0,0.2)",
-                          boxShadow: leftActive
-                            ? `0 0 12px ${isDarkMode ? "var(--color-accent)" : "var(--color-accent-light)"}`
-                            : "none",
-                          animation: `dot-flow-right ${leftActive ? "1s" : "2.5s"} linear infinite`,
-                          animationDelay: `${i * 0.5}s`,
-                        }}
-                      />
-                      {leftActive && (
-                        <div
-                          className="absolute top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full"
-                          style={{
-                            background: isDarkMode
-                              ? "var(--color-accent)"
-                              : "var(--color-accent-light)",
-                            boxShadow: `0 0 12px ${isDarkMode ? "var(--color-accent)" : "var(--color-accent-light)"}`,
-                            animation: "dot-flow-right 1s linear infinite",
-                            animationDelay: "0.5s",
-                          }}
-                        />
-                      )}
-                    </div>
-
-                    {/* Right Connector — dashed SVG line + animated dot */}
-                    <div
-                      style={{ gridColumn: "4", gridRow: `${row}` }}
-                      className="relative flex items-center h-12"
-                    >
-                      <svg
-                        className="absolute inset-0 w-full h-full"
-                        viewBox="0 0 120 48"
-                        preserveAspectRatio="none"
-                      >
-                        <line
-                          x1="8"
-                          y1="24"
-                          x2="120"
-                          y2="24"
-                          stroke={
-                            rightActive
-                              ? isDarkMode
-                                ? "var(--color-accent)"
-                                : "var(--color-accent-light)"
-                              : isDarkMode
-                                ? "rgba(255,255,255,0.15)"
-                                : "rgba(0,0,0,0.12)"
-                          }
-                          strokeWidth={rightActive ? "2" : "1.5"}
-                          strokeDasharray="6 4"
-                          style={{
-                            animation: "dash-scroll 1s linear infinite",
-                            transition: "stroke 0.3s, stroke-width 0.3s",
-                          }}
-                        />
-                        <polygon
-                          points="0,24 10,19 10,29"
-                          fill={
-                            rightActive
-                              ? isDarkMode
-                                ? "var(--color-accent)"
-                                : "var(--color-accent-light)"
-                              : isDarkMode
-                                ? "rgba(255,255,255,0.2)"
-                                : "rgba(0,0,0,0.15)"
-                          }
-                          style={{ transition: "fill 0.3s" }}
-                        />
-                      </svg>
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 rounded-full transition-all duration-300"
-                        style={{
-                          width: rightActive ? "10px" : "6px",
-                          height: rightActive ? "10px" : "6px",
-                          background: rightActive
-                            ? isDarkMode
-                              ? "var(--color-accent)"
-                              : "var(--color-accent-light)"
-                            : isDarkMode
-                              ? "rgba(255,255,255,0.2)"
-                              : "rgba(0,0,0,0.2)",
-                          boxShadow: rightActive
-                            ? `0 0 12px ${isDarkMode ? "var(--color-accent)" : "var(--color-accent-light)"}`
-                            : "none",
-                          animation: `dot-flow-left ${rightActive ? "1s" : "2.5s"} linear infinite`,
-                          animationDelay: `${i * 0.5}s`,
-                        }}
-                      />
-                      {rightActive && (
-                        <div
-                          className="absolute top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full"
-                          style={{
-                            background: isDarkMode
-                              ? "var(--color-accent)"
-                              : "var(--color-accent-light)",
-                            boxShadow: `0 0 12px ${isDarkMode ? "var(--color-accent)" : "var(--color-accent-light)"}`,
-                            animation: "dot-flow-left 1s linear infinite",
-                            animationDelay: "0.5s",
-                          }}
-                        />
-                      )}
-                    </div>
-
-                    {/* Right Node */}
-                    <div
-                      style={{ gridColumn: "5", gridRow: `${row}` }}
-                      className="flex justify-start"
-                      onMouseEnter={() => setActiveNode(rightNode.title)}
-                      onMouseLeave={() => setActiveNode(null)}
-                    >
-                      <div
-                        className={`w-full max-w-[240px] rounded-xl border px-4 py-3 flex items-center gap-3 transition-all duration-300 cursor-default ${rightActive ? `${rightTone.border} scale-[1.03]` : `${borderColor} hover:border-iii-medium/30`} ${bgCard}`}
-                      >
-                        <div
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg border flex-shrink-0 transition-all duration-300 ${rightTone.border} ${rightTone.bg}`}
-                        >
-                          <RightIcon className={`h-4 w-4 ${rightTone.icon}`} />
-                        </div>
-                        <div className="text-left min-w-0">
-                          <div
-                            className={`text-xs font-semibold ${textPrimary} truncate`}
-                          >
-                            {rightNode.titleFull}
-                          </div>
-                          <div
-                            className={`text-[10px] ${textSecondary} truncate`}
-                          >
-                            {rightNode.subtitle}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Desktop: Interactive SVG Particle Flow Diagram */}
+            <div className="hidden lg:block w-full max-w-5xl mx-auto">
+              <ParticleFlowDiagram
+                leftNodes={leftNodes}
+                rightNodes={rightNodes}
+                isDarkMode={isDarkMode}
+                toneClasses={toneClasses}
+              />
             </div>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+// --- Particle Flow Engine Subcomponent ---
+
+function ParticleFlowDiagram({
+  leftNodes,
+  rightNodes,
+  isDarkMode,
+  toneClasses,
+}: any) {
+  // Cycle through inputs automatically: 0, 1, 2, 3
+  const [activeInput, setActiveInput] = useState(0);
+  const [cycleKey, setCycleKey] = useState(0);
+  const [eventCount, setEventCount] = useState(12847);
+  const [isHovered, setIsHovered] = useState(false);
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+
+  // Auto-cycle every 3.5s if not hovered
+  useEffect(() => {
+    if (isHovered && hoveredNode !== null) return;
+
+    const interval = setInterval(() => {
+      setActiveInput((prev) => (prev + 1) % 4);
+      setCycleKey((prev) => prev + 1);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [isHovered, hoveredNode]);
+
+  // Increment counter halfway through the cycle (when particles hit the engine)
+  useEffect(() => {
+    if (isHovered && hoveredNode !== null) return;
+
+    const timer = setTimeout(() => {
+      setEventCount((prev) => prev + Math.floor(Math.random() * 3) + 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [cycleKey, isHovered, hoveredNode]);
+
+  // Manual hover handling
+  const handleNodeHover = (
+    side: "left" | "right",
+    index: number,
+    title: string,
+  ) => {
+    setIsHovered(true);
+    setHoveredNode(title);
+    if (side === "left") {
+      if (activeInput !== index) {
+        setActiveInput(index);
+        setCycleKey((prev) => prev + 1); // trigger animation immediately
+        setTimeout(() => setEventCount((e) => e + 1), 1000);
+      }
+    }
+  };
+
+  const handleNodeLeave = () => {
+    setIsHovered(false);
+    setHoveredNode(null);
+  };
+
+  // Dimensions
+  const w = 900;
+  const h = 420;
+
+  // Node layout coordinates
+  const leftX = 0;
+  const nodeW = 200;
+  const nodeH = 56;
+  const gapY = 32;
+  const rightX = w - nodeW;
+
+  // Y positions for the 4 nodes on each side
+  const yPos = [
+    (h - (4 * nodeH + 3 * gapY)) / 2, // 34
+    (h - (4 * nodeH + 3 * gapY)) / 2 + nodeH + gapY, // 122
+    (h - (4 * nodeH + 3 * gapY)) / 2 + 2 * (nodeH + gapY), // 210
+    (h - (4 * nodeH + 3 * gapY)) / 2 + 3 * (nodeH + gapY), // 298
+  ];
+
+  // Engine center
+  const cx = w / 2;
+  const cy = h / 2;
+
+  // Bezier paths
+  // Left nodes to engine (anchor at right edge of left node)
+  const leftPaths = yPos.map((y) => {
+    const startX = leftX + nodeW;
+    const startY = y + nodeH / 2;
+    return `M ${startX},${startY} C ${startX + 60},${startY} ${cx - 100},${cy} ${cx - 50},${cy}`;
+  });
+
+  // Engine to right nodes (anchor at left edge of right node)
+  const rightPaths = yPos.map((y) => {
+    const endX = rightX;
+    const endY = y + nodeH / 2;
+    return `M ${cx + 50},${cy} C ${cx + 100},${cy} ${endX - 60},${endY} ${endX},${endY}`;
+  });
+
+  const getThemeColor = (colorName: string) => {
+    return isDarkMode ? "#f3f724" : "#2f7fff";
+  };
+
+  const activeColor = getThemeColor(
+    leftNodes[activeInput].tone.split("-")[0] || "purple",
+  );
+  const baseLineColor = isDarkMode
+    ? "rgba(255,255,255,0.08)"
+    : "rgba(0,0,0,0.06)";
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className="w-full h-auto overflow-visible font-sans"
+    >
+      <defs>
+        {/* Glow filters */}
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+        <filter id="glow-large" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="12" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+      </defs>
+
+      {/* BACKGROUND PATHS */}
+      {leftPaths.map((d, i) => (
+        <path
+          key={`bg-l-${i}`}
+          d={d}
+          fill="none"
+          stroke={baseLineColor}
+          strokeWidth="1.5"
+        />
+      ))}
+      {rightPaths.map((d, i) => (
+        <path
+          key={`bg-r-${i}`}
+          d={d}
+          fill="none"
+          stroke={baseLineColor}
+          strokeWidth="1.5"
+        />
+      ))}
+
+      {/* AMBIENT PARTICLES (Always running, slow, dim) */}
+      {[0, 1, 2, 3].map((i) => (
+        <g key={`ambient-${i}`} opacity="0.3">
+          <circle r="1.5" fill={isDarkMode ? "#ffffff" : "#000000"}>
+            <animateMotion
+              dur="6s"
+              begin={`${i * 1.5}s`}
+              repeatCount="indefinite"
+              path={leftPaths[i]}
+            />
+          </circle>
+          <circle r="1.5" fill={isDarkMode ? "#ffffff" : "#000000"}>
+            <animateMotion
+              dur="6s"
+              begin={`${i * 1.5 + 3}s`}
+              repeatCount="indefinite"
+              path={rightPaths[i]}
+            />
+          </circle>
+        </g>
+      ))}
+
+      {/* ACTIVE HIGHLIGHT PATH */}
+      {/* Left side: only the active input path glows */}
+      <path
+        d={leftPaths[activeInput]}
+        fill="none"
+        stroke={activeColor}
+        strokeWidth="2"
+        opacity="0.6"
+        filter="url(#glow)"
+        style={{ transition: "stroke 0.3s" }}
+      />
+      {/* Right side: all paths glow when outputting */}
+      {rightPaths.map((d, i) => (
+        <g key={`active-r-${i}-${cycleKey}`}>
+          <path
+            d={d}
+            fill="none"
+            stroke={activeColor}
+            strokeWidth="2"
+            opacity="0"
+            filter="url(#glow)"
+          >
+            {/* Delay glow until particles reach center */}
+            <animate
+              attributeName="opacity"
+              values="0;0;0.5;0"
+              keyTimes="0;0.35;0.5;1"
+              dur="3s"
+              begin="0s"
+            />
+          </path>
+        </g>
+      ))}
+
+      {/* MAIN ANIMATED PARTICLES (Triggered on cycleKey change) */}
+      {/* 1. Input → Engine (3 staggered particles) */}
+      {[0, 0.15, 0.3].map((delay, j) => (
+        <circle
+          key={`p-in-${cycleKey}-${j}`}
+          r="3.5"
+          fill={activeColor}
+          filter="url(#glow)"
+          opacity="0"
+        >
+          <animate
+            attributeName="opacity"
+            values="0;1;1;0"
+            keyTimes="0;0.05;0.95;1"
+            dur="1s"
+            begin={`${delay}s`}
+            fill="freeze"
+          />
+          <animateMotion
+            dur="1s"
+            begin={`${delay}s`}
+            fill="freeze"
+            path={leftPaths[activeInput]}
+          />
+        </circle>
+      ))}
+
+      {/* 2. Engine → Outputs (Fan out to all 4 simultaneously) */}
+      {[0, 1, 2, 3].map((outputIndex) => (
+        <g key={`p-out-${cycleKey}-${outputIndex}`}>
+          {[1.1, 1.25, 1.4].map((delay, j) => (
+            <circle
+              key={`p-out-c-${j}`}
+              r="3.5"
+              fill={activeColor}
+              filter="url(#glow)"
+              opacity="0"
+            >
+              <animate
+                attributeName="opacity"
+                values="0;1;1;0"
+                keyTimes="0;0.05;0.95;1"
+                dur="1s"
+                begin={`${delay}s`}
+                fill="freeze"
+              />
+              <animateMotion
+                dur="1s"
+                begin={`${delay}s`}
+                fill="freeze"
+                path={rightPaths[outputIndex]}
+              />
+            </circle>
+          ))}
+        </g>
+      ))}
+
+      {/* LEFT NODES (Inputs) */}
+      {leftNodes.map((node: any, i: number) => {
+        const isActive = activeInput === i;
+        const isMuted =
+          !isActive && hoveredNode !== null && hoveredNode !== node.title;
+        const tone = toneClasses[node.tone as keyof typeof toneClasses];
+        const Icon = node.icon;
+
+        return (
+          <foreignObject
+            key={`ln-${i}`}
+            x={leftX}
+            y={yPos[i]}
+            width={nodeW}
+            height={nodeH}
+            onMouseEnter={() => handleNodeHover("left", i, node.title)}
+            onMouseLeave={handleNodeLeave}
+          >
+            <div
+              className={`w-full h-full rounded-lg flex items-center gap-3 px-3 transition-all duration-300 ${
+                isActive
+                  ? "border-2 border-dotted shadow-[0_0_15px_rgba(0,0,0,0.2)] scale-[1.02]"
+                  : `border border-solid ${isDarkMode ? "border-white/10 bg-black/40" : "border-black/10 bg-white/40"} ${isMuted ? "opacity-40" : "hover:border-iii-medium/30"}`
+              }`}
+              style={
+                isActive
+                  ? {
+                      borderColor: activeColor,
+                      backgroundColor: isDarkMode
+                        ? "rgba(0,0,0,0.6)"
+                        : "rgba(255,255,255,0.8)",
+                    }
+                  : {}
+              }
+            >
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border overflow-hidden flex-shrink-0 transition-colors ${
+                  isActive
+                    ? `${tone.border} ${tone.bg}`
+                    : `${isDarkMode ? "border-white/10" : "border-black/10"} ${tone.bg}`
+                }`}
+              >
+                <Icon size={16} className={tone.icon} />
+              </div>
+              <div className="text-left min-w-0">
+                <div
+                  className={`text-xs font-semibold truncate transition-colors ${
+                    isActive
+                      ? isDarkMode
+                        ? "text-white"
+                        : "text-black"
+                      : isDarkMode
+                        ? "text-white/70"
+                        : "text-black/70"
+                  }`}
+                >
+                  {node.titleFull}
+                </div>
+                <div
+                  className={`text-[10px] truncate ${isDarkMode ? "text-white/40" : "text-black/40"}`}
+                >
+                  {node.subtitle}
+                </div>
+              </div>
+            </div>
+          </foreignObject>
+        );
+      })}
+
+      {/* RIGHT NODES (Outputs) */}
+      {rightNodes.map((node: any, i: number) => {
+        // Output nodes highlight briefly when particles arrive
+        const isOutputActive = !isHovered || hoveredNode === node.title;
+        const isMuted = isHovered && hoveredNode !== node.title;
+        const tone = toneClasses[node.tone as keyof typeof toneClasses];
+        const Icon = node.icon;
+
+        return (
+          <foreignObject
+            key={`rn-${i}`}
+            x={rightX}
+            y={yPos[i]}
+            width={nodeW}
+            height={nodeH}
+            onMouseEnter={() => handleNodeHover("right", i, node.title)}
+            onMouseLeave={handleNodeLeave}
+          >
+            <div className="relative w-full h-full">
+              {/* Pulse effect triggered by cycleKey */}
+              <div
+                key={`pulse-${cycleKey}`}
+                className="absolute inset-0 rounded-lg bg-current opacity-0 pointer-events-none"
+                style={{
+                  color: activeColor,
+                  animation: `pulse-fade 1s ease-out 2s`,
+                }}
+              />
+              <style>{`
+                @keyframes pulse-fade {
+                  0% { opacity: 0; transform: scale(0.95); }
+                  20% { opacity: 0.15; transform: scale(1.02); }
+                  100% { opacity: 0; transform: scale(1); }
+                }
+              `}</style>
+
+              <div
+                className={`relative w-full h-full rounded-lg border flex items-center gap-3 px-3 transition-all duration-300 ${
+                  isMuted
+                    ? `${isDarkMode ? "border-white/10 bg-black/40" : "border-black/10 bg-white/40"} opacity-40`
+                    : `${isDarkMode ? "border-white/10 bg-black/40" : "border-black/10 bg-white/40"}`
+                }`}
+              >
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg border overflow-hidden flex-shrink-0 ${isDarkMode ? "border-white/10" : "border-black/10"} ${tone.bg}`}
+                >
+                  <Icon size={16} className={tone.icon} />
+                </div>
+                <div className="text-left min-w-0">
+                  <div
+                    className={`text-xs font-semibold truncate ${isDarkMode ? "text-white/80" : "text-black/80"}`}
+                  >
+                    {node.titleFull}
+                  </div>
+                  <div
+                    className={`text-[10px] truncate ${isDarkMode ? "text-white/40" : "text-black/40"}`}
+                  >
+                    {node.subtitle}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </foreignObject>
+        );
+      })}
+
+      {/* CENTRAL ENGINE HUB */}
+      <g transform={`translate(${cx}, ${cy})`}>
+        {/* Breathing ring */}
+        <circle
+          r="65"
+          fill="none"
+          stroke={activeColor}
+          strokeWidth="1"
+          opacity="0.2"
+        >
+          <animate
+            attributeName="r"
+            values="60;70;60"
+            dur="4s"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="opacity"
+            values="0.1;0.3;0.1"
+            dur="4s"
+            repeatCount="indefinite"
+          />
+        </circle>
+
+        {/* Pulse effect on impact */}
+        <circle
+          key={`engine-pulse-${cycleKey}`}
+          r="55"
+          fill="none"
+          stroke={activeColor}
+          strokeWidth="2"
+          opacity="0"
+        >
+          <animate
+            attributeName="r"
+            values="55;85"
+            dur="1s"
+            begin="0.8s"
+            fill="freeze"
+          />
+          <animate
+            attributeName="opacity"
+            values="0.5;0"
+            dur="1s"
+            begin="0.8s"
+            fill="freeze"
+          />
+        </circle>
+
+        {/* Engine Container (using foreignObject for Tailwind styling) */}
+        <foreignObject x="-90" y="-80" width="180" height="160">
+          <div
+            className={`w-full h-full flex flex-col items-center justify-center rounded-lg border-2 transition-colors duration-500 ${
+              isDarkMode ? "bg-[#0a0a0a]" : "bg-white"
+            }`}
+            style={{
+              borderColor: activeColor,
+              boxShadow: `0 0 30px ${activeColor}40`,
+            }}
+          >
+            <Logo
+              className={`h-3 mb-2 transition-colors duration-500 ${isDarkMode ? "text-white/50" : "text-black/50"}`}
+            />
+            <div
+              className="text-2xl font-bold font-mono tracking-tight transition-colors duration-500"
+              style={{ color: activeColor }}
+            >
+              Engine
+            </div>
+
+            {/* Live Counter */}
+            <div
+              className={`mt-3 px-3 py-1 rounded-full border text-[10px] font-mono flex items-center gap-1.5 transition-colors duration-500 ${
+                isDarkMode
+                  ? "bg-white/5 border-white/10 text-white/70"
+                  : "bg-black/5 border-black/10 text-black/70"
+              }`}
+            >
+              <Activity className="w-3 h-3" style={{ color: activeColor }} />
+              <span>
+                {eventCount.toLocaleString()}{" "}
+                <span className="opacity-50">events</span>
+              </span>
+            </div>
+
+            <div
+              className={`mt-2 text-[9px] font-mono text-center px-4 ${isDarkMode ? "text-white/40" : "text-black/40"}`}
+            >
+              Triggers &bull; Functions
+              <br />
+              Workers
+            </div>
+          </div>
+        </foreignObject>
+      </g>
+    </svg>
   );
 }
