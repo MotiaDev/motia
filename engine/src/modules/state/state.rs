@@ -15,6 +15,7 @@ use serde_json::Value;
 use tracing::Instrument;
 
 use crate::{
+    condition::check_condition,
     engine::{Engine, EngineTrait, Handler, RegisterFunctionRequest},
     function::FunctionResult,
     modules::{
@@ -162,44 +163,24 @@ impl StateCoreModule {
                             }
                         }
 
-                        if let Some(condition_function_id) = trigger.config.condition_function_id {
+                        if let Some(ref condition_id) = trigger.config.condition_function_id {
                             tracing::debug!(
-                                condition_function_id = %condition_function_id,
+                                condition_function_id = %condition_id,
                                 "Checking trigger conditions"
                             );
-
-                            match engine
-                                .call(&condition_function_id, event_data.clone())
-                                .await
-                            {
-                                Ok(Some(result)) => {
+                            match check_condition(engine.as_ref(), condition_id, event_data.clone()).await {
+                                Ok(true) => {}
+                                Ok(false) => {
                                     tracing::debug!(
-                                        condition_function_id = %condition_function_id,
-                                        result = ?result,
-                                        "Condition function result"
-                                    );
-
-                                    if let Some(passed) = result.as_bool()
-                                        && !passed
-                                    {
-                                        tracing::debug!(
-                                            function_id = %trigger.trigger.function_id,
-                                            "Condition check failed, skipping handler"
-                                        );
-                                        continue;
-                                    }
-                                }
-                                Ok(None) => {
-                                    tracing::warn!(
-                                        condition_function_id = %condition_function_id,
-                                        "Condition function returned no result"
+                                        function_id = %trigger.trigger.function_id,
+                                        "Condition check failed, skipping handler"
                                     );
                                     continue;
                                 }
                                 Err(err) => {
                                     has_error = true;
                                     tracing::error!(
-                                        condition_function_id = %condition_function_id,
+                                        condition_function_id = %condition_id,
                                         error = ?err,
                                         "Error invoking condition function"
                                     );

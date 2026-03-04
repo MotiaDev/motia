@@ -550,7 +550,7 @@ export const handler: Handlers<typeof config> = async (input, { logger, enqueue,
 | `subscribes: ['topic']` | `topic` field inside trigger |
 | `emits: ['topic']` | `enqueues: ['topic']` |
 | `input: schema` | `input: schema` inside trigger (or wrap with `jsonSchema()`) |
-| `infrastructure: {...}` at config root | `infrastructure: {...}` inside the queue trigger |
+| `infrastructure: {...}` at config root | `config: {...}` inside the queue trigger |
 | `emit({ topic, data })` | `enqueue({ topic, data })` |
 | `emit({ type: 'topic' })` (some old projects) | `enqueue({ topic: 'topic' })` (field key standardized to `topic`) |
 | Handler receives `data` directly | Handler receives `input` directly |
@@ -1068,7 +1068,7 @@ triggers: [
 - [ ] Rename all `emits` config fields to `enqueues`
 - [ ] Move `subscribes` into queue triggers
 - [ ] Move `method`, `path`, `bodySchema`, `responseSchema`, `middleware` into HTTP triggers
-- [ ] Move `infrastructure` from config root into queue triggers
+- [ ] Move `infrastructure` from config root into queue triggers as `config`
 - [ ] Change `type: 'api'` to `type: 'http'` in all triggers
 - [ ] Move `cron` into cron triggers as `expression` (prepend seconds; 7th year field is optional)
 - [ ] Remove `type` field from config root
@@ -1397,11 +1397,13 @@ Steps can configure resource limits and queue behavior:
 ```python
 config = {
     "name": "HeavyComputation",
-    "triggers": [queue("heavy-job")],
-    "infrastructure": {
-        "handler": {"ram": 512, "timeout": 120},
-        "queue": {"type": "fifo", "maxRetries": 5},
-    },
+    "triggers": [
+        {
+            "type": "queue",
+            "topic": "heavy-job",
+            "config": {"type": "fifo", "maxRetries": 5},
+        }
+    ],
 }
 ```
 
