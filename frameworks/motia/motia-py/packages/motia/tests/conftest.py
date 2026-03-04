@@ -10,6 +10,7 @@ Or set III_ENGINE_PATH and use the run_integration_tests.sh script.
 
 import asyncio
 import json
+import time
 from typing import AsyncGenerator
 
 import pytest
@@ -25,6 +26,23 @@ async def flush_bridge_queue(bridge) -> None:
     """
     while bridge._queue and bridge._ws:
         await bridge._ws.send(json.dumps(bridge._queue.pop(0)))
+
+
+async def wait_for_registration(bridge, function_id: str, timeout: float = 5.0) -> None:
+    """Poll engine::functions::list until the given function_id appears."""
+    deadline = time.monotonic() + timeout
+    poll_interval = 0.1
+    while time.monotonic() < deadline:
+        try:
+            result = await bridge.call("engine::functions::list", {})
+            functions = result.get("functions", []) if isinstance(result, dict) else []
+            ids = [f.get("function_id") for f in functions if isinstance(f, dict) and f.get("function_id")]
+            if function_id in ids:
+                return
+        except Exception:
+            pass
+        await asyncio.sleep(poll_interval)
+    raise TimeoutError(f"Function {function_id} was not registered within {timeout}s")
 
 
 # Test ports - must match tests/fixtures/config-test.yaml

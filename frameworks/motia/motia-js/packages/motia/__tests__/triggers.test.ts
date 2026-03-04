@@ -50,12 +50,12 @@ describe('triggers', () => {
       expect(t.topic).toBe('orders')
     })
 
-    it('spreads input and infrastructure from options', () => {
+    it('spreads input and config from options', () => {
       const input = { type: 'object' as const }
-      const infrastructure = { maxRetries: 3 }
-      const t = queue('tasks', { input, infrastructure })
+      const config = { maxRetries: 3 }
+      const t = queue('tasks', { input, config })
       expect(t.input).toEqual(input)
-      expect(t.infrastructure).toEqual(infrastructure)
+      expect(t.config).toEqual(config)
     })
 
     it('includes condition when provided', () => {

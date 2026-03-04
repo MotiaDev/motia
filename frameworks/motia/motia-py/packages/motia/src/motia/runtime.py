@@ -417,8 +417,12 @@ class Motia:
 
         trigger_config: dict[str, Any] = {
             "topic": trigger.topic,
-            "metadata": metadata,
+            "metadata": {**metadata},
         }
+        if trigger.config:
+            trigger_config["queue_config"] = trigger.config.model_dump(
+                by_alias=True, exclude_none=True
+            )
 
         if trigger.condition:
             condition_path = f"{function_id}::conditions::{index}"

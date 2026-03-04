@@ -239,7 +239,7 @@ impl Module for BridgeClientModule {
                 .clone()
                 .unwrap_or_else(|| local_function.clone());
 
-            bridge.register_function(remote_function, move |input: Value| {
+            bridge.register_function(remote_function, move |input| {
                 let engine = engine.clone();
                 let local_function = local_function.clone();
                 async move {
