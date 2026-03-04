@@ -32,6 +32,12 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+
+      - name: Run coverage
+        run: cargo tarpaulin --locked --fail-under 70
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
