@@ -10,7 +10,7 @@ import asyncio
 import logging
 import os
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from .telemetry_types import OtelConfig
 
@@ -44,10 +44,11 @@ def init_otel(
 
     cfg = config or OtelConfig()
 
-    enabled = cfg.enabled
-    if enabled is None:
-        env = os.environ.get("OTEL_ENABLED", "").lower()
+    if cfg.enabled is not None:
+        enabled = cfg.enabled
+    else:
         # Enabled by default; set OTEL_ENABLED=false/0/no/off to disable
+        env = os.environ.get("OTEL_ENABLED", "").lower()
         enabled = env not in ("false", "0", "no", "off")
 
     if not enabled:
@@ -113,7 +114,7 @@ def init_otel(
     # --- Log exporter ---
     logs_enabled = cfg.logs_enabled if cfg.logs_enabled is not None else True
     if logs_enabled:
-        _configure_log_provider(resource, _connection)
+        _configure_log_provider(resource, _connection, cfg)
 
     _initialized = True
 
@@ -152,7 +153,32 @@ def _configure_meter_provider(
     _meter = meter_provider.get_meter(service_name)
 
 
-def _configure_log_provider(resource: Any, connection: Any) -> None:
+def _resolve_int(
+    config_value: int | None,
+    env_var: str,
+    default: int,
+    minimum: int = 0,
+) -> int:
+    """Resolve an integer setting: explicit config > env var > default.
+
+    Matches the Node SDK's resolution order for cross-SDK consistency.
+    """
+    if config_value is not None:
+        return config_value
+
+    raw = os.environ.get(env_var)
+    if raw is not None:
+        try:
+            val = int(raw)
+            if val >= minimum:
+                return val
+        except (ValueError, TypeError):
+            pass
+
+    return default
+
+
+def _configure_log_provider(resource: Any, connection: Any, cfg: OtelConfig) -> None:
     """Set up a global SdkLoggerProvider with EngineLogExporter."""
     global _log_provider
     try:
@@ -168,10 +194,30 @@ def _configure_log_provider(resource: Any, connection: Any) -> None:
         return
 
     log_exporter = EngineLogExporter(connection)
+
+    logs_flush_interval_ms = _resolve_int(
+        cfg.logs_flush_interval_ms, "OTEL_LOGS_FLUSH_INTERVAL_MS", default=100,
+    )
+    logs_batch_size = _resolve_int(
+        cfg.logs_batch_size, "OTEL_LOGS_BATCH_SIZE", default=1, minimum=1,
+    )
+
     log_provider = SdkLoggerProvider(resource=resource)
-    log_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))  # type: ignore[arg-type]
+    log_provider.add_log_record_processor(
+        BatchLogRecordProcessor(
+            cast(Any, log_exporter),
+            schedule_delay_millis=logs_flush_interval_ms,
+            max_export_batch_size=logs_batch_size,
+        )
+    )
     _logs.set_logger_provider(log_provider)
     _log_provider = log_provider
+
+    logging.getLogger("iii.telemetry").debug(
+        "Log provider configured: flush_interval=%dms, batch_size=%d",
+        logs_flush_interval_ms,
+        logs_batch_size,
+    )
 
 
 _original_opener_open: Any = None
@@ -297,6 +343,15 @@ async def shutdown_otel_async() -> None:
     _reset_state()
 
 
+def _shutdown_provider(provider: Any) -> None:
+    """Call shutdown() on a provider, silently ignoring errors."""
+    try:
+        if provider is not None and hasattr(provider, "shutdown"):
+            provider.shutdown()
+    except Exception:
+        pass
+
+
 def _reset_state() -> None:
     global _tracer, _meter, _meter_provider, _log_provider, _connection, _initialized, _fetch_patched
 
@@ -312,21 +367,11 @@ def _reset_state() -> None:
     if _initialized:
         try:
             from opentelemetry import trace
-            provider = trace.get_tracer_provider()
-            if hasattr(provider, "shutdown"):
-                provider.shutdown()
+            _shutdown_provider(trace.get_tracer_provider())
         except Exception:
             pass
-        try:
-            if _meter_provider and hasattr(_meter_provider, "shutdown"):
-                _meter_provider.shutdown()
-        except Exception:
-            pass
-        try:
-            if _log_provider and hasattr(_log_provider, "shutdown"):
-                _log_provider.shutdown()
-        except Exception:
-            pass
+        _shutdown_provider(_meter_provider)
+        _shutdown_provider(_log_provider)
 
     _tracer = None
     _meter = None
