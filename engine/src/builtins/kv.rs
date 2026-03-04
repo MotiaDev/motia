@@ -192,6 +192,12 @@ impl BuiltinKvStore {
             })
             .unwrap_or_else(|| "in_memory".to_string());
 
+        if store_method == "in_memory" {
+            tracing::warn!(
+                "DO NOT USE IN_MEMORY STORE_METHOD IN PRODUCTION - DATA WILL BE LOST ON SHUTDOWN"
+            );
+        }
+
         let file_path = config
             .clone()
             .and_then(|cfg| {
