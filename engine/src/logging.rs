@@ -312,10 +312,7 @@ fn extract_otel_config(cfg: &EngineConfig) -> OtelConfig {
     otel_cfg
 }
 
-#[deprecated(
-    since = "0.2.0",
-    note = "Use `init_log_from_config()` instead"
-)]
+#[deprecated(since = "0.2.0", note = "Use `init_log_from_config()` instead")]
 #[allow(deprecated)]
 pub fn init_log(path: &str) {
     println!("Initializing logging from config file: {}", path);

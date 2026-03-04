@@ -38,7 +38,11 @@ async fn main() -> anyhow::Result<()> {
     if args.use_default_config {
         logging::init_log_from_config(None);
         let config = EngineConfig::default_config();
-        let port = if config.port == 0 { DEFAULT_PORT } else { config.port };
+        let port = if config.port == 0 {
+            DEFAULT_PORT
+        } else {
+            config.port
+        };
 
         EngineBuilder::new()
             .default_config()
@@ -50,7 +54,11 @@ async fn main() -> anyhow::Result<()> {
     } else {
         logging::init_log_from_config(Some(&args.config));
         let config = EngineConfig::config_file(&args.config)?;
-        let port = if config.port == 0 { DEFAULT_PORT } else { config.port };
+        let port = if config.port == 0 {
+            DEFAULT_PORT
+        } else {
+            config.port
+        };
 
         EngineBuilder::new()
             .config_file(&args.config)?

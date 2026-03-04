@@ -52,5 +52,8 @@ fn test_use_default_config_flag_starts_without_config_file() {
         .args(["--use-default-config", "--version"])
         .output()
         .expect("failed to execute");
-    assert!(output.status.success(), "Should accept --use-default-config flag");
+    assert!(
+        output.status.success(),
+        "Should accept --use-default-config flag"
+    );
 }
