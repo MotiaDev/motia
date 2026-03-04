@@ -82,11 +82,21 @@ This module adds a new Trigger Type: `subscribe`.
   </ResponseField>
 </Expandable>
 
+### Subscribe Event Payload
+
+The handler receives the raw value passed as `data` to the `publish` call. No envelope is added.
+
+<ResponseField name="payload" type="any">
+  The exact value published to the topic. Shape is determined entirely by the publisher.
+</ResponseField>
+
 ### Sample Code
 
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
 ```typescript
 const fn = iii.registerFunction(
-  { id: 'notifications.onOrderShipped' },
+  { id: 'notifications::onOrderShipped' },
   async (data) => {
     console.log('Order shipped:', data)
     return {}
@@ -104,6 +114,134 @@ iii.triggerVoid('publish', {
   data: { orderId: 'abc-123', address: '123 Main St' },
 })
 ```
+</Tab>
+<Tab value="Python">
+```python
+async def on_order_shipped(data):
+    print('Order shipped:', data)
+    return {}
+
+iii.register_function('notifications::onOrderShipped', on_order_shipped)
+iii.register_trigger(type='subscribe', function_id='notifications::onOrderShipped', config={'topic': 'orders.shipped'})
+
+await iii.trigger('publish', {
+    'topic': 'orders.shipped',
+    'data': {'orderId': 'abc-123', 'address': '123 Main St'},
+})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("notifications::onOrderShipped", |data| async move {
+    println!("Order shipped: {:?}", data);
+    Ok(json!({}))
+})?;
+
+iii.register_trigger("subscribe", "notifications::onOrderShipped", json!({
+    "topic": "orders.shipped"
+}))?;
+
+iii.trigger("publish", json!({
+    "topic": "orders.shipped",
+    "data": { "orderId": "abc-123", "address": "123 Main St" }
+})).await?;
+```
+</Tab>
+</Tabs>
+
+### Usage Example: Fanout Notification
+
+One publisher triggers two independent subscribers on the same topic:
+
+<Tabs items={["TypeScript", "Python", "Rust"]}>
+<Tab value="TypeScript">
+```typescript
+const emailFn = iii.registerFunction(
+  { id: 'notifications::sendEmailAlert' },
+  async (data) => {
+    await sendEmail(data.userId, `Order ${data.orderId} shipped`)
+    return {}
+  },
+)
+
+const pushFn = iii.registerFunction(
+  { id: 'notifications::sendPushAlert' },
+  async (data) => {
+    await sendPushNotification(data.userId, `Order ${data.orderId} shipped`)
+    return {}
+  },
+)
+
+iii.registerTrigger({
+  type: 'subscribe',
+  function_id: emailFn.id,
+  config: { topic: 'orders.shipped' },
+})
+
+iii.registerTrigger({
+  type: 'subscribe',
+  function_id: pushFn.id,
+  config: { topic: 'orders.shipped' },
+})
+
+await iii.trigger('publish', {
+  topic: 'orders.shipped',
+  data: { orderId: 'abc-123', userId: 'user-456' },
+})
+```
+</Tab>
+<Tab value="Python">
+```python
+async def send_email_alert(data):
+    await send_email(data['userId'], f"Order {data['orderId']} shipped")
+    return {}
+
+async def send_push_alert(data):
+    await send_push_notification(data['userId'], f"Order {data['orderId']} shipped")
+    return {}
+
+iii.register_function('notifications::sendEmailAlert', send_email_alert)
+iii.register_function('notifications::sendPushAlert', send_push_alert)
+
+iii.register_trigger(type='subscribe', function_id='notifications::sendEmailAlert', config={'topic': 'orders.shipped'})
+iii.register_trigger(type='subscribe', function_id='notifications::sendPushAlert', config={'topic': 'orders.shipped'})
+
+await iii.trigger('publish', {
+    'topic': 'orders.shipped',
+    'data': {'orderId': 'abc-123', 'userId': 'user-456'},
+})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+iii.register_function("notifications::sendEmailAlert", |data| async move {
+    let order_id = data["orderId"].as_str().unwrap_or("");
+    let user_id = data["userId"].as_str().unwrap_or("");
+    send_email(user_id, &format!("Order {} shipped", order_id)).await?;
+    Ok(json!({}))
+})?;
+
+iii.register_function("notifications::sendPushAlert", |data| async move {
+    let order_id = data["orderId"].as_str().unwrap_or("");
+    let user_id = data["userId"].as_str().unwrap_or("");
+    send_push_notification(user_id, &format!("Order {} shipped", order_id)).await?;
+    Ok(json!({}))
+})?;
+
+iii.register_trigger("subscribe", "notifications::sendEmailAlert", json!({
+    "topic": "orders.shipped"
+}))?;
+iii.register_trigger("subscribe", "notifications::sendPushAlert", json!({
+    "topic": "orders.shipped"
+}))?;
+
+iii.trigger("publish", json!({
+    "topic": "orders.shipped",
+    "data": { "orderId": "abc-123", "userId": "user-456" }
+})).await?;
+```
+</Tab>
+</Tabs>
 
 ## PubSub vs Queue
 

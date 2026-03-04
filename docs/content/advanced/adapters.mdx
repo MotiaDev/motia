@@ -33,7 +33,7 @@ Every adapter entry has two fields:
 
 #### `modules::queue::BuiltinQueueAdapter`
 
-Default. In-process only — does not share messages across engine instances.
+Default. In-process only with retries and DLQ — does not share messages across engine instances.
 
 ```yaml
 adapter:
@@ -60,6 +60,10 @@ adapter:
     prefetch_count: 10
     queue_mode: standard   # standard | fifo
 ```
+
+<Callout type="info">
+  For retry behavior, dead-letter queues, and full config reference, see the [Queue module](/docs/modules/module-queue).
+</Callout>
 
 ---
 

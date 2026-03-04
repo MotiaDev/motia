@@ -136,8 +136,11 @@ config:
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="value" type="any" required>
-        The value set in the stream.
+      <ResponseField name="old_value" type="any">
+        The previous value, or `null` if the item was newly created.
+      </ResponseField>
+      <ResponseField name="new_value" type="any" required>
+        The value now stored in the stream.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -185,8 +188,8 @@ config:
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="value" type="any" required>
-        The value deleted from the stream.
+      <ResponseField name="old_value" type="any">
+        The value that was deleted, or `null` if the item did not exist.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -229,35 +232,42 @@ config:
 </ResponseField>
 
 <ResponseField name="stream::list_all" type="function">
-  List all items across all groups in a stream.
+  List all streams with their group metadata.
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
-      <ResponseField name="stream_name" type="string" required>
-        The ID of the stream to list all items from.
-      </ResponseField>
+      This function takes no parameters.
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="items" type="any[]" required>
-        An array of all items across all groups in the stream.
+      <ResponseField name="stream" type="object[]" required>
+        An array of stream metadata objects. Each object has an `id` (string) and a `groups` (string[]) field.
+      </ResponseField>
+      <ResponseField name="count" type="number" required>
+        The total number of streams.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
 </ResponseField>
 
 <ResponseField name="stream::send" type="function">
-  Send a message to all subscribers of a stream group.
+  Send a custom event to all subscribers of a stream group.
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
       <ResponseField name="stream_name" type="string" required>
-        The ID of the stream to send the message to.
+        The ID of the stream to send the event to.
       </ResponseField>
       <ResponseField name="group_id" type="string" required>
-        The group ID in the stream to send the message to.
+        The group ID in the stream to send the event to.
+      </ResponseField>
+      <ResponseField name="type" type="string" required>
+        The event type string delivered to subscribers.
+      </ResponseField>
+      <ResponseField name="id" type="string">
+        Optional item ID to associate the event with.
       </ResponseField>
       <ResponseField name="data" type="any" required>
-        The message payload to send.
+        The event payload delivered to subscribers.
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
@@ -269,7 +279,7 @@ config:
 </ResponseField>
 
 <ResponseField name="stream::update" type="function">
-  Update an existing item in the stream using patch operations.
+  Atomically update an item in the stream using a list of operations.
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
@@ -282,13 +292,16 @@ config:
       <ResponseField name="item_id" type="string" required>
         The item ID in the stream to update.
       </ResponseField>
-      <ResponseField name="data" type="any" required>
-        The updated data to apply to the item.
+      <ResponseField name="ops" type="UpdateOp[]" required>
+        The list of atomic operations to apply. Each operation is a tagged object with a `type` field (`set`, `merge`, `increment`, `decrement`, or `remove`) and associated fields (`path`, `value`, `by`).
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="value" type="any" required>
-        The updated value in the stream.
+      <ResponseField name="old_value" type="any">
+        The previous value, or `null` if the item was newly created.
+      </ResponseField>
+      <ResponseField name="new_value" type="any" required>
+        The value now stored in the stream after applying the operations.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -353,26 +366,42 @@ iii.register_function("onAuth", |_input| async move {
 ## Trigger Types
 
 This module adds three trigger types: `stream` (item changes), `stream:join` (WebSocket connect), and `stream:leave` (WebSocket disconnect).
-Join and leave triggers receive the same payload shape when invoked.
+
+### stream:join and stream:leave
+
+Fire when a client connects or disconnects via WebSocket. Both trigger types deliver the same payload to the handler:
 
 <ResponseField name="subscription_id" type="string" required>
-  The subscription ID, mostly used for uniqueness or logging purposes.
+  The subscription ID, used for uniqueness and logging.
 </ResponseField>
 <ResponseField name="stream_name" type="string" required>
-  The stream name of the subscription
+  The stream name of the subscription.
 </ResponseField>
 <ResponseField name="group_id" type="string" required>
-  The Group ID of the subscription.
+  The group ID of the subscription.
 </ResponseField>
-<ResponseField name="id" type="string" required>
-  The item ID of the subscription.
+<ResponseField name="id" type="string">
+  The item ID of the subscription, if provided by the client.
 </ResponseField>
 <ResponseField name="context" type="object">
   The context generated by the authentication layer.
 </ResponseField>
 
+### stream
+
+Fires when an item changes in the stream (via `stream::set`, `stream::update`, or `stream::delete`). Register with a config object to filter which stream, group, or item triggers the handler:
+
+<ResponseField name="stream_name" type="string" required>
+  The stream name to watch. Only changes on this stream fire the handler.
+</ResponseField>
+<ResponseField name="group_id" type="string">
+  If set, only changes within this group fire the handler.
+</ResponseField>
+<ResponseField name="item_id" type="string">
+  If set, only changes to this specific item fire the handler.
+</ResponseField>
 <ResponseField name="condition_function_id" type="string">
-  Function ID for conditional execution. Only applies to the `stream` trigger type (not `stream:join` or `stream:leave`). The engine invokes it with the subscription payload; if it returns `false`, the handler function is not called.
+  Function ID for conditional execution. The engine invokes it with the event payload; if it returns `false`, the handler function is not called.
 </ResponseField>
 
 ### Sample Code
@@ -602,7 +631,7 @@ iii.registerTrigger({
 async def on_join(input):
     context = input.get('context', {})
     if context.get('userId'):
-        print(f"User {context['userId']} joined {input['stream_name']}/{input['group_id']}/{input['id']}")
+        print(f"User {context['userId']} joined {input['stream_name']}/{input['group_id']}/{input.get('id', '')}")
     return {}
 
 iii.register_function('onJoin', on_join)
