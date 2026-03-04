@@ -356,6 +356,7 @@ class Sdk implements ISdk {
       version: SDK_VERSION,
       name: this.workerName,
       os: getOsInfo(),
+      pid: process.pid,
       telemetry: {
         language,
         project_name: telemetryOpts?.project_name,
