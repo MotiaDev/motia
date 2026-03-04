@@ -70,6 +70,10 @@ pub struct OtelConfig {
     pub channel_capacity: Option<usize>,
     /// Whether to enable the log exporter (default: true)
     pub logs_enabled: Option<bool>,
+    /// Log processor flush delay in milliseconds. Defaults to 100ms when not set.
+    pub logs_flush_interval_ms: Option<u64>,
+    /// Maximum number of log records exported per batch. Defaults to 1 when not set.
+    pub logs_batch_size: Option<usize>,
     /// Whether to auto-instrument outgoing HTTP calls.
     /// When `Some(true)` (default), `execute_traced_request()` can be used to
     /// create CLIENT spans for reqwest requests. Set `Some(false)` to opt out.
@@ -121,5 +125,23 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(config.effective_initial_delay_ms(), 1);
+    }
+
+    #[test]
+    fn test_otel_config_logs_batch_defaults() {
+        let config = OtelConfig::default();
+        assert!(config.logs_flush_interval_ms.is_none());
+        assert!(config.logs_batch_size.is_none());
+    }
+
+    #[test]
+    fn test_otel_config_logs_batch_explicit() {
+        let config = OtelConfig {
+            logs_flush_interval_ms: Some(200),
+            logs_batch_size: Some(5),
+            ..Default::default()
+        };
+        assert_eq!(config.logs_flush_interval_ms, Some(200));
+        assert_eq!(config.logs_batch_size, Some(5));
     }
 }

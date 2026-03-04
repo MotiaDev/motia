@@ -43,7 +43,7 @@ class Logger:
             otel_logger = _logs.get_logger("iii.logger")
             attrs: dict[str, Any] = {"function_name": self._function_name}
             if data is not None:
-                attrs["data"] = str(data)
+                attrs["log.data"] = data
 
             span_ctx = trace.get_current_span().get_span_context()
             trace_id = span_ctx.trace_id if span_ctx.is_valid else 0
