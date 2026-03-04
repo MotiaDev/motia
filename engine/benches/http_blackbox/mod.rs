@@ -20,6 +20,23 @@ pub struct BenchRuntime {
 impl BenchRuntime {
     pub async fn start(route_count: usize) -> Self {
         assert!(route_count > 0, "route_count must be > 0");
+        // Retry startup to handle ephemeral port TOCTOU races
+        for attempt in 0..3 {
+            match Self::try_start(route_count).await {
+                Ok(runtime) => return runtime,
+                Err(e) if attempt < 2 => {
+                    eprintln!("bench startup attempt {attempt} failed: {e}, retrying...");
+                    sleep(Duration::from_millis(50)).await;
+                }
+                Err(e) => panic!("bench startup failed after 3 attempts: {e}"),
+            }
+        }
+        unreachable!()
+    }
+
+    async fn try_start(
+        route_count: usize,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let ws_port = reserve_local_port();
         let http_port = reserve_local_port();
 
@@ -38,8 +55,7 @@ impl BenchRuntime {
                 })),
             )
             .build()
-            .await
-            .expect("build engine");
+            .await?;
 
         let engine_task = tokio::spawn(async move {
             let _ = builder.serve().await;
@@ -52,12 +68,12 @@ impl BenchRuntime {
         let ready_path = common::http_api_path(route_count.saturating_sub(1));
         wait_for_route(&client, &base_http_url, &ready_path).await;
 
-        Self {
+        Ok(Self {
             base_http_url,
             client,
             engine_task,
             worker_task,
-        }
+        })
     }
 
     pub async fn post_json(&self, path: &str, body: &serde_json::Value) -> reqwest::Response {

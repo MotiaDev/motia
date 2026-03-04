@@ -24,6 +24,21 @@ struct WsBenchRuntime {
 
 impl WsBenchRuntime {
     async fn start() -> Self {
+        // Retry startup to handle ephemeral port TOCTOU races
+        for attempt in 0..3 {
+            match Self::try_start().await {
+                Ok(runtime) => return runtime,
+                Err(e) if attempt < 2 => {
+                    eprintln!("bench startup attempt {attempt} failed: {e}, retrying...");
+                    sleep(Duration::from_millis(50)).await;
+                }
+                Err(e) => panic!("bench startup failed after 3 attempts: {e}"),
+            }
+        }
+        unreachable!()
+    }
+
+    async fn try_start() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let ws_port = reserve_local_port();
         let config = write_ws_only_config();
         let ws_addr = format!("127.0.0.1:{ws_port}");
@@ -31,11 +46,9 @@ impl WsBenchRuntime {
 
         let builder = EngineBuilder::new()
             .address(&ws_addr)
-            .config_file_or_default(config.path().to_str().expect("config path"))
-            .expect("load config")
+            .config_file_or_default(config.path().to_str().expect("config path"))?
             .build()
-            .await
-            .expect("build engine");
+            .await?;
 
         let engine_task = tokio::spawn(async move {
             let _ = builder.serve().await;
@@ -49,11 +62,11 @@ impl WsBenchRuntime {
         // Wait for service worker to register its function via a probe round-trip
         wait_for_worker_ready(&ws_url).await;
 
-        Self {
+        Ok(Self {
             ws_url,
             engine_task,
             service_worker_task,
-        }
+        })
     }
 
     async fn connect_caller(&self) -> (WsWriter, WsReader) {
@@ -260,8 +273,13 @@ async fn invoke_and_wait(
                 let message: Message = serde_json::from_str(&text).expect("decode message");
                 match message {
                     Message::InvocationResult {
-                        invocation_id: id, ..
-                    } if id == invocation_id => break,
+                        invocation_id: id,
+                        error,
+                        ..
+                    } if id == invocation_id => {
+                        assert!(error.is_none(), "InvocationResult returned an error");
+                        break;
+                    }
                     Message::Ping => {
                         writer
                             .send(WsMessage::Text(
