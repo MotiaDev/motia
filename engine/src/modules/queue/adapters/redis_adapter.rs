@@ -18,6 +18,7 @@ use tokio::{
 use tracing::Instrument;
 
 use crate::{
+    condition::check_condition,
     engine::{Engine, EngineTrait},
     modules::{
         queue::{
@@ -234,33 +235,23 @@ impl QueueAdapter for RedisAdapter {
                 let function_id = function_id_for_task.clone();
                 let topic_for_span = topic_for_task.clone();
 
-                if let Some(condition_function_id) = condition_function_id_for_task.as_ref() {
+                if let Some(ref condition_id) = condition_function_id_for_task {
                     tracing::debug!(
-                        condition_function_id = %condition_function_id,
+                        condition_function_id = %condition_id,
                         "Checking trigger conditions"
                     );
-
-                    match engine.call(condition_function_id, data.clone()).await {
-                        Ok(Some(result)) => {
-                            if let Some(passed) = result.as_bool()
-                                && !passed
-                            {
-                                tracing::debug!(
-                                    function_id = %function_id,
-                                    "Condition check failed, skipping handler"
-                                );
-                                continue;
-                            }
-                        }
-                        Ok(None) => {
-                            tracing::warn!(
-                                condition_function_id = %condition_function_id,
-                                "Condition function returned no result"
+                    match check_condition(engine.as_ref(), condition_id, data.clone()).await {
+                        Ok(true) => {}
+                        Ok(false) => {
+                            tracing::debug!(
+                                function_id = %function_id,
+                                "Condition check failed, skipping handler"
                             );
+                            continue;
                         }
                         Err(err) => {
                             tracing::error!(
-                                condition_function_id = %condition_function_id,
+                                condition_function_id = %condition_id,
                                 error = ?err,
                                 "Error invoking condition function"
                             );

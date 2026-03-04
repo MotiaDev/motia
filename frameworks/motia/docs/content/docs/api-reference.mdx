@@ -75,7 +75,7 @@ type QueueTrigger = {
   topic: string
   input?: StepSchemaInput
   condition?: TriggerCondition
-  infrastructure?: Partial<InfrastructureConfig>
+  config?: Partial<QueueConfig>
 }
 ```
 
@@ -128,7 +128,7 @@ Use these helpers for concise trigger definitions:
 import { http, queue, cron, state, stream } from 'motia'
 
 http(method: HttpRouteMethod, path: string, options?: HttpOptions, condition?: TriggerCondition): HttpTrigger
-queue(topic: string, options?: QueueOptions, condition?: TriggerCondition): QueueTrigger
+queue(topic: string, options?: { input?: StepSchemaInput; config?: Partial<QueueConfig> }, condition?: TriggerCondition): QueueTrigger
 cron(expression: string, condition?: TriggerCondition): CronTrigger
 state(condition?: TriggerCondition): StateTrigger
 stream(streamName: string, condition?: TriggerCondition): StreamTrigger
@@ -253,10 +253,7 @@ export const config = {
   triggers: [
     queue('order.created', {
       input: z.object({ orderId: z.string(), amount: z.number() }),
-      infrastructure: {
-        handler: { ram: 2048, timeout: 60 },
-        queue: { type: 'fifo', maxRetries: 3, visibilityTimeout: 90 }
-      },
+      config: { type: 'fifo', maxRetries: 3, visibilityTimeout: 90 },
     }),
   ],
   enqueues: ['order.processed'],
@@ -279,10 +276,7 @@ export const config = {
       type: 'queue',
       topic: 'order.created',
       input: z.object({ orderId: z.string(), amount: z.number() }),
-      infrastructure: {
-        handler: { ram: 2048, timeout: 60 },
-        queue: { type: 'fifo', maxRetries: 3, visibilityTimeout: 90 }
-      },
+      config: { type: 'fifo', maxRetries: 3, visibilityTimeout: 90 },
     },
   ],
   enqueues: ['order.processed'],
@@ -311,10 +305,7 @@ config = {
             "type": "queue",
             "topic": "order.created",
             "input": OrderInput.model_json_schema(),
-            "infrastructure": {
-                "handler": {"ram": 2048, "timeout": 60},
-                "queue": {"type": "fifo", "maxRetries": 3, "visibilityTimeout": 90}
-            },
+            "config": {"type": "fifo", "maxRetries": 3, "visibilityTimeout": 90},
         },
     ],
     "enqueues": ["order.processed"],
@@ -328,14 +319,14 @@ config = {
 </Tab>
 </Tabs>
 
-**Infrastructure config** (Motia Cloud only):
-- `handler.ram` - Memory in MB (128-10240, required)
-- `handler.cpu` - CPU vCPUs (optional, auto-calculated from RAM if not provided, must be proportional)
-- `handler.timeout` - Timeout in seconds (1-900, required)
-- `queue.type` - `'fifo'` or `'standard'` (required)
-- `queue.maxRetries` - Max retry attempts (0+, required)
-- `queue.visibilityTimeout` - Timeout in seconds (required, must be > handler.timeout to prevent premature redelivery)
-- `queue.delaySeconds` - Optional delay before message becomes visible (0-900)
+**Queue config options:**
+- `type` - `'fifo'` or `'standard'` (default: `'standard'`)
+- `maxRetries` - Max retry attempts (default: 3)
+- `visibilityTimeout` - Seconds before message becomes visible again (default: 900)
+- `delaySeconds` - Delay before message becomes visible, 0-900 (default: 0)
+- `concurrency` - Max parallel message processing per topic
+- `backoffType` - Retry backoff strategy (e.g., `'exponential'`)
+- `backoffDelayMs` - Base delay in ms for retry backoff
 
 ---
 

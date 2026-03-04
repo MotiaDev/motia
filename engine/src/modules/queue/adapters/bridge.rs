@@ -13,6 +13,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
+    condition::check_condition,
     engine::{Engine, EngineTrait},
     modules::queue::{
         QueueAdapter, SubscriberQueueConfig,
@@ -154,29 +155,24 @@ impl QueueAdapter for BridgeAdapter {
                 let function_id = function_id_for_handler.clone();
                 let condition_function_id = condition_function_id_for_handler.clone();
                 async move {
-                    // Check condition if provided
                     if let Some(condition_path) = condition_function_id {
-                        match engine.call(&condition_path, data.clone()).await {
-                            Ok(Some(result)) => {
-                                if let Some(passed) = result.as_bool()
-                                    && !passed
-                                {
-                                    tracing::debug!(
-                                        condition_path = %condition_path,
-                                        "Condition check failed, skipping handler"
-                                    );
-                                    return Ok(Value::Null);
-                                }
-                            }
-                            Ok(None) => {
-                                tracing::warn!(
+                        tracing::debug!(
+                            condition_function_id = %condition_path,
+                            "Checking trigger conditions"
+                        );
+                        match check_condition(engine.as_ref(), &condition_path, data.clone()).await
+                        {
+                            Ok(true) => {}
+                            Ok(false) => {
+                                tracing::debug!(
                                     condition_path = %condition_path,
-                                    "Condition function returned no result"
+                                    "Condition check failed, skipping handler"
                                 );
+                                return Ok(Value::Null);
                             }
                             Err(err) => {
                                 tracing::error!(
-                                    condition_path = %condition_path,
+                                    condition_function_id = %condition_path,
                                     error = ?err,
                                     "Error invoking condition function"
                                 );
@@ -190,7 +186,7 @@ impl QueueAdapter for BridgeAdapter {
 
                     // Invoke the actual handler
                     match engine.call(&function_id, data).await {
-                        Ok(result) => Ok(result.unwrap_or(Value::Null)),
+                        Ok(result) => Ok::<Value, IIIError>(result.unwrap_or(Value::Null)),
                         Err(err) => Err(IIIError::Remote {
                             code: err.code,
                             message: err.message,
