@@ -358,6 +358,61 @@ pub fn init_log(path: &str) {
     }
 }
 
+/// Initializes logging, strictly loading config from the given path.
+/// If `config_path` is `None`, initializes with default local logging.
+/// If the file is missing or unparseable, falls back to default local logging
+/// (logging init should never crash the process).
+pub fn init_log_from_config(config_path: Option<&str>) {
+    match config_path {
+        None => {
+            println!("No config file specified, using default local logging");
+            init_local_log("info", &OtelConfig::default());
+        }
+        Some(path) => {
+            println!("Initializing logging from config file: {}", path);
+            let cfg = EngineConfig::config_file(path);
+            if let Err(e) = cfg {
+                println!(
+                    "Failed to load config file for logging: {}, using default local logging. Error: {}",
+                    path, e
+                );
+                init_local_log("info", &OtelConfig::default());
+                return;
+            }
+
+            let cfg = cfg.expect("already checked");
+            println!("Parsed config file: {}", path);
+
+            let otel_cfg = extract_otel_config(&cfg);
+            let otel_module_name = "modules::observability::OtelModule";
+            let otel_module_cfg = cfg.modules.iter().find(|m| m.class == otel_module_name);
+
+            let log_level = otel_module_cfg
+                .and_then(|m| m.config.as_ref())
+                .and_then(|c| c.get("level").or_else(|| c.get("log_level")))
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_else(|| "info".to_string());
+
+            let log_format = otel_module_cfg
+                .and_then(|m| m.config.as_ref())
+                .and_then(|c| c.get("format"))
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_else(|| "default".to_string());
+
+            println!(
+                "Log level from config: {}, Log format: {}, OTel enabled: {}",
+                log_level, log_format, otel_cfg.enabled
+            );
+
+            if log_format.to_lowercase() == "json" {
+                init_prod_log(log_level.as_str(), &otel_cfg);
+            } else {
+                init_local_log(log_level.as_str(), &otel_cfg);
+            }
+        }
+    }
+}
+
 fn init_prod_log(log_level: &str, otel_cfg: &OtelConfig) {
     TRACING.get_or_init(|| {
         let filter = EnvFilter::new(log_level);
@@ -432,4 +487,22 @@ fn init_local_log(log_level: &str, otel_cfg: &OtelConfig) {
             .with(otel_logs_layer)
             .init();
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_init_log_from_config_with_none_does_not_panic() {
+        // With None, should use default local logging
+        init_log_from_config(None);
+    }
+
+    #[test]
+    fn test_init_log_from_config_with_missing_file_does_not_panic() {
+        // Should still init logging even if file doesn't exist —
+        // logging init should not crash the process, just fall back
+        init_log_from_config(Some("/tmp/iii_no_such_logging_config_98765.yaml"));
+    }
 }
