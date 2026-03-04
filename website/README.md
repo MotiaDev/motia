@@ -67,6 +67,4 @@ Deployed to [Vercel](https://vercel.com) under the **motia** org. Pushes to `mai
 
 ## License
 
-- Protocol Spec: CC-BY-ND 4.0
-- Engine: BSL 1.1
-- SDKs & Adapters: Apache 2.0
+Apache 2.0
