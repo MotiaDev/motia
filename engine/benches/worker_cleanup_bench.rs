@@ -47,7 +47,9 @@ fn make_function(id: &str) -> Function {
     }
 }
 
-/// Simulates the exact operations performed by Engine::cleanup_worker.
+/// Simulates a subset of Engine::cleanup_worker operations for registry teardown.
+/// NOTE: This does not include external-function module cleanup, channel cleanup,
+/// or worker_disconnected trigger dispatch.
 async fn simulate_cleanup(
     worker: &Worker,
     functions: &FunctionsRegistry,
@@ -233,17 +235,18 @@ fn worker_cleanup_benchmark(c: &mut Criterion) {
                         // Register trigger type and triggers owned by this worker
                         tokio::task::block_in_place(|| {
                             tokio::runtime::Handle::current().block_on(async {
-                                let _ = trigger_registry
+                                trigger_registry
                                     .register_trigger_type(TriggerType {
                                         id: "bench.cleanup".to_string(),
                                         _description: "cleanup benchmark trigger".to_string(),
                                         registrator: Box::new(NoopRegistrator),
                                         worker_id: Some(worker.id),
                                     })
-                                    .await;
+                                    .await
+                                    .expect("register trigger type");
 
                                 for idx in 0..trigger_count {
-                                    let _ = trigger_registry
+                                    trigger_registry
                                         .register_trigger(Trigger {
                                             id: format!("bench-cleanup-{idx}"),
                                             trigger_type: "bench.cleanup".to_string(),
@@ -251,7 +254,8 @@ fn worker_cleanup_benchmark(c: &mut Criterion) {
                                             config: serde_json::json!({}),
                                             worker_id: Some(worker.id),
                                         })
-                                        .await;
+                                        .await
+                                        .expect("register trigger");
                                 }
                             });
                         });

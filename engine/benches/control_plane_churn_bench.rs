@@ -84,10 +84,12 @@ fn control_plane_churn_benchmark(c: &mut Criterion) {
                     WorkerRegistry::new,
                     |registry| {
                         let mut ids = Vec::with_capacity(size);
+                        let mut _receivers = Vec::with_capacity(size);
                         for _ in 0..size {
-                            let (tx, _rx) = mpsc::channel::<Outbound>(1);
+                            let (tx, rx) = mpsc::channel::<Outbound>(1);
                             let worker = Worker::new(tx);
                             ids.push(worker.id);
+                            _receivers.push(rx);
                             registry.register_worker(worker);
                         }
                         for id in ids {
