@@ -22,3 +22,7 @@ export const getApiTriggers = (step: Step): ApiTriggerType[] => step.config.trig
 export const getQueueTriggers = (step: Step): QueueTriggerType[] => step.config.triggers.filter(isQueueTrigger)
 
 export const getCronTriggers = (step: Step): CronTriggerType[] => step.config.triggers.filter(isCronTrigger)
+
+export const getStateTriggers = (step: Step): StateTriggerType[] => step.config.triggers.filter(isStateTrigger)
+
+export const getStreamTriggers = (step: Step): StreamTriggerType[] => step.config.triggers.filter(isStreamTrigger)
