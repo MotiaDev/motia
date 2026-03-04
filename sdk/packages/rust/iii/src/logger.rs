@@ -1,7 +1,36 @@
 use serde_json::Value;
 
 #[cfg(feature = "otel")]
-use opentelemetry::logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _, Severity};
+
+/// Convert a `serde_json::Value` into an OpenTelemetry `AnyValue` so that
+/// nested objects and arrays are preserved as structured OTLP attributes
+/// (`kvlistValue` / `arrayValue`) instead of being stringified.
+#[cfg(feature = "otel")]
+fn json_value_to_anyvalue(v: &Value) -> AnyValue {
+    match v {
+        Value::String(s) => AnyValue::String(s.clone().into()),
+        Value::Bool(b) => AnyValue::Boolean(*b),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                AnyValue::Int(i)
+            } else {
+                AnyValue::Double(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        Value::Array(arr) => {
+            AnyValue::ListAny(arr.iter().map(json_value_to_anyvalue).collect())
+        }
+        Value::Object(map) => {
+            AnyValue::Map(
+                map.iter()
+                    .map(|(k, v)| (k.clone().into(), json_value_to_anyvalue(v)))
+                    .collect(),
+            )
+        }
+        Value::Null => AnyValue::String("".into()),
+    }
+}
 
 #[derive(Clone, Default)]
 pub struct Logger {
@@ -35,7 +64,7 @@ impl Logger {
             record.add_attribute("function_name", self.function_name.clone());
         }
         if let Some(d) = data {
-            record.add_attribute("data", d.to_string());
+            record.add_attribute("log.data", json_value_to_anyvalue(d));
         }
 
         // Attach trace context from the active OTel span

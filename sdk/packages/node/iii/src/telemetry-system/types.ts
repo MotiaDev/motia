@@ -65,6 +65,10 @@ export interface OtelConfig {
   metricsEnabled?: boolean
   /** Metrics export interval in milliseconds. Defaults to 60000 (60 seconds). */
   metricsExportIntervalMs?: number
+  /** Log processor flush delay in milliseconds. Defaults to 100ms. */
+  logsFlushIntervalMs?: number
+  /** Maximum number of log records exported per batch. Defaults to 1. */
+  logsBatchSize?: number
   /** Whether to auto-instrument globalThis.fetch calls. Defaults to true. Works on Node.js, Bun, and Deno. Set to false to disable. */
   fetchInstrumentationEnabled?: boolean
   /** Optional reconnection configuration for the WebSocket connection. */
@@ -79,6 +83,8 @@ export const DEFAULT_OTEL_CONFIG = {
   engineWsUrl: 'ws://localhost:49134',
   metricsEnabled: true,
   metricsExportIntervalMs: 60000,
+  logsFlushIntervalMs: 100,
+  logsBatchSize: 1,
   fetchInstrumentationEnabled: true,
 } as const satisfies Partial<OtelConfig>
 
