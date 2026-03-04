@@ -2,6 +2,8 @@ import {
   getApiTriggers,
   getCronTriggers,
   getQueueTriggers,
+  getStateTriggers,
+  getStreamTriggers,
   isApiTrigger,
   isCronTrigger,
   isQueueTrigger,
@@ -114,6 +116,34 @@ describe('guards', () => {
       expect(result).toHaveLength(2)
       expect(result[0].expression).toBe('0 * * * *')
       expect(result[1].expression).toBe('0 0 * * *')
+    })
+
+    it('getStateTriggers filters state triggers from mixed array', () => {
+      const step = {
+        filePath: 'test.step.ts',
+        config: {
+          name: 'test',
+          triggers: [state(), queue('q'), state({ keys: ['a'] }), http('GET', '/x')],
+        },
+      }
+      const result = getStateTriggers(step)
+      expect(result).toHaveLength(2)
+      expect(result[0].type).toBe('state')
+      expect(result[1].type).toBe('state')
+    })
+
+    it('getStreamTriggers filters stream triggers from mixed array', () => {
+      const step = {
+        filePath: 'test.step.ts',
+        config: {
+          name: 'test',
+          triggers: [stream('a'), cron('0 0 * * *'), stream('b'), state()],
+        },
+      }
+      const result = getStreamTriggers(step)
+      expect(result).toHaveLength(2)
+      expect(result[0].streamName).toBe('a')
+      expect(result[1].streamName).toBe('b')
     })
   })
 })
