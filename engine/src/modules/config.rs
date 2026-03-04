@@ -723,7 +723,8 @@ mod tests {
         assert!(
             err_msg.contains(path),
             "Error should include the path '{}', got: {}",
-            path, err_msg
+            path,
+            err_msg
         );
     }
 
@@ -736,8 +737,7 @@ mod tests {
 
     #[test]
     fn test_engine_builder_config_file_errors_on_missing() {
-        let result = EngineBuilder::new()
-            .config_file("/tmp/iii_builder_nonexistent_99999.yaml");
+        let result = EngineBuilder::new().config_file("/tmp/iii_builder_nonexistent_99999.yaml");
         assert!(result.is_err());
     }
 
