@@ -94,12 +94,15 @@ impl EngineConfig {
     /// Returns a clear error if the file does not exist or cannot be parsed.
     pub fn config_file(path: &str) -> anyhow::Result<Self> {
         let yaml_content = std::fs::read_to_string(path).map_err(|e| {
-            anyhow::anyhow!(
-                "Config file not found: '{}'. {}\n\
-                 Hint: create a config.yaml or pass --use-default-config to run with defaults.",
-                path,
-                e
-            )
+            if e.kind() == std::io::ErrorKind::NotFound {
+                anyhow::anyhow!(
+                    "Config file not found: '{}'.\n\
+                     Hint: create a config.yaml or pass --use-default-config to run with defaults.",
+                    path
+                )
+            } else {
+                anyhow::anyhow!("Failed to read config file '{}': {}", path, e)
+            }
         })?;
         let yaml_content = Self::expand_env_vars(&yaml_content);
         serde_yaml::from_str(&yaml_content)
