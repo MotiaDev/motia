@@ -6,7 +6,7 @@ import pytest
 
 from motia.runtime import Motia
 from motia.triggers import http, queue
-from motia.types import ApiRequest, ApiResponse, FlowContext, StepConfig
+from motia.types import ApiRequest, ApiResponse, FlowContext, QueueConfig, StepConfig
 
 
 @pytest.fixture
@@ -154,3 +154,48 @@ async def test_runtime_context_enqueue_uses_enqueue(mock_bridge: MagicMock, mock
         "enqueue",
         {"topic": "runtime.topic", "data": {"value": 1}},
     )
+
+
+def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+    """Queue trigger with config should include it as queue_config."""
+    config = StepConfig(
+        name="queue-config-test",
+        triggers=[
+            queue("orders", config=QueueConfig(max_retries=5, type="fifo")),
+        ],
+    )
+
+    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
+        _ = (input_data, ctx)
+
+    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
+        "motia.runtime.get_context", return_value=mock_context
+    ):
+        motia = Motia()
+        motia.add_step(config, "steps/test_step.py", handler)
+
+    call_args = mock_bridge.register_trigger.call_args
+    trigger_config = call_args[0][2]
+    assert trigger_config["queue_config"]["maxRetries"] == 5
+    assert trigger_config["queue_config"]["type"] == "fifo"
+
+
+def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+    """Queue trigger without config should not include queue_config."""
+    config = StepConfig(
+        name="queue-no-config-test",
+        triggers=[queue("orders")],
+    )
+
+    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
+        _ = (input_data, ctx)
+
+    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
+        "motia.runtime.get_context", return_value=mock_context
+    ):
+        motia = Motia()
+        motia.add_step(config, "steps/test_step.py", handler)
+
+    call_args = mock_bridge.register_trigger.call_args
+    trigger_config = call_args[0][2]
+    assert "queue_config" not in trigger_config

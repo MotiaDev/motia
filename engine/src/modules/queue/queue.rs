@@ -112,9 +112,7 @@ impl TriggerRegistrator for QueueCoreModule {
 
                 let queue_config = trigger
                     .config
-                    .get("metadata")
-                    .and_then(|m| m.get("infrastructure"))
-                    .and_then(|i| i.get("queue"))
+                    .get("queue_config")
                     .and_then(|q| SubscriberQueueConfig::from_value(Some(q)));
 
                 adapter

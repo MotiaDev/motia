@@ -1,13 +1,13 @@
 ---
-title: Infrastructure
-description: Configure queue behavior, retries, and timeouts for Queue Steps
+title: Queue Config
+description: Configure queue behavior, retries, and concurrency for Queue Steps
 ---
 
-Infrastructure settings let you control how Queue Steps handle queues, retries, and timeouts. Motia provides sensible defaults, so you only configure what you need.
+Queue config settings let you control how Queue Steps handle retries, concurrency, and backoff. Motia provides sensible defaults, so you only configure what you need.
 
 ## How It Works
 
-Add `infrastructure` to your Step config that uses a queue trigger:
+Add `config` to your queue trigger:
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
@@ -19,12 +19,12 @@ export const config = {
   name: 'SendEmail',
   description: 'Send email with retry support',
   triggers: [
-    { 
-      type: 'queue', 
+    {
+      type: 'queue',
       topic: 'email.requested',
-      infrastructure: {
-        handler: { timeout: 10 },
-        queue: { maxRetries: 5, visibilityTimeout: 60 }
+      config: {
+        maxRetries: 5,
+        visibilityTimeout: 60
       }
     },
   ],
@@ -43,9 +43,9 @@ config = {
         {
             "type": "queue",
             "topic": "email.requested",
-            "infrastructure": {
-                "handler": {"timeout": 10},
-                "queue": {"maxRetries": 5, "visibilityTimeout": 60}
+            "config": {
+                "maxRetries": 5,
+                "visibilityTimeout": 60
             }
         }
     ],
@@ -64,9 +64,9 @@ export const config = {
     {
       type: 'queue',
       topic: 'email.requested',
-      infrastructure: {
-        handler: { timeout: 10 },
-        queue: { maxRetries: 5, visibilityTimeout: 60 }
+      config: {
+        maxRetries: 5,
+        visibilityTimeout: 60
       }
     },
   ],
@@ -81,20 +81,15 @@ export const config = {
 
 ## Configuration Options
 
-### Handler Settings
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `timeout` | `number` | 30 | Handler timeout in seconds |
-
-### Queue Settings
-
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `type` | `string` | `standard` | Queue type: `standard` or `fifo` |
 | `maxRetries` | `number` | 3 | Number of retry attempts on failure |
 | `visibilityTimeout` | `number` | 900 | Seconds before message becomes visible again |
 | `delaySeconds` | `number` | 0 | Delay before processing (0-900 seconds) |
+| `concurrency` | `number` | - | Max parallel message processing per topic |
+| `backoffType` | `string` | - | Retry backoff strategy (e.g., `exponential`) |
+| `backoffDelayMs` | `number` | - | Base delay in ms for retry backoff |
 
 ---
 
@@ -115,9 +110,7 @@ export const config = {
     {
       type: 'queue',
       topic: 'order.created',
-      infrastructure: {
-        queue: { type: 'fifo' }
-      }
+      config: { type: 'fifo' }
     },
   ],
   flows: ['orders'],
@@ -135,9 +128,7 @@ config = {
         {
             "type": "queue",
             "topic": "order.created",
-            "infrastructure": {
-                "queue": {"type": "fifo"}
-            }
+            "config": {"type": "fifo"}
         }
     ],
     "flows": ["orders"]
@@ -155,9 +146,7 @@ export const config = {
     {
       type: 'queue',
       topic: 'order.created',
-      infrastructure: {
-        queue: { type: 'fifo' }
-      }
+      config: { type: 'fifo' }
     },
   ],
   flows: ['orders']
@@ -225,19 +214,14 @@ The `messageGroupId` ensures events are processed in order within that group.
 
 ## Default Values
 
-If you don't specify `infrastructure` on a queue trigger, Motia uses these defaults:
+If you don't specify `config` on a queue trigger, Motia uses these defaults:
 
 ```typescript
 {
-  handler: {
-    timeout: 30
-  },
-  queue: {
-    type: 'standard',
-    maxRetries: 3,
-    visibilityTimeout: 900,
-    delaySeconds: 0
-  }
+  type: 'standard',
+  maxRetries: 3,
+  visibilityTimeout: 900,
+  delaySeconds: 0
 }
 ```
 

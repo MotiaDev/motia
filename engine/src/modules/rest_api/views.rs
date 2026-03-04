@@ -19,6 +19,7 @@ use tracing::Instrument;
 
 use crate::{
     channels::ChannelItem,
+    condition::check_condition,
     modules::rest_api::types::{HttpRequest, HttpResponse},
 };
 
@@ -310,10 +311,9 @@ pub async fn dynamic_handler(
                 .take_receiver(&res_ch_id, &res_ch_key)
                 .await;
 
-            // Check condition function (with metadata only, no body or stream refs)
-            if let Some(condition_function_id) = condition_function_id.as_ref() {
+            if let Some(ref condition_id) = condition_function_id {
                 tracing::debug!(
-                    condition_function_id = %condition_function_id,
+                    condition_function_id = %condition_id,
                     "Checking trigger conditions"
                 );
 
@@ -323,37 +323,25 @@ pub async fn dynamic_handler(
                     obj.remove("response");
                 }
 
-                match engine
-                    .call(condition_function_id, condition_input)
-                    .await
-                {
-                    Ok(Some(result)) => {
-                        if let Some(passed) = result.as_bool()
-                            && !passed
-                        {
-                            tracing::debug!(
-                                function_id = %function_id,
-                                "Condition check failed, skipping handler"
-                            );
-                            channel_mgr.remove_channel(&req_ch_id);
-                            channel_mgr.remove_channel(&res_ch_id);
-                            return (
-                                StatusCode::UNPROCESSABLE_ENTITY,
-                                Json(json!({"error": "Request condition not met", "skipped": true})),
-                            )
-                                .into_response();
-                        }
-                    }
-                    Ok(None) => {
-                        tracing::warn!(
-                            condition_function_id = %condition_function_id,
-                            "Condition function returned no result"
+                match check_condition(engine.as_ref(), condition_id, condition_input).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        tracing::debug!(
+                            function_id = %function_id,
+                            "Condition check failed, skipping handler"
                         );
+                        channel_mgr.remove_channel(&req_ch_id);
+                        channel_mgr.remove_channel(&res_ch_id);
+                        return (
+                            StatusCode::UNPROCESSABLE_ENTITY,
+                            Json(json!({"error": "Request condition not met", "skipped": true})),
+                        )
+                            .into_response();
                     }
                     Err(err) => {
                         let error_id = generate_error_id();
                         tracing::error!(
-                            condition_function_id = %condition_function_id,
+                            condition_function_id = %condition_id,
                             error = ?err,
                             error_id = %error_id,
                             "Error invoking condition function"
