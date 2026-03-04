@@ -138,13 +138,9 @@ class QueueConfig(BaseModel):
     max_retries: int = Field(default=3, serialization_alias="maxRetries")
     visibility_timeout: int = Field(default=30, serialization_alias="visibilityTimeout")
     delay_seconds: int = Field(default=0, serialization_alias="delaySeconds")
-
-
-class InfrastructureConfig(BaseModel):
-    """Infrastructure configuration."""
-
-    handler: HandlerConfig | None = None
-    queue: QueueConfig | None = None
+    concurrency: int | None = Field(default=None)
+    backoff_type: str | None = Field(default=None, serialization_alias="backoffType")
+    backoff_delay_ms: int | None = Field(default=None, serialization_alias="backoffDelayMs")
 
 
 ApiRouteMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
@@ -183,7 +179,7 @@ class QueueTrigger(BaseModel):
     topic: str
     condition: TriggerCondition | None = None
     input: Any | None = None
-    infrastructure: InfrastructureConfig | None = None
+    config: QueueConfig | None = None
 
 
 class QueryParam(BaseModel):
@@ -429,7 +425,6 @@ class StepConfig(BaseModel):
     description: str | None = None
     flows: list[str] | None = None
     include_files: list[str] | None = Field(default=None, serialization_alias="includeFiles")
-    infrastructure: InfrastructureConfig | None = None
 
 
 class Step(BaseModel):
