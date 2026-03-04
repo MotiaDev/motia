@@ -90,6 +90,22 @@ impl EngineConfig {
         .to_string()
     }
 
+    /// Loads config strictly from the given file path.
+    /// Returns a clear error if the file does not exist or cannot be parsed.
+    pub fn config_file(path: &str) -> anyhow::Result<Self> {
+        let yaml_content = std::fs::read_to_string(path).map_err(|e| {
+            anyhow::anyhow!(
+                "Config file not found: '{}'. {}\n\
+                 Hint: create a config.yaml or pass --use-default-config to run with defaults.",
+                path,
+                e
+            )
+        })?;
+        let yaml_content = Self::expand_env_vars(&yaml_content);
+        serde_yaml::from_str(&yaml_content)
+            .map_err(|e| anyhow::anyhow!("Failed to parse config file '{}': {}", path, e))
+    }
+
     pub fn config_file_or_default(path: &str) -> anyhow::Result<Self> {
         match std::fs::read_to_string(path) {
             Ok(yaml_content) => {
@@ -627,5 +643,42 @@ mod tests {
   timeout: 30"#;
         let output = EngineConfig::expand_env_vars(input);
         assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_config_file_returns_error_when_file_missing() {
+        let result = EngineConfig::config_file("/tmp/iii_nonexistent_config_12345.yaml");
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Config file not found"),
+            "Error should mention 'Config file not found', got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn test_config_file_loads_valid_yaml() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test_config.yaml");
+        let mut file = std::fs::File::create(&path).unwrap();
+        writeln!(file, "port: 9999\nmodules: []").unwrap();
+
+        let config = EngineConfig::config_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(config.port, 9999);
+        assert!(config.modules.is_empty());
+    }
+
+    #[test]
+    fn test_config_file_error_message_includes_path() {
+        let path = "/tmp/iii_this_does_not_exist_67890.yaml";
+        let result = EngineConfig::config_file(path);
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains(path),
+            "Error should include the path '{}', got: {}",
+            path, err_msg
+        );
     }
 }
