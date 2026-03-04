@@ -119,6 +119,10 @@ impl EngineConfig {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use `config_file()` for strict loading or `default_config()` for explicit defaults"
+    )]
     pub fn config_file_or_default(path: &str) -> anyhow::Result<Self> {
         match std::fs::read_to_string(path) {
             Ok(yaml_content) => {
@@ -355,6 +359,11 @@ impl EngineBuilder {
     }
 
     /// Loads config from file if exists, otherwise uses defaults
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use `config_file()` for strict loading or `default_config()` for explicit defaults"
+    )]
+    #[allow(deprecated)]
     pub fn config_file_or_default(mut self, path: &str) -> anyhow::Result<Self> {
         let config = EngineConfig::config_file_or_default(path)?;
         self.config = Some(config);
@@ -533,6 +542,7 @@ async fn ws_handler(
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 
