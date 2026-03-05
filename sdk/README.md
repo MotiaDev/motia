@@ -55,16 +55,20 @@ pip install iii-sdk
 ```
 
 ```python
-from iii import III
-
-iii = III("ws://localhost:49134")
+import asyncio
+from iii import init, InitOptions
 
 async def my_function(data):
     return {"result": "success"}
 
-iii.register_function("my.function", my_function)
+async def main():
+    iii = init("ws://localhost:49134", InitOptions(worker_name="my-worker"))
+    iii.register_function("my.function", my_function)
 
-result = await iii.call("other.function", {"param": "value"})
+    result = await iii.call("other.function", {"param": "value"})
+    print(result)
+
+asyncio.run(main())
 ```
 
 ### Rust
@@ -75,13 +79,12 @@ iii-sdk = { path = "path/to/iii" }
 ```
 
 ```rust
-use iii_sdk::III;
+use iii_sdk::{init, InitOptions};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
 
     iii.register_function("my.function", |input| async move {
         Ok(json!({ "message": "Hello, world!", "input": input }))

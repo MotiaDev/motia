@@ -1,11 +1,10 @@
 from typing import Any, Awaitable, Callable
 
-from iii import ApiRequest, ApiResponse, FunctionInfo, get_context
-
-from .iii import iii
+from iii import III, ApiRequest, ApiResponse, FunctionInfo, get_context
 
 
 def use_api(
+    iii: III,
     config: dict[str, Any],
     handler: Callable[[ApiRequest[Any], Any], Awaitable[ApiResponse[Any]]],
 ) -> None:
@@ -32,5 +31,5 @@ def use_api(
     )
 
 
-def use_functions_available(callback: Callable[[list[FunctionInfo]], None]) -> Callable[[], None]:
+def use_functions_available(iii: III, callback: Callable[[list[FunctionInfo]], None]) -> Callable[[], None]:
     return iii.on_functions_available(callback)
