@@ -191,27 +191,27 @@ const App: React.FC = () => {
         </div>
 
         {/* Section 2: Hello World - Polyglot proof with IPC */}
-        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-8 md:py-12 lg:py-24">
           <HelloWorldSection isDarkMode={isDarkMode} />
         </div>
 
         {/* Section 3: Architecture (formerly Engine) - Trigger → Function → Workers */}
-        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-8 md:py-12 lg:py-24">
           <EngineSection isDarkMode={isDarkMode} />
         </div>
 
         {/* Section 4: Triggers as Universal Adapters - Code Examples */}
-        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-8 md:py-12 lg:py-24">
           <ExampleCodeSection isDarkMode={isDarkMode} />
         </div>
 
         {/* Section 5: Agent-Ready - AI agents as first-class citizens */}
-        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-8 md:py-12 lg:py-24">
           <AgentReadySection isDarkMode={isDarkMode} />
         </div>
 
         {/* Section 6: Footer + CTA - FAQ, Discord, Links */}
-        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-12 md:py-16 lg:py-24">
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-8 md:py-12 lg:py-24">
           <FooterSection isDarkMode={isDarkMode} />
         </div>
       </main>

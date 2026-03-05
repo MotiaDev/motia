@@ -927,7 +927,7 @@ export function AgentReadySection({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          <div className="flex md:hidden overflow-x-auto gap-2 p-3 scrollbar-hide">
+          <div className="flex md:hidden flex-wrap gap-2 p-3">
             {capabilities.map((cap, i) => (
               <button
                 key={cap.name}
@@ -947,7 +947,7 @@ export function AgentReadySection({
             ))}
           </div>
 
-          <div className="flex flex-col md:flex-row min-h-[420px]">
+          <div className="flex flex-col md:flex-row md:h-[480px]">
             <div
               className={`hidden md:flex flex-col w-72 lg:w-80 shrink-0 border-r ${cardBorder}`}
             >
@@ -1047,8 +1047,9 @@ export function AgentReadySection({
                 </button>
               </div>
 
-              <div className="p-6 sm:p-8 lg:p-10 overflow-x-auto flex-1">
+              <div className="p-4 sm:p-6 lg:p-8 overflow-auto flex-1 h-[420px]">
                 <Highlight
+                  key={isDarkMode ? "dark" : "light"}
                   theme={isDarkMode ? themes.nightOwl : themes.github}
                   code={active.code[activeLang]}
                   language={
@@ -1060,7 +1061,7 @@ export function AgentReadySection({
                   }
                 >
                   {({ tokens, getLineProps, getTokenProps }) => (
-                    <pre className="text-xs sm:text-sm md:text-base leading-7 md:leading-8">
+                    <pre className="text-[11px] sm:text-xs md:text-sm leading-6 md:leading-7">
                       {tokens.map((line, i) => (
                         <div key={i} {...getLineProps({ line })}>
                           {line.map((token, key) => (

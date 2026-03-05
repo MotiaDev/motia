@@ -211,6 +211,7 @@ export function HelloWorldSection({
                   className={`flex-1 p-0 overflow-hidden text-left ${isDarkMode ? "bg-iii-black" : "bg-iii-light"}`}
                 >
                   <Highlight
+                    key={isDarkMode ? "dark" : "light"}
                     theme={isDarkMode ? themes.nightOwl : themes.github}
                     code={block.code}
                     language={block.language as any}

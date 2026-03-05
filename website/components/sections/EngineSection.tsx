@@ -161,44 +161,12 @@ iii.register_function("users::create", create_user)`,
       "Scale up, scale down — topology adapts in real time",
     ],
     code: {
-      typescript: `// Start listening for topology changes
-iii.onFunctionsAvailable((functions) => {
-  const { logger } = getContext()
-  logger.info(
-    \`\${functions.length} functions available\`
-  )
-})
-
-// [10:04:12] Worker 'user-service-py' connected
-// [10:04:12] functionsAvailable -> 12 functions
-
-// [10:18:45] Worker 'payments-rs' connected
-// [10:18:45] functionsAvailable -> 15 functions
-
-// [10:32:10] Worker 'user-service-py' disconnected
-// [10:32:10] functionsAvailable -> 3 functions`,
-      python: `def on_change(functions):
-    logger = get_context().logger
-    logger.info(f"{len(functions)} functions available")
-
-iii.on_functions_available(on_change)`,
-      rust: `// Start listening for topology changes
-iii.on_functions_available(|functions| {
-    let logger = get_context().logger();
-    logger.info(
-        &format!("{} functions available",
-        functions.len())
-    );
-});
-
-// [10:04:12] ENGINE: Worker 'user-service-py' connected
-// [10:04:12] functionsAvailable -> 12 functions
-
-// [10:18:45] ENGINE: Worker 'payments-rs' connected
-// [10:18:45] functionsAvailable -> 15 functions
-
-// [10:32:10] ENGINE: Worker 'user-service-py' disconnected
-// [10:32:10] functionsAvailable -> 3 functions`,
+      typescript: `const iii = new III()
+await iii.connect()`,
+      python: `iii = III()
+await iii.connect()`,
+      rust: `let iii = III::new();
+iii.connect().await;`,
     },
   },
 ];
@@ -256,6 +224,7 @@ const capabilityNodes = [
     icon: GlobeIcon,
     tone: "accent",
     side: "left",
+    type: "trigger" as const,
   },
   {
     title: "Cron",
@@ -264,14 +233,16 @@ const capabilityNodes = [
     icon: ClockIcon,
     tone: "warn",
     side: "left",
+    type: "trigger" as const,
   },
   {
-    title: "Events",
-    titleFull: "Queues + Events",
-    subtitle: "Pub/Sub",
+    title: "Queues",
+    titleFull: "Queues + Pub/Sub",
+    subtitle: "Messaging",
     icon: MessageCircleIcon,
     tone: "info",
     side: "left",
+    type: "trigger" as const,
   },
   {
     title: "State",
@@ -280,6 +251,7 @@ const capabilityNodes = [
     icon: Database,
     tone: "success",
     side: "left",
+    type: "trigger" as const,
   },
   {
     title: "Streaming",
@@ -288,6 +260,7 @@ const capabilityNodes = [
     icon: Activity,
     tone: "info",
     side: "right",
+    type: "function" as const,
   },
   {
     title: "Traces",
@@ -296,6 +269,7 @@ const capabilityNodes = [
     icon: EyeIcon,
     tone: "accent",
     side: "right",
+    type: "function" as const,
   },
   {
     title: "Workflows",
@@ -304,6 +278,7 @@ const capabilityNodes = [
     icon: Share2,
     tone: "warn",
     side: "right",
+    type: "function" as const,
   },
   {
     title: "AI Agents",
@@ -312,6 +287,7 @@ const capabilityNodes = [
     icon: Bot,
     tone: "alert",
     side: "right",
+    type: "function" as const,
   },
 ];
 
@@ -640,11 +616,11 @@ function ConceptsIDE({
           {renderLangToggle("hidden md:flex mr-4")}
         </div>
 
-        {/* Content: Description left + Code right */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr]">
+        {/* Content: Description left + Code right — fixed height to prevent layout shift on tab change */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:h-[340px]">
           {/* Left: Description panel */}
           <div
-            className={`p-6 sm:p-8 border-b lg:border-b-0 lg:border-r flex flex-col justify-center ${borderColor}`}
+            className={`p-6 sm:p-8 border-b lg:border-b-0 lg:border-r flex flex-col justify-center overflow-y-auto ${borderColor}`}
           >
             <div className="flex items-center gap-3 mb-4">
               <div
@@ -686,7 +662,7 @@ function ConceptsIDE({
 
           {/* Right: Code panel */}
           <div
-            className={`relative flex flex-col ${isDarkMode ? "bg-[#0a0a0a]" : "bg-[#fafafa]"}`}
+            className={`relative flex flex-col overflow-hidden ${isDarkMode ? "bg-[#0a0a0a]" : "bg-[#fafafa]"}`}
           >
             {/* Mobile language toggle — inside code panel */}
             <div
@@ -695,8 +671,9 @@ function ConceptsIDE({
               {renderLangToggle("")}
             </div>
             {/* Code Block with Syntax Highlighting */}
-            <div className="flex flex-1" style={{ minHeight: "280px" }}>
+            <div className="flex flex-1">
               <Highlight
+                key={isDarkMode ? "dark" : "light"}
                 theme={isDarkMode ? themes.vsDark : themes.vsLight}
                 code={active.code[activeLang]}
                 language={
@@ -843,7 +820,7 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
       </div>
       <div className="relative z-10">
         {/* Header — PlanetScale-inspired: big statement, tight subtitle */}
-        <div className="text-center mb-16 md:mb-24 space-y-5">
+        <div className="text-center mb-10 md:mb-16 space-y-5">
           <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter leading-[1.05]">
             <span className="block">One engine.</span>
             <span className={`block ${accentColor}`}>Three concepts.</span>
@@ -888,7 +865,7 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
 
         {/* Capability Map Diagram — Interactive SVG Particle Flow */}
         <div
-          className={`relative p-6 sm:p-8 md:p-12 lg:p-16 rounded-lg border ${borderColor} ${bgCard} overflow-hidden`}
+          className={`relative p-4 sm:p-6 md:p-8 lg:p-10 rounded-lg ${bgCard} overflow-hidden`}
         >
           {/* Subtle Grid Background */}
           <div
@@ -910,7 +887,8 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
                 The Engine does it all
               </h3>
               <p className={`text-sm mt-3 font-mono ${textSecondary}`}>
-                Events flow through the Engine to any worker, in any language
+                Operations flow through the Engine to any worker, in any
+                language
               </p>
             </div>
 
@@ -933,12 +911,27 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
                         <Icon className={`${tone.icon}`} size={14} />
                       </div>
                       <div className="text-left min-w-0">
-                        <div
-                          className={`text-[10px] sm:text-xs font-semibold ${textPrimary} leading-tight`}
-                        >
-                          <span className="sm:hidden">{node.title}</span>
-                          <span className="hidden sm:inline">
-                            {node.titleFull}
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className={`text-[10px] sm:text-xs font-semibold ${textPrimary} leading-tight`}
+                          >
+                            <span className="sm:hidden">{node.title}</span>
+                            <span className="hidden sm:inline">
+                              {node.titleFull}
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[8px] font-mono font-bold px-1 py-0.5 rounded border leading-none ${
+                              node.type === "trigger"
+                                ? isDarkMode
+                                  ? "border-iii-accent/40 text-iii-accent/80"
+                                  : "border-iii-accent-light/40 text-iii-accent-light/80"
+                                : isDarkMode
+                                  ? "border-iii-info/40 text-iii-info/80"
+                                  : "border-iii-info/40 text-iii-info/80"
+                            }`}
+                          >
+                            {node.type === "trigger" ? "T" : "F"}
                           </span>
                         </div>
                         <div
@@ -1010,7 +1003,7 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
                       style={{ color: isDarkMode ? "#f3f724" : "#2f7fff" }}
                     />
                     <span>
-                      12,869 <span className="opacity-50">events</span>
+                      12,869 <span className="opacity-50">ops</span>
                     </span>
                   </div>
                   <div
@@ -1066,12 +1059,27 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
                         <Icon className={`${tone.icon}`} size={14} />
                       </div>
                       <div className="text-left min-w-0">
-                        <div
-                          className={`text-[10px] sm:text-xs font-semibold ${textPrimary} leading-tight`}
-                        >
-                          <span className="sm:hidden">{node.title}</span>
-                          <span className="hidden sm:inline">
-                            {node.titleFull}
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className={`text-[10px] sm:text-xs font-semibold ${textPrimary} leading-tight`}
+                          >
+                            <span className="sm:hidden">{node.title}</span>
+                            <span className="hidden sm:inline">
+                              {node.titleFull}
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[8px] font-mono font-bold px-1 py-0.5 rounded border leading-none ${
+                              node.type === "trigger"
+                                ? isDarkMode
+                                  ? "border-iii-accent/40 text-iii-accent/80"
+                                  : "border-iii-accent-light/40 text-iii-accent-light/80"
+                                : isDarkMode
+                                  ? "border-iii-info/40 text-iii-info/80"
+                                  : "border-iii-info/40 text-iii-info/80"
+                            }`}
+                          >
+                            {node.type === "trigger" ? "T" : "F"}
                           </span>
                         </div>
                         <div
@@ -1087,7 +1095,7 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
             </div>
 
             {/* Desktop: Interactive SVG Particle Flow Diagram */}
-            <div className="hidden lg:block w-full max-w-5xl mx-auto">
+            <div className="hidden lg:block w-full mx-auto">
               <ParticleFlowDiagram
                 leftNodes={leftNodes}
                 rightNodes={rightNodes}
@@ -1124,7 +1132,7 @@ function ParticleFlowDiagram({
     const interval = setInterval(() => {
       setActiveInput((prev) => (prev + 1) % 4);
       setCycleKey((prev) => prev + 1);
-    }, 3500);
+    }, 2000);
     return () => clearInterval(interval);
   }, [isHovered, hoveredNode]);
 
@@ -1198,6 +1206,19 @@ function ParticleFlowDiagram({
     return `M ${cx + 50},${cy} C ${cx + 100},${cy} ${endX - 60},${endY} ${endX},${endY}`;
   });
 
+  // Reverse paths for bidirectional flow
+  const leftPathsReverse = yPos.map((y) => {
+    const startX = leftX + nodeW;
+    const startY = y + nodeH / 2;
+    return `M ${cx - 50},${cy} C ${cx - 100},${cy} ${startX + 60},${startY} ${startX},${startY}`;
+  });
+
+  const rightPathsReverse = yPos.map((y) => {
+    const endX = rightX;
+    const endY = y + nodeH / 2;
+    return `M ${endX},${endY} C ${endX - 60},${endY} ${cx + 100},${cy} ${cx + 50},${cy}`;
+  });
+
   const getThemeColor = (colorName: string) => {
     return isDarkMode ? "#f3f724" : "#2f7fff";
   };
@@ -1246,23 +1267,68 @@ function ParticleFlowDiagram({
         />
       ))}
 
-      {/* AMBIENT PARTICLES (Always running, slow, dim) */}
-      {[0, 1, 2, 3].map((i) => (
-        <g key={`ambient-${i}`} opacity="0.3">
+      {/* AMBIENT PARTICLES (12 forward + 5 reverse, fast, continuous) */}
+      {[0, 1, 2, 3].map((i) =>
+        [0, 1, 2].map((j) => (
+          <g key={`ambient-fwd-${i}-${j}`} opacity="0.3">
+            <circle r="1.5" fill={isDarkMode ? "#ffffff" : "#000000"}>
+              <animateMotion
+                dur="2.5s"
+                begin={`${i * 0.6 + j * 0.8}s`}
+                repeatCount="indefinite"
+                path={leftPaths[i]}
+              />
+            </circle>
+            <circle r="1.5" fill={isDarkMode ? "#ffffff" : "#000000"}>
+              <animateMotion
+                dur="2.5s"
+                begin={`${i * 0.6 + j * 0.8 + 1.2}s`}
+                repeatCount="indefinite"
+                path={rightPaths[i]}
+              />
+            </circle>
+          </g>
+        )),
+      )}
+      {/* Reverse-direction ambient particles (~40% density) */}
+      {[0, 2].map((i) =>
+        [0, 1].map((j) => (
+          <g key={`ambient-rev-${i}-${j}`} opacity="0.2">
+            <circle r="1.5" fill={isDarkMode ? "#ffffff" : "#000000"}>
+              <animateMotion
+                dur="3s"
+                begin={`${i * 0.7 + j * 1.4}s`}
+                repeatCount="indefinite"
+                path={leftPathsReverse[i]}
+              />
+            </circle>
+            <circle r="1.5" fill={isDarkMode ? "#ffffff" : "#000000"}>
+              <animateMotion
+                dur="3s"
+                begin={`${i * 0.7 + j * 1.4 + 0.5}s`}
+                repeatCount="indefinite"
+                path={rightPathsReverse[i]}
+              />
+            </circle>
+          </g>
+        )),
+      )}
+      {[1, 3].map((i) => (
+        <g key={`ambient-rev-single-${i}`} opacity="0.2">
           <circle r="1.5" fill={isDarkMode ? "#ffffff" : "#000000"}>
             <animateMotion
-              dur="6s"
-              begin={`${i * 1.5}s`}
+              dur="3s"
+              begin={`${i * 0.9}s`}
               repeatCount="indefinite"
-              path={leftPaths[i]}
+              path={leftPathsReverse[i]}
             />
           </circle>
           <circle r="1.5" fill={isDarkMode ? "#ffffff" : "#000000"}>
             <animateMotion
-              dur="6s"
-              begin={`${i * 1.5 + 3}s`}
+              dur="3s"
+              begin={`${i * 0.9 + 1}s`}
               repeatCount="indefinite"
-              path={rightPaths[i]}
+              path={rightPathsReverse[i]}
             />
           </circle>
         </g>
@@ -1295,7 +1361,7 @@ function ParticleFlowDiagram({
               attributeName="opacity"
               values="0;0;0.5;0"
               keyTimes="0;0.35;0.5;1"
-              dur="3s"
+              dur="1.8s"
               begin="0s"
             />
           </path>
@@ -1303,8 +1369,8 @@ function ParticleFlowDiagram({
       ))}
 
       {/* MAIN ANIMATED PARTICLES (Triggered on cycleKey change) */}
-      {/* 1. Input → Engine (3 staggered particles) */}
-      {[0, 0.15, 0.3].map((delay, j) => (
+      {/* 1. Input → Engine (5 staggered particles) */}
+      {[0, 0.08, 0.16, 0.24, 0.32].map((delay, j) => (
         <circle
           key={`p-in-${cycleKey}-${j}`}
           r="3.5"
@@ -1316,12 +1382,12 @@ function ParticleFlowDiagram({
             attributeName="opacity"
             values="0;1;1;0"
             keyTimes="0;0.05;0.95;1"
-            dur="1s"
+            dur="0.6s"
             begin={`${delay}s`}
             fill="freeze"
           />
           <animateMotion
-            dur="1s"
+            dur="0.6s"
             begin={`${delay}s`}
             fill="freeze"
             path={leftPaths[activeInput]}
@@ -1329,10 +1395,10 @@ function ParticleFlowDiagram({
         </circle>
       ))}
 
-      {/* 2. Engine → Outputs (Fan out to all 4 simultaneously) */}
+      {/* 2. Engine → Outputs (Fan out to all 4 simultaneously, 5 particles each) */}
       {[0, 1, 2, 3].map((outputIndex) => (
         <g key={`p-out-${cycleKey}-${outputIndex}`}>
-          {[1.1, 1.25, 1.4].map((delay, j) => (
+          {[0.65, 0.73, 0.81, 0.89, 0.97].map((delay, j) => (
             <circle
               key={`p-out-c-${j}`}
               r="3.5"
@@ -1344,12 +1410,12 @@ function ParticleFlowDiagram({
                 attributeName="opacity"
                 values="0;1;1;0"
                 keyTimes="0;0.05;0.95;1"
-                dur="1s"
+                dur="0.6s"
                 begin={`${delay}s`}
                 fill="freeze"
               />
               <animateMotion
-                dur="1s"
+                dur="0.6s"
                 begin={`${delay}s`}
                 fill="freeze"
                 path={rightPaths[outputIndex]}
@@ -1404,18 +1470,33 @@ function ParticleFlowDiagram({
                 <Icon size={16} className={tone.icon} />
               </div>
               <div className="text-left min-w-0">
-                <div
-                  className={`text-xs font-semibold truncate transition-colors ${
-                    isActive
-                      ? isDarkMode
-                        ? "text-white"
-                        : "text-black"
-                      : isDarkMode
-                        ? "text-white/70"
-                        : "text-black/70"
-                  }`}
-                >
-                  {node.titleFull}
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className={`text-xs font-semibold truncate transition-colors ${
+                      isActive
+                        ? isDarkMode
+                          ? "text-white"
+                          : "text-black"
+                        : isDarkMode
+                          ? "text-white/70"
+                          : "text-black/70"
+                    }`}
+                  >
+                    {node.titleFull}
+                  </div>
+                  <span
+                    className={`text-[8px] font-mono font-bold px-1 py-0.5 rounded border leading-none flex-shrink-0 ${
+                      node.type === "trigger"
+                        ? isDarkMode
+                          ? "border-[#f3f724]/40 text-[#f3f724]/80"
+                          : "border-[#2f7fff]/40 text-[#2f7fff]/80"
+                        : isDarkMode
+                          ? "border-[#38bdf8]/40 text-[#38bdf8]/80"
+                          : "border-[#38bdf8]/40 text-[#38bdf8]/80"
+                    }`}
+                  >
+                    {node.type === "trigger" ? "T" : "F"}
+                  </span>
                 </div>
                 <div
                   className={`text-[10px] truncate ${isDarkMode ? "text-white/40" : "text-black/40"}`}
@@ -1477,10 +1558,25 @@ function ParticleFlowDiagram({
                   <Icon size={16} className={tone.icon} />
                 </div>
                 <div className="text-left min-w-0">
-                  <div
-                    className={`text-xs font-semibold truncate ${isDarkMode ? "text-white/80" : "text-black/80"}`}
-                  >
-                    {node.titleFull}
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className={`text-xs font-semibold truncate ${isDarkMode ? "text-white/80" : "text-black/80"}`}
+                    >
+                      {node.titleFull}
+                    </div>
+                    <span
+                      className={`text-[8px] font-mono font-bold px-1 py-0.5 rounded border leading-none flex-shrink-0 ${
+                        node.type === "trigger"
+                          ? isDarkMode
+                            ? "border-[#f3f724]/40 text-[#f3f724]/80"
+                            : "border-[#2f7fff]/40 text-[#2f7fff]/80"
+                          : isDarkMode
+                            ? "border-[#38bdf8]/40 text-[#38bdf8]/80"
+                            : "border-[#38bdf8]/40 text-[#38bdf8]/80"
+                      }`}
+                    >
+                      {node.type === "trigger" ? "T" : "F"}
+                    </span>
                   </div>
                   <div
                     className={`text-[10px] truncate ${isDarkMode ? "text-white/40" : "text-black/40"}`}
@@ -1575,7 +1671,7 @@ function ParticleFlowDiagram({
               <Activity className="w-3 h-3" style={{ color: activeColor }} />
               <span>
                 {eventCount.toLocaleString()}{" "}
-                <span className="opacity-50">events</span>
+                <span className="opacity-50">ops</span>
               </span>
             </div>
 

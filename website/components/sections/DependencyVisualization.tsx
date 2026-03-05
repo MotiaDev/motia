@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Highlight, themes } from "prism-react-renderer";
-import { RefreshIcon } from "../icons";
 
 type AnimationPhase =
   | "idle"
@@ -847,7 +846,16 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
       lowerLine.includes("emit(") ||
       lowerLine.includes("getcontext") ||
       lowerLine.includes("registerfunction") ||
+      lowerLine.includes("registertrigger") ||
+      lowerLine.includes("triggervoid") ||
+      lowerLine.includes("iii.trigger(") ||
       lowerLine.includes("invokefunctionasync") ||
+      lowerLine.includes("state::") ||
+      lowerLine.includes("stream::") ||
+      lowerLine.includes("'publish'") ||
+      lowerLine.includes('"publish"') ||
+      lowerLine.includes("'enqueue'") ||
+      lowerLine.includes('"enqueue"') ||
       (lowerLine.includes("await ") &&
         !lowerLine.includes("connect") &&
         !lowerLine.includes("subscribe")) ||
@@ -963,6 +971,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
           )}
 
         <Highlight
+          key={isDarkMode ? "dark" : "light"}
           theme={isDarkMode ? themes.nightOwl : themes.github}
           code={code.trim()}
           language={language as any}
@@ -1149,34 +1158,12 @@ export const DependencyVisualization: React.FC<
     return cleanup;
   }, [categoryId, hasAnimatedOnScroll, runAnimation]);
 
-  const handleReplay = () => {
-    runAnimation();
-  };
-
   const isLegendVisible =
     animationPhase === "legendVisible" || animationPhase === "spotlight";
   const isSpotlight = animationPhase === "spotlight";
 
   return (
     <div ref={containerRef} className="space-y-4">
-      {/* Replay button */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleReplay}
-          className={`
-            flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-            ${
-              isDarkMode
-                ? "bg-iii-dark hover:bg-iii-dark/80 text-iii-light/70 hover:text-iii-light border border-iii-light/20"
-                : "bg-white hover:bg-gray-50 text-iii-medium hover:text-iii-black border border-iii-dark/20"
-            }
-          `}
-        >
-          <RefreshIcon size={12} />
-          Replay
-        </button>
-      </div>
-
       {/* Three column layout: Traditional | Engine Hub | iii */}
       <div className="hidden lg:grid grid-cols-[1fr_160px_1fr] gap-4 xl:gap-6 overflow-visible">
         {/* Traditional Code - Left */}

@@ -394,22 +394,22 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                 </span>
                 <br />
                 <span
-                  className={`transition-all duration-500 ease-in-out ${
+                  className={`inline-block transition-all duration-500 ease-in-out ${
                     isDarkMode ? "text-iii-light" : "text-iii-black"
                   } ${
                     isAnimating
-                      ? "opacity-0 translate-y-5 scale-[0.8]"
+                      ? "opacity-0 translate-y-5 scale-80"
                       : "opacity-100 translate-y-0 scale-100"
                   }`}
                 >
                   {currentWord}
                 </span>{" "}
                 <span
-                  className={`transition-all duration-500 ease-in-out ${
+                  className={`inline-block transition-all duration-500 ease-in-out ${
                     isDarkMode ? "text-iii-accent" : "text-iii-accent-light"
                   } ${
                     isContextAnimating
-                      ? "opacity-0 -translate-y-3 scale-[0.9]"
+                      ? "opacity-0 -translate-y-3 scale-90"
                       : "opacity-100 translate-y-0 scale-100"
                   }`}
                 >

@@ -185,6 +185,7 @@ function CodeBlock({
         }`}
       >
         <Highlight
+          key={isDarkMode ? "dark" : "light"}
           theme={isDarkMode ? themes.nightOwl : themes.github}
           code={code.trim()}
           language={language as any}
@@ -424,7 +425,7 @@ export function ExampleCodeSection({
               Side-by-Side Comparisons
             </span>
           </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter px-2">
             <p>Services, frameworks, integrations,</p>
             <p>all become design patterns.</p>
           </h2>
@@ -445,7 +446,7 @@ export function ExampleCodeSection({
             >
               Replaces
             </div>
-            <div className="flex overflow-x-auto scrollbar-hide pb-1 justify-center">
+            <div className="flex pb-1 justify-center">
               <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center px-2">
                 {replaceCategories.map((category) => (
                   <button
@@ -473,7 +474,7 @@ export function ExampleCodeSection({
             >
               Enables
             </div>
-            <div className="flex overflow-x-auto scrollbar-hide pb-1 justify-center">
+            <div className="flex pb-1 justify-center">
               <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center px-2">
                 {enableCategories.map((category) => (
                   <button
@@ -499,7 +500,7 @@ export function ExampleCodeSection({
 
         {/* Description */}
         {currentExample && (
-          <div className="mb-6 md:mb-8 max-w-2xl mx-auto flex items-center justify-center px-2">
+          <div className="mb-6 md:mb-8 max-w-2xl mx-auto flex items-center justify-center px-2 min-h-[40px] md:min-h-[48px]">
             <p
               className={`text-center text-[11px] sm:text-xs md:text-sm leading-5 sm:leading-6 ${
                 isDarkMode ? "text-iii-light/50" : "text-iii-medium/70"
