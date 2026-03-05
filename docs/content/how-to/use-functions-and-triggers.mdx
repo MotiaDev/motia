@@ -273,8 +273,8 @@ This example aggregates all stored math results (from `math::add` above) every 3
 iii.registerFunction({ id: 'math::aggregation' }, async () => {
     const { logger } = getContext();
     const results = await iii.trigger('state::list', { scope: 'math' });
-    const values: number[] = results.filter((r: unknown) => typeof r === 'number');
-    const sum = values.reduce((a: number, b: number) => a + b, 0);
+    const values = results.filter((r) => typeof r === 'number');
+    const sum = values.reduce((a, b) => a + b, 0);
     const aggregation = { count: values.length, sum, average: values.length ? sum / values.length : 0 };
     logger.info('Math aggregation completed', aggregation);
     return aggregation;

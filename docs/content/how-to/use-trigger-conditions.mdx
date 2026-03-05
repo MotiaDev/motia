@@ -11,7 +11,7 @@ Run a condition Function before a Trigger runs, and only execute the handler Fun
 
 ### 1. Register the handler and condition Functions
 
-Register a normal handler Function and a condition Function that will returns a boolean: `true` or `false`.
+Register a normal handler Function and a condition Function that returns `true` or `false`.
 
 <Callout title="All functions are the same" type="info">
 Both Functions are declared in the same way. They only differ in how they are used.
@@ -20,43 +20,46 @@ Both Functions are declared in the same way. They only differ in how they are us
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="conditions-functions.ts"
-import { init, type ApiRequest } from 'iii-sdk'
+import { init } from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // condition
 iii.registerFunction(
   { id: 'conditions::is-high-value' },
-  async (req: ApiRequest<{ amount: number }>) => (req.body?.amount ?? 0) >= 1000,
+  async (event) => (event.new_value?.amount ?? 0) >= 1000,
 )
 
 // handler
 iii.registerFunction(
   { id: 'orders::process-high-value' },
-  async (req: ApiRequest<{ amount: number }>) => ({
+  async (event) => ({
     status_code: 200,
-    body: { processed: true, amount: req.body?.amount ?? 0 },
+    body: { processed: true, amount: event.new_value?.amount ?? 0 },
   }),
 )
 ```
 </Tab>
 <Tab value="Python">
 ```python title="conditions_functions.py"
-from iii import III, ApiRequest, ApiResponse
+from iii import III
 
 iii = III("ws://localhost:49134")
 
 # condition
-async def is_high_value(data) -> bool:
-    req = ApiRequest(**data) if isinstance(data, dict) else data
-    return (req.body or {}).get("amount", 0) >= 1000
+async def is_high_value(event):
+    if not isinstance(event, dict):
+        return False
+    return (event.get("new_value") or {}).get("amount", 0) >= 1000
 
 # handler
-async def process_high_value(data) -> ApiResponse:
-    req = ApiRequest(**data) if isinstance(data, dict) else data
+async def process_high_value(event):
+    amount = 0
+    if isinstance(event, dict):
+        amount = (event.get("new_value") or {}).get("amount", 0)
     return ApiResponse(statusCode=200, body={
         "processed": True,
-        "amount": (req.body or {}).get("amount", 0),
+        "amount": amount,
     })
 
 iii.register_function("conditions::is-high-value", is_high_value)
@@ -75,13 +78,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // condition
     iii.register_function("conditions::is-high-value", |input| async move {
-        let amount = input["body"]["amount"].as_f64().unwrap_or(0.0);
+        let amount = input["new_value"]["amount"].as_f64().unwrap_or(0.0);
         Ok(json!(amount >= 1000.0))
     });
 
     // handler
     iii.register_function("orders::process-high-value", |input| async move {
-        let amount = input["body"]["amount"].as_f64().unwrap_or(0.0);
+        let amount = input["new_value"]["amount"].as_f64().unwrap_or(0.0);
         Ok(json!({
             "status_code": 200,
             "body": { "processed": true, "amount": amount }
@@ -111,7 +114,7 @@ Example (`state` trigger):
 ```typescript title="state-trigger-with-condition.ts"
 iii.registerTrigger({
   type: 'state',
-  function_id: 'orders::on-status-change',
+  function_id: 'orders::process-high-value',
   config: {
     scope: 'orders',
     key: 'status',
@@ -124,7 +127,7 @@ iii.registerTrigger({
 ```python title="state_trigger_with_condition.py"
 iii.register_trigger(
     type="state",
-    function_id="orders::on-status-change",
+    function_id="orders::process-high-value",
     config={
         "scope": "orders",
         "key": "status",
@@ -135,7 +138,7 @@ iii.register_trigger(
 </Tab>
 <Tab value="Rust">
 ```rust title="state_trigger_with_condition.rs"
-iii.register_trigger("state", "orders::on-status-change", json!({
+iii.register_trigger("state", "orders::process-high-value", json!({
     "scope": "orders",
     "key": "status",
     "condition_function_id": "conditions::is-high-value"
