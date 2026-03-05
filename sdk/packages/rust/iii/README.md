@@ -87,10 +87,18 @@ iii.trigger_void("analytics.track", json!({ "event": "page_view" }))?;
 ### Streams
 
 ```rust
-use iii_sdk::Streams;
+use iii_sdk::{init, InitOptions, Streams};
+use serde_json::json;
 
-let streams = Streams::new(iii.clone());
-streams.set_field("room::123", "users", json!(["alice", "bob"])).await?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
+
+    let streams = Streams::new(iii.clone());
+    streams.set_field("room::123", "users", json!(["alice", "bob"])).await?;
+
+    Ok(())
+}
 ```
 
 ### OpenTelemetry
