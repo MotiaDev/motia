@@ -165,7 +165,7 @@ jobs:
 
   console-release:
     name: Console Binary Release
-    needs: [setup, console-frontend]
+    needs: [setup, create-iii-release, console-frontend]
     if: ${{ !failure() && !cancelled() }}
     uses: ./.github/workflows/_rust-binary.yml
     with:
