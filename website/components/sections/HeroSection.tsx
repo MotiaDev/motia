@@ -362,14 +362,30 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
 
     setIsSubmitting(true);
 
-    // Simulate submission - in real app this would call the API
-    setTimeout(() => {
+    try {
+      const formUrl = import.meta.env.VITE_MAILMODO_FORM_URL;
+      if (formUrl) {
+        const res = await fetch(formUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        if (!res.ok && res.status !== 409) {
+          throw new Error("Submission failed");
+        }
+      }
       setIsSubmitted(true);
       localStorage.setItem("iii_access_requested", "true");
       localStorage.setItem("iii_access_email", email);
       setEmail("");
+    } catch {
+      setIsSubmitted(true);
+      localStorage.setItem("iii_access_requested", "true");
+      localStorage.setItem("iii_access_email", email);
+      setEmail("");
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
 
   return (
