@@ -20,13 +20,12 @@ tokio = { version = "1", features = ["full"] }
 ## Hello World
 
 ```rust
-use iii_sdk::III;
+use iii_sdk::{init, InitOptions};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
 
     iii.register_function("greet", |input| async move {
         let name = input.get("name").and_then(|v| v.as_str()).unwrap_or("world");
@@ -51,16 +50,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Operation                | Signature                                    | Description                                            |
 | ------------------------ | -------------------------------------------- | ------------------------------------------------------ |
-| Initialize               | `III::new(url)`                              | Create an SDK instance                                 |
-| Connect                  | `iii.connect().await?`                       | Connect to the engine                                  |
+| Initialize               | `init(url, options)`                         | Create an SDK instance and auto-connect                |
 | Register function        | `iii.register_function(id, \|input\| ...)`   | Register a function that can be invoked by name        |
 | Register trigger         | `iii.register_trigger(type, fn_id, config)?` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await)           | `iii.trigger(id, data).await?`               | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.trigger_void(id, data)?`                | Invoke a function without waiting (fire-and-forget)    |
 
-### Connection
-
-Rust requires an explicit `iii.connect().await?` call. This starts a background task that handles WebSocket communication and automatic reconnection. It also sets up OpenTelemetry instrumentation.
+`init()` spawns a background task that handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation. For manual control, use `III::new(url)` + `iii.connect().await?`.
 
 ### Registering Functions
 
@@ -73,8 +69,6 @@ iii.register_function("orders.create", |input| async move {
 
 ### Registering Triggers
 
-Requires `iii.connect().await?` first.
-
 ```rust
 iii.register_trigger("http", "orders.create", json!({
     "api_path": "/orders",
@@ -83,8 +77,6 @@ iii.register_trigger("http", "orders.create", json!({
 ```
 
 ### Invoking Functions
-
-Requires `iii.connect().await?` first.
 
 ```rust
 let result = iii.trigger("orders.create", json!({ "body": { "item": "widget" } })).await?;

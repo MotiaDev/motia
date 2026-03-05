@@ -99,23 +99,24 @@ pip install iii-sdk
 ```
 
 ```python
-from iii import III
-
-iii = III("ws://localhost:49134")
-
-async def add(data):
-    return {"sum": data["a"] + data["b"]}
-
-iii.register_function("math.add", add)
+import asyncio
+from iii import init
 
 async def main():
-    await iii.connect()
+    iii = init("ws://localhost:49134")
+
+    async def add(data):
+        return {"sum": data["a"] + data["b"]}
+
+    iii.register_function("math.add", add)
 
     iii.register_trigger(
         type="http",
         function_id="math.add",
         config={"api_path": "add", "http_method": "POST"}
     )
+
+asyncio.run(main())
 ```
 
 </details>
@@ -124,13 +125,12 @@ async def main():
 <summary>Rust</summary>
 
 ```rust
-use iii_sdk::III;
+use iii_sdk::{init, InitOptions};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
 
     iii.register_function("math.add", |input| async move {
         let a = input.get("a").and_then(|v| v.as_i64()).unwrap_or(0);

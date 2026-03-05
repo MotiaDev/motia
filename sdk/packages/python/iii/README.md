@@ -16,17 +16,15 @@ pip install iii-sdk
 
 ```python
 import asyncio
-from iii import III
-
-iii = III("ws://localhost:49134")
-
-async def greet(data):
-    return {"message": f"Hello, {data['name']}!"}
-
-iii.register_function("greet", greet)
+from iii import init
 
 async def main():
-    await iii.connect()
+    iii = init("ws://localhost:49134")
+
+    async def greet(data):
+        return {"message": f"Hello, {data['name']}!"}
+
+    iii.register_function("greet", greet)
 
     iii.register_trigger(
         type="http",
@@ -44,16 +42,13 @@ asyncio.run(main())
 
 | Operation                | Signature                                         | Description                                            |
 | ------------------------ | ------------------------------------------------- | ------------------------------------------------------ |
-| Initialize               | `III(url)`                                        | Create an SDK instance                                 |
-| Connect                  | `await iii.connect()`                             | Connect to the engine                                  |
+| Initialize               | `init(url, options?)`                             | Create an SDK instance and auto-connect                |
 | Register function        | `iii.register_function(id, handler)`              | Register a function that can be invoked by name        |
 | Register trigger         | `iii.register_trigger(type, function_id, config)` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await)           | `await iii.trigger(id, data)`                     | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.trigger_void(id, data)`                      | Invoke a function without waiting (fire-and-forget)    |
 
-### Connection
-
-Python requires an explicit `await iii.connect()` call (no async constructors in Python). This sets up both the WebSocket connection and OpenTelemetry instrumentation.
+`init()` must be called inside an async context (it schedules the connection on the running event loop). For manual control, use `III(url)` + `await iii.connect()`.
 
 ### Registering Functions
 
@@ -66,8 +61,6 @@ iii.register_function("orders.create", create_order)
 
 ### Registering Triggers
 
-Requires `await iii.connect()` first.
-
 ```python
 iii.register_trigger(
     type="http",
@@ -77,8 +70,6 @@ iii.register_trigger(
 ```
 
 ### Invoking Functions
-
-Requires `await iii.connect()` first.
 
 ```python
 result = await iii.trigger("orders.create", {"body": {"item": "widget"}})

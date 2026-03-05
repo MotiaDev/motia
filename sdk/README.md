@@ -41,17 +41,15 @@ const result = await iii.trigger('greet', { name: 'world' });
 
 ```python
 import asyncio
-from iii import III
-
-iii = III("ws://localhost:49134")
-
-async def greet(data):
-    return {"message": f"Hello, {data['name']}!"}
-
-iii.register_function("greet", greet)
+from iii import init
 
 async def main():
-    await iii.connect()
+    iii = init("ws://localhost:49134")
+
+    async def greet(data):
+        return {"message": f"Hello, {data['name']}!"}
+
+    iii.register_function("greet", greet)
 
     iii.register_trigger(
         type="http",
@@ -67,13 +65,12 @@ asyncio.run(main())
 ### Rust
 
 ```rust
-use iii_sdk::III;
+use iii_sdk::{init, InitOptions};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
 
     iii.register_function("greet", |input| async move {
         let name = input.get("name").and_then(|v| v.as_str()).unwrap_or("world");
@@ -97,8 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Operation                | Node.js                                              | Python                                      | Rust                                         | Description                                            |
 | ------------------------ | ---------------------------------------------------- | ------------------------------------------- | -------------------------------------------- | ------------------------------------------------------ |
-| Initialize               | `init(url)`                                          | `III(url)`                                  | `III::new(url)`                              | Create an SDK instance and connect to the engine       |
-| Connect                  | Auto on `init()`                                     | `await iii.connect()`                       | `iii.connect().await?`                       | Open the WebSocket connection                          |
+| Initialize               | `init(url)`                                          | `init(url, options?)`                       | `init(url, options)`                         | Create an SDK instance and auto-connect                |
 | Register function        | `iii.registerFunction({ id }, handler)`              | `iii.register_function(id, handler)`        | `iii.register_function(id, \|input\| ...)`   | Register a function that can be invoked by name        |
 | Register trigger         | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger(type, fn_id, config)` | `iii.register_trigger(type, fn_id, config)?` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await)           | `await iii.trigger(id, data)`                        | `await iii.trigger(id, data)`               | `iii.trigger(id, data).await?`               | Invoke a function and wait for the result              |
