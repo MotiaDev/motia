@@ -14,8 +14,8 @@ When the engine invokes a Function, the SDK makes a **Context** available for th
 
 ## Using Context
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 import { init, getContext } from 'iii-sdk'
 
@@ -99,7 +99,7 @@ iii.registerFunction(
 
     const user = await createUser(data)
 
-    await iii.trigger('state::set', {
+    iii.triggerVoid('state::set', {
       scope: 'users',
       key: user.id,
       data: user,

@@ -44,6 +44,7 @@ import { SharedEngineConnection } from './connection'
 import { EngineSpanExporter, EngineMetricsExporter, EngineLogExporter } from './exporters'
 import { extractTraceparent } from './context'
 import { patchGlobalFetch, unpatchGlobalFetch } from './fetch-instrumentation'
+import { parseIntegerEnv, parseNumberEnv } from './utils'
 
 // Re-export everything from submodules
 export * from './types'
@@ -166,11 +167,27 @@ export function initOtel(config: OtelConfig = {}): void {
 
   // Initialize logs (always enabled when OTEL is enabled)
   const logExporter = new EngineLogExporter(sharedConnection)
+  const logsScheduledDelayMillis =
+    config.logsFlushIntervalMs ??
+    parseNumberEnv(process.env.OTEL_LOGS_FLUSH_INTERVAL_MS, 0) ??
+    DEFAULT_OTEL_CONFIG.logsFlushIntervalMs
+  const logsMaxExportBatchSize =
+    config.logsBatchSize ??
+    parseIntegerEnv(process.env.OTEL_LOGS_BATCH_SIZE, 1) ??
+    DEFAULT_OTEL_CONFIG.logsBatchSize
+
   loggerProvider = new LoggerProvider({ resource })
-  loggerProvider.addLogRecordProcessor(new BatchLogRecordProcessor(logExporter))
+  loggerProvider.addLogRecordProcessor(
+    new BatchLogRecordProcessor(logExporter, {
+      scheduledDelayMillis: logsScheduledDelayMillis,
+      maxExportBatchSize: logsMaxExportBatchSize,
+    }),
+  )
   logger = loggerProvider.getLogger(serviceName)
 
-  console.debug('[OTel] Logs initialized')
+  console.debug(
+    `[OTel] Logs initialized: delay=${logsScheduledDelayMillis}ms, batch=${logsMaxExportBatchSize}`,
+  )
 }
 
 /**
