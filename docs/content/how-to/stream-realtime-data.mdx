@@ -21,7 +21,7 @@ modules:
         class: modules::stream::adapters::KvStore
         config:
           store_method: file_based  # Options: in_memory, file_based
-          # file_path: ./data/stream_store  # required for file_based
+          file_path: ./data/stream_store  # required for file_based
         # class: modules::stream::adapters::RedisAdapter
         # config:
         #   redis_url: redis://localhost:6379
