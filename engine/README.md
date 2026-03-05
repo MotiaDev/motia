@@ -291,6 +291,10 @@ docker build -f Dockerfile.debug -t iii:debug .    # debug (Debian + shell)
 
 Docker image security: distroless runtime (no shell), non-root execution, Trivy scanning in CI, SBOM attestation, and build provenance.
 
+## Examples
+
+See the [Quickstart guide](https://iii.dev/docs/quickstart) for step-by-step tutorials.
+
 ## Resources
 
 - [Documentation](https://iii.dev/docs)
