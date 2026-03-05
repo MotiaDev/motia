@@ -67,7 +67,7 @@ import uuid
 from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
 
 iii = III(
-    address="ws://localhost:49134",
+    address=os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'),
     options=InitOptions(worker_name="order-worker"),
 )
 

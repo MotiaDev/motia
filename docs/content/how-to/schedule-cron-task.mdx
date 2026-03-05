@@ -34,7 +34,7 @@ modules:
 ```typescript title="cron-task.ts"
 import { init, getContext } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'cleanup::expired-sessions' }, async () => {
   const { logger } = getContext()

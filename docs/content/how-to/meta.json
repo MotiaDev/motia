@@ -6,6 +6,7 @@
     "expose-http-endpoint",
     "manage-state",
     "schedule-cron-task",
-    "stream-realtime-data"
+    "stream-realtime-data",
+    "create-ephemeral-worker"
   ]
 }

@@ -37,7 +37,7 @@ modules:
 ```typescript title="state-writer.ts"
 import { init, getContext } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'users::create' }, async (input) => {
   const { logger } = getContext()

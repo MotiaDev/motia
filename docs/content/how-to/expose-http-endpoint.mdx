@@ -48,7 +48,7 @@ Make sure `iii-config.yaml` has the REST API module enabled:
 ```typescript title="http-endpoint.ts"
 import { init, getContext } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'users::create' }, async (req) => {
   const { logger } = getContext()

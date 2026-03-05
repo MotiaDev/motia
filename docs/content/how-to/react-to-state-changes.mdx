@@ -39,7 +39,7 @@ The `state` trigger fires whenever the watched `scope`/`key` pair changes. The h
 ```typescript title="state-watcher.ts"
 import { init, getContext } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::on-status-change' }, async (event) => {
   const { logger } = getContext()
