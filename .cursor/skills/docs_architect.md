@@ -16,9 +16,11 @@ Use this skill ONLY when:
 
 Do NOT use for:
 
-- Single-page API reference → use `doc_reference.md` or defer to documentation autogeneration as appropriate
-- Conceptual explanations → use `doc_explanation.md`
-- Step-by-step guides → use `doc_howto.md` (problem solving oriented) or `doc_tutorial.md` (learning oriented)
+- Single-page API reference → use `.cursor/skills/doc_reference.md` (or defer to autogeneration as appropriate)
+- Conceptual explanations → use `.cursor/skills/doc_explanation.md`
+- Step-by-step guides → use `.cursor/skills/doc_howto.md` (problem-solving-oriented) or `.cursor/skills/doc_tutorial.md` (learning-oriented)
+
+When deferring to another skill, strictly adhere to the guidelines in the corresponding `.cursor/skills/` file AND `.cursor/skills/doc_workflow.md`.
 
 ## Content Rules
 
