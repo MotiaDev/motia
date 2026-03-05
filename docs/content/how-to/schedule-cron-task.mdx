@@ -11,63 +11,94 @@ Run a Function at regular intervals (cleanup jobs, report generation, health che
 
 ### 1. Enable the Cron module
 
-```yaml
+```yaml title="iii-config.yaml"
 modules:
-  cron: {}
+  - class: modules::cron::CronModule
+    config:
+      adapter:
+        class: modules::cron::KvCronAdapter
 ```
 
 ### 2. Register the Function
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
-import { init } from 'iii-sdk'
+{/* TODO: Remove once addressed */}
+<TabsConditional groupId="language" persist values={["Python", "Rust"]}>
+  <Callout title="Persistence in Python & Rust APIs" type="info">
+  You may notice that currently the Node API has no code around persistence while Python and Rust do.
+  This will be addrssed shortly so that a single initialization step is all that will be required in all languages.
+  </Callout>
+</TabsConditional>
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="cron-task.ts"
+import { init, getContext } from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
-iii.registerFunction(
-  { id: 'cleanup::expired-sessions' },
-  async () => {
-    const count = await deleteExpiredSessions()
-    return { deleted: count }
-  }
-)
+iii.registerFunction({ id: 'cleanup::expired-sessions' }, async () => {
+  const { logger } = getContext()
+  // ...cleanup logic here...
+  logger.info('Cleanup ran', { timestamp: new Date().toISOString() })
+  return { deleted: 0 }
+})
+
 ```
 </Tab>
 <Tab value="Python">
-```python
+```python title="cron_task.py"
 import asyncio
+import os
+import signal
 from iii import III
+from iii.context import get_context
+
+iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+
+async def cleanup_sessions(_):
+    ctx = get_context()
+    # ...cleanup logic here...
+    ctx.logger.info('Cleanup ran')
+    print('Cleanup ran')
+    return {'deleted': 0}
+
+iii.register_function('cleanup::expired-sessions', cleanup_sessions)
 
 async def main():
-    iii = III('ws://localhost:49134')
-
-    async def cleanup_sessions():
-        count = await delete_expired_sessions()
-        return {'deleted': count}
-
-    iii.register_function('cleanup::expired-sessions', cleanup_sessions)
     await iii.connect()
+    print('Cron task registered')
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop.set)
+    await stop.wait()
 
 asyncio.run(main())
 ```
 </Tab>
 <Tab value="Rust">
-```rust
-use iii_sdk::III;
+```rust title="cron_task.rs"
+use iii_sdk::{get_context, III};
 use serde_json::json;
+use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
+    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let iii = III::new(&url);
     iii.connect().await?;
 
     iii.register_function("cleanup::expired-sessions", |_| async move {
-        let count = delete_expired_sessions().await;
-        Ok(json!({ "deleted": count }))
+        let ctx = get_context();
+        // ...cleanup logic here...
+        ctx.logger.info("Cleanup ran", None);
+        println!("Cleanup ran");
+        Ok(json!({ "deleted": 0 }))
     });
 
-    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+    println!("Cron task registered");
+    signal::ctrl_c().await?;
+    Ok(())
 }
 ```
 </Tab>
@@ -75,9 +106,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### 3. Register the Cron trigger
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="cron-trigger.ts"
 iii.registerTrigger({
   type: 'cron',
   function_id: 'cleanup::expired-sessions',
@@ -86,16 +117,16 @@ iii.registerTrigger({
 ```
 </Tab>
 <Tab value="Python">
-```python
+```python title="cron_trigger.py"
 iii.register_trigger(
-    type='cron',
-    function_id='cleanup::expired-sessions',
-    config={'expression': '0 */6 * * *'},
+    type="cron",
+    function_id="cleanup::expired-sessions",
+    config={"expression": "0 */6 * * *"},
 )
 ```
 </Tab>
 <Tab value="Rust">
-```rust
+```rust title="cron_trigger.rs"
 iii.register_trigger("cron", "cleanup::expired-sessions", json!({
     "expression": "0 */6 * * *"
 }))?;
@@ -120,6 +151,7 @@ This runs the Function every 6 hours. The `expression` field uses standard cron 
 
 The Function executes automatically on the defined schedule. The Engine handles scheduling, no external cron daemon needed.
 
-<Callout title="See also" type="info">
+{/* TODO: Uncomment once the Cron module reference page exists */}
+{/* <Callout title="See also" type="info">
   For advanced scheduling options, see the [Cron module reference](/docs/modules/module-cron).
-</Callout>
+</Callout> */}

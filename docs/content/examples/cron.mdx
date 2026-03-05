@@ -15,8 +15,8 @@ graph LR
 
 ## Minimal cron function
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 import { init, getContext } from 'iii-sdk'
@@ -29,7 +29,7 @@ iii.registerFunction(
     const ctx = getContext()
     ctx.logger.info('Periodic job fired')
 
-    await iii.trigger('enqueue', {
+    iii.triggerVoid('enqueue', {
       topic: 'job.tick',
       data: { firedAt: new Date().toISOString(), message: 'Periodic job executed' },
     })
@@ -57,7 +57,7 @@ iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="cron-
 async def periodic_job(_data, ctx) -> None:
     ctx.logger.info("Periodic job fired")
 
-    await iii.trigger("enqueue", {
+    iii.trigger_void("enqueue", {
         "topic": "job.tick",
         "data": {
             "firedAt": datetime.now(timezone.utc).isoformat(),
@@ -112,8 +112,8 @@ iii.connect().await?;
 
 The function that consumes the cron's emitted event:
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerFunction(
@@ -166,8 +166,8 @@ iii.register_trigger("queue", "job.handle_tick", json!({ "topic": "job.tick" }))
 
 A common pattern: read all records in a state scope, filter them by a business rule, and emit events for those that need action.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerFunction(
@@ -188,7 +188,7 @@ iii.registerFunction(
       if (!order.complete && new Date() > new Date(order.shipDate)) {
         ctx.logger.warn('Order overdue', { orderId: order.id, shipDate: order.shipDate })
 
-        await iii.trigger('enqueue', {
+        iii.triggerVoid('enqueue', {
           topic: 'notification',
           data: {
             orderId: order.id,
@@ -236,7 +236,7 @@ async def orders_sweep(_data, ctx) -> None:
         if not complete and datetime.now(timezone.utc) > ship_date:
             ctx.logger.warn("Order overdue", {"orderId": order.get("id")})
 
-            await iii.trigger("enqueue", {
+            iii.trigger_void("enqueue", {
                 "topic": "notification",
                 "data": {
                     "orderId": order.get("id"),

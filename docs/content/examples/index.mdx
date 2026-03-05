@@ -46,9 +46,9 @@ All three SDKs share the same concepts with language-idiomatic initialization:
 | Context | `getContext()` | `get_context()` | `iii_sdk::get_context()` |
 | Trigger (sync) | `await iii.trigger(id, data)` | `await iii.trigger(function_id, data)` | `iii.trigger(id, data).await?` |
 | Trigger (fire-and-forget) | `iii.triggerVoid(id, data)` | `iii.trigger_void(function_id, data)` | `iii.trigger_void(id, data)?` |
-| Publish event | `await iii.trigger('enqueue', { topic, data })` | `await iii.trigger("enqueue", {...})` | `iii.trigger_void("enqueue", json!({...}))?` |
-| State write | `await iii.trigger('state::set', { scope, key, data })` | `await iii.trigger("state::set", {...})` | `iii.trigger_void("state::set", json!({...}))?` |
-| Stream write | `iii.trigger('stream::set', { stream_name, group_id, item_id, data })` | `await iii.trigger("stream::set", {...})` | `streams.update(key, ops).await?` |
+| Publish event | `iii.triggerVoid('enqueue', { topic, data })` | `iii.trigger_void("enqueue", {...})` | `iii.trigger_void("enqueue", json!({...}))?` |
+| State write | `iii.triggerVoid('state::set', { scope, key, value })` | `iii.trigger_void("state::set", {...})` | `iii.trigger_void("state::set", json!({...}))?` |
+| Stream write | `iii.triggerVoid('stream::set', { stream_name, group_id, item_id, data })` | `iii.trigger_void("stream::set", {...})` | `streams.update(key, ops).await?` |
 
 <Callout title="No framework required" type="info">
   These examples use the iii SDK directly, with no Motia framework layer. There are no auto-discovered step files. Each worker is a plain application that connects, registers its functions and triggers, then enters an event loop.

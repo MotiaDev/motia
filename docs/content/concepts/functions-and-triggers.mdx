@@ -1,0 +1,50 @@
+---
+title: 'Functions & Triggers'
+fullTitle: 'Concepts: Functions & Triggers'
+description: 'Function & Trigger are how code gets defined and executed in a iii powered backend'
+---
+A **Function** is anything that can be triggered to do work; it receives input, and optionally returns output.
+It can exist anywhere be it locally, on cloud, on serverless, or even as a 3rd party HTTP endpoint. It can mutate state,
+invoke other functions, modify databases, and do anything that a typical function can do. 
+All application level Functions are treated the same within iii. 
+
+A **Trigger** is what causes a Function to run — either explicitly from code, or automatically from an event source
+like an HTTP request or cron job.
+
+<Callout title="Uncontrolled Endpoints" type="info">
+iii's Functions are not magic. While uncontrolled 3rd party HTTP endpoints can be represented as Functions they won't have
+the same access to invokation, state, and databases as other Functions do.
+</Callout>
+
+## Architecture
+```mermaid
+graph LR
+    subgraph W1[Worker A]
+        direction TB
+        F1([Function A])
+        F2([Function B])
+    end
+
+    W1 -- "trigger(id, data)" --> E[Engine]
+
+    subgraph W2[Worker B]
+        direction TB
+        F3([Function C])
+    end
+
+    W2 -- registerFunction --> E
+
+    F1 -- registerFunction --> E -- trigger --> W2
+```
+<Card icon={<BookOpen />} title="How to use Functions & Triggers" href="/docs/how-to/use-functions-and-triggers">
+  Learn how to register functions, trigger them, and bind them to events.
+</Card>
+<br/>
+<Cards>
+  <Card icon={<Terminal />} title="Quickstart" href="/docs/tutorials/quickstart">
+    Follow the Quickstart and explore a live iii application.
+  </Card>
+  <Card icon={<Search />} title="Discovery" href="/docs/concepts/discovery">
+    Learn how functions are discovered by the iii engine.
+  </Card>
+</Cards>
