@@ -25,5 +25,4 @@ app.log
 .sisyphus/
 conductor
 .omc
-.cursor
 AGENTS.md

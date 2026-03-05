@@ -7,8 +7,8 @@ description: "Complete API reference for the iii SDK across TypeScript, Python, 
 
 The SDK connects your application to the iii engine over WebSocket.
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 import { init } from 'iii-sdk'
 
@@ -66,8 +66,8 @@ iii.connect().await?;
 
 Triggers a function and waits for the result. This is the primary way to invoke a function synchronously.
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const result = await iii.trigger<{ name: string }, { id: string }>(
   'users::create',
@@ -120,8 +120,8 @@ let result = iii.trigger("users::create", json!({"name": "Alice"})).await?;
 
 Triggers a function without waiting for a result (fire-and-forget).
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 iii.triggerVoid('notifications::send', {
   to: 'alice@example.com',
@@ -172,8 +172,8 @@ iii.trigger_void("notifications::send", json!({
 
 Registers a function with the iii engine. Once registered, the function can be triggered by any other component in the system.
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const ref = iii.registerFunction(
   { id: 'users::create' },
@@ -242,8 +242,8 @@ iii.register_function("users::create", |data: Value| async move {
 
 Registers a trigger that invokes a function when a specific event occurs (HTTP request, cron schedule, queue message, etc.).
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const trigger = iii.registerTrigger({
   type: 'http',
@@ -313,8 +313,8 @@ let trigger = iii.register_trigger(
 
 Registers a custom trigger type with the engine. This allows you to define new ways to invoke functions beyond the built-in types (HTTP, cron, queue).
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 iii.registerTriggerType<WebhookConfig>(
   { id: 'webhook', description: 'External webhook trigger' },
@@ -394,8 +394,8 @@ iii.unregisterTriggerType({ id: 'webhook' })
 
 Returns all functions currently registered with the engine.
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const functions = await iii.listFunctions()
 ```
@@ -500,8 +500,8 @@ const unsubscribe = iii.onLog(
 
 Gracefully shuts down the SDK, cleaning up WebSocket connections, pending invocations, and OpenTelemetry resources.
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 await iii.shutdown()
 ```
