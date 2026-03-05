@@ -1,0 +1,149 @@
+---
+title: 'Use Conditions with Triggers'
+description: 'How to run a condition Function before trigger handlers.'
+---
+
+## Goal
+
+Run a condition Function before a Trigger runs, and only execute the handler Function when the condition passes.
+
+## Steps
+
+### 1. Register the handler and condition Functions
+
+Register a normal handler Function and a condition Function that will returns a boolean: `true` or `false`.
+
+<Callout title="All functions are the same" type="info">
+Both Functions are declared in the same way. They only differ in how they are used.
+</Callout>
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="conditions-functions.ts"
+import { init, type ApiRequest } from 'iii-sdk'
+
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+
+// condition
+iii.registerFunction(
+  { id: 'conditions::is-high-value' },
+  async (req: ApiRequest<{ amount: number }>) => (req.body?.amount ?? 0) >= 1000,
+)
+
+// handler
+iii.registerFunction(
+  { id: 'orders::process-high-value' },
+  async (req: ApiRequest<{ amount: number }>) => ({
+    status_code: 200,
+    body: { processed: true, amount: req.body?.amount ?? 0 },
+  }),
+)
+```
+</Tab>
+<Tab value="Python">
+```python title="conditions_functions.py"
+from iii import III, ApiRequest, ApiResponse
+
+iii = III("ws://localhost:49134")
+
+# condition
+async def is_high_value(data) -> bool:
+    req = ApiRequest(**data) if isinstance(data, dict) else data
+    return (req.body or {}).get("amount", 0) >= 1000
+
+# handler
+async def process_high_value(data) -> ApiResponse:
+    req = ApiRequest(**data) if isinstance(data, dict) else data
+    return ApiResponse(statusCode=200, body={
+        "processed": True,
+        "amount": (req.body or {}).get("amount", 0),
+    })
+
+iii.register_function("conditions::is-high-value", is_high_value)
+iii.register_function("orders::process-high-value", process_high_value)
+```
+</Tab>
+<Tab value="Rust">
+```rust title="conditions_functions.rs"
+use iii_sdk::III;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
+
+    // condition
+    iii.register_function("conditions::is-high-value", |input| async move {
+        let amount = input["body"]["amount"].as_f64().unwrap_or(0.0);
+        Ok(json!(amount >= 1000.0))
+    });
+
+    // handler
+    iii.register_function("orders::process-high-value", |input| async move {
+        let amount = input["body"]["amount"].as_f64().unwrap_or(0.0);
+        Ok(json!({
+            "status_code": 200,
+            "body": { "processed": true, "amount": amount }
+        }))
+    });
+
+    Ok(())
+}
+```
+</Tab>
+</Tabs>
+
+### 2. Register triggers with the correct condition key
+
+Create a Trigger and specify its condition with `condition_function_id`.
+
+<Callout title="Condition differences" type="info">
+Use `_condition_path` for `http`, `queue`, and `cron`. Use `condition_function_id` for `state` and `stream`. This disparity will be fixed soon.
+</Callout>
+
+{/* TODO: Replace `_condition_path` with `condition_function_id` once SDKs are updated. */}
+
+Example (`state` trigger):
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="state-trigger-with-condition.ts"
+iii.registerTrigger({
+  type: 'state',
+  function_id: 'orders::on-status-change',
+  config: {
+    scope: 'orders',
+    key: 'status',
+    condition_function_id: 'conditions::is-high-value',
+  },
+})
+```
+</Tab>
+<Tab value="Python">
+```python title="state_trigger_with_condition.py"
+iii.register_trigger(
+    type="state",
+    function_id="orders::on-status-change",
+    config={
+        "scope": "orders",
+        "key": "status",
+        "condition_function_id": "conditions::is-high-value",
+    },
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust title="state_trigger_with_condition.rs"
+iii.register_trigger("state", "orders::on-status-change", json!({
+    "scope": "orders",
+    "key": "status",
+    "condition_function_id": "conditions::is-high-value"
+}))?;
+```
+</Tab>
+</Tabs>
+
+## Result
+
+When the trigger fires, iii calls the condition Function first. The handler Function runs only when the condition passes.

@@ -3,10 +3,12 @@
   "defaultOpen": false,
   "pages": [
     "use-functions-and-triggers",
+    "use-trigger-conditions",
     "expose-http-endpoint",
-    "manage-state",
-    "schedule-cron-task",
     "stream-realtime-data",
-    "create-ephemeral-worker"
+    "create-ephemeral-worker",
+    "manage-state",
+    "react-to-state-changes",
+    "schedule-cron-task"
   ]
 }
