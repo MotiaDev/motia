@@ -543,7 +543,7 @@ dependencies = [
 
 [[package]]
 name = "iii-console"
-version = "0.2.3-rc"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "axum",

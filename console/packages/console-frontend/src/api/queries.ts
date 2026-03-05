@@ -19,7 +19,7 @@ import { fetchTraces, fetchTraceTree } from './observability/traces'
 import { fetchStateGroups, fetchStateItems } from './state/state'
 import { fetchStreams } from './state/streams'
 import { fetchAdapters } from './system/adapters'
-import { fetchConfig, fetchStatus, healthCheck } from './system/status'
+import { fetchStatus, healthCheck } from './system/status'
 import { fetchWorkers } from './system/workers'
 
 // System status
@@ -59,12 +59,6 @@ export const triggerTypesQuery = queryOptions({
 export const workersQuery = queryOptions({
   queryKey: ['workers'],
   queryFn: fetchWorkers,
-})
-
-// Config
-export const configQuery = queryOptions({
-  queryKey: ['config'],
-  queryFn: fetchConfig,
 })
 
 // Metrics

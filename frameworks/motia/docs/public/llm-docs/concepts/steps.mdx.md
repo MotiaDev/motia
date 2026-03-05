@@ -687,9 +687,9 @@ export const config = {
 
 [Learn more about Flows](/docs/development-guide/flows)
 
-### Infrastructure -- Configure Queue Steps
+### Queue Config -- Configure Queue Steps
 
-Customize timeout and retry behavior for Queue Steps.
+Customize retry behavior, concurrency, and backoff for Queue Steps.
 
 <Tabs items={['TypeScript', 'Python', 'JavaScript']}>
 <Tab value='TypeScript'>
@@ -702,10 +702,7 @@ export const config = {
     {
       type: 'queue',
       topic: 'email.requested',
-      infrastructure: {
-        handler: { timeout: 10 },
-        queue: { maxRetries: 5, visibilityTimeout: 60 }
-      }
+      config: { maxRetries: 5, visibilityTimeout: 60 }
     },
   ],
   enqueues: [],
@@ -724,10 +721,7 @@ config = {
         {
             "type": "queue",
             "topic": "email.requested",
-            "infrastructure": {
-                "handler": {"timeout": 10},
-                "queue": {"maxRetries": 5, "visibilityTimeout": 60}
-            }
+            "config": {"maxRetries": 5, "visibilityTimeout": 60}
         }
     ],
     "enqueues": [],
@@ -746,10 +740,7 @@ export const config = {
     {
       type: 'queue',
       topic: 'email.requested',
-      infrastructure: {
-        handler: { timeout: 10 },
-        queue: { maxRetries: 5, visibilityTimeout: 60 }
-      }
+      config: { maxRetries: 5, visibilityTimeout: 60 }
     },
   ],
   enqueues: [],
@@ -760,7 +751,7 @@ export const config = {
 </Tab>
 </Tabs>
 
-[Learn more about Infrastructure](/docs/development-guide/infrastructure)
+[Learn more about Queue Config](/docs/development-guide/queue-config)
 
 ---
 

@@ -457,7 +457,7 @@ async fn initialize(&self) -> anyhow::Result<()> {
 
 ## Configuration
 
-Modules are configured via `config.yaml` or JSON passed during initialization. The `ConfigurableModule` trait maps this configuration to a Rust struct.
+Modules are configured via `iii-config.yaml` or JSON passed during initialization. The `ConfigurableModule` trait maps this configuration to a Rust struct.
 
 ### Configuration Struct
 
@@ -640,7 +640,7 @@ impl TriggerRegistrator for CustomEventModule {
 }
 ```
 
-### config.yaml
+### iii-config.yaml
 
 ```yaml
 modules:

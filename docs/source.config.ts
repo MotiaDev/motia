@@ -14,6 +14,7 @@ export const docs = defineDocs({
   docs: {
     schema: frontmatterSchema.extend({
       hideCards: z.boolean().default(false),
+      fullTitle: z.string().optional(),
     }),
     postprocess: {
       includeProcessedMarkdown: true,

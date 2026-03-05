@@ -13,6 +13,7 @@ use lapin::{Channel, message::Delivery, options::*};
 use tokio::sync::Semaphore;
 use tracing::Instrument;
 
+use crate::condition::check_condition;
 use crate::engine::{Engine, EngineTrait};
 use crate::telemetry::SpanExt;
 
@@ -211,24 +212,19 @@ impl Worker {
             let data = job.data.clone();
 
             if let Some(condition_path) = condition_function_id {
-                match engine.call(condition_path, data.clone()).await {
-                    Ok(Some(result)) => {
-                        if let Some(passed) = result.as_bool()
-                            && !passed
-                        {
-                            tracing::debug!(
-                                function_id = %function_id,
-                                "Condition check failed, skipping handler"
-                            );
-                            tracing::Span::current().record("otel.status_code", "OK");
-                            return Ok(());
-                        }
-                    }
-                    Ok(None) => {
-                        tracing::warn!(
-                            condition_function_id = %condition_path,
-                            "Condition function returned no result"
+                tracing::debug!(
+                    condition_function_id = %condition_path,
+                    "Checking trigger conditions"
+                );
+                match check_condition(engine.as_ref(), condition_path, data.clone()).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        tracing::debug!(
+                            function_id = %function_id,
+                            "Condition check failed, skipping handler"
                         );
+                        tracing::Span::current().record("otel.status_code", "OK");
+                        return Ok(());
                     }
                     Err(err) => {
                         tracing::error!(

@@ -17,8 +17,8 @@ graph LR
 
 Every iii worker starts by initialising the SDK and connecting to the engine.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 // worker.ts
@@ -65,8 +65,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Registers a function and binds it to an HTTP trigger. Returns immediately after publishing to the queue.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerFunction(
@@ -78,7 +78,7 @@ iii.registerFunction(
 
     ctx.logger.info('Hello API called', { appName, requestId })
 
-    await iii.trigger('enqueue', {
+    iii.triggerVoid('enqueue', {
       topic: 'greet.process',
       data: {
         requestId,
@@ -122,7 +122,7 @@ async def hello_api(req: ApiRequest, ctx) -> ApiResponse:
 
     ctx.logger.info("Hello API called", {"appName": app_name, "requestId": request_id})
 
-    await iii.trigger("enqueue", {
+    iii.trigger_void("enqueue", {
         "topic": "greet.process",
         "data": {
             "requestId": request_id,
@@ -202,8 +202,8 @@ iii.register_trigger("http", "hello.api", json!({
 
 Consumes the event, builds the greeting, and persists it to state.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerFunction(
@@ -221,7 +221,7 @@ iii.registerFunction(
 
     const greeting = `${greetingPrefix} ${appName}!`
 
-    await iii.trigger('state::set', {
+    iii.triggerVoid('state::set', {
       scope: 'greetings',
       key: requestId,
       data: {
@@ -259,7 +259,7 @@ async def greet_process(data: dict, ctx) -> None:
 
     greeting = f"{greeting_prefix} {app_name}!"
 
-    await iii.trigger("state::set", {
+    iii.trigger_void("state::set", {
         "scope": "greetings",
         "key": request_id,
         "data": {
@@ -327,8 +327,8 @@ iii.register_trigger("queue", "greet.process", json!({
   The Node SDK establishes the WebSocket connection when you call `init()`. There is no separate `connect()` method. Keep the process alive so the worker stays registered.
 </Callout>
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 // Node SDK connects on init() — keep the process alive
@@ -372,5 +372,5 @@ curl http://localhost:3111/hello
 
 - `iii.registerFunction` pairs a string ID with an async handler. The ID is referenced by all triggers bound to that function.
 - `iii.registerTrigger` binds a trigger type + config to a function ID. A function can have multiple triggers.
-- `iii.trigger('enqueue', { topic, data })` publishes an event to the named topic. Any worker with a `queue` trigger on that topic will receive it.
-- `iii.trigger('state::set', { scope, key, data })` persists data to the engine's key-value store, addressed by `scope` + `key`.
+- `iii.triggerVoid('enqueue', { topic, data })` publishes an event to the named topic. Any worker with a `queue` trigger on that topic will receive it.
+- `iii.triggerVoid('state::set', { scope, key, value })` persists data to the engine's key-value store, addressed by `scope` + `key`.

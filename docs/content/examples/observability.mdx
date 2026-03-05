@@ -16,8 +16,8 @@ graph LR
 
 ## Multi-step workflow with trace correlation
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 import { init, getContext, type ApiRequest } from 'iii-sdk'
@@ -50,13 +50,13 @@ iii.registerFunction(
       traceId: ctx.traceId, // same traceId will appear in downstream logs
     })
 
-    await iii.trigger('state::set', {
+    iii.triggerVoid('state::set', {
       scope: 'orders',
       key: orderId,
       data: { id: orderId, customerId, amount, items, status: 'created', createdAt: new Date().toISOString() },
     })
 
-    await iii.trigger('enqueue', {
+    iii.triggerVoid('enqueue', {
       topic: 'order.process',
       data: { orderId, amount, customerId, items },
     })
@@ -100,7 +100,7 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
         "traceId": ctx.trace_id,  # same traceId will appear in downstream logs
     })
 
-    await iii.trigger("state::set", {
+    iii.trigger_void("state::set", {
         "scope": "orders",
         "key": order_id,
         "data": {
@@ -112,7 +112,7 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
         },
     })
 
-    await iii.trigger("enqueue", {
+    iii.trigger_void("enqueue", {
         "topic": "order.process",
         "data": {"orderId": order_id, "amount": amount, "customerId": customer_id},
     })
@@ -190,8 +190,8 @@ iii.register_trigger("http", "orders.create", json!({
 
 ## Step 2 — Queue processor
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerFunction(
@@ -202,13 +202,13 @@ iii.registerFunction(
 
     ctx.logger.info('Processing order', { orderId, amount, customerId, traceId: ctx.traceId })
 
-    await iii.trigger('state::set', {
+    iii.triggerVoid('state::set', {
       scope: 'orders',
       key: orderId,
       data: { status: 'processed', processedAt: new Date().toISOString() },
     })
 
-    await iii.trigger('enqueue', {
+    iii.triggerVoid('enqueue', {
       topic: 'order.notify',
       data: { orderId, customerId, amount, status: 'processed' },
     })
@@ -239,7 +239,7 @@ async def process_order(data: dict, ctx) -> None:
         "traceId": ctx.trace_id,
     })
 
-    await iii.trigger("state::set", {
+    iii.trigger_void("state::set", {
         "scope": "orders",
         "key": order_id,
         "data": {
@@ -248,7 +248,7 @@ async def process_order(data: dict, ctx) -> None:
         },
     })
 
-    await iii.trigger("enqueue", {
+    iii.trigger_void("enqueue", {
         "topic": "order.notify",
         "data": {"orderId": order_id, "customerId": customer_id, "amount": amount, "status": "processed"},
     })
@@ -290,8 +290,8 @@ iii.register_trigger("queue", "order.process", json!({ "topic": "order.process" 
 
 ## Step 3 — Notification
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerFunction(
@@ -368,8 +368,8 @@ iii.register_trigger("queue", "order.notify", json!({ "topic": "order.notify" })
 
 ## OpenTelemetry setup
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 // Pass otel config to init()

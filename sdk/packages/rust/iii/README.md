@@ -14,13 +14,21 @@ iii-sdk = { path = "../path/to/iii" }
 ## Usage
 
 ```rust
-use iii_sdk::III;
+use iii_sdk::{init, InitOptions};
+#[cfg(feature = "otel")]
+use iii_sdk::OtelConfig;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = init(
+        "ws://127.0.0.1:49134",
+        InitOptions {
+            #[cfg(feature = "otel")]
+            otel: Some(OtelConfig::default()),
+            ..Default::default()
+        },
+    )?;
 
     iii.register_function("my.function", |input| async move {
         Ok(json!({ "message": "Hello, world!", "input": input }))
@@ -45,6 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Notes
 
-- `III::connect` starts a background task and handles reconnection automatically.
+- `init(...)` starts connection in the background (Node-style startup).
+- `III::connect` remains available for explicit startup control.
 - The engine protocol currently supports `registertriggertype` but does not include an
   `unregistertriggertype` message; `unregister_trigger_type` only removes local handlers.

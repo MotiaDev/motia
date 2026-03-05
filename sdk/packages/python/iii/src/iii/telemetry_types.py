@@ -32,6 +32,12 @@ class OtelConfig:
     logs_enabled: bool | None = None
     """Enable OTel log export via EngineLogExporter. Defaults to True when OTel is enabled."""
 
+    logs_flush_interval_ms: int | None = None
+    """Log processor flush delay in milliseconds. Defaults to 100ms when not set."""
+
+    logs_batch_size: int | None = None
+    """Maximum number of log records exported per batch. Defaults to 1 when not set."""
+
     metrics_enabled: bool = True
     """Enable OTel metrics export via EngineMetricsExporter. Defaults to True."""
 

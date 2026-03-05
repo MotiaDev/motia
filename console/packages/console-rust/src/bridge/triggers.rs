@@ -15,6 +15,7 @@ pub fn register_triggers(bridge: &III) -> Result<(), IIIError> {
             "GET",
         ),
         ("engine::console::workers", "_console/workers", "GET"),
+        ("engine::console::adapters", "_console/adapters", "GET"),
         ("engine::console::alerts_list", "_console/alerts", "GET"),
         (
             "engine::console::sampling_rules",

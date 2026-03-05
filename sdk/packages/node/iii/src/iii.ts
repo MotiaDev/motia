@@ -102,7 +102,6 @@ export type InitOptions = {
 class Sdk implements ISdk {
   private ws?: WebSocket
   private functions = new Map<string, RemoteFunctionData>()
-  private httpFunctions = new Map<string, RegisterFunctionMessage>()
   private services = new Map<string, Omit<RegisterServiceMessage, 'functions'>>()
   private invocations = new Map<string, Invocation & { timeout?: NodeJS.Timeout }>()
   private triggers = new Map<string, RegisterTriggerMessage>()
@@ -187,82 +186,69 @@ class Sdk implements ISdk {
 
   registerFunction = (
     message: Omit<RegisterFunctionMessage, 'message_type'>,
-    handler: RemoteFunctionHandler,
+    handlerOrInvocation: RemoteFunctionHandler | HttpInvocationConfig,
   ): FunctionRef => {
     if (!message.id || message.id.trim() === '') {
       throw new Error('id is required')
     }
-    if (this.httpFunctions.has(message.id)) {
+    if (this.functions.has(message.id)) {
       throw new Error(`function id already registered: ${message.id}`)
     }
 
-    this.sendMessage(MessageType.RegisterFunction, message, true)
-    this.functions.set(message.id, {
-      message: { ...message, message_type: MessageType.RegisterFunction },
-      handler: async (input, traceparent?: string, baggage?: string) => {
-        // If we have a tracer, wrap in a span and pass it to the context
-        if (getTracer()) {
-          // Extract both traceparent and baggage into a parent context
-          const parentContext = extractContext(traceparent, baggage)
+    const isHandler = typeof handlerOrInvocation === 'function'
 
-          return context.with(parentContext, () =>
-            withSpan(`call ${message.id}`, { kind: SpanKind.SERVER }, async span => {
-              const traceId = currentTraceId() ?? crypto.randomUUID()
-              const spanId = currentSpanId()
-              const logger = new Logger(traceId, message.id, spanId)
-              const ctx = { logger, trace: span }
-
-              return withContext(async () => await handler(input), ctx)
-            }),
-          )
+    const fullMessage: RegisterFunctionMessage = isHandler
+      ? { ...message, message_type: MessageType.RegisterFunction }
+      : {
+          ...message,
+          message_type: MessageType.RegisterFunction,
+          invocation: {
+            url: handlerOrInvocation.url,
+            method: handlerOrInvocation.method ?? 'POST',
+            timeout_ms: handlerOrInvocation.timeout_ms,
+            headers: handlerOrInvocation.headers,
+            auth: handlerOrInvocation.auth,
+          },
         }
 
-        // Fallback without tracing
-        const traceId = crypto.randomUUID()
-        const logger = new Logger(traceId, message.id)
-        const ctx = { logger }
+    this.sendMessage(MessageType.RegisterFunction, fullMessage, true)
 
-        return withContext(async () => await handler(input), ctx)
-      },
-    })
+    if (isHandler) {
+      const handler = handlerOrInvocation as RemoteFunctionHandler
+      this.functions.set(message.id, {
+        message: fullMessage,
+        handler: async (input, traceparent?: string, baggage?: string) => {
+          if (getTracer()) {
+            const parentContext = extractContext(traceparent, baggage)
+
+            return context.with(parentContext, () =>
+              withSpan(`call ${message.id}`, { kind: SpanKind.SERVER }, async span => {
+                const traceId = currentTraceId() ?? crypto.randomUUID()
+                const spanId = currentSpanId()
+                const logger = new Logger(traceId, message.id, spanId)
+                const ctx = { logger, trace: span }
+
+                return withContext(async () => await handler(input), ctx)
+              }),
+            )
+          }
+
+          const traceId = crypto.randomUUID()
+          const logger = new Logger(traceId, message.id)
+          const ctx = { logger }
+
+          return withContext(async () => await handler(input), ctx)
+        },
+      })
+    } else {
+      this.functions.set(message.id, { message: fullMessage })
+    }
 
     return {
       id: message.id,
       unregister: () => {
         this.sendMessage(MessageType.UnregisterFunction, { id: message.id }, true)
         this.functions.delete(message.id)
-      },
-    }
-  }
-
-  registerHttpFunction = (id: string, config: HttpInvocationConfig): FunctionRef => {
-    if (!id || id.trim() === '') {
-      throw new Error('id is required')
-    }
-    if (this.functions.has(id) || this.httpFunctions.has(id)) {
-      throw new Error(`function id already registered: ${id}`)
-    }
-
-    const message: RegisterFunctionMessage = {
-      message_type: MessageType.RegisterFunction,
-      id,
-      invocation: {
-        url: config.url,
-        method: config.method ?? 'POST',
-        timeout_ms: config.timeout_ms,
-        headers: config.headers,
-        auth: config.auth,
-      },
-    }
-
-    this.sendMessage(MessageType.RegisterFunction, message, true)
-    this.httpFunctions.set(id, message)
-
-    return {
-      id,
-      unregister: () => {
-        this.sendMessage(MessageType.UnregisterFunction, { id }, true)
-        this.httpFunctions.delete(id)
       },
     }
   }
@@ -643,9 +629,6 @@ class Sdk implements ISdk {
     this.functions.forEach(({ message }) => {
       this.sendMessage(MessageType.RegisterFunction, message, true)
     })
-    this.httpFunctions.forEach(message => {
-      this.sendMessage(MessageType.RegisterFunction, message, true)
-    })
     this.triggers.forEach(trigger => {
       this.sendMessage(MessageType.RegisterTrigger, trigger, true)
     })
@@ -798,7 +781,7 @@ class Sdk implements ISdk {
 
     const resolvedInput = this.resolveChannelValue(input) as TInput
 
-    if (fn) {
+    if (fn?.handler) {
       if (!invocation_id) {
         try {
           await fn.handler(resolvedInput, traceparent, baggage)
@@ -827,13 +810,19 @@ class Sdk implements ISdk {
         })
       }
     } else {
-      this.sendMessage(MessageType.InvocationResult, {
-        invocation_id,
-        function_id,
-        error: { code: 'function_not_found', message: 'Function not found' },
-        traceparent,
-        baggage,
-      })
+      const errorCode = fn ? 'function_not_invokable' : 'function_not_found'
+      const errorMessage = fn
+        ? 'Function is HTTP-invoked and cannot be invoked locally'
+        : 'Function not found'
+      if (invocation_id) {
+        this.sendMessage(MessageType.InvocationResult, {
+          invocation_id,
+          function_id,
+          error: { code: errorCode, message: errorMessage },
+          traceparent,
+          baggage,
+        })
+      }
     }
   }
 

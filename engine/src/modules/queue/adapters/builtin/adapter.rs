@@ -22,6 +22,7 @@ use crate::{
         },
         queue_kv::QueueKvStore,
     },
+    condition::check_condition,
     engine::{Engine, EngineTrait},
     modules::queue::{
         QueueAdapter, SubscriberQueueConfig,
@@ -39,6 +40,7 @@ pub struct BuiltinQueueAdapter {
 struct FunctionHandler {
     engine: Arc<Engine>,
     function_id: String,
+    condition_function_id: Option<String>,
 }
 
 #[async_trait]
@@ -65,8 +67,40 @@ impl JobHandler for FunctionHandler {
         )
         .with_parent_headers(job.traceparent.as_deref(), job.baggage.as_deref());
 
-        async {
-            let result = self.engine.call(&self.function_id, job.data.clone()).await;
+        let engine = Arc::clone(&self.engine);
+        let function_id = self.function_id.clone();
+        let condition_function_id = self.condition_function_id.clone();
+        let data = job.data.clone();
+
+        async move {
+            if let Some(ref condition_id) = condition_function_id {
+                tracing::debug!(
+                    condition_function_id = %condition_id,
+                    "Checking trigger conditions"
+                );
+                match check_condition(engine.as_ref(), condition_id, data.clone()).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        tracing::debug!(
+                            function_id = %function_id,
+                            "Condition check failed, skipping handler"
+                        );
+                        tracing::Span::current().record("otel.status_code", "OK");
+                        return Ok(());
+                    }
+                    Err(err) => {
+                        tracing::error!(
+                            condition_function_id = %condition_id,
+                            error = ?err,
+                            "Error invoking condition function"
+                        );
+                        tracing::Span::current().record("otel.status_code", "ERROR");
+                        return Err(format!("Condition function error: {:?}", err));
+                    }
+                }
+            }
+
+            let result = engine.call(&function_id, data).await;
             match &result {
                 Ok(_) => {
                     tracing::Span::current().record("otel.status_code", "OK");
@@ -75,12 +109,10 @@ impl JobHandler for FunctionHandler {
                     tracing::Span::current().record("otel.status_code", "ERROR");
                 }
             }
-            result
+            result.map(|_| ()).map_err(|e| format!("{:?}", e))
         }
         .instrument(span)
         .await
-        .map(|_| ())
-        .map_err(|e| format!("{:?}", e))
     }
 }
 
@@ -150,12 +182,13 @@ impl QueueAdapter for BuiltinQueueAdapter {
         topic: &str,
         id: &str,
         function_id: &str,
-        _condition_function_id: Option<String>,
+        condition_function_id: Option<String>,
         queue_config: Option<SubscriberQueueConfig>,
     ) {
-        let handler = Arc::new(FunctionHandler {
+        let handler: Arc<dyn JobHandler> = Arc::new(FunctionHandler {
             engine: Arc::clone(&self.engine),
             function_id: function_id.to_string(),
+            condition_function_id,
         });
 
         let subscription_config = queue_config.map(|c| SubscriptionConfig {

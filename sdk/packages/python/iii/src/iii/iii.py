@@ -34,6 +34,7 @@ from .iii_types import (
 )
 from .logger import Logger
 from .stream import IStream
+from .telemetry_types import OtelConfig
 from .triggers import Trigger, TriggerConfig, TriggerHandler
 from .types import Channel, RemoteFunctionData, RemoteTriggerTypeData, is_channel_ref
 
@@ -93,7 +94,7 @@ class InitOptions:
     enable_metrics_reporting: bool = True
     invocation_timeout_ms: int = DEFAULT_INVOCATION_TIMEOUT_MS
     reconnection_config: ReconnectionConfig | None = None
-    otel: dict[str, Any] | None = None
+    otel: OtelConfig | dict[str, Any] | None = None
     telemetry: TelemetryOptions | None = None
 
 
@@ -105,7 +106,6 @@ class III:
         self._options = options or InitOptions()
         self._ws: ClientConnection | None = None
         self._functions: dict[str, RemoteFunctionData] = {}
-        self._http_functions: dict[str, RegisterFunctionMessage] = {}
         self._services: dict[str, RegisterServiceMessage] = {}
         self._pending: dict[str, asyncio.Future[Any]] = {}
         self._triggers: dict[str, RegisterTriggerMessage] = {}
@@ -131,7 +131,13 @@ class III:
         try:
             from .telemetry import attach_event_loop, init_otel
             loop = asyncio.get_running_loop()
-            init_otel(loop=loop)
+            otel_cfg: OtelConfig | None = None
+            if self._options.otel:
+                if isinstance(self._options.otel, OtelConfig):
+                    otel_cfg = self._options.otel
+                else:
+                    otel_cfg = OtelConfig(**self._options.otel)
+            init_otel(config=otel_cfg, loop=loop)
             attach_event_loop(loop)
         except ImportError:
             pass
@@ -214,8 +220,6 @@ class III:
             await self._send(svc)
         for function_data in self._functions.values():
             await self._send(function_data.message)
-        for msg in self._http_functions.values():
-            await self._send(msg)
         for trigger in self._triggers.values():
             await self._send(trigger)
 
@@ -409,14 +413,19 @@ class III:
     ) -> None:
         func = self._functions.get(path)
 
-        if not func:
-            log.warning(f"Function not found: {path}")
+        if not func or not func.handler:
+            error_code = "function_not_invokable" if func else "function_not_found"
+            if func:
+                error_msg = "Function is HTTP-invoked and cannot be invoked locally"
+            else:
+                error_msg = f"Function '{path}' not found"
+            log.warning(error_msg)
             if invocation_id:
                 await self._send(
                     InvocationResultMessage(
                         invocation_id=invocation_id,
                         function_id=path,
-                        error={"code": "function_not_found", "message": f"Function '{path}' not found"},
+                        error={"code": error_code, "message": error_msg},
                     )
                 )
             return
@@ -561,49 +570,43 @@ class III:
     def register_function(
         self,
         path: str,
-        handler: RemoteFunctionHandler,
+        handler_or_invocation: RemoteFunctionHandler | HttpInvocationConfig,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> FunctionRef:
         if not path or not path.strip():
             raise ValueError("id is required")
-        if path in self._http_functions:
-            raise ValueError(f"function id '{path}' already registered as HTTP function")
+        if path in self._functions:
+            raise ValueError(f"function id '{path}' already registered")
 
-        msg = RegisterFunctionMessage(id=path, description=description, metadata=metadata)
-        self._send_if_connected(msg)
+        if isinstance(handler_or_invocation, HttpInvocationConfig):
+            msg = RegisterFunctionMessage(
+                id=path, invocation=handler_or_invocation, description=description, metadata=metadata
+            )
+            self._send_if_connected(msg)
+            self._functions[path] = RemoteFunctionData(message=msg)
+        else:
+            if not callable(handler_or_invocation):
+                actual_type = type(handler_or_invocation).__name__
+                raise TypeError(
+                    f"handler_or_invocation must be callable or HttpInvocationConfig, got {actual_type}"
+                )
+            handler = handler_or_invocation
+            msg = RegisterFunctionMessage(id=path, description=description, metadata=metadata)
+            self._send_if_connected(msg)
 
-        async def wrapped(input_data: Any) -> Any:
-            logger = Logger(function_name=path)
-            ctx = Context(logger=logger)
-            return await with_context(lambda _: handler(input_data), ctx)
+            async def wrapped(input_data: Any) -> Any:
+                logger = Logger(function_name=path)
+                ctx = Context(logger=logger)
+                return await with_context(lambda _: handler(input_data), ctx)
 
-        self._functions[path] = RemoteFunctionData(message=msg, handler=wrapped)
+            self._functions[path] = RemoteFunctionData(message=msg, handler=wrapped)
 
         def unregister() -> None:
             self._functions.pop(path, None)
             self._send_if_connected(UnregisterFunctionMessage(id=path))
 
         return FunctionRef(id=path, unregister=unregister)
-
-    def register_http_function(self, id: str, config: HttpInvocationConfig) -> FunctionRef:
-        if not id or not id.strip():
-            raise ValueError("id is required")
-        if id in self._functions or id in self._http_functions:
-            raise ValueError(f"function id '{id}' already registered")
-
-        msg = RegisterFunctionMessage(
-            id=id,
-            invocation=config,
-        )
-        self._send_if_connected(msg)
-        self._http_functions[id] = msg
-
-        def unregister() -> None:
-            self._http_functions.pop(id, None)
-            self._send_if_connected(UnregisterFunctionMessage(id=id))
-
-        return FunctionRef(id=id, unregister=unregister)
 
     def register_service(self, id: str, description: str | None = None, parent_id: str | None = None) -> None:
         msg = RegisterServiceMessage(id=id, description=description, parent_service_id=parent_id)
