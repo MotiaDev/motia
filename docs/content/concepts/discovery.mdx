@@ -9,7 +9,7 @@ When a worker connects to the engine, it receives the full list of functions reg
 No configuration files. No service registries. No hardcoded URLs. The engine maintains a live registry and pushes changes to every connected worker in real time.
 
 <Callout title="Why Discovery matters" type="info">
-  In traditional architectures, services need to know where other services live — through config files, DNS, service meshes, or client libraries. With iii, you just `trigger()` a function by name. The engine knows which worker owns it and routes the invocation. Workers can come and go, scale up and down, and every other worker adapts automatically.
+  In traditional architectures, services need to know where other services live — through config files, DNS, service meshes, or client libraries. With iii, you call `trigger()` with a function name. The engine knows which worker owns it and routes the invocation. Workers can come and go, scale up and down, and every other worker adapts automatically.
 </Callout>
 
 ## How It Works
@@ -90,10 +90,10 @@ With iii, a new worker connects and registers its functions. Every other worker 
 
 This means you can:
 - **Scale workers independently** — spin up more instances of a worker and the engine load-balances across them
-- **Deploy new capabilities** — connect a new worker with new functions and they're instantly available to the entire system
+- **Deploy new capabilities** — connect a new worker with new functions and they're available to the entire system
 - **Remove services cleanly** — disconnect a worker and its functions disappear from the registry, no stale references
 
-The engine also provides built-in functions through its modules (like `enqueue`, `state::set`, `stream::set`). These are always available and listed in the [Modules](/docs/modules) pages. But the real power of Discovery is the dynamic part — your workers forming a living system that adapts as it runs.
+The engine also provides built-in functions through its modules (like `enqueue`, `state::set`, `stream::set`). These are always available and listed in the [Modules](/docs/modules) pages. The main behavior of Discovery is the dynamic part — your workers forming a dynamic system that adapts as it runs.
 
 <Cards>
   <Card icon={<Code />} title="Function & Trigger" href="/docs/concepts/function-and-trigger">

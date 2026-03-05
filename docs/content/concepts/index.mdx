@@ -10,12 +10,12 @@ A **Function** is anything that can be triggered to do work; it receives input, 
 A **Trigger** is what causes a Function to run. It can be explicit (calling `trigger()` from code) or
 automatic (HTTP request, cron schedule, queue message, state change, and more).
 
-**Discovery** is what makes the system self-aware. When a worker connects, it can see every function 
-egistered by every other worker, plus built-in functions the engine provides. No configuration files, no service
+**Discovery** is what lets the system discover registered functions at runtime. When a worker connects, it can see every function 
+registered by every other worker, plus built-in functions the engine provides. No configuration files, no service
 registries. This is what turns infrastructure tools into design patterns.
 
 <Callout text="" type="info">
-  We recommend starting out with quickly learning the concepts behind iii before diving in deeper.
+  We recommend learning the concepts behind iii before going deeper.
   But if you prefer to get started building then go to the [How to use Functions and Triggers](/docs/how-to/use-functions-and-triggers) guide.
   Or if you want to learn about the deeper aspects of iii's architecture then go to the [Architecture](/docs/architecture) section.
 </Callout>
