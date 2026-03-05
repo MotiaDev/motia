@@ -1,128 +1,119 @@
-# III SDK
+# iii SDK
 
-Multi-language SDK for the III Engine - a WebSocket-based function orchestration platform.
+Official SDKs for the [iii engine](https://github.com/iii-hq/iii).
 
-## Overview
+[![npm](https://img.shields.io/npm/v/iii-sdk)](https://www.npmjs.com/package/iii-sdk)
+[![PyPI](https://img.shields.io/pypi/v/iii-sdk)](https://pypi.org/project/iii-sdk/)
+[![crates.io](https://img.shields.io/crates/v/iii-sdk)](https://crates.io/crates/iii-sdk)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-The III SDK provides a unified interface for building distributed applications with function registration, invocation, and trigger management. It enables seamless communication between services through a WebSocket-based engine.
+## Installing Packages
 
-## Supported Languages
+| Package                                            | Language             | Install               | Docs                                      |
+| -------------------------------------------------- | -------------------- | --------------------- | ----------------------------------------- |
+| [`iii-sdk`](https://www.npmjs.com/package/iii-sdk) | Node.js / TypeScript | `npm install iii-sdk` | [README](./packages/node/iii/README.md)   |
+| [`iii-sdk`](https://pypi.org/project/iii-sdk/)     | Python               | `pip install iii-sdk` | [README](./packages/python/iii/README.md) |
+| [`iii-sdk`](https://crates.io/crates/iii-sdk)      | Rust                 | Add to `Cargo.toml`   | [README](./packages/rust/iii/README.md)   |
 
-- **Node.js** - TypeScript/JavaScript SDK with full async support
-- **Python** - Async Python SDK with function registration
-- **Rust** - High-performance async Rust SDK with automatic reconnection
-
-## Features
-
-- **Function Registration** - Register callable functions that can be invoked by other services
-- **Function Invocation** - Call functions synchronously or asynchronously (fire-and-forget)
-- **Trigger Management** - Create and manage triggers (API, events, schedules, etc.)
-- **Custom Trigger Types** - Define your own trigger types with custom logic
-- **Context-Aware Logging** - Built-in logging with execution context
-- **OpenTelemetry Integration** - Full observability with traces, metrics, and logs (Node.js)
-- **Automatic Reconnection** - Resilient WebSocket connections with auto-reconnect (Rust)
-
-## Quick Start
+## Hello World
 
 ### Node.js
 
-```bash
-npm install iii-sdk
-```
-
 ```javascript
-import { III } from 'iii-sdk'
+import { init } from 'iii-sdk';
 
-const iii = new III('ws://localhost:49134')
+const iii = init('ws://localhost:49134');
 
-iii.registerFunction({ id: 'myFunction' }, (req) => {
-  return { status_code: 200, body: { message: 'Hello, world!' } }
-})
+iii.registerFunction({ id: 'greet' }, async (input) => {
+  return { message: `Hello, ${input.name}!` };
+});
 
 iii.registerTrigger({
   type: 'http',
-  function_id: 'myFunction',
-  config: { api_path: '/hello', http_method: 'POST' },
-})
+  function_id: 'greet',
+  config: { api_path: '/greet', http_method: 'POST' },
+});
 
-const result = await iii.call('myFunction', { param: 'value' })
+const result = await iii.trigger('greet', { name: 'world' });
 ```
 
 ### Python
 
-```bash
-pip install iii-sdk
-```
-
 ```python
 import asyncio
-from iii import init, InitOptions
+from iii import III
 
-async def my_function(data):
-    return {"result": "success"}
+iii = III("ws://localhost:49134")
+
+async def greet(data):
+    return {"message": f"Hello, {data['name']}!"}
+
+iii.register_function("greet", greet)
 
 async def main():
-    iii = init("ws://localhost:49134", InitOptions(worker_name="my-worker"))
-    iii.register_function("my.function", my_function)
+    await iii.connect()
 
-    result = await iii.call("other.function", {"param": "value"})
-    print(result)
+    iii.register_trigger(
+        type="http",
+        function_id="greet",
+        config={"api_path": "/greet", "http_method": "POST"}
+    )
+
+    result = await iii.trigger("greet", {"name": "world"})
 
 asyncio.run(main())
 ```
 
 ### Rust
 
-```toml
-[dependencies]
-iii-sdk = { path = "path/to/iii" }
-```
-
 ```rust
-use iii_sdk::{init, InitOptions};
+use iii_sdk::III;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
+    let iii = III::new("ws://127.0.0.1:49134");
+    iii.connect().await?;
 
-    iii.register_function("my.function", |input| async move {
-        Ok(json!({ "message": "Hello, world!", "input": input }))
+    iii.register_function("greet", |input| async move {
+        let name = input.get("name").and_then(|v| v.as_str()).unwrap_or("world");
+        Ok(json!({ "message": format!("Hello, {name}!") }))
     });
 
+    iii.register_trigger("http", "greet", json!({
+        "api_path": "/greet",
+        "http_method": "POST"
+    }))?;
+
     let result: serde_json::Value = iii
-        .call("my.function", json!({ "param": "value" }))
+        .trigger("greet", json!({ "name": "world" }))
         .await?;
 
-    println!("result: {result}");
     Ok(())
 }
 ```
 
-## Documentation
+## API
 
-Detailed documentation for each SDK:
+| Operation                | Node.js                                              | Python                                      | Rust                                         | Description                                            |
+| ------------------------ | ---------------------------------------------------- | ------------------------------------------- | -------------------------------------------- | ------------------------------------------------------ |
+| Initialize               | `init(url)`                                          | `III(url)`                                  | `III::new(url)`                              | Create an SDK instance and connect to the engine       |
+| Connect                  | Auto on `init()`                                     | `await iii.connect()`                       | `iii.connect().await?`                       | Open the WebSocket connection                          |
+| Register function        | `iii.registerFunction({ id }, handler)`              | `iii.register_function(id, handler)`        | `iii.register_function(id, \|input\| ...)`   | Register a function that can be invoked by name        |
+| Register trigger         | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger(type, fn_id, config)` | `iii.register_trigger(type, fn_id, config)?` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
+| Invoke (await)           | `await iii.trigger(id, data)`                        | `await iii.trigger(id, data)`               | `iii.trigger(id, data).await?`               | Invoke a function and wait for the result              |
+| Invoke (fire-and-forget) | `iii.triggerVoid(id, data)`                          | `iii.trigger_void(id, data)`                | `iii.trigger_void(id, data)?`                | Invoke a function without waiting                      |
 
-- [Node.js SDK](./packages/node/iii/README.md)
-- [Python SDK](./packages/python/iii/README.md)
-- [Rust SDK](./packages/rust/iii/README.md)
-
-## Examples
-
-Example applications demonstrating SDK usage:
-
-- [Node.js Example](./packages/node/iii-example/)
-- [Python Example](./packages/python/iii-example/)
-- [Rust Example](./packages/rust/iii-example/)
+> `call()` and `callVoid()` / `call_void()` are deprecated and will be removed in a future release. Use `trigger()` and `triggerVoid()` / `trigger_void()`.
 
 ## Development
 
 ### Prerequisites
 
 - Node.js 20+ and pnpm (for Node.js SDK)
-- Python 3.8+ and uv (for Python SDK)
-- Rust 1.70+ and Cargo (for Rust SDK)
-- III Engine running on `ws://localhost:49134`
+- Python 3.10+ and uv (for Python SDK)
+- Rust 1.85+ and Cargo (for Rust SDK)
+- iii engine running on `ws://localhost:49134`
 
 ### Building
 
@@ -140,19 +131,16 @@ cd packages/python/iii && pytest
 cd packages/rust/iii && cargo test
 ```
 
-## Architecture
+## Examples
 
-The III SDK communicates with the III Engine via WebSocket connections. The engine acts as a central orchestrator for:
+See the [Quickstart guide](https://iii.dev/docs/quickstart) for step-by-step tutorials.
 
-- Function registry and routing
-- Trigger management and execution
-- Inter-service communication
-- Telemetry and observability
+## Resources
+
+- [Documentation](https://iii.dev/docs)
+- [iii Engine](https://github.com/iii-hq/iii)
+- [Examples](https://github.com/iii-hq/iii-examples)
 
 ## License
 
-Apache License 2.0 - see [LICENSE](./LICENSE) for details.
-
-## Author
-
-Motia LLC
+Apache 2.0
