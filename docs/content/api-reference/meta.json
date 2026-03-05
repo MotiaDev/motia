@@ -1,5 +1,5 @@
 {
   "title": "API Reference",
   "defaultOpen": false,
-  "pages": ["iii-sdk", "sdk-node", "sdk-python", "sdk-rust"]
+  "pages": ["iii-sdk", "sdk-node", "sdk-python", "sdk-rust", "disable-telemetry"]
 }
