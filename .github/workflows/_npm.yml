@@ -30,11 +30,6 @@ on:
         required: false
         type: string
         default: ''
-      slack_channel:
-        description: 'Slack channel ID for notifications (optional)'
-        required: false
-        type: string
-        default: ''
       slack_label:
         description: 'Label for this step in Slack notifications (optional)'
         required: false
@@ -44,6 +39,8 @@ on:
       NPM_TOKEN:
         required: true
       SLACK_BOT_TOKEN:
+        required: false
+      SLACK_CHANNEL_ID:
         required: false
 
 jobs:
@@ -63,7 +60,7 @@ jobs:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
-            channel: ${{ inputs.slack_channel }}
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
             thread_ts: "${{ inputs.slack_thread_ts }}"
             text: ":large_yellow_circle: ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — in progress"
 
@@ -107,6 +104,6 @@ jobs:
           method: chat.update
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
-            channel: ${{ inputs.slack_channel }}
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
             ts: "${{ steps.slack.outputs.ts }}"
             text: "${{ job.status == 'success' && ':large_green_circle:' || ':red_circle:' }} ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — ${{ job.status }}"

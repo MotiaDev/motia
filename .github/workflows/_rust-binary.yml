@@ -11,10 +11,6 @@ on:
         description: 'Path to Cargo.toml (e.g., engine/Cargo.toml)'
         required: true
         type: string
-      targets:
-        description: 'JSON array of {target, os} objects for the build matrix'
-        required: true
-        type: string
       tag_name:
         description: 'Git tag for the GitHub Release (e.g., iii/v1.0.0)'
         required: true
@@ -49,11 +45,6 @@ on:
         required: false
         type: string
         default: ''
-      slack_channel:
-        description: 'Slack channel ID for notifications (optional)'
-        required: false
-        type: string
-        default: ''
       slack_label:
         description: 'Label for this step in Slack notifications (optional)'
         required: false
@@ -66,6 +57,8 @@ on:
         required: true
       SLACK_BOT_TOKEN:
         required: false
+      SLACK_CHANNEL_ID:
+        required: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -73,14 +66,16 @@ env:
   CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
 
 jobs:
-  notify-start:
-    name: Notify Start
-    if: inputs.slack_thread_ts != ''
+  pre-build:
+    name: Pre-build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
-      ts: ${{ steps.slack.outputs.ts }}
+      slack_ts: ${{ steps.slack.outputs.ts }}
     steps:
-      - name: Post thread message
+      - name: Notify Slack — in progress
+        if: inputs.slack_thread_ts != ''
         id: slack
         continue-on-error: true
         uses: slackapi/slack-github-action@v2.0.0
@@ -88,18 +83,12 @@ jobs:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
-            channel: ${{ inputs.slack_channel }}
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
             thread_ts: "${{ inputs.slack_thread_ts }}"
             text: ":large_yellow_circle: ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — in progress"
 
-  create-release:
-    name: Create Release
-    if: inputs.skip_create_release != true && inputs.dry_run != true
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
       - name: Generate token
+        if: inputs.skip_create_release != true && inputs.dry_run != true
         id: generate_token
         uses: actions/create-github-app-token@v2
         with:
@@ -107,10 +96,12 @@ jobs:
           private-key: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
 
       - uses: actions/checkout@v4
+        if: inputs.skip_create_release != true && inputs.dry_run != true
         with:
           token: ${{ steps.generate_token.outputs.token }}
 
       - name: Create GitHub Release
+        if: inputs.skip_create_release != true && inputs.dry_run != true
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ steps.generate_token.outputs.token }}
@@ -122,11 +113,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.target }}
-    needs: [create-release, notify-start]
-    if: |
-      always() &&
-      (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') &&
-      (needs.notify-start.result == 'success' || needs.notify-start.result == 'skipped')
+    needs: [pre-build]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -135,7 +122,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.targets) }}
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: armv7-unknown-linux-gnueabihf
+            os: ubuntu-22.04
 
     steps:
       - name: Generate token
@@ -199,19 +204,17 @@ jobs:
 
   notify-result:
     name: Notify Result
-    needs: [notify-start, build]
-    if: always() && needs.notify-start.result == 'success' && needs.notify-start.outputs.ts != ''
+    needs: [pre-build, build]
+    if: always() && needs.pre-build.outputs.slack_ts != ''
     runs-on: ubuntu-latest
     steps:
       - name: Update thread message
         continue-on-error: true
         uses: slackapi/slack-github-action@v2.0.0
-        env:
-          RESULT: ${{ needs.build.result }}
         with:
           method: chat.update
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
-            channel: ${{ inputs.slack_channel }}
-            ts: "${{ needs.notify-start.outputs.ts }}"
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            ts: "${{ needs.pre-build.outputs.slack_ts }}"
             text: "${{ needs.build.result == 'success' && ':large_green_circle:' || ':red_circle:' }} ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — ${{ needs.build.result }}"
