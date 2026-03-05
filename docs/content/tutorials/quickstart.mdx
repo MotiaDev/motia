@@ -1,41 +1,27 @@
 ---
 title: 'Quickstart'
-description: 'Learn everything you need to start building with the iii SDK'
+description: 'Learn everything you need to start building with iii and the iii SDK'
 hideCards: true
 ---
 
-{/* <Callout title="Install iii" type="info">
-  If you haven't installed iii yet then first run `curl -fsSL https://install.iii.dev/iii/main/install.sh | sh` and verify the
-  installation with `iii --version`
-</Callout> */}
-
-The advantage of iii is that it transforms a backend from behaving like a series of separate concerns, domains, and services to behaving like one cohesive and interoperable application.
-
-This Quickstart will show how any project can leverage iii and the iii SDK to unify their stack.
+This Quickstart will show how any project can leverage iii and the iii SDK to unify their backend stack.
 
 ### 1. Create a new quickstart project
 
-<Callout title="iii is in alpha" type="warn">
-  iii is under very active development. We will have a much more streamlined onboarding experience shortly.
-  Make sure to install iii before proceeding:
-
+<Callout title="install iii" type="warn">
+  Make sure to install iii-cli and iii before proceeding:
 ```bash
-curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
+curl -fsSL https://install.iii.dev/iii-cli/main/install.sh | sh
+iii-cli update
 ```
 </Callout>
 
-The project setup will indicate that this project includes TypeScript, Python, and Rust languages. The README contains instructions about using Docker Compose in case not all are available on the system.
+The project setup will indicate that this project includes TypeScript, Python, and Rust languages. The README contains instructions for using Docker Compose in case not all of these runtimes are available on the system.
 
 ```bash
-curl -LO https://github.com/iii-hq/cli-tooling/releases/latest/download/quickstart.zip
-unzip quickstart.zip
+iii-cli create --template quickstart --directory quickstart
 cd quickstart
 ```
-
-{/* ```bash
-iii-cli create --template quickstart my-iii-backend
-cd my-iii-backend
-``` */}
 
 ### 2. Run the Engine
 
@@ -47,7 +33,7 @@ iii --config iii-config.yaml
 
 Open the project and README in your IDE. You can use this shorthand from a second terminal window in the project directory:
 
-<Tabs items={['VS Code', 'Cursor', 'JetBrains', 'Sublime', 'Neovim']}>
+<Tabs groupId="editor" persist items={['VS Code', 'Cursor', 'JetBrains', 'Sublime', 'Neovim']}>
   <Tab value="VS Code">
 
 ```bash
@@ -96,12 +82,11 @@ used to streamline backend orchestration.
 
 ### 5. Try the iii Console
 
-iii also comes with a brand new web console that provides complete observability of a iii daemon.
-Install and start it in a new terminal window with:
+iii also comes with a web console that provides complete observability of the entire iii powered application.
+Start it in a new terminal window with:
 
 ```bash
-curl -fsSL https://install.iii.dev/console/main/install.sh | sh
-iii-console
+iii-cli console
 ```
 
 Then open your web browser to: http://localhost:3113/
@@ -111,16 +96,10 @@ Then open your web browser to: http://localhost:3113/
 ## Next Steps
 
 <Cards>
-  <Card icon={<LayoutTemplate />} title="Concepts" href={`/docs/concepts`}>
-    Understand how Function and Trigger work under the hood.
+  <Card icon={<BookOpen />} title="How to use Functions & Triggers" href="/docs/how-to/use-functions-and-triggers">
+    Learn how to register functions, trigger them, and bind them to events.
   </Card>
-  <Card icon={<Settings />} title="How-to Guides" href={`/docs/how-to/expose-http-endpoint`}>
-    Solve specific problems: HTTP endpoints, background jobs, state, and more.
-  </Card>
-  <Card icon={<Code />} title="Examples" href={`/docs/examples`}>
-    Working examples: Hello World, state management, cron, observability, and more.
-  </Card>
-  <Card icon={<FileText />} title="SDK Reference" href={`/docs/api-reference/iii-sdk`}>
-    Complete API reference for TypeScript, Python, and Rust.
+  <Card icon={<LayoutTemplate />} title="Concepts" href={`/docs/concepts/functions-and-triggers`}>
+    Understand Functions and Triggers from a conceptual point of view.
   </Card>
 </Cards>

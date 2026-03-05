@@ -9,75 +9,129 @@ Expose a Function as an HTTP endpoint so external clients can call it via REST.
 
 ## Steps
 
-### 1. Register the Function
+### 1. Enable the REST API module
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
-import { init } from 'iii-sdk'
+Make sure `iii-config.yaml` has the REST API module enabled:
+
+```yaml title="iii-config.yaml"
+  - class: modules::api::RestApiModule
+    config:
+      port: 3111
+      host: localhost
+      default_timeout: 30000
+      concurrency_request_limit: 1024
+      cors:
+        allowed_origins:
+          # To allow all origins, use '*':
+          # - '*'
+          - localhost
+        allowed_methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+```
+
+### 2. Register the Function
+
+{/* TODO: Remove once addressed */}
+<TabsConditional groupId="language" persist values={["Python", "Rust"]}>
+  <Callout title="Persistence in Python & Rust APIs" type="info">
+  You may notice that currently the Node API has no code around persistence while Python and Rust do.
+  This will be addrssed shortly so that a single initialization step is all that will be required in all languages.
+  </Callout>
+</TabsConditional>
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="http-endpoint.ts"
+import { init, getContext } from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
-iii.registerFunction(
-  { id: 'users::create' },
-  async (req) => {
-    const { name, email } = req.body
-    const user = { id: crypto.randomUUID(), name, email }
-    return { status_code: 201, body: user }
-  }
-)
+iii.registerFunction({ id: 'users::create' }, async (req) => {
+  const { logger } = getContext()
+  const { name, email } = req.body
+  const user = { id: crypto.randomUUID(), name, email }
+  logger.info('User created', { userId: user.id })
+  return { status_code: 201, body: user }
+})
 ```
 </Tab>
 <Tab value="Python">
-```python
-import asyncio, uuid
+```python title="http_endpoint.py"
+import asyncio
+import signal
+import uuid
+import os
 from iii import III
+from iii.context import get_context
+
+iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+
+async def create_user(req):
+    ctx = get_context()
+    name = req['body']['name']
+    email = req['body']['email']
+    user = {'id': str(uuid.uuid4()), 'name': name, 'email': email}
+    ctx.logger.info('User created', {'userId': user['id']})
+    print('User created', user['id'])
+    return {'status_code': 201, 'body': user}
+
+iii.register_function('users::create', create_user)
 
 async def main():
-    iii = III('ws://localhost:49134')
-
-    async def create_user(req):
-        name = req['body']['name']
-        email = req['body']['email']
-        user = {'id': str(uuid.uuid4()), 'name': name, 'email': email}
-        return {'status_code': 201, 'body': user}
-
-    iii.register_function('users::create', create_user)
     await iii.connect()
+    print("HTTP endpoint ready on POST /users")
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop.set)
+    await stop.wait()
 
 asyncio.run(main())
 ```
 </Tab>
 <Tab value="Rust">
-```rust
-use iii_sdk::III;
+```rust title="http_endpoint.rs"
+use iii_sdk::{get_context, III};
 use serde_json::json;
+use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
+    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let iii = III::new(&url);
     iii.connect().await?;
 
     iii.register_function("users::create", |req| async move {
+        let ctx = get_context();
         let name = req["body"]["name"].as_str().unwrap_or("");
         let email = req["body"]["email"].as_str().unwrap_or("");
+        let user_id = uuid::Uuid::new_v4().to_string();
+        ctx.logger.info("User created", Some(json!({ "userId": user_id })));
+        println!("User created {}", user_id);
         Ok(json!({
             "status_code": 201,
-            "body": { "id": uuid::Uuid::new_v4().to_string(), "name": name, "email": email }
+            "body": { "id": user_id, "name": name, "email": email }
         }))
     });
 
-    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+    println!("HTTP endpoint ready on POST /users");
+    signal::ctrl_c().await?;
+
+    Ok(())
 }
 ```
 </Tab>
 </Tabs>
 
-### 2. Register the HTTP Trigger
+### 3. Register the HTTP trigger
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="http-trigger.ts"
 iii.registerTrigger({
   type: 'http',
   function_id: 'users::create',
@@ -86,45 +140,36 @@ iii.registerTrigger({
 ```
 </Tab>
 <Tab value="Python">
-```python
+```python title="http_trigger.py"
 iii.register_trigger(
-    type='http',
-    function_id='users::create',
-    config={'api_path': '/users', 'http_method': 'POST'},
+    type="http",
+    function_id="users::create",
+    config={"api_path": "/users", "http_method": "POST"},
 )
 ```
 </Tab>
 <Tab value="Rust">
-```rust
-iii.register_trigger("http", "users::create", json!({
-    "api_path": "/users",
-    "http_method": "POST"
-}))?;
+```rust title="http_trigger.rs"
+iii.register_trigger(
+    "http",
+    "users::create",
+    json!({ "api_path": "/users", "http_method": "POST" }),
+)?;
 ```
 </Tab>
 </Tabs>
 
-### 3. Enable the REST API module
-
-Make sure `config.yaml` has the REST API module enabled:
-
-```yaml
-modules:
-  rest_api:
-    port: 3000
-```
-
-### 4. Test it
+### 4. Try it
 
 ```bash
-curl -X POST http://localhost:3000/users \
+curl -X POST http://localhost:3111/users \
   -H "Content-Type: application/json" \
   -d '{"name": "Alice", "email": "alice@example.com"}'
 ```
 
 ## Result
 
-Your Function is now accessible as `POST /users` on port 3000. The `http` trigger handles request parsing and response serialization automatically.
+Your Function is now accessible as `POST /users` on port 3111. The `http` trigger handles request parsing and response serialization automatically.
 
 <Callout title="Request and Response types" type="info">
   HTTP-triggered Functions receive an `ApiRequest` and should return an `ApiResponse`. See the [SDK Reference](/docs/api-reference/iii-sdk) for type details.

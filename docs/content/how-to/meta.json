@@ -1,5 +1,11 @@
 {
   "title": "How-to Guides",
   "defaultOpen": false,
-  "pages": ["expose-http-endpoint", "add-background-job", "queue-background-job", "manage-state", "schedule-cron-task", "stream-realtime-data"]
+  "pages": [
+    "use-functions-and-triggers",
+    "expose-http-endpoint",
+    "manage-state",
+    "schedule-cron-task",
+    "stream-realtime-data"
+  ]
 }

@@ -28,15 +28,41 @@ modules::queue::QueueModule
 
 ### modules::queue::BuiltinQueueAdapter
 
-Built-in in-process queue. No external dependencies. Suitable for single-instance deployments only — messages are not shared across engine instances.
+Built-in in-process queue with retries and dead-letter queue. No external dependencies. Suitable for single-instance deployments only — messages are not shared across engine instances.
 
 ```yaml
 class: modules::queue::BuiltinQueueAdapter
+config:
+  max_attempts: 3
+  backoff_ms: 1000
+  concurrency: 10
+  poll_interval_ms: 100
+  mode: concurrent   # concurrent | fifo
 ```
+
+<ResponseField name="max_attempts" type="number">
+  Maximum delivery attempts before sending to the dead-letter queue. Defaults to `3`.
+</ResponseField>
+
+<ResponseField name="backoff_ms" type="number">
+  Initial backoff delay in milliseconds. Applied with exponential scaling on each retry. Defaults to `1000`.
+</ResponseField>
+
+<ResponseField name="concurrency" type="number">
+  Maximum number of jobs processed simultaneously. Defaults to `10`.
+</ResponseField>
+
+<ResponseField name="poll_interval_ms" type="number">
+  Queue polling interval in milliseconds. Defaults to `100`.
+</ResponseField>
+
+<ResponseField name="mode" type="string">
+  Queue delivery mode: `concurrent` (default) or `fifo`.
+</ResponseField>
 
 ### modules::queue::RedisAdapter
 
-Uses Redis Streams as the queue backend. Enables message sharing across multiple engine instances.
+Uses Redis Pub/Sub as the queue backend. Enables message sharing across multiple engine instances. No retry support and no dead-letter queue — failed messages are not retried. Per-subscription queue config is ignored.
 
 ```yaml
 class: modules::queue::RedisAdapter
@@ -58,6 +84,7 @@ config:
   amqp_url: ${RABBITMQ_URL:amqp://localhost:5672}
   max_attempts: 3
   prefetch_count: 10
+  queue_mode: standard   # standard | fifo
 ```
 
 <ResponseField name="amqp_url" type="string">
@@ -71,6 +98,22 @@ config:
 <ResponseField name="prefetch_count" type="number">
   Number of messages to prefetch per consumer. Defaults to `10`.
 </ResponseField>
+
+<ResponseField name="queue_mode" type="string">
+  Queue delivery mode: `standard` or `fifo`. Defaults to `standard`.
+</ResponseField>
+
+## Retries and Dead-Letter Queue
+
+Retry behavior depends on the adapter:
+
+| Adapter | Retries | Dead-Letter Queue | Per-subscription config |
+|---------|---------|-------------------|------------------------|
+| BuiltinQueueAdapter | Yes (`max_attempts`, default `3`) | Yes | Yes |
+| RedisAdapter | No | No | No |
+| RabbitMQAdapter | Yes (`max_attempts`, default `3`) | Yes | Partial (`type`, `concurrency`) |
+
+For BuiltinQueueAdapter and RabbitMQAdapter, messages that fail after `max_attempts` delivery attempts are routed to the dead-letter queue. Backoff in BuiltinQueueAdapter is always exponential: `backoff_ms × 2^(attempt − 1)`.
 
 ## Functions
 
@@ -105,6 +148,22 @@ This Module adds a new Trigger Type: `queue`.
   <ResponseField name="_condition_path" type="string">
     Function ID for conditional execution. The engine invokes it with the message payload; if it returns `false`, the handler function is not called.
   </ResponseField>
+  <ResponseField name="queue" type="object">
+    Per-subscription queue configuration. Overrides adapter defaults where supported. Supported by `BuiltinQueueAdapter` (all fields) and `RabbitMQAdapter` (`type`, `concurrency`). Ignored by `RedisAdapter`.
+
+    <ResponseField name="maxRetries" type="number">
+      Maximum delivery attempts for this subscription. Overrides the adapter-level `max_attempts`. `BuiltinQueueAdapter` only.
+    </ResponseField>
+    <ResponseField name="concurrency" type="number">
+      Maximum concurrent jobs for this subscription.
+    </ResponseField>
+    <ResponseField name="backoffDelayMs" type="number">
+      Initial backoff delay in milliseconds. `BuiltinQueueAdapter` only.
+    </ResponseField>
+    <ResponseField name="type" type="string">
+      Queue mode for this subscription: `fifo` or `standard` (concurrent).
+    </ResponseField>
+  </ResponseField>
 </Expandable>
 
 ### Sample Code
@@ -124,7 +183,7 @@ iii.registerTrigger({
   config: { topic: 'user.created' },
 })
 
-await iii.trigger('enqueue', {
+iii.triggerVoid('enqueue', {
   topic: 'user.created',
   data: { id: '123', email: 'user@example.com' },
 })

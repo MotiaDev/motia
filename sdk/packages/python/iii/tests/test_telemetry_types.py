@@ -36,3 +36,15 @@ def test_logs_enabled_defaults_to_none():
 def test_engine_ws_url_exists():
     cfg = OtelConfig(engine_ws_url="ws://custom:1234")
     assert cfg.engine_ws_url == "ws://custom:1234"
+
+
+def test_logs_batch_config_defaults_to_none():
+    cfg = OtelConfig()
+    assert cfg.logs_flush_interval_ms is None
+    assert cfg.logs_batch_size is None
+
+
+def test_logs_batch_config_explicit():
+    cfg = OtelConfig(logs_flush_interval_ms=500, logs_batch_size=10)
+    assert cfg.logs_flush_interval_ms == 500
+    assert cfg.logs_batch_size == 10
