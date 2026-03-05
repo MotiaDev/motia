@@ -1561,7 +1561,7 @@ dependencies = [
  "hostname",
  "http-body-util",
  "iana-time-zone",
- "iii-sdk",
+ "iii-sdk 0.4.1",
  "indexmap",
  "inventory",
  "lapin",
@@ -1602,7 +1602,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
- "iii-sdk",
+ "iii-sdk 0.2.1",
  "mime_guess",
  "rust-embed",
  "serde",
@@ -1617,11 +1617,36 @@ dependencies = [
 name = "iii-example"
 version = "0.0.0"
 dependencies = [
- "iii-sdk",
+ "iii-sdk 0.4.1",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "iii-sdk"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ea93d3ff2ad85ef7730cea44f45cbbd4781bcc39bb9d33c4226170bf92b5695"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "hostname",
+ "opentelemetry",
+ "opentelemetry-http",
+ "opentelemetry-proto",
+ "opentelemetry_sdk",
+ "prost",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "thiserror",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

@@ -21,6 +21,7 @@ export interface VisualizationSpan {
   attributes: Record<string, unknown>
   events: StoredSpan['events']
   links: StoredSpan['links']
+  kind?: string
   service_name?: string
   instrumentation_scope_name?: string
   instrumentation_scope_version?: string
@@ -97,10 +98,25 @@ export function calculateDurationMs(startTime: number, endTime: number): number 
  */
 function getSpanStatus(status: StoredSpan['status']): 'ok' | 'error' | 'unset' {
   if (!status) return 'unset'
-  const statusLower = status.toLowerCase()
-  if (statusLower === 'error' || statusLower === '2') return 'error'
-  if (statusLower === 'ok' || statusLower === '0') return 'ok'
+  const lower = status.toLowerCase()
+  if (lower === 'error' || lower === '2') return 'error'
+  if (lower === 'ok' || lower === '1') return 'ok'
+  if (lower === 'unset' || lower === '0') return 'unset'
   return 'unset'
+}
+
+/**
+ * Convert attributes array to Record
+ */
+function attributesToRecord(
+  attributes: Array<[string, unknown]> | undefined,
+): Record<string, unknown> {
+  if (!attributes) return {}
+  const record: Record<string, unknown> = {}
+  for (const [key, value] of attributes) {
+    record[key] = value
+  }
+  return record
 }
 
 /**
@@ -123,6 +139,7 @@ export function toWaterfallData(spans: StoredSpan[], traceId: string): Waterfall
 
   // Calculate depths
   const depths = calculateDepths(traceSpans)
+  const spanMap = new Map(traceSpans.map((s) => [s.span_id, s]))
 
   // Convert to VisualizationSpan format with percentages
   const visualSpans: VisualizationSpan[] = traceSpans.map((storedSpan) => {
@@ -134,12 +151,6 @@ export function toWaterfallData(spans: StoredSpan[], traceId: string): Waterfall
     const startPercent = totalDurationMs > 0 ? (startOffset / totalDurationMs) * 100 : 0
     const widthPercent = totalDurationMs > 0 ? (durationMs / totalDurationMs) * 100 : 100
 
-    // Convert attributes array to Record
-    const attributesRecord: Record<string, unknown> = {}
-    for (const [key, value] of storedSpan.attributes) {
-      attributesRecord[key] = value
-    }
-
     return {
       name: storedSpan.name,
       span_id: storedSpan.span_id,
@@ -150,9 +161,10 @@ export function toWaterfallData(spans: StoredSpan[], traceId: string): Waterfall
       depth: depths.get(storedSpan.span_id) || 0,
       start_percent: startPercent,
       width_percent: widthPercent,
-      attributes: attributesRecord,
+      attributes: attributesToRecord(storedSpan.attributes),
       events: storedSpan.events || [],
       links: storedSpan.links || [],
+      kind: storedSpan.kind,
       service_name:
         storedSpan.service_name || (storedSpan.resource?.['service.name'] as string) || undefined,
       instrumentation_scope_name: undefined,
@@ -163,8 +175,8 @@ export function toWaterfallData(spans: StoredSpan[], traceId: string): Waterfall
 
   // Sort by start time, then by depth
   visualSpans.sort((a, b) => {
-    const aStart = toMs(traceSpans.find((s) => s.span_id === a.span_id)?.start_time_unix_nano ?? 0)
-    const bStart = toMs(traceSpans.find((s) => s.span_id === b.span_id)?.start_time_unix_nano ?? 0)
+    const aStart = toMs(spanMap.get(a.span_id)?.start_time_unix_nano ?? 0)
+    const bStart = toMs(spanMap.get(b.span_id)?.start_time_unix_nano ?? 0)
     if (aStart !== bStart) return aStart - bStart
     return a.depth - b.depth
   })
@@ -224,14 +236,6 @@ export function treeToWaterfallData(roots: SpanTreeNode[]): WaterfallData | null
     const startPercent = totalDurationMs > 0 ? (startOffset / totalDurationMs) * 100 : 0
     const widthPercent = totalDurationMs > 0 ? (durationMs / totalDurationMs) * 100 : 100
 
-    // Convert attributes array to Record
-    const attributesRecord: Record<string, unknown> = {}
-    if (span.attributes) {
-      for (const [key, value] of span.attributes) {
-        attributesRecord[key] = value
-      }
-    }
-
     return {
       name: span.name,
       span_id: span.span_id,
@@ -242,9 +246,10 @@ export function treeToWaterfallData(roots: SpanTreeNode[]): WaterfallData | null
       depth,
       start_percent: startPercent,
       width_percent: widthPercent,
-      attributes: attributesRecord,
+      attributes: attributesToRecord(span.attributes || []),
       events: span.events || [],
       links: span.links || [],
+      kind: span.kind,
       service_name: span.service_name || (span.resource?.['service.name'] as string) || undefined,
       instrumentation_scope_name: undefined,
       instrumentation_scope_version: undefined,

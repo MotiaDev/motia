@@ -56,7 +56,7 @@ modules:
       memory_max_spans: ${OTEL_MEMORY_MAX_SPANS:10000}
 
       metrics_enabled: true
-      metrics_exporter: ${OTEL_METRICS_EXPORTER:both}
+      metrics_exporter: ${OTEL_METRICS_EXPORTER:memory}
       prometheus_port: ${PROMETHEUS_PORT:9464}
       metrics_retention_seconds: 3600
       metrics_max_count: 10000
@@ -71,10 +71,10 @@ modules:
         collection_interval_seconds: 5
         history_size: 60
 
-  - class: modules::event::EventModule
+  - class: modules::queue::QueueModule
     config:
       adapter:
-        class: modules::event::RedisAdapter
+        class: modules::queue::RedisAdapter
         config:
           redis_url: redis://localhost:6379
 

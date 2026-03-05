@@ -477,6 +477,150 @@ async fn handle_state_item_delete(bridge: &III, input: Value) -> Value {
     }
 }
 
+async fn handle_adapters(bridge: &III) -> Value {
+    let (workers_result, triggers_result, health_result) = tokio::join!(
+        bridge.call_with_timeout("engine::workers::list", json!({}), Duration::from_secs(5)),
+        bridge.call_with_timeout(
+            "engine::triggers::list",
+            json!({ "include_internal": true }),
+            Duration::from_secs(5)
+        ),
+        bridge.call_with_timeout("engine::health::check", json!({}), Duration::from_secs(5))
+    );
+
+    let mut adapters: Vec<Value> = Vec::new();
+
+    // Derive modules from trigger types
+    let health_status = health_result
+        .as_ref()
+        .ok()
+        .and_then(|v| v.get("status"))
+        .and_then(|s| s.as_str())
+        .unwrap_or("unknown");
+
+    let mut seen_modules = HashSet::new();
+
+    if let Ok(triggers_data) = &triggers_result {
+        if let Some(triggers) = triggers_data.get("triggers").and_then(|v| v.as_array()) {
+            for trigger in triggers {
+                let trigger_type = trigger
+                    .get("trigger_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+
+                // Derive module from trigger type
+                let module_id = match trigger_type {
+                    "api" => "rest_api",
+                    "cron" => "cron",
+                    "event" => "event",
+                    t if t.starts_with("stream") => "streams",
+                    "subscribe" => "streams",
+                    _ => trigger_type,
+                };
+
+                if seen_modules.insert(module_id.to_string()) {
+                    adapters.push(json!({
+                        "id": module_id,
+                        "type": "module",
+                        "status": "active",
+                        "health": if health_status == "healthy" { "healthy" } else { "degraded" },
+                        "description": format!("{} module", module_id),
+                        "internal": false
+                    }));
+                }
+            }
+
+            // Aggregate internal flag per trigger_type: true if ALL triggers are internal
+            let mut trigger_internal: std::collections::HashMap<String, bool> =
+                std::collections::HashMap::new();
+            for trigger in triggers {
+                let trigger_type = trigger
+                    .get("trigger_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let function_id = trigger
+                    .get("function_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let is_internal = function_id.starts_with("engine::");
+
+                let entry = trigger_internal
+                    .entry(trigger_type.to_string())
+                    .or_insert(true);
+                if !is_internal {
+                    *entry = false;
+                }
+            }
+
+            for (trigger_type, is_internal) in &trigger_internal {
+                adapters.push(json!({
+                    "id": trigger_type,
+                    "type": "trigger",
+                    "status": "active",
+                    "health": "healthy",
+                    "description": format!("{} trigger handler", trigger_type),
+                    "internal": is_internal
+                }));
+            }
+        }
+    }
+
+    // Always add devtools and observability modules (they're running if the console is connected)
+    if seen_modules.insert("devtools".to_string()) {
+        adapters.push(json!({
+            "id": "devtools",
+            "type": "module",
+            "status": "active",
+            "health": "healthy",
+            "description": "devtools module",
+            "internal": true
+        }));
+    }
+    if seen_modules.insert("observability".to_string()) {
+        adapters.push(json!({
+            "id": "observability",
+            "type": "module",
+            "status": "active",
+            "health": if health_status == "healthy" { "healthy" } else { "degraded" },
+            "description": "observability module",
+            "internal": true
+        }));
+    }
+
+    // Add worker pools
+    if let Ok(workers_data) = &workers_result {
+        if let Some(workers) = workers_data.get("workers").and_then(|v| v.as_array()) {
+            let mut pool_counts: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::new();
+            for worker in workers {
+                let runtime = worker
+                    .get("runtime")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                *pool_counts.entry(runtime.to_string()).or_insert(0) += 1;
+            }
+
+            for (pool_id, count) in &pool_counts {
+                adapters.push(json!({
+                    "id": pool_id,
+                    "type": "worker_pool",
+                    "status": "active",
+                    "health": "healthy",
+                    "description": format!("{} worker pool", pool_id),
+                    "count": count,
+                    "internal": false
+                }));
+            }
+        }
+    }
+
+    let count = adapters.len();
+    success_response(json!({
+        "adapters": adapters,
+        "count": count
+    }))
+}
+
 async fn handle_streams_list(bridge: &III) -> Value {
     match bridge
         .call_with_timeout("stream::list_all", json!({}), Duration::from_secs(10))
@@ -873,6 +1017,12 @@ pub fn register_functions(bridge: &III) {
     bridge.register_function("engine::console::state_item_delete", move |input| {
         let bridge = b.clone();
         async move { Ok(handle_state_item_delete(&bridge, input).await) }
+    });
+
+    let b = bridge.clone();
+    bridge.register_function("engine::console::adapters", move |_input| {
+        let bridge = b.clone();
+        async move { Ok(handle_adapters(&bridge).await) }
     });
 
     let b = bridge.clone();

@@ -142,11 +142,14 @@ describe('HTTP external functions', () => {
     let httpFn: { unregister(): void } | undefined
 
     try {
-      httpFn = iii.registerHttpFunction(functionId, {
-        url: webhookProbe.url(),
-        method: 'POST',
-        timeout_ms: 3000,
-      })
+      httpFn = iii.registerFunction(
+        { id: functionId },
+        {
+          url: webhookProbe.url(),
+          method: 'POST',
+          timeout_ms: 3000,
+        },
+      )
       await sleep(300)
 
       trigger = iii.registerTrigger({
@@ -183,11 +186,14 @@ describe('HTTP external functions', () => {
     let httpFn: { id: string; unregister(): void } | undefined
 
     try {
-      httpFn = iii.registerHttpFunction(functionId, {
-        url: webhookProbe.url(),
-        method: 'POST',
-        timeout_ms: 3000,
-      })
+      httpFn = iii.registerFunction(
+        { id: functionId },
+        {
+          url: webhookProbe.url(),
+          method: 'POST',
+          timeout_ms: 3000,
+        },
+      )
       await sleep(300)
 
       const functionsAfterRegister = await execute(async () => iii.listFunctions())
@@ -220,15 +226,18 @@ describe('HTTP external functions', () => {
     let httpFn: { unregister(): void } | undefined
 
     try {
-      httpFn = iii.registerHttpFunction(functionId, {
-        url: webhookProbe.url(),
-        method: 'POST',
-        timeout_ms: 3000,
-        headers: {
-          'X-Custom-Header': 'test-value',
-          'X-Another': '123',
+      httpFn = iii.registerFunction(
+        { id: functionId },
+        {
+          url: webhookProbe.url(),
+          method: 'POST',
+          timeout_ms: 3000,
+          headers: {
+            'X-Custom-Header': 'test-value',
+            'X-Another': '123',
+          },
         },
-      })
+      )
       await sleep(300)
 
       trigger = iii.registerTrigger({
@@ -277,17 +286,23 @@ describe('HTTP external functions', () => {
     let httpFnB: { unregister(): void } | undefined
 
     try {
-      httpFnA = iii.registerHttpFunction(functionIdA, {
-        url: webhookProbeA.url(),
-        method: 'POST',
-        timeout_ms: 3000,
-      })
+      httpFnA = iii.registerFunction(
+        { id: functionIdA },
+        {
+          url: webhookProbeA.url(),
+          method: 'POST',
+          timeout_ms: 3000,
+        },
+      )
 
-      httpFnB = iii.registerHttpFunction(functionIdB, {
-        url: webhookProbeB.url(),
-        method: 'POST',
-        timeout_ms: 3000,
-      })
+      httpFnB = iii.registerFunction(
+        { id: functionIdB },
+        {
+          url: webhookProbeB.url(),
+          method: 'POST',
+          timeout_ms: 3000,
+        },
+      )
       await sleep(300)
 
       triggerA = iii.registerTrigger({
@@ -341,11 +356,14 @@ describe('HTTP external functions', () => {
     let httpFn: { unregister(): void } | undefined
 
     try {
-      httpFn = iii.registerHttpFunction(functionId, {
-        url: webhookProbe.url(),
-        method: 'POST',
-        timeout_ms: 3000,
-      })
+      httpFn = iii.registerFunction(
+        { id: functionId },
+        {
+          url: webhookProbe.url(),
+          method: 'POST',
+          timeout_ms: 3000,
+        },
+      )
       await sleep(300)
 
       trigger = iii.registerTrigger({
@@ -400,11 +418,14 @@ describe('HTTP external functions', () => {
     let httpFn: { unregister(): void } | undefined
 
     try {
-      httpFn = iii.registerHttpFunction(functionId, {
-        url: webhookProbe.url(),
-        method: 'PUT',
-        timeout_ms: 3000,
-      })
+      httpFn = iii.registerFunction(
+        { id: functionId },
+        {
+          url: webhookProbe.url(),
+          method: 'PUT',
+          timeout_ms: 3000,
+        },
+      )
       await sleep(300)
 
       trigger = iii.registerTrigger({

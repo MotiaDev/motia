@@ -1,5 +1,6 @@
 """III SDK for Python."""
 
+import asyncio
 import logging
 
 from .channels import ChannelReader, ChannelWriter, ReadableStream, WritableStream
@@ -41,6 +42,22 @@ from .types import (
 )
 
 
+def init(address: str, options: InitOptions | None = None) -> III:
+    """Create an III client and auto-start its connection task."""
+    client = III(address, options)
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError as exc:
+        raise RuntimeError(
+            "iii.init() requires an active asyncio event loop. "
+            "Call it inside async code or use `client = III(...); await client.connect()`"
+        ) from exc
+
+    loop.create_task(client.connect())
+    return client
+
+
 def configure_logging(level: int = logging.INFO, format: str | None = None) -> None:
     """Configure logging for the III SDK.
 
@@ -58,6 +75,7 @@ def configure_logging(level: int = logging.INFO, format: str | None = None) -> N
 __all__ = [
     # Core
     "III",
+    "init",
     "InitOptions",
     "ReconnectionConfig",
     "IIIConnectionState",

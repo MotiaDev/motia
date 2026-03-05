@@ -70,7 +70,7 @@ export type InternalFunctionHandler<TInput = any, TOutput = any> = (
 
 export type RemoteFunctionData = {
   message: RegisterFunctionMessage
-  handler: InternalFunctionHandler
+  handler?: InternalFunctionHandler
 }
 
 export type RemoteServiceFunctionData = {
@@ -100,19 +100,13 @@ export interface ISdk {
 
   /**
    * Registers a new function. A function is a unit of work that can be invoked by other services.
+   * Pass a handler for local execution, or an HttpInvocationConfig for HTTP-invoked functions.
    * @param func - The function to register
-   * @param handler - The handler for the function
-   * @returns A function object that can be used to invoke the function
+   * @param handlerOrInvocation - The handler for local execution, or HTTP invocation config
+   * @returns A function object that can be used to unregister the function
    */
   registerFunction(func: RegisterFunctionInput, handler: RemoteFunctionHandler): FunctionRef
-
-  /**
-   * Registers an HTTP external function (Lambda, Cloudflare Workers, etc.). The engine invokes the URL when triggered.
-   * @param id - Function path (use :: for namespacing, e.g. external::my_lambda)
-   * @param config - HTTP endpoint config (url, method, timeout_ms, headers, auth)
-   * @returns A function ref for unregistering
-   */
-  registerHttpFunction(id: string, config: HttpInvocationConfig): FunctionRef
+  registerFunction(func: RegisterFunctionInput, invocation: HttpInvocationConfig): FunctionRef
 
   /**
    * Invokes a function.

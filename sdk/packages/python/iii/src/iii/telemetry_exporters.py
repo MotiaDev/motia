@@ -117,6 +117,8 @@ def _attr_value(value: Any) -> "dict[str, Any]":
         return {"stringValue": value}
     if isinstance(value, (list, tuple)):
         return {"arrayValue": {"values": [_attr_value(v) for v in value]}}
+    if isinstance(value, dict):
+        return {"kvlistValue": {"values": [{"key": k, "value": _attr_value(v)} for k, v in value.items()]}}
     return {"stringValue": str(value)}
 
 

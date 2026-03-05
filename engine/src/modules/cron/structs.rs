@@ -19,6 +19,7 @@ use cron::Schedule;
 use tokio::{task::JoinHandle, time::sleep};
 use tracing::Instrument;
 
+use crate::condition::check_condition;
 use crate::engine::{Engine, EngineTrait};
 
 /// Trait for cron scheduling operations
@@ -154,35 +155,27 @@ impl CronAdapter {
                             "actual_time": chrono::Utc::now().to_rfc3339(),
                         });
 
-                        if let Some(condition_function_id) = condition_function_id.as_ref() {
+                        if let Some(ref condition_id) = condition_function_id {
                             tracing::debug!(
-                                condition_function_id = %condition_function_id,
+                                condition_function_id = %condition_id,
                                 "Checking trigger conditions"
                             );
-
-                            match engine.call(condition_function_id, event_data.clone()).await {
-                                Ok(Some(result)) => {
-                                    if let Some(passed) = result.as_bool()
-                                        && !passed
-                                    {
-                                        tracing::debug!(
-                                            function_id = %function_id,
-                                            "Condition check failed, skipping handler"
-                                        );
-                                        tracing::Span::current().record("otel.status_code", "OK");
-                                        scheduler.release_lock(&job_id).await;
-                                        return;
-                                    }
-                                }
-                                Ok(None) => {
-                                    tracing::warn!(
-                                        condition_function_id = %condition_function_id,
-                                        "Condition function returned no result"
+                            match check_condition(engine.as_ref(), condition_id, event_data.clone())
+                                .await
+                            {
+                                Ok(true) => {}
+                                Ok(false) => {
+                                    tracing::debug!(
+                                        function_id = %function_id,
+                                        "Condition check failed, skipping handler"
                                     );
+                                    tracing::Span::current().record("otel.status_code", "OK");
+                                    scheduler.release_lock(&job_id).await;
+                                    return;
                                 }
                                 Err(err) => {
                                     tracing::error!(
-                                        condition_function_id = %condition_function_id,
+                                        condition_function_id = %condition_id,
                                         error = ?err,
                                         "Error invoking condition function"
                                     );

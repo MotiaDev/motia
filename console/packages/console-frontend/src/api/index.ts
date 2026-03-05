@@ -100,13 +100,11 @@ export type { AdapterInfo } from './system/adapters'
 export { fetchAdapters } from './system/adapters'
 // System - Status
 export type {
-  DevToolsConfig,
   HealthComponent,
   HealthStatus,
   SystemStatus,
 } from './system/status'
 export {
-  fetchConfig,
   fetchStatus,
   getConnectionStatus,
   healthCheck,

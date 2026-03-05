@@ -24,3 +24,6 @@ app.log
 .worktrees/
 .sisyphus/
 conductor
+.omc
+.cursor
+AGENTS.md

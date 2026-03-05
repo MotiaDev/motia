@@ -543,7 +543,7 @@ dependencies = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.2.0"
+version = "0.4.1"
 dependencies = [
  "async-trait",
  "futures-util",

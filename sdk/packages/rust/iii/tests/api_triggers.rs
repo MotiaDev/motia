@@ -1,6 +1,6 @@
 //! Integration tests for HTTP API trigger endpoints.
 //!
-//! Requires a running III engine at `ws://localhost:49199` (WS) and `http://localhost:3199` (HTTP).
+//! Requires a running III engine. Set III_BRIDGE_URL and III_HTTP_URL, or use localhost:49134 defaults.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,8 +10,13 @@ use tokio::sync::Mutex;
 
 use iii_sdk::{III, IIIError};
 
-const ENGINE_WS_URL: &str = "ws://localhost:49199";
-const ENGINE_HTTP_URL: &str = "http://localhost:3199";
+fn engine_ws_url() -> String {
+    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+}
+
+fn engine_http_url() -> String {
+    std::env::var("III_HTTP_URL").unwrap_or_else(|_| "http://localhost:3199".to_string())
+}
 
 use std::path::PathBuf;
 
@@ -37,7 +42,7 @@ fn http_client() -> reqwest::Client {
 
 #[tokio::test]
 async fn get_endpoint() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -62,7 +67,7 @@ async fn get_endpoint() {
     settle().await;
 
     let resp = http_client()
-        .get(format!("{ENGINE_HTTP_URL}/test/rs/hello"))
+        .get(format!("{}/test/rs/hello", engine_http_url()))
         .send()
         .await
         .expect("request failed");
@@ -76,7 +81,7 @@ async fn get_endpoint() {
 
 #[tokio::test]
 async fn post_endpoint_with_body() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -102,7 +107,7 @@ async fn post_endpoint_with_body() {
     settle().await;
 
     let resp = http_client()
-        .post(format!("{ENGINE_HTTP_URL}/test/rs/items"))
+        .post(format!("{}/test/rs/items", engine_http_url()))
         .json(&json!({"name": "test item", "value": 123}))
         .send()
         .await
@@ -118,7 +123,7 @@ async fn post_endpoint_with_body() {
 
 #[tokio::test]
 async fn path_parameters() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -146,7 +151,7 @@ async fn path_parameters() {
     settle().await;
 
     let resp = http_client()
-        .get(format!("{ENGINE_HTTP_URL}/test/rs/items/abc123"))
+        .get(format!("{}/test/rs/items/abc123", engine_http_url()))
         .send()
         .await
         .expect("request failed");
@@ -160,7 +165,7 @@ async fn path_parameters() {
 
 #[tokio::test]
 async fn query_parameters() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -185,7 +190,10 @@ async fn query_parameters() {
     settle().await;
 
     let resp = http_client()
-        .get(format!("{ENGINE_HTTP_URL}/test/rs/search?q=hello&limit=10"))
+        .get(format!(
+            "{}/test/rs/search?q=hello&limit=10",
+            engine_http_url()
+        ))
         .send()
         .await
         .expect("request failed");
@@ -200,7 +208,7 @@ async fn query_parameters() {
 
 #[tokio::test]
 async fn custom_status_code() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -222,7 +230,7 @@ async fn custom_status_code() {
     settle().await;
 
     let resp = http_client()
-        .get(format!("{ENGINE_HTTP_URL}/test/rs/missing"))
+        .get(format!("{}/test/rs/missing", engine_http_url()))
         .send()
         .await
         .expect("request failed");
@@ -245,7 +253,7 @@ async fn download_pdf_streaming() {
 
     let original_pdf = std::fs::read(&pdf_path).expect("read pdf");
 
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -311,7 +319,7 @@ async fn download_pdf_streaming() {
     settle().await;
 
     let resp = http_client()
-        .get(format!("{ENGINE_HTTP_URL}/test/rs/download/pdf"))
+        .get(format!("{}/test/rs/download/pdf", engine_http_url()))
         .send()
         .await
         .expect("request failed");
@@ -342,7 +350,7 @@ async fn upload_pdf_streaming() {
 
     let original_pdf = std::fs::read(&pdf_path).expect("read pdf");
 
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -430,7 +438,7 @@ async fn upload_pdf_streaming() {
     settle().await;
 
     let resp = http_client()
-        .post(format!("{ENGINE_HTTP_URL}/test/rs/upload/pdf"))
+        .post(format!("{}/test/rs/upload/pdf", engine_http_url()))
         .header("content-type", "application/octet-stream")
         .body(original_pdf.clone())
         .send()
@@ -450,7 +458,7 @@ async fn upload_pdf_streaming() {
 
 #[tokio::test]
 async fn sse_streaming() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -538,7 +546,7 @@ async fn sse_streaming() {
     settle().await;
 
     let resp = http_client()
-        .get(format!("{ENGINE_HTTP_URL}/test/rs/sse"))
+        .get(format!("{}/test/rs/sse", engine_http_url()))
         .send()
         .await
         .expect("request failed");
@@ -587,7 +595,7 @@ async fn sse_streaming() {
 
 #[tokio::test]
 async fn urlencoded_form_data() {
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -687,7 +695,7 @@ async fn urlencoded_form_data() {
     settle().await;
 
     let resp = http_client()
-        .post(format!("{ENGINE_HTTP_URL}/test/rs/form/urlencoded"))
+        .post(format!("{}/test/rs/form/urlencoded", engine_http_url()))
         .header("content-type", "application/x-www-form-urlencoded")
         .body("name=John+Doe&email=john%40example.com&age=30")
         .send()
@@ -733,7 +741,7 @@ async fn multipart_form_data() {
 
     let original_pdf = std::fs::read(&pdf_path).expect("read pdf");
 
-    let iii = III::new(ENGINE_WS_URL);
+    let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("failed to connect");
     settle().await;
 
@@ -848,7 +856,7 @@ async fn multipart_form_data() {
         );
 
     let resp = http_client()
-        .post(format!("{ENGINE_HTTP_URL}/test/rs/form/multipart"))
+        .post(format!("{}/test/rs/form/multipart", engine_http_url()))
         .multipart(form)
         .send()
         .await
