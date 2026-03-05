@@ -9,35 +9,12 @@ from urllib.parse import urlencode
 import aiohttp
 import pytest
 
-from iii import III
-from iii.channels import ChannelReader
+from iii import III, http
 from iii.types import HttpRequest, HttpResponse
 
 ENGINE_HTTP_URL = os.environ.get("III_HTTP_URL", "http://localhost:3199")
 TEST_ASSETS_DIR = Path(__file__).parent.parent.parent.parent.parent / "test-assets"
 TEST_FILE = TEST_ASSETS_DIR / "handbook.pdf"
-
-def http_wrapper(handler):
-    """Wraps a handler that receives (HttpRequest, HttpResponse) for streaming HTTP."""
-
-    async def wrapped(input_data):
-        writer = input_data["response"]
-        reader: ChannelReader = input_data["request_body"]
-
-        http_req = HttpRequest(
-            path_params=input_data.get("path_params", {}),
-            query_params=input_data.get("query_params", {}),
-            body=input_data.get("body"),
-            headers=input_data.get("headers", {}),
-            method=input_data.get("method", "GET"),
-            request_body=reader,
-        )
-        http_res = HttpResponse(writer)
-
-        await handler(http_req, http_res)
-        return None
-
-    return wrapped
 
 
 @pytest.mark.asyncio
@@ -195,7 +172,7 @@ async def test_download_pdf_streaming(iii_client: III):
 
     original_pdf = TEST_FILE.read_bytes()
 
-    @http_wrapper
+    @http
     async def handler(req: HttpRequest, response: HttpResponse):
         await response.status(200)
         await response.headers({"content-type": "application/pdf"})
@@ -232,7 +209,7 @@ async def test_upload_pdf_streaming(iii_client: III):
 
     received_data = bytearray()
 
-    @http_wrapper
+    @http
     async def handler(req: HttpRequest, response: HttpResponse):
         nonlocal received_data
         await response.status(200)
@@ -280,7 +257,7 @@ async def test_sse_streaming(iii_client: III):
         {"id": "4", "type": "done", "data": "goodbye"},
     ]
 
-    @http_wrapper
+    @http
     async def handler(req: HttpRequest, response: HttpResponse):
         await response.status(200)
         await response.headers({
@@ -350,7 +327,7 @@ async def test_sse_streaming(iii_client: III):
 async def test_urlencoded_form_data(iii_client: III):
     """Handle application/x-www-form-urlencoded request."""
 
-    @http_wrapper
+    @http
     async def handler(req: HttpRequest, response: HttpResponse):
         raw = await req.request_body.read_all()
         body = raw.decode("utf-8")
@@ -403,7 +380,7 @@ async def test_multipart_form_data(iii_client: III):
 
     original_pdf = TEST_FILE.read_bytes()
 
-    @http_wrapper
+    @http
     async def handler(req: HttpRequest, response: HttpResponse):
         raw = await req.request_body.read_all()
         content_type = req.headers.get("content-type", "")

@@ -7,6 +7,8 @@ import uuid
 from typing import Any, Awaitable, Callable
 
 from iii import get_context
+from iii import http as iii_http
+from iii.types import HttpRequest as IIIHttpRequest, HttpResponse as IIIHttpResponse
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
@@ -285,46 +287,24 @@ class Motia:
         index: int,
         metadata: dict[str, Any],
     ) -> None:
-        async def api_handler(req: Any) -> dict[str, Any] | None:
+        @iii_http
+        async def api_handler(req: IIIHttpRequest, res: IIIHttpResponse) -> Any:
             with step_span(
                 config.name,
                 "http",
-                **{"http.method": req.get("method") if isinstance(req, dict) else getattr(req, "method", None),
-                   "http.route": trigger.path},
+                **{"http.method": req.method, "http.route": trigger.path},
             ) as span:
                 try:
                     trigger_info = TriggerInfo(type="http", index=index, method=trigger.method, path=trigger.path)
 
-                    if isinstance(req, dict):
-                        response_writer = req.get("response")
-                        request_body = req.get("request_body")
-                        path_params = req.get("path_params", {})
-                        query_params = req.get("query_params", {})
-                        body = req.get("body")
-                        headers = req.get("headers", {})
-                        method = req.get("method", "")
-                    else:
-                        response_writer = getattr(req, "response", None)
-                        request_body = getattr(req, "request_body", None)
-                        path_params = getattr(req, "path_params", {})
-                        query_params = getattr(req, "query_params", {})
-                        body = getattr(req, "body", None)
-                        headers = getattr(req, "headers", {})
-                        method = getattr(req, "method", "")
-
-                    has_channel_writer = (
-                        response_writer is not None
-                        and not isinstance(response_writer, dict)
-                        and hasattr(response_writer, "send_message_async")
-                    )
-                    stream_response = MotiaHttpResponse(response_writer if has_channel_writer else None)
+                    stream_response = MotiaHttpResponse(res.writer)
                     http_request: MotiaHttpRequest[Any] = MotiaHttpRequest(
-                        path_params=path_params,
-                        query_params=query_params,
-                        body=body,
-                        headers=headers,
-                        method=method,
-                        request_body=request_body,
+                        path_params=req.path_params,
+                        query_params=req.query_params,
+                        body=req.body,
+                        headers=req.headers,
+                        method=req.method,
+                        request_body=req.request_body,
                     )
                     motia_request: MotiaHttpArgs[Any] = MotiaHttpArgs(
                         request=http_request,
@@ -352,18 +332,17 @@ class Motia:
                         headers_out = result.get("headers") or {}
                         body_out = result.get("body")
 
-                        if has_channel_writer:
-                            await stream_response.status(status_code)
-                            if headers_out:
-                                await stream_response.headers(headers_out)
-                            if body_out is not None and stream_response.writer is not None:
-                                payload = (
-                                    body_out
-                                    if isinstance(body_out, (bytes, bytearray))
-                                    else json.dumps(body_out).encode("utf-8")
-                                )
-                                stream_response.writer.stream.write(payload)
-                            stream_response.close()
+                        await stream_response.status(status_code)
+                        if headers_out:
+                            await stream_response.headers(headers_out)
+                        if body_out is not None and stream_response.writer is not None:
+                            payload = (
+                                body_out
+                                if isinstance(body_out, (bytes, bytearray))
+                                else json.dumps(body_out).encode("utf-8")
+                            )
+                            stream_response.writer.stream.write(payload)
+                        stream_response.close()
 
                     set_span_ok(span)
                     if isinstance(result, dict):
