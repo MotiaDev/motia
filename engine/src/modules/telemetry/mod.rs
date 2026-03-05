@@ -62,38 +62,43 @@ fn resolve_project_id() -> Option<String> {
 }
 
 fn get_or_create_install_id() -> String {
-    let base_dir = dirs::home_dir().unwrap_or_else(|| {
-        tracing::warn!(
-            "Failed to resolve home directory, falling back to temp dir for telemetry_id"
-        );
-        std::env::temp_dir()
-    });
-    let path = base_dir.join(".iii").join("telemetry_id");
+    static INSTALL_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    INSTALL_ID
+        .get_or_init(|| {
+            let base_dir = dirs::home_dir().unwrap_or_else(|| {
+                tracing::warn!(
+                    "Failed to resolve home directory, falling back to temp dir for telemetry_id"
+                );
+                std::env::temp_dir()
+            });
+            let path = base_dir.join(".iii").join("telemetry_id");
 
-    if let Ok(id) = std::fs::read_to_string(&path) {
-        let id = id.trim().to_string();
-        if !id.is_empty() {
-            return id;
-        }
-    }
+            if let Ok(id) = std::fs::read_to_string(&path) {
+                let id = id.trim().to_string();
+                if !id.is_empty() {
+                    return id;
+                }
+            }
 
-    let id = uuid::Uuid::new_v4().to_string();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).ok();
-    }
+            let id = uuid::Uuid::new_v4().to_string();
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).ok();
+            }
 
-    let tmp_path = path.with_extension("tmp");
-    if std::fs::write(&tmp_path, &id).is_ok() {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let perms = std::fs::Permissions::from_mode(0o600);
-            std::fs::set_permissions(&tmp_path, perms).ok();
-        }
-        std::fs::rename(&tmp_path, &path).ok();
-    }
+            let tmp_path = path.with_extension("tmp");
+            if std::fs::write(&tmp_path, &id).is_ok() {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let perms = std::fs::Permissions::from_mode(0o600);
+                    std::fs::set_permissions(&tmp_path, perms).ok();
+                }
+                std::fs::rename(&tmp_path, &path).ok();
+            }
 
-    id
+            id
+        })
+        .clone()
 }
 
 enum DisableReason {
