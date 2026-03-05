@@ -233,3 +233,13 @@ a:hover {
 }
 
 /* Mermaid Diagrams - No filters needed */
+
+/* Tabs - Prevent layout shift by using flex column-reverse so content grows upward */
+[data-orientation='horizontal']:has(> [role='tablist']) {
+  display: flex !important;
+  flex-direction: column-reverse;
+}
+
+[data-orientation='horizontal'] > [role='tablist'] {
+  order: 1;
+}

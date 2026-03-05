@@ -14,7 +14,7 @@ modules::bridge_client::BridgeClientModule
 ```yaml
 - class: modules::bridge_client::BridgeClientModule
   config:
-    url: ${REMOTE_III_URL:ws://127.0.0.1:49134}
+    url: ${REMOTE_III_URL:ws://0.0.0.0:49134}
     service_id: bridge-client
     service_name: bridge-client
     expose:
@@ -38,7 +38,7 @@ modules::bridge_client::BridgeClientModule
 ## Configuration
 
 <ResponseField name="url" type="string">
-  WebSocket URL of the remote III instance. Defaults to `III_BRIDGE_URL` if set, otherwise `ws://127.0.0.1:49134`.
+  WebSocket URL of the remote III instance. Defaults to `III_BRIDGE_URL` if set, otherwise `ws://0.0.0.0:49134`.
 </ResponseField>
 
 <ResponseField name="service_id" type="string">
@@ -54,7 +54,7 @@ modules::bridge_client::BridgeClientModule
 
   <Expandable title="ExposeFunctionConfig">
     <ResponseField name="local_function" type="string" required>
-      Local function path to invoke on this instance.
+      Local function the remote instance will call when `remote_function` is invoked.
     </ResponseField>
     <ResponseField name="remote_function" type="string">
       Function path to register on the remote instance. Defaults to `local_function`.
@@ -85,8 +85,8 @@ modules::bridge_client::BridgeClientModule
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
-      <ResponseField name="function_path" type="string" required>
-        Remote function path to invoke.
+      <ResponseField name="function_id" type="string" required>
+        Remote function ID to invoke.
       </ResponseField>
       <ResponseField name="data" type="any">
         Payload to send to the remote function.
@@ -96,9 +96,7 @@ modules::bridge_client::BridgeClientModule
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="result" type="any">
-        The remote function result payload.
-      </ResponseField>
+      The remote function's response value directly (not wrapped in an object).
     </Accordion>
   </AccordionGroup>
 </ResponseField>
@@ -108,8 +106,8 @@ modules::bridge_client::BridgeClientModule
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
-      <ResponseField name="function_path" type="string" required>
-        Remote function path to invoke.
+      <ResponseField name="function_id" type="string" required>
+        Remote function ID to invoke.
       </ResponseField>
       <ResponseField name="data" type="any">
         Payload to send to the remote function.

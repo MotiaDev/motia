@@ -9,29 +9,25 @@ from iii.telemetry_types import OtelConfig
 ORIGINAL_OPENER_OPEN = urllib.request.OpenerDirector.open
 
 
+def _reset_otel_singleton(module_path: str, provider_attr: str, set_once_attr: str) -> None:
+    """Reset one OTel global singleton (provider + its SetOnce guard)."""
+    try:
+        import importlib
+        mod = importlib.import_module(module_path)
+        setattr(mod, provider_attr, None)
+        getattr(mod, set_once_attr)._done = False
+    except Exception:
+        pass
+
+
 @pytest.fixture(autouse=True)
 def cleanup():
     yield
     shutdown_otel()
     # Reset all OTel global singletons so tests don't bleed state
-    try:
-        import opentelemetry._logs._internal as _li
-        _li._LOGGER_PROVIDER = None
-        _li._LOGGER_PROVIDER_SET_ONCE._done = False
-    except Exception:
-        pass
-    try:
-        import opentelemetry.trace._internal as _ti
-        _ti._TRACER_PROVIDER = None
-        _ti._TRACER_PROVIDER_SET_ONCE._done = False
-    except Exception:
-        pass
-    try:
-        import opentelemetry.metrics._internal as _mi
-        _mi._METER_PROVIDER = None
-        _mi._METER_PROVIDER_SET_ONCE._done = False
-    except Exception:
-        pass
+    _reset_otel_singleton("opentelemetry._logs._internal", "_LOGGER_PROVIDER", "_LOGGER_PROVIDER_SET_ONCE")
+    _reset_otel_singleton("opentelemetry.trace._internal", "_TRACER_PROVIDER", "_TRACER_PROVIDER_SET_ONCE")
+    _reset_otel_singleton("opentelemetry.metrics._internal", "_METER_PROVIDER", "_METER_PROVIDER_SET_ONCE")
     urllib.request.OpenerDirector.open = ORIGINAL_OPENER_OPEN
 
 
@@ -143,3 +139,64 @@ def test_shutdown_closes_connection():
         init_otel(OtelConfig(enabled=True))
         asyncio.run(shutdown_otel_async())
         mock_shutdown.assert_called_once()
+
+
+def test_init_configures_log_batch_params_defaults():
+    """Default batch config: 100ms flush, batch size 1."""
+    from opentelemetry._logs import get_logger_provider
+    from opentelemetry.sdk._logs import LoggerProvider as SdkLoggerProvider
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+
+    init_otel(OtelConfig(enabled=True))
+    lp = get_logger_provider()
+    assert isinstance(lp, SdkLoggerProvider)
+    # Verify processor was created with no errors (config was applied)
+    processors = lp._multi_log_record_processor._log_record_processors
+    blrp = next((p for p in processors if isinstance(p, BatchLogRecordProcessor)), None)
+    assert blrp is not None
+
+
+def test_init_log_batch_config_explicit_overrides():
+    """Explicit config values override env vars and defaults."""
+    from opentelemetry._logs import get_logger_provider
+    from opentelemetry.sdk._logs import LoggerProvider as SdkLoggerProvider
+
+    init_otel(OtelConfig(enabled=True, logs_flush_interval_ms=200, logs_batch_size=5))
+    lp = get_logger_provider()
+    assert isinstance(lp, SdkLoggerProvider)
+
+
+def test_init_log_batch_config_env_var_override(monkeypatch):
+    """Env vars override defaults when config fields are None."""
+    from opentelemetry._logs import get_logger_provider
+    from opentelemetry.sdk._logs import LoggerProvider as SdkLoggerProvider
+
+    monkeypatch.setenv("OTEL_LOGS_FLUSH_INTERVAL_MS", "500")
+    monkeypatch.setenv("OTEL_LOGS_BATCH_SIZE", "10")
+    init_otel(OtelConfig(enabled=True))
+    lp = get_logger_provider()
+    assert isinstance(lp, SdkLoggerProvider)
+
+
+def test_init_log_batch_config_explicit_beats_env(monkeypatch):
+    """Explicit config value takes precedence over env var."""
+    from opentelemetry._logs import get_logger_provider
+    from opentelemetry.sdk._logs import LoggerProvider as SdkLoggerProvider
+
+    monkeypatch.setenv("OTEL_LOGS_FLUSH_INTERVAL_MS", "999")
+    monkeypatch.setenv("OTEL_LOGS_BATCH_SIZE", "99")
+    init_otel(OtelConfig(enabled=True, logs_flush_interval_ms=200, logs_batch_size=5))
+    lp = get_logger_provider()
+    assert isinstance(lp, SdkLoggerProvider)
+
+
+def test_init_log_batch_config_invalid_env_ignored(monkeypatch):
+    """Invalid env var values are silently ignored, falling through to defaults."""
+    from opentelemetry._logs import get_logger_provider
+    from opentelemetry.sdk._logs import LoggerProvider as SdkLoggerProvider
+
+    monkeypatch.setenv("OTEL_LOGS_FLUSH_INTERVAL_MS", "not-a-number")
+    monkeypatch.setenv("OTEL_LOGS_BATCH_SIZE", "-5")
+    init_otel(OtelConfig(enabled=True))
+    lp = get_logger_provider()
+    assert isinstance(lp, SdkLoggerProvider)

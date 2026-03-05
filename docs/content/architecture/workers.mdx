@@ -7,6 +7,10 @@ A Worker is any process that connects to the iii Engine over WebSocket using an 
 
 Workers are independent processes — they can be written in any language, run anywhere, and crash without affecting other Workers.
 
+## Diagrams 
+
+### Architecture
+
 ```mermaid
 graph LR
     E[Engine]
@@ -26,69 +30,28 @@ graph LR
     E -- trigger --> W2
 ```
 
+### Lifecycle Overview
+
+```mermaid
+flowchart TD
+    Start(("init()")) --> Connecting
+    Connecting -->|WebSocket open| Connected
+    Connected -->|"Register<br/>functions & triggers"| Registering
+    Registering -->|All registered| Ready
+    Ready -->|Invocation received| Executing
+    Executing -.-> RS[Result sent]
+    Ready -->|shutdown| ShuttingDown
+    ShuttingDown --> End((Exit))
+    Ready -->|Connection lost| Disconnected
+    Disconnected -->|Auto-reconnect| Reconnecting
+    Reconnecting -->|Reconnected| Connected
+    Reconnecting -->|Max retries| Failed
+```
 ## Creating a Worker
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
-import { init } from 'iii-sdk'
-
-const iii = init('ws://localhost:49134', {
-  workerName: 'user-service',
-})
-
-iii.registerFunction(
-  { id: 'users::create' },
-  async (data) => {
-    const user = { id: crypto.randomUUID(), ...data }
-    iii.triggerVoid('emails::welcome', { to: user.email })
-    return user
-  }
-)
-```
-</Tab>
-<Tab value="Python">
-```python
-import asyncio
-from iii import III, InitOptions
-
-async def main():
-    iii = III('ws://localhost:49134', options=InitOptions(worker_name='user-service'))
-
-    async def create_user(data):
-        import uuid
-        user = {'id': str(uuid.uuid4()), **data}
-        iii.trigger_void('emails::welcome', {'to': user['email']})
-        return user
-
-    iii.register_function('users::create', create_user)
-    await iii.connect()
-
-asyncio.run(main())
-```
-</Tab>
-<Tab value="Rust">
-```rust
-use iii_sdk::III;
-use serde_json::json;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
-
-    iii.register_function("users::create", |data| async move {
-        let user = json!({ "id": uuid::Uuid::new_v4().to_string(), "email": data["email"] });
-        Ok(user)
-    });
-
-    loop {
-        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-    }
-}
-```
-</Tab>
-</Tabs>
+A Worker is simply any collection of registered Functions and Triggers that has registered itself with the iii engine.
+See [How to use Functions and Triggers](/docs/how-to/use-functions-and-triggers) for details on registering
+functions within workers. Read below for Worker responsibilities and configuration.
 
 ## What Workers Do
 
@@ -96,8 +59,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 |----------------|-------------|
 | **Function hosting** | Register Functions with the Engine and execute them when triggered |
 | **SDK connection** | Connect to the Engine via WebSocket, auto-reconnect on disconnect |
-| **Language runtime** | Run in their own process — TypeScript, Python, Rust, or any language with an SDK |
-| **Isolation** | Independent processes — a crash in one Worker doesn't affect others |
+| **Language runtime** | Run in their own process in any iii-sdk supported language |
+| **Isolation** | Workers are independent processes. A crash in one Worker doesn't propagate to others |
 
 ## Init Options
 

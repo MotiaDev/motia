@@ -108,12 +108,15 @@ class: modules::state::adapters::Bridge
         The key to store the value under.
       </ResponseField>
       <ResponseField name="value" type="any" required>
-        The value to store. Can be any JSON-serializable value.
+        The value to store. Can be any JSON-serializable value. Also accepted as `data` (backward-compatible alias).
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="result" type="object">
-        An object containing `old_value` (the previous value or `null`) and `new_value` (the stored value).
+      <ResponseField name="old_value" type="any">
+        The previous value, or `null` if the key did not exist.
+      </ResponseField>
+      <ResponseField name="new_value" type="any">
+        The value that was stored.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -171,19 +174,30 @@ class: modules::state::adapters::Bridge
         The key to update.
       </ResponseField>
       <ResponseField name="ops" type="UpdateOp[]" required>
-        Array of update operations. Supported operations: `set`, `merge`, `increment`, `decrement`, `remove`.
+        Array of update operations applied in order. Each operation is an object with a single key:
+
+        | Operation | Shape | Description |
+        |-----------|-------|-------------|
+        | `set` | `{ "set": value }` | Replace the current value entirely. |
+        | `merge` | `{ "merge": object }` | Shallow-merge an object into the current value. |
+        | `increment` | `{ "increment": { "field": string, "by": number } }` | Add `by` to a numeric field. |
+        | `decrement` | `{ "decrement": { "field": string, "by": number } }` | Subtract `by` from a numeric field. |
+        | `remove` | `{ "remove": field }` | Remove a field from the current object. |
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="result" type="object">
-        An object containing `old_value` and `new_value` after applying all operations.
+      <ResponseField name="old_value" type="any">
+        The value before the operations were applied, or `null` if the key did not exist.
+      </ResponseField>
+      <ResponseField name="new_value" type="any">
+        The value after all operations were applied.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
 </ResponseField>
 
 <ResponseField name="state::list" type="function">
-  List all key-value pairs within a scope.
+  List all values within a scope.
 
   <AccordionGroup>
     <Accordion iconName="settings" title="Parameters">
@@ -192,9 +206,7 @@ class: modules::state::adapters::Bridge
       </ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="values" type="any[]">
-        An array of all values within the scope.
-      </ResponseField>
+      A flat JSON array of all stored values within the scope: `any[]`.
     </Accordion>
   </AccordionGroup>
 </ResponseField>
@@ -204,8 +216,9 @@ class: modules::state::adapters::Bridge
 
   <AccordionGroup>
     <Accordion title="Returns">
+      An object with a single `groups` field:
       <ResponseField name="groups" type="string[]">
-        A sorted, deduplicated array of scope names.
+        A sorted, deduplicated array of all scope names that contain at least one key.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -259,8 +272,8 @@ When the trigger fires, the handler receives a state event object:
 
 ### Sample Code
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const fn = iii.registerFunction(
   { id: 'state::onUserUpdated' },
@@ -312,10 +325,10 @@ iii.register_trigger("state", "state::onUserUpdated", json!({
 
 Store user profiles in state and react when they change:
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
-await iii.trigger('state::set', {
+iii.triggerVoid('state::set', {
   scope: 'users',
   key: 'user-123',
   value: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'dark' } },
@@ -323,7 +336,7 @@ await iii.trigger('state::set', {
 
 const profile = await iii.trigger('state::get', { scope: 'users', key: 'user-123' })
 
-await iii.trigger('state::set', {
+iii.triggerVoid('state::set', {
   scope: 'users',
   key: 'user-123',
   value: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'light' } },
@@ -335,7 +348,7 @@ const scopes = await iii.trigger('state::list_groups', {})
 </Tab>
 <Tab value="Python">
 ```python
-await iii.trigger('state::set', {
+iii.trigger_void('state::set', {
     'scope': 'users',
     'key': 'user-123',
     'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'dark'}},
@@ -343,7 +356,7 @@ await iii.trigger('state::set', {
 
 profile = await iii.trigger('state::get', {'scope': 'users', 'key': 'user-123'})
 
-await iii.trigger('state::set', {
+iii.trigger_void('state::set', {
     'scope': 'users',
     'key': 'user-123',
     'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'light'}},
@@ -355,22 +368,22 @@ scopes = await iii.trigger('state::list_groups', {})
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.trigger("state::set", json!({
+iii.trigger_void("state::set", json!({
     "scope": "users",
     "key": "user-123",
     "value": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "dark" } }
-})).await?;
+}));
 
 let profile = iii.trigger("state::get", json!({
     "scope": "users",
     "key": "user-123"
 })).await?;
 
-iii.trigger("state::set", json!({
+iii.trigger_void("state::set", json!({
     "scope": "users",
     "key": "user-123",
     "value": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "light" } }
-})).await?;
+}));
 
 let all_users = iii.trigger("state::list", json!({ "scope": "users" })).await?;
 let scopes = iii.trigger("state::list_groups", json!({})).await?;
@@ -382,8 +395,8 @@ let scopes = iii.trigger("state::list_groups", json!({})).await?;
 
 Only process profile updates when the email field changed:
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::emailChanged' },

@@ -12,19 +12,23 @@ pip install iii-sdk
 
 ```python
 import asyncio
-from iii import III
+from iii import InitOptions, init
+
 
 async def my_function(data):
     return {"result": "success"}
 
-iii = III("ws://localhost:49134")
-iii.register_function("my.function", my_function)
 
 async def main():
-    await iii.connect()
+    iii = init(
+        "ws://localhost:49134",
+        InitOptions(otel={"enabled": True, "service_name": "iii-python-worker"}),
+    )
+    iii.register_function("my.function", my_function)
 
     result = await iii.call("other.function", {"param": "value"})
     print(result)
+
 
 asyncio.run(main())
 ```
@@ -33,28 +37,31 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from iii import III, ApiRequest, ApiResponse
+from iii import ApiRequest, ApiResponse, InitOptions, init
 
-iii = III("ws://localhost:49134")
 
-async def create_todo(data):    
+async def create_todo(data):
     req = ApiRequest(**data)
     return ApiResponse(status=201, data={"id": "123", "title": req.body.get("title")})
 
-iii.register_function("api.post.todo", create_todo)
 
 async def main():
-    await iii.connect()
+    iii = init(
+        "ws://localhost:49134",
+        InitOptions(otel={"enabled": True, "service_name": "iii-python-worker"}),
+    )
 
+    iii.register_function("api.post.todo", create_todo)
     iii.register_trigger(
         type="http",
         function_id="api.post.todo",
         config={
             "api_path": "/todo",
             "http_method": "POST",
-            "description": "Create a new todo"
-        }
+            "description": "Create a new todo",
+        },
     )
+
 
 asyncio.run(main())
 ```
