@@ -26,27 +26,13 @@ One config file. One process. Everything discoverable. Think of it the way React
 
 ## Quick Start
 
-### iii-cli (Recommended)
-
-```bash
-curl -fsSL https://install.iii.dev/iii-cli/main/install.sh | bash
-iii-cli update
-iii-cli start
-```
-
-Open the console:
-
-```bash
-iii-cli console
-```
-
-Your engine is running at `ws://localhost:49134` with HTTP API at `http://localhost:3111`.
-
-### Direct Install
+### Install
 
 ```bash
 curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
 ```
+
+This installs both the engine and iii-cli.
 
 <details>
 <summary>Override install directory or pin a version</summary>
@@ -67,11 +53,19 @@ Verify:
 command -v iii && iii --version
 ```
 
-Start the engine:
+### Start the engine
 
 ```bash
-iii
+iii-cli start
 ```
+
+Open the console:
+
+```bash
+iii-cli console
+```
+
+Your engine is running at `ws://localhost:49134` with HTTP API at `http://localhost:3111`.
 
 ## Connect a Worker
 
