@@ -141,7 +141,7 @@ iii-cli console
 | `sdk/`         | SDKs for Node.js, Python, and Rust                      | [sdk/README.md](sdk/README.md)          |
 | `console/`     | Developer dashboard (React + Rust)                      | [console/README.md](console/README.md)  |
 | `frameworks/`  | Higher-level frameworks built on the SDK                 | [frameworks/motia/](frameworks/motia/)  |
-| `website/`     | iii.dev marketing site                                   | [website/](website/)                    |
+| `website/`     | iii website                                              | [website/](website/)                    |
 | `docs/`        | Documentation site (Fumadocs/MDX)                       | [docs/README.md](docs/README.md)        |
 
 See [STRUCTURE.md](STRUCTURE.md) for the full monorepo layout, dependency chain, and CI/CD details.
