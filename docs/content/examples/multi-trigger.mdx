@@ -16,8 +16,8 @@ graph LR
 
 ## Register one function, three triggers
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 import { init, getContext, type ApiRequest } from 'iii-sdk'
@@ -36,13 +36,13 @@ iii.registerFunction(
 
       ctx.logger.info('Processing manual order via API', { amount: req.body?.amount })
 
-      await iii.trigger('state::set', {
+      iii.triggerVoid('state::set', {
         scope: 'orders',
         key: orderId,
         data: { id: orderId, ...req.body, source: 'api', createdAt: new Date().toISOString() },
       })
 
-      await iii.trigger('enqueue', {
+      iii.triggerVoid('enqueue', {
         topic: 'order.processed',
         data: { orderId, source: 'api' },
       })
@@ -57,13 +57,13 @@ iii.registerFunction(
 
       ctx.logger.info('Processing order from queue', { amount })
 
-      await iii.trigger('state::set', {
+      iii.triggerVoid('state::set', {
         scope: 'orders',
         key: orderId,
         data: { id: orderId, amount, description, source: 'queue', createdAt: new Date().toISOString() },
       })
 
-      await iii.trigger('enqueue', {
+      iii.triggerVoid('enqueue', {
         topic: 'order.processed',
         data: { orderId, amount, source: 'queue' },
       })
@@ -79,7 +79,7 @@ iii.registerFunction(
     })
 
     for (const order of pendingOrders ?? []) {
-      await iii.trigger('enqueue', {
+      iii.triggerVoid('enqueue', {
         topic: 'order.processed',
         data: { orderId: order.id, amount: order.amount, source: 'cron' },
       })
@@ -127,12 +127,12 @@ async def orders_handle(data, ctx) -> dict | None:
 
         ctx.logger.info("Processing manual order via API", {"amount": req.body.get("amount")})
 
-        await iii.trigger("state::set", {
+        iii.trigger_void("state::set", {
             "scope": "orders",
             "key": order_id,
             "data": {**req.body, "id": order_id, "source": "api"},
         })
-        await iii.trigger("enqueue", {
+        iii.trigger_void("enqueue", {
             "topic": "order.processed",
             "data": {"orderId": order_id, "source": "api"},
         })
@@ -148,12 +148,12 @@ async def orders_handle(data, ctx) -> dict | None:
 
         ctx.logger.info("Processing order from queue", {"amount": amount})
 
-        await iii.trigger("state::set", {
+        iii.trigger_void("state::set", {
             "scope": "orders",
             "key": order_id,
             "data": {**data, "id": order_id, "source": "queue"},
         })
-        await iii.trigger("enqueue", {
+        iii.trigger_void("enqueue", {
             "topic": "order.processed",
             "data": {"orderId": order_id, "source": "queue"},
         })
@@ -164,7 +164,7 @@ async def orders_handle(data, ctx) -> dict | None:
 
     pending = await iii.trigger("state::list", {"scope": "pending-orders"}) or []
     for order in pending:
-        await iii.trigger("enqueue", {
+        iii.trigger_void("enqueue", {
             "topic": "order.processed",
             "data": {"orderId": order["id"], "source": "cron"},
         })
@@ -262,8 +262,8 @@ iii.register_trigger("cron", "orders.handle", json!({ "expression": "* * * * *" 
 
 When you only need two trigger types, the pattern is identical — just skip the third `registerTrigger` call.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 iii.registerTrigger({ type: 'queue', function_id: 'my.fn', config: { topic: 'events' } })

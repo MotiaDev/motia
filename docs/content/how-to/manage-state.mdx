@@ -11,132 +11,203 @@ Use the State module to share data between Functions without a separate database
 
 ### 1. Enable the State module
 
-```yaml
+```yaml title="iii-config.yaml"
 modules:
-  state:
-    adapter: memory
+  - class: modules::state::StateModule
+    config:
+      adapter:
+        class: modules::state::adapters::KvStore
+        config:
+          store_method: file_based  # Options: in_memory, file_based
+          # file_path: ./data/state_store.db  # required for file_based
 ```
 
-### 2. Write state from a Function
+### 2. Write state
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
-import { init } from 'iii-sdk'
+{/* TODO: Remove once addressed */}
+<TabsConditional groupId="language" persist values={["Python", "Rust"]}>
+  <Callout title="Persistence in Python & Rust APIs" type="info">
+  You may notice that currently the Node API has no code around persistence while Python and Rust do.
+  This will be addrssed shortly so that a single initialization step is all that will be required in all languages.
+  </Callout>
+</TabsConditional>
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="state-writer.ts"
+import { init, getContext } from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
-iii.registerFunction(
-  { id: 'users::create' },
-  async (data) => {
-    const user = { id: crypto.randomUUID(), ...data }
+iii.registerFunction({ id: 'users::create' }, async (input) => {
+  const { logger } = getContext()
+  const userId = crypto.randomUUID()
+  const user = { id: userId, name: input.name, email: input.email }
 
-    await iii.trigger('state::set', {
-      scope: 'users',
-      key: user.id,
-      data: user,
-    })
+  await iii.trigger('state::set', {
+    scope: 'users',
+    key: userId,
+    value: user,
+  })
 
-    return user
-  }
-)
+  logger.info('User saved to state', { userId })
+  return { userId }
+})
+
+// Then call from another function or worker
+const { userId } = await iii.trigger('users::create', { name: 'Alice', email: 'alice@example.com' })
+logger.info('Created user', { userId })
 ```
 </Tab>
 <Tab value="Python">
-```python
-import asyncio, uuid
+```python title="state_writer.py"
+import asyncio
+import os
+import signal
+import uuid
 from iii import III
+from iii.context import get_context
+
+iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+
+async def create_user(input):
+    ctx = get_context()
+    user_id = str(uuid.uuid4())
+    user = {'id': user_id, 'name': input['name'], 'email': input['email']}
+
+    await iii.trigger('state::set', {
+        'scope': 'users',
+        'key': user_id,
+        'value': user,
+    })
+
+    ctx.logger.info('User saved to state', {'userId': user_id})
+    return {'userId': user_id}
+
+iii.register_function('users::create', create_user)
 
 async def main():
-    iii = III('ws://localhost:49134')
-
-    async def create_user(data):
-        user = {'id': str(uuid.uuid4()), **data}
-
-        await iii.trigger('state::set', {
-            'scope': 'users',
-            'key': user['id'],
-            'data': user,
-        })
-
-        return user
-
-    iii.register_function('users::create', create_user)
     await iii.connect()
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop.set)
+    await stop.wait()
 
 asyncio.run(main())
+
+# Then call from another function or worker
+result = await iii.trigger('users::create', {'name': 'Alice', 'email': 'alice@example.com'})
+print('Created user:', result['userId'])
 ```
 </Tab>
 <Tab value="Rust">
-```rust
-use iii_sdk::III;
+```rust title="state_writer.rs"
+use iii_sdk::{get_context, III};
 use serde_json::json;
-use uuid::Uuid;
+use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
+    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let iii = III::new(&url);
     iii.connect().await?;
 
-    iii.register_function("users::create", |data| async move {
-        let id = Uuid::new_v4().to_string();
-        let mut user = data.clone();
-        user["id"] = json!(id);
+    let iii_clone = iii.clone();
+    iii.register_function("users::create", move |input| {
+        let iii = iii_clone.clone();
+        async move {
+            let ctx = get_context();
+            let user_id = uuid::Uuid::new_v4().to_string();
+            let name = input["name"].as_str().unwrap_or("");
+            let email = input["email"].as_str().unwrap_or("");
 
-        iii.trigger("state::set", json!({
-            "scope": "users",
-            "key": id,
-            "data": user,
-        })).await?;
+            iii.trigger("state::set", json!({
+                "scope": "users",
+                "key": user_id,
+                "value": { "id": user_id, "name": name, "email": email },
+            })).await?;
 
-        Ok(user)
+            ctx.logger.info("User saved to state", Some(json!({ "userId": user_id })));
+            Ok(json!({ "userId": user_id }))
+        }
     });
 
-    loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
+    signal::ctrl_c().await?;
+    Ok(())
 }
+
+// Then call from another function or worker
+let result = iii.trigger("users::create", json!({ "name": "Alice", "email": "alice@example.com" })).await?;
+println!("Created user: {}", result["userId"]);
 ```
 </Tab>
 </Tabs>
 
-### 3. Read state from another Function
+### 3. Read state
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
-iii.registerFunction(
-  { id: 'users::get' },
-  async (data) => {
-    const user = await iii.trigger('state::get', {
-      scope: 'users',
-      key: data.id,
-    })
-    return user
-  }
-)
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="state-reader.ts"
+iii.registerFunction({ id: 'users::get' }, async (input) => {
+  const { logger } = getContext()
+
+  const user = await iii.trigger('state::get', {
+    scope: 'users',
+    key: input.userId,
+  })
+
+  logger.info('User retrieved', { userId: input.userId })
+  return user
+})
+
+// Then call from another function or worker
+const user = await iii.trigger('users::get', { userId: 'some-user-id' })
+logger.info('Retrieved user', user)
 ```
 </Tab>
 <Tab value="Python">
-```python
-async def get_user(data):
+```python title="state_reader.py"
+async def get_user(input):
+    ctx = get_context()
+
     user = await iii.trigger('state::get', {
         'scope': 'users',
-        'key': data['id'],
+        'key': input['userId'],
     })
+
+    ctx.logger.info('User retrieved', {'userId': input['userId']})
     return user
 
 iii.register_function('users::get', get_user)
+
+# Then call from another function or worker
+user = await iii.trigger('users::get', {'userId': 'some-user-id'})
+print('Retrieved user:', user)
 ```
 </Tab>
 <Tab value="Rust">
-```rust
-iii.register_function("users::get", |data| async move {
-    let key = data["id"].as_str().unwrap_or("");
-    let user = iii.trigger("state::get", json!({
-        "scope": "users",
-        "key": key,
-    })).await?;
-    Ok(user)
+```rust title="state_reader.rs"
+let iii_clone = iii.clone();
+iii.register_function("users::get", move |input| {
+    let iii = iii_clone.clone();
+    async move {
+        let ctx = get_context();
+        let user_id = input["userId"].as_str().unwrap_or("");
+
+        let user = iii.trigger("state::get", json!({
+            "scope": "users",
+            "key": user_id,
+        })).await?;
+
+        ctx.logger.info("User retrieved", Some(json!({ "userId": user_id })));
+        Ok(user)
+    }
 });
+
+// Then call from another function or worker
+let user = iii.trigger("users::get", json!({ "userId": "some-user-id" })).await?;
+println!("Retrieved user: {:?}", user);
 ```
 </Tab>
 </Tabs>
@@ -145,41 +216,82 @@ iii.register_function("users::get", |data| async move {
 
 Use `state::update` with update operations for safe concurrent modifications:
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
-```typescript
-await iii.trigger('state::update', {
-  scope: 'users',
-  key: userId,
-  ops: [
-    { type: 'set', path: 'lastLogin', value: new Date().toISOString() },
-    { type: 'increment', path: 'loginCount', by: 1 },
-  ],
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="state-update.ts"
+iii.registerFunction({ id: 'users::record-login' }, async (input) => {
+  const { logger } = getContext()
+
+  await iii.trigger('state::update', {
+    scope: 'users',
+    key: input.userId,
+    ops: [
+      { type: 'set', path: 'lastLogin', value: new Date().toISOString() },
+      { type: 'increment', path: 'loginCount', by: 1 },
+    ],
+  })
+
+  logger.info('User login recorded', { userId: input.userId })
+  return { updated: true }
 })
+
+// Then call from another function or worker
+await iii.trigger('users::record-login', { userId: 'some-user-id' })
+logger.info('Login recorded')
 ```
 </Tab>
 <Tab value="Python">
-```python
-await iii.trigger('state::update', {
-    'scope': 'users',
-    'key': user_id,
-    'ops': [
-        {'type': 'set', 'path': 'lastLogin', 'value': datetime.now(timezone.utc).isoformat()},
-        {'type': 'increment', 'path': 'loginCount', 'by': 1},
-    ],
-})
+```python title="state_update.py"
+from datetime import datetime, timezone
+
+async def record_login(input):
+    ctx = get_context()
+
+    await iii.trigger('state::update', {
+        'scope': 'users',
+        'key': input['userId'],
+        'ops': [
+            {'type': 'set', 'path': 'lastLogin', 'value': datetime.now(timezone.utc).isoformat()},
+            {'type': 'increment', 'path': 'loginCount', 'by': 1},
+        ],
+    })
+
+    ctx.logger.info('User login recorded', {'userId': input['userId']})
+    return {'updated': True}
+
+iii.register_function('users::record-login', record_login)
+
+# Then call from another function or worker
+await iii.trigger('users::record-login', {'userId': 'some-user-id'})
+print('Login recorded')
 ```
 </Tab>
 <Tab value="Rust">
-```rust
-iii.trigger("state::update", json!({
-    "scope": "users",
-    "key": user_id,
-    "ops": [
-        { "type": "set", "path": "lastLogin", "value": chrono::Utc::now().to_rfc3339() },
-        { "type": "increment", "path": "loginCount", "by": 1 },
-    ],
-})).await?;
+```rust title="state_update.rs"
+let iii_clone = iii.clone();
+iii.register_function("users::record-login", move |input| {
+    let iii = iii_clone.clone();
+    async move {
+        let ctx = get_context();
+        let user_id = input["userId"].as_str().unwrap_or("");
+
+        iii.trigger("state::update", json!({
+            "scope": "users",
+            "key": user_id,
+            "ops": [
+                { "type": "set", "path": "lastLogin", "value": chrono::Utc::now().to_rfc3339() },
+                { "type": "increment", "path": "loginCount", "by": 1 },
+            ],
+        })).await?;
+
+        ctx.logger.info("User login recorded", Some(json!({ "userId": user_id })));
+        Ok(json!({ "updated": true }))
+    }
+});
+
+// Then call from another function or worker
+iii.trigger("users::record-login", json!({ "userId": "some-user-id" })).await?;
+println!("Login recorded");
 ```
 </Tab>
 </Tabs>
@@ -188,6 +300,7 @@ iii.trigger("state::update", json!({
 
 State is shared across all Functions in the system. Any Function can read or write to any scope/key pair. The Engine handles consistency and persistence based on the configured adapter.
 
-<Callout title="Production adapters" type="info">
-  The `memory` adapter is for development only. For production, use a persistent adapter like Redis. See the [State module reference](/docs/modules/module-state).
-</Callout>
+{/* TODO: Uncomment once the State module reference page exists */}
+{/* <Callout title="Production adapters" type="info">
+  The default `file_based` adapter works for single-instance use. For production with multiple replicas, use a persistent adapter like Redis. See the [State module reference](/docs/modules/module-state).
+</Callout> */}

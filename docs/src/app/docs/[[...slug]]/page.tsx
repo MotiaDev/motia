@@ -48,7 +48,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
           : { enabled: !(isIndex || page.data.hideCards) }
       }
     >
-      <DocsTitle>{page.data.title}</DocsTitle>
+      <DocsTitle>{page.data.fullTitle ?? page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <PageActions pageUrl={page.url} title={page.data.title} />
       <DocsBody>
@@ -73,7 +73,7 @@ export async function generateMetadata(props: { params: Promise<{ slug?: string[
   if (!page) notFound()
 
   return {
-    title: page.data.title,
+    title: page.data.fullTitle ?? page.data.title,
     description: page.data.description,
     openGraph: {
       images: getPageImage(page).url,
