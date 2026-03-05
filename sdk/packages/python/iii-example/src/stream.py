@@ -3,43 +3,46 @@ from __future__ import annotations
 from typing import Any
 
 from iii import (
+    III,
     IStream,
     StreamDeleteInput,
-    StreamListInput,
     StreamGetInput,
     StreamListGroupsInput,
+    StreamListInput,
     StreamSetInput,
     StreamSetResult,
     StreamUpdateInput,
 )
 
-from .iii import iii
 from .models import Todo
 
 
 class StreamClient:
+    def __init__(self, iii: III) -> None:
+        self._iii = iii
+
     async def get(self, stream_name: str, group_id: str, item_id: str) -> Any | None:
-        return await iii.call(
+        return await self._iii.call(
             "stream::get", {"stream_name": stream_name, "group_id": group_id, "item_id": item_id}
         )
 
     async def set(self, stream_name: str, group_id: str, item_id: str, data: Any) -> Any:
-        return await iii.call(
+        return await self._iii.call(
             "stream::set", {"stream_name": stream_name, "group_id": group_id, "item_id": item_id, "data": data}
         )
 
     async def delete(self, stream_name: str, group_id: str, item_id: str) -> None:
-        return await iii.call(
+        return await self._iii.call(
             "stream::delete", {"stream_name": stream_name, "group_id": group_id, "item_id": item_id}
         )
 
     async def get_group(self, stream_name: str, group_id: str) -> list[Any]:
-        return await iii.call(
+        return await self._iii.call(
             "stream::list", {"stream_name": stream_name, "group_id": group_id}
         )
 
     async def list_groups(self, stream_name: str) -> list[str]:
-        return await iii.call("stream::list_groups", {"stream_name": stream_name})
+        return await self._iii.call("stream::list_groups", {"stream_name": stream_name})
 
 
 class TodoStream(IStream[dict[str, Any]]):
@@ -82,6 +85,5 @@ class TodoStream(IStream[dict[str, Any]]):
         return None
 
 
-streams = StreamClient()
-
-iii.create_stream("todo", TodoStream())
+def register_streams(iii: III) -> None:
+    iii.create_stream("todo", TodoStream())

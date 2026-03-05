@@ -47,7 +47,7 @@ modules::observability::OtelModule
 </ResponseField>
 
 <ResponseField name="service_namespace" type="string">
-  Service namespace (`service.namespace` OTEL attribute).
+  Service namespace (`service.namespace` OTEL attribute). Can also be set via `SERVICE_NAMESPACE`.
 </ResponseField>
 
 <ResponseField name="exporter" type="string">
@@ -56,7 +56,7 @@ modules::observability::OtelModule
   - `otlp` — export to an OTLP collector via gRPC
   - `both` — export via OTLP and keep in memory (enables log triggers alongside OTLP export)
 
-  Defaults to `otlp`.
+  Defaults to `otlp`. Can also be set via `OTEL_EXPORTER_TYPE`.
 </ResponseField>
 
 <ResponseField name="endpoint" type="string">
@@ -64,7 +64,7 @@ modules::observability::OtelModule
 </ResponseField>
 
 <ResponseField name="sampling_ratio" type="number">
-  Global trace sampling ratio from `0.0` (sample nothing) to `1.0` (sample everything). Defaults to `1.0`.
+  Global trace sampling ratio from `0.0` (sample nothing) to `1.0` (sample everything). Defaults to `1.0`. Can also be set via `OTEL_TRACES_SAMPLER_ARG`.
 </ResponseField>
 
 <ResponseField name="sampling" type="SamplingConfig">
@@ -103,31 +103,31 @@ modules::observability::OtelModule
 </ResponseField>
 
 <ResponseField name="memory_max_spans" type="number">
-  Maximum number of spans to keep in memory when using `memory` or `both` exporter. Defaults to `1000`.
+  Maximum number of spans to keep in memory when using `memory` or `both` exporter. Defaults to `1000`. Can also be set via `OTEL_MEMORY_MAX_SPANS`.
 </ResponseField>
 
 <ResponseField name="metrics_enabled" type="boolean">
-  Whether metrics collection is enabled. Defaults to `false`.
+  Whether metrics collection is enabled. Defaults to `false`. Can also be set via `OTEL_METRICS_ENABLED`.
 </ResponseField>
 
 <ResponseField name="metrics_exporter" type="string">
-  Metrics exporter type: `memory` (queryable via API) or `otlp`. Defaults to `memory`.
+  Metrics exporter type: `memory` (queryable via API) or `otlp`. Defaults to `memory`. Can also be set via `OTEL_METRICS_EXPORTER`.
 </ResponseField>
 
 <ResponseField name="metrics_retention_seconds" type="number">
-  How long to retain metrics in memory in seconds. Defaults to `3600` (1 hour).
+  How long to retain metrics in memory in seconds. Defaults to `3600` (1 hour). Can also be set via `OTEL_METRICS_RETENTION_SECONDS`.
 </ResponseField>
 
 <ResponseField name="metrics_max_count" type="number">
-  Maximum number of metric data points to keep in memory. Defaults to `10000`.
+  Maximum number of metric data points to keep in memory. Defaults to `10000`. Can also be set via `OTEL_METRICS_MAX_COUNT`.
 </ResponseField>
 
 <ResponseField name="logs_enabled" type="boolean">
-  Whether structured log storage is enabled. Defaults to `true`.
+  Whether structured log storage is enabled. When not set, log storage is always initialized by the module.
 </ResponseField>
 
 <ResponseField name="logs_exporter" type="string">
-  Logs exporter type: `memory`, `otlp`, or `both`. Defaults to `memory`.
+  Logs exporter type: `memory`, `otlp`, or `both`. Defaults to `memory`. Can also be set via `OTEL_LOGS_EXPORTER`.
 </ResponseField>
 
 <ResponseField name="logs_max_count" type="number">
@@ -187,7 +187,7 @@ modules::observability::OtelModule
 
         `{ "type": "webhook", "url": "https://..." }` — Send a webhook notification
 
-        `{ "type": "function", "path": "my.alert.handler" }` — Invoke a registered function
+        `{ "type": "function", "path": "my::alert::handler" }` — Invoke a registered function
       </Expandable>
     </ResponseField>
   </Expandable>
@@ -245,6 +245,9 @@ modules::observability::OtelModule
     </Accordion>
     <Accordion title="Returns">
       <ResponseField name="logs" type="object[]">Array of log entries.</ResponseField>
+      <ResponseField name="total" type="number">Total number of matching log entries before pagination.</ResponseField>
+      <ResponseField name="query" type="object">Echo of all input query parameters used for the request. Omitted when log storage has not yet been initialized.</ResponseField>
+      <ResponseField name="timestamp" type="number">Response timestamp in Unix milliseconds.</ResponseField>
     </Accordion>
   </AccordionGroup>
 </ResponseField>
@@ -276,7 +279,10 @@ modules::observability::OtelModule
       <ResponseField name="limit" type="number">Pagination limit. Defaults to `100`.</ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="traces" type="object[]">Array of span objects.</ResponseField>
+      <ResponseField name="spans" type="object[]">Array of span objects.</ResponseField>
+      <ResponseField name="total" type="number">Total number of matching spans before pagination.</ResponseField>
+      <ResponseField name="offset" type="number">Applied pagination offset.</ResponseField>
+      <ResponseField name="limit" type="number">Applied pagination limit.</ResponseField>
     </Accordion>
   </AccordionGroup>
 </ResponseField>
@@ -289,7 +295,7 @@ modules::observability::OtelModule
       <ResponseField name="trace_id" type="string" required>The trace ID to retrieve.</ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="tree" type="object">Root span with nested child spans.</ResponseField>
+      <ResponseField name="roots" type="object[]">Array of root spans, each with nested child spans in a `children` field.</ResponseField>
     </Accordion>
   </AccordionGroup>
 </ResponseField>
@@ -311,9 +317,11 @@ modules::observability::OtelModule
       <ResponseField name="aggregate_interval" type="number">Aggregate interval in seconds.</ResponseField>
     </Accordion>
     <Accordion title="Returns">
-      <ResponseField name="metrics" type="object[]">
-        Array of metric objects, each containing aggregated values: `p50`, `p95`, `p99`, `avg`, `min`, `max`, `count`.
-      </ResponseField>
+      <ResponseField name="engine_metrics" type="object">Built-in engine counters: `invocations` (total, success, error, deferred, by_function), `workers` (spawns, deaths, active), and `performance` (avg_duration_ms, p50_duration_ms, p95_duration_ms, p99_duration_ms, min_duration_ms, max_duration_ms).</ResponseField>
+      <ResponseField name="sdk_metrics" type="object[]">Raw SDK metric data points collected from storage.</ResponseField>
+      <ResponseField name="aggregated_metrics" type="object[]">Time-bucketed aggregations, present only when `aggregate_interval` is provided alongside a time range.</ResponseField>
+      <ResponseField name="timestamp" type="number">Response timestamp in Unix milliseconds.</ResponseField>
+      <ResponseField name="query" type="object">Echo of the input query parameters, present when any time filter or interval was provided.</ResponseField>
     </Accordion>
   </AccordionGroup>
 </ResponseField>
@@ -330,6 +338,10 @@ modules::observability::OtelModule
     </Accordion>
     <Accordion title="Returns">
       <ResponseField name="rollups" type="object[]">Array of rollup objects with time-bucketed aggregations.</ResponseField>
+      <ResponseField name="histogram_rollups" type="object[]">Array of histogram rollup objects for distribution metrics.</ResponseField>
+      <ResponseField name="level" type="number">The rollup level applied: `0` = 1 minute, `1` = 5 minutes, `2` = 1 hour.</ResponseField>
+      <ResponseField name="query" type="object">Echo of the input query parameters (`start_time`, `end_time`, `metric_name`).</ResponseField>
+      <ResponseField name="timestamp" type="number">Response timestamp in Unix milliseconds.</ResponseField>
     </Accordion>
   </AccordionGroup>
 </ResponseField>
@@ -458,7 +470,7 @@ Register a function to react to log entries as they are produced.
 
 ```typescript
 const fn = iii.registerFunction(
-  { id: 'monitoring.onError' },
+  { id: 'monitoring::onError' },
   async (logEntry) => {
     await sendAlert({
       message: logEntry.body,

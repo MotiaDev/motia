@@ -343,8 +343,8 @@ req.query_params  # {"status": "active"}
 <ResponseField name="status_code" type="int / number">
   HTTP status code.
 
-<Tabs items={['TypeScript', 'Python', 'Rust']}>
-  <Tab value="TypeScript">
+<Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+  <Tab value="Node / TypeScript">
 
 ```typescript
 return { status_code: 200, body: { message: 'OK' } } satisfies ApiResponse
@@ -398,8 +398,8 @@ Custom stream implementations override the default engine behavior for a given s
   <Accordion title="Type Safety">
     Use typed request/response models for better IDE support and fewer runtime errors.
 
-    <Tabs items={['TypeScript', 'Python', 'Rust']}>
-      <Tab value="TypeScript">
+    <Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+      <Tab value="Node / TypeScript">
 
 ```typescript
 import type { ApiRequest, ApiResponse } from 'iii-sdk'
@@ -456,8 +456,8 @@ iii.register_function("handler", |input| async move {
   <Accordion title="Graceful Shutdown">
     Implement proper shutdown to flush telemetry and clean up resources.
 
-    <Tabs items={['TypeScript', 'Python', 'Rust']}>
-      <Tab value="TypeScript">
+    <Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
+      <Tab value="Node / TypeScript">
 
 ```typescript
 process.on('SIGINT', async () => {
@@ -493,11 +493,6 @@ iii.shutdown_async().await;
 
 ## Next Steps
 
-<Columns cols={2}>
-  <Card title="API Reference" href="/docs/api-reference/iii-sdk">
-    Full method signatures for all three SDKs
-  </Card>
-  <Card title="Remote Functions" href="/docs/remote-functions">
-    Understand function registration and invocation
-  </Card>
-</Columns>
+<Card title="API Reference" href="/docs/api-reference/iii-sdk">
+  Full method signatures for all three SDKs
+</Card>

@@ -1,39 +1,43 @@
 ---
 title: Welcome to iii
-description: One engine. Three primitives. Your entire backend.
+description: A backend unification and orchestration system.
 hideCards: true
 ---
 
-**iii** (pronounced "three eye") replaces your backend stack with a single engine and three primitives: **Worker**, **Function**, and **Trigger**.
+Today building a typical backend today means stitching together many separate systems:
+an API framework, a task queue, a cron scheduler, a pub/sub layer, a state store, a WebSocket server,
+and an observability pipeline.
 
-No more gluing together separate tools for APIs, queues, cron, state, and real-time. iii gives you all of that out of the box.
+Each system brings its own setup, its own deployment, and its own
+failure modes. Balancing infrastructure and business logic becomes increasingly difficult
+with every new system.
 
-## The Problem
+The result of balancing these many necessary systems are delayed delivery, difficulty debugging,
+transient issues, increased expenses, silo'd domain and systems knowledge, and difficulty with
+onboarding new developers and AI agents.
 
-Building a typical backend today means stitching together 5-10 separate systems: an API framework, a task queue, a cron scheduler, a pub/sub layer, a state store, a WebSocket server, and an observability pipeline. Each one has its own setup, its own deployment, and its own failure modes. You spend more time wiring infrastructure than writing business logic.
+The key advantage of iii is that it transforms a backend from behaving like a series of
+separate concerns, domains, and services to behaving like one cohesive and interoperable application.
 
-## How iii Solves It
+**iii** (pronounced "three eye") does this by creating a single integration point
+for all backend systems which results in a stack that is easy to adapt, to modify, and which
+keeps all historical knowledge in one place (ie. a single config).
 
-You start iii once. It runs as a single process and handles everything:
+The result is easy onboarding of new developers and AI agents, easy debugging across systems,
+removal of cost centers with reduced switching costs, and faster delivery of backend features.
 
-- **Write functions in any language.** Your code runs in Workers that connect to iii over WebSocket. Use TypeScript, Python, or Rust. Mix them freely.
-- **Triggers replace all your infra wiring.** An HTTP request, a cron schedule, a queue message, a state change, a stream event. They all work the same way: a Trigger fires, iii invokes your Function.
-- **Discovery keeps every worker in sync.** When a Worker connects and registers its Functions, every other Worker is notified. When it disconnects, its Functions disappear. No service registry, no config files — every Worker always knows what the entire system can do.
-- **Workers come and go.** When a Worker connects, its Functions are registered automatically. When it disconnects, they are cleaned up. When it reconnects, everything is restored. Zero-downtime deploys become trivial.
+## How iii achieves this
 
-The result: you write business logic as Functions, declare what triggers them, and iii handles the rest.
+iii unifies any backend stack with a single engine and two primitives: **Function**, and **Trigger**.
 
-## What iii Does
+Then it's a single process (or set of processes) that handles everything:
 
-When iii starts, it:
-
-- **Dynamically registers Functions.** Workers connect over WebSocket and register their handlers. iii routes incoming triggers to the right Worker, regardless of language or location.
-- **Orchestrates triggers.** HTTP requests, cron schedules, queue messages, state changes, and stream events all flow through iii and invoke the correct Function.
-- **Enables runtime discovery.** Every Worker can see every Function in the system, including built-in ones. When a Worker connects or disconnects, the registry updates and everyone is notified.
-- **Manages the lifecycle.** When a Worker disconnects, iii cleans up its Functions automatically. When it reconnects, Functions are re-registered transparently.
+- **Write Functions in any language:** Use TypeScript, Python, or Rust. Mix them freely. Everything is just a Function.
+- **Triggers handle any event:** An HTTP request, a cron schedule, a queue message, a state change, a stream event. They all work the same way: a Trigger fires, iii invokes your Function.
+- **Discovery keeps everything in sync:** When a new function is registered with iii every other part of the stack can use it. Functions can deregister dynamically too allowing for seamless upgrading of production systems. No service registry, and no config files. iii always knows what the entire system can do.
 
 <Callout title="Why this matters" type="info">
-  React simplified the frontend with Component and Context. iii does the same for the backend with Function, Trigger, and Discovery. One mental model for APIs, background jobs, workflows, real-time, and more.
+  React simplified the frontend with Component and Context. iii does the same for the backend with Function, Trigger, and Discovery. One mental model for every backend system.
 </Callout>
 
 ## Getting Started
@@ -42,19 +46,12 @@ The best way to understand iii is to try it:
 
 ### 1. Install iii
 
-Get the iii daemon installed on your machine.
+Install and then update the iii-cli to get everything installed.
 
 ```bash
-curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
+curl -fsSL https://install.iii.dev/iii-cli/main/install.sh | sh
+iii-cli update
 ```
-
-<Callout title="Anonymous telemetry" type="info">
-  iii collects anonymous usage data to help improve the engine. No personal information is collected. To opt out, set the environment variable before running iii:
-
-  ```bash
-  III_TELEMETRY_ENABLED=false iii
-  ```
-</Callout>
 
 ### 2. Verify installation
 
@@ -67,16 +64,14 @@ iii --version
 ## Next Steps
 
 <Cards>
-  <Card icon={<Terminal />} title="Tutorials" href={`/docs/tutorials/quickstart`}>
-    Follow the Quickstart and build your first iii application step by step.
+  <Card icon={<Terminal />} title="Quickstart" href={`/docs/tutorials/quickstart`}>
+    Follow the Quickstart and explore a live iii application.
   </Card>
   <Card icon={<LayoutTemplate />} title="Concepts" href={`/docs/concepts`}>
-    Understand Function, Trigger, and Discovery.
-  </Card>
-  <Card icon={<Settings />} title="How-to Guides" href={`/docs/how-to/expose-http-endpoint`}>
-    Solve specific problems: HTTP endpoints, background jobs, state, cron, and streaming.
-  </Card>
-  <Card icon={<FileText />} title="SDK Reference" href={`/docs/api-reference/iii-sdk`}>
-    Complete API reference for TypeScript, Python, and Rust SDKs.
+    Understand Functions and Triggers from a conceptual point of view.
   </Card>
 </Cards>
+<br/>
+<Card icon={<BookOpen />} title="How to use Functions & Triggers" href="/docs/how-to/use-functions-and-triggers">
+  Learn how to register functions, trigger them, and bind them to events.
+</Card>

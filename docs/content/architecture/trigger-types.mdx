@@ -13,8 +13,8 @@ A trigger consists of three parts:
 2. **Configuration**: Type-specific settings (path, schedule, topics)
 3. **Function ID**: The function to invoke when triggered
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 iii.registerTrigger({
   type: 'http',
@@ -96,8 +96,8 @@ Executes functions in response to HTTP requests.
 
 **Configuration:**
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 {
   type: 'http',
@@ -163,8 +163,8 @@ Executes functions when events are published to subscribed topics.
 
 **Configuration:**
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 {
   type: 'queue',
@@ -221,8 +221,8 @@ Executes functions on a time-based schedule using cron expressions.
 
 **Configuration:**
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 {
   type: 'cron',
@@ -279,8 +279,8 @@ Executes functions when log entries match specified criteria.
 
 **Configuration:**
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 {
   type: 'log',
@@ -392,8 +392,8 @@ sequenceDiagram
 
 First, register the function that will be invoked:
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'users.create' }, async (data) => {
   return { id: '123', ...data }
@@ -421,8 +421,8 @@ iii.register_function("users.create", |data: Value| async move {
 
 Then, register a trigger that routes to that function:
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 iii.registerTrigger({
   type: 'http',
@@ -477,8 +477,8 @@ sequenceDiagram
 
 A single function can have multiple triggers:
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'users.notify' }, async (data) => {
   await sendNotification(data)
@@ -568,8 +568,8 @@ Triggers can optionally use a **condition function** to decide whether the handl
 
 ### Example: HTTP Trigger with Condition
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::requireVerified' },
@@ -637,8 +637,8 @@ iii.register_trigger("http", "api::verifiedOnly", json!({
 
 ### Example: Queue Trigger with Condition
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::highValue' },
@@ -705,8 +705,8 @@ iii.register_trigger("queue", "orders::processHighValue", json!({
 
 ### Example: State Trigger with Condition
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const conditionFn = iii.registerFunction(
   { id: 'conditions::profileChanged' },
@@ -813,8 +813,8 @@ trigger.unregister()
 
 ### Webhook Handler
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'webhooks.github' }, async (req) => {
   const event = req.headers?.['x-github-event']
@@ -878,12 +878,12 @@ iii.register_trigger("http", "webhooks.github", json!({
 
 ### Event Chain
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const processFn = iii.registerFunction({ id: 'orders.process' }, async (order) => {
   await saveOrder(order)
-  await iii.trigger('enqueue', {
+  iii.triggerVoid('enqueue', {
     topic: 'order.processed',
     data: order,
   })
@@ -910,7 +910,7 @@ iii.registerTrigger({
 ```python
 async def process_order(order):
     await save_order(order)
-    await iii.trigger('enqueue', {
+    iii.trigger_void('enqueue', {
         'topic': 'order.processed',
         'data': order,
     })
@@ -939,10 +939,10 @@ iii.register_trigger(
 ```rust
 iii.register_function("orders.process", |order: Value| async move {
     save_order(&order).await;
-    iii.trigger("enqueue", json!({
+    iii.trigger_void("enqueue", json!({
         "topic": "order.processed",
         "data": order,
-    })).await?;
+    }));
     Ok(json!(null))
 });
 
@@ -964,8 +964,8 @@ iii.register_trigger("queue", "orders.sendConfirmation", json!({
 
 ### Scheduled Cleanup
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const fn = iii.registerFunction({ id: 'maintenance.cleanup' }, async () => {
   const deleted = await deleteOldRecords()
@@ -1101,11 +1101,6 @@ impl CoreModule for CustomModule {
 
 ## Next Steps
 
-<Columns cols={2}>
-  <Card icon={<Parentheses />} title="Remote Functions" href="/docs/remote-functions">
-    Understand how to write functions
-  </Card>
-  <Card icon={<Blocks />} title="Core Modules" href="/docs/modules">
-    Explore modules that provide trigger types
-  </Card>
-</Columns>
+<Card icon={<Blocks />} title="Modules" href="/docs/modules">
+  Explore modules that provide trigger types
+</Card>

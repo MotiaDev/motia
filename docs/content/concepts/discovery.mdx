@@ -1,5 +1,6 @@
 ---
 title: 'Discovery'
+fullTitle: 'Concepts: Discovery'
 description: 'Every worker sees every function in the system — and gets notified when functions appear or disappear as workers connect and disconnect.'
 ---
 
@@ -29,8 +30,8 @@ Every time a worker connects, disconnects, or registers new functions, the engin
 
 Subscribe to discovery events to react when the system topology changes:
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 iii.onFunctionsAvailable((functions) => {
   console.log('Available functions:', functions.map(f => f.function_id))
@@ -57,8 +58,8 @@ iii.on_functions_available(|functions| {
 
 You can also query the current state of the registry at any time:
 
-<Tabs items={["TypeScript", "Python", "Rust"]}>
-<Tab value="TypeScript">
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
 ```typescript
 const functions = await iii.listFunctions()
 

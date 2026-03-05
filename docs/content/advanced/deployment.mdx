@@ -24,17 +24,17 @@ The engine accepts the following CLI arguments:
 
 | Argument    | Short | Default       | Description                |
 | ----------- | ----- | ------------- | -------------------------- |
-| `--config`  | `-c`  | `config.yaml` | Path to configuration file |
+| `--config`  | `-c`  | `iii-config.yaml` | Path to configuration file |
 | `--version` | `-v`  | -             | Print version and exit     |
 
 Start the engine:
 
 ```bash
-# Using default config.yaml
+# Using default iii-config.yaml
 iii
 
 # With custom config
-iii --config /path/to/config.yaml
+iii --config /path/to/iii-config.yaml
 
 # Check version
 iii --version
@@ -98,7 +98,7 @@ The quickest way to get started is pulling the pre-built image:
 docker pull iiidev/iii:latest
 
 docker run -p 3111:3111 -p 49134:49134 \
-  -v ./config.yaml:/app/config.yaml:ro \
+  -v ./iii-config.yaml:/app/iii-config.yaml:ro \
   iiidev/iii:latest
 ```
 
@@ -232,7 +232,7 @@ Running the iii container with minimal privileges:
 docker run --read-only --tmpfs /tmp \
   --cap-drop=ALL --cap-add=NET_BIND_SERVICE \
   --security-opt=no-new-privileges:true \
-  -v ./config.yaml:/app/config.yaml:ro \
+  -v ./iii-config.yaml:/app/iii-config.yaml:ro \
   iiidev/iii:latest
 ```
 

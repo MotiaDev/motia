@@ -6,4 +6,4 @@ packages:
   - frameworks/motia/docs
   - console/packages/*
   - docs
-  #- website
+  - website

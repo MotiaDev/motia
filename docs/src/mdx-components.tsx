@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowBigDownDash,
   Blocks,
+  BookOpen,
   Clock,
   Code,
   Cog,
@@ -25,11 +26,12 @@ import { Accordion, AccordionGroup } from './lib/components/Accordion'
 import { Columns } from './lib/components/Columns'
 import { Expandable } from './lib/components/Expandable'
 import { Image } from './lib/components/Image'
+import { TabsConditional } from './lib/components/TabsConditional'
 import { Mermaid } from './lib/components/Mermaid'
 import { ResponseField } from './lib/components/ResponseField'
 import { Tip } from './lib/components/Tip'
 import { Warning } from './lib/components/Warning'
-import * as TabsComponents from 'fumadocs-ui/components/tabs'
+import * as TabsComponents from './lib/components/Tabs'
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
@@ -45,6 +47,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ResponseField,
     Warning,
     Image,
+    TabsConditional,
     Mermaid,
     Globe,
     Activity,
@@ -61,6 +64,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Parentheses,
     Rocket,
     Search,
+    BookOpen,
     Cog,
     Handshake,
     LayoutTemplate,
