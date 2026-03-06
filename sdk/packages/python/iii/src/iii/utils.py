@@ -12,8 +12,8 @@ if TYPE_CHECKING:
 
 
 def http(
-    callback: Callable[[HttpRequest, HttpResponse], Awaitable[ApiResponse | None]],
-) -> Callable[[Any], Awaitable[ApiResponse | None]]:
+    callback: Callable[[HttpRequest, HttpResponse], Awaitable[ApiResponse[Any] | None]],
+) -> Callable[[Any], Awaitable[ApiResponse[Any] | None]]:
     """Wrap an HTTP handler so it receives typed HttpRequest and HttpResponse.
 
     Takes a callback ``(req, res) -> ApiResponse | None`` and returns a
@@ -22,7 +22,7 @@ def http(
     typed ``HttpRequest`` / ``HttpResponse`` pair that the callback expects.
     """
 
-    async def wrapper(req: Any) -> ApiResponse | None:
+    async def wrapper(req: Any) -> ApiResponse[Any] | None:
         if isinstance(req, InternalHttpRequest):
             internal = req
         elif isinstance(req, dict):
