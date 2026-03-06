@@ -77,13 +77,13 @@ Entry point for all releases. Provides a form with:
 
 1. Validates it's running on `main` and all required manifest files exist
 2. Reads the current version from the canonical manifest
-3. Calculates the next version (handles semver bump + prerelease labels + dry-run suffixes)
+3. Calculates the next candidate version (handles semver bump + prerelease labels)
 4. Converts to PEP 440 format for Python packages (e.g., `1.0.0-alpha.1` becomes `1.0.0a1`)
-5. Updates all manifest files in lockstep (Cargo.toml, package.json, pyproject.toml)
-6. Commits the version bump, creates an annotated tag, and pushes both
+5. For a real release, updates all manifests in lockstep (Cargo.toml, package.json, pyproject.toml), commits, tags, and pushes
+6. For a dry run, does not commit or tag; instead it dispatches the corresponding release workflow with the candidate version and source SHA
 7. Posts a Slack notification
 
-The tag push then triggers the corresponding release workflow.
+Real releases continue via tag push. Dry runs dispatch the same release workflow in rehearsal mode.
 
 **Tag format:** `{target}/v{version}` (e.g., `iii/v1.2.3`, `motia/v0.5.0-beta.1`)
 
@@ -91,7 +91,7 @@ The tag push then triggers the corresponding release workflow.
 
 ### `release-iii.yml` — iii Release Pipeline
 
-**Triggers:** tag push matching `iii/v*`
+**Triggers:** tag push matching `iii/v*`, manual dispatch for dry-run rehearsal
 
 Orchestrates the full iii release across all package registries and distribution channels.
 
@@ -122,18 +122,19 @@ setup (parse tag metadata, Slack notification)
 **Setup job** parses the tag to determine:
 - `version` — stripped prefix (e.g., `iii/v1.2.3` becomes `1.2.3`)
 - `is_prerelease` — true if version contains a prerelease label
-- `npm_tag` — dist-tag for npm (`latest`, `alpha`, `beta`, `rc`, `dry-run`)
-- `dry_run` — true if version ends with `-dry-run.N`
+- `npm_tag` — dist-tag for npm (`latest`, `alpha`, `beta`, `rc`)
+- `dry_run` — explicit workflow input for rehearsal runs
+- `source_ref` — the exact commit SHA to rehearse for dry runs
 
 **Concurrency:** only one iii release runs at a time per repository.
 
-**Skipped on dry run:** GitHub Release creation, Homebrew publish.
+**Dry-run behavior:** skips GitHub Release creation and registry publishes, but still stages the candidate version in-job, builds binaries, builds Docker images, validates package publishing with dry-run commands, and validates Homebrew for stable releases.
 
 ---
 
 ### `release-motia.yml` — Motia Release Pipeline
 
-**Triggers:** tag push matching `motia/v*`
+**Triggers:** tag push matching `motia/v*`, manual dispatch for dry-run rehearsal
 
 Simpler than iii — publishes only the Motia framework packages.
 
@@ -150,16 +151,16 @@ setup (parse tag metadata, Slack notification)
 
 ### `docker-engine.yml` — Docker Image Build & Publish
 
-**Triggers:** called by `release-iii.yml` after engine binaries are built, or manual dispatch with a release tag
+**Triggers:** called by `release-iii.yml` after engine binaries are built, or manual dispatch
 
-Downloads pre-built binaries from the GitHub Release (no Rust compilation) and packages them into a minimal distroless Docker image.
+Uses the Linux engine tarballs to package a minimal distroless Docker image.
 
 | Job | Runner | What it does |
 |-----|--------|--------------|
-| `setup` | `ubuntu-latest` | Parse version from release tag |
-| `build` (amd64) | `ubuntu-latest` | Download pre-built binary, build + push image |
-| `build` (arm64) | `ubuntu-24.04-arm` | Download pre-built binary, build + push image (native ARM runner) |
-| `publish` | `ubuntu-latest` | Create multi-platform manifest, Trivy security scan, push to GHCR + DockerHub |
+| `setup` | `ubuntu-latest` | Resolve version, dry-run mode, and source ref |
+| `build` (amd64) | `ubuntu-latest` | Download binary artifact, build image, smoke test, Trivy scan on dry run |
+| `build` (arm64) | `ubuntu-24.04-arm` | Download binary artifact, build image, smoke test |
+| `publish` | `ubuntu-latest` | Create multi-platform manifest, Trivy SARIF scan, push to GHCR + DockerHub (real release only) |
 
 **Registries:** GHCR (`ghcr.io`) and DockerHub (`iiidev/iii`)
 
@@ -189,18 +190,23 @@ Publishes a Node.js package to the npm registry.
 | `npm_tag` | dist-tag (`latest`, `alpha`, `beta`, `rc`) |
 | `build_filter` | pnpm filter for building the package |
 | `pre_build_filter` | pnpm filter for building dependencies first (optional) |
+| `release_target` | Target manifest set to stage before build (`iii` or `motia`) |
+| `source_ref` | Git ref or SHA to build from |
+| `version_override` | Candidate version to stage before build |
 
-Uses `pnpm publish` with `--no-git-checks` and `--access public`.
+Uses `pnpm publish` with `--no-git-checks` and `--access public`. On dry runs it stages the candidate version first and then runs `pnpm publish --dry-run`.
 
 ### `_py.yml` — PyPI Publish
 
 Publishes a Python package to PyPI.
 
-Builds with `python -m build`, validates with `twine check` on dry run, publishes via `pypa/gh-action-pypi-publish`.
+Builds with `python -m build`, validates with `twine check` on dry run, publishes via `pypa/gh-action-pypi-publish`. Supports `release_target`, `source_ref`, and `version_override` so dry runs rehearse the exact candidate version.
 
 ### `_rust-cargo.yml` — Cargo Publish
 
 Publishes a Rust crate to crates.io via `cargo publish`.
+
+Supports `release_target`, `source_ref`, and `version_override` so dry runs stage the candidate version before `cargo publish --dry-run`.
 
 ### `_rust-binary.yml` — Rust Binary Release
 
@@ -222,7 +228,7 @@ Cross-compiles a Rust binary for 9 platform targets and uploads them to a GitHub
 
 Supports downloading a pre-built artifact (used by console to embed the frontend build).
 
-Uses `taiki-e/upload-rust-binary-action` for building and uploading.
+Uses `taiki-e/upload-rust-binary-action` for building and uploading. On dry runs it still builds the archives and uploads them as workflow artifacts so Docker and Homebrew can validate against unpublished binaries.
 
 ### `_homebrew.yml` — Homebrew Formula Publish
 
@@ -234,7 +240,7 @@ Generates and publishes a Homebrew formula to the `iii-hq/homebrew-tap` reposito
 4. Tests the formula locally (`brew audit`, `brew install`, version check)
 5. Commits and pushes to the tap repository
 
-Only runs for stable (non-prerelease) versions.
+Only runs for stable (non-prerelease) versions. In dry-run mode it downloads workflow artifacts instead of GitHub Release assets, generates a local-only formula with `file://` URLs, validates it with `brew audit` and `brew install`, and skips the tap commit.
 
 ---
 

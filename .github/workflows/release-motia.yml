@@ -4,6 +4,28 @@ on:
   push:
     tags:
       - 'motia/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version to rehearse'
+        required: true
+        type: string
+      is_prerelease:
+        description: 'Whether the candidate version is a prerelease'
+        required: true
+        type: boolean
+      npm_tag:
+        description: 'NPM dist-tag for the candidate release'
+        required: true
+        type: string
+      dry_run:
+        description: 'Run the release as a non-publishing rehearsal'
+        required: true
+        type: boolean
+      source_ref:
+        description: 'Git ref or SHA to build from'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,36 +44,48 @@ jobs:
     name: Setup
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ github.ref_name }}
+      tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
       npm_tag: ${{ steps.meta.outputs.npm_tag }}
       dry_run: ${{ steps.meta.outputs.dry_run }}
+      source_ref: ${{ steps.meta.outputs.source_ref }}
       slack_ts: ${{ steps.slack.outputs.ts }}
     steps:
       - name: Extract metadata from tag
         id: meta
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          VERSION="${TAG#motia/v}"
-
-          if [[ "$VERSION" =~ -dry-run\.[0-9]+$ ]]; then
-            echo "dry_run=true" >> "$GITHUB_OUTPUT"
-            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-            echo "npm_tag=dry-run" >> "$GITHUB_OUTPUT"
-          elif [[ "$VERSION" =~ -([a-z]+)\.[0-9]+$ ]]; then
-            LABEL="${BASH_REMATCH[1]}"
-            echo "dry_run=false" >> "$GITHUB_OUTPUT"
-            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-            echo "npm_tag=$LABEL" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG=""
+            VERSION="${{ inputs.version }}"
+            IS_PRERELEASE="${{ inputs.is_prerelease }}"
+            NPM_TAG="${{ inputs.npm_tag }}"
+            DRY_RUN="${{ inputs.dry_run }}"
+            SOURCE_REF="${{ inputs.source_ref }}"
           else
-            echo "dry_run=false" >> "$GITHUB_OUTPUT"
-            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#motia/v}"
+            SOURCE_REF="${GITHUB_SHA}"
+
+            if [[ "$VERSION" =~ -([a-z]+)\.[0-9]+$ ]]; then
+              LABEL="${BASH_REMATCH[1]}"
+              IS_PRERELEASE=true
+              NPM_TAG="$LABEL"
+            else
+              IS_PRERELEASE=false
+              NPM_TAG=latest
+            fi
+
+            DRY_RUN=false
           fi
 
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "::notice::Motia release — tag=$TAG version=$VERSION"
+          echo "is_prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "npm_tag=$NPM_TAG" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
+          echo "::notice::Motia release — version=$VERSION dry_run=$DRY_RUN source_ref=$SOURCE_REF"
 
       - name: Post initial Slack message
         id: slack
@@ -67,7 +101,7 @@ jobs:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "${{ steps.meta.outputs.dry_run == 'true' && ':test_tube: *Release Pipeline (Dry Run)* :hourglass_flowing_sand:' || '*Release Pipeline* :hourglass_flowing_sand:' }}\nmotia v${{ steps.meta.outputs.version }}"
+                  text: "${{ steps.meta.outputs.dry_run == 'true' && ':test_tube: *Release Pipeline (Dry Run)* :hourglass_flowing_sand:' || '*Release Pipeline* :hourglass_flowing_sand:' }}\nmotia v${{ steps.meta.outputs.version }}${{ steps.meta.outputs.dry_run == 'true' && '\n\n_No commit, tag, release, or registry publish will be created._' || '' }}"
               - type: "context"
                 elements:
                   - type: "mrkdwn"
@@ -87,6 +121,9 @@ jobs:
       build_filter: motia
       pre_build_filter: iii-sdk
       dry_run: ${{ needs.setup.outputs.dry_run == 'true' }}
+      source_ref: ${{ needs.setup.outputs.source_ref }}
+      release_target: motia
+      version_override: ${{ needs.setup.outputs.dry_run == 'true' && needs.setup.outputs.version || '' }}
       slack_thread_ts: ${{ needs.setup.outputs.slack_ts }}
       slack_label: Motia Node (npm)
     secrets:
@@ -101,6 +138,9 @@ jobs:
     with:
       package_path: frameworks/motia/motia-py/packages/motia
       dry_run: ${{ needs.setup.outputs.dry_run == 'true' }}
+      source_ref: ${{ needs.setup.outputs.source_ref }}
+      release_target: motia
+      version_override: ${{ needs.setup.outputs.dry_run == 'true' && needs.setup.outputs.version || '' }}
       slack_thread_ts: ${{ needs.setup.outputs.slack_ts }}
       slack_label: Motia Python (pypi)
     secrets:
@@ -169,7 +209,7 @@ jobs:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "${{ needs.setup.outputs.dry_run == 'true' && ':test_tube: *Release Pipeline (Dry Run)*' || '*Release Pipeline*' }} ${{ steps.status.outputs.overall == 'success' && ':large_green_circle:' || ':red_circle:' }}\n${{ steps.status.outputs.summary }}\n\n${{ steps.status.outputs.lines }}"
+                  text: "${{ needs.setup.outputs.dry_run == 'true' && ':test_tube: *Release Pipeline (Dry Run)*' || '*Release Pipeline*' }} ${{ steps.status.outputs.overall == 'success' && ':large_green_circle:' || ':red_circle:' }}\n${{ steps.status.outputs.summary }}\n\n${{ steps.status.outputs.lines }}${{ needs.setup.outputs.dry_run == 'true' && '\n_No commit, tag, release, or registry publish was created._' || '' }}"
               - type: "context"
                 elements:
                   - type: "mrkdwn"

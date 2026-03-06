@@ -30,7 +30,7 @@ on:
           - rc
         default: none
       dry_run:
-        description: 'Dry run (creates -dry-run.N tag, builds without publishing)'
+        description: 'Dry run (dispatches a release rehearsal without commits, tags, or publishing)'
         required: false
         type: boolean
         default: false
@@ -98,114 +98,13 @@ jobs:
           TARGET: ${{ inputs.target }}
           BUMP: ${{ inputs.bump }}
           PRERELEASE: ${{ inputs.prerelease }}
-          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          read_cargo_version() { grep '^version = ' "$1" | head -n1 | cut -d'"' -f2; }
-          read_json_version()  { grep '"version":' "$1" | head -n1 | cut -d'"' -f4; }
-
-          bump_version() {
-            local current="$1"
-            local tag_prefix="$2"
-            local bump_type="$3"
-            local base="${current%%-*}"
-            IFS='.' read -r major minor patch <<< "$base"
-
-            case "$bump_type" in
-              major) major=$((major + 1)); minor=0; patch=0 ;;
-              minor) minor=$((minor + 1)); patch=0 ;;
-              patch) patch=$((patch + 1)) ;;
-            esac
-
-            local new_base="${major}.${minor}.${patch}"
-
-            if [[ "$PRERELEASE" != "none" ]]; then
-              local existing
-              existing=$(git tag -l "${tag_prefix}/v${new_base}-${PRERELEASE}.*" 2>/dev/null | sort -V)
-              local pre_num=1
-              if [[ -n "$existing" ]]; then
-                local latest_pre
-                latest_pre=$(echo "$existing" | tail -n1)
-                pre_num=$(echo "$latest_pre" | grep -oE '\.[0-9]+$' | tr -d '.')
-                pre_num=$((pre_num + 1))
-              fi
-              echo "${new_base}-${PRERELEASE}.${pre_num}"
-            else
-              echo "$new_base"
-            fi
-          }
-
-          next_dry_run_version() {
-            local base="$1"
-            local tag_prefix="$2"
-            local existing
-            existing=$(git tag -l "${tag_prefix}/v${base}-dry-run.*" 2>/dev/null | sort -V)
-            local num=1
-            if [[ -n "$existing" ]]; then
-              local latest
-              latest=$(echo "$existing" | tail -n1)
-              num=$(echo "$latest" | grep -oE '\.[0-9]+$' | tr -d '.')
-              num=$((num + 1))
-            fi
-            echo "${base}-dry-run.${num}"
-          }
-
-          to_pep440() {
-            local version="$1"
-            if [[ "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-([a-z]+)\.([0-9]+)$ ]]; then
-              local base="${BASH_REMATCH[1]}"
-              local label="${BASH_REMATCH[2]}"
-              local num="${BASH_REMATCH[3]}"
-              case "$label" in
-                rc)    echo "${base}rc${num}" ;;
-                alpha) echo "${base}a${num}" ;;
-                beta)  echo "${base}b${num}" ;;
-              esac
-            else
-              echo "$version"
-            fi
-          }
-
-          if [[ "$PRERELEASE" != "none" ]]; then
-            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-            echo "npm_tag=$PRERELEASE" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
-          fi
-
-          if [[ "$TARGET" == "iii" ]]; then
-            current=$(read_cargo_version "engine/Cargo.toml")
-            new_ver=$(bump_version "$current" "iii" "$BUMP")
-
-            if [[ "$DRY_RUN" == "true" ]]; then
-              base_ver="${new_ver%%-*}"
-              new_ver=$(next_dry_run_version "$base_ver" "iii")
-            fi
-
-            py_ver=$(to_pep440 "$new_ver")
-            echo "version=$new_ver" >> "$GITHUB_OUTPUT"
-            echo "python_version=$py_ver" >> "$GITHUB_OUTPUT"
-            echo "tag=iii/v${new_ver}" >> "$GITHUB_OUTPUT"
-            echo "current=$current" >> "$GITHUB_OUTPUT"
-            echo "::notice::iii: $current -> $new_ver (python: $py_ver)"
-          fi
-
-          if [[ "$TARGET" == "motia" ]]; then
-            current=$(read_json_version "frameworks/motia/motia-js/packages/motia/package.json")
-            new_ver=$(bump_version "$current" "motia" "$BUMP")
-
-            if [[ "$DRY_RUN" == "true" ]]; then
-              base_ver="${new_ver%%-*}"
-              new_ver=$(next_dry_run_version "$base_ver" "motia")
-            fi
-
-            py_ver=$(to_pep440 "$new_ver")
-            echo "version=$new_ver" >> "$GITHUB_OUTPUT"
-            echo "python_version=$py_ver" >> "$GITHUB_OUTPUT"
-            echo "tag=motia/v${new_ver}" >> "$GITHUB_OUTPUT"
-            echo "current=$current" >> "$GITHUB_OUTPUT"
-            echo "::notice::Motia: $current -> $new_ver (python: $py_ver)"
-          fi
+          python3 .github/scripts/release_versioning.py compute \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --target "$TARGET" \
+            --bump "$BUMP" \
+            --prerelease "$PRERELEASE" \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Update iii manifests
         if: inputs.target == 'iii' && inputs.dry_run != true
@@ -213,20 +112,11 @@ jobs:
           NEW_VERSION: ${{ steps.versions.outputs.version }}
           PY_VERSION: ${{ steps.versions.outputs.python_version }}
         run: |
-          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${NEW_VERSION}\"/}" engine/Cargo.toml
-          echo "Updated engine/Cargo.toml to $NEW_VERSION"
-
-          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${NEW_VERSION}\"/}" sdk/packages/rust/iii/Cargo.toml
-          echo "Updated sdk/packages/rust/iii/Cargo.toml to $NEW_VERSION"
-
-          jq --arg v "$NEW_VERSION" '.version = $v' sdk/packages/node/iii/package.json > tmp.json && mv tmp.json sdk/packages/node/iii/package.json
-          echo "Updated sdk/packages/node/iii/package.json to $NEW_VERSION"
-
-          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${PY_VERSION}\"/}" sdk/packages/python/iii/pyproject.toml
-          echo "Updated sdk/packages/python/iii/pyproject.toml to $PY_VERSION"
-
-          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${NEW_VERSION}\"/}" console/packages/console-rust/Cargo.toml
-          echo "Updated console/packages/console-rust/Cargo.toml to $NEW_VERSION"
+          python3 .github/scripts/release_versioning.py stage \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --target iii \
+            --version "$NEW_VERSION" \
+            --python-version "$PY_VERSION"
 
       - name: Update motia manifests
         if: inputs.target == 'motia' && inputs.dry_run != true
@@ -234,11 +124,11 @@ jobs:
           NEW_VERSION: ${{ steps.versions.outputs.version }}
           PY_VERSION: ${{ steps.versions.outputs.python_version }}
         run: |
-          jq --arg v "$NEW_VERSION" '.version = $v' frameworks/motia/motia-js/packages/motia/package.json > tmp.json && mv tmp.json frameworks/motia/motia-js/packages/motia/package.json
-          echo "Updated frameworks/motia/motia-js/packages/motia/package.json to $NEW_VERSION"
-
-          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${PY_VERSION}\"/}" frameworks/motia/motia-py/packages/motia/pyproject.toml
-          echo "Updated frameworks/motia/motia-py/packages/motia/pyproject.toml to $PY_VERSION"
+          python3 .github/scripts/release_versioning.py stage \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --target motia \
+            --version "$NEW_VERSION" \
+            --python-version "$PY_VERSION"
 
       - name: Validate version updates
         if: inputs.dry_run != true
@@ -294,6 +184,7 @@ jobs:
           fi
 
       - name: Configure git identity
+        if: inputs.dry_run != true
         run: |
           git config user.name "iii-ci[bot]"
           git config user.email "iii-ci[bot]@users.noreply.github.com"
@@ -309,12 +200,37 @@ jobs:
           git push origin main
 
       - name: Create and push tag
+        if: inputs.dry_run != true
         env:
           TAG: ${{ steps.versions.outputs.tag }}
         run: |
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
           echo "Created tag: $TAG"
+
+      - name: Dispatch dry-run release workflow
+        if: inputs.dry_run == true
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+          TARGET: ${{ inputs.target }}
+          VERSION: ${{ steps.versions.outputs.version }}
+          IS_PRERELEASE: ${{ steps.versions.outputs.is_prerelease }}
+          NPM_TAG: ${{ steps.versions.outputs.npm_tag }}
+        run: |
+          WORKFLOW="release-${TARGET}.yml"
+          SOURCE_REF=$(git rev-parse HEAD)
+
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW}/dispatches" \
+            -f ref=main \
+            -f inputs[version]="${VERSION}" \
+            -f inputs[is_prerelease]="${IS_PRERELEASE}" \
+            -f inputs[npm_tag]="${NPM_TAG}" \
+            -f inputs[dry_run]=true \
+            -f inputs[source_ref]="${SOURCE_REF}"
+
+          echo "Dispatched ${WORKFLOW} dry run for ${VERSION} from ${SOURCE_REF}"
 
       - name: Notify Slack
         continue-on-error: true
@@ -324,12 +240,12 @@ jobs:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             channel: ${{ secrets.SLACK_CHANNEL_ID }}
-            text: "${{ inputs.dry_run == true && '[DRY RUN] ' || '' }}Tag created for release"
+            text: "${{ inputs.dry_run == true && '[DRY RUN] Release rehearsal dispatched' || 'Tag created for release' }}"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "${{ inputs.dry_run == true && ':test_tube: *Dry Run — Tag Preview*' || ':label: *Tag Created*' }}\n\n:package: ${{ inputs.target }}: `${{ steps.versions.outputs.tag }}`\nPre-release: `${{ inputs.prerelease }}`\nTriggered by: ${{ github.actor }}${{ inputs.dry_run == true && '\n\n_No commits, tags, or publishes — validation only_' || '' }}"
+                  text: "${{ inputs.dry_run == true && ':test_tube: *Dry Run — Release Rehearsal Dispatched*' || ':label: *Tag Created*' }}\n\n:package: ${{ inputs.target }} candidate: `${{ steps.versions.outputs.version }}`${{ inputs.dry_run != true && format('\nTag: `{0}`', steps.versions.outputs.tag) || '' }}\nPre-release: `${{ inputs.prerelease }}`\nTriggered by: ${{ github.actor }}${{ inputs.dry_run == true && '\n\n_No commits, tags, releases, or registry publishes were created._' || '' }}"
               - type: "context"
                 elements:
                   - type: "mrkdwn"

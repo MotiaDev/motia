@@ -29,8 +29,9 @@ on:
         type: string
       release_tag:
         description: 'GitHub release tag for downloading assets (e.g., iii/v1.0.0)'
-        required: true
+        required: false
         type: string
+        default: ''
       version:
         description: 'Version number without v prefix (e.g., 1.0.0)'
         required: true
@@ -45,6 +46,16 @@ on:
         required: false
         type: boolean
         default: false
+      source_ref:
+        description: 'Git ref or SHA to build from'
+        required: false
+        type: string
+        default: ''
+      dry_run_artifact_prefix:
+        description: 'Artifact name prefix for dry-run tarballs'
+        required: false
+        type: string
+        default: ''
       slack_thread_ts:
         description: 'Slack parent message timestamp for thread replies (optional)'
         required: false
@@ -116,6 +127,7 @@ jobs:
           path: homebrew-tap
 
       - name: Download release assets
+        if: inputs.dry_run != true
         env:
           RELEASE_REPO: ${{ inputs.release_repo }}
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -136,6 +148,58 @@ jobs:
               "${BASE_URL}/${BIN_NAME}-x86_64-unknown-linux-gnu.tar.gz"
             curl -L --fail -o "${BIN_NAME}-aarch64-unknown-linux-gnu.tar.gz" \
               "${BASE_URL}/${BIN_NAME}-aarch64-unknown-linux-gnu.tar.gz"
+            REQUIRED_FILES="$REQUIRED_FILES ${BIN_NAME}-x86_64-unknown-linux-gnu.tar.gz ${BIN_NAME}-aarch64-unknown-linux-gnu.tar.gz"
+          fi
+
+          for file in $REQUIRED_FILES; do
+            if [ ! -s "$file" ]; then
+              echo "::error::$file is missing or empty"
+              exit 1
+            fi
+          done
+          ls -lh *.tar.gz
+
+      - name: Download dry-run macOS x86 asset
+        if: inputs.dry_run == true
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.dry_run_artifact_prefix != '' && format('{0}-x86_64-apple-darwin.tar.gz', inputs.dry_run_artifact_prefix) || format('{0}-x86_64-apple-darwin.tar.gz', inputs.bin_name) }}
+          path: assets
+
+      - name: Download dry-run macOS arm asset
+        if: inputs.dry_run == true
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.dry_run_artifact_prefix != '' && format('{0}-aarch64-apple-darwin.tar.gz', inputs.dry_run_artifact_prefix) || format('{0}-aarch64-apple-darwin.tar.gz', inputs.bin_name) }}
+          path: assets
+
+      - name: Download dry-run Linux x86 asset
+        if: inputs.dry_run == true && inputs.include_linux == true
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.dry_run_artifact_prefix != '' && format('{0}-x86_64-unknown-linux-gnu.tar.gz', inputs.dry_run_artifact_prefix) || format('{0}-x86_64-unknown-linux-gnu.tar.gz', inputs.bin_name) }}
+          path: assets
+
+      - name: Download dry-run Linux arm asset
+        if: inputs.dry_run == true && inputs.include_linux == true
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.dry_run_artifact_prefix != '' && format('{0}-aarch64-unknown-linux-gnu.tar.gz', inputs.dry_run_artifact_prefix) || format('{0}-aarch64-unknown-linux-gnu.tar.gz', inputs.bin_name) }}
+          path: assets
+
+      - name: Validate dry-run assets
+        if: inputs.dry_run == true
+        env:
+          BIN_NAME: ${{ inputs.bin_name }}
+          INCLUDE_LINUX: ${{ inputs.include_linux }}
+        run: |
+          mv "assets/${BIN_NAME}-x86_64-apple-darwin.tar.gz" .
+          mv "assets/${BIN_NAME}-aarch64-apple-darwin.tar.gz" .
+
+          REQUIRED_FILES="${BIN_NAME}-x86_64-apple-darwin.tar.gz ${BIN_NAME}-aarch64-apple-darwin.tar.gz"
+          if [[ "$INCLUDE_LINUX" == "true" ]]; then
+            mv "assets/${BIN_NAME}-x86_64-unknown-linux-gnu.tar.gz" .
+            mv "assets/${BIN_NAME}-aarch64-unknown-linux-gnu.tar.gz" .
             REQUIRED_FILES="$REQUIRED_FILES ${BIN_NAME}-x86_64-unknown-linux-gnu.tar.gz ${BIN_NAME}-aarch64-unknown-linux-gnu.tar.gz"
           fi
 
@@ -175,6 +239,7 @@ jobs:
           VERSION: ${{ inputs.version }}
           RELEASE_REPO: ${{ inputs.release_repo }}
           RELEASE_TAG: ${{ inputs.release_tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
           INCLUDE_LINUX: ${{ inputs.include_linux }}
           MACOS_X86_SHA: ${{ steps.checksums.outputs.macos_x86_64_sha256 }}
           MACOS_ARM_SHA: ${{ steps.checksums.outputs.macos_aarch64_sha256 }}
@@ -184,7 +249,22 @@ jobs:
           cd homebrew-tap
           mkdir -p "$(dirname "$FORMULA_FILE")"
 
-          BASE_URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}"
+          if [[ "$DRY_RUN" == "true" ]]; then
+            MACOS_ARM_URL="file://${GITHUB_WORKSPACE}/${BIN_NAME}-aarch64-apple-darwin.tar.gz"
+            MACOS_X86_URL="file://${GITHUB_WORKSPACE}/${BIN_NAME}-x86_64-apple-darwin.tar.gz"
+            if [[ "$INCLUDE_LINUX" == "true" ]]; then
+              LINUX_ARM_URL="file://${GITHUB_WORKSPACE}/${BIN_NAME}-aarch64-unknown-linux-gnu.tar.gz"
+              LINUX_X86_URL="file://${GITHUB_WORKSPACE}/${BIN_NAME}-x86_64-unknown-linux-gnu.tar.gz"
+            fi
+          else
+            BASE_URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}"
+            MACOS_ARM_URL="${BASE_URL}/${BIN_NAME}-aarch64-apple-darwin.tar.gz"
+            MACOS_X86_URL="${BASE_URL}/${BIN_NAME}-x86_64-apple-darwin.tar.gz"
+            if [[ "$INCLUDE_LINUX" == "true" ]]; then
+              LINUX_ARM_URL="${BASE_URL}/${BIN_NAME}-aarch64-unknown-linux-gnu.tar.gz"
+              LINUX_X86_URL="${BASE_URL}/${BIN_NAME}-x86_64-unknown-linux-gnu.tar.gz"
+            fi
+          fi
 
           {
             echo "class ${FORMULA_CLASS} < Formula"
@@ -195,10 +275,10 @@ jobs:
             echo ""
             echo "  on_macos do"
             echo "    if Hardware::CPU.arm?"
-            echo "      url \"${BASE_URL}/${BIN_NAME}-aarch64-apple-darwin.tar.gz\""
+            echo "      url \"${MACOS_ARM_URL}\""
             echo "      sha256 \"${MACOS_ARM_SHA}\""
             echo "    else"
-            echo "      url \"${BASE_URL}/${BIN_NAME}-x86_64-apple-darwin.tar.gz\""
+            echo "      url \"${MACOS_X86_URL}\""
             echo "      sha256 \"${MACOS_X86_SHA}\""
             echo "    end"
             echo "  end"
@@ -207,10 +287,10 @@ jobs:
               echo ""
               echo "  on_linux do"
               echo "    if Hardware::CPU.arm?"
-              echo "      url \"${BASE_URL}/${BIN_NAME}-aarch64-unknown-linux-gnu.tar.gz\""
+              echo "      url \"${LINUX_ARM_URL}\""
               echo "      sha256 \"${LINUX_ARM_SHA}\""
               echo "    else"
-              echo "      url \"${BASE_URL}/${BIN_NAME}-x86_64-unknown-linux-gnu.tar.gz\""
+              echo "      url \"${LINUX_X86_URL}\""
               echo "      sha256 \"${LINUX_X86_SHA}\""
               echo "    end"
               echo "  end"

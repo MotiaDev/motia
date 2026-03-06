@@ -7,11 +7,25 @@ on:
         description: 'Path to the crate directory (e.g., sdk/packages/rust/iii)'
         required: true
         type: string
+      release_target:
+        description: 'Release target used for manifest staging (iii or motia)'
+        required: true
+        type: string
       dry_run:
         description: 'Build and validate without publishing'
         required: false
         type: boolean
         default: false
+      source_ref:
+        description: 'Git ref or SHA to build from'
+        required: false
+        type: string
+        default: ''
+      version_override:
+        description: 'Candidate version to stage before building'
+        required: false
+        type: string
+        default: ''
       slack_thread_ts:
         description: 'Slack parent message timestamp for thread replies (optional)'
         required: false
@@ -52,6 +66,16 @@ jobs:
             text: ":large_yellow_circle: ${{ inputs.slack_label }}${{ inputs.dry_run == true && ' (dry run)' || '' }} — in progress"
 
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref != '' && inputs.source_ref || github.ref }}
+
+      - name: Stage release version
+        if: inputs.version_override != ''
+        run: |
+          python3 .github/scripts/release_versioning.py stage \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --target "${{ inputs.release_target }}" \
+            --version "${{ inputs.version_override }}"
 
       - uses: dtolnay/rust-toolchain@stable
 

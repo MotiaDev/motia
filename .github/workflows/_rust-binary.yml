@@ -13,8 +13,9 @@ on:
         type: string
       tag_name:
         description: 'Git tag for the GitHub Release (e.g., iii/v1.0.0)'
-        required: true
+        required: false
         type: string
+        default: ''
       is_prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -35,11 +36,26 @@ on:
         required: false
         type: string
         default: ''
+      release_target:
+        description: 'Release target used for manifest staging (iii or motia)'
+        required: false
+        type: string
+        default: ''
       dry_run:
         description: 'Build binaries without uploading or creating releases'
         required: false
         type: boolean
         default: false
+      source_ref:
+        description: 'Git ref or SHA to build from'
+        required: false
+        type: string
+        default: ''
+      version_override:
+        description: 'Candidate version to stage before building'
+        required: false
+        type: string
+        default: ''
       slack_thread_ts:
         description: 'Slack parent message timestamp for thread replies (optional)'
         required: false
@@ -153,6 +169,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
+          ref: ${{ inputs.source_ref != '' && inputs.source_ref || github.ref }}
+
+      - name: Stage release version
+        if: inputs.version_override != '' && inputs.release_target != ''
+        run: |
+          python3 .github/scripts/release_versioning.py stage \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --target "${{ inputs.release_target }}" \
+            --version "${{ inputs.version_override }}"
 
       - name: Download pre-built artifact
         if: inputs.artifact_name != ''
@@ -190,17 +215,27 @@ jobs:
           key: ${{ inputs.bin_name }}-${{ matrix.target }}
 
       - name: Build and upload binary
+        id: build_binary
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: ${{ inputs.bin_name }}
           target: ${{ matrix.target }}
-          ref: refs/tags/${{ inputs.tag_name }}
+          ref: ${{ inputs.tag_name != '' && format('refs/tags/{0}', inputs.tag_name) || inputs.source_ref != '' && inputs.source_ref || github.ref }}
           tar: unix
           zip: windows
           checksum: sha256
           manifest-path: ${{ inputs.manifest_path }}
           token: ${{ steps.generate_token.outputs.token }}
           dry-run: ${{ inputs.dry_run }}
+
+      - name: Upload dry-run archive
+        if: inputs.dry_run == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os == 'Windows' && format('{0}-{1}.zip', inputs.bin_name, matrix.target) || format('{0}-{1}.tar.gz', inputs.bin_name, matrix.target) }}
+          path: ${{ runner.os == 'Windows' && format('{0}-{1}.zip', inputs.bin_name, matrix.target) || format('{0}-{1}.tar.gz', inputs.bin_name, matrix.target) }}
+          if-no-files-found: error
+          retention-days: 1
 
   notify-result:
     name: Notify Result

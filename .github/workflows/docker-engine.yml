@@ -5,14 +5,42 @@ on:
     inputs:
       release_tag:
         description: 'Release tag to build from (e.g., iii/v1.2.3)'
-        required: true
+        required: false
+        type: string
+      version:
+        description: 'Explicit release version (used for dry runs)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Build images locally without pushing them'
+        required: false
+        type: boolean
+        default: false
+      source_ref:
+        description: 'Git ref or SHA to build from'
+        required: false
         type: string
   workflow_call:
     inputs:
       release_tag:
         description: 'Release tag to build from (e.g., iii/v1.2.3)'
-        required: true
+        required: false
         type: string
+      version:
+        description: 'Explicit release version (used for dry runs)'
+        required: false
+        type: string
+        default: ''
+      dry_run:
+        description: 'Build images locally without pushing them'
+        required: false
+        type: boolean
+        default: false
+      source_ref:
+        description: 'Git ref or SHA to build from'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -29,15 +57,34 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
+      source_ref: ${{ steps.meta.outputs.source_ref }}
+      dry_run: ${{ steps.meta.outputs.dry_run }}
     steps:
       - name: Extract version from tag
         id: meta
-        env:
-          TAG: ${{ inputs.release_tag }}
         run: |
-          VERSION="${TAG#iii/v}"
+          VERSION="${{ inputs.version }}"
+          TAG="${{ inputs.release_tag }}"
+          SOURCE_REF="${{ inputs.source_ref }}"
+          DRY_RUN="${{ inputs.dry_run }}"
+
+          if [[ -z "$VERSION" && -n "$TAG" ]]; then
+            VERSION="${TAG#iii/v}"
+          fi
+
+          if [[ -z "$VERSION" ]]; then
+            echo "::error::Either version or release_tag must be provided"
+            exit 1
+          fi
+
+          if [[ -z "$SOURCE_REF" ]]; then
+            SOURCE_REF="${GITHUB_SHA}"
+          fi
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "::notice::Docker build for iii v$VERSION (tag=$TAG)"
+          echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          echo "::notice::Docker build for iii v$VERSION (tag=$TAG dry_run=$DRY_RUN source_ref=$SOURCE_REF)"
 
   build:
     name: Build ${{ matrix.platform }}
@@ -58,8 +105,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.source_ref != '' && needs.setup.outputs.source_ref || github.ref }}
 
       - name: Download pre-built binary
+        if: inputs.dry_run != true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.release_tag }}
@@ -72,10 +122,25 @@ jobs:
           chmod +x "$BIN_NAME"
           mv "$BIN_NAME" "engine/iii-${{ matrix.docker_arch }}"
 
+      - name: Download dry-run binary artifact
+        if: inputs.dry_run == true
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ format('iii-{0}.tar.gz', matrix.target) }}
+          path: dry-run-assets
+
+      - name: Unpack dry-run binary
+        if: inputs.dry_run == true
+        run: |
+          tar -xzf "dry-run-assets/iii-${{ matrix.target }}.tar.gz"
+          chmod +x iii
+          mv iii "engine/iii-${{ matrix.docker_arch }}"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
+        if: inputs.dry_run != true
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -89,6 +154,7 @@ jobs:
           images: ${{ env.GHCR_REPO }}
 
       - name: Build and push
+        if: inputs.dry_run != true
         uses: docker/build-push-action@v6
         with:
           context: engine
@@ -98,9 +164,34 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
 
+      - name: Build local image
+        if: inputs.dry_run == true
+        uses: docker/build-push-action@v6
+        with:
+          context: engine
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          tags: iii-dry-run:${{ matrix.docker_arch }}
+          provenance: false
+
+      - name: Smoke test image
+        if: inputs.dry_run == true
+        run: docker run --rm iii-dry-run:${{ matrix.docker_arch }} --version
+
+      - name: Run Trivy vulnerability scanner
+        if: inputs.dry_run == true && matrix.docker_arch == 'amd64'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: iii-dry-run:amd64
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
   publish:
     name: Publish multi-platform image
     needs: [setup, build]
+    if: inputs.dry_run != true
     runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
