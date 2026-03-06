@@ -20,14 +20,12 @@ def mock_bridge() -> MagicMock:
 
 
 @pytest.fixture
-def mock_context() -> MagicMock:
-    """Create mock III context."""
-    ctx = MagicMock()
-    ctx.logger = MagicMock()
-    return ctx
+def mock_logger() -> MagicMock:
+    """Create mock logger."""
+    return MagicMock()
 
 
-def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
     """Queue trigger should map to queue trigger type for engine registration."""
     config = StepConfig(
         name="queue-trigger-compat",
@@ -37,8 +35,10 @@ def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock, mock_c
     async def handler(input_data: object, ctx: FlowContext[object]) -> None:
         _ = (input_data, ctx)
 
-    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
-        "motia.runtime.get_context", return_value=mock_context
+    with (
+        patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
+        patch("motia.runtime.Logger", return_value=mock_logger),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
@@ -49,7 +49,7 @@ def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock, mock_c
 
 
 @pytest.mark.asyncio
-async def test_ctx_enqueue_uses_enqueue_for_queue_triggers(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+async def test_ctx_enqueue_uses_enqueue_for_queue_triggers(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
     """ctx.enqueue should invoke queue enqueue function for queue-trigger handlers."""
     config = StepConfig(
         name="queue-enqueue-compat",
@@ -65,8 +65,10 @@ async def test_ctx_enqueue_uses_enqueue_for_queue_triggers(mock_bridge: MagicMoc
             }
         )
 
-    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
-        "motia.runtime.get_context", return_value=mock_context
+    with (
+        patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
+        patch("motia.runtime.Logger", return_value=mock_logger),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
@@ -83,7 +85,7 @@ async def test_ctx_enqueue_uses_enqueue_for_queue_triggers(mock_bridge: MagicMoc
 
 
 @pytest.mark.asyncio
-async def test_ctx_enqueue_uses_enqueue_for_api_triggers(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+async def test_ctx_enqueue_uses_enqueue_for_api_triggers(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
     """ctx.enqueue should invoke queue enqueue function for API-trigger handlers too."""
     config = StepConfig(
         name="api-emit-compat",
@@ -100,8 +102,10 @@ async def test_ctx_enqueue_uses_enqueue_for_api_triggers(mock_bridge: MagicMock,
         )
         return ApiResponse(status=200, body={"ok": True})
 
-    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
-        "motia.runtime.get_context", return_value=mock_context
+    with (
+        patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
+        patch("motia.runtime.Logger", return_value=mock_logger),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
@@ -127,7 +131,7 @@ async def test_ctx_enqueue_uses_enqueue_for_api_triggers(mock_bridge: MagicMock,
 
 
 @pytest.mark.asyncio
-async def test_runtime_context_enqueue_uses_enqueue(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+async def test_runtime_context_enqueue_uses_enqueue(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
     """Runtime-built context should enqueue using the III instance call method."""
     config = StepConfig(
         name="runtime-enqueue-test",
@@ -141,8 +145,10 @@ async def test_runtime_context_enqueue_uses_enqueue(mock_bridge: MagicMock, mock
         captured_ctx = ctx
         await ctx.enqueue({"topic": "runtime.topic", "data": {"value": 1}})
 
-    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
-        "motia.runtime.get_context", return_value=mock_context
+    with (
+        patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
+        patch("motia.runtime.Logger", return_value=mock_logger),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
@@ -156,7 +162,7 @@ async def test_runtime_context_enqueue_uses_enqueue(mock_bridge: MagicMock, mock
     )
 
 
-def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
     """Queue trigger with config should include it as queue_config."""
     config = StepConfig(
         name="queue-config-test",
@@ -168,8 +174,10 @@ def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_context:
     async def handler(input_data: object, ctx: FlowContext[object]) -> None:
         _ = (input_data, ctx)
 
-    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
-        "motia.runtime.get_context", return_value=mock_context
+    with (
+        patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
+        patch("motia.runtime.Logger", return_value=mock_logger),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
@@ -180,7 +188,7 @@ def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_context:
     assert trigger_config["queue_config"]["type"] == "fifo"
 
 
-def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMock, mock_context: MagicMock) -> None:
+def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
     """Queue trigger without config should not include queue_config."""
     config = StepConfig(
         name="queue-no-config-test",
@@ -190,8 +198,10 @@ def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMo
     async def handler(input_data: object, ctx: FlowContext[object]) -> None:
         _ = (input_data, ctx)
 
-    with patch("motia.runtime.get_instance", return_value=mock_bridge), patch(
-        "motia.runtime.get_context", return_value=mock_context
+    with (
+        patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
+        patch("motia.runtime.Logger", return_value=mock_logger),
+        patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
