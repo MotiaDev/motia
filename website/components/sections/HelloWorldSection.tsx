@@ -60,12 +60,12 @@ const nodeCode = `import { init } from "iii-sdk";
 const iii = init("ws://localhost:49134");
 
 const transformed = await iii.trigger(
-  "data::transform",
+  "data.transform",
   [1.0, 2.0, 3.0]
 );
 
 const prediction = await iii.trigger(
-  "ml::predict",
+  "ml.predict",
   { data: transformed }
 );`;
 

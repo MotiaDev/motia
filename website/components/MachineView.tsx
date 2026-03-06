@@ -76,7 +76,7 @@ import { init, getContext } from "iii-sdk"
 const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 
 iii.registerFunction(
-  { id: "users::create" },
+  { id: "users.create" },
   async (input) => {
     const { logger } = getContext()
     logger.info("Creating user", { email: input.email })
@@ -86,8 +86,8 @@ iii.registerFunction(
 
 iii.registerTrigger({
   type: "http",
-  function_id: "users::create",
-  config: { api_path: "users", http_method: "POST" }
+  function_id: "users.create",
+  config: { api_path: "/users", http_method: "POST" }
 })
 \`\`\`
 

@@ -56,7 +56,7 @@ const { logger } = getContext()
 const tools = await iii.listFunctions()
 
 iii.registerFunction(
-  { id: "agent::research" },
+  { id: "agent.research" },
   async ({ query }) => {
     const response = await callLLM(query, { tools })
 
@@ -257,7 +257,7 @@ iii.register_function("orders::process", process_order)`,
       typescript: `import { init } from "iii-sdk"
 const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 
-iii.registerFunction({ id: "api::users" }, async (req) => {
+iii.registerFunction({ id: "api.users" }, async (req) => {
   const user = await db.createUser(req)
   iii.triggerVoid("publish", { topic: "user.created", data: user })
   return user
@@ -265,13 +265,13 @@ iii.registerFunction({ id: "api::users" }, async (req) => {
 
 iii.registerTrigger({
   type: "http",
-  function_id: "api::users",
-  config: { api_path: "users", http_method: "POST" }
+  function_id: "api.users",
+  config: { api_path: "/users", http_method: "POST" }
 })
 
 iii.registerTrigger({
   type: "subscribe",
-  function_id: "ml::onboarding",
+  function_id: "ml.onboarding",
   config: { topic: "user.created" }
 })`,
       python: `from iii import init, get_context
