@@ -33,7 +33,7 @@ Use `iii.trigger('enqueue', { topic, data })` to publish a message. The calling 
 <Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
-import { init, getContext, type ApiResponse } from 'iii-sdk'
+import { init, getContext } from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -49,7 +49,7 @@ iii.registerFunction(
     })
 
     ctx.logger.info('Order enqueued', { orderId: order.id })
-    return { status_code: 201, body: order } satisfies ApiResponse
+    return { status_code: 201, body: order }
   },
 )
 
@@ -67,7 +67,7 @@ import uuid
 from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
 
 iii = III(
-    address="ws://localhost:49134",
+    address=os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'),
     options=InitOptions(worker_name="order-worker"),
 )
 

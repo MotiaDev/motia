@@ -32,3 +32,18 @@ Before proceeding with any documentation request, take a deep breath and center 
 
 4. **Reference**:
    - Always read `.cursor/skills/doc_workflow.md` for rules regarding Tone, Component Usage (Callouts), and Chunked Execution.
+
+5. **Code**:
+   - Use 2 spaces for indents
+   - Unless instructed otherwise or writing edits for a specific language make sure to write code for all languages that iii has an sdk for and present it in `<Tabs>` with codeblocks. The `sdk/packages` folder indicates which languages are supported and how their respective SDKs work.
+   - Keep code functionally identical between languages.
+   - Avoid console.log unless necessary. Prefer iii's built in logger.
+   - When a doc code example registers a function and then shows how to trigger it in the same snippet:
+     - Keep the trigger call minimal: `await iii.trigger('fn::id', { ... });` — no variable assignment, no logging of the result.
+     - Use a short comment above the call: `// Triggerable from any other function or worker` (or the language equivalent).
+     - Do not reference variables that are only in scope inside the handler (e.g. `logger` from `getContext()`).
+     - The trigger call demonstrates _that_ the function is callable, not _how to use the result_. Result handling belongs in the `trigger()` / `triggerVoid()` sections or in dedicated examples.
+
+6. **Branding and Voice**:
+   - "iii" is always lowercase
+   - Avoid "slop" words which are unnecessary or less concrete terminology (example: stitching (slop) versus connecting (accurate))
