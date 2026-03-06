@@ -7,7 +7,7 @@ The workflows are organized into two categories:
 - **Top-level workflows** — triggered by events (push, PR, tag, manual dispatch)
 - **Reusable workflows** — prefixed with `_`, called by top-level workflows via `workflow_call`
 
-```
+```text
                 ┌──────────────┐
                 │  create-tag  │  (manual dispatch)
                 └──────┬───────┘
@@ -95,7 +95,7 @@ The tag push then triggers the corresponding release workflow.
 
 Orchestrates the full iii release across all package registries and distribution channels.
 
-```
+```text
 setup (parse tag metadata, Slack notification)
   │
   ├─► create-iii-release (GitHub Release with auto-generated notes)
@@ -137,7 +137,7 @@ setup (parse tag metadata, Slack notification)
 
 Simpler than iii — publishes only the Motia framework packages.
 
-```
+```text
 setup (parse tag metadata, Slack notification)
   │
   ├─► motia-npm ──► _npm.yml (builds iii-sdk first as dependency)
@@ -207,6 +207,7 @@ Publishes a Rust crate to crates.io via `cargo publish`.
 Cross-compiles a Rust binary for 9 platform targets and uploads them to a GitHub Release.
 
 **Targets:**
+
 | Platform | Runner |
 |----------|--------|
 | `x86_64-apple-darwin` | `macos-latest` |
