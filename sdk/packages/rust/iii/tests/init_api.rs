@@ -1,20 +1,20 @@
-use iii_sdk::{IIIError, InitOptions, init};
+use iii_sdk::{IIIError, InitOptions, register_worker};
 
 #[test]
-fn init_without_runtime_returns_runtime_error() {
-    match init("ws://127.0.0.1:49134", InitOptions::default()) {
+fn register_worker_without_runtime_returns_runtime_error() {
+    match register_worker("ws://127.0.0.1:49134", InitOptions::default()) {
         Err(IIIError::Runtime(_)) => {}
         Err(other) => panic!("expected Runtime error, got {other:?}"),
-        Ok(_) => panic!("expected init to fail without Tokio runtime"),
+        Ok(_) => panic!("expected register_worker to fail without Tokio runtime"),
     }
 }
 
 #[tokio::test]
 async fn init_with_runtime_returns_sdk_instance() {
-    let client = init("ws://127.0.0.1:49134", InitOptions::default())
-        .expect("init should succeed inside Tokio runtime");
+    let client = register_worker("ws://127.0.0.1:49134", InitOptions::default())
+        .expect("register_worker should succeed inside Tokio runtime");
 
-    // API should remain usable immediately after init()
+    // API should remain usable immediately after register_worker()
     client.register_function("test.echo", |input| async move { Ok(input) });
 }
 
@@ -23,7 +23,7 @@ async fn init_with_runtime_returns_sdk_instance() {
 async fn init_applies_otel_config_before_auto_connect() {
     use iii_sdk::OtelConfig;
 
-    let client = init(
+    let client = register_worker(
         "ws://127.0.0.1:49134",
         InitOptions {
             otel: Some(OtelConfig {
@@ -33,7 +33,7 @@ async fn init_applies_otel_config_before_auto_connect() {
             ..Default::default()
         },
     )
-    .expect("init should succeed");
+    .expect("register_worker should succeed");
 
     client.register_function("test.echo.otel", |input| async move { Ok(input) });
 }
