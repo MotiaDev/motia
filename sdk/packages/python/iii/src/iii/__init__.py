@@ -38,8 +38,8 @@ from .types import (
     HttpRequest,
     HttpResponse,
     RemoteFunctionHandler,
-    is_channel_ref,
 )
+from .utils import http, is_channel_ref
 
 
 def init(address: str, options: InitOptions | None = None) -> III:
@@ -90,6 +90,7 @@ __all__ = [
     "ApiResponse",
     "HttpRequest",
     "HttpResponse",
+    "http",
     # Channel types
     "Channel",
     "ChannelWriter",

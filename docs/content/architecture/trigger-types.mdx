@@ -153,6 +153,349 @@ json!({
   Learn more about the API trigger
 </Card>
 
+#### The `http` Utility Function
+
+The simple `ApiResponse` return pattern works well for JSON endpoints, but some use cases require full control over the response lifecycle — streaming a file download, sending Server-Sent Events, or setting headers incrementally. The `http()` utility function enables this.
+
+When you wrap your handler with an HTTP wrapper, it receives two arguments instead of one: the original request and a response object that gives you imperative control over the outgoing response:
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript
+import { http } from 'iii'
+import type { HttpRequest, HttpResponse } from 'iii'
+
+const fn = iii.registerFunction(
+  { id: 'api.example' },
+  http(async (req: HttpRequest, response: HttpResponse) => {
+    response.status(200)
+    response.headers({ 'content-type': 'application/json' })
+    response.stream.end(Buffer.from(JSON.stringify({ ok: true })))
+  }),
+)
+```
+</Tab>
+<Tab value="Python">
+```python
+from iii import III, http
+from iii.types import HttpRequest, HttpResponse
+
+@http
+async def handler(req: HttpRequest, response: HttpResponse):
+    await response.status(200)
+    await response.headers({"content-type": "application/json"})
+    await response.writer.write(json.dumps({"ok": True}).encode("utf-8"))
+    await response.writer.close_async()
+
+fn_ref = iii_client.register_function("api.example", handler)
+```
+</Tab>
+<Tab value="Rust">
+
+In Rust, the HTTP handler receives the raw `Value` input. You extract channel refs to obtain a `ChannelWriter` for the response and use `send_message` to set status and headers:
+
+```rust
+use iii_sdk::{III, IIIError, ChannelWriter, extract_channel_refs, ChannelDirection};
+use serde_json::{json, Value};
+
+iii.register_function("api.example", move |input: Value| {
+    let iii = iii.clone();
+    async move {
+        let refs = extract_channel_refs(&input);
+        let writer_ref = refs.iter()
+            .find(|(_, r)| matches!(r.direction, ChannelDirection::Write))
+            .map(|(_, r)| r.clone())
+            .expect("missing writer ref");
+
+        let writer = ChannelWriter::new(iii.address(), &writer_ref);
+
+        writer.send_message(&serde_json::to_string(
+            &json!({"type": "set_status", "status_code": 200})
+        ).unwrap()).await.map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        writer.send_message(&serde_json::to_string(
+            &json!({"type": "set_headers", "headers": {"content-type": "application/json"}})
+        ).unwrap()).await.map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        writer.write(b"{\"ok\":true}").await.map_err(|e| IIIError::Handler(e.to_string()))?;
+        writer.close().await.map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        Ok(Value::Null)
+    }
+});
+```
+</Tab>
+</Tabs>
+
+The response object provides these capabilities across all SDKs:
+
+| Capability | Node / TypeScript | Python | Rust |
+|-----------|-------------------|--------|------|
+| Set status code | `response.status(code)` | `await response.status(code)` | `writer.send_message(set_status json)` |
+| Set headers | `response.headers(map)` | `await response.headers(map)` | `writer.send_message(set_headers json)` |
+| Write body data | `response.stream.write(data)` | `await response.writer.write(data)` | `writer.write(&data).await` |
+| Close response | `response.stream.end()` / `response.close()` | `await response.writer.close_async()` | `writer.close().await` |
+
+Under the hood, the wrapper unwraps the internal request, constructs the response object that maps `status()` and `headers()` calls to control messages sent over the underlying channel, and exposes the channel's writable stream directly. This means you can pipe file streams, write SSE frames, or send any binary data through the response stream.
+
+<Callout type="info">
+Use the HTTP wrapper when you need streaming responses. For simple JSON endpoints, returning a response dict/object directly is simpler and sufficient.
+</Callout>
+
+#### File Download
+
+Use the HTTP wrapper to stream a file to the client without buffering the entire file in memory:
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript
+import * as fs from 'node:fs'
+import { pipeline } from 'node:stream/promises'
+import { http } from 'iii'
+import type { HttpRequest, HttpResponse } from 'iii'
+
+const fn = iii.registerFunction(
+  { id: 'api.download.pdf' },
+  http(async (_req: HttpRequest, response: HttpResponse) => {
+    const fileStream = fs.createReadStream('/path/to/report.pdf')
+
+    response.status(200)
+    response.headers({ 'content-type': 'application/pdf' })
+
+    await pipeline(fileStream, response.stream)
+  }),
+)
+
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
+  config: {
+    api_path: '/download/report',
+    http_method: 'GET',
+  },
+})
+```
+
+`pipeline()` handles backpressure and error propagation between the file read stream and the response write stream automatically.
+</Tab>
+<Tab value="Python">
+```python
+from pathlib import Path
+from iii import http
+from iii.types import HttpRequest, HttpResponse
+
+@http
+async def handler(req: HttpRequest, response: HttpResponse):
+    pdf_data = Path("/path/to/report.pdf").read_bytes()
+
+    await response.status(200)
+    await response.headers({"content-type": "application/pdf"})
+    await response.writer.write(pdf_data)
+    await response.writer.close_async()
+
+fn_ref = iii_client.register_function("api.download.pdf", handler)
+iii_client.register_trigger("http", "api.download.pdf", {
+    "api_path": "download/report",
+    "http_method": "GET",
+})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+let iii_for_handler = iii.clone();
+iii.register_function("api.download.pdf", move |input: Value| {
+    let iii = iii_for_handler.clone();
+    async move {
+        let pdf_data = std::fs::read("/path/to/report.pdf")
+            .map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        let refs = extract_channel_refs(&input);
+        let writer_ref = refs.iter()
+            .find(|(_, r)| matches!(r.direction, ChannelDirection::Write))
+            .map(|(_, r)| r.clone())
+            .expect("missing writer ref");
+
+        let writer = ChannelWriter::new(iii.address(), &writer_ref);
+
+        writer.send_message(&serde_json::to_string(
+            &json!({"type": "set_status", "status_code": 200})
+        ).unwrap()).await.map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        writer.send_message(&serde_json::to_string(
+            &json!({"type": "set_headers", "headers": {"content-type": "application/pdf"}})
+        ).unwrap()).await.map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        writer.write(&pdf_data).await.map_err(|e| IIIError::Handler(e.to_string()))?;
+        writer.close().await.map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        Ok(Value::Null)
+    }
+});
+
+iii.register_trigger("http", "api.download.pdf", json!({
+    "api_path": "download/report",
+    "http_method": "GET",
+}))?;
+```
+</Tab>
+</Tabs>
+
+#### Server-Sent Events (SSE)
+
+SSE lets you push events from the server to the client over a single HTTP connection. Set the appropriate headers and write SSE frames to the response stream:
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript
+import { http } from 'iii'
+import type { HttpRequest, HttpResponse } from 'iii'
+
+const fn = iii.registerFunction(
+  { id: 'api.events' },
+  http(async (_req: HttpRequest, response: HttpResponse) => {
+    response.status(200)
+    response.headers({
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    })
+
+    const events = [
+      { id: '1', type: 'message', data: 'Hello, world!' },
+      { id: '2', type: 'update', data: JSON.stringify({ count: 42 }) },
+      { id: '3', type: 'done', data: 'goodbye' },
+    ]
+
+    for (const event of events) {
+      let frame = ''
+      frame += `id: ${event.id}\n`
+      frame += `event: ${event.type}\n`
+      for (const line of event.data.split('\n')) {
+        frame += `data: ${line}\n`
+      }
+      frame += '\n'
+
+      response.stream.write(Buffer.from(frame))
+    }
+
+    response.stream.end()
+  }),
+)
+
+iii.registerTrigger({
+  type: 'http',
+  function_id: fn.id,
+  config: {
+    api_path: '/events',
+    http_method: 'GET',
+  },
+})
+```
+</Tab>
+<Tab value="Python">
+```python
+import asyncio
+import json
+from iii import http
+from iii.types import HttpRequest, HttpResponse
+
+@http
+async def handler(req: HttpRequest, response: HttpResponse):
+    await response.status(200)
+    await response.headers({
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        "connection": "keep-alive",
+    })
+
+    events = [
+        {"id": "1", "type": "message", "data": "Hello, world!"},
+        {"id": "2", "type": "update", "data": json.dumps({"count": 42})},
+        {"id": "3", "type": "done", "data": "goodbye"},
+    ]
+
+    for event in events:
+        frame = ""
+        frame += f"id: {event['id']}\n"
+        frame += f"event: {event['type']}\n"
+        for line in event["data"].split("\n"):
+            frame += f"data: {line}\n"
+        frame += "\n"
+
+        await response.writer.write(frame.encode("utf-8"))
+        await asyncio.sleep(0.05)
+
+    await response.writer.close_async()
+
+fn_ref = iii_client.register_function("api.events", handler)
+iii_client.register_trigger("http", "api.events", {
+    "api_path": "events",
+    "http_method": "GET",
+})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+let events = vec![
+    json!({"id": "1", "type": "message", "data": "Hello, world!"}),
+    json!({"id": "2", "type": "update", "data": serde_json::to_string(&json!({"count": 42})).unwrap()}),
+    json!({"id": "3", "type": "done", "data": "goodbye"}),
+];
+
+let iii_for_handler = iii.clone();
+iii.register_function("api.events", move |input: Value| {
+    let iii = iii_for_handler.clone();
+    let events = events.clone();
+    async move {
+        let refs = extract_channel_refs(&input);
+        let writer_ref = refs.iter()
+            .find(|(_, r)| matches!(r.direction, ChannelDirection::Write))
+            .map(|(_, r)| r.clone())
+            .expect("missing writer ref");
+
+        let writer = ChannelWriter::new(iii.address(), &writer_ref);
+
+        writer.send_message(&serde_json::to_string(
+            &json!({"type": "set_status", "status_code": 200})
+        ).unwrap()).await.map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        writer.send_message(&serde_json::to_string(&json!({
+            "type": "set_headers", "headers": {
+                "content-type": "text/event-stream",
+                "cache-control": "no-cache",
+                "connection": "keep-alive",
+            }
+        })).unwrap()).await.map_err(|e| IIIError::Handler(e.to_string()))?;
+
+        for event in &events {
+            let mut frame = String::new();
+            frame.push_str(&format!("id: {}\n", event["id"].as_str().unwrap()));
+            frame.push_str(&format!("event: {}\n", event["type"].as_str().unwrap()));
+            for line in event["data"].as_str().unwrap().split('\n') {
+                frame.push_str(&format!("data: {line}\n"));
+            }
+            frame.push('\n');
+
+            writer.write(frame.as_bytes()).await
+                .map_err(|e| IIIError::Handler(e.to_string()))?;
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        writer.close().await.map_err(|e| IIIError::Handler(e.to_string()))?;
+        Ok(Value::Null)
+    }
+});
+
+iii.register_trigger("http", "api.events", json!({
+    "api_path": "events",
+    "http_method": "GET",
+}))?;
+```
+</Tab>
+</Tabs>
+
+Each SSE frame follows the standard format: `id`, `event`, and `data` fields separated by newlines, with a blank line marking the end of a frame. Multi-line data values are split across multiple `data:` lines.
+
 ---
 
 ### Queue Trigger (`queue`)

@@ -21,7 +21,7 @@ classifiers = [
 
 
 dependencies = [
-    "iii-sdk>=0.4.0",
+    "iii-sdk",
     "pydantic>=2.0",
     "python-dotenv>=1.0",
     "tomli>=2.0; python_version < \"3.11\"",
@@ -48,6 +48,9 @@ dev = [
 motia = "motia.cli:main"
 motia-iii = "motia.cli:main"
 
+[tool.uv.sources]
+iii-sdk = { path = "../../../../../sdk/packages/python/iii" }
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/motia"]
 
@@ -73,6 +76,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

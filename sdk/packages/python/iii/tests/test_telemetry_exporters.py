@@ -1,10 +1,11 @@
 """Tests for SharedEngineConnection, EngineSpanExporter, EngineLogExporter."""
 import asyncio
 import json
-import pytest
 from unittest.mock import MagicMock
 
-from iii.telemetry_exporters import SharedEngineConnection, EngineSpanExporter, EngineLogExporter
+import pytest
+
+from iii.telemetry_exporters import EngineLogExporter, EngineSpanExporter, SharedEngineConnection
 
 
 def _make_mock_connection():
@@ -19,9 +20,9 @@ def _make_mock_connection():
 
 def _make_readable_span():
     """Create a minimal ReadableSpan for testing."""
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
@@ -114,10 +115,11 @@ def test_engine_log_exporter_sends_logs_prefix():
     conn = _make_mock_connection()
     exporter = EngineLogExporter(conn)
 
+    import time
+
     from opentelemetry._logs import LogRecord, SeverityNumber
     from opentelemetry.sdk._logs import ReadableLogRecord
     from opentelemetry.sdk.resources import Resource
-    import time
 
     log_record = LogRecord(
         timestamp=time.time_ns(),
