@@ -551,3 +551,102 @@ notifications::send
 <Callout title="engine prefix" type="warn">
 The `engine::` prefix is reserved for internal engine functions.
 </Callout>
+
+## Built-in Functions
+
+The engine provides built-in functions that can be triggered from any language. These handle common operations like state management, streaming, messaging, and observability.
+
+### State
+
+Persistent key-value storage with scoped namespaces.
+
+| Function | Purpose | Parameters |
+|----------|---------|------------|
+| `state::set` | Store a value | `scope`, `key`, `value` |
+| `state::get` | Retrieve a value | `scope`, `key` |
+| `state::delete` | Remove a value | `scope`, `key` |
+| `state::update` | Atomic update with operations | `scope`, `key`, `ops` |
+| `state::list` | List all values in a scope | `scope` |
+| `state::list_groups` | List all state scopes | — |
+
+### Stream
+
+Real-time data streams with hierarchical organization.
+
+| Function | Purpose | Parameters |
+|----------|---------|------------|
+| `stream::set` | Set a value in a stream | `stream_name`, `group_id`, `item_id`, `data` |
+| `stream::get` | Get a value from a stream | `stream_name`, `group_id`, `item_id` |
+| `stream::delete` | Delete a value from a stream | `stream_name`, `group_id`, `item_id` |
+| `stream::update` | Atomic update with operations | `stream_name`, `group_id`, `item_id`, `ops` |
+| `stream::list` | List items in a group | `stream_name`, `group_id` |
+| `stream::list_groups` | List groups in a stream | `stream_name` |
+| `stream::list_all` | List all streams | — |
+| `stream::send` | Send event to subscribers | `stream_name`, `group_id`, `id`, `event_type`, `data` |
+
+### Queue
+
+Durable message queue for async processing.
+
+| Function | Purpose | Parameters |
+|----------|---------|------------|
+| `enqueue` | Enqueue a message | `topic`, `data` |
+
+### PubSub
+
+Publish-subscribe messaging for event broadcasting.
+
+| Function | Purpose | Parameters |
+|----------|---------|------------|
+| `publish` | Publish an event to subscribers | `topic`, `data` |
+
+### Engine
+
+Internal engine functions for introspection and management.
+
+| Function | Purpose | Parameters |
+|----------|---------|------------|
+| `engine::functions::list` | List all registered functions | `include_internal` (optional) |
+| `engine::workers::list` | List all workers with metrics | `worker_id` (optional) |
+| `engine::triggers::list` | List all triggers | `include_internal` (optional) |
+| `engine::workers::register` | Register worker metadata | `worker_id` |
+| `engine::channels::create` | Create a streaming channel pair | `buffer_size` (optional) |
+
+### Observability
+
+Logging, tracing, and metrics.
+
+| Function | Purpose | Parameters |
+|----------|---------|------------|
+| `engine::log::info` | Log info message | `message`, `service_name`, `attributes` |
+| `engine::log::warn` | Log warning message | `message`, `service_name`, `attributes` |
+| `engine::log::error` | Log error message | `message`, `service_name`, `attributes` |
+| `engine::log::debug` | Log debug message | `message`, `service_name`, `attributes` |
+| `engine::log::trace` | Log trace message | `message`, `service_name`, `attributes` |
+| `engine::baggage::get` | Get baggage item | `key` |
+| `engine::baggage::set` | Set baggage item | `key`, `value` |
+| `engine::baggage::get_all` | Get all baggage items | — |
+| `engine::traces::list` | List stored traces | `trace_id`, `service_name`, `name`, `status`, `offset`, `limit`, ... |
+| `engine::traces::tree` | Get trace tree | `trace_id` |
+| `engine::traces::clear` | Clear stored traces | — |
+| `engine::metrics::list` | List current metrics | `metric_name`, `metric_type` (optional) |
+| `engine::logs::list` | List stored logs | `trace_id`, `span_id`, `severity_min`, `offset`, `limit`, ... |
+| `engine::logs::clear` | Clear stored logs | — |
+| `engine::health::check` | System health status | — |
+| `engine::alerts::list` | List alert states | — |
+| `engine::alerts::evaluate` | Manually evaluate alerts | — |
+| `engine::rollups::list` | Get pre-aggregated metrics | `start_time`, `end_time`, `aggregate_interval`, `metric_name` |
+| `engine::sampling::rules` | Get sampling rules | — |
+
+### KV Server
+
+Low-level key-value operations with indexed storage.
+
+| Function | Purpose | Parameters |
+|----------|---------|------------|
+| `kv_server::get` | Get value by key | `index`, `key` |
+| `kv_server::set` | Set value by key | `index`, `key`, `value` |
+| `kv_server::delete` | Delete value by key | `index`, `key` |
+| `kv_server::update` | Update value with operations | `index`, `key`, `ops` |
+| `kv_server::list` | List all values in index | `index` |
+| `kv_server::list_keys_with_prefix` | List keys with prefix | `prefix` |

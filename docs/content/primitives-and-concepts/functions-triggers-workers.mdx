@@ -2,6 +2,7 @@
 title: 'Functions, Triggers, Workers'
 fullTitle: 'Primitives: Functions, Triggers, and Workers'
 description: 'Functions, Triggers, and Workers are how code gets defined, executed, and managed in a iii powered backend'
+hideCards: true
 ---
 
 iii is built upon three core primitives: Functions, Triggers, and Workers.
@@ -42,15 +43,21 @@ graph LR
 
     F1 -- registerFunction --> E -- trigger --> W2
 ```
-<Card icon={<BookOpen />} title="How to use Functions & Triggers" href="/docs/how-to/use-functions-and-triggers">
-  Learn how to register functions, trigger them, and bind them to events.
-</Card>
-<br/>
+
+## Ready to Dive In?
+
+Head over to the [Functions & Triggers](/docs/how-to/use-functions-and-triggers) HOWTO and start building
+a iii powered application; or visit the [Quickstart](/docs/tutorials/quickstart) and try out a working example.
+
+## Still want to learn more?
+
+Check out how [Discovery](/docs/concepts/discovery) works within iii and how it compares to other solutions.
+
 <Cards>
+  <Card icon={<BookOpen />} title="How to use Functions & Triggers" href="/docs/how-to/use-functions-and-triggers">
+    Learn how to register functions, trigger them, and bind them to events.
+  </Card>
   <Card icon={<Terminal />} title="Quickstart" href="/docs/tutorials/quickstart">
     Follow the Quickstart and explore a live iii application.
-  </Card>
-  <Card icon={<Search />} title="Discovery" href="/docs/concepts/discovery">
-    Learn how functions are discovered by the iii engine.
   </Card>
 </Cards>
