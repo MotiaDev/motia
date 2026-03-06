@@ -10,6 +10,7 @@
     "manage-state",
     "react-to-state-changes",
     "schedule-cron-task",
+    "dead-letter-queues",
     "configure-engine"
   ]
 }
