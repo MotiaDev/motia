@@ -107,6 +107,93 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 </Tab>
 </Tabs>
 
+## HTTP-Invoked Functions
+
+Instead of passing a handler, you can register an external HTTP endpoint as a function. The engine
+makes the HTTP call when the function is triggered — no client-side HTTP code needed. This is useful
+for delegating work to external services like webhooks, serverless functions, or third-party APIs.
+
+Pass an `HttpInvocationConfig` as the second argument to `registerFunction` instead of a handler:
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="http-invoked.ts"
+import { init } from 'iii-sdk';
+
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
+
+iii.registerFunction(
+    { id: 'notifications::send' },
+    {
+        url: 'https://hooks.slack.example.com/notify',
+        method: 'POST',
+        timeout_ms: 5000,
+        headers: { 'Authorization': `Bearer ${process.env.SLACK_TOKEN}` },
+    },
+);
+
+await iii.trigger('notifications::send', { channel: '#alerts', text: 'Deploy succeeded' });
+```
+</Tab>
+<Tab value="Python">
+```python title="http_invoked.py"
+import os
+from iii import III, HttpInvocationConfig
+
+iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+
+iii.register_function(
+    'notifications::send',
+    HttpInvocationConfig(
+        url='https://hooks.slack.example.com/notify',
+        method='POST',
+        timeout_ms=5000,
+        headers={'Authorization': f"Bearer {os.environ['SLACK_TOKEN']}"},
+    ),
+)
+
+await iii.trigger('notifications::send', {'channel': '#alerts', 'text': 'Deploy succeeded'})
+```
+</Tab>
+<Tab value="Rust">
+```rust title="http_invoked.rs"
+use iii_sdk::{III, HttpInvocationConfig, HttpMethod};
+use serde_json::json;
+use std::collections::HashMap;
+
+let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+let iii = III::new(&url);
+iii.connect().await?;
+
+iii.register_function("notifications::send", HttpInvocationConfig {
+    url: "https://hooks.slack.example.com/notify".to_string(),
+    method: HttpMethod::Post,
+    timeout_ms: Some(5000),
+    headers: HashMap::from([
+        ("Authorization".to_string(), format!("Bearer {}", std::env::var("SLACK_TOKEN").unwrap())),
+    ]),
+    auth: None,
+});
+
+iii.trigger("notifications::send", json!({ "channel": "#alerts", "text": "Deploy succeeded" })).await?;
+```
+</Tab>
+</Tabs>
+
+HTTP-invoked functions behave like any other function — they can be triggered with `trigger()`, bound
+to any trigger type (queue, cron, state, etc.), and discovered by other services. The engine forwards
+the trigger data as the HTTP request body and treats non-2xx responses or network errors as failures.
+
+### `HttpInvocationConfig` fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `url` | `string` | — | The endpoint URL to call |
+| `method` | `string` | `"POST"` | HTTP method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) |
+| `timeout_ms` | `number` | — | Request timeout in milliseconds |
+| `headers` | `Record<string, string>` | — | Additional headers to include |
+| `auth` | `HttpAuthConfig` | — | Authentication config (`bearer`, `hmac`, or `api_key`) |
+
 ## Ways to Trigger Functions
 
 As shown above functions can be triggered with `trigger(id, data)` but there are actually
@@ -339,21 +426,21 @@ iii.register_trigger(
 
 #### State
 
-State triggers fire when a value in state changes. This example posts to an external webhook
-whenever an order's status is updated.
+State triggers fire when a value in state changes. This example registers an external webhook
+as an HTTP-invoked function and binds it to a state trigger. When the order status changes, the
+engine POSTs the state event to the webhook URL automatically.
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-trigger.ts"
-iii.registerFunction({ id: 'orders::webhook' }, async (event) => {
-    const { logger } = getContext();
-    logger.info('Sending webhook for order', { orderId: event.key, status: event.value });
-    await fetch(process.env.WEBHOOK_URL!, {
+iii.registerFunction(
+    { id: 'orders::webhook' },
+    {
+        url: process.env.WEBHOOK_URL!,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: event.key, status: event.value }),
-    });
-});
+        timeout_ms: 5000,
+    },
+);
 
 iii.registerTrigger({
     type: 'state',
@@ -364,19 +451,12 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="state_trigger.py"
-import httpx
+from iii import HttpInvocationConfig
 
-async def webhook(event):
-    ctx = get_context()
-    ctx.logger.info('Sending webhook for order', {'orderId': event['key'], 'status': event['value']})
-    print('Sending webhook for order', {'orderId': event['key'], 'status': event['value']})
-    async with httpx.AsyncClient() as client:
-        await client.post(
-            os.environ['WEBHOOK_URL'],
-            json={'order_id': event['key'], 'status': event['value']},
-        )
-
-iii.register_function('orders::webhook', webhook)
+iii.register_function(
+    'orders::webhook',
+    HttpInvocationConfig(url=os.environ['WEBHOOK_URL'], method='POST', timeout_ms=5000),
+)
 
 iii.register_trigger(
     type="state",
@@ -387,8 +467,9 @@ iii.register_trigger(
 </Tab>
 <Tab value="Rust">
 ```rust title="state_trigger.rs"
-use iii_sdk::III;
+use iii_sdk::{III, HttpInvocationConfig, HttpMethod};
 use serde_json::json;
+use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -396,20 +477,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let iii = III::new(&url);
     iii.connect().await?;
 
-    iii.register_function("orders::webhook", |event| async move {
-        let ctx = get_context();
-        ctx.logger.info("Sending webhook for order", Some(json!({ "orderId": event["key"], "status": event["value"] })));
-        println!("Sending webhook for order: orderId={}, status={}", event["key"], event["value"]);
-        let client = reqwest::Client::new();
-        let url = std::env::var("WEBHOOK_URL").expect("WEBHOOK_URL required");
-        if let Err(e) = client.post(&url)
-            .json(&json!({ "order_id": event["key"], "status": event["value"] }))
-            .send()
-            .await
-        {
-            return Ok(json!({ "error": e.to_string() }));
-        }
-        Ok(json!({}))
+    iii.register_function("orders::webhook", HttpInvocationConfig {
+        url: std::env::var("WEBHOOK_URL").expect("WEBHOOK_URL required"),
+        method: HttpMethod::Post,
+        timeout_ms: Some(5000),
+        headers: HashMap::new(),
+        auth: None,
     });
 
     iii.register_trigger(
@@ -554,6 +627,8 @@ The `iii::` prefix is reserved for internal engine functions. Function IDs canno
 </Callout>
 
 ## Built-in Functions
+
+{/* TODO: Check these in depth and have an LLM try each one as much as it can */}
 
 The engine provides built-in functions that can be triggered from any language. These handle common operations like state management, streaming, messaging, and observability.
 
