@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Invoke (await)           | `iii.trigger(id, data).await?`               | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.trigger_void(id, data)?`                | Invoke a function without waiting (fire-and-forget)    |
 
-`init()` spawns a background task that handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation. For manual control, use `III::new(url)` + `iii.connect().await?`.
+`init()` spawns a background task that handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation.
 
 ### Registering Functions
 

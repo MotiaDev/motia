@@ -172,7 +172,7 @@ iii-cli console
 | Pub/Sub        | `PubSubModule`         | Topic-based event publishing and subscription                     | Yes     |
 | State          | `StateModule`          | Distributed state management with get/set/delete and state triggers | Yes     |
 | KV Server      | `KvServer`             | Built-in key-value store used by other modules                    | Yes     |
-| HTTP Functions | `HttpFunctionsModule`  | Proxy for invoking external HTTP endpoints as functions            | Yes     |
+| HTTP Functions | `HttpFunctionsModule`  | Proxy for invoking external HTTP endpoints as functions            | No      |
 | Observability  | `OtelModule`           | OpenTelemetry traces, metrics, and logs with OTLP export          | No      |
 | Shell          | `ExecModule`           | File watcher that runs shell commands on change                   | No      |
 

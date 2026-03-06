@@ -48,7 +48,7 @@ asyncio.run(main())
 | Invoke (await)           | `await iii.trigger(id, data)`                     | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.trigger_void(id, data)`                      | Invoke a function without waiting (fire-and-forget)    |
 
-`init()` must be called inside an async context (it schedules the connection on the running event loop). For manual control, use `III(url)` + `await iii.connect()`.
+`init()` must be called inside an async context. It creates the SDK instance and auto-connects to the engine.
 
 ### Registering Functions
 
