@@ -8,7 +8,7 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Any
 
-from iii import ApiRequest, ApiResponse, InitOptions, init
+from iii import ApiRequest, ApiResponse, InitOptions, register_worker
 
 state: Any = None
 streams: Any = None
@@ -194,7 +194,7 @@ async def _post_example(req: ApiRequest, ctx) -> ApiResponse:
 
 async def _async_main() -> None:
     engine_ws_url = os.environ.get("III_BRIDGE_URL", "ws://localhost:49134")
-    iii = init(
+    iii = register_worker(
         address=engine_ws_url,
         options=InitOptions(
             worker_name="iii-example",
