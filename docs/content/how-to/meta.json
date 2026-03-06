@@ -7,11 +7,9 @@
     "manage-state",
     "react-to-state-changes",
     "use-trigger-conditions",
-    "use-queues",
     "schedule-cron-task",
     "create-ephemeral-worker",
     "stream-realtime-data",
-    "dead-letter-queues",
     "configure-engine"
   ]
 }
