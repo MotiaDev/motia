@@ -278,16 +278,29 @@ wheels = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.4.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.4.1"
+source = { directory = "../../../../../sdk/packages/python/iii" }
 dependencies = [
     { name = "pydantic" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f2/69/59998d72037d284819ad8fc5c1358cbb9ff5e813b0250ec96478dc98583b/iii_sdk-0.4.0.tar.gz", hash = "sha256:8c7b47b2e1d9e9cef17bd90dce7b28011603d62eb204e658af32816d4724a1ee", size = 136705, upload-time = "2026-02-27T16:40:43.897Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/c9/73c6863b6a2bf19e7492997e7bca93c2ca371ceca9220b50db40aa191a60/iii_sdk-0.4.0-py3-none-any.whl", hash = "sha256:5023f6cd3211a76c3f531b06e1a4e10348ddcf4974c8d911be32ee12b4fc7e8a", size = 29606, upload-time = "2026-02-27T16:40:42.886Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", marker = "extra == 'dev'", specifier = ">=3.9" },
+    { name = "anyio", marker = "extra == 'dev'", specifier = ">=4.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
+    { name = "opentelemetry-api", marker = "extra == 'dev'", specifier = ">=1.25" },
+    { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.25" },
+    { name = "opentelemetry-sdk", marker = "extra == 'dev'", specifier = ">=1.25" },
+    { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.25" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2" },
+    { name = "websockets", specifier = ">=12.0" },
 ]
+provides-extras = ["otel", "dev"]
 
 [[package]]
 name = "importlib-metadata"
@@ -426,7 +439,7 @@ otel = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
-    { name = "iii-sdk", specifier = ">=0.4.0" },
+    { name = "iii-sdk", directory = "../../../../../sdk/packages/python/iii" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "opentelemetry-api", marker = "extra == 'dev'", specifier = ">=1.20" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.20" },
