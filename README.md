@@ -53,6 +53,9 @@ iii.registerTrigger({
   function_id: 'math.add',
   config: { api_path: 'add', http_method: 'POST' },
 });
+
+const result = await iii.trigger('math.add', { a: 1, b: 2 });
+console.log(result); // { sum: 3 }
 ```
 
 Your function is now live at `http://localhost:3111/add`.
@@ -82,6 +85,9 @@ async def main():
         config={"api_path": "add", "http_method": "POST"}
     )
 
+    result = await iii.trigger("math.add", {"a": 1, "b": 2})
+    print(result)  # {"sum": 3}
+
 asyncio.run(main())
 ```
 
@@ -108,6 +114,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "api_path": "add",
         "http_method": "POST"
     }))?;
+
+    let result = iii.trigger("math.add", json!({ "a": 1, "b": 2 })).await?;
+    println!("{result}"); // {"sum":3}
 
     Ok(())
 }
