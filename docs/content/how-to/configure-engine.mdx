@@ -5,40 +5,24 @@ description: 'Complete reference for iii-config.yaml with all modules, adapters,
 
 ## Goal
 
-Configure the iii engine using `iii-config.yaml` to enable modules, set up adapters, and customize behavior.
+Configure iii functionality through its config file to enable modules, functionality,
+set up adapters, and customize behavior.
 
 ## Overview
 
-The engine loads configuration from `iii-config.yaml` in your project root. This file controls:
+The config file controls:
 
 - **Engine settings** - WebSocket port for SDK connections
 - **Modules** - Features like HTTP endpoints, queues, state, cron, observability
-- **Adapters** - Storage backends (file, memory, Redis, RabbitMQ)
+- **Adapters** - Storage backends (file, memory, Redis, RabbitMQ, etc.)
 
-## Quick Start
+## Specifying the config file
 
-Create `iii-config.yaml` in your project root:
+Configs can be specified to iii at startup with either the `-c` or `--config` flag:
 
-```yaml title="iii-config.yaml"
-port: 49134
-
-modules:
-  - class: modules::api::RestApiModule
-    config:
-      port: 3111
-
-  - class: modules::state::StateModule
-    config:
-      adapter:
-        class: modules::state::adapters::KvStore
-        config:
-          store_method: file_based
-          file_path: ./data/state_store
+```bash
+iii -c iii-config.yaml
 ```
-
-## Full Configuration Reference
-
-<ConfigReferenceLoader />
 
 ## Environment Variables
 
@@ -54,7 +38,10 @@ Syntax: `${VAR_NAME:default_value}` or `${VAR_NAME}` (required).
 
 ## Common Configurations
 
-### Development (file-based, single instance)
+### Development
+
+When doing development it is common to use built-in adapters with persistent `file_based` storage,
+and non-persistent `in_memory` storage. 
 
 ```yaml title="iii-config.yaml"
 port: 49134
@@ -67,18 +54,28 @@ modules:
       adapter:
         class: modules::state::adapters::KvStore
         config:
-          store_method: file_based
+          store_method: file_based # or in_memory
           file_path: ./data/state_store
   - class: modules::queue::QueueModule
     config:
       adapter:
         class: modules::queue::BuiltinQueueAdapter
         config:
-          store_method: file_based
+          store_method: file_based # or in_memory
           file_path: ./data/queue_store
 ```
 
-### Production (Redis-backed, multi-instance)
+### Production 
+
+While iii's built-in `file_based` adapters can be used in production it's common to swap them out for other
+adapters that are built for purpose such as Redis, or RabbitMQ. 
+
+<Callout title="Dont use in_memory in production" type="warn">
+  Do not use in_memory storage in production. in_memory storage does not persist between engine restarts
+  if used can cause irrecoverable data loss.
+</Callout>
+
+{/* TODO: Add callout here that users can write their own adapters */}
 
 ```yaml title="iii-config.yaml"
 port: ${III_PORT:49134}
@@ -95,9 +92,12 @@ modules:
   - class: modules::queue::QueueModule
     config:
       adapter:
-        class: modules::queue::RedisAdapter
+        class: modules::queue::RabbitMQAdapter
         config:
-          redis_url: ${REDIS_URL}
+          amqp_url: ${AMQP_URL}
+        # class: modules::queue::RedisAdapter
+        # config:
+        #   redis_url: ${REDIS_URL}
   - class: modules::cron::CronModule
     config:
       adapter:
@@ -113,6 +113,4 @@ modules:
       format: json
 ```
 
-## Result
-
-The engine reads `iii-config.yaml` on startup and initializes all configured modules. Changes require an engine restart.
+<ConfigReferenceLoader />

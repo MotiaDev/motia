@@ -181,7 +181,7 @@ modules:
   - class: modules::observability::OtelModule
     config:
       # Master switch for all observability features.
-      enabled: true
+      enabled: false
       # Service name in traces/metrics/logs. Used for filtering in observability backends.
       service_name: iii
       # Service version tag. Useful for correlating deployments with telemetry changes.
@@ -302,7 +302,8 @@ modules:
         require_https: true
 
   # Exec module - spawns external processes (SDK workers) and watches for file changes.
-  # Useful for multi-language setups where Python/Node workers run alongside the engine.
+  # Useful for setups where workers need to run alongside the engine on the same host.
+  # Also useful from frameworks that support this style of operation such as Motia.
   # - class: modules::shell::ExecModule
   #   config:
   #     # Directories to watch for file changes. Changes trigger process restart.

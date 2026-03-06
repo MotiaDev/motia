@@ -2,7 +2,6 @@
   "title": "How-to Guides",
   "defaultOpen": false,
   "pages": [
-    "configure-engine",
     "use-functions-and-triggers",
     "use-trigger-conditions",
     "expose-http-endpoint",
@@ -10,6 +9,7 @@
     "create-ephemeral-worker",
     "manage-state",
     "react-to-state-changes",
-    "schedule-cron-task"
+    "schedule-cron-task",
+    "configure-engine"
   ]
 }
