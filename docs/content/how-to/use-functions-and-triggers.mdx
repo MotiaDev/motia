@@ -540,7 +540,8 @@ In practice this rarely matters — most applications register functions, respon
 
 ## Function IDs
 
-Function IDs use a `namespace::name` convention:
+Function IDs use a `namespace::name` convention but can be any arbitrary string. iii conventions recommend
+following this rule but the iii engine does not enforce it.
 
 ```
 math::add
@@ -548,8 +549,8 @@ orders::process
 notifications::send
 ```
 
-<Callout title="engine prefix" type="warn">
-The `engine::` prefix is reserved for internal engine functions.
+<Callout title="iii prefix" type="warn">
+The `iii::` prefix is reserved for internal engine functions. Function IDs cannot start with `iii::`.
 </Callout>
 
 ## Built-in Functions
@@ -604,38 +605,42 @@ Publish-subscribe messaging for event broadcasting.
 
 Internal engine functions for introspection and management.
 
+<Callout title="Engine module is always loaded" type="info">
+The Engine module is mandatory and always loaded.
+</Callout>
+
 | Function | Purpose | Parameters |
 |----------|---------|------------|
-| `engine::functions::list` | List all registered functions | `include_internal` (optional) |
+| `engine::functions::list` | List all registered functions | `include_internal` (optional, default: `false`) |
 | `engine::workers::list` | List all workers with metrics | `worker_id` (optional) |
-| `engine::triggers::list` | List all triggers | `include_internal` (optional) |
-| `engine::workers::register` | Register worker metadata | `worker_id` |
+| `engine::triggers::list` | List all triggers | `include_internal` (optional, default: `false`) |
+| `engine::workers::register` | Register worker metadata (internal worker call) | `_caller_worker_id`, `runtime` (optional), `version` (optional), `name` (optional), `os` (optional), `telemetry` (optional) |
 | `engine::channels::create` | Create a streaming channel pair | `buffer_size` (optional) |
 
 ### Observability
 
-Logging, tracing, and metrics.
+Logging, tracing, and metrics. The Observability module is disabled by default and must be enabled in engine config.
 
 | Function | Purpose | Parameters |
 |----------|---------|------------|
-| `engine::log::info` | Log info message | `message`, `service_name`, `attributes` |
-| `engine::log::warn` | Log warning message | `message`, `service_name`, `attributes` |
-| `engine::log::error` | Log error message | `message`, `service_name`, `attributes` |
-| `engine::log::debug` | Log debug message | `message`, `service_name`, `attributes` |
-| `engine::log::trace` | Log trace message | `message`, `service_name`, `attributes` |
+| `engine::log::info` | Log info message | `message`, `data` (optional), `service_name` (optional), `trace_id` (optional), `span_id` (optional) |
+| `engine::log::warn` | Log warning message | `message`, `data` (optional), `service_name` (optional), `trace_id` (optional), `span_id` (optional) |
+| `engine::log::error` | Log error message | `message`, `data` (optional), `service_name` (optional), `trace_id` (optional), `span_id` (optional) |
+| `engine::log::debug` | Log debug message | `message`, `data` (optional), `service_name` (optional), `trace_id` (optional), `span_id` (optional) |
+| `engine::log::trace` | Log trace message | `message`, `data` (optional), `service_name` (optional), `trace_id` (optional), `span_id` (optional) |
 | `engine::baggage::get` | Get baggage item | `key` |
 | `engine::baggage::set` | Set baggage item | `key`, `value` |
 | `engine::baggage::get_all` | Get all baggage items | — |
-| `engine::traces::list` | List stored traces | `trace_id`, `service_name`, `name`, `status`, `offset`, `limit`, ... |
+| `engine::traces::list` | List stored traces | `trace_id` (optional), `service_name` (optional), `name` (optional), `status` (optional), `offset` (optional), `limit` (optional), `min_duration_ms` (optional), `max_duration_ms` (optional), `start_time` (optional), `end_time` (optional), `sort_by` (optional), `sort_order` (optional), `attributes` (optional), `include_internal` (optional) |
 | `engine::traces::tree` | Get trace tree | `trace_id` |
 | `engine::traces::clear` | Clear stored traces | — |
-| `engine::metrics::list` | List current metrics | `metric_name`, `metric_type` (optional) |
-| `engine::logs::list` | List stored logs | `trace_id`, `span_id`, `severity_min`, `offset`, `limit`, ... |
+| `engine::metrics::list` | List current metrics | `start_time` (optional), `end_time` (optional), `metric_name` (optional), `aggregate_interval` (optional) |
+| `engine::logs::list` | List stored logs | `start_time` (optional), `end_time` (optional), `trace_id` (optional), `span_id` (optional), `severity_min` (optional), `severity_text` (optional), `offset` (optional), `limit` (optional) |
 | `engine::logs::clear` | Clear stored logs | — |
 | `engine::health::check` | System health status | — |
 | `engine::alerts::list` | List alert states | — |
 | `engine::alerts::evaluate` | Manually evaluate alerts | — |
-| `engine::rollups::list` | Get pre-aggregated metrics | `start_time`, `end_time`, `aggregate_interval`, `metric_name` |
+| `engine::rollups::list` | Get pre-aggregated metrics | `start_time` (optional), `end_time` (optional), `level` (optional), `metric_name` (optional) |
 | `engine::sampling::rules` | Get sampling rules | — |
 
 ### KV Server
