@@ -89,8 +89,8 @@ def _setup(iii) -> None:
     )
 
 
-async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
-    ctx.logger.info("Creating new todo", {"body": req.body})
+async def _create_todo(req: ApiRequest, logger) -> ApiResponse:
+    logger.info("Creating new todo", {"body": req.body})
 
     description = req.body.get("description") if req.body else None
     due_date = req.body.get("dueDate") if req.body else None
@@ -110,40 +110,40 @@ async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
     return ApiResponse(statusCode=201, body=todo, headers={"Content-Type": "application/json"})
 
 
-async def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
+async def _delete_todo(req: ApiRequest, logger) -> ApiResponse:
     todo_id = req.body.get("todoId") if req.body else None
 
-    ctx.logger.info("Deleting todo", {"body": req.body})
+    logger.info("Deleting todo", {"body": req.body})
 
     if not todo_id:
-        ctx.logger.error("todoId is required")
+        logger.error("todoId is required")
         return ApiResponse(statusCode=400, body={"error": "todoId is required"})
 
     await streams.delete("todo", "inbox", todo_id)
 
-    ctx.logger.info("Todo deleted successfully", {"todoId": todo_id})
+    logger.info("Todo deleted successfully", {"todoId": todo_id})
     return ApiResponse(statusCode=200, body={"success": True}, headers={"Content-Type": "application/json"})
 
 
-async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
+async def _update_todo(req: ApiRequest, logger) -> ApiResponse:
     todo_id = req.path_params.get("id")
     existing_todo = await streams.get("todo", "inbox", todo_id) if todo_id else None
 
-    ctx.logger.info("Updating todo", {"body": req.body, "todoId": todo_id})
+    logger.info("Updating todo", {"body": req.body, "todoId": todo_id})
 
     if not existing_todo:
-        ctx.logger.error("Todo not found")
+        logger.error("Todo not found")
         return ApiResponse(statusCode=404, body={"error": "Todo not found"})
 
     merged = {**existing_todo, **(req.body or {})}
     todo = await streams.set("todo", "inbox", todo_id, merged)
 
-    ctx.logger.info("Todo updated successfully", {"todoId": todo_id})
+    logger.info("Todo updated successfully", {"todoId": todo_id})
     return ApiResponse(statusCode=200, body=todo, headers={"Content-Type": "application/json"})
 
 
-async def _create_state(req: ApiRequest, ctx) -> ApiResponse:
-    ctx.logger.info("Creating new todo", {"body": req.body})
+async def _create_state(req: ApiRequest, logger) -> ApiResponse:
+    logger.info("Creating new todo", {"body": req.body})
 
     description = req.body.get("description") if req.body else None
     due_date = req.body.get("dueDate") if req.body else None
@@ -163,23 +163,23 @@ async def _create_state(req: ApiRequest, ctx) -> ApiResponse:
     return ApiResponse(statusCode=201, body=todo, headers={"Content-Type": "application/json"})
 
 
-async def _get_state(req: ApiRequest, ctx) -> ApiResponse:
-    ctx.logger.info("Getting todo", req.path_params)
+async def _get_state(req: ApiRequest, logger) -> ApiResponse:
+    logger.info("Getting todo", req.path_params)
 
     todo_id = req.path_params.get("id")
     todo = await state.get("todo", todo_id)
     return ApiResponse(statusCode=200, body=todo, headers={"Content-Type": "application/json"})
 
 
-async def _fetch_example(req: ApiRequest, ctx) -> ApiResponse:
-    ctx.logger.info("Fetching todo from JSONPlaceholder")
+async def _fetch_example(req: ApiRequest, logger) -> ApiResponse:
+    logger.info("Fetching todo from JSONPlaceholder")
     with urllib.request.urlopen("https://jsonplaceholder.typicode.com/todos/1") as response:
         data = json.loads(response.read().decode())
     return ApiResponse(statusCode=200, body=data, headers={"Content-Type": "application/json"})
 
 
-async def _post_example(req: ApiRequest, ctx) -> ApiResponse:
-    ctx.logger.info("Posting to httpbin", {"body": req.body})
+async def _post_example(req: ApiRequest, logger) -> ApiResponse:
+    logger.info("Posting to httpbin", {"body": req.body})
     payload = json.dumps(req.body or {}).encode()
     post_req = urllib.request.Request(
         "https://httpbin.org/post",
