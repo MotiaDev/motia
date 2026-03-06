@@ -149,13 +149,13 @@ let streams = Streams::new(iii.clone());
   <Tab value="Node / TypeScript">
 
 ```typescript
-import { getContext, type ApiRequest, type ApiResponse } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 import { iii } from './stream'
 
 iii.registerFunction(
   { id: 'api.post.todo', description: 'Create a new todo' },
   async (req: ApiRequest<{ description: string; dueDate?: string }>) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const { description, dueDate } = req.body ?? {}
 
     if (!description) {
@@ -164,7 +164,7 @@ iii.registerFunction(
 
     const todoId = `todo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 
-    ctx.logger.info('Creating todo', { todoId })
+    logger.info('Creating todo', { todoId })
 
     const todo = await iii.trigger('stream::set', {
       stream_name: 'todo',
@@ -180,7 +180,7 @@ iii.registerFunction(
       },
     })
 
-    ctx.logger.info('Todo created', { todoId })
+    logger.info('Todo created', { todoId })
     return { status_code: 201, body: todo } satisfies ApiResponse
   },
 )
@@ -198,7 +198,7 @@ iii.registerTrigger({
 ```python
 import random, string, time
 from datetime import datetime, timezone
-from iii import ApiRequest, ApiResponse, get_context
+from iii import ApiRequest, ApiResponse
 from .iii import iii
 
 
@@ -212,7 +212,7 @@ async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
     suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
     todo_id = f"todo-{int(time.time() * 1000)}-{suffix}"
 
-    ctx.logger.info("Creating todo", {"todoId": todo_id})
+    logger.info("Creating todo", {"todoId": todo_id})
 
     todo = await iii.trigger("stream::set", {
         "stream_name": "todo",
@@ -227,12 +227,12 @@ async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
         },
     })
 
-    ctx.logger.info("Todo created", {"todoId": todo_id})
+    logger.info("Todo created", {"todoId": todo_id})
     return ApiResponse(statusCode=201, body=todo, headers={"Content-Type": "application/json"})
 
 
 iii.register_function("api.post.todo", lambda data: _create_todo(
-    ApiRequest(**data) if isinstance(data, dict) else data, get_context()
+    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
 iii.register_trigger(
     type="http", function_id="api.post.todo",
@@ -244,11 +244,11 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Streams, UpdateOp, get_context, types::ApiRequest};
+use iii_sdk::{III, Streams, UpdateOp, Logger, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("api.post.todo", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let req: ApiRequest = serde_json::from_value(input)?;
     let description = req.body["description"].as_str().unwrap_or("").to_string();
 
@@ -260,7 +260,7 @@ iii.register_function("api.post.todo", |input| async move {
     }
 
     let todo_id = format!("todo-{}", chrono::Utc::now().timestamp_millis());
-    ctx.logger.info("Creating todo", Some(json!({ "todoId": todo_id })));
+    logger.info("Creating todo", Some(json!({ "todoId": todo_id })));
 
     let result = streams.update(
         &format!("todo::inbox::{}", todo_id),
@@ -272,7 +272,7 @@ iii.register_function("api.post.todo", |input| async move {
         ],
     ).await?;
 
-    ctx.logger.info("Todo created", Some(json!({ "todoId": todo_id })));
+    logger.info("Todo created", Some(json!({ "todoId": todo_id })));
 
     Ok(json!({ "status_code": 201, "body": result.new_value }))
 });
@@ -295,7 +295,7 @@ iii.register_trigger("http", "api.post.todo", json!({
 iii.registerFunction(
   { id: 'api.put.todo', description: 'Update a todo' },
   async (req: ApiRequest) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const todoId = req.path_params?.id
 
     const existing = todoId
@@ -310,7 +310,7 @@ iii.registerFunction(
       return { status_code: 404, body: { error: 'Todo not found' } } satisfies ApiResponse
     }
 
-    ctx.logger.info('Updating todo', { todoId })
+    logger.info('Updating todo', { todoId })
 
     const updated = await iii.trigger('stream::set', {
       stream_name: 'todo',
@@ -319,7 +319,7 @@ iii.registerFunction(
       data: { ...existing, ...req.body },
     })
 
-    ctx.logger.info('Todo updated', { todoId })
+    logger.info('Todo updated', { todoId })
     return { status_code: 200, body: updated } satisfies ApiResponse
   },
 )
@@ -345,19 +345,19 @@ async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     if not existing:
         return ApiResponse(statusCode=404, body={"error": "Todo not found"})
 
-    ctx.logger.info("Updating todo", {"todoId": todo_id})
+    logger.info("Updating todo", {"todoId": todo_id})
 
     merged = {**existing, **(req.body or {})}
     updated = await iii.trigger("stream::set", {
         "stream_name": "todo", "group_id": "inbox", "item_id": todo_id, "data": merged,
     })
 
-    ctx.logger.info("Todo updated", {"todoId": todo_id})
+    logger.info("Todo updated", {"todoId": todo_id})
     return ApiResponse(statusCode=200, body=updated, headers={"Content-Type": "application/json"})
 
 
 iii.register_function("api.put.todo", lambda data: _update_todo(
-    ApiRequest(**data) if isinstance(data, dict) else data, get_context()
+    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
 iii.register_trigger(
     type="http", function_id="api.put.todo",
@@ -370,7 +370,7 @@ iii.register_trigger(
 
 ```rust
 iii.register_function("api.put.todo", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let req: ApiRequest = serde_json::from_value(input)?;
     let todo_id = req.path_params.get("id").cloned().unwrap_or_default();
 
@@ -387,9 +387,9 @@ iii.register_function("api.put.todo", |input| async move {
         return Ok(json!({ "status_code": 400, "body": { "error": "No fields to update" } }));
     }
 
-    ctx.logger.info("Updating todo", Some(json!({ "todoId": todo_id })));
+    logger.info("Updating todo", Some(json!({ "todoId": todo_id })));
     let result = streams.update(&format!("todo::inbox::{}", todo_id), ops).await?;
-    ctx.logger.info("Todo updated", Some(json!({ "todoId": todo_id })));
+    logger.info("Todo updated", Some(json!({ "todoId": todo_id })));
 
     Ok(json!({ "status_code": 200, "body": result.new_value }))
 });
@@ -412,14 +412,14 @@ iii.register_trigger("http", "api.put.todo", json!({
 iii.registerFunction(
   { id: 'api.delete.todo', description: 'Delete a todo' },
   async (req: ApiRequest<{ todoId: string }>) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const { todoId } = req.body ?? {}
 
     if (!todoId) {
       return { status_code: 400, body: { error: 'todoId is required' } } satisfies ApiResponse
     }
 
-    ctx.logger.info('Deleting todo', { todoId })
+    logger.info('Deleting todo', { todoId })
 
     iii.triggerVoid('stream::delete', {
       stream_name: 'todo',
@@ -427,7 +427,7 @@ iii.registerFunction(
       item_id: todoId,
     })
 
-    ctx.logger.info('Todo deleted', { todoId })
+    logger.info('Todo deleted', { todoId })
     return { status_code: 200, body: { success: true } } satisfies ApiResponse
   },
 )
@@ -449,18 +449,18 @@ async def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
     if not todo_id:
         return ApiResponse(statusCode=400, body={"error": "todoId is required"})
 
-    ctx.logger.info("Deleting todo", {"todoId": todo_id})
+    logger.info("Deleting todo", {"todoId": todo_id})
 
     iii.trigger_void("stream::delete", {
         "stream_name": "todo", "group_id": "inbox", "item_id": todo_id,
     })
 
-    ctx.logger.info("Todo deleted", {"todoId": todo_id})
+    logger.info("Todo deleted", {"todoId": todo_id})
     return ApiResponse(statusCode=200, body={"success": True}, headers={"Content-Type": "application/json"})
 
 
 iii.register_function("api.delete.todo", lambda data: _delete_todo(
-    ApiRequest(**data) if isinstance(data, dict) else data, get_context()
+    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
 iii.register_trigger(
     type="http", function_id="api.delete.todo",
@@ -473,7 +473,7 @@ iii.register_trigger(
 
 ```rust
 iii.register_function("api.delete.todo", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let req: ApiRequest = serde_json::from_value(input)?;
     let todo_id = req.body["todoId"].as_str().unwrap_or("").to_string();
 
@@ -481,7 +481,7 @@ iii.register_function("api.delete.todo", |input| async move {
         return Ok(json!({ "status_code": 400, "body": { "error": "todoId is required" } }));
     }
 
-    ctx.logger.info("Deleting todo", Some(json!({ "todoId": todo_id })));
+    logger.info("Deleting todo", Some(json!({ "todoId": todo_id })));
 
     iii.trigger_void("stream::delete", json!({
         "stream_name": "todo",
@@ -489,7 +489,7 @@ iii.register_function("api.delete.todo", |input| async move {
         "item_id": todo_id,
     }))?;
 
-    ctx.logger.info("Todo deleted", Some(json!({ "todoId": todo_id })));
+    logger.info("Todo deleted", Some(json!({ "todoId": todo_id })));
 
     Ok(json!({ "status_code": 200, "body": { "success": true } }))
 });
