@@ -1,0 +1,118 @@
+---
+title: 'Configure the Engine'
+description: 'Complete reference for iii-config.yaml with all modules, adapters, and options.'
+---
+
+## Goal
+
+Configure the iii engine using `iii-config.yaml` to enable modules, set up adapters, and customize behavior.
+
+## Overview
+
+The engine loads configuration from `iii-config.yaml` in your project root. This file controls:
+
+- **Engine settings** - WebSocket port for SDK connections
+- **Modules** - Features like HTTP endpoints, queues, state, cron, observability
+- **Adapters** - Storage backends (file, memory, Redis, RabbitMQ)
+
+## Quick Start
+
+Create `iii-config.yaml` in your project root:
+
+```yaml title="iii-config.yaml"
+port: 49134
+
+modules:
+  - class: modules::api::RestApiModule
+    config:
+      port: 3111
+
+  - class: modules::state::StateModule
+    config:
+      adapter:
+        class: modules::state::adapters::KvStore
+        config:
+          store_method: file_based
+          file_path: ./data/state_store
+```
+
+## Full Configuration Reference
+
+<ConfigReferenceLoader />
+
+## Environment Variables
+
+Configuration values can use environment variables with optional defaults:
+
+```yaml
+port: ${III_PORT:49134}
+endpoint: ${OTEL_ENDPOINT:http://localhost:4317}
+redis_url: ${REDIS_URL}  # No default - must be set
+```
+
+Syntax: `${VAR_NAME:default_value}` or `${VAR_NAME}` (required).
+
+## Common Configurations
+
+### Development (file-based, single instance)
+
+```yaml title="iii-config.yaml"
+port: 49134
+modules:
+  - class: modules::api::RestApiModule
+    config:
+      port: 3111
+  - class: modules::state::StateModule
+    config:
+      adapter:
+        class: modules::state::adapters::KvStore
+        config:
+          store_method: file_based
+          file_path: ./data/state_store
+  - class: modules::queue::QueueModule
+    config:
+      adapter:
+        class: modules::queue::BuiltinQueueAdapter
+        config:
+          store_method: file_based
+          file_path: ./data/queue_store
+```
+
+### Production (Redis-backed, multi-instance)
+
+```yaml title="iii-config.yaml"
+port: ${III_PORT:49134}
+modules:
+  - class: modules::api::RestApiModule
+    config:
+      port: ${HTTP_PORT:3111}
+  - class: modules::state::StateModule
+    config:
+      adapter:
+        class: modules::state::adapters::RedisAdapter
+        config:
+          redis_url: ${REDIS_URL}
+  - class: modules::queue::QueueModule
+    config:
+      adapter:
+        class: modules::queue::RedisAdapter
+        config:
+          redis_url: ${REDIS_URL}
+  - class: modules::cron::CronModule
+    config:
+      adapter:
+        class: modules::cron::RedisCronAdapter
+        config:
+          redis_url: ${REDIS_URL}
+  - class: modules::observability::OtelModule
+    config:
+      enabled: true
+      exporter: otlp
+      endpoint: ${OTEL_ENDPOINT}
+      level: warn
+      format: json
+```
+
+## Result
+
+The engine reads `iii-config.yaml` on startup and initializes all configured modules. Changes require an engine restart.

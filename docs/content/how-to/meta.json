@@ -2,6 +2,7 @@
   "title": "How-to Guides",
   "defaultOpen": false,
   "pages": [
+    "configure-engine",
     "use-functions-and-triggers",
     "use-trigger-conditions",
     "expose-http-endpoint",
