@@ -305,13 +305,11 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("});", "success");
         addLog("", "info");
         addLog("Python:", "warning");
-        addLog("from iii import III", "success");
-        addLog('iii = III("ws://127.0.0.1:49134")', "success");
-        addLog("await iii.connect()", "success");
+        addLog("from iii import init", "success");
+        addLog('iii = init("ws://127.0.0.1:49134")', "success");
         addLog("", "info");
         addLog("Rust:", "warning");
-        addLog('let iii = III::new("ws://127.0.0.1:49134");', "success");
-        addLog("iii.connect().await?;", "success");
+        addLog('let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;', "success");
         addLog("", "info");
         addLog('See "register" and "triggers" for more examples', "info");
         break;
