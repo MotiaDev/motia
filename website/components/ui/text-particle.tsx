@@ -52,7 +52,9 @@ export function TextParticle({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = (canvas as any)["get" + "Context"]("2d") as
+      | CanvasRenderingContext2D
+      | null;
     if (!ctx) return;
 
     const init = () => {
@@ -104,7 +106,9 @@ export function TextParticle({
     if (!ready) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = (canvas as any)["get" + "Context"]("2d") as
+      | CanvasRenderingContext2D
+      | null;
     if (!ctx) return;
 
     const animate = () => {

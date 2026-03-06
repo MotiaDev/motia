@@ -353,7 +353,7 @@ class III:
         except ImportError:
             return None
 
-    async def _invoke_with_context(
+    async def _invoke_with_otel_context(
         self,
         handler: Any,
         data: Any,
@@ -444,13 +444,13 @@ class III:
 
         if not invocation_id:
             task = asyncio.create_task(
-                self._invoke_with_context(func.handler, resolved_data, traceparent, baggage)
+                self._invoke_with_otel_context(func.handler, resolved_data, traceparent, baggage)
             )
             task.add_done_callback(self._log_task_exception)
             return
 
         try:
-            result, response_traceparent = await self._invoke_with_context(
+            result, response_traceparent = await self._invoke_with_otel_context(
                 func.handler,
                 resolved_data,
                 traceparent,
