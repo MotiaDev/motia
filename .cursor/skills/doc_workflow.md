@@ -24,7 +24,7 @@ Apply these rules to ALL documentation tasks.
 
 ## 3. Execution Protocol (Chunked)
 
-- **Phase 1: Plan**: Outline the file structure and section headers. Pause for confirmation.
+- **Phase 1: Plan**: Enter plan mode (or ask to). Outline the file structure and section headers. Pause for confirmation.
 - **Phase 2: Execution**: Write content in cohesive chunks (e.g., one complete section or logical step).
 - **Phase 3: Review**: Stop after each cohesive chunk.
   - Ask the user: "Review this section. Shall I proceed to [Next Section]?"
@@ -38,7 +38,7 @@ Apply these rules to ALL documentation tasks.
 
 Each quadrant must stay pure. Documentation naturally drifts — resist it.
 
-- **If you find yourself explaining *why* something works inside a How-to Guide** → stop. Extract it to an Explanation doc and link to it instead.
+- **If you find yourself explaining _why_ something works inside a How-to Guide** → stop. Extract it to an Explanation doc and link to it instead.
 - **If you find yourself listing all available options inside a Tutorial** → stop. That content belongs in Reference. Link to it.
 - **If you find yourself writing step-by-step instructions inside an Explanation doc** → stop. Link to the relevant How-to Guide.
 - **If your Reference entry starts coaching the user on what to do** → remove it. Link to a How-to Guide.
