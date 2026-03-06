@@ -609,7 +609,7 @@ iii.register_function("math::double", |input| async move {
 
 The triggering Function doesn't know what language the target is written in or where it's running.
 
-Once a Function is registered, every other part of the system can discover and trigger it. See [Discovery](/docs/concepts/discovery) for how this works, including built-in functions the engine provides.
+Once a Function is registered, every other part of the system can discover and trigger it. See [Discovery](/docs/primitives-and-concepts/discovery) for how this works, including built-in functions the engine provides.
 
 ## init, Function, and Trigger Registration is Synchronous
 
@@ -642,8 +642,10 @@ The `iii::` prefix is reserved for internal engine functions. Function IDs canno
 ## Built-in Functions
 
 {/* TODO: Check these in depth and have an LLM try each one as much as it can */}
+{/* TODO: Break these out into modules once those docs are ready and then have short higher level
+mentions with one or two noted functions each and then link to the detailed docs */}
 
-The engine provides built-in functions that can be triggered from any language. These handle common operations like state management, streaming, messaging, and observability.
+The engine provides built-in functions that can be triggered the same way any other Function would be triggered. These handle common operations like state management, streaming, messaging, and observability.
 
 ### State
 

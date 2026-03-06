@@ -15,7 +15,7 @@ All application level Functions are treated the same within iii.
 A **Trigger** is what causes a Function to run — either explicitly from code, or automatically from an event source
 like an HTTP request or cron job.
 
-A **Worker** is any process that can define Functions and Triggers to accomplish one or more tasks. They are typically
+A **Worker** is any process that can register Functions and Triggers to run one or more tasks. They are typically
 long running processes but can also be ephemeral processes, an agentic worker, or a legacy system leveraging middleware.
 
 <Callout title="Uncontrolled Endpoints" type="info">
@@ -51,7 +51,7 @@ a iii powered application; or visit the [Quickstart](/docs/tutorials/quickstart)
 
 ## Still want to learn more?
 
-Check out how [Discovery](/docs/concepts/discovery) works within iii and how it compares to other solutions.
+Check out how [Discovery](/docs/primitives-and-concepts/discovery) works within iii and how it compares to other solutions.
 
 <Cards>
   <Card icon={<BookOpen />} title="How to use Functions & Triggers" href="/docs/how-to/use-functions-and-triggers">
