@@ -8,7 +8,8 @@ from typing import Any, Awaitable, Callable
 
 from iii import get_context
 from iii import http as iii_http
-from iii.types import HttpRequest as IIIHttpRequest, HttpResponse as IIIHttpResponse
+from iii.types import HttpRequest as IIIHttpRequest
+from iii.types import HttpResponse as IIIHttpResponse
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
@@ -287,7 +288,7 @@ class Motia:
         index: int,
         metadata: dict[str, Any],
     ) -> None:
-        @iii_http
+        @iii_http  # type: ignore[untyped-decorator]
         async def api_handler(req: IIIHttpRequest, res: IIIHttpResponse) -> Any:
             with step_span(
                 config.name,
