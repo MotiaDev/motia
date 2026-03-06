@@ -1,13 +1,15 @@
-# iii SDK
+# iii
 
-Official SDKs for the [iii engine](https://github.com/iii-hq/iii).
+iii is a single engine that replaces your API framework, task queue, cron scheduler, pub/sub, state store, and observability pipeline with two primitives: **Function** and **Trigger**. You write functions, declare what triggers them, and the engine handles discovery, routing, retries, and observability.
+
+See the [engine README](../engine/README.md) for architecture details and the [documentation](https://iii.dev/docs) for full guides.
+
+## SDKs
 
 [![npm](https://img.shields.io/npm/v/iii-sdk)](https://www.npmjs.com/package/iii-sdk)
 [![PyPI](https://img.shields.io/pypi/v/iii-sdk)](https://pypi.org/project/iii-sdk/)
 [![crates.io](https://img.shields.io/crates/v/iii-sdk)](https://crates.io/crates/iii-sdk)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-
-## Installing Packages
 
 | Package                                            | Language             | Install               | Docs                                      |
 | -------------------------------------------------- | -------------------- | --------------------- | ----------------------------------------- |
@@ -100,7 +102,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Invoke (await)           | `await iii.trigger(id, data)`                        | `await iii.trigger(id, data)`               | `iii.trigger(id, data).await?`               | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.triggerVoid(id, data)`                          | `iii.trigger_void(id, data)`                | `iii.trigger_void(id, data)?`                | Invoke a function without waiting                      |
 
+`init()` creates an SDK instance and auto-connects to the engine. It handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation. All three SDKs expose the same API surface — register functions and triggers, then invoke them.
+
 > `call()` and `callVoid()` / `call_void()` are deprecated and will be removed in a future release. Use `trigger()` and `triggerVoid()` / `trigger_void()`.
+
+For language-specific details (modules, streams, OpenTelemetry), see the per-SDK READMEs linked in the table above.
 
 ## Development
 
