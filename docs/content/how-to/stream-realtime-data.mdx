@@ -40,12 +40,12 @@ modules:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="stream-writer.ts"
-import { init, getContext } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
 iii.registerFunction({ id: 'chat::send' }, async (input) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   const messageId = crypto.randomUUID()
 
   await iii.trigger('stream::set', {
@@ -71,12 +71,12 @@ import os
 import signal
 import uuid
 from iii import III
-from iii.context import get_context
+from iii import Logger
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def send_message(input):
-    ctx = get_context()
+    logger = Logger()
     message_id = str(uuid.uuid4())
 
     await iii.trigger('stream::set', {
@@ -86,7 +86,7 @@ async def send_message(input):
         'data': {'text': input['text'], 'author': input['author']},
     })
 
-    ctx.logger.info('Message sent to stream', {'messageId': message_id})
+    logger.info('Message sent to stream', {'messageId': message_id})
     return {'messageId': message_id}
 
 iii.register_function('chat::send', send_message)
@@ -108,7 +108,7 @@ print('Sent message:', result['messageId'])
 </Tab>
 <Tab value="Rust">
 ```rust title="stream_writer.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{Logger, III};
 use serde_json::json;
 use tokio::signal;
 
@@ -122,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     iii.register_function("chat::send", move |input| {
         let iii = iii_clone.clone();
         async move {
-            let ctx = get_context();
+            let logger = Logger();
             let message_id = uuid::Uuid::new_v4().to_string();
             let room_id = input["roomId"].as_str().unwrap_or("");
             let text = input["text"].as_str().unwrap_or("");
@@ -135,7 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "data": { "text": text, "author": author },
             })).await?;
 
-            ctx.logger.info("Message sent to stream", Some(json!({ "messageId": message_id })));
+            logger.info("Message sent to stream", Some(json!({ "messageId": message_id })));
             Ok(json!({ "messageId": message_id }))
         }
     });
@@ -157,7 +157,7 @@ println!("Sent message: {}", result["messageId"]);
 <Tab value="Node / TypeScript">
 ```typescript title="stream-reader.ts"
 iii.registerFunction({ id: 'chat::list' }, async (input) => {
-  const { logger } = getContext()
+  const logger = new Logger()
 
   const messages = await iii.trigger('stream::list', {
     stream_name: 'chat',
@@ -176,14 +176,14 @@ logger.info('Messages', { messages })
 <Tab value="Python">
 ```python title="stream_reader.py"
 async def list_messages(input):
-    ctx = get_context()
+    logger = Logger()
 
     messages = await iii.trigger('stream::list', {
         'stream_name': 'chat',
         'group_id': input['roomId'],
     })
 
-    ctx.logger.info('Messages retrieved', {'count': len(messages)})
+    logger.info('Messages retrieved', {'count': len(messages)})
     return messages
 
 iii.register_function('chat::list', list_messages)
@@ -199,7 +199,7 @@ let iii_clone = iii.clone();
 iii.register_function("chat::list", move |input| {
     let iii = iii_clone.clone();
     async move {
-        let ctx = get_context();
+        let logger = Logger();
         let room_id = input["roomId"].as_str().unwrap_or("");
 
         let messages = iii.trigger("stream::list", json!({
@@ -207,7 +207,7 @@ iii.register_function("chat::list", move |input| {
             "group_id": room_id,
         })).await?;
 
-        ctx.logger.info("Messages retrieved", Some(json!({ "count": messages.as_array().map(|a| a.len()).unwrap_or(0) })));
+        logger.info("Messages retrieved", Some(json!({ "count": messages.as_array().map(|a| a.len()).unwrap_or(0) })));
         Ok(messages)
     }
 });

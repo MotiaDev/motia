@@ -32,12 +32,12 @@ modules:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="cron-task.ts"
-import { init, getContext } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
 iii.registerFunction({ id: 'cleanup::expired-sessions' }, async () => {
-  const { logger } = getContext()
+  const logger = new Logger()
   // ...cleanup logic here...
   logger.info('Cleanup ran', { timestamp: new Date().toISOString() })
   return { deleted: 0 }
@@ -51,14 +51,14 @@ import asyncio
 import os
 import signal
 from iii import III
-from iii.context import get_context
+from iii import Logger
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def cleanup_sessions(_):
-    ctx = get_context()
+    logger = Logger()
     # ...cleanup logic here...
-    ctx.logger.info('Cleanup ran')
+    logger.info('Cleanup ran')
     print('Cleanup ran')
     return {'deleted': 0}
 
@@ -78,7 +78,7 @@ asyncio.run(main())
 </Tab>
 <Tab value="Rust">
 ```rust title="cron_task.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{Logger, III};
 use serde_json::json;
 use tokio::signal;
 
@@ -89,9 +89,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     iii.connect().await?;
 
     iii.register_function("cleanup::expired-sessions", |_| async move {
-        let ctx = get_context();
+        let logger = Logger();
         // ...cleanup logic here...
-        ctx.logger.info("Cleanup ran", None);
+        logger.info("Cleanup ran", None);
         println!("Cleanup ran");
         Ok(json!({ "deleted": 0 }))
     });

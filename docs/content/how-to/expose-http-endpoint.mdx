@@ -46,12 +46,12 @@ Make sure `iii-config.yaml` has the REST API module enabled:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="http-endpoint.ts"
-import { init, getContext } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
 iii.registerFunction({ id: 'users::create' }, async (req) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   const { name, email } = req.body
   const user = { id: crypto.randomUUID(), name, email }
   logger.info('User created', { userId: user.id })
@@ -66,16 +66,16 @@ import signal
 import uuid
 import os
 from iii import III
-from iii.context import get_context
+from iii import Logger
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def create_user(req):
-    ctx = get_context()
+    logger = Logger()
     name = req['body']['name']
     email = req['body']['email']
     user = {'id': str(uuid.uuid4()), 'name': name, 'email': email}
-    ctx.logger.info('User created', {'userId': user['id']})
+    logger.info('User created', {'userId': user['id']})
     print('User created', user['id'])
     return {'status_code': 201, 'body': user}
 
@@ -95,7 +95,7 @@ asyncio.run(main())
 </Tab>
 <Tab value="Rust">
 ```rust title="http_endpoint.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{Logger, III};
 use serde_json::json;
 use tokio::signal;
 
@@ -106,11 +106,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     iii.connect().await?;
 
     iii.register_function("users::create", |req| async move {
-        let ctx = get_context();
+        let logger = Logger();
         let name = req["body"]["name"].as_str().unwrap_or("");
         let email = req["body"]["email"].as_str().unwrap_or("");
         let user_id = uuid::Uuid::new_v4().to_string();
-        ctx.logger.info("User created", Some(json!({ "userId": user_id })));
+        logger.info("User created", Some(json!({ "userId": user_id })));
         println!("User created {}", user_id);
         Ok(json!({
             "status_code": 201,

@@ -37,12 +37,12 @@ The `state` trigger fires whenever the watched `scope`/`key` pair changes. The h
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-watcher.ts"
-import { init, getContext } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::on-status-change' }, async (event) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   logger.info('Order status changed', { key: event.key, new_value: event.new_value })
   // ...react to the change here...
   return { handled: true }
@@ -62,13 +62,13 @@ import asyncio
 import os
 import signal
 from iii import III
-from iii.context import get_context
+from iii import Logger
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def on_status_change(event):
-    ctx = get_context()
-    ctx.logger.info('Order status changed', {'key': event['key'], 'new_value': event['new_value']})
+    logger = Logger()
+    logger.info('Order status changed', {'key': event['key'], 'new_value': event['new_value']})
     print(f"Order status changed: key={event['key']}, new_value={event['new_value']}")
     # ...react to the change here...
     return {'handled': True}
@@ -96,7 +96,7 @@ await iii.trigger('state::set', {
 </Tab>
 <Tab value="Rust">
 ```rust title="state_watcher.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{Logger, III};
 use serde_json::json;
 use tokio::signal;
 
@@ -107,8 +107,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     iii.connect().await?;
 
     iii.register_function("orders::on-status-change", |event| async move {
-        let ctx = get_context();
-        ctx.logger.info("Order status changed", Some(json!({ "key": event["key"], "new_value": event["new_value"] })));
+        let logger = Logger();
+        logger.info("Order status changed", Some(json!({ "key": event["key"], "new_value": event["new_value"] })));
         println!(
             "Order status changed: key={}, new_value={}",
             event["key"], event["new_value"]
@@ -172,7 +172,7 @@ Each state trigger watches a single `scope`/`key` pair. To react to multiple key
 <Tab value="Node / TypeScript">
 ```typescript title="multi-key-watcher.ts"
 iii.registerFunction({ id: 'orders::on-total-change' }, async (event) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   logger.info('Order total changed', { new_value: event.new_value })
   return { handled: true }
 })
@@ -193,8 +193,8 @@ iii.registerTrigger({
 <Tab value="Python">
 ```python title="multi_key_watcher.py"
 async def on_total_change(event):
-    ctx = get_context()
-    ctx.logger.info('Order total changed', {'new_value': event['new_value']})
+    logger = Logger()
+    logger.info('Order total changed', {'new_value': event['new_value']})
     print(f"Order total changed: {event['new_value']}")
     return {'handled': True}
 
@@ -216,8 +216,8 @@ iii.register_trigger(
 <Tab value="Rust">
 ```rust title="multi_key_watcher.rs"
 iii.register_function("orders::on-total-change", |event| async move {
-    let ctx = get_context();
-    ctx.logger.info("Order total changed", Some(json!({ "new_value": event["new_value"] })));
+    let logger = Logger();
+    logger.info("Order total changed", Some(json!({ "new_value": event["new_value"] })));
     println!("Order total changed: {}", event["new_value"]);
     Ok(json!({ "handled": true }))
 });

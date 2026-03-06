@@ -33,14 +33,14 @@ Use `iii.trigger('enqueue', { topic, data })` to publish a message. The calling 
 <Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
-import { init, getContext, type ApiResponse } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'orders::create' },
   async (req) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const order = { id: crypto.randomUUID(), ...req.body }
 
     await iii.trigger('enqueue', {
@@ -48,7 +48,7 @@ iii.registerFunction(
       data: order,
     })
 
-    ctx.logger.info('Order enqueued', { orderId: order.id })
+    logger.info('Order enqueued', { orderId: order.id })
     return { status_code: 201, body: order } satisfies ApiResponse
   },
 )
@@ -64,7 +64,7 @@ iii.registerTrigger({
 ```python
 import asyncio
 import uuid
-from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
+from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(
     address="ws://localhost:49134",
@@ -72,7 +72,7 @@ iii = III(
 )
 
 async def create_order(req):
-    ctx = get_context()
+    logger = Logger()
     order = {"id": str(uuid.uuid4()), **req["body"]}
 
     await iii.trigger("enqueue", {
@@ -80,7 +80,7 @@ async def create_order(req):
         "data": order,
     })
 
-    ctx.logger.info("Order enqueued", {"orderId": order["id"]})
+    logger.info("Order enqueued", {"orderId": order["id"]})
     return {"status_code": 201, "body": order}
 
 iii.register_function("orders::create", create_order)
@@ -93,11 +93,11 @@ iii.register_trigger(
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, get_context};
+use iii_sdk::{III, Logger};
 use serde_json::json;
 
 iii.register_function("orders::create", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let order_id = uuid::Uuid::new_v4().to_string();
 
     iii.trigger_void("enqueue", json!({
@@ -108,7 +108,7 @@ iii.register_function("orders::create", |input| async move {
         },
     }))?;
 
-    ctx.logger.info("Order enqueued", Some(json!({ "orderId": order_id })));
+    logger.info("Order enqueued", Some(json!({ "orderId": order_id })));
 
     Ok(json!({
         "status_code": 201,
@@ -134,10 +134,10 @@ Register a function and bind it to a `queue` trigger with the same topic. The en
 iii.registerFunction(
   { id: 'orders::process-payment' },
   async (data) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const { id, items } = data as { id: string; items: any[] }
 
-    ctx.logger.info('Processing payment', { orderId: id })
+    logger.info('Processing payment', { orderId: id })
     const result = await chargePayment(id, items)
 
     await iii.trigger('enqueue', {
@@ -157,10 +157,10 @@ iii.registerTrigger({
 <Tab value="Python">
 ```python
 async def process_payment(data):
-    ctx = get_context()
+    logger = Logger()
     order_id = data["id"]
 
-    ctx.logger.info("Processing payment", {"orderId": order_id})
+    logger.info("Processing payment", {"orderId": order_id})
     result = await charge_payment(order_id, data["items"])
 
     await iii.trigger("enqueue", {
@@ -179,10 +179,10 @@ iii.register_trigger(
 <Tab value="Rust">
 ```rust
 iii.register_function("orders::process-payment", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let order_id = input["id"].as_str().unwrap();
 
-    ctx.logger.info("Processing payment", Some(json!({ "orderId": order_id })));
+    logger.info("Processing payment", Some(json!({ "orderId": order_id })));
     let result = charge_payment(order_id, &input["items"]).await?;
 
     iii.trigger_void("enqueue", json!({
@@ -210,9 +210,9 @@ Multiple functions can subscribe to the same topic. When `order.created` fires, 
 iii.registerFunction(
   { id: 'orders::send-confirmation' },
   async (data) => {
-    const ctx = getContext()
+    const logger = new Logger()
     await sendEmail(data.email, `Order ${data.id} confirmed!`)
-    ctx.logger.info('Confirmation sent', { orderId: data.id })
+    logger.info('Confirmation sent', { orderId: data.id })
   },
 )
 
@@ -226,9 +226,9 @@ iii.registerTrigger({
 <Tab value="Python">
 ```python
 async def send_confirmation(data):
-    ctx = get_context()
+    logger = Logger()
     await send_email(data['email'], f"Order {data['id']} confirmed!")
-    ctx.logger.info('Confirmation sent', {'orderId': data['id']})
+    logger.info('Confirmation sent', {'orderId': data['id']})
 
 iii.register_function('orders::send-confirmation', send_confirmation)
 
@@ -242,10 +242,10 @@ iii.register_trigger(
 <Tab value="Rust">
 ```rust
 iii.register_function("orders::send-confirmation", |data| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let order_id = data["id"].as_str().unwrap_or("");
     send_email(&data["email"], &format!("Order {} confirmed!", order_id)).await;
-    ctx.logger.info("Confirmation sent", Some(json!({ "orderId": order_id })));
+    logger.info("Confirmation sent", Some(json!({ "orderId": order_id })));
     Ok(json!(null))
 });
 
