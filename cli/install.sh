@@ -2,20 +2,21 @@
 set -euo pipefail
 
 # =============================================================================
-# iii-console installer
+# iii-cli installer
 # =============================================================================
-# Install the iii-console binary from GitHub releases.
+# Install the iii-cli binary from GitHub releases.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash -s -- -v 0.1.3
+#   curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/cli/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/cli/install.sh | bash -s -- -v 0.1.3
 # =============================================================================
 
 # --- Constants ----------------------------------------------------------------
 
 REPO="${REPO:-iii-hq/iii}"
-BIN_NAME="${BIN_NAME:-iii-console}"
+BIN_NAME="${BIN_NAME:-iii-cli}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
+BREW_FORMULA="${BREW_FORMULA:-$BIN_NAME}"
 
 # Validate REPO format (owner/repo)
 if [[ ! "$REPO" =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]]; then
@@ -38,6 +39,12 @@ fi
 # Validate INSTALL_DIR contains only safe path characters
 if [[ "$INSTALL_DIR" =~ [^a-zA-Z0-9/_.~:@+-] ]]; then
   echo "error: INSTALL_DIR contains invalid characters" >&2
+  exit 1
+fi
+
+# Validate BREW_FORMULA (allow tap notation like org/tap/formula and @ for versioned formulae)
+if [[ ! "$BREW_FORMULA" =~ ^[a-zA-Z0-9_@/.-]+$ ]]; then
+  echo "error: BREW_FORMULA contains invalid characters (got: $BREW_FORMULA)" >&2
   exit 1
 fi
 
@@ -70,13 +77,43 @@ print_message() {
   printf "${color}%s${NC}\n" "$message"
 }
 
+check_homebrew() {
+  # Skip if --force was used
+  if [[ "$force_install" == "true" ]]; then
+    return 0
+  fi
+
+  # Only check if brew is available on the system
+  if ! command -v brew >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # Check if the formula is installed via Homebrew
+  if brew list --versions "$BREW_FORMULA" >/dev/null 2>&1; then
+    local brew_version
+    brew_version=$(brew list --versions "$BREW_FORMULA" | awk '{print $NF}')
+
+    printf "\n"
+    printf "${ORANGE}%s is installed via Homebrew${NC}" "$BREW_FORMULA"
+    if [[ -n "$brew_version" ]]; then
+      printf " ${MUTED}(v%s)${NC}" "$brew_version"
+    fi
+    printf "\n\n"
+    printf "${MUTED}Choose one:${NC}\n"
+    printf "  ${NC}1. Update via Homebrew:  ${ORANGE}brew upgrade %s${NC}\n" "$BREW_FORMULA"
+    printf "  ${NC}2. Switch to manual:    ${ORANGE}brew uninstall --force %s${NC} then re-run this script\n" "$BREW_FORMULA"
+    printf "\n"
+    exit 1
+  fi
+}
+
 # --- Usage / help -------------------------------------------------------------
 
 usage() {
   cat <<EOF
-iii-console installer
+iii-cli installer
 
-Install the iii-console binary from GitHub releases.
+Install the iii-cli binary from GitHub releases.
 
 USAGE:
     install.sh [OPTIONS]
@@ -86,26 +123,28 @@ OPTIONS:
     -v, --version <version>     Install a specific version (e.g. 0.1.3)
     -b, --binary <path>         Install from a local binary instead of downloading
     --no-modify-path            Skip adding the install directory to PATH
+    --force                     Skip Homebrew conflict check
 
 ENVIRONMENT VARIABLES:
     REPO            GitHub repository          (default: iii-hq/iii)
-    BIN_NAME        Binary name                (default: iii-console)
+    BIN_NAME        Binary name                (default: iii-cli)
     INSTALL_DIR     Installation directory      (default: \$HOME/.local/bin)
     TARGET          Override platform target    (e.g. aarch64-apple-darwin)
     VERSION         Version to install          (same as -v/--version)
+    BREW_FORMULA    Homebrew formula name       (default: \$BIN_NAME)
 
 EXAMPLES:
     # Install latest version
-    curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/cli/install.sh | bash
 
     # Install specific version
-    curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash -s -- -v 0.1.3
+    curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/cli/install.sh | bash -s -- -v 0.1.3
 
     # Install to custom directory
-    INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/cli/install.sh | INSTALL_DIR=/usr/local/bin bash
 
     # Install from local binary
-    ./install.sh -b ./target/release/iii-console
+    ./install.sh -b ./target/release/iii-cli
 EOF
   exit 0
 }
@@ -115,6 +154,7 @@ EOF
 requested_version="${VERSION:-}"
 no_modify_path=false
 binary_path=""
+force_install=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -137,6 +177,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-modify-path)
       no_modify_path=true
+      shift
+      ;;
+    --force)
+      force_install=true
       shift
       ;;
     -*)
@@ -180,8 +224,14 @@ check_version() {
     installed_version="${installed_version#v}"
 
     if [[ -n "$installed_version" ]]; then
+      local existing_path
+      existing_path=$(command -v "$BIN_NAME" 2>/dev/null || echo "")
       if [[ "$installed_version" == "$target_version" ]]; then
-        printf "${MUTED}Version ${NC}%s${MUTED} already installed${NC}\n" "$target_version"
+        printf "${MUTED}Version ${NC}%s${MUTED} already installed at ${NC}%s\n" "$target_version" "$existing_path"
+        if [[ -n "$existing_path" && "$(dirname "$existing_path")" != "$INSTALL_DIR" ]]; then
+          printf "${MUTED}To install to ${NC}%s${MUTED}, first remove the existing binary:${NC}\n" "$INSTALL_DIR"
+          printf "  rm %s\n" "$existing_path"
+        fi
         exit 0
       else
         printf "${MUTED}Installed version: ${NC}%s${MUTED}. Upgrading...${NC}\n" "$installed_version"
@@ -309,6 +359,9 @@ asset_url=""
 # --- Platform detection & release fetching (skip if --binary) -----------------
 
 if [[ -z "$binary_path" ]]; then
+
+  # Check for Homebrew-managed installation before any network calls
+  check_homebrew
 
   # --- Platform detection -----------------------------------------------------
 
@@ -462,7 +515,7 @@ download_and_install() {
 
   # Create temp directory with idempotent cleanup trap
   local tmpdir
-  tmpdir=$(mktemp -d 2>/dev/null || mktemp -d -t iii-console-install)
+  tmpdir=$(mktemp -d 2>/dev/null || mktemp -d -t iii-cli-install)
   _iii_cleanup_tmpdir="$tmpdir"
   _iii_cleanup_done=false
   cleanup() {
@@ -608,7 +661,7 @@ add_to_path() {
   if [[ -w "$config_file" ]]; then
     {
       echo ""
-      echo "# iii-console"
+      echo "# iii-cli"
       echo "$path_command"
     } >> "$config_file"
     print_message info "Added $INSTALL_DIR to \$PATH in $config_file"
@@ -698,14 +751,16 @@ fi
 
 if [[ -x "$INSTALL_DIR/$BIN_NAME" ]]; then
   printf "\n"
-  printf "${MUTED}▀ ▀ ▀  ${NC}█▀▀▀ █▀▀█ █▀▀▀▄ █▀▀▀ █▀▀█ █    █▀▀▀\n"
-  printf "${MUTED}█ █ █  ${NC}█    █  █ █   █ ▀▀▀█ █  █ █    █▀▀▀\n"
-  printf "${MUTED}▀ ▀ ▀  ${NC}▀▀▀▀ ▀▀▀▀ ▀   ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀\n"
+  printf "${MUTED}▀ ▀ ▀  ${NC}█▀▀▀ █    ▀█▀\n"
+  printf "${MUTED}█ █ █  ${NC}█    █     █\n"
+  printf "${MUTED}▀ ▀ ▀  ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀\n"
   printf "\n"
-  printf "${MUTED}To start the console:${NC}\n"
+  printf "${MUTED}Get started:${NC}\n"
   printf "\n"
-  printf "  iii-console                   ${MUTED}# Start with defaults${NC}\n"
-  printf "  iii-console --engine-host ip  ${MUTED}# Connect to remote engine${NC}\n"
+  printf "  iii-cli console          ${MUTED}# Launch iii-console${NC}\n"
+  printf "  iii-cli create           ${MUTED}# Create new project${NC}\n"
+  printf "  iii-cli sdk motia        ${MUTED}# Run motia CLI${NC}\n"
+  printf "  iii-cli --help           ${MUTED}# See all commands${NC}\n"
   printf "\n"
   printf "${MUTED}Installed to: ${NC}%s/%s\n" "$INSTALL_DIR" "$BIN_NAME"
   printf "\n"
