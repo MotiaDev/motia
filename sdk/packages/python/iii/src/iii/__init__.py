@@ -4,7 +4,6 @@ import asyncio
 import logging
 
 from .channels import ChannelReader, ChannelWriter, ReadableStream, WritableStream
-from .context import Context, get_context, with_context
 from .iii import III, ConnectionStateCallback, FunctionRef, IIIConnectionState, InitOptions, ReconnectionConfig
 from .iii_types import FunctionInfo, HttpAuthConfig, HttpInvocationConfig, StreamChannelRef, WorkerInfo, WorkerStatus
 from .logger import Logger
@@ -28,7 +27,15 @@ from .stream import (
     UpdateRemove,
     UpdateSet,
 )
-from .telemetry import get_meter, get_tracer, init_otel, is_initialized, shutdown_otel
+from .telemetry import (
+    current_span_id,
+    current_trace_id,
+    get_meter,
+    get_tracer,
+    init_otel,
+    is_initialized,
+    shutdown_otel,
+)
 from .telemetry_types import OtelConfig
 from .types import (
     ApiRequest,
@@ -82,9 +89,6 @@ __all__ = [
     "ConnectionStateCallback",
     "FunctionRef",
     "Logger",
-    "Context",
-    "get_context",
-    "with_context",
     # API types
     "ApiRequest",
     "ApiResponse",
@@ -132,6 +136,8 @@ __all__ = [
     "shutdown_otel",
     "get_tracer",
     "get_meter",
+    "current_trace_id",
+    "current_span_id",
     "is_initialized",
     # Utility
     "configure_logging",
