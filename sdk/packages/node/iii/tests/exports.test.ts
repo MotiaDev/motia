@@ -1,13 +1,16 @@
-import { describe, expect, it } from 'vitest'
-import { registerWorker, getContext, withContext, Logger } from '../src/index'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { init, Logger } from '../src/index'
 import { initOtel, shutdownOtel, getTracer, getMeter, getLogger } from '../src/telemetry'
+import { iii } from './utils'
+
+beforeAll(() => {
+  vi.spyOn(iii, 'shutdown').mockResolvedValue(undefined)
+})
 
 describe('Package Exports', () => {
   it('should export main SDK symbols', () => {
-    expect(registerWorker).toBeDefined()
-    expect(typeof registerWorker).toBe('function')
-    expect(getContext).toBeDefined()
-    expect(withContext).toBeDefined()
+    expect(init).toBeDefined()
+    expect(typeof init).toBe('function')
     expect(Logger).toBeDefined()
   })
 

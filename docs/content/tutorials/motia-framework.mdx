@@ -95,7 +95,7 @@ config = ApiRouteConfig(
 async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
     name = req.path_params.get("name", "World")
 
-    ctx.logger.info(f"Greeting {name}")
+    logger.info(f"Greeting {name}")
 
     return ApiResponse(
         status=200,
@@ -236,7 +236,7 @@ config = EventConfig(
 )
 
 async def handler(data, ctx: FlowContext):
-    ctx.logger.info(f"Sending welcome email to {data['email']}")
+    logger.info(f"Sending welcome email to {data['email']}")
     await send_email(data['email'], "Welcome!")
 
 step_wrapper(config, __file__, handler)
@@ -280,7 +280,7 @@ config = CronConfig(
 async def handler(data, ctx: FlowContext):
     report = await generate_daily_report()
     await ctx.emit("report.generated", report)
-    ctx.logger.info("Daily report generated")
+    logger.info("Daily report generated")
 
 step_wrapper(config, __file__, handler)
 ```
@@ -320,7 +320,7 @@ logger.info(`[${traceId}] Processing request`)
 **Python:**
 
 ```python
-ctx.logger.info(f"[{ctx.trace_id}] Processing request")
+logger.info(f"[{current_trace_id()}] Processing request")
 ```
 
 </ResponseField>
@@ -375,8 +375,8 @@ logger.error('An error occurred')
 **Python:**
 
 ```python
-ctx.logger.info("Processing started")
-ctx.logger.error("An error occurred", exc_info=True)
+logger.info("Processing started")
+logger.error("An error occurred", exc_info=True)
 ```
 
 </ResponseField>
@@ -716,7 +716,7 @@ async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
     await todo_stream.set("default", todo_id, todo)
     await ctx.emit("todo.created", todo)
 
-    ctx.logger.info(f"Created todo: {todo_id}")
+    logger.info(f"Created todo: {todo_id}")
 
     return ApiResponse(status=201, body=todo)
 
@@ -756,7 +756,7 @@ config = EventConfig(
 )
 
 async def handler(data, ctx: FlowContext):
-    ctx.logger.info(f"New todo created: {data['title']}")
+    logger.info(f"New todo created: {data['title']}")
     # Send notification logic here
 
 step_wrapper(config, __file__, handler)
@@ -805,10 +805,10 @@ step_wrapper(config, __file__, handler)
             result = await process_data(req.body)
             return ApiResponse(status=200, body=result)
         except ValueError as e:
-            ctx.logger.error(f"Validation error: {e}")
+            logger.error(f"Validation error: {e}")
             return ApiResponse(status=400, body={"error": str(e)})
         except Exception as e:
-            ctx.logger.error(f"Unexpected error: {e}", exc_info=True)
+            logger.error(f"Unexpected error: {e}", exc_info=True)
             return ApiResponse(status=500, body={"error": "Internal error"})
     ```
 
