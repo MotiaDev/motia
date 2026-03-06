@@ -4,7 +4,7 @@ description: A backend unification and orchestration system.
 hideCards: true
 ---
 
-Today building a typical backend today means stitching together many separate systems:
+Today building a typical backend today means connecting together many separate systems:
 an API framework, a task queue, a cron scheduler, a pub/sub layer, a state store, a WebSocket server,
 and an observability pipeline.
 
@@ -16,14 +16,14 @@ The result of balancing these many necessary systems are delayed delivery, diffi
 transient issues, increased expenses, silo'd domain and systems knowledge, and difficulty with
 onboarding new developers and AI agents.
 
-The key advantage of iii is that it transforms a backend from behaving like a series of
-separate concerns, domains, and services to behaving like one cohesive and interoperable application.
+The main benefit of iii is that it transforms a backend from behaving like a series of
+separate concerns, domains, and services into a single application-level interface across services.
 
 **iii** (pronounced "three eye") does this by creating a single integration point
-for all backend systems which results in a stack that is easy to adapt, to modify, and which
+for all backend systems which results in a stack that is easier to change and which
 keeps all historical knowledge in one place (ie. a single config).
 
-The result is easy onboarding of new developers and AI agents, easy debugging across systems,
+The result is faster onboarding of new developers and AI agents, and simpler debugging across systems,
 removal of cost centers with reduced switching costs, and faster delivery of backend features.
 
 ## How iii achieves this
@@ -34,7 +34,7 @@ Then it's a single process (or set of processes) that handles everything:
 
 - **Write Functions in any language:** Use TypeScript, Python, or Rust. Mix them freely. Everything is just a Function.
 - **Triggers handle any event:** An HTTP request, a cron schedule, a queue message, a state change, a stream event. They all work the same way: a Trigger fires, iii invokes your Function.
-- **Discovery keeps everything in sync:** When a new function is registered with iii every other part of the stack can use it. Functions can deregister dynamically too allowing for seamless upgrading of production systems. No service registry, and no config files. iii always knows what the entire system can do.
+- **Discovery keeps everything in sync:** When a new function is registered with iii every other part of the stack can use it. Functions can deregister dynamically too, allowing rolling upgrades without manual registry or config updates. No service registry, and no config files. iii always knows what the entire system can do.
 
 <Callout title="Why this matters" type="info">
   React simplified the frontend with Component and Context. iii does the same for the backend with Function, Trigger, and Discovery. One mental model for every backend system.

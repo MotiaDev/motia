@@ -3,9 +3,14 @@
   "defaultOpen": false,
   "pages": [
     "use-functions-and-triggers",
+    "use-trigger-conditions",
     "expose-http-endpoint",
+    "stream-realtime-data",
+    "create-ephemeral-worker",
     "manage-state",
+    "react-to-state-changes",
     "schedule-cron-task",
-    "stream-realtime-data"
+    "dead-letter-queues",
+    "configure-engine"
   ]
 }

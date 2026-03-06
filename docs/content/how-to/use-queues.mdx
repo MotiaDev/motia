@@ -61,7 +61,7 @@ modules:
 ```typescript title="queue-producer.ts"
 import { init, getContext } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::create' }, async (input) => {
   const { logger } = getContext()
@@ -172,7 +172,7 @@ Register a function and bind it to a `queue` trigger with the same topic. The en
 ```typescript title="queue-consumer.ts"
 import { init, getContext } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::process-payment' }, async (data) => {
   const { logger } = getContext()

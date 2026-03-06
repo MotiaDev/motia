@@ -24,7 +24,7 @@ modules:
 ```typescript
 import { init } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'emails::send-welcome' },
@@ -40,7 +40,7 @@ import asyncio
 from iii import III
 
 async def main():
-    iii = III('ws://localhost:49134')
+    iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
     async def send_welcome(data):
         return {'sent': True, 'to': data['to']}
@@ -58,7 +58,8 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
+    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let iii = III::new(&url);
     iii.connect().await?;
 
     iii.register_function("emails::send-welcome", |data| async move {
