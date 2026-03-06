@@ -37,6 +37,7 @@ impl HttpAuthConfig {
                          Please set this environment variable before registering the function.",
                         secret_key
                     ),
+                    stacktrace: None,
                 })?;
             }
             HttpAuthConfig::Bearer { token_key } => {
@@ -47,6 +48,7 @@ impl HttpAuthConfig {
                          Please set this environment variable before registering the function.",
                         token_key
                     ),
+                    stacktrace: None,
                 })?;
             }
             HttpAuthConfig::ApiKey { value_key, .. } => {
@@ -57,6 +59,7 @@ impl HttpAuthConfig {
                          Please set this environment variable before registering the function.",
                         value_key
                     ),
+                    stacktrace: None,
                 })?;
             }
         }
@@ -70,6 +73,7 @@ pub fn resolve_auth_ref(auth_ref: &HttpAuthConfig) -> Result<HttpAuth, ErrorBody
             let secret = std::env::var(secret_key).map_err(|_| ErrorBody {
                 code: "secret_not_found".into(),
                 message: format!("Secret not found: {}", secret_key),
+                stacktrace: None,
             })?;
             Ok(HttpAuth::Hmac { secret })
         }
@@ -77,6 +81,7 @@ pub fn resolve_auth_ref(auth_ref: &HttpAuthConfig) -> Result<HttpAuth, ErrorBody
             let token = std::env::var(token_key).map_err(|_| ErrorBody {
                 code: "token_not_found".into(),
                 message: format!("Token not found: {}", token_key),
+                stacktrace: None,
             })?;
             Ok(HttpAuth::Bearer { token })
         }
@@ -84,6 +89,7 @@ pub fn resolve_auth_ref(auth_ref: &HttpAuthConfig) -> Result<HttpAuth, ErrorBody
             let value = std::env::var(value_key).map_err(|_| ErrorBody {
                 code: "api_key_not_found".into(),
                 message: format!("API key not found: {}", value_key),
+                stacktrace: None,
             })?;
             Ok(HttpAuth::ApiKey {
                 header: header.clone(),

@@ -108,6 +108,7 @@ impl FunctionHandler for Worker {
                 .map_err(|err| ErrorBody {
                     code: "channel_send_failed".into(),
                     message: err.to_string(),
+                    stacktrace: None,
                 });
 
             FunctionResult::Deferred

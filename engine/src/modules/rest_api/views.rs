@@ -340,9 +340,14 @@ pub async fn dynamic_handler(
                     }
                     Err(err) => {
                         let error_id = generate_error_id();
+                        let stacktrace = err.stacktrace.clone().unwrap_or_else(||
+                            std::backtrace::Backtrace::capture().to_string()
+                        );
                         tracing::error!(
+                            exception.type = %err.code,
+                            exception.message = %err.message,
+                            exception.stacktrace = %stacktrace,
                             condition_function_id = %condition_id,
-                            error = ?err,
                             error_id = %error_id,
                             "Error invoking condition function"
                         );
@@ -350,7 +355,7 @@ pub async fn dynamic_handler(
                         channel_mgr.remove_channel(&res_ch_id);
                         return (
                             StatusCode::INTERNAL_SERVER_ERROR,
-                            Json(json!({"error": "internal server error", "error_id": error_id})),
+                            Json(json!({"error": err.message, "error_id": error_id})),
                         )
                             .into_response();
                     }
@@ -417,15 +422,19 @@ pub async fn dynamic_handler(
                                     channel_mgr.remove_channel(&req_ch_id);
                                     tracing::Span::current().record("http.response.status_code", 500u16);
                                     tracing::Span::current().record("otel.status_code", "ERROR");
+                                    let stacktrace = err.stacktrace.clone().unwrap_or_else(||
+                                        std::backtrace::Backtrace::capture().to_string()
+                                    );
                                     tracing::error!(
-                                        exception.type = "InternalServerError",
-                                        exception.message = %format!("{:?}", err),
+                                        exception.type = %err.code,
+                                        exception.message = %err.message,
+                                        exception.stacktrace = %stacktrace,
                                         error_id = %error_id,
                                         "Internal server error"
                                     );
                                     return (
                                         StatusCode::INTERNAL_SERVER_ERROR,
-                                        Json(json!({"error": "internal server error", "error_id": error_id})),
+                                        Json(json!({"error": err.message, "error_id": error_id})),
                                     ).into_response();
                                 }
                                 Err(join_err) => {
@@ -434,9 +443,11 @@ pub async fn dynamic_handler(
                                     channel_mgr.remove_channel(&req_ch_id);
                                     tracing::Span::current().record("http.response.status_code", 500u16);
                                     tracing::Span::current().record("otel.status_code", "ERROR");
+                                    let backtrace = std::backtrace::Backtrace::capture();
                                     tracing::error!(
-                                        exception.type = "InternalServerError",
-                                        exception.message = %format!("{:?}", join_err),
+                                        exception.type = "TaskPanic",
+                                        exception.message = %format!("{join_err}"),
+                                        exception.stacktrace = %backtrace,
                                         error_id = %error_id,
                                         "Internal server error (task panic)"
                                     );
@@ -535,24 +546,30 @@ pub async fn dynamic_handler(
                     let error_id = generate_error_id();
                     tracing::Span::current().record("http.response.status_code", 500u16);
                     tracing::Span::current().record("otel.status_code", "ERROR");
+                    let stacktrace = err.stacktrace.clone().unwrap_or_else(||
+                        std::backtrace::Backtrace::capture().to_string()
+                    );
                     tracing::error!(
-                        exception.type = "InternalServerError",
-                        exception.message = %format!("{:?}", err),
+                        exception.type = %err.code,
+                        exception.message = %err.message,
+                        exception.stacktrace = %stacktrace,
                         error_id = %error_id,
                         "Internal server error"
                     );
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({"error": "internal server error", "error_id": error_id})),
+                        Json(json!({"error": err.message, "error_id": error_id})),
                     ).into_response()
                 }
                 Err(join_err) => {
                     let error_id = generate_error_id();
                     tracing::Span::current().record("http.response.status_code", 500u16);
                     tracing::Span::current().record("otel.status_code", "ERROR");
+                    let backtrace = std::backtrace::Backtrace::capture();
                     tracing::error!(
-                        exception.type = "InternalServerError",
-                        exception.message = %format!("{:?}", join_err),
+                        exception.type = "TaskPanic",
+                        exception.message = %format!("{join_err}"),
+                        exception.stacktrace = %backtrace,
                         error_id = %error_id,
                         "Internal server error (task panic)"
                     );
@@ -567,9 +584,11 @@ pub async fn dynamic_handler(
         tracing::Span::current().record("http.response.status_code", 404u16);
         tracing::Span::current().record("otel.status_code", "ERROR");
 
+        let backtrace = std::backtrace::Backtrace::capture();
         tracing::error!(
             exception.type = "NotFoundError",
             exception.message = %format!("Route not found: {} {}", method, actual_path),
+            exception.stacktrace = %backtrace,
             "Route not found"
         );
 

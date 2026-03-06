@@ -111,6 +111,7 @@ impl Module for BridgeClientModule {
                             return FunctionResult::Failure(ErrorBody {
                                 code: "deserialization_error".into(),
                                 message: format!("Failed to parse invoke input: {}", err),
+                                stacktrace: None,
                             });
                         }
                     };
@@ -130,6 +131,7 @@ impl Module for BridgeClientModule {
                             FunctionResult::Failure(ErrorBody {
                                 code: "bridge_error".into(),
                                 message: err.to_string(),
+                                stacktrace: None,
                             })
                         }
                     }
@@ -156,6 +158,7 @@ impl Module for BridgeClientModule {
                             return FunctionResult::Failure(ErrorBody {
                                 code: "deserialization_error".into(),
                                 message: format!("Failed to parse invoke input: {}", err),
+                                stacktrace: None,
                             });
                         }
                     };
@@ -165,6 +168,7 @@ impl Module for BridgeClientModule {
                         return FunctionResult::Failure(ErrorBody {
                             code: "bridge_error".into(),
                             message: err.to_string(),
+                            stacktrace: None,
                         });
                     }
 
@@ -205,6 +209,7 @@ impl Module for BridgeClientModule {
                                 FunctionResult::Failure(ErrorBody {
                                     code: "bridge_error".into(),
                                     message: err.to_string(),
+                                    stacktrace: None,
                                 })
                             }
                         }

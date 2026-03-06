@@ -131,12 +131,13 @@ impl HttpInvoker {
                 .and_then(|v| v.as_str())
                 .unwrap_or("HTTP request failed")
                 .to_string();
-            return ErrorBody { code, message };
+            return ErrorBody { code, message, stacktrace: None };
         }
 
         ErrorBody {
             code: "http_error".into(),
             message: format!("HTTP {}", status),
+            stacktrace: None,
         }
     }
 
@@ -147,12 +148,14 @@ impl HttpInvoker {
             .map_err(|err| ErrorBody {
                 code: "timestamp_error".into(),
                 message: err.to_string(),
+                stacktrace: None,
             })?
             .as_secs();
 
         let body = serde_json::to_vec(data).map_err(|err| ErrorBody {
             code: "serialization_error".into(),
             message: err.to_string(),
+            stacktrace: None,
         })?;
 
         Ok((timestamp, body))
@@ -165,6 +168,7 @@ impl HttpInvoker {
             .map_err(|e| ErrorBody {
                 code: "url_validation_failed".into(),
                 message: e.to_string(),
+                stacktrace: None,
             })
     }
 
@@ -200,6 +204,7 @@ impl HttpInvoker {
         let response = request.send().await.map_err(|err| ErrorBody {
             code: "http_request_failed".into(),
             message: err.to_string(),
+            stacktrace: None,
         })?;
 
         if response.status().is_success() {
@@ -210,6 +215,7 @@ impl HttpInvoker {
         let bytes = response.bytes().await.map_err(|err| ErrorBody {
             code: "http_response_failed".into(),
             message: err.to_string(),
+            stacktrace: None,
         })?;
 
         Err(Self::parse_error_response(status, &bytes))
@@ -247,12 +253,14 @@ impl HttpInvoker {
         let response = request.send().await.map_err(|err| ErrorBody {
             code: "http_request_failed".into(),
             message: err.to_string(),
+            stacktrace: None,
         })?;
 
         let status = response.status();
         let bytes = response.bytes().await.map_err(|err| ErrorBody {
             code: "http_response_failed".into(),
             message: err.to_string(),
+            stacktrace: None,
         })?;
 
         if status.is_success() {
@@ -262,6 +270,7 @@ impl HttpInvoker {
             let result: Value = serde_json::from_slice(&bytes).map_err(|err| ErrorBody {
                 code: "invalid_response".into(),
                 message: err.to_string(),
+                stacktrace: None,
             })?;
             return Ok(Some(result));
         }

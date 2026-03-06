@@ -41,19 +41,19 @@ export function SpanLogsTab({ span }: SpanLogsTabProps) {
     )
   }
 
-  const firstEventMs = events.length > 0 ? toMs(events[0].timestamp) : 0
+  const firstEventMs = events.length > 0 ? toMs(events[0].timestamp_unix_nano) : 0
 
   return (
     <div className="p-5 space-y-2">
       {events.map((event, index) => {
-        const eventMs = toMs(event.timestamp)
+        const eventMs = toMs(event.timestamp_unix_nano)
         const offsetMs = eventMs - firstEventMs
         const isException = event.name === 'exception' || event.name?.startsWith('exception')
         const attrEntries = event.attributes ? Object.entries(event.attributes) : []
 
         return (
           <div
-            key={`${event.name}-${event.timestamp}`}
+            key={`${event.name}-${event.timestamp_unix_nano}`}
             className={`rounded-lg border overflow-hidden ${
               isException ? 'bg-[#EF4444]/5 border-[#EF4444]/15' : 'bg-[#141414] border-[#1D1D1D]'
             }`}

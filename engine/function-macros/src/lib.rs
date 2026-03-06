@@ -185,6 +185,7 @@ pub fn service(attr: TokenStream, item: TokenStream) -> TokenStream {
                                             FunctionResult::Failure(ErrorBody {
                                                 code: "serialization_error".into(),
                                                 message: format!("Failed to serialize result for {}: {}", #id, err.to_string()),
+                                                stacktrace: None,
                                             })
                                         }
                                     }
@@ -219,6 +220,7 @@ pub fn service(attr: TokenStream, item: TokenStream) -> TokenStream {
                                             return FunctionResult::Failure(ErrorBody {
                                                 code: "deserialization_error".into(),
                                                 message: format!("Failed to deserialize input for {}: {}", #id, err.to_string()),
+                                                stacktrace: None,
                                             });
                                         }
                                     };
