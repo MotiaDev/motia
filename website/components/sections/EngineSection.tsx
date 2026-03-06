@@ -161,12 +161,9 @@ iii.register_function("users::create", create_user)`,
       "Scale up, scale down — topology adapts in real time",
     ],
     code: {
-      typescript: `const iii = new III()
-await iii.connect()`,
-      python: `iii = III()
-await iii.connect()`,
-      rust: `let iii = III::new();
-iii.connect().await;`,
+      typescript: `const iii = init("ws://localhost:49134")`,
+      python: `iii = init("ws://localhost:49134")`,
+      rust: `let iii = init("ws://localhost:49134", InitOptions::default())?;`,
     },
   },
 ];
