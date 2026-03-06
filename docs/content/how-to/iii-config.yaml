@@ -285,8 +285,9 @@ modules:
       # Console output format. Options: default (human-readable with colors), json (structured)
       format: json
 
-  # HTTP Functions module - controls outbound HTTP call security for http-type functions.
-  # Validates URLs before functions make external HTTP requests.
+  # HTTP Functions module - enables HTTP-invoked functions (outbound HTTP calls from the engine).
+  # Required for functions registered with HttpInvocationConfig.
+  # The engine makes the HTTP request on behalf of the function and enforces URL security policies.
   - class: modules::http_functions::HttpFunctionsModule
     config:
       security:
@@ -300,6 +301,12 @@ modules:
         # Require HTTPS for all outbound requests. Prevents accidental plaintext transmission.
         # Default: true
         require_https: true
+      # Local development alternative — relaxes security to allow localhost targets:
+      # security:
+      #   url_allowlist:
+      #     - '*'
+      #   block_private_ips: false
+      #   require_https: false
 
   # Exec module - spawns external processes (SDK workers) and watches for file changes.
   # Useful for setups where workers need to run alongside the engine on the same host.

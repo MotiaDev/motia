@@ -26,19 +26,19 @@ import { init, getContext } from 'iii-sdk';
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
 
 iii.registerFunction(
-    { id: 'math::add', description: 'Add two numbers and store result' },
-    async (input) => {
-        const { logger } = getContext();
-        const result = input.a + input.b;
-        const id = crypto.randomUUID();
-        await iii.trigger('state::set', { scope: 'math', key: id, value: result });
-        logger.info('Math add completed', { id, result });
-        return { id, result };
-    },
+  { id: 'math::add', description: 'Add two numbers and store result' },
+  async (input) => {
+    const { logger } = getContext();
+    const result = input.a + input.b;
+    const id = crypto.randomUUID();
+    await iii.trigger('state::set', { scope: 'math', key: id, value: result });
+    logger.info('Math add completed', { id, result });
+    return { id, result };
+  },
 );
 
-const result = await iii.trigger('math::add', { a: 2, b: 3 });
-logger.info('Result', result); // { id: '...', result: 5 }
+// Triggerable from any other function or worker
+await iii.trigger('math::add', { a: 2, b: 3 });
 ```
 </Tab>
 <Tab value="Python">
@@ -52,21 +52,18 @@ import uuid
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def add(data):
-    ctx = get_context()
-    result = data['a'] + data['b']
-    id = str(uuid.uuid4())
-    await iii.trigger('state::set', {'scope': 'math', 'key': id, 'value': result})
-    ctx.logger.info('Math add completed', {'id': id, 'result': result})
-    print('Math add completed', {'id': id, 'result': result})
-    return {'id': id, 'result': result}
+  ctx = get_context()
+  result = data['a'] + data['b']
+  id = str(uuid.uuid4())
+  await iii.trigger('state::set', {'scope': 'math', 'key': id, 'value': result})
+  ctx.logger.info('Math add completed', {'id': id, 'result': result})
+  return {'id': id, 'result': result}
 
 async def main():
-    iii.register_function('math::add', add)
-    await iii.connect()
-    result = await iii.trigger('math::add', {'a': 2, 'b': 3})
-    print(result)  # {'id': '...', 'result': 5}
-
-asyncio.run(main())
+  iii.register_function('math::add', add)
+  await iii.connect()
+  # Triggerable from any other function or worker
+  await iii.trigger('math::add', {'a': 2, 'b': 3})
 ```
 </Tab>
 <Tab value="Rust">
@@ -77,31 +74,30 @@ use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+  let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+  let iii = III::new(&url);
+  iii.connect().await?;
 
-    let iii_clone = iii.clone();
-    iii.register_function("math::add", move |input| {
-        let iii = iii_clone.clone();
-        async move {
-            let ctx = get_context();
-            let a = input["a"].as_i64().unwrap_or(0);
-            let b = input["b"].as_i64().unwrap_or(0);
-            let result = a + b;
-            let id = Uuid::new_v4().to_string();
+  let iii_clone = iii.clone();
+  iii.register_function("math::add", move |input| {
+    let iii = iii_clone.clone();
+    async move {
+      let ctx = get_context();
+      let a = input["a"].as_i64().unwrap_or(0);
+      let b = input["b"].as_i64().unwrap_or(0);
+      let result = a + b;
+      let id = Uuid::new_v4().to_string();
 
-            iii.trigger("state::set", json!({ "scope": "math", "key": id, "value": result })).await?;
+      iii.trigger("state::set", json!({ "scope": "math", "key": id, "value": result })).await?;
 
-            ctx.logger.info("Math add completed", Some(json!({ "id": id, "result": result })));
-            println!("Math add completed: id={}, result={}", id, result);
-            Ok(json!({ "id": id, "result": result }))
-        }
-    });
+      ctx.logger.info("Math add completed", Some(json!({ "id": id, "result": result })));
+      Ok(json!({ "id": id, "result": result }))
+    }
+  });
 
-    let result = iii.trigger("math::add", json!({ "a": 2, "b": 3 })).await?;
-    println!("{:?}", result); // {"id": "...", "result": 5}
-    Ok(())
+  // Triggerable from any other function or worker
+  iii.trigger("math::add", json!({ "a": 2, "b": 3 })).await?;
+  Ok(())
 }
 ```
 </Tab>
@@ -113,6 +109,11 @@ Instead of passing a handler, you can register an external HTTP endpoint as a fu
 makes the HTTP call when the function is triggered — no client-side HTTP code needed. This is useful
 for delegating work to external services like webhooks, serverless functions, or third-party APIs.
 
+<Callout title="Engine module required" type="warn">
+HTTP-invoked functions require `HttpFunctionsModule` to be enabled in your engine config.
+See the [engine configuration guide](/docs/how-to/configure-engine) for details.
+</Callout>
+
 Pass an `HttpInvocationConfig` as the second argument to `registerFunction` instead of a handler:
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
@@ -123,33 +124,43 @@ import { init } from 'iii-sdk';
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
 
 iii.registerFunction(
-    { id: 'notifications::send' },
-    {
-        url: 'https://hooks.slack.example.com/notify',
-        method: 'POST',
-        timeout_ms: 5000,
-        headers: { 'Authorization': `Bearer ${process.env.SLACK_TOKEN}` },
+  {
+    id: 'notifications::send',
+    description: 'POST notification to Service Provider webhook',
+  },
+  {
+    url: 'https://hooks.provider.example.com/notify',
+    method: 'POST',
+    timeout_ms: 5000,
+    headers: { 'X-Service': 'iii-worker' },
+    auth: {
+      type: 'bearer',
+      token_key: 'PROVIDER_API_TOKEN',
     },
+  },
 );
 
+// Triggerable from any other function or worker
 await iii.trigger('notifications::send', { channel: '#alerts', text: 'Deploy succeeded' });
 ```
 </Tab>
 <Tab value="Python">
 ```python title="http_invoked.py"
-import os
 from iii import III, HttpInvocationConfig
+from iii.iii_types import HttpAuthBearer
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III("ws://localhost:49134")
 
 iii.register_function(
-    'notifications::send',
-    HttpInvocationConfig(
-        url='https://hooks.slack.example.com/notify',
-        method='POST',
-        timeout_ms=5000,
-        headers={'Authorization': f"Bearer {os.environ['SLACK_TOKEN']}"},
-    ),
+  'notifications::send',
+  HttpInvocationConfig(
+    url='https://hooks.provider.example.com/notify',
+    method='POST',
+    timeout_ms=5000,
+    headers={'X-Service': 'iii-worker'},
+    auth=HttpAuthBearer(token_key='PROVIDER_API_TOKEN'),
+  ),
+  description='POST notification to Service Provider webhook',
 )
 
 await iii.trigger('notifications::send', {'channel': '#alerts', 'text': 'Deploy succeeded'})
@@ -157,22 +168,23 @@ await iii.trigger('notifications::send', {'channel': '#alerts', 'text': 'Deploy 
 </Tab>
 <Tab value="Rust">
 ```rust title="http_invoked.rs"
-use iii_sdk::{III, HttpInvocationConfig, HttpMethod};
-use serde_json::json;
+use iii_sdk::{III, HttpAuthConfig, HttpInvocationConfig, HttpMethod};
 use std::collections::HashMap;
 
-let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-let iii = III::new(&url);
+let iii = III::new("ws://localhost:49134");
 iii.connect().await?;
 
+let mut headers = HashMap::new();
+headers.insert("X-Service".to_string(), "iii-worker".to_string());
+
 iii.register_function("notifications::send", HttpInvocationConfig {
-    url: "https://hooks.slack.example.com/notify".to_string(),
-    method: HttpMethod::Post,
-    timeout_ms: Some(5000),
-    headers: HashMap::from([
-        ("Authorization".to_string(), format!("Bearer {}", std::env::var("SLACK_TOKEN").unwrap())),
-    ]),
-    auth: None,
+  url: "https://hooks.provider.example.com/notify".to_string(),
+  method: HttpMethod::Post,
+  timeout_ms: Some(5000),
+  headers,
+  auth: Some(HttpAuthConfig::Bearer {
+    token_key: "PROVIDER_API_TOKEN".to_string(),
+  }),
 });
 
 iii.trigger("notifications::send", json!({ "channel": "#alerts", "text": "Deploy succeeded" })).await?;
@@ -182,7 +194,7 @@ iii.trigger("notifications::send", json!({ "channel": "#alerts", "text": "Deploy
 
 HTTP-invoked functions behave like any other function — they can be triggered with `trigger()`, bound
 to any trigger type (queue, cron, state, etc.), and discovered by other services. The engine forwards
-the trigger data as the HTTP request body and treats non-2xx responses or network errors as failures.
+the trigger data as the JSON request body and treats non-2xx responses or network errors as failures.
 
 ### `HttpInvocationConfig` fields
 
@@ -190,9 +202,14 @@ the trigger data as the HTTP request body and treats non-2xx responses or networ
 |-------|------|---------|-------------|
 | `url` | `string` | — | The endpoint URL to call |
 | `method` | `string` | `"POST"` | HTTP method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) |
-| `timeout_ms` | `number` | — | Request timeout in milliseconds |
+| `timeout_ms` | `number` | `30000` | Request timeout in milliseconds |
 | `headers` | `Record<string, string>` | — | Additional headers to include |
 | `auth` | `HttpAuthConfig` | — | Authentication config (`bearer`, `hmac`, or `api_key`) |
+
+<Callout title="Auth values are environment variable names" type="info">
+Fields like `token_key`, `secret_key`, and `value_key` in `auth` config are environment variable
+names, not raw secrets. The engine resolves them from its process environment at invocation time.
+</Callout>
 
 ## Ways to Trigger Functions
 
@@ -212,19 +229,19 @@ according to internal and external events.
 <Tab value="Node / TypeScript">
 ```typescript title="trigger.ts"
 iii.registerFunction({ id: 'math::calculate' }, async (input) => {
-    const { logger } = getContext();
-    const result = await iii.trigger('math::add', { a: input.a, b: input.b })
-    logger.info('Result', result) // { result: 5 }
-    return result
+  const { logger } = getContext();
+  const result = await iii.trigger('math::add', { a: input.a, b: input.b })
+  logger.info('Result', result) // { result: 5 }
+  return result
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python title="trigger.py"
 async def calculate(data):
-    result = await iii.trigger('math::add', {'a': data['a'], 'b': data['b']})
-    print(result)  # {'result': 5}
-    return result
+  result = await iii.trigger('math::add', {'a': data['a'], 'b': data['b']})
+  print(result)  # {'result': 5}
+  return result
 
 iii.register_function('math::calculate', calculate)
 ```
@@ -232,9 +249,9 @@ iii.register_function('math::calculate', calculate)
 <Tab value="Rust">
 ```rust title="trigger.rs"
 iii.register_function("math::calculate", |input| async move {
-    let result = iii.trigger("math::add", json!({"a": input["a"], "b": input["b"]})).await?;
-    println!("{:?}", result); // {"result": 5}
-    Ok(result)
+  let result = iii.trigger("math::add", json!({"a": input["a"], "b": input["b"]})).await?;
+  println!("{:?}", result); // {"result": 5}
+  Ok(result)
 });
 ```
 </Tab>
@@ -246,14 +263,14 @@ iii.register_function("math::calculate", |input| async move {
 <Tab value="Node / TypeScript">
 ```typescript title="trigger-void.ts"
 iii.registerFunction({ id: 'math::calculate-async' }, async (input) => {
-    iii.triggerVoid('math::add', { a: input.a, b: input.b }) 
+  iii.triggerVoid('math::add', { a: input.a, b: input.b })
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python title="trigger_void.py"
 async def calculate_async(data):
-    iii.trigger_void('math::add', {'a': data['a'], 'b': data['b']})
+  iii.trigger_void('math::add', {'a': data['a'], 'b': data['b']})
 
 iii.register_function('math::calculate-async', calculate_async)
 ```
@@ -261,7 +278,7 @@ iii.register_function('math::calculate-async', calculate_async)
 <Tab value="Rust">
 ```rust title="trigger_void.rs"
 iii.register_function("math::calculate-async", |input| async move {
-    iii.trigger_void("math::add", json!({"a": input["a"], "b": input["b"]}))?;
+  iii.trigger_void("math::add", json!({"a": input["a"], "b": input["b"]}))?;
 });
 ```
 </Tab>
@@ -284,67 +301,65 @@ functions once that functionality is available. */}
 <Tab value="Node / TypeScript">
 ```typescript title="http-trigger.ts"
 iii.registerFunction({ id: 'math::multiply' }, async (req) => {
-    const { logger } = getContext();
-    const { a, b } = req.body;
-    const result = a * b;
-    logger.info('Math multiply', { a, b, result });
-    return {
-        status_code: 200,
-        body: { result },
-        headers: { 'Content-Type': 'application/json' },
-    };
+  const { logger } = getContext();
+  const { a, b } = req.body;
+  const result = a * b;
+  logger.info('Math multiply', { a, b, result });
+  return {
+    status_code: 200,
+    body: { result },
+    headers: { 'Content-Type': 'application/json' },
+  };
 });
 
 iii.registerTrigger({
-    type: 'http',
-    function_id: 'math::multiply',
-    config: { api_path: '/math/multiply', http_method: 'POST' },
+  type: 'http',
+  function_id: 'math::multiply',
+  config: { api_path: '/math/multiply', http_method: 'POST' },
 });
 ```
 </Tab>
 <Tab value="Python">
 ```python title="http_trigger.py"
 async def multiply(req):
-    ctx = get_context()
-    a, b = req['body']['a'], req['body']['b']
-    result = a * b
-    ctx.logger.info('Math multiply', {'a': a, 'b': b, 'result': result})
-    print('Math multiply', {'a': a, 'b': b, 'result': result})
-    return {
-        'status_code': 200,
-        'body': {'result': result},
-        'headers': {'Content-Type': 'application/json'},
-    }
+  ctx = get_context()
+  a, b = req['body']['a'], req['body']['b']
+  result = a * b
+  ctx.logger.info('Math multiply', {'a': a, 'b': b, 'result': result})
+  return {
+    'status_code': 200,
+    'body': {'result': result},
+    'headers': {'Content-Type': 'application/json'},
+  }
 
 iii.register_function('math::multiply', multiply)
 
 iii.register_trigger(
-    type="http",
-    function_id="math::multiply",
-    config={"api_path": "/math/multiply", "http_method": "POST"},
+  type="http",
+  function_id="math::multiply",
+  config={"api_path": "/math/multiply", "http_method": "POST"},
 )
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="http_trigger.rs"
 iii.register_function("math::multiply", |req| async move {
-    let ctx = get_context();
-    let a = req["body"]["a"].as_i64().unwrap_or(0);
-    let b = req["body"]["b"].as_i64().unwrap_or(0);
-    let result = a * b;
-    ctx.logger.info("Math multiply", Some(json!({ "a": a, "b": b, "result": result })));
-    println!("Math multiply: a={}, b={}, result={}", a, b, result);
-    Ok(json!({
-        "status_code": 200,
-        "body": { "result": result },
-        "headers": { "Content-Type": "application/json" }
-    }))
+  let ctx = get_context();
+  let a = req["body"]["a"].as_i64().unwrap_or(0);
+  let b = req["body"]["b"].as_i64().unwrap_or(0);
+  let result = a * b;
+  ctx.logger.info("Math multiply", Some(json!({ "a": a, "b": b, "result": result })));
+  Ok(json!({
+    "status_code": 200,
+    "body": { "result": result },
+    "headers": { "Content-Type": "application/json" }
+  }))
 });
 
 iii.register_trigger(
-    "http",
-    "math::multiply",
-    json!({ "api_path": "/math/multiply", "http_method": "POST" }),
+  "http",
+  "math::multiply",
+  json!({ "api_path": "/math/multiply", "http_method": "POST" }),
 )?;
 ```
 </Tab>
@@ -358,40 +373,39 @@ This example aggregates all stored math results (from `math::add` above) every 3
 <Tab value="Node / TypeScript">
 ```typescript title="cron-trigger.ts"
 iii.registerFunction({ id: 'math::aggregation' }, async () => {
-    const { logger } = getContext();
-    const results = await iii.trigger('state::list', { scope: 'math' });
-    const values = results.filter((r) => typeof r === 'number');
-    const sum = values.reduce((a, b) => a + b, 0);
-    const aggregation = { count: values.length, sum, average: values.length ? sum / values.length : 0 };
-    logger.info('Math aggregation completed', aggregation);
-    return aggregation;
+  const { logger } = getContext();
+  const results = await iii.trigger('state::list', { scope: 'math' });
+  const values = results.filter((r) => typeof r === 'number');
+  const sum = values.reduce((a, b) => a + b, 0);
+  const aggregation = { count: values.length, sum, average: values.length ? sum / values.length : 0 };
+  logger.info('Math aggregation completed', aggregation);
+  return aggregation;
 });
 
 iii.registerTrigger({
-    type: 'cron',
-    function_id: 'math::aggregation',
-    config: { expression: '0 */30 * * * *' }, // every 30 minutes
+  type: 'cron',
+  function_id: 'math::aggregation',
+  config: { expression: '0 */30 * * * *' }, // every 30 minutes
 });
 ```
 </Tab>
 <Tab value="Python">
 ```python title="cron_trigger.py"
 async def aggregation(_):
-    ctx = get_context()
-    results = await iii.trigger('state::list', {'scope': 'math'})
-    values = [r for r in results if isinstance(r, (int, float))]
-    total = sum(values)
-    agg = {'count': len(values), 'sum': total, 'average': total / len(values) if values else 0}
-    ctx.logger.info('Math aggregation completed', agg)
-    print('Math aggregation completed', agg)
-    return agg
+  ctx = get_context()
+  results = await iii.trigger('state::list', {'scope': 'math'})
+  values = [r for r in results if isinstance(r, (int, float))]
+  total = sum(values)
+  agg = {'count': len(values), 'sum': total, 'average': total / len(values) if values else 0}
+  ctx.logger.info('Math aggregation completed', agg)
+  return agg
 
 iii.register_function('math::aggregation', aggregation)
 
 iii.register_trigger(
-    type="cron",
-    function_id="math::aggregation",
-    config={"expression": "0 */30 * * * *"},  # every 30 minutes
+  type="cron",
+  function_id="math::aggregation",
+  config={"expression": "0 */30 * * * *"},  # every 30 minutes
 )
 ```
 </Tab>
@@ -399,26 +413,25 @@ iii.register_trigger(
 ```rust title="cron_trigger.rs"
 let iii_clone = iii.clone();
 iii.register_function("math::aggregation", move |_| {
-    let iii = iii_clone.clone();
-    async move {
-        let ctx = get_context();
-        let results = iii.trigger("state::list", json!({ "scope": "math" })).await?;
-        let values: Vec<i64> = results.as_array()
-            .map(|arr| arr.iter().filter_map(|r| r.as_i64()).collect())
-            .unwrap_or_default();
-        let sum: i64 = values.iter().sum();
-        let count = values.len();
-        let avg = sum as f64 / count as f64;
-        ctx.logger.info("Math aggregation completed", Some(json!({ "count": count, "sum": sum, "average": avg })));
-        println!("Math aggregation completed: count={}, sum={}, average={}", count, sum, avg);
-        Ok(json!({ "count": count, "sum": sum, "average": avg }))
-    }
+  let iii = iii_clone.clone();
+  async move {
+    let ctx = get_context();
+    let results = iii.trigger("state::list", json!({ "scope": "math" })).await?;
+    let values: Vec<i64> = results.as_array()
+      .map(|arr| arr.iter().filter_map(|r| r.as_i64()).collect())
+      .unwrap_or_default();
+    let sum: i64 = values.iter().sum();
+    let count = values.len();
+    let avg = sum as f64 / count as f64;
+    ctx.logger.info("Math aggregation completed", Some(json!({ "count": count, "sum": sum, "average": avg })));
+    Ok(json!({ "count": count, "sum": sum, "average": avg }))
+  }
 });
 
 iii.register_trigger(
-    "cron",
-    "math::aggregation",
-    json!({ "expression": "0 */30 * * * *" }), // every 30 minutes
+  "cron",
+  "math::aggregation",
+  json!({ "expression": "0 */30 * * * *" }), // every 30 minutes
 )?;
 ```
 </Tab>
@@ -434,18 +447,18 @@ engine POSTs the state event to the webhook URL automatically.
 <Tab value="Node / TypeScript">
 ```typescript title="state-trigger.ts"
 iii.registerFunction(
-    { id: 'orders::webhook' },
-    {
-        url: process.env.WEBHOOK_URL!,
-        method: 'POST',
-        timeout_ms: 5000,
-    },
+  { id: 'orders::webhook' },
+  {
+    url: process.env.WEBHOOK_URL!,
+    method: 'POST',
+    timeout_ms: 5000,
+  },
 );
 
 iii.registerTrigger({
-    type: 'state',
-    function_id: 'orders::webhook',
-    config: { scope: 'orders', key: 'status' },
+  type: 'state',
+  function_id: 'orders::webhook',
+  config: { scope: 'orders', key: 'status' },
 });
 ```
 </Tab>
@@ -473,25 +486,25 @@ use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+  let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+  let iii = III::new(&url);
+  iii.connect().await?;
 
-    iii.register_function("orders::webhook", HttpInvocationConfig {
-        url: std::env::var("WEBHOOK_URL").expect("WEBHOOK_URL required"),
-        method: HttpMethod::Post,
-        timeout_ms: Some(5000),
-        headers: HashMap::new(),
-        auth: None,
-    });
+  iii.register_function("orders::webhook", HttpInvocationConfig {
+    url: std::env::var("WEBHOOK_URL").expect("WEBHOOK_URL required"),
+    method: HttpMethod::Post,
+    timeout_ms: Some(5000),
+    headers: HashMap::new(),
+    auth: None,
+  });
 
-    iii.register_trigger(
-        "state",
-        "orders::webhook",
-        json!({ "scope": "orders", "key": "status" }),
-    )?;
+  iii.register_trigger(
+    "state",
+    "orders::webhook",
+    json!({ "scope": "orders", "key": "status" }),
+  )?;
 
-    Ok(())
+  Ok(())
 }
 ```
 </Tab>
@@ -511,9 +524,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 <Tab value="Node / TypeScript">
 ```typescript title="unregister.ts"
 const t = iii.registerTrigger({
-    type: 'http',
-    function_id: 'fn::id',
-    config: { api_path: '/ping', http_method: 'GET' }
+  type: 'http',
+  function_id: 'fn::id',
+  config: { api_path: '/ping', http_method: 'GET' }
 })
 t.unregister()
 ```
@@ -521,9 +534,9 @@ t.unregister()
 <Tab value="Python">
 ```python title="unregister.py"
 t = iii.register_trigger(
-    type="http",
-    function_id="fn::id",
-    config={"api_path": "/ping", "http_method": "GET"}
+  type="http",
+  function_id="fn::id",
+  config={"api_path": "/ping", "http_method": "GET"}
 )
 t.unregister()
 ```
@@ -531,9 +544,9 @@ t.unregister()
 <Tab value="Rust">
 ```rust title="unregister.rs"
 let t = iii.register_trigger(
-    "http",
-    "fn::id",
-    json!({"api_path": "/ping", "http_method": "GET"}),
+  "http",
+  "fn::id",
+  json!({"api_path": "/ping", "http_method": "GET"}),
 )?;
 t.unregister();
 ```
@@ -562,21 +575,21 @@ Any Function can be Triggered anywhere regardless of language. The engine handle
 <Tab value="Node / TypeScript">
 ```typescript title="cross-language.ts"
 iii.registerFunction({ id: 'math::double' }, async (input) => {
-    const { logger } = getContext();
-    // Trigger a function that might be implemented in Python, Rust, or any other language
-    const result = await iii.trigger('math::add', { a: input.value, b: input.value })
-    logger.info('Result', result) // { result: 10 } if input.value was 5
-    return result
+  const { logger } = getContext();
+  // Trigger a function that might be implemented in Python, Rust, or any other language
+  const result = await iii.trigger('math::add', { a: input.value, b: input.value })
+  logger.info('Result', result) // { result: 10 } if input.value was 5
+  return result
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python title="cross_language.py"
 async def double(data):
-    # Trigger a function that might be implemented in Node, Rust, or any other language
-    result = await iii.trigger('math::add', {'a': data['value'], 'b': data['value']})
-    print(result)  # {'result': 10} if value was 5
-    return result
+  # Trigger a function that might be implemented in Node, Rust, or any other language
+  result = await iii.trigger('math::add', {'a': data['value'], 'b': data['value']})
+  print(result)  # {'result': 10} if value was 5
+  return result
 
 iii.register_function('math::double', double)
 ```
@@ -584,11 +597,11 @@ iii.register_function('math::double', double)
 <Tab value="Rust">
 ```rust title="cross_language.rs"
 iii.register_function("math::double", |input| async move {
-    // Trigger a function that might be implemented in Node, Python, or any other language
-    let value = input["value"].as_i64().unwrap_or(0);
-    let result = iii.trigger("math::add", json!({"a": value, "b": value})).await?;
-    println!("{:?}", result); // {"result": 10} if value was 5
-    Ok(result)
+  // Trigger a function that might be implemented in Node, Python, or any other language
+  let value = input["value"].as_i64().unwrap_or(0);
+  let result = iii.trigger("math::add", json!({"a": value, "b": value})).await?;
+  println!("{:?}", result); // {"result": 10} if value was 5
+  Ok(result)
 });
 ```
 </Tab>
