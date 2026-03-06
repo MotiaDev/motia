@@ -15,7 +15,6 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 
 from .channels import ChannelReader, ChannelWriter
-from .context import Context, with_context
 from .iii_types import (
     FunctionInfo,
     HttpInvocationConfig,
@@ -32,7 +31,6 @@ from .iii_types import (
     UnregisterTriggerTypeMessage,
     WorkerInfo,
 )
-from .logger import Logger
 from .stream import IStream
 from .telemetry_types import OtelConfig
 from .triggers import Trigger, TriggerConfig, TriggerHandler
@@ -596,9 +594,7 @@ class III:
             self._send_if_connected(msg)
 
             async def wrapped(input_data: Any) -> Any:
-                logger = Logger(function_name=path)
-                ctx = Context(logger=logger)
-                return await with_context(lambda _: handler(input_data), ctx)
+                return await handler(input_data)
 
             self._functions[path] = RemoteFunctionData(message=msg, handler=wrapped)
 
