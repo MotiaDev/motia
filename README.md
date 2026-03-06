@@ -40,9 +40,10 @@ npm install iii-sdk
 ```
 
 ```javascript
-import { init } from 'iii-sdk';
+import { init, getContext } from 'iii-sdk';
 
 const iii = init('ws://localhost:49134');
+const { logger } = getContext();
 
 iii.registerFunction({ id: 'math.add' }, async (input) => {
   return { sum: input.a + input.b };
@@ -55,7 +56,7 @@ iii.registerTrigger({
 });
 
 const result = await iii.trigger('math.add', { a: 1, b: 2 });
-console.log(result); // { sum: 3 }
+logger.info('result', result); // { sum: 3 }
 ```
 
 Your function is now live at `http://localhost:3111/add`.
@@ -69,10 +70,11 @@ pip install iii-sdk
 
 ```python
 import asyncio
-from iii import init
+from iii import init, get_context
 
 async def main():
     iii = init("ws://localhost:49134")
+    logger = get_context().logger
 
     async def add(data):
         return {"sum": data["a"] + data["b"]}
@@ -86,7 +88,7 @@ async def main():
     )
 
     result = await iii.trigger("math.add", {"a": 1, "b": 2})
-    print(result)  # {"sum": 3}
+    logger.info("result", result)  # {"sum": 3}
 
 asyncio.run(main())
 ```
@@ -97,7 +99,7 @@ asyncio.run(main())
 <summary>Rust</summary>
 
 ```rust
-use iii_sdk::{init, InitOptions};
+use iii_sdk::{init, InitOptions, get_context};
 use serde_json::json;
 
 #[tokio::main]
@@ -116,7 +118,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }))?;
 
     let result = iii.trigger("math.add", json!({ "a": 1, "b": 2 })).await?;
-    println!("{result}"); // {"sum":3}
+    let logger = get_context().logger;
+    logger.info("result", &result); // {"sum":3}
 
     Ok(())
 }
