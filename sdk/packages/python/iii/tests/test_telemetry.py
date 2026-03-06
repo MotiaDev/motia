@@ -1,5 +1,6 @@
 """Tests for OTel init/shutdown."""
 import urllib.request
+
 import pytest
 
 from iii.telemetry import get_tracer, init_otel, is_initialized, shutdown_otel, shutdown_otel_async
@@ -97,6 +98,7 @@ def test_init_configures_engine_span_exporter():
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
     from iii.telemetry_exporters import EngineSpanExporter
 
     init_otel(OtelConfig(enabled=True))
@@ -131,8 +133,9 @@ def test_init_logs_disabled():
 def test_shutdown_closes_connection():
     """shutdown_otel_async() closes the SharedEngineConnection."""
     import asyncio
+    from unittest.mock import AsyncMock, patch
+
     from iii.telemetry_exporters import SharedEngineConnection
-    from unittest.mock import patch, AsyncMock
 
     with patch.object(SharedEngineConnection, "start"), \
          patch.object(SharedEngineConnection, "shutdown", new_callable=AsyncMock) as mock_shutdown:
