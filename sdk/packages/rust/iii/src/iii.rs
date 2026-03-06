@@ -1087,7 +1087,7 @@ impl III {
             if let Some(invocation_id) = invocation_id {
                 let (resp_tp, resp_bg) = inject_trace_headers();
 
-                let error = ErrorBody { code, message };
+                let error = ErrorBody { code, message, stacktrace: None };
                 let result = self.send_message(Message::InvocationResult {
                     invocation_id,
                     function_id,
@@ -1139,10 +1139,18 @@ impl III {
             #[cfg(feature = "otel")]
             {
                 use opentelemetry::trace::{Status, TraceContextExt};
+                use opentelemetry::KeyValue;
                 let span = otel_cx.span();
                 match &result {
                     Ok(_) => span.set_status(Status::Ok),
-                    Err(err) => span.set_status(Status::error(err.to_string())),
+                    Err(err) => {
+                        span.set_status(Status::error(err.to_string()));
+                        span.add_event("exception", vec![
+                            KeyValue::new("exception.type", "InvocationError"),
+                            KeyValue::new("exception.message", err.to_string()),
+                            KeyValue::new("exception.stacktrace", format!("{:?}", err)),
+                        ]);
+                    }
                 }
             }
 
@@ -1174,6 +1182,7 @@ impl III {
                         error: Some(ErrorBody {
                             code: "invocation_failed".to_string(),
                             message: err.to_string(),
+                            stacktrace: Some(std::backtrace::Backtrace::force_capture().to_string()),
                         }),
                         traceparent: resp_tp,
                         baggage: resp_bg,
@@ -1225,6 +1234,7 @@ impl III {
                         error: Some(ErrorBody {
                             code: "trigger_registration_failed".to_string(),
                             message: err.to_string(),
+                            stacktrace: None,
                         }),
                     },
                 }
@@ -1236,6 +1246,7 @@ impl III {
                     error: Some(ErrorBody {
                         code: "trigger_type_not_found".to_string(),
                         message: "Trigger type not found".to_string(),
+                        stacktrace: None,
                     }),
                 }
             };

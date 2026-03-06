@@ -266,12 +266,14 @@ impl StateCoreModule {
                     Err(e) => FunctionResult::Failure(ErrorBody {
                         message: format!("Failed to convert value to JSON: {}", e),
                         code: "JSON_ERROR".to_string(),
+                        stacktrace: None,
                     }),
                 }
             }
             Err(e) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to set value: {}", e),
                 code: "SET_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }
@@ -284,6 +286,7 @@ impl StateCoreModule {
             Err(e) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to get value: {}", e),
                 code: "GET_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }
@@ -299,6 +302,7 @@ impl StateCoreModule {
                 return FunctionResult::Failure(ErrorBody {
                     message: format!("Failed to get value before delete: {}", e),
                     code: "GET_ERROR".to_string(),
+                    stacktrace: None,
                 });
             }
         };
@@ -323,6 +327,7 @@ impl StateCoreModule {
             Err(e) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to delete value: {}", e),
                 code: "DELETE_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }
@@ -362,12 +367,14 @@ impl StateCoreModule {
                     Err(e) => FunctionResult::Failure(ErrorBody {
                         message: format!("Failed to convert value to JSON: {}", e),
                         code: "JSON_ERROR".to_string(),
+                        stacktrace: None,
                     }),
                 }
             }
             Err(e) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to update value: {}", e),
                 code: "UPDATE_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }
@@ -382,6 +389,7 @@ impl StateCoreModule {
             Err(e) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to list values: {}", e),
                 code: "LIST_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }
@@ -409,6 +417,7 @@ impl StateCoreModule {
             Err(e) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to list groups: {}", e),
                 code: "LIST_GROUPS_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }

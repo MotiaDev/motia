@@ -804,7 +804,11 @@ class Sdk implements ISdk {
         this.sendMessage(MessageType.InvocationResult, {
           invocation_id,
           function_id,
-          error: { code: 'invocation_failed', message: (error as Error).message },
+          error: {
+            code: 'invocation_failed',
+            message: (error as Error).message,
+            stacktrace: (error as Error).stack,
+          },
           traceparent: getResponseTraceparent(),
           baggage: getResponseBaggage(),
         })

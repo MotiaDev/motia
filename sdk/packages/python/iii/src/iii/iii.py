@@ -362,20 +362,23 @@ class III:
         """
         try:
             from opentelemetry import context as otel_context
-            from opentelemetry import propagate
+            from opentelemetry import propagate, trace
             carrier: dict[str, str] = {}
             if traceparent:
                 carrier["traceparent"] = traceparent
             if baggage:
                 carrier["baggage"] = baggage
             parent_ctx = propagate.extract(carrier) if carrier else otel_context.get_current()
-            token = otel_context.attach(parent_ctx)
-            try:
+            tracer = trace.get_tracer("iii-python-sdk")
+            with tracer.start_as_current_span(
+                f"call {handler.__name__}",
+                context=parent_ctx,
+                kind=trace.SpanKind.SERVER,
+            ) as span:
                 result = await handler(data)
+                span.set_status(trace.StatusCode.OK)
                 response_traceparent = self._inject_traceparent()
                 return result, response_traceparent
-            finally:
-                otel_context.detach(token)
         except ImportError:
             return await handler(data), None
 
@@ -428,11 +431,12 @@ class III:
         except Exception as e:
             log.exception("Failed to resolve channel refs")
             if invocation_id:
+                import traceback
                 await self._send(
                     InvocationResultMessage(
                         invocation_id=invocation_id,
                         function_id=path,
-                        error={"code": "invocation_failed", "message": str(e)},
+                        error={"code": "invocation_failed", "message": str(e), "stacktrace": traceback.format_exc()},
                     )
                 )
             return
@@ -461,11 +465,12 @@ class III:
             )
         except Exception as e:
             log.exception(f"Error in handler {path}")
+            import traceback
             await self._send(
                 InvocationResultMessage(
                     invocation_id=invocation_id,
                     function_id=path,
-                    error={"code": "invocation_failed", "message": str(e)},
+                    error={"code": "invocation_failed", "message": str(e), "stacktrace": traceback.format_exc()},
                 )
             )
 

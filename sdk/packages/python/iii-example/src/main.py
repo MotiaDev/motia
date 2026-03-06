@@ -51,6 +51,11 @@ def _setup() -> None:
     )
 
     use_api(
+        {"api_path": "error-test", "http_method": "GET", "description": "Raises an error to test OTEL stack traces"},
+        _error_test,
+    )
+
+    use_api(
         {"api_path": "http-fetch", "http_method": "GET", "description": "Fetch a todo from JSONPlaceholder (tests urllib instrumentation)"},
         _fetch_example,
     )
@@ -141,6 +146,10 @@ async def _get_state(req: ApiRequest, ctx) -> ApiResponse:
     todo_id = req.path_params.get("id")
     todo = await state.get("todo", todo_id)
     return ApiResponse(statusCode=200, body=todo, headers={"Content-Type": "application/json"})
+
+
+async def _error_test(req: ApiRequest, ctx) -> ApiResponse:
+    raise ValueError("Intentional error for OTEL stacktrace testing")
 
 
 async def _fetch_example(req: ApiRequest, ctx) -> ApiResponse:

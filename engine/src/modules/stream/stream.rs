@@ -381,6 +381,7 @@ impl StreamCoreModule {
                         return FunctionResult::Failure(ErrorBody {
                             message: format!("Failed to convert input to value: {}", e),
                             code: "JSON_ERROR".to_string(),
+                            stacktrace: None,
                         });
                     }
                 };
@@ -393,6 +394,7 @@ impl StreamCoreModule {
                             return FunctionResult::Failure(ErrorBody {
                                 message: format!("Failed to convert result to value: {}", e),
                                 code: "JSON_ERROR".to_string(),
+                                stacktrace: None,
                             });
                         }
                     },
@@ -440,6 +442,7 @@ impl StreamCoreModule {
             Err(error) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to set value: {}", error),
                 code: "STREAM_SET_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }
@@ -466,6 +469,7 @@ impl StreamCoreModule {
                         return FunctionResult::Failure(ErrorBody {
                             message: format!("Failed to convert input to value: {}", e),
                             code: "JSON_ERROR".to_string(),
+                            stacktrace: None,
                         });
                     }
                 };
@@ -484,6 +488,7 @@ impl StreamCoreModule {
                     FunctionResult::Failure(ErrorBody {
                         message: format!("Failed to get value: {}", e),
                         code: "STREAM_GET_ERROR".to_string(),
+                        stacktrace: None,
                     })
                 }
             },
@@ -513,6 +518,7 @@ impl StreamCoreModule {
                         return FunctionResult::Failure(ErrorBody {
                             message: format!("Failed to convert input to value: {}", e),
                             code: "JSON_ERROR".to_string(),
+                            stacktrace: None,
                         });
                     }
                 };
@@ -525,6 +531,7 @@ impl StreamCoreModule {
                                 return FunctionResult::Failure(ErrorBody {
                                     message: format!("Failed to convert result to value: {}", e),
                                     code: "JSON_ERROR".to_string(),
+                                    stacktrace: None,
                                 });
                             }
                         };
@@ -562,6 +569,7 @@ impl StreamCoreModule {
             Err(error) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to delete value: {}", error),
                 code: "STREAM_DELETE_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }
@@ -587,6 +595,7 @@ impl StreamCoreModule {
                         return FunctionResult::Failure(ErrorBody {
                             message: format!("Failed to convert input to value: {}", e),
                             code: "JSON_ERROR".to_string(),
+                            stacktrace: None,
                         });
                     }
                 };
@@ -605,6 +614,7 @@ impl StreamCoreModule {
                     FunctionResult::Failure(ErrorBody {
                         message: format!("Failed to get group: {}", e),
                         code: "STREAM_GET_GROUP_ERROR".to_string(),
+                        stacktrace: None,
                     })
                 }
             },
@@ -636,6 +646,7 @@ impl StreamCoreModule {
                         return FunctionResult::Failure(ErrorBody {
                             message: format!("Failed to convert input to value: {}", e),
                             code: "JSON_ERROR".to_string(),
+                            stacktrace: None,
                         });
                     }
                 };
@@ -653,6 +664,7 @@ impl StreamCoreModule {
                     FunctionResult::Failure(ErrorBody {
                         message: format!("Failed to list groups: {}", e),
                         code: "STREAM_LIST_GROUPS_ERROR".to_string(),
+                        stacktrace: None,
                     })
                 }
             },
@@ -691,6 +703,7 @@ impl StreamCoreModule {
                 FunctionResult::Failure(ErrorBody {
                     message: format!("Failed to list stream: {}", e),
                     code: "STREAM_LIST_ALL_ERROR".to_string(),
+                    stacktrace: None,
                 })
             }
         }
@@ -722,6 +735,7 @@ impl StreamCoreModule {
             return FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to send event: {}", e),
                 code: "STREAM_SEND_ERROR".to_string(),
+                stacktrace: None,
             });
         }
 
@@ -758,6 +772,7 @@ impl StreamCoreModule {
                         return FunctionResult::Failure(ErrorBody {
                             message: format!("Failed to convert input to value: {}", e),
                             code: "JSON_ERROR".to_string(),
+                            stacktrace: None,
                         });
                     }
                 };
@@ -770,6 +785,7 @@ impl StreamCoreModule {
                             return FunctionResult::Failure(ErrorBody {
                                 message: format!("Failed to convert result to value: {}", e),
                                 code: "JSON_ERROR".to_string(),
+                                stacktrace: None,
                             });
                         }
                     },
@@ -813,6 +829,7 @@ impl StreamCoreModule {
             Err(error) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to update value: {}", error),
                 code: "STREAM_SET_ERROR".to_string(),
+                stacktrace: None,
             }),
         }
     }

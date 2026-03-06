@@ -63,6 +63,7 @@ impl InvocationHandler {
             let _ = invocation.sender.send(Err(ErrorBody {
                 code: "invocation_stopped".into(),
                 message: "Invocation stopped".into(),
+                stacktrace: None,
             }));
         }
     }

@@ -6,6 +6,17 @@ import './http-example'
 
 useApi(
   {
+    api_path: 'error-test',
+    http_method: 'GET',
+    description: 'Throws an error to test OTEL stack traces',
+  },
+  async () => {
+    throw new Error('Intentional error for OTEL stacktrace testing')
+  },
+)
+
+useApi(
+  {
     api_path: '/todo',
     http_method: 'POST',
     description: 'Create a new todo',

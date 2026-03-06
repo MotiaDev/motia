@@ -215,6 +215,7 @@ impl Engine {
             Ok(Err(ErrorBody {
                 code: "function_not_found".into(),
                 message: format!("Function {} not found", function_id),
+                stacktrace: None,
             }))
         }
     }
@@ -414,6 +415,7 @@ impl Engine {
                                                 error: Some(ErrorBody {
                                                     code: "invocation_error".into(),
                                                     message: err.to_string(),
+                                                    stacktrace: None,
                                                 }),
                                                 traceparent: response_traceparent,
                                                 baggage: response_baggage,
@@ -808,6 +810,7 @@ impl EngineTrait for Engine {
         let input = serde_json::to_value(input).map_err(|e| ErrorBody {
             code: "serialization_error".into(),
             message: e.to_string(),
+            stacktrace: None,
         })?;
         let function_opt = self.functions.get(function_id);
 
@@ -836,12 +839,14 @@ impl EngineTrait for Engine {
                 Err(err) => Err(ErrorBody {
                     code: "invocation_error".into(),
                     message: err.to_string(),
+                    stacktrace: None,
                 }),
             }
         } else {
             Err(ErrorBody {
                 code: "function_not_found".into(),
                 message: format!("Function {} not found", function_id),
+                stacktrace: None,
             })
         }
     }
