@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from .types import HttpRequest, HttpResponse, InternalHttpRequest
+from .types import is_channel_ref as is_channel_ref  # noqa: F401 - re-exported from types
 
 if TYPE_CHECKING:
     from .types import ApiResponse
@@ -49,6 +50,3 @@ def http(
         return await callback(http_request, http_response)
 
     return wrapper
-
-
-from .types import is_channel_ref as is_channel_ref  # noqa: F401 — re-exported from types
