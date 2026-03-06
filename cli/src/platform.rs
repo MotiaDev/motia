@@ -9,34 +9,40 @@ use crate::registry::BinarySpec;
 /// Linux aarch64 uses gnu (no musl builds available).
 pub fn current_target() -> &'static str {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    {
-        "aarch64-apple-darwin"
-    }
+    return "aarch64-apple-darwin";
 
     #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-    {
-        "x86_64-apple-darwin"
-    }
+    return "x86_64-apple-darwin";
 
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    {
-        "x86_64-unknown-linux-musl"
-    }
+    return "x86_64-unknown-linux-musl";
 
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    {
-        "aarch64-unknown-linux-gnu"
-    }
+    return "aarch64-unknown-linux-gnu";
+
+    #[cfg(all(target_os = "linux", target_arch = "arm"))]
+    return "armv7-unknown-linux-gnueabihf";
 
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    {
-        "x86_64-pc-windows-msvc"
-    }
+    return "x86_64-pc-windows-msvc";
+
+    #[cfg(all(target_os = "windows", target_arch = "x86"))]
+    return "i686-pc-windows-msvc";
 
     #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-    {
-        "aarch64-pc-windows-msvc"
-    }
+    return "aarch64-pc-windows-msvc";
+
+    #[cfg(not(any(
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(target_os = "macos", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "aarch64"),
+        all(target_os = "linux", target_arch = "arm"),
+        all(target_os = "windows", target_arch = "x86_64"),
+        all(target_os = "windows", target_arch = "x86"),
+        all(target_os = "windows", target_arch = "aarch64"),
+    )))]
+    compile_error!("unsupported target platform for iii-cli")
 }
 
 /// Returns the archive extension for the current platform.
@@ -140,7 +146,9 @@ fn format_target_human(target: &str) -> String {
         "x86_64-unknown-linux-gnu" => "Linux x86_64 (glibc)".to_string(),
         "x86_64-unknown-linux-musl" => "Linux x86_64 (musl)".to_string(),
         "aarch64-unknown-linux-gnu" => "Linux ARM64".to_string(),
+        "armv7-unknown-linux-gnueabihf" => "Linux ARMv7".to_string(),
         "x86_64-pc-windows-msvc" => "Windows x86_64".to_string(),
+        "i686-pc-windows-msvc" => "Windows x86".to_string(),
         "aarch64-pc-windows-msvc" => "Windows ARM64".to_string(),
         other => other.to_string(),
     }
