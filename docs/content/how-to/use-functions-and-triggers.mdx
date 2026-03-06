@@ -21,14 +21,14 @@ This will be addrssed shortly so that a single initialization step is all that w
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="math-add.ts"
-import { init, getContext } from 'iii-sdk';
+import { init, Logger } from 'iii-sdk';
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
 
 iii.registerFunction(
   { id: 'math::add', description: 'Add two numbers and store result' },
   async (input) => {
-    const { logger } = getContext();
+    const logger = new Logger();
     const result = input.a + input.b;
     const id = crypto.randomUUID();
     await iii.trigger('state::set', { scope: 'math', key: id, value: result });
@@ -43,8 +43,7 @@ await iii.trigger('math::add', { a: 2, b: 3 });
 </Tab>
 <Tab value="Python">
 ```python title="math_add.py"
-from iii import III
-from iii.context import get_context
+from iii import III, Logger
 import asyncio
 import os
 import uuid
@@ -52,11 +51,11 @@ import uuid
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def add(data):
-  ctx = get_context()
+  logger = Logger()
   result = data['a'] + data['b']
   id = str(uuid.uuid4())
   await iii.trigger('state::set', {'scope': 'math', 'key': id, 'value': result})
-  ctx.logger.info('Math add completed', {'id': id, 'result': result})
+  logger.info('Math add completed', {'id': id, 'result': result})
   return {'id': id, 'result': result}
 
 async def main():
@@ -68,7 +67,7 @@ async def main():
 </Tab>
 <Tab value="Rust">
 ```rust title="math_add.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{Logger, III};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -82,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   iii.register_function("math::add", move |input| {
     let iii = iii_clone.clone();
     async move {
-      let ctx = get_context();
+      let logger = Logger();
       let a = input["a"].as_i64().unwrap_or(0);
       let b = input["b"].as_i64().unwrap_or(0);
       let result = a + b;
@@ -90,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
       iii.trigger("state::set", json!({ "scope": "math", "key": id, "value": result })).await?;
 
-      ctx.logger.info("Math add completed", Some(json!({ "id": id, "result": result })));
+      logger.info("Math add completed", Some(json!({ "id": id, "result": result })));
       Ok(json!({ "id": id, "result": result }))
     }
   });
@@ -229,7 +228,7 @@ according to internal and external events.
 <Tab value="Node / TypeScript">
 ```typescript title="trigger.ts"
 iii.registerFunction({ id: 'math::calculate' }, async (input) => {
-  const { logger } = getContext();
+  const logger = new Logger();
   const result = await iii.trigger('math::add', { a: input.a, b: input.b })
   logger.info('Result', result) // { result: 5 }
   return result
@@ -301,7 +300,7 @@ functions once that functionality is available. */}
 <Tab value="Node / TypeScript">
 ```typescript title="http-trigger.ts"
 iii.registerFunction({ id: 'math::multiply' }, async (req) => {
-  const { logger } = getContext();
+  const logger = new Logger();
   const { a, b } = req.body;
   const result = a * b;
   logger.info('Math multiply', { a, b, result });
@@ -322,10 +321,10 @@ iii.registerTrigger({
 <Tab value="Python">
 ```python title="http_trigger.py"
 async def multiply(req):
-  ctx = get_context()
+  logger = Logger()
   a, b = req['body']['a'], req['body']['b']
   result = a * b
-  ctx.logger.info('Math multiply', {'a': a, 'b': b, 'result': result})
+  logger.info('Math multiply', {'a': a, 'b': b, 'result': result})
   return {
     'status_code': 200,
     'body': {'result': result},
@@ -344,11 +343,11 @@ iii.register_trigger(
 <Tab value="Rust">
 ```rust title="http_trigger.rs"
 iii.register_function("math::multiply", |req| async move {
-  let ctx = get_context();
+  let logger = Logger();
   let a = req["body"]["a"].as_i64().unwrap_or(0);
   let b = req["body"]["b"].as_i64().unwrap_or(0);
   let result = a * b;
-  ctx.logger.info("Math multiply", Some(json!({ "a": a, "b": b, "result": result })));
+  logger.info("Math multiply", Some(json!({ "a": a, "b": b, "result": result })));
   Ok(json!({
     "status_code": 200,
     "body": { "result": result },
@@ -373,7 +372,7 @@ This example aggregates all stored math results (from `math::add` above) every 3
 <Tab value="Node / TypeScript">
 ```typescript title="cron-trigger.ts"
 iii.registerFunction({ id: 'math::aggregation' }, async () => {
-  const { logger } = getContext();
+  const logger = new Logger();
   const results = await iii.trigger('state::list', { scope: 'math' });
   const values = results.filter((r) => typeof r === 'number');
   const sum = values.reduce((a, b) => a + b, 0);
@@ -392,12 +391,12 @@ iii.registerTrigger({
 <Tab value="Python">
 ```python title="cron_trigger.py"
 async def aggregation(_):
-  ctx = get_context()
+  logger = Logger()
   results = await iii.trigger('state::list', {'scope': 'math'})
   values = [r for r in results if isinstance(r, (int, float))]
   total = sum(values)
   agg = {'count': len(values), 'sum': total, 'average': total / len(values) if values else 0}
-  ctx.logger.info('Math aggregation completed', agg)
+  logger.info('Math aggregation completed', agg)
   return agg
 
 iii.register_function('math::aggregation', aggregation)
@@ -415,7 +414,7 @@ let iii_clone = iii.clone();
 iii.register_function("math::aggregation", move |_| {
   let iii = iii_clone.clone();
   async move {
-    let ctx = get_context();
+    let logger = Logger();
     let results = iii.trigger("state::list", json!({ "scope": "math" })).await?;
     let values: Vec<i64> = results.as_array()
       .map(|arr| arr.iter().filter_map(|r| r.as_i64()).collect())
@@ -423,7 +422,7 @@ iii.register_function("math::aggregation", move |_| {
     let sum: i64 = values.iter().sum();
     let count = values.len();
     let avg = sum as f64 / count as f64;
-    ctx.logger.info("Math aggregation completed", Some(json!({ "count": count, "sum": sum, "average": avg })));
+    logger.info("Math aggregation completed", Some(json!({ "count": count, "sum": sum, "average": avg })));
     Ok(json!({ "count": count, "sum": sum, "average": avg }))
   }
 });
@@ -575,7 +574,7 @@ Any Function can be Triggered anywhere regardless of language. The engine handle
 <Tab value="Node / TypeScript">
 ```typescript title="cross-language.ts"
 iii.registerFunction({ id: 'math::double' }, async (input) => {
-  const { logger } = getContext();
+  const logger = new Logger();
   // Trigger a function that might be implemented in Python, Rust, or any other language
   const result = await iii.trigger('math::add', { a: input.value, b: input.value })
   logger.info('Result', result) // { result: 10 } if input.value was 5
