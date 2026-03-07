@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag to build from (e.g., iii/v1.2.3)'
+        description: 'Release tag to build from (e.g., v1.2.3)'
         required: true
         type: string
   workflow_call:
     inputs:
       release_tag:
-        description: 'Release tag to build from (e.g., iii/v1.2.3)'
+        description: 'Release tag to build from (e.g., v1.2.3)'
         required: true
         type: string
 
@@ -35,7 +35,7 @@ jobs:
         env:
           TAG: ${{ inputs.release_tag }}
         run: |
-          VERSION="${TAG#iii/v}"
+          VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "::notice::Docker build for iii v$VERSION (tag=$TAG)"
 
