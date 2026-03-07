@@ -74,3 +74,65 @@ async fn test_engine_function_registration() {
 
     assert!(engine.functions.get("another.test").is_some());
 }
+
+#[tokio::test]
+async fn worker_pid_is_stored_and_listed() {
+    use iii::{
+        engine::Outbound,
+        modules::{
+            module::Module, observability::metrics::ensure_default_meter, worker::WorkerModule,
+        },
+        workers::Worker,
+    };
+
+    ensure_default_meter();
+    let engine = Arc::new(Engine::new());
+
+    let worker_module = WorkerModule::create(engine.clone(), None)
+        .await
+        .expect("create WorkerModule");
+    worker_module
+        .initialize()
+        .await
+        .expect("initialize WorkerModule");
+    worker_module.register_functions(engine.clone());
+
+    // Simulate worker connecting
+    let (tx, _rx) = tokio::sync::mpsc::channel::<Outbound>(8);
+    let worker = Worker::new(tx);
+    let worker_id = worker.id.to_string();
+    engine.worker_registry.register_worker(worker);
+
+    // Register with pid
+    engine
+        .call(
+            "engine::workers::register",
+            serde_json::json!({
+                "_caller_worker_id": worker_id,
+                "runtime": "node",
+                "version": "20.0.0",
+                "pid": 42000u32,
+            }),
+        )
+        .await
+        .expect("register call should succeed");
+
+    // List workers and verify pid is present
+    let list_result = engine
+        .call("engine::workers::list", serde_json::json!({}))
+        .await
+        .expect("list call succeeds")
+        .expect("result is Some");
+
+    let workers = list_result
+        .get("workers")
+        .and_then(|v| v.as_array())
+        .expect("workers array");
+
+    let found = workers
+        .iter()
+        .find(|w| w.get("id").and_then(|v| v.as_str()) == Some(worker_id.as_str()))
+        .expect("worker in list");
+
+    assert_eq!(found.get("pid").and_then(|v| v.as_u64()), Some(42000u64));
+}

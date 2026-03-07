@@ -52,6 +52,11 @@ impl WorkerRegistry {
     }
 
     pub fn register_worker(&self, worker: Worker) {
+        tracing::info!(
+            worker_id = %worker.id,
+            ip_address = ?worker.ip_address,
+            "Worker registered"
+        );
         self.workers.insert(worker.id, worker);
         let count = self.workers.len() as i64;
 
@@ -69,7 +74,19 @@ impl WorkerRegistry {
     }
 
     pub fn unregister_worker(&self, worker_id: &Uuid) {
-        tracing::debug!("Unregistering worker: {}", worker_id);
+        let (ip_address, pid) = self
+            .workers
+            .get(worker_id)
+            .map(|w| (w.ip_address.clone(), w.pid))
+            .unwrap_or((None, None));
+
+        tracing::info!(
+            worker_id = %worker_id,
+            ip_address = ?ip_address,
+            pid = ?pid,
+            "Worker unregistered"
+        );
+
         self.workers.remove(worker_id);
         let count = self.workers.len() as i64;
 
@@ -91,6 +108,7 @@ impl WorkerRegistry {
             .collect()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update_worker_metadata(
         &self,
         worker_id: &Uuid,
@@ -99,6 +117,7 @@ impl WorkerRegistry {
         name: Option<String>,
         os: Option<String>,
         telemetry: Option<WorkerTelemetryMeta>,
+        pid: Option<u32>,
     ) {
         if let Some(mut worker) = self.workers.get_mut(worker_id) {
             worker.runtime = Some(runtime);
@@ -110,6 +129,9 @@ impl WorkerRegistry {
                 worker.os = os;
             }
             worker.telemetry = telemetry;
+            if pid.is_some() {
+                worker.pid = pid;
+            }
         }
     }
 
@@ -181,6 +203,7 @@ pub struct Worker {
     pub ip_address: Option<String>,
     pub status: WorkerStatus,
     pub telemetry: Option<WorkerTelemetryMeta>,
+    pub pid: Option<u32>,
 }
 
 impl Worker {
@@ -200,6 +223,7 @@ impl Worker {
             ip_address: None,
             status: WorkerStatus::Connected,
             telemetry: None,
+            pid: None,
         }
     }
 
@@ -219,6 +243,7 @@ impl Worker {
             ip_address: Some(ip_address),
             status: WorkerStatus::Connected,
             telemetry: None,
+            pid: None,
         }
     }
 
@@ -286,5 +311,50 @@ impl Worker {
 
     pub async fn remove_invocation(&self, invocation_id: &Uuid) {
         self.invocations.write().await.remove(invocation_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::Outbound;
+    use tokio::sync::mpsc;
+
+    #[test]
+    fn worker_pid_defaults_to_none() {
+        let (tx, _rx) = mpsc::channel::<Outbound>(1);
+        let w = Worker::new(tx);
+        assert!(w.pid.is_none());
+    }
+
+    #[test]
+    fn unregister_worker_does_not_panic_with_unknown_id() {
+        crate::modules::observability::metrics::ensure_default_meter();
+        let registry = WorkerRegistry::new();
+        // should not panic — worker already removed or never existed
+        registry.unregister_worker(&uuid::Uuid::new_v4());
+    }
+
+    #[test]
+    fn update_worker_metadata_stores_pid() {
+        crate::modules::observability::metrics::ensure_default_meter();
+        let registry = WorkerRegistry::new();
+        let (tx, _rx) = mpsc::channel::<Outbound>(1);
+        let w = Worker::new(tx);
+        let worker_id = w.id;
+        registry.register_worker(w);
+
+        registry.update_worker_metadata(
+            &worker_id,
+            "node".to_string(),
+            Some("18.0.0".to_string()),
+            None,
+            None,
+            None,
+            Some(1234u32),
+        );
+
+        let stored = registry.get_worker(&worker_id).expect("worker exists");
+        assert_eq!(stored.pid, Some(1234u32));
     }
 }

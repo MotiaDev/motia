@@ -89,6 +89,8 @@ pub struct WorkerInfo {
     pub functions: Vec<String>,
     pub active_invocations: usize,
     pub latest_metrics: Option<WorkerMetrics>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pid: Option<u32>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -100,6 +102,8 @@ pub struct RegisterWorkerInput {
     pub name: Option<String>,
     pub os: Option<String>,
     pub telemetry: Option<WorkerTelemetryMeta>,
+    #[serde(default)]
+    pub pid: Option<u32>,
 }
 
 #[derive(Clone)]
@@ -203,6 +207,7 @@ impl WorkerModule {
                 functions,
                 active_invocations,
                 latest_metrics,
+                pid: w.pid,
             });
         }
         worker_infos
@@ -226,6 +231,7 @@ impl WorkerModule {
             input.name,
             input.os,
             input.telemetry,
+            input.pid,
         );
     }
 }
@@ -481,5 +487,26 @@ mod tests {
         assert_eq!(telemetry.language.as_deref(), Some("en-US"));
         assert_eq!(telemetry.project_name.as_deref(), Some("my-project"));
         assert_eq!(telemetry.framework.as_deref(), Some("express"));
+    }
+
+    #[test]
+    fn register_worker_input_accepts_pid() {
+        let json = serde_json::json!({
+            "_caller_worker_id": "550e8400-e29b-41d4-a716-446655440000",
+            "runtime": "node",
+            "pid": 9876
+        });
+        let input: RegisterWorkerInput = serde_json::from_value(json).expect("deserialize");
+        assert_eq!(input.pid, Some(9876u32));
+    }
+
+    #[test]
+    fn register_worker_input_pid_defaults_to_none() {
+        let json = serde_json::json!({
+            "_caller_worker_id": "550e8400-e29b-41d4-a716-446655440000",
+            "runtime": "python"
+        });
+        let input: RegisterWorkerInput = serde_json::from_value(json).expect("deserialize");
+        assert!(input.pid.is_none());
     }
 }
