@@ -90,6 +90,39 @@ impl EngineConfig {
         .to_string()
     }
 
+    /// Loads config strictly from the given file path.
+    /// Returns a clear error if the file does not exist or cannot be parsed.
+    pub fn config_file(path: &str) -> anyhow::Result<Self> {
+        let yaml_content = std::fs::read_to_string(path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                anyhow::anyhow!(
+                    "Config file not found: '{}'.\n\
+                     Hint: create a config.yaml or pass --use-default-config to run with defaults.",
+                    path
+                )
+            } else {
+                anyhow::anyhow!("Failed to read config file '{}': {}", path, e)
+            }
+        })?;
+        let yaml_content = Self::expand_env_vars(&yaml_content);
+        serde_yaml::from_str(&yaml_content)
+            .map_err(|e| anyhow::anyhow!("Failed to parse config file '{}': {}", path, e))
+    }
+
+    /// Returns a config with default port and default modules (from inventory).
+    /// Use this when explicitly opting in to run without a config file.
+    pub fn default_config() -> Self {
+        tracing::info!("Using default config (no config file)");
+        Self {
+            port: DEFAULT_PORT,
+            modules: default_module_entries(),
+        }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use `config_file()` for strict loading or `default_config()` for explicit defaults"
+    )]
     pub fn config_file_or_default(path: &str) -> anyhow::Result<Self> {
         match std::fs::read_to_string(path) {
             Ok(yaml_content) => {
@@ -282,10 +315,19 @@ impl ModuleEntry {
 ///
 /// # Examples
 ///
-/// Load from file or use defaults:
+/// Load from a config file (fails if missing):
 /// ```ignore
 /// EngineBuilder::new()
-///     .config_file_or_default("config.yaml")?
+///     .config_file("config.yaml")?
+///     .address("0.0.0.0:3000")
+///     .build().await?
+///     .serve().await?;
+/// ```
+///
+/// Run with built-in defaults (no config file):
+/// ```ignore
+/// EngineBuilder::new()
+///     .default_config()
 ///     .address("0.0.0.0:3000")
 ///     .build().await?
 ///     .serve().await?;
@@ -294,7 +336,7 @@ impl ModuleEntry {
 /// Register custom module:
 /// ```ignore
 /// EngineBuilder::new()
-///     .register::<MyCustomModule>("my::CustomModule")
+///     .register_module::<MyCustomModule>("my::CustomModule")
 ///     .add_module("my::CustomModule", Some(json!({"key": "value"})))
 ///     .build().await?
 ///     .serve().await?;
@@ -326,10 +368,28 @@ impl EngineBuilder {
     }
 
     /// Loads config from file if exists, otherwise uses defaults
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use `config_file()` for strict loading or `default_config()` for explicit defaults"
+    )]
+    #[allow(deprecated)]
     pub fn config_file_or_default(mut self, path: &str) -> anyhow::Result<Self> {
         let config = EngineConfig::config_file_or_default(path)?;
         self.config = Some(config);
         Ok(self)
+    }
+
+    /// Loads config strictly from file. Fails if file is missing or unparseable.
+    pub fn config_file(mut self, path: &str) -> anyhow::Result<Self> {
+        let config = EngineConfig::config_file(path)?;
+        self.config = Some(config);
+        Ok(self)
+    }
+
+    /// Uses default config (no file). Explicit opt-in to run without a config file.
+    pub fn default_config(mut self) -> Self {
+        self.config = Some(EngineConfig::default_config());
+        self
     }
 
     /// Registers a custom module type in the registry
@@ -491,6 +551,7 @@ async fn ws_handler(
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 
@@ -625,5 +686,62 @@ mod tests {
   timeout: 30"#;
         let output = EngineConfig::expand_env_vars(input);
         assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_config_file_returns_error_when_file_missing() {
+        let result = EngineConfig::config_file("/tmp/iii_nonexistent_config_12345.yaml");
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Config file not found"),
+            "Error should mention 'Config file not found', got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn test_config_file_loads_valid_yaml() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test_config.yaml");
+        let mut file = std::fs::File::create(&path).unwrap();
+        writeln!(file, "port: 9999\nmodules: []").unwrap();
+
+        let config = EngineConfig::config_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(config.port, 9999);
+        assert!(config.modules.is_empty());
+    }
+
+    #[test]
+    fn test_config_file_error_message_includes_path() {
+        let path = "/tmp/iii_this_does_not_exist_67890.yaml";
+        let result = EngineConfig::config_file(path);
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains(path),
+            "Error should include the path '{}', got: {}",
+            path,
+            err_msg
+        );
+    }
+
+    #[test]
+    fn test_default_config_returns_default_port_and_default_modules() {
+        let config = EngineConfig::default_config();
+        assert_eq!(config.port, DEFAULT_PORT);
+        // Default modules come from inventory — at minimum it shouldn't panic
+    }
+
+    #[test]
+    fn test_engine_builder_config_file_errors_on_missing() {
+        let result = EngineBuilder::new().config_file("/tmp/iii_builder_nonexistent_99999.yaml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_builder_default_config_succeeds() {
+        // Should not panic — builder is usable with defaults
+        let _builder = EngineBuilder::new().default_config();
     }
 }
