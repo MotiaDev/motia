@@ -426,7 +426,7 @@ if [[ -z "$binary_path" ]]; then
   if command -v jq >/dev/null 2>&1; then
     asset_url=$(printf '%s' "$json" \
       | jq -r --arg bn "$BIN_NAME" --arg target "$target" \
-        '.assets[] | select((.name | startswith($bn + "-")) and (.name | contains($target)) and (.name | test("\\.(tar\\.gz|tgz|zip)$"))) | .browser_download_url' \
+        '.assets[] | select((.name | startswith($bn + "-" + $target)) and (.name | test("\\.(tar\\.gz|tgz|zip)$"))) | .browser_download_url' \
       | head -n 1)
   else
     asset_url=$(printf '%s' "$json" \
