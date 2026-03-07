@@ -61,13 +61,13 @@ jobs:
 
       - name: Download pre-built binary
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.release_tag }}
+          VERSION: ${{ needs.setup.outputs.version }}
           BIN_NAME: iii
           TARGET: ${{ matrix.target }}
         run: |
           TARBALL="${BIN_NAME}-${TARGET}.tar.gz"
-          gh release download "$TAG" --pattern "$TARBALL" --repo "${{ github.repository }}"
+          curl -L --fail -o "$TARBALL" \
+            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${TARBALL}"
           tar -xzf "$TARBALL"
           chmod +x "$BIN_NAME"
           mv "$BIN_NAME" "engine/iii-${{ matrix.docker_arch }}"
