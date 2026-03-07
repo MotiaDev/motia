@@ -232,14 +232,13 @@ jobs:
       - name: Test formula locally
         env:
           BIN_NAME: ${{ inputs.bin_name }}
-          FORMULA_FILE: ${{ inputs.formula_path }}
-          HOMEBREW_NO_AUTO_UPDATE: "1"
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: |
-          brew audit --new "homebrew-tap/${FORMULA_FILE}" || true
-          brew install "homebrew-tap/${FORMULA_FILE}"
+          brew tap iii-hq/tap "$GITHUB_WORKSPACE/homebrew-tap"
+          brew audit --new "iii-hq/tap/${BIN_NAME}" || true
+          brew install "iii-hq/tap/${BIN_NAME}"
           "${BIN_NAME}" --version
           brew uninstall "${BIN_NAME}"
+          brew untap iii-hq/tap
 
       - name: Commit and push changes
         if: inputs.dry_run != true
